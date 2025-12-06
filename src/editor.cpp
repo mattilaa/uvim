@@ -1,0 +1,2934 @@
+#include "editor.h"
+#include "terminal.h"
+#include <algorithm>
+#include <cctype>
+#include <climits>
+#include <cstring>
+#include <ctime>
+#include <dirent.h>
+#include <fstream>
+#include <iomanip>
+#include <memory>
+#include <pwd.h>
+#include <sstream>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+Editor::Editor()
+{
+    Terminal::enableRawMode();
+    Terminal::getWindowSize(screenRows, screenCols);
+    screenRows -= 2; // Status bar and message bar
+
+    // Create initial empty buffer
+    createNewBuffer();
+    saveState();
+}
+
+Editor::~Editor()
+{
+    Terminal::clearScreen();
+    Terminal::moveCursor(1, 1);
+}
+
+// Buffer Management Functions
+void Editor::createNewBuffer()
+{
+    auto buffer = std::make_unique<Buffer>();
+    buffers.push_back(std::move(buffer));
+    currentBufferIndex = buffers.size() - 1;
+    updateCurrentBufferPointers();
+    needsFullRedraw = true;
+}
+
+void Editor::updateCurrentBufferPointers()
+{
+    if(currentBufferIndex >= 0 && currentBufferIndex < buffers.size())
+    {
+        currentBuffer = buffers[currentBufferIndex].get();
+        lines = &currentBuffer->lines;
+        filename = &currentBuffer->filename;
+        dirty = &currentBuffer->dirty;
+        cursorX = &currentBuffer->cursorX;
+        cursorY = &currentBuffer->cursorY;
+        wantedX = &currentBuffer->wantedX;
+        offsetX = &currentBuffer->offsetX;
+        offsetY = &currentBuffer->offsetY;
+    }
+    else
+    {
+        createNewBuffer();
+    }
+}
+
+void Editor::switchToBuffer(int index)
+{
+    if(index >= 0 && index < buffers.size())
+    {
+        saveBufferState();
+        currentBufferIndex = index;
+        updateCurrentBufferPointers();
+        restoreBufferState();
+        needsFullRedraw = true;
+
+        std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
+                          "/" + std::to_string(buffers.size());
+        if(!filename->empty())
+        {
+            msg += ": " + *filename;
+        }
+        else
+        {
+            msg += ": [No Name]";
+        }
+        if(*dirty)
+        {
+            msg += " [+]";
+        }
+        setStatusMessage(msg);
+    }
+}
+
+void Editor::nextBuffer()
+{
+    if(buffers.size() > 1)
+    {
+        int nextIndex = (currentBufferIndex + 1) % buffers.size();
+        switchToBuffer(nextIndex);
+    }
+    else
+    {
+        setStatusMessage("No other buffers");
+    }
+}
+
+void Editor::previousBuffer()
+{
+    if(buffers.size() > 1)
+    {
+        int prevIndex = currentBufferIndex - 1;
+        if(prevIndex < 0)
+            prevIndex = buffers.size() - 1;
+        switchToBuffer(prevIndex);
+    }
+    else
+    {
+        setStatusMessage("No other buffers");
+    }
+}
+
+void Editor::closeCurrentBuffer()
+{
+    if(*dirty)
+    {
+        setStatusMessage("No write since last change (add ! to override)");
+        return;
+    }
+
+    if(buffers.size() == 1)
+    {
+        createNewBuffer();
+        buffers.erase(buffers.begin());
+        currentBufferIndex = 0;
+        updateCurrentBufferPointers();
+    }
+    else
+    {
+        buffers.erase(buffers.begin() + currentBufferIndex);
+        if(currentBufferIndex >= buffers.size())
+        {
+            currentBufferIndex = buffers.size() - 1;
+        }
+        updateCurrentBufferPointers();
+        restoreBufferState();
+    }
+
+    needsFullRedraw = true;
+    setStatusMessage("Buffer closed");
+}
+
+void Editor::listBuffers()
+{
+    std::stringstream ss;
+    ss << "Buffers: ";
+
+    for(size_t i = 0; i < buffers.size(); i++)
+    {
+        if(i == currentBufferIndex)
+            ss << "[";
+
+        ss << (i + 1) << ":";
+
+        if(!buffers[i]->filename.empty())
+        {
+            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
+            if(lastSlash != std::string::npos)
+                ss << buffers[i]->filename.substr(lastSlash + 1);
+            else
+                ss << buffers[i]->filename;
+        }
+        else
+        {
+            ss << "[No Name]";
+        }
+
+        if(buffers[i]->dirty)
+            ss << "+";
+
+        if(i == currentBufferIndex)
+            ss << "]";
+
+        if(i < buffers.size() - 1)
+            ss << " ";
+    }
+
+    setStatusMessage(ss.str());
+}
+
+int Editor::findBufferByFilename(const std::string& fname)
+{
+    for(size_t i = 0; i < buffers.size(); i++)
+    {
+        if(buffers[i]->filename == fname)
+            return i;
+    }
+    return -1;
+}
+
+void Editor::saveBufferState()
+{
+    // State is automatically saved in buffer structure
+}
+
+void Editor::restoreBufferState()
+{
+    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
+    {
+        setMode(NORMAL);
+    }
+}
+
+void Editor::setMode(Mode mode)
+{
+    Mode previousMode = currentMode;
+    currentMode = mode;
+    needsFullRedraw = true;
+
+    if(mode == NORMAL)
+    {
+        commandBuffer.clear();
+        repeatCount = 0;
+    }
+    else if(mode == COMMAND)
+    {
+        commandBuffer = ":";
+    }
+    else if(mode == VISUAL || mode == VISUAL_LINE)
+    {
+        currentBuffer->visualStartX = *cursorX;
+        currentBuffer->visualStartY = *cursorY;
+        currentBuffer->visualEndX = *cursorX;
+        currentBuffer->visualEndY = *cursorY;
+    }
+    else if(mode == SEARCH_FORWARD)
+    {
+        commandBuffer = "/";
+        searchQuery.clear();
+        savedCursorX = *cursorX;
+        savedCursorY = *cursorY;
+        searchForward = true;
+    }
+    else if(mode == SEARCH_BACKWARD)
+    {
+        commandBuffer = "?";
+        searchQuery.clear();
+        savedCursorX = *cursorX;
+        savedCursorY = *cursorY;
+        searchForward = false;
+    }
+    else if(mode == FILE_BROWSER)
+    {
+        if(fileList.empty() && !currentDirectory.empty())
+        {
+            loadDirectory(currentDirectory);
+        }
+    }
+    else if(mode == FUZZY_FIND)
+    {
+        /*
+        fuzzyQuery.clear();
+        allFiles.clear();
+        loadAllFiles(currentDirectory.empty() ? "." : currentDirectory,
+                     currentDirectory);
+        updateFuzzyMatches();
+        fuzzySelected = 0;
+        fuzzyOffset = 0;
+        */
+    }
+}
+
+std::string Editor::getModeString() const
+{
+    switch(currentMode)
+    {
+    case NORMAL:
+        return "NORMAL";
+    case INSERT:
+        return "INSERT";
+    case VISUAL:
+        return "VISUAL";
+    case VISUAL_LINE:
+        return "VISUAL LINE";
+    case COMMAND:
+        return "COMMAND";
+    case SEARCH_FORWARD:
+        return "/";
+    case SEARCH_BACKWARD:
+        return "?";
+    case FILE_BROWSER:
+        return "BROWSE";
+    case FUZZY_FIND:
+        return "FUZZY";
+    }
+    return "";
+}
+
+void Editor::openFile(const std::string& fname)
+{
+    // Check if file is already open in a buffer
+    int existingBufferIndex = findBufferByFilename(fname);
+    if(existingBufferIndex >= 0)
+    {
+        switchToBuffer(existingBufferIndex);
+        setStatusMessage("\"" + fname + "\" already open in buffer " +
+                         std::to_string(existingBufferIndex + 1));
+        return;
+    }
+
+    // Check if current buffer is empty and unnamed
+    if(currentBuffer && currentBuffer->lines.size() == 1 &&
+       currentBuffer->lines[0].empty() && currentBuffer->filename.empty() &&
+       !currentBuffer->dirty)
+    {
+        // Reuse current empty buffer
+    }
+    else
+    {
+        // Create new buffer for this file
+        createNewBuffer();
+    }
+
+    *filename = fname;
+    lines->clear();
+
+    std::ifstream file(*filename);
+    if(file.is_open())
+    {
+        std::string line;
+        while(std::getline(file, line))
+        {
+            if(!line.empty() && line.back() == '\r')
+            {
+                line.pop_back();
+            }
+            lines->push_back(line);
+        }
+        file.close();
+    }
+
+    if(lines->empty())
+    {
+        lines->push_back("");
+    }
+
+    *dirty = false;
+    *cursorX = *cursorY = 0;
+    *offsetX = *offsetY = 0;
+    currentBuffer->undoStack.clear();
+    currentBuffer->undoIndex = -1;
+    saveState();
+
+    setStatusMessage("\"" + *filename + "\" " + std::to_string(lines->size()) +
+                     " lines [Buffer " +
+                     std::to_string(currentBufferIndex + 1) + "]");
+}
+
+void Editor::saveFile()
+{
+    if(filename->empty())
+    {
+        setStatusMessage("No file name");
+        return;
+    }
+
+    std::ofstream file(*filename);
+    if(file.is_open())
+    {
+        for(const auto& line : *lines)
+        {
+            file << line << '\n';
+        }
+        file.close();
+        *dirty = false;
+        setStatusMessage("\"" + *filename + "\" " +
+                         std::to_string(lines->size()) + "L written");
+    }
+    else
+    {
+        setStatusMessage("Can't save! I/O error");
+    }
+}
+
+// Movement implementations
+void Editor::moveLeft(int count)
+{
+    while(count-- > 0)
+    {
+        if(*cursorX > 0)
+        {
+            (*cursorX)--;
+        }
+        else if(*cursorY > 0)
+        {
+            (*cursorY)--;
+            *cursorX = (*lines)[*cursorY].length();
+        }
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveRight(int count)
+{
+    while(count-- > 0)
+    {
+        if(*cursorY < lines->size())
+        {
+            if(*cursorX < (*lines)[*cursorY].length())
+            {
+                (*cursorX)++;
+            }
+            else if(*cursorY < lines->size() - 1)
+            {
+                (*cursorY)++;
+                *cursorX = 0;
+            }
+        }
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveUp(int count)
+{
+    while(count-- > 0 && *cursorY > 0)
+    {
+        (*cursorY)--;
+    }
+    *cursorX = std::min(*wantedX, (int)(*lines)[*cursorY].length());
+}
+
+void Editor::moveDown(int count)
+{
+    while(count-- > 0 && *cursorY < lines->size() - 1)
+    {
+        (*cursorY)++;
+    }
+    *cursorX = std::min(*wantedX, (int)(*lines)[*cursorY].length());
+}
+
+void Editor::moveWordForward()
+{
+    if(*cursorY >= lines->size())
+        return;
+
+    const std::string& line = (*lines)[*cursorY];
+
+    while(*cursorX < line.length() && isWordChar(line[*cursorX]))
+    {
+        (*cursorX)++;
+    }
+
+    while(*cursorX < line.length() && !isWordChar(line[*cursorX]))
+    {
+        (*cursorX)++;
+    }
+
+    if(*cursorX >= line.length() && *cursorY < lines->size() - 1)
+    {
+        (*cursorY)++;
+        *cursorX = 0;
+        const std::string& newLine = (*lines)[*cursorY];
+        while(*cursorX < newLine.length() && !isWordChar(newLine[*cursorX]))
+        {
+            (*cursorX)++;
+        }
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveWordBackward()
+{
+    if(*cursorX > 0)
+    {
+        const std::string& line = (*lines)[*cursorY];
+        (*cursorX)--;
+
+        while(*cursorX > 0 && !isWordChar(line[*cursorX]))
+        {
+            (*cursorX)--;
+        }
+
+        while(*cursorX > 0 && isWordChar(line[*cursorX - 1]))
+        {
+            (*cursorX)--;
+        }
+    }
+    else if(*cursorY > 0)
+    {
+        (*cursorY)--;
+        *cursorX = (*lines)[*cursorY].length();
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveToLineStart()
+{
+    *cursorX = 0;
+    *wantedX = *cursorX;
+}
+
+void Editor::moveToLineEnd()
+{
+    if(*cursorY < lines->size())
+    {
+        *cursorX = (*lines)[*cursorY].length();
+        if(*cursorX > 0 && currentMode == NORMAL)
+        {
+            (*cursorX)--;
+        }
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveToFirstLine()
+{
+    *cursorY = 0;
+    *cursorX = 0;
+    *wantedX = *cursorX;
+}
+
+void Editor::moveToLastLine()
+{
+    *cursorY = lines->size() - 1;
+    *cursorX = 0;
+    *wantedX = *cursorX;
+}
+
+void Editor::moveToLine(int line)
+{
+    *cursorY = std::max(0, std::min(line, (int)lines->size() - 1));
+    *cursorX = 0;
+}
+
+bool Editor::isWordChar(char c) const
+{
+    return std::isalnum(c) || c == '_';
+}
+
+// Editing operations
+void Editor::insertChar(char c)
+{
+    if(*cursorY >= lines->size())
+    {
+        lines->push_back("");
+    }
+
+    (*lines)[*cursorY].insert(*cursorX, 1, c);
+    (*cursorX)++;
+    *dirty = true;
+}
+
+void Editor::insertNewline()
+{
+    if(*cursorY >= lines->size())
+    {
+        lines->push_back("");
+    }
+    else if(*cursorX >= (*lines)[*cursorY].length())
+    {
+        lines->insert(lines->begin() + *cursorY + 1, "");
+    }
+    else
+    {
+        std::string remainder = (*lines)[*cursorY].substr(*cursorX);
+        (*lines)[*cursorY] = (*lines)[*cursorY].substr(0, *cursorX);
+        lines->insert(lines->begin() + *cursorY + 1, remainder);
+    }
+
+    (*cursorY)++;
+    *cursorX = 0;
+    *dirty = true;
+    needsFullRedraw = true;
+}
+
+void Editor::deleteChar()
+{
+    if(*cursorY >= lines->size())
+        return;
+    if(*cursorX == 0 && *cursorY == 0)
+        return;
+
+    if(*cursorX > 0)
+    {
+        (*lines)[*cursorY].erase(*cursorX - 1, 1);
+        (*cursorX)--;
+    }
+    else
+    {
+        *cursorX = (*lines)[*cursorY - 1].length();
+        (*lines)[*cursorY - 1] += (*lines)[*cursorY];
+        lines->erase(lines->begin() + *cursorY);
+        (*cursorY)--;
+        needsFullRedraw = true;
+    }
+    *dirty = true;
+}
+
+void Editor::deleteCharForward()
+{
+    if(*cursorY >= lines->size())
+        return;
+
+    if(*cursorX < (*lines)[*cursorY].length())
+    {
+        (*lines)[*cursorY].erase(*cursorX, 1);
+    }
+    else if(*cursorY < lines->size() - 1)
+    {
+        (*lines)[*cursorY] += (*lines)[*cursorY + 1];
+        lines->erase(lines->begin() + *cursorY + 1);
+        needsFullRedraw = true;
+    }
+    *dirty = true;
+}
+
+void Editor::deleteLine()
+{
+    if(lines->empty())
+        return;
+
+    yankLine();
+
+    lines->erase(lines->begin() + *cursorY);
+    if(lines->empty())
+    {
+        lines->push_back("");
+    }
+
+    if(*cursorY >= lines->size())
+    {
+        *cursorY = lines->size() - 1;
+    }
+
+    *cursorX = 0;
+    *dirty = true;
+    needsFullRedraw = true;
+}
+
+void Editor::deleteToLineEnd()
+{
+    if(*cursorY >= lines->size())
+        return;
+
+    if(*cursorX < (*lines)[*cursorY].length())
+    {
+        yankBuffer = (*lines)[*cursorY].substr(*cursorX);
+        (*lines)[*cursorY] = (*lines)[*cursorY].substr(0, *cursorX);
+        *dirty = true;
+    }
+}
+
+void Editor::yankLine()
+{
+    if(*cursorY < lines->size())
+    {
+        yankBuffer = (*lines)[*cursorY] + "\n";
+        setStatusMessage("Line yanked");
+    }
+}
+
+void Editor::yankToLineEnd()
+{
+    if(*cursorY < lines->size() && *cursorX < (*lines)[*cursorY].length())
+    {
+        yankBuffer = (*lines)[*cursorY].substr(*cursorX);
+        setStatusMessage("Yanked to line end");
+    }
+}
+
+void Editor::yankSelection()
+{
+    yankBuffer.clear();
+
+    if(currentMode == VISUAL_LINE)
+    {
+        int startY =
+            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        int endY =
+            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+
+        for(int i = startY; i <= endY; i++)
+        {
+            yankBuffer += (*lines)[i] + "\n";
+        }
+        setStatusMessage(std::to_string(endY - startY + 1) + " lines yanked");
+    }
+    else
+    {
+        int startY, startX, endY, endX;
+        getSelectionBounds(startY, startX, endY, endX);
+
+        if(startY == endY)
+        {
+            yankBuffer = (*lines)[startY].substr(startX, endX - startX + 1);
+        }
+        else
+        {
+            yankBuffer = (*lines)[startY].substr(startX) + "\n";
+            for(int i = startY + 1; i < endY; i++)
+            {
+                yankBuffer += (*lines)[i] + "\n";
+            }
+            yankBuffer += (*lines)[endY].substr(0, endX + 1);
+        }
+        setStatusMessage("Selection yanked");
+    }
+}
+
+void Editor::pasteAfter()
+{
+    if(yankBuffer.empty())
+        return;
+
+    if(yankBuffer.back() == '\n')
+    {
+        // Line-wise paste
+        lines->insert(lines->begin() + *cursorY + 1, "");
+        (*cursorY)++;
+        *cursorX = 0;
+
+        std::istringstream ss(yankBuffer);
+        std::string line;
+        int insertPos = *cursorY;
+
+        while(std::getline(ss, line))
+        {
+            if(insertPos == *cursorY)
+            {
+                (*lines)[insertPos] = line;
+            }
+            else
+            {
+                lines->insert(lines->begin() + insertPos, line);
+            }
+            insertPos++;
+        }
+    }
+    else
+    {
+        // Character-wise paste
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        (*lines)[*cursorY].insert(*cursorX, yankBuffer);
+        *cursorX += yankBuffer.length() - 1;
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
+    saveState();
+    setStatusMessage("Pasted");
+}
+
+void Editor::pasteBefore()
+{
+    if(yankBuffer.empty())
+        return;
+
+    if(yankBuffer.back() == '\n')
+    {
+        // Line-wise paste
+        std::istringstream ss(yankBuffer);
+        std::string line;
+        int insertPos = *cursorY;
+
+        while(std::getline(ss, line))
+        {
+            lines->insert(lines->begin() + insertPos, line);
+            insertPos++;
+        }
+        *cursorX = 0;
+    }
+    else
+    {
+        // Character-wise paste
+        (*lines)[*cursorY].insert(*cursorX, yankBuffer);
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
+    saveState();
+    setStatusMessage("Pasted");
+}
+
+// Visual mode functions
+void Editor::startVisualMode()
+{
+    setMode(VISUAL);
+    setStatusMessage("-- VISUAL --");
+}
+
+void Editor::startVisualLineMode()
+{
+    setMode(VISUAL_LINE);
+    setStatusMessage("-- VISUAL LINE --");
+}
+
+void Editor::updateVisualSelection()
+{
+    currentBuffer->visualEndX = *cursorX;
+    currentBuffer->visualEndY = *cursorY;
+}
+
+bool Editor::isInSelection(int row, int col)
+{
+    if(currentMode != VISUAL && currentMode != VISUAL_LINE)
+        return false;
+
+    if(currentMode == VISUAL_LINE)
+    {
+        int startY =
+            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        int endY =
+            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        return row >= startY && row <= endY;
+    }
+
+    int startY, startX, endY, endX;
+    getSelectionBounds(startY, startX, endY, endX);
+
+    if(row < startY || row > endY)
+        return false;
+    if(row == startY && row == endY)
+        return col >= startX && col <= endX;
+    if(row == startY)
+        return col >= startX;
+    if(row == endY)
+        return col <= endX;
+    return true;
+}
+
+void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
+{
+    if(currentBuffer->visualStartY < currentBuffer->visualEndY ||
+       (currentBuffer->visualStartY == currentBuffer->visualEndY &&
+        currentBuffer->visualStartX <= currentBuffer->visualEndX))
+    {
+        startY = currentBuffer->visualStartY;
+        startX = currentBuffer->visualStartX;
+        endY = currentBuffer->visualEndY;
+        endX = currentBuffer->visualEndX;
+    }
+    else
+    {
+        startY = currentBuffer->visualEndY;
+        startX = currentBuffer->visualEndX;
+        endY = currentBuffer->visualStartY;
+        endX = currentBuffer->visualStartX;
+    }
+}
+
+void Editor::deleteSelection()
+{
+    if(currentMode == VISUAL_LINE)
+    {
+        int startY =
+            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        int endY =
+            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+
+        yankSelection();
+
+        for(int i = endY; i >= startY; i--)
+        {
+            lines->erase(lines->begin() + i);
+        }
+
+        if(lines->empty())
+        {
+            lines->push_back("");
+        }
+
+        *cursorY = std::min(startY, (int)lines->size() - 1);
+        *cursorX = 0;
+    }
+    else
+    {
+        int startY, startX, endY, endX;
+        getSelectionBounds(startY, startX, endY, endX);
+
+        if(startY == endY)
+        {
+            (*lines)[startY].erase(startX, endX - startX + 1);
+        }
+        else
+        {
+            (*lines)[startY] = (*lines)[startY].substr(0, startX) +
+                               (*lines)[endY].substr(endX + 1);
+            for(int i = endY; i > startY; i--)
+            {
+                lines->erase(lines->begin() + i);
+            }
+        }
+
+        *cursorY = startY;
+        *cursorX = startX;
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
+}
+
+// Search functions
+std::string Editor::toLowerCase(const std::string& str)
+{
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+    return result;
+}
+
+void Editor::startSearchForward()
+{
+    setMode(SEARCH_FORWARD);
+    clearSearch();
+}
+
+void Editor::startSearchBackward()
+{
+    setMode(SEARCH_BACKWARD);
+    clearSearch();
+}
+
+void Editor::findAllMatches()
+{
+    searchMatches.clear();
+    if(searchQuery.empty())
+        return;
+
+    std::string lowerQuery = toLowerCase(searchQuery);
+
+    for(int row = 0; row < lines->size(); row++)
+    {
+        std::string lowerLine = toLowerCase((*lines)[row]);
+        size_t pos = 0;
+
+        while((pos = lowerLine.find(lowerQuery, pos)) != std::string::npos)
+        {
+            SearchMatch match;
+            match.row = row;
+            match.col = pos;
+            match.len = searchQuery.length();
+            searchMatches.push_back(match);
+            pos++;
+        }
+    }
+
+    if(!searchMatches.empty())
+    {
+        setStatusMessage(std::to_string(searchMatches.size()) +
+                         " matches found");
+    }
+    else
+    {
+        setStatusMessage("Pattern not found: " + searchQuery);
+    }
+}
+
+void Editor::jumpToMatch(int index)
+{
+    if(index >= 0 && index < searchMatches.size())
+    {
+        currentMatchIndex = index;
+        const SearchMatch& match = searchMatches[index];
+        *cursorY = match.row;
+        *cursorX = match.col;
+        adjustViewport();
+    }
+}
+
+void Editor::performSearch()
+{
+    if(searchQuery.empty())
+    {
+        searchQuery = currentBuffer->lastSearchQuery;
+        searchForward = currentBuffer->lastSearchForward;
+    }
+
+    if(searchQuery.empty())
+    {
+        setStatusMessage("No previous search");
+        return;
+    }
+
+    currentBuffer->lastSearchQuery = searchQuery;
+    currentBuffer->lastSearchForward = searchForward;
+
+    findAllMatches();
+
+    if(searchMatches.empty())
+    {
+        return;
+    }
+
+    int bestMatch = -1;
+
+    if(searchForward)
+    {
+        for(int i = 0; i < searchMatches.size(); i++)
+        {
+            const SearchMatch& match = searchMatches[i];
+            if(match.row > *cursorY ||
+               (match.row == *cursorY && match.col > *cursorX))
+            {
+                bestMatch = i;
+                break;
+            }
+        }
+        if(bestMatch == -1 && !searchMatches.empty())
+        {
+            bestMatch = 0;
+            setStatusMessage("Search wrapped to top");
+        }
+    }
+    else
+    {
+        for(int i = searchMatches.size() - 1; i >= 0; i--)
+        {
+            const SearchMatch& match = searchMatches[i];
+            if(match.row < *cursorY ||
+               (match.row == *cursorY && match.col < *cursorX))
+            {
+                bestMatch = i;
+                break;
+            }
+        }
+        if(bestMatch == -1 && !searchMatches.empty())
+        {
+            bestMatch = searchMatches.size() - 1;
+            setStatusMessage("Search wrapped to bottom");
+        }
+    }
+
+    if(bestMatch != -1)
+    {
+        jumpToMatch(bestMatch);
+    }
+}
+
+void Editor::searchNext()
+{
+    if(searchMatches.empty())
+    {
+        if(!currentBuffer->lastSearchQuery.empty())
+        {
+            searchQuery = currentBuffer->lastSearchQuery;
+            searchForward = currentBuffer->lastSearchForward;
+            performSearch();
+        }
+        else
+        {
+            setStatusMessage("No previous search");
+        }
+        return;
+    }
+
+    int nextIndex = currentMatchIndex + 1;
+    if(nextIndex >= searchMatches.size())
+    {
+        nextIndex = 0;
+        setStatusMessage("Search wrapped to top");
+    }
+    jumpToMatch(nextIndex);
+}
+
+void Editor::searchPrevious()
+{
+    if(searchMatches.empty())
+    {
+        if(!currentBuffer->lastSearchQuery.empty())
+        {
+            searchQuery = currentBuffer->lastSearchQuery;
+            searchForward = !currentBuffer->lastSearchForward;
+            performSearch();
+        }
+        else
+        {
+            setStatusMessage("No previous search");
+        }
+        return;
+    }
+
+    int prevIndex = currentMatchIndex - 1;
+    if(prevIndex < 0)
+    {
+        prevIndex = searchMatches.size() - 1;
+        setStatusMessage("Search wrapped to bottom");
+    }
+    jumpToMatch(prevIndex);
+}
+
+void Editor::clearSearch()
+{
+    searchMatches.clear();
+    currentMatchIndex = -1;
+}
+
+void Editor::cancelSearch()
+{
+    *cursorX = savedCursorX;
+    *cursorY = savedCursorY;
+    clearSearch();
+    setMode(NORMAL);
+    statusMessage.clear();
+}
+
+bool Editor::isInSearchMatch(int row, int col)
+{
+    for(const auto& match : searchMatches)
+    {
+        if(match.row == row && col >= match.col && col < match.col + match.len)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// File browser functions
+void Editor::openFileBrowser(const std::string& path)
+{
+    if(currentMode != FILE_BROWSER)
+    {
+        previousFile = *filename;
+    }
+
+    char resolvedPath[PATH_MAX];
+    if(realpath(path.c_str(), resolvedPath))
+    {
+        currentDirectory = resolvedPath;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+        {
+            currentDirectory = cwd;
+        }
+        else
+        {
+            currentDirectory = ".";
+        }
+    }
+
+    loadDirectory(currentDirectory);
+
+    if(fileList.empty())
+    {
+        setStatusMessage("Failed to load directory: " + currentDirectory);
+        return;
+    }
+
+    setMode(FILE_BROWSER);
+    browserCursor = 0;
+    browserOffset = 0;
+    needsFullRedraw = true;
+}
+
+void Editor::loadDirectory(const std::string& path)
+{
+    fileList.clear();
+
+    DIR* dir = opendir(path.c_str());
+    if(!dir)
+    {
+        dir = opendir(".");
+        if(!dir)
+        {
+            setStatusMessage("Cannot open any directory!");
+            return;
+        }
+        currentDirectory = ".";
+    }
+
+    if(currentDirectory != "/" && currentDirectory != "")
+    {
+        FileEntry parent;
+        parent.name = "..";
+        parent.path = currentDirectory + "/..";
+        parent.isDirectory = true;
+        parent.size = 0;
+        parent.modTime = 0;
+        fileList.push_back(parent);
+    }
+
+    struct dirent* entry;
+    while((entry = readdir(dir)))
+    {
+        std::string name = entry->d_name;
+
+        if(name == "." || name == "..")
+            continue;
+
+        if(!showHidden && name[0] == '.')
+            continue;
+
+        FileEntry fileEntry;
+        fileEntry.name = name;
+        fileEntry.path = currentDirectory + "/" + name;
+
+        struct stat fileStat;
+        if(stat(fileEntry.path.c_str(), &fileStat) == 0)
+        {
+            fileEntry.isDirectory = S_ISDIR(fileStat.st_mode);
+            fileEntry.size = fileStat.st_size;
+            fileEntry.modTime = fileStat.st_mtime;
+        }
+        else
+        {
+            fileEntry.isDirectory = (entry->d_type == DT_DIR);
+            fileEntry.size = 0;
+            fileEntry.modTime = 0;
+        }
+
+        fileList.push_back(fileEntry);
+    }
+
+    closedir(dir);
+    sortFileList();
+}
+
+void Editor::sortFileList()
+{
+    std::sort(fileList.begin(), fileList.end(),
+              [](const FileEntry& a, const FileEntry& b)
+              {
+                  if(a.name == "..")
+                      return true;
+                  if(b.name == "..")
+                      return false;
+
+                  if(a.isDirectory != b.isDirectory)
+                      return a.isDirectory;
+
+                  std::string aLower = a.name;
+                  std::string bLower = b.name;
+                  std::transform(aLower.begin(), aLower.end(), aLower.begin(),
+                                 ::tolower);
+                  std::transform(bLower.begin(), bLower.end(), bLower.begin(),
+                                 ::tolower);
+                  return aLower < bLower;
+              });
+}
+
+void Editor::navigateTo(const FileEntry& entry)
+{
+    if(entry.isDirectory)
+    {
+        openFileBrowser(entry.path);
+    }
+    else
+    {
+        openFile(entry.path);
+        setMode(NORMAL);
+        setStatusMessage("Opened: " + entry.name);
+    }
+}
+
+void Editor::toggleHidden()
+{
+    showHidden = !showHidden;
+    loadDirectory(currentDirectory);
+    setStatusMessage(showHidden ? "Showing hidden files"
+                                : "Hiding hidden files");
+}
+
+std::string Editor::formatFileSize(size_t size)
+{
+    const char* units[] = {"B", "K", "M", "G", "T"};
+    int unitIndex = 0;
+    double displaySize = size;
+
+    while(displaySize >= 1024 && unitIndex < 4)
+    {
+        displaySize /= 1024;
+        unitIndex++;
+    }
+
+    std::stringstream ss;
+    if(unitIndex == 0)
+    {
+        ss << std::setw(5) << size << units[unitIndex];
+    }
+    else
+    {
+        ss << std::fixed << std::setprecision(1) << std::setw(5) << displaySize
+           << units[unitIndex];
+    }
+
+    return ss.str();
+}
+
+std::string Editor::formatFileTime(time_t time)
+{
+    char buffer[20];
+    struct tm* timeinfo = localtime(&time);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", timeinfo);
+    return std::string(buffer);
+}
+
+// Undo/Redo functions
+void Editor::saveState()
+{
+    if(!currentBuffer)
+        return;
+
+    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
+    {
+        currentBuffer->undoStack.erase(currentBuffer->undoStack.begin() +
+                                           currentBuffer->undoIndex + 1,
+                                       currentBuffer->undoStack.end());
+    }
+
+    Buffer::EditState state;
+    state.lines = *lines;
+    state.cursorX = *cursorX;
+    state.cursorY = *cursorY;
+    currentBuffer->undoStack.push_back(state);
+    currentBuffer->undoIndex++;
+
+    if(currentBuffer->undoStack.size() > 100)
+    {
+        currentBuffer->undoStack.erase(currentBuffer->undoStack.begin());
+        currentBuffer->undoIndex--;
+    }
+}
+
+void Editor::undo()
+{
+    if(!currentBuffer)
+        return;
+
+    if(currentBuffer->undoIndex > 0)
+    {
+        currentBuffer->undoIndex--;
+        const Buffer::EditState& state =
+            currentBuffer->undoStack[currentBuffer->undoIndex];
+        *lines = state.lines;
+        *cursorX = state.cursorX;
+        *cursorY = state.cursorY;
+        *dirty = true;
+        needsFullRedraw = true;
+        setStatusMessage("Undo!");
+    }
+    else
+    {
+        setStatusMessage("Already at oldest change");
+    }
+}
+
+void Editor::redo()
+{
+    if(!currentBuffer)
+        return;
+
+    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
+    {
+        currentBuffer->undoIndex++;
+        const Buffer::EditState& state =
+            currentBuffer->undoStack[currentBuffer->undoIndex];
+        *lines = state.lines;
+        *cursorX = state.cursorX;
+        *cursorY = state.cursorY;
+        *dirty = true;
+        needsFullRedraw = true;
+        setStatusMessage("Redo!");
+    }
+    else
+    {
+        setStatusMessage("Already at newest change");
+    }
+}
+
+// Viewport adjustment with scroll margins
+void Editor::adjustViewport()
+{
+    if(*cursorY < *offsetY)
+    {
+        *offsetY = std::max(0, *cursorY);
+    }
+    else if(*cursorY >= *offsetY + screenRows)
+    {
+        *offsetY = std::min((int)lines->size() - screenRows,
+                            *cursorY - screenRows + 1);
+    }
+
+    if(*cursorX < *offsetX)
+    {
+        *offsetX = *cursorX;
+    }
+    else if(*cursorX >= *offsetX + screenCols)
+    {
+        *offsetX = *cursorX - screenCols + 1;
+    }
+}
+
+// Drawing functions
+void Editor::drawRows()
+{
+    for(int y = 0; y < screenRows; y++)
+    {
+        if(y > 0)
+        {
+            Terminal::write("\r\n");
+        }
+
+        Terminal::write("\x1b[K");
+
+        int fileRow = y + *offsetY;
+
+        if(fileRow >= lines->size())
+        {
+            Terminal::write("\x1b[34m~\x1b[39m");
+        }
+        else
+        {
+            const std::string& line = (*lines)[fileRow];
+            int start = *offsetX;
+            int len = line.length() - start;
+
+            if(len > 0)
+            {
+                if(len > screenCols)
+                    len = screenCols;
+
+                for(int x = 0; x < len; x++)
+                {
+                    int col = x + *offsetX;
+                    if(col < line.length())
+                    {
+                        bool highlighted = false;
+
+                        if(isInSelection(fileRow, col))
+                        {
+                            Terminal::write("\x1b[7m");
+                            highlighted = true;
+                        }
+                        else if(isInSearchMatch(fileRow, col))
+                        {
+                            Terminal::write("\x1b[43m\x1b[30m");
+                            highlighted = true;
+                        }
+
+                        Terminal::write(line[col]);
+
+                        if(highlighted)
+                        {
+                            Terminal::write("\x1b[m");
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Editor::drawStatusBar()
+{
+    Terminal::write("\r\n\x1b[K\x1b[7m");
+
+    std::string status = " " + getModeString() + " | ";
+
+    // Add buffer indicator
+    if(buffers.size() > 1)
+    {
+        status += "[" + std::to_string(currentBufferIndex + 1) + "/" +
+                  std::to_string(buffers.size()) + "] ";
+    }
+
+    status += (filename->empty() ? "[No Name]" : *filename);
+    if(*dirty)
+        status += " [+]";
+
+    Terminal::write(status);
+
+    char rightStatus[32];
+    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
+             *cursorX + 1);
+
+    int padding = screenCols - status.length() - strlen(rightStatus);
+    while(padding-- > 0)
+        Terminal::write(' ');
+    Terminal::write(rightStatus);
+
+    Terminal::write("\x1b[m");
+}
+
+void Editor::drawMessageBar()
+{
+    Terminal::write("\r\n\x1b[K");
+
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+    {
+        Terminal::write(commandBuffer);
+        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
+        {
+            if(!searchMatches.empty())
+            {
+                std::string matchInfo =
+                    " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                    std::to_string(searchMatches.size()) + "]";
+                Terminal::write(matchInfo);
+            }
+            else if(!searchQuery.empty())
+            {
+                Terminal::write(" [No matches]");
+            }
+        }
+    }
+    else if(!statusMessage.empty())
+    {
+        int msglen = std::min((int)statusMessage.length(), screenCols);
+        Terminal::write(statusMessage.substr(0, msglen));
+    }
+}
+
+void Editor::drawFileBrowser()
+{
+    std::string output;
+    output.reserve(screenRows * screenCols * 2);
+
+    output += "\x1b[H";
+
+    // Draw header
+    output += "\x1b[K";
+    output += "\x1b[1m";
+    output += "  " + currentDirectory;
+    output += "\x1b[m";
+    output += "\r\n\x1b[K";
+    output += "\x1b[90m";
+    output += "  [Enter: open] [q: quit] [.: toggle hidden] [-: parent]";
+    output += "\x1b[39m";
+
+    int availableRows = screenRows - 2;
+
+    // Draw file entries
+    for(int i = 0; i < availableRows && i + browserOffset < fileList.size();
+        i++)
+    {
+        output += "\r\n\x1b[K";
+
+        int index = i + browserOffset;
+        const FileEntry& entry = fileList[index];
+
+        if(index == browserCursor)
+        {
+            output += "\x1b[7m";
+        }
+
+        if(entry.isDirectory)
+        {
+            output += "\x1b[34m";
+            output += "  ▶ ";
+        }
+        else
+        {
+            std::string ext;
+            size_t dotPos = entry.name.find_last_of('.');
+            if(dotPos != std::string::npos)
+            {
+                ext = entry.name.substr(dotPos);
+            }
+
+            if(ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp")
+            {
+                output += "\x1b[32m";
+                output += "  ◆ ";
+            }
+            else if(ext == ".txt" || ext == ".md")
+            {
+                output += "\x1b[37m";
+                output += "  ○ ";
+            }
+            else if(ext == ".sh" || ext == ".py" || ext == ".js")
+            {
+                output += "\x1b[33m";
+                output += "  ★ ";
+            }
+            else
+            {
+                output += "\x1b[37m";
+                output += "  ○ ";
+            }
+        }
+
+        std::string displayName = entry.name;
+        if(entry.isDirectory && entry.name != "..")
+        {
+            displayName += "/";
+        }
+
+        int maxNameLen = screenCols - 30;
+        if(displayName.length() > maxNameLen)
+        {
+            displayName = displayName.substr(0, maxNameLen - 3) + "...";
+        }
+
+        output += displayName;
+
+        if(entry.name != "..")
+        {
+            std::string info = formatFileSize(entry.size) + "  " +
+                               formatFileTime(entry.modTime);
+
+            int padding = screenCols - 5 - displayName.length() - info.length();
+            if(padding > 0)
+            {
+                output.append(padding, ' ');
+            }
+
+            output += "\x1b[90m";
+            output += info;
+        }
+
+        output += "\x1b[m";
+    }
+
+    // Fill remaining rows
+    for(int i = fileList.size() - browserOffset; i < availableRows; i++)
+    {
+        output += "\r\n\x1b[K";
+        output += "\x1b[34m~\x1b[39m";
+    }
+
+    // Status bar
+    output += "\r\n\x1b[K\x1b[7m";
+
+    std::string status = " BROWSE | " + currentDirectory;
+    std::string right = " " + std::to_string(browserCursor + 1) + "/" +
+                        std::to_string(fileList.size()) + " ";
+
+    output += status;
+    int padding = screenCols - status.length() - right.length();
+    if(padding > 0)
+    {
+        output.append(padding, ' ');
+    }
+    output += right;
+    output += "\x1b[m";
+
+    // Message bar
+    output += "\r\n\x1b[K";
+    if(!statusMessage.empty())
+    {
+        output += statusMessage.substr(
+            0, std::min((size_t)screenCols, statusMessage.length()));
+    }
+
+    Terminal::write(output);
+    Terminal::flush();
+}
+
+// Optimized drawing functions
+void Editor::drawScrollUpdate(int scrollDelta)
+{
+    if(abs(scrollDelta) >= screenRows - 2)
+    {
+        drawFullScreen();
+        return;
+    }
+
+    std::string output;
+    output.reserve(screenRows * screenCols * 2);
+
+    output += "\x1b[?25l";
+
+    if(scrollDelta > 0)
+    {
+        char scrollCmd[64];
+        snprintf(scrollCmd, sizeof(scrollCmd), "\x1b[1;%dr", screenRows);
+        output += scrollCmd;
+
+        output += "\x1b[H";
+        for(int i = 0; i < scrollDelta; i++)
+        {
+            output += "\x1b[M";
+        }
+
+        for(int i = 0; i < scrollDelta; i++)
+        {
+            int row = screenRows - scrollDelta + i;
+            int fileRow = row + *offsetY;
+
+            char moveBuf[32];
+            snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", row + 1);
+            output += moveBuf;
+            output += "\x1b[K";
+
+            if(fileRow < lines->size())
+            {
+                const std::string& line = (*lines)[fileRow];
+                int start = *offsetX;
+                int len = std::min((int)line.length() - start, screenCols);
+
+                if(len > 0)
+                {
+                    bool needsHighlight = false;
+                    for(int x = 0; x < len; x++)
+                    {
+                        int col = x + *offsetX;
+                        if(isInSelection(fileRow, col) ||
+                           isInSearchMatch(fileRow, col))
+                        {
+                            needsHighlight = true;
+                            break;
+                        }
+                    }
+
+                    if(!needsHighlight)
+                    {
+                        output.append(line, start, len);
+                    }
+                    else
+                    {
+                        for(int x = 0; x < len; x++)
+                        {
+                            int col = x + *offsetX;
+                            bool highlighted = false;
+
+                            if(isInSelection(fileRow, col))
+                            {
+                                output += "\x1b[7m";
+                                highlighted = true;
+                            }
+                            else if(isInSearchMatch(fileRow, col))
+                            {
+                                output += "\x1b[43m\x1b[30m";
+                                highlighted = true;
+                            }
+
+                            output += line[col];
+
+                            if(highlighted)
+                            {
+                                output += "\x1b[m";
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                output += "\x1b[34m~\x1b[39m";
+            }
+        }
+
+        output += "\x1b[r";
+    }
+    else if(scrollDelta < 0)
+    {
+        int absDelta = -scrollDelta;
+
+        char scrollCmd[64];
+        snprintf(scrollCmd, sizeof(scrollCmd), "\x1b[1;%dr", screenRows);
+        output += scrollCmd;
+
+        output += "\x1b[H";
+        for(int i = 0; i < absDelta; i++)
+        {
+            output += "\x1b[L";
+        }
+
+        for(int i = 0; i < absDelta; i++)
+        {
+            int fileRow = i + *offsetY;
+
+            char moveBuf[32];
+            snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", i + 1);
+            output += moveBuf;
+            output += "\x1b[K";
+
+            if(fileRow < lines->size())
+            {
+                const std::string& line = (*lines)[fileRow];
+                int start = *offsetX;
+                int len = std::min((int)line.length() - start, screenCols);
+
+                if(len > 0)
+                {
+                    bool needsHighlight = false;
+                    for(int x = 0; x < len; x++)
+                    {
+                        int col = x + *offsetX;
+                        if(isInSelection(fileRow, col) ||
+                           isInSearchMatch(fileRow, col))
+                        {
+                            needsHighlight = true;
+                            break;
+                        }
+                    }
+
+                    if(!needsHighlight)
+                    {
+                        output.append(line, start, len);
+                    }
+                    else
+                    {
+                        for(int x = 0; x < len; x++)
+                        {
+                            int col = x + *offsetX;
+                            bool highlighted = false;
+
+                            if(isInSelection(fileRow, col))
+                            {
+                                output += "\x1b[7m";
+                                highlighted = true;
+                            }
+                            else if(isInSearchMatch(fileRow, col))
+                            {
+                                output += "\x1b[43m\x1b[30m";
+                                highlighted = true;
+                            }
+
+                            output += line[col];
+
+                            if(highlighted)
+                            {
+                                output += "\x1b[m";
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                output += "\x1b[34m~\x1b[39m";
+            }
+        }
+
+        output += "\x1b[r";
+    }
+
+    drawStatusBarQuick();
+    drawMessageBarQuick(); // Add this to redraw message bar
+
+    // Calculate cursor position
+    int cursorRow, cursorCol;
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+    {
+        cursorRow = screenRows + 2;
+        cursorCol = commandBuffer.length() + 1;
+    }
+    else
+    {
+        cursorRow = (*cursorY - *offsetY) + 1;
+        cursorCol = (*cursorX - *offsetX) + 1;
+    }
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", cursorRow, cursorCol);
+    output += buf;
+    output += "\x1b[?25h";
+
+    lastCursorScreenY = cursorRow;
+    lastCursorScreenX = cursorCol;
+
+    Terminal::write(output);
+    Terminal::flush();
+}
+
+void Editor::drawStatusBarQuick()
+{
+    std::string output;
+    char moveBuf[32];
+    snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", screenRows + 1);
+    output += moveBuf;
+
+    output += "\x1b[K\x1b[7m";
+
+    std::string statusLeft = " " + getModeString() + " | ";
+
+    if(buffers.size() > 1)
+    {
+        statusLeft += "[" + std::to_string(currentBufferIndex + 1) + "/" +
+                      std::to_string(buffers.size()) + "] ";
+    }
+
+    statusLeft += (filename->empty() ? "[No Name]" : *filename);
+    if(*dirty)
+        statusLeft += " [+]";
+
+    output += statusLeft;
+
+    char rightStatus[32];
+    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
+             *cursorX + 1);
+
+    int padding = screenCols - statusLeft.length() - strlen(rightStatus);
+    if(padding > 0)
+    {
+        output.append(padding, ' ');
+    }
+    output += rightStatus;
+    output += "\x1b[m";
+
+    Terminal::write(output);
+}
+
+void Editor::drawMessageBarQuick()
+{
+    std::string output;
+    char moveBuf[32];
+    snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", screenRows + 2);
+    output += moveBuf;
+
+    output += "\x1b[K";
+
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+    {
+        output += commandBuffer;
+        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
+        {
+            if(!searchMatches.empty())
+            {
+                output += " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                          std::to_string(searchMatches.size()) + "]";
+            }
+            else if(!searchQuery.empty())
+            {
+                output += " [No matches]";
+            }
+        }
+    }
+    else if(!statusMessage.empty())
+    {
+        int msglen = std::min((int)statusMessage.length(), screenCols);
+        output.append(statusMessage, 0, msglen);
+    }
+
+    Terminal::write(output);
+}
+
+void Editor::drawFullScreen()
+{
+    adjustViewport();
+
+    std::string output;
+    output.reserve((screenRows + 3) * screenCols * 3);
+
+    output += "\x1b[H";
+
+    for(int y = 0; y < screenRows; y++)
+    {
+        if(y > 0)
+            output += "\r\n";
+
+        output += "\x1b[K";
+
+        int fileRow = y + *offsetY;
+
+        if(fileRow >= lines->size())
+        {
+            output += "\x1b[34m~\x1b[39m";
+        }
+        else
+        {
+            const std::string& line = (*lines)[fileRow];
+            int start = *offsetX;
+            int len = line.length() - start;
+
+            if(len > 0)
+            {
+                if(len > screenCols)
+                    len = screenCols;
+
+                bool hasHighlighting = false;
+
+                if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                   !searchMatches.empty())
+                {
+                    for(int x = 0; x < len; x++)
+                    {
+                        int col = x + *offsetX;
+                        if(isInSelection(fileRow, col) ||
+                           isInSearchMatch(fileRow, col))
+                        {
+                            hasHighlighting = true;
+                            break;
+                        }
+                    }
+                }
+
+                if(!hasHighlighting)
+                {
+                    output.append(line, start, len);
+                }
+                else
+                {
+                    for(int x = 0; x < len; x++)
+                    {
+                        int col = x + *offsetX;
+                        bool highlighted = false;
+
+                        if(isInSelection(fileRow, col))
+                        {
+                            output += "\x1b[7m";
+                            highlighted = true;
+                        }
+                        else if(isInSearchMatch(fileRow, col))
+                        {
+                            output += "\x1b[43m\x1b[30m";
+                            highlighted = true;
+                        }
+
+                        output += line[col];
+
+                        if(highlighted)
+                        {
+                            output += "\x1b[m";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Status bar
+    output += "\r\n\x1b[K\x1b[7m";
+
+    std::string statusLeft = " " + getModeString() + " | ";
+
+    if(buffers.size() > 1)
+    {
+        statusLeft += "[" + std::to_string(currentBufferIndex + 1) + "/" +
+                      std::to_string(buffers.size()) + "] ";
+    }
+
+    statusLeft += (filename->empty() ? "[No Name]" : *filename);
+    if(*dirty)
+        statusLeft += " [+]";
+
+    output += statusLeft;
+
+    char rightStatus[32];
+    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
+             *cursorX + 1);
+
+    int padding = screenCols - statusLeft.length() - strlen(rightStatus);
+    if(padding > 0)
+        output.append(padding, ' ');
+    output += rightStatus;
+    output += "\x1b[m";
+
+    // Message bar
+    output += "\r\n\x1b[K";
+
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+    {
+        output += commandBuffer;
+        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
+        {
+            if(!searchMatches.empty())
+            {
+                output += " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                          std::to_string(searchMatches.size()) + "]";
+            }
+            else if(!searchQuery.empty())
+            {
+                output += " [No matches]";
+            }
+        }
+    }
+    else if(!statusMessage.empty())
+    {
+        int msglen = std::min((int)statusMessage.length(), screenCols);
+        output.append(statusMessage, 0, msglen);
+    }
+
+    Terminal::write(output);
+    updateCursorPosition();
+    Terminal::flush();
+}
+
+void Editor::refreshScreen()
+{
+    if(currentMode == FILE_BROWSER)
+    {
+        drawFileBrowser();
+        return;
+    }
+
+    static int lastOffsetY = -1;
+    static int lastOffsetX = -1;
+    static Mode lastMode = NORMAL;
+    static int lastVisualStartY = -1;
+    static int lastVisualEndY = -1;
+
+    int prevOffsetY = lastOffsetY;
+    adjustViewport();
+
+    bool scrolled = (*offsetY != lastOffsetY || *offsetX != lastOffsetX);
+    bool modeChanged = (currentMode != lastMode);
+    int scrollDelta = *offsetY - lastOffsetY;
+
+    bool visualChanged = false;
+    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
+    {
+        visualChanged = (currentBuffer->visualStartY != lastVisualStartY ||
+                         currentBuffer->visualEndY != lastVisualEndY);
+        lastVisualStartY = currentBuffer->visualStartY;
+        lastVisualEndY = currentBuffer->visualEndY;
+    }
+    else
+    {
+        lastVisualStartY = -1;
+        lastVisualEndY = -1;
+    }
+
+    bool isEditingMode =
+        (currentMode == INSERT || currentMode == COMMAND ||
+         currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD);
+
+    if(modeChanged || needsFullRedraw || *offsetX != lastOffsetX ||
+       abs(scrollDelta) > screenRows / 2 || visualChanged ||
+       (currentMode == VISUAL || currentMode == VISUAL_LINE) || isEditingMode)
+    {
+        drawFullScreen();
+    }
+    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 && currentMode == NORMAL)
+    {
+        drawScrollUpdate(scrollDelta);
+    }
+    else if(scrollDelta == 0 && currentMode == NORMAL)
+    {
+        drawStatusBarQuick();
+        drawMessageBarQuick(); // Add this
+        updateCursorPosition();
+    }
+    else
+    {
+        drawFullScreen();
+    }
+
+    lastOffsetY = *offsetY;
+    lastOffsetX = *offsetX;
+    lastMode = currentMode;
+    needsFullRedraw = false;
+}
+
+void Editor::updateCursorPosition()
+{
+    int cursorRow, cursorCol;
+
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+    {
+        cursorRow = screenRows + 2;
+        cursorCol = commandBuffer.length() + 1;
+    }
+    else
+    {
+        cursorRow = (*cursorY - *offsetY) + 1;
+        cursorCol = (*cursorX - *offsetX) + 1;
+    }
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", cursorRow, cursorCol);
+    Terminal::write(buf);
+    Terminal::flush();
+
+    lastCursorScreenY = cursorRow;
+    lastCursorScreenX = cursorCol;
+}
+
+void Editor::draw()
+{
+    refreshScreen();
+}
+
+void Editor::setStatusMessage(const std::string& msg)
+{
+    statusMessage = msg;
+}
+
+// Command execution
+void Editor::executeCommand(const std::string& cmd)
+{
+    // Buffer commands
+    if(cmd == "bn" || cmd == "bnext")
+    {
+        nextBuffer();
+    }
+    else if(cmd == "bp" || cmd == "bprev" || cmd == "bprevious")
+    {
+        previousBuffer();
+    }
+    else if(cmd == "bd" || cmd == "bdelete")
+    {
+        closeCurrentBuffer();
+    }
+    else if(cmd == "bd!")
+    {
+        *dirty = false;
+        closeCurrentBuffer();
+    }
+    else if(cmd == "ls" || cmd == "buffers")
+    {
+        listBuffers();
+    }
+    else if(cmd.substr(0, 2) == "b " || cmd.substr(0, 7) == "buffer ")
+    {
+        std::string arg =
+            (cmd.substr(0, 2) == "b ") ? cmd.substr(2) : cmd.substr(7);
+
+        try
+        {
+            int bufNum = std::stoi(arg) - 1;
+            if(bufNum >= 0 && bufNum < buffers.size())
+            {
+                switchToBuffer(bufNum);
+            }
+            else
+            {
+                setStatusMessage("Buffer " + arg + " does not exist");
+            }
+        }
+        catch(...)
+        {
+            for(size_t i = 0; i < buffers.size(); i++)
+            {
+                if(buffers[i]->filename.find(arg) != std::string::npos)
+                {
+                    switchToBuffer(i);
+                    return;
+                }
+            }
+            setStatusMessage("No matching buffer for " + arg);
+        }
+    }
+    else if(cmd == "enew")
+    {
+        createNewBuffer();
+        setStatusMessage("New buffer created");
+    }
+    else if(cmd == "wall" || cmd == "wa")
+    {
+        int savedCount = 0;
+        int currentBuf = currentBufferIndex;
+
+        for(size_t i = 0; i < buffers.size(); i++)
+        {
+            if(buffers[i]->dirty && !buffers[i]->filename.empty())
+            {
+                switchToBuffer(i);
+                saveFile();
+                savedCount++;
+            }
+        }
+
+        switchToBuffer(currentBuf);
+        setStatusMessage("Saved " + std::to_string(savedCount) + " buffer(s)");
+    }
+    else if(cmd == "qall" || cmd == "qa")
+    {
+        bool hasUnsaved = false;
+        for(const auto& buf : buffers)
+        {
+            if(buf->dirty)
+            {
+                hasUnsaved = true;
+                break;
+            }
+        }
+
+        if(hasUnsaved)
+        {
+            setStatusMessage(
+                "Some buffers have unsaved changes (add ! to override)");
+        }
+        else
+        {
+            Terminal::clearScreen();
+            exit(0);
+        }
+    }
+    else if(cmd == "qall!" || cmd == "qa!")
+    {
+        Terminal::clearScreen();
+        exit(0);
+    }
+    else if(cmd == "wqall" || cmd == "wqa" || cmd == "xa")
+    {
+        for(size_t i = 0; i < buffers.size(); i++)
+        {
+            if(buffers[i]->dirty && !buffers[i]->filename.empty())
+            {
+                switchToBuffer(i);
+                saveFile();
+            }
+        }
+        Terminal::clearScreen();
+        exit(0);
+    }
+    // File browser commands
+    else if(cmd == "Ex" || cmd == "ex" || cmd == "E" || cmd == "e ." ||
+            cmd == "Explore" || cmd == "explore")
+    {
+        std::string dir = ".";
+        if(!filename->empty())
+        {
+            size_t lastSlash = filename->find_last_of("/");
+            if(lastSlash != std::string::npos)
+            {
+                dir = filename->substr(0, lastSlash);
+                if(dir.empty())
+                    dir = "/";
+            }
+        }
+        openFileBrowser(dir);
+        return;
+    }
+    else if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
+            cmd == "Vexplore")
+    {
+        setStatusMessage("Split explorer not yet implemented");
+        openFileBrowser(".");
+        return;
+    }
+    // Standard commands
+    else if(cmd == "w")
+    {
+        saveFile();
+    }
+    else if(cmd == "q")
+    {
+        if(*dirty)
+        {
+            setStatusMessage("No write since last change (add ! to override)");
+        }
+        else if(buffers.size() > 1)
+        {
+            closeCurrentBuffer();
+        }
+        else
+        {
+            Terminal::clearScreen();
+            exit(0);
+        }
+    }
+    else if(cmd == "q!")
+    {
+        if(buffers.size() > 1)
+        {
+            *dirty = false;
+            closeCurrentBuffer();
+        }
+        else
+        {
+            Terminal::clearScreen();
+            exit(0);
+        }
+    }
+    else if(cmd == "wq" || cmd == "x")
+    {
+        saveFile();
+        if(buffers.size() > 1)
+        {
+            closeCurrentBuffer();
+        }
+        else
+        {
+            Terminal::clearScreen();
+            exit(0);
+        }
+    }
+    else if(cmd.substr(0, 2) == "w ")
+    {
+        *filename = cmd.substr(2);
+        saveFile();
+    }
+    else if(cmd.substr(0, 2) == "e " || cmd.substr(0, 5) == "edit ")
+    {
+        std::string path =
+            (cmd.substr(0, 2) == "e ") ? cmd.substr(2) : cmd.substr(5);
+
+        if(path == ".")
+        {
+            openFileBrowser(".");
+            return;
+        }
+        else
+        {
+            struct stat fileStat;
+            if(stat(path.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode))
+            {
+                openFileBrowser(path);
+                return;
+            }
+            openFile(path);
+            setMode(NORMAL);
+        }
+    }
+    else if(cmd.substr(0, 6) == "tabnew" || cmd.substr(0, 5) == "tabe ")
+    {
+        std::string fname = "";
+        if(cmd.substr(0, 5) == "tabe " && cmd.length() > 5)
+        {
+            fname = cmd.substr(5);
+        }
+        else if(cmd.substr(0, 7) == "tabnew " && cmd.length() > 7)
+        {
+            fname = cmd.substr(7);
+        }
+
+        if(!fname.empty())
+        {
+            openFile(fname);
+        }
+        else
+        {
+            createNewBuffer();
+            setStatusMessage("New buffer created");
+        }
+    }
+    else if(cmd == "tabn" || cmd == "tabnext")
+    {
+        nextBuffer();
+    }
+    else if(cmd == "tabp" || cmd == "tabprev")
+    {
+        previousBuffer();
+    }
+    else
+    {
+        try
+        {
+            int line = std::stoi(cmd);
+            moveToLine(line - 1);
+        }
+        catch(...)
+        {
+            setStatusMessage("Not an editor command: " + cmd);
+        }
+    }
+}
+
+// Mode handlers
+void Editor::handleNormalMode(int c)
+{
+    if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
+    {
+        repeatCount = c - '0';
+        return;
+    }
+    else if(c >= '0' && c <= '9' && repeatCount > 0)
+    {
+        repeatCount = repeatCount * 10 + (c - '0');
+        return;
+    }
+
+    int count = std::max(1, repeatCount);
+
+    switch(c)
+    {
+    case 'i':
+        setMode(INSERT);
+        setStatusMessage("-- INSERT --");
+        break;
+    case 'I':
+        moveToLineStart();
+        setMode(INSERT);
+        setStatusMessage("-- INSERT --");
+        break;
+    case 'a':
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        setMode(INSERT);
+        setStatusMessage("-- INSERT --");
+        break;
+    case 'A':
+        moveToLineEnd();
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        setMode(INSERT);
+        setStatusMessage("-- INSERT --");
+        break;
+    case 'o':
+        moveToLineEnd();
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        insertNewline();
+        setMode(INSERT);
+        saveState();
+        setStatusMessage("-- INSERT --");
+        break;
+    case 'O':
+        moveToLineStart();
+        lines->insert(lines->begin() + *cursorY, "");
+        *dirty = true;
+        setMode(INSERT);
+        saveState();
+        setStatusMessage("-- INSERT --");
+        break;
+    case 'v':
+        startVisualMode();
+        break;
+    case 'V':
+        startVisualLineMode();
+        break;
+    case ':':
+        setMode(COMMAND);
+        break;
+    case '/':
+        startSearchForward();
+        break;
+    case '?':
+        startSearchBackward();
+        break;
+    case 'n':
+        searchNext();
+        break;
+    case 'N':
+        searchPrevious();
+        break;
+    case 30: // Ctrl+^ (Ctrl+6)
+        if(buffers.size() > 1)
+        {
+            previousBuffer();
+        }
+        break;
+    case Terminal::CTRL_P:
+        // setMode(FUZZY_FIND);
+        break;
+
+    case 'h':
+    case Terminal::ARROW_LEFT:
+        moveLeft(count);
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        moveRight(count);
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        moveDown(count);
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
+        moveUp(count);
+        break;
+    case 'w':
+        while(count-- > 0)
+            moveWordForward();
+        break;
+    case 'b':
+        while(count-- > 0)
+            moveWordBackward();
+        break;
+    case '0':
+        if(repeatCount == 0)
+            moveToLineStart();
+        break;
+    case '$':
+        moveToLineEnd();
+        break;
+    case 'g':
+        if(commandBuffer == "g")
+        {
+            moveToFirstLine();
+            commandBuffer.clear();
+        }
+        else
+        {
+            commandBuffer = "g";
+        }
+        break;
+    case 'G':
+        if(repeatCount > 0)
+        {
+            moveToLine(repeatCount - 1);
+        }
+        else
+        {
+            moveToLastLine();
+        }
+        break;
+
+    case 'x':
+        while(count-- > 0)
+        {
+            deleteCharForward();
+        }
+        saveState();
+        break;
+    case 'd':
+        if(commandBuffer == "d")
+        {
+            while(count-- > 0)
+                deleteLine();
+            commandBuffer.clear();
+            saveState();
+        }
+        else
+        {
+            commandBuffer = "d";
+        }
+        break;
+    case 'D':
+        deleteToLineEnd();
+        saveState();
+        break;
+    case 'y':
+        if(commandBuffer == "y")
+        {
+            yankLine();
+            commandBuffer.clear();
+        }
+        else
+        {
+            commandBuffer = "y";
+        }
+        break;
+    case 'p':
+        pasteAfter();
+        break;
+    case 'P':
+        pasteBefore();
+        break;
+    case 'u':
+        undo();
+        break;
+    case Terminal::CTRL_R:
+        redo();
+        break;
+
+    default:
+        if(c != 'g' && c != 'd' && c != 'y')
+        {
+            commandBuffer.clear();
+        }
+        break;
+    }
+
+    repeatCount = 0;
+}
+
+void Editor::handleInsertMode(int c)
+{
+    switch(c)
+    {
+    case Terminal::ESC:
+        if(*cursorX > 0)
+            (*cursorX)--;
+        setMode(NORMAL);
+        saveState();
+        statusMessage.clear();
+        break;
+    case Terminal::ENTER:
+        insertNewline();
+        break;
+    case Terminal::BACKSPACE:
+    case Terminal::DEL:
+        deleteChar();
+        break;
+    case Terminal::TAB:
+        for(int i = 0; i < 4; i++)
+        {
+            insertChar(' ');
+        }
+        break;
+    default:
+        if(c >= 32 && c < 127)
+        {
+            insertChar(c);
+        }
+        break;
+    }
+}
+
+void Editor::handleVisualMode(int c)
+{
+    switch(c)
+    {
+    case Terminal::ESC:
+        setMode(NORMAL);
+        statusMessage.clear();
+        needsFullRedraw = true;
+        break;
+    case 'h':
+    case Terminal::ARROW_LEFT:
+        moveLeft();
+        updateVisualSelection();
+        needsFullRedraw = true;
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        moveRight();
+        updateVisualSelection();
+        needsFullRedraw = true;
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        moveDown();
+        updateVisualSelection();
+        needsFullRedraw = true;
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
+        moveUp();
+        updateVisualSelection();
+        needsFullRedraw = true;
+        break;
+    case 'd':
+    case 'x':
+        deleteSelection();
+        setMode(NORMAL);
+        saveState();
+        needsFullRedraw = true;
+        break;
+    case 'y':
+        yankSelection();
+        setMode(NORMAL);
+        needsFullRedraw = true;
+        break;
+    }
+}
+
+void Editor::handleCommandMode(int c)
+{
+    switch(c)
+    {
+    case Terminal::ENTER:
+        executeCommand(commandBuffer.substr(1));
+        setMode(NORMAL);
+        break;
+    case Terminal::ESC:
+        setMode(NORMAL);
+        statusMessage.clear();
+        break;
+    case Terminal::BACKSPACE:
+    case Terminal::DEL:
+        if(commandBuffer.length() > 1)
+        {
+            commandBuffer.pop_back();
+        }
+        else
+        {
+            setMode(NORMAL);
+        }
+        break;
+    default:
+        if(c >= 32 && c < 127)
+        {
+            commandBuffer += (char)c;
+        }
+        break;
+    }
+}
+
+void Editor::handleSearchMode(int c)
+{
+    switch(c)
+    {
+    case Terminal::ENTER:
+        performSearch();
+        setMode(NORMAL);
+        break;
+
+    case Terminal::ESC:
+        cancelSearch();
+        break;
+
+    case Terminal::BACKSPACE:
+    case Terminal::DEL:
+        if(!searchQuery.empty())
+        {
+            searchQuery.pop_back();
+            commandBuffer = (searchForward ? "/" : "?") + searchQuery;
+            findAllMatches();
+            if(!searchMatches.empty())
+            {
+                jumpToMatch(searchForward ? 0 : searchMatches.size() - 1);
+            }
+        }
+        else
+        {
+            cancelSearch();
+        }
+        break;
+
+    default:
+        if(c >= 32 && c < 127)
+        {
+            searchQuery += (char)c;
+            commandBuffer = (searchForward ? "/" : "?") + searchQuery;
+            findAllMatches();
+            if(!searchMatches.empty())
+            {
+                jumpToMatch(searchForward ? 0 : searchMatches.size() - 1);
+            }
+            else
+            {
+                *cursorX = savedCursorX;
+                *cursorY = savedCursorY;
+            }
+        }
+        break;
+    }
+}
+
+void Editor::handleFileBrowserMode(int c)
+{
+    switch(c)
+    {
+    case Terminal::ENTER:
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        if(browserCursor < fileList.size())
+        {
+            navigateTo(fileList[browserCursor]);
+        }
+        break;
+
+    case 'h':
+    case Terminal::ARROW_LEFT:
+    case '-':
+        if(currentDirectory != "/" && currentDirectory != "")
+        {
+            size_t lastSlash = currentDirectory.find_last_of("/");
+            std::string parentDir = "/";
+            if(lastSlash != std::string::npos && lastSlash > 0)
+            {
+                parentDir = currentDirectory.substr(0, lastSlash);
+            }
+            openFileBrowser(parentDir);
+        }
+        break;
+
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        if(browserCursor < fileList.size() - 1)
+        {
+            browserCursor++;
+            if(browserCursor >= browserOffset + screenRows - 2)
+            {
+                browserOffset = browserCursor - screenRows + 3;
+            }
+        }
+        break;
+
+    case 'k':
+    case Terminal::ARROW_UP:
+        if(browserCursor > 0)
+        {
+            browserCursor--;
+            if(browserCursor < browserOffset)
+            {
+                browserOffset = browserCursor;
+            }
+        }
+        break;
+
+    case 'g':
+        browserCursor = 0;
+        browserOffset = 0;
+        break;
+
+    case 'G':
+        if(fileList.size() > 0)
+        {
+            browserCursor = fileList.size() - 1;
+            if(fileList.size() > screenRows - 2)
+            {
+                browserOffset = fileList.size() - screenRows + 2;
+            }
+        }
+        break;
+
+    case '.':
+        toggleHidden();
+        break;
+
+    case 'R':
+        loadDirectory(currentDirectory);
+        setStatusMessage("Refreshed");
+        break;
+
+    case 'q':
+    case Terminal::ESC:
+        if(!previousFile.empty())
+        {
+            openFile(previousFile);
+        }
+        setMode(NORMAL);
+        break;
+
+    case '?':
+        setStatusMessage(
+            "[Enter/l]:open [h]:parent [j/k]:nav [.]:hidden [q]:quit");
+        break;
+    }
+
+    needsFullRedraw = true;
+}
+
+void Editor::handleKeypress()
+{
+    int c = Terminal::readKey();
+
+    switch(currentMode)
+    {
+    case NORMAL:
+        handleNormalMode(c);
+        break;
+    case INSERT:
+        handleInsertMode(c);
+        break;
+    case VISUAL:
+    case VISUAL_LINE:
+        handleVisualMode(c);
+        break;
+    case COMMAND:
+        handleCommandMode(c);
+        break;
+    case SEARCH_FORWARD:
+    case SEARCH_BACKWARD:
+        handleSearchMode(c);
+        break;
+    case FILE_BROWSER:
+        handleFileBrowserMode(c);
+        break;
+    }
+}
+
+void Editor::run()
+{
+    setStatusMessage("Vim-like editor - :q to quit, :w to save, :Ex to browse");
+
+    while(true)
+    {
+        draw();
+        handleKeypress();
+    }
+}
