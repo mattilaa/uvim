@@ -342,6 +342,35 @@ private:
     void indentLine(int line, int spaces);
     std::string toLowerCase(const std::string& str);
 
+    // Syntax highlighting
+    enum TokenType
+    {
+        TOKEN_NORMAL,
+        TOKEN_KEYWORD,
+        TOKEN_TYPE,
+        TOKEN_STRING,
+        TOKEN_CHAR,
+        TOKEN_COMMENT,
+        TOKEN_PREPROCESSOR,
+        TOKEN_NUMBER,
+        TOKEN_OPERATOR,
+        TOKEN_FUNCTION
+    };
+
+    struct Token
+    {
+        TokenType type;
+        int start;
+        int length;
+    };
+
+    bool isCppFile() const;
+    std::vector<Token> tokenizeLine(const std::string& line,
+                                    bool& inBlockComment);
+    std::string getColorCode(TokenType type) const;
+    void renderLineWithSyntax(std::string& output, const std::string& line,
+                              int start, int len, int fileRow);
+
     // Undo/Redo (now per-buffer, accessed through currentBuffer)
     void saveState();
     void undo();
