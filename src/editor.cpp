@@ -892,32 +892,66 @@ void Editor::moveDown(int count)
 
 void Editor::moveWordForward()
 {
-    if(*cursorY >= lines->size())
-        return;
+    int y = *cursorY;
+    int x = *cursorX;
 
-    const std::string& line = (*lines)[*cursorY];
-
-    while(*cursorX < line.length() && isWordChar(line[*cursorX]))
+    while(true)
     {
-        (*cursorX)++;
-    }
+        const std::string& line = (*lines)[y];
 
-    while(*cursorX < line.length() && !isWordChar(line[*cursorX]))
-    {
-        (*cursorX)++;
-    }
-
-    if(*cursorX >= line.length() && *cursorY < lines->size() - 1)
-    {
-        (*cursorY)++;
-        *cursorX = 0;
-        const std::string& newLine = (*lines)[*cursorY];
-        while(*cursorX < newLine.length() && !isWordChar(newLine[*cursorX]))
+        // If at EOL, move to next line
+        if(x >= line.length())
         {
-            (*cursorX)++;
+            if(y + 1 >= lines->size())
+                break;
+            y++;
+            x = 0;
+            // skip leading spaces
+            while(x < (*lines)[y].length() && std::isspace((*lines)[y][x]))
+                x++;
+            --x;
+            break;
         }
+
+        char c = line[x];
+
+        // If starting inside whitespace → skip whitespace
+        if(std::isspace((unsigned char)c))
+        {
+            while(x < line.length() && std::isspace((unsigned char)line[x]))
+                x++;
+            --x;
+            break;
+        }
+
+        // Otherwise skip *this word* (punct or letters)
+        bool isAlphaWord = (std::isalnum((unsigned char)c) || c == '_');
+        x++;
+
+        while(x < line.length())
+        {
+            char d = line[x];
+            bool dAlpha = (std::isalnum((unsigned char)d) || d == '_');
+
+            if(isAlphaWord != dAlpha)
+            {
+                --x;
+                break; // boundary
+            }
+            if(std::isspace((unsigned char)d))
+            {
+                --x;
+                break; // boundary
+            }
+
+            x++;
+        }
+        break;
     }
-    *wantedX = *cursorX;
+
+    *cursorY = y;
+    *cursorX = x;
+    *wantedX = x;
 }
 
 void Editor::moveWordBackward()
@@ -1095,7 +1129,12 @@ void Editor::moveToMatchingBracket()
 
 bool Editor::isWordChar(char c) const
 {
-    return std::isalnum(c) || c == '_';
+    if(std::isspace((unsigned char)c))
+        return false;
+    if(std::isalnum((unsigned char)c) || c == '_')
+        return true; // letters/numbers
+    // punctuation counts as “word” for w/dw/cw
+    return true;
 }
 
 // Editing operations
