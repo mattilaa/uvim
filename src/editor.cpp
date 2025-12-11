@@ -529,6 +529,20 @@ void Editor::moveToLine(int line)
     *cursorX = 0;
 }
 
+void Editor::scrollHalfPageDown()
+{
+    int half = screenRows / 2;
+    moveDown(half);
+    adjustViewport();
+}
+
+void Editor::scrollHalfPageUp()
+{
+    int half = screenRows / 2;
+    moveUp(half);
+    adjustViewport();
+}
+
 bool Editor::isWordChar(char c) const
 {
     return std::isalnum(c) || c == '_';
@@ -3529,6 +3543,12 @@ void Editor::handleNormalMode(int c)
     case 'k':
     case Terminal::ARROW_UP:
         moveUp(count);
+        break;
+    case Terminal::CTRL_D:
+        scrollHalfPageDown();
+        break;
+    case Terminal::CTRL_U:
+        scrollHalfPageUp();
         break;
     case 'w':
         while(count-- > 0)
