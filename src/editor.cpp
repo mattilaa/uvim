@@ -259,6 +259,10 @@ void Editor::setMode(Mode mode)
     {
         initializeFuzzyFind();
     }
+    else if(mode == GREP_SEARCH)
+    {
+        initializeGrepSearch();
+    }
 }
 
 std::string Editor::getModeString() const
@@ -283,6 +287,8 @@ std::string Editor::getModeString() const
         return "BROWSE";
     case FUZZY_FIND:
         return "FUZZY";
+    case GREP_SEARCH:
+        return "GREP";
     }
     return "";
 }
@@ -1745,6 +1751,517 @@ void Editor::handleFuzzyFindMode(int c)
     }
 }
 
+// Grep Search Implementation
+void Editor::initializeGrepSearch()
+{
+    // Initialize project files if not already done
+    if(!fuzzyInitialized)
+    {
+        allProjectFiles.clear();
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+        {
+            collectProjectFiles(std::string(cwd));
+        }
+        fuzzyInitialized = true;
+    }
+
+    grepQuery.clear();
+    grepMatches.clear();
+    grepCursor = 0;
+    grepOffset = 0;
+    grepSearching = false;
+}
+
+std::string Editor::trimString(const std::string& str)
+{
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if(first == std::string::npos)
+        return "";
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, last - first + 1);
+}
+
+bool Editor::isTextFile(const std::string& filepath)
+{
+    // Check by extension first
+    std::string ext;
+    size_t dotPos = filepath.find_last_of('.');
+    if(dotPos != std::string::npos)
+    {
+        ext = filepath.substr(dotPos);
+        // Common text file extensions
+        if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
+           ext == ".hpp" || ext == ".py" || ext == ".js" || ext == ".ts" ||
+           ext == ".jsx" || ext == ".tsx" || ext == ".java" || ext == ".rs" ||
+           ext == ".go" || ext == ".rb" || ext == ".php" || ext == ".sh" ||
+           ext == ".bash" || ext == ".zsh" || ext == ".vim" || ext == ".lua" ||
+           ext == ".md" || ext == ".markdown" || ext == ".rst" ||
+           ext == ".tex" || ext == ".css" || ext == ".scss" || ext == ".html" ||
+           ext == ".xml" || ext == ".json" || ext == ".yaml" || ext == ".yml" ||
+           ext == ".toml" || ext == ".ini" || ext == ".conf" ||
+           ext == ".config" || ext == ".log" || ext == ".cmake" ||
+           ext == ".make" || ext == ".mk" || ext == ".am")
+        {
+            return true;
+        }
+
+        // Common binary extensions to skip
+        if(ext == ".exe" || ext == ".o" || ext == ".so" || ext == ".a" ||
+           ext == ".dll" || ext == ".dylib" || ext == ".bin" || ext == ".dat" ||
+           ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" ||
+           ext == ".bmp" || ext == ".ico" || ext == ".pdf" || ext == ".doc" ||
+           ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".ppt" ||
+           ext == ".pptx" || ext == ".zip" || ext == ".tar" || ext == ".gz" ||
+           ext == ".7z" || ext == ".rar" || ext == ".mp3" || ext == ".mp4" ||
+           ext == ".avi" || ext == ".mov" || ext == ".wav" || ext == ".flac")
+        {
+            return false;
+        }
+    }
+
+    // Check filename without extension
+    size_t lastSlash = filepath.find_last_of("/");
+    std::string filename = (lastSlash != std::string::npos)
+                               ? filepath.substr(lastSlash + 1)
+                               : filepath;
+
+    // Common text files without extensions
+    if(filename == "Makefile" || filename == "makefile" ||
+       filename == "CMakeLists.txt" || filename == "Dockerfile" ||
+       filename == "README" || filename == "LICENSE" ||
+       filename == "CHANGELOG" || filename == "TODO")
+    {
+        return true;
+    }
+
+    return !isBinaryFile(filepath);
+}
+
+bool Editor::isBinaryFile(const std::string& filepath)
+{
+    std::ifstream file(filepath, std::ios::binary);
+    if(!file)
+        return true; // Can't open, assume binary
+
+    // Read first 8192 bytes to check
+    char buffer[8192];
+    file.read(buffer, sizeof(buffer));
+    size_t bytesRead = file.gcount();
+    file.close();
+
+    if(bytesRead == 0)
+        return false; // Empty file, treat as text
+
+    // Check for null bytes (strong indicator of binary)
+    for(size_t i = 0; i < bytesRead; i++)
+    {
+        if(buffer[i] == '\0')
+            return true;
+    }
+
+    // Check for high proportion of non-printable characters
+    int nonPrintable = 0;
+    for(size_t i = 0; i < bytesRead; i++)
+    {
+        unsigned char c = static_cast<unsigned char>(buffer[i]);
+        if(c < 32 && c != '\t' && c != '\n' && c != '\r')
+        {
+            nonPrintable++;
+        }
+    }
+
+    // If more than 30% non-printable, consider binary
+    return (nonPrintable * 100 / bytesRead) > 30;
+}
+
+void Editor::highlightGrepMatches(const std::string& line,
+                                  const std::string& query,
+                                  std::vector<std::pair<int, int>>& ranges)
+{
+    ranges.clear();
+    if(query.empty())
+        return;
+
+    std::string searchLine = line;
+    std::string searchQuery = query;
+
+    if(!grepCaseSensitive)
+    {
+        std::transform(searchLine.begin(), searchLine.end(), searchLine.begin(),
+                       ::tolower);
+        std::transform(searchQuery.begin(), searchQuery.end(),
+                       searchQuery.begin(), ::tolower);
+    }
+
+    size_t pos = 0;
+    while((pos = searchLine.find(searchQuery, pos)) != std::string::npos)
+    {
+        ranges.push_back({pos, pos + searchQuery.length()});
+        pos += searchQuery.length();
+    }
+}
+
+void Editor::searchFileContent(const std::string& filepath)
+{
+    if(!isTextFile(filepath))
+        return;
+
+    std::ifstream file(filepath);
+    if(!file)
+        return;
+
+    std::string line;
+    int lineNum = 0;
+
+    // Get relative path for display
+    char cwd[PATH_MAX];
+    std::string displayPath = filepath;
+    if(getcwd(cwd, sizeof(cwd)))
+    {
+        std::string cwdStr(cwd);
+        if(displayPath.find(cwdStr) == 0)
+        {
+            displayPath = displayPath.substr(cwdStr.length() + 1);
+        }
+    }
+
+    // Extract filename
+    size_t lastSlash = displayPath.find_last_of("/");
+    std::string filename = (lastSlash != std::string::npos)
+                               ? displayPath.substr(lastSlash + 1)
+                               : displayPath;
+
+    while(std::getline(file, line))
+    {
+        lineNum++;
+
+        std::string searchLine = line;
+        std::string searchQuery = grepQuery;
+
+        if(!grepCaseSensitive)
+        {
+            std::transform(searchLine.begin(), searchLine.end(),
+                           searchLine.begin(), ::tolower);
+            std::transform(searchQuery.begin(), searchQuery.end(),
+                           searchQuery.begin(), ::tolower);
+        }
+
+        if(searchLine.find(searchQuery) != std::string::npos)
+        {
+            GrepMatch match;
+            match.filename = filename;
+            match.filepath = filepath;
+            match.lineNumber = lineNum;
+            match.lineContent = trimString(line);
+            highlightGrepMatches(line, grepQuery, match.highlightRanges);
+
+            // Limit line content to reasonable length
+            if(match.lineContent.length() > 200)
+            {
+                match.lineContent = match.lineContent.substr(0, 197) + "...";
+            }
+
+            grepMatches.push_back(match);
+
+            // Limit total matches to prevent memory issues
+            if(grepMatches.size() > 10000)
+            {
+                return;
+            }
+        }
+    }
+}
+
+void Editor::performGrepSearch()
+{
+    if(grepQuery.empty())
+    {
+        grepMatches.clear();
+        return;
+    }
+
+    grepMatches.clear();
+    grepSearching = true;
+
+    // Search through all project files
+    for(const auto& file : allProjectFiles)
+    {
+        if(!file.isDirectory)
+        {
+            searchFileContent(file.path);
+        }
+    }
+
+    grepSearching = false;
+
+    // Reset cursor if needed
+    if(grepCursor >= grepMatches.size())
+    {
+        grepCursor = 0;
+        grepOffset = 0;
+    }
+}
+
+void Editor::drawGrepSearch()
+{
+    std::string output;
+    output.reserve(screenRows * screenCols * 2);
+
+    output += "\x1b[H";
+    output += "\x1b[K";
+
+    // Header with search box
+    output += "\x1b[1m";
+    output += "  Search in Files: ";
+    output += "\x1b[m";
+    output += "\x1b[32m";
+    output += grepQuery;
+
+    // Show cursor in search box
+    output += "\x1b[5m_\x1b[25m"; // Blinking underscore
+    output += "\x1b[39m";
+
+    output += "\r\n\x1b[K";
+    output += "\x1b[90m";
+    output += "  [Enter: open] [Esc: cancel] [Tab: toggle case] [↑↓: navigate]";
+    output += "\x1b[39m";
+
+    output += "\r\n\x1b[K";
+    output += "\x1b[90m";
+
+    // Show match count and case sensitivity
+    if(grepSearching)
+    {
+        output += "  Searching...";
+    }
+    else if(!grepMatches.empty())
+    {
+        output += "  " + std::to_string(grepMatches.size()) + " matches";
+    }
+    else if(!grepQuery.empty())
+    {
+        output += "  No matches";
+    }
+    else
+    {
+        output += "  Type to search file contents";
+    }
+
+    if(grepCaseSensitive)
+    {
+        output += " [Case Sensitive]";
+    }
+    output += "\x1b[39m";
+
+    int availableRows = screenRows - 3;
+
+    // Draw matched lines
+    for(int i = 0; i < availableRows && i + grepOffset < grepMatches.size();
+        i++)
+    {
+        output += "\r\n\x1b[K";
+
+        int index = i + grepOffset;
+        const GrepMatch& match = grepMatches[index];
+
+        // Highlight current selection
+        if(index == grepCursor)
+        {
+            output += "\x1b[7m"; // Reverse video
+        }
+
+        // Format: filename:linenum: content
+        output += "  ";
+
+        // Filename in cyan
+        output += "\x1b[36m";
+        output += match.filename;
+        output += "\x1b[39m";
+
+        // Line number in yellow
+        output += ":";
+        output += "\x1b[33m";
+        output += std::to_string(match.lineNumber);
+        output += "\x1b[39m";
+        output += ": ";
+
+        // Line content with highlighted matches
+        std::string content = match.lineContent;
+
+        // Highlight matching text if not currently selected
+        if(!match.highlightRanges.empty() && index != grepCursor)
+        {
+            size_t lastPos = 0;
+            for(const auto& range : match.highlightRanges)
+            {
+                if(range.first < content.length())
+                {
+                    // Non-matching part
+                    if(range.first > lastPos)
+                    {
+                        output +=
+                            content.substr(lastPos, range.first - lastPos);
+                    }
+
+                    // Matching part - highlight in green
+                    output += "\x1b[32;1m"; // Bright green
+                    size_t endPos =
+                        std::min((size_t)range.second, content.length());
+                    output += content.substr(range.first, endPos - range.first);
+                    output += "\x1b[39;22m"; // Reset color
+
+                    lastPos = endPos;
+                }
+            }
+            // Remaining non-matching part
+            if(lastPos < content.length())
+            {
+                output += content.substr(lastPos);
+            }
+        }
+        else
+        {
+            output += content;
+        }
+
+        output += "\x1b[m"; // Reset all attributes
+    }
+
+    // Fill remaining rows
+    for(int i = grepMatches.size() - grepOffset; i < availableRows; i++)
+    {
+        output += "\r\n\x1b[K";
+        output += "\x1b[34m~\x1b[39m";
+    }
+
+    Terminal::write(output);
+    Terminal::flush();
+}
+
+void Editor::selectGrepMatch()
+{
+    if(grepCursor < grepMatches.size())
+    {
+        const GrepMatch& match = grepMatches[grepCursor];
+
+        // Open the file
+        openFile(match.filepath);
+
+        // Move to the specific line
+        if(match.lineNumber > 0 && match.lineNumber <= lines->size())
+        {
+            *cursorY = match.lineNumber - 1;
+            *cursorX = 0;
+
+            // Try to position cursor at the first match
+            if(!match.highlightRanges.empty())
+            {
+                *cursorX = match.highlightRanges[0].first;
+            }
+
+            // Center the screen on the match
+            centerScreen();
+        }
+
+        setMode(NORMAL);
+    }
+}
+
+void Editor::handleGrepSearchMode(int c)
+{
+    switch(c)
+    {
+    case Terminal::ENTER:
+        selectGrepMatch();
+        break;
+
+    case Terminal::ESC:
+        setMode(NORMAL);
+        needsFullRedraw = true;
+        break;
+
+    case Terminal::TAB:
+        grepCaseSensitive = !grepCaseSensitive;
+        performGrepSearch();
+        break;
+
+    case Terminal::ARROW_DOWN:
+    case Terminal::CTRL_N:
+    case Terminal::CTRL_J:
+        if(grepCursor < grepMatches.size() - 1)
+        {
+            grepCursor++;
+            if(grepCursor >= grepOffset + screenRows - 3)
+            {
+                grepOffset = grepCursor - screenRows + 4;
+            }
+        }
+        break;
+
+    case Terminal::ARROW_UP:
+    case Terminal::CTRL_K:
+        if(grepCursor > 0)
+        {
+            grepCursor--;
+            if(grepCursor < grepOffset)
+            {
+                grepOffset = grepCursor;
+            }
+        }
+        break;
+
+    case Terminal::BACKSPACE:
+    case Terminal::DEL:
+        if(!grepQuery.empty())
+        {
+            grepQuery.pop_back();
+            performGrepSearch();
+        }
+        break;
+
+    case Terminal::CTRL_U: // Clear line
+        grepQuery.clear();
+        grepMatches.clear();
+        break;
+
+    case Terminal::PAGE_DOWN:
+        if(grepMatches.size() > 0)
+        {
+            int pageSize = screenRows - 3;
+            grepCursor =
+                std::min((int)grepMatches.size() - 1, grepCursor + pageSize);
+            if(grepCursor >= grepOffset + pageSize)
+            {
+                grepOffset = grepCursor - pageSize + 1;
+            }
+        }
+        break;
+
+    case Terminal::PAGE_UP:
+        if(grepMatches.size() > 0)
+        {
+            int pageSize = screenRows - 3;
+            grepCursor = std::max(0, grepCursor - pageSize);
+            if(grepCursor < grepOffset)
+            {
+                grepOffset = grepCursor;
+            }
+        }
+        break;
+
+    default:
+        if(c >= 32 && c < 127) // Printable characters
+        {
+            grepQuery += static_cast<char>(c);
+            performGrepSearch();
+            grepCursor = 0;
+            grepOffset = 0;
+        }
+        break;
+    }
+}
+
 // Undo/Redo functions
 void Editor::saveState()
 {
@@ -1838,6 +2355,16 @@ void Editor::adjustViewport()
     else if(*cursorX >= *offsetX + screenCols)
     {
         *offsetX = *cursorX - screenCols + 1;
+    }
+}
+
+void Editor::centerScreen()
+{
+    // Center the cursor vertically on screen
+    *offsetY = std::max(0, *cursorY - screenRows / 2);
+    if(*offsetY + screenRows > lines->size())
+    {
+        *offsetY = std::max(0, (int)lines->size() - screenRows);
     }
 }
 
@@ -2535,6 +3062,12 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == GREP_SEARCH)
+    {
+        drawGrepSearch();
+        return;
+    }
+
     static int lastOffsetY = -1;
     static int lastOffsetX = -1;
     static Mode lastMode = NORMAL;
@@ -2977,6 +3510,9 @@ void Editor::handleNormalMode(int c)
     case Terminal::CTRL_P:
         setMode(FUZZY_FIND);
         break;
+    case Terminal::CTRL_F: // Ctrl+F for grep search (find in files)
+        setMode(GREP_SEARCH);
+        break;
 
     case 'h':
     case Terminal::ARROW_LEFT:
@@ -3377,6 +3913,9 @@ void Editor::handleKeypress()
         break;
     case FUZZY_FIND:
         handleFuzzyFindMode(c);
+        break;
+    case GREP_SEARCH:
+        handleGrepSearchMode(c);
         break;
     }
 }

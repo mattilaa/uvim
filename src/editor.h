@@ -20,6 +20,7 @@ public:
         SEARCH_BACKWARD,
         FILE_BROWSER,
         FUZZY_FIND,
+        GREP_SEARCH,
     };
 
     Editor();
@@ -118,6 +119,23 @@ private:
     int fuzzyOffset = 0;
     bool fuzzyInitialized = false;
 
+    // Grep search
+    struct GrepMatch
+    {
+        std::string filename;
+        std::string filepath;
+        int lineNumber;
+        std::string lineContent;
+        std::vector<std::pair<int, int>>
+            highlightRanges; // Start and end positions for highlighting
+    };
+    std::vector<GrepMatch> grepMatches;
+    std::string grepQuery;
+    int grepCursor = 0;
+    int grepOffset = 0;
+    bool grepSearching = false;
+    bool grepCaseSensitive = false;
+
     // Screen
     int screenRows;
     int screenCols;
@@ -179,6 +197,7 @@ private:
     void handleSearchMode(int c);
     void handleFileBrowserMode(int c);
     void handleFuzzyFindMode(int c);
+    void handleGrepSearchMode(int c);
     void handleKeypress();
 
     // Buffer management functions
@@ -214,6 +233,18 @@ private:
     void updateFuzzyMatches();
     void drawFuzzyFind();
     void selectFuzzyMatch();
+
+    // Grep search functions
+    void initializeGrepSearch();
+    void performGrepSearch();
+    void searchFileContent(const std::string& filepath);
+    bool isTextFile(const std::string& filepath);
+    bool isBinaryFile(const std::string& filepath);
+    void drawGrepSearch();
+    void selectGrepMatch();
+    std::string trimString(const std::string& str);
+    void highlightGrepMatches(const std::string& line, const std::string& query,
+                              std::vector<std::pair<int, int>>& ranges);
 
     // Movement commands
     void moveCursor(int key);
