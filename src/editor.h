@@ -21,6 +21,7 @@ public:
         FILE_BROWSER,
         FUZZY_FIND,
         GREP_SEARCH,
+        OP_PENDING,
     };
 
     Editor();
@@ -140,6 +141,12 @@ private:
     int screenRows;
     int screenCols;
 
+    // Operator-pending state
+    char pendingOperator = 0;           // 'd', 'c', 'y', etc.
+    bool pendingAwaitingObject = false; // After 'd' then 'i'/'a'
+    char pendingObjectType = 0; // 'i' or 'a' when awaiting a text object
+    int pendingCount = 0;       // support counts like 2dw if present
+
     // Optimization for drawing
     bool needsFullRedraw = true;
     int lastCursorScreenY = -1;
@@ -211,6 +218,16 @@ private:
     void updateCurrentBufferPointers();
     void saveBufferState();
     void restoreBufferState();
+
+    // Operator-pending / text-object support
+    void enterOperatorPending(char op);
+    void handleOperatorPendingMode(int c);
+    bool getTextObjectRange(char objChar, bool around, int& outStartY,
+                            int& outStartX, int& outEndY, int& outEndX);
+    void applyOperatorToRange(char op, int startY, int startX, int endY,
+                              int endX);
+    void deleteRange(int startY, int startX, int endY, int endX);
+    void yankRange(int startY, int startX, int endY, int endX);
 
     // File browser functions
     void openFileBrowser(const std::string& path = ".");

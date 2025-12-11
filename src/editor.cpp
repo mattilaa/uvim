@@ -210,6 +210,457 @@ void Editor::restoreBufferState()
     }
 }
 
+void Editor::enterOperatorPending(char op)
+{
+    pendingOperator = op;
+    pendingAwaitingObject = false;
+    pendingObjectType = 0;
+    pendingCount = std::max(1, repeatCount);
+    commandBuffer.clear(); // keep UI tidy
+    setStatusMessage(std::string("Operator: ") + op);
+    setMode(OP_PENDING);
+}
+
+void Editor::handleOperatorPendingMode(int c)
+{
+    // If user pressed ESC, cancel
+    if(c == Terminal::ESC)
+    {
+        setMode(NORMAL);
+        setStatusMessage("");
+        return;
+    }
+
+    // If user pressed a digit while building a count (rare), ignore here for
+    // simplicity Support 'i' or 'a' to enter object-specifier substate
+    if(!pendingAwaitingObject && (c == 'i' || c == 'a'))
+    {
+        pendingAwaitingObject = true;
+        pendingObjectType = (char)c;
+        setStatusMessage(std::string("Operator: ") + pendingOperator + " " +
+                         pendingObjectType);
+        return;
+    }
+
+    int startY, startX, endY, endX;
+    bool rangeFound = false;
+
+    if(pendingAwaitingObject)
+    {
+        // Expect a text-object specifier now (e.g. '(', '{', '"', 'w', etc.)
+        char obj = (char)c;
+        bool around = (pendingObjectType == 'a');
+        rangeFound =
+            getTextObjectRange(obj, around, startY, startX, endY, endX);
+    }
+    else
+    {
+        // Motion-based operator: treat c as a motion (w, b, e, $, 0, %, etc.)
+        // We'll simulate the motion by saving cursor, doing it, reading
+        // destination, then restoring.
+        int saveX = *cursorX, saveY = *cursorY, saveWanted = *wantedX,
+            saveOffsetY = *offsetY, saveOffsetX = *offsetX;
+        // Apply motion
+        switch(c)
+        {
+        case 'w':
+            moveWordForward();
+            break;
+        case 'b':
+            moveWordBackward();
+            break;
+        case 'e':
+            moveToLineEnd();
+            break;
+        case '0':
+            moveToLineStart();
+            break;
+        case '$':
+            moveToLineEnd();
+            break;
+        case '%':
+            moveToMatchingBracket();
+            break;
+        case 'j':
+            moveDown(pendingCount);
+            break;
+        case 'k':
+            moveUp(pendingCount);
+            break;
+        default:
+            // unsupported motion -> cancel operator
+            setStatusMessage("Unknown motion for operator");
+            setMode(NORMAL);
+            // restore
+            *cursorX = saveX;
+            *cursorY = saveY;
+            *wantedX = saveWanted;
+            *offsetY = saveOffsetY;
+            *offsetX = saveOffsetX;
+            return;
+        }
+
+        // get destination
+        int destX = *cursorX, destY = *cursorY;
+        // restore original cursor
+        *cursorX = saveX;
+        *cursorY = saveY;
+        *wantedX = saveWanted;
+        *offsetY = saveOffsetY;
+        *offsetX = saveOffsetX;
+
+        // compute inclusive range between original and dest
+        if(saveY < destY || (saveY == destY && saveX <= destX))
+        {
+            startY = saveY;
+            startX = saveX;
+            endY = destY;
+            endX = destX;
+        }
+        else
+        {
+            startY = destY;
+            startX = destX;
+            endY = saveY;
+            endX = saveX;
+        }
+        rangeFound = true;
+    }
+
+    if(!rangeFound)
+    {
+        setStatusMessage("No object found");
+        setMode(NORMAL);
+        return;
+    }
+
+    // Apply operator
+    applyOperatorToRange(pendingOperator, startY, startX, endY, endX);
+
+    // Clear state and return to NORMAL (or INSERT if operator was 'c')
+    pendingOperator = 0;
+    pendingAwaitingObject = false;
+    pendingObjectType = 0;
+    pendingCount = 0;
+
+    setMode(NORMAL);
+    needsFullRedraw = true;
+}
+
+bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
+                                int& outStartX, int& outEndY, int& outEndX)
+{
+    // Current position
+    int y = *cursorY;
+    int x = *cursorX;
+
+    // Support bracket pairs
+    auto findEnclosing = [&](char openc, char closec) -> bool
+    {
+        // search left for the nearest openc
+        int ly = y, lx = x;
+        bool foundOpen = false;
+        for(;;)
+        {
+            const std::string& line = (*lines)[ly];
+            for(int i = lx; i >= 0; --i)
+            {
+                if(line[i] == openc)
+                {
+                    // try to find matching close from here
+                    int matchY = ly, matchX = i;
+                    // simulate bracket match forward
+                    int depth = 0;
+                    int ty = matchY, tx = matchX;
+                    for(;;)
+                    {
+                        // move one char forward
+                        tx++;
+                        while(ty < lines->size() && tx >= (*lines)[ty].length())
+                        {
+                            ty++;
+                            tx = 0;
+                            if(ty >= lines->size())
+                                break;
+                        }
+                        if(ty >= lines->size())
+                            break;
+                        char ch = (*lines)[ty][tx];
+                        if(ch == openc)
+                            depth++;
+                        else if(ch == closec)
+                        {
+                            if(depth == 0)
+                            {
+                                // match found at ty,tx
+                                outStartY = ly;
+                                outStartX = i;
+                                outEndY = ty;
+                                outEndX = tx;
+                                // adjust for 'inner' vs 'around'
+                                if(!around)
+                                {
+                                    // inner: exclude the brackets themselves
+                                    // move start forward one char
+                                    if(outStartX + 1 <=
+                                       (*lines)[outStartY].length())
+                                    {
+                                        outStartX = outStartX + 1;
+                                    }
+                                    else
+                                    {
+                                        // move to next position
+                                        outStartY++;
+                                        outStartX = 0;
+                                    }
+                                    // move end back one char
+                                    if(outEndX - 1 >= 0)
+                                    {
+                                        outEndX = outEndX - 1;
+                                    }
+                                    else
+                                    {
+                                        // move to previous line end
+                                        outEndY--;
+                                        outEndX =
+                                            (*lines)[outEndY].length() - 1;
+                                    }
+                                }
+                                return true;
+                            }
+                            else
+                            {
+                                depth--;
+                            }
+                        }
+                    }
+                }
+            }
+            // move to previous line
+            if(ly == 0)
+                break;
+            ly--;
+            if(ly >= 0)
+                lx = (*lines)[ly].length() - 1;
+        }
+        return false;
+    };
+
+    if(objChar == '(' || objChar == ')')
+    {
+        if(findEnclosing('(', ')'))
+            return true;
+    }
+    if(objChar == '{' || objChar == '}')
+    {
+        if(findEnclosing('{', '}'))
+            return true;
+    }
+    if(objChar == '[' || objChar == ']')
+    {
+        if(findEnclosing('[', ']'))
+            return true;
+    }
+
+    // Quotes: find nearest pair of quotes in current line (simple)
+    if(objChar == '"' || objChar == '\'')
+    {
+        const std::string& line = (*lines)[y];
+        // search left for quote
+        int lpos = -1, rpos = -1;
+        for(int i = x; i >= 0; --i)
+            if(line[i] == objChar)
+            {
+                lpos = i;
+                break;
+            }
+        for(int i = x; i < line.length(); ++i)
+            if(line[i] == objChar)
+            {
+                rpos = i;
+                break;
+            }
+
+        if(lpos >= 0 && rpos >= 0 && lpos < rpos)
+        {
+            outStartY = y;
+            outEndY = y;
+            if(around)
+            {
+                outStartX = lpos;
+                outEndX = rpos;
+            }
+            else
+            {
+                outStartX = lpos + 1;
+                outEndX = rpos - 1;
+            }
+            return true;
+        }
+    }
+
+    // Word objects: iw / aw
+    if(objChar == 'w')
+    {
+        // For inner word -> find word boundaries around cursor on same line
+        const std::string& line = (*lines)[y];
+        int L = x, R = x;
+        // If cursor at end-of-line and not in word, try next char
+        if(L >= line.length())
+            L = line.length() - 1;
+        // move L to start of word
+        while(L > 0 && !isWordChar(line[L]))
+            L--;
+        while(L > 0 && isWordChar(line[L - 1]))
+            L--;
+        // move R to end of word
+        while(R < (int)line.length() && isWordChar(line[R]))
+            R++;
+        if(R <= L)
+            return false;
+        outStartY = y;
+        outEndY = y;
+        if(around)
+        {
+            outStartX = L;
+            outEndX = R - 1;
+        } // 'aw' includes trailing space? keep simple: word only
+        else
+        {
+            outStartX = L;
+            outEndX = R - 1;
+        }
+        return true;
+    }
+
+    // Paragraph 'p' (simple: blank-line separated)
+    if(objChar == 'p')
+    {
+        int sy = y, ey = y;
+        // find paragraph start
+        while(sy > 0 && !(*lines)[sy].empty())
+            sy--;
+        if((*lines)[sy].empty() && sy < y)
+            sy++;
+        // find paragraph end
+        while(ey < lines->size() - 1 && !(*lines)[ey].empty())
+            ey++;
+        if((*lines)[ey].empty() && ey > y)
+            ey--;
+        outStartY = sy;
+        outEndY = ey;
+        outStartX = 0;
+        outEndX = (*lines)[outEndY].length() - 1;
+        return true;
+    }
+
+    return false;
+}
+
+void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
+                                  int endX)
+{
+    // Normalize bounds
+    if(startY > endY || (startY == endY && startX > endX))
+    {
+        std::swap(startY, endY);
+        std::swap(startX, endX);
+    }
+
+    // Yank if 'y' or for 'd' we fill yankBuffer
+    if(op == 'y' || op == 'd' || op == 'c')
+    {
+        yankRange(startY, startX, endY, endX);
+    }
+
+    if(op == 'd' || op == 'c')
+    {
+        deleteRange(startY, startX, endY, endX);
+        saveState();
+    }
+
+    if(op == 'c')
+    {
+        // After change, enter insert mode at start
+        *cursorY = startY;
+        *cursorX = startX;
+        setMode(INSERT);
+        setStatusMessage("-- INSERT --");
+    }
+    else
+    {
+        // Place cursor at start of affected range
+        *cursorY = startY;
+        *cursorX = startX;
+    }
+
+    needsFullRedraw = true;
+    *dirty = true;
+}
+
+void Editor::yankRange(int startY, int startX, int endY, int endX)
+{
+    yankBuffer.clear();
+    if(startY == endY)
+    {
+        const std::string& line = (*lines)[startY];
+        if(startX <= endX && startX < line.length())
+            yankBuffer = line.substr(startX, endX - startX + 1);
+    }
+    else
+    {
+        // first line
+        const std::string& firstLine = (*lines)[startY];
+        if(startX < firstLine.length())
+            yankBuffer = firstLine.substr(startX);
+        yankBuffer += "\n";
+        // middle lines
+        for(int r = startY + 1; r < endY; ++r)
+        {
+            yankBuffer += (*lines)[r];
+            yankBuffer += "\n";
+        }
+        // last line
+        const std::string& lastLine = (*lines)[endY];
+        if(endX >= 0 && endX < lastLine.length())
+            yankBuffer += lastLine.substr(0, endX + 1);
+    }
+    setStatusMessage("Yanked");
+}
+
+void Editor::deleteRange(int startY, int startX, int endY, int endX)
+{
+    if(startY == endY)
+    {
+        std::string& line = (*lines)[startY];
+        if(startX <= endX && startX < line.length())
+        {
+            line.erase(startX, endX - startX + 1);
+        }
+    }
+    else
+    {
+        // First line: keep 0..startX-1
+        std::string prefix = (*lines)[startY].substr(0, startX);
+        std::string suffix = "";
+        if(endX + 1 < (*lines)[endY].length())
+            suffix = (*lines)[endY].substr(endX + 1);
+        // Erase middle lines
+        lines->erase(lines->begin() + startY, lines->begin() + endY + 1);
+        // Insert combined line
+        lines->insert(lines->begin() + startY, prefix + suffix);
+    }
+
+    if(lines->empty())
+        lines->push_back("");
+    // adjust cursor if needed
+    if(*cursorY >= lines->size())
+        *cursorY = lines->size() - 1;
+    if(*cursorX > (*lines)[*cursorY].length())
+        *cursorX = (*lines)[*cursorY].length();
+    needsFullRedraw = true;
+}
+
 void Editor::setMode(Mode mode)
 {
     Mode previousMode = currentMode;
@@ -220,6 +671,10 @@ void Editor::setMode(Mode mode)
     {
         commandBuffer.clear();
         repeatCount = 0;
+        pendingOperator = 0;
+        pendingAwaitingObject = false;
+        pendingObjectType = 0;
+        pendingCount = 0;
     }
     else if(mode == COMMAND)
     {
@@ -3699,7 +4154,8 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            commandBuffer = "d";
+            // enter operator-pending mode
+            enterOperatorPending('d');
         }
         break;
     case 'D':
@@ -3714,8 +4170,13 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            commandBuffer = "y";
+            enterOperatorPending('y');
         }
+        break;
+
+    case 'c':
+        // change operator: enter operator pending (support e.g. cw, ci(, etc.)
+        enterOperatorPending('c');
         break;
     case 'p':
         pasteAfter();
@@ -4064,6 +4525,9 @@ void Editor::handleKeypress()
         break;
     case GREP_SEARCH:
         handleGrepSearchMode(c);
+        break;
+    case OP_PENDING:
+        handleOperatorPendingMode(c);
         break;
     }
 }
