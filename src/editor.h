@@ -67,7 +67,8 @@ private:
         int visualEndX = 0;
         int visualEndY = 0;
 
-        Buffer() {
+        Buffer()
+        {
             lines.push_back("");
         }
     };
@@ -102,6 +103,20 @@ private:
     int browserCursor = 0;
     int browserOffset = 0;
     bool showHidden = false;
+
+    // Fuzzy finder
+    struct FuzzyMatch
+    {
+        FileEntry file;
+        int score;
+        std::vector<int> matchPositions; // Character positions that matched
+    };
+    std::vector<FuzzyMatch> fuzzyMatches;
+    std::vector<FileEntry> allProjectFiles; // All files in project
+    std::string fuzzyQuery;
+    int fuzzyCursor = 0;
+    int fuzzyOffset = 0;
+    bool fuzzyInitialized = false;
 
     // Screen
     int screenRows;
@@ -154,7 +169,7 @@ private:
     // Drawing - NEW OPTIMIZATION FUNCTIONS
     void drawScrollUpdate(int scrollDelta);
     void drawStatusBarQuick();
-    void drawMessageBarQuick();  // Add this to redraw message bar
+    void drawMessageBarQuick(); // Add this to redraw message bar
 
     // Mode handlers
     void handleNormalMode(int c);
@@ -163,6 +178,7 @@ private:
     void handleCommandMode(int c);
     void handleSearchMode(int c);
     void handleFileBrowserMode(int c);
+    void handleFuzzyFindMode(int c);
     void handleKeypress();
 
     // Buffer management functions
@@ -189,6 +205,15 @@ private:
     std::string getRelativePath(const std::string& path);
     void createNewFile();
     void deleteCurrentFile();
+
+    // Fuzzy finder functions
+    void initializeFuzzyFind();
+    void collectProjectFiles(const std::string& dir, int depth = 0);
+    int fuzzyScore(const std::string& needle, const std::string& haystack,
+                   std::vector<int>& matchPositions);
+    void updateFuzzyMatches();
+    void drawFuzzyFind();
+    void selectFuzzyMatch();
 
     // Movement commands
     void moveCursor(int key);
