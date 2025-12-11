@@ -260,17 +260,23 @@ void Editor::handleOperatorPendingMode(int c)
         // destination, then restoring.
         int saveX = *cursorX, saveY = *cursorY, saveWanted = *wantedX,
             saveOffsetY = *offsetY, saveOffsetX = *offsetX;
+
+        bool isExclusiveMotion = false; // Track if motion should be exclusive
+
         // Apply motion
         switch(c)
         {
         case 'w':
             moveWordForward();
+            isExclusiveMotion = true; // 'w' is exclusive in vim
             break;
         case 'b':
             moveWordBackward();
+            isExclusiveMotion = true; // 'b' is exclusive in vim
             break;
         case 'e':
-            moveToLineEnd();
+            moveToEndOfWord();
+            isExclusiveMotion = false; // 'e' is inclusive in vim
             break;
         case '0':
             moveToLineStart();
@@ -309,21 +315,48 @@ void Editor::handleOperatorPendingMode(int c)
         *offsetY = saveOffsetY;
         *offsetX = saveOffsetX;
 
-        // compute inclusive range between original and dest
+        // compute range between original and dest
         if(saveY < destY || (saveY == destY && saveX <= destX))
         {
+            // Forward motion
             startY = saveY;
             startX = saveX;
             endY = destY;
             endX = destX;
+
+            // For exclusive forward motions, don't include the character at
+            // destination
+            if(isExclusiveMotion)
+            {
+                // Make the range exclusive by moving end back one position
+                if(endX > 0)
+                {
+                    endX--;
+                }
+                else if(endY > 0)
+                {
+                    // If at start of line, go to end of previous line
+                    endY--;
+                    endX = (*lines)[endY].length() - 1;
+                }
+            }
         }
         else
         {
+            // Backward motion
             startY = destY;
             startX = destX;
             endY = saveY;
             endX = saveX;
+
+            // For exclusive backward motions, adjust similarly
+            if(isExclusiveMotion)
+            {
+                // The range is already correct for backward exclusive motions
+                // because we want to delete from dest to just before current
+            }
         }
+
         rangeFound = true;
     }
 
@@ -899,84 +932,217 @@ void Editor::moveWordForward()
     {
         const std::string& line = (*lines)[y];
 
-        // If at EOL, move to next line
-        if(x >= line.length())
+        // End of line → go to next line
+        if(x >= (int)line.length())
         {
-            if(y + 1 >= lines->size())
+            if(y + 1 >= (int)lines->size())
                 break;
+
             y++;
             x = 0;
-            // skip leading spaces
-            while(x < (*lines)[y].length() && std::isspace((*lines)[y][x]))
+
+            // Skip leading whitespace on next line
+            while(x < (int)(*lines)[y].length() &&
+                  std::isspace((unsigned char)(*lines)[y][x]))
+            {
                 x++;
-            --x;
+            }
+
             break;
         }
 
         char c = line[x];
 
-        // If starting inside whitespace → skip whitespace
+        // Starting inside whitespace → skip whitespace forward
         if(std::isspace((unsigned char)c))
         {
-            while(x < line.length() && std::isspace((unsigned char)line[x]))
+            while(x < (int)line.length() &&
+                  std::isspace((unsigned char)line[x]))
+            {
                 x++;
-            --x;
+            }
             break;
         }
 
-        // Otherwise skip *this word* (punct or letters)
+        // MAIN LOGIC: eat an entire "word unit"
+        // (either alphanumeric-run OR punctuation-run)
+        // This matches vim behavior: stop at transitions between character
+        // types
+
         bool isAlphaWord = (std::isalnum((unsigned char)c) || c == '_');
         x++;
 
-        while(x < line.length())
+        while(x < (int)line.length())
         {
             char d = line[x];
             bool dAlpha = (std::isalnum((unsigned char)d) || d == '_');
 
-            if(isAlphaWord != dAlpha)
-            {
-                --x;
-                break; // boundary
-            }
+            // Break on whitespace or character type change
             if(std::isspace((unsigned char)d))
-            {
-                --x;
-                break; // boundary
-            }
+                break;
+            if(isAlphaWord != dAlpha)
+                break; // Stop at boundary between alphanumeric and punctuation
 
             x++;
         }
+
+        // DO NOT consume trailing punctuation - this is the fix!
+        // In vim, 'dw' at 'Foo()' should stop at '(', not after ')'
+
         break;
     }
 
-    *cursorY = y;
+    // Final cursor update
     *cursorX = x;
+    *cursorY = y;
     *wantedX = x;
 }
 
 void Editor::moveWordBackward()
 {
-    if(*cursorX > 0)
+    int y = *cursorY;
+    int x = *cursorX;
+
+    // If at start of file, do nothing
+    if(y == 0 && x == 0)
     {
-        const std::string& line = (*lines)[*cursorY];
-        (*cursorX)--;
+        return;
+    }
 
-        while(*cursorX > 0 && !isWordChar(line[*cursorX]))
-        {
-            (*cursorX)--;
-        }
+    // If at start of line, go to end of previous line
+    if(x == 0)
+    {
+        y--;
+        x = (*lines)[y].length();
+    }
 
-        while(*cursorX > 0 && isWordChar(line[*cursorX - 1]))
+    const std::string& line = (*lines)[y];
+
+    // Move back one character to start
+    if(x > 0)
+    {
+        x--;
+    }
+
+    // Skip whitespace backwards
+    while(x > 0 && std::isspace((unsigned char)line[x]))
+    {
+        x--;
+    }
+
+    // Now we're on a non-whitespace character
+    // Determine its type and find the start of this word
+    if(x >= 0 && !std::isspace((unsigned char)line[x]))
+    {
+        bool isAlphaWord =
+            (std::isalnum((unsigned char)line[x]) || line[x] == '_');
+
+        // Move backwards while we're in the same character type
+        while(x > 0)
         {
-            (*cursorX)--;
+            char prevChar = line[x - 1];
+            bool prevAlpha =
+                (std::isalnum((unsigned char)prevChar) || prevChar == '_');
+
+            // Stop if we hit whitespace or change character type
+            if(std::isspace((unsigned char)prevChar))
+                break;
+            if(isAlphaWord != prevAlpha)
+                break;
+
+            x--;
         }
     }
-    else if(*cursorY > 0)
+
+    // Final cursor update
+    *cursorX = x;
+    *cursorY = y;
+    *wantedX = x;
+}
+
+void Editor::moveToEndOfWord()
+{
+    int y = *cursorY;
+    int x = *cursorX;
+
+    const std::string& line = (*lines)[y];
+
+    // If already at end of line, move to next line
+    if(x >= (int)line.length() - 1)
     {
-        (*cursorY)--;
-        *cursorX = (*lines)[*cursorY].length();
+        if(y + 1 < (int)lines->size())
+        {
+            y++;
+            x = 0;
+            const std::string& nextLine = (*lines)[y];
+
+            // Skip whitespace at start of next line
+            while(x < (int)nextLine.length() &&
+                  std::isspace((unsigned char)nextLine[x]))
+            {
+                x++;
+            }
+
+            // Then move to end of first word
+            if(x < (int)nextLine.length())
+            {
+                bool isAlphaWord = (std::isalnum((unsigned char)nextLine[x]) ||
+                                    nextLine[x] == '_');
+
+                while(x < (int)nextLine.length() - 1)
+                {
+                    char nextChar = nextLine[x + 1];
+                    bool nextAlpha = (std::isalnum((unsigned char)nextChar) ||
+                                      nextChar == '_');
+
+                    if(std::isspace((unsigned char)nextChar))
+                        break;
+                    if(isAlphaWord != nextAlpha)
+                        break;
+
+                    x++;
+                }
+            }
+        }
     }
-    *wantedX = *cursorX;
+    else
+    {
+        // Move forward one character to start
+        x++;
+
+        // Skip whitespace forward
+        while(x < (int)line.length() && std::isspace((unsigned char)line[x]))
+        {
+            x++;
+        }
+
+        // Now find end of current word
+        if(x < (int)line.length())
+        {
+            bool isAlphaWord =
+                (std::isalnum((unsigned char)line[x]) || line[x] == '_');
+
+            // Move forward while in same character type
+            while(x < (int)line.length() - 1)
+            {
+                char nextChar = line[x + 1];
+                bool nextAlpha =
+                    (std::isalnum((unsigned char)nextChar) || nextChar == '_');
+
+                if(std::isspace((unsigned char)nextChar))
+                    break;
+                if(isAlphaWord != nextAlpha)
+                    break;
+
+                x++;
+            }
+        }
+    }
+
+    // Final cursor update
+    *cursorX = x;
+    *cursorY = y;
+    *wantedX = x;
 }
 
 void Editor::moveToLineStart()
@@ -4147,6 +4313,10 @@ void Editor::handleNormalMode(int c)
         while(count-- > 0)
             moveWordBackward();
         break;
+    case 'e':
+        while(count-- > 0)
+            moveToEndOfWord();
+        break;
     case '0':
         if(repeatCount == 0)
             moveToLineStart();
@@ -4351,6 +4521,35 @@ void Editor::handleVisualMode(int c)
         yankSelection();
         setMode(NORMAL);
         needsFullRedraw = true;
+        break;
+    case 'w': // Visual w - extend selection forward by word
+        moveWordForward();
+        updateVisualSelection();
+        adjustViewport();
+        break;
+
+    case 'b': // Visual b - extend selection backward by word
+        moveWordBackward();
+        updateVisualSelection();
+        adjustViewport();
+        break;
+
+    case 'e': // Visual e - extend selection to end of word
+        moveToEndOfWord();
+        updateVisualSelection();
+        adjustViewport();
+        break;
+
+    case '0': // Visual 0 - extend to start of line
+        moveToLineStart();
+        updateVisualSelection();
+        adjustViewport();
+        break;
+
+    case '$': // Visual $ - extend to end of line
+        moveToLineEnd();
+        updateVisualSelection();
+        adjustViewport();
         break;
     }
 }
