@@ -529,18 +529,24 @@ void Editor::moveToLine(int line)
     *cursorX = 0;
 }
 
-void Editor::scrollHalfPageDown()
+void Editor::scrollHalfPageDown(bool visual)
 {
     int half = screenRows / 2;
     moveDown(half);
     adjustViewport();
+
+    if(visual)
+        updateVisualSelection();
 }
 
-void Editor::scrollHalfPageUp()
+void Editor::scrollHalfPageUp(bool visual)
 {
     int half = screenRows / 2;
     moveUp(half);
     adjustViewport();
+
+    if(visual)
+        updateVisualSelection();
 }
 
 bool Editor::isWordChar(char c) const
@@ -3545,10 +3551,10 @@ void Editor::handleNormalMode(int c)
         moveUp(count);
         break;
     case Terminal::CTRL_D:
-        scrollHalfPageDown();
+        scrollHalfPageDown(false);
         break;
     case Terminal::CTRL_U:
-        scrollHalfPageUp();
+        scrollHalfPageUp(false);
         break;
     case 'w':
         while(count-- > 0)
@@ -3711,6 +3717,31 @@ void Editor::handleVisualMode(int c)
         moveUp();
         updateVisualSelection();
         needsFullRedraw = true;
+        break;
+    case Terminal::CTRL_D:
+        scrollHalfPageDown(true);
+        break;
+
+    case Terminal::CTRL_U:
+        scrollHalfPageUp(true);
+        break;
+    case 'G': // visual G → extend to last line
+        moveToLastLine();
+        updateVisualSelection();
+        adjustViewport();
+        break;
+    case 'g': // possible gg
+        if(commandBuffer == "g")
+        {
+            moveToFirstLine();
+            updateVisualSelection();
+            adjustViewport();
+            commandBuffer.clear();
+        }
+        else
+        {
+            commandBuffer = "g";
+        }
         break;
     case 'd':
     case 'x':

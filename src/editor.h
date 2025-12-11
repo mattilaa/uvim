@@ -260,8 +260,8 @@ private:
     void moveToFirstLine();
     void moveToLastLine();
     void moveToLine(int line);
-    void scrollHalfPageDown();
-    void scrollHalfPageUp();
+    void scrollHalfPageDown(bool visual);
+    void scrollHalfPageUp(bool visual);
     void moveToMatchingBracket();
     void findCharForward(char c);
     void findCharBackward(char c);
