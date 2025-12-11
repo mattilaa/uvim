@@ -549,6 +549,95 @@ void Editor::scrollHalfPageUp(bool visual)
         updateVisualSelection();
 }
 
+void Editor::moveToMatchingBracket()
+{
+    if(*cursorY >= lines->size())
+        return;
+
+    const std::string& line = (*lines)[*cursorY];
+    if(*cursorX >= line.length())
+        return;
+
+    char c = line[*cursorX];
+    char open, close;
+
+    switch(c)
+    {
+    case '(':
+        open = '(';
+        close = ')';
+        break;
+    case ')':
+        open = '(';
+        close = ')';
+        break;
+    case '{':
+        open = '{';
+        close = '}';
+        break;
+    case '}':
+        open = '{';
+        close = '}';
+        break;
+    case '[':
+        open = '[';
+        close = ']';
+        break;
+    case ']':
+        open = '[';
+        close = ']';
+        break;
+    default:
+        return; // not on bracket → do nothing
+    }
+
+    int direction = (c == open) ? +1 : -1;
+    int depth = 0;
+
+    int y = *cursorY;
+    int x = *cursorX;
+
+    while(true)
+    {
+        x += direction;
+
+        // Move across lines if needed
+        while(x < 0 || (y < lines->size() && x >= (*lines)[y].length()))
+        {
+            if(direction == +1)
+            {
+                y++;
+                x = 0;
+            }
+            else
+            {
+                y--;
+                if(y < 0)
+                    return;
+                x = (*lines)[y].length() - 1;
+            }
+            if(y < 0 || y >= lines->size())
+                return;
+        }
+
+        char ch = (*lines)[y][x];
+
+        if(ch == c)
+            depth++;
+        else if(ch == (direction == +1 ? close : open))
+        {
+            if(depth == 0)
+            {
+                *cursorY = y;
+                *cursorX = x;
+                *wantedX = x;
+                return;
+            }
+            depth--;
+        }
+    }
+}
+
 bool Editor::isWordChar(char c) const
 {
     return std::isalnum(c) || c == '_';
@@ -3640,7 +3729,10 @@ void Editor::handleNormalMode(int c)
     case Terminal::CTRL_R:
         redo();
         break;
-
+    case '%':
+        moveToMatchingBracket();
+        adjustViewport();
+        break;
     default:
         if(c != 'g' && c != 'd' && c != 'y')
         {
@@ -3727,6 +3819,11 @@ void Editor::handleVisualMode(int c)
         break;
     case 'G': // visual G → extend to last line
         moveToLastLine();
+        updateVisualSelection();
+        adjustViewport();
+        break;
+    case '%':
+        moveToMatchingBracket();
         updateVisualSelection();
         adjustViewport();
         break;
@@ -3973,7 +4070,7 @@ void Editor::handleKeypress()
 
 void Editor::run()
 {
-    setStatusMessage("Vim-like editor - :q to quit, :w to save, :Ex to browse");
+    setStatusMessage("Welcome to uVim!");
 
     while(true)
     {
