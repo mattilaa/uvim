@@ -5166,6 +5166,7 @@ void Editor::forceQuit()
 void Editor::handleNormalMode(int c)
 {
     static bool pendingDelete = false;
+    static bool pendingYank = false;
 
     if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
     {
@@ -5199,13 +5200,66 @@ void Editor::handleNormalMode(int c)
         {
             // first 'd'
             pendingDelete = true;
+            pendingYank = false; // Cancel any pending yank
             return;
         }
     }
-    else
+    else if(c == 'y')
     {
-        // any other key cancels pending 'd'
+        if(pendingYank)
+        {
+            // yy detected - yank multiple lines
+            yankBuffer.clear();
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            for(int i = startLine; i <= endLine; i++)
+            {
+                yankBuffer += (*lines)[i] + "\n";
+            }
+
+            int linesYanked = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesYanked) + " line" +
+                             (linesYanked > 1 ? "s" : "") + " yanked");
+            pendingYank = false;
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // first 'y'
+            pendingYank = true;
+            pendingDelete = false; // Cancel any pending delete
+            return;
+        }
+    }
+    else if(pendingYank && c != 'y')
+    {
+        // 'y' followed by motion command - enter operator-pending mode
+        pendingYank = false;
+        enterOperatorPending('y');
+        pendingCount = count;
+        // Process the motion command immediately
+        handleOperatorPendingMode(c);
+        repeatCount = 0;
+        return;
+    }
+    else if(pendingDelete && c != 'd')
+    {
+        // 'd' followed by motion command - enter operator-pending mode
         pendingDelete = false;
+        enterOperatorPending('d');
+        pendingCount = count;
+        // Process the motion command immediately
+        handleOperatorPendingMode(c);
+        repeatCount = 0;
+        return;
+    }
+    else if(!pendingDelete && !pendingYank)
+    {
+        // Only reset if we're not in the middle of processing pending
+        // operations
     }
     switch(c)
     {
@@ -5379,34 +5433,12 @@ void Editor::handleNormalMode(int c)
         }
         saveState();
         break;
-    case 'd':
-        if(commandBuffer == "d")
-        {
-            while(count-- > 0)
-                deleteLine();
-            commandBuffer.clear();
-            saveState();
-        }
-        else
-        {
-            // enter operator-pending mode
-            enterOperatorPending('d');
-        }
-        break;
     case 'D':
         deleteToLineEnd();
         saveState();
         break;
-    case 'y':
-        if(commandBuffer == "y")
-        {
-            yankLine();
-            commandBuffer.clear();
-        }
-        else
-        {
-            enterOperatorPending('y');
-        }
+    case 'Y':
+        yankToLineEnd();
         break;
 
     case 'c':
