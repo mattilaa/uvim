@@ -1729,13 +1729,81 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
 
     // C++ types
     static const std::unordered_set<std::string> types = {
+        // Fundamental types
         "bool", "char", "char8_t", "char16_t", "char32_t", "double", "float",
         "int", "long", "short", "signed", "unsigned", "void", "wchar_t",
         "size_t", "ptrdiff_t", "nullptr_t", "int8_t", "int16_t", "int32_t",
         "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
-        "std::string", "std::vector", "std::map", "std::set", "std::unordered_map",
-        "std::unordered_set", "std::pair", "std::tuple", "std::array",
-        "std::unique_ptr", "std::shared_ptr", "std::weak_ptr"
+        "intptr_t", "uintptr_t", "intmax_t", "uintmax_t",
+
+        // STL containers
+        "std::vector", "std::list", "std::deque", "std::array", "std::forward_list",
+        "std::map", "std::set", "std::multimap", "std::multiset",
+        "std::unordered_map", "std::unordered_set", "std::unordered_multimap", "std::unordered_multiset",
+        "std::stack", "std::queue", "std::priority_queue",
+        "std::pair", "std::tuple",
+
+        // STL strings
+        "std::string", "std::wstring", "std::u8string", "std::u16string", "std::u32string",
+        "std::string_view", "std::wstring_view", "std::u8string_view", "std::u16string_view", "std::u32string_view",
+
+        // Smart pointers
+        "std::unique_ptr", "std::shared_ptr", "std::weak_ptr", "std::auto_ptr",
+
+        // Function objects
+        "std::function", "std::bind", "std::reference_wrapper",
+
+        // Utility types
+        "std::optional", "std::variant", "std::any", "std::expected",
+        "std::bitset", "std::complex",
+
+        // Stream types
+        "std::iostream", "std::istream", "std::ostream", "std::stringstream",
+        "std::istringstream", "std::ostringstream", "std::fstream", "std::ifstream", "std::ofstream",
+        "std::cout", "std::cin", "std::cerr", "std::clog",
+
+        // Iterator types
+        "std::iterator", "std::reverse_iterator", "std::move_iterator",
+        "std::back_insert_iterator", "std::front_insert_iterator", "std::insert_iterator",
+
+        // Thread types
+        "std::thread", "std::mutex", "std::recursive_mutex", "std::timed_mutex",
+        "std::lock_guard", "std::unique_lock", "std::shared_lock",
+        "std::condition_variable", "std::condition_variable_any",
+        "std::future", "std::promise", "std::packaged_task",
+        "std::async", "std::atomic", "std::atomic_bool", "std::atomic_int",
+
+        // Chrono types
+        "std::chrono::duration", "std::chrono::time_point",
+        "std::chrono::system_clock", "std::chrono::steady_clock", "std::chrono::high_resolution_clock",
+        "std::chrono::seconds", "std::chrono::milliseconds", "std::chrono::microseconds", "std::chrono::nanoseconds",
+
+        // Random types
+        "std::mt19937", "std::mt19937_64", "std::random_device",
+        "std::uniform_int_distribution", "std::uniform_real_distribution",
+        "std::normal_distribution", "std::bernoulli_distribution",
+        "std::discrete_distribution", "std::poisson_distribution",
+
+        // Exception types
+        "std::exception", "std::runtime_error", "std::logic_error",
+        "std::invalid_argument", "std::out_of_range", "std::overflow_error",
+
+        // Type traits
+        "std::is_same", "std::is_integral", "std::is_floating_point",
+        "std::is_pointer", "std::is_reference", "std::is_const",
+        "std::enable_if", "std::conditional", "std::decay",
+        "std::remove_reference", "std::remove_const", "std::remove_pointer",
+
+        // Algorithm types
+        "std::less", "std::greater", "std::equal_to", "std::not_equal_to",
+        "std::plus", "std::minus", "std::multiplies", "std::divides",
+
+        // Numeric types
+        "std::numeric_limits", "std::accumulate", "std::partial_sum",
+
+        // Other common types
+        "std::initializer_list", "std::type_info", "std::bad_alloc",
+        "std::nothrow_t", "std::align_val_t", "std::byte"
     };
 
     int i = 0;
@@ -3776,45 +3844,53 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    bool needsHighlight = false;
-                    for(int x = 0; x < len; x++)
+                    if(isCppFile())
                     {
-                        int col = x + *offsetX;
-                        if(isInSelection(fileRow, col) ||
-                           isInSearchMatch(fileRow, col))
-                        {
-                            needsHighlight = true;
-                            break;
-                        }
-                    }
-
-                    if(!needsHighlight)
-                    {
-                        output.append(line, start, len);
+                        // Use syntax highlighting for C++ files
+                        renderLineWithSyntax(output, line, start, len, fileRow);
                     }
                     else
                     {
+                        bool needsHighlight = false;
                         for(int x = 0; x < len; x++)
                         {
                             int col = x + *offsetX;
-                            bool highlighted = false;
-
-                            if(isInSelection(fileRow, col))
+                            if(isInSelection(fileRow, col) ||
+                               isInSearchMatch(fileRow, col))
                             {
-                                output += "\x1b[7m";
-                                highlighted = true;
+                                needsHighlight = true;
+                                break;
                             }
-                            else if(isInSearchMatch(fileRow, col))
-                            {
-                                output += "\x1b[43m\x1b[30m";
-                                highlighted = true;
-                            }
+                        }
 
-                            output += line[col];
-
-                            if(highlighted)
+                        if(!needsHighlight)
+                        {
+                            output.append(line, start, len);
+                        }
+                        else
+                        {
+                            for(int x = 0; x < len; x++)
                             {
-                                output += "\x1b[m";
+                                int col = x + *offsetX;
+                                bool highlighted = false;
+
+                                if(isInSelection(fileRow, col))
+                                {
+                                    output += "\x1b[7m";
+                                    highlighted = true;
+                                }
+                                else if(isInSearchMatch(fileRow, col))
+                                {
+                                    output += "\x1b[43m\x1b[30m";
+                                    highlighted = true;
+                                }
+
+                                output += line[col];
+
+                                if(highlighted)
+                                {
+                                    output += "\x1b[m";
+                                }
                             }
                         }
                     }
@@ -3859,45 +3935,53 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    bool needsHighlight = false;
-                    for(int x = 0; x < len; x++)
+                    if(isCppFile())
                     {
-                        int col = x + *offsetX;
-                        if(isInSelection(fileRow, col) ||
-                           isInSearchMatch(fileRow, col))
-                        {
-                            needsHighlight = true;
-                            break;
-                        }
-                    }
-
-                    if(!needsHighlight)
-                    {
-                        output.append(line, start, len);
+                        // Use syntax highlighting for C++ files
+                        renderLineWithSyntax(output, line, start, len, fileRow);
                     }
                     else
                     {
+                        bool needsHighlight = false;
                         for(int x = 0; x < len; x++)
                         {
                             int col = x + *offsetX;
-                            bool highlighted = false;
-
-                            if(isInSelection(fileRow, col))
+                            if(isInSelection(fileRow, col) ||
+                               isInSearchMatch(fileRow, col))
                             {
-                                output += "\x1b[7m";
-                                highlighted = true;
+                                needsHighlight = true;
+                                break;
                             }
-                            else if(isInSearchMatch(fileRow, col))
-                            {
-                                output += "\x1b[43m\x1b[30m";
-                                highlighted = true;
-                            }
+                        }
 
-                            output += line[col];
-
-                            if(highlighted)
+                        if(!needsHighlight)
+                        {
+                            output.append(line, start, len);
+                        }
+                        else
+                        {
+                            for(int x = 0; x < len; x++)
                             {
-                                output += "\x1b[m";
+                                int col = x + *offsetX;
+                                bool highlighted = false;
+
+                                if(isInSelection(fileRow, col))
+                                {
+                                    output += "\x1b[7m";
+                                    highlighted = true;
+                                }
+                                else if(isInSearchMatch(fileRow, col))
+                                {
+                                    output += "\x1b[43m\x1b[30m";
+                                    highlighted = true;
+                                }
+
+                                output += line[col];
+
+                                if(highlighted)
+                                {
+                                    output += "\x1b[m";
+                                }
                             }
                         }
                     }

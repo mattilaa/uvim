@@ -365,8 +365,7 @@ private:
     };
 
     bool isCppFile() const;
-    std::vector<Token> tokenizeLine(const std::string& line,
-                                    bool& inBlockComment);
+    std::vector<Token> tokenizeLine(const std::string& line, bool& inBlockComment);
     std::string getColorCode(TokenType type) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow);
