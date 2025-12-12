@@ -1126,10 +1126,10 @@ void Editor::moveWordForward()
         char c = line[x];
 
         // Starting inside whitespace → skip whitespace forward
-        if (std::isspace((unsigned char)c))
+        if(std::isspace((unsigned char)c))
         {
-            while (x < (int)line.length() &&
-                   std::isspace((unsigned char)line[x]))
+            while(x < (int)line.length() &&
+                  std::isspace((unsigned char)line[x]))
             {
                 x++;
             }
@@ -1138,21 +1138,22 @@ void Editor::moveWordForward()
 
         // MAIN LOGIC: eat an entire "word unit"
         // (either alphanumeric-run OR punctuation-run)
-        // This matches vim behavior: stop at transitions between character types
+        // This matches vim behavior: stop at transitions between character
+        // types
 
         bool isAlphaWord = (std::isalnum((unsigned char)c) || c == '_');
         x++;
 
-        while (x < (int)line.length())
+        while(x < (int)line.length())
         {
             char d = line[x];
             bool dAlpha = (std::isalnum((unsigned char)d) || d == '_');
 
             // Break on whitespace or character type change
-            if (std::isspace((unsigned char)d))
+            if(std::isspace((unsigned char)d))
                 break;
-            if (isAlphaWord != dAlpha)
-                break;  // Stop at boundary between alphanumeric and punctuation
+            if(isAlphaWord != dAlpha)
+                break; // Stop at boundary between alphanumeric and punctuation
 
             x++;
         }
@@ -1175,13 +1176,13 @@ void Editor::moveWordBackward()
     int x = *cursorX;
 
     // If at start of file, do nothing
-    if (y == 0 && x == 0)
+    if(y == 0 && x == 0)
     {
         return;
     }
 
     // If at start of line, go to end of previous line
-    if (x == 0)
+    if(x == 0)
     {
         y--;
         x = (*lines)[y].length();
@@ -1190,33 +1191,35 @@ void Editor::moveWordBackward()
     const std::string& line = (*lines)[y];
 
     // Move back one character to start
-    if (x > 0)
+    if(x > 0)
     {
         x--;
     }
 
     // Skip whitespace backwards
-    while (x > 0 && std::isspace((unsigned char)line[x]))
+    while(x > 0 && std::isspace((unsigned char)line[x]))
     {
         x--;
     }
 
     // Now we're on a non-whitespace character
     // Determine its type and find the start of this word
-    if (x >= 0 && !std::isspace((unsigned char)line[x]))
+    if(x >= 0 && !std::isspace((unsigned char)line[x]))
     {
-        bool isAlphaWord = (std::isalnum((unsigned char)line[x]) || line[x] == '_');
+        bool isAlphaWord =
+            (std::isalnum((unsigned char)line[x]) || line[x] == '_');
 
         // Move backwards while we're in the same character type
-        while (x > 0)
+        while(x > 0)
         {
             char prevChar = line[x - 1];
-            bool prevAlpha = (std::isalnum((unsigned char)prevChar) || prevChar == '_');
+            bool prevAlpha =
+                (std::isalnum((unsigned char)prevChar) || prevChar == '_');
 
             // Stop if we hit whitespace or change character type
-            if (std::isspace((unsigned char)prevChar))
+            if(std::isspace((unsigned char)prevChar))
                 break;
-            if (isAlphaWord != prevAlpha)
+            if(isAlphaWord != prevAlpha)
                 break;
 
             x--;
@@ -1237,33 +1240,36 @@ void Editor::moveToEndOfWord()
     const std::string& line = (*lines)[y];
 
     // If already at end of line, move to next line
-    if (x >= (int)line.length() - 1)
+    if(x >= (int)line.length() - 1)
     {
-        if (y + 1 < (int)lines->size())
+        if(y + 1 < (int)lines->size())
         {
             y++;
             x = 0;
             const std::string& nextLine = (*lines)[y];
 
             // Skip whitespace at start of next line
-            while (x < (int)nextLine.length() && std::isspace((unsigned char)nextLine[x]))
+            while(x < (int)nextLine.length() &&
+                  std::isspace((unsigned char)nextLine[x]))
             {
                 x++;
             }
 
             // Then move to end of first word
-            if (x < (int)nextLine.length())
+            if(x < (int)nextLine.length())
             {
-                bool isAlphaWord = (std::isalnum((unsigned char)nextLine[x]) || nextLine[x] == '_');
+                bool isAlphaWord = (std::isalnum((unsigned char)nextLine[x]) ||
+                                    nextLine[x] == '_');
 
-                while (x < (int)nextLine.length() - 1)
+                while(x < (int)nextLine.length() - 1)
                 {
                     char nextChar = nextLine[x + 1];
-                    bool nextAlpha = (std::isalnum((unsigned char)nextChar) || nextChar == '_');
+                    bool nextAlpha = (std::isalnum((unsigned char)nextChar) ||
+                                      nextChar == '_');
 
-                    if (std::isspace((unsigned char)nextChar))
+                    if(std::isspace((unsigned char)nextChar))
                         break;
-                    if (isAlphaWord != nextAlpha)
+                    if(isAlphaWord != nextAlpha)
                         break;
 
                     x++;
@@ -1277,25 +1283,27 @@ void Editor::moveToEndOfWord()
         x++;
 
         // Skip whitespace forward
-        while (x < (int)line.length() && std::isspace((unsigned char)line[x]))
+        while(x < (int)line.length() && std::isspace((unsigned char)line[x]))
         {
             x++;
         }
 
         // Now find end of current word
-        if (x < (int)line.length())
+        if(x < (int)line.length())
         {
-            bool isAlphaWord = (std::isalnum((unsigned char)line[x]) || line[x] == '_');
+            bool isAlphaWord =
+                (std::isalnum((unsigned char)line[x]) || line[x] == '_');
 
             // Move forward while in same character type
-            while (x < (int)line.length() - 1)
+            while(x < (int)line.length() - 1)
             {
                 char nextChar = line[x + 1];
-                bool nextAlpha = (std::isalnum((unsigned char)nextChar) || nextChar == '_');
+                bool nextAlpha =
+                    (std::isalnum((unsigned char)nextChar) || nextChar == '_');
 
-                if (std::isspace((unsigned char)nextChar))
+                if(std::isspace((unsigned char)nextChar))
                     break;
-                if (isAlphaWord != nextAlpha)
+                if(isAlphaWord != nextAlpha)
                     break;
 
                 x++;
@@ -1841,15 +1849,16 @@ std::string Editor::toLowerCase(const std::string& str)
 // Syntax highlighting functions
 bool Editor::isCppFile() const
 {
-    if (filename->empty()) return false;
+    if(filename->empty())
+        return false;
 
     size_t dotPos = filename->find_last_of('.');
-    if (dotPos == std::string::npos) return false;
+    if(dotPos == std::string::npos)
+        return false;
 
     std::string ext = filename->substr(dotPos);
-    return (ext == ".cpp" || ext == ".cc" || ext == ".cxx" ||
-            ext == ".h" || ext == ".hpp" || ext == ".hxx" ||
-            ext == ".c" || ext == ".C");
+    return (ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".h" ||
+            ext == ".hpp" || ext == ".hxx" || ext == ".c" || ext == ".C");
 }
 
 std::string Editor::getColorCode(TokenType type) const
@@ -1857,47 +1866,116 @@ std::string Editor::getColorCode(TokenType type) const
     switch(type)
     {
     case TOKEN_KEYWORD:
-        return "\x1b[35m";      // Magenta for keywords
+        return "\x1b[35m"; // Magenta for keywords
     case TOKEN_TYPE:
-        return "\x1b[36m";      // Cyan for types
+        return "\x1b[36m"; // Cyan for types
     case TOKEN_STRING:
-        return "\x1b[32m";      // Green for strings
+        return "\x1b[32m"; // Green for strings
     case TOKEN_CHAR:
-        return "\x1b[32m";      // Green for chars
+        return "\x1b[32m"; // Green for chars
     case TOKEN_COMMENT:
-        return "\x1b[90m";      // Bright black (gray) for comments
+        return "\x1b[90m"; // Bright black (gray) for comments
     case TOKEN_PREPROCESSOR:
-        return "\x1b[33m";      // Yellow for preprocessor
+        return "\x1b[33m"; // Yellow for preprocessor
     case TOKEN_NUMBER:
-        return "\x1b[31m";      // Red for numbers
+        return "\x1b[31m"; // Red for numbers
     case TOKEN_OPERATOR:
-        return "\x1b[93m";      // Bright yellow for operators
+        return "\x1b[93m"; // Bright yellow for operators
     case TOKEN_FUNCTION:
-        return "\x1b[94m";      // Bright blue for functions
+        return "\x1b[94m"; // Bright blue for functions
     default:
-        return "\x1b[39m";      // Default color
+        return "\x1b[39m"; // Default color
     }
 }
 
-std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& inBlockComment)
+std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
+                                                bool& inBlockComment)
 {
     std::vector<Token> tokens;
 
     // C++ keywords
-    static const std::unordered_set<std::string> keywords = {
-        "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor",
-        "break", "case", "catch", "class", "compl", "concept", "const", "consteval",
-        "constexpr", "constinit", "const_cast", "continue", "co_await", "co_return",
-        "co_yield", "decltype", "default", "delete", "do", "dynamic_cast", "else",
-        "enum", "explicit", "export", "extern", "false", "for", "friend", "goto",
-        "if", "inline", "mutable", "namespace", "new", "noexcept", "not", "not_eq",
-        "nullptr", "operator", "or", "or_eq", "private", "protected", "public",
-        "reflexpr", "register", "reinterpret_cast", "requires", "return", "sizeof",
-        "static", "static_assert", "static_cast", "struct", "switch", "synchronized",
-        "template", "this", "thread_local", "throw", "true", "try", "typedef",
-        "typeid", "typename", "union", "using", "virtual", "volatile", "while",
-        "xor", "xor_eq", "override", "final"
-    };
+    static const std::unordered_set<std::string> keywords = {"alignas",
+                                                             "alignof",
+                                                             "and",
+                                                             "and_eq",
+                                                             "asm",
+                                                             "auto",
+                                                             "bitand",
+                                                             "bitor",
+                                                             "break",
+                                                             "case",
+                                                             "catch",
+                                                             "class",
+                                                             "compl",
+                                                             "concept",
+                                                             "const",
+                                                             "consteval",
+                                                             "constexpr",
+                                                             "constinit",
+                                                             "const_cast",
+                                                             "continue",
+                                                             "co_await",
+                                                             "co_return",
+                                                             "co_yield",
+                                                             "decltype",
+                                                             "default",
+                                                             "delete",
+                                                             "do",
+                                                             "dynamic_cast",
+                                                             "else",
+                                                             "enum",
+                                                             "explicit",
+                                                             "export",
+                                                             "extern",
+                                                             "false",
+                                                             "for",
+                                                             "friend",
+                                                             "goto",
+                                                             "if",
+                                                             "inline",
+                                                             "mutable",
+                                                             "namespace",
+                                                             "new",
+                                                             "noexcept",
+                                                             "not",
+                                                             "not_eq",
+                                                             "nullptr",
+                                                             "operator",
+                                                             "or",
+                                                             "or_eq",
+                                                             "private",
+                                                             "protected",
+                                                             "public",
+                                                             "reflexpr",
+                                                             "register",
+                                                             "reinterpret_cast",
+                                                             "requires",
+                                                             "return",
+                                                             "sizeof",
+                                                             "static",
+                                                             "static_assert",
+                                                             "static_cast",
+                                                             "struct",
+                                                             "switch",
+                                                             "synchronized",
+                                                             "template",
+                                                             "this",
+                                                             "thread_local",
+                                                             "throw",
+                                                             "true",
+                                                             "try",
+                                                             "typedef",
+                                                             "typeid",
+                                                             "typename",
+                                                             "union",
+                                                             "using",
+                                                             "virtual",
+                                                             "volatile",
+                                                             "while",
+                                                             "xor",
+                                                             "xor_eq",
+                                                             "override",
+                                                             "final"};
 
     // C++ types
     static const std::unordered_set<std::string> types = {
@@ -1905,19 +1983,20 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
         "bool", "char", "char8_t", "char16_t", "char32_t", "double", "float",
         "int", "long", "short", "signed", "unsigned", "void", "wchar_t",
         "size_t", "ptrdiff_t", "nullptr_t", "int8_t", "int16_t", "int32_t",
-        "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
-        "intptr_t", "uintptr_t", "intmax_t", "uintmax_t",
+        "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t", "intptr_t",
+        "uintptr_t", "intmax_t", "uintmax_t",
 
         // STL containers
-        "std::vector", "std::list", "std::deque", "std::array", "std::forward_list",
-        "std::map", "std::set", "std::multimap", "std::multiset",
-        "std::unordered_map", "std::unordered_set", "std::unordered_multimap", "std::unordered_multiset",
-        "std::stack", "std::queue", "std::priority_queue",
-        "std::pair", "std::tuple",
+        "std::vector", "std::list", "std::deque", "std::array",
+        "std::forward_list", "std::map", "std::set", "std::multimap",
+        "std::multiset", "std::unordered_map", "std::unordered_set",
+        "std::unordered_multimap", "std::unordered_multiset", "std::stack",
+        "std::queue", "std::priority_queue", "std::pair", "std::tuple",
 
         // STL strings
-        "std::string", "std::wstring", "std::u8string", "std::u16string", "std::u32string",
-        "std::string_view", "std::wstring_view", "std::u8string_view", "std::u16string_view", "std::u32string_view",
+        "std::string", "std::wstring", "std::u8string", "std::u16string",
+        "std::u32string", "std::string_view", "std::wstring_view",
+        "std::u8string_view", "std::u16string_view", "std::u32string_view",
 
         // Smart pointers
         "std::unique_ptr", "std::shared_ptr", "std::weak_ptr", "std::auto_ptr",
@@ -1931,24 +2010,28 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
 
         // Stream types
         "std::iostream", "std::istream", "std::ostream", "std::stringstream",
-        "std::istringstream", "std::ostringstream", "std::fstream", "std::ifstream", "std::ofstream",
-        "std::cout", "std::cin", "std::cerr", "std::clog",
+        "std::istringstream", "std::ostringstream", "std::fstream",
+        "std::ifstream", "std::ofstream", "std::cout", "std::cin", "std::cerr",
+        "std::clog",
 
         // Iterator types
         "std::iterator", "std::reverse_iterator", "std::move_iterator",
-        "std::back_insert_iterator", "std::front_insert_iterator", "std::insert_iterator",
+        "std::back_insert_iterator", "std::front_insert_iterator",
+        "std::insert_iterator",
 
         // Thread types
         "std::thread", "std::mutex", "std::recursive_mutex", "std::timed_mutex",
         "std::lock_guard", "std::unique_lock", "std::shared_lock",
-        "std::condition_variable", "std::condition_variable_any",
-        "std::future", "std::promise", "std::packaged_task",
-        "std::async", "std::atomic", "std::atomic_bool", "std::atomic_int",
+        "std::condition_variable", "std::condition_variable_any", "std::future",
+        "std::promise", "std::packaged_task", "std::async", "std::atomic",
+        "std::atomic_bool", "std::atomic_int",
 
         // Chrono types
         "std::chrono::duration", "std::chrono::time_point",
-        "std::chrono::system_clock", "std::chrono::steady_clock", "std::chrono::high_resolution_clock",
-        "std::chrono::seconds", "std::chrono::milliseconds", "std::chrono::microseconds", "std::chrono::nanoseconds",
+        "std::chrono::system_clock", "std::chrono::steady_clock",
+        "std::chrono::high_resolution_clock", "std::chrono::seconds",
+        "std::chrono::milliseconds", "std::chrono::microseconds",
+        "std::chrono::nanoseconds",
 
         // Random types
         "std::mt19937", "std::mt19937_64", "std::random_device",
@@ -1975,28 +2058,29 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
 
         // Other common types
         "std::initializer_list", "std::type_info", "std::bad_alloc",
-        "std::nothrow_t", "std::align_val_t", "std::byte"
-    };
+        "std::nothrow_t", "std::align_val_t", "std::byte"};
 
     int i = 0;
     int len = line.length();
 
-    while (i < len)
+    while(i < len)
     {
         // Skip whitespace
-        while (i < len && std::isspace(line[i]))
+        while(i < len && std::isspace(line[i]))
             i++;
 
-        if (i >= len) break;
+        if(i >= len)
+            break;
 
         // Check for block comment continuation
-        if (inBlockComment)
+        if(inBlockComment)
         {
             int start = i;
-            while (i < len && !(i < len - 1 && line[i] == '*' && line[i + 1] == '/'))
+            while(i < len &&
+                  !(i < len - 1 && line[i] == '*' && line[i + 1] == '/'))
                 i++;
 
-            if (i < len - 1 && line[i] == '*' && line[i + 1] == '/')
+            if(i < len - 1 && line[i] == '*' && line[i + 1] == '/')
             {
                 i += 2;
                 inBlockComment = false;
@@ -2007,28 +2091,28 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
         }
 
         // Preprocessor directives
-        if (i == 0 && line[i] == '#')
+        if(i == 0 && line[i] == '#')
         {
             tokens.push_back({TOKEN_PREPROCESSOR, i, len - i});
             break;
         }
 
         // Line comments
-        if (i < len - 1 && line[i] == '/' && line[i + 1] == '/')
+        if(i < len - 1 && line[i] == '/' && line[i + 1] == '/')
         {
             tokens.push_back({TOKEN_COMMENT, i, len - i});
             break;
         }
 
         // Block comments
-        if (i < len - 1 && line[i] == '/' && line[i + 1] == '*')
+        if(i < len - 1 && line[i] == '/' && line[i + 1] == '*')
         {
             int start = i;
             i += 2;
-            while (i < len - 1 && !(line[i] == '*' && line[i + 1] == '/'))
+            while(i < len - 1 && !(line[i] == '*' && line[i + 1] == '/'))
                 i++;
 
-            if (i < len - 1 && line[i] == '*' && line[i + 1] == '/')
+            if(i < len - 1 && line[i] == '*' && line[i + 1] == '/')
             {
                 i += 2;
             }
@@ -2043,58 +2127,62 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
         }
 
         // String literals
-        if (line[i] == '"')
+        if(line[i] == '"')
         {
             int start = i;
             i++;
-            while (i < len && line[i] != '"')
+            while(i < len && line[i] != '"')
             {
-                if (line[i] == '\\' && i + 1 < len)
+                if(line[i] == '\\' && i + 1 < len)
                     i += 2;
                 else
                     i++;
             }
-            if (i < len) i++;
+            if(i < len)
+                i++;
             tokens.push_back({TOKEN_STRING, start, i - start});
             continue;
         }
 
         // Character literals
-        if (line[i] == '\'')
+        if(line[i] == '\'')
         {
             int start = i;
             i++;
-            while (i < len && line[i] != '\'')
+            while(i < len && line[i] != '\'')
             {
-                if (line[i] == '\\' && i + 1 < len)
+                if(line[i] == '\\' && i + 1 < len)
                     i += 2;
                 else
                     i++;
             }
-            if (i < len) i++;
+            if(i < len)
+                i++;
             tokens.push_back({TOKEN_CHAR, start, i - start});
             continue;
         }
 
         // Numbers
-        if (std::isdigit(line[i]) || (line[i] == '.' && i + 1 < len && std::isdigit(line[i + 1])))
+        if(std::isdigit(line[i]) ||
+           (line[i] == '.' && i + 1 < len && std::isdigit(line[i + 1])))
         {
             int start = i;
             bool hasHex = false;
 
             // Check for hex prefix
-            if (line[i] == '0' && i + 1 < len && (line[i + 1] == 'x' || line[i + 1] == 'X'))
+            if(line[i] == '0' && i + 1 < len &&
+               (line[i + 1] == 'x' || line[i + 1] == 'X'))
             {
                 hasHex = true;
                 i += 2;
             }
 
-            while (i < len && (std::isdigit(line[i]) ||
-                              (hasHex && std::isxdigit(line[i])) ||
-                              line[i] == '.' || line[i] == 'e' || line[i] == 'E' ||
-                              line[i] == 'f' || line[i] == 'F' ||
-                              line[i] == 'u' || line[i] == 'U' ||
-                              line[i] == 'l' || line[i] == 'L'))
+            while(i < len &&
+                  (std::isdigit(line[i]) ||
+                   (hasHex && std::isxdigit(line[i])) || line[i] == '.' ||
+                   line[i] == 'e' || line[i] == 'E' || line[i] == 'f' ||
+                   line[i] == 'F' || line[i] == 'u' || line[i] == 'U' ||
+                   line[i] == 'l' || line[i] == 'L'))
             {
                 i++;
             }
@@ -2104,29 +2192,30 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
         }
 
         // Identifiers and keywords
-        if (std::isalpha(line[i]) || line[i] == '_')
+        if(std::isalpha(line[i]) || line[i] == '_')
         {
             int start = i;
-            while (i < len && (std::isalnum(line[i]) || line[i] == '_' || line[i] == ':'))
+            while(i < len &&
+                  (std::isalnum(line[i]) || line[i] == '_' || line[i] == ':'))
                 i++;
 
             std::string word = line.substr(start, i - start);
 
             // Check if it's followed by '(' to identify functions
             int j = i;
-            while (j < len && std::isspace(line[j]))
+            while(j < len && std::isspace(line[j]))
                 j++;
 
             TokenType type = TOKEN_NORMAL;
-            if (j < len && line[j] == '(')
+            if(j < len && line[j] == '(')
             {
                 type = TOKEN_FUNCTION;
             }
-            else if (keywords.find(word) != keywords.end())
+            else if(keywords.find(word) != keywords.end())
             {
                 type = TOKEN_KEYWORD;
             }
-            else if (types.find(word) != types.end())
+            else if(types.find(word) != types.end())
             {
                 type = TOKEN_TYPE;
             }
@@ -2136,31 +2225,31 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line, bool& i
         }
 
         // Operators and punctuation
-        if (std::strchr("+-*/%=<>!&|^~?:.,;()[]{}\\", line[i]))
+        if(std::strchr("+-*/%=<>!&|^~?:.,;()[]{}\\", line[i]))
         {
             int start = i;
             i++;
 
             // Multi-character operators
-            if (i < len && std::strchr("=<>+-&|*/%:", line[i - 1]))
+            if(i < len && std::strchr("=<>+-&|*/%:", line[i - 1]))
             {
-                if ((line[i - 1] == '+' && line[i] == '+') ||
-                    (line[i - 1] == '-' && line[i] == '-') ||
-                    (line[i - 1] == '&' && line[i] == '&') ||
-                    (line[i - 1] == '|' && line[i] == '|') ||
-                    (line[i - 1] == '=' && line[i] == '=') ||
-                    (line[i - 1] == '!' && line[i] == '=') ||
-                    (line[i - 1] == '<' && line[i] == '=') ||
-                    (line[i - 1] == '>' && line[i] == '=') ||
-                    (line[i - 1] == '<' && line[i] == '<') ||
-                    (line[i - 1] == '>' && line[i] == '>') ||
-                    (line[i - 1] == '-' && line[i] == '>') ||
-                    (line[i - 1] == ':' && line[i] == ':') ||
-                    (line[i - 1] == '+' && line[i] == '=') ||
-                    (line[i - 1] == '-' && line[i] == '=') ||
-                    (line[i - 1] == '*' && line[i] == '=') ||
-                    (line[i - 1] == '/' && line[i] == '=') ||
-                    (line[i - 1] == '%' && line[i] == '='))
+                if((line[i - 1] == '+' && line[i] == '+') ||
+                   (line[i - 1] == '-' && line[i] == '-') ||
+                   (line[i - 1] == '&' && line[i] == '&') ||
+                   (line[i - 1] == '|' && line[i] == '|') ||
+                   (line[i - 1] == '=' && line[i] == '=') ||
+                   (line[i - 1] == '!' && line[i] == '=') ||
+                   (line[i - 1] == '<' && line[i] == '=') ||
+                   (line[i - 1] == '>' && line[i] == '=') ||
+                   (line[i - 1] == '<' && line[i] == '<') ||
+                   (line[i - 1] == '>' && line[i] == '>') ||
+                   (line[i - 1] == '-' && line[i] == '>') ||
+                   (line[i - 1] == ':' && line[i] == ':') ||
+                   (line[i - 1] == '+' && line[i] == '=') ||
+                   (line[i - 1] == '-' && line[i] == '=') ||
+                   (line[i - 1] == '*' && line[i] == '=') ||
+                   (line[i - 1] == '/' && line[i] == '=') ||
+                   (line[i - 1] == '%' && line[i] == '='))
                 {
                     i++;
                 }
@@ -2184,7 +2273,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     static bool inBlockComment = false;
 
     // Reset block comment state at start of file
-    if (fileRow == 0)
+    if(fileRow == 0)
         inBlockComment = false;
 
     // Get tokens for the line
@@ -2195,13 +2284,13 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     std::vector<TokenType> charColors(len, TOKEN_NORMAL);
 
     // Map tokens to visible characters
-    for (const auto& token : tokens)
+    for(const auto& token : tokens)
     {
         int tokenEnd = token.start + token.length;
-        for (int pos = token.start; pos < tokenEnd; pos++)
+        for(int pos = token.start; pos < tokenEnd; pos++)
         {
             int visiblePos = pos - start;
-            if (visiblePos >= 0 && visiblePos < len)
+            if(visiblePos >= 0 && visiblePos < len)
             {
                 charColors[visiblePos] = token.type;
             }
@@ -2210,25 +2299,25 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
     // Render with colors
     TokenType currentColor = TOKEN_NORMAL;
-    for (int x = 0; x < len; x++)
+    for(int x = 0; x < len; x++)
     {
         int col = x + start;
 
         // Check for selection or search highlighting first
         bool highlighted = false;
-        if (isInSelection(fileRow, col))
+        if(isInSelection(fileRow, col))
         {
-            output += "\x1b[7m";  // Reverse video for selection
+            output += "\x1b[7m"; // Reverse video for selection
             highlighted = true;
         }
-        else if (isInSearchMatch(fileRow, col))
+        else if(isInSearchMatch(fileRow, col))
         {
-            output += "\x1b[43m\x1b[30m";  // Yellow background for search
+            output += "\x1b[43m\x1b[30m"; // Yellow background for search
             highlighted = true;
         }
 
         // Apply syntax color if not highlighted
-        if (!highlighted && charColors[x] != currentColor)
+        if(!highlighted && charColors[x] != currentColor)
         {
             currentColor = charColors[x];
             output += getColorCode(currentColor);
@@ -2236,15 +2325,15 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
         output += line[col];
 
-        if (highlighted)
+        if(highlighted)
         {
-            output += "\x1b[m";  // Reset all attributes
-            currentColor = TOKEN_NORMAL;  // Need to reapply color after reset
+            output += "\x1b[m";          // Reset all attributes
+            currentColor = TOKEN_NORMAL; // Need to reapply color after reset
         }
     }
 
     // Reset color at end of line
-    if (currentColor != TOKEN_NORMAL)
+    if(currentColor != TOKEN_NORMAL)
     {
         output += "\x1b[39m";
     }
@@ -4578,7 +4667,8 @@ void Editor::drawFullScreen()
                 // Check if we should use syntax highlighting
                 if(isCppFile())
                 {
-                    // Use syntax highlighting for C++ files (handles selections too)
+                    // Use syntax highlighting for C++ files (handles selections
+                    // too)
                     renderLineWithSyntax(output, line, start, len, fileRow);
                 }
                 else if(!hasHighlighting)
@@ -5225,10 +5315,10 @@ void Editor::handleNormalMode(int c)
         }
         break;
 
-    case '\\':  // Leader key (backslash)
+    case '\\': // Leader key (backslash)
         if(commandBuffer == "\\")
         {
-            commandBuffer.clear();  // Double backslash cancels
+            commandBuffer.clear(); // Double backslash cancels
         }
         else
         {
@@ -5302,7 +5392,8 @@ void Editor::handleNormalMode(int c)
         break;
     }
 
-    // Clear command buffer if we had a pending command but didn't recognize what followed
+    // Clear command buffer if we had a pending command but didn't recognize
+    // what followed
     if((commandBuffer == "\\" || commandBuffer == "g") && c != '\\' && c != 'g')
     {
         // If the command wasn't recognized, clear the buffer
