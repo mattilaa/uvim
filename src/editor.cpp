@@ -294,6 +294,67 @@ void Editor::handleOperatorPendingMode(int c)
         case 'k':
             moveUp(pendingCount);
             break;
+        case 'G':
+            // Move to last line or specific line if count given
+            if(pendingCount > 0)
+                moveToLine(pendingCount - 1);
+            else
+                moveToLastLine();
+            break;
+        case 'g':
+            // For gg motion - need to read next char
+            {
+                int nextChar = Terminal::readKey();
+                if(nextChar == 'g')
+                {
+                    moveToFirstLine();
+                }
+                else
+                {
+                    // Unsupported gg variant
+                    setStatusMessage("Unknown motion for operator");
+                    setMode(NORMAL);
+                    *cursorX = saveX;
+                    *cursorY = saveY;
+                    *wantedX = saveWanted;
+                    *offsetY = saveOffsetY;
+                    *offsetX = saveOffsetX;
+                    return;
+                }
+            }
+            break;
+        case '{':
+            // Move to beginning of paragraph (previous blank line)
+            {
+                int targetY = *cursorY;
+                // Skip current paragraph
+                while(targetY > 0 && !(*lines)[targetY].empty())
+                    targetY--;
+                // Skip blank lines
+                while(targetY > 0 && (*lines)[targetY].empty())
+                    targetY--;
+                // Find beginning of previous paragraph
+                while(targetY > 0 && !(*lines)[targetY - 1].empty())
+                    targetY--;
+                *cursorY = targetY;
+                *cursorX = 0;
+            }
+            break;
+        case '}':
+            // Move to end of paragraph (next blank line)
+            {
+                int targetY = *cursorY;
+                int maxLine = lines->size() - 1;
+                // Skip current paragraph
+                while(targetY < maxLine && !(*lines)[targetY].empty())
+                    targetY++;
+                // Skip blank lines
+                while(targetY < maxLine && (*lines)[targetY].empty())
+                    targetY++;
+                *cursorY = targetY;
+                *cursorX = 0;
+            }
+            break;
         default:
             // unsupported motion -> cancel operator
             setStatusMessage("Unknown motion for operator");
@@ -613,6 +674,18 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
         saveState();
     }
 
+    if(op == '=')
+    {
+        // For indent operator, we indent all lines in the range
+        // For line-wise motions or when the range spans multiple lines
+        autoIndentRange(startY, endY);
+
+        int linesIndented = endY - startY + 1;
+        setStatusMessage(std::to_string(linesIndented) + " line" +
+                         (linesIndented > 1 ? "s" : "") + " indented");
+        saveState();
+    }
+
     if(op == 'c')
     {
         // After change, enter insert mode at start
@@ -623,9 +696,12 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
     }
     else
     {
-        // Place cursor at start of affected range
-        *cursorY = startY;
-        *cursorX = startX;
+        // Place cursor at start of affected range (or keep it for indent)
+        if(op != '=')
+        {
+            *cursorY = startY;
+            *cursorX = startX;
+        }
     }
 
     needsFullRedraw = true;
@@ -1854,6 +1930,135 @@ std::string Editor::toLowerCase(const std::string& str)
     std::string result = str;
     std::transform(result.begin(), result.end(), result.begin(), ::tolower);
     return result;
+}
+
+int Editor::getLineIndent(int line)
+{
+    if(line < 0 || line >= (int)lines->size())
+        return 0;
+
+    const std::string& text = (*lines)[line];
+    int indent = 0;
+    for(char c : text)
+    {
+        if(c == ' ')
+            indent++;
+        else if(c == '\t')
+            indent += 4; // Treat tab as 4 spaces
+        else
+            break;
+    }
+    return indent;
+}
+
+void Editor::indentLine(int line, int spaces)
+{
+    if(line < 0 || line >= (int)lines->size())
+        return;
+
+    std::string& text = (*lines)[line];
+
+    // Remove existing indentation
+    size_t firstNonSpace = 0;
+    while(firstNonSpace < text.length() &&
+          (text[firstNonSpace] == ' ' || text[firstNonSpace] == '\t'))
+    {
+        firstNonSpace++;
+    }
+
+    // Build new indentation
+    std::string newIndent(spaces, ' ');
+    text = newIndent + text.substr(firstNonSpace);
+    *dirty = true;
+}
+
+// Auto-indent a line based on the previous line and C++ syntax rules
+void Editor::autoIndentLine(int line)
+{
+    if(line < 0 || line >= (int)lines->size())
+        return;
+
+    // Get the content of current line (without leading spaces)
+    std::string currentLine = (*lines)[line];
+    size_t firstNonSpace = currentLine.find_first_not_of(" \t");
+    if(firstNonSpace != std::string::npos)
+        currentLine = currentLine.substr(firstNonSpace);
+    else
+        currentLine = "";
+
+    // Start with previous line's indent
+    int baseIndent = 0;
+    if(line > 0)
+    {
+        baseIndent = getLineIndent(line - 1);
+
+        // Check if previous line ends with { or starts a block
+        const std::string& prevLine = (*lines)[line - 1];
+        size_t lastNonSpace = prevLine.find_last_not_of(" \t\r\n");
+        if(lastNonSpace != std::string::npos)
+        {
+            char lastChar = prevLine[lastNonSpace];
+            if(lastChar == '{')
+            {
+                baseIndent += 4; // Increase indent after opening brace
+            }
+            else if(lastChar == ':' &&
+                    (prevLine.find("public") != std::string::npos ||
+                     prevLine.find("private") != std::string::npos ||
+                     prevLine.find("protected") != std::string::npos ||
+                     prevLine.find("case") != std::string::npos ||
+                     prevLine.find("default") != std::string::npos))
+            {
+                baseIndent += 4; // Increase indent after class access
+                                 // specifiers or case labels
+            }
+        }
+    }
+
+    // Check if current line starts with closing brace or special keywords
+    if(!currentLine.empty())
+    {
+        if(currentLine[0] == '}')
+        {
+            baseIndent = std::max(
+                0, baseIndent - 4); // Decrease indent for closing brace
+        }
+        else if(currentLine.find("public:") == 0 ||
+                currentLine.find("private:") == 0 ||
+                currentLine.find("protected:") == 0)
+        {
+            // Access specifiers typically have less indent than class members
+            if(line > 0 && baseIndent >= 4)
+                baseIndent -= 4;
+        }
+        else if(currentLine.find("case ") == 0 ||
+                currentLine.find("default:") == 0)
+        {
+            // Case labels typically align with switch
+            if(baseIndent >= 4)
+                baseIndent -= 4;
+        }
+    }
+
+    indentLine(line, baseIndent);
+}
+
+// Auto-indent a range of lines
+void Editor::autoIndentRange(int startLine, int endLine)
+{
+    if(startLine > endLine)
+        std::swap(startLine, endLine);
+
+    startLine = std::max(0, startLine);
+    endLine = std::min((int)lines->size() - 1, endLine);
+
+    for(int i = startLine; i <= endLine; i++)
+    {
+        autoIndentLine(i);
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
 }
 
 // Syntax highlighting functions
@@ -5167,6 +5372,9 @@ void Editor::handleNormalMode(int c)
 {
     static bool pendingDelete = false;
     static bool pendingYank = false;
+    static bool pendingIndent = false;
+    static bool pendingShiftRight = false;
+    static bool pendingShiftLeft = false;
 
     if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
     {
@@ -5200,7 +5408,8 @@ void Editor::handleNormalMode(int c)
         {
             // first 'd'
             pendingDelete = true;
-            pendingYank = false; // Cancel any pending yank
+            pendingYank = false;   // Cancel any pending yank
+            pendingIndent = false; // Cancel any pending indent
             return;
         }
     }
@@ -5231,6 +5440,106 @@ void Editor::handleNormalMode(int c)
             // first 'y'
             pendingYank = true;
             pendingDelete = false; // Cancel any pending delete
+            pendingIndent = false; // Cancel any pending indent
+            return;
+        }
+    }
+    else if(c == '=')
+    {
+        if(pendingIndent)
+        {
+            // == detected - indent current line(s)
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            autoIndentRange(startLine, endLine);
+
+            int linesIndented = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " indented");
+            pendingIndent = false;
+            repeatCount = 0;
+            saveState();
+            return;
+        }
+        else
+        {
+            // first '='
+            pendingIndent = true;
+            pendingDelete = false; // Cancel any pending delete
+            pendingYank = false;   // Cancel any pending yank
+            return;
+        }
+    }
+    else if(c == '>')
+    {
+        if(pendingShiftRight)
+        {
+            // >> detected - shift right (increase indent)
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            for(int i = startLine; i <= endLine; i++)
+            {
+                int currentIndent = getLineIndent(i);
+                indentLine(i, currentIndent + 4); // Add 4 spaces
+            }
+
+            int linesIndented = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " >>");
+            pendingShiftRight = false;
+            repeatCount = 0;
+            saveState();
+            needsFullRedraw = true;
+            return;
+        }
+        else
+        {
+            // first '>'
+            pendingShiftRight = true;
+            pendingShiftLeft = false;
+            pendingDelete = false;
+            pendingYank = false;
+            pendingIndent = false;
+            return;
+        }
+    }
+    else if(c == '<')
+    {
+        if(pendingShiftLeft)
+        {
+            // << detected - shift left (decrease indent)
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            for(int i = startLine; i <= endLine; i++)
+            {
+                int currentIndent = getLineIndent(i);
+                indentLine(i,
+                           std::max(0, currentIndent - 4)); // Remove 4 spaces
+            }
+
+            int linesIndented = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " <<");
+            pendingShiftLeft = false;
+            repeatCount = 0;
+            saveState();
+            needsFullRedraw = true;
+            return;
+        }
+        else
+        {
+            // first '<'
+            pendingShiftLeft = true;
+            pendingShiftRight = false;
+            pendingDelete = false;
+            pendingYank = false;
+            pendingIndent = false;
             return;
         }
     }
@@ -5256,7 +5565,19 @@ void Editor::handleNormalMode(int c)
         repeatCount = 0;
         return;
     }
-    else if(!pendingDelete && !pendingYank)
+    else if(pendingIndent && c != '=')
+    {
+        // '=' followed by motion command - enter operator-pending mode
+        pendingIndent = false;
+        enterOperatorPending('=');
+        pendingCount = count;
+        // Process the motion command immediately
+        handleOperatorPendingMode(c);
+        repeatCount = 0;
+        return;
+    }
+    else if(!pendingDelete && !pendingYank && !pendingIndent &&
+            !pendingShiftRight && !pendingShiftLeft)
     {
         // Only reset if we're not in the middle of processing pending
         // operations
@@ -5597,6 +5918,21 @@ void Editor::handleVisualMode(int c)
         yankSelection();
         setMode(NORMAL);
         needsFullRedraw = true;
+        break;
+    case '=':
+        // Indent selected lines
+        {
+            int startY, startX, endY, endX;
+            getSelectionBounds(startY, startX, endY, endX);
+            autoIndentRange(startY, endY);
+
+            int linesIndented = endY - startY + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " indented");
+            setMode(NORMAL);
+            saveState();
+            needsFullRedraw = true;
+        }
         break;
     case 'w': // Visual w - extend selection forward by word
         moveWordForward();

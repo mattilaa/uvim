@@ -367,6 +367,8 @@ private:
     void centerScreen();
     int getLineIndent(int line);
     void indentLine(int line, int spaces);
+    void autoIndentLine(int line);
+    void autoIndentRange(int startLine, int endLine);
     std::string toLowerCase(const std::string& str);
 
     // Syntax highlighting
