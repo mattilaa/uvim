@@ -20,6 +20,7 @@ public:
         SEARCH_BACKWARD,
         FILE_BROWSER,
         FUZZY_FIND,
+        BUFFER_BROWSER,
         GREP_SEARCH,
         OP_PENDING,
     };
@@ -120,6 +121,19 @@ private:
     int fuzzyOffset = 0;
     bool fuzzyInitialized = false;
 
+    // Buffer browser (fzf-style)
+    struct BufferMatch
+    {
+        int bufferIndex = -1;
+        int score = 0;
+        std::string display;
+        std::vector<int> matchPositions; // positions within display string
+    };
+    std::vector<BufferMatch> bufferMatches;
+    std::string bufferQuery;
+    int bufferCursor = 0;
+    int bufferOffset = 0;
+
     // Grep search
     struct GrepMatch
     {
@@ -204,6 +218,7 @@ private:
     void handleSearchMode(int c);
     void handleFileBrowserMode(int c);
     void handleFuzzyFindMode(int c);
+    void handleBufferBrowserMode(int c);
     void handleGrepSearchMode(int c);
     void handleKeypress();
 
@@ -255,6 +270,12 @@ private:
     void updateFuzzyMatches();
     void drawFuzzyFind();
     void selectFuzzyMatch();
+
+    // Buffer browser functions
+    void initializeBufferBrowser();
+    void updateBufferMatches();
+    void drawBufferBrowser();
+    void selectBufferMatch();
 
     // Grep search functions
     void initializeGrepSearch();

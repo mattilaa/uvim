@@ -66,6 +66,7 @@ public:
         CTRL_J = 10,
         CTRL_K = 11,
         CTRL_U = 21,
+        CTRL_W = 23,
         CTRL_D = 4,
         // CTRL_H = 8      // Ctrl-H is also backspace
     };
