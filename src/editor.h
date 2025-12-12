@@ -356,6 +356,7 @@ private:
     // File operations
     void saveFile();
     void executeCommand(const std::string& cmd);
+    void forceQuit();
 
     // Utilities
     void setStatusMessage(const std::string& msg);

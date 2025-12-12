@@ -5156,6 +5156,12 @@ void Editor::executeCommand(const std::string& cmd)
     }
 }
 
+void Editor::forceQuit()
+{
+    Terminal::restoreTerminal();
+    std::exit(0);
+}
+
 // Mode handlers
 void Editor::handleNormalMode(int c)
 {
@@ -5597,6 +5603,33 @@ void Editor::handleCommandMode(int c)
     switch(c)
     {
     case Terminal::ENTER:
+    {
+        std::string cmd = commandBuffer.substr(1);
+
+        if(cmd == "q!")
+        {
+            forceQuit();
+            return;
+        }
+
+        if(cmd == "q")
+        {
+            // refuse quit if ANY buffer is dirty
+            for(const auto& buf : buffers)
+            {
+                if(buf->dirty)
+                {
+                    setStatusMessage("No write since last change (use :q!)");
+                    setMode(NORMAL);
+                    return;
+                }
+            }
+
+            // clean quit
+            Terminal::restoreTerminal();
+            std::exit(0);
+        }
+    }
         executeCommand(commandBuffer.substr(1));
         setMode(NORMAL);
         break;
