@@ -242,6 +242,11 @@ private:
     void createNewFile();
     void deleteCurrentFile();
 
+    // Jump between header and source
+    void jumpToAlternateFile();
+    std::string findAlternateFile(const std::string& currentFile);
+    bool fileExists(const std::string& path);
+
     // Fuzzy finder functions
     void initializeFuzzyFind();
     void collectProjectFiles(const std::string& dir, int depth = 0);
