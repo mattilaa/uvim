@@ -5047,6 +5047,8 @@ void Editor::executeCommand(const std::string& cmd)
 // Mode handlers
 void Editor::handleNormalMode(int c)
 {
+    static bool pendingDelete = false;
+
     if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
     {
         repeatCount = c - '0';
@@ -5060,6 +5062,33 @@ void Editor::handleNormalMode(int c)
 
     int count = std::max(1, repeatCount);
 
+    if(c == 'd')
+    {
+        if(pendingDelete)
+        {
+            // dd detected
+            for(int i = 0; i < count; i++)
+            {
+                deleteLine();
+            }
+            saveState();
+            setStatusMessage(std::to_string(count) + " line(s) deleted");
+            pendingDelete = false;
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // first 'd'
+            pendingDelete = true;
+            return;
+        }
+    }
+    else
+    {
+        // any other key cancels pending 'd'
+        pendingDelete = false;
+    }
     switch(c)
     {
     case 'i':
