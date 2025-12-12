@@ -262,22 +262,22 @@ void Editor::handleOperatorPendingMode(int c)
         int saveX = *cursorX, saveY = *cursorY, saveWanted = *wantedX,
             saveOffsetY = *offsetY, saveOffsetX = *offsetX;
 
-        bool isExclusiveMotion = false;  // Track if motion should be exclusive
+        bool isExclusiveMotion = false; // Track if motion should be exclusive
 
         // Apply motion
         switch(c)
         {
         case 'w':
             moveWordForward();
-            isExclusiveMotion = true;  // 'w' is exclusive in vim
+            isExclusiveMotion = true; // 'w' is exclusive in vim
             break;
         case 'b':
             moveWordBackward();
-            isExclusiveMotion = true;  // 'b' is exclusive in vim
+            isExclusiveMotion = true; // 'b' is exclusive in vim
             break;
         case 'e':
             moveToEndOfWord();
-            isExclusiveMotion = false;  // 'e' is inclusive in vim
+            isExclusiveMotion = false; // 'e' is inclusive in vim
             break;
         case '0':
             moveToLineStart();
@@ -325,7 +325,8 @@ void Editor::handleOperatorPendingMode(int c)
             endY = destY;
             endX = destX;
 
-            // For exclusive forward motions, don't include the character at destination
+            // For exclusive forward motions, don't include the character at
+            // destination
             if(isExclusiveMotion)
             {
                 // Make the range exclusive by moving end back one position
@@ -867,6 +868,171 @@ void Editor::saveFile()
     }
 }
 
+// Jump between header and source file
+bool Editor::fileExists(const std::string& path)
+{
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
+std::string Editor::findAlternateFile(const std::string& currentFile)
+{
+    if(currentFile.empty())
+        return "";
+
+    // Find the last dot to get the extension
+    size_t lastDot = currentFile.find_last_of('.');
+    if(lastDot == std::string::npos)
+        return "";
+
+    std::string baseName = currentFile.substr(0, lastDot);
+    std::string extension = currentFile.substr(lastDot);
+
+    // List of header extensions
+    static const std::vector<std::string> headerExts = {".h", ".hpp", ".hxx",
+                                                        ".H", ".HPP", ".HXX"};
+
+    // List of source extensions
+    static const std::vector<std::string> sourceExts = {
+        ".cpp", ".cc", ".cxx", ".c", ".C", ".CPP", ".CC", ".CXX"};
+
+    // Check if current file is a header
+    bool isHeader = false;
+    for(const auto& ext : headerExts)
+    {
+        if(extension == ext)
+        {
+            isHeader = true;
+            break;
+        }
+    }
+
+    // Try to find the alternate file
+    std::vector<std::string> candidates;
+
+    if(isHeader)
+    {
+        // Current file is a header, look for source files
+        for(const auto& ext : sourceExts)
+        {
+            candidates.push_back(baseName + ext);
+        }
+    }
+    else
+    {
+        // Current file is likely a source, look for header files
+        for(const auto& ext : headerExts)
+        {
+            candidates.push_back(baseName + ext);
+        }
+    }
+
+    // Also check in common relative directories
+    size_t lastSlash = currentFile.find_last_of('/');
+    std::string dir = "";
+    std::string fileName = currentFile;
+
+    if(lastSlash != std::string::npos)
+    {
+        dir = currentFile.substr(0, lastSlash + 1);
+        fileName = currentFile.substr(lastSlash + 1);
+        baseName = fileName.substr(0, fileName.find_last_of('.'));
+    }
+
+    // Common directory pairs
+    std::vector<std::pair<std::string, std::string>> dirPairs = {
+        {"src/", "include/"},
+        {"source/", "include/"},
+        {"src/", "inc/"},
+        {"source/", "headers/"},
+        {"lib/", "include/"},
+        {"", "../include/"},
+        {"", "../inc/"},
+        {"include/", "../src/"},
+        {"include/", "../source/"},
+        {"inc/", "../src/"},
+        {"headers/", "../source/"},
+        {"include/", "../lib/"},
+    };
+
+    // Add candidates from related directories
+    for(const auto& [srcDir, incDir] : dirPairs)
+    {
+        if(dir.find(srcDir) != std::string::npos && isHeader == false)
+        {
+            // We're in a source dir, look for headers in include dir
+            std::string altDir = dir;
+            size_t pos = altDir.find(srcDir);
+            if(pos != std::string::npos)
+            {
+                altDir.replace(pos, srcDir.length(), incDir);
+                for(const auto& ext : headerExts)
+                {
+                    candidates.push_back(altDir + baseName + ext);
+                }
+            }
+        }
+        else if(dir.find(incDir) != std::string::npos && isHeader == true)
+        {
+            // We're in an include dir, look for sources in source dir
+            std::string altDir = dir;
+            size_t pos = altDir.find(incDir);
+            if(pos != std::string::npos)
+            {
+                altDir.replace(pos, incDir.length(), srcDir);
+                for(const auto& ext : sourceExts)
+                {
+                    candidates.push_back(altDir + baseName + ext);
+                }
+            }
+        }
+    }
+
+    // Check which candidate exists
+    for(const auto& candidate : candidates)
+    {
+        if(fileExists(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return "";
+}
+
+void Editor::jumpToAlternateFile()
+{
+    if(filename->empty())
+    {
+        setStatusMessage("No file currently open");
+        return;
+    }
+
+    std::string alternate = findAlternateFile(*filename);
+
+    if(alternate.empty())
+    {
+        setStatusMessage("No alternate file found for " + *filename);
+        return;
+    }
+
+    // Check if the alternate file is already open in a buffer
+    int bufferIndex = findBufferByFilename(alternate);
+
+    if(bufferIndex >= 0)
+    {
+        // Switch to existing buffer
+        switchToBuffer(bufferIndex);
+        setStatusMessage("Switched to " + alternate);
+    }
+    else
+    {
+        // Open the alternate file in a new buffer
+        openFile(alternate);
+        setStatusMessage("Opened " + alternate);
+    }
+}
+
 // Movement implementations
 void Editor::moveLeft(int count)
 {
@@ -928,22 +1094,22 @@ void Editor::moveWordForward()
     int y = *cursorY;
     int x = *cursorX;
 
-    while (true)
+    while(true)
     {
         const std::string& line = (*lines)[y];
 
         // End of line → go to next line
-        if (x >= (int)line.length())
+        if(x >= (int)line.length())
         {
-            if (y + 1 >= (int)lines->size())
+            if(y + 1 >= (int)lines->size())
                 break;
 
             y++;
             x = 0;
 
             // Skip leading whitespace on next line
-            while (x < (int)(*lines)[y].length() &&
-                   std::isspace((unsigned char)(*lines)[y][x]))
+            while(x < (int)(*lines)[y].length() &&
+                  std::isspace((unsigned char)(*lines)[y][x]))
             {
                 x++;
             }
@@ -4714,6 +4880,18 @@ void Editor::handleNormalMode(int c)
         break;
 
     case 'h':
+        if(commandBuffer == "\\")
+        {
+            // Leader + h: jump to alternate file (header/source)
+            jumpToAlternateFile();
+            commandBuffer.clear();
+        }
+        else
+        {
+            // Normal h: move left
+            moveLeft(count);
+        }
+        break;
     case Terminal::ARROW_LEFT:
         moveLeft(count);
         break;
@@ -4773,6 +4951,18 @@ void Editor::handleNormalMode(int c)
         else
         {
             moveToLastLine();
+        }
+        break;
+
+    case '\\':  // Leader key (backslash)
+        if(commandBuffer == "\\")
+        {
+            commandBuffer.clear();  // Double backslash cancels
+        }
+        else
+        {
+            commandBuffer = "\\";
+            setStatusMessage("Leader");
         }
         break;
 
@@ -4839,6 +5029,23 @@ void Editor::handleNormalMode(int c)
             commandBuffer.clear();
         }
         break;
+    }
+
+    // Clear command buffer if we had a pending command but didn't recognize what followed
+    if((commandBuffer == "\\" || commandBuffer == "g") && c != '\\' && c != 'g')
+    {
+        // If the command wasn't recognized, clear the buffer
+        bool recognized = false;
+        if(commandBuffer == "\\" && c == 'h')
+            recognized = true;
+        if(commandBuffer == "g" && c == 'g')
+            recognized = true;
+
+        if(!recognized)
+        {
+            commandBuffer.clear();
+            setStatusMessage("");
+        }
     }
 
     repeatCount = 0;
