@@ -18,6 +18,9 @@ public:
     static void hideCursor();
     static void showCursor();
 
+    static void setCursorBlock();
+    static void setCursorBarBlinking();
+
     // Screen info
     static void getWindowSize(int& rows, int& cols);
 
@@ -52,8 +55,8 @@ public:
         HOME,
         END,
         DELETE,
-        BACKSPACE = 8, // Changed from 127 to 8 (actual backspace)
-        DEL = 127,     // 127 is actually DEL key
+        BACKSPACE = 8,
+        DEL = 127,
         ENTER = 13,
         ESC = 27,
         TAB = 9,
@@ -68,7 +71,6 @@ public:
         CTRL_U = 21,
         CTRL_W = 23,
         CTRL_D = 4,
-        // CTRL_H = 8      // Ctrl-H is also backspace
     };
 
 private:

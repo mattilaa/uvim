@@ -275,3 +275,15 @@ void Terminal::restoreCursorPosition()
 {
     write("\x1b[u");
 }
+
+void Terminal::setCursorBlock()
+{
+    // Steady block cursor
+    write("\x1b[2 q");
+}
+
+void Terminal::setCursorBarBlinking()
+{
+    // Blinking bar (thin cursor)
+    write("\x1b[5 q");
+}
