@@ -700,6 +700,16 @@ void Editor::setMode(Mode mode)
     currentMode = mode;
     needsFullRedraw = true;
 
+    // Cursor shape handling (NEW)
+    if(mode == INSERT)
+    {
+        Terminal::setCursorBarBlinking();
+    }
+    else
+    {
+        Terminal::setCursorBlock();
+    }
+
     if(mode == NORMAL)
     {
         commandBuffer.clear();
