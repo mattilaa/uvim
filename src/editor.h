@@ -31,7 +31,6 @@ public:
     void run();
     void openFile(const std::string& filename);
 
-private:
     // Buffer structure to hold file data
     struct Buffer
     {
