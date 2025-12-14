@@ -5999,6 +5999,89 @@ void Editor::handleVisualMode(int c)
         updateVisualSelection();
         adjustViewport();
         break;
+    case 'p':
+    case 'P':
+        // In visual mode, 'p' replaces the selection with yanked text
+        if(!yankBuffer.empty())
+        {
+            // Store the current yank buffer content
+            std::string pasteContent = yankBuffer;
+
+            // Get selection bounds
+            int startY, startX, endY, endX;
+
+            if(currentMode == VISUAL_LINE)
+            {
+                // For visual line mode, we work with whole lines
+                startY = std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+                endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+
+                // Delete the selected lines
+                for(int i = endY; i >= startY; i--)
+                {
+                    lines->erase(lines->begin() + i);
+                }
+
+                if(lines->empty())
+                {
+                    lines->push_back("");
+                }
+
+                // Set cursor to start of deleted region
+                *cursorY = std::min(startY, (int)lines->size() - 1);
+                *cursorX = 0;
+            }
+            else
+            {
+                // For character-wise visual mode
+                getSelectionBounds(startY, startX, endY, endX);
+
+                // Delete the selected range
+                deleteRange(startY, startX, endY, endX);
+
+                // Set cursor to start of deleted region
+                *cursorY = startY;
+                *cursorX = startX;
+            }
+
+            // Restore the yank buffer (deleteRange doesn't modify it, but just to be safe)
+            yankBuffer = pasteContent;
+
+            // Now paste the content
+            // Use pasteBefore since we're at the start of where we deleted
+            if(yankBuffer.back() == '\n')
+            {
+                // Line-wise paste - insert before current line
+                std::istringstream ss(yankBuffer);
+                std::string line;
+                int insertPos = *cursorY;
+
+                while(std::getline(ss, line))
+                {
+                    lines->insert(lines->begin() + insertPos, line);
+                    insertPos++;
+                }
+                *cursorX = 0;
+            }
+            else
+            {
+                // Character-wise paste - insert at cursor position
+                (*lines)[*cursorY].insert(*cursorX, yankBuffer);
+                *cursorX += yankBuffer.length() - 1;
+            }
+
+            *dirty = true;
+            setMode(NORMAL);
+            saveState();
+            needsFullRedraw = true;
+            setStatusMessage("Pasted over selection");
+        }
+        else
+        {
+            setStatusMessage("Nothing to paste");
+            setMode(NORMAL);
+        }
+        break;
     }
 }
 
