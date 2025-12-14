@@ -4185,14 +4185,9 @@ void Editor::saveState()
     if(!currentBuffer)
         return;
 
-    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
+    // Drop redo states
+    if(currentBuffer->undoIndex + 1 < (int)currentBuffer->undoStack.size())
     {
-        // We're truncating the undo stack, so invalidate saved index if it's beyond current position
-        if(currentBuffer->savedUndoIndex > currentBuffer->undoIndex)
-        {
-            currentBuffer->savedUndoIndex = -1;  // Saved state no longer exists in stack
-        }
-
         currentBuffer->undoStack.erase(currentBuffer->undoStack.begin() +
                                            currentBuffer->undoIndex + 1,
                                        currentBuffer->undoStack.end());
@@ -4202,58 +4197,42 @@ void Editor::saveState()
     state.lines = *lines;
     state.cursorX = *cursorX;
     state.cursorY = *cursorY;
-    currentBuffer->undoStack.push_back(state);
-    currentBuffer->undoIndex++;
+    state.offsetX = *offsetX;
+    state.offsetY = *offsetY;
 
+    currentBuffer->undoStack.push_back(std::move(state));
+    currentBuffer->undoIndex = currentBuffer->undoStack.size() - 1;
+
+    // Optional limit
     if(currentBuffer->undoStack.size() > 100)
     {
         currentBuffer->undoStack.erase(currentBuffer->undoStack.begin());
         currentBuffer->undoIndex--;
-
-        // Adjust savedUndoIndex if the saved state is still in the stack
-        if(currentBuffer->savedUndoIndex >= 0)
-        {
-            currentBuffer->savedUndoIndex--;
-            if(currentBuffer->savedUndoIndex < 0)
-            {
-                // The saved state was removed from the stack
-                currentBuffer->savedUndoIndex = -1;
-            }
-        }
     }
 }
 
 void Editor::undo()
 {
-    if(!currentBuffer)
-        return;
-
-    if(currentBuffer->undoIndex > 0)
-    {
-        currentBuffer->undoIndex--;
-        const Buffer::EditState& state =
-            currentBuffer->undoStack[currentBuffer->undoIndex];
-        *lines = state.lines;
-        *cursorX = state.cursorX;
-        *cursorY = state.cursorY;
-
-        // Check if we're back at the saved state
-        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
-        {
-            *dirty = false;
-        }
-        else
-        {
-            *dirty = true;
-        }
-
-        needsFullRedraw = true;
-        setStatusMessage("Undo!");
-    }
-    else
+    if(!currentBuffer || currentBuffer->undoIndex <= 0)
     {
         setStatusMessage("Already at oldest change");
+        return;
     }
+
+    currentBuffer->undoIndex--;
+
+    const auto& state = currentBuffer->undoStack[currentBuffer->undoIndex];
+
+    *lines = state.lines;
+    *cursorX = state.cursorX;
+    *cursorY = state.cursorY;
+    *offsetX = state.offsetX;
+    *offsetY = state.offsetY;
+
+    *dirty = (currentBuffer->undoIndex != currentBuffer->savedUndoIndex);
+
+    needsFullRedraw = true;
+    setStatusMessage("Undo");
 }
 
 void Editor::redo()
@@ -4269,6 +4248,8 @@ void Editor::redo()
         *lines = state.lines;
         *cursorX = state.cursorX;
         *cursorY = state.cursorY;
+        *offsetX = state.offsetX;
+        *offsetY = state.offsetY;
 
         // Check if we're back at the saved state
         if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)

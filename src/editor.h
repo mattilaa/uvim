@@ -56,7 +56,9 @@ public:
         {
             std::vector<std::string> lines;
             int cursorX, cursorY;
+            int offsetX, offsetY;
         };
+
         std::vector<EditState> undoStack;
         int undoIndex = -1;
         int savedUndoIndex = -1;  // Track which undo state was last saved
