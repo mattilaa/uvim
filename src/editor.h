@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <ctime>
 #include <functional>
 #include <memory>
@@ -186,6 +187,10 @@ public:
     int currentMatchIndex = -1;
     int savedCursorX = 0;
     int savedCursorY = 0;
+
+    // Double ESC detection
+    std::chrono::steady_clock::time_point lastEscTime;
+    static constexpr int DOUBLE_ESC_TIMEOUT_MS = 300;
 
     // Vim-like features (global)
     std::string yankBuffer;

@@ -2,6 +2,7 @@
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <climits>
 #include <cstring>
 #include <ctime>
@@ -2740,6 +2741,12 @@ void Editor::clearSearch()
 {
     searchMatches.clear();
     currentMatchIndex = -1;
+    searchQuery.clear();
+    // Also clear the buffer's last search query
+    if(currentBuffer)
+    {
+        currentBuffer->lastSearchQuery.clear();
+    }
 }
 
 void Editor::cancelSearch()
@@ -5584,6 +5591,35 @@ void Editor::handleNormalMode(int c)
     }
     switch(c)
     {
+    case Terminal::ESC:
+        {
+            // Handle double ESC to clear search highlights
+            auto now = std::chrono::steady_clock::now();
+            auto timeSinceLastEsc = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastEscTime).count();
+
+            if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS && (!searchMatches.empty() || !searchQuery.empty()))
+            {
+                // Double ESC detected - clear search highlights
+                clearSearch();
+                setStatusMessage("Search cleared");
+                needsFullRedraw = true;  // Force full redraw to clear highlights
+                lastEscTime = std::chrono::steady_clock::time_point(); // Reset
+            }
+            else
+            {
+                // First ESC or timeout exceeded
+                lastEscTime = now;
+                // Clear any pending operations
+                pendingDelete = false;
+                pendingYank = false;
+                pendingIndent = false;
+                pendingShiftRight = false;
+                pendingShiftLeft = false;
+                repeatCount = 0;
+                commandBuffer.clear();
+            }
+        }
+        break;
     case 'i':
         setMode(INSERT);
         setStatusMessage("-- INSERT --");
