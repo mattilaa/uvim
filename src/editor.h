@@ -59,6 +59,7 @@ public:
         };
         std::vector<EditState> undoStack;
         int undoIndex = -1;
+        int savedUndoIndex = -1;  // Track which undo state was last saved
 
         // Search state per buffer
         std::string lastSearchQuery;

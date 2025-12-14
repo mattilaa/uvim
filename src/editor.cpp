@@ -27,6 +27,7 @@ Editor::Editor()
     // Create initial empty buffer
     createNewBuffer();
     saveState();
+    currentBuffer->savedUndoIndex = 0;  // Mark initial empty buffer as saved
 }
 
 Editor::~Editor()
@@ -929,6 +930,7 @@ void Editor::openFile(const std::string& fname)
     currentBuffer->undoStack.clear();
     currentBuffer->undoIndex = -1;
     saveState();
+    currentBuffer->savedUndoIndex = 0;  // Mark the initial state as saved
 
     setStatusMessage("\"" + *filename + "\" " + std::to_string(lines->size()) +
                      " lines [Buffer " +
@@ -952,6 +954,7 @@ void Editor::saveFile()
         }
         file.close();
         *dirty = false;
+        currentBuffer->savedUndoIndex = currentBuffer->undoIndex;  // Mark this state as saved
         setStatusMessage("\"" + *filename + "\" " +
                          std::to_string(lines->size()) + "L written");
     }
@@ -4184,6 +4187,12 @@ void Editor::saveState()
 
     if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
     {
+        // We're truncating the undo stack, so invalidate saved index if it's beyond current position
+        if(currentBuffer->savedUndoIndex > currentBuffer->undoIndex)
+        {
+            currentBuffer->savedUndoIndex = -1;  // Saved state no longer exists in stack
+        }
+
         currentBuffer->undoStack.erase(currentBuffer->undoStack.begin() +
                                            currentBuffer->undoIndex + 1,
                                        currentBuffer->undoStack.end());
@@ -4200,6 +4209,17 @@ void Editor::saveState()
     {
         currentBuffer->undoStack.erase(currentBuffer->undoStack.begin());
         currentBuffer->undoIndex--;
+
+        // Adjust savedUndoIndex if the saved state is still in the stack
+        if(currentBuffer->savedUndoIndex >= 0)
+        {
+            currentBuffer->savedUndoIndex--;
+            if(currentBuffer->savedUndoIndex < 0)
+            {
+                // The saved state was removed from the stack
+                currentBuffer->savedUndoIndex = -1;
+            }
+        }
     }
 }
 
@@ -4216,7 +4236,17 @@ void Editor::undo()
         *lines = state.lines;
         *cursorX = state.cursorX;
         *cursorY = state.cursorY;
-        *dirty = true;
+
+        // Check if we're back at the saved state
+        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
+        {
+            *dirty = false;
+        }
+        else
+        {
+            *dirty = true;
+        }
+
         needsFullRedraw = true;
         setStatusMessage("Undo!");
     }
@@ -4239,7 +4269,17 @@ void Editor::redo()
         *lines = state.lines;
         *cursorX = state.cursorX;
         *cursorY = state.cursorY;
-        *dirty = true;
+
+        // Check if we're back at the saved state
+        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
+        {
+            *dirty = false;
+        }
+        else
+        {
+            *dirty = true;
+        }
+
         needsFullRedraw = true;
         setStatusMessage("Redo!");
     }
