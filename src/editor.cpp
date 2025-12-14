@@ -26,6 +26,13 @@ Editor::Editor()
 
     // Create initial empty buffer
     createNewBuffer();
+
+    // Undo configuration (defaults)
+    undoPerKeystroke = false;      // false = Vim-like per edit block
+    undoBreakChars = ".,;:!?";    // undo breakpoints in insert mode
+    undoBreakOnSpace = false;      // set true for more granular breaks
+    insertUndoBlockActive = false;
+    insertUndoBlockDirty = false;
     saveState();
     currentBuffer->savedUndoIndex = 0;  // Mark initial empty buffer as saved
 }
@@ -789,6 +796,19 @@ void Editor::setMode(Mode mode)
         Terminal::setCursorBlock();
     }
 
+
+    // Insert-mode undo grouping init
+    if(mode == INSERT)
+    {
+        insertUndoBlockActive = false;
+        insertUndoBlockDirty = false;
+        if(!undoPerKeystroke)
+        {
+            // Start a new undo block at INSERT entry (Vim-like)
+            saveState();
+            insertUndoBlockActive = true;
+        }
+    }
     if(mode == NORMAL)
     {
         commandBuffer.clear();
@@ -4180,17 +4200,37 @@ void Editor::handleGrepSearchMode(int c)
 }
 
 // Undo/Redo functions
+//
+// This undo engine supports:
+//  - Insert-mode grouping (Vim-like "one undo per insert chunk")
+//  - Undo breakpoints in insert mode (.,;:!? etc. configurable)
+//  - Configurable granularity: per-keystroke vs per-edit (see :set commands)
+//
+// NOTE: EditState is expected to also store offsetX/offsetY for stable viewport restores.
+
+static bool linesEqual(const std::vector<std::string>& a,
+                       const std::vector<std::string>& b)
+{
+    return a == b;
+}
+
 void Editor::saveState()
 {
     if(!currentBuffer)
         return;
 
-    // Drop redo states
+    // Truncate redo states if we are not at the top
     if(currentBuffer->undoIndex + 1 < (int)currentBuffer->undoStack.size())
     {
-        currentBuffer->undoStack.erase(currentBuffer->undoStack.begin() +
-                                           currentBuffer->undoIndex + 1,
-                                       currentBuffer->undoStack.end());
+        if(currentBuffer->savedUndoIndex > currentBuffer->undoIndex)
+        {
+            // Saved state no longer exists in the remaining stack
+            currentBuffer->savedUndoIndex = -1;
+        }
+
+        currentBuffer->undoStack.erase(
+            currentBuffer->undoStack.begin() + currentBuffer->undoIndex + 1,
+            currentBuffer->undoStack.end());
     }
 
     Buffer::EditState state;
@@ -4200,29 +4240,45 @@ void Editor::saveState()
     state.offsetX = *offsetX;
     state.offsetY = *offsetY;
 
-    currentBuffer->undoStack.push_back(std::move(state));
-    currentBuffer->undoIndex = currentBuffer->undoStack.size() - 1;
+    // Deduplicate: don't push identical consecutive states.
+    if(!currentBuffer->undoStack.empty())
+    {
+        const auto& last = currentBuffer->undoStack.back();
+        if(last.cursorX == state.cursorX && last.cursorY == state.cursorY &&
+           last.offsetX == state.offsetX && last.offsetY == state.offsetY &&
+           linesEqual(last.lines, state.lines))
+        {
+            currentBuffer->undoIndex = (int)currentBuffer->undoStack.size() - 1;
+            return;
+        }
+    }
 
-    // Optional limit
+    currentBuffer->undoStack.push_back(std::move(state));
+    currentBuffer->undoIndex = (int)currentBuffer->undoStack.size() - 1;
+
+    // Cap stack size
     if(currentBuffer->undoStack.size() > 100)
     {
         currentBuffer->undoStack.erase(currentBuffer->undoStack.begin());
         currentBuffer->undoIndex--;
+
+        if(currentBuffer->savedUndoIndex >= 0)
+        {
+            currentBuffer->savedUndoIndex--;
+            if(currentBuffer->savedUndoIndex < 0)
+                currentBuffer->savedUndoIndex = -1;
+        }
     }
 }
 
-void Editor::undo()
+void Editor::restoreStateAtIndex(int idx)
 {
-    if(!currentBuffer || currentBuffer->undoIndex <= 0)
-    {
-        setStatusMessage("Already at oldest change");
+    if(!currentBuffer)
         return;
-    }
+    if(idx < 0 || idx >= (int)currentBuffer->undoStack.size())
+        return;
 
-    currentBuffer->undoIndex--;
-
-    const auto& state = currentBuffer->undoStack[currentBuffer->undoIndex];
-
+    const Buffer::EditState& state = currentBuffer->undoStack[idx];
     *lines = state.lines;
     *cursorX = state.cursorX;
     *cursorY = state.cursorY;
@@ -4230,9 +4286,24 @@ void Editor::undo()
     *offsetY = state.offsetY;
 
     *dirty = (currentBuffer->undoIndex != currentBuffer->savedUndoIndex);
-
     needsFullRedraw = true;
-    setStatusMessage("Undo");
+}
+
+void Editor::undo()
+{
+    if(!currentBuffer)
+        return;
+
+    if(currentBuffer->undoIndex > 0)
+    {
+        currentBuffer->undoIndex--;
+        restoreStateAtIndex(currentBuffer->undoIndex);
+        setStatusMessage("Undo");
+    }
+    else
+    {
+        setStatusMessage("Already at oldest change");
+    }
 }
 
 void Editor::redo()
@@ -4240,35 +4311,19 @@ void Editor::redo()
     if(!currentBuffer)
         return;
 
-    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
+    if(currentBuffer->undoIndex + 1 < (int)currentBuffer->undoStack.size())
     {
         currentBuffer->undoIndex++;
-        const Buffer::EditState& state =
-            currentBuffer->undoStack[currentBuffer->undoIndex];
-        *lines = state.lines;
-        *cursorX = state.cursorX;
-        *cursorY = state.cursorY;
-        *offsetX = state.offsetX;
-        *offsetY = state.offsetY;
-
-        // Check if we're back at the saved state
-        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
-        {
-            *dirty = false;
-        }
-        else
-        {
-            *dirty = true;
-        }
-
-        needsFullRedraw = true;
-        setStatusMessage("Redo!");
+        restoreStateAtIndex(currentBuffer->undoIndex);
+        setStatusMessage("Redo");
     }
     else
     {
         setStatusMessage("Already at newest change");
     }
 }
+
+
 
 // Viewport adjustment with scroll margins
 void Editor::adjustViewport()
@@ -5130,6 +5185,63 @@ void Editor::setStatusMessage(const std::string& msg)
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
+
+    // Settings (:set ...)
+    //   :set undomode?                 -> show current mode
+    //   :set undomode=key              -> undo per keystroke
+    //   :set undomode=edit             -> Vim-like grouped undo in insert mode
+    //   :set undobreaks?               -> show breakpoint chars
+    //   :set undobreaks=.,;:!?         -> set breakpoint chars
+    //   :set undobreakspace            -> break on space
+    //   :set noundobreakspace          -> don't break on space
+    if(cmd == "set undomode?" || cmd == "set undomode")
+    {
+        setStatusMessage(std::string("undomode=") +
+                         (undoPerKeystroke ? "key" : "edit"));
+        return;
+    }
+    if(cmd.rfind("set undomode=", 0) == 0)
+    {
+        std::string val = cmd.substr(std::string("set undomode=").size());
+        if(val == "key" || val == "keystroke")
+        {
+            undoPerKeystroke = true;
+            setStatusMessage("undomode=key");
+        }
+        else if(val == "edit" || val == "block")
+        {
+            undoPerKeystroke = false;
+            setStatusMessage("undomode=edit");
+        }
+        else
+        {
+            setStatusMessage("Usage: :set undomode=key|edit");
+        }
+        return;
+    }
+    if(cmd == "set undobreaks?")
+    {
+        setStatusMessage(std::string("undobreaks=") + undoBreakChars);
+        return;
+    }
+    if(cmd.rfind("set undobreaks=", 0) == 0)
+    {
+        undoBreakChars = cmd.substr(std::string("set undobreaks=").size());
+        setStatusMessage(std::string("undobreaks=") + undoBreakChars);
+        return;
+    }
+    if(cmd == "set undobreakspace")
+    {
+        undoBreakOnSpace = true;
+        setStatusMessage("undobreakspace");
+        return;
+    }
+    if(cmd == "set noundobreakspace")
+    {
+        undoBreakOnSpace = false;
+        setStatusMessage("noundobreakspace");
+        return;
+    }
     // Buffer commands
     if(cmd == "bn" || cmd == "bnext")
     {
@@ -5870,36 +5982,111 @@ void Editor::handleNormalMode(int c)
 
 void Editor::handleInsertMode(int c)
 {
+    auto isUndoBreakpoint = [&](int ch) -> bool
+    {
+        if(ch == Terminal::ENTER)
+            return true; // newline always breaks
+
+        if(undoBreakOnSpace && ch == ' ')
+            return true;
+
+        if(ch >= 0 && ch < 256)
+        {
+            char cc = (char)ch;
+            return (undoBreakChars.find(cc) != std::string::npos);
+        }
+        return false;
+    };
+
+    auto beginEditIfNeeded = [&]()
+    {
+        if(undoPerKeystroke)
+        {
+            // Per-keystroke means each mutation starts from a snapshot
+            saveState();
+            insertUndoBlockDirty = true;
+            return;
+        }
+
+        if(!insertUndoBlockActive)
+        {
+            // Start new block at first edit (or after breakpoint)
+            saveState();
+            insertUndoBlockActive = true;
+        }
+        insertUndoBlockDirty = true;
+    };
+
+    auto afterEdit = [&](int lastTyped)
+    {
+        if(!undoPerKeystroke && insertUndoBlockDirty && isUndoBreakpoint(lastTyped))
+        {
+            // Create an undo breakpoint: finalize current chunk and start a new one
+            // by snapshotting the state *after* the breakpoint character.
+            saveState();
+            insertUndoBlockDirty = false;
+            insertUndoBlockActive = true; // stay active for next chunk
+        }
+    };
+
     switch(c)
     {
     case Terminal::ESC:
+    {
+        // Finalize insert block so redo can return here.
+        if(insertUndoBlockDirty || undoPerKeystroke)
+        {
+            saveState();
+        }
+
+        insertUndoBlockActive = false;
+        insertUndoBlockDirty = false;
+
         if(*cursorX > 0)
             (*cursorX)--;
+
         setMode(NORMAL);
-        saveState();
         statusMessage.clear();
         break;
+    }
+
     case Terminal::ENTER:
+        beginEditIfNeeded();
         insertNewline();
+        afterEdit(Terminal::ENTER);
         break;
+
     case Terminal::BACKSPACE:
     case Terminal::DEL:
+        beginEditIfNeeded();
         deleteChar();
+        // No breakpoint by default (Vim keeps backspace in same chunk)
         break;
+
     case Terminal::TAB:
         for(int i = 0; i < 4; i++)
         {
+            beginEditIfNeeded();
             insertChar(' ');
+            if(undoPerKeystroke)
+            {
+                // For per-keystroke, each space is a keystroke.
+                // Final state will be captured on ESC, so no extra saveState() here.
+            }
         }
         break;
+
     default:
         if(c >= 32 && c < 127)
         {
-            insertChar(c);
+            beginEditIfNeeded();
+            insertChar((char)c);
+            afterEdit(c);
         }
         break;
     }
 }
+
 
 void Editor::handleVisualMode(int c)
 {

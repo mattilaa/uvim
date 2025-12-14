@@ -94,6 +94,12 @@ public:
     int* offsetX;
     int* offsetY;
 
+    bool undoPerKeystroke = false;
+    std::string undoBreakChars = ".,;:!?";
+    bool undoBreakOnSpace = false;
+
+    bool insertUndoBlockActive = false;
+    bool insertUndoBlockDirty = false;
     // File browser
     struct FileEntry
     {
@@ -240,7 +246,7 @@ public:
     void updateCurrentBufferPointers();
     void saveBufferState();
     void restoreBufferState();
-
+    void restoreStateAtIndex(int idx);
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
     void handleOperatorPendingMode(int c);
