@@ -11,3 +11,20 @@ add_executable(uvim
 )
 
 target_include_directories(uvim PRIVATE src)
+
+# Release optimizations (compiler-only)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_options(uvim PRIVATE
+        -O3
+        -DNDEBUG
+        -ffunction-sections
+        -fdata-sections
+    )
+endif()
+
+# Enable LTO / IPO safely on macOS
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if(ipo_supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
