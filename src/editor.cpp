@@ -26,15 +26,8 @@ Editor::Editor()
 
     // Create initial empty buffer
     createNewBuffer();
-
-    // Undo configuration (defaults)
-    undoPerKeystroke = false;      // false = Vim-like per edit block
-    undoBreakChars = ".,;:!?";    // undo breakpoints in insert mode
-    undoBreakOnSpace = false;      // set true for more granular breaks
-    insertUndoBlockActive = false;
-    insertUndoBlockDirty = false;
     saveState();
-    currentBuffer->savedUndoIndex = 0;  // Mark initial empty buffer as saved
+    currentBuffer->savedUndoIndex = 0; // Mark initial empty buffer as saved
 }
 
 Editor::~Editor()
@@ -796,19 +789,6 @@ void Editor::setMode(Mode mode)
         Terminal::setCursorBlock();
     }
 
-
-    // Insert-mode undo grouping init
-    if(mode == INSERT)
-    {
-        insertUndoBlockActive = false;
-        insertUndoBlockDirty = false;
-        if(!undoPerKeystroke)
-        {
-            // Start a new undo block at INSERT entry (Vim-like)
-            saveState();
-            insertUndoBlockActive = true;
-        }
-    }
     if(mode == NORMAL)
     {
         commandBuffer.clear();
@@ -950,7 +930,7 @@ void Editor::openFile(const std::string& fname)
     currentBuffer->undoStack.clear();
     currentBuffer->undoIndex = -1;
     saveState();
-    currentBuffer->savedUndoIndex = 0;  // Mark the initial state as saved
+    currentBuffer->savedUndoIndex = 0; // Mark the initial state as saved
 
     setStatusMessage("\"" + *filename + "\" " + std::to_string(lines->size()) +
                      " lines [Buffer " +
@@ -974,7 +954,8 @@ void Editor::saveFile()
         }
         file.close();
         *dirty = false;
-        currentBuffer->savedUndoIndex = currentBuffer->undoIndex;  // Mark this state as saved
+        currentBuffer->savedUndoIndex =
+            currentBuffer->undoIndex; // Mark this state as saved
         setStatusMessage("\"" + *filename + "\" " +
                          std::to_string(lines->size()) + "L written");
     }
@@ -4200,93 +4181,49 @@ void Editor::handleGrepSearchMode(int c)
 }
 
 // Undo/Redo functions
-//
-// This undo engine supports:
-//  - Insert-mode grouping (Vim-like "one undo per insert chunk")
-//  - Undo breakpoints in insert mode (.,;:!? etc. configurable)
-//  - Configurable granularity: per-keystroke vs per-edit (see :set commands)
-//
-// NOTE: EditState is expected to also store offsetX/offsetY for stable viewport restores.
-
-static bool linesEqual(const std::vector<std::string>& a,
-                       const std::vector<std::string>& b)
-{
-    return a == b;
-}
-
 void Editor::saveState()
 {
     if(!currentBuffer)
         return;
 
-    // Truncate redo states if we are not at the top
-    if(currentBuffer->undoIndex + 1 < (int)currentBuffer->undoStack.size())
+    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
     {
+        // We're truncating the undo stack, so invalidate saved index if it's
+        // beyond current position
         if(currentBuffer->savedUndoIndex > currentBuffer->undoIndex)
         {
-            // Saved state no longer exists in the remaining stack
-            currentBuffer->savedUndoIndex = -1;
+            currentBuffer->savedUndoIndex =
+                -1; // Saved state no longer exists in stack
         }
 
-        currentBuffer->undoStack.erase(
-            currentBuffer->undoStack.begin() + currentBuffer->undoIndex + 1,
-            currentBuffer->undoStack.end());
+        currentBuffer->undoStack.erase(currentBuffer->undoStack.begin() +
+                                           currentBuffer->undoIndex + 1,
+                                       currentBuffer->undoStack.end());
     }
 
     Buffer::EditState state;
     state.lines = *lines;
     state.cursorX = *cursorX;
     state.cursorY = *cursorY;
-    state.offsetX = *offsetX;
-    state.offsetY = *offsetY;
+    currentBuffer->undoStack.push_back(state);
+    currentBuffer->undoIndex++;
 
-    // Deduplicate: don't push identical consecutive states.
-    if(!currentBuffer->undoStack.empty())
-    {
-        const auto& last = currentBuffer->undoStack.back();
-        if(last.cursorX == state.cursorX && last.cursorY == state.cursorY &&
-           last.offsetX == state.offsetX && last.offsetY == state.offsetY &&
-           linesEqual(last.lines, state.lines))
-        {
-            currentBuffer->undoIndex = (int)currentBuffer->undoStack.size() - 1;
-            return;
-        }
-    }
-
-    currentBuffer->undoStack.push_back(std::move(state));
-    currentBuffer->undoIndex = (int)currentBuffer->undoStack.size() - 1;
-
-    // Cap stack size
     if(currentBuffer->undoStack.size() > 100)
     {
         currentBuffer->undoStack.erase(currentBuffer->undoStack.begin());
         currentBuffer->undoIndex--;
 
+        // Adjust savedUndoIndex if the saved state is still in the stack
         if(currentBuffer->savedUndoIndex >= 0)
         {
             currentBuffer->savedUndoIndex--;
             if(currentBuffer->savedUndoIndex < 0)
+            {
+                // The saved state was removed from the stack
                 currentBuffer->savedUndoIndex = -1;
+            }
         }
     }
-}
-
-void Editor::restoreStateAtIndex(int idx)
-{
-    if(!currentBuffer)
-        return;
-    if(idx < 0 || idx >= (int)currentBuffer->undoStack.size())
-        return;
-
-    const Buffer::EditState& state = currentBuffer->undoStack[idx];
-    *lines = state.lines;
-    *cursorX = state.cursorX;
-    *cursorY = state.cursorY;
-    *offsetX = state.offsetX;
-    *offsetY = state.offsetY;
-
-    *dirty = (currentBuffer->undoIndex != currentBuffer->savedUndoIndex);
-    needsFullRedraw = true;
 }
 
 void Editor::undo()
@@ -4297,8 +4234,41 @@ void Editor::undo()
     if(currentBuffer->undoIndex > 0)
     {
         currentBuffer->undoIndex--;
-        restoreStateAtIndex(currentBuffer->undoIndex);
-        setStatusMessage("Undo");
+        const Buffer::EditState& state =
+            currentBuffer->undoStack[currentBuffer->undoIndex];
+        *lines = state.lines;
+
+        // Only restore cursor position if not undoing to the initial state
+        // (The initial state always has cursor at 0,0 which is not useful)
+        if(currentBuffer->undoIndex > 0)
+        {
+            *cursorX = state.cursorX;
+            *cursorY = state.cursorY;
+        }
+        // else: keep current cursor position when undoing to initial state
+
+        // Ensure cursor is within bounds
+        if(*cursorY >= lines->size())
+            *cursorY = lines->size() - 1;
+        if(*cursorY < 0)
+            *cursorY = 0;
+        if(*cursorX > (*lines)[*cursorY].length())
+            *cursorX = (*lines)[*cursorY].length();
+        if(*cursorX < 0)
+            *cursorX = 0;
+
+        // Check if we're back at the saved state
+        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
+        {
+            *dirty = false;
+        }
+        else
+        {
+            *dirty = true;
+        }
+
+        needsFullRedraw = true;
+        setStatusMessage("Undo!");
     }
     else
     {
@@ -4311,19 +4281,33 @@ void Editor::redo()
     if(!currentBuffer)
         return;
 
-    if(currentBuffer->undoIndex + 1 < (int)currentBuffer->undoStack.size())
+    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
     {
         currentBuffer->undoIndex++;
-        restoreStateAtIndex(currentBuffer->undoIndex);
-        setStatusMessage("Redo");
+        const Buffer::EditState& state =
+            currentBuffer->undoStack[currentBuffer->undoIndex];
+        *lines = state.lines;
+        *cursorX = state.cursorX;
+        *cursorY = state.cursorY;
+
+        // Check if we're back at the saved state
+        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
+        {
+            *dirty = false;
+        }
+        else
+        {
+            *dirty = true;
+        }
+
+        needsFullRedraw = true;
+        setStatusMessage("Redo!");
     }
     else
     {
         setStatusMessage("Already at newest change");
     }
 }
-
-
 
 // Viewport adjustment with scroll margins
 void Editor::adjustViewport()
@@ -5185,63 +5169,6 @@ void Editor::setStatusMessage(const std::string& msg)
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
-
-    // Settings (:set ...)
-    //   :set undomode?                 -> show current mode
-    //   :set undomode=key              -> undo per keystroke
-    //   :set undomode=edit             -> Vim-like grouped undo in insert mode
-    //   :set undobreaks?               -> show breakpoint chars
-    //   :set undobreaks=.,;:!?         -> set breakpoint chars
-    //   :set undobreakspace            -> break on space
-    //   :set noundobreakspace          -> don't break on space
-    if(cmd == "set undomode?" || cmd == "set undomode")
-    {
-        setStatusMessage(std::string("undomode=") +
-                         (undoPerKeystroke ? "key" : "edit"));
-        return;
-    }
-    if(cmd.rfind("set undomode=", 0) == 0)
-    {
-        std::string val = cmd.substr(std::string("set undomode=").size());
-        if(val == "key" || val == "keystroke")
-        {
-            undoPerKeystroke = true;
-            setStatusMessage("undomode=key");
-        }
-        else if(val == "edit" || val == "block")
-        {
-            undoPerKeystroke = false;
-            setStatusMessage("undomode=edit");
-        }
-        else
-        {
-            setStatusMessage("Usage: :set undomode=key|edit");
-        }
-        return;
-    }
-    if(cmd == "set undobreaks?")
-    {
-        setStatusMessage(std::string("undobreaks=") + undoBreakChars);
-        return;
-    }
-    if(cmd.rfind("set undobreaks=", 0) == 0)
-    {
-        undoBreakChars = cmd.substr(std::string("set undobreaks=").size());
-        setStatusMessage(std::string("undobreaks=") + undoBreakChars);
-        return;
-    }
-    if(cmd == "set undobreakspace")
-    {
-        undoBreakOnSpace = true;
-        setStatusMessage("undobreakspace");
-        return;
-    }
-    if(cmd == "set noundobreakspace")
-    {
-        undoBreakOnSpace = false;
-        setStatusMessage("noundobreakspace");
-        return;
-    }
     // Buffer commands
     if(cmd == "bn" || cmd == "bnext")
     {
@@ -5725,34 +5652,38 @@ void Editor::handleNormalMode(int c)
     switch(c)
     {
     case Terminal::ESC:
-        {
-            // Handle double ESC to clear search highlights
-            auto now = std::chrono::steady_clock::now();
-            auto timeSinceLastEsc = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastEscTime).count();
+    {
+        // Handle double ESC to clear search highlights
+        auto now = std::chrono::steady_clock::now();
+        auto timeSinceLastEsc =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now -
+                                                                  lastEscTime)
+                .count();
 
-            if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS && (!searchMatches.empty() || !searchQuery.empty()))
-            {
-                // Double ESC detected - clear search highlights
-                clearSearch();
-                setStatusMessage("Search cleared");
-                needsFullRedraw = true;  // Force full redraw to clear highlights
-                lastEscTime = std::chrono::steady_clock::time_point(); // Reset
-            }
-            else
-            {
-                // First ESC or timeout exceeded
-                lastEscTime = now;
-                // Clear any pending operations
-                pendingDelete = false;
-                pendingYank = false;
-                pendingIndent = false;
-                pendingShiftRight = false;
-                pendingShiftLeft = false;
-                repeatCount = 0;
-                commandBuffer.clear();
-            }
+        if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS &&
+           (!searchMatches.empty() || !searchQuery.empty()))
+        {
+            // Double ESC detected - clear search highlights
+            clearSearch();
+            setStatusMessage("Search cleared");
+            needsFullRedraw = true; // Force full redraw to clear highlights
+            lastEscTime = std::chrono::steady_clock::time_point(); // Reset
         }
-        break;
+        else
+        {
+            // First ESC or timeout exceeded
+            lastEscTime = now;
+            // Clear any pending operations
+            pendingDelete = false;
+            pendingYank = false;
+            pendingIndent = false;
+            pendingShiftRight = false;
+            pendingShiftLeft = false;
+            repeatCount = 0;
+            commandBuffer.clear();
+        }
+    }
+    break;
     case 'i':
         setMode(INSERT);
         setStatusMessage("-- INSERT --");
@@ -5982,111 +5913,36 @@ void Editor::handleNormalMode(int c)
 
 void Editor::handleInsertMode(int c)
 {
-    auto isUndoBreakpoint = [&](int ch) -> bool
-    {
-        if(ch == Terminal::ENTER)
-            return true; // newline always breaks
-
-        if(undoBreakOnSpace && ch == ' ')
-            return true;
-
-        if(ch >= 0 && ch < 256)
-        {
-            char cc = (char)ch;
-            return (undoBreakChars.find(cc) != std::string::npos);
-        }
-        return false;
-    };
-
-    auto beginEditIfNeeded = [&]()
-    {
-        if(undoPerKeystroke)
-        {
-            // Per-keystroke means each mutation starts from a snapshot
-            saveState();
-            insertUndoBlockDirty = true;
-            return;
-        }
-
-        if(!insertUndoBlockActive)
-        {
-            // Start new block at first edit (or after breakpoint)
-            saveState();
-            insertUndoBlockActive = true;
-        }
-        insertUndoBlockDirty = true;
-    };
-
-    auto afterEdit = [&](int lastTyped)
-    {
-        if(!undoPerKeystroke && insertUndoBlockDirty && isUndoBreakpoint(lastTyped))
-        {
-            // Create an undo breakpoint: finalize current chunk and start a new one
-            // by snapshotting the state *after* the breakpoint character.
-            saveState();
-            insertUndoBlockDirty = false;
-            insertUndoBlockActive = true; // stay active for next chunk
-        }
-    };
-
     switch(c)
     {
     case Terminal::ESC:
-    {
-        // Finalize insert block so redo can return here.
-        if(insertUndoBlockDirty || undoPerKeystroke)
-        {
-            saveState();
-        }
-
-        insertUndoBlockActive = false;
-        insertUndoBlockDirty = false;
-
         if(*cursorX > 0)
             (*cursorX)--;
-
         setMode(NORMAL);
+        saveState();
         statusMessage.clear();
         break;
-    }
-
     case Terminal::ENTER:
-        beginEditIfNeeded();
         insertNewline();
-        afterEdit(Terminal::ENTER);
         break;
-
     case Terminal::BACKSPACE:
     case Terminal::DEL:
-        beginEditIfNeeded();
         deleteChar();
-        // No breakpoint by default (Vim keeps backspace in same chunk)
         break;
-
     case Terminal::TAB:
         for(int i = 0; i < 4; i++)
         {
-            beginEditIfNeeded();
             insertChar(' ');
-            if(undoPerKeystroke)
-            {
-                // For per-keystroke, each space is a keystroke.
-                // Final state will be captured on ESC, so no extra saveState() here.
-            }
         }
         break;
-
     default:
         if(c >= 32 && c < 127)
         {
-            beginEditIfNeeded();
-            insertChar((char)c);
-            afterEdit(c);
+            insertChar(c);
         }
         break;
     }
 }
-
 
 void Editor::handleVisualMode(int c)
 {
@@ -6221,8 +6077,10 @@ void Editor::handleVisualMode(int c)
             if(currentMode == VISUAL_LINE)
             {
                 // For visual line mode, we work with whole lines
-                startY = std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-                endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+                startY = std::min(currentBuffer->visualStartY,
+                                  currentBuffer->visualEndY);
+                endY = std::max(currentBuffer->visualStartY,
+                                currentBuffer->visualEndY);
 
                 // Delete the selected lines
                 for(int i = endY; i >= startY; i--)
@@ -6252,7 +6110,8 @@ void Editor::handleVisualMode(int c)
                 *cursorX = startX;
             }
 
-            // Restore the yank buffer (deleteRange doesn't modify it, but just to be safe)
+            // Restore the yank buffer (deleteRange doesn't modify it, but just
+            // to be safe)
             yankBuffer = pasteContent;
 
             // Now paste the content

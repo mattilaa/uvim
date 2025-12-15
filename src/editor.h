@@ -56,12 +56,10 @@ public:
         {
             std::vector<std::string> lines;
             int cursorX, cursorY;
-            int offsetX, offsetY;
         };
-
         std::vector<EditState> undoStack;
         int undoIndex = -1;
-        int savedUndoIndex = -1;  // Track which undo state was last saved
+        int savedUndoIndex = -1; // Track which undo state was last saved
 
         // Search state per buffer
         std::string lastSearchQuery;
@@ -94,12 +92,6 @@ public:
     int* offsetX;
     int* offsetY;
 
-    bool undoPerKeystroke = false;
-    std::string undoBreakChars = ".,;:!?";
-    bool undoBreakOnSpace = false;
-
-    bool insertUndoBlockActive = false;
-    bool insertUndoBlockDirty = false;
     // File browser
     struct FileEntry
     {
@@ -246,7 +238,7 @@ public:
     void updateCurrentBufferPointers();
     void saveBufferState();
     void restoreBufferState();
-    void restoreStateAtIndex(int idx);
+
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
     void handleOperatorPendingMode(int c);
