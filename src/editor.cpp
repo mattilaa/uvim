@@ -858,6 +858,8 @@ std::string Editor::getModeString() const
         return "VISUAL";
     case VISUAL_LINE:
         return "VISUAL LINE";
+    case VISUAL_BLOCK:
+        return "VISUAL BLOCK";
     case COMMAND:
         return "COMMAND";
     case SEARCH_FORWARD:
@@ -1824,10 +1826,27 @@ void Editor::startVisualLineMode()
     setStatusMessage("-- VISUAL LINE --");
 }
 
+void Editor::startVisualBlockMode()
+{
+    setMode(VISUAL_BLOCK);
+    currentBuffer->visualBlockStartX = *cursorX;
+    currentBuffer->visualBlockStartY = *cursorY;
+    currentBuffer->visualBlockEndX = *cursorX;
+    currentBuffer->visualBlockEndY = *cursorY;
+    currentBuffer->visualBlockInsertText.clear();
+    setStatusMessage("-- VISUAL BLOCK --");
+}
+
 void Editor::updateVisualSelection()
 {
     currentBuffer->visualEndX = *cursorX;
     currentBuffer->visualEndY = *cursorY;
+}
+
+void Editor::updateVisualBlockSelection()
+{
+    currentBuffer->visualBlockEndX = *cursorX;
+    currentBuffer->visualBlockEndY = *cursorY;
 }
 
 bool Editor::isInSelection(int row, int col)
@@ -1858,6 +1877,30 @@ bool Editor::isInSelection(int row, int col)
     return true;
 }
 
+bool Editor::isInVisualBlock(int row, int col)
+{
+    if(currentMode != VISUAL_BLOCK)
+        return false;
+
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    return row >= startY && row <= endY && col >= startX && col <= endX;
+}
+
+void Editor::getVisualBlockBounds(int& startY, int& startX, int& endY,
+                                  int& endX)
+{
+    startY = std::min(currentBuffer->visualBlockStartY,
+                      currentBuffer->visualBlockEndY);
+    endY = std::max(currentBuffer->visualBlockStartY,
+                    currentBuffer->visualBlockEndY);
+    startX = std::min(currentBuffer->visualBlockStartX,
+                      currentBuffer->visualBlockEndX);
+    endX = std::max(currentBuffer->visualBlockStartX,
+                    currentBuffer->visualBlockEndX);
+}
+
 void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
 {
     if(currentBuffer->visualStartY < currentBuffer->visualEndY ||
@@ -1876,6 +1919,116 @@ void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
         endY = currentBuffer->visualStartY;
         endX = currentBuffer->visualStartX;
     }
+}
+
+void Editor::deleteVisualBlock()
+{
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    // Delete characters in the block from each line
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        std::string& line = (*lines)[row];
+        if(startX < line.length())
+        {
+            int deleteEnd = std::min(endX + 1, (int)line.length());
+            line.erase(startX, deleteEnd - startX);
+        }
+    }
+
+    *cursorY = startY;
+    *cursorX = startX;
+    if(*cursorX > (*lines)[*cursorY].length())
+        *cursorX = (*lines)[*cursorY].length();
+
+    *dirty = true;
+    saveState();
+    setMode(NORMAL);
+    needsFullRedraw = true;
+    setStatusMessage("Block deleted");
+}
+
+void Editor::yankVisualBlock()
+{
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    yankBuffer.clear();
+
+    // Yank the block - store with special marker to indicate block yank
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        const std::string& line = (*lines)[row];
+        if(startX < line.length())
+        {
+            int yankEnd = std::min(endX + 1, (int)line.length());
+            yankBuffer += line.substr(startX, yankEnd - startX);
+        }
+        yankBuffer += "\n";
+    }
+
+    // Add special marker to indicate this is a block yank
+    yankBuffer = "\x02" + yankBuffer; // STX character as block marker
+
+    setStatusMessage("Block yanked");
+}
+
+void Editor::changeVisualBlock()
+{
+    currentBuffer->visualBlockInsertText.clear();
+    visualBlockChanging = true;
+
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        std::string& line = (*lines)[row];
+        if(startX < line.length())
+        {
+            int deleteEnd = std::min(endX + 1, (int)line.length());
+            line.erase(startX, deleteEnd - startX);
+        }
+    }
+
+    *cursorY = startY;
+    *cursorX = startX;
+
+    setMode(INSERT);
+    setStatusMessage("-- VISUAL BLOCK --");
+}
+
+void Editor::applyVisualBlockInsert()
+{
+    // Apply the inserted text to all lines in the visual block range
+    if(currentBuffer->visualBlockInsertText.empty())
+        return;
+
+    int startY = currentBuffer->visualBlockStartY;
+    int endY = currentBuffer->visualBlockEndY;
+    int insertX = currentBuffer->visualBlockStartX;
+
+    // Apply to all lines except the current one (already has the text)
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        if(row == *cursorY)
+            continue; // Skip current line, it already has the inserted text
+
+        std::string& line = (*lines)[row];
+        // Pad with spaces if line is too short
+        while(line.length() < insertX)
+        {
+            line += " ";
+        }
+        line.insert(insertX, currentBuffer->visualBlockInsertText);
+    }
+
+    *dirty = true;
+    saveState();
+    needsFullRedraw = true;
+    setStatusMessage("Block insert applied to " +
+                     std::to_string(endY - startY + 1) + " lines");
 }
 
 void Editor::deleteSelection()
@@ -4347,58 +4500,69 @@ void Editor::drawRows()
 {
     for(int y = 0; y < screenRows; y++)
     {
-        if(y > 0)
-        {
-            Terminal::write("\r\n");
-        }
-
-        Terminal::write("\x1b[K");
-
         int fileRow = y + *offsetY;
+        Terminal::clearLine();
 
         if(fileRow >= lines->size())
         {
-            Terminal::write("\x1b[34m~\x1b[39m");
+            Terminal::write('~');
         }
         else
         {
             const std::string& line = (*lines)[fileRow];
-            int start = *offsetX;
-            int len = line.length() - start;
 
-            if(len > 0)
+            for(int x = 0; x < screenCols; x++)
             {
-                if(len > screenCols)
-                    len = screenCols;
+                int fileCol = x + *offsetX;
+                char ch = (fileCol < line.length()) ? line[fileCol] : ' ';
 
-                for(int x = 0; x < len; x++)
+                bool isCursor =
+                    (fileRow == *cursorY && fileCol == *cursorX);
+
+                bool inBlock =
+                    (currentMode == VISUAL_BLOCK &&
+                     isInVisualBlock(fileRow, fileCol));
+
+                bool inVisual =
+                    ((currentMode == VISUAL ||
+                      currentMode == VISUAL_LINE) &&
+                     isInSelection(fileRow, fileCol));
+
+                Terminal::resetAttributes();
+
+                /* ---------- VISUAL BLOCK ---------- */
+                if(inBlock)
                 {
-                    int col = x + *offsetX;
-                    if(col < line.length())
+                    if(isCursor)
                     {
-                        bool highlighted = false;
-
-                        if(isInSelection(fileRow, col))
-                        {
-                            Terminal::write("\x1b[7m");
-                            highlighted = true;
-                        }
-                        else if(isInSearchMatch(fileRow, col))
-                        {
-                            Terminal::write("\x1b[43m\x1b[30m");
-                            highlighted = true;
-                        }
-
-                        Terminal::write(line[col]);
-
-                        if(highlighted)
-                        {
-                            Terminal::write("\x1b[m");
-                        }
+                        // Cursor highlight (Neovim style)
+                        Terminal::setBold();
+                        Terminal::write(ch);
+                    }
+                    else
+                    {
+                        // Visual block highlight
+                        Terminal::setReverse();
+                        Terminal::write(ch);
                     }
                 }
+                /* ---------- VISUAL / VISUAL LINE ---------- */
+                else if(inVisual)
+                {
+                    Terminal::setReverse();
+                    Terminal::write(ch);
+                }
+                /* ---------- NORMAL ---------- */
+                else
+                {
+                    Terminal::write(ch);
+                }
+
+                Terminal::resetAttributes();
             }
         }
+
+        Terminal::write("\r\n");
     }
 }
 
@@ -5729,6 +5893,9 @@ void Editor::handleNormalMode(int c)
     case 'V':
         startVisualLineMode();
         break;
+    case 22: // Ctrl-V (ASCII 22)
+        startVisualBlockMode();
+        break;
     case ':':
         setMode(COMMAND);
         break;
@@ -5913,34 +6080,55 @@ void Editor::handleNormalMode(int c)
 
 void Editor::handleInsertMode(int c)
 {
-    switch(c)
+    if(c == Terminal::ESC)
     {
-    case Terminal::ESC:
-        if(*cursorX > 0)
-            (*cursorX)--;
+        if(visualBlockChanging)
+        {
+            int startY, startX, endY, endX;
+            getVisualBlockBounds(startY, startX, endY, endX);
+
+            for(int row = startY + 1; row <= endY; row++)
+            {
+                if(row >= lines->size())
+                    continue;
+
+                std::string& line = (*lines)[row];
+
+                if(startX > line.length())
+                    line.resize(startX, ' ');
+
+                line.insert(startX,
+                    currentBuffer->visualBlockInsertText);
+            }
+
+            visualBlockChanging = false;
+            saveState();
+        }
+
         setMode(NORMAL);
-        saveState();
-        statusMessage.clear();
-        break;
-    case Terminal::ENTER:
-        insertNewline();
-        break;
-    case Terminal::BACKSPACE:
-    case Terminal::DEL:
+        return;
+    }
+
+    if(c == Terminal::BACKSPACE || c == Terminal::DEL)
+    {
         deleteChar();
-        break;
-    case Terminal::TAB:
-        for(int i = 0; i < 4; i++)
+        return;
+    }
+
+    if(c == Terminal::ENTER)
+    {
+        insertNewline();
+        return;
+    }
+
+    if(c >= 32 && c <= 126)
+    {
+        if(visualBlockChanging)
         {
-            insertChar(' ');
+            currentBuffer->visualBlockInsertText.push_back((char)c);
         }
-        break;
-    default:
-        if(c >= 32 && c < 127)
-        {
-            insertChar(c);
-        }
-        break;
+
+        insertChar((char)c);
     }
 }
 
@@ -6147,6 +6335,231 @@ void Editor::handleVisualMode(int c)
         {
             setStatusMessage("Nothing to paste");
             setMode(NORMAL);
+        }
+        break;
+    }
+}
+
+void Editor::handleVisualBlockMode(int c)
+{
+    // Track if we're collecting text in INSERT mode after 'c'
+    static bool inBlockInsert = false;
+    static int blockInsertStartX = 0;
+    static bool changeMode = false; // Track if we entered via 'c' command
+
+    if(inBlockInsert)
+    {
+        // We're in INSERT mode after pressing 'c' in visual block
+        switch(c)
+        {
+        case Terminal::ESC:
+        {
+            // Check for double ESC to apply to all lines
+            auto now = std::chrono::steady_clock::now();
+            auto timeSinceLastEsc =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now - lastEscTime)
+                    .count();
+
+            if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS)
+            {
+                // Double ESC - apply insert to all lines
+                // Capture what was inserted on current line
+                std::string& currentLine = (*lines)[*cursorY];
+                if(*cursorX > blockInsertStartX)
+                {
+                    currentBuffer->visualBlockInsertText = currentLine.substr(
+                        blockInsertStartX, *cursorX - blockInsertStartX);
+                }
+                else if(changeMode && *cursorX >= blockInsertStartX)
+                {
+                    // For change mode, even if cursor didn't move forward,
+                    // capture any replacement text
+                    currentBuffer->visualBlockInsertText = currentLine.substr(
+                        blockInsertStartX, *cursorX - blockInsertStartX);
+                }
+
+                applyVisualBlockInsert();
+                inBlockInsert = false;
+                changeMode = false;
+                setMode(NORMAL);
+                lastEscTime = std::chrono::steady_clock::time_point();
+
+                // Clear visual block bounds after applying
+                currentBuffer->visualBlockStartY = -1;
+                currentBuffer->visualBlockEndY = -1;
+            }
+            else
+            {
+                // Single ESC - just exit insert mode
+                lastEscTime = now;
+                inBlockInsert = false;
+                changeMode = false;
+                if(*cursorX > 0)
+                    (*cursorX)--;
+                setMode(NORMAL);
+                saveState();
+            }
+        }
+        break;
+
+        default:
+            // Let normal insert mode handle the character
+            handleInsertMode(c);
+            break;
+        }
+        return;
+    }
+
+    // Normal visual block mode commands
+    switch(c)
+    {
+    case Terminal::ESC:
+        setMode(NORMAL);
+        statusMessage.clear();
+        needsFullRedraw = true;
+        break;
+
+    case 'h':
+    case Terminal::ARROW_LEFT:
+        moveLeft();
+        updateVisualBlockSelection();
+        needsFullRedraw = true;
+        break;
+
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        moveRight();
+        updateVisualBlockSelection();
+        needsFullRedraw = true;
+        break;
+
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        moveDown();
+        updateVisualBlockSelection();
+        needsFullRedraw = true;
+        break;
+
+    case 'k':
+    case Terminal::ARROW_UP:
+        moveUp();
+        updateVisualBlockSelection();
+        needsFullRedraw = true;
+        break;
+
+    case 'd':
+    case 'x':
+        deleteVisualBlock();
+        break;
+
+    case 'y':
+        yankVisualBlock();
+        setMode(NORMAL);
+        needsFullRedraw = true;
+        break;
+
+    case 'c':
+        // Change - delete block and enter insert mode
+        blockInsertStartX = currentBuffer->visualBlockStartX;
+        changeVisualBlock();
+        inBlockInsert = true;
+        changeMode = true; // Mark that we entered via 'c'
+        currentBuffer->visualBlockInsertText.clear(); // Clear any old text
+        break;
+
+    case 'I':
+        // Insert at beginning of block
+        *cursorX = std::min(currentBuffer->visualBlockStartX,
+                            currentBuffer->visualBlockEndX);
+        blockInsertStartX = *cursorX;
+        setMode(INSERT);
+        setStatusMessage("-- VISUAL BLOCK INSERT --");
+        inBlockInsert = true;
+        changeMode = false; // Not in change mode
+        break;
+
+    case 'A':
+        // Append at end of block
+        *cursorX = std::max(currentBuffer->visualBlockStartX,
+                            currentBuffer->visualBlockEndX) +
+                   1;
+        if(*cursorX > (*lines)[*cursorY].length())
+            *cursorX = (*lines)[*cursorY].length();
+        blockInsertStartX = *cursorX;
+        setMode(INSERT);
+        setStatusMessage("-- VISUAL BLOCK APPEND --");
+        inBlockInsert = true;
+        changeMode = false; // Not in change mode
+        break;
+
+    case 'p':
+    case 'P':
+        // Paste - for block yanks, paste as a block
+        if(!yankBuffer.empty())
+        {
+            if(yankBuffer[0] == '\x02') // Block yank marker
+            {
+                // Block paste
+                std::string blockContent = yankBuffer.substr(1);
+                std::istringstream ss(blockContent);
+                std::string line;
+                int row = *cursorY;
+
+                while(std::getline(ss, line) && row < lines->size())
+                {
+                    std::string& destLine = (*lines)[row];
+                    int insertPos = (c == 'p') ? *cursorX + 1 : *cursorX;
+                    if(insertPos > destLine.length())
+                        insertPos = destLine.length();
+                    destLine.insert(insertPos, line);
+                    row++;
+                }
+
+                *dirty = true;
+                saveState();
+                setMode(NORMAL);
+                needsFullRedraw = true;
+                setStatusMessage("Block pasted");
+            }
+            else
+            {
+                // Regular paste - just paste at cursor
+                setMode(NORMAL);
+                if(c == 'p')
+                    pasteAfter();
+                else
+                    pasteBefore();
+            }
+        }
+        break;
+
+    // Movement commands
+    case '0':
+        moveToLineStart();
+        updateVisualBlockSelection();
+        break;
+
+    case '$':
+        moveToLineEnd();
+        updateVisualBlockSelection();
+        break;
+
+    case 'G':
+        moveToLastLine();
+        updateVisualBlockSelection();
+        break;
+
+    case 'g':
+        if(commandBuffer == "g")
+        {
+            moveToFirstLine();
+            updateVisualBlockSelection();
+            commandBuffer.clear();
+        }
+        else
+        {
+            commandBuffer = "g";
         }
         break;
     }
@@ -6372,6 +6785,9 @@ void Editor::handleKeypress()
     case VISUAL:
     case VISUAL_LINE:
         handleVisualMode(c);
+        break;
+    case VISUAL_BLOCK:
+        handleVisualBlockMode(c);
         break;
     case COMMAND:
         handleCommandMode(c);

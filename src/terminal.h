@@ -3,6 +3,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+constexpr int BLOCK_BG = 8;  // dark gray
+constexpr int CURSOR_BG = 7; // light gray
+constexpr int FG_NORMAL = 7; // white
+
 class Terminal
 {
 public:

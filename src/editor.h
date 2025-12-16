@@ -16,6 +16,7 @@ public:
         INSERT,
         VISUAL,
         VISUAL_LINE,
+        VISUAL_BLOCK,
         COMMAND,
         SEARCH_FORWARD,
         SEARCH_BACKWARD,
@@ -71,12 +72,21 @@ public:
         int visualEndX = 0;
         int visualEndY = 0;
 
+        // Visual block mode state per buffer
+        int visualBlockStartX = 0;
+        int visualBlockStartY = 0;
+        int visualBlockEndX = 0;
+        int visualBlockEndY = 0;
+        std::string
+            visualBlockInsertText; // Text to insert in visual block mode
+
         Buffer()
         {
             lines.push_back("");
         }
     };
 
+    bool visualBlockChanging = false;
     // Buffer management
     std::vector<std::unique_ptr<Buffer>> buffers;
     int currentBufferIndex = -1;
@@ -354,9 +364,18 @@ public:
     // Visual mode
     void startVisualMode();
     void startVisualLineMode();
+    void startVisualBlockMode();
     void updateVisualSelection();
+    void updateVisualBlockSelection();
     bool isInSelection(int row, int col);
+    bool isInVisualBlock(int row, int col);
     void getSelectionBounds(int& startY, int& startX, int& endY, int& endX);
+    void getVisualBlockBounds(int& startY, int& startX, int& endY, int& endX);
+    void deleteVisualBlock();
+    void changeVisualBlock();
+    void yankVisualBlock();
+    void handleVisualBlockMode(int c);
+    void applyVisualBlockInsert();
 
     // File operations
     void saveFile();
