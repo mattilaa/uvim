@@ -6926,7 +6926,6 @@ void Editor::handleFileBrowserMode(int c)
             navigateTo(fileList[browserCursor]);
         }
         break;
-
     case 'h':
     case Terminal::ARROW_LEFT:
     case '-':
@@ -6941,7 +6940,6 @@ void Editor::handleFileBrowserMode(int c)
             openFileBrowser(parentDir);
         }
         break;
-
     case 'j':
     case Terminal::ARROW_DOWN:
         if(browserCursor < fileList.size() - 1)
@@ -6953,7 +6951,6 @@ void Editor::handleFileBrowserMode(int c)
             }
         }
         break;
-
     case 'k':
     case Terminal::ARROW_UP:
         if(browserCursor > 0)
@@ -6970,7 +6967,6 @@ void Editor::handleFileBrowserMode(int c)
         browserCursor = 0;
         browserOffset = 0;
         break;
-
     case 'G':
         if(fileList.size() > 0)
         {
@@ -6981,16 +6977,13 @@ void Editor::handleFileBrowserMode(int c)
             }
         }
         break;
-
     case '.':
         toggleHidden();
         break;
-
     case 'R':
         loadDirectory(currentDirectory);
         setStatusMessage("Refreshed");
         break;
-
     case 'q':
     case Terminal::ESC:
         if(!previousFile.empty())
@@ -6999,7 +6992,6 @@ void Editor::handleFileBrowserMode(int c)
         }
         setMode(NORMAL);
         break;
-
     case '?':
         setStatusMessage(
             "[Enter/l]:open [h]:parent [j/k]:nav [.]:hidden [q]:quit");
