@@ -75,6 +75,8 @@ public:
         CTRL_U = 21,
         CTRL_W = 23,
         CTRL_D = 4,
+        CTRL_O = 15,
+        CTRL_I = 9,
     };
 
 private:

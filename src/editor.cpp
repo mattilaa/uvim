@@ -1525,6 +1525,83 @@ void Editor::moveToLine(int line)
     *cursorX = 0;
 }
 
+void Editor::jumpForward()
+{
+    if(jumpForwardStack.empty())
+    {
+        setStatusMessage("Jump stack empty");
+        return;
+    }
+
+    JumpLocation current;
+    current.bufferIndex = currentBufferIndex;
+    current.cursorX = *cursorX;
+    current.cursorY = *cursorY;
+    current.offsetX = *offsetX;
+    current.offsetY = *offsetY;
+
+    jumpBackStack.push_back(current);
+
+    JumpLocation target = jumpForwardStack.back();
+    jumpForwardStack.pop_back();
+
+    restoreJumpLocation(target);
+}
+
+void Editor::jumpBack()
+{
+    if(jumpBackStack.empty())
+    {
+        setStatusMessage("Jump stack empty");
+        return;
+    }
+
+    JumpLocation current;
+    current.bufferIndex = currentBufferIndex;
+    current.cursorX = *cursorX;
+    current.cursorY = *cursorY;
+    current.offsetX = *offsetX;
+    current.offsetY = *offsetY;
+
+    jumpForwardStack.push_back(current);
+
+    JumpLocation target = jumpBackStack.back();
+    jumpBackStack.pop_back();
+
+    restoreJumpLocation(target);
+}
+
+void Editor::pushJumpLocation()
+{
+    if(!currentBuffer)
+        return;
+
+    JumpLocation loc;
+    loc.bufferIndex = currentBufferIndex;
+    loc.cursorX = *cursorX;
+    loc.cursorY = *cursorY;
+    loc.offsetX = *offsetX;
+    loc.offsetY = *offsetY;
+
+    jumpBackStack.push_back(loc);
+    jumpForwardStack.clear(); // Vim behavior
+}
+
+void Editor::restoreJumpLocation(const JumpLocation& loc)
+{
+    if(loc.bufferIndex < 0 || loc.bufferIndex >= buffers.size())
+        return;
+
+    switchToBuffer(loc.bufferIndex);
+
+    *cursorX = loc.cursorX;
+    *cursorY = loc.cursorY;
+    *offsetX = loc.offsetX;
+    *offsetY = loc.offsetY;
+
+    needsFullRedraw = true;
+}
+
 void Editor::scrollHalfPageDown(bool visual)
 {
     int half = screenRows / 2;
@@ -4051,6 +4128,7 @@ void Editor::highlightGrepMatches(const std::string& line,
 
 void Editor::goToDefinition()
 {
+    pushJumpLocation();
     std::string symbol = getSymbolUnderCursor();
     if(symbol.empty())
     {
@@ -6074,7 +6152,13 @@ void Editor::handleNormalMode(int c)
     case Terminal::CTRL_F: // Ctrl+F for grep search (find in files)
         setMode(GREP_SEARCH);
         break;
+    case Terminal::CTRL_O:
+        jumpBack();
+        break;
 
+    case Terminal::CTRL_I:
+        jumpForward();
+        break;
     case 'h':
         if(commandBuffer == "\\")
         {

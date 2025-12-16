@@ -33,6 +33,15 @@ public:
     void run();
     void openFile(const std::string& filename);
 
+    struct JumpLocation
+    {
+        int bufferIndex;
+        int cursorX;
+        int cursorY;
+        int offsetX;
+        int offsetY;
+    };
+
     // Buffer structure to hold file data
     struct Buffer
     {
@@ -322,6 +331,10 @@ public:
     void moveToFirstLine();
     void moveToLastLine();
     void moveToLine(int line);
+    void pushJumpLocation();
+    void jumpForward();
+    void jumpBack();
+    void restoreJumpLocation(const Editor::JumpLocation& loc);
     void scrollHalfPageDown(bool visual);
     void scrollHalfPageUp(bool visual);
     void moveToMatchingBracket();
@@ -421,6 +434,9 @@ public:
         int start;
         int length;
     };
+
+    std::vector<JumpLocation> jumpBackStack;
+    std::vector<JumpLocation> jumpForwardStack;
 
     bool isCppFile() const;
     std::vector<Token> tokenizeLine(const std::string& line,
