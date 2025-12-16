@@ -18,6 +18,38 @@
 #include <unistd.h>
 #include <unordered_set>
 
+static bool isIdent(char c)
+{
+    return std::isalnum((unsigned char)c) || c == '_';
+}
+
+bool isLikelyDefinition(const std::string& line, const std::string& symbol)
+{
+    // skip comments
+    if(line.find("//") != std::string::npos)
+        return false;
+
+    // name(
+    if(line.find(symbol + "(") != std::string::npos)
+        return true;
+
+    // Class::name(
+    if(line.find("::" + symbol + "(") != std::string::npos)
+        return true;
+
+    return false;
+}
+
+static bool isHeaderFile(const std::string& path)
+{
+    return path == ".h" || path == ".hpp";
+}
+
+static bool isSourceFile(const std::string& path)
+{
+    return path == ".c" || path == ".cpp" || path == ".cc";
+}
+
 Editor::Editor()
 {
     Terminal::enableRawMode();
@@ -192,7 +224,7 @@ void Editor::listBuffers()
 
 int Editor::findBufferByFilename(const std::string& fname)
 {
-    for(size_t i = 0; i < buffers.size(); i++)
+    for(int i = 0; i < buffers.size(); i++)
     {
         if(buffers[i]->filename == fname)
             return i;
@@ -211,6 +243,26 @@ void Editor::restoreBufferState()
     {
         setMode(NORMAL);
     }
+}
+
+bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
+                                      int& outY, int& outX)
+{
+    for(int y = 0; y < buf->lines.size(); ++y)
+    {
+        const std::string& line = buf->lines[y];
+        if(isLikelyDefinition(line, symbol))
+        {
+            size_t pos = line.find(symbol);
+            if(pos != std::string::npos)
+            {
+                outY = y;
+                outX = pos;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void Editor::enterOperatorPending(char op)
@@ -880,59 +932,61 @@ std::string Editor::getModeString() const
 
 void Editor::openFile(const std::string& fname)
 {
-    // Check if file is already open in a buffer
-    int existingBufferIndex = findBufferByFilename(fname);
-    if(existingBufferIndex >= 0)
+    // Normalize path (CRITICAL for buffer matching)
+    std::string path = fname;
+    try
     {
-        switchToBuffer(existingBufferIndex);
-        setStatusMessage("\"" + fname + "\" already open in buffer " +
-                         std::to_string(existingBufferIndex + 1));
+        path = std::filesystem::canonical(fname).string();
+    }
+    catch(...)
+    {
+        // fallback if file doesn't exist yet
+        path = fname;
+    }
+
+    // Check if file already open
+    int existing = findBufferByFilename(path);
+    if(existing >= 0)
+    {
+        switchToBuffer(existing);
+        setStatusMessage("\"" + path + "\" [Buffer " +
+                         std::to_string(existing + 1) + "]");
         return;
     }
 
-    // Check if current buffer is empty and unnamed
-    if(currentBuffer && currentBuffer->lines.size() == 1 &&
-       currentBuffer->lines[0].empty() && currentBuffer->filename.empty() &&
-       !currentBuffer->dirty)
-    {
-        // Reuse current empty buffer
-    }
-    else
-    {
-        // Create new buffer for this file
-        createNewBuffer();
-    }
+    // Always create a new buffer for explicit open/jump
+    createNewBuffer();
 
-    *filename = fname;
+    *filename = path;
     lines->clear();
 
-    std::ifstream file(*filename);
+    std::ifstream file(path);
     if(file.is_open())
     {
         std::string line;
         while(std::getline(file, line))
         {
             if(!line.empty() && line.back() == '\r')
-            {
                 line.pop_back();
-            }
             lines->push_back(line);
         }
         file.close();
     }
 
     if(lines->empty())
-    {
         lines->push_back("");
-    }
 
     *dirty = false;
     *cursorX = *cursorY = 0;
     *offsetX = *offsetY = 0;
+
+    // Reset undo state cleanly
     currentBuffer->undoStack.clear();
     currentBuffer->undoIndex = -1;
     saveState();
-    currentBuffer->savedUndoIndex = 0; // Mark the initial state as saved
+    currentBuffer->savedUndoIndex = currentBuffer->undoIndex;
+
+    needsFullRedraw = true;
 
     setStatusMessage("\"" + *filename + "\" " + std::to_string(lines->size()) +
                      " lines [Buffer " +
@@ -972,6 +1026,28 @@ bool Editor::fileExists(const std::string& path)
 {
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
+}
+
+std::string Editor::getSymbolUnderCursor()
+{
+    if(*cursorY >= lines->size())
+        return "";
+
+    const std::string& line = (*lines)[*cursorY];
+    int x = *cursorX;
+
+    if(x >= line.size() || !isIdent(line[x]))
+        return "";
+
+    int l = x;
+    int r = x;
+
+    while(l > 0 && isIdent(line[l - 1]))
+        l--;
+    while(r < line.size() && isIdent(line[r]))
+        r++;
+
+    return line.substr(l, r - l);
 }
 
 std::string Editor::findAlternateFile(const std::string& currentFile)
@@ -3973,6 +4049,50 @@ void Editor::highlightGrepMatches(const std::string& line,
     }
 }
 
+void Editor::goToDefinition()
+{
+    std::string symbol = getSymbolUnderCursor();
+    if(symbol.empty())
+    {
+        setStatusMessage("gd: no symbol");
+        return;
+    }
+
+    int y, x;
+    std::string current = currentBuffer->filename;
+    std::string alternate = findAlternateFile(current);
+
+    // 1️⃣ Prefer alternate file FIRST
+    if(!alternate.empty())
+    {
+        openFile(alternate);
+
+        if(searchDefinitionInBuffer(currentBuffer, symbol, y, x))
+        {
+            *cursorY = y;
+            *cursorX = x;
+            centerScreen();
+            setStatusMessage("gd → " + alternate);
+            return;
+        }
+
+        // Not found → go back
+        openFile(current);
+    }
+
+    // 2️⃣ Fallback: current file
+    if(searchDefinitionInBuffer(currentBuffer, symbol, y, x))
+    {
+        *cursorY = y;
+        *cursorX = x;
+        centerScreen();
+        setStatusMessage("gd (same file)");
+        return;
+    }
+
+    setStatusMessage("gd: definition not found");
+}
+
 void Editor::searchFileContent(const std::string& filepath)
 {
     if(!isTextFile(filepath))
@@ -4516,16 +4636,13 @@ void Editor::drawRows()
                 int fileCol = x + *offsetX;
                 char ch = (fileCol < line.length()) ? line[fileCol] : ' ';
 
-                bool isCursor =
-                    (fileRow == *cursorY && fileCol == *cursorX);
+                bool isCursor = (fileRow == *cursorY && fileCol == *cursorX);
 
-                bool inBlock =
-                    (currentMode == VISUAL_BLOCK &&
-                     isInVisualBlock(fileRow, fileCol));
+                bool inBlock = (currentMode == VISUAL_BLOCK &&
+                                isInVisualBlock(fileRow, fileCol));
 
                 bool inVisual =
-                    ((currentMode == VISUAL ||
-                      currentMode == VISUAL_LINE) &&
+                    ((currentMode == VISUAL || currentMode == VISUAL_LINE) &&
                      isInSelection(fileRow, fileCol));
 
                 Terminal::resetAttributes();
@@ -5598,6 +5715,14 @@ void Editor::forceQuit()
     std::exit(0);
 }
 
+std::string Editor::getAlternateFilePath()
+{
+    if(!currentBuffer || currentBuffer->filename.empty())
+        return "";
+
+    return findAlternateFile(currentBuffer->filename);
+}
+
 // Mode handlers
 void Editor::handleNormalMode(int c)
 {
@@ -5620,7 +5745,30 @@ void Editor::handleNormalMode(int c)
 
     int count = std::max(1, repeatCount);
 
-    if(c == 'd')
+    // ----- g-prefixed commands (MUST be first) -----
+    if(commandBuffer == "g")
+    {
+        if(c == 'd')
+        {
+            commandBuffer.clear();
+            goToDefinition();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'g')
+        {
+            moveToFirstLine();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // Unknown g-command → cancel
+            commandBuffer.clear();
+        }
+    }
+    else if(c == 'd')
     {
         if(pendingDelete)
         {
@@ -5981,16 +6129,8 @@ void Editor::handleNormalMode(int c)
         moveToLineEnd();
         break;
     case 'g':
-        if(commandBuffer == "g")
-        {
-            moveToFirstLine();
-            commandBuffer.clear();
-        }
-        else
-        {
-            commandBuffer = "g";
-        }
-        break;
+        commandBuffer = "g";
+        return;
     case 'G':
         if(repeatCount > 0)
         {
@@ -6001,7 +6141,6 @@ void Editor::handleNormalMode(int c)
             moveToLastLine();
         }
         break;
-
     case '\\': // Leader key (backslash)
         if(commandBuffer == "\\")
         {
@@ -6074,6 +6213,23 @@ void Editor::handleNormalMode(int c)
             setStatusMessage("");
         }
     }
+    // Handle g-prefixed commands
+    if(commandBuffer == "g")
+    {
+        if(c == 'd')
+        {
+            commandBuffer.clear();
+            goToDefinition();
+            repeatCount = 0;
+            return;
+        }
+
+        // Unknown g-command → cancel
+        if(c != 'g')
+        {
+            commandBuffer.clear();
+        }
+    }
 
     repeatCount = 0;
 }
@@ -6097,8 +6253,7 @@ void Editor::handleInsertMode(int c)
                 if(startX > line.length())
                     line.resize(startX, ' ');
 
-                line.insert(startX,
-                    currentBuffer->visualBlockInsertText);
+                line.insert(startX, currentBuffer->visualBlockInsertText);
             }
 
             visualBlockChanging = false;

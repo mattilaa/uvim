@@ -248,6 +248,8 @@ public:
     void updateCurrentBufferPointers();
     void saveBufferState();
     void restoreBufferState();
+    bool searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
+                                  int& outY, int& outX);
 
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
@@ -276,6 +278,7 @@ public:
     void jumpToAlternateFile();
     std::string findAlternateFile(const std::string& currentFile);
     bool fileExists(const std::string& path);
+    std::string getSymbolUnderCursor();
 
     // Fuzzy finder functions
     void initializeFuzzyFind();
@@ -303,6 +306,7 @@ public:
     std::string trimString(const std::string& str);
     void highlightGrepMatches(const std::string& line, const std::string& query,
                               std::vector<std::pair<int, int>>& ranges);
+    void goToDefinition();
 
     // Movement commands
     void moveCursor(int key);
@@ -381,6 +385,7 @@ public:
     void saveFile();
     void executeCommand(const std::string& cmd);
     void forceQuit();
+    std::string getAlternateFilePath();
 
     // Utilities
     void setStatusMessage(const std::string& msg);
