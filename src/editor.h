@@ -439,6 +439,7 @@ public:
     std::vector<JumpLocation> jumpForwardStack;
 
     bool isCppFile() const;
+    bool isMlaFile() const;
     std::vector<Token> tokenizeLine(const std::string& line,
                                     bool& inBlockComment);
     std::string getColorCode(TokenType type) const;

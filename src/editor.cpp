@@ -7,6 +7,7 @@
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits.h>
@@ -26,16 +27,251 @@ static bool isIdent(char c)
 bool isLikelyDefinition(const std::string& line, const std::string& symbol)
 {
     // skip comments
-    if(line.find("//") != std::string::npos)
-        return false;
+    size_t commentPos = line.find("//");
+    std::string effectiveLine =
+        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
 
     // name(
-    if(line.find(symbol + "(") != std::string::npos)
+    if(effectiveLine.find(symbol + "(") != std::string::npos)
         return true;
 
     // Class::name(
-    if(line.find("::" + symbol + "(") != std::string::npos)
+    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
         return true;
+
+    return false;
+}
+
+// Check if a line is likely a variable/parameter declaration for the symbol
+// Returns the column position of the symbol if found, -1 otherwise
+static int findLocalDeclaration(const std::string& line,
+                                const std::string& symbol)
+{
+    // Skip pure comment lines
+    size_t firstNonSpace = line.find_first_not_of(" \t");
+    if(firstNonSpace != std::string::npos &&
+       line.substr(firstNonSpace, 2) == "//")
+        return -1;
+
+    // Get effective line (before any comment)
+    size_t commentPos = line.find("//");
+    std::string effectiveLine =
+        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
+
+    // Find the symbol in the line
+    size_t pos = 0;
+    while((pos = effectiveLine.find(symbol, pos)) != std::string::npos)
+    {
+        // Make sure it's a whole word match
+        bool validStart = (pos == 0 || !isIdent(effectiveLine[pos - 1]));
+        bool validEnd = (pos + symbol.length() >= effectiveLine.length() ||
+                         !isIdent(effectiveLine[pos + symbol.length()]));
+
+        if(!validStart || !validEnd)
+        {
+            pos++;
+            continue;
+        }
+
+        // Check what comes after the symbol
+        size_t afterSymbol = pos + symbol.length();
+        while(afterSymbol < effectiveLine.length() &&
+              std::isspace((unsigned char)effectiveLine[afterSymbol]))
+            afterSymbol++;
+
+        // Check what comes before the symbol (skipping spaces and qualifiers)
+        int beforeSymbol = pos - 1;
+        while(beforeSymbol >= 0 &&
+              std::isspace((unsigned char)effectiveLine[beforeSymbol]))
+            beforeSymbol--;
+
+        // Common patterns for variable declarations:
+        // type name;
+        // type name =
+        // type name,
+        // type name)  - for function parameters
+        // type& name
+        // type* name
+        // const type name
+        // auto name
+
+        if(afterSymbol < effectiveLine.length())
+        {
+            char nextChar = effectiveLine[afterSymbol];
+            // If followed by =, ;, ,, ), [ then it's likely a declaration
+            // NOT if followed by ( which would be a function call
+            if(nextChar == '=' || nextChar == ';' || nextChar == ',' ||
+               nextChar == ')' || nextChar == '[')
+            {
+                // Check that there's something before (a type)
+                if(beforeSymbol >= 0)
+                {
+                    char prevChar = effectiveLine[beforeSymbol];
+                    // Common chars before a variable name in declaration:
+                    // identifier char (end of type name), >, *, &, ]
+                    if(isIdent(prevChar) || prevChar == '>' ||
+                       prevChar == '*' || prevChar == '&' || prevChar == ']')
+                    {
+                        return (int)pos;
+                    }
+                }
+            }
+        }
+        // End of line after symbol (like in "int x")
+        else if(beforeSymbol >= 0)
+        {
+            char prevChar = effectiveLine[beforeSymbol];
+            if(isIdent(prevChar) || prevChar == '>' || prevChar == '*' ||
+               prevChar == '&' || prevChar == ']')
+            {
+                return (int)pos;
+            }
+        }
+
+        pos++;
+    }
+
+    return -1;
+}
+
+// Search backwards from current position for local variable declaration
+static bool searchLocalDefinition(const std::vector<std::string>& lines,
+                                  const std::string& symbol, int startY,
+                                  int startX, int& outY, int& outX)
+{
+    // Track brace depth to stay within current scope
+    int braceDepth = 0;
+    bool foundOpenBrace = false;
+
+    // Start from the line before cursor (or current line if cursor is past the
+    // symbol)
+    for(int y = startY; y >= 0; y--)
+    {
+        const std::string& line = lines[y];
+
+        // Count braces in this line (from end to start for backwards search)
+        for(int i = (int)line.length() - 1; i >= 0; i--)
+        {
+            // Skip if we're on the starting line and past start position
+            if(y == startY && i >= startX)
+                continue;
+
+            char c = line[i];
+            if(c == '}')
+            {
+                braceDepth++;
+            }
+            else if(c == '{')
+            {
+                if(braceDepth > 0)
+                    braceDepth--;
+                else
+                    foundOpenBrace = true; // Found enclosing scope start
+            }
+        }
+
+        // Don't search past the opening brace of current scope
+        // (but do search the line with the opening brace for parameters)
+
+        // Check if this line has a declaration of our symbol
+        // Only search if we're at same or lower brace depth (within scope)
+        if(braceDepth == 0)
+        {
+            int col = findLocalDeclaration(line, symbol);
+            if(col >= 0)
+            {
+                // Make sure it's before our cursor position if on same line
+                if(y < startY || col < startX)
+                {
+                    outY = y;
+                    outX = col;
+                    return true;
+                }
+            }
+        }
+
+        // If we've exited our function scope, stop searching
+        if(foundOpenBrace && braceDepth == 0)
+        {
+            // Check this line one more time (function parameters are on/before
+            // opening brace)
+            int col = findLocalDeclaration(line, symbol);
+            if(col >= 0)
+            {
+                outY = y;
+                outX = col;
+                return true;
+            }
+
+            // Also check the line above for multi-line function signatures
+            if(y > 0)
+            {
+                col = findLocalDeclaration(lines[y - 1], symbol);
+                if(col >= 0)
+                {
+                    outY = y - 1;
+                    outX = col;
+                    return true;
+                }
+            }
+            break;
+        }
+    }
+
+    return false;
+}
+
+// Search for member variable declaration in class/struct
+static bool searchMemberDefinition(const std::vector<std::string>& lines,
+                                   const std::string& symbol, int& outY,
+                                   int& outX)
+{
+    // Look for struct/class definitions and their members
+    bool inClassOrStruct = false;
+    int classStartLine = -1;
+    int braceDepth = 0;
+
+    for(int y = 0; y < (int)lines.size(); y++)
+    {
+        const std::string& line = lines[y];
+
+        // Check for class/struct keyword
+        if(line.find("class ") != std::string::npos ||
+           line.find("struct ") != std::string::npos)
+        {
+            inClassOrStruct = true;
+            classStartLine = y;
+            braceDepth = 0;
+        }
+
+        // Track braces
+        for(char c : line)
+        {
+            if(c == '{')
+                braceDepth++;
+            else if(c == '}')
+            {
+                braceDepth--;
+                if(braceDepth == 0 && inClassOrStruct)
+                {
+                    inClassOrStruct = false;
+                }
+            }
+        }
+
+        // If we're inside a class/struct at depth 1, look for member
+        // declarations
+        if(inClassOrStruct && braceDepth == 1)
+        {
+            int col = findLocalDeclaration(line, symbol);
+            if(col >= 0)
+            {
+                outY = y;
+                outX = col;
+                return true;
+            }
+        }
+    }
 
     return false;
 }
@@ -2383,8 +2619,28 @@ bool Editor::isCppFile() const
         return false;
 
     std::string ext = filename->substr(dotPos);
+
+    // Debug: uncomment to see what extension is being checked
+    // FILE* f = fopen("/tmp/editor_debug.txt", "a");
+    // if (f) { fprintf(f, "Checking ext: '%s' from file: '%s'\n", ext.c_str(),
+    // filename->c_str()); fclose(f); }
+
     return (ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".h" ||
-            ext == ".hpp" || ext == ".hxx" || ext == ".c" || ext == ".C");
+            ext == ".hpp" || ext == ".hxx" || ext == ".c" || ext == ".C" ||
+            ext == ".mla");
+}
+
+bool Editor::isMlaFile() const
+{
+    if(filename->empty())
+        return false;
+
+    size_t dotPos = filename->find_last_of('.');
+    if(dotPos == std::string::npos)
+        return false;
+
+    std::string ext = filename->substr(dotPos);
+    return (ext == ".mla");
 }
 
 std::string Editor::getColorCode(TokenType type) const
@@ -2420,88 +2676,22 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
     std::vector<Token> tokens;
 
     // C++ keywords
-    static const std::unordered_set<std::string> keywords = {"alignas",
-                                                             "alignof",
-                                                             "and",
-                                                             "and_eq",
-                                                             "asm",
-                                                             "auto",
-                                                             "bitand",
-                                                             "bitor",
-                                                             "break",
-                                                             "case",
-                                                             "catch",
-                                                             "class",
-                                                             "compl",
-                                                             "concept",
-                                                             "const",
-                                                             "consteval",
-                                                             "constexpr",
-                                                             "constinit",
-                                                             "const_cast",
-                                                             "continue",
-                                                             "co_await",
-                                                             "co_return",
-                                                             "co_yield",
-                                                             "decltype",
-                                                             "default",
-                                                             "delete",
-                                                             "do",
-                                                             "dynamic_cast",
-                                                             "else",
-                                                             "enum",
-                                                             "explicit",
-                                                             "export",
-                                                             "extern",
-                                                             "false",
-                                                             "for",
-                                                             "friend",
-                                                             "goto",
-                                                             "if",
-                                                             "inline",
-                                                             "mutable",
-                                                             "namespace",
-                                                             "new",
-                                                             "noexcept",
-                                                             "not",
-                                                             "not_eq",
-                                                             "nullptr",
-                                                             "operator",
-                                                             "or",
-                                                             "or_eq",
-                                                             "private",
-                                                             "protected",
-                                                             "public",
-                                                             "reflexpr",
-                                                             "register",
-                                                             "reinterpret_cast",
-                                                             "requires",
-                                                             "return",
-                                                             "sizeof",
-                                                             "static",
-                                                             "static_assert",
-                                                             "static_cast",
-                                                             "struct",
-                                                             "switch",
-                                                             "synchronized",
-                                                             "template",
-                                                             "this",
-                                                             "thread_local",
-                                                             "throw",
-                                                             "true",
-                                                             "try",
-                                                             "typedef",
-                                                             "typeid",
-                                                             "typename",
-                                                             "union",
-                                                             "using",
-                                                             "virtual",
-                                                             "volatile",
-                                                             "while",
-                                                             "xor",
-                                                             "xor_eq",
-                                                             "override",
-                                                             "final"};
+    static const std::unordered_set<std::string> keywords = {
+        "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor",
+        "break", "case", "catch", "class", "compl", "concept", "const",
+        "consteval", "constexpr", "constinit", "const_cast", "continue",
+        "co_await", "co_return", "co_yield", "decltype", "default", "delete",
+        "do", "dynamic_cast", "else", "enum", "explicit", "export", "extern",
+        "false", "for", "friend", "goto", "if", "inline", "mutable",
+        "namespace", "new", "noexcept", "not", "not_eq", "nullptr", "operator",
+        "or", "or_eq", "private", "protected", "public", "reflexpr", "register",
+        "reinterpret_cast", "requires", "return", "sizeof", "static",
+        "static_assert", "static_cast", "struct", "switch", "synchronized",
+        "template", "this", "thread_local", "throw", "true", "try", "typedef",
+        "typeid", "typename", "union", "using", "virtual", "volatile", "while",
+        "xor", "xor_eq", "override", "final",
+        // MLA keywords
+        "fn", "let", "var", "mod", "use", "in"};
 
     // C++ types
     static const std::unordered_set<std::string> types = {
@@ -2584,7 +2774,10 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
 
         // Other common types
         "std::initializer_list", "std::type_info", "std::bad_alloc",
-        "std::nothrow_t", "std::align_val_t", "std::byte"};
+        "std::nothrow_t", "std::align_val_t", "std::byte",
+
+        // MLA types
+        "int", "float", "double", "bool", "string", "list", "void"};
 
     int i = 0;
     int len = line.length();
@@ -2745,6 +2938,23 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
             {
                 type = TOKEN_TYPE;
             }
+            else
+            {
+                // Check if previous token was 'struct', 'class', 'enum', or ':'
+                // to identify type names in definitions/inheritance
+                if(!tokens.empty())
+                {
+                    const Token& prevToken = tokens.back();
+                    std::string prevWord =
+                        line.substr(prevToken.start, prevToken.length);
+                    if(prevWord == "struct" || prevWord == "class" ||
+                       prevWord == "enum" || prevWord == ":" ||
+                       prevWord == "->")
+                    {
+                        type = TOKEN_TYPE;
+                    }
+                }
+            }
 
             tokens.push_back({type, start, i - start});
             continue;
@@ -2757,7 +2967,7 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
             i++;
 
             // Multi-character operators
-            if(i < len && std::strchr("=<>+-&|*/%:", line[i - 1]))
+            if(i < len && std::strchr("=<>+-&|*/%:.", line[i - 1]))
             {
                 if((line[i - 1] == '+' && line[i] == '+') ||
                    (line[i - 1] == '-' && line[i] == '-') ||
@@ -2771,6 +2981,8 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
                    (line[i - 1] == '>' && line[i] == '>') ||
                    (line[i - 1] == '-' && line[i] == '>') ||
                    (line[i - 1] == ':' && line[i] == ':') ||
+                   (line[i - 1] == '.' &&
+                    line[i] == '.') || // MLA range operator
                    (line[i - 1] == '+' && line[i] == '=') ||
                    (line[i - 1] == '-' && line[i] == '=') ||
                    (line[i - 1] == '*' && line[i] == '=') ||
@@ -4128,7 +4340,6 @@ void Editor::highlightGrepMatches(const std::string& line,
 
 void Editor::goToDefinition()
 {
-    pushJumpLocation();
     std::string symbol = getSymbolUnderCursor();
     if(symbol.empty())
     {
@@ -4136,11 +4347,45 @@ void Editor::goToDefinition()
         return;
     }
 
+    pushJumpLocation();
+
     int y, x;
     std::string current = currentBuffer->filename;
     std::string alternate = findAlternateFile(current);
 
-    // 1️⃣ Prefer alternate file FIRST
+    // 1️⃣ First: Search for LOCAL variable/parameter declaration (backwards from
+    // cursor) This handles local variables and function parameters
+    if(searchLocalDefinition(*lines, symbol, *cursorY, *cursorX, y, x))
+    {
+        // Make sure we're not jumping to ourselves
+        if(y != *cursorY || x != *cursorX)
+        {
+            *cursorY = y;
+            *cursorX = x;
+            centerScreen();
+            setStatusMessage("gd → local '" + symbol + "' at " +
+                             std::to_string(y + 1) + ":" +
+                             std::to_string(x + 1));
+            return;
+        }
+    }
+
+    // 2️⃣ Search for member variable in current file (class/struct members)
+    if(searchMemberDefinition(*lines, symbol, y, x))
+    {
+        if(y != *cursorY || x != *cursorX)
+        {
+            *cursorY = y;
+            *cursorX = x;
+            centerScreen();
+            setStatusMessage("gd → member '" + symbol + "' at " +
+                             std::to_string(y + 1) + ":" +
+                             std::to_string(x + 1));
+            return;
+        }
+    }
+
+    // 3️⃣ Search for function definition in alternate file (header <-> source)
     if(!alternate.empty())
     {
         openFile(alternate);
@@ -4158,7 +4403,7 @@ void Editor::goToDefinition()
         openFile(current);
     }
 
-    // 2️⃣ Fallback: current file
+    // 4️⃣ Fallback: Search for function definition in current file
     if(searchDefinitionInBuffer(currentBuffer, symbol, y, x))
     {
         *cursorY = y;
@@ -4168,7 +4413,9 @@ void Editor::goToDefinition()
         return;
     }
 
-    setStatusMessage("gd: definition not found");
+    setStatusMessage("gd: '" + symbol +
+                     "' not found (curY=" + std::to_string(*cursorY) +
+                     " curX=" + std::to_string(*cursorX) + ")");
 }
 
 void Editor::searchFileContent(const std::string& filepath)
@@ -5828,7 +6075,6 @@ void Editor::handleNormalMode(int c)
     {
         if(c == 'd')
         {
-            commandBuffer.clear();
             goToDefinition();
             repeatCount = 0;
             return;
