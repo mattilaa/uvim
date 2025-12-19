@@ -1975,20 +1975,73 @@ void Editor::insertNewline()
     if(*cursorY >= lines->size())
     {
         lines->push_back("");
-    }
-    else if(*cursorX >= (*lines)[*cursorY].length())
-    {
-        lines->insert(lines->begin() + *cursorY + 1, "");
-    }
-    else
-    {
-        std::string remainder = (*lines)[*cursorY].substr(*cursorX);
-        (*lines)[*cursorY] = (*lines)[*cursorY].substr(0, *cursorX);
-        lines->insert(lines->begin() + *cursorY + 1, remainder);
+        (*cursorY)++;
+        *cursorX = 0;
+        *dirty = true;
+        needsFullRedraw = true;
+        return;
     }
 
+    // Get current line and calculate indentation
+    const std::string& currentLine = (*lines)[*cursorY];
+
+    // Find leading whitespace of current line
+    size_t indent = 0;
+    while(indent < currentLine.length() &&
+          (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+    {
+        indent++;
+    }
+    std::string indentStr = currentLine.substr(0, indent);
+
+    // Check if we should add extra indent (after { or other block openers)
+    bool addExtraIndent = false;
+    if(isCppFile() && *cursorX > 0)
+    {
+        // Look for { before cursor position (ignoring trailing whitespace)
+        int checkPos = *cursorX - 1;
+        while(checkPos >= 0 &&
+              (currentLine[checkPos] == ' ' || currentLine[checkPos] == '\t'))
+        {
+            checkPos--;
+        }
+        if(checkPos >= 0 && currentLine[checkPos] == '{')
+        {
+            addExtraIndent = true;
+        }
+    }
+
+    // Split the line at cursor position
+    std::string remainder;
+    if(*cursorX < currentLine.length())
+    {
+        remainder = currentLine.substr(*cursorX);
+        // Trim leading whitespace from remainder since we'll add proper indent
+        size_t startPos = remainder.find_first_not_of(" \t");
+        if(startPos != std::string::npos)
+        {
+            remainder = remainder.substr(startPos);
+        }
+        else
+        {
+            remainder = "";
+        }
+        (*lines)[*cursorY] = currentLine.substr(0, *cursorX);
+    }
+
+    // Build the new line with proper indentation
+    std::string newLine = indentStr;
+    if(addExtraIndent)
+    {
+        newLine += "    "; // Add 4 spaces for block indent
+    }
+    newLine += remainder;
+
+    // Insert the new line
+    lines->insert(lines->begin() + *cursorY + 1, newLine);
+
     (*cursorY)++;
-    *cursorX = 0;
+    *cursorX = indentStr.length() + (addExtraIndent ? 4 : 0);
     *dirty = true;
     needsFullRedraw = true;
 }
@@ -6343,22 +6396,67 @@ void Editor::handleNormalMode(int c)
         setStatusMessage("-- INSERT --");
         break;
     case 'o':
-        moveToLineEnd();
-        if(*cursorX < (*lines)[*cursorY].length())
-            (*cursorX)++;
-        insertNewline();
-        setMode(INSERT);
-        saveState();
-        setStatusMessage("-- INSERT --");
-        break;
-    case 'O':
-        moveToLineStart();
-        lines->insert(lines->begin() + *cursorY, "");
+    {
+        // Get indentation from current line
+        const std::string& currentLine = (*lines)[*cursorY];
+        size_t indent = 0;
+        while(indent < currentLine.length() &&
+              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+        {
+            indent++;
+        }
+        std::string indentStr = currentLine.substr(0, indent);
+
+        // Check if current line ends with { (add extra indent)
+        bool addExtraIndent = false;
+        if(isCppFile())
+        {
+            size_t lastNonSpace = currentLine.find_last_not_of(" \t");
+            if(lastNonSpace != std::string::npos &&
+               currentLine[lastNonSpace] == '{')
+            {
+                addExtraIndent = true;
+            }
+        }
+
+        // Insert new line below with proper indentation
+        std::string newLine = indentStr;
+        if(addExtraIndent)
+        {
+            newLine += "    ";
+        }
+        lines->insert(lines->begin() + *cursorY + 1, newLine);
+        (*cursorY)++;
+        *cursorX = newLine.length();
         *dirty = true;
+        needsFullRedraw = true;
         setMode(INSERT);
         saveState();
         setStatusMessage("-- INSERT --");
         break;
+    }
+    case 'O':
+    {
+        // Get indentation from current line
+        const std::string& currentLine = (*lines)[*cursorY];
+        size_t indent = 0;
+        while(indent < currentLine.length() &&
+              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+        {
+            indent++;
+        }
+        std::string indentStr = currentLine.substr(0, indent);
+
+        // Insert new line above with same indentation
+        lines->insert(lines->begin() + *cursorY, indentStr);
+        *cursorX = indentStr.length();
+        *dirty = true;
+        needsFullRedraw = true;
+        setMode(INSERT);
+        saveState();
+        setStatusMessage("-- INSERT --");
+        break;
+    }
     case 'v':
         startVisualMode();
         break;
