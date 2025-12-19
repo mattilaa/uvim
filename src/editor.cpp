@@ -6694,6 +6694,50 @@ void Editor::handleInsertMode(int c)
 
     if(c == Terminal::BACKSPACE || c == Terminal::DEL)
     {
+        // Smart backspace: delete up to 4 spaces if we're in indentation
+        if(*cursorX > 0 && *cursorY < lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+
+            // Check if cursor is in the indentation area (only spaces/tabs
+            // before cursor)
+            bool inIndent = true;
+            for(int i = 0; i < *cursorX; i++)
+            {
+                if(line[i] != ' ' && line[i] != '\t')
+                {
+                    inIndent = false;
+                    break;
+                }
+            }
+
+            if(inIndent && line[*cursorX - 1] == ' ')
+            {
+                // Calculate how many spaces to delete (up to 4, aligned to tab
+                // stop)
+                int spacesToDelete = ((*cursorX - 1) % 4) + 1;
+                if(spacesToDelete == 0)
+                    spacesToDelete = 4;
+
+                // Make sure we have enough spaces to delete
+                int actualSpaces = 0;
+                for(int i = *cursorX - 1;
+                    i >= 0 && actualSpaces < spacesToDelete; i--)
+                {
+                    if(line[i] == ' ')
+                        actualSpaces++;
+                    else
+                        break;
+                }
+
+                // Delete the spaces
+                (*lines)[*cursorY].erase(*cursorX - actualSpaces, actualSpaces);
+                *cursorX -= actualSpaces;
+                *dirty = true;
+                return;
+            }
+        }
+
         deleteChar();
         return;
     }
@@ -6701,6 +6745,20 @@ void Editor::handleInsertMode(int c)
     if(c == Terminal::ENTER)
     {
         insertNewline();
+        return;
+    }
+
+    // Tab key: insert 4 spaces (aligned to tab stop)
+    if(c == Terminal::TAB)
+    {
+        int spacesToInsert = 4 - (*cursorX % 4);
+        if(spacesToInsert == 0)
+            spacesToInsert = 4;
+
+        for(int i = 0; i < spacesToInsert; i++)
+        {
+            insertChar(' ');
+        }
         return;
     }
 
