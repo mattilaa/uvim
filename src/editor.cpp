@@ -6111,6 +6111,37 @@ void Editor::handleNormalMode(int c)
     static bool pendingShiftRight = false;
     static bool pendingShiftLeft = false;
 
+    // ----- single-character replace (vim/neovim-style 'r{char}') -----
+    if(c == 'r')
+    {
+        // Cancel any pending operators
+        pendingDelete = pendingYank = pendingIndent = false;
+
+        int rc = Terminal::readKey();
+
+        // Only accept printable characters
+        if(rc < 32 || rc == 127)
+            return;
+
+        if(!lines || lines->empty())
+            return;
+
+        if(*cursorY < 0 || *cursorY >= (int)lines->size())
+            return;
+
+        std::string& line = (*lines)[*cursorY];
+        if(*cursorX < 0 || *cursorX >= (int)line.size())
+            return;
+
+        line[*cursorX] = (char)rc;
+
+        saveState(); // your undo model saves *after* changes
+        *dirty = true;
+        needsFullRedraw =
+            true; // IMPORTANT: otherwise NORMAL mode may not redraw text
+        return;
+    }
+
     if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
     {
         repeatCount = c - '0';
@@ -6121,7 +6152,6 @@ void Editor::handleNormalMode(int c)
         repeatCount = repeatCount * 10 + (c - '0');
         return;
     }
-
     int count = std::max(1, repeatCount);
 
     // ----- g-prefixed commands (MUST be first) -----
@@ -6848,6 +6878,60 @@ void Editor::handleVisualMode(int c)
         yankSelection();
         setMode(NORMAL);
         needsFullRedraw = true;
+        break;
+    case 'c':
+        // Change - delete selection and enter insert mode
+        {
+            int startY, startX, endY, endX;
+            if(currentMode == VISUAL_LINE)
+            {
+                // For visual line mode, delete whole lines and insert new line
+                startY = std::min(currentBuffer->visualStartY,
+                                  currentBuffer->visualEndY);
+                endY = std::max(currentBuffer->visualStartY,
+                                currentBuffer->visualEndY);
+
+                // Delete the selected lines
+                for(int i = endY; i >= startY; i--)
+                {
+                    lines->erase(lines->begin() + i);
+                }
+
+                // Insert empty line at start position
+                lines->insert(lines->begin() + startY, "");
+
+                *cursorY = startY;
+                *cursorX = 0;
+            }
+            else
+            {
+                // For character-wise visual mode
+                getSelectionBounds(startY, startX, endY, endX);
+
+                // Delete the selection (same logic as deleteSelection)
+                if(startY == endY)
+                {
+                    (*lines)[startY].erase(startX, endX - startX + 1);
+                }
+                else
+                {
+                    (*lines)[startY] = (*lines)[startY].substr(0, startX) +
+                                       (*lines)[endY].substr(endX + 1);
+                    for(int i = endY; i > startY; i--)
+                    {
+                        lines->erase(lines->begin() + i);
+                    }
+                }
+
+                *cursorY = startY;
+                *cursorX = startX;
+            }
+
+            *dirty = true;
+            saveState();
+            setMode(INSERT);
+            needsFullRedraw = true;
+        }
         break;
     case '=':
         // Indent selected lines
