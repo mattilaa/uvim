@@ -982,7 +982,6 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
         *cursorY = startY;
         *cursorX = startX;
         setMode(INSERT);
-        setStatusMessage("-- INSERT --");
     }
     else
     {
@@ -2259,13 +2258,11 @@ void Editor::pasteBefore()
 void Editor::startVisualMode()
 {
     setMode(VISUAL);
-    setStatusMessage("-- VISUAL --");
 }
 
 void Editor::startVisualLineMode()
 {
     setMode(VISUAL_LINE);
-    setStatusMessage("-- VISUAL LINE --");
 }
 
 void Editor::startVisualBlockMode()
@@ -2276,7 +2273,6 @@ void Editor::startVisualBlockMode()
     currentBuffer->visualBlockEndX = *cursorX;
     currentBuffer->visualBlockEndY = *cursorY;
     currentBuffer->visualBlockInsertText.clear();
-    setStatusMessage("-- VISUAL BLOCK --");
 }
 
 void Editor::updateVisualSelection()
@@ -2438,7 +2434,6 @@ void Editor::changeVisualBlock()
     *cursorX = startX;
 
     setMode(INSERT);
-    setStatusMessage("-- VISUAL BLOCK --");
 }
 
 void Editor::applyVisualBlockInsert()
@@ -4920,7 +4915,6 @@ void Editor::undo()
         }
 
         needsFullRedraw = true;
-        setStatusMessage("Undo!");
     }
     else
     {
@@ -4953,7 +4947,6 @@ void Editor::redo()
         }
 
         needsFullRedraw = true;
-        setStatusMessage("Redo!");
     }
     else
     {
@@ -6406,25 +6399,21 @@ void Editor::handleNormalMode(int c)
     break;
     case 'i':
         setMode(INSERT);
-        setStatusMessage("-- INSERT --");
         break;
     case 'I':
         moveToLineStart();
         setMode(INSERT);
-        setStatusMessage("-- INSERT --");
         break;
     case 'a':
         if(*cursorX < (*lines)[*cursorY].length())
             (*cursorX)++;
         setMode(INSERT);
-        setStatusMessage("-- INSERT --");
         break;
     case 'A':
         moveToLineEnd();
         if(*cursorX < (*lines)[*cursorY].length())
             (*cursorX)++;
         setMode(INSERT);
-        setStatusMessage("-- INSERT --");
         break;
     case 'o':
     {
@@ -6463,7 +6452,6 @@ void Editor::handleNormalMode(int c)
         needsFullRedraw = true;
         setMode(INSERT);
         saveState();
-        setStatusMessage("-- INSERT --");
         break;
     }
     case 'O':
@@ -6485,7 +6473,6 @@ void Editor::handleNormalMode(int c)
         needsFullRedraw = true;
         setMode(INSERT);
         saveState();
-        setStatusMessage("-- INSERT --");
         break;
     }
     case 'v':
@@ -7200,7 +7187,6 @@ void Editor::handleVisualBlockMode(int c)
                             currentBuffer->visualBlockEndX);
         blockInsertStartX = *cursorX;
         setMode(INSERT);
-        setStatusMessage("-- VISUAL BLOCK INSERT --");
         inBlockInsert = true;
         changeMode = false; // Not in change mode
         break;
@@ -7214,7 +7200,6 @@ void Editor::handleVisualBlockMode(int c)
             *cursorX = (*lines)[*cursorY].length();
         blockInsertStartX = *cursorX;
         setMode(INSERT);
-        setStatusMessage("-- VISUAL BLOCK APPEND --");
         inBlockInsert = true;
         changeMode = false; // Not in change mode
         break;
