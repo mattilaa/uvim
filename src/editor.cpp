@@ -720,15 +720,20 @@ void Editor::handleOperatorPendingMode(int c)
     }
 
     // Apply operator
-    applyOperatorToRange(pendingOperator, startY, startX, endY, endX);
+    char op = pendingOperator;
+    applyOperatorToRange(op, startY, startX, endY, endX);
 
-    // Clear state and return to NORMAL (or INSERT if operator was 'c')
+    // Clear state
     pendingOperator = 0;
     pendingAwaitingObject = false;
     pendingObjectType = 0;
     pendingCount = 0;
 
-    setMode(NORMAL);
+    // Return to NORMAL unless operator was 'c' (which already set INSERT mode)
+    if(op != 'c')
+    {
+        setMode(NORMAL);
+    }
     needsFullRedraw = true;
 }
 
@@ -2825,8 +2830,8 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
         "std::nothrow_t", "std::align_val_t", "std::byte",
 
         // MLA types
-        "int", "float", "double", "bool", "string", "list", "void", "i8", "i16",
-        "i32", "i64", "u8", "u16", "u32", "u64", "println", "eprintln"};
+        "int", "float", "double", "bool", "string", "list", "map", "void", "i8", "i16",
+        "i32", "i64", "u8", "u16", "u32", "u64", "print", "println", "eprint", "eprintln"};
 
     int i = 0;
     int len = line.length();
