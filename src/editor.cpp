@@ -2830,8 +2830,9 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
         "std::nothrow_t", "std::align_val_t", "std::byte",
 
         // MLA types
-        "int", "float", "double", "bool", "string", "list", "map", "void", "i8", "i16",
-        "i32", "i64", "u8", "u16", "u32", "u64", "print", "println", "eprint", "eprintln"};
+        "int", "float", "double", "bool", "string", "list", "map", "tuple",
+        "void", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "print",
+        "println", "eprint", "eprintln"};
 
     int i = 0;
     int len = line.length();
