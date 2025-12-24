@@ -1,5 +1,8 @@
-#include "editor.h"
+#include "editor_lsp_query.h"
 #include "terminal.h"
+#ifdef UVIM_ENABLE_CLANGD_LSP
+#include "lsp_client_query.h"
+#endif
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -31,41 +34,12 @@ bool isLikelyDefinition(const std::string& line, const std::string& symbol)
     std::string effectiveLine =
         (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
 
-    auto isBoundary = [](char c) { return !isIdent(c); };
-
-    auto containsWholeWord = [&](const std::string& needle)
-    {
-        size_t pos = effectiveLine.find(needle);
-        if(pos == std::string::npos)
-            return false;
-        // Basic boundary checks around the symbol portion.
-        size_t symPos = needle.find(symbol);
-        if(symPos == std::string::npos)
-            return true;
-        size_t absSymPos = pos + symPos;
-        bool leftOk =
-            (absSymPos == 0) || isBoundary(effectiveLine[absSymPos - 1]);
-        size_t rightIdx = absSymPos + symbol.size();
-        bool rightOk = (rightIdx >= effectiveLine.size()) ||
-                       isBoundary(effectiveLine[rightIdx]);
-        return leftOk && rightOk;
-    };
-
-    // Function definition/prototype: name(
-    if(containsWholeWord(symbol + "("))
+    // name(
+    if(effectiveLine.find(symbol + "(") != std::string::npos)
         return true;
 
-    // Method definition/prototype: Class::name(
-    if(containsWholeWord("::" + symbol + "("))
-        return true;
-
-    // Type definitions
-    if(containsWholeWord("class " + symbol) ||
-       containsWholeWord("struct " + symbol) ||
-       containsWholeWord("enum " + symbol) ||
-       containsWholeWord("enum class " + symbol) ||
-       containsWholeWord("typedef " + symbol) ||
-       containsWholeWord("using " + symbol + " ="))
+    // Class::name(
+    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
         return true;
 
     return false;
@@ -321,16 +295,6 @@ Editor::Editor()
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
 
-    // Capture project root at startup (used for command completion and
-    // project-wide features like include scanning).
-    {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            projectRoot = cwd;
-        else
-            projectRoot = ".";
-    }
-
     // Create initial empty buffer
     createNewBuffer();
     saveState();
@@ -341,6 +305,96 @@ Editor::~Editor()
 {
     Terminal::clearScreen();
     Terminal::moveCursor(1, 1);
+}
+
+void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
+                             const std::string& clangdPath,
+                             const std::string& queryDriverAllowList)
+{
+    clangdLspEnabled = false;
+    clangdLspCompileCommandsDir = compileCommandsDir;
+    clangdLspPath = clangdPath;
+    clangdLspQueryDriverAllowList = queryDriverAllowList;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(lspClient)
+        {
+            lspClient->stop();
+            lspClient.reset();
+        }
+        return;
+    }
+
+    // Determine project root (cwd at startup is good enough for uvim).
+    char cwd[PATH_MAX];
+    std::string rootDir = ".";
+    if(getcwd(cwd, sizeof(cwd)))
+        rootDir = std::string(cwd);
+
+    // Auto-detect compile_commands.json if caller didn't specify --ccdir
+    std::string ccdir = clangdLspCompileCommandsDir;
+    auto exists = [](const std::string& p)
+    {
+        struct stat st;
+        return stat(p.c_str(), &st) == 0;
+    };
+
+    if(ccdir.empty())
+    {
+        if(exists(rootDir + "/compile_commands.json"))
+            ccdir = rootDir;
+        else if(exists(rootDir + "/build/compile_commands.json"))
+            ccdir = rootDir + "/build";
+    }
+
+    // If not provided, use a conservative default query-driver allowlist so
+    // clangd can discover system include paths (standard library headers etc)
+    // from common compilers referenced in compile_commands.json. Users with
+    // custom toolchains can pass:
+    //   --query-driver "/opt/toolchain/bin/*g++*,/opt/toolchain/bin/*gcc*"
+    std::string qd = clangdLspQueryDriverAllowList;
+    if(qd.empty())
+    {
+        // Only allow executing compilers from typical system locations.
+        // clangd expects a comma-separated list of globs/paths.
+        qd =
+            "/usr/bin/*clang*,/usr/bin/*clang++*,/usr/bin/*gcc*,/usr/bin/*g++*,"
+            "/bin/*gcc*,/bin/*g++*,"
+            "/usr/local/bin/*clang*,/usr/local/bin/*clang++*,/usr/local/bin/"
+            "*gcc*,/usr/local/bin/*g++*,"
+            "/opt/homebrew/bin/*clang*,/opt/homebrew/bin/*clang++*,/opt/"
+            "homebrew/bin/*gcc*,/opt/homebrew/bin/*g++*";
+    }
+
+    lspClient = std::make_unique<LspClient>();
+    if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
+    {
+        lspClient.reset();
+        setStatusMessage("clangd LSP: failed to start");
+        return;
+    }
+
+    clangdLspEnabled = true;
+    clangdLspCompileCommandsDir = ccdir;
+    setStatusMessage("clangd LSP: ON" +
+                     (ccdir.empty() ? "" : (" (ccdir=" + ccdir + ")")));
+#else
+    (void)enable;
+    (void)compileCommandsDir;
+    (void)clangdPath;
+    setStatusMessage("clangd LSP: not compiled in");
+#endif
+}
+
+bool Editor::isClangdLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return clangdLspEnabled && lspClient && lspClient->running();
+#else
+    return false;
+#endif
 }
 
 // Buffer Management Functions
@@ -537,210 +591,6 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
             }
         }
     }
-    return false;
-}
-
-static bool readFileLines(const std::string& filepath,
-                          std::vector<std::string>& outLines)
-{
-    outLines.clear();
-    std::ifstream f(filepath);
-    if(!f.is_open())
-        return false;
-    std::string line;
-    while(std::getline(f, line))
-    {
-        if(!line.empty() && line.back() == '\r')
-            line.pop_back();
-        outLines.push_back(line);
-    }
-    if(outLines.empty())
-        outLines.push_back("");
-    return true;
-}
-
-static std::vector<std::string>
-extractIncludesFromLines(const std::vector<std::string>& fileLines)
-{
-    std::vector<std::string> includes;
-    includes.reserve(32);
-
-    for(const auto& raw : fileLines)
-    {
-        std::string line = raw;
-        // Strip leading whitespace
-        size_t i = line.find_first_not_of(" \t");
-        if(i == std::string::npos)
-            continue;
-        if(line.compare(i, 2, "//") == 0)
-            continue;
-
-        if(line.compare(i, 8, "#include") != 0)
-            continue;
-
-        i += 8;
-        // Skip whitespace
-        while(i < line.size() && std::isspace((unsigned char)line[i]))
-            ++i;
-
-        if(i >= line.size())
-            continue;
-
-        char open = line[i];
-        char close = (open == '"') ? '"' : (open == '<' ? '>' : 0);
-        if(close == 0)
-            continue;
-
-        ++i;
-        size_t start = i;
-        size_t end = line.find(close, start);
-        if(end == std::string::npos || end <= start)
-            continue;
-
-        std::string inc = line.substr(start, end - start);
-        if(!inc.empty())
-            includes.push_back(inc);
-    }
-
-    return includes;
-}
-
-static std::string canonicalOrSame(const std::string& path)
-{
-    try
-    {
-        return std::filesystem::canonical(path).string();
-    }
-    catch(...)
-    {
-        return path;
-    }
-}
-
-static bool endsWithPath(const std::filesystem::path& p,
-                         const std::string& suffix)
-{
-    std::string s = p.generic_string();
-    if(suffix.size() > s.size())
-        return false;
-    return s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-bool Editor::searchDefinitionInIncludedFiles(const std::string& startFile,
-                                             const std::string& symbol,
-                                             std::string& outFile, int& outY,
-                                             int& outX)
-{
-    if(startFile.empty())
-        return false;
-
-    const int maxDepth = 3;
-    std::unordered_set<std::string> visited;
-    std::vector<std::pair<std::string, int>> queue;
-    queue.push_back({canonicalOrSame(startFile), 0});
-    visited.insert(queue[0].first);
-
-    while(!queue.empty())
-    {
-        auto [file, depth] = queue.back();
-        queue.pop_back();
-
-        std::vector<std::string> fileLines;
-        if(!readFileLines(file, fileLines))
-            continue;
-
-        std::filesystem::path baseDir =
-            std::filesystem::path(file).parent_path();
-        auto includes = extractIncludesFromLines(fileLines);
-
-        for(const auto& inc : includes)
-        {
-            std::string resolved;
-
-            // Absolute include path
-            if(!inc.empty() && inc[0] == '/')
-            {
-                if(std::filesystem::exists(inc))
-                    resolved = inc;
-            }
-            else
-            {
-                // 1) Relative to including file directory
-                std::filesystem::path cand1 = baseDir / inc;
-                if(std::filesystem::exists(cand1))
-                    resolved = cand1.string();
-                else
-                {
-                    // 2) Relative to project root
-                    std::filesystem::path cand2 =
-                        (projectRoot.empty()
-                             ? std::filesystem::path(".")
-                             : std::filesystem::path(projectRoot)) /
-                        inc;
-                    if(std::filesystem::exists(cand2))
-                        resolved = cand2.string();
-                    else
-                    {
-                        // 3) Search within project root by suffix / basename
-                        std::filesystem::path root =
-                            projectRoot.empty()
-                                ? std::filesystem::path(".")
-                                : std::filesystem::path(projectRoot);
-                        std::error_code ec;
-                        for(auto it =
-                                std::filesystem::recursive_directory_iterator(
-                                    root, ec);
-                            it !=
-                            std::filesystem::recursive_directory_iterator();
-                            it.increment(ec))
-                        {
-                            if(ec)
-                                break;
-                            if(!it->is_regular_file(ec))
-                                continue;
-
-                            const auto& p = it->path();
-                            if(endsWithPath(p, inc) ||
-                               p.filename().string() ==
-                                   std::filesystem::path(inc)
-                                       .filename()
-                                       .string())
-                            {
-                                resolved = p.string();
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if(resolved.empty())
-                continue;
-
-            resolved = canonicalOrSame(resolved);
-            if(!visited.insert(resolved).second)
-                continue;
-
-            // Search this include for the symbol
-            Buffer tmp;
-            tmp.filename = resolved;
-            if(readFileLines(resolved, tmp.lines))
-            {
-                int y, x;
-                if(searchDefinitionInBuffer(&tmp, symbol, y, x))
-                {
-                    outFile = resolved;
-                    outY = y;
-                    outX = x;
-                    return true;
-                }
-            }
-
-            if(depth + 1 < maxDepth)
-                queue.push_back({resolved, depth + 1});
-        }
-    }
-
     return false;
 }
 
@@ -4645,6 +4495,44 @@ void Editor::goToDefinition()
         return;
     }
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    // Prefer clangd definition when enabled; fallback to heuristic gd
+    // otherwise.
+    if(isClangdLspEnabled())
+    {
+        // Sync buffer text (full-text change) before querying.
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+
+        // Open or change in LSP.
+        // If this file hasn't been seen yet, didOpen is fine; otherwise
+        // didChange updates version. We'll conservatively call didChange after
+        // didOpen attempt.
+        lspClient->didChange(currentBuffer->filename, text);
+
+        // LSP uses UTF-16 positions; lsp_client converts from utf8 byte offset.
+        auto loc =
+            lspClient->definition(currentBuffer->filename, *cursorY, *cursorX);
+        if(loc)
+        {
+            pushJumpLocation();
+            openFile(loc->path);
+            *cursorY = loc->line;
+            *cursorX = loc->character; // already UTF-16; for ASCII it's exact
+            centerScreen();
+            setStatusMessage("gd (clangd) → " + loc->path + ":" +
+                             std::to_string(loc->line + 1));
+            return;
+        }
+    }
+#endif
+
     pushJumpLocation();
 
     int y, x;
@@ -4709,21 +4597,6 @@ void Editor::goToDefinition()
         centerScreen();
         setStatusMessage("gd (same file)");
         return;
-    }
-
-    // 5️⃣ Search in headers included by the current file (and their includes)
-    {
-        std::string defFile;
-        if(searchDefinitionInIncludedFiles(currentBuffer->filename, symbol,
-                                           defFile, y, x))
-        {
-            openFile(defFile);
-            *cursorY = y;
-            *cursorX = x;
-            centerScreen();
-            setStatusMessage("gd → include: " + defFile);
-            return;
-        }
     }
 
     setStatusMessage("gd: '" + symbol +
@@ -6086,16 +5959,8 @@ void Editor::setStatusMessage(const std::string& msg)
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
-    if(cmd == "pwd")
-    {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            setStatusMessage(cwd);
-        else
-            setStatusMessage("pwd: error");
-    }
     // Buffer commands
-    else if(cmd == "bn" || cmd == "bnext")
+    if(cmd == "bn" || cmd == "bnext")
     {
         nextBuffer();
     }
@@ -6351,162 +6216,6 @@ void Editor::executeCommand(const std::string& cmd)
             setStatusMessage("Not an editor command: " + cmd);
         }
     }
-}
-
-bool Editor::tabCompleteCommand()
-{
-    if(commandBuffer.empty() || commandBuffer[0] != ':')
-        return false;
-
-    std::string cmd = commandBuffer.substr(1);
-
-    auto startsWith = [](const std::string& s, const std::string& p)
-    { return s.size() >= p.size() && s.rfind(p, 0) == 0; };
-
-    size_t argStart = std::string::npos;
-    std::string prefix;
-
-    if(startsWith(cmd, "e "))
-    {
-        argStart = 2;
-        prefix = "e ";
-    }
-    else if(cmd == "e")
-    {
-        argStart = 1;
-        prefix = "e ";
-    }
-    else if(startsWith(cmd, "edit "))
-    {
-        argStart = 5;
-        prefix = "edit ";
-    }
-    else if(cmd == "edit")
-    {
-        argStart = 4;
-        prefix = "edit ";
-    }
-    else
-    {
-        return false;
-    }
-
-    std::string arg = (argStart <= cmd.size()) ? cmd.substr(argStart) : "";
-
-    // We only complete relative paths under the project root.
-    if(!arg.empty() && arg[0] == '/')
-        return false;
-
-    // Normalize leading "./"
-    if(startsWith(arg, "./"))
-        arg = arg.substr(2);
-
-    // Split into directory part + leaf prefix
-    std::string dirPart;
-    std::string leafPrefix;
-    size_t slashPos = arg.find_last_of('/');
-    if(slashPos == std::string::npos)
-    {
-        dirPart = "";
-        leafPrefix = arg;
-    }
-    else
-    {
-        dirPart = arg.substr(0, slashPos);
-        leafPrefix = arg.substr(slashPos + 1);
-    }
-
-    std::filesystem::path base = projectRoot.empty() ? "." : projectRoot;
-    std::filesystem::path searchDir = base;
-    if(!dirPart.empty())
-        searchDir /= dirPart;
-
-    std::error_code ec;
-    if(!std::filesystem::exists(searchDir, ec) ||
-       !std::filesystem::is_directory(searchDir, ec))
-    {
-        setStatusMessage("No such directory: " + searchDir.string());
-        return true;
-    }
-
-    std::vector<std::string> matches;
-    for(const auto& entry : std::filesystem::directory_iterator(searchDir, ec))
-    {
-        if(ec)
-            break;
-        if(!entry.is_directory(ec))
-            continue;
-        std::string name = entry.path().filename().string();
-        if(leafPrefix.empty() || name.rfind(leafPrefix, 0) == 0)
-            matches.push_back(name);
-    }
-    std::sort(matches.begin(), matches.end());
-
-    if(matches.empty())
-    {
-        setStatusMessage("No directory match");
-        return true;
-    }
-
-    auto lcp = [](const std::vector<std::string>& v) -> std::string
-    {
-        if(v.empty())
-            return "";
-        std::string p = v[0];
-        for(size_t i = 1; i < v.size(); ++i)
-        {
-            size_t j = 0;
-            size_t maxj = std::min(p.size(), v[i].size());
-            while(j < maxj && p[j] == v[i][j])
-                ++j;
-            p.resize(j);
-            if(p.empty())
-                break;
-        }
-        return p;
-    };
-
-    std::string completedLeaf;
-    bool unique = (matches.size() == 1);
-    if(unique)
-    {
-        completedLeaf = matches[0];
-    }
-    else
-    {
-        std::string common = lcp(matches);
-        if(common.size() > leafPrefix.size())
-            completedLeaf = common;
-        else
-        {
-            // Show candidates
-            std::string msg;
-            for(size_t i = 0; i < matches.size() && i < 10; ++i)
-            {
-                if(i)
-                    msg += " ";
-                msg += matches[i] + "/";
-            }
-            if(matches.size() > 10)
-                msg += " ...";
-            setStatusMessage(msg);
-            return true;
-        }
-    }
-
-    std::string newArg;
-    if(!dirPart.empty())
-        newArg = dirPart + "/" + completedLeaf;
-    else
-        newArg = completedLeaf;
-
-    // If the completed component is a directory, add a trailing '/'
-    std::filesystem::path maybeDir = searchDir / completedLeaf;
-    if(std::filesystem::is_directory(maybeDir, ec))
-        newArg += "/";
-
-    commandBuffer = ":" + prefix + newArg;
-    return true;
 }
 
 void Editor::forceQuit()
@@ -6927,38 +6636,6 @@ void Editor::handleNormalMode(int c)
     case 'N':
         searchPrevious();
         break;
-    case '#':
-    {
-        // Vim-style: search backward for the word under the cursor.
-        // Anchor at the start of the current word so we don't match the same
-        // occurrence when the cursor is inside the word.
-        std::string sym = getSymbolUnderCursor();
-        if(sym.empty())
-        {
-            setStatusMessage("#: no word under cursor");
-            break;
-        }
-
-        // Move cursor to the start of the current identifier.
-        if(*cursorY >= 0 && *cursorY < (int)lines->size())
-        {
-            const std::string& line = (*lines)[*cursorY];
-            int x = *cursorX;
-            if(x >= (int)line.size())
-                x = (int)line.size() - 1;
-
-            while(x > 0 && isIdent(line[x - 1]))
-                --x;
-            *cursorX = x;
-        }
-
-        searchQuery = sym;
-        searchForward = false;
-        performSearch();
-        needsFullRedraw = true;
-        *wantedX = *cursorX;
-        break;
-    }
     case 30: // Ctrl+^ (Ctrl+6)
         if(buffers.size() > 1)
         {
@@ -7066,57 +6743,6 @@ void Editor::handleNormalMode(int c)
         }
         saveState();
         break;
-
-    case 'J':
-    {
-        // Vim-style join lines: join current line with the next (count-aware).
-        // Default joins 2 lines; with a count N joins N lines total.
-        if(!lines || lines->empty())
-            break;
-
-        int joinLinesTotal = (count > 1) ? count : 2;
-        int joins = joinLinesTotal - 1;
-        bool didJoin = false;
-
-        while(joins-- > 0)
-        {
-            if(*cursorY < 0 || *cursorY >= (int)lines->size() - 1)
-                break; // last line
-
-            std::string& a = (*lines)[*cursorY];
-            std::string& b = (*lines)[*cursorY + 1];
-
-            int joinPos = (int)a.size();
-
-            // Trim leading whitespace from the next line (vim J behavior)
-            size_t i = 0;
-            while(i < b.size() && (b[i] == ' ' || b[i] == '\t'))
-                ++i;
-            std::string bTrim = b.substr(i);
-
-            bool aEndsWs = !a.empty() && (a.back() == ' ' || a.back() == '\t');
-            bool addSpace = (!a.empty() && !aEndsWs && !bTrim.empty());
-
-            if(addSpace)
-                a.push_back(' ');
-            a += bTrim;
-
-            lines->erase(lines->begin() + (*cursorY + 1));
-
-            *cursorX = joinPos; // keep cursor at join point
-            didJoin = true;
-
-            *dirty = true;
-            needsFullRedraw = true;
-        }
-
-        if(didJoin)
-        {
-            *wantedX = *cursorX;
-            saveState();
-        }
-        break;
-    }
     case 'D':
         deleteToLineEnd();
         saveState();
@@ -7304,19 +6930,6 @@ void Editor::handleInsertMode(int c)
 
 void Editor::handleVisualMode(int c)
 {
-    // Vim-style count prefix in visual modes (e.g., V4j / v10k)
-    if(c >= '1' && c <= '9' && repeatCount == 0)
-    {
-        repeatCount = c - '0';
-        return;
-    }
-    else if(c >= '0' && c <= '9' && repeatCount > 0)
-    {
-        repeatCount = repeatCount * 10 + (c - '0');
-        return;
-    }
-    int count = std::max(1, repeatCount);
-
     switch(c)
     {
     case Terminal::ESC:
@@ -7326,29 +6939,25 @@ void Editor::handleVisualMode(int c)
         break;
     case 'h':
     case Terminal::ARROW_LEFT:
-        for(int i = 0; i < count; ++i)
-            moveLeft();
+        moveLeft();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'l':
     case Terminal::ARROW_RIGHT:
-        for(int i = 0; i < count; ++i)
-            moveRight();
+        moveRight();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'j':
     case Terminal::ARROW_DOWN:
-        for(int i = 0; i < count; ++i)
-            moveDown();
+        moveDown();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'k':
     case Terminal::ARROW_UP:
-        for(int i = 0; i < count; ++i)
-            moveUp();
+        moveUp();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
@@ -7464,90 +7073,22 @@ void Editor::handleVisualMode(int c)
         }
         break;
     case 'w': // Visual w - extend selection forward by word
-        for(int i = 0; i < count; ++i)
-            moveWordForward();
+        moveWordForward();
         updateVisualSelection();
         adjustViewport();
         break;
 
     case 'b': // Visual b - extend selection backward by word
-        for(int i = 0; i < count; ++i)
-            moveWordBackward();
+        moveWordBackward();
         updateVisualSelection();
         adjustViewport();
         break;
 
     case 'e': // Visual e - extend selection to end of word
-        for(int i = 0; i < count; ++i)
-            moveToEndOfWord();
+        moveToEndOfWord();
         updateVisualSelection();
         adjustViewport();
         break;
-
-    case 'E': // Visual E - extend selection to end of WORD
-              // (whitespace-delimited)
-    {
-        auto moveToEndOfBigWordOnce = [&]()
-        {
-            int y = *cursorY;
-            int x = *cursorX;
-
-            if(!lines || lines->empty())
-                return;
-
-            // If already at (or past) end of line, move to next line.
-            const std::string& line = (*lines)[y];
-            if(line.empty() || x >= (int)line.length() - 1)
-            {
-                if(y + 1 >= (int)lines->size())
-                    return;
-                y++;
-                x = 0;
-            }
-            else
-            {
-                // Start one char forward, like the existing moveToEndOfWord()
-                x++;
-            }
-
-            // Skip whitespace forward (may cross into following lines)
-            while(y < (int)lines->size())
-            {
-                const std::string& cur = (*lines)[y];
-                while(x < (int)cur.length() &&
-                      std::isspace((unsigned char)cur[x]))
-                {
-                    x++;
-                }
-                if(x < (int)cur.length())
-                    break;
-                // Hit end-of-line while skipping spaces → go to next line
-                if(y + 1 >= (int)lines->size())
-                    return;
-                y++;
-                x = 0;
-            }
-
-            // Now advance to the end of this BIG word: a run of non-whitespace
-            const std::string& cur = (*lines)[y];
-            while(x < (int)cur.length() - 1 &&
-                  !std::isspace((unsigned char)cur[x + 1]))
-            {
-                x++;
-            }
-
-            *cursorY = y;
-            *cursorX = x;
-            *wantedX = x;
-        };
-
-        for(int i = 0; i < count; ++i)
-            moveToEndOfBigWordOnce();
-
-        updateVisualSelection();
-        adjustViewport();
-    }
-    break;
 
     case '0': // Visual 0 - extend to start of line
         moveToLineStart();
@@ -7647,9 +7188,6 @@ void Editor::handleVisualMode(int c)
         }
         break;
     }
-
-    // Clear any leftover count once a (non-digit) visual command is handled.
-    repeatCount = 0;
 }
 
 void Editor::handleVisualBlockMode(int c)
@@ -7879,10 +7417,6 @@ void Editor::handleCommandMode(int c)
 {
     switch(c)
     {
-    case Terminal::TAB:
-        if(tabCompleteCommand())
-            needsFullRedraw = true;
-        break;
     case Terminal::ENTER:
     {
         std::string cmd = commandBuffer.substr(1);
