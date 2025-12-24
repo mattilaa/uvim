@@ -718,6 +718,35 @@ LspClient::completion(const std::string& filePath, int line,
 
         CompletionItem ci;
         ci.label = it.value("label", std::string{});
+        ci.kind = it.value("kind", 0);
+        // Prefer CompletionItem.detail when present (clangd uses it for
+        // function signatures / types). Also incorporate labelDetails.detail
+        // if provided.
+        ci.detail = it.value("detail", std::string{});
+        if(it.contains("labelDetails") && it["labelDetails"].is_object())
+        {
+            const json& ld = it["labelDetails"];
+            std::string d = ld.value("detail", std::string{});
+            std::string desc = ld.value("description", std::string{});
+
+            // Merge into one readable string.
+            // If detail already exists, append labelDetails parts that add new
+            // information.
+            if(!d.empty())
+            {
+                if(ci.detail.empty())
+                    ci.detail = d;
+                else if(ci.detail.find(d) == std::string::npos)
+                    ci.detail += " " + d;
+            }
+            if(!desc.empty())
+            {
+                if(ci.detail.empty())
+                    ci.detail = desc;
+                else if(ci.detail.find(desc) == std::string::npos)
+                    ci.detail += " " + desc;
+            }
+        }
         ci.insertText = it.value("insertText", std::string{});
         int fmt = it.value("insertTextFormat", 1);
         ci.isSnippet = (fmt == 2);

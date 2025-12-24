@@ -19,6 +19,14 @@ public:
     struct CompletionItem
     {
         std::string label;
+        // Human-readable signature/type info for UI, e.g. "void foo(int)".
+        // clangd typically populates CompletionItem.detail and/or
+        // CompletionItem.labelDetails.detail.
+        std::string detail;
+
+        // LSP CompletionItem.kind (1..25). Used for UI icons/labels.
+        int kind = 0;
+
         std::string insertText; // may contain snippet syntax
         bool isSnippet = false; // insertTextFormat == 2
     };

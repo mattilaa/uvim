@@ -221,6 +221,8 @@ public:
     struct CompletionEntry
     {
         std::string label;
+        std::string detail; // signature/type info shown in the popup
+        int kind = 0;       // LSP CompletionItem.kind
         std::string insertText;
         bool isSnippet = false;
     };

@@ -4,20 +4,32 @@ project(uvim VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(UVIM_ENABLE_CLANGD_LSP "Build uvim with optional clangd LSP client (runtime --clangd)" OFF)
-option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json in the build dir" ON)
+# Build uvim with optional clangd LSP client (runtime-enabled with --clangd)
+option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
+# Export compile_commands.json into the build dir
+option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 
 if(UVIM_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
 
-add_executable(uvim
+set(UVIM_SOURCES
     src/main.cpp
-    src/editor_lsp_query.cpp
-    src/lsp_client_query.cpp
     src/terminal.cpp
 )
 
+if(UVIM_ENABLE_CLANGD_LSP)
+    list(APPEND UVIM_SOURCES
+        src/editor_lsp_query.cpp
+        src/lsp_client_query.cpp
+    )
+else()
+    list(APPEND UVIM_SOURCES
+        src/editor.cpp
+    )
+endif()
+
+add_executable(uvim ${UVIM_SOURCES})
 target_include_directories(uvim PRIVATE src)
 
 # Release optimizations (compiler-only)
@@ -37,11 +49,10 @@ if(ipo_supported)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-# ---- clangd LSP (optional) ----
+# ---- clangd LSP deps (optional) ----
 if(UVIM_ENABLE_CLANGD_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
 
-    # Minimal dependency for JSON parsing
     include(FetchContent)
     FetchContent_Declare(
       nlohmann_json
@@ -51,9 +62,5 @@ if(UVIM_ENABLE_CLANGD_LSP)
     FetchContent_MakeAvailable(nlohmann_json)
 
     find_package(Threads REQUIRED)
-
-    target_sources(uvim PRIVATE
-        src/lsp_client_query.cpp
-    )
     target_link_libraries(uvim PRIVATE nlohmann_json::nlohmann_json Threads::Threads)
 endif()
