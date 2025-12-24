@@ -31,12 +31,41 @@ bool isLikelyDefinition(const std::string& line, const std::string& symbol)
     std::string effectiveLine =
         (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
 
-    // name(
-    if(effectiveLine.find(symbol + "(") != std::string::npos)
+    auto isBoundary = [](char c) { return !isIdent(c); };
+
+    auto containsWholeWord = [&](const std::string& needle)
+    {
+        size_t pos = effectiveLine.find(needle);
+        if(pos == std::string::npos)
+            return false;
+        // Basic boundary checks around the symbol portion.
+        size_t symPos = needle.find(symbol);
+        if(symPos == std::string::npos)
+            return true;
+        size_t absSymPos = pos + symPos;
+        bool leftOk =
+            (absSymPos == 0) || isBoundary(effectiveLine[absSymPos - 1]);
+        size_t rightIdx = absSymPos + symbol.size();
+        bool rightOk = (rightIdx >= effectiveLine.size()) ||
+                       isBoundary(effectiveLine[rightIdx]);
+        return leftOk && rightOk;
+    };
+
+    // Function definition/prototype: name(
+    if(containsWholeWord(symbol + "("))
         return true;
 
-    // Class::name(
-    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
+    // Method definition/prototype: Class::name(
+    if(containsWholeWord("::" + symbol + "("))
+        return true;
+
+    // Type definitions
+    if(containsWholeWord("class " + symbol) ||
+       containsWholeWord("struct " + symbol) ||
+       containsWholeWord("enum " + symbol) ||
+       containsWholeWord("enum class " + symbol) ||
+       containsWholeWord("typedef " + symbol) ||
+       containsWholeWord("using " + symbol + " ="))
         return true;
 
     return false;
@@ -292,6 +321,16 @@ Editor::Editor()
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
 
+    // Capture project root at startup (used for command completion and
+    // project-wide features like include scanning).
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            projectRoot = cwd;
+        else
+            projectRoot = ".";
+    }
+
     // Create initial empty buffer
     createNewBuffer();
     saveState();
@@ -498,6 +537,210 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
             }
         }
     }
+    return false;
+}
+
+static bool readFileLines(const std::string& filepath,
+                          std::vector<std::string>& outLines)
+{
+    outLines.clear();
+    std::ifstream f(filepath);
+    if(!f.is_open())
+        return false;
+    std::string line;
+    while(std::getline(f, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        outLines.push_back(line);
+    }
+    if(outLines.empty())
+        outLines.push_back("");
+    return true;
+}
+
+static std::vector<std::string>
+extractIncludesFromLines(const std::vector<std::string>& fileLines)
+{
+    std::vector<std::string> includes;
+    includes.reserve(32);
+
+    for(const auto& raw : fileLines)
+    {
+        std::string line = raw;
+        // Strip leading whitespace
+        size_t i = line.find_first_not_of(" \t");
+        if(i == std::string::npos)
+            continue;
+        if(line.compare(i, 2, "//") == 0)
+            continue;
+
+        if(line.compare(i, 8, "#include") != 0)
+            continue;
+
+        i += 8;
+        // Skip whitespace
+        while(i < line.size() && std::isspace((unsigned char)line[i]))
+            ++i;
+
+        if(i >= line.size())
+            continue;
+
+        char open = line[i];
+        char close = (open == '"') ? '"' : (open == '<' ? '>' : 0);
+        if(close == 0)
+            continue;
+
+        ++i;
+        size_t start = i;
+        size_t end = line.find(close, start);
+        if(end == std::string::npos || end <= start)
+            continue;
+
+        std::string inc = line.substr(start, end - start);
+        if(!inc.empty())
+            includes.push_back(inc);
+    }
+
+    return includes;
+}
+
+static std::string canonicalOrSame(const std::string& path)
+{
+    try
+    {
+        return std::filesystem::canonical(path).string();
+    }
+    catch(...)
+    {
+        return path;
+    }
+}
+
+static bool endsWithPath(const std::filesystem::path& p,
+                         const std::string& suffix)
+{
+    std::string s = p.generic_string();
+    if(suffix.size() > s.size())
+        return false;
+    return s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+bool Editor::searchDefinitionInIncludedFiles(const std::string& startFile,
+                                             const std::string& symbol,
+                                             std::string& outFile, int& outY,
+                                             int& outX)
+{
+    if(startFile.empty())
+        return false;
+
+    const int maxDepth = 3;
+    std::unordered_set<std::string> visited;
+    std::vector<std::pair<std::string, int>> queue;
+    queue.push_back({canonicalOrSame(startFile), 0});
+    visited.insert(queue[0].first);
+
+    while(!queue.empty())
+    {
+        auto [file, depth] = queue.back();
+        queue.pop_back();
+
+        std::vector<std::string> fileLines;
+        if(!readFileLines(file, fileLines))
+            continue;
+
+        std::filesystem::path baseDir =
+            std::filesystem::path(file).parent_path();
+        auto includes = extractIncludesFromLines(fileLines);
+
+        for(const auto& inc : includes)
+        {
+            std::string resolved;
+
+            // Absolute include path
+            if(!inc.empty() && inc[0] == '/')
+            {
+                if(std::filesystem::exists(inc))
+                    resolved = inc;
+            }
+            else
+            {
+                // 1) Relative to including file directory
+                std::filesystem::path cand1 = baseDir / inc;
+                if(std::filesystem::exists(cand1))
+                    resolved = cand1.string();
+                else
+                {
+                    // 2) Relative to project root
+                    std::filesystem::path cand2 =
+                        (projectRoot.empty()
+                             ? std::filesystem::path(".")
+                             : std::filesystem::path(projectRoot)) /
+                        inc;
+                    if(std::filesystem::exists(cand2))
+                        resolved = cand2.string();
+                    else
+                    {
+                        // 3) Search within project root by suffix / basename
+                        std::filesystem::path root =
+                            projectRoot.empty()
+                                ? std::filesystem::path(".")
+                                : std::filesystem::path(projectRoot);
+                        std::error_code ec;
+                        for(auto it =
+                                std::filesystem::recursive_directory_iterator(
+                                    root, ec);
+                            it !=
+                            std::filesystem::recursive_directory_iterator();
+                            it.increment(ec))
+                        {
+                            if(ec)
+                                break;
+                            if(!it->is_regular_file(ec))
+                                continue;
+
+                            const auto& p = it->path();
+                            if(endsWithPath(p, inc) ||
+                               p.filename().string() ==
+                                   std::filesystem::path(inc)
+                                       .filename()
+                                       .string())
+                            {
+                                resolved = p.string();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(resolved.empty())
+                continue;
+
+            resolved = canonicalOrSame(resolved);
+            if(!visited.insert(resolved).second)
+                continue;
+
+            // Search this include for the symbol
+            Buffer tmp;
+            tmp.filename = resolved;
+            if(readFileLines(resolved, tmp.lines))
+            {
+                int y, x;
+                if(searchDefinitionInBuffer(&tmp, symbol, y, x))
+                {
+                    outFile = resolved;
+                    outY = y;
+                    outX = x;
+                    return true;
+                }
+            }
+
+            if(depth + 1 < maxDepth)
+                queue.push_back({resolved, depth + 1});
+        }
+    }
+
     return false;
 }
 
@@ -4468,6 +4711,21 @@ void Editor::goToDefinition()
         return;
     }
 
+    // 5️⃣ Search in headers included by the current file (and their includes)
+    {
+        std::string defFile;
+        if(searchDefinitionInIncludedFiles(currentBuffer->filename, symbol,
+                                           defFile, y, x))
+        {
+            openFile(defFile);
+            *cursorY = y;
+            *cursorX = x;
+            centerScreen();
+            setStatusMessage("gd → include: " + defFile);
+            return;
+        }
+    }
+
     setStatusMessage("gd: '" + symbol +
                      "' not found (curY=" + std::to_string(*cursorY) +
                      " curX=" + std::to_string(*cursorX) + ")");
@@ -5828,8 +6086,16 @@ void Editor::setStatusMessage(const std::string& msg)
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
+    if(cmd == "pwd")
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            setStatusMessage(cwd);
+        else
+            setStatusMessage("pwd: error");
+    }
     // Buffer commands
-    if(cmd == "bn" || cmd == "bnext")
+    else if(cmd == "bn" || cmd == "bnext")
     {
         nextBuffer();
     }
@@ -6085,6 +6351,162 @@ void Editor::executeCommand(const std::string& cmd)
             setStatusMessage("Not an editor command: " + cmd);
         }
     }
+}
+
+bool Editor::tabCompleteCommand()
+{
+    if(commandBuffer.empty() || commandBuffer[0] != ':')
+        return false;
+
+    std::string cmd = commandBuffer.substr(1);
+
+    auto startsWith = [](const std::string& s, const std::string& p)
+    { return s.size() >= p.size() && s.rfind(p, 0) == 0; };
+
+    size_t argStart = std::string::npos;
+    std::string prefix;
+
+    if(startsWith(cmd, "e "))
+    {
+        argStart = 2;
+        prefix = "e ";
+    }
+    else if(cmd == "e")
+    {
+        argStart = 1;
+        prefix = "e ";
+    }
+    else if(startsWith(cmd, "edit "))
+    {
+        argStart = 5;
+        prefix = "edit ";
+    }
+    else if(cmd == "edit")
+    {
+        argStart = 4;
+        prefix = "edit ";
+    }
+    else
+    {
+        return false;
+    }
+
+    std::string arg = (argStart <= cmd.size()) ? cmd.substr(argStart) : "";
+
+    // We only complete relative paths under the project root.
+    if(!arg.empty() && arg[0] == '/')
+        return false;
+
+    // Normalize leading "./"
+    if(startsWith(arg, "./"))
+        arg = arg.substr(2);
+
+    // Split into directory part + leaf prefix
+    std::string dirPart;
+    std::string leafPrefix;
+    size_t slashPos = arg.find_last_of('/');
+    if(slashPos == std::string::npos)
+    {
+        dirPart = "";
+        leafPrefix = arg;
+    }
+    else
+    {
+        dirPart = arg.substr(0, slashPos);
+        leafPrefix = arg.substr(slashPos + 1);
+    }
+
+    std::filesystem::path base = projectRoot.empty() ? "." : projectRoot;
+    std::filesystem::path searchDir = base;
+    if(!dirPart.empty())
+        searchDir /= dirPart;
+
+    std::error_code ec;
+    if(!std::filesystem::exists(searchDir, ec) ||
+       !std::filesystem::is_directory(searchDir, ec))
+    {
+        setStatusMessage("No such directory: " + searchDir.string());
+        return true;
+    }
+
+    std::vector<std::string> matches;
+    for(const auto& entry : std::filesystem::directory_iterator(searchDir, ec))
+    {
+        if(ec)
+            break;
+        if(!entry.is_directory(ec))
+            continue;
+        std::string name = entry.path().filename().string();
+        if(leafPrefix.empty() || name.rfind(leafPrefix, 0) == 0)
+            matches.push_back(name);
+    }
+    std::sort(matches.begin(), matches.end());
+
+    if(matches.empty())
+    {
+        setStatusMessage("No directory match");
+        return true;
+    }
+
+    auto lcp = [](const std::vector<std::string>& v) -> std::string
+    {
+        if(v.empty())
+            return "";
+        std::string p = v[0];
+        for(size_t i = 1; i < v.size(); ++i)
+        {
+            size_t j = 0;
+            size_t maxj = std::min(p.size(), v[i].size());
+            while(j < maxj && p[j] == v[i][j])
+                ++j;
+            p.resize(j);
+            if(p.empty())
+                break;
+        }
+        return p;
+    };
+
+    std::string completedLeaf;
+    bool unique = (matches.size() == 1);
+    if(unique)
+    {
+        completedLeaf = matches[0];
+    }
+    else
+    {
+        std::string common = lcp(matches);
+        if(common.size() > leafPrefix.size())
+            completedLeaf = common;
+        else
+        {
+            // Show candidates
+            std::string msg;
+            for(size_t i = 0; i < matches.size() && i < 10; ++i)
+            {
+                if(i)
+                    msg += " ";
+                msg += matches[i] + "/";
+            }
+            if(matches.size() > 10)
+                msg += " ...";
+            setStatusMessage(msg);
+            return true;
+        }
+    }
+
+    std::string newArg;
+    if(!dirPart.empty())
+        newArg = dirPart + "/" + completedLeaf;
+    else
+        newArg = completedLeaf;
+
+    // If the completed component is a directory, add a trailing '/'
+    std::filesystem::path maybeDir = searchDir / completedLeaf;
+    if(std::filesystem::is_directory(maybeDir, ec))
+        newArg += "/";
+
+    commandBuffer = ":" + prefix + newArg;
+    return true;
 }
 
 void Editor::forceQuit()
@@ -7457,6 +7879,10 @@ void Editor::handleCommandMode(int c)
 {
     switch(c)
     {
+    case Terminal::TAB:
+        if(tabCompleteCommand())
+            needsFullRedraw = true;
+        break;
     case Terminal::ENTER:
     {
         std::string cmd = commandBuffer.substr(1);

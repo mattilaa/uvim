@@ -194,6 +194,10 @@ public:
     std::string commandBuffer;
     std::string statusMessage;
 
+    // Project root captured at startup (used for :e tab completion / include
+    // scanning in gd).
+    std::string projectRoot;
+
     // Search (global state)
     std::string searchQuery;
     bool searchForward = true;
@@ -259,6 +263,12 @@ public:
     void restoreBufferState();
     bool searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
                                   int& outY, int& outX);
+
+    // Definition lookup helpers
+    bool searchDefinitionInIncludedFiles(const std::string& startFile,
+                                         const std::string& symbol,
+                                         std::string& outFile, int& outY,
+                                         int& outX);
 
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
@@ -412,6 +422,9 @@ public:
     void autoIndentLine(int line);
     void autoIndentRange(int startLine, int endLine);
     std::string toLowerCase(const std::string& str);
+
+    // Command-line helpers
+    bool tabCompleteCommand();
 
     // Syntax highlighting
     enum TokenType
