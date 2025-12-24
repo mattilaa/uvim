@@ -6295,22 +6295,146 @@ static std::string stripSnippet(const std::string& s)
     return out;
 }
 
+static inline void appendUtf8Repeat(std::string& out, const char* glyph,
+                                    int count)
+{
+    for(int i = 0; i < count; ++i)
+        out += glyph;
+}
+
+static inline bool isAnsiStart(const std::string& s, size_t i)
+{
+    return i + 1 < s.size() && s[i] == '\x1b' && s[i + 1] == '[';
+}
+
+static inline size_t skipAnsi(const std::string& s, size_t i)
+{
+    // Skip ESC[ ... <letter>
+    i += 2;
+    while(i < s.size())
+    {
+        char c = s[i++];
+        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+            break;
+    }
+    return i;
+}
+
+// Approximate terminal display width.
+// - strips ANSI escapes
+// - counts UTF-8 codepoints as width 1 (good enough for our popup)
+static inline int displayWidth(const std::string& s)
+{
+    int w = 0;
+    for(size_t i = 0; i < s.size();)
+    {
+        if(isAnsiStart(s, i))
+        {
+            i = skipAnsi(s, i);
+            continue;
+        }
+
+        unsigned char c = (unsigned char)s[i];
+        if(c < 0x80)
+        {
+            ++w;
+            ++i;
+            continue;
+        }
+
+        // UTF-8: skip continuation bytes
+        if((c & 0xE0) == 0xC0)
+            i += 2;
+        else if((c & 0xF0) == 0xE0)
+            i += 3;
+        else if((c & 0xF8) == 0xF0)
+            i += 4;
+        else
+            ++i;
+        ++w;
+    }
+    return w;
+}
+
+static inline int fuzzyScore(const std::string& text,
+                             const std::string& pattern)
+{
+    if(pattern.empty())
+        return 0;
+
+    auto lower = [](unsigned char ch) -> unsigned char
+    {
+        if(ch >= 'A' && ch <= 'Z')
+            return (unsigned char)(ch - 'A' + 'a');
+        return ch;
+    };
+
+    int score = 0;
+    int ti = 0;
+    int consecutive = 0;
+
+    for(int pi = 0; pi < (int)pattern.size(); ++pi)
+    {
+        unsigned char pc = lower((unsigned char)pattern[pi]);
+        bool found = false;
+
+        while(ti < (int)text.size())
+        {
+            unsigned char tc = (unsigned char)text[ti];
+            unsigned char ltc = lower(tc);
+            if(ltc == pc)
+            {
+                // base points + consecutive bonus
+                score += 10;
+                score += consecutive * 5;
+
+                // token-boundary bonus
+                if(ti == 0)
+                    score += 8;
+                else
+                {
+                    char prev = text[ti - 1];
+                    if(prev == '_' || prev == ':' || prev == ' ' ||
+                       prev == '\t' || prev == '-')
+                        score += 8;
+                }
+
+                ++consecutive;
+                ++ti;
+                found = true;
+                break;
+            }
+            else
+            {
+                consecutive = 0;
+                ++ti;
+            }
+        }
+        if(!found)
+            return -1;
+    }
+
+    return score;
+}
+
 void Editor::cancelCompletion()
 {
     completionActive = false;
-    completionItems.clear();
+    completionAll.clear();
+    completionFiltered.clear();
     completionSelected = 0;
     completionScroll = 0;
-    completionPrefix.clear();
+    completionQuery.clear();
 }
 
 void Editor::completionNext()
 {
-    if(!completionActive || completionItems.empty())
+    if(!completionActive || completionFiltered.empty())
         return;
-    completionSelected = (completionSelected + 1) % (int)completionItems.size();
+    completionSelected =
+        (completionSelected + 1) % (int)completionFiltered.size();
 
-    const int win = std::min(6, (int)completionItems.size());
+    const int win = std::min(8, (int)completionFiltered.size());
     if(completionSelected < completionScroll)
         completionScroll = completionSelected;
     else if(completionSelected >= completionScroll + win)
@@ -6321,13 +6445,13 @@ void Editor::completionNext()
 
 void Editor::completionPrev()
 {
-    if(!completionActive || completionItems.empty())
+    if(!completionActive || completionFiltered.empty())
         return;
     completionSelected = (completionSelected - 1);
     if(completionSelected < 0)
-        completionSelected = (int)completionItems.size() - 1;
+        completionSelected = (int)completionFiltered.size() - 1;
 
-    const int win = std::min(6, (int)completionItems.size());
+    const int win = std::min(8, (int)completionFiltered.size());
     if(completionSelected < completionScroll)
         completionScroll = completionSelected;
     else if(completionSelected >= completionScroll + win)
@@ -6338,7 +6462,7 @@ void Editor::completionPrev()
 
 void Editor::acceptCompletion()
 {
-    if(!completionActive || completionItems.empty())
+    if(!completionActive || completionFiltered.empty())
         return;
 
     // Ensure anchor is on the current line (if the user moved, recompute).
@@ -6349,7 +6473,8 @@ void Editor::acceptCompletion()
         --ax;
     completionAnchorX = ax;
 
-    const CompletionEntry& it = completionItems[completionSelected];
+    const CompletionEntry& it =
+        completionAll[completionFiltered[completionSelected]];
     std::string insert = it.insertText.empty() ? it.label : it.insertText;
     if(it.isSnippet)
         insert = stripSnippet(insert);
@@ -6368,6 +6493,79 @@ void Editor::acceptCompletion()
     *dirty = true;
 
     cancelCompletion();
+    needsFullRedraw = true;
+}
+
+void Editor::rebuildCompletionFilter()
+{
+    if(!completionActive)
+        return;
+
+    // Cancel if cursor moved away from the anchor line or before anchor.
+    if(*cursorY != completionAnchorY || *cursorX < completionAnchorX)
+    {
+        cancelCompletion();
+        needsFullRedraw = true;
+        return;
+    }
+
+    const std::string& line = (*lines)[*cursorY];
+    int a = std::max(0, std::min(completionAnchorX, (int)line.size()));
+    int b = std::max(0, std::min(*cursorX, (int)line.size()));
+    if(b < a)
+        b = a;
+    completionQuery = line.substr(a, b - a);
+
+    struct Scored
+    {
+        int idx;
+        int score;
+    };
+    std::vector<Scored> scored;
+    scored.reserve(completionAll.size());
+
+    for(int i = 0; i < (int)completionAll.size(); ++i)
+    {
+        const auto& e = completionAll[i];
+        // Use the completion-popup fuzzy matcher (simple subsequence).
+        // Unqualified name would resolve to Editor::fuzzyScore (3-arg) used by
+        // file/buffer pickers, so qualify explicitly.
+        int s = ::fuzzyScore(e.label, completionQuery);
+        if(s >= 0)
+            scored.push_back({i, s});
+    }
+
+    std::stable_sort(scored.begin(), scored.end(),
+                     [](const Scored& x, const Scored& y)
+                     { return x.score > y.score; });
+
+    completionFiltered.clear();
+    completionFiltered.reserve(scored.size());
+    for(const auto& s : scored)
+        completionFiltered.push_back(s.idx);
+
+    if(completionFiltered.empty())
+    {
+        cancelCompletion();
+        needsFullRedraw = true;
+        return;
+    }
+
+    if(completionSelected >= (int)completionFiltered.size())
+        completionSelected = (int)completionFiltered.size() - 1;
+    if(completionSelected < 0)
+        completionSelected = 0;
+
+    const int win = std::min(8, (int)completionFiltered.size());
+    if(completionSelected < completionScroll)
+        completionScroll = completionSelected;
+    else if(completionSelected >= completionScroll + win)
+        completionScroll = completionSelected - win + 1;
+
+    if(completionScroll < 0)
+        completionScroll = 0;
+
+    // Ensure the popup updates immediately as the user types.
     needsFullRedraw = true;
 }
 
@@ -6393,8 +6591,6 @@ void Editor::requestCompletion()
 
     completionAnchorX = ax;
     completionAnchorY = *cursorY;
-    completionPrefix =
-        line.substr(completionAnchorX, *cursorX - completionAnchorX);
 
     // Sync buffer text.
     std::string text;
@@ -6409,21 +6605,19 @@ void Editor::requestCompletion()
 
     auto items =
         lspClient->completion(currentBuffer->filename, *cursorY, *cursorX);
-    completionItems.clear();
-    completionItems.reserve(items.size());
+    completionAll.clear();
+    completionAll.reserve(items.size());
 
     for(const auto& ci : items)
     {
         CompletionEntry e;
         e.label = ci.label;
-        e.detail = ci.detail;
-        e.kind = ci.kind;
         e.insertText = ci.insertText;
         e.isSnippet = ci.isSnippet;
-        completionItems.push_back(std::move(e));
+        completionAll.push_back(std::move(e));
     }
 
-    if(completionItems.empty())
+    if(completionAll.empty())
     {
         cancelCompletion();
         setStatusMessage("clangd completion: no results");
@@ -6433,6 +6627,7 @@ void Editor::requestCompletion()
     completionActive = true;
     completionSelected = 0;
     completionScroll = 0;
+    rebuildCompletionFilter();
     needsFullRedraw = true;
 #else
     setStatusMessage("clangd completion: not compiled in");
@@ -6441,285 +6636,115 @@ void Editor::requestCompletion()
 
 void Editor::drawCompletionPopup(std::string& output) const
 {
-    if(!completionActive || completionItems.empty())
+    if(!completionActive || completionFiltered.empty())
         return;
     if(currentMode != INSERT)
         return;
 
-    // Approximate display width for UTF-8 (counts codepoints, assumes each is
-    // width=1).
-    auto visWidth = [](const std::string& str) -> int
-    {
-        int w = 0;
-        for(unsigned char ch : str)
-        {
-            // Count non-continuation bytes
-            if((ch & 0xC0) != 0x80)
-                ++w;
-        }
-        return w;
-    };
-    auto utf8Trunc = [](const std::string& str, int maxCp) -> std::string
-    {
-        if(maxCp <= 0)
-            return std::string();
-        int cp = 0;
-        size_t i = 0;
-        while(i < str.size() && cp < maxCp)
-        {
-            unsigned char c = (unsigned char)str[i];
-            size_t adv = 1;
-            if((c & 0x80) == 0x00)
-                adv = 1;
-            else if((c & 0xE0) == 0xC0)
-                adv = 2;
-            else if((c & 0xF0) == 0xE0)
-                adv = 3;
-            else if((c & 0xF8) == 0xF0)
-                adv = 4;
-            // Defensive clamp
-            if(i + adv > str.size())
-                adv = 1;
-            i += adv;
-            ++cp;
-        }
-        return str.substr(0, i);
-    };
-
-    auto kindLabel = [](int kind) -> const char*
-    {
-        switch(kind)
-        {
-        case 2:
-            return "Method";
-        case 3:
-            return "Function";
-        case 4:
-            return "Constructor";
-        case 5:
-            return "Field";
-        case 6:
-            return "Variable";
-        case 7:
-            return "Class";
-        case 8:
-            return "Interface";
-        case 9:
-            return "Module";
-        case 10:
-            return "Property";
-        case 13:
-            return "Enum";
-        case 20:
-            return "EnumMember";
-        case 21:
-            return "Constant";
-        case 22:
-            return "Struct";
-        case 25:
-            return "TypeParam";
-        default:
-            return "";
-        }
-    };
-
-    auto kindIcon = [](int kind) -> const char*
-    {
-        // Neovim-like: ƒ for functions/methods.
-        switch(kind)
-        {
-        case 2:                // Method
-        case 3:                // Function
-        case 4:                // Constructor
-            return "\xC6\x92"; // ƒ
-        case 6:                // Variable
-        case 5:                // Field
-            return "v";
-        case 7:  // Class
-        case 22: // Struct
-        case 8:  // Interface
-            return "c";
-        case 13: // Enum
-        case 20: // EnumMember
-            return "e";
-        default:
-            return "·";
-        }
-    };
-
-    const int maxVisible = 8;
-    const int visible = std::min(maxVisible, (int)completionItems.size());
-    if(visible <= 0)
+    // Visible rows
+    const int maxRows =
+        std::min({8, (int)completionFiltered.size(), screenRows - 2});
+    if(maxRows <= 0)
         return;
 
-    // Cursor position within the editor text area.
-    const int cursorRow = (*cursorY - *offsetY) + 1; // 1-based
-    const int cursorCol = (*cursorX - *offsetX) + 1; // 1-based
+    // Determine cursor position on screen
+    // Use the editor's viewport offsets.
+    int cy = (*cursorY - *offsetY) + 1;
+    int cx = (*cursorX - *offsetX) + 1;
+    if(cy < 1)
+        cy = 1;
+    if(cy > screenRows)
+        cy = screenRows;
+    if(cx < 1)
+        cx = 1;
+    if(cx > screenCols)
+        cx = screenCols;
 
-    // Build formatted rows and compute width.
-    std::vector<std::string> rows;
-    rows.reserve(visible);
-
-    const std::string srcTag = "[LSP]";
-    int innerW = 0;
-
-    for(int i = 0; i < visible; ++i)
+    // Compute width from all filtered results (so the window doesn't
+    // resize when scrolling).
+    int maxW = 0;
+    // Cap work for extremely large result sets.
+    const int cap = std::min((int)completionFiltered.size(), 500);
+    for(int i = 0; i < cap; ++i)
     {
-        int idx = completionScroll + i;
-        if(idx >= (int)completionItems.size())
-            break;
-
-        const CompletionEntry& ce = completionItems[idx];
-
-        std::string text;
-        if(!ce.detail.empty())
-        {
-            // Prefer full signature when available.
-            if(ce.detail.find(ce.label) != std::string::npos)
-                text = ce.detail;
-            else
-                text = ce.label + ce.detail;
-        }
-        else
-        {
-            text = ce.label;
-        }
-
-        const char* k = kindLabel(ce.kind);
-        const char* icon = kindIcon(ce.kind);
-
-        // Two columns similar to nvim-cmp: "ƒ Function  name(args)"
-        std::string left;
-        if(k[0] != '\0')
-            left = std::string(icon) + " " + k + "  ";
-        else
-            left = std::string(icon) + "  ";
-
-        std::string row = left + text;
-        rows.push_back(row);
-
-        int w = visWidth(row) + 1 + visWidth(srcTag); // include spacer + tag
-        if(w > innerW)
-            innerW = w;
+        const auto& e = completionAll[completionFiltered[i]];
+        maxW = std::max(maxW, displayWidth(e.label));
+    }
+    // Add padding inside box
+    int innerW = std::max(12, maxW);
+    // Box consumes innerW + 2 padding + 2 borders
+    int totalW = innerW + 4;
+    if(totalW > screenCols)
+    {
+        totalW = screenCols;
+        innerW = std::max(4, totalW - 4);
     }
 
-    // Clamp window width.
-    innerW = std::max(20, innerW);
-    innerW = std::min(innerW, screenCols - 4);
-
-    const int innerH = (int)rows.size();
-    const int winH = innerH + 2;
-    const int winW = innerW + 2;
-
-    // Decide position: prefer below cursor, else above.
-    int top = cursorRow + 1;
-    if(top + winH - 1 > screenRows)
-        top = cursorRow - winH;
+    // Place below cursor if possible, otherwise above
+    int totalH = maxRows + 2;
+    int top = cy + 1;
+    if(top + totalH - 1 > screenRows)
+        top = cy - totalH;
     if(top < 1)
         top = 1;
 
-    int left = cursorCol;
-    if(left + winW - 1 > screenCols)
-        left = screenCols - winW + 1;
-    if(left < 1)
-        left = 1;
+    int left = cx;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
 
-    auto move = [&](int r, int c)
+    auto moveTo = [&](int r, int c)
     {
         char buf[32];
         snprintf(buf, sizeof(buf), "\x1b[%d;%dH", r, c);
         output += buf;
     };
 
-    // Unicode box drawing (single-cell width per codepoint).
-    const char* tl = "┌";
-    const char* tr = "┐";
-    const char* bl = "└";
-    const char* br = "┘";
-    const char* hz = "─";
-    const char* vt = "│";
-
-    // Slightly dim border.
-    const char* borderStyle = "\x1b[38;5;245m";
-    const char* reset = "\x1b[0m";
-
     // Top border
-    move(top, left);
-    output += borderStyle;
-    output += tl;
-    for(int i = 0; i < innerW; ++i)
-        output += hz;
-    output += tr;
+    moveTo(top, left);
+    output += u8"┌";
+    appendUtf8Repeat(output, u8"─", innerW + 2);
+    output += u8"┐";
 
-    // Content rows
-    for(int i = 0; i < innerH; ++i)
+    // Rows
+    for(int i = 0; i < maxRows; ++i)
     {
-        int idx = completionScroll + i;
-        if(idx >= (int)completionItems.size())
+        int fidx = completionScroll + i;
+        if(fidx >= (int)completionFiltered.size())
             break;
+        const auto& e = completionAll[completionFiltered[fidx]];
 
-        move(top + 1 + i, left);
-        output += borderStyle;
-        output += vt;
-        output += reset;
+        moveTo(top + 1 + i, left);
+        output += u8"│";
+        output += " ";
 
-        std::string row = rows[i];
-
-        // Trim row to fit (leave space for tag + 1 space).
-        const int maxRowText = innerW - 1 - visWidth(srcTag);
-        if(visWidth(row) > maxRowText)
-            row = utf8Trunc(row, maxRowText);
-
-        int pad = maxRowText - visWidth(row);
-        if(pad < 0)
-            pad = 0;
-
-        // Selection highlight only inside window.
-        if(idx == completionSelected)
+        bool sel = (fidx == completionSelected);
+        if(sel)
             output += "\x1b[7m";
 
-        // Kind column a bit colored (like nvim)
-        // Heuristic: color icon+kind in blue-ish, rest normal.
-        // We assume "<icon> <Kind>  " prefix.
-        size_t split = row.find("  ");
-        if(split != std::string::npos)
-        {
-            // include the two spaces
-            split += 2;
-            std::string prefix = row.substr(0, split);
-            std::string rest = row.substr(split);
-            output += "\x1b[38;5;75m";
-            output += prefix;
-            output += reset;
-            output += rest;
-        }
-        else
-        {
-            output += row;
-        }
+        std::string row = e.label;
+        // Trim to fit
+        while(displayWidth(row) > innerW)
+            row.pop_back();
 
-        output += std::string(pad, ' ');
-        output += ' ';
-        output += "\x1b[38;5;246m";
-        output += srcTag;
-        output += reset;
+        output += row;
 
-        if(idx == completionSelected)
-            output += "\x1b[0m";
+        // Pad to width
+        int pad = innerW - displayWidth(row);
+        if(pad > 0)
+            output += std::string(pad, ' ');
 
-        output += borderStyle;
-        output += vt;
-        output += reset;
+        if(sel)
+            output += "\x1b[m";
+
+        output += " ";
+        output += u8"│";
     }
 
     // Bottom border
-    move(top + winH - 1, left);
-    output += borderStyle;
-    output += bl;
-    for(int i = 0; i < innerW; ++i)
-        output += hz;
-    output += br;
-    output += reset;
+    moveTo(top + 1 + maxRows, left);
+    output += u8"└";
+    appendUtf8Repeat(output, u8"─", innerW + 2);
+    output += u8"┘";
 }
 
 std::string Editor::getAlternateFilePath()
@@ -7318,7 +7343,7 @@ void Editor::handleNormalMode(int c)
 void Editor::handleInsertMode(int c)
 {
 
-    // clangd completion popup navigation/accept
+    // clangd completion popup navigation/accept (keep popup open while typing)
     if(completionActive)
     {
         if(c == Terminal::ESC)
@@ -7342,16 +7367,12 @@ void Editor::handleInsertMode(int c)
             acceptCompletion();
             return;
         }
-
-        // Any other key cancels the popup and continues with normal insert
-        // handling.
-        cancelCompletion();
-        needsFullRedraw = true;
+        // Otherwise fall through and treat the key as normal insert.
     }
 
-    // Trigger completion manually in INSERT with Ctrl-N (and show list;
-    // navigate with Ctrl-J/Ctrl-K)
-    if(c == Terminal::CTRL_N)
+    // Trigger completion manually in INSERT with Ctrl-N (navigate with
+    // Ctrl-J/Ctrl-K)
+    if(c == Terminal::CTRL_N && !completionActive)
     {
         requestCompletion();
         return;
@@ -7427,16 +7448,22 @@ void Editor::handleInsertMode(int c)
                 (*lines)[*cursorY].erase(*cursorX - actualSpaces, actualSpaces);
                 *cursorX -= actualSpaces;
                 *dirty = true;
+                if(completionActive)
+                    rebuildCompletionFilter();
                 return;
             }
         }
 
         deleteChar();
+        if(completionActive)
+            rebuildCompletionFilter();
         return;
     }
 
     if(c == Terminal::ENTER)
     {
+        if(completionActive)
+            cancelCompletion();
         insertNewline();
         return;
     }
@@ -7452,6 +7479,8 @@ void Editor::handleInsertMode(int c)
         {
             insertChar(' ');
         }
+        if(completionActive)
+            rebuildCompletionFilter();
         return;
     }
 
@@ -7463,6 +7492,8 @@ void Editor::handleInsertMode(int c)
         }
 
         insertChar((char)c);
+        if(completionActive)
+            rebuildCompletionFilter();
     }
 }
 

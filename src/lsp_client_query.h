@@ -19,16 +19,15 @@ public:
     struct CompletionItem
     {
         std::string label;
-        // Human-readable signature/type info for UI, e.g. "void foo(int)".
-        // clangd typically populates CompletionItem.detail and/or
-        // CompletionItem.labelDetails.detail.
-        std::string detail;
-
-        // LSP CompletionItem.kind (1..25). Used for UI icons/labels.
-        int kind = 0;
-
         std::string insertText; // may contain snippet syntax
         bool isSnippet = false; // insertTextFormat == 2
+
+        int kind = 0;            // LSP CompletionItemKind (if provided)
+        std::string detail;      // often signature or type
+        std::string labelDetail; // LSP 3.17 labelDetails.detail (often "(...)")
+        std::string labelDescription; // LSP 3.17 labelDetails.description
+                                      // (often return/type)
+        std::string filterText;       // optional hint for filtering
     };
 
     LspClient();
@@ -60,7 +59,8 @@ public:
     // characterUtf8ByteOffset is a UTF-8 byte offset within the line.
     std::vector<CompletionItem> completion(const std::string& filePath,
                                            int line,
-                                           int characterUtf8ByteOffset);
+                                           int characterUtf8ByteOffset,
+                                           char triggerChar = 0);
 
 private:
     struct Impl;

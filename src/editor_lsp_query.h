@@ -220,25 +220,38 @@ public:
     // LSP completion popup (clangd, optional)
     struct CompletionEntry
     {
+        // Primary display label (clangd: CompletionItem.label)
         std::string label;
-        std::string detail; // signature/type info shown in the popup
-        int kind = 0;       // LSP CompletionItem.kind
+
+        // Text to insert (may be snippet syntax)
         std::string insertText;
         bool isSnippet = false;
+
+        // Extra info for richer UI + fuzzy matching
+        int kind = 0;            // CompletionItemKind
+        std::string detail;      // often signature or type
+        std::string labelDetail; // labelDetails.detail (often "(...)")
+        std::string
+            labelDescription;   // labelDetails.description (often return/type)
+        std::string filterText; // optional hint for filtering
     };
+
     bool completionActive = false;
-    std::vector<CompletionEntry> completionItems;
-    int completionSelected = 0;
-    int completionScroll = 0;
+    std::vector<CompletionEntry> completionAll; // full list from clangd
+    std::vector<int> completionFiltered; // indices into completionAll (sorted
+                                         // by fuzzy score)
+    std::string completionQuery; // derived from buffer [anchorX, cursorX)
+    int completionSelected = 0;  // index into completionFiltered
+    int completionScroll = 0;  // first visible index (into completionFiltered)
     int completionAnchorX = 0; // start of current identifier/prefix
     int completionAnchorY = 0;
-    std::string completionPrefix;
 
     void requestCompletion();
     void cancelCompletion();
     void acceptCompletion();
     void completionNext();
     void completionPrev();
+    void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
     // Search (global state)
     std::string searchQuery;

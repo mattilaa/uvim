@@ -170,6 +170,7 @@ struct LspClient::Impl
 
     std::string rootDir;
     std::unordered_map<std::string, int> docVersion;
+    std::unordered_map<std::string, std::string> docText;
 
     bool sendRaw(const std::string& payload)
     {
@@ -491,6 +492,7 @@ void LspClient::didOpen(const std::string& filePath,
 
     int ver = 1;
     impl->docVersion[abs] = ver;
+    impl->docText[abs] = text;
 
     json params;
     params["textDocument"] = {
@@ -524,6 +526,7 @@ void LspClient::didChange(const std::string& filePath, const std::string& text)
     // Full-text sync
     params["contentChanges"] = json::array({json{{"text", text}}});
     impl->sendNotification("textDocument/didChange", params);
+    impl->docText[abs] = text;
 }
 
 void LspClient::didSave(const std::string& filePath)
@@ -601,7 +604,12 @@ LspClient::definition(const std::string& filePath, int line,
 
     // LSP wants UTF-16 character offset; we only have a byte offset.
     // The caller should pass the byte index within the line.
-    std::string text = readFileAll(abs);
+    std::string text;
+    auto itT = impl->docText.find(abs);
+    if(itT != impl->docText.end())
+        text = itT->second;
+    else
+        text = readFileAll(abs);
     // If file isn't on disk (unsaved buffer), the caller should have sent
     // didChange with the buffer text. For safety, use the current on-disk line
     // to convert.
@@ -646,7 +654,7 @@ LspClient::definition(const std::string& filePath, int line,
 
 std::vector<LspClient::CompletionItem>
 LspClient::completion(const std::string& filePath, int line,
-                      int characterUtf8ByteOffset)
+                      int characterUtf8ByteOffset, char triggerChar)
 {
     std::vector<CompletionItem> out;
     if(!running())
@@ -656,7 +664,12 @@ LspClient::completion(const std::string& filePath, int line,
 
     // Convert UTF-8 byte offset to UTF-16 code units for LSP.
     int utf16ch = characterUtf8ByteOffset;
-    std::string text = readFileAll(abs);
+    std::string text;
+    auto itT = impl->docText.find(abs);
+    if(itT != impl->docText.end())
+        text = itT->second;
+    else
+        text = readFileAll(abs);
     if(!text.empty())
     {
         int curLine = 0;
@@ -681,8 +694,13 @@ LspClient::completion(const std::string& filePath, int line,
     json params;
     params["textDocument"] = {{"uri", pathToFileUri(abs)}};
     params["position"] = {{"line", line}, {"character", utf16ch}};
-    // Minimal context; clangd is fine without it, but it helps some servers.
-    params["context"] = {{"triggerKind", 1}};
+    // Completion context: include triggerCharacter when relevant (helps member
+    // completion).
+    if(triggerChar)
+        params["context"] = {{"triggerKind", 2},
+                             {"triggerCharacter", std::string(1, triggerChar)}};
+    else
+        params["context"] = {{"triggerKind", 1}};
 
     int id = impl->sendRequest("textDocument/completion", params);
     auto resp = impl->waitResponse(id, 5000);
@@ -709,8 +727,8 @@ LspClient::completion(const std::string& filePath, int line,
     if(!items.is_array())
         return out;
 
-    out.reserve(std::min<size_t>(items.size(), 64));
-    for(size_t i = 0; i < items.size() && out.size() < 64; ++i)
+    out.reserve(std::min<size_t>(items.size(), 200));
+    for(size_t i = 0; i < items.size() && out.size() < 200; ++i)
     {
         const json& it = items[i];
         if(!it.is_object())
@@ -718,38 +736,21 @@ LspClient::completion(const std::string& filePath, int line,
 
         CompletionItem ci;
         ci.label = it.value("label", std::string{});
-        ci.kind = it.value("kind", 0);
-        // Prefer CompletionItem.detail when present (clangd uses it for
-        // function signatures / types). Also incorporate labelDetails.detail
-        // if provided.
-        ci.detail = it.value("detail", std::string{});
-        if(it.contains("labelDetails") && it["labelDetails"].is_object())
-        {
-            const json& ld = it["labelDetails"];
-            std::string d = ld.value("detail", std::string{});
-            std::string desc = ld.value("description", std::string{});
-
-            // Merge into one readable string.
-            // If detail already exists, append labelDetails parts that add new
-            // information.
-            if(!d.empty())
-            {
-                if(ci.detail.empty())
-                    ci.detail = d;
-                else if(ci.detail.find(d) == std::string::npos)
-                    ci.detail += " " + d;
-            }
-            if(!desc.empty())
-            {
-                if(ci.detail.empty())
-                    ci.detail = desc;
-                else if(ci.detail.find(desc) == std::string::npos)
-                    ci.detail += " " + desc;
-            }
-        }
         ci.insertText = it.value("insertText", std::string{});
         int fmt = it.value("insertTextFormat", 1);
         ci.isSnippet = (fmt == 2);
+
+        ci.kind = it.value("kind", 0);
+        ci.detail = it.value("detail", std::string{});
+        ci.filterText = it.value("filterText", std::string{});
+        if(it.contains("labelDetails") && it["labelDetails"].is_object())
+        {
+            const json& ld = it["labelDetails"];
+            if(ld.contains("detail") && ld["detail"].is_string())
+                ci.labelDetail = ld["detail"].get<std::string>();
+            if(ld.contains("description") && ld["description"].is_string())
+                ci.labelDescription = ld["description"].get<std::string>();
+        }
 
         // Prefer textEdit.newText when present.
         if(it.contains("textEdit") && it["textEdit"].is_object())
@@ -801,7 +802,7 @@ std::optional<LspClient::Location> LspClient::definition(const std::string&,
 }
 
 std::vector<LspClient::CompletionItem> LspClient::completion(const std::string&,
-                                                             int, int)
+                                                             int, int, char)
 {
     return {};
 }
