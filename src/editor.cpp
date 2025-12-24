@@ -6610,7 +6610,43 @@ void Editor::handleNormalMode(int c)
         {
             deleteCharForward();
         }
+
+        // Keep NORMAL-mode cursor on a valid character (vim-style)
+        if(lines && *cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const int len = (int)(*lines)[*cursorY].length();
+            if(len == 0)
+            {
+                *cursorX = 0;
+            }
+            else if(*cursorX >= len)
+            {
+                *cursorX = len - 1;
+            }
+        }
+
+        *wantedX = *cursorX;
+        needsFullRedraw = true;
         saveState();
+        break;
+    case 's':
+        // vim-style substitute: delete character(s) under cursor and enter
+        // INSERT at the same position.
+        while(count-- > 0)
+        {
+            deleteCharForward();
+        }
+        // In INSERT we allow cursor at end-of-line; just clamp to length.
+        if(lines && *cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const int len = (int)(*lines)[*cursorY].length();
+            if(*cursorX > len)
+                *cursorX = len;
+        }
+        *wantedX = *cursorX;
+        needsFullRedraw = true;
+        saveState();
+        setMode(INSERT);
         break;
     case 'D':
         deleteToLineEnd();
