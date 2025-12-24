@@ -13,7 +13,8 @@ endif()
 
 add_executable(uvim
     src/main.cpp
-    src/editor.cpp
+    src/editor_lsp_query.cpp
+    src/lsp_client_query.cpp
     src/terminal.cpp
 )
 
@@ -52,7 +53,7 @@ if(UVIM_ENABLE_CLANGD_LSP)
     find_package(Threads REQUIRED)
 
     target_sources(uvim PRIVATE
-        src/lsp_client.cpp
+        src/lsp_client_query.cpp
     )
     target_link_libraries(uvim PRIVATE nlohmann_json::nlohmann_json Threads::Threads)
 endif()

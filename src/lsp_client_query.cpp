@@ -114,8 +114,7 @@ static int utf8ByteOffsetToUtf16(const std::string& line, int byteOffset)
         }
         else if((c & 0xE0) == 0xC0 && i + 1 < (int)line.size())
         {
-            codepoint = ((c & 0x1F) << 6) |
-                        ((unsigned char)line[i + 1] & 0x3F);
+            codepoint = ((c & 0x1F) << 6) | ((unsigned char)line[i + 1] & 0x3F);
             len = 2;
         }
         else if((c & 0xF0) == 0xE0 && i + 2 < (int)line.size())
@@ -176,8 +175,8 @@ struct LspClient::Impl
     {
         if(inFd < 0)
             return false;
-        std::string hdr = "Content-Length: " + std::to_string(payload.size()) +
-                          "\r\n\r\n";
+        std::string hdr =
+            "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
         std::string msg = hdr + payload;
 
         const char* p = msg.data();
@@ -228,7 +227,11 @@ struct LspClient::Impl
     {
         std::unique_lock<std::mutex> lk(m);
         if(!cv.wait_for(lk, std::chrono::milliseconds(timeoutMs),
-                        [&] { return responses.find(id) != responses.end() || !alive.load(); }))
+                        [&]
+                        {
+                            return responses.find(id) != responses.end() ||
+                                   !alive.load();
+                        }))
         {
             return std::nullopt;
         }
@@ -275,10 +278,12 @@ struct LspClient::Impl
                         while(p < header.size() && header[p] == ' ')
                             ++p;
                         size_t q = p;
-                        while(q < header.size() && std::isdigit((unsigned char)header[q]))
+                        while(q < header.size() &&
+                              std::isdigit((unsigned char)header[q]))
                             ++q;
                         if(q > p)
-                            contentLen = (size_t)std::stoul(header.substr(p, q - p));
+                            contentLen =
+                                (size_t)std::stoul(header.substr(p, q - p));
                     }
                 }
 
@@ -396,8 +401,7 @@ LspClient::~LspClient()
     delete impl;
 }
 
-bool LspClient::start(const std::string& clangdPath,
-                      const std::string& rootDir,
+bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
                       const std::string& compileCommandsDir,
                       const std::string& queryDriverAllowList)
 {
@@ -478,8 +482,7 @@ bool LspClient::running() const
 }
 
 void LspClient::didOpen(const std::string& filePath,
-                        const std::string& languageId,
-                        const std::string& text)
+                        const std::string& languageId, const std::string& text)
 {
     if(!running())
         return;
@@ -534,13 +537,16 @@ void LspClient::didSave(const std::string& filePath)
     impl->sendNotification("textDocument/didSave", params);
 }
 
-static std::optional<LspClient::Location> parseDefinitionResult(const json& result)
+static std::optional<LspClient::Location>
+parseDefinitionResult(const json& result)
 {
     // clangd may return Location | Location[] | LocationLink[]
     if(result.is_null())
         return std::nullopt;
 
-    auto parseLocationObj = [](const json& loc) -> std::optional<LspClient::Location> {
+    auto parseLocationObj =
+        [](const json& loc) -> std::optional<LspClient::Location>
+    {
         if(!loc.is_object())
             return std::nullopt;
 
@@ -584,8 +590,9 @@ static std::optional<LspClient::Location> parseDefinitionResult(const json& resu
     return std::nullopt;
 }
 
-std::optional<LspClient::Location> LspClient::definition(
-    const std::string& filePath, int line, int characterUtf8ByteOffset)
+std::optional<LspClient::Location>
+LspClient::definition(const std::string& filePath, int line,
+                      int characterUtf8ByteOffset)
 {
     if(!running())
         return std::nullopt;
@@ -595,8 +602,9 @@ std::optional<LspClient::Location> LspClient::definition(
     // LSP wants UTF-16 character offset; we only have a byte offset.
     // The caller should pass the byte index within the line.
     std::string text = readFileAll(abs);
-    // If file isn't on disk (unsaved buffer), the caller should have sent didChange
-    // with the buffer text. For safety, use the current on-disk line to convert.
+    // If file isn't on disk (unsaved buffer), the caller should have sent
+    // didChange with the buffer text. For safety, use the current on-disk line
+    // to convert.
     int utf16ch = characterUtf8ByteOffset;
     if(!text.empty())
     {
@@ -610,7 +618,8 @@ std::optional<LspClient::Location> LspClient::definition(
                 if(curLine == line)
                 {
                     std::string ln = text.substr(start, i - start);
-                    utf16ch = utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                    utf16ch =
+                        utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
                     break;
                 }
                 curLine++;
@@ -635,6 +644,104 @@ std::optional<LspClient::Location> LspClient::definition(
     return parseDefinitionResult(result);
 }
 
+std::vector<LspClient::CompletionItem>
+LspClient::completion(const std::string& filePath, int line,
+                      int characterUtf8ByteOffset)
+{
+    std::vector<CompletionItem> out;
+    if(!running())
+        return out;
+
+    std::string abs = absPath(filePath);
+
+    // Convert UTF-8 byte offset to UTF-16 code units for LSP.
+    int utf16ch = characterUtf8ByteOffset;
+    std::string text = readFileAll(abs);
+    if(!text.empty())
+    {
+        int curLine = 0;
+        size_t start = 0;
+        for(size_t i = 0; i <= text.size(); ++i)
+        {
+            if(i == text.size() || text[i] == '\n')
+            {
+                if(curLine == line)
+                {
+                    std::string ln = text.substr(start, i - start);
+                    utf16ch =
+                        utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                    break;
+                }
+                curLine++;
+                start = i + 1;
+            }
+        }
+    }
+
+    json params;
+    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    params["position"] = {{"line", line}, {"character", utf16ch}};
+    // Minimal context; clangd is fine without it, but it helps some servers.
+    params["context"] = {{"triggerKind", 1}};
+
+    int id = impl->sendRequest("textDocument/completion", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->is_object())
+        return out;
+    if(resp->contains("error"))
+        return out;
+
+    json result = resp->value("result", json());
+    json items;
+
+    if(result.is_array())
+    {
+        items = result;
+    }
+    else if(result.is_object())
+    {
+        if(result.contains("items"))
+            items = result["items"];
+        else if(result.contains("result"))
+            items = result["result"];
+    }
+
+    if(!items.is_array())
+        return out;
+
+    out.reserve(std::min<size_t>(items.size(), 64));
+    for(size_t i = 0; i < items.size() && out.size() < 64; ++i)
+    {
+        const json& it = items[i];
+        if(!it.is_object())
+            continue;
+
+        CompletionItem ci;
+        ci.label = it.value("label", std::string{});
+        ci.insertText = it.value("insertText", std::string{});
+        int fmt = it.value("insertTextFormat", 1);
+        ci.isSnippet = (fmt == 2);
+
+        // Prefer textEdit.newText when present.
+        if(it.contains("textEdit") && it["textEdit"].is_object())
+        {
+            const json& te = it["textEdit"];
+            if(te.contains("newText") && te["newText"].is_string())
+            {
+                ci.insertText = te["newText"].get<std::string>();
+            }
+        }
+
+        if(ci.insertText.empty())
+            ci.insertText = ci.label;
+
+        if(!ci.label.empty())
+            out.push_back(std::move(ci));
+    }
+
+    return out;
+}
+
 #else
 
 // If UVIM_ENABLE_CLANGD_LSP is not set, compile a stub that always disables.
@@ -642,18 +749,32 @@ std::optional<LspClient::Location> LspClient::definition(
 LspClient::LspClient() : impl(nullptr) {}
 LspClient::~LspClient() {}
 
-bool LspClient::start(const std::string&, const std::string&, const std::string&, const std::string&)
+bool LspClient::start(const std::string&, const std::string&,
+                      const std::string&, const std::string&)
 {
     return false;
 }
 void LspClient::stop() {}
-bool LspClient::running() const { return false; }
-void LspClient::didOpen(const std::string&, const std::string&, const std::string&) {}
+bool LspClient::running() const
+{
+    return false;
+}
+void LspClient::didOpen(const std::string&, const std::string&,
+                        const std::string&)
+{
+}
 void LspClient::didChange(const std::string&, const std::string&) {}
 void LspClient::didSave(const std::string&) {}
-std::optional<LspClient::Location> LspClient::definition(const std::string&, int, int)
+std::optional<LspClient::Location> LspClient::definition(const std::string&,
+                                                         int, int)
 {
     return std::nullopt;
+}
+
+std::vector<LspClient::CompletionItem> LspClient::completion(const std::string&,
+                                                             int, int)
+{
+    return {};
 }
 
 #endif

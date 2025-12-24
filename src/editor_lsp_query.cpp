@@ -5683,6 +5683,9 @@ void Editor::drawMessageBarQuick()
         output.append(statusMessage, 0, msglen);
     }
 
+    // Completion popup (clangd)
+    drawCompletionPopup(output);
+
     Terminal::write(output);
 }
 
@@ -5831,6 +5834,9 @@ void Editor::drawFullScreen()
         int msglen = std::min((int)statusMessage.length(), screenCols);
         output.append(statusMessage, 0, msglen);
     }
+
+    // Completion popup (clangd)
+    drawCompletionPopup(output);
 
     Terminal::write(output);
     updateCursorPosition();
@@ -6222,6 +6228,253 @@ void Editor::forceQuit()
 {
     Terminal::restoreTerminal();
     std::exit(0);
+}
+
+// ----- clangd completion popup helpers -----
+
+static bool isIdentChar(char c)
+{
+    return std::isalnum((unsigned char)c) || c == '_';
+}
+
+// Very small snippet “desugaring”: turns clangd snippets into plain insert
+// text.
+// - removes $0, $1 ...
+// - turns ${1:foo} -> foo
+// - removes ${1}
+static std::string stripSnippet(const std::string& s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for(size_t i = 0; i < s.size(); ++i)
+    {
+        char c = s[i];
+        if(c != '$')
+        {
+            out.push_back(c);
+            continue;
+        }
+
+        if(i + 1 >= s.size())
+            continue;
+
+        char n = s[i + 1];
+        if(std::isdigit((unsigned char)n))
+        {
+            // $0, $1 ...
+            i += 1;
+            while(i + 1 < s.size() && std::isdigit((unsigned char)s[i + 1]))
+                i++;
+            continue;
+        }
+
+        if(n == '{')
+        {
+            // ${1:foo} or ${1}
+            size_t end = s.find('}', i + 2);
+            if(end == std::string::npos)
+                continue;
+
+            std::string inner = s.substr(i + 2, end - (i + 2));
+            // inner might be "1:foo" or "1"
+            size_t colon = inner.find(':');
+            if(colon != std::string::npos)
+            {
+                out += inner.substr(colon + 1);
+            }
+            // else: just a placeholder number → ignore
+            i = end;
+            continue;
+        }
+
+        // Unknown $-sequence → drop '$' and keep the next char
+        // (so "$$" becomes "$", etc.)
+        out.push_back(n);
+        i += 1;
+    }
+    return out;
+}
+
+void Editor::cancelCompletion()
+{
+    completionActive = false;
+    completionItems.clear();
+    completionSelected = 0;
+    completionScroll = 0;
+    completionPrefix.clear();
+}
+
+void Editor::completionNext()
+{
+    if(!completionActive || completionItems.empty())
+        return;
+    completionSelected = (completionSelected + 1) % (int)completionItems.size();
+
+    const int win = std::min(6, (int)completionItems.size());
+    if(completionSelected < completionScroll)
+        completionScroll = completionSelected;
+    else if(completionSelected >= completionScroll + win)
+        completionScroll = completionSelected - win + 1;
+
+    needsFullRedraw = true;
+}
+
+void Editor::completionPrev()
+{
+    if(!completionActive || completionItems.empty())
+        return;
+    completionSelected = (completionSelected - 1);
+    if(completionSelected < 0)
+        completionSelected = (int)completionItems.size() - 1;
+
+    const int win = std::min(6, (int)completionItems.size());
+    if(completionSelected < completionScroll)
+        completionScroll = completionSelected;
+    else if(completionSelected >= completionScroll + win)
+        completionScroll = completionSelected - win + 1;
+
+    needsFullRedraw = true;
+}
+
+void Editor::acceptCompletion()
+{
+    if(!completionActive || completionItems.empty())
+        return;
+
+    // Ensure anchor is on the current line (if the user moved, recompute).
+    completionAnchorY = *cursorY;
+    const std::string& line = (*lines)[*cursorY];
+    int ax = *cursorX;
+    while(ax > 0 && isIdentChar(line[ax - 1]))
+        --ax;
+    completionAnchorX = ax;
+
+    const CompletionEntry& it = completionItems[completionSelected];
+    std::string insert = it.insertText.empty() ? it.label : it.insertText;
+    if(it.isSnippet)
+        insert = stripSnippet(insert);
+
+    // Replace prefix [anchorX, cursorX)
+    std::string& mutableLine = (*lines)[*cursorY];
+    int start =
+        std::max(0, std::min(completionAnchorX, (int)mutableLine.size()));
+    int end = std::max(0, std::min(*cursorX, (int)mutableLine.size()));
+    if(end < start)
+        std::swap(start, end);
+
+    mutableLine.replace(start, end - start, insert);
+    *cursorX = start + (int)insert.size();
+    *wantedX = *cursorX;
+    *dirty = true;
+
+    cancelCompletion();
+    needsFullRedraw = true;
+}
+
+void Editor::requestCompletion()
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!isClangdLspEnabled())
+    {
+        setStatusMessage("clangd completion: OFF");
+        return;
+    }
+    if(!isCppFile())
+    {
+        setStatusMessage("clangd completion: only for C/C++");
+        return;
+    }
+
+    // Compute prefix/anchor (identifier chars).
+    const std::string& line = (*lines)[*cursorY];
+    int ax = *cursorX;
+    while(ax > 0 && isIdentChar(line[ax - 1]))
+        --ax;
+
+    completionAnchorX = ax;
+    completionAnchorY = *cursorY;
+    completionPrefix =
+        line.substr(completionAnchorX, *cursorX - completionAnchorX);
+
+    // Sync buffer text.
+    std::string text;
+    text.reserve(lines->size() * 80);
+    for(size_t i = 0; i < lines->size(); ++i)
+    {
+        text += (*lines)[i];
+        if(i + 1 < lines->size())
+            text.push_back('\n');
+    }
+    lspClient->didChange(currentBuffer->filename, text);
+
+    auto items =
+        lspClient->completion(currentBuffer->filename, *cursorY, *cursorX);
+    completionItems.clear();
+    completionItems.reserve(items.size());
+
+    for(const auto& ci : items)
+    {
+        CompletionEntry e;
+        e.label = ci.label;
+        e.insertText = ci.insertText;
+        e.isSnippet = ci.isSnippet;
+        completionItems.push_back(std::move(e));
+    }
+
+    if(completionItems.empty())
+    {
+        cancelCompletion();
+        setStatusMessage("clangd completion: no results");
+        return;
+    }
+
+    completionActive = true;
+    completionSelected = 0;
+    completionScroll = 0;
+    needsFullRedraw = true;
+#else
+    setStatusMessage("clangd completion: not compiled in");
+#endif
+}
+
+void Editor::drawCompletionPopup(std::string& output) const
+{
+    if(!completionActive || completionItems.empty())
+        return;
+    if(currentMode != INSERT)
+        return;
+
+    const int maxRows = std::min(6, (int)completionItems.size());
+    const int startRow = std::max(1, screenRows - maxRows + 1);
+
+    for(int i = 0; i < maxRows; ++i)
+    {
+        int idx = completionScroll + i;
+        if(idx >= (int)completionItems.size())
+            break;
+
+        char moveBuf[32];
+        snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", startRow + i);
+        output += moveBuf;
+        output += "\x1b[K";
+
+        if(idx == completionSelected)
+            output += "\x1b[7m"; // reverse
+
+        std::string label = completionItems[idx].label;
+        // show simple suffix count on first line
+        if(i == 0)
+        {
+            label = " " + label;
+        }
+        if((int)label.size() > screenCols)
+            label.resize(screenCols);
+
+        output += label;
+
+        if(idx == completionSelected)
+            output += "\x1b[m";
+    }
 }
 
 std::string Editor::getAlternateFilePath()
@@ -6819,6 +7072,46 @@ void Editor::handleNormalMode(int c)
 
 void Editor::handleInsertMode(int c)
 {
+
+    // clangd completion popup navigation/accept
+    if(completionActive)
+    {
+        if(c == Terminal::ESC)
+        {
+            cancelCompletion();
+            needsFullRedraw = true;
+            return;
+        }
+        if(c == Terminal::CTRL_J || c == Terminal::CTRL_N)
+        {
+            completionNext();
+            return;
+        }
+        if(c == Terminal::CTRL_K || c == Terminal::CTRL_P)
+        {
+            completionPrev();
+            return;
+        }
+        if(c == Terminal::ENTER || c == Terminal::TAB)
+        {
+            acceptCompletion();
+            return;
+        }
+
+        // Any other key cancels the popup and continues with normal insert
+        // handling.
+        cancelCompletion();
+        needsFullRedraw = true;
+    }
+
+    // Trigger completion manually in INSERT with Ctrl-N (and show list;
+    // navigate with Ctrl-J/Ctrl-K)
+    if(c == Terminal::CTRL_N)
+    {
+        requestCompletion();
+        return;
+    }
+
     if(c == Terminal::ESC)
     {
         if(visualBlockChanging)

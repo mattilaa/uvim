@@ -217,6 +217,27 @@ public:
     std::unique_ptr<LspClient> lspClient;
 #endif
 
+    // LSP completion popup (clangd, optional)
+    struct CompletionEntry
+    {
+        std::string label;
+        std::string insertText;
+        bool isSnippet = false;
+    };
+    bool completionActive = false;
+    std::vector<CompletionEntry> completionItems;
+    int completionSelected = 0;
+    int completionScroll = 0;
+    int completionAnchorX = 0; // start of current identifier/prefix
+    int completionAnchorY = 0;
+    std::string completionPrefix;
+
+    void requestCompletion();
+    void cancelCompletion();
+    void acceptCompletion();
+    void completionNext();
+    void completionPrev();
+    void drawCompletionPopup(std::string& output) const;
     // Search (global state)
     std::string searchQuery;
     bool searchForward = true;
