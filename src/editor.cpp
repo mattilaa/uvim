@@ -6610,44 +6610,60 @@ void Editor::handleNormalMode(int c)
         {
             deleteCharForward();
         }
-
-        // Keep NORMAL-mode cursor on a valid character (vim-style)
-        if(lines && *cursorY >= 0 && *cursorY < (int)lines->size())
-        {
-            const int len = (int)(*lines)[*cursorY].length();
-            if(len == 0)
-            {
-                *cursorX = 0;
-            }
-            else if(*cursorX >= len)
-            {
-                *cursorX = len - 1;
-            }
-        }
-
-        *wantedX = *cursorX;
-        needsFullRedraw = true;
         saveState();
         break;
-    case 's':
-        // vim-style substitute: delete character(s) under cursor and enter
-        // INSERT at the same position.
-        while(count-- > 0)
+
+
+    case 'J':
+    {
+        // Vim-style join lines: join current line with the next (count-aware).
+        // Default joins 2 lines; with a count N joins N lines total.
+        if(!lines || lines->empty())
+            break;
+
+        int joinLinesTotal = (count > 1) ? count : 2;
+        int joins = joinLinesTotal - 1;
+        bool didJoin = false;
+
+        while(joins-- > 0)
         {
-            deleteCharForward();
+            if(*cursorY < 0 || *cursorY >= (int)lines->size() - 1)
+                break; // last line
+
+            std::string& a = (*lines)[*cursorY];
+            std::string& b = (*lines)[*cursorY + 1];
+
+            int joinPos = (int)a.size();
+
+            // Trim leading whitespace from the next line (vim J behavior)
+            size_t i = 0;
+            while(i < b.size() && (b[i] == ' ' || b[i] == '\t'))
+                ++i;
+            std::string bTrim = b.substr(i);
+
+            bool aEndsWs = !a.empty() && (a.back() == ' ' || a.back() == '\t');
+            bool addSpace = (!a.empty() && !aEndsWs && !bTrim.empty());
+
+            if(addSpace)
+                a.push_back(' ');
+            a += bTrim;
+
+            lines->erase(lines->begin() + (*cursorY + 1));
+
+            *cursorX = joinPos; // keep cursor at join point
+            didJoin = true;
+
+            *dirty = true;
+            needsFullRedraw = true;
         }
-        // In INSERT we allow cursor at end-of-line; just clamp to length.
-        if(lines && *cursorY >= 0 && *cursorY < (int)lines->size())
+
+        if(didJoin)
         {
-            const int len = (int)(*lines)[*cursorY].length();
-            if(*cursorX > len)
-                *cursorX = len;
+            *wantedX = *cursorX;
+            saveState();
         }
-        *wantedX = *cursorX;
-        needsFullRedraw = true;
-        saveState();
-        setMode(INSERT);
         break;
+    }
     case 'D':
         deleteToLineEnd();
         saveState();
