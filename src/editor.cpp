@@ -2744,7 +2744,7 @@ std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
         "typeid", "typename", "union", "using", "virtual", "volatile", "while",
         "xor", "xor_eq", "override", "final",
         // MLA keywords
-        "fn", "let", "var", "mod", "use", "in"};
+        "fn", "pub", "impl", "let", "var", "mod", "use", "in"};
 
     // C++ types
     static const std::unordered_set<std::string> types = {
