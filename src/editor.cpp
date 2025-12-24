@@ -6613,7 +6613,6 @@ void Editor::handleNormalMode(int c)
         saveState();
         break;
 
-
     case 'J':
     {
         // Vim-style join lines: join current line with the next (count-aware).
@@ -6851,6 +6850,19 @@ void Editor::handleInsertMode(int c)
 
 void Editor::handleVisualMode(int c)
 {
+    // Vim-style count prefix in visual modes (e.g., V4j / v10k)
+    if(c >= '1' && c <= '9' && repeatCount == 0)
+    {
+        repeatCount = c - '0';
+        return;
+    }
+    else if(c >= '0' && c <= '9' && repeatCount > 0)
+    {
+        repeatCount = repeatCount * 10 + (c - '0');
+        return;
+    }
+    int count = std::max(1, repeatCount);
+
     switch(c)
     {
     case Terminal::ESC:
@@ -6860,25 +6872,29 @@ void Editor::handleVisualMode(int c)
         break;
     case 'h':
     case Terminal::ARROW_LEFT:
-        moveLeft();
+        for(int i = 0; i < count; ++i)
+            moveLeft();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'l':
     case Terminal::ARROW_RIGHT:
-        moveRight();
+        for(int i = 0; i < count; ++i)
+            moveRight();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'j':
     case Terminal::ARROW_DOWN:
-        moveDown();
+        for(int i = 0; i < count; ++i)
+            moveDown();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'k':
     case Terminal::ARROW_UP:
-        moveUp();
+        for(int i = 0; i < count; ++i)
+            moveUp();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
@@ -7109,6 +7125,8 @@ void Editor::handleVisualMode(int c)
         }
         break;
     }
+    // Clear any leftover count once a (non-digit) visual command is handled.
+    repeatCount = 0;
 }
 
 void Editor::handleVisualBlockMode(int c)
