@@ -7010,22 +7010,90 @@ void Editor::handleVisualMode(int c)
         }
         break;
     case 'w': // Visual w - extend selection forward by word
-        moveWordForward();
+        for(int i = 0; i < count; ++i)
+            moveWordForward();
         updateVisualSelection();
         adjustViewport();
         break;
 
     case 'b': // Visual b - extend selection backward by word
-        moveWordBackward();
+        for(int i = 0; i < count; ++i)
+            moveWordBackward();
         updateVisualSelection();
         adjustViewport();
         break;
 
     case 'e': // Visual e - extend selection to end of word
-        moveToEndOfWord();
+        for(int i = 0; i < count; ++i)
+            moveToEndOfWord();
         updateVisualSelection();
         adjustViewport();
         break;
+
+    case 'E': // Visual E - extend selection to end of WORD
+              // (whitespace-delimited)
+    {
+        auto moveToEndOfBigWordOnce = [&]()
+        {
+            int y = *cursorY;
+            int x = *cursorX;
+
+            if(!lines || lines->empty())
+                return;
+
+            // If already at (or past) end of line, move to next line.
+            const std::string& line = (*lines)[y];
+            if(line.empty() || x >= (int)line.length() - 1)
+            {
+                if(y + 1 >= (int)lines->size())
+                    return;
+                y++;
+                x = 0;
+            }
+            else
+            {
+                // Start one char forward, like the existing moveToEndOfWord()
+                x++;
+            }
+
+            // Skip whitespace forward (may cross into following lines)
+            while(y < (int)lines->size())
+            {
+                const std::string& cur = (*lines)[y];
+                while(x < (int)cur.length() &&
+                      std::isspace((unsigned char)cur[x]))
+                {
+                    x++;
+                }
+                if(x < (int)cur.length())
+                    break;
+                // Hit end-of-line while skipping spaces → go to next line
+                if(y + 1 >= (int)lines->size())
+                    return;
+                y++;
+                x = 0;
+            }
+
+            // Now advance to the end of this BIG word: a run of non-whitespace
+            const std::string& cur = (*lines)[y];
+            while(x < (int)cur.length() - 1 &&
+                  !std::isspace((unsigned char)cur[x + 1]))
+            {
+                x++;
+            }
+
+            *cursorY = y;
+            *cursorX = x;
+            *wantedX = x;
+        };
+
+        for(int i = 0; i < count; ++i)
+            moveToEndOfBigWordOnce();
+
+        updateVisualSelection();
+        adjustViewport();
+    }
+    break;
 
     case '0': // Visual 0 - extend to start of line
         moveToLineStart();
@@ -7125,6 +7193,7 @@ void Editor::handleVisualMode(int c)
         }
         break;
     }
+
     // Clear any leftover count once a (non-digit) visual command is handled.
     repeatCount = 0;
 }
