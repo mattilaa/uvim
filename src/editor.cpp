@@ -6505,6 +6505,38 @@ void Editor::handleNormalMode(int c)
     case 'N':
         searchPrevious();
         break;
+    case '#':
+    {
+        // Vim-style: search backward for the word under the cursor.
+        // Anchor at the start of the current word so we don't match the same
+        // occurrence when the cursor is inside the word.
+        std::string sym = getSymbolUnderCursor();
+        if(sym.empty())
+        {
+            setStatusMessage("#: no word under cursor");
+            break;
+        }
+
+        // Move cursor to the start of the current identifier.
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            int x = *cursorX;
+            if(x >= (int)line.size())
+                x = (int)line.size() - 1;
+
+            while(x > 0 && isIdent(line[x - 1]))
+                --x;
+            *cursorX = x;
+        }
+
+        searchQuery = sym;
+        searchForward = false;
+        performSearch();
+        needsFullRedraw = true;
+        *wantedX = *cursorX;
+        break;
+    }
     case 30: // Ctrl+^ (Ctrl+6)
         if(buffers.size() > 1)
         {
