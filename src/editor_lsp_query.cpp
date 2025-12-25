@@ -6855,6 +6855,60 @@ void Editor::handleNormalMode(int c)
     }
     int count = std::max(1, repeatCount);
 
+    // ----- Leader (space) prefixed commands (MUST be early) -----
+    if(commandBuffer == " ")
+    {
+        if(c == 'h')
+        {
+            // Leader + h: jump to alternate file (header/source)
+            jumpToAlternateFile();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'b')
+        {
+            // Leader + b: start buffer command sequence
+            commandBuffer = " b";
+            setStatusMessage("Leader-b");
+            repeatCount = 0;
+            return;
+        }
+        else if(c == ' ')
+        {
+            // Double space cancels
+            commandBuffer.clear();
+            setStatusMessage("");
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // Unknown leader command - cancel
+            commandBuffer.clear();
+            setStatusMessage("");
+        }
+    }
+
+    // ----- Leader-b (buffer) commands -----
+    if(commandBuffer == " b")
+    {
+        if(c == 'd')
+        {
+            // Leader + bd: close current buffer
+            commandBuffer.clear();
+            closeCurrentBuffer();
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // Unknown buffer command - cancel
+            commandBuffer.clear();
+            setStatusMessage("");
+        }
+    }
+
     // ----- g-prefixed commands (MUST be first) -----
     if(commandBuffer == "g")
     {
@@ -7230,17 +7284,7 @@ void Editor::handleNormalMode(int c)
         jumpForward();
         break;
     case 'h':
-        if(commandBuffer == "\\")
-        {
-            // Leader + h: jump to alternate file (header/source)
-            jumpToAlternateFile();
-            commandBuffer.clear();
-        }
-        else
-        {
-            // Normal h: move left
-            moveLeft(count);
-        }
+        moveLeft(count);
         break;
     case Terminal::ARROW_LEFT:
         moveLeft(count);
@@ -7295,14 +7339,14 @@ void Editor::handleNormalMode(int c)
             moveToLastLine();
         }
         break;
-    case '\\': // Leader key (backslash)
-        if(commandBuffer == "\\")
+    case ' ': // Leader key (space)
+        if(commandBuffer == " ")
         {
-            commandBuffer.clear(); // Double backslash cancels
+            commandBuffer.clear(); // Double space cancels
         }
         else
         {
-            commandBuffer = "\\";
+            commandBuffer = " ";
             setStatusMessage("Leader");
         }
         break;
@@ -7350,24 +7394,8 @@ void Editor::handleNormalMode(int c)
         break;
     }
 
-    // Clear command buffer if we had a pending command but didn't recognize
-    // what followed
-    if((commandBuffer == "\\" || commandBuffer == "g") && c != '\\' && c != 'g')
-    {
-        // If the command wasn't recognized, clear the buffer
-        bool recognized = false;
-        if(commandBuffer == "\\" && c == 'h')
-            recognized = true;
-        if(commandBuffer == "g" && c == 'g')
-            recognized = true;
-
-        if(!recognized)
-        {
-            commandBuffer.clear();
-            setStatusMessage("");
-        }
-    }
-    // Handle g-prefixed commands
+    // Handle g-prefixed commands at end (for 'gg' which needs switch case for
+    // first 'g')
     if(commandBuffer == "g")
     {
         if(c == 'd')
