@@ -7679,6 +7679,23 @@ void Editor::handleInsertMode(int c)
 
 void Editor::handleVisualMode(int c)
 {
+    // Handle count prefix for visual mode (e.g., V4j)
+    static int visualRepeatCount = 0;
+
+    if(c >= '1' && c <= '9' && visualRepeatCount == 0)
+    {
+        visualRepeatCount = c - '0';
+        return;
+    }
+    else if(c >= '0' && c <= '9' && visualRepeatCount > 0)
+    {
+        visualRepeatCount = visualRepeatCount * 10 + (c - '0');
+        return;
+    }
+
+    int count = std::max(1, visualRepeatCount);
+    visualRepeatCount = 0; // Reset after use
+
     switch(c)
     {
     case Terminal::ESC:
@@ -7688,25 +7705,29 @@ void Editor::handleVisualMode(int c)
         break;
     case 'h':
     case Terminal::ARROW_LEFT:
-        moveLeft();
+        for(int i = 0; i < count; ++i)
+            moveLeft();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'l':
     case Terminal::ARROW_RIGHT:
-        moveRight();
+        for(int i = 0; i < count; ++i)
+            moveRight();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'j':
     case Terminal::ARROW_DOWN:
-        moveDown();
+        for(int i = 0; i < count; ++i)
+            moveDown();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
     case 'k':
     case Terminal::ARROW_UP:
-        moveUp();
+        for(int i = 0; i < count; ++i)
+            moveUp();
         updateVisualSelection();
         needsFullRedraw = true;
         break;
@@ -7884,19 +7905,22 @@ void Editor::handleVisualMode(int c)
         break;
 
     case 'w': // Visual w - extend selection forward by word
-        moveWordForward();
+        for(int i = 0; i < count; ++i)
+            moveWordForward();
         updateVisualSelection();
         adjustViewport();
         break;
 
     case 'b': // Visual b - extend selection backward by word
-        moveWordBackward();
+        for(int i = 0; i < count; ++i)
+            moveWordBackward();
         updateVisualSelection();
         adjustViewport();
         break;
 
     case 'e': // Visual e - extend selection to end of word
-        moveToEndOfWord();
+        for(int i = 0; i < count; ++i)
+            moveToEndOfWord();
         updateVisualSelection();
         adjustViewport();
         break;
@@ -8072,6 +8096,23 @@ void Editor::handleVisualBlockMode(int c)
         return;
     }
 
+    // Handle count prefix for visual block mode (e.g., Ctrl-V 4j)
+    static int blockRepeatCount = 0;
+
+    if(c >= '1' && c <= '9' && blockRepeatCount == 0)
+    {
+        blockRepeatCount = c - '0';
+        return;
+    }
+    else if(c >= '0' && c <= '9' && blockRepeatCount > 0)
+    {
+        blockRepeatCount = blockRepeatCount * 10 + (c - '0');
+        return;
+    }
+
+    int count = std::max(1, blockRepeatCount);
+    blockRepeatCount = 0; // Reset after use
+
     // Normal visual block mode commands
     switch(c)
     {
@@ -8083,28 +8124,32 @@ void Editor::handleVisualBlockMode(int c)
 
     case 'h':
     case Terminal::ARROW_LEFT:
-        moveLeft();
+        for(int i = 0; i < count; ++i)
+            moveLeft();
         updateVisualBlockSelection();
         needsFullRedraw = true;
         break;
 
     case 'l':
     case Terminal::ARROW_RIGHT:
-        moveRight();
+        for(int i = 0; i < count; ++i)
+            moveRight();
         updateVisualBlockSelection();
         needsFullRedraw = true;
         break;
 
     case 'j':
     case Terminal::ARROW_DOWN:
-        moveDown();
+        for(int i = 0; i < count; ++i)
+            moveDown();
         updateVisualBlockSelection();
         needsFullRedraw = true;
         break;
 
     case 'k':
     case Terminal::ARROW_UP:
-        moveUp();
+        for(int i = 0; i < count; ++i)
+            moveUp();
         updateVisualBlockSelection();
         needsFullRedraw = true;
         break;
