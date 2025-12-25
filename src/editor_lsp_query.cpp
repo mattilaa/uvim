@@ -7432,18 +7432,22 @@ void Editor::handleNormalMode(int c)
     }
     break;
     case 'i':
+        saveState();
         setMode(INSERT);
         break;
     case 'I':
+        saveState();
         moveToLineStart();
         setMode(INSERT);
         break;
     case 'a':
+        saveState();
         if(*cursorX < (*lines)[*cursorY].length())
             (*cursorX)++;
         setMode(INSERT);
         break;
     case 'A':
+        saveState();
         moveToLineEnd();
         if(*cursorX < (*lines)[*cursorY].length())
             (*cursorX)++;
