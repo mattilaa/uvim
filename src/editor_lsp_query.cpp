@@ -7199,13 +7199,30 @@ void Editor::handleNormalMode(int c)
             }
             tempFile.close();
 
-            // Run clang-format - try with full path for macOS homebrew
-            std::string cmd = "/opt/homebrew/bin/clang-format -style=file"
+            // Get the directory of the current file for clang-format to find
+            // .clang-format
+            std::string fileDir = ".";
+            std::string absFilename = *filename;
+
+            // Make filename absolute if it isn't
+            if(!absFilename.empty() && absFilename[0] != '/')
+            {
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                {
+                    absFilename = std::string(cwd) + "/" + *filename;
+                }
+            }
+
+            // Run clang-format with stdin, using actual filename for style
+            // lookup clang-format searches for .clang-format starting from the
+            // file's directory
+            std::string cmd = "cat \"" + tempPath +
+                              "\" | /opt/homebrew/bin/clang-format -style=file"
                               " -assume-filename=\"" +
-                              *filename +
+                              absFilename +
                               "\""
-                              " \"" +
-                              tempPath + "\" 2>/tmp/uvim_clang_err.txt";
+                              " 2>/tmp/uvim_clang_err.txt";
 
 #ifdef UVIM_DEBUG_LOGGING
             // Debug log
@@ -7221,12 +7238,12 @@ void Editor::handleNormalMode(int c)
             if(!pipe)
             {
                 // Try without full path
-                cmd = "clang-format -style=file"
+                cmd = "cat \"" + tempPath +
+                      "\" | clang-format -style=file"
                       " -assume-filename=\"" +
-                      *filename +
+                      absFilename +
                       "\""
-                      " \"" +
-                      tempPath + "\" 2>/tmp/uvim_clang_err.txt";
+                      " 2>/tmp/uvim_clang_err.txt";
                 pipe = popen(cmd.c_str(), "r");
             }
 
@@ -8297,24 +8314,40 @@ void Editor::handleVisualMode(int c)
                 }
                 tempFile.close();
 
-                // Run clang-format - try with full path for macOS homebrew
-                std::string cmd = "/opt/homebrew/bin/clang-format -style=file"
-                                  " -assume-filename=\"" +
-                                  *filename +
-                                  "\""
-                                  " \"" +
-                                  tempPath + "\" 2>/tmp/uvim_clang_err.txt";
+                // Get the directory of the current file for clang-format to
+                // find .clang-format
+                std::string absFilename = *filename;
+
+                // Make filename absolute if it isn't
+                if(!absFilename.empty() && absFilename[0] != '/')
+                {
+                    char cwd[PATH_MAX];
+                    if(getcwd(cwd, sizeof(cwd)))
+                    {
+                        absFilename = std::string(cwd) + "/" + *filename;
+                    }
+                }
+
+                // Run clang-format with stdin, using actual filename for style
+                // lookup
+                std::string cmd =
+                    "cat \"" + tempPath +
+                    "\" | /opt/homebrew/bin/clang-format -style=file"
+                    " -assume-filename=\"" +
+                    absFilename +
+                    "\""
+                    " 2>/tmp/uvim_clang_err.txt";
 
                 FILE* pipe = popen(cmd.c_str(), "r");
                 if(!pipe)
                 {
                     // Try without full path
-                    cmd = "clang-format -style=file"
+                    cmd = "cat \"" + tempPath +
+                          "\" | clang-format -style=file"
                           " -assume-filename=\"" +
-                          *filename +
+                          absFilename +
                           "\""
-                          " \"" +
-                          tempPath + "\" 2>/tmp/uvim_clang_err.txt";
+                          " 2>/tmp/uvim_clang_err.txt";
                     pipe = popen(cmd.c_str(), "r");
                 }
 
