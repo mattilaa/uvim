@@ -7512,13 +7512,12 @@ void Editor::handleNormalMode(int c)
     case Terminal::CTRL_W: // Ctrl+W for buffer browser
         setMode(BUFFER_BROWSER);
         break;
-    case Terminal::CTRL_F: // Ctrl+F for grep search (find in files)
+    case Terminal::CTRL_S: // Ctrl+S for grep search (find in files)
         setMode(GREP_SEARCH);
         break;
     case Terminal::CTRL_O:
         jumpBack();
         break;
-
     case Terminal::CTRL_I:
         jumpForward();
         break;
