@@ -1321,6 +1321,24 @@ void Editor::openFile(const std::string& fname)
 
     needsFullRedraw = true;
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    // Notify LSP about the newly opened file so gd works from system headers
+    if(isClangdLspEnabled() && lspClient)
+    {
+        // Build text content from loaded lines
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        // didChange will call didOpen if needed
+        lspClient->didChange(path, text);
+    }
+#endif
+
     setStatusMessage("\"" + *filename + "\" " + std::to_string(lines->size()) +
                      " lines [Buffer " +
                      std::to_string(currentBufferIndex + 1) + "]");
@@ -4526,7 +4544,21 @@ void Editor::goToDefinition()
             *cursorY = loc->line;
             *cursorX = loc->character; // already UTF-16; for ASCII it's exact
             centerScreen();
-            setStatusMessage("gd (clangd) → " + loc->path + ":" +
+
+            // Show a cleaner message for system headers
+            std::string displayPath = loc->path;
+            bool isSystemHeader =
+                (loc->path.find("/usr/") == 0 || loc->path.find("/opt/") == 0 ||
+                 loc->path.find("/Library/") == 0 ||
+                 loc->path.find("/Applications/") == 0);
+            if(isSystemHeader)
+            {
+                // Show just the filename for system headers
+                size_t lastSlash = loc->path.rfind('/');
+                if(lastSlash != std::string::npos)
+                    displayPath = "<sys>/" + loc->path.substr(lastSlash + 1);
+            }
+            setStatusMessage("gd (clangd) → " + displayPath + ":" +
                              std::to_string(loc->line + 1));
             return;
         }

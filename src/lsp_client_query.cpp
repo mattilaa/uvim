@@ -2,6 +2,7 @@
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 
+#include <cctype>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -63,6 +64,18 @@ static std::string pathToFileUri(const std::string& path)
     return out;
 }
 
+// Convert a hex character to its integer value
+static int hexCharToInt(char c)
+{
+    if(c >= '0' && c <= '9')
+        return c - '0';
+    if(c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    if(c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    return -1;
+}
+
 static std::string uriToPath(const std::string& uri)
 {
     // Expect file://
@@ -70,25 +83,64 @@ static std::string uriToPath(const std::string& uri)
     if(uri.rfind(prefix, 0) == 0)
     {
         std::string p = uri.substr(prefix.size());
-        // unescape spaces
+        // Decode all percent-encoded characters (e.g., %2B -> '+', %20 -> ' ')
         std::string out;
         out.reserve(p.size());
         for(size_t i = 0; i < p.size(); ++i)
         {
-            if(p[i] == '%' && i + 2 < p.size() && p[i + 1] == '2' &&
-               p[i + 2] == '0')
+            if(p[i] == '%' && i + 2 < p.size())
             {
-                out.push_back(' ');
-                i += 2;
+                int hi = hexCharToInt(p[i + 1]);
+                int lo = hexCharToInt(p[i + 2]);
+                if(hi >= 0 && lo >= 0)
+                {
+                    out.push_back(static_cast<char>((hi << 4) | lo));
+                    i += 2;
+                    continue;
+                }
             }
-            else
-            {
-                out.push_back(p[i]);
-            }
+            out.push_back(p[i]);
         }
         return out;
     }
     return uri;
+}
+
+// Detect language ID from file path for LSP
+static std::string detectLanguageId(const std::string& path)
+{
+    size_t dot = path.rfind('.');
+    if(dot == std::string::npos)
+    {
+        // No extension - check if it's a C++ standard library header
+        // (e.g., /usr/include/c++/13/vector, /usr/include/c++/13/string)
+        if(path.find("/c++/") != std::string::npos ||
+           path.find("/bits/") != std::string::npos ||
+           path.find("/ext/") != std::string::npos)
+        {
+            return "cpp";
+        }
+        return "cpp"; // Default to cpp for headers without extension
+    }
+
+    std::string ext = path.substr(dot);
+    // Convert to lowercase for comparison
+    for(char& c : ext)
+        c = std::tolower((unsigned char)c);
+
+    if(ext == ".c")
+        return "c";
+    if(ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".c++")
+        return "cpp";
+    if(ext == ".h" || ext == ".hpp" || ext == ".hxx" || ext == ".hh" ||
+       ext == ".h++")
+        return "cpp"; // Treat headers as C++ for better clangd support
+    if(ext == ".m")
+        return "objective-c";
+    if(ext == ".mm")
+        return "objective-cpp";
+
+    return "cpp"; // Default
 }
 
 // Convert a UTF-8 byte offset in a line to UTF-16 code units (LSP uses UTF-16).
@@ -515,7 +567,8 @@ void LspClient::didChange(const std::string& filePath, const std::string& text)
     auto it0 = impl->docVersion.find(abs);
     if(it0 == impl->docVersion.end())
     {
-        didOpen(abs, "cpp", text);
+        std::string langId = detectLanguageId(abs);
+        didOpen(abs, langId, text);
         return;
     }
 
