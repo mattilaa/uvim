@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 # Export compile_commands.json into the build dir
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
+# Enable debug logging to /tmp/uvim_debug.txt
+option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
 
 if(UVIM_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -63,4 +65,9 @@ if(UVIM_ENABLE_CLANGD_LSP)
 
     find_package(Threads REQUIRED)
     target_link_libraries(uvim PRIVATE nlohmann_json::nlohmann_json Threads::Threads)
+endif()
+
+# ---- Debug logging (optional) ----
+if(UVIM_DEBUG_LOGGING)
+    target_compile_definitions(uvim PRIVATE UVIM_DEBUG_LOGGING=1)
 endif()

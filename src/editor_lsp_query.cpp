@@ -7063,6 +7063,15 @@ std::string Editor::getAlternateFilePath()
 // Mode handlers
 void Editor::handleNormalMode(int c)
 {
+#ifdef UVIM_DEBUG_LOGGING
+    // Debug: log every keypress
+    {
+        std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+        dbg << "handleNormalMode c=" << c << " ('" << (char)c
+            << "') commandBuffer='" << commandBuffer << "'" << std::endl;
+    }
+#endif
+
     static bool pendingDelete = false;
     static bool pendingYank = false;
     static bool pendingIndent = false;
@@ -7153,12 +7162,14 @@ void Editor::handleNormalMode(int c)
             commandBuffer.clear();
             repeatCount = 0;
 
+#ifdef UVIM_DEBUG_LOGGING
             // Debug: log to file
             {
                 std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
                 dbg << "Leader-f pressed. filename='" << *filename
                     << "' isCppFile=" << isCppFile() << std::endl;
             }
+#endif
 
             if(!isCppFile())
             {
@@ -7188,13 +7199,6 @@ void Editor::handleNormalMode(int c)
             }
             tempFile.close();
 
-            // Debug log
-            {
-                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
-                dbg << "Temp file written: " << tempPath
-                    << " lines=" << lines->size() << std::endl;
-            }
-
             // Run clang-format - try with full path for macOS homebrew
             std::string cmd = "/opt/homebrew/bin/clang-format -style=file"
                               " -assume-filename=\"" +
@@ -7203,11 +7207,15 @@ void Editor::handleNormalMode(int c)
                               " \"" +
                               tempPath + "\" 2>/tmp/uvim_clang_err.txt";
 
+#ifdef UVIM_DEBUG_LOGGING
             // Debug log
             {
                 std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+                dbg << "Temp file written: " << tempPath
+                    << " lines=" << lines->size() << std::endl;
                 dbg << "Running: " << cmd << std::endl;
             }
+#endif
 
             FILE* pipe = popen(cmd.c_str(), "r");
             if(!pipe)
@@ -7239,12 +7247,14 @@ void Editor::handleNormalMode(int c)
             int status = pclose(pipe);
             unlink(tempPath.c_str());
 
+#ifdef UVIM_DEBUG_LOGGING
             // Debug log
             {
                 std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
                 dbg << "pclose status=" << status
                     << " formatted.size()=" << formatted.size() << std::endl;
             }
+#endif
 
             // Check for errors
             if(formatted.empty())
@@ -9368,6 +9378,15 @@ void Editor::handleFileBrowserMode(int c)
 void Editor::handleKeypress()
 {
     int c = Terminal::readKey();
+
+#ifdef UVIM_DEBUG_LOGGING
+    // Debug: log every keypress with mode
+    {
+        std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+        dbg << "handleKeypress c=" << c << " ('" << (char)c
+            << "') mode=" << currentMode << std::endl;
+    }
+#endif
 
     switch(currentMode)
     {
