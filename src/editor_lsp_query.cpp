@@ -1352,6 +1352,59 @@ void Editor::saveFile()
         return;
     }
 
+    // Clean up lines before saving: convert tabs to spaces, remove trailing
+    // whitespace
+    int linesModified = 0;
+    for(size_t lineIdx = 0; lineIdx < lines->size(); lineIdx++)
+    {
+        std::string& line = (*lines)[lineIdx];
+        std::string original = line;
+
+        // Convert tabs to spaces (4 spaces per tab, aligned to tab stops)
+        std::string expanded;
+        expanded.reserve(line.size());
+        int col = 0;
+        for(char c : line)
+        {
+            if(c == '\t')
+            {
+                // Add spaces to reach next tab stop (every 4 columns)
+                int spacesToAdd = 4 - (col % 4);
+                expanded.append(spacesToAdd, ' ');
+                col += spacesToAdd;
+            }
+            else
+            {
+                expanded += c;
+                col++;
+            }
+        }
+        line = expanded;
+
+        // Remove trailing whitespace
+        size_t endPos = line.find_last_not_of(" \t");
+        if(endPos != std::string::npos)
+        {
+            line = line.substr(0, endPos + 1);
+        }
+        else if(!line.empty())
+        {
+            // Line is all whitespace
+            line.clear();
+        }
+
+        if(line != original)
+        {
+            linesModified++;
+
+            // Adjust cursor if on this line and beyond the new line length
+            if((int)lineIdx == *cursorY && *cursorX > (int)line.length())
+            {
+                *cursorX = line.length() > 0 ? line.length() - 1 : 0;
+            }
+        }
+    }
+
     std::ofstream file(*filename);
     if(file.is_open())
     {
@@ -1363,8 +1416,15 @@ void Editor::saveFile()
         *dirty = false;
         currentBuffer->savedUndoIndex =
             currentBuffer->undoIndex; // Mark this state as saved
-        setStatusMessage("\"" + *filename + "\" " +
-                         std::to_string(lines->size()) + "L written");
+
+        std::string msg = "\"" + *filename + "\" " +
+                          std::to_string(lines->size()) + "L written";
+        if(linesModified > 0)
+        {
+            msg += " (" + std::to_string(linesModified) + " lines cleaned)";
+            needsFullRedraw = true; // Redraw to show cleaned lines
+        }
+        setStatusMessage(msg);
     }
     else
     {
