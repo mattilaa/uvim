@@ -427,19 +427,19 @@ void Editor::handleNormalMode(int c)
     {
     // Movement
     case 'h':
-    case Terminal::KEY_ARROW_LEFT:
+    case Terminal::ARROW_LEFT:
         cursor.moveLeft(count);
         break;
     case 'j':
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::ARROW_DOWN:
         cursor.moveDown(count);
         break;
     case 'k':
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::ARROW_UP:
         cursor.moveUp(count);
         break;
     case 'l':
-    case Terminal::KEY_ARROW_RIGHT:
+    case Terminal::ARROW_RIGHT:
         cursor.moveRight(count);
         break;
     case 'w':
@@ -475,21 +475,22 @@ void Editor::handleNormalMode(int c)
         break;
 
     // Scrolling
-    case Terminal::CTRL_KEY('d'):
+    case Terminal::CTRL_D:
         cursor.scrollHalfPageDown();
         break;
-    case Terminal::CTRL_KEY('u'):
+    case Terminal::CTRL_U:
         cursor.scrollHalfPageUp();
         break;
-    case Terminal::CTRL_KEY('f'):
+    case Terminal::CTRL_F:
         for(int i = 0; i < ctx.screenRows - 2; i++)
             cursor.moveDown();
         break;
-    case Terminal::CTRL_KEY('b'):
+        /*
+    case Terminal::CTRL_B:
         for(int i = 0; i < ctx.screenRows - 2; i++)
             cursor.moveUp();
         break;
-
+        */
     // Insert mode entry
     case 'i':
         setMode(Mode::INSERT);
@@ -624,7 +625,7 @@ void Editor::handleNormalMode(int c)
     case 'V':
         visualMode.startVisualLineMode();
         break;
-    case Terminal::CTRL_KEY('v'):
+    case Terminal::CTRL_V:
         visualMode.startVisualBlockMode();
         break;
 
@@ -670,15 +671,15 @@ void Editor::handleNormalMode(int c)
     case 'u':
         undoMgr.undo();
         break;
-    case Terminal::CTRL_KEY('r'):
+    case Terminal::CTRL_R:
         undoMgr.redo();
         break;
 
     // Jump list
-    case Terminal::CTRL_KEY('o'):
+    case Terminal::CTRL_O:
         cursor.jumpBack();
         break;
-    case Terminal::CTRL_KEY('i'):
+    case Terminal::CTRL_I:
         cursor.jumpForward();
         break;
 
@@ -740,33 +741,33 @@ void Editor::handleInsertMode(int c)
         undoMgr.saveState();
         break;
 
-    case Terminal::KEY_ARROW_LEFT:
+    case Terminal::ARROW_LEFT:
         cursor.moveLeft();
         break;
-    case Terminal::KEY_ARROW_RIGHT:
+    case Terminal::ARROW_RIGHT:
         cursor.moveRight();
         break;
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::ARROW_UP:
         cursor.moveUp();
         break;
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::ARROW_DOWN:
         cursor.moveDown();
         break;
 
-    case Terminal::KEY_HOME:
+    case Terminal::HOME:
         cursor.moveToLineStart();
         break;
-    case Terminal::KEY_END:
+    case Terminal::END:
         if(*ctx.cursorY < (int)ctx.lines->size())
             *ctx.cursorX = (*ctx.lines)[*ctx.cursorY].length();
         break;
 
     case 127: // Backspace
-    case Terminal::KEY_BACKSPACE:
+    case Terminal::BACKSPACE:
         textOps.deleteChar();
         break;
 
-    case Terminal::KEY_DELETE:
+    case Terminal::DELETE:
         textOps.deleteCharForward();
         break;
 
@@ -779,7 +780,7 @@ void Editor::handleInsertMode(int c)
         textOps.insertTab();
         break;
 
-    case Terminal::CTRL_KEY('w'): // Delete word backward
+    case Terminal::CTRL_W: // Delete word backward
         while(*ctx.cursorX > 0 &&
               (*ctx.lines)[*ctx.cursorY][*ctx.cursorX - 1] == ' ')
             textOps.deleteChar();
@@ -788,19 +789,19 @@ void Editor::handleInsertMode(int c)
             textOps.deleteChar();
         break;
 
-    case Terminal::CTRL_KEY('u'): // Delete to line start
+    case Terminal::CTRL_U: // Delete to line start
         while(*ctx.cursorX > 0)
             textOps.deleteChar();
         break;
 
-    case Terminal::CTRL_KEY('n'): // Completion next
+    case Terminal::CTRL_N: // Completion next
         if(ctx.completionActive)
             lsp.completionNext();
         else
             lsp.requestCompletion();
         break;
 
-    case Terminal::CTRL_KEY('p'): // Completion prev
+    case Terminal::CTRL_P: // Completion prev
         if(ctx.completionActive)
             lsp.completionPrev();
         else
@@ -875,19 +876,19 @@ void Editor::handleVisualMode(int c)
 
     // Movement
     case 'h':
-    case Terminal::KEY_ARROW_LEFT:
+    case Terminal::ARROW_LEFT:
         cursor.moveLeft();
         break;
     case 'j':
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::ARROW_DOWN:
         cursor.moveDown();
         break;
     case 'k':
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::ARROW_UP:
         cursor.moveUp();
         break;
     case 'l':
-    case Terminal::KEY_ARROW_RIGHT:
+    case Terminal::ARROW_RIGHT:
         cursor.moveRight();
         break;
     case 'w':
@@ -980,7 +981,7 @@ void Editor::handleVisualMode(int c)
         else
             visualMode.startVisualLineMode();
         break;
-    case Terminal::CTRL_KEY('v'):
+    case Terminal::CTRL_V:
         visualMode.startVisualBlockMode();
         break;
 
@@ -1019,19 +1020,19 @@ void Editor::handleVisualBlockMode(int c)
 
     // Movement
     case 'h':
-    case Terminal::KEY_ARROW_LEFT:
+    case Terminal::ARROW_LEFT:
         cursor.moveLeft();
         break;
     case 'j':
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::ARROW_DOWN:
         cursor.moveDown();
         break;
     case 'k':
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::ARROW_UP:
         cursor.moveUp();
         break;
     case 'l':
-    case Terminal::KEY_ARROW_RIGHT:
+    case Terminal::ARROW_RIGHT:
         cursor.moveRight();
         break;
     case '0':
@@ -1070,7 +1071,7 @@ void Editor::handleVisualBlockMode(int c)
     case 'V':
         visualMode.startVisualLineMode();
         break;
-    case Terminal::CTRL_KEY('v'):
+    case Terminal::CTRL_V:
         setMode(Mode::NORMAL);
         break;
 
@@ -1113,14 +1114,14 @@ void Editor::handleCommandMode(int c)
         break;
 
     case 127: // Backspace
-    case Terminal::KEY_BACKSPACE:
+    case Terminal::BACKSPACE:
         if(!ctx.commandBuffer.empty())
             ctx.commandBuffer.pop_back();
         else
             setMode(Mode::NORMAL);
         break;
 
-    case Terminal::CTRL_KEY('u'):
+    case Terminal::CTRL_U:
         ctx.commandBuffer.clear();
         break;
 
@@ -1286,14 +1287,14 @@ void Editor::handleSearchMode(int c)
         break;
 
     case 127:
-    case Terminal::KEY_BACKSPACE:
+    case Terminal::BACKSPACE:
         if(!ctx.searchQuery.empty())
             ctx.searchQuery.pop_back();
         else
             search.cancelSearch();
         break;
 
-    case Terminal::CTRL_KEY('u'):
+    case Terminal::CTRL_U:
         ctx.searchQuery.clear();
         break;
 
@@ -1403,7 +1404,7 @@ void Editor::handleFileBrowserMode(int c)
         break;
 
     case 'j':
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::ARROW_DOWN:
         if(ctx.fileBrowserIndex < (int)ctx.fileList.size() - 1)
         {
             ctx.fileBrowserIndex++;
@@ -1415,7 +1416,7 @@ void Editor::handleFileBrowserMode(int c)
         break;
 
     case 'k':
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::ARROW_UP:
         if(ctx.fileBrowserIndex > 0)
         {
             ctx.fileBrowserIndex--;
@@ -1646,8 +1647,8 @@ void Editor::handleFuzzyFindMode(int c)
         selectFuzzyMatch();
         break;
 
-    case Terminal::CTRL_KEY('n'):
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::CTRL_N:
+    case Terminal::ARROW_DOWN:
         if(ctx.fuzzySelectedIndex < (int)ctx.fuzzyMatches.size() - 1)
         {
             ctx.fuzzySelectedIndex++;
@@ -1658,8 +1659,8 @@ void Editor::handleFuzzyFindMode(int c)
         ctx.needsFullRedraw = true;
         break;
 
-    case Terminal::CTRL_KEY('p'):
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::CTRL_P:
+    case Terminal::ARROW_UP:
         if(ctx.fuzzySelectedIndex > 0)
         {
             ctx.fuzzySelectedIndex--;
@@ -1670,7 +1671,7 @@ void Editor::handleFuzzyFindMode(int c)
         break;
 
     case 127:
-    case Terminal::KEY_BACKSPACE:
+    case Terminal::BACKSPACE:
         if(!ctx.fuzzyQuery.empty())
         {
             ctx.fuzzyQuery.pop_back();
@@ -1679,7 +1680,7 @@ void Editor::handleFuzzyFindMode(int c)
         ctx.needsFullRedraw = true;
         break;
 
-    case Terminal::CTRL_KEY('u'):
+    case Terminal::CTRL_U:
         ctx.fuzzyQuery.clear();
         updateFuzzyMatches();
         ctx.needsFullRedraw = true;
@@ -1781,22 +1782,22 @@ void Editor::handleBufferBrowserMode(int c)
         selectBufferMatch();
         break;
 
-    case Terminal::CTRL_KEY('n'):
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::CTRL_N:
+    case Terminal::ARROW_DOWN:
         if(ctx.bufferSelectedIndex < (int)ctx.bufferMatches.size() - 1)
             ctx.bufferSelectedIndex++;
         ctx.needsFullRedraw = true;
         break;
 
-    case Terminal::CTRL_KEY('p'):
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::CTRL_P:
+    case Terminal::ARROW_UP:
         if(ctx.bufferSelectedIndex > 0)
             ctx.bufferSelectedIndex--;
         ctx.needsFullRedraw = true;
         break;
 
     case 127:
-    case Terminal::KEY_BACKSPACE:
+    case Terminal::BACKSPACE:
         if(!ctx.bufferQuery.empty())
         {
             ctx.bufferQuery.pop_back();
@@ -1964,8 +1965,8 @@ void Editor::handleGrepSearchMode(int c)
             selectGrepMatch();
         break;
 
-    case Terminal::CTRL_KEY('n'):
-    case Terminal::KEY_ARROW_DOWN:
+    case Terminal::CTRL_N:
+    case Terminal::ARROW_DOWN:
         if(ctx.grepSelectedIndex < (int)ctx.grepMatches.size() - 1)
         {
             ctx.grepSelectedIndex++;
@@ -1976,8 +1977,8 @@ void Editor::handleGrepSearchMode(int c)
         ctx.needsFullRedraw = true;
         break;
 
-    case Terminal::CTRL_KEY('p'):
-    case Terminal::KEY_ARROW_UP:
+    case Terminal::CTRL_P:
+    case Terminal::ARROW_UP:
         if(ctx.grepSelectedIndex > 0)
         {
             ctx.grepSelectedIndex--;
@@ -1988,7 +1989,7 @@ void Editor::handleGrepSearchMode(int c)
         break;
 
     case 127:
-    case Terminal::KEY_BACKSPACE:
+    case Terminal::BACKSPACE:
         if(!ctx.grepQuery.empty())
         {
             ctx.grepQuery.pop_back();
@@ -1997,7 +1998,7 @@ void Editor::handleGrepSearchMode(int c)
         ctx.needsFullRedraw = true;
         break;
 
-    case Terminal::CTRL_KEY('u'):
+    case Terminal::CTRL_U:
         ctx.grepQuery.clear();
         ctx.grepMatches.clear();
         ctx.needsFullRedraw = true;
