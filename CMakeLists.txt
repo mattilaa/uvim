@@ -13,51 +13,37 @@ if(UVIM_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
 
-# Common sources
+# All sources - refactored component classes always compiled
 set(UVIM_SOURCES
     src/main.cpp
     src/terminal.cpp
+
+    # Core editor
+    src/editor.cpp
+
+    # Component classes
+    src/buffer_manager.cpp
+    src/cursor_movement.cpp
+    src/text_operations.cpp
+    src/undo_manager.cpp
+    src/search_engine.cpp
+    src/file_io.cpp
+    src/visual_mode.cpp
+    src/code_formatter.cpp
+    src/operator_pending.cpp
+
+    # Rendering
+    src/renderer.cpp
+    src/syntax_highlighter.cpp
+
+    # LSP integration (compiles but may be disabled at runtime)
+    src/lsp_integration.cpp
 )
 
+# LSP client only needed when LSP is enabled
 if(UVIM_ENABLE_CLANGD_LSP)
-    # Refactored editor with separate component classes
     list(APPEND UVIM_SOURCES
-        # Core context and main editor
-        src/editor.cpp
-
-        # Component classes
-        src/buffer_manager.cpp
-        src/cursor_movement.cpp
-        src/text_operations.cpp
-        src/undo_manager.cpp
-        src/search_engine.cpp
-        src/file_io.cpp
-
-        # Rendering
-        src/renderer.cpp
-        src/syntax_highlighter.cpp
-
-        # Mode handlers
-        src/mode_normal.cpp
-        src/mode_insert.cpp
-        src/mode_visual.cpp
-        src/mode_command.cpp
-
-        # Features
-        src/file_browser.cpp
-        src/fuzzy_finder.cpp
-        src/grep_search.cpp
-        src/lsp_integration.cpp
-        src/code_formatter.cpp
-        src/operator_pending.cpp
-
-        # LSP client
         src/lsp_client_query.cpp
-    )
-else()
-    # Non-LSP build uses simpler editor
-    list(APPEND UVIM_SOURCES
-        src/editor_simple.cpp
     )
 endif()
 
