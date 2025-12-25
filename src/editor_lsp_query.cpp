@@ -7596,6 +7596,15 @@ void Editor::handleNormalMode(int c)
         }
         saveState();
         break;
+    case 's':
+        // Substitute: delete char(s) under cursor and enter insert mode
+        while(count-- > 0)
+        {
+            deleteCharForward();
+        }
+        saveState();
+        setMode(INSERT);
+        break;
     case 'D':
         deleteToLineEnd();
         saveState();
