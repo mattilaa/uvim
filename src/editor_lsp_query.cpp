@@ -7599,6 +7599,7 @@ void Editor::handleNormalMode(int c)
     case 'D':
         deleteToLineEnd();
         saveState();
+        needsFullRedraw = true;
         break;
     case 'Y':
         yankToLineEnd();
