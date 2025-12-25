@@ -6258,6 +6258,50 @@ void Editor::executeCommand(const std::string& cmd)
     {
         previousBuffer();
     }
+    else if(cmd == "pwd")
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+        {
+            setStatusMessage(std::string(cwd));
+        }
+        else
+        {
+            setStatusMessage("Error getting current directory");
+        }
+    }
+    else if(cmd.substr(0, 3) == "cd " || cmd == "cd")
+    {
+        std::string path = (cmd.length() > 3) ? cmd.substr(3) : "";
+        if(path.empty())
+        {
+            // cd with no args goes to home directory
+            const char* home = getenv("HOME");
+            if(home)
+                path = home;
+            else
+                path = "/";
+        }
+
+        // Expand ~ to home directory
+        if(!path.empty() && path[0] == '~')
+        {
+            const char* home = getenv("HOME");
+            if(home)
+                path = std::string(home) + path.substr(1);
+        }
+
+        if(chdir(path.c_str()) == 0)
+        {
+            char cwd[PATH_MAX];
+            if(getcwd(cwd, sizeof(cwd)))
+                setStatusMessage(std::string(cwd));
+        }
+        else
+        {
+            setStatusMessage("Cannot change to: " + path);
+        }
+    }
     else
     {
         try
@@ -8058,12 +8102,255 @@ void Editor::handleVisualBlockMode(int c)
     }
 }
 
+// Helper function for command-line path completion
+static std::vector<std::string> getPathCompletions(const std::string& partial)
+{
+    std::vector<std::string> completions;
+
+    std::string dirPath;
+    std::string prefix;
+
+    // Handle ~ expansion
+    std::string expandedPartial = partial;
+    if(!expandedPartial.empty() && expandedPartial[0] == '~')
+    {
+        const char* home = getenv("HOME");
+        if(home)
+            expandedPartial = std::string(home) + expandedPartial.substr(1);
+    }
+
+    size_t lastSlash = expandedPartial.find_last_of('/');
+    if(lastSlash != std::string::npos)
+    {
+        dirPath = expandedPartial.substr(0, lastSlash);
+        if(dirPath.empty())
+            dirPath = "/";
+        prefix = expandedPartial.substr(lastSlash + 1);
+    }
+    else
+    {
+        dirPath = ".";
+        prefix = expandedPartial;
+    }
+
+    DIR* dir = opendir(dirPath.c_str());
+    if(!dir)
+        return completions;
+
+    struct dirent* entry;
+    while((entry = readdir(dir)) != nullptr)
+    {
+        std::string name = entry->d_name;
+
+        // Skip . and ..
+        if(name == "." || name == "..")
+            continue;
+
+        // Skip hidden files unless prefix starts with .
+        if(name[0] == '.' && (prefix.empty() || prefix[0] != '.'))
+            continue;
+
+        // Check if name starts with prefix
+        if(prefix.empty() || name.substr(0, prefix.length()) == prefix)
+        {
+            std::string fullPath;
+            if(lastSlash != std::string::npos)
+            {
+                // Keep original path format (with ~ if used)
+                if(!partial.empty() && partial[0] == '~')
+                {
+                    size_t origSlash = partial.find_last_of('/');
+                    fullPath = partial.substr(0, origSlash + 1) + name;
+                }
+                else
+                {
+                    fullPath = dirPath + "/" + name;
+                }
+            }
+            else
+            {
+                fullPath = name;
+            }
+
+            // Check if it's a directory and append /
+            struct stat st;
+            std::string checkPath = dirPath + "/" + name;
+            if(stat(checkPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+            {
+                fullPath += "/";
+            }
+
+            completions.push_back(fullPath);
+        }
+    }
+
+    closedir(dir);
+
+    // Sort completions
+    std::sort(completions.begin(), completions.end());
+
+    return completions;
+}
+
+// Find longest common prefix among completions
+static std::string longestCommonPrefix(const std::vector<std::string>& strings)
+{
+    if(strings.empty())
+        return "";
+    if(strings.size() == 1)
+        return strings[0];
+
+    std::string prefix = strings[0];
+    for(size_t i = 1; i < strings.size(); ++i)
+    {
+        size_t j = 0;
+        while(j < prefix.length() && j < strings[i].length() &&
+              prefix[j] == strings[i][j])
+        {
+            ++j;
+        }
+        prefix = prefix.substr(0, j);
+        if(prefix.empty())
+            break;
+    }
+    return prefix;
+}
+
 void Editor::handleCommandMode(int c)
 {
+    // Static state for Tab completion cycling
+    static std::vector<std::string> tabCompletions;
+    static size_t tabIndex = 0;
+    static std::string tabOriginal;
+    static std::string tabCmdPrefix;
+
     switch(c)
     {
+    case Terminal::TAB:
+    {
+        std::string cmd = commandBuffer.substr(1); // Remove leading ':'
+
+        // Check if this is a command that needs path completion
+        // Support: :e, :e<partial>, :e <partial>, :edit, :edit <partial>
+        //          :cd, :cd <partial>, :w <partial>
+        bool isEditCmd =
+            (cmd == "e" || cmd == "edit" || cmd.substr(0, 2) == "e " ||
+             cmd.substr(0, 5) == "edit ");
+        bool isCdCmd = (cmd == "cd" || cmd.substr(0, 3) == "cd ");
+        bool isWCmd = (cmd.substr(0, 2) == "w ");
+
+        // Also handle :e followed directly by text (no space), like :efoo
+        if(!isEditCmd && !isCdCmd && !isWCmd && cmd.length() > 1 &&
+           cmd[0] == 'e')
+        {
+            // Check if it looks like :e<filename> (no space)
+            isEditCmd = true;
+        }
+
+        if(isEditCmd || isCdCmd || isWCmd)
+        {
+            std::string pathStart;
+            std::string cmdPrefix;
+
+            if(isEditCmd)
+            {
+                if(cmd == "e" || cmd == "edit")
+                {
+                    cmdPrefix = ":" + cmd + " ";
+                    pathStart = "";
+                }
+                else if(cmd.substr(0, 5) == "edit ")
+                {
+                    cmdPrefix = ":edit ";
+                    pathStart = cmd.substr(5);
+                }
+                else if(cmd.substr(0, 2) == "e ")
+                {
+                    cmdPrefix = ":e ";
+                    pathStart = cmd.substr(2);
+                }
+                else if(cmd[0] == 'e')
+                {
+                    // :efoo -> treat as :e foo
+                    cmdPrefix = ":e ";
+                    pathStart = cmd.substr(1);
+                }
+            }
+            else if(isCdCmd)
+            {
+                if(cmd == "cd")
+                {
+                    cmdPrefix = ":cd ";
+                    pathStart = "";
+                }
+                else
+                {
+                    cmdPrefix = ":cd ";
+                    pathStart = cmd.substr(3);
+                }
+            }
+            else // isWCmd
+            {
+                cmdPrefix = ":w ";
+                pathStart = cmd.substr(2);
+            }
+
+            // Check if we're continuing a previous Tab sequence
+            // (same path and same command prefix)
+            if(tabCompletions.empty() || tabOriginal != pathStart ||
+               tabCmdPrefix != cmdPrefix)
+            {
+                // New completion sequence
+                tabOriginal = pathStart;
+                tabCmdPrefix = cmdPrefix;
+                tabCompletions = getPathCompletions(pathStart);
+                tabIndex = 0;
+
+                if(tabCompletions.empty())
+                {
+                    setStatusMessage("No matches");
+                    break;
+                }
+
+                // If there's a common prefix longer than what we have, complete
+                // to that
+                std::string common = longestCommonPrefix(tabCompletions);
+                if(common.length() > pathStart.length())
+                {
+                    commandBuffer = cmdPrefix + common;
+                    tabOriginal = common;
+                    if(tabCompletions.size() > 1)
+                    {
+                        setStatusMessage(std::to_string(tabCompletions.size()) +
+                                         " matches");
+                    }
+                    break;
+                }
+            }
+
+            // Cycle through completions
+            if(!tabCompletions.empty())
+            {
+                commandBuffer = cmdPrefix + tabCompletions[tabIndex];
+                if(tabCompletions.size() > 1)
+                {
+                    setStatusMessage("(" + std::to_string(tabIndex + 1) + "/" +
+                                     std::to_string(tabCompletions.size()) +
+                                     ") " + tabCompletions[tabIndex]);
+                }
+                tabIndex = (tabIndex + 1) % tabCompletions.size();
+            }
+        }
+        break;
+    }
     case Terminal::ENTER:
     {
+        // Clear Tab completion state
+        tabCompletions.clear();
+        tabIndex = 0;
+        tabOriginal.clear();
+        tabCmdPrefix.clear();
+
         std::string cmd = commandBuffer.substr(1);
 
         if(cmd == "q!")
@@ -8094,11 +8381,23 @@ void Editor::handleCommandMode(int c)
         setMode(NORMAL);
         break;
     case Terminal::ESC:
+        // Clear Tab completion state
+        tabCompletions.clear();
+        tabIndex = 0;
+        tabOriginal.clear();
+        tabCmdPrefix.clear();
+
         setMode(NORMAL);
         statusMessage.clear();
         break;
     case Terminal::BACKSPACE:
     case Terminal::DEL:
+        // Clear Tab completion state on edit
+        tabCompletions.clear();
+        tabIndex = 0;
+        tabOriginal.clear();
+        tabCmdPrefix.clear();
+
         if(commandBuffer.length() > 1)
         {
             commandBuffer.pop_back();
@@ -8109,6 +8408,12 @@ void Editor::handleCommandMode(int c)
         }
         break;
     default:
+        // Clear Tab completion state on any other input
+        tabCompletions.clear();
+        tabIndex = 0;
+        tabOriginal.clear();
+        tabCmdPrefix.clear();
+
         if(c >= 32 && c < 127)
         {
             commandBuffer += (char)c;
