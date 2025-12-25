@@ -287,3 +287,17 @@ void Terminal::setCursorBarBlinking()
     // Blinking bar (thin cursor)
     write("\x1b[5 q");
 }
+
+std::string Terminal::cursorPos(int row, int col)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", row, col);
+    return std::string(buf);
+}
+
+std::string Terminal::scrollRegion(int top, int bottom)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dr", top, bottom);
+    return std::string(buf);
+}

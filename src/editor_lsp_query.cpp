@@ -2918,25 +2918,25 @@ std::string Editor::getColorCode(TokenType type) const
     switch(type)
     {
     case TOKEN_KEYWORD:
-        return "\x1b[35m"; // Magenta for keywords
+        return Terminal::FG_MAGENTA; // Magenta for keywords
     case TOKEN_TYPE:
-        return "\x1b[36m"; // Cyan for types
+        return Terminal::FG_CYAN; // Cyan for types
     case TOKEN_STRING:
-        return "\x1b[32m"; // Green for strings
+        return Terminal::FG_GREEN; // Green for strings
     case TOKEN_CHAR:
-        return "\x1b[32m"; // Green for chars
+        return Terminal::FG_GREEN; // Green for chars
     case TOKEN_COMMENT:
-        return "\x1b[90m"; // Bright black (gray) for comments
+        return Terminal::FG_BRIGHT_BLACK; // Bright black (gray) for comments
     case TOKEN_PREPROCESSOR:
-        return "\x1b[33m"; // Yellow for preprocessor
+        return Terminal::FG_YELLOW; // Yellow for preprocessor
     case TOKEN_NUMBER:
-        return "\x1b[31m"; // Red for numbers
+        return Terminal::FG_RED; // Red for numbers
     case TOKEN_OPERATOR:
-        return "\x1b[93m"; // Bright yellow for operators
+        return Terminal::FG_BRIGHT_YELLOW; // Bright yellow for operators
     case TOKEN_FUNCTION:
-        return "\x1b[94m"; // Bright blue for functions
+        return Terminal::FG_BRIGHT_BLUE; // Bright blue for functions
     default:
-        return "\x1b[39m"; // Default color
+        return Terminal::FG_DEFAULT; // Default color
     }
 }
 
@@ -3317,12 +3317,13 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
         bool highlighted = false;
         if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
         {
-            output += "\x1b[7m"; // Reverse video for selection
+            output += Terminal::STYLE_SELECTION; // Reverse video for selection
             highlighted = true;
         }
         else if(isInSearchMatch(fileRow, col))
         {
-            output += "\x1b[43m\x1b[30m"; // Yellow background for search
+            output +=
+                Terminal::STYLE_SEARCH_MATCH; // Yellow background for search
             highlighted = true;
         }
 
@@ -3337,7 +3338,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
         if(highlighted)
         {
-            output += "\x1b[m";          // Reset all attributes
+            output += Terminal::ESC_RESET_ALL; // Reset all attributes
             currentColor = TOKEN_NORMAL; // Need to reapply color after reset
         }
     }
@@ -3345,7 +3346,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     // Reset color at end of line
     if(currentColor != TOKEN_NORMAL)
     {
-        output += "\x1b[39m";
+        output += Terminal::FG_DEFAULT;
     }
 
     inBlockComment = blockCommentState;
@@ -3993,26 +3994,28 @@ void Editor::drawFuzzyFind()
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
-    output += "\x1b[H";
-    output += "\x1b[K";
+    output += Terminal::ESC_CURSOR_HOME;
+    output += Terminal::ESC_CLEAR_LINE;
 
     // Header with search box
-    output += "\x1b[1m";
+    output += Terminal::ESC_BOLD;
     output += "  Find File: ";
-    output += "\x1b[m";
-    output += "\x1b[32m";
+    output += Terminal::ESC_RESET_ALL;
+    output += Terminal::FG_GREEN;
     output += fuzzyQuery;
 
     // Show cursor in search box
-    output += "\x1b[5m_\x1b[25m"; // Blinking underscore
-    output += "\x1b[39m";
+    output += Terminal::ESC_BLINK;
+    output += "_";
+    output += Terminal::ESC_BLINK_OFF;
+    output += Terminal::FG_DEFAULT;
 
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
     output += "  [Enter: open] [Esc: cancel] [↑↓: navigate]";
-    output += "\x1b[39m";
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::FG_DEFAULT;
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
 
     // Show match count
     if(!fuzzyMatches.empty())
@@ -4027,7 +4030,7 @@ void Editor::drawFuzzyFind()
     {
         output += "  " + std::to_string(allProjectFiles.size()) + " files";
     }
-    output += "\x1b[39m";
+    output += Terminal::FG_DEFAULT;
 
     int availableRows = screenRows - 3;
 
@@ -4035,7 +4038,7 @@ void Editor::drawFuzzyFind()
     for(int i = 0; i < availableRows && i + fuzzyOffset < fuzzyMatches.size();
         i++)
     {
-        output += "\r\n\x1b[K";
+        output += Terminal::NEWLINE_CLEAR;
 
         int index = i + fuzzyOffset;
         const FuzzyMatch& match = fuzzyMatches[index];
@@ -4043,7 +4046,7 @@ void Editor::drawFuzzyFind()
         // Highlight current selection
         if(index == fuzzyCursor)
         {
-            output += "\x1b[7m"; // Reverse video
+            output += Terminal::STYLE_SELECTION; // Reverse video
         }
 
         output += "  ";
@@ -4077,12 +4080,13 @@ void Editor::drawFuzzyFind()
                     // Matching character - highlight in green
                     if(index != fuzzyCursor)
                     {
-                        output += "\x1b[32;1m"; // Bright green
+                        output += Terminal::STYLE_GREEN_BOLD; // Bright green
                     }
                     output += displayPath[pos];
                     if(index != fuzzyCursor)
                     {
-                        output += "\x1b[39;22m"; // Reset color
+                        output +=
+                            Terminal::STYLE_RESET_GREEN_BOLD; // Reset color
                     }
 
                     lastPos = pos + 1;
@@ -4109,19 +4113,21 @@ void Editor::drawFuzzyFind()
             {
                 output.append(padding, ' ');
             }
-            output += "\x1b[90m";
+            output += Terminal::FG_BRIGHT_BLACK;
             output += sizeStr;
-            output += "\x1b[39m";
+            output += Terminal::FG_DEFAULT;
         }
 
-        output += "\x1b[m"; // Reset all attributes
+        output += Terminal::ESC_RESET_ALL; // Reset all attributes
     }
 
     // Fill remaining rows
     for(int i = fuzzyMatches.size() - fuzzyOffset; i < availableRows; i++)
     {
-        output += "\r\n\x1b[K";
-        output += "\x1b[34m~\x1b[39m";
+        output += Terminal::NEWLINE_CLEAR;
+        output += Terminal::FG_BLUE;
+        output += "~";
+        output += Terminal::FG_DEFAULT;
     }
 
     Terminal::write(output);
@@ -4315,25 +4321,27 @@ void Editor::drawBufferBrowser()
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
-    output += "\x1b[H";
-    output += "\x1b[K";
+    output += Terminal::ESC_CURSOR_HOME;
+    output += Terminal::ESC_CLEAR_LINE;
 
     // Header with search box
-    output += "\x1b[1m";
+    output += Terminal::ESC_BOLD;
     output += "  Buffers: ";
-    output += "\x1b[m";
-    output += "\x1b[32m";
+    output += Terminal::ESC_RESET_ALL;
+    output += Terminal::FG_GREEN;
     output += bufferQuery;
-    output += "\x1b[5m_\x1b[25m";
-    output += "\x1b[39m";
+    output += Terminal::ESC_BLINK;
+    output += "_";
+    output += Terminal::ESC_BLINK_OFF;
+    output += Terminal::FG_DEFAULT;
 
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
     output += "  [Enter: switch] [Esc: cancel] [↑↓: navigate]";
-    output += "\x1b[39m";
+    output += Terminal::FG_DEFAULT;
 
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
     if(!bufferMatches.empty())
     {
         output += "  " + std::to_string(bufferMatches.size()) + " matches";
@@ -4346,19 +4354,19 @@ void Editor::drawBufferBrowser()
     {
         output += "  " + std::to_string(buffers.size()) + " buffers";
     }
-    output += "\x1b[39m";
+    output += Terminal::FG_DEFAULT;
 
     int availableRows = screenRows - 3;
 
     for(int i = 0;
         i < availableRows && i + bufferOffset < (int)bufferMatches.size(); i++)
     {
-        output += "\r\n\x1b[K";
+        output += Terminal::NEWLINE_CLEAR;
         int idx = i + bufferOffset;
         const BufferMatch& m = bufferMatches[idx];
 
         if(idx == bufferCursor)
-            output += "\x1b[7m";
+            output += Terminal::STYLE_SELECTION;
 
         // Trim to screen width (leave leading two spaces)
         std::string line = "  " + m.display;
@@ -4366,15 +4374,17 @@ void Editor::drawBufferBrowser()
             line = line.substr(0, screenCols);
 
         output += line;
-        output += "\x1b[m";
+        output += Terminal::ESC_RESET_ALL;
     }
 
     // Fill remaining rows
     for(int i = (int)bufferMatches.size() - bufferOffset; i < availableRows;
         i++)
     {
-        output += "\r\n\x1b[K";
-        output += "\x1b[34m~\x1b[39m";
+        output += Terminal::NEWLINE_CLEAR;
+        output += Terminal::FG_BLUE;
+        output += "~";
+        output += Terminal::FG_DEFAULT;
     }
 
     Terminal::write(output);
@@ -4857,27 +4867,29 @@ void Editor::drawGrepSearch()
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
-    output += "\x1b[H";
-    output += "\x1b[K";
+    output += Terminal::ESC_CURSOR_HOME;
+    output += Terminal::ESC_CLEAR_LINE;
 
     // Header with search box
-    output += "\x1b[1m";
+    output += Terminal::ESC_BOLD;
     output += "  Search in Files: ";
-    output += "\x1b[m";
-    output += "\x1b[32m";
+    output += Terminal::ESC_RESET_ALL;
+    output += Terminal::FG_GREEN;
     output += grepQuery;
 
     // Show cursor in search box
-    output += "\x1b[5m_\x1b[25m"; // Blinking underscore
-    output += "\x1b[39m";
+    output += Terminal::ESC_BLINK;
+    output += "_";
+    output += Terminal::ESC_BLINK_OFF; // Blinking underscore
+    output += Terminal::FG_DEFAULT;
 
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
     output += "  [Enter: open] [Esc: cancel] [Tab: toggle case] [↑↓: navigate]";
-    output += "\x1b[39m";
+    output += Terminal::FG_DEFAULT;
 
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
 
     // Show match count and case sensitivity
     if(grepSearching)
@@ -4901,7 +4913,7 @@ void Editor::drawGrepSearch()
     {
         output += " [Case Sensitive]";
     }
-    output += "\x1b[39m";
+    output += Terminal::FG_DEFAULT;
 
     int availableRows = screenRows - 3;
 
@@ -4909,7 +4921,7 @@ void Editor::drawGrepSearch()
     for(int i = 0; i < availableRows && i + grepOffset < grepMatches.size();
         i++)
     {
-        output += "\r\n\x1b[K";
+        output += Terminal::NEWLINE_CLEAR;
 
         int index = i + grepOffset;
         const GrepMatch& match = grepMatches[index];
@@ -4917,22 +4929,22 @@ void Editor::drawGrepSearch()
         // Highlight current selection
         if(index == grepCursor)
         {
-            output += "\x1b[7m"; // Reverse video
+            output += Terminal::STYLE_SELECTION; // Reverse video
         }
 
         // Format: filename:linenum: content
         output += "  ";
 
         // Filename in cyan
-        output += "\x1b[36m";
+        output += Terminal::FG_CYAN;
         output += match.filename;
-        output += "\x1b[39m";
+        output += Terminal::FG_DEFAULT;
 
         // Line number in yellow
         output += ":";
-        output += "\x1b[33m";
+        output += Terminal::FG_YELLOW;
         output += std::to_string(match.lineNumber);
-        output += "\x1b[39m";
+        output += Terminal::FG_DEFAULT;
         output += ": ";
 
         // Line content with highlighted matches
@@ -4954,11 +4966,11 @@ void Editor::drawGrepSearch()
                     }
 
                     // Matching part - highlight in green
-                    output += "\x1b[32;1m"; // Bright green
+                    output += Terminal::STYLE_GREEN_BOLD; // Bright green
                     size_t endPos =
                         std::min((size_t)range.second, content.length());
                     output += content.substr(range.first, endPos - range.first);
-                    output += "\x1b[39;22m"; // Reset color
+                    output += Terminal::STYLE_RESET_GREEN_BOLD; // Reset color
 
                     lastPos = endPos;
                 }
@@ -4974,14 +4986,16 @@ void Editor::drawGrepSearch()
             output += content;
         }
 
-        output += "\x1b[m"; // Reset all attributes
+        output += Terminal::ESC_RESET_ALL; // Reset all attributes
     }
 
     // Fill remaining rows
     for(int i = grepMatches.size() - grepOffset; i < availableRows; i++)
     {
-        output += "\r\n\x1b[K";
-        output += "\x1b[34m~\x1b[39m";
+        output += Terminal::NEWLINE_CLEAR;
+        output += Terminal::FG_BLUE;
+        output += "~";
+        output += Terminal::FG_DEFAULT;
     }
 
     Terminal::write(output);
@@ -5341,7 +5355,8 @@ void Editor::drawRows()
 
 void Editor::drawStatusBar()
 {
-    Terminal::write("\r\n\x1b[K\x1b[7m");
+    Terminal::write(Terminal::NEWLINE_CLEAR);
+    Terminal::write(Terminal::STYLE_SELECTION);
 
     std::string status = " " + getModeString() + " | ";
 
@@ -5380,12 +5395,12 @@ void Editor::drawStatusBar()
         Terminal::write(' ');
     Terminal::write(rightStatus);
 
-    Terminal::write("\x1b[m");
+    Terminal::write(Terminal::ESC_RESET_ALL);
 }
 
 void Editor::drawMessageBar()
 {
-    Terminal::write("\r\n\x1b[K");
+    Terminal::write(Terminal::NEWLINE_CLEAR);
 
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
@@ -5418,17 +5433,17 @@ void Editor::drawFileBrowser()
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
-    output += "\x1b[H";
+    output += Terminal::ESC_CURSOR_HOME;
 
     // Draw header
-    output += "\x1b[K";
-    output += "\x1b[1m";
+    output += Terminal::ESC_CLEAR_LINE;
+    output += Terminal::ESC_BOLD;
     output += "  " + currentDirectory;
-    output += "\x1b[m";
-    output += "\r\n\x1b[K";
-    output += "\x1b[90m";
+    output += Terminal::ESC_RESET_ALL;
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::FG_BRIGHT_BLACK;
     output += "  [Enter: open] [q: quit] [.: toggle hidden] [-: parent]";
-    output += "\x1b[39m";
+    output += Terminal::FG_DEFAULT;
 
     int availableRows = screenRows - 2;
 
@@ -5436,19 +5451,19 @@ void Editor::drawFileBrowser()
     for(int i = 0; i < availableRows && i + browserOffset < fileList.size();
         i++)
     {
-        output += "\r\n\x1b[K";
+        output += Terminal::NEWLINE_CLEAR;
 
         int index = i + browserOffset;
         const FileEntry& entry = fileList[index];
 
         if(index == browserCursor)
         {
-            output += "\x1b[7m";
+            output += Terminal::STYLE_SELECTION;
         }
 
         if(entry.isDirectory)
         {
-            output += "\x1b[34m";
+            output += Terminal::FG_BLUE;
             output += "  ▶ ";
         }
         else
@@ -5462,22 +5477,22 @@ void Editor::drawFileBrowser()
 
             if(ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp")
             {
-                output += "\x1b[32m";
+                output += Terminal::FG_GREEN;
                 output += "  ◆ ";
             }
             else if(ext == ".txt" || ext == ".md")
             {
-                output += "\x1b[37m";
+                output += Terminal::FG_WHITE;
                 output += "  ○ ";
             }
             else if(ext == ".sh" || ext == ".py" || ext == ".js")
             {
-                output += "\x1b[33m";
+                output += Terminal::FG_YELLOW;
                 output += "  ★ ";
             }
             else
             {
-                output += "\x1b[37m";
+                output += Terminal::FG_WHITE;
                 output += "  ○ ";
             }
         }
@@ -5507,22 +5522,25 @@ void Editor::drawFileBrowser()
                 output.append(padding, ' ');
             }
 
-            output += "\x1b[90m";
+            output += Terminal::FG_BRIGHT_BLACK;
             output += info;
         }
 
-        output += "\x1b[m";
+        output += Terminal::ESC_RESET_ALL;
     }
 
     // Fill remaining rows
     for(int i = fileList.size() - browserOffset; i < availableRows; i++)
     {
-        output += "\r\n\x1b[K";
-        output += "\x1b[34m~\x1b[39m";
+        output += Terminal::NEWLINE_CLEAR;
+        output += Terminal::FG_BLUE;
+        output += "~";
+        output += Terminal::FG_DEFAULT;
     }
 
     // Status bar
-    output += "\r\n\x1b[K\x1b[7m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::STYLE_SELECTION;
 
     std::string status = " BROWSE | " + currentDirectory;
     std::string right = " " + std::to_string(browserCursor + 1) + "/" +
@@ -5535,10 +5553,10 @@ void Editor::drawFileBrowser()
         output.append(padding, ' ');
     }
     output += right;
-    output += "\x1b[m";
+    output += Terminal::ESC_RESET_ALL;
 
     // Message bar
-    output += "\r\n\x1b[K";
+    output += Terminal::NEWLINE_CLEAR;
     if(!statusMessage.empty())
     {
         output += statusMessage.substr(
@@ -5561,18 +5579,16 @@ void Editor::drawScrollUpdate(int scrollDelta)
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
-    output += "\x1b[?25l";
+    output += Terminal::ESC_HIDE_CURSOR;
 
     if(scrollDelta > 0)
     {
-        char scrollCmd[64];
-        snprintf(scrollCmd, sizeof(scrollCmd), "\x1b[1;%dr", screenRows);
-        output += scrollCmd;
+        output += Terminal::scrollRegion(1, screenRows);
 
-        output += "\x1b[H";
+        output += Terminal::ESC_CURSOR_HOME;
         for(int i = 0; i < scrollDelta; i++)
         {
-            output += "\x1b[M";
+            output += Terminal::ESC_DELETE_LINE;
         }
 
         for(int i = 0; i < scrollDelta; i++)
@@ -5580,10 +5596,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
             int row = screenRows - scrollDelta + i;
             int fileRow = row + *offsetY;
 
-            char moveBuf[32];
-            snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", row + 1);
-            output += moveBuf;
-            output += "\x1b[K";
+            output += Terminal::cursorPos(row + 1, 1);
+            output += Terminal::ESC_CLEAR_LINE;
 
             if(fileRow < lines->size())
             {
@@ -5627,12 +5641,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 if(isInSelection(fileRow, col) ||
                                    isInVisualBlock(fileRow, col))
                                 {
-                                    output += "\x1b[7m";
+                                    output += Terminal::STYLE_SELECTION;
                                     highlighted = true;
                                 }
                                 else if(isInSearchMatch(fileRow, col))
                                 {
-                                    output += "\x1b[43m\x1b[30m";
+                                    output += Terminal::STYLE_SEARCH_MATCH;
                                     highlighted = true;
                                 }
 
@@ -5640,7 +5654,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                                 if(highlighted)
                                 {
-                                    output += "\x1b[m";
+                                    output += Terminal::ESC_RESET_ALL;
                                 }
                             }
                         }
@@ -5649,34 +5663,32 @@ void Editor::drawScrollUpdate(int scrollDelta)
             }
             else
             {
-                output += "\x1b[34m~\x1b[39m";
+                output += Terminal::FG_BLUE;
+                output += "~";
+                output += Terminal::FG_DEFAULT;
             }
         }
 
-        output += "\x1b[r";
+        output += Terminal::ESC_RESET_SCROLL_REGION;
     }
     else if(scrollDelta < 0)
     {
         int absDelta = -scrollDelta;
 
-        char scrollCmd[64];
-        snprintf(scrollCmd, sizeof(scrollCmd), "\x1b[1;%dr", screenRows);
-        output += scrollCmd;
+        output += Terminal::scrollRegion(1, screenRows);
 
-        output += "\x1b[H";
+        output += Terminal::ESC_CURSOR_HOME;
         for(int i = 0; i < absDelta; i++)
         {
-            output += "\x1b[L";
+            output += Terminal::ESC_INSERT_LINE;
         }
 
         for(int i = 0; i < absDelta; i++)
         {
             int fileRow = i + *offsetY;
 
-            char moveBuf[32];
-            snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", i + 1);
-            output += moveBuf;
-            output += "\x1b[K";
+            output += Terminal::cursorPos(i + 1, 1);
+            output += Terminal::ESC_CLEAR_LINE;
 
             if(fileRow < lines->size())
             {
@@ -5720,12 +5732,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 if(isInSelection(fileRow, col) ||
                                    isInVisualBlock(fileRow, col))
                                 {
-                                    output += "\x1b[7m";
+                                    output += Terminal::STYLE_SELECTION;
                                     highlighted = true;
                                 }
                                 else if(isInSearchMatch(fileRow, col))
                                 {
-                                    output += "\x1b[43m\x1b[30m";
+                                    output += Terminal::STYLE_SEARCH_MATCH;
                                     highlighted = true;
                                 }
 
@@ -5733,7 +5745,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                                 if(highlighted)
                                 {
-                                    output += "\x1b[m";
+                                    output += Terminal::ESC_RESET_ALL;
                                 }
                             }
                         }
@@ -5742,11 +5754,13 @@ void Editor::drawScrollUpdate(int scrollDelta)
             }
             else
             {
-                output += "\x1b[34m~\x1b[39m";
+                output += Terminal::FG_BLUE;
+                output += "~";
+                output += Terminal::FG_DEFAULT;
             }
         }
 
-        output += "\x1b[r";
+        output += Terminal::ESC_RESET_SCROLL_REGION;
     }
 
     drawStatusBarQuick();
@@ -5765,10 +5779,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
         cursorRow = (*cursorY - *offsetY) + 1;
         cursorCol = (*cursorX - *offsetX) + 1;
     }
-    char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", cursorRow, cursorCol);
-    output += buf;
-    output += "\x1b[?25h";
+    output += Terminal::cursorPos(cursorRow, cursorCol);
+    output += Terminal::ESC_SHOW_CURSOR;
 
     lastCursorScreenY = cursorRow;
     lastCursorScreenX = cursorCol;
@@ -5780,11 +5792,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
 void Editor::drawStatusBarQuick()
 {
     std::string output;
-    char moveBuf[32];
-    snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", screenRows + 1);
-    output += moveBuf;
+    output += Terminal::cursorPos(screenRows + 1, 1);
 
-    output += "\x1b[K\x1b[7m";
+    output += Terminal::ESC_CLEAR_LINE;
+    output += Terminal::STYLE_SELECTION;
 
     std::string statusLeft = " " + getModeString() + " | ";
 
@@ -5823,7 +5834,7 @@ void Editor::drawStatusBarQuick()
         output.append(padding, ' ');
     }
     output += rightStatus;
-    output += "\x1b[m";
+    output += Terminal::ESC_RESET_ALL;
 
     Terminal::write(output);
 }
@@ -5831,11 +5842,9 @@ void Editor::drawStatusBarQuick()
 void Editor::drawMessageBarQuick()
 {
     std::string output;
-    char moveBuf[32];
-    snprintf(moveBuf, sizeof(moveBuf), "\x1b[%d;1H", screenRows + 2);
-    output += moveBuf;
+    output += Terminal::cursorPos(screenRows + 2, 1);
 
-    output += "\x1b[K";
+    output += Terminal::ESC_CLEAR_LINE;
 
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
@@ -5873,20 +5882,22 @@ void Editor::drawFullScreen()
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
 
-    output += "\x1b[H";
+    output += Terminal::ESC_CURSOR_HOME;
 
     for(int y = 0; y < screenRows; y++)
     {
         if(y > 0)
             output += "\r\n";
 
-        output += "\x1b[K";
+        output += Terminal::ESC_CLEAR_LINE;
 
         int fileRow = y + *offsetY;
 
         if(fileRow >= lines->size())
         {
-            output += "\x1b[34m~\x1b[39m";
+            output += Terminal::FG_BLUE;
+            output += "~";
+            output += Terminal::FG_DEFAULT;
         }
         else
         {
@@ -5940,12 +5951,12 @@ void Editor::drawFullScreen()
                         if(isInSelection(fileRow, col) ||
                            isInVisualBlock(fileRow, col))
                         {
-                            output += "\x1b[7m";
+                            output += Terminal::STYLE_SELECTION;
                             highlighted = true;
                         }
                         else if(isInSearchMatch(fileRow, col))
                         {
-                            output += "\x1b[43m\x1b[30m";
+                            output += Terminal::STYLE_SEARCH_MATCH;
                             highlighted = true;
                         }
 
@@ -5953,7 +5964,7 @@ void Editor::drawFullScreen()
 
                         if(highlighted)
                         {
-                            output += "\x1b[m";
+                            output += Terminal::ESC_RESET_ALL;
                         }
                     }
                 }
@@ -5962,7 +5973,8 @@ void Editor::drawFullScreen()
     }
 
     // Status bar
-    output += "\r\n\x1b[K\x1b[7m";
+    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::STYLE_SELECTION;
 
     std::string statusLeft = " " + getModeString() + " | ";
 
@@ -5999,10 +6011,10 @@ void Editor::drawFullScreen()
     if(padding > 0)
         output.append(padding, ' ');
     output += rightStatus;
-    output += "\x1b[m";
+    output += Terminal::ESC_RESET_ALL;
 
     // Message bar
-    output += "\r\n\x1b[K";
+    output += Terminal::NEWLINE_CLEAR;
 
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
@@ -6138,9 +6150,7 @@ void Editor::updateCursorPosition()
         cursorCol = (*cursorX - *offsetX) + 1;
     }
 
-    char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", cursorRow, cursorCol);
-    Terminal::write(buf);
+    Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
     Terminal::flush();
 
     lastCursorScreenY = cursorRow;
@@ -6931,12 +6941,7 @@ void Editor::drawCompletionPopup(std::string& output) const
     if(left + totalW - 1 > screenCols)
         left = std::max(1, screenCols - totalW + 1);
 
-    auto moveTo = [&](int r, int c)
-    {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "\x1b[%d;%dH", r, c);
-        output += buf;
-    };
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
     // Top border
     moveTo(top, left);
@@ -6958,7 +6963,7 @@ void Editor::drawCompletionPopup(std::string& output) const
 
         bool sel = (fidx == completionSelected);
         if(sel)
-            output += "\x1b[7m";
+            output += Terminal::STYLE_SELECTION;
 
         std::string row = e.label;
         // Trim to fit
@@ -6973,7 +6978,7 @@ void Editor::drawCompletionPopup(std::string& output) const
             output += std::string(pad, ' ');
 
         if(sel)
-            output += "\x1b[m";
+            output += Terminal::ESC_RESET_ALL;
 
         output += " ";
         output += u8"│";

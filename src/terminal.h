@@ -47,6 +47,76 @@ public:
     static void saveCursorPosition();
     static void restoreCursorPosition();
 
+    // Escape sequence constants (for building output strings)
+    static constexpr const char* ESC_CURSOR_HOME = "\x1b[H";
+    static constexpr const char* ESC_CLEAR_LINE = "\x1b[K";
+    static constexpr const char* ESC_CLEAR_SCREEN = "\x1b[2J";
+    static constexpr const char* ESC_RESET_ALL = "\x1b[m";
+    static constexpr const char* ESC_RESET_ATTRS = "\x1b[0m";
+    static constexpr const char* ESC_BOLD = "\x1b[1m";
+    static constexpr const char* ESC_DIM = "\x1b[2m";
+    static constexpr const char* ESC_ITALIC = "\x1b[3m";
+    static constexpr const char* ESC_UNDERLINE = "\x1b[4m";
+    static constexpr const char* ESC_BLINK = "\x1b[5m";
+    static constexpr const char* ESC_BLINK_OFF = "\x1b[25m";
+    static constexpr const char* ESC_REVERSE = "\x1b[7m";
+    static constexpr const char* ESC_BOLD_OFF = "\x1b[22m";
+    static constexpr const char* ESC_HIDE_CURSOR = "\x1b[?25l";
+    static constexpr const char* ESC_SHOW_CURSOR = "\x1b[?25h";
+
+    // Foreground colors
+    static constexpr const char* FG_BLACK = "\x1b[30m";
+    static constexpr const char* FG_RED = "\x1b[31m";
+    static constexpr const char* FG_GREEN = "\x1b[32m";
+    static constexpr const char* FG_YELLOW = "\x1b[33m";
+    static constexpr const char* FG_BLUE = "\x1b[34m";
+    static constexpr const char* FG_MAGENTA = "\x1b[35m";
+    static constexpr const char* FG_CYAN = "\x1b[36m";
+    static constexpr const char* FG_WHITE = "\x1b[37m";
+    static constexpr const char* FG_DEFAULT = "\x1b[39m";
+
+    // Bright foreground colors
+    static constexpr const char* FG_BRIGHT_BLACK = "\x1b[90m"; // Gray
+    static constexpr const char* FG_BRIGHT_RED = "\x1b[91m";
+    static constexpr const char* FG_BRIGHT_GREEN = "\x1b[92m";
+    static constexpr const char* FG_BRIGHT_YELLOW = "\x1b[93m";
+    static constexpr const char* FG_BRIGHT_BLUE = "\x1b[94m";
+    static constexpr const char* FG_BRIGHT_MAGENTA = "\x1b[95m";
+    static constexpr const char* FG_BRIGHT_CYAN = "\x1b[96m";
+    static constexpr const char* FG_BRIGHT_WHITE = "\x1b[97m";
+
+    // Background colors
+    static constexpr const char* BG_BLACK = "\x1b[40m";
+    static constexpr const char* BG_RED = "\x1b[41m";
+    static constexpr const char* BG_GREEN = "\x1b[42m";
+    static constexpr const char* BG_YELLOW = "\x1b[43m";
+    static constexpr const char* BG_BLUE = "\x1b[44m";
+    static constexpr const char* BG_MAGENTA = "\x1b[45m";
+    static constexpr const char* BG_CYAN = "\x1b[46m";
+    static constexpr const char* BG_WHITE = "\x1b[47m";
+    static constexpr const char* BG_DEFAULT = "\x1b[49m";
+
+    // Combined styles for common use cases
+    static constexpr const char* STYLE_SEARCH_MATCH =
+        "\x1b[43m\x1b[30m"; // Yellow bg, black fg
+    static constexpr const char* STYLE_SELECTION = "\x1b[7m"; // Reverse video
+    static constexpr const char* STYLE_GREEN_BOLD = "\x1b[32;1m";
+    static constexpr const char* STYLE_RESET_GREEN_BOLD = "\x1b[39;22m";
+
+    // Scroll region and line manipulation
+    static constexpr const char* ESC_DELETE_LINE = "\x1b[M";
+    static constexpr const char* ESC_INSERT_LINE = "\x1b[L";
+    static constexpr const char* ESC_RESET_SCROLL_REGION = "\x1b[r";
+
+    // Helper to build cursor position escape sequence
+    static std::string cursorPos(int row, int col);
+
+    // Helper to build scroll region escape sequence
+    static std::string scrollRegion(int top, int bottom);
+
+    // Helper for newline + clear
+    static constexpr const char* NEWLINE_CLEAR = "\r\n\x1b[K";
+
     // Special keys
     enum Key
     {
