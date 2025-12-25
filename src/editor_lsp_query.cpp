@@ -7410,6 +7410,66 @@ void Editor::handleNormalMode(int c)
         yankToLineEnd();
         break;
 
+    case 'J':
+    {
+        // Join lines: current line with next line(s)
+        // count specifies how many lines to join (default 2 = current + next)
+        int linesToJoin = (repeatCount > 0) ? repeatCount : 2;
+        int joinCount = 0;
+
+        for(int i = 0; i < linesToJoin - 1; ++i)
+        {
+            if(*cursorY >= (int)lines->size() - 1)
+                break; // No more lines to join
+
+            std::string& currentLine = (*lines)[*cursorY];
+            std::string& nextLine = (*lines)[*cursorY + 1];
+
+            // Remove trailing whitespace from current line
+            size_t endPos = currentLine.find_last_not_of(" \t");
+            if(endPos != std::string::npos)
+                currentLine = currentLine.substr(0, endPos + 1);
+
+            // Remove leading whitespace from next line
+            size_t startPos = nextLine.find_first_not_of(" \t");
+            std::string trimmedNext = (startPos != std::string::npos)
+                                          ? nextLine.substr(startPos)
+                                          : "";
+
+            // Join with a single space (unless current line is empty)
+            if(!currentLine.empty() && !trimmedNext.empty())
+            {
+                *cursorX =
+                    currentLine.length(); // Position cursor at join point
+                currentLine += " " + trimmedNext;
+            }
+            else if(currentLine.empty())
+            {
+                currentLine = trimmedNext;
+                *cursorX = 0;
+            }
+            else
+            {
+                *cursorX = currentLine.length();
+            }
+
+            // Delete the next line
+            lines->erase(lines->begin() + *cursorY + 1);
+            joinCount++;
+        }
+
+        if(joinCount > 0)
+        {
+            *dirty = true;
+            saveState();
+            needsFullRedraw = true;
+            if(joinCount > 1)
+                setStatusMessage(std::to_string(joinCount + 1) +
+                                 " lines joined");
+        }
+        break;
+    }
+
     case 'c':
         // change operator: enter operator pending (support e.g. cw, ci(, etc.)
         enterOperatorPending('c');
@@ -7761,6 +7821,68 @@ void Editor::handleVisualMode(int c)
             needsFullRedraw = true;
         }
         break;
+
+    case 'J':
+        // Join all selected lines into one
+        {
+            int startY, startX, endY, endX;
+            getSelectionBounds(startY, startX, endY, endX);
+
+            int linesToJoin = endY - startY + 1;
+            if(linesToJoin <= 1)
+            {
+                setMode(NORMAL);
+                break;
+            }
+
+            // Move cursor to start line
+            *cursorY = startY;
+
+            // Join all lines from startY to endY
+            int joinCount = 0;
+            for(int i = 0; i < linesToJoin - 1; ++i)
+            {
+                if(*cursorY >= (int)lines->size() - 1)
+                    break;
+
+                std::string& currentLine = (*lines)[*cursorY];
+                std::string& nextLine = (*lines)[*cursorY + 1];
+
+                // Remove trailing whitespace from current line
+                size_t endPos = currentLine.find_last_not_of(" \t");
+                if(endPos != std::string::npos)
+                    currentLine = currentLine.substr(0, endPos + 1);
+
+                // Remove leading whitespace from next line
+                size_t startPos = nextLine.find_first_not_of(" \t");
+                std::string trimmedNext = (startPos != std::string::npos)
+                                              ? nextLine.substr(startPos)
+                                              : "";
+
+                // Join with a single space
+                if(!currentLine.empty() && !trimmedNext.empty())
+                {
+                    currentLine += " " + trimmedNext;
+                }
+                else if(currentLine.empty())
+                {
+                    currentLine = trimmedNext;
+                }
+
+                // Delete the next line
+                lines->erase(lines->begin() + *cursorY + 1);
+                joinCount++;
+            }
+
+            *cursorX = 0;
+            *dirty = true;
+            saveState();
+            setMode(NORMAL);
+            needsFullRedraw = true;
+            setStatusMessage(std::to_string(joinCount + 1) + " lines joined");
+        }
+        break;
+
     case 'w': // Visual w - extend selection forward by word
         moveWordForward();
         updateVisualSelection();
