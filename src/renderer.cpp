@@ -3,6 +3,7 @@
 #include "terminal.h"
 #include <algorithm>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 
 Renderer::Renderer(EditorContext& ctx, SyntaxHighlighter& syntax)
