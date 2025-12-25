@@ -3315,7 +3315,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
         // Check for selection or search highlighting first
         bool highlighted = false;
-        if(isInSelection(fileRow, col))
+        if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
         {
             output += "\x1b[7m"; // Reverse video for selection
             highlighted = true;
@@ -5583,6 +5583,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         {
                             int col = x + *offsetX;
                             if(isInSelection(fileRow, col) ||
+                               isInVisualBlock(fileRow, col) ||
                                isInSearchMatch(fileRow, col))
                             {
                                 needsHighlight = true;
@@ -5601,7 +5602,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 int col = x + *offsetX;
                                 bool highlighted = false;
 
-                                if(isInSelection(fileRow, col))
+                                if(isInSelection(fileRow, col) ||
+                                   isInVisualBlock(fileRow, col))
                                 {
                                     output += "\x1b[7m";
                                     highlighted = true;
@@ -5674,6 +5676,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         {
                             int col = x + *offsetX;
                             if(isInSelection(fileRow, col) ||
+                               isInVisualBlock(fileRow, col) ||
                                isInSearchMatch(fileRow, col))
                             {
                                 needsHighlight = true;
@@ -5692,7 +5695,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 int col = x + *offsetX;
                                 bool highlighted = false;
 
-                                if(isInSelection(fileRow, col))
+                                if(isInSelection(fileRow, col) ||
+                                   isInVisualBlock(fileRow, col))
                                 {
                                     output += "\x1b[7m";
                                     highlighted = true;
@@ -5863,12 +5867,13 @@ void Editor::drawFullScreen()
                 bool hasHighlighting = false;
 
                 if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                   !searchMatches.empty())
+                   currentMode == VISUAL_BLOCK || !searchMatches.empty())
                 {
                     for(int x = 0; x < len; x++)
                     {
                         int col = x + *offsetX;
                         if(isInSelection(fileRow, col) ||
+                           isInVisualBlock(fileRow, col) ||
                            isInSearchMatch(fileRow, col))
                         {
                             hasHighlighting = true;
@@ -5897,7 +5902,8 @@ void Editor::drawFullScreen()
                         int col = x + *offsetX;
                         bool highlighted = false;
 
-                        if(isInSelection(fileRow, col))
+                        if(isInSelection(fileRow, col) ||
+                           isInVisualBlock(fileRow, col))
                         {
                             output += "\x1b[7m";
                             highlighted = true;
@@ -6021,7 +6027,8 @@ void Editor::refreshScreen()
     int scrollDelta = *offsetY - lastOffsetY;
 
     bool visualChanged = false;
-    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
+    if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
+       currentMode == VISUAL_BLOCK)
     {
         visualChanged = (currentBuffer->visualStartY != lastVisualStartY ||
                          currentBuffer->visualEndY != lastVisualEndY);
@@ -6040,7 +6047,9 @@ void Editor::refreshScreen()
 
     if(modeChanged || needsFullRedraw || *offsetX != lastOffsetX ||
        abs(scrollDelta) > screenRows / 2 || visualChanged ||
-       (currentMode == VISUAL || currentMode == VISUAL_LINE) || isEditingMode)
+       (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+        currentMode == VISUAL_BLOCK) ||
+       isEditingMode)
     {
         drawFullScreen();
     }
