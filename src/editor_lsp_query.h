@@ -437,6 +437,12 @@ public:
     void pasteAfter();
     void pasteBefore();
 
+    // System clipboard
+    std::string getSystemClipboard();
+    void setSystemClipboard(const std::string& text);
+    void yankToSystemClipboard();
+    void pasteFromSystemClipboard();
+
     // Visual mode
     void startVisualMode();
     void startVisualLineMode();

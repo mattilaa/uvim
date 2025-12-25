@@ -2295,6 +2295,96 @@ void Editor::yankSelection()
     }
 }
 
+// System clipboard support
+static std::string getClipboardCommand()
+{
+#ifdef __APPLE__
+    return "pbpaste";
+#else
+    // Linux - try xclip first, then xsel
+    if(system("which xclip > /dev/null 2>&1") == 0)
+        return "xclip -selection clipboard -o";
+    if(system("which xsel > /dev/null 2>&1") == 0)
+        return "xsel --clipboard --output";
+    return "";
+#endif
+}
+
+static std::string setClipboardCommand()
+{
+#ifdef __APPLE__
+    return "pbcopy";
+#else
+    // Linux - try xclip first, then xsel
+    if(system("which xclip > /dev/null 2>&1") == 0)
+        return "xclip -selection clipboard";
+    if(system("which xsel > /dev/null 2>&1") == 0)
+        return "xsel --clipboard --input";
+    return "";
+#endif
+}
+
+std::string Editor::getSystemClipboard()
+{
+    std::string cmd = getClipboardCommand();
+    if(cmd.empty())
+        return "";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return "";
+
+    std::string result;
+    char buffer[256];
+    while(fgets(buffer, sizeof(buffer), pipe) != nullptr)
+    {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    return result;
+}
+
+void Editor::setSystemClipboard(const std::string& text)
+{
+    std::string cmd = setClipboardCommand();
+    if(cmd.empty())
+        return;
+
+    FILE* pipe = popen(cmd.c_str(), "w");
+    if(!pipe)
+        return;
+
+    fwrite(text.c_str(), 1, text.length(), pipe);
+    pclose(pipe);
+}
+
+void Editor::yankToSystemClipboard()
+{
+    if(yankBuffer.empty())
+    {
+        // If no yank buffer, yank current line first
+        yankLine();
+    }
+    setSystemClipboard(yankBuffer);
+    setStatusMessage("Yanked to system clipboard");
+}
+
+void Editor::pasteFromSystemClipboard()
+{
+    std::string clipboard = getSystemClipboard();
+    if(clipboard.empty())
+    {
+        setStatusMessage("System clipboard is empty");
+        return;
+    }
+
+    // Store in yank buffer and paste
+    yankBuffer = clipboard;
+    pasteAfter();
+    setStatusMessage("Pasted from system clipboard");
+}
+
 void Editor::pasteAfter()
 {
     if(yankBuffer.empty())
@@ -6918,6 +7008,22 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
             return;
         }
+        else if(c == 'y')
+        {
+            // Leader + y: yank to system clipboard
+            yankToSystemClipboard();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'p')
+        {
+            // Leader + p: paste from system clipboard
+            pasteFromSystemClipboard();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
         else if(c == ' ')
         {
             // Double space cancels
@@ -7772,6 +7878,33 @@ void Editor::handleVisualMode(int c)
         yankSelection();
         setMode(NORMAL);
         needsFullRedraw = true;
+        break;
+    case ' ':
+        // Leader key in visual mode - wait for next key
+        {
+            int nextKey = Terminal::readKey();
+            if(nextKey == 'y')
+            {
+                // Space + y: yank selection to system clipboard
+                yankSelection();
+                setSystemClipboard(yankBuffer);
+                setMode(NORMAL);
+                needsFullRedraw = true;
+                setStatusMessage("Selection yanked to system clipboard");
+            }
+            else if(nextKey == 'd')
+            {
+                // Space + d: delete selection and copy to system clipboard
+                yankSelection();
+                setSystemClipboard(yankBuffer);
+                deleteSelection();
+                setMode(NORMAL);
+                saveState();
+                needsFullRedraw = true;
+                setStatusMessage("Selection cut to system clipboard");
+            }
+            // Other space combinations in visual mode are ignored
+        }
         break;
     case 'c':
         // Change - delete selection and enter insert mode
