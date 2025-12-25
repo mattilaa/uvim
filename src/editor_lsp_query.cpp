@@ -4647,8 +4647,17 @@ void Editor::goToDefinition()
         {
             pushJumpLocation();
             openFile(loc->path);
+
+            // Set cursor position from LSP (both are 0-based)
             *cursorY = loc->line;
-            *cursorX = loc->character; // already UTF-16; for ASCII it's exact
+            *cursorX = loc->character;
+
+            // Ensure cursor is within valid bounds
+            if(*cursorY >= (int)lines->size())
+                *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+            if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+
             centerScreen();
 
             // Show a cleaner message for system headers
@@ -5343,17 +5352,30 @@ void Editor::drawStatusBar()
                   std::to_string(buffers.size()) + "] ";
     }
 
-    status += (filename->empty() ? "[No Name]" : *filename);
-    if(*dirty)
-        status += " [+]";
-
-    Terminal::write(status);
-
     char rightStatus[32];
     snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
 
-    int padding = screenCols - status.length() - strlen(rightStatus);
+    // Calculate available space for filename
+    int rightLen = strlen(rightStatus);
+    int availableForFile = screenCols - status.length() - rightLen - 1;
+
+    std::string displayName = filename->empty() ? "[No Name]" : *filename;
+    if(*dirty)
+        displayName += " [+]";
+
+    // Truncate filename from the beginning if too long
+    if((int)displayName.length() > availableForFile && availableForFile > 4)
+    {
+        displayName = "..." + displayName.substr(displayName.length() -
+                                                 availableForFile + 3);
+    }
+
+    status += displayName;
+
+    Terminal::write(status);
+
+    int padding = screenCols - status.length() - rightLen;
     while(padding-- > 0)
         Terminal::write(' ');
     Terminal::write(rightStatus);
@@ -5772,17 +5794,30 @@ void Editor::drawStatusBarQuick()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    statusLeft += (filename->empty() ? "[No Name]" : *filename);
-    if(*dirty)
-        statusLeft += " [+]";
-
-    output += statusLeft;
-
     char rightStatus[32];
     snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
 
-    int padding = screenCols - statusLeft.length() - strlen(rightStatus);
+    // Calculate available space for filename
+    int rightLen = strlen(rightStatus);
+    int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
+
+    std::string displayName = filename->empty() ? "[No Name]" : *filename;
+    if(*dirty)
+        displayName += " [+]";
+
+    // Truncate filename from the beginning if too long
+    if((int)displayName.length() > availableForFile && availableForFile > 4)
+    {
+        displayName = "..." + displayName.substr(displayName.length() -
+                                                 availableForFile + 3);
+    }
+
+    statusLeft += displayName;
+
+    output += statusLeft;
+
+    int padding = screenCols - statusLeft.length() - rightLen;
     if(padding > 0)
     {
         output.append(padding, ' ');
@@ -5937,17 +5972,30 @@ void Editor::drawFullScreen()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    statusLeft += (filename->empty() ? "[No Name]" : *filename);
-    if(*dirty)
-        statusLeft += " [+]";
-
-    output += statusLeft;
-
     char rightStatus[32];
     snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
 
-    int padding = screenCols - statusLeft.length() - strlen(rightStatus);
+    // Calculate available space for filename
+    int rightLen = strlen(rightStatus);
+    int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
+
+    std::string displayName = filename->empty() ? "[No Name]" : *filename;
+    if(*dirty)
+        displayName += " [+]";
+
+    // Truncate filename from the beginning if too long
+    if((int)displayName.length() > availableForFile && availableForFile > 4)
+    {
+        displayName = "..." + displayName.substr(displayName.length() -
+                                                 availableForFile + 3);
+    }
+
+    statusLeft += displayName;
+
+    output += statusLeft;
+
+    int padding = screenCols - statusLeft.length() - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
     output += rightStatus;
