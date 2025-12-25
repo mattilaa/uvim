@@ -2780,7 +2780,23 @@ bool Editor::isCppFile() const
 
     size_t dotPos = filename->find_last_of('.');
     if(dotPos == std::string::npos)
+    {
+        // No extension - check if it's a C++ standard library header
+        // These are typically in paths like:
+        //   /usr/include/c++/13/vector
+        //   /Library/Developer/.../usr/include/c++/v1/cstdio
+        //   /opt/homebrew/include/c++/...
+        const std::string& path = *filename;
+        if(path.find("/c++/") != std::string::npos ||
+           path.find("/bits/") != std::string::npos ||
+           path.find("/ext/") != std::string::npos ||
+           path.find("/__") !=
+               std::string::npos) // libc++ internal headers like __memory
+        {
+            return true;
+        }
         return false;
+    }
 
     std::string ext = filename->substr(dotPos);
 

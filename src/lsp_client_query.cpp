@@ -106,43 +106,6 @@ static std::string uriToPath(const std::string& uri)
     return uri;
 }
 
-// Detect language ID from file path for LSP
-static std::string detectLanguageId(const std::string& path)
-{
-    size_t dot = path.rfind('.');
-    if(dot == std::string::npos)
-    {
-        // No extension - check if it's a C++ standard library header
-        // (e.g., /usr/include/c++/13/vector, /usr/include/c++/13/string)
-        if(path.find("/c++/") != std::string::npos ||
-           path.find("/bits/") != std::string::npos ||
-           path.find("/ext/") != std::string::npos)
-        {
-            return "cpp";
-        }
-        return "cpp"; // Default to cpp for headers without extension
-    }
-
-    std::string ext = path.substr(dot);
-    // Convert to lowercase for comparison
-    for(char& c : ext)
-        c = std::tolower((unsigned char)c);
-
-    if(ext == ".c")
-        return "c";
-    if(ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".c++")
-        return "cpp";
-    if(ext == ".h" || ext == ".hpp" || ext == ".hxx" || ext == ".hh" ||
-       ext == ".h++")
-        return "cpp"; // Treat headers as C++ for better clangd support
-    if(ext == ".m")
-        return "objective-c";
-    if(ext == ".mm")
-        return "objective-cpp";
-
-    return "cpp"; // Default
-}
-
 // Convert a UTF-8 byte offset in a line to UTF-16 code units (LSP uses UTF-16).
 static int utf8ByteOffsetToUtf16(const std::string& line, int byteOffset)
 {
@@ -554,6 +517,43 @@ void LspClient::didOpen(const std::string& filePath,
         {"text", text},
     };
     impl->sendNotification("textDocument/didOpen", params);
+}
+
+// Detect language ID from file path for LSP
+static std::string detectLanguageId(const std::string& path)
+{
+    size_t dot = path.rfind('.');
+    if(dot == std::string::npos)
+    {
+        // No extension - check if it's a C++ standard library header
+        // (e.g., /usr/include/c++/13/vector, /usr/include/c++/13/string)
+        if(path.find("/c++/") != std::string::npos ||
+           path.find("/bits/") != std::string::npos ||
+           path.find("/ext/") != std::string::npos)
+        {
+            return "cpp";
+        }
+        return "cpp"; // Default to cpp for headers without extension
+    }
+
+    std::string ext = path.substr(dot);
+    // Convert to lowercase for comparison
+    for(char& c : ext)
+        c = std::tolower((unsigned char)c);
+
+    if(ext == ".c")
+        return "c";
+    if(ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".c++")
+        return "cpp";
+    if(ext == ".h" || ext == ".hpp" || ext == ".hxx" || ext == ".hh" ||
+       ext == ".h++")
+        return "cpp"; // Treat headers as C++ for better clangd support
+    if(ext == ".m")
+        return "objective-c";
+    if(ext == ".mm")
+        return "objective-cpp";
+
+    return "cpp"; // Default
 }
 
 void LspClient::didChange(const std::string& filePath, const std::string& text)
