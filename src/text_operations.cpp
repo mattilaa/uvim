@@ -1,0 +1,589 @@
+// Text operations (insert, delete, yank, paste) for Editor
+// Extracted from editor_lsp_query.cpp
+
+#include "editor_lsp_query.h"
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <sstream>
+
+void Editor::yankRange(int startY, int startX, int endY, int endX)
+{
+    yankBuffer.clear();
+    if(startY == endY)
+    {
+        const std::string& line = (*lines)[startY];
+        if(startX <= endX && startX < line.length())
+            yankBuffer = line.substr(startX, endX - startX + 1);
+    }
+    else
+    {
+        const std::string& firstLine = (*lines)[startY];
+        if(startX < firstLine.length())
+            yankBuffer = firstLine.substr(startX);
+        yankBuffer += "\n";
+        for(int r = startY + 1; r < endY; ++r)
+        {
+            yankBuffer += (*lines)[r];
+            yankBuffer += "\n";
+        }
+        const std::string& lastLine = (*lines)[endY];
+        if(endX >= 0 && endX < lastLine.length())
+            yankBuffer += lastLine.substr(0, endX + 1);
+    }
+    setStatusMessage("Yanked");
+}
+
+void Editor::deleteRange(int startY, int startX, int endY, int endX)
+{
+    if(startY == endY)
+    {
+        std::string& line = (*lines)[startY];
+        if(startX <= endX && startX < line.length())
+        {
+            line.erase(startX, endX - startX + 1);
+        }
+    }
+    else
+    {
+        std::string prefix = (*lines)[startY].substr(0, startX);
+        std::string suffix = "";
+        if(endX + 1 < (*lines)[endY].length())
+            suffix = (*lines)[endY].substr(endX + 1);
+        lines->erase(lines->begin() + startY, lines->begin() + endY + 1);
+        lines->insert(lines->begin() + startY, prefix + suffix);
+    }
+
+    if(lines->empty())
+        lines->push_back("");
+    if(*cursorY >= lines->size())
+        *cursorY = lines->size() - 1;
+    if(*cursorX > (*lines)[*cursorY].length())
+        *cursorX = (*lines)[*cursorY].length();
+    needsFullRedraw = true;
+}
+
+void Editor::insertChar(char c)
+{
+    if(*cursorY >= lines->size())
+    {
+        lines->push_back("");
+    }
+
+    (*lines)[*cursorY].insert(*cursorX, 1, c);
+    (*cursorX)++;
+    *dirty = true;
+}
+
+void Editor::insertNewline()
+{
+    if(*cursorY >= lines->size())
+    {
+        lines->push_back("");
+        (*cursorY)++;
+        *cursorX = 0;
+        *dirty = true;
+        needsFullRedraw = true;
+        return;
+    }
+
+    const std::string& currentLine = (*lines)[*cursorY];
+
+    size_t indent = 0;
+    while(indent < currentLine.length() &&
+          (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+    {
+        indent++;
+    }
+    std::string indentStr = currentLine.substr(0, indent);
+
+    bool addExtraIndent = false;
+    if(isCppFile() && *cursorX > 0)
+    {
+        int checkPos = *cursorX - 1;
+        while(checkPos >= 0 &&
+              (currentLine[checkPos] == ' ' || currentLine[checkPos] == '\t'))
+        {
+            checkPos--;
+        }
+        if(checkPos >= 0 && currentLine[checkPos] == '{')
+        {
+            addExtraIndent = true;
+        }
+    }
+
+    std::string remainder;
+    if(*cursorX < currentLine.length())
+    {
+        remainder = currentLine.substr(*cursorX);
+        size_t startPos = remainder.find_first_not_of(" \t");
+        if(startPos != std::string::npos)
+        {
+            remainder = remainder.substr(startPos);
+        }
+        else
+        {
+            remainder = "";
+        }
+        (*lines)[*cursorY] = currentLine.substr(0, *cursorX);
+    }
+
+    std::string newLine = indentStr;
+    if(addExtraIndent)
+    {
+        newLine += "    ";
+    }
+    newLine += remainder;
+
+    lines->insert(lines->begin() + *cursorY + 1, newLine);
+
+    (*cursorY)++;
+    *cursorX = indentStr.length() + (addExtraIndent ? 4 : 0);
+    *dirty = true;
+    needsFullRedraw = true;
+}
+
+void Editor::deleteChar()
+{
+    if(*cursorY >= lines->size())
+        return;
+    if(*cursorX == 0 && *cursorY == 0)
+        return;
+
+    if(*cursorX > 0)
+    {
+        (*lines)[*cursorY].erase(*cursorX - 1, 1);
+        (*cursorX)--;
+    }
+    else
+    {
+        *cursorX = (*lines)[*cursorY - 1].length();
+        (*lines)[*cursorY - 1] += (*lines)[*cursorY];
+        lines->erase(lines->begin() + *cursorY);
+        (*cursorY)--;
+        needsFullRedraw = true;
+    }
+    *dirty = true;
+}
+
+void Editor::deleteCharForward()
+{
+    if(*cursorY >= lines->size())
+        return;
+
+    if(*cursorX < (*lines)[*cursorY].length())
+    {
+        (*lines)[*cursorY].erase(*cursorX, 1);
+    }
+    else if(*cursorY < lines->size() - 1)
+    {
+        (*lines)[*cursorY] += (*lines)[*cursorY + 1];
+        lines->erase(lines->begin() + *cursorY + 1);
+        needsFullRedraw = true;
+    }
+    *dirty = true;
+}
+
+void Editor::deleteLine()
+{
+    if(lines->empty())
+        return;
+
+    yankLine();
+
+    lines->erase(lines->begin() + *cursorY);
+    if(lines->empty())
+    {
+        lines->push_back("");
+    }
+
+    if(*cursorY >= lines->size())
+    {
+        *cursorY = lines->size() - 1;
+    }
+
+    *cursorX = 0;
+    *dirty = true;
+    needsFullRedraw = true;
+}
+
+void Editor::deleteToLineEnd()
+{
+    if(*cursorY >= lines->size())
+        return;
+
+    if(*cursorX < (*lines)[*cursorY].length())
+    {
+        yankBuffer = (*lines)[*cursorY].substr(*cursorX);
+        (*lines)[*cursorY] = (*lines)[*cursorY].substr(0, *cursorX);
+        *dirty = true;
+    }
+}
+
+void Editor::yankLine()
+{
+    if(*cursorY < lines->size())
+    {
+        yankBuffer = (*lines)[*cursorY] + "\n";
+        setStatusMessage("Line yanked");
+    }
+}
+
+void Editor::yankToLineEnd()
+{
+    if(*cursorY < lines->size() && *cursorX < (*lines)[*cursorY].length())
+    {
+        yankBuffer = (*lines)[*cursorY].substr(*cursorX);
+        setStatusMessage("Yanked to line end");
+    }
+}
+
+void Editor::yankSelection()
+{
+    yankBuffer.clear();
+
+    if(currentMode == VISUAL_LINE)
+    {
+        int startY =
+            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        int endY =
+            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+
+        for(int i = startY; i <= endY; i++)
+        {
+            yankBuffer += (*lines)[i] + "\n";
+        }
+        setStatusMessage(std::to_string(endY - startY + 1) + " lines yanked");
+    }
+    else
+    {
+        int startY, startX, endY, endX;
+        getSelectionBounds(startY, startX, endY, endX);
+
+        if(startY == endY)
+        {
+            yankBuffer = (*lines)[startY].substr(startX, endX - startX + 1);
+        }
+        else
+        {
+            yankBuffer = (*lines)[startY].substr(startX) + "\n";
+            for(int i = startY + 1; i < endY; i++)
+            {
+                yankBuffer += (*lines)[i] + "\n";
+            }
+            yankBuffer += (*lines)[endY].substr(0, endX + 1);
+        }
+        setStatusMessage("Selection yanked");
+    }
+}
+
+// System clipboard support
+static std::string getClipboardCommand()
+{
+#ifdef __APPLE__
+    return "pbpaste";
+#else
+    if(system("which xclip > /dev/null 2>&1") == 0)
+        return "xclip -selection clipboard -o";
+    if(system("which xsel > /dev/null 2>&1") == 0)
+        return "xsel --clipboard --output";
+    return "";
+#endif
+}
+
+static std::string setClipboardCommand()
+{
+#ifdef __APPLE__
+    return "pbcopy";
+#else
+    if(system("which xclip > /dev/null 2>&1") == 0)
+        return "xclip -selection clipboard";
+    if(system("which xsel > /dev/null 2>&1") == 0)
+        return "xsel --clipboard --input";
+    return "";
+#endif
+}
+
+std::string Editor::getSystemClipboard()
+{
+    std::string cmd = getClipboardCommand();
+    if(cmd.empty())
+        return "";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return "";
+
+    std::string result;
+    char buffer[256];
+    while(fgets(buffer, sizeof(buffer), pipe) != nullptr)
+    {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    return result;
+}
+
+void Editor::setSystemClipboard(const std::string& text)
+{
+    std::string cmd = setClipboardCommand();
+    if(cmd.empty())
+        return;
+
+    FILE* pipe = popen(cmd.c_str(), "w");
+    if(!pipe)
+        return;
+
+    fwrite(text.c_str(), 1, text.length(), pipe);
+    pclose(pipe);
+}
+
+void Editor::yankToSystemClipboard()
+{
+    if(yankBuffer.empty())
+    {
+        yankLine();
+    }
+    setSystemClipboard(yankBuffer);
+    setStatusMessage("Yanked to system clipboard");
+}
+
+void Editor::pasteFromSystemClipboard()
+{
+    std::string clipboard = getSystemClipboard();
+    if(clipboard.empty())
+    {
+        setStatusMessage("System clipboard is empty");
+        return;
+    }
+
+    yankBuffer = clipboard;
+    pasteAfter();
+    setStatusMessage("Pasted from system clipboard");
+}
+
+void Editor::pasteAfter()
+{
+    if(yankBuffer.empty())
+        return;
+
+    if(yankBuffer.back() == '\n')
+    {
+        lines->insert(lines->begin() + *cursorY + 1, "");
+        (*cursorY)++;
+        *cursorX = 0;
+
+        std::istringstream ss(yankBuffer);
+        std::string line;
+        int insertPos = *cursorY;
+
+        while(std::getline(ss, line))
+        {
+            if(insertPos == *cursorY)
+            {
+                (*lines)[insertPos] = line;
+            }
+            else
+            {
+                lines->insert(lines->begin() + insertPos, line);
+            }
+            insertPos++;
+        }
+    }
+    else
+    {
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        (*lines)[*cursorY].insert(*cursorX, yankBuffer);
+        *cursorX += yankBuffer.length() - 1;
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
+    saveState();
+    setStatusMessage("Pasted");
+}
+
+void Editor::pasteBefore()
+{
+    if(yankBuffer.empty())
+        return;
+
+    if(yankBuffer.back() == '\n')
+    {
+        std::istringstream ss(yankBuffer);
+        std::string line;
+        int insertPos = *cursorY;
+
+        while(std::getline(ss, line))
+        {
+            lines->insert(lines->begin() + insertPos, line);
+            insertPos++;
+        }
+        *cursorX = 0;
+    }
+    else
+    {
+        (*lines)[*cursorY].insert(*cursorX, yankBuffer);
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
+    saveState();
+    setStatusMessage("Pasted");
+}
+
+void Editor::deleteVisualBlock()
+{
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        std::string& line = (*lines)[row];
+        if(startX < line.length())
+        {
+            int deleteEnd = std::min(endX + 1, (int)line.length());
+            line.erase(startX, deleteEnd - startX);
+        }
+    }
+
+    *cursorY = startY;
+    *cursorX = startX;
+    if(*cursorX > (*lines)[*cursorY].length())
+        *cursorX = (*lines)[*cursorY].length();
+
+    *dirty = true;
+    saveState();
+    setMode(NORMAL);
+    needsFullRedraw = true;
+    setStatusMessage("Block deleted");
+}
+
+void Editor::yankVisualBlock()
+{
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    yankBuffer.clear();
+
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        const std::string& line = (*lines)[row];
+        if(startX < line.length())
+        {
+            int yankEnd = std::min(endX + 1, (int)line.length());
+            yankBuffer += line.substr(startX, yankEnd - startX);
+        }
+        yankBuffer += "\n";
+    }
+
+    yankBuffer = "\x02" + yankBuffer;
+
+    setStatusMessage("Block yanked");
+}
+
+void Editor::changeVisualBlock()
+{
+    currentBuffer->visualBlockInsertText.clear();
+    visualBlockChanging = true;
+
+    int startY, startX, endY, endX;
+    getVisualBlockBounds(startY, startX, endY, endX);
+
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        std::string& line = (*lines)[row];
+        if(startX < line.length())
+        {
+            int deleteEnd = std::min(endX + 1, (int)line.length());
+            line.erase(startX, deleteEnd - startX);
+        }
+    }
+
+    *cursorY = startY;
+    *cursorX = startX;
+
+    setMode(INSERT);
+}
+
+void Editor::applyVisualBlockInsert()
+{
+    if(currentBuffer->visualBlockInsertText.empty())
+        return;
+
+    int startY = currentBuffer->visualBlockStartY;
+    int endY = currentBuffer->visualBlockEndY;
+    int insertX = currentBuffer->visualBlockStartX;
+
+    for(int row = startY; row <= endY && row < lines->size(); row++)
+    {
+        if(row == *cursorY)
+            continue;
+
+        std::string& line = (*lines)[row];
+        while(line.length() < insertX)
+        {
+            line += " ";
+        }
+        line.insert(insertX, currentBuffer->visualBlockInsertText);
+    }
+
+    *dirty = true;
+    saveState();
+    needsFullRedraw = true;
+    setStatusMessage("Block insert applied to " +
+                     std::to_string(endY - startY + 1) + " lines");
+}
+
+void Editor::deleteSelection()
+{
+    if(currentMode == VISUAL_LINE)
+    {
+        int startY =
+            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        int endY =
+            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+
+        yankSelection();
+
+        for(int i = endY; i >= startY; i--)
+        {
+            lines->erase(lines->begin() + i);
+        }
+
+        if(lines->empty())
+        {
+            lines->push_back("");
+        }
+
+        *cursorY = std::min(startY, (int)lines->size() - 1);
+        *cursorX = 0;
+    }
+    else
+    {
+        int startY, startX, endY, endX;
+        getSelectionBounds(startY, startX, endY, endX);
+
+        if(startY == endY)
+        {
+            (*lines)[startY].erase(startX, endX - startX + 1);
+        }
+        else
+        {
+            (*lines)[startY] = (*lines)[startY].substr(0, startX) +
+                               (*lines)[endY].substr(endX + 1);
+            for(int i = endY; i > startY; i--)
+            {
+                lines->erase(lines->begin() + i);
+            }
+        }
+
+        *cursorY = startY;
+        *cursorX = startX;
+    }
+
+    *dirty = true;
+    needsFullRedraw = true;
+}

@@ -19,6 +19,7 @@ set(UVIM_SOURCES
     src/terminal.cpp
     src/editor_lsp_query.cpp
     src/cursor_movement.cpp
+    src/text_operations.cpp
 )
 
 # LSP client only needed when LSP is enabled
