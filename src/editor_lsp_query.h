@@ -1,5 +1,6 @@
 #pragma once
 #include "buffer.h"
+#include "completion_entry.h"
 #include "file_entry.h"
 #include "jump_location.h"
 #include "mode.h"
@@ -120,25 +121,8 @@ public:
     std::unique_ptr<LspClient> lspClient;
 #endif
 
-    // LSP completion popup (clangd, optional)
-    struct CompletionEntry
-    {
-        // Primary display label (clangd: CompletionItem.label)
-        std::string label;
-
-        // Text to insert (may be snippet syntax)
-        std::string insertText;
-        bool isSnippet = false;
-
-        // Extra info for richer UI + fuzzy matching
-        int kind = 0;            // CompletionItemKind
-        std::string detail;      // often signature or type
-        std::string labelDetail; // labelDetails.detail (often "(...)")
-        std::string
-            labelDescription;   // labelDetails.description (often return/type)
-        std::string filterText; // optional hint for filtering
-    };
-
+    // LSP completion popup (CompletionEntry struct is now in
+    // completion_entry.h)
     bool completionActive = false;
     std::vector<CompletionEntry> completionAll; // full list from clangd
     std::vector<int> completionFiltered; // indices into completionAll (sorted
