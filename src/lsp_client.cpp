@@ -1,4 +1,4 @@
-#include "lsp_client_query.h"
+#include "lsp_client.h"
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 

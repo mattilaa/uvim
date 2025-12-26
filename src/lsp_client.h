@@ -1,6 +1,7 @@
 #pragma once
 #include <optional>
 #include <string>
+#include <vector>
 
 // Minimal clangd LSP client (stdio JSON-RPC) used by uvim.
 // Designed for one-shot queries (e.g. gd) with full-text sync.
