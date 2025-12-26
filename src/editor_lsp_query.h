@@ -5,6 +5,7 @@
 #include "jump_location.h"
 #include "mode.h"
 #include "search_types.h"
+#include "token_type.h"
 #include <chrono>
 #include <ctime>
 #include <functional>
@@ -359,28 +360,8 @@ public:
     void autoIndentRange(int startLine, int endLine);
     std::string toLowerCase(const std::string& str);
 
-    // Syntax highlighting
-    enum TokenType
-    {
-        TOKEN_NORMAL,
-        TOKEN_KEYWORD,
-        TOKEN_TYPE,
-        TOKEN_STRING,
-        TOKEN_CHAR,
-        TOKEN_COMMENT,
-        TOKEN_PREPROCESSOR,
-        TOKEN_NUMBER,
-        TOKEN_OPERATOR,
-        TOKEN_FUNCTION
-    };
-
-    struct Token
-    {
-        TokenType type;
-        int start;
-        int length;
-    };
-
+    // Syntax highlighting (TokenType enum and Token struct are now in
+    // token_type.h)
     std::vector<JumpLocation> jumpBackStack;
     std::vector<JumpLocation> jumpForwardStack;
 

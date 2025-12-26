@@ -3001,8 +3001,8 @@ std::string Editor::getColorCode(TokenType type) const
     }
 }
 
-std::vector<Editor::Token> Editor::tokenizeLine(const std::string& line,
-                                                bool& inBlockComment)
+std::vector<Token> Editor::tokenizeLine(const std::string& line,
+                                        bool& inBlockComment)
 {
     std::vector<Token> tokens;
 
