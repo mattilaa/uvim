@@ -1,5 +1,6 @@
 #pragma once
 #include "buffer.h"
+#include "jump_location.h"
 #include "mode.h"
 #include <chrono>
 #include <ctime>
@@ -18,6 +19,7 @@ class Editor
 {
 public:
     // Mode enum is now in mode.h
+    // JumpLocation struct is now in jump_location.h
 
     Editor();
     ~Editor();
@@ -34,16 +36,8 @@ public:
     void run();
     void openFile(const std::string& filename);
 
-    struct JumpLocation
-    {
-        int bufferIndex;
-        int cursorX;
-        int cursorY;
-        int offsetX;
-        int offsetY;
-    };
-
     // Buffer struct is now in buffer.h
+    // JumpLocation struct is now in jump_location.h
 
     bool visualBlockChanging = false;
     // Buffer management
@@ -329,7 +323,7 @@ public:
     void pushJumpLocation();
     void jumpForward();
     void jumpBack();
-    void restoreJumpLocation(const Editor::JumpLocation& loc);
+    void restoreJumpLocation(const JumpLocation& loc);
     void scrollHalfPageDown(bool visual);
     void scrollHalfPageUp(bool visual);
     void moveToMatchingBracket();
