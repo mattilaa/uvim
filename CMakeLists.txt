@@ -25,6 +25,7 @@ set(UVIM_SOURCES
     src/buffer_browser.cpp
     src/grep_search.cpp
     src/file_browser.cpp
+    src/syntax_highlighting.cpp
 )
 
 # LSP client only needed when LSP is enabled
