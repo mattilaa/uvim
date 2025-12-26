@@ -251,6 +251,7 @@ public:
     void searchFileContent(const std::string& filepath);
     bool isTextFile(const std::string& filepath);
     bool isBinaryFile(const std::string& filepath);
+    void searchInFile(const std::string& filepath, const std::string& query);
     void drawGrepSearch();
     void selectGrepMatch();
     std::string trimString(const std::string& str);

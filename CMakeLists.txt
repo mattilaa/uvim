@@ -23,6 +23,7 @@ set(UVIM_SOURCES
     src/search.cpp
     src/fuzzy_finder.cpp
     src/buffer_browser.cpp
+    src/grep_search.cpp
 )
 
 # LSP client only needed when LSP is enabled
