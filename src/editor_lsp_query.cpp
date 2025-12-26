@@ -1096,6 +1096,8 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
     *dirty = true;
 }
 
+// yankRange and deleteRange are now in text_operations.cpp
+
 void Editor::setMode(Mode mode)
 {
     Mode previousMode = currentMode;
@@ -1557,12 +1559,10 @@ void Editor::jumpToAlternateFile()
     }
 }
 
-// Movement methods are now in cursor_movement.cpp:
-// moveLeft, moveRight, moveUp, moveDown, moveWordForward, moveWordBackward,
-// moveToEndOfWord, moveToLineStart, moveToLineEnd, moveToFirstLine,
-// moveToLastLine, moveToLine, jumpForward, jumpBack, pushJumpLocation,
-// restoreJumpLocation, scrollHalfPageDown, scrollHalfPageUp,
-// moveToMatchingBracket, adjustViewport, centerScreen
+// Movement implementations
+
+// Cursor movement methods (moveLeft through moveToMatchingBracket) are now in
+// cursor_movement.cpp
 
 bool Editor::isWordChar(char c) const
 {
@@ -1574,7 +1574,11 @@ bool Editor::isWordChar(char c) const
     return true;
 }
 
-// Visual mode functions
+// Editing operations
+
+// Text operations (insertChar through pasteBefore) are now in
+// text_operations.cpp
+
 void Editor::startVisualMode()
 {
     setMode(VISUAL);
@@ -1679,7 +1683,9 @@ void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
     }
 }
 
-// Search functions
+// deleteVisualBlock, yankVisualBlock, changeVisualBlock,
+// applyVisualBlockInsert, deleteSelection are now in text_operations.cpp
+
 std::string Editor::toLowerCase(const std::string& str)
 {
     std::string result = str;
@@ -1895,7 +1901,7 @@ std::string Editor::getColorCode(TokenType type) const
 }
 
 std::vector<Token> Editor::tokenizeLine(const std::string& line,
-                                        bool& inBlockComment)
+                                                bool& inBlockComment)
 {
     std::vector<Token> tokens;
 
@@ -4205,6 +4211,8 @@ void Editor::redo()
         setStatusMessage("Already at newest change");
     }
 }
+
+// adjustViewport and centerScreen are now in cursor_movement.cpp
 
 // Drawing functions
 void Editor::drawRows()
