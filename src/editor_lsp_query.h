@@ -1,5 +1,6 @@
 #pragma once
 #include "buffer.h"
+#include "file_entry.h"
 #include "jump_location.h"
 #include "mode.h"
 #include <chrono>
@@ -55,15 +56,7 @@ public:
     int* offsetX;
     int* offsetY;
 
-    // File browser
-    struct FileEntry
-    {
-        std::string name;
-        std::string path;
-        bool isDirectory;
-        size_t size;
-        time_t modTime;
-    };
+    // File browser (FileEntry struct is now in file_entry.h)
     std::vector<FileEntry> fileList;
     std::string currentDirectory;
     std::string previousFile;
