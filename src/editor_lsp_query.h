@@ -3,6 +3,7 @@
 #include "file_entry.h"
 #include "jump_location.h"
 #include "mode.h"
+#include "search_types.h"
 #include <chrono>
 #include <ctime>
 #include <functional>
@@ -65,12 +66,7 @@ public:
     bool showHidden = false;
 
     // Fuzzy finder
-    struct FuzzyMatch
-    {
-        FileEntry file;
-        int score;
-        std::vector<int> matchPositions; // Character positions that matched
-    };
+    // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
     std::vector<FuzzyMatch> fuzzyMatches;
     std::vector<FileEntry> allProjectFiles; // All files in project
     std::string fuzzyQuery;
@@ -78,29 +74,13 @@ public:
     int fuzzyOffset = 0;
     bool fuzzyInitialized = false;
 
-    // Buffer browser (fzf-style)
-    struct BufferMatch
-    {
-        int bufferIndex = -1;
-        int score = 0;
-        std::string display;
-        std::vector<int> matchPositions; // positions within display string
-    };
+    // Buffer browser (BufferMatch struct is now in search_types.h)
     std::vector<BufferMatch> bufferMatches;
     std::string bufferQuery;
     int bufferCursor = 0;
     int bufferOffset = 0;
 
-    // Grep search
-    struct GrepMatch
-    {
-        std::string filename;
-        std::string filepath;
-        int lineNumber;
-        std::string lineContent;
-        std::vector<std::pair<int, int>>
-            highlightRanges; // Start and end positions for highlighting
-    };
+    // Grep search (GrepMatch struct is now in search_types.h)
     std::vector<GrepMatch> grepMatches;
     std::string grepQuery;
     int grepCursor = 0;
@@ -176,15 +156,9 @@ public:
     void completionPrev();
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
-    // Search (global state)
+    // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;
-    struct SearchMatch
-    {
-        int row;
-        int col;
-        int len;
-    };
     std::vector<SearchMatch> searchMatches;
     int currentMatchIndex = -1;
     int savedCursorX = 0;
