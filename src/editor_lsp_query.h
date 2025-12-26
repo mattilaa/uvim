@@ -1,5 +1,6 @@
 #pragma once
 #include "buffer.h"
+#include "mode.h"
 #include <chrono>
 #include <ctime>
 #include <functional>
@@ -16,22 +17,7 @@ class LspClient;
 class Editor
 {
 public:
-    enum Mode
-    {
-        NORMAL,
-        INSERT,
-        VISUAL,
-        VISUAL_LINE,
-        VISUAL_BLOCK,
-        COMMAND,
-        SEARCH_FORWARD,
-        SEARCH_BACKWARD,
-        FILE_BROWSER,
-        FUZZY_FIND,
-        BUFFER_BROWSER,
-        GREP_SEARCH,
-        OP_PENDING,
-    };
+    // Mode enum is now in mode.h
 
     Editor();
     ~Editor();
