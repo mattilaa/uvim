@@ -28,6 +28,7 @@ set(UVIM_SOURCES
     src/syntax_highlighting.cpp
     src/undo_redo.cpp
     src/drawing.cpp
+    src/lsp_completion.cpp
 )
 
 # LSP client only needed when LSP is enabled
