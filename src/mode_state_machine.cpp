@@ -64,42 +64,13 @@ int ModeContext::screenCols() const
 // ============================================================================
 // ModeStateMachine Implementation
 // ============================================================================
-
-ModeStateMachine::ModeStateMachine(ModeContext ctx)
-    : currentState_(NormalMode{}), context_(std::move(ctx))
-{
-    // Enter initial state
-    std::visit([this](auto& state) { state.on_enter(context_); },
-               currentState_);
-}
-
-void ModeStateMachine::dispatch(int key)
-{
-    KeyEvent event(key);
-
-    auto newState =
-        std::visit([this, &event](auto& state) -> std::optional<ModeState>
-                   { return state.handle(context_, event); }, currentState_);
-
-    if(newState)
-    {
-        // Exit current state
-        std::visit([this](auto& state) { state.on_exit(context_); },
-                   currentState_);
-
-        currentState_ = std::move(*newState);
-
-        // Enter new state
-        std::visit([this](auto& state) { state.on_enter(context_); },
-                   currentState_);
-    }
-}
-
-const char* ModeStateMachine::currentStateName() const
-{
-    return std::visit([](const auto& state) { return state.name(); },
-                      currentState_);
-}
+//
+// Note: ModeStateMachine now inherits from StateMachine<ModeState, ModeContext,
+// KeyEvent> so all the dispatch/transition logic is provided by the base class
+// template. Only the createModeContext helper needs implementation here.
+//
+// The constructors are defined inline in the header using the base class.
+//
 
 // ============================================================================
 // Helper: Create context from Editor

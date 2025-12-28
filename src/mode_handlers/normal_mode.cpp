@@ -503,6 +503,21 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         ed->forceFullRedraw();
     }
+    else if(c == Terminal::CTRL_P)
+    {
+        // Ctrl+P - Fuzzy find files
+        return FuzzyFindMode{};
+    }
+    else if(c == Terminal::CTRL_S)
+    {
+        // Ctrl+S - Grep search (ripgrep)
+        return GrepSearchMode{};
+    }
+    else if(c == Terminal::CTRL_W)
+    {
+        // Ctrl+W - Buffer browser
+        return BufferBrowserMode{};
+    }
 
     // Reset count after command
     ctx.repeatCount = 0;
