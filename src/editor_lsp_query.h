@@ -9,6 +9,7 @@
 #include <chrono>
 #include <ctime>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -239,11 +240,48 @@ public:
     void drawFuzzyFind();
     void selectFuzzyMatch();
 
+    // Fuzzy finder navigation helpers (for mode handlers)
+    void fuzzyFindUp();
+    void fuzzyFindDown();
+    void fuzzyFindHalfPageUp();
+    void fuzzyFindHalfPageDown();
+    void fuzzyFindAddChar(char c);
+    void fuzzyFindBackspace();
+    void fuzzyFindDeleteWord();
+    void fuzzyFindClear();
+    bool selectFuzzyFindEntry();
+    void toggleFuzzyPreview();
+
+    // File browser navigation helpers (for mode handlers)
+    void fileBrowserUp();
+    void fileBrowserDown();
+    void fileBrowserStart();
+    void fileBrowserEnd();
+    void fileBrowserHalfPageUp();
+    void fileBrowserHalfPageDown();
+    void fileBrowserParent();
+    bool selectFileBrowserEntry();
+    void toggleHiddenFiles();
+    void refreshFileBrowser();
+    void deleteFilePrompt();
+    void renameFilePrompt();
+    void createNewFilePrompt();
+    void createNewDirectoryPrompt();
+
     // Buffer browser functions
     void initializeBufferBrowser();
     void updateBufferMatches();
     void drawBufferBrowser();
     void selectBufferMatch();
+
+    // Buffer browser navigation helpers (for mode handlers)
+    void bufferBrowserUp();
+    void bufferBrowserDown();
+    void bufferBrowserStart();
+    void bufferBrowserEnd();
+    bool selectBufferBrowserEntry();
+    void deleteSelectedBuffer();
+    bool switchToBufferByNumber(int num);
 
     // Grep search functions
     void initializeGrepSearch();
@@ -254,6 +292,18 @@ public:
     void searchInFile(const std::string& filepath, const std::string& query);
     void drawGrepSearch();
     void selectGrepMatch();
+
+    // Grep search navigation helpers (for mode handlers)
+    void grepResultUp();
+    void grepResultDown();
+    void grepResultHalfPageUp();
+    void grepResultHalfPageDown();
+    void grepSearchAddChar(char c);
+    void grepSearchBackspace();
+    void grepSearchDeleteWord();
+    void grepSearchClear();
+    bool selectGrepResult();
+    void toggleGrepPreview();
     std::string trimString(const std::string& str);
     void highlightGrepMatches(const std::string& line, const std::string& query,
                               std::vector<std::pair<int, int>>& ranges);
@@ -279,9 +329,36 @@ public:
     void restoreJumpLocation(const JumpLocation& loc);
     void scrollHalfPageDown(bool visual);
     void scrollHalfPageUp(bool visual);
+    void scrollHalfPageDown()
+    {
+        scrollHalfPageDown(false);
+    }
+    void scrollHalfPageUp()
+    {
+        scrollHalfPageUp(false);
+    }
     void moveToMatchingBracket();
     void findCharForward(char c);
     void findCharBackward(char c);
+
+    // Extended movement commands (for mode handlers)
+    void moveToFirstNonBlank();
+    void moveParagraphForward();
+    void moveParagraphBackward();
+    void moveWordForwardBig();
+    void moveWordBackwardBig();
+    void moveToEndOfWordBig();
+    void findCharForwardBefore(char c); // 't' motion
+    void findCharBackwardAfter(char c); // 'T' motion
+
+    // Scrolling commands
+    void scrollToTop();
+    void scrollToBottom();
+    void scrollPageUp();
+    void scrollPageDown();
+    void moveToScreenTop();
+    void moveToScreenMiddle();
+    void moveToScreenBottom();
 
     // Search commands
     void startSearchForward();
@@ -295,6 +372,18 @@ public:
     bool isInSearchMatch(int row, int col);
     void jumpToMatch(int index);
     void cancelSearch();
+
+    // Extended search commands (for mode handlers)
+    void performSearch(const std::string& query, bool forward);
+    void performIncrementalSearch(const std::string& query, bool forward);
+    void searchWordUnderCursor(bool forward);
+    void addSearchToHistory(const std::string& query);
+    std::string getPreviousSearch();
+    std::string getNextSearch();
+
+    // Search history
+    std::vector<std::string> searchHistory;
+    int searchHistoryIndex = -1;
 
     // Editing commands
     void insertChar(char c);
@@ -311,6 +400,35 @@ public:
     void changeLine();
     void changeToLineEnd();
     void replaceChar(char c);
+
+    // Extended editing commands (for mode handlers)
+    void insertTab();
+    void toggleCase();
+    void joinLines();
+    void insertLineAbove(); // Alias for insertNewlineAbove + position
+    void insertLineBelow(); // Alias for insertNewlineBelow + position
+    void deleteCurrentLine();
+    void deleteToLineStart();
+    void deleteCharAtCursor();
+    void deleteCharBeforeCursor();
+    void deleteWordBackward();
+    void handleBackspace();
+    void replaceCharAtCursor(char c);
+    void repeatLastChange();
+    void insertUtf8Char(int codepoint);
+    void indentCurrentLine();
+    void dedentCurrentLine();
+    void handleLinewiseOperator(char op, int count);
+
+    // Completion helpers (for insert mode)
+    bool shouldTriggerCompletion();
+    void triggerCompletion();
+    void nextCompletion();
+    void previousCompletion();
+
+    // Aliases for compatibility
+    void deleteToEndOfLine();     // Alias for deleteToLineEnd
+    void switchToAlternateFile(); // Alias for jumpToAlternateFile
 
     // Copy/Paste
     void yankLine();
@@ -342,6 +460,23 @@ public:
     void handleVisualBlockMode(int c);
     void applyVisualBlockInsert();
 
+    // Extended visual mode commands (for mode handlers)
+    void setVisualRange();
+    void swapVisualEnds();
+    void swapVisualBlockCorner();
+    void prepareBlockInsert(bool atEnd);
+    void indentSelection();
+    void dedentSelection();
+    void autoIndentSelection();
+    void lowercaseSelection();
+    void uppercaseSelection();
+    void toggleCaseSelection();
+    void yankLineSelection();
+    void deleteLineSelection();
+    void indentLineSelection();
+    void dedentLineSelection();
+    void autoIndentLineSelection();
+
     // File operations
     void saveFile();
     void executeCommand(const std::string& cmd);
@@ -360,6 +495,32 @@ public:
     void autoIndentLine(int line);
     void autoIndentRange(int startLine, int endLine);
     std::string toLowerCase(const std::string& str);
+
+    // Marks
+    struct MarkLocation
+    {
+        std::string filename;
+        int line = 0;
+        int col = 0;
+    };
+    std::map<char, MarkLocation> marks;
+    void setMark(char mark);
+    void jumpToMark(char mark);
+
+    // Misc utilities (for mode handlers)
+    void goToFile();
+    void showFileInfo();
+    void forceFullRedraw();
+    void executeOneNormalCommand(int key);
+
+    // Command history
+    std::vector<std::string> commandHistory;
+    int commandHistoryIndex = -1;
+    std::string commandInput;
+    void commandHistoryUp();
+    void commandHistoryDown();
+    std::vector<std::string> getCommandCompletions(const std::string& prefix);
+    std::vector<std::string> getPathCompletions(const std::string& path);
 
     // Syntax highlighting (TokenType enum and Token struct are now in
     // token_type.h)

@@ -1,38 +1,11 @@
 #pragma once
 
-#include <optional>
+#include "state_machine.h"
 #include <string>
-#include <variant>
 #include <vector>
 
 // Forward declarations
 class Editor;
-
-// ============================================================================
-// Events - Input events that trigger state transitions
-// ============================================================================
-
-struct KeyEvent
-{
-    int key;
-    explicit KeyEvent(int k) : key(k) {}
-};
-
-struct EscapeEvent
-{
-};
-
-struct EnterEvent
-{
-};
-
-struct BackspaceEvent
-{
-};
-
-struct TabEvent
-{
-};
 
 // ============================================================================
 // Editor Context - Shared state accessible by all mode handlers
@@ -193,6 +166,8 @@ struct CommandMode
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    // Helper methods
     void handleTabCompletion(ModeContext& ctx);
     void handleReverseTabCompletion(ModeContext& ctx);
     void deleteWordBackward(ModeContext& ctx);
@@ -207,9 +182,11 @@ struct SearchForwardMode
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
-    void deleteWordBackward(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    // Helper methods
+    void deleteWordBackward(ModeContext& ctx);
 };
 
 struct SearchBackwardMode
@@ -221,9 +198,11 @@ struct SearchBackwardMode
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
-    void deleteWordBackward(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    // Helper methods
+    void deleteWordBackward(ModeContext& ctx);
 };
 
 struct FileBrowserMode
@@ -302,62 +281,37 @@ struct OperatorPendingMode
 };
 
 // ============================================================================
-// Mode State Machine
+// Mode State Machine - Inherits from generic StateMachine
 // ============================================================================
 
-class ModeStateMachine
+// Base type alias for the generic state machine
+using ModeStateMachineBase = StateMachine<ModeState, ModeContext, KeyEvent>;
+
+class ModeStateMachine : public ModeStateMachineBase
 {
 public:
-    explicit ModeStateMachine(ModeContext ctx);
-
-    // Dispatch a key event to the current state
-    void dispatch(int key);
-
-    // Get current state name
-    const char* currentStateName() const;
-
-    // Check if in a specific state
-    template <typename State>
-    bool isIn() const
+    // Constructor - starts in NormalMode by default
+    explicit ModeStateMachine(ModeContext ctx)
+        : ModeStateMachineBase(std::move(ctx), NormalMode{})
     {
-        return std::holds_alternative<State>(currentState_);
     }
 
-    // Access current state (for state-specific operations)
-    template <typename State>
-    State* getState()
+    // Constructor with explicit initial state
+    template <typename InitialState>
+    ModeStateMachine(ModeContext ctx, InitialState&& initial)
+        : ModeStateMachineBase(std::move(ctx),
+                               std::forward<InitialState>(initial))
     {
-        return std::get_if<State>(&currentState_);
     }
 
-    // Force transition to a specific state
-    template <typename State>
-    void transitionTo(State&& newState)
+    // Convenience method to dispatch by key code (wraps in KeyEvent)
+    void dispatch(int key)
     {
-        // Exit current state
-        std::visit([this](auto& state) { state.on_exit(context_); },
-                   currentState_);
-
-        currentState_ = std::forward<State>(newState);
-
-        // Enter new state
-        std::visit([this](auto& state) { state.on_enter(context_); },
-                   currentState_);
+        ModeStateMachineBase::dispatch(KeyEvent{key});
     }
 
-    // Access context
-    ModeContext& context()
-    {
-        return context_;
-    }
-    const ModeContext& context() const
-    {
-        return context_;
-    }
-
-private:
-    ModeState currentState_;
-    ModeContext context_;
+    // Also allow dispatching KeyEvent directly (from base class)
+    using ModeStateMachineBase::dispatch;
 };
 
 // ============================================================================
