@@ -1662,6 +1662,60 @@ void Editor::handleNormalMode(int c)
     case 'i':
         setMode(INSERT);
         break;
+    case 'I':
+        moveToFirstNonBlank();
+        setMode(INSERT);
+        break;
+    case 'a':
+        if(!lines->empty() && !(*lines)[*cursorY].empty())
+        {
+            (*cursorX)++;
+            if(*cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+        }
+        setMode(INSERT);
+        break;
+    case 'A':
+        moveToLineEnd();
+        (*cursorX)++;
+        setMode(INSERT);
+        break;
+    case 'o':
+        // Insert line below and enter insert mode
+        insertLineBelow();
+        setMode(INSERT);
+        break;
+    case 'O':
+        // Insert line above and enter insert mode
+        insertLineAbove();
+        setMode(INSERT);
+        break;
+    case 's':
+        // Substitute: delete char under cursor and enter insert mode
+        if(!lines->empty() && !(*lines)[*cursorY].empty())
+        {
+            deleteCharForward();
+            saveState();
+        }
+        setMode(INSERT);
+        break;
+    case 'S':
+        // Substitute line: delete entire line content and enter insert mode
+        if(!lines->empty())
+        {
+            (*lines)[*cursorY].clear();
+            *cursorX = 0;
+            saveState();
+        }
+        setMode(INSERT);
+        break;
+    case 'C':
+        // Change to end of line: delete from cursor to end and enter insert
+        // mode
+        deleteToLineEnd();
+        saveState();
+        setMode(INSERT);
+        break;
     case ':':
         setMode(COMMAND);
         commandBuffer = ":";
