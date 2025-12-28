@@ -1,4 +1,5 @@
 #pragma once
+#include <deque>
 #include <string>
 #include <termios.h>
 #include <unistd.h>
@@ -35,6 +36,13 @@ public:
 
     // Input
     static int readKey();
+
+    // Read key with timeout (milliseconds). Returns -1 if no key pressed within
+    // timeout.
+    static int readKeyTimeout(int timeoutMs);
+
+    // Push a key back to be read again by the next readKey() call
+    static void unreadKey(int key);
 
     // Colors and styles
     static void setColor(int fg, int bg = -1);
@@ -128,28 +136,56 @@ public:
         PAGE_DOWN,
         HOME,
         END,
-        DELETE,
+        DELETE_KEY, // Renamed from DELETE to avoid conflicts
+
+        // Backspace variants
         BACKSPACE = 8,
         DEL = 127,
+
+        // Common control characters
         ENTER = 13,
         ESC = 27,
         TAB = 9,
-        CTRL_S = 19,
-        CTRL_Q = 17,
+
+        // Shift+Tab (reverse tab)
+        SHIFT_TAB = 1100,
+
+        // Ctrl key combinations
+        CTRL_A = 1,
+        CTRL_B = 2,
+        CTRL_C = 3,
+        CTRL_D = 4,
+        CTRL_E = 5,
         CTRL_F = 6,
-        CTRL_P = 16,
-        CTRL_R = 18,
-        CTRL_N = 14,
+        CTRL_G = 7,
+        CTRL_H = 8, // Same as BACKSPACE
+        CTRL_I = 9, // Same as TAB
         CTRL_J = 10,
         CTRL_K = 11,
-        CTRL_U = 21,
-        CTRL_W = 23,
-        CTRL_D = 4,
+        CTRL_L = 12,
+        CTRL_M = 13, // Same as ENTER
+        CTRL_N = 14,
         CTRL_O = 15,
-        CTRL_I = 9,
+        CTRL_P = 16,
+        CTRL_Q = 17,
+        CTRL_R = 18,
+        CTRL_S = 19,
+        CTRL_T = 20,
+        CTRL_U = 21,
+        CTRL_V = 22,
+        CTRL_W = 23,
+        CTRL_X = 24,
+        CTRL_Y = 25,
+        CTRL_Z = 26,
     };
 
 private:
     static termios originalTermios;
     static bool rawModeEnabled;
+
+    // Buffer for unread keys (pushed back via unreadKey())
+    static std::deque<int> keyBuffer;
+
+    // Internal helper to read a single key from stdin with optional timeout
+    static int readKeyInternal(int timeoutMs = -1);
 };

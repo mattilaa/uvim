@@ -3,10 +3,12 @@
 #include <cstdlib>
 #include <iostream>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 termios Terminal::originalTermios;
 bool Terminal::rawModeEnabled = false;
+std::deque<int> Terminal::keyBuffer;
 
 void Terminal::enableRawMode()
 {
@@ -147,20 +149,58 @@ void Terminal::flush()
     fsync(STDOUT_FILENO);
 }
 
-int Terminal::readKey()
+void Terminal::unreadKey(int key)
 {
-    int nread;
+    keyBuffer.push_front(key);
+}
+
+int Terminal::readKeyInternal(int timeoutMs)
+{
     char c;
+
+    if(timeoutMs >= 0)
+    {
+        // Use select() for timeout
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(STDIN_FILENO, &fds);
+
+        struct timeval tv;
+        tv.tv_sec = timeoutMs / 1000;
+        tv.tv_usec = (timeoutMs % 1000) * 1000;
+
+        int ret = select(STDIN_FILENO + 1, &fds, nullptr, nullptr, &tv);
+        if(ret <= 0)
+        {
+            return -1; // Timeout or error
+        }
+    }
+
+    int nread;
     while((nread = read(STDIN_FILENO, &c, 1)) != 1)
     {
         if(nread == -1)
             return -1;
+        if(timeoutMs >= 0)
+            return -1; // Don't block if we had a timeout
     }
 
     // Handle escape sequences
     if(c == '\x1b')
     {
-        char seq[3];
+        char seq[5];
+
+        // Try to read the next character with a short timeout
+        // to distinguish ESC key from escape sequences
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(STDIN_FILENO, &fds);
+        struct timeval tv = {0, 50000}; // 50ms timeout
+
+        if(select(STDIN_FILENO + 1, &fds, nullptr, nullptr, &tv) <= 0)
+        {
+            return ESC; // Just the ESC key
+        }
 
         if(read(STDIN_FILENO, &seq[0], 1) != 1)
             return ESC;
@@ -173,6 +213,7 @@ int Terminal::readKey()
             {
                 if(read(STDIN_FILENO, &seq[2], 1) != 1)
                     return ESC;
+
                 if(seq[2] == '~')
                 {
                     switch(seq[1])
@@ -180,7 +221,7 @@ int Terminal::readKey()
                     case '1':
                         return HOME;
                     case '3':
-                        return DELETE;
+                        return DELETE_KEY;
                     case '4':
                         return END;
                     case '5':
@@ -193,6 +234,40 @@ int Terminal::readKey()
                         return END;
                     }
                 }
+                else if(seq[2] == ';')
+                {
+                    // Extended sequence like ESC[1;5A (Ctrl+Up)
+                    // or ESC[1;2Z (Shift+Tab)
+                    if(read(STDIN_FILENO, &seq[3], 1) != 1)
+                        return ESC;
+                    if(read(STDIN_FILENO, &seq[4], 1) != 1)
+                        return ESC;
+
+                    // Check for Shift+Tab: ESC[1;2Z or just ESC[Z
+                    if(seq[4] == 'Z')
+                    {
+                        return SHIFT_TAB;
+                    }
+
+                    // Could handle other modified keys here
+                    // For now, map to base arrow keys
+                    switch(seq[4])
+                    {
+                    case 'A':
+                        return ARROW_UP;
+                    case 'B':
+                        return ARROW_DOWN;
+                    case 'C':
+                        return ARROW_RIGHT;
+                    case 'D':
+                        return ARROW_LEFT;
+                    }
+                }
+            }
+            else if(seq[1] == 'Z')
+            {
+                // Shift+Tab: ESC[Z
+                return SHIFT_TAB;
             }
             else
             {
@@ -228,6 +303,32 @@ int Terminal::readKey()
     }
 
     return c;
+}
+
+int Terminal::readKey()
+{
+    // First check if we have any unread keys in the buffer
+    if(!keyBuffer.empty())
+    {
+        int key = keyBuffer.front();
+        keyBuffer.pop_front();
+        return key;
+    }
+
+    return readKeyInternal(-1); // No timeout, block until key
+}
+
+int Terminal::readKeyTimeout(int timeoutMs)
+{
+    // First check if we have any unread keys in the buffer
+    if(!keyBuffer.empty())
+    {
+        int key = keyBuffer.front();
+        keyBuffer.pop_front();
+        return key;
+    }
+
+    return readKeyInternal(timeoutMs);
 }
 
 void Terminal::setColor(int fg, int bg)
