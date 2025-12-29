@@ -203,7 +203,7 @@ void Editor::requestCompletion()
     // Compute prefix/anchor (identifier chars).
     const std::string& line = (*lines)[*cursorY];
     int ax = *cursorX;
-    while(ax > 0 && isIdent(line[ax - 1]))
+    while(ax > 0 && text_utils::isIdent(line[ax - 1]))
         --ax;
 
     completionAnchorX = ax;
@@ -303,7 +303,7 @@ void Editor::acceptCompletion()
     completionAnchorY = *cursorY;
     const std::string& line = (*lines)[*cursorY];
     int ax = *cursorX;
-    while(ax > 0 && isIdent(line[ax - 1]))
+    while(ax > 0 && text_utils::isIdent(line[ax - 1]))
         --ax;
     completionAnchorX = ax;
 
@@ -465,9 +465,9 @@ void Editor::drawCompletionPopup(std::string& output) const
 
     // Top border
     moveTo(top, left);
-    appendU8(output, u8"┌");
-    appendUtf8Repeat(output, u8"─", innerW + 2);
-    appendU8(output, u8"┐");
+    text_utils::appendU8(output, u8"┌");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┐");
 
     // Rows
     for(int i = 0; i < maxRows; ++i)
@@ -478,7 +478,7 @@ void Editor::drawCompletionPopup(std::string& output) const
         const auto& e = completionAll[completionFiltered[fidx]];
 
         moveTo(top + 1 + i, left);
-        appendU8(output, u8"│");
+        text_utils::appendU8(output, u8"│");
         output += " ";
 
         bool sel = (fidx == completionSelected);
@@ -501,12 +501,12 @@ void Editor::drawCompletionPopup(std::string& output) const
             output += Terminal::ESC_RESET_ALL;
 
         output += " ";
-        appendU8(output, u8"│");
+        text_utils::appendU8(output, u8"│");
     }
 
     // Bottom border
     moveTo(top + 1 + maxRows, left);
-    appendU8(output, u8"└");
-    appendUtf8Repeat(output, u8"─", innerW + 2);
-    appendU8(output, u8"┐");
+    text_utils::appendU8(output, u8"└");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┐");
 }

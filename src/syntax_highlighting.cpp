@@ -2,32 +2,48 @@
 #include "terminal.h"
 #include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <unordered_set>
+
+#include "text_utils.h"
 
 bool Editor::isCppFile() const
 {
-    if(filename->empty())
+    if(!filename || filename->empty())
         return false;
 
-    size_t dotPos = filename->find_last_of('.');
-    if(dotPos == std::string::npos)
+    // Work with views to avoid copies
+    std::string_view pathSv{*filename};
+
+    // Use filesystem for extension logic
+    std::filesystem::path p{*filename};
+
+    // If there is no extension, keep your "stdlib header path" heuristics
+    if(!p.has_extension())
     {
-        const std::string& path = *filename;
-        if(path.find("/c++/") != std::string::npos ||
-           path.find("/bits/") != std::string::npos ||
-           path.find("/ext/") != std::string::npos ||
-           path.find("/__") != std::string::npos)
-        {
-            return true;
-        }
-        return false;
+        return text_utils::contains(pathSv, "/c++/") ||
+               text_utils::contains(pathSv, "/bits/") ||
+               text_utils::contains(pathSv, "/ext/") ||
+               text_utils::contains(pathSv, "/__");
     }
 
-    std::string ext = filename->substr(dotPos);
+    // Compare extensions (including the dot) without allocating a new string
+    // Note: path.extension() returns a path; .string() allocates. Use native
+    // string view if possible: We'll just take a small allocation-free route by
+    // comparing on the filename view.
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot); // includes '.'
 
-    return (ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".h" ||
-            ext == ".hpp" || ext == ".hxx" || ext == ".c" || ext == ".C" ||
-            ext == ".mla");
+    static constexpr std::array<std::string_view, 10> exts = {
+        ".cpp", ".cc", ".cxx", ".h",  ".hpp", ".hxx",
+        ".c",   ".C",  ".mla", ".ixx"
+        // add/remove as you like (e.g. ".tpp", ".inl", ".hh", ".cu")
+    };
+
+    return std::any_of(exts.begin(), exts.end(), [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
 }
 
 bool Editor::isMlaFile() const
