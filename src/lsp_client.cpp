@@ -4,7 +4,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -12,9 +11,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstring>
-#include <deque>
 #include <fstream>
-#include <map>
 #include <mutex>
 #include <thread>
 #include <unordered_map>

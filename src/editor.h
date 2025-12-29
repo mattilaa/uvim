@@ -8,12 +8,9 @@
 #include "token_type.h"
 #include <chrono>
 #include <ctime>
-#include <functional>
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
