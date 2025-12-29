@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "text_utils.h"
+#include "constants.h"
 
 bool Editor::isCppFile() const
 {
@@ -36,13 +37,9 @@ bool Editor::isCppFile() const
         return false;
     std::string_view ext = pathSv.substr(dot); // includes '.'
 
-    static constexpr std::array<std::string_view, 10> exts = {
-        ".cpp", ".cc", ".cxx", ".h",  ".hpp", ".hxx",
-        ".c",   ".C",  ".mla", ".ixx"
-        // add/remove as you like (e.g. ".tpp", ".inl", ".hh", ".cu")
-    };
-
-    return std::any_of(exts.begin(), exts.end(), [&](std::string_view e)
+    return std::any_of(constants::CPP_FILE_EXTENSIONS.begin(),
+                       constants::CPP_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
                        { return text_utils::iequals_ascii(ext, e); });
 }
 
