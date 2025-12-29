@@ -1834,6 +1834,12 @@ void Editor::handleVisualMode(int c)
         return;
     }
 
+    if(c == Terminal::CTRL_V)
+    {
+        setMode(VISUAL_BLOCK);
+        return;
+    }
+
     // Movement updates selection
     switch(c)
     {
@@ -1853,23 +1859,94 @@ void Editor::handleVisualMode(int c)
     case Terminal::ARROW_RIGHT:
         moveRight(1);
         break;
+
+    // Word movements
     case 'w':
         moveWordForward();
+        break;
+    case 'W':
+        moveWordForwardBig();
         break;
     case 'b':
         moveWordBackward();
         break;
+    case 'B':
+        moveWordBackwardBig();
+        break;
+    case 'e':
+        moveToEndOfWord();
+        break;
+    case 'E':
+        moveToEndOfWordBig();
+        break;
+
+    // Line movements
     case '0':
         moveToLineStart();
+        break;
+    case '^':
+        moveToFirstNonBlank();
         break;
     case '$':
         moveToLineEnd();
         break;
+
+    // Paragraph movements
+    case '{':
+        moveParagraphBackward();
+        break;
+    case '}':
+        moveParagraphForward();
+        break;
+
+    // File movements
     case 'G':
         moveToLastLine();
         break;
+    case 'g':
+    {
+        int nextChar = Terminal::readKey();
+        if(nextChar == 'g')
+            moveToFirstLine();
+    }
+    break;
+
+    // Matching bracket
+    case '%':
+        moveToMatchingBracket();
+        break;
+
+    // Screen movements
+    case 'H':
+        moveToScreenTop();
+        break;
+    case 'M':
+        moveToScreenMiddle();
+        break;
+    case 'L':
+        moveToScreenBottom();
+        break;
+
+    // Scrolling
+    case Terminal::CTRL_D:
+        scrollHalfPageDown(false);
+        break;
+    case Terminal::CTRL_U:
+        scrollHalfPageUp(false);
+        break;
+    case Terminal::CTRL_F:
+    case Terminal::PAGE_DOWN:
+        scrollPageDown();
+        break;
+    case Terminal::CTRL_B:
+    case Terminal::PAGE_UP:
+        scrollPageUp();
+        break;
+
+    // Operations on selection
     case 'd':
     case 'x':
+        yankSelection();
         deleteSelection();
         saveState();
         setMode(NORMAL);
@@ -1879,6 +1956,7 @@ void Editor::handleVisualMode(int c)
         setMode(NORMAL);
         return;
     case 'c':
+        yankSelection();
         deleteSelection();
         saveState();
         setMode(INSERT);
@@ -1893,6 +1971,46 @@ void Editor::handleVisualMode(int c)
         saveState();
         setMode(NORMAL);
         return;
+    case '~':
+        toggleCaseSelection();
+        saveState();
+        setMode(NORMAL);
+        return;
+    case 'u':
+        lowercaseSelection();
+        saveState();
+        setMode(NORMAL);
+        return;
+    case 'U':
+        uppercaseSelection();
+        saveState();
+        setMode(NORMAL);
+        return;
+    case 'J':
+        // Join selected lines
+        {
+            int startLine = std::min(currentBuffer->visualStartY,
+                                     currentBuffer->visualEndY);
+            int endLine = std::max(currentBuffer->visualStartY,
+                                   currentBuffer->visualEndY);
+            *cursorY = startLine;
+            for(int i = startLine;
+                i < endLine && *cursorY < (int)lines->size() - 1; i++)
+            {
+                joinLines();
+            }
+            saveState();
+            setMode(NORMAL);
+        }
+        return;
+
+    // Swap selection ends
+    case 'o':
+    {
+        std::swap(*cursorX, currentBuffer->visualStartX);
+        std::swap(*cursorY, currentBuffer->visualStartY);
+    }
+    break;
     }
 
     // Update visual end
