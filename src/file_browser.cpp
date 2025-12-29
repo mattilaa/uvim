@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "file_utils.h"
+
 void Editor::openFileBrowser(const std::string& path)
 {
     if(currentMode != FILE_BROWSER)
@@ -76,18 +78,19 @@ void Editor::loadDirectory(const std::string& path)
         if(!showHidden && name != ".." && name[0] == '.')
             continue;
 
-        std::string fullPath = path + "/" + name;
-
-        struct stat st;
-        if(stat(fullPath.c_str(), &st) != 0)
+        fs::path fullPath = path + "/" + name;
+        std::error_code ec;
+        auto st = fs::symlink_status(fullPath, ec);
+        // doesn't follow symlinks; use status() if you want to follow
+        if(ec)
             continue;
 
         FileEntry fe;
         fe.name = name;
         fe.path = fullPath;
-        fe.isDirectory = S_ISDIR(st.st_mode);
-        fe.size = st.st_size;
-        fe.modTime = st.st_mtime;
+        fe.isDirectory = fs::is_directory(st);
+        fe.size = fs::is_regular_file(st) ? file_size_nothrow(fullPath) : 0;
+        fe.modTime = mtime_nothrow(fullPath);
 
         if(fe.isDirectory)
         {
@@ -210,7 +213,12 @@ void Editor::drawFileBrowser()
         if(entry.isDirectory)
         {
             output += Terminal::FG_BLUE;
+            output += "📁 ";
             output += Terminal::ESC_BOLD;
+        }
+        else
+        {
+            output += "📄 ";
         }
 
         std::string displayName = entry.name;
