@@ -1,8 +1,7 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
-#include <climits>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>

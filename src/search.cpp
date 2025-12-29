@@ -1,5 +1,4 @@
-#include "editor_lsp_query.h"
-#include <algorithm>
+#include "editor.h"
 
 void Editor::startSearchForward()
 {

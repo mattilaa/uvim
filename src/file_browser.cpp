@@ -1,4 +1,4 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include "terminal.h"
 #include <algorithm>
 #include <dirent.h>

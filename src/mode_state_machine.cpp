@@ -1,5 +1,5 @@
 #include "mode_state_machine.h"
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include "terminal.h"
 
 // ============================================================================

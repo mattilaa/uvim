@@ -1,4 +1,4 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include <sstream>
 
 bool isLikelyDefinition(const std::string& line, const std::string& symbol)

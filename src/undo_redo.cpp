@@ -1,4 +1,4 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
 
 void Editor::saveState()
 {

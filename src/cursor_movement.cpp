@@ -1,7 +1,4 @@
-// Cursor movement methods for Editor
-// Extracted from editor_lsp_query.cpp
-
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include <algorithm>
 #include <cctype>
 

@@ -1,7 +1,4 @@
-// Text operations (insert, delete, yank, paste) for Editor
-// Extracted from editor_lsp_query.cpp
-
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>

@@ -1,50 +1,124 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
+#include <filesystem>
+#include <iostream>
 #include <string>
-#include <sys/stat.h>
+#include <string_view>
+#include <system_error>
 #include <vector>
 
-static bool isDirectory(const char* path)
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+static bool is_directory(const std::filesystem::path& p)
 {
-    struct stat st;
-    if(stat(path, &st) != 0)
-        return false;
-    return S_ISDIR(st.st_mode);
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    return fs::is_directory(p, ec);
+}
+
+[[noreturn]] static void die(std::string_view msg, std::string_view arg = {})
+{
+    std::cerr << "Error: " << msg;
+    if(!arg.empty())
+        std::cerr << ": " << arg;
+    std::cerr << "\n";
+    std::exit(2);
+}
+
+static bool split_eq(std::string_view s, std::string_view& key,
+                     std::string_view& value)
+{
+    if(auto pos = s.find('='); pos != std::string_view::npos)
+    {
+        key = s.substr(0, pos);
+        value = s.substr(pos + 1);
+        return true;
+    }
+    return false;
+}
+
+static std::string_view require_value(std::string_view opt, int& i, int argc,
+                                      char* argv[],
+                                      std::string_view inline_value)
+{
+    if(!inline_value.empty())
+        return inline_value;
+    if(i + 1 >= argc)
+        die("missing value for option", opt);
+    return std::string_view{argv[++i]};
 }
 
 int main(int argc, char* argv[])
 {
     bool useClangd = false;
-    std::string ccdir;
-    std::string clangdPath = "clangd";
+    fs::path ccdir;
+    fs::path clangdPath = "clangd";
     std::string queryDriver;
-    std::vector<std::string> args;
+    std::vector<fs::path> args;
 
-    // Parse flags first; remaining args are files/dirs.
+    auto require_value = [&](std::string_view opt, int& i,
+                             std::string_view inline_value) -> std::string_view
+    {
+        if(!inline_value.empty())
+            return inline_value;
+        if(i + 1 >= argc)
+        {
+            std::cerr << "Missing value for option: " << opt << "\n";
+            std::exit(2);
+        }
+        return std::string_view{argv[++i]};
+    };
+
+    bool parse_options = true;
+
     for(int i = 1; i < argc; ++i)
     {
-        std::string a = argv[i];
-        if(a == "--clangd")
-        {
-            useClangd = true;
+        std::string_view a{argv[i]};
+
+        if(parse_options && a == "--")
+        { // stop option parsing
+            parse_options = false;
+            continue;
         }
-        else if(a == "--ccdir" && i + 1 < argc)
+
+        if(parse_options && a.rfind("--", 0) == 0)
         {
-            ccdir = argv[++i];
-        }
-        else if(a == "--clangd-path" && i + 1 < argc)
-        {
-            clangdPath = argv[++i];
-        }
-        else if(a == "--query-driver" && i + 1 < argc)
-        {
-            queryDriver = argv[++i];
+            std::string_view key, val;
+            if(!split_eq(a, key, val))
+            {
+                key = a;
+                val = {};
+            }
+
+            if(key == "--clangd")
+            {
+                useClangd = true;
+            }
+            else if(key == "--ccdir")
+            {
+                ccdir = require_value(key, i, val);
+            }
+            else if(key == "--clangd-path")
+            {
+                clangdPath = require_value(key, i, val);
+            }
+            else if(key == "--query-driver")
+            {
+                queryDriver = std::string(require_value(key, i, val));
+            }
+            else
+            {
+                // unknown option: keep it as a positional, or error out if you
+                // prefer
+                args.emplace_back(a);
+            }
         }
         else
         {
-            args.push_back(a);
+            args.emplace_back(a);
         }
     }
-
     // Create editor with flag indicating whether we have files to open
     Editor editor(!args.empty());
 
@@ -56,7 +130,7 @@ int main(int argc, char* argv[])
     if(!args.empty())
     {
         // If first argument is a directory, open file browser
-        if(isDirectory(args[0].c_str()))
+        if(is_directory(args[0].c_str()))
         {
             editor.openFileBrowser(args[0]);
         }

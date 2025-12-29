@@ -1,7 +1,7 @@
 // Additional function implementations for Editor
 // These functions are called by mode handlers
 
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>

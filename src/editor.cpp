@@ -1,4 +1,4 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include "terminal.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"

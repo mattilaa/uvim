@@ -1,4 +1,4 @@
-#include "editor_lsp_query.h"
+#include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
