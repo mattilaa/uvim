@@ -40,13 +40,16 @@ set(UVIM_SOURCES
 # Mode state machine sources
 set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
-    src/mode_handlers/normal_mode.cpp
-    src/mode_handlers/insert_mode.cpp
-    src/mode_handlers/visual_mode.cpp
-    src/mode_handlers/command_mode.cpp
-    src/mode_handlers/search_mode.cpp
-    src/mode_handlers/browser_modes.cpp
-    src/mode_handlers/operator_pending_mode.cpp
+    src/normal_mode.cpp
+    src/insert_mode.cpp
+    src/visual_mode.cpp
+    src/command_mode.cpp
+    src/search_mode.cpp
+    src/operator_pending_mode.cpp
+    src/buffer_browser_mode.cpp
+    src/fuzzy_find_mode.cpp
+    src/grep_search_mode.cpp
+    src/file_browser_mode.cpp
 )
 
 # Add state machine sources to main sources
