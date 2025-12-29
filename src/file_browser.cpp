@@ -1,7 +1,5 @@
 #include "editor.h"
 #include "terminal.h"
-#include <algorithm>
-#include <dirent.h>
 #include <sstream>
 
 #include "file_utils.h"
@@ -13,24 +11,23 @@ void Editor::openFileBrowser(const std::string& path)
         previousFile = *filename;
     }
 
-    char resolvedPath[PATH_MAX];
-    if(realpath(path.c_str(), resolvedPath))
+    std::error_code ec;
+
+    // Prefer resolving the provided path (works for relative paths too)
+    fs::path p = path.empty() ? fs::path{"."} : fs::path{path};
+
+    // weakly_canonical: resolves what it can without failing hard if parts
+    // don't exist
+    fs::path resolved = fs::weakly_canonical(p, ec);
+    if(ec)
     {
-        currentDirectory = resolvedPath;
-    }
-    else
-    {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-        {
-            currentDirectory = cwd;
-        }
-        else
-        {
-            currentDirectory = ".";
-        }
+        ec.clear();
+        resolved = fs::current_path(ec);
+        if(ec)
+            resolved = ".";
     }
 
+    currentDirectory = resolved.string(); // or UTF-8 helper if you use one
     loadDirectory(currentDirectory);
 
     if(fileList.empty())
