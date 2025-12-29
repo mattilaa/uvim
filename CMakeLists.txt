@@ -35,6 +35,7 @@ set(UVIM_SOURCES
     src/undo_redo.cpp
     src/drawing.cpp
     src/lsp_completion.cpp
+    src/cpp_constants.cpp
 )
 
 # Mode state machine sources
