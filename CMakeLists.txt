@@ -17,20 +17,16 @@ endif()
 # Include directories - make headers available to all targets
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-# Sources - main editor with extracted components
-set(UVIM_SOURCES
+# Core editor sources
+set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
     src/editor_lsp_query.cpp
+    src/editor_context.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp
-    #src/buffer_management.cpp
     src/missing_functions.cpp
     src/search.cpp
-    src/fuzzy_finder.cpp
-    src/buffer_browser.cpp
-    src/grep_search.cpp
-    src/file_browser.cpp
     src/syntax_highlighting.cpp
     src/undo_redo.cpp
     src/drawing.cpp
@@ -52,8 +48,11 @@ set(MODE_STATE_MACHINE_SOURCES
     src/file_browser_mode.cpp
 )
 
-# Add state machine sources to main sources
-list(APPEND UVIM_SOURCES ${MODE_STATE_MACHINE_SOURCES})
+# Combine all sources
+set(UVIM_SOURCES
+    ${UVIM_CORE_SOURCES}
+    ${MODE_STATE_MACHINE_SOURCES}
+)
 
 # LSP client only needed when LSP is enabled
 if(UVIM_ENABLE_CLANGD_LSP)

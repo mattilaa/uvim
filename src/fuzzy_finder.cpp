@@ -1,439 +1,443 @@
-#include "editor_lsp_query.h"
+#include "editor_context.h"
+#include "fuzzy_finder.h"
 #include "terminal.h"
+
 #include <algorithm>
-#include <cctype>
 #include <climits>
+#include <cstring>
 #include <dirent.h>
+#include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
 
-void Editor::initializeFuzzyFind()
+// ============================================================================
+// Constructor
+// ============================================================================
+
+FuzzyFinder::FuzzyFinder(EditorContext& ctx) : m_ctx(ctx) {}
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+void FuzzyFinder::open()
 {
-    if(!fuzzyInitialized)
+    m_query.clear();
+    m_cursor = 0;
+    m_offset = 0;
+    m_active = true;
+
+    if(!m_filesCollected)
     {
-        allProjectFiles.clear();
-
-        // Get current working directory as project root
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-        {
-            collectProjectFiles(std::string(cwd));
-        }
-
-        fuzzyInitialized = true;
+        collectFiles();
+        m_filesCollected = true;
     }
 
-    fuzzyQuery.clear();
-    fuzzyCursor = 0;
-    fuzzyOffset = 0;
-    fuzzyMatches.clear();
-
-    // Initially show all files
-    for(const auto& file : allProjectFiles)
-    {
-        if(!file.isDirectory)
-        {
-            FuzzyMatch match;
-            match.file = file;
-            match.score = 0;
-            fuzzyMatches.push_back(match);
-        }
-    }
-
-    // Sort by path initially
-    std::sort(fuzzyMatches.begin(), fuzzyMatches.end(),
-              [](const FuzzyMatch& a, const FuzzyMatch& b)
-              { return a.file.path < b.file.path; });
+    updateMatches();
+    m_ctx.requestFullRedraw();
 }
 
-void Editor::collectProjectFiles(const std::string& dir, int depth)
+void FuzzyFinder::close()
 {
-    if(depth > 5)
-        return; // Limit recursion depth
+    m_active = false;
+}
 
-    DIR* d = opendir(dir.c_str());
-    if(!d)
+// ============================================================================
+// Input Handling
+// ============================================================================
+
+void FuzzyFinder::addChar(char c)
+{
+    m_query += c;
+    m_cursor = 0;
+    m_offset = 0;
+    updateMatches();
+    m_ctx.requestFullRedraw();
+}
+
+void FuzzyFinder::backspace()
+{
+    if(!m_query.empty())
+    {
+        m_query.pop_back();
+        m_cursor = 0;
+        m_offset = 0;
+        updateMatches();
+    }
+    m_ctx.requestFullRedraw();
+}
+
+void FuzzyFinder::deleteWord()
+{
+    if(m_query.empty())
         return;
 
-    struct dirent* entry;
-    while((entry = readdir(d)))
+    // Delete trailing spaces
+    while(!m_query.empty() && m_query.back() == ' ')
     {
-        std::string name = entry->d_name;
+        m_query.pop_back();
+    }
 
-        // Skip hidden files and special directories
-        if(name == "." || name == ".." || name[0] == '.')
-            continue;
+    // Delete word characters
+    while(!m_query.empty() && m_query.back() != ' ' && m_query.back() != '/')
+    {
+        m_query.pop_back();
+    }
 
-        // Skip common non-source directories
-        if(name == "node_modules" || name == "build" || name == "dist" ||
-           name == ".git" || name == "target" || name == "__pycache__")
-            continue;
+    m_cursor = 0;
+    m_offset = 0;
+    updateMatches();
+    m_ctx.requestFullRedraw();
+}
 
-        std::string fullPath = dir + "/" + name;
+void FuzzyFinder::clear()
+{
+    m_query.clear();
+    m_cursor = 0;
+    m_offset = 0;
+    updateMatches();
+    m_ctx.requestFullRedraw();
+}
 
-        struct stat st;
-        if(stat(fullPath.c_str(), &st) == 0)
+// ============================================================================
+// Navigation
+// ============================================================================
+
+void FuzzyFinder::moveUp()
+{
+    if(m_cursor > 0)
+    {
+        m_cursor--;
+        adjustScroll();
+    }
+    m_ctx.requestFullRedraw();
+}
+
+void FuzzyFinder::moveDown()
+{
+    if(m_cursor < static_cast<int>(m_matches.size()) - 1)
+    {
+        m_cursor++;
+        adjustScroll();
+    }
+    m_ctx.requestFullRedraw();
+}
+
+void FuzzyFinder::halfPageUp()
+{
+    int halfPage = m_ctx.screenRows() / 2;
+    for(int i = 0; i < halfPage && m_cursor > 0; i++)
+    {
+        m_cursor--;
+    }
+    adjustScroll();
+    m_ctx.requestFullRedraw();
+}
+
+void FuzzyFinder::halfPageDown()
+{
+    int halfPage = m_ctx.screenRows() / 2;
+    int maxCursor = static_cast<int>(m_matches.size()) - 1;
+    for(int i = 0; i < halfPage && m_cursor < maxCursor; i++)
+    {
+        m_cursor++;
+    }
+    adjustScroll();
+    m_ctx.requestFullRedraw();
+}
+
+// ============================================================================
+// Selection
+// ============================================================================
+
+bool FuzzyFinder::selectEntry()
+{
+    if(m_matches.empty() || m_cursor >= static_cast<int>(m_matches.size()))
+    {
+        return false;
+    }
+
+    const FuzzyMatch& match = m_matches[m_cursor];
+    m_ctx.openFile(match.path);
+    m_active = false;
+    return true;
+}
+
+// ============================================================================
+// Preview
+// ============================================================================
+
+void FuzzyFinder::togglePreview()
+{
+    m_showPreview = !m_showPreview;
+    m_ctx.requestFullRedraw();
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+
+void FuzzyFinder::draw()
+{
+    std::string output;
+    output.reserve(m_ctx.screenRows() * m_ctx.screenCols() * 2);
+
+    // Draw query line at top
+    Terminal::moveCursor(1, 1);
+    output += "\x1b[K";           // Clear line
+    output += "\x1b[1m> \x1b[0m"; // Bold prompt
+    output += m_query;
+    output += "\x1b[7m \x1b[0m"; // Cursor
+
+    // Draw matches
+    int visibleRows = m_ctx.screenRows() - 1; // -1 for query line
+
+    for(int row = 0; row < visibleRows; row++)
+    {
+        int matchIndex = m_offset + row;
+
+        Terminal::moveCursor(row + 2, 1);
+        output += "\x1b[K"; // Clear line
+
+        if(matchIndex < static_cast<int>(m_matches.size()))
         {
-            FileEntry fileEntry;
-            fileEntry.name = name;
-            fileEntry.path = fullPath;
-            fileEntry.isDirectory = S_ISDIR(st.st_mode);
-            fileEntry.size = st.st_size;
-            fileEntry.modTime = st.st_mtime;
+            const FuzzyMatch& match = m_matches[matchIndex];
 
-            allProjectFiles.push_back(fileEntry);
-
-            if(fileEntry.isDirectory)
+            // Highlight current selection
+            if(matchIndex == m_cursor)
             {
-                collectProjectFiles(fullPath, depth + 1);
+                output += "\x1b[7m"; // Reverse video
             }
+
+            // Display the path with highlighted match positions
+            std::string displayPath = match.path;
+            int maxLen = m_ctx.screenCols() - 2;
+            if(static_cast<int>(displayPath.length()) > maxLen)
+            {
+                displayPath = "..." + displayPath.substr(displayPath.length() -
+                                                         maxLen + 3);
+            }
+
+            output += " " + displayPath;
+
+            // Reset colors
+            output += "\x1b[0m";
         }
     }
 
-    closedir(d);
+    Terminal::write(output);
 }
 
-int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
-                       std::vector<int>& matchPositions)
+void FuzzyFinder::drawStatusLine()
 {
-    matchPositions.clear();
+    std::ostringstream oss;
+    oss << " FUZZY FIND: " << m_matches.size() << "/" << m_allFiles.size()
+        << " files";
 
-    if(needle.empty())
+    if(!m_query.empty())
+    {
+        oss << " matching '" << m_query << "'";
+    }
+
+    m_ctx.setStatusMessage(oss.str());
+}
+
+// ============================================================================
+// Internal Methods
+// ============================================================================
+
+void FuzzyFinder::collectFiles()
+{
+    m_allFiles.clear();
+
+    // Get current working directory
+    char cwd[PATH_MAX];
+    if(!getcwd(cwd, sizeof(cwd)))
+    {
+        return;
+    }
+
+    // Recursively collect files (limited depth to avoid too many files)
+    std::vector<std::string> dirsToProcess;
+    dirsToProcess.push_back(cwd);
+
+    int maxFiles = 10000;
+    int maxDepth = 10;
+
+    while(!dirsToProcess.empty() &&
+          static_cast<int>(m_allFiles.size()) < maxFiles)
+    {
+        std::string currentDir = dirsToProcess.back();
+        dirsToProcess.pop_back();
+
+        // Calculate depth
+        int depth = 0;
+        for(char c : currentDir)
+        {
+            if(c == '/')
+                depth++;
+        }
+        int cwdDepth = 0;
+        for(char c : std::string(cwd))
+        {
+            if(c == '/')
+                cwdDepth++;
+        }
+        if(depth - cwdDepth > maxDepth)
+            continue;
+
+        DIR* dir = opendir(currentDir.c_str());
+        if(!dir)
+            continue;
+
+        struct dirent* entry;
+        while((entry = readdir(dir)) &&
+              static_cast<int>(m_allFiles.size()) < maxFiles)
+        {
+            std::string name = entry->d_name;
+
+            // Skip hidden files and special directories
+            if(name[0] == '.')
+                continue;
+            if(name == "node_modules" || name == "build" || name == ".git")
+                continue;
+
+            std::string fullPath = currentDir + "/" + name;
+
+            struct stat st;
+            if(stat(fullPath.c_str(), &st) != 0)
+                continue;
+
+            if(S_ISDIR(st.st_mode))
+            {
+                dirsToProcess.push_back(fullPath);
+            }
+            else if(S_ISREG(st.st_mode))
+            {
+                // Store relative path
+                std::string relativePath = fullPath.substr(strlen(cwd) + 1);
+                m_allFiles.push_back(relativePath);
+            }
+        }
+
+        closedir(dir);
+    }
+
+    // Sort files by name
+    std::sort(m_allFiles.begin(), m_allFiles.end());
+}
+
+void FuzzyFinder::updateMatches()
+{
+    m_matches.clear();
+
+    if(m_query.empty())
+    {
+        // Show all files when query is empty
+        for(const auto& file : m_allFiles)
+        {
+            FuzzyMatch match;
+            match.path = file;
+            match.displayName = file;
+            match.score = 0;
+            m_matches.push_back(match);
+        }
+        return;
+    }
+
+    // Score and collect matches
+    for(const auto& file : m_allFiles)
+    {
+        std::vector<size_t> positions;
+        int score = fuzzyScore(file, m_query, positions);
+
+        if(score > 0)
+        {
+            FuzzyMatch match;
+            match.path = file;
+            match.displayName = file;
+            match.score = score;
+            match.matchPositions = positions;
+            m_matches.push_back(match);
+        }
+    }
+
+    // Sort by score (highest first)
+    std::sort(m_matches.begin(), m_matches.end(),
+              [](const FuzzyMatch& a, const FuzzyMatch& b)
+              { return a.score > b.score; });
+}
+
+int FuzzyFinder::fuzzyScore(const std::string& str, const std::string& pattern,
+                            std::vector<size_t>& positions) const
+{
+    positions.clear();
+
+    if(pattern.empty())
+        return 1;
+    if(str.empty())
         return 0;
-    if(needle.length() > haystack.length())
-        return -1;
 
     int score = 0;
-    int consecutiveBonus = 10;
-    int separatorBonus = 30;
-    int camelBonus = 30;
-    int firstLetterBonus = 15;
+    size_t patternIdx = 0;
+    size_t lastMatchIdx = std::string::npos;
 
-    size_t needleIdx = 0;
-    int prevMatchIdx = -1;
-
-    for(size_t i = 0; i < haystack.length() && needleIdx < needle.length(); i++)
+    for(size_t i = 0; i < str.length() && patternIdx < pattern.length(); i++)
     {
-        char needleChar = std::tolower(needle[needleIdx]);
-        char haystackChar = std::tolower(haystack[i]);
+        char strChar = std::tolower(str[i]);
+        char patChar = std::tolower(pattern[patternIdx]);
 
-        if(needleChar == haystackChar)
+        if(strChar == patChar)
         {
-            matchPositions.push_back(i);
+            positions.push_back(i);
 
-            score += 100;
-
-            if(prevMatchIdx >= 0 && i == prevMatchIdx + 1)
+            // Bonus for consecutive matches
+            if(lastMatchIdx != std::string::npos && i == lastMatchIdx + 1)
             {
-                score += consecutiveBonus;
+                score += 10;
             }
 
-            if(i > 0)
-            {
-                char prevChar = haystack[i - 1];
-                if(prevChar == '/' || prevChar == '-' || prevChar == '_' ||
-                   prevChar == '.')
-                {
-                    score += separatorBonus;
-                }
-            }
-
-            if(i > 0 && std::islower(haystack[i - 1]) &&
-               std::isupper(haystack[i]))
-            {
-                score += camelBonus;
-            }
-
-            if(i == 0)
-            {
-                score += firstLetterBonus;
-            }
-
-            if(needle[needleIdx] == haystack[i])
+            // Bonus for match at start or after separator
+            if(i == 0 || str[i - 1] == '/' || str[i - 1] == '_' ||
+               str[i - 1] == '-')
             {
                 score += 5;
             }
 
-            prevMatchIdx = i;
-            needleIdx++;
-        }
-        else
-        {
-            if(prevMatchIdx >= 0)
+            // Bonus for exact case match
+            if(str[i] == pattern[patternIdx])
             {
-                score -= (i - prevMatchIdx);
+                score += 2;
             }
+
+            score += 1;
+            lastMatchIdx = i;
+            patternIdx++;
         }
     }
 
-    if(needleIdx != needle.length())
+    // Return 0 if not all pattern characters matched
+    if(patternIdx < pattern.length())
     {
-        return -1;
+        return 0;
     }
 
-    score -= haystack.length();
+    // Bonus for shorter strings (prefer shorter matches)
+    score += static_cast<int>(100 - std::min(str.length(), size_t(100)));
 
     return score;
 }
 
-void Editor::updateFuzzyMatches()
+void FuzzyFinder::adjustScroll()
 {
-    fuzzyMatches.clear();
+    int visibleRows = m_ctx.screenRows() - 1;
 
-    if(fuzzyQuery.empty())
+    if(m_cursor < m_offset)
     {
-        for(const auto& file : allProjectFiles)
-        {
-            if(!file.isDirectory)
-            {
-                FuzzyMatch match;
-                match.file = file;
-                match.score = 0;
-                fuzzyMatches.push_back(match);
-            }
-        }
+        m_offset = m_cursor;
     }
-    else
+    else if(m_cursor >= m_offset + visibleRows)
     {
-        for(const auto& file : allProjectFiles)
-        {
-            if(file.isDirectory)
-                continue;
-
-            std::vector<int> positions;
-            int pathScore = fuzzyScore(fuzzyQuery, file.path, positions);
-
-            std::vector<int> namePositions;
-            int nameScore = fuzzyScore(fuzzyQuery, file.name, namePositions);
-
-            int finalScore = std::max(pathScore, nameScore * 2);
-
-            if(finalScore > 0)
-            {
-                FuzzyMatch match;
-                match.file = file;
-                match.score = finalScore;
-                match.matchPositions =
-                    (nameScore * 2 > pathScore) ? namePositions : positions;
-                fuzzyMatches.push_back(match);
-            }
-        }
-
-        std::sort(fuzzyMatches.begin(), fuzzyMatches.end(),
-                  [](const FuzzyMatch& a, const FuzzyMatch& b)
-                  { return a.score > b.score; });
-    }
-
-    if(fuzzyCursor >= fuzzyMatches.size())
-    {
-        fuzzyCursor = 0;
-        fuzzyOffset = 0;
-    }
-}
-
-void Editor::drawFuzzyFind()
-{
-    std::string output;
-    output.reserve(screenRows * screenCols * 2);
-
-    output += Terminal::ESC_CURSOR_HOME;
-    output += Terminal::ESC_CLEAR_LINE;
-
-    output += Terminal::ESC_BOLD;
-    output += "  Find File: ";
-    output += Terminal::ESC_RESET_ALL;
-    output += Terminal::FG_GREEN;
-    output += fuzzyQuery;
-
-    output += Terminal::ESC_BLINK;
-    output += "_";
-    output += Terminal::ESC_BLINK_OFF;
-    output += Terminal::FG_DEFAULT;
-
-    output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
-    output += "  [Enter: open] [Esc: cancel] [↑↓: navigate]";
-    output += Terminal::FG_DEFAULT;
-    output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
-
-    if(!fuzzyMatches.empty())
-    {
-        output += "  " + std::to_string(fuzzyMatches.size()) + " matches";
-    }
-    else if(!fuzzyQuery.empty())
-    {
-        output += "  No matches";
-    }
-    else
-    {
-        output += "  " + std::to_string(allProjectFiles.size()) + " files";
-    }
-    output += Terminal::FG_DEFAULT;
-
-    int availableRows = screenRows - 3;
-
-    for(int i = 0; i < availableRows && i + fuzzyOffset < fuzzyMatches.size();
-        i++)
-    {
-        output += Terminal::NEWLINE_CLEAR;
-
-        int index = i + fuzzyOffset;
-        const FuzzyMatch& match = fuzzyMatches[index];
-
-        if(index == fuzzyCursor)
-        {
-            output += Terminal::STYLE_SELECTION;
-        }
-
-        output += "  ";
-
-        char cwd[PATH_MAX];
-        std::string displayPath = match.file.path;
-        if(getcwd(cwd, sizeof(cwd)))
-        {
-            std::string cwdStr(cwd);
-            if(displayPath.find(cwdStr) == 0)
-            {
-                displayPath = displayPath.substr(cwdStr.length() + 1);
-            }
-        }
-
-        if(!fuzzyQuery.empty() && !match.matchPositions.empty())
-        {
-            size_t lastPos = 0;
-            for(int pos : match.matchPositions)
-            {
-                if(pos >= 0 && pos < displayPath.length())
-                {
-                    if(pos > lastPos)
-                    {
-                        output += displayPath.substr(lastPos, pos - lastPos);
-                    }
-
-                    if(index != fuzzyCursor)
-                    {
-                        output += Terminal::STYLE_GREEN_BOLD;
-                    }
-                    output += displayPath[pos];
-                    if(index != fuzzyCursor)
-                    {
-                        output += Terminal::STYLE_RESET_GREEN_BOLD;
-                    }
-
-                    lastPos = pos + 1;
-                }
-            }
-            if(lastPos < displayPath.length())
-            {
-                output += displayPath.substr(lastPos);
-            }
-        }
-        else
-        {
-            output += displayPath;
-        }
-
-        if(screenCols > 60)
-        {
-            std::string sizeStr = formatFileSize(match.file.size);
-            int padding =
-                screenCols - 2 - displayPath.length() - sizeStr.length() - 2;
-            if(padding > 0)
-            {
-                output.append(padding, ' ');
-            }
-            output += Terminal::FG_BRIGHT_BLACK;
-            output += sizeStr;
-            output += Terminal::FG_DEFAULT;
-        }
-
-        output += Terminal::ESC_RESET_ALL;
-    }
-
-    for(int i = fuzzyMatches.size() - fuzzyOffset; i < availableRows; i++)
-    {
-        output += Terminal::NEWLINE_CLEAR;
-        output += Terminal::FG_BLUE;
-        output += "~";
-        output += Terminal::FG_DEFAULT;
-    }
-
-    Terminal::write(output);
-    Terminal::flush();
-}
-
-void Editor::selectFuzzyMatch()
-{
-    if(fuzzyCursor < fuzzyMatches.size())
-    {
-        const FuzzyMatch& match = fuzzyMatches[fuzzyCursor];
-        openFile(match.file.path);
-        setMode(NORMAL);
-    }
-}
-
-void Editor::handleFuzzyFindMode(int c)
-{
-    switch(c)
-    {
-    case Terminal::ENTER:
-        selectFuzzyMatch();
-        break;
-
-    case Terminal::ESC:
-        setMode(NORMAL);
-        needsFullRedraw = true;
-        break;
-
-    case Terminal::ARROW_DOWN:
-    case Terminal::CTRL_N:
-    case Terminal::CTRL_J:
-        if(fuzzyCursor < fuzzyMatches.size() - 1)
-        {
-            fuzzyCursor++;
-            if(fuzzyCursor >= fuzzyOffset + screenRows - 3)
-            {
-                fuzzyOffset = fuzzyCursor - screenRows + 4;
-            }
-        }
-        break;
-
-    case Terminal::ARROW_UP:
-    case Terminal::CTRL_P:
-    case Terminal::CTRL_K:
-        if(fuzzyCursor > 0)
-        {
-            fuzzyCursor--;
-            if(fuzzyCursor < fuzzyOffset)
-            {
-                fuzzyOffset = fuzzyCursor;
-            }
-        }
-        break;
-
-    case Terminal::BACKSPACE:
-    case Terminal::DEL:
-        if(!fuzzyQuery.empty())
-        {
-            fuzzyQuery.pop_back();
-            updateFuzzyMatches();
-        }
-        break;
-
-    case Terminal::CTRL_U:
-        fuzzyQuery.clear();
-        updateFuzzyMatches();
-        break;
-
-    default:
-        if(c >= 32 && c < 127)
-        {
-            fuzzyQuery += static_cast<char>(c);
-            updateFuzzyMatches();
-            fuzzyCursor = 0;
-            fuzzyOffset = 0;
-        }
-        break;
+        m_offset = m_cursor - visibleRows + 1;
     }
 }

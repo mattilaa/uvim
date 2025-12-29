@@ -1,532 +1,467 @@
-#include "editor_lsp_query.h"
+#include "editor_context.h"
+#include "grep_search.h"
 #include "terminal.h"
+
 #include <algorithm>
-#include <climits>
-#include <fstream>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <array>
+#include <cstdio>
+#include <sstream>
 
-void Editor::initializeGrepSearch()
+// ============================================================================
+// Constructor
+// ============================================================================
+
+GrepSearch::GrepSearch(EditorContext& ctx) : m_ctx(ctx) {}
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+void GrepSearch::open()
 {
-    if(!fuzzyInitialized)
+    m_query.clear();
+    m_matches.clear();
+    m_cursor = 0;
+    m_offset = 0;
+    m_active = true;
+    m_searching = false;
+    m_ctx.requestFullRedraw();
+}
+
+void GrepSearch::close()
+{
+    m_active = false;
+}
+
+// ============================================================================
+// Input Handling
+// ============================================================================
+
+void GrepSearch::addChar(char c)
+{
+    m_query += c;
+
+    // Only search if query is at least 2 characters
+    if(m_query.length() >= 2)
     {
-        allProjectFiles.clear();
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-        {
-            collectProjectFiles(std::string(cwd));
-        }
-        fuzzyInitialized = true;
+        performSearch();
     }
 
-    grepQuery.clear();
-    grepMatches.clear();
-    grepCursor = 0;
-    grepOffset = 0;
-    grepSearching = false;
+    m_ctx.requestFullRedraw();
 }
 
-std::string Editor::trimString(const std::string& str)
+void GrepSearch::backspace()
 {
-    size_t first = str.find_first_not_of(" \t\r\n");
-    if(first == std::string::npos)
-        return "";
-    size_t last = str.find_last_not_of(" \t\r\n");
-    return str.substr(first, last - first + 1);
-}
-
-bool Editor::isTextFile(const std::string& filepath)
-{
-    std::string ext;
-    size_t dotPos = filepath.find_last_of('.');
-    if(dotPos != std::string::npos)
+    if(!m_query.empty())
     {
-        ext = filepath.substr(dotPos);
-        if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
-           ext == ".hpp" || ext == ".py" || ext == ".js" || ext == ".ts" ||
-           ext == ".jsx" || ext == ".tsx" || ext == ".java" || ext == ".rs" ||
-           ext == ".go" || ext == ".rb" || ext == ".php" || ext == ".sh" ||
-           ext == ".bash" || ext == ".zsh" || ext == ".vim" || ext == ".lua" ||
-           ext == ".md" || ext == ".markdown" || ext == ".rst" ||
-           ext == ".tex" || ext == ".css" || ext == ".scss" || ext == ".html" ||
-           ext == ".xml" || ext == ".json" || ext == ".yaml" || ext == ".yml" ||
-           ext == ".toml" || ext == ".ini" || ext == ".conf" ||
-           ext == ".config" || ext == ".log" || ext == ".cmake" ||
-           ext == ".make" || ext == ".mk" || ext == ".am" || ext == ".mla")
-        {
-            return true;
-        }
+        m_query.pop_back();
 
-        if(ext == ".exe" || ext == ".o" || ext == ".so" || ext == ".a" ||
-           ext == ".dll" || ext == ".dylib" || ext == ".bin" || ext == ".dat" ||
-           ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" ||
-           ext == ".bmp" || ext == ".ico" || ext == ".pdf" || ext == ".doc" ||
-           ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".ppt" ||
-           ext == ".pptx" || ext == ".zip" || ext == ".tar" || ext == ".gz" ||
-           ext == ".bz2" || ext == ".7z" || ext == ".rar" || ext == ".mp3" ||
-           ext == ".mp4" || ext == ".avi" || ext == ".mov" || ext == ".wav" ||
-           ext == ".flac" || ext == ".ogg" || ext == ".ttf" || ext == ".otf" ||
-           ext == ".woff" || ext == ".woff2" || ext == ".eot")
+        if(m_query.length() >= 2)
         {
-            return false;
+            performSearch();
+        }
+        else
+        {
+            m_matches.clear();
         }
     }
-
-    return !isBinaryFile(filepath);
+    m_ctx.requestFullRedraw();
 }
 
-bool Editor::isBinaryFile(const std::string& filepath)
+void GrepSearch::deleteWord()
 {
-    std::ifstream file(filepath, std::ios::binary);
-    if(!file)
-        return true;
-
-    char buffer[512];
-    file.read(buffer, sizeof(buffer));
-    std::streamsize bytesRead = file.gcount();
-
-    int nullCount = 0;
-    int nonPrintable = 0;
-
-    for(std::streamsize i = 0; i < bytesRead; i++)
-    {
-        unsigned char c = static_cast<unsigned char>(buffer[i]);
-
-        if(c == 0)
-        {
-            nullCount++;
-            if(nullCount > 1)
-                return true;
-        }
-
-        if(c < 32 && c != '\n' && c != '\r' && c != '\t' && c != '\f')
-        {
-            nonPrintable++;
-        }
-    }
-
-    double nonPrintableRatio =
-        bytesRead > 0 ? (double)nonPrintable / bytesRead : 0;
-    return nonPrintableRatio > 0.3;
-}
-
-void Editor::searchInFile(const std::string& filepath,
-                          const std::string& query)
-{
-    if(!isTextFile(filepath))
+    if(m_query.empty())
         return;
 
-    std::ifstream file(filepath);
-    if(!file)
-        return;
-
-    std::string lowerQuery = toLowerCase(query);
-    std::string line;
-    int lineNumber = 0;
-
-    while(std::getline(file, line))
+    // Delete trailing spaces
+    while(!m_query.empty() && m_query.back() == ' ')
     {
-        lineNumber++;
-
-        std::string lowerLine = toLowerCase(line);
-        size_t pos = 0;
-
-        while((pos = lowerLine.find(lowerQuery, pos)) != std::string::npos)
-        {
-            GrepMatch match;
-            match.filepath = filepath;
-
-            size_t lastSlash = filepath.find_last_of("/\\");
-            match.filename = (lastSlash != std::string::npos)
-                                 ? filepath.substr(lastSlash + 1)
-                                 : filepath;
-
-            match.lineNumber = lineNumber;
-            match.lineContent = trimString(line);
-
-            match.highlightRanges.push_back(
-                std::make_pair((int)pos, (int)query.length()));
-
-            grepMatches.push_back(match);
-            pos += query.length();
-
-            if(grepMatches.size() >= 1000)
-                return;
-        }
+        m_query.pop_back();
     }
+
+    // Delete word characters
+    while(!m_query.empty() && m_query.back() != ' ')
+    {
+        m_query.pop_back();
+    }
+
+    if(m_query.length() >= 2)
+    {
+        performSearch();
+    }
+    else
+    {
+        m_matches.clear();
+    }
+
+    m_cursor = 0;
+    m_offset = 0;
+    m_ctx.requestFullRedraw();
 }
 
-void Editor::performGrepSearch()
+void GrepSearch::clear()
 {
-    grepMatches.clear();
-    grepSearching = true;
-
-    if(grepQuery.empty())
-    {
-        grepSearching = false;
-        return;
-    }
-
-    for(const auto& file : allProjectFiles)
-    {
-        if(file.isDirectory)
-            continue;
-
-        searchInFile(file.path, grepQuery);
-
-        if(grepMatches.size() >= 1000)
-            break;
-    }
-
-    grepSearching = false;
-
-    if(grepCursor >= (int)grepMatches.size())
-    {
-        grepCursor = 0;
-        grepOffset = 0;
-    }
+    m_query.clear();
+    m_matches.clear();
+    m_cursor = 0;
+    m_offset = 0;
+    m_ctx.requestFullRedraw();
 }
 
-void Editor::searchFileContent(const std::string& filepath)
+// ============================================================================
+// Navigation
+// ============================================================================
+
+void GrepSearch::moveUp()
 {
-    if(!isTextFile(filepath))
-        return;
-
-    std::ifstream file(filepath);
-    if(!file)
-        return;
-
-    std::string line;
-    int lineNum = 0;
-
-    // Get relative path for display
-    char cwd[PATH_MAX];
-    std::string displayPath = filepath;
-    if(getcwd(cwd, sizeof(cwd)))
+    if(m_cursor > 0)
     {
-        std::string cwdStr(cwd);
-        if(displayPath.find(cwdStr) == 0)
-        {
-            displayPath = displayPath.substr(cwdStr.length() + 1);
-        }
+        m_cursor--;
+        adjustScroll();
     }
-
-    // Extract filename
-    size_t lastSlash = displayPath.find_last_of("/");
-    std::string filename = (lastSlash != std::string::npos)
-                               ? displayPath.substr(lastSlash + 1)
-                               : displayPath;
-
-    while(std::getline(file, line))
-    {
-        lineNum++;
-
-        std::string searchLine = line;
-        std::string searchQuery = grepQuery;
-
-        if(!grepCaseSensitive)
-        {
-            std::transform(searchLine.begin(), searchLine.end(),
-                           searchLine.begin(), ::tolower);
-            std::transform(searchQuery.begin(), searchQuery.end(),
-                           searchQuery.begin(), ::tolower);
-        }
-
-        if(searchLine.find(searchQuery) != std::string::npos)
-        {
-            GrepMatch match;
-            match.filename = filename;
-            match.filepath = filepath;
-            match.lineNumber = lineNum;
-            match.lineContent = trimString(line);
-            highlightGrepMatches(line, grepQuery, match.highlightRanges);
-
-            // Limit line content to reasonable length
-            if(match.lineContent.length() > 200)
-            {
-                match.lineContent = match.lineContent.substr(0, 197) + "...";
-            }
-
-            grepMatches.push_back(match);
-
-            // Limit total matches to prevent memory issues
-            if(grepMatches.size() > 10000)
-            {
-                return;
-            }
-        }
-    }
+    m_ctx.requestFullRedraw();
 }
 
-void Editor::drawGrepSearch()
+void GrepSearch::moveDown()
+{
+    if(m_cursor < static_cast<int>(m_matches.size()) - 1)
+    {
+        m_cursor++;
+        adjustScroll();
+    }
+    m_ctx.requestFullRedraw();
+}
+
+void GrepSearch::halfPageUp()
+{
+    int halfPage = m_ctx.screenRows() / 2;
+    for(int i = 0; i < halfPage && m_cursor > 0; i++)
+    {
+        m_cursor--;
+    }
+    adjustScroll();
+    m_ctx.requestFullRedraw();
+}
+
+void GrepSearch::halfPageDown()
+{
+    int halfPage = m_ctx.screenRows() / 2;
+    int maxCursor = static_cast<int>(m_matches.size()) - 1;
+    for(int i = 0; i < halfPage && m_cursor < maxCursor; i++)
+    {
+        m_cursor++;
+    }
+    adjustScroll();
+    m_ctx.requestFullRedraw();
+}
+
+// ============================================================================
+// Selection
+// ============================================================================
+
+bool GrepSearch::selectEntry()
+{
+    if(m_matches.empty() || m_cursor >= static_cast<int>(m_matches.size()))
+    {
+        return false;
+    }
+
+    const GrepMatch& match = m_matches[m_cursor];
+
+    // Open the file
+    m_ctx.openFile(match.filepath);
+
+    // Jump to the line and column
+    m_ctx.cursorY() = match.lineNumber - 1;
+    m_ctx.cursorX() = match.columnNumber - 1;
+    if(m_ctx.cursorY() < 0)
+        m_ctx.cursorY() = 0;
+    if(m_ctx.cursorX() < 0)
+        m_ctx.cursorX() = 0;
+
+    m_active = false;
+    return true;
+}
+
+// ============================================================================
+// Preview
+// ============================================================================
+
+void GrepSearch::togglePreview()
+{
+    m_showPreview = !m_showPreview;
+    m_ctx.requestFullRedraw();
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+
+void GrepSearch::draw()
 {
     std::string output;
-    output.reserve(screenRows * screenCols * 2);
+    output.reserve(m_ctx.screenRows() * m_ctx.screenCols() * 2);
 
-    output += Terminal::ESC_CURSOR_HOME;
-    output += Terminal::ESC_CLEAR_LINE;
+    // Draw query line at top
+    Terminal::moveCursor(1, 1);
+    output += "\x1b[K";               // Clear line
+    output += "\x1b[1mgrep> \x1b[0m"; // Bold prompt
+    output += m_query;
+    output += "\x1b[7m \x1b[0m"; // Cursor
 
-    output += Terminal::ESC_BOLD;
-    output += "  Grep: ";
-    output += Terminal::ESC_RESET_ALL;
-    output += Terminal::FG_GREEN;
-    output += grepQuery;
-
-    output += Terminal::ESC_BLINK;
-    output += "_";
-    output += Terminal::ESC_BLINK_OFF;
-    output += Terminal::FG_DEFAULT;
-
-    if(grepSearching)
+    if(m_searching)
     {
-        output += Terminal::FG_YELLOW;
-        output += " (searching...)";
-        output += Terminal::FG_DEFAULT;
+        output += " \x1b[33m(searching...)\x1b[0m";
     }
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
-    output += "  [Enter: open] [Esc: cancel] [↑↓: navigate]";
-    output += Terminal::FG_DEFAULT;
+    // Draw matches
+    int visibleRows = m_ctx.screenRows() - 1; // -1 for query line
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
-    if(!grepMatches.empty())
+    for(int row = 0; row < visibleRows; row++)
     {
-        output += "  " + std::to_string(grepMatches.size());
-        if(grepMatches.size() >= 1000)
-            output += "+ matches (limited)";
-        else
-            output += " matches";
-    }
-    else if(!grepQuery.empty() && !grepSearching)
-    {
-        output += "  No matches";
-    }
-    output += Terminal::FG_DEFAULT;
+        int matchIndex = m_offset + row;
 
-    int availableRows = screenRows - 3;
+        Terminal::moveCursor(row + 2, 1);
+        output += "\x1b[K"; // Clear line
 
-    for(int i = 0;
-        i < availableRows && i + grepOffset < (int)grepMatches.size(); i++)
-    {
-        output += Terminal::NEWLINE_CLEAR;
-
-        int index = i + grepOffset;
-        const GrepMatch& match = grepMatches[index];
-
-        if(index == grepCursor)
+        if(matchIndex < static_cast<int>(m_matches.size()))
         {
-            output += Terminal::STYLE_SELECTION;
-        }
+            const GrepMatch& match = m_matches[matchIndex];
 
-        output += "  ";
-
-        output += Terminal::FG_CYAN;
-        std::string displayName = match.filename;
-        if(displayName.length() > 20)
-        {
-            displayName = displayName.substr(0, 17) + "...";
-        }
-        output += displayName;
-        output += Terminal::FG_DEFAULT;
-
-        output += ":";
-        output += Terminal::FG_YELLOW;
-        output += std::to_string(match.lineNumber);
-        output += Terminal::FG_DEFAULT;
-        output += ": ";
-
-        std::string content = match.lineContent;
-        int maxContentLen = screenCols - displayName.length() - 10;
-        if(maxContentLen < 20)
-            maxContentLen = 20;
-
-        if((int)content.length() > maxContentLen)
-        {
-            content = content.substr(0, maxContentLen - 3) + "...";
-        }
-
-        if(!match.highlightRanges.empty() && index != grepCursor)
-        {
-            std::string lowerContent = toLowerCase(content);
-            std::string lowerQuery = toLowerCase(grepQuery);
-
-            size_t pos = lowerContent.find(lowerQuery);
-            if(pos != std::string::npos)
+            // Highlight current selection
+            if(matchIndex == m_cursor)
             {
-                output += content.substr(0, pos);
-                output += Terminal::STYLE_GREEN_BOLD;
-                output += content.substr(pos, grepQuery.length());
-                output += Terminal::STYLE_RESET_GREEN_BOLD;
-                output += content.substr(pos + grepQuery.length());
+                output += "\x1b[7m"; // Reverse video
             }
-            else
+
+            // Format: filepath:line:col: content
+            std::ostringstream oss;
+
+            // Filepath (in color)
+            output += "\x1b[35m"; // Magenta
+            std::string filepath = match.filepath;
+            int maxPathLen = 30;
+            if(static_cast<int>(filepath.length()) > maxPathLen)
             {
-                output += content;
+                filepath =
+                    "..." + filepath.substr(filepath.length() - maxPathLen + 3);
             }
-        }
-        else
-        {
+            output += filepath;
+            output += "\x1b[0m";
+
+            if(matchIndex == m_cursor)
+            {
+                output += "\x1b[7m"; // Re-apply reverse
+            }
+
+            // Line number (in color)
+            output += "\x1b[32m"; // Green
+            oss << ":" << match.lineNumber;
+            output += oss.str();
+            output += "\x1b[0m";
+
+            if(matchIndex == m_cursor)
+            {
+                output += "\x1b[7m"; // Re-apply reverse
+            }
+
+            output += ": ";
+
+            // Line content (truncated)
+            std::string content = match.lineContent;
+            // Trim leading whitespace
+            size_t start = content.find_first_not_of(" \t");
+            if(start != std::string::npos)
+            {
+                content = content.substr(start);
+            }
+
+            int maxContentLen = m_ctx.screenCols() - maxPathLen - 15;
+            if(static_cast<int>(content.length()) > maxContentLen)
+            {
+                content = content.substr(0, maxContentLen - 3) + "...";
+            }
             output += content;
+
+            // Reset colors
+            output += "\x1b[0m";
         }
-
-        output += Terminal::ESC_RESET_ALL;
-    }
-
-    for(int i = (int)grepMatches.size() - grepOffset; i < availableRows; i++)
-    {
-        output += Terminal::NEWLINE_CLEAR;
-        output += Terminal::FG_BLUE;
-        output += "~";
-        output += Terminal::FG_DEFAULT;
     }
 
     Terminal::write(output);
-    Terminal::flush();
 }
 
-void Editor::selectGrepMatch()
+void GrepSearch::drawStatusLine()
 {
-    if(grepCursor < 0 || grepCursor >= (int)grepMatches.size())
-        return;
+    std::ostringstream oss;
+    oss << " GREP: " << m_matches.size() << " matches";
 
-    const GrepMatch& match = grepMatches[grepCursor];
-
-    openFile(match.filepath);
-
-    *cursorY = match.lineNumber - 1;
-    if(*cursorY >= (int)lines->size())
-        *cursorY = lines->size() - 1;
-    if(*cursorY < 0)
-        *cursorY = 0;
-
-    *cursorX = 0;
-
-    searchQuery = grepQuery;
-    findAllMatches();
-
-    setMode(NORMAL);
-    centerScreen();
-}
-
-void Editor::handleGrepSearchMode(int c)
-{
-    switch(c)
+    if(!m_query.empty())
     {
-    case Terminal::ENTER:
-        selectGrepMatch();
-        break;
+        oss << " for '" << m_query << "'";
+    }
 
-    case Terminal::ESC:
-        setMode(NORMAL);
-        needsFullRedraw = true;
-        break;
+    if(m_searching)
+    {
+        oss << " (searching...)";
+    }
 
-    case Terminal::ARROW_DOWN:
-    case Terminal::CTRL_N:
-    case Terminal::CTRL_J:
-        if(grepCursor < (int)grepMatches.size() - 1)
+    m_ctx.setStatusMessage(oss.str());
+}
+
+// ============================================================================
+// Internal Methods
+// ============================================================================
+
+void GrepSearch::performSearch()
+{
+    m_matches.clear();
+    m_cursor = 0;
+    m_offset = 0;
+    m_searching = true;
+
+    // Build the grep command
+    // Try ripgrep first, fall back to grep
+    std::string cmd;
+
+    // Escape the query for shell
+    std::string escapedQuery;
+    for(char c : m_query)
+    {
+        if(c == '\'' || c == '\\' || c == '"')
         {
-            grepCursor++;
-            if(grepCursor >= grepOffset + screenRows - 3)
+            escapedQuery += '\\';
+        }
+        escapedQuery += c;
+    }
+
+    // Try ripgrep (rg) first
+    cmd = "rg --line-number --column --no-heading --color=never '";
+    cmd += escapedQuery;
+    cmd += "' 2>/dev/null || grep -rn '";
+    cmd += escapedQuery;
+    cmd += "' . 2>/dev/null";
+
+    // Run the command and capture output
+    std::array<char, 4096> buffer;
+    std::string result;
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(pipe)
+    {
+        while(fgets(buffer.data(), buffer.size(), pipe) != nullptr)
+        {
+            result += buffer.data();
+
+            // Limit results
+            if(m_matches.size() >= 1000)
             {
-                grepOffset = grepCursor - screenRows + 4;
+                break;
+            }
+
+            // Parse each line as we get it
+            size_t lastNewline = result.rfind('\n');
+            if(lastNewline != std::string::npos)
+            {
+                std::string completeLines = result.substr(0, lastNewline);
+                result = result.substr(lastNewline + 1);
+                parseGrepOutput(completeLines);
             }
         }
-        break;
+        pclose(pipe);
 
-    case Terminal::ARROW_UP:
-    case Terminal::CTRL_P:
-    case Terminal::CTRL_K:
-        if(grepCursor > 0)
+        // Parse any remaining output
+        if(!result.empty())
         {
-            grepCursor--;
-            if(grepCursor < grepOffset)
+            parseGrepOutput(result);
+        }
+    }
+
+    m_searching = false;
+    m_ctx.requestFullRedraw();
+}
+
+void GrepSearch::parseGrepOutput(const std::string& output)
+{
+    std::istringstream stream(output);
+    std::string line;
+
+    while(std::getline(stream, line))
+    {
+        if(line.empty())
+            continue;
+
+        GrepMatch match;
+
+        // Parse ripgrep format: filepath:line:col:content
+        // Or grep format: filepath:line:content
+
+        size_t firstColon = line.find(':');
+        if(firstColon == std::string::npos)
+            continue;
+
+        // Handle Windows paths (C:\...)
+        if(firstColon == 1 && line.length() > 2 && line[2] == '\\')
+        {
+            firstColon = line.find(':', 2);
+            if(firstColon == std::string::npos)
+                continue;
+        }
+
+        match.filepath = line.substr(0, firstColon);
+
+        size_t secondColon = line.find(':', firstColon + 1);
+        if(secondColon == std::string::npos)
+            continue;
+
+        std::string lineNumStr =
+            line.substr(firstColon + 1, secondColon - firstColon - 1);
+        try
+        {
+            match.lineNumber = std::stoi(lineNumStr);
+        }
+        catch(...)
+        {
+            continue;
+        }
+
+        // Check for column (ripgrep format)
+        size_t thirdColon = line.find(':', secondColon + 1);
+        if(thirdColon != std::string::npos)
+        {
+            std::string colStr =
+                line.substr(secondColon + 1, thirdColon - secondColon - 1);
+            try
             {
-                grepOffset = grepCursor;
+                match.columnNumber = std::stoi(colStr);
+                match.lineContent = line.substr(thirdColon + 1);
+            }
+            catch(...)
+            {
+                match.columnNumber = 1;
+                match.lineContent = line.substr(secondColon + 1);
             }
         }
-        break;
-
-    case Terminal::BACKSPACE:
-    case Terminal::DEL:
-        if(!grepQuery.empty())
+        else
         {
-            grepQuery.pop_back();
-            performGrepSearch();
-            grepCursor = 0;
-            grepOffset = 0;
+            match.columnNumber = 1;
+            match.lineContent = line.substr(secondColon + 1);
         }
-        break;
 
-    case Terminal::CTRL_U:
-        grepQuery.clear();
-        grepMatches.clear();
-        grepCursor = 0;
-        grepOffset = 0;
-        break;
-
-    case Terminal::PAGE_DOWN:
-        if(grepMatches.size() > 0)
-        {
-            int pageSize = screenRows - 3;
-            grepCursor =
-                std::min((int)grepMatches.size() - 1, grepCursor + pageSize);
-            if(grepCursor >= grepOffset + pageSize)
-            {
-                grepOffset = grepCursor - pageSize + 1;
-            }
-        }
-        break;
-
-    case Terminal::PAGE_UP:
-        if(grepMatches.size() > 0)
-        {
-            int pageSize = screenRows - 3;
-            grepCursor = std::max(0, grepCursor - pageSize);
-            if(grepCursor < grepOffset)
-            {
-                grepOffset = grepCursor;
-            }
-        }
-        break;
-
-    default:
-        if(c >= 32 && c < 127)
-        {
-            grepQuery += static_cast<char>(c);
-            performGrepSearch();
-            grepCursor = 0;
-            grepOffset = 0;
-        }
-        break;
+        m_matches.push_back(match);
     }
 }
 
-void Editor::highlightGrepMatches(const std::string& line,
-                                  const std::string& query,
-                                  std::vector<std::pair<int, int>>& ranges)
+void GrepSearch::adjustScroll()
 {
-    ranges.clear();
-    if(query.empty())
-        return;
+    int visibleRows = m_ctx.screenRows() - 1;
 
-    std::string searchLine = line;
-    std::string searchQuery = query;
-
-    if(!grepCaseSensitive)
+    if(m_cursor < m_offset)
     {
-        std::transform(searchLine.begin(), searchLine.end(), searchLine.begin(),
-                       ::tolower);
-        std::transform(searchQuery.begin(), searchQuery.end(),
-                       searchQuery.begin(), ::tolower);
+        m_offset = m_cursor;
     }
-
-    size_t pos = 0;
-    while((pos = searchLine.find(searchQuery, pos)) != std::string::npos)
+    else if(m_cursor >= m_offset + visibleRows)
     {
-        ranges.push_back({pos, pos + searchQuery.length()});
-        pos += searchQuery.length();
+        m_offset = m_cursor - visibleRows + 1;
     }
 }
