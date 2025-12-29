@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(uvim VERSION 0.1.0)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Build options
@@ -21,7 +21,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 set(UVIM_SOURCES
     src/main.cpp
     src/terminal.cpp
-    src/editor_lsp_query.cpp
+    src/editor.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp
     #src/buffer_management.cpp
