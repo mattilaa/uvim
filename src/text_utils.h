@@ -47,4 +47,30 @@ static inline bool contains(std::string_view s, std::string_view needle)
     return s.find(needle) != std::string_view::npos;
 }
 
+// Safe ctype wrappers (avoid UB on negative char)
+static inline bool is_space(char c)
+{
+    return std::isspace(static_cast<unsigned char>(c)) != 0;
+}
+
+static inline bool is_alpha(char c)
+{
+    return std::isalpha(static_cast<unsigned char>(c)) != 0;
+}
+
+static inline bool is_alnum(char c)
+{
+    return std::isalnum(static_cast<unsigned char>(c)) != 0;
+}
+
+static inline bool is_digit(char c)
+{
+    return std::isdigit(static_cast<unsigned char>(c)) != 0;
+}
+
+static inline bool is_xdigit(char c)
+{
+    return std::isxdigit(static_cast<unsigned char>(c)) != 0;
+}
+
 } // namespace text_utils
