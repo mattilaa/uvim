@@ -26,7 +26,7 @@ public:
     // Mode enum is now in mode.h
     // JumpLocation struct is now in jump_location.h
 
-    Editor();
+    Editor(bool skipInitialBuffer = false);
     ~Editor();
 
     // Optional clangd LSP integration (compiled in when UVIM_ENABLE_CLANGD_LSP
