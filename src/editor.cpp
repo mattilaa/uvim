@@ -3155,6 +3155,22 @@ void Editor::handleNormalMode(int c)
                              std::to_string(lines->size()) + " lines");
             return;
         }
+        else if(c == 'x')
+        {
+            std::string dir = ".";
+            if(!filename->empty())
+            {
+                size_t lastSlash = filename->find_last_of("/");
+                if(lastSlash != std::string::npos)
+                {
+                    dir = filename->substr(0, lastSlash);
+                    if(dir.empty())
+                        dir = "/";
+                }
+            }
+            openFileBrowser(dir);
+            return;
+        }
         else if(c == ' ')
         {
             // Double space cancels
