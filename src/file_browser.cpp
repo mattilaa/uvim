@@ -2,10 +2,7 @@
 #include "terminal.h"
 #include <algorithm>
 #include <dirent.h>
-#include <iomanip>
 #include <sstream>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "file_utils.h"
 
@@ -48,78 +45,113 @@ void Editor::openFileBrowser(const std::string& path)
     needsFullRedraw = true;
 }
 
-void Editor::loadDirectory(const std::string& path)
+void Editor::loadDirectory(const std::string& pathStr)
 {
     fileList.clear();
 
-    DIR* dir = opendir(path.c_str());
-    if(!dir)
+    fs::path dirPath = pathStr.empty() ? fs::path{"."} : fs::path{pathStr};
+
+    std::error_code ec;
+    if(!fs::is_directory(dirPath, ec))
     {
-        dir = opendir(".");
-        if(!dir)
+        dirPath = ".";
+        ec.clear();
+        if(!fs::is_directory(dirPath, ec))
         {
             setStatusMessage("Cannot open any directory!");
             return;
         }
         currentDirectory = ".";
     }
+    else
+    {
+        currentDirectory = file_utils::path_to_utf8_string(dirPath);
+    }
 
-    struct dirent* entry;
     std::vector<FileEntry> dirs;
     std::vector<FileEntry> files;
 
-    while((entry = readdir(dir)))
+    const auto push_entry = [&](FileEntry&& fe)
+    { (fe.isDirectory ? dirs : files).push_back(std::move(fe)); };
+
+    // Optional: add ".." explicitly on top (most file browsers do)
+    if(dirPath.has_parent_path())
     {
-        std::string name = entry->d_name;
+        FileEntry up;
+        up.name = "..";
+        up.path = file_utils::path_to_utf8_string(dirPath.parent_path());
+        up.isDirectory = true;
+        up.size = 0;
+        up.modTime = 0;
+        dirs.push_back(std::move(up));
+    }
+
+    fs::directory_options opts = fs::directory_options::skip_permission_denied;
+
+    for(fs::directory_iterator it{dirPath, opts, ec}, end; it != end;
+        it.increment(ec))
+    {
+        if(ec)
+        {
+            ec.clear();
+            continue;
+        }
+
+        const fs::directory_entry& de = *it;
+
+        // Name as UTF-8 std::string
+        std::string name =
+            file_utils::path_to_utf8_string(de.path().filename());
 
         if(name == ".")
             continue;
 
-        if(!showHidden && name != ".." && name[0] == '.')
+        if(!showHidden && name != ".." && file_utils::is_hidden_name(name))
             continue;
 
-        fs::path fullPath = path + "/" + name;
-        std::error_code ec;
-        auto st = fs::symlink_status(fullPath, ec);
-        // doesn't follow symlinks; use status() if you want to follow
-        if(ec)
+        std::error_code ec2;
+        auto st = file_utils::status_with_policy(de.path(), ec2);
+        if(ec2)
             continue;
 
         FileEntry fe;
-        fe.name = name;
-        fe.path = fullPath;
+        fe.name = std::move(name);
+        fe.path = file_utils::path_to_utf8_string(de.path());
         fe.isDirectory = fs::is_directory(st);
-        fe.size = fs::is_regular_file(st) ? file_size_nothrow(fullPath) : 0;
-        fe.modTime = mtime_nothrow(fullPath);
 
-        if(fe.isDirectory)
+        if(fs::is_regular_file(st))
         {
-            dirs.push_back(fe);
+            fe.size = file_utils::file_size_to_size_t(de.path());
         }
         else
         {
-            files.push_back(fe);
+            fe.size = 0;
         }
+
+        fe.modTime = file_utils::mtime_nothrow(de.path());
+
+        push_entry(std::move(fe));
     }
 
-    closedir(dir);
+    auto dirCmp = [](const FileEntry& a, const FileEntry& b)
+    {
+        if(a.name == "..")
+            return true;
+        if(b.name == "..")
+            return false;
+        return a.name < b.name;
+    };
+    auto nameCmp = [](const FileEntry& a, const FileEntry& b)
+    { return a.name < b.name; };
 
-    std::sort(dirs.begin(), dirs.end(),
-              [](const FileEntry& a, const FileEntry& b)
-              {
-                  if(a.name == "..")
-                      return true;
-                  if(b.name == "..")
-                      return false;
-                  return a.name < b.name;
-              });
+    std::sort(dirs.begin(), dirs.end(), dirCmp);
+    std::sort(files.begin(), files.end(), nameCmp);
 
-    std::sort(files.begin(), files.end(),
-              [](const FileEntry& a, const FileEntry& b)
-              { return a.name < b.name; });
-
-    fileList.insert(fileList.end(), dirs.begin(), dirs.end());
-    fileList.insert(fileList.end(), files.begin(), files.end());
+    fileList.reserve(dirs.size() + files.size());
+    fileList.insert(fileList.end(), std::make_move_iterator(dirs.begin()),
+                    std::make_move_iterator(dirs.end()));
+    fileList.insert(fileList.end(), std::make_move_iterator(files.begin()),
+                    std::make_move_iterator(files.end()));
 }
 
 void Editor::navigateTo(const FileEntry& entry)
