@@ -586,6 +586,118 @@ void Editor::deleteWordBackward()
     *dirty = true;
 }
 
+void Editor::deleteWord()
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    std::string& line = (*lines)[*cursorY];
+
+    if(line.empty())
+        return;
+
+    int start = *cursorX;
+    int end = *cursorX;
+
+    if(end >= (int)line.length())
+        return;
+
+    // Helper lambda to check if char is a word character (alphanumeric or
+    // underscore)
+    auto isWordChar = [](char c)
+    { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+
+    char startChar = line[end];
+
+    if(std::isspace(static_cast<unsigned char>(startChar)))
+    {
+        // On whitespace: delete whitespace, then the next word/punctuation
+        while(end < (int)line.length() &&
+              std::isspace(static_cast<unsigned char>(line[end])))
+            end++;
+
+        // Now delete the word or punctuation sequence
+        if(end < (int)line.length())
+        {
+            if(isWordChar(line[end]))
+            {
+                while(end < (int)line.length() && isWordChar(line[end]))
+                    end++;
+            }
+            else
+            {
+                // Punctuation sequence
+                while(end < (int)line.length() && !isWordChar(line[end]) &&
+                      !std::isspace(static_cast<unsigned char>(line[end])))
+                    end++;
+            }
+        }
+    }
+    else if(isWordChar(startChar))
+    {
+        // On a word character: delete word + trailing whitespace
+        while(end < (int)line.length() && isWordChar(line[end]))
+            end++;
+
+        // Include trailing whitespace
+        while(end < (int)line.length() &&
+              std::isspace(static_cast<unsigned char>(line[end])))
+            end++;
+    }
+    else
+    {
+        // On punctuation: delete punctuation sequence + trailing whitespace
+        while(end < (int)line.length() && !isWordChar(line[end]) &&
+              !std::isspace(static_cast<unsigned char>(line[end])))
+            end++;
+
+        // Include trailing whitespace
+        while(end < (int)line.length() &&
+              std::isspace(static_cast<unsigned char>(line[end])))
+            end++;
+    }
+
+    if(end > start)
+    {
+        // Yank before deleting
+        yankBuffer = line.substr(start, end - start);
+        line.erase(start, end - start);
+
+        // Adjust cursor if past end of line
+        if(*cursorX >= (int)line.length() && !line.empty())
+        {
+            *cursorX = line.length() - 1;
+        }
+        *dirty = true;
+    }
+}
+
+void Editor::yankWord()
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    const std::string& line = (*lines)[*cursorY];
+
+    if(*cursorX >= (int)line.length())
+        return;
+
+    int start = *cursorX;
+    int end = *cursorX;
+
+    // Get current word characters
+    while(end < (int)line.length() && !std::isspace(line[end]))
+    {
+        end++;
+    }
+    // Include trailing whitespace
+    while(end < (int)line.length() && std::isspace(line[end]))
+    {
+        end++;
+    }
+
+    yankBuffer = line.substr(start, end - start);
+    setStatusMessage("Yanked: " + std::to_string(end - start) + " chars");
+}
+
 void Editor::handleBackspace()
 {
     deleteChar();
@@ -1599,6 +1711,349 @@ void Editor::toggleGrepPreview()
 }
 
 // ============================================================================
+// Mode Handlers (legacy - called by handleKeypress)
+// ============================================================================
+
+void Editor::handleInsertMode(int c)
+{
+    if(c == Terminal::ESC || c == Terminal::CTRL_C)
+    {
+        // Exit insert mode
+        if(*cursorX > 0)
+            (*cursorX)--;
+        saveState();
+        setMode(NORMAL);
+        return;
+    }
+
+    if(c == Terminal::BACKSPACE || c == 127 || c == 8)
+    {
+        if(*cursorX > 0)
+        {
+            (*cursorX)--;
+            if(*cursorY < (int)lines->size())
+            {
+                (*lines)[*cursorY].erase(*cursorX, 1);
+            }
+            *dirty = true;
+        }
+        else if(*cursorY > 0)
+        {
+            // Join with previous line
+            int prevLen = (*lines)[*cursorY - 1].length();
+            (*lines)[*cursorY - 1] += (*lines)[*cursorY];
+            lines->erase(lines->begin() + *cursorY);
+            (*cursorY)--;
+            *cursorX = prevLen;
+            *dirty = true;
+        }
+        return;
+    }
+
+    if(c == Terminal::ENTER)
+    {
+        insertNewline();
+        return;
+    }
+
+    if(c == Terminal::TAB)
+    {
+        insertTab();
+        return;
+    }
+
+    if(c == Terminal::ARROW_LEFT)
+    {
+        if(*cursorX > 0)
+            (*cursorX)--;
+        return;
+    }
+    if(c == Terminal::ARROW_RIGHT)
+    {
+        if(*cursorY < (int)lines->size() &&
+           *cursorX < (int)(*lines)[*cursorY].length())
+            (*cursorX)++;
+        return;
+    }
+    if(c == Terminal::ARROW_UP)
+    {
+        if(*cursorY > 0)
+        {
+            (*cursorY)--;
+            if(*cursorY < (int)lines->size() &&
+               *cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+        }
+        return;
+    }
+    if(c == Terminal::ARROW_DOWN)
+    {
+        if(*cursorY < (int)lines->size() - 1)
+        {
+            (*cursorY)++;
+            if(*cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+        }
+        return;
+    }
+
+    if(c == Terminal::CTRL_W)
+    {
+        deleteWordBackward();
+        return;
+    }
+
+    if(c == Terminal::CTRL_U)
+    {
+        deleteToLineStart();
+        return;
+    }
+
+    // Regular character
+    if(c >= 32 && c < 127)
+    {
+        insertChar((char)c);
+    }
+    else if(c >= 128)
+    {
+        insertUtf8Char(c);
+    }
+}
+
+void Editor::handleVisualMode(int c)
+{
+    if(c == Terminal::ESC || c == 'v')
+    {
+        setMode(NORMAL);
+        return;
+    }
+
+    if(c == 'V')
+    {
+        setMode(VISUAL_LINE);
+        return;
+    }
+
+    // Movement updates selection
+    switch(c)
+    {
+    case 'h':
+    case Terminal::ARROW_LEFT:
+        moveLeft(1);
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        moveDown(1);
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
+        moveUp(1);
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        moveRight(1);
+        break;
+    case 'w':
+        moveWordForward();
+        break;
+    case 'b':
+        moveWordBackward();
+        break;
+    case '0':
+        moveToLineStart();
+        break;
+    case '$':
+        moveToLineEnd();
+        break;
+    case 'G':
+        moveToLastLine();
+        break;
+    case 'd':
+    case 'x':
+        deleteSelection();
+        saveState();
+        setMode(NORMAL);
+        return;
+    case 'y':
+        yankSelection();
+        setMode(NORMAL);
+        return;
+    case 'c':
+        deleteSelection();
+        saveState();
+        setMode(INSERT);
+        return;
+    case '>':
+        indentSelection();
+        saveState();
+        setMode(NORMAL);
+        return;
+    case '<':
+        dedentSelection();
+        saveState();
+        setMode(NORMAL);
+        return;
+    }
+
+    // Update visual end
+    currentBuffer->visualEndX = *cursorX;
+    currentBuffer->visualEndY = *cursorY;
+    needsFullRedraw = true;
+}
+
+void Editor::handleVisualBlockMode(int c)
+{
+    if(c == Terminal::ESC || c == Terminal::CTRL_V)
+    {
+        setMode(NORMAL);
+        return;
+    }
+
+    // Movement
+    switch(c)
+    {
+    case 'h':
+    case Terminal::ARROW_LEFT:
+        moveLeft(1);
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        moveDown(1);
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
+        moveUp(1);
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        moveRight(1);
+        break;
+    case 'd':
+    case 'x':
+        deleteVisualBlock();
+        saveState();
+        setMode(NORMAL);
+        return;
+    case 'y':
+        yankVisualBlock();
+        setMode(NORMAL);
+        return;
+    case 'c':
+        changeVisualBlock();
+        setMode(INSERT);
+        return;
+    }
+
+    // Update block end
+    currentBuffer->visualBlockEndX = *cursorX;
+    currentBuffer->visualBlockEndY = *cursorY;
+    needsFullRedraw = true;
+}
+
+void Editor::handleCommandMode(int c)
+{
+    if(c == Terminal::ESC)
+    {
+        commandBuffer.clear();
+        setMode(NORMAL);
+        return;
+    }
+
+    if(c == Terminal::ENTER)
+    {
+        if(commandBuffer.length() > 1)
+        {
+            std::string cmd = commandBuffer.substr(1); // Remove ':'
+            executeCommand(cmd);
+        }
+        commandBuffer.clear();
+        setMode(NORMAL);
+        return;
+    }
+
+    if(c == Terminal::BACKSPACE || c == 127 || c == 8)
+    {
+        if(commandBuffer.length() > 1)
+        {
+            commandBuffer.pop_back();
+        }
+        else
+        {
+            setMode(NORMAL);
+        }
+        return;
+    }
+
+    if(c >= 32 && c < 127)
+    {
+        commandBuffer += (char)c;
+    }
+}
+
+void Editor::handleSearchMode(int c)
+{
+    if(c == Terminal::ESC)
+    {
+        // Cancel search, restore cursor
+        *cursorX = savedCursorX;
+        *cursorY = savedCursorY;
+        searchQuery.clear();
+        setMode(NORMAL);
+        return;
+    }
+
+    if(c == Terminal::ENTER)
+    {
+        if(!searchQuery.empty())
+        {
+            addSearchToHistory(searchQuery);
+            performSearch();
+        }
+        setMode(NORMAL);
+        return;
+    }
+
+    if(c == Terminal::BACKSPACE || c == 127 || c == 8)
+    {
+        if(!searchQuery.empty())
+        {
+            searchQuery.pop_back();
+            commandBuffer = (searchForward ? "/" : "?") + searchQuery;
+
+            // Restore and re-search
+            *cursorX = savedCursorX;
+            *cursorY = savedCursorY;
+            if(!searchQuery.empty())
+            {
+                findAllMatches();
+            }
+        }
+        else
+        {
+            *cursorX = savedCursorX;
+            *cursorY = savedCursorY;
+            setMode(NORMAL);
+        }
+        return;
+    }
+
+    if(c >= 32 && c < 127)
+    {
+        searchQuery += (char)c;
+        commandBuffer = (searchForward ? "/" : "?") + searchQuery;
+
+        // Incremental search
+        findAllMatches();
+        if(!searchMatches.empty())
+        {
+            jumpToMatch(0);
+        }
+    }
+
+    needsFullRedraw = true;
+}
+
+// ============================================================================
 // Completion Helpers (for insert mode)
 // ============================================================================
 
@@ -1643,247 +2098,4 @@ void Editor::deleteToEndOfLine()
 void Editor::switchToAlternateFile()
 {
     jumpToAlternateFile();
-}
-
-// ============================================================================
-// Legacy Mode Handler (for compatibility with old handleKeypress)
-// This is a stub - the real implementation should use ModeStateMachine
-// ============================================================================
-
-void Editor::handleNormalMode(int c)
-{
-    // This is a legacy function called by handleKeypress()
-    // For full state machine integration, handleKeypress() should be updated
-    // to use ModeStateMachine directly.
-
-    switch(c)
-    {
-    // Mode transitions
-    case 'i':
-        setMode(INSERT);
-        break;
-    case 'I':
-        moveToFirstNonBlank();
-        setMode(INSERT);
-        break;
-    case 'a':
-        if(!lines->empty() && !(*lines)[*cursorY].empty())
-        {
-            (*cursorX)++;
-            if(*cursorX > (int)(*lines)[*cursorY].length())
-                *cursorX = (*lines)[*cursorY].length();
-        }
-        setMode(INSERT);
-        break;
-    case 'A':
-        moveToLineEnd();
-        (*cursorX)++;
-        setMode(INSERT);
-        break;
-    case 'o':
-        // Insert line below and enter insert mode
-        insertLineBelow();
-        setMode(INSERT);
-        break;
-    case 'O':
-        // Insert line above and enter insert mode
-        insertLineAbove();
-        setMode(INSERT);
-        break;
-    case 's':
-        // Substitute: delete char under cursor and enter insert mode
-        if(!lines->empty() && !(*lines)[*cursorY].empty())
-        {
-            deleteCharForward();
-            saveState();
-        }
-        setMode(INSERT);
-        break;
-    case 'S':
-        // Substitute line: delete entire line content and enter insert mode
-        if(!lines->empty())
-        {
-            (*lines)[*cursorY].clear();
-            *cursorX = 0;
-            saveState();
-        }
-        setMode(INSERT);
-        break;
-    case 'C':
-        // Change to end of line: delete from cursor to end and enter insert
-        // mode
-        deleteToLineEnd();
-        saveState();
-        setMode(INSERT);
-        break;
-    case ':':
-        setMode(COMMAND);
-        commandBuffer = ":";
-        break;
-    case 'v':
-        setMode(VISUAL);
-        startVisualMode();
-        break;
-    case 'V':
-        setMode(VISUAL_LINE);
-        startVisualLineMode();
-        break;
-    case Terminal::CTRL_V:
-        setMode(VISUAL_BLOCK);
-        startVisualBlockMode();
-        break;
-
-    // Custom Ctrl shortcuts
-    case Terminal::CTRL_P:
-        // Ctrl+P - Fuzzy find files
-        setMode(FUZZY_FIND);
-        initializeFuzzyFind();
-        break;
-    case Terminal::CTRL_S:
-        // Ctrl+S - Grep search (ripgrep)
-        setMode(GREP_SEARCH);
-        initializeGrepSearch();
-        break;
-    case Terminal::CTRL_W:
-        // Ctrl+W - Buffer browser
-        setMode(BUFFER_BROWSER);
-        initializeBufferBrowser();
-        break;
-
-    // Movement
-    case 'h':
-    case Terminal::ARROW_LEFT:
-        moveLeft(1);
-        break;
-    case 'j':
-    case Terminal::ARROW_DOWN:
-        moveDown(1);
-        break;
-    case 'k':
-    case Terminal::ARROW_UP:
-        moveUp(1);
-        break;
-    case 'l':
-    case Terminal::ARROW_RIGHT:
-        moveRight(1);
-        break;
-    case 'w':
-        moveWordForward();
-        break;
-    case 'b':
-        moveWordBackward();
-        break;
-    case 'e':
-        moveToEndOfWord();
-        break;
-    case '0':
-        moveToLineStart();
-        break;
-    case '^':
-        moveToFirstNonBlank();
-        break;
-    case '$':
-        moveToLineEnd();
-        break;
-    case 'G':
-        moveToLastLine();
-        break;
-    case '{':
-        moveParagraphBackward();
-        break;
-    case '}':
-        moveParagraphForward();
-        break;
-
-    // Scrolling
-    case Terminal::CTRL_D:
-        scrollHalfPageDown(false);
-        break;
-    case Terminal::CTRL_U:
-        scrollHalfPageUp(false);
-        break;
-    case Terminal::CTRL_F:
-    case Terminal::PAGE_DOWN:
-        scrollPageDown();
-        break;
-    case Terminal::CTRL_B:
-    case Terminal::PAGE_UP:
-        scrollPageUp();
-        break;
-
-    // Editing
-    case 'x':
-        deleteCharForward();
-        saveState();
-        break;
-    case 'u':
-        undo();
-        break;
-    case Terminal::CTRL_R:
-        redo();
-        break;
-    case 'p':
-        pasteAfter();
-        saveState();
-        break;
-    case 'P':
-        pasteBefore();
-        saveState();
-        break;
-    case 'J':
-        joinLines();
-        saveState();
-        break;
-    case '~':
-        toggleCase();
-        break;
-
-    // Search
-    case '/':
-        setMode(SEARCH_FORWARD);
-        startSearchForward();
-        break;
-    case '?':
-        setMode(SEARCH_BACKWARD);
-        startSearchBackward();
-        break;
-    case 'n':
-        searchNext();
-        break;
-    case 'N':
-        searchPrevious();
-        break;
-    case '*':
-        searchWordUnderCursor(true);
-        break;
-    case '#':
-        searchWordUnderCursor(false);
-        break;
-
-    // File browser
-    case '-':
-        setMode(FILE_BROWSER);
-        openFileBrowser(".");
-        break;
-
-    // Misc
-    case Terminal::CTRL_G:
-        showFileInfo();
-        break;
-    case Terminal::CTRL_L:
-        needsFullRedraw = true;
-        break;
-    case Terminal::CTRL_O:
-        jumpBack();
-        break;
-    case Terminal::CTRL_I:
-        jumpForward();
-        break;
-
-    default:
-        // Unhandled key
-        break;
-    }
-
-    needsFullRedraw = true;
 }

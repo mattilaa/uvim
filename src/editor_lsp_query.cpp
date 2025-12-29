@@ -23,24 +23,9 @@
 #include <unistd.h>
 #include <unordered_set>
 
-#include "text_utils.h"
-
-bool isLikelyDefinition(const std::string& line, const std::string& symbol)
+static bool isIdent(char c)
 {
-    // skip comments
-    size_t commentPos = line.find("//");
-    std::string effectiveLine =
-        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
-
-    // name(
-    if(effectiveLine.find(symbol + "(") != std::string::npos)
-        return true;
-
-    // Class::name(
-    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
-        return true;
-
-    return false;
+    return std::isalnum((unsigned char)c) || c == '_';
 }
 
 // Check if a line is likely a variable/parameter declaration for the symbol
@@ -395,203 +380,6 @@ bool Editor::isClangdLspEnabled() const
 #endif
 }
 
-// Buffer Management Functions
-void Editor::createNewBuffer()
-{
-    auto buffer = std::make_unique<Buffer>();
-    buffers.push_back(std::move(buffer));
-    currentBufferIndex = buffers.size() - 1;
-    updateCurrentBufferPointers();
-    needsFullRedraw = true;
-}
-
-void Editor::updateCurrentBufferPointers()
-{
-    if(currentBufferIndex >= 0 && currentBufferIndex < buffers.size())
-    {
-        currentBuffer = buffers[currentBufferIndex].get();
-        lines = &currentBuffer->lines;
-        filename = &currentBuffer->filename;
-        dirty = &currentBuffer->dirty;
-        cursorX = &currentBuffer->cursorX;
-        cursorY = &currentBuffer->cursorY;
-        wantedX = &currentBuffer->wantedX;
-        offsetX = &currentBuffer->offsetX;
-        offsetY = &currentBuffer->offsetY;
-    }
-    else
-    {
-        createNewBuffer();
-    }
-}
-
-void Editor::switchToBuffer(int index)
-{
-    if(index >= 0 && index < buffers.size())
-    {
-        saveBufferState();
-        currentBufferIndex = index;
-        updateCurrentBufferPointers();
-        restoreBufferState();
-        needsFullRedraw = true;
-
-        std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
-                          "/" + std::to_string(buffers.size());
-        if(!filename->empty())
-        {
-            msg += ": " + *filename;
-        }
-        else
-        {
-            msg += ": [No Name]";
-        }
-        if(*dirty)
-        {
-            msg += " [+]";
-        }
-        setStatusMessage(msg);
-    }
-}
-
-void Editor::nextBuffer()
-{
-    if(buffers.size() > 1)
-    {
-        int nextIndex = (currentBufferIndex + 1) % buffers.size();
-        switchToBuffer(nextIndex);
-    }
-    else
-    {
-        setStatusMessage("No other buffers");
-    }
-}
-
-void Editor::previousBuffer()
-{
-    if(buffers.size() > 1)
-    {
-        int prevIndex = currentBufferIndex - 1;
-        if(prevIndex < 0)
-            prevIndex = buffers.size() - 1;
-        switchToBuffer(prevIndex);
-    }
-    else
-    {
-        setStatusMessage("No other buffers");
-    }
-}
-
-void Editor::closeCurrentBuffer()
-{
-    if(*dirty)
-    {
-        setStatusMessage("No write since last change (add ! to override)");
-        return;
-    }
-
-    if(buffers.size() == 1)
-    {
-        createNewBuffer();
-        buffers.erase(buffers.begin());
-        currentBufferIndex = 0;
-        updateCurrentBufferPointers();
-    }
-    else
-    {
-        buffers.erase(buffers.begin() + currentBufferIndex);
-        if(currentBufferIndex >= buffers.size())
-        {
-            currentBufferIndex = buffers.size() - 1;
-        }
-        updateCurrentBufferPointers();
-        restoreBufferState();
-    }
-
-    needsFullRedraw = true;
-    setStatusMessage("Buffer closed");
-}
-
-void Editor::listBuffers()
-{
-    std::stringstream ss;
-    ss << "Buffers: ";
-
-    for(size_t i = 0; i < buffers.size(); i++)
-    {
-        if(i == currentBufferIndex)
-            ss << "[";
-
-        ss << (i + 1) << ":";
-
-        if(!buffers[i]->filename.empty())
-        {
-            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
-            if(lastSlash != std::string::npos)
-                ss << buffers[i]->filename.substr(lastSlash + 1);
-            else
-                ss << buffers[i]->filename;
-        }
-        else
-        {
-            ss << "[No Name]";
-        }
-
-        if(buffers[i]->dirty)
-            ss << "+";
-
-        if(i == currentBufferIndex)
-            ss << "]";
-
-        if(i < buffers.size() - 1)
-            ss << " ";
-    }
-
-    setStatusMessage(ss.str());
-}
-
-int Editor::findBufferByFilename(const std::string& fname)
-{
-    for(int i = 0; i < buffers.size(); i++)
-    {
-        if(buffers[i]->filename == fname)
-            return i;
-    }
-    return -1;
-}
-
-void Editor::saveBufferState()
-{
-    // State is automatically saved in buffer structure
-}
-
-void Editor::restoreBufferState()
-{
-    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
-    {
-        setMode(NORMAL);
-    }
-}
-
-bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
-                                      int& outY, int& outX)
-{
-    for(int y = 0; y < buf->lines.size(); ++y)
-    {
-        const std::string& line = buf->lines[y];
-        if(isLikelyDefinition(line, symbol))
-        {
-            size_t pos = line.find(symbol);
-            if(pos != std::string::npos)
-            {
-                outY = y;
-                outX = pos;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 void Editor::enterOperatorPending(char op)
 {
     pendingOperator = op;
@@ -649,9 +437,76 @@ void Editor::handleOperatorPendingMode(int c)
         switch(c)
         {
         case 'w':
-            moveWordForward();
-            isExclusiveMotion = true; // 'w' is exclusive in vim
-            break;
+        {
+            // For dw/cw: delete from cursor to start of next word (exclusive)
+            // This is vim's behavior: delete current word + trailing whitespace
+            // but stay on the same line
+            const std::string& line = (*lines)[*cursorY];
+            int end = *cursorX;
+
+            // Helper lambda for word character check
+            auto isWordChar = [](char ch)
+            {
+                return std::isalnum(static_cast<unsigned char>(ch)) ||
+                       ch == '_';
+            };
+
+            if(end < (int)line.length())
+            {
+                char startChar = line[end];
+
+                if(std::isspace(static_cast<unsigned char>(startChar)))
+                {
+                    // On whitespace: skip whitespace then skip next word/punct
+                    while(end < (int)line.length() &&
+                          std::isspace(static_cast<unsigned char>(line[end])))
+                        end++;
+
+                    if(end < (int)line.length())
+                    {
+                        if(isWordChar(line[end]))
+                        {
+                            while(end < (int)line.length() &&
+                                  isWordChar(line[end]))
+                                end++;
+                        }
+                        else
+                        {
+                            while(end < (int)line.length() &&
+                                  !isWordChar(line[end]) &&
+                                  !std::isspace(
+                                      static_cast<unsigned char>(line[end])))
+                                end++;
+                        }
+                    }
+                }
+                else if(isWordChar(startChar))
+                {
+                    // On word: skip word + trailing whitespace
+                    while(end < (int)line.length() && isWordChar(line[end]))
+                        end++;
+                    while(end < (int)line.length() &&
+                          std::isspace(static_cast<unsigned char>(line[end])))
+                        end++;
+                }
+                else
+                {
+                    // On punctuation: skip punctuation + trailing whitespace
+                    while(end < (int)line.length() && !isWordChar(line[end]) &&
+                          !std::isspace(static_cast<unsigned char>(line[end])))
+                        end++;
+                    while(end < (int)line.length() &&
+                          std::isspace(static_cast<unsigned char>(line[end])))
+                        end++;
+                }
+            }
+
+            // Set destination
+            *cursorX = end;
+            // 'w' is exclusive, so we'll subtract 1 later
+            isExclusiveMotion = true;
+        }
+        break;
         case 'b':
             moveWordBackward();
             isExclusiveMotion = true; // 'b' is exclusive in vim
@@ -812,6 +667,28 @@ void Editor::handleOperatorPendingMode(int c)
 
     // Apply operator
     char op = pendingOperator;
+
+    // DEBUG: Write to file what we're about to delete
+    {
+        std::ofstream dbg("/tmp/uvim_dw_debug.txt", std::ios::app);
+        dbg << "=== dw operation ===" << std::endl;
+        dbg << "op=" << op << std::endl;
+        dbg << "startY=" << startY << " startX=" << startX << std::endl;
+        dbg << "endY=" << endY << " endX=" << endX << std::endl;
+        if(startY < (int)lines->size())
+        {
+            dbg << "line[" << startY << "]=" << (*lines)[startY] << std::endl;
+            dbg << "deleting chars " << startX << " to " << endX << std::endl;
+            if(startY == endY && startX < (int)(*lines)[startY].length())
+            {
+                dbg << "text to delete: ["
+                    << (*lines)[startY].substr(startX, endX - startX + 1) << "]"
+                    << std::endl;
+            }
+        }
+        dbg << std::endl;
+    }
+
     applyOperatorToRange(op, startY, startX, endY, endX);
 
     // Clear state
@@ -1962,7 +1839,6 @@ void Editor::goToDefinition()
 
 // adjustViewport and centerScreen are now in cursor_movement.cpp
 
-// Drawing functions
 void Editor::refreshScreen()
 {
     if(currentMode == FILE_BROWSER)
@@ -2049,7 +1925,6 @@ void Editor::refreshScreen()
     lastMode = currentMode;
     needsFullRedraw = false;
 }
-
 void Editor::updateCursorPosition()
 {
     int cursorRow, cursorCol;
@@ -2395,959 +2270,199 @@ void Editor::forceQuit()
     std::exit(0);
 }
 
+// ----- clangd completion popup helpers -----
+
+static bool isIdentChar(char c)
+{
+    return std::isalnum((unsigned char)c) || c == '_';
+}
+
+// Very small snippet “desugaring”: turns clangd snippets into plain insert
+// text.
+// - removes $0, $1 ...
+// - turns ${1:foo} -> foo
+// - removes ${1}
+static std::string stripSnippet(const std::string& s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for(size_t i = 0; i < s.size(); ++i)
+    {
+        char c = s[i];
+        if(c != '$')
+        {
+            out.push_back(c);
+            continue;
+        }
+
+        if(i + 1 >= s.size())
+            continue;
+
+        char n = s[i + 1];
+        if(std::isdigit((unsigned char)n))
+        {
+            // $0, $1 ...
+            i += 1;
+            while(i + 1 < s.size() && std::isdigit((unsigned char)s[i + 1]))
+                i++;
+            continue;
+        }
+
+        if(n == '{')
+        {
+            // ${1:foo} or ${1}
+            size_t end = s.find('}', i + 2);
+            if(end == std::string::npos)
+                continue;
+
+            std::string inner = s.substr(i + 2, end - (i + 2));
+            // inner might be "1:foo" or "1"
+            size_t colon = inner.find(':');
+            if(colon != std::string::npos)
+            {
+                out += inner.substr(colon + 1);
+            }
+            // else: just a placeholder number → ignore
+            i = end;
+            continue;
+        }
+
+        // Unknown $-sequence → drop '$' and keep the next char
+        // (so "$$" becomes "$", etc.)
+        out.push_back(n);
+        i += 1;
+    }
+    return out;
+}
+
+static inline void appendUtf8Repeat(std::string& out, const char* glyph,
+                                    int count)
+{
+    for(int i = 0; i < count; ++i)
+        out += glyph;
+}
+
+static inline bool isAnsiStart(const std::string& s, size_t i)
+{
+    return i + 1 < s.size() && s[i] == '\x1b' && s[i + 1] == '[';
+}
+
+static inline size_t skipAnsi(const std::string& s, size_t i)
+{
+    // Skip ESC[ ... <letter>
+    i += 2;
+    while(i < s.size())
+    {
+        char c = s[i++];
+        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+            break;
+    }
+    return i;
+}
+
+// Approximate terminal display width.
+// - strips ANSI escapes
+// - counts UTF-8 codepoints as width 1 (good enough for our popup)
+static inline int displayWidth(const std::string& s)
+{
+    int w = 0;
+    for(size_t i = 0; i < s.size();)
+    {
+        if(isAnsiStart(s, i))
+        {
+            i = skipAnsi(s, i);
+            continue;
+        }
+
+        unsigned char c = (unsigned char)s[i];
+        if(c < 0x80)
+        {
+            ++w;
+            ++i;
+            continue;
+        }
+
+        // UTF-8: skip continuation bytes
+        if((c & 0xE0) == 0xC0)
+            i += 2;
+        else if((c & 0xF0) == 0xE0)
+            i += 3;
+        else if((c & 0xF8) == 0xF0)
+            i += 4;
+        else
+            ++i;
+        ++w;
+    }
+    return w;
+}
+
+static inline int fuzzyScore(const std::string& text,
+                             const std::string& pattern)
+{
+    if(pattern.empty())
+        return 0;
+
+    auto lower = [](unsigned char ch) -> unsigned char
+    {
+        if(ch >= 'A' && ch <= 'Z')
+            return (unsigned char)(ch - 'A' + 'a');
+        return ch;
+    };
+
+    int score = 0;
+    int ti = 0;
+    int consecutive = 0;
+
+    for(int pi = 0; pi < (int)pattern.size(); ++pi)
+    {
+        unsigned char pc = lower((unsigned char)pattern[pi]);
+        bool found = false;
+
+        while(ti < (int)text.size())
+        {
+            unsigned char tc = (unsigned char)text[ti];
+            unsigned char ltc = lower(tc);
+            if(ltc == pc)
+            {
+                // base points + consecutive bonus
+                score += 10;
+                score += consecutive * 5;
+
+                // token-boundary bonus
+                if(ti == 0)
+                    score += 8;
+                else
+                {
+                    char prev = text[ti - 1];
+                    if(prev == '_' || prev == ':' || prev == ' ' ||
+                       prev == '\t' || prev == '-')
+                        score += 8;
+                }
+
+                ++consecutive;
+                ++ti;
+                found = true;
+                break;
+            }
+            else
+            {
+                consecutive = 0;
+                ++ti;
+            }
+        }
+        if(!found)
+            return -1;
+    }
+
+    return score;
+}
+
 std::string Editor::getAlternateFilePath()
 {
     if(!currentBuffer || currentBuffer->filename.empty())
         return "";
 
     return findAlternateFile(currentBuffer->filename);
-}
-
-// Mode handlers
-void Editor::handleInsertMode(int c)
-{
-
-    // clangd completion popup navigation/accept (keep popup open while typing)
-    if(completionActive)
-    {
-        if(c == Terminal::ESC)
-        {
-            cancelCompletion();
-            needsFullRedraw = true;
-            return;
-        }
-        if(c == Terminal::CTRL_J || c == Terminal::CTRL_N)
-        {
-            completionNext();
-            return;
-        }
-        if(c == Terminal::CTRL_K || c == Terminal::CTRL_P)
-        {
-            completionPrev();
-            return;
-        }
-        if(c == Terminal::ENTER || c == Terminal::TAB)
-        {
-            acceptCompletion();
-            return;
-        }
-        // Otherwise fall through and treat the key as normal insert.
-    }
-
-    // Trigger completion manually in INSERT with Ctrl-N (navigate with
-    // Ctrl-J/Ctrl-K)
-    if(c == Terminal::CTRL_N && !completionActive)
-    {
-        requestCompletion();
-        return;
-    }
-
-    if(c == Terminal::ESC)
-    {
-        if(visualBlockChanging)
-        {
-            int startY, startX, endY, endX;
-            getVisualBlockBounds(startY, startX, endY, endX);
-
-            for(int row = startY + 1; row <= endY; row++)
-            {
-                if(row >= lines->size())
-                    continue;
-
-                std::string& line = (*lines)[row];
-
-                if(startX > line.length())
-                    line.resize(startX, ' ');
-
-                line.insert(startX, currentBuffer->visualBlockInsertText);
-            }
-
-            visualBlockChanging = false;
-            saveState();
-        }
-
-        setMode(NORMAL);
-        return;
-    }
-
-    if(c == Terminal::BACKSPACE || c == Terminal::DEL)
-    {
-        // Smart backspace: delete up to 4 spaces if we're in indentation
-        if(*cursorX > 0 && *cursorY < lines->size())
-        {
-            const std::string& line = (*lines)[*cursorY];
-
-            // Check if cursor is in the indentation area (only spaces/tabs
-            // before cursor)
-            bool inIndent = true;
-            for(int i = 0; i < *cursorX; i++)
-            {
-                if(line[i] != ' ' && line[i] != '\t')
-                {
-                    inIndent = false;
-                    break;
-                }
-            }
-
-            if(inIndent && line[*cursorX - 1] == ' ')
-            {
-                // Calculate how many spaces to delete (up to 4, aligned to tab
-                // stop)
-                int spacesToDelete = ((*cursorX - 1) % 4) + 1;
-                if(spacesToDelete == 0)
-                    spacesToDelete = 4;
-
-                // Make sure we have enough spaces to delete
-                int actualSpaces = 0;
-                for(int i = *cursorX - 1;
-                    i >= 0 && actualSpaces < spacesToDelete; i--)
-                {
-                    if(line[i] == ' ')
-                        actualSpaces++;
-                    else
-                        break;
-                }
-
-                // Delete the spaces
-                (*lines)[*cursorY].erase(*cursorX - actualSpaces, actualSpaces);
-                *cursorX -= actualSpaces;
-                *dirty = true;
-                if(completionActive)
-                    rebuildCompletionFilter();
-                return;
-            }
-        }
-
-        deleteChar();
-        if(completionActive)
-            rebuildCompletionFilter();
-        return;
-    }
-
-    if(c == Terminal::ENTER)
-    {
-        if(completionActive)
-            cancelCompletion();
-        insertNewline();
-        return;
-    }
-
-    // Tab key: insert 4 spaces (aligned to tab stop)
-    if(c == Terminal::TAB)
-    {
-        int spacesToInsert = 4 - (*cursorX % 4);
-        if(spacesToInsert == 0)
-            spacesToInsert = 4;
-
-        for(int i = 0; i < spacesToInsert; i++)
-        {
-            insertChar(' ');
-        }
-        if(completionActive)
-            rebuildCompletionFilter();
-        return;
-    }
-
-    if(c >= 32 && c <= 126)
-    {
-        if(visualBlockChanging)
-        {
-            currentBuffer->visualBlockInsertText.push_back((char)c);
-        }
-
-        insertChar((char)c);
-        if(completionActive)
-            rebuildCompletionFilter();
-    }
-}
-
-void Editor::handleVisualMode(int c)
-{
-    // Handle count prefix for visual mode (e.g., V4j)
-    static int visualRepeatCount = 0;
-
-    if(c >= '1' && c <= '9' && visualRepeatCount == 0)
-    {
-        visualRepeatCount = c - '0';
-        return;
-    }
-    else if(c >= '0' && c <= '9' && visualRepeatCount > 0)
-    {
-        visualRepeatCount = visualRepeatCount * 10 + (c - '0');
-        return;
-    }
-
-    int count = std::max(1, visualRepeatCount);
-    visualRepeatCount = 0; // Reset after use
-
-    switch(c)
-    {
-    case Terminal::ESC:
-        setMode(NORMAL);
-        statusMessage.clear();
-        needsFullRedraw = true;
-        break;
-    case 'h':
-    case Terminal::ARROW_LEFT:
-        for(int i = 0; i < count; ++i)
-            moveLeft();
-        updateVisualSelection();
-        needsFullRedraw = true;
-        break;
-    case 'l':
-    case Terminal::ARROW_RIGHT:
-        for(int i = 0; i < count; ++i)
-            moveRight();
-        updateVisualSelection();
-        needsFullRedraw = true;
-        break;
-    case 'j':
-    case Terminal::ARROW_DOWN:
-        for(int i = 0; i < count; ++i)
-            moveDown();
-        updateVisualSelection();
-        needsFullRedraw = true;
-        break;
-    case 'k':
-    case Terminal::ARROW_UP:
-        for(int i = 0; i < count; ++i)
-            moveUp();
-        updateVisualSelection();
-        needsFullRedraw = true;
-        break;
-    case Terminal::CTRL_D:
-        scrollHalfPageDown(true);
-        break;
-
-    case Terminal::CTRL_U:
-        scrollHalfPageUp(true);
-        break;
-    case 'G': // visual G → extend to last line
-        moveToLastLine();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-    case '%':
-        moveToMatchingBracket();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-    case 'g': // possible gg
-        if(commandBuffer == "g")
-        {
-            moveToFirstLine();
-            updateVisualSelection();
-            adjustViewport();
-            commandBuffer.clear();
-        }
-        else
-        {
-            commandBuffer = "g";
-        }
-        break;
-    case 'd':
-    case 'x':
-        deleteSelection();
-        setMode(NORMAL);
-        saveState();
-        needsFullRedraw = true;
-        break;
-    case 'y':
-        yankSelection();
-        setMode(NORMAL);
-        needsFullRedraw = true;
-        break;
-    case ' ':
-        // Leader key in visual mode - wait for next key
-        {
-            int nextKey = Terminal::readKey();
-            if(nextKey == 'y')
-            {
-                // Space + y: yank selection to system clipboard
-                yankSelection();
-                setSystemClipboard(yankBuffer);
-                setMode(NORMAL);
-                needsFullRedraw = true;
-                setStatusMessage("Selection yanked to system clipboard");
-            }
-            else if(nextKey == 'd')
-            {
-                // Space + d: delete selection and copy to system clipboard
-                yankSelection();
-                setSystemClipboard(yankBuffer);
-                deleteSelection();
-                setMode(NORMAL);
-                saveState();
-                needsFullRedraw = true;
-                setStatusMessage("Selection cut to system clipboard");
-            }
-            else if(nextKey == 'f')
-            {
-                // Space + f: format file with clang-format
-                setMode(NORMAL);
-
-                if(!isCppFile())
-                {
-                    setStatusMessage("clang-format: not a C/C++ file");
-                    break;
-                }
-
-                // Save current cursor position
-                int savedY = *cursorY;
-                int savedX = *cursorX;
-
-                // Write buffer to temp file
-                std::string tempPath =
-                    "/tmp/uvim_format_" + std::to_string(getpid()) + ".tmp";
-                std::ofstream tempFile(tempPath);
-                if(!tempFile.is_open())
-                {
-                    setStatusMessage(
-                        "clang-format: failed to create temp file");
-                    break;
-                }
-
-                // Write content with trailing newline
-                for(size_t i = 0; i < lines->size(); ++i)
-                {
-                    tempFile << (*lines)[i] << '\n';
-                }
-                tempFile.close();
-
-                // Get the directory of the current file for clang-format to
-                // find .clang-format
-                std::string absFilename = *filename;
-
-                // Make filename absolute if it isn't
-                if(!absFilename.empty() && absFilename[0] != '/')
-                {
-                    char cwd[PATH_MAX];
-                    if(getcwd(cwd, sizeof(cwd)))
-                    {
-                        absFilename = std::string(cwd) + "/" + *filename;
-                    }
-                }
-
-                // Run clang-format with stdin, using actual filename for style
-                // lookup
-                std::string cmd =
-                    "cat \"" + tempPath +
-                    "\" | /opt/homebrew/bin/clang-format -style=file"
-                    " -assume-filename=\"" +
-                    absFilename +
-                    "\""
-                    " 2>/tmp/uvim_clang_err.txt";
-
-                FILE* pipe = popen(cmd.c_str(), "r");
-                if(!pipe)
-                {
-                    // Try without full path
-                    cmd = "cat \"" + tempPath +
-                          "\" | clang-format -style=file"
-                          " -assume-filename=\"" +
-                          absFilename +
-                          "\""
-                          " 2>/tmp/uvim_clang_err.txt";
-                    pipe = popen(cmd.c_str(), "r");
-                }
-
-                if(!pipe)
-                {
-                    unlink(tempPath.c_str());
-                    setStatusMessage("clang-format: failed to run");
-                    break;
-                }
-
-                // Read formatted output
-                std::string formatted;
-                char buffer[4096];
-                while(fgets(buffer, sizeof(buffer), pipe))
-                {
-                    formatted += buffer;
-                }
-                int status = pclose(pipe);
-                unlink(tempPath.c_str());
-
-                // Check for errors
-                if(formatted.empty())
-                {
-                    // Read error file
-                    std::ifstream errFile("/tmp/uvim_clang_err.txt");
-                    std::string errMsg;
-                    if(errFile.is_open())
-                    {
-                        std::getline(errFile, errMsg);
-                        errFile.close();
-                    }
-                    if(errMsg.empty())
-                        errMsg = "no output (exit=" +
-                                 std::to_string(WEXITSTATUS(status)) + ")";
-                    setStatusMessage("clang-format: " + errMsg.substr(0, 50));
-                    break;
-                }
-
-                // Parse formatted output into lines
-                std::vector<std::string> newLines;
-                std::istringstream iss(formatted);
-                std::string line;
-                while(std::getline(iss, line))
-                {
-                    // Remove \r if present
-                    if(!line.empty() && line.back() == '\r')
-                        line.pop_back();
-                    newLines.push_back(line);
-                }
-
-                // Remove trailing empty line if present (clang-format adds one)
-                if(!newLines.empty() && newLines.back().empty())
-                {
-                    newLines.pop_back();
-                }
-
-                // Ensure at least one line
-                if(newLines.empty())
-                {
-                    newLines.push_back("");
-                }
-
-                // Check if anything changed
-                if(newLines == *lines)
-                {
-                    setStatusMessage("clang-format: no changes needed");
-                    break;
-                }
-
-                // Save state for undo
-                saveState();
-
-                // Replace buffer content
-                *lines = newLines;
-                *dirty = true;
-
-                // Restore cursor position (clamped to valid range)
-                if(lines->empty())
-                {
-                    *cursorY = 0;
-                    *cursorX = 0;
-                }
-                else
-                {
-                    *cursorY = savedY;
-                    if(*cursorY >= (int)lines->size())
-                        *cursorY = (int)lines->size() - 1;
-                    if(*cursorY < 0)
-                        *cursorY = 0;
-
-                    *cursorX = savedX;
-                    int lineLen = (int)(*lines)[*cursorY].length();
-                    if(*cursorX > lineLen)
-                        *cursorX = lineLen > 0 ? lineLen - 1 : 0;
-                    if(*cursorX < 0)
-                        *cursorX = 0;
-                }
-
-                adjustViewport();
-                needsFullRedraw = true;
-                setStatusMessage("clang-format: formatted " +
-                                 std::to_string(lines->size()) + " lines");
-            }
-            // Other space combinations in visual mode are ignored
-        }
-        break;
-    case 'c':
-        // Change - delete selection and enter insert mode
-        {
-            int startY, startX, endY, endX;
-            if(currentMode == VISUAL_LINE)
-            {
-                // For visual line mode, delete whole lines and insert new line
-                startY = std::min(currentBuffer->visualStartY,
-                                  currentBuffer->visualEndY);
-                endY = std::max(currentBuffer->visualStartY,
-                                currentBuffer->visualEndY);
-
-                // Delete the selected lines
-                for(int i = endY; i >= startY; i--)
-                {
-                    lines->erase(lines->begin() + i);
-                }
-
-                // Insert empty line at start position
-                lines->insert(lines->begin() + startY, "");
-
-                *cursorY = startY;
-                *cursorX = 0;
-            }
-            else
-            {
-                // For character-wise visual mode
-                getSelectionBounds(startY, startX, endY, endX);
-
-                // Delete the selection (same logic as deleteSelection)
-                if(startY == endY)
-                {
-                    (*lines)[startY].erase(startX, endX - startX + 1);
-                }
-                else
-                {
-                    (*lines)[startY] = (*lines)[startY].substr(0, startX) +
-                                       (*lines)[endY].substr(endX + 1);
-                    for(int i = endY; i > startY; i--)
-                    {
-                        lines->erase(lines->begin() + i);
-                    }
-                }
-
-                *cursorY = startY;
-                *cursorX = startX;
-            }
-
-            *dirty = true;
-            saveState();
-            setMode(INSERT);
-            needsFullRedraw = true;
-        }
-        break;
-    case '=':
-        // Indent selected lines
-        {
-            int startY, startX, endY, endX;
-            getSelectionBounds(startY, startX, endY, endX);
-            autoIndentRange(startY, endY);
-
-            int linesIndented = endY - startY + 1;
-            setStatusMessage(std::to_string(linesIndented) + " line" +
-                             (linesIndented > 1 ? "s" : "") + " indented");
-            setMode(NORMAL);
-            saveState();
-            needsFullRedraw = true;
-        }
-        break;
-
-    case 'J':
-        // Join all selected lines into one
-        {
-            int startY, startX, endY, endX;
-            getSelectionBounds(startY, startX, endY, endX);
-
-            int linesToJoin = endY - startY + 1;
-            if(linesToJoin <= 1)
-            {
-                setMode(NORMAL);
-                break;
-            }
-
-            // Move cursor to start line
-            *cursorY = startY;
-
-            // Join all lines from startY to endY
-            int joinCount = 0;
-            for(int i = 0; i < linesToJoin - 1; ++i)
-            {
-                if(*cursorY >= (int)lines->size() - 1)
-                    break;
-
-                std::string& currentLine = (*lines)[*cursorY];
-                std::string& nextLine = (*lines)[*cursorY + 1];
-
-                // Remove trailing whitespace from current line
-                size_t endPos = currentLine.find_last_not_of(" \t");
-                if(endPos != std::string::npos)
-                    currentLine = currentLine.substr(0, endPos + 1);
-
-                // Remove leading whitespace from next line
-                size_t startPos = nextLine.find_first_not_of(" \t");
-                std::string trimmedNext = (startPos != std::string::npos)
-                                              ? nextLine.substr(startPos)
-                                              : "";
-
-                // Join with a single space
-                if(!currentLine.empty() && !trimmedNext.empty())
-                {
-                    currentLine += " " + trimmedNext;
-                }
-                else if(currentLine.empty())
-                {
-                    currentLine = trimmedNext;
-                }
-
-                // Delete the next line
-                lines->erase(lines->begin() + *cursorY + 1);
-                joinCount++;
-            }
-
-            *cursorX = 0;
-            *dirty = true;
-            saveState();
-            setMode(NORMAL);
-            needsFullRedraw = true;
-            setStatusMessage(std::to_string(joinCount + 1) + " lines joined");
-        }
-        break;
-
-    case 'w': // Visual w - extend selection forward by word
-        for(int i = 0; i < count; ++i)
-            moveWordForward();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-
-    case 'b': // Visual b - extend selection backward by word
-        for(int i = 0; i < count; ++i)
-            moveWordBackward();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-
-    case 'e': // Visual e - extend selection to end of word
-        for(int i = 0; i < count; ++i)
-            moveToEndOfWord();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-
-    case '0': // Visual 0 - extend to start of line
-        moveToLineStart();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-
-    case '$': // Visual $ - extend to end of line
-        moveToLineEnd();
-        updateVisualSelection();
-        adjustViewport();
-        break;
-    case 'p':
-    case 'P':
-        // In visual mode, 'p' replaces the selection with yanked text
-        if(!yankBuffer.empty())
-        {
-            // Store the current yank buffer content
-            std::string pasteContent = yankBuffer;
-
-            // Get selection bounds
-            int startY, startX, endY, endX;
-
-            if(currentMode == VISUAL_LINE)
-            {
-                // For visual line mode, we work with whole lines
-                startY = std::min(currentBuffer->visualStartY,
-                                  currentBuffer->visualEndY);
-                endY = std::max(currentBuffer->visualStartY,
-                                currentBuffer->visualEndY);
-
-                // Delete the selected lines
-                for(int i = endY; i >= startY; i--)
-                {
-                    lines->erase(lines->begin() + i);
-                }
-
-                if(lines->empty())
-                {
-                    lines->push_back("");
-                }
-
-                // Set cursor to start of deleted region
-                *cursorY = std::min(startY, (int)lines->size() - 1);
-                *cursorX = 0;
-            }
-            else
-            {
-                // For character-wise visual mode
-                getSelectionBounds(startY, startX, endY, endX);
-
-                // Delete the selected range
-                deleteRange(startY, startX, endY, endX);
-
-                // Set cursor to start of deleted region
-                *cursorY = startY;
-                *cursorX = startX;
-            }
-
-            // Restore the yank buffer (deleteRange doesn't modify it, but just
-            // to be safe)
-            yankBuffer = pasteContent;
-
-            // Now paste the content
-            // Use pasteBefore since we're at the start of where we deleted
-            if(yankBuffer.back() == '\n')
-            {
-                // Line-wise paste - insert before current line
-                std::istringstream ss(yankBuffer);
-                std::string line;
-                int insertPos = *cursorY;
-
-                while(std::getline(ss, line))
-                {
-                    lines->insert(lines->begin() + insertPos, line);
-                    insertPos++;
-                }
-                *cursorX = 0;
-            }
-            else
-            {
-                // Character-wise paste - insert at cursor position
-                (*lines)[*cursorY].insert(*cursorX, yankBuffer);
-                *cursorX += yankBuffer.length() - 1;
-            }
-
-            *dirty = true;
-            setMode(NORMAL);
-            saveState();
-            needsFullRedraw = true;
-            setStatusMessage("Pasted over selection");
-        }
-        else
-        {
-            setStatusMessage("Nothing to paste");
-            setMode(NORMAL);
-        }
-        break;
-    }
-}
-
-void Editor::handleVisualBlockMode(int c)
-{
-    // Track if we're collecting text in INSERT mode after 'c'
-    static bool inBlockInsert = false;
-    static int blockInsertStartX = 0;
-    static bool changeMode = false; // Track if we entered via 'c' command
-
-    if(inBlockInsert)
-    {
-        // We're in INSERT mode after pressing 'c' in visual block
-        switch(c)
-        {
-        case Terminal::ESC:
-        {
-            // Check for double ESC to apply to all lines
-            auto now = std::chrono::steady_clock::now();
-            auto timeSinceLastEsc =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    now - lastEscTime)
-                    .count();
-
-            if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS)
-            {
-                // Double ESC - apply insert to all lines
-                // Capture what was inserted on current line
-                std::string& currentLine = (*lines)[*cursorY];
-                if(*cursorX > blockInsertStartX)
-                {
-                    currentBuffer->visualBlockInsertText = currentLine.substr(
-                        blockInsertStartX, *cursorX - blockInsertStartX);
-                }
-                else if(changeMode && *cursorX >= blockInsertStartX)
-                {
-                    // For change mode, even if cursor didn't move forward,
-                    // capture any replacement text
-                    currentBuffer->visualBlockInsertText = currentLine.substr(
-                        blockInsertStartX, *cursorX - blockInsertStartX);
-                }
-
-                applyVisualBlockInsert();
-                inBlockInsert = false;
-                changeMode = false;
-                setMode(NORMAL);
-                lastEscTime = std::chrono::steady_clock::time_point();
-
-                // Clear visual block bounds after applying
-                currentBuffer->visualBlockStartY = -1;
-                currentBuffer->visualBlockEndY = -1;
-            }
-            else
-            {
-                // Single ESC - just exit insert mode
-                lastEscTime = now;
-                inBlockInsert = false;
-                changeMode = false;
-                if(*cursorX > 0)
-                    (*cursorX)--;
-                setMode(NORMAL);
-                saveState();
-            }
-        }
-        break;
-
-        default:
-            // Let normal insert mode handle the character
-            handleInsertMode(c);
-            break;
-        }
-        return;
-    }
-
-    // Handle count prefix for visual block mode (e.g., Ctrl-V 4j)
-    static int blockRepeatCount = 0;
-
-    if(c >= '1' && c <= '9' && blockRepeatCount == 0)
-    {
-        blockRepeatCount = c - '0';
-        return;
-    }
-    else if(c >= '0' && c <= '9' && blockRepeatCount > 0)
-    {
-        blockRepeatCount = blockRepeatCount * 10 + (c - '0');
-        return;
-    }
-
-    int count = std::max(1, blockRepeatCount);
-    blockRepeatCount = 0; // Reset after use
-
-    // Normal visual block mode commands
-    switch(c)
-    {
-    case Terminal::ESC:
-        setMode(NORMAL);
-        statusMessage.clear();
-        needsFullRedraw = true;
-        break;
-
-    case 'h':
-    case Terminal::ARROW_LEFT:
-        for(int i = 0; i < count; ++i)
-            moveLeft();
-        updateVisualBlockSelection();
-        needsFullRedraw = true;
-        break;
-
-    case 'l':
-    case Terminal::ARROW_RIGHT:
-        for(int i = 0; i < count; ++i)
-            moveRight();
-        updateVisualBlockSelection();
-        needsFullRedraw = true;
-        break;
-
-    case 'j':
-    case Terminal::ARROW_DOWN:
-        for(int i = 0; i < count; ++i)
-            moveDown();
-        updateVisualBlockSelection();
-        needsFullRedraw = true;
-        break;
-
-    case 'k':
-    case Terminal::ARROW_UP:
-        for(int i = 0; i < count; ++i)
-            moveUp();
-        updateVisualBlockSelection();
-        needsFullRedraw = true;
-        break;
-
-    case 'd':
-    case 'x':
-        deleteVisualBlock();
-        break;
-
-    case 'y':
-        yankVisualBlock();
-        setMode(NORMAL);
-        needsFullRedraw = true;
-        break;
-
-    case 'c':
-        // Change - delete block and enter insert mode
-        blockInsertStartX = currentBuffer->visualBlockStartX;
-        changeVisualBlock();
-        inBlockInsert = true;
-        changeMode = true; // Mark that we entered via 'c'
-        currentBuffer->visualBlockInsertText.clear(); // Clear any old text
-        break;
-
-    case 'I':
-        // Insert at beginning of block
-        *cursorX = std::min(currentBuffer->visualBlockStartX,
-                            currentBuffer->visualBlockEndX);
-        blockInsertStartX = *cursorX;
-        setMode(INSERT);
-        inBlockInsert = true;
-        changeMode = false; // Not in change mode
-        break;
-
-    case 'A':
-        // Append at end of block
-        *cursorX = std::max(currentBuffer->visualBlockStartX,
-                            currentBuffer->visualBlockEndX) +
-                   1;
-        if(*cursorX > (*lines)[*cursorY].length())
-            *cursorX = (*lines)[*cursorY].length();
-        blockInsertStartX = *cursorX;
-        setMode(INSERT);
-        inBlockInsert = true;
-        changeMode = false; // Not in change mode
-        break;
-
-    case 'p':
-    case 'P':
-        // Paste - for block yanks, paste as a block
-        if(!yankBuffer.empty())
-        {
-            if(yankBuffer[0] == '\x02') // Block yank marker
-            {
-                // Block paste
-                std::string blockContent = yankBuffer.substr(1);
-                std::istringstream ss(blockContent);
-                std::string line;
-                int row = *cursorY;
-
-                while(std::getline(ss, line) && row < lines->size())
-                {
-                    std::string& destLine = (*lines)[row];
-                    int insertPos = (c == 'p') ? *cursorX + 1 : *cursorX;
-                    if(insertPos > destLine.length())
-                        insertPos = destLine.length();
-                    destLine.insert(insertPos, line);
-                    row++;
-                }
-
-                *dirty = true;
-                saveState();
-                setMode(NORMAL);
-                needsFullRedraw = true;
-                setStatusMessage("Block pasted");
-            }
-            else
-            {
-                // Regular paste - just paste at cursor
-                setMode(NORMAL);
-                if(c == 'p')
-                    pasteAfter();
-                else
-                    pasteBefore();
-            }
-        }
-        break;
-
-    // Movement commands
-    case '0':
-        moveToLineStart();
-        updateVisualBlockSelection();
-        break;
-
-    case '$':
-        moveToLineEnd();
-        updateVisualBlockSelection();
-        break;
-
-    case 'G':
-        moveToLastLine();
-        updateVisualBlockSelection();
-        break;
-
-    case 'g':
-        if(commandBuffer == "g")
-        {
-            moveToFirstLine();
-            updateVisualBlockSelection();
-            commandBuffer.clear();
-        }
-        else
-        {
-            commandBuffer = "g";
-        }
-        break;
-    }
 }
 
 // Helper function for command-line path completion
@@ -3464,263 +2579,6 @@ static std::string longestCommonPrefix(const std::vector<std::string>& strings)
     return prefix;
 }
 
-void Editor::handleCommandMode(int c)
-{
-    // Static state for Tab completion cycling
-    static std::vector<std::string> tabCompletions;
-    static size_t tabIndex = 0;
-    static std::string tabOriginal;
-    static std::string tabCmdPrefix;
-
-    switch(c)
-    {
-    case Terminal::TAB:
-    {
-        std::string cmd = commandBuffer.substr(1); // Remove leading ':'
-
-        // Check if this is a command that needs path completion
-        // Support: :e, :e<partial>, :e <partial>, :edit, :edit <partial>
-        //          :cd, :cd <partial>, :w <partial>
-        bool isEditCmd =
-            (cmd == "e" || cmd == "edit" || cmd.substr(0, 2) == "e " ||
-             cmd.substr(0, 5) == "edit ");
-        bool isCdCmd = (cmd == "cd" || cmd.substr(0, 3) == "cd ");
-        bool isWCmd = (cmd.substr(0, 2) == "w ");
-
-        // Also handle :e followed directly by text (no space), like :efoo
-        if(!isEditCmd && !isCdCmd && !isWCmd && cmd.length() > 1 &&
-           cmd[0] == 'e')
-        {
-            // Check if it looks like :e<filename> (no space)
-            isEditCmd = true;
-        }
-
-        if(isEditCmd || isCdCmd || isWCmd)
-        {
-            std::string pathStart;
-            std::string cmdPrefix;
-
-            if(isEditCmd)
-            {
-                if(cmd == "e" || cmd == "edit")
-                {
-                    cmdPrefix = ":" + cmd + " ";
-                    pathStart = "";
-                }
-                else if(cmd.substr(0, 5) == "edit ")
-                {
-                    cmdPrefix = ":edit ";
-                    pathStart = cmd.substr(5);
-                }
-                else if(cmd.substr(0, 2) == "e ")
-                {
-                    cmdPrefix = ":e ";
-                    pathStart = cmd.substr(2);
-                }
-                else if(cmd[0] == 'e')
-                {
-                    // :efoo -> treat as :e foo
-                    cmdPrefix = ":e ";
-                    pathStart = cmd.substr(1);
-                }
-            }
-            else if(isCdCmd)
-            {
-                if(cmd == "cd")
-                {
-                    cmdPrefix = ":cd ";
-                    pathStart = "";
-                }
-                else
-                {
-                    cmdPrefix = ":cd ";
-                    pathStart = cmd.substr(3);
-                }
-            }
-            else // isWCmd
-            {
-                cmdPrefix = ":w ";
-                pathStart = cmd.substr(2);
-            }
-
-            // Check if we're continuing a previous Tab sequence
-            // (same path and same command prefix)
-            if(tabCompletions.empty() || tabOriginal != pathStart ||
-               tabCmdPrefix != cmdPrefix)
-            {
-                // New completion sequence
-                tabOriginal = pathStart;
-                tabCmdPrefix = cmdPrefix;
-                tabCompletions = getPathCompletions(pathStart);
-                tabIndex = 0;
-
-                if(tabCompletions.empty())
-                {
-                    setStatusMessage("No matches");
-                    break;
-                }
-
-                // If there's a common prefix longer than what we have, complete
-                // to that
-                std::string common = longestCommonPrefix(tabCompletions);
-                if(common.length() > pathStart.length())
-                {
-                    commandBuffer = cmdPrefix + common;
-                    tabOriginal = common;
-                    if(tabCompletions.size() > 1)
-                    {
-                        setStatusMessage(std::to_string(tabCompletions.size()) +
-                                         " matches");
-                    }
-                    break;
-                }
-            }
-
-            // Cycle through completions
-            if(!tabCompletions.empty())
-            {
-                commandBuffer = cmdPrefix + tabCompletions[tabIndex];
-                if(tabCompletions.size() > 1)
-                {
-                    setStatusMessage("(" + std::to_string(tabIndex + 1) + "/" +
-                                     std::to_string(tabCompletions.size()) +
-                                     ") " + tabCompletions[tabIndex]);
-                }
-                tabIndex = (tabIndex + 1) % tabCompletions.size();
-            }
-        }
-        break;
-    }
-    case Terminal::ENTER:
-    {
-        // Clear Tab completion state
-        tabCompletions.clear();
-        tabIndex = 0;
-        tabOriginal.clear();
-        tabCmdPrefix.clear();
-
-        std::string cmd = commandBuffer.substr(1);
-
-        if(cmd == "q!")
-        {
-            forceQuit();
-            return;
-        }
-
-        if(cmd == "q")
-        {
-            // refuse quit if ANY buffer is dirty
-            for(const auto& buf : buffers)
-            {
-                if(buf->dirty)
-                {
-                    setStatusMessage("No write since last change (use :q!)");
-                    setMode(NORMAL);
-                    return;
-                }
-            }
-
-            // clean quit
-            Terminal::restoreTerminal();
-            std::exit(0);
-        }
-    }
-        executeCommand(commandBuffer.substr(1));
-        setMode(NORMAL);
-        break;
-    case Terminal::ESC:
-        // Clear Tab completion state
-        tabCompletions.clear();
-        tabIndex = 0;
-        tabOriginal.clear();
-        tabCmdPrefix.clear();
-
-        setMode(NORMAL);
-        statusMessage.clear();
-        break;
-    case Terminal::BACKSPACE:
-    case Terminal::DEL:
-        // Clear Tab completion state on edit
-        tabCompletions.clear();
-        tabIndex = 0;
-        tabOriginal.clear();
-        tabCmdPrefix.clear();
-
-        if(commandBuffer.length() > 1)
-        {
-            commandBuffer.pop_back();
-        }
-        else
-        {
-            setMode(NORMAL);
-        }
-        break;
-    default:
-        // Clear Tab completion state on any other input
-        tabCompletions.clear();
-        tabIndex = 0;
-        tabOriginal.clear();
-        tabCmdPrefix.clear();
-
-        if(c >= 32 && c < 127)
-        {
-            commandBuffer += (char)c;
-        }
-        break;
-    }
-}
-
-void Editor::handleSearchMode(int c)
-{
-    switch(c)
-    {
-    case Terminal::ENTER:
-        performSearch();
-        setMode(NORMAL);
-        break;
-
-    case Terminal::ESC:
-        cancelSearch();
-        break;
-
-    case Terminal::BACKSPACE:
-    case Terminal::DEL:
-        if(!searchQuery.empty())
-        {
-            searchQuery.pop_back();
-            commandBuffer = (searchForward ? "/" : "?") + searchQuery;
-            findAllMatches();
-            if(!searchMatches.empty())
-            {
-                jumpToMatch(searchForward ? 0 : searchMatches.size() - 1);
-            }
-        }
-        else
-        {
-            cancelSearch();
-        }
-        break;
-
-    default:
-        if(c >= 32 && c < 127)
-        {
-            searchQuery += (char)c;
-            commandBuffer = (searchForward ? "/" : "?") + searchQuery;
-            findAllMatches();
-            if(!searchMatches.empty())
-            {
-                jumpToMatch(searchForward ? 0 : searchMatches.size() - 1);
-            }
-            else
-            {
-                *cursorX = savedCursorX;
-                *cursorY = savedCursorY;
-            }
-        }
-        break;
-    }
-}
-
 void Editor::handleKeypress()
 {
     int c = Terminal::readKey();
@@ -3774,6 +2632,219 @@ void Editor::handleKeypress()
     }
 }
 
+bool isLikelyDefinition(const std::string& line, const std::string& symbol)
+{
+    // skip comments
+    size_t commentPos = line.find("//");
+    std::string effectiveLine =
+        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
+
+    // name(
+    if(effectiveLine.find(symbol + "(") != std::string::npos)
+        return true;
+
+    // Class::name(
+    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
+        return true;
+
+    return false;
+}
+
+void Editor::createNewBuffer()
+{
+    auto buffer = std::make_unique<Buffer>();
+    buffers.push_back(std::move(buffer));
+    currentBufferIndex = buffers.size() - 1;
+    updateCurrentBufferPointers();
+    needsFullRedraw = true;
+}
+
+void Editor::updateCurrentBufferPointers()
+{
+    if(currentBufferIndex >= 0 && currentBufferIndex < buffers.size())
+    {
+        currentBuffer = buffers[currentBufferIndex].get();
+        lines = &currentBuffer->lines;
+        filename = &currentBuffer->filename;
+        dirty = &currentBuffer->dirty;
+        cursorX = &currentBuffer->cursorX;
+        cursorY = &currentBuffer->cursorY;
+        wantedX = &currentBuffer->wantedX;
+        offsetX = &currentBuffer->offsetX;
+        offsetY = &currentBuffer->offsetY;
+    }
+    else
+    {
+        createNewBuffer();
+    }
+}
+
+void Editor::switchToBuffer(int index)
+{
+    if(index >= 0 && index < buffers.size())
+    {
+        saveBufferState();
+        currentBufferIndex = index;
+        updateCurrentBufferPointers();
+        restoreBufferState();
+        needsFullRedraw = true;
+
+        std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
+                          "/" + std::to_string(buffers.size());
+        if(!filename->empty())
+        {
+            msg += ": " + *filename;
+        }
+        else
+        {
+            msg += ": [No Name]";
+        }
+        if(*dirty)
+        {
+            msg += " [+]";
+        }
+        setStatusMessage(msg);
+    }
+}
+
+void Editor::nextBuffer()
+{
+    if(buffers.size() > 1)
+    {
+        int nextIndex = (currentBufferIndex + 1) % buffers.size();
+        switchToBuffer(nextIndex);
+    }
+    else
+    {
+        setStatusMessage("No other buffers");
+    }
+}
+
+void Editor::previousBuffer()
+{
+    if(buffers.size() > 1)
+    {
+        int prevIndex = currentBufferIndex - 1;
+        if(prevIndex < 0)
+            prevIndex = buffers.size() - 1;
+        switchToBuffer(prevIndex);
+    }
+    else
+    {
+        setStatusMessage("No other buffers");
+    }
+}
+
+void Editor::closeCurrentBuffer()
+{
+    if(*dirty)
+    {
+        setStatusMessage("No write since last change (add ! to override)");
+        return;
+    }
+
+    if(buffers.size() == 1)
+    {
+        createNewBuffer();
+        buffers.erase(buffers.begin());
+        currentBufferIndex = 0;
+        updateCurrentBufferPointers();
+    }
+    else
+    {
+        buffers.erase(buffers.begin() + currentBufferIndex);
+        if(currentBufferIndex >= buffers.size())
+        {
+            currentBufferIndex = buffers.size() - 1;
+        }
+        updateCurrentBufferPointers();
+        restoreBufferState();
+    }
+
+    needsFullRedraw = true;
+    setStatusMessage("Buffer closed");
+}
+
+void Editor::listBuffers()
+{
+    std::stringstream ss;
+    ss << "Buffers: ";
+
+    for(size_t i = 0; i < buffers.size(); i++)
+    {
+        if(i == currentBufferIndex)
+            ss << "[";
+
+        ss << (i + 1) << ":";
+
+        if(!buffers[i]->filename.empty())
+        {
+            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
+            if(lastSlash != std::string::npos)
+                ss << buffers[i]->filename.substr(lastSlash + 1);
+            else
+                ss << buffers[i]->filename;
+        }
+        else
+        {
+            ss << "[No Name]";
+        }
+
+        if(buffers[i]->dirty)
+            ss << "+";
+
+        if(i == currentBufferIndex)
+            ss << "]";
+
+        if(i < buffers.size() - 1)
+            ss << " ";
+    }
+
+    setStatusMessage(ss.str());
+}
+
+int Editor::findBufferByFilename(const std::string& fname)
+{
+    for(int i = 0; i < buffers.size(); i++)
+    {
+        if(buffers[i]->filename == fname)
+            return i;
+    }
+    return -1;
+}
+
+void Editor::saveBufferState()
+{
+    // State is automatically saved in buffer structure
+}
+
+void Editor::restoreBufferState()
+{
+    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
+    {
+        setMode(NORMAL);
+    }
+}
+
+bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
+                                      int& outY, int& outX)
+{
+    for(int y = 0; y < buf->lines.size(); ++y)
+    {
+        const std::string& line = buf->lines[y];
+        if(isLikelyDefinition(line, symbol))
+        {
+            size_t pos = line.find(symbol);
+            if(pos != std::string::npos)
+            {
+                outY = y;
+                outX = pos;
+                return true;
+            }
+        }
+    }
+    return false;
+}
 void Editor::run()
 {
     setStatusMessage("Welcome to uVim!");
@@ -3784,3 +2855,947 @@ void Editor::run()
         handleKeypress();
     }
 }
+
+void Editor::handleNormalMode(int c)
+{
+#ifdef UVIM_DEBUG_LOGGING
+    // Debug: log every keypress
+    {
+        std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+        dbg << "handleNormalMode c=" << c << " ('" << (char)c
+            << "') commandBuffer='" << commandBuffer << "'" << std::endl;
+    }
+#endif
+
+    static bool pendingDelete = false;
+    static bool pendingYank = false;
+    static bool pendingIndent = false;
+    static bool pendingShiftRight = false;
+    static bool pendingShiftLeft = false;
+
+    // ----- single-character replace (vim/neovim-style 'r{char}') -----
+    if(c == 'r')
+    {
+        // Cancel any pending operators
+        pendingDelete = pendingYank = pendingIndent = false;
+
+        int rc = Terminal::readKey();
+
+        // Only accept printable characters
+        if(rc < 32 || rc == 127)
+            return;
+
+        if(!lines || lines->empty())
+            return;
+
+        if(*cursorY < 0 || *cursorY >= (int)lines->size())
+            return;
+
+        std::string& line = (*lines)[*cursorY];
+        if(*cursorX < 0 || *cursorX >= (int)line.size())
+            return;
+
+        line[*cursorX] = (char)rc;
+
+        saveState(); // your undo model saves *after* changes
+        *dirty = true;
+        needsFullRedraw =
+            true; // IMPORTANT: otherwise NORMAL mode may not redraw text
+        return;
+    }
+
+    if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
+    {
+        repeatCount = c - '0';
+        return;
+    }
+    else if(c >= '0' && c <= '9' && repeatCount > 0)
+    {
+        repeatCount = repeatCount * 10 + (c - '0');
+        return;
+    }
+    int count = std::max(1, repeatCount);
+
+    // ----- Leader (space) prefixed commands (MUST be early) -----
+    if(commandBuffer == " ")
+    {
+        if(c == 'h')
+        {
+            // Leader + h: jump to alternate file (header/source)
+            jumpToAlternateFile();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'b')
+        {
+            // Leader + b: start buffer command sequence
+            commandBuffer = " b";
+            setStatusMessage("Leader-b");
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'y')
+        {
+            // Leader + y: yank to system clipboard
+            yankToSystemClipboard();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'p')
+        {
+            // Leader + p: paste from system clipboard
+            pasteFromSystemClipboard();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'f')
+        {
+            // Leader + f: format file with clang-format
+            commandBuffer.clear();
+            repeatCount = 0;
+
+#ifdef UVIM_DEBUG_LOGGING
+            // Debug: log to file
+            {
+                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+                dbg << "Leader-f pressed. filename='" << *filename
+                    << "' isCppFile=" << isCppFile() << std::endl;
+            }
+#endif
+
+            if(!isCppFile())
+            {
+                setStatusMessage("clang-format: not a C/C++ file (" +
+                                 *filename + ")");
+                return;
+            }
+
+            // Save current cursor position
+            int savedY = *cursorY;
+            int savedX = *cursorX;
+
+            // Write buffer to temp file
+            std::string tempPath =
+                "/tmp/uvim_format_" + std::to_string(getpid()) + ".tmp";
+            std::ofstream tempFile(tempPath);
+            if(!tempFile.is_open())
+            {
+                setStatusMessage("clang-format: failed to create temp file");
+                return;
+            }
+
+            // Write content with trailing newline
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                tempFile << (*lines)[i] << '\n';
+            }
+            tempFile.close();
+
+            // Get the directory of the current file for clang-format to find
+            // .clang-format
+            std::string fileDir = ".";
+            std::string absFilename = *filename;
+
+            // Make filename absolute if it isn't
+            if(!absFilename.empty() && absFilename[0] != '/')
+            {
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                {
+                    absFilename = std::string(cwd) + "/" + *filename;
+                }
+            }
+
+            // Run clang-format with stdin, using actual filename for style
+            // lookup clang-format searches for .clang-format starting from the
+            // file's directory
+            std::string cmd = "cat \"" + tempPath +
+                              "\" | /opt/homebrew/bin/clang-format -style=file"
+                              " -assume-filename=\"" +
+                              absFilename +
+                              "\""
+                              " 2>/tmp/uvim_clang_err.txt";
+
+#ifdef UVIM_DEBUG_LOGGING
+            // Debug log
+            {
+                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+                dbg << "Temp file written: " << tempPath
+                    << " lines=" << lines->size() << std::endl;
+                dbg << "Running: " << cmd << std::endl;
+            }
+#endif
+
+            FILE* pipe = popen(cmd.c_str(), "r");
+            if(!pipe)
+            {
+                // Try without full path
+                cmd = "cat \"" + tempPath +
+                      "\" | clang-format -style=file"
+                      " -assume-filename=\"" +
+                      absFilename +
+                      "\""
+                      " 2>/tmp/uvim_clang_err.txt";
+                pipe = popen(cmd.c_str(), "r");
+            }
+
+            if(!pipe)
+            {
+                unlink(tempPath.c_str());
+                setStatusMessage("clang-format: failed to run");
+                return;
+            }
+
+            // Read formatted output
+            std::string formatted;
+            char buffer[4096];
+            while(fgets(buffer, sizeof(buffer), pipe))
+            {
+                formatted += buffer;
+            }
+            int status = pclose(pipe);
+            unlink(tempPath.c_str());
+
+#ifdef UVIM_DEBUG_LOGGING
+            // Debug log
+            {
+                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
+                dbg << "pclose status=" << status
+                    << " formatted.size()=" << formatted.size() << std::endl;
+            }
+#endif
+
+            // Check for errors
+            if(formatted.empty())
+            {
+                // Read error file
+                std::ifstream errFile("/tmp/uvim_clang_err.txt");
+                std::string errMsg;
+                if(errFile.is_open())
+                {
+                    std::getline(errFile, errMsg);
+                    errFile.close();
+                }
+                if(errMsg.empty())
+                    errMsg = "no output (exit=" +
+                             std::to_string(WEXITSTATUS(status)) + ")";
+                setStatusMessage("clang-format: " + errMsg.substr(0, 50));
+                return;
+            }
+
+            // Parse formatted output into lines
+            std::vector<std::string> newLines;
+            std::istringstream iss(formatted);
+            std::string line;
+            while(std::getline(iss, line))
+            {
+                // Remove \r if present
+                if(!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                newLines.push_back(line);
+            }
+
+            // Remove trailing empty line if present (clang-format adds one)
+            if(!newLines.empty() && newLines.back().empty())
+            {
+                newLines.pop_back();
+            }
+
+            // Ensure at least one line
+            if(newLines.empty())
+            {
+                newLines.push_back("");
+            }
+
+            // Check if anything changed
+            if(newLines == *lines)
+            {
+                setStatusMessage("clang-format: no changes needed");
+                return;
+            }
+
+            // Save state for undo
+            saveState();
+
+            // Replace buffer content
+            *lines = newLines;
+            *dirty = true;
+
+            // Restore cursor position (clamped to valid range)
+            if(lines->empty())
+            {
+                *cursorY = 0;
+                *cursorX = 0;
+            }
+            else
+            {
+                *cursorY = savedY;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = (int)lines->size() - 1;
+                if(*cursorY < 0)
+                    *cursorY = 0;
+
+                *cursorX = savedX;
+                int lineLen = (int)(*lines)[*cursorY].length();
+                if(*cursorX > lineLen)
+                    *cursorX = lineLen > 0 ? lineLen - 1 : 0;
+                if(*cursorX < 0)
+                    *cursorX = 0;
+            }
+
+            adjustViewport();
+            needsFullRedraw = true;
+            setStatusMessage("clang-format: formatted " +
+                             std::to_string(lines->size()) + " lines");
+            return;
+        }
+        else if(c == ' ')
+        {
+            // Double space cancels
+            commandBuffer.clear();
+            setStatusMessage("");
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // Unknown leader command - cancel
+            commandBuffer.clear();
+            setStatusMessage("");
+        }
+    }
+
+    // ----- Leader-b (buffer) commands -----
+    if(commandBuffer == " b")
+    {
+        if(c == 'd')
+        {
+            // Leader + bd: close current buffer
+            commandBuffer.clear();
+            closeCurrentBuffer();
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // Unknown buffer command - cancel
+            commandBuffer.clear();
+            setStatusMessage("");
+        }
+    }
+
+    // ----- g-prefixed commands (MUST be first) -----
+    if(commandBuffer == "g")
+    {
+        if(c == 'd')
+        {
+            goToDefinition();
+            repeatCount = 0;
+            return;
+        }
+        else if(c == 'g')
+        {
+            moveToFirstLine();
+            commandBuffer.clear();
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // Unknown g-command → cancel
+            commandBuffer.clear();
+        }
+    }
+    else if(c == 'd')
+    {
+        if(pendingDelete)
+        {
+            // dd detected
+            for(int i = 0; i < count; i++)
+            {
+                deleteLine();
+            }
+            saveState();
+            setStatusMessage(std::to_string(count) + " line(s) deleted");
+            pendingDelete = false;
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // first 'd'
+            pendingDelete = true;
+            pendingYank = false;   // Cancel any pending yank
+            pendingIndent = false; // Cancel any pending indent
+            return;
+        }
+    }
+    else if(c == 'y')
+    {
+        if(pendingYank)
+        {
+            // yy detected - yank multiple lines
+            yankBuffer.clear();
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            for(int i = startLine; i <= endLine; i++)
+            {
+                yankBuffer += (*lines)[i] + "\n";
+            }
+
+            int linesYanked = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesYanked) + " line" +
+                             (linesYanked > 1 ? "s" : "") + " yanked");
+            pendingYank = false;
+            repeatCount = 0;
+            return;
+        }
+        else
+        {
+            // first 'y'
+            pendingYank = true;
+            pendingDelete = false; // Cancel any pending delete
+            pendingIndent = false; // Cancel any pending indent
+            return;
+        }
+    }
+    else if(c == '=')
+    {
+        if(pendingIndent)
+        {
+            // == detected - indent current line(s)
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            autoIndentRange(startLine, endLine);
+
+            int linesIndented = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " indented");
+            pendingIndent = false;
+            repeatCount = 0;
+            saveState();
+            return;
+        }
+        else
+        {
+            // first '='
+            pendingIndent = true;
+            pendingDelete = false; // Cancel any pending delete
+            pendingYank = false;   // Cancel any pending yank
+            return;
+        }
+    }
+    else if(c == '>')
+    {
+        if(pendingShiftRight)
+        {
+            // >> detected - shift right (increase indent)
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            for(int i = startLine; i <= endLine; i++)
+            {
+                int currentIndent = getLineIndent(i);
+                indentLine(i, currentIndent + 4); // Add 4 spaces
+            }
+
+            int linesIndented = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " >>");
+            pendingShiftRight = false;
+            repeatCount = 0;
+            saveState();
+            needsFullRedraw = true;
+            return;
+        }
+        else
+        {
+            // first '>'
+            pendingShiftRight = true;
+            pendingShiftLeft = false;
+            pendingDelete = false;
+            pendingYank = false;
+            pendingIndent = false;
+            return;
+        }
+    }
+    else if(c == '<')
+    {
+        if(pendingShiftLeft)
+        {
+            // << detected - shift left (decrease indent)
+            int startLine = *cursorY;
+            int endLine =
+                std::min(startLine + count - 1, (int)lines->size() - 1);
+
+            for(int i = startLine; i <= endLine; i++)
+            {
+                int currentIndent = getLineIndent(i);
+                indentLine(i,
+                           std::max(0, currentIndent - 4)); // Remove 4 spaces
+            }
+
+            int linesIndented = endLine - startLine + 1;
+            setStatusMessage(std::to_string(linesIndented) + " line" +
+                             (linesIndented > 1 ? "s" : "") + " <<");
+            pendingShiftLeft = false;
+            repeatCount = 0;
+            saveState();
+            needsFullRedraw = true;
+            return;
+        }
+        else
+        {
+            // first '<'
+            pendingShiftLeft = true;
+            pendingShiftRight = false;
+            pendingDelete = false;
+            pendingYank = false;
+            pendingIndent = false;
+            return;
+        }
+    }
+    else if(pendingYank && c != 'y')
+    {
+        // 'y' followed by motion command - enter operator-pending mode
+        pendingYank = false;
+        enterOperatorPending('y');
+        pendingCount = count;
+        // Process the motion command immediately
+        handleOperatorPendingMode(c);
+        repeatCount = 0;
+        return;
+    }
+    else if(pendingDelete && c != 'd')
+    {
+        // 'd' followed by motion command - enter operator-pending mode
+        pendingDelete = false;
+        enterOperatorPending('d');
+        pendingCount = count;
+        // Process the motion command immediately
+        handleOperatorPendingMode(c);
+        repeatCount = 0;
+        return;
+    }
+    else if(pendingIndent && c != '=')
+    {
+        // '=' followed by motion command - enter operator-pending mode
+        pendingIndent = false;
+        enterOperatorPending('=');
+        pendingCount = count;
+        // Process the motion command immediately
+        handleOperatorPendingMode(c);
+        repeatCount = 0;
+        return;
+    }
+    else if(!pendingDelete && !pendingYank && !pendingIndent &&
+            !pendingShiftRight && !pendingShiftLeft)
+    {
+        // Only reset if we're not in the middle of processing pending
+        // operations
+    }
+    switch(c)
+    {
+    case Terminal::ESC:
+    {
+        // Handle double ESC to clear search highlights
+        auto now = std::chrono::steady_clock::now();
+        auto timeSinceLastEsc =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now -
+                                                                  lastEscTime)
+                .count();
+
+        if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS &&
+           (!searchMatches.empty() || !searchQuery.empty()))
+        {
+            // Double ESC detected - clear search highlights
+            clearSearch();
+            setStatusMessage("Search cleared");
+            needsFullRedraw = true; // Force full redraw to clear highlights
+            lastEscTime = std::chrono::steady_clock::time_point(); // Reset
+        }
+        else
+        {
+            // First ESC or timeout exceeded
+            lastEscTime = now;
+            // Clear any pending operations
+            pendingDelete = false;
+            pendingYank = false;
+            pendingIndent = false;
+            pendingShiftRight = false;
+            pendingShiftLeft = false;
+            repeatCount = 0;
+            commandBuffer.clear();
+        }
+    }
+    break;
+    case 'i':
+        saveState();
+        setMode(INSERT);
+        break;
+    case 'I':
+        saveState();
+        moveToLineStart();
+        setMode(INSERT);
+        break;
+    case 'a':
+        saveState();
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        setMode(INSERT);
+        break;
+    case 'A':
+        saveState();
+        moveToLineEnd();
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        setMode(INSERT);
+        break;
+    case 'o':
+    {
+        // Get indentation from current line
+        const std::string& currentLine = (*lines)[*cursorY];
+        size_t indent = 0;
+        while(indent < currentLine.length() &&
+              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+        {
+            indent++;
+        }
+        std::string indentStr = currentLine.substr(0, indent);
+
+        // Check if current line ends with { (add extra indent)
+        bool addExtraIndent = false;
+        if(isCppFile())
+        {
+            size_t lastNonSpace = currentLine.find_last_not_of(" \t");
+            if(lastNonSpace != std::string::npos &&
+               currentLine[lastNonSpace] == '{')
+            {
+                addExtraIndent = true;
+            }
+        }
+
+        // Insert new line below with proper indentation
+        std::string newLine = indentStr;
+        if(addExtraIndent)
+        {
+            newLine += "    ";
+        }
+        lines->insert(lines->begin() + *cursorY + 1, newLine);
+        (*cursorY)++;
+        *cursorX = newLine.length();
+        *dirty = true;
+        needsFullRedraw = true;
+        setMode(INSERT);
+        saveState();
+        break;
+    }
+    case 'O':
+    {
+        // Get indentation from current line
+        const std::string& currentLine = (*lines)[*cursorY];
+        size_t indent = 0;
+        while(indent < currentLine.length() &&
+              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+        {
+            indent++;
+        }
+        std::string indentStr = currentLine.substr(0, indent);
+
+        // Insert new line above with same indentation
+        lines->insert(lines->begin() + *cursorY, indentStr);
+        *cursorX = indentStr.length();
+        *dirty = true;
+        needsFullRedraw = true;
+        setMode(INSERT);
+        saveState();
+        break;
+    }
+    case 'v':
+        startVisualMode();
+        break;
+    case 'V':
+        startVisualLineMode();
+        break;
+    case 22: // Ctrl-V (ASCII 22)
+        startVisualBlockMode();
+        break;
+    case ':':
+        setMode(COMMAND);
+        break;
+    case '/':
+        startSearchForward();
+        break;
+    case '?':
+        startSearchBackward();
+        break;
+    case 'n':
+        searchNext();
+        break;
+    case 'N':
+        searchPrevious();
+        break;
+    case '#':
+    {
+        // Vim-style: search backward for the word under the cursor.
+        // Anchor at the start of the current word so we don't match the same
+        // occurrence when the cursor is inside the word.
+        std::string sym = getSymbolUnderCursor();
+        if(sym.empty())
+        {
+            setStatusMessage("#: no word under cursor");
+            break;
+        }
+
+        // Move cursor to the start of the current identifier.
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            int x = *cursorX;
+            if(x >= (int)line.size())
+                x = (int)line.size() - 1;
+
+            while(x > 0 && isIdent(line[x - 1]))
+                --x;
+            *cursorX = x;
+        }
+
+        searchQuery = sym;
+        searchForward = false;
+        performSearch();
+        needsFullRedraw = true;
+        *wantedX = *cursorX;
+        break;
+    }
+    case 30: // Ctrl+^ (Ctrl+6)
+        if(buffers.size() > 1)
+        {
+            previousBuffer();
+        }
+        break;
+    case Terminal::CTRL_P:
+        setMode(FUZZY_FIND);
+        break;
+    case Terminal::CTRL_W: // Ctrl+W for buffer browser
+        setMode(BUFFER_BROWSER);
+        break;
+    case Terminal::CTRL_S: // Ctrl+S for grep search (find in files)
+        setMode(GREP_SEARCH);
+        break;
+    case Terminal::CTRL_O:
+        jumpBack();
+        break;
+    case Terminal::CTRL_I:
+        jumpForward();
+        break;
+    case 'h':
+        moveLeft(count);
+        break;
+    case Terminal::ARROW_LEFT:
+        moveLeft(count);
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
+        moveRight(count);
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
+        moveDown(count);
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
+        moveUp(count);
+        break;
+    case Terminal::CTRL_D:
+        scrollHalfPageDown(false);
+        break;
+    case Terminal::CTRL_U:
+        scrollHalfPageUp(false);
+        break;
+    case 'w':
+        while(count-- > 0)
+            moveWordForward();
+        break;
+    case 'b':
+        while(count-- > 0)
+            moveWordBackward();
+        break;
+    case 'e':
+        while(count-- > 0)
+            moveToEndOfWord();
+        break;
+    case '0':
+        if(repeatCount == 0)
+            moveToLineStart();
+        break;
+    case '$':
+        moveToLineEnd();
+        break;
+    case 'g':
+        commandBuffer = "g";
+        return;
+    case 'G':
+        if(repeatCount > 0)
+        {
+            moveToLine(repeatCount - 1);
+        }
+        else
+        {
+            moveToLastLine();
+        }
+        break;
+    case ' ': // Leader key (space)
+        if(commandBuffer == " ")
+        {
+            commandBuffer.clear(); // Double space cancels
+        }
+        else
+        {
+            commandBuffer = " ";
+            setStatusMessage("Leader");
+        }
+        break;
+
+    case 'x':
+        while(count-- > 0)
+        {
+            deleteCharForward();
+        }
+        saveState();
+        break;
+    case 's':
+        // Substitute: delete char(s) under cursor and enter insert mode
+        while(count-- > 0)
+        {
+            deleteCharForward();
+        }
+        saveState();
+        setMode(INSERT);
+        break;
+    case 'D':
+        deleteToLineEnd();
+        saveState();
+        needsFullRedraw = true;
+        break;
+    case 'Y':
+        yankToLineEnd();
+        break;
+
+    case 'J':
+    {
+        // Join lines: current line with next line(s)
+        // count specifies how many lines to join (default 2 = current + next)
+        int linesToJoin = (repeatCount > 0) ? repeatCount : 2;
+        int joinCount = 0;
+
+        for(int i = 0; i < linesToJoin - 1; ++i)
+        {
+            if(*cursorY >= (int)lines->size() - 1)
+                break; // No more lines to join
+
+            std::string& currentLine = (*lines)[*cursorY];
+            std::string& nextLine = (*lines)[*cursorY + 1];
+
+            // Remove trailing whitespace from current line
+            size_t endPos = currentLine.find_last_not_of(" \t");
+            if(endPos != std::string::npos)
+                currentLine = currentLine.substr(0, endPos + 1);
+
+            // Remove leading whitespace from next line
+            size_t startPos = nextLine.find_first_not_of(" \t");
+            std::string trimmedNext = (startPos != std::string::npos)
+                                          ? nextLine.substr(startPos)
+                                          : "";
+
+            // Join with a single space (unless current line is empty)
+            if(!currentLine.empty() && !trimmedNext.empty())
+            {
+                *cursorX =
+                    currentLine.length(); // Position cursor at join point
+                currentLine += " " + trimmedNext;
+            }
+            else if(currentLine.empty())
+            {
+                currentLine = trimmedNext;
+                *cursorX = 0;
+            }
+            else
+            {
+                *cursorX = currentLine.length();
+            }
+
+            // Delete the next line
+            lines->erase(lines->begin() + *cursorY + 1);
+            joinCount++;
+        }
+
+        if(joinCount > 0)
+        {
+            *dirty = true;
+            saveState();
+            needsFullRedraw = true;
+            if(joinCount > 1)
+                setStatusMessage(std::to_string(joinCount + 1) +
+                                 " lines joined");
+        }
+        break;
+    }
+
+    case 'c':
+        // change operator: enter operator pending (support e.g. cw, ci(, etc.)
+        enterOperatorPending('c');
+        break;
+    case 'p':
+        pasteAfter();
+        break;
+    case 'P':
+        pasteBefore();
+        break;
+    case 'u':
+        undo();
+        break;
+    case Terminal::CTRL_R:
+        redo();
+        break;
+    case '%':
+        moveToMatchingBracket();
+        adjustViewport();
+        break;
+    default:
+        if(c != 'g' && c != 'd' && c != 'y')
+        {
+            commandBuffer.clear();
+        }
+        break;
+    }
+
+    // Handle g-prefixed commands at end (for 'gg' which needs switch case for
+    // first 'g')
+    if(commandBuffer == "g")
+    {
+        if(c == 'd')
+        {
+            commandBuffer.clear();
+            goToDefinition();
+            repeatCount = 0;
+            return;
+        }
+
+        // Unknown g-command → cancel
+        if(c != 'g')
+        {
+            commandBuffer.clear();
+        }
+    }
+
+    repeatCount = 0;
+}
+
