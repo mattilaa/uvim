@@ -5,14 +5,50 @@
 #include <filesystem>
 #include <unordered_set>
 
-#include "text_utils.h"
 #include "constants.h"
 #include "cpp_constants.h"
+#include "text_utils.h"
 
 template <class Arr>
 inline bool contains_sorted(const Arr& arr, std::string_view s)
 {
     return std::ranges::binary_search(arr, s);
+}
+
+inline bool is_two_char_op(char a, char b) noexcept
+{
+    switch(a)
+    {
+    case '+':
+        return (b == '+' || b == '=');
+    case '-':
+        return (b == '-' || b == '=' || b == '>');
+    case '&':
+        return (b == '&');
+    case '|':
+        return (b == '|');
+    case '=':
+        return (b == '=');
+    case '!':
+        return (b == '=');
+    case '<':
+        return (b == '<' || b == '=');
+    case '>':
+        return (b == '>' || b == '=');
+    case ':':
+        return (b == ':');
+    case '.':
+        // treats ".." as two-char; "..." will become ".." + "."
+        return (b == '.');
+    case '*':
+        return (b == '=');
+    case '/':
+        return (b == '=');
+    case '%':
+        return (b == '=');
+    default:
+        return false;
+    }
 }
 
 bool Editor::isCppFile() const
@@ -90,7 +126,8 @@ std::string Editor::getColorCode(TokenType type) const
     }
 }
 
-std::vector<Token> Editor::tokenizeLine(const std::string& line, bool& inBlockComment)
+std::vector<Token> Editor::tokenizeLine(const std::string& line,
+                                        bool& inBlockComment)
 {
     std::vector<Token> tokens;
     std::string_view sv{line};
@@ -98,19 +135,21 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line, bool& inBlockCo
     const int len = static_cast<int>(sv.size());
     int i = 0;
 
-    while (i < len)
+    while(i < len)
     {
-        while (i < len && text_utils::is_space(sv[i])) ++i;
-        if (i >= len) break;
+        while(i < len && text_utils::is_space(sv[i]))
+            ++i;
+        if(i >= len)
+            break;
 
         // In block comment: consume until "*/" or EOL
-        if (inBlockComment)
+        if(inBlockComment)
         {
             const int start = i;
-            while (i < len && !(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/'))
+            while(i < len && !(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/'))
                 ++i;
 
-            if (i < len - 1 && sv[i] == '*' && sv[i + 1] == '/')
+            if(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/')
             {
                 i += 2;
                 inBlockComment = false;
@@ -121,29 +160,29 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line, bool& inBlockCo
         }
 
         // Preprocessor line (only if first non-space is '#')
-        if (i == 0 && sv[i] == '#')
+        if(i == 0 && sv[i] == '#')
         {
             tokens.push_back({TOKEN_PREPROCESSOR, i, len - i});
             break;
         }
 
         // Line comment
-        if (i < len - 1 && sv[i] == '/' && sv[i + 1] == '/')
+        if(i < len - 1 && sv[i] == '/' && sv[i + 1] == '/')
         {
             tokens.push_back({TOKEN_COMMENT, i, len - i});
             break;
         }
 
         // Block comment start
-        if (i < len - 1 && sv[i] == '/' && sv[i + 1] == '*')
+        if(i < len - 1 && sv[i] == '/' && sv[i + 1] == '*')
         {
             const int start = i;
             i += 2;
 
-            while (i < len - 1 && !(sv[i] == '*' && sv[i + 1] == '/'))
+            while(i < len - 1 && !(sv[i] == '*' && sv[i + 1] == '/'))
                 ++i;
 
-            if (i < len - 1 && sv[i] == '*' && sv[i + 1] == '/')
+            if(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/')
             {
                 i += 2;
             }
@@ -158,53 +197,60 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line, bool& inBlockCo
         }
 
         // String literal
-        if (sv[i] == '"')
+        if(sv[i] == '"')
         {
             const int start = i++;
-            while (i < len && sv[i] != '"')
+            while(i < len && sv[i] != '"')
             {
-                if (sv[i] == '\\' && i + 1 < len) i += 2;
-                else ++i;
+                if(sv[i] == '\\' && i + 1 < len)
+                    i += 2;
+                else
+                    ++i;
             }
-            if (i < len) ++i;
+            if(i < len)
+                ++i;
 
             tokens.push_back({TOKEN_STRING, start, i - start});
             continue;
         }
 
         // Character literal
-        if (sv[i] == '\'')
+        if(sv[i] == '\'')
         {
             const int start = i++;
-            while (i < len && sv[i] != '\'')
+            while(i < len && sv[i] != '\'')
             {
-                if (sv[i] == '\\' && i + 1 < len) i += 2;
-                else ++i;
+                if(sv[i] == '\\' && i + 1 < len)
+                    i += 2;
+                else
+                    ++i;
             }
-            if (i < len) ++i;
+            if(i < len)
+                ++i;
 
             tokens.push_back({TOKEN_CHAR, start, i - start});
             continue;
         }
 
         // Number
-        if (text_utils::is_digit(sv[i]) || (sv[i] == '.' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
+        if(text_utils::is_digit(sv[i]) ||
+           (sv[i] == '.' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
         {
             const int start = i;
             bool hasHex = false;
 
-            if (sv[i] == '0' && i + 1 < len && (sv[i + 1] == 'x' || sv[i + 1] == 'X'))
+            if(sv[i] == '0' && i + 1 < len &&
+               (sv[i + 1] == 'x' || sv[i + 1] == 'X'))
             {
                 hasHex = true;
                 i += 2;
             }
 
-            while (i < len &&
-                   (text_utils::is_digit(sv[i]) ||
-                    (hasHex && text_utils::is_xdigit(sv[i])) ||
-                    sv[i] == '.' || sv[i] == 'e' || sv[i] == 'E' ||
-                    sv[i] == 'f' || sv[i] == 'F' || sv[i] == 'u' || sv[i] == 'U' ||
-                    sv[i] == 'l' || sv[i] == 'L'))
+            while(i < len && (text_utils::is_digit(sv[i]) ||
+                              (hasHex && text_utils::is_xdigit(sv[i])) ||
+                              sv[i] == '.' || sv[i] == 'e' || sv[i] == 'E' ||
+                              sv[i] == 'f' || sv[i] == 'F' || sv[i] == 'u' ||
+                              sv[i] == 'U' || sv[i] == 'l' || sv[i] == 'L'))
             {
                 ++i;
             }
@@ -214,38 +260,41 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line, bool& inBlockCo
         }
 
         // Identifier / keyword / type / function
-        if (text_utils::is_alpha(sv[i]) || sv[i] == '_')
+        if(text_utils::is_alpha(sv[i]) || sv[i] == '_')
         {
             const int start = i;
-            while (i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_' || sv[i] == ':'))
+            while(i < len &&
+                  (text_utils::is_alnum(sv[i]) || sv[i] == '_' || sv[i] == ':'))
                 ++i;
 
             const std::string_view word = sv.substr(start, i - start);
 
             int j = i;
-            while (j < len && text_utils::is_space(sv[j])) ++j;
+            while(j < len && text_utils::is_space(sv[j]))
+                ++j;
 
             TokenType type = TOKEN_NORMAL;
 
-            if (j < len && sv[j] == '(')
+            if(j < len && sv[j] == '(')
             {
                 type = TOKEN_FUNCTION;
             }
-            else if (cpp_constants::is_keyword(word))
+            else if(cpp_constants::is_keyword(word))
             {
                 type = TOKEN_KEYWORD;
             }
-            else if (cpp_constants::is_type(word))
+            else if(cpp_constants::is_type(word))
             {
                 type = TOKEN_TYPE;
             }
-            else if (!tokens.empty())
+            else if(!tokens.empty())
             {
                 const Token& prev = tokens.back();
-                const std::string_view prevWord = sv.substr(prev.start, prev.length);
+                const std::string_view prevWord =
+                    sv.substr(prev.start, prev.length);
 
-                if (prevWord == "struct" || prevWord == "class" || prevWord == "enum" ||
-                    prevWord == ":" || prevWord == "->")
+                if(prevWord == "struct" || prevWord == "class" ||
+                   prevWord == "enum" || prevWord == ":" || prevWord == "->")
                 {
                     type = TOKEN_TYPE;
                 }
@@ -256,25 +305,14 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line, bool& inBlockCo
         }
 
         // Operators / punctuation
-        if (cpp_constants::is_operator_char(sv[i]))
+        if(cpp_constants::is_operator_char(sv[i]))
         {
             const int start = i++;
-            if (i < len)
+            if(i < len)
             {
                 const char a = sv[i - 1], b = sv[i];
-                const bool two =
-                    (a == '+' && b == '+') || (a == '-' && b == '-') ||
-                    (a == '&' && b == '&') || (a == '|' && b == '|') ||
-                    (a == '=' && b == '=') || (a == '!' && b == '=') ||
-                    (a == '<' && b == '=') || (a == '>' && b == '=') ||
-                    (a == '<' && b == '<') || (a == '>' && b == '>') ||
-                    (a == '-' && b == '>') || (a == ':' && b == ':') ||
-                    (a == '.' && b == '.') ||
-                    (a == '+' && b == '=') || (a == '-' && b == '=') ||
-                    (a == '*' && b == '=') || (a == '/' && b == '=') ||
-                    (a == '%' && b == '=');
-
-                if (two) ++i;
+                if(is_two_char_op(a, b))
+                    ++i;
             }
 
             tokens.push_back({TOKEN_OPERATOR, start, i - start});
