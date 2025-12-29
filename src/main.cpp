@@ -13,8 +13,6 @@ static bool isDirectory(const char* path)
 
 int main(int argc, char* argv[])
 {
-    Editor editor;
-
     bool useClangd = false;
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -46,6 +44,9 @@ int main(int argc, char* argv[])
             args.push_back(a);
         }
     }
+
+    // Create editor with flag indicating whether we have files to open
+    Editor editor(!args.empty());
 
     if(useClangd)
     {

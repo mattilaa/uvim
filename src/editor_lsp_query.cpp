@@ -272,16 +272,19 @@ static bool isSourceFile(const std::string& path)
     return path == ".c" || path == ".cpp" || path == ".cc";
 }
 
-Editor::Editor()
+Editor::Editor(bool skipInitialBuffer)
 {
     Terminal::enableRawMode();
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
 
-    // Create initial empty buffer
-    createNewBuffer();
-    saveState();
-    currentBuffer->savedUndoIndex = 0; // Mark initial empty buffer as saved
+    // Create initial empty buffer only if not opening files
+    if (!skipInitialBuffer)
+    {
+        createNewBuffer();
+        saveState();
+        currentBuffer->savedUndoIndex = 0; // Mark initial empty buffer as saved
+    }
 }
 
 Editor::~Editor()
