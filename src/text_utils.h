@@ -1,5 +1,6 @@
-#include <cctype>
+#pragma once
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -8,31 +9,51 @@ using u8sv = std::basic_string_view<char8_t>;
 namespace text_utils
 {
 
-static bool isIdent(char c)
-{
-    return std::isalnum((unsigned char)c) || c == '_';
-}
+// --- ASCII classification (constexpr, locale-free) ---
 
-static inline void appendU8(std::string& out, u8sv s)
-{
-    // Append UTF-8 bytes (char8_t) into std::string (char)
-    out.append(reinterpret_cast<const char*>(s.data()), s.size());
-}
-
-static inline void appendUtf8Repeat(std::string& out, u8sv glyph, int count)
-{
-    if(count <= 0)
-        return;
-    for(int i = 0; i < count; ++i)
-        appendU8(out, glyph);
-}
-
-static inline char ascii_tolower(char c)
+constexpr char ascii_tolower(char c) noexcept
 {
     return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
 }
 
-static inline bool iequals_ascii(std::string_view a, std::string_view b)
+constexpr bool is_space(char c) noexcept
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+           c == '\v';
+}
+
+constexpr bool is_digit(char c) noexcept
+{
+    return c >= '0' && c <= '9';
+}
+
+constexpr bool is_alpha(char c) noexcept
+{
+    c = ascii_tolower(c);
+    return c >= 'a' && c <= 'z';
+}
+
+constexpr bool is_alnum(char c) noexcept
+{
+    return is_alpha(c) || is_digit(c);
+}
+
+constexpr bool is_xdigit(char c) noexcept
+{
+    if(is_digit(c))
+        return true;
+    c = ascii_tolower(c);
+    return c >= 'a' && c <= 'f';
+}
+
+constexpr bool isIdent(char c) noexcept
+{
+    return is_alnum(c) || c == '_';
+}
+
+// --- string helpers (constexpr where possible) ---
+
+constexpr bool iequals_ascii(std::string_view a, std::string_view b) noexcept
 {
     if(a.size() != b.size())
         return false;
@@ -42,35 +63,31 @@ static inline bool iequals_ascii(std::string_view a, std::string_view b)
     return true;
 }
 
-static inline bool contains(std::string_view s, std::string_view needle)
+constexpr bool contains(std::string_view s, std::string_view needle) noexcept
 {
     return s.find(needle) != std::string_view::npos;
 }
 
-// Safe ctype wrappers (avoid UB on negative char)
-static inline bool is_space(char c)
+// --- UTF-8 appending (runtime; std::string mutation not constexpr in C++20)
+// ---
+
+inline void appendU8(std::string& out, u8sv s)
 {
-    return std::isspace(static_cast<unsigned char>(c)) != 0;
+    out.append(reinterpret_cast<const char*>(s.data()), s.size());
 }
 
-static inline bool is_alpha(char c)
+inline void appendUtf8Repeat(std::string& out, u8sv glyph, int count)
 {
-    return std::isalpha(static_cast<unsigned char>(c)) != 0;
+    for(int i = 0; i < count; ++i)
+        appendU8(out, glyph);
 }
 
-static inline bool is_alnum(char c)
-{
-    return std::isalnum(static_cast<unsigned char>(c)) != 0;
-}
+// --- operator key (constexpr) ---
 
-static inline bool is_digit(char c)
+constexpr std::uint16_t op_key(char a, char b) noexcept
 {
-    return std::isdigit(static_cast<unsigned char>(c)) != 0;
-}
-
-static inline bool is_xdigit(char c)
-{
-    return std::isxdigit(static_cast<unsigned char>(c)) != 0;
+    return static_cast<std::uint16_t>(static_cast<unsigned char>(a)) |
+           (static_cast<std::uint16_t>(static_cast<unsigned char>(b)) << 8);
 }
 
 } // namespace text_utils
