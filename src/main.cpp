@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "log.h"
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -55,6 +56,7 @@ int main(int argc, char* argv[])
     fs::path ccdir;
     fs::path clangdPath = "clangd";
     std::string queryDriver;
+    std::string logFile;
     std::vector<fs::path> args;
 
     auto require_value = [&](std::string_view opt, int& i,
@@ -107,6 +109,10 @@ int main(int argc, char* argv[])
             {
                 queryDriver = std::string(require_value(key, i, val));
             }
+            else if(key == "--log-file")
+            {
+                logFile = std::string(require_value(key, i, val));
+            }
             else
             {
                 // unknown option: keep it as a positional, or error out if you
@@ -119,6 +125,14 @@ int main(int argc, char* argv[])
             args.emplace_back(a);
         }
     }
+    // Set custom log file path if provided
+#ifdef UVIM_DEBUG_LOGGING
+    if(!logFile.empty())
+    {
+        mla::log::setLogFilePath(logFile);
+    }
+#endif
+
     // Create editor with flag indicating whether we have files to open
     Editor editor(!args.empty());
 

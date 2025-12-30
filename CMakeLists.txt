@@ -28,7 +28,6 @@ set(UVIM_SOURCES
     src/editor.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp
-    #src/buffer_management.cpp
     src/missing_functions.cpp
     src/search.cpp
     src/fuzzy_finder.cpp

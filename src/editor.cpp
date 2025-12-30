@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "log.h"
 #include "terminal.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -22,6 +23,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <unordered_set>
+
+#ifdef UVIM_DEBUG_LOGGING
+static mla::log::FileLogger LOG("uvim");
+#endif
 
 static bool isIdent(char c)
 {
@@ -279,7 +284,7 @@ Editor::Editor(bool skipInitialBuffer)
     screenRows -= 2; // Status bar and message bar
 
     // Create initial empty buffer only if not opening files
-    if (!skipInitialBuffer)
+    if(!skipInitialBuffer)
     {
         createNewBuffer();
         saveState();
@@ -2587,12 +2592,8 @@ void Editor::handleKeypress()
     int c = Terminal::readKey();
 
 #ifdef UVIM_DEBUG_LOGGING
-    // Debug: log every keypress with mode
-    {
-        std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
-        dbg << "handleKeypress c=" << c << " ('" << (char)c
-            << "') mode=" << currentMode << std::endl;
-    }
+    LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
+              static_cast<int>(currentMode));
 #endif
 
     switch(currentMode)
@@ -2862,12 +2863,8 @@ void Editor::run()
 void Editor::handleNormalMode(int c)
 {
 #ifdef UVIM_DEBUG_LOGGING
-    // Debug: log every keypress
-    {
-        std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
-        dbg << "handleNormalMode c=" << c << " ('" << (char)c
-            << "') commandBuffer='" << commandBuffer << "'" << std::endl;
-    }
+    LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c,
+              (char)c, commandBuffer);
 #endif
 
     static bool pendingDelete = false;
@@ -2961,12 +2958,8 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
 
 #ifdef UVIM_DEBUG_LOGGING
-            // Debug: log to file
-            {
-                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
-                dbg << "Leader-f pressed. filename='" << *filename
-                    << "' isCppFile=" << isCppFile() << std::endl;
-            }
+            LOG_DEBUG(LOG, "Leader-f pressed. filename='{}' isCppFile={}",
+                      *filename, isCppFile());
 #endif
 
             if(!isCppFile())
@@ -3023,13 +3016,9 @@ void Editor::handleNormalMode(int c)
                               " 2>/tmp/uvim_clang_err.txt";
 
 #ifdef UVIM_DEBUG_LOGGING
-            // Debug log
-            {
-                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
-                dbg << "Temp file written: " << tempPath
-                    << " lines=" << lines->size() << std::endl;
-                dbg << "Running: " << cmd << std::endl;
-            }
+            LOG_DEBUG(LOG, "Temp file written: {} lines={}", tempPath,
+                      lines->size());
+            LOG_DEBUG(LOG, "Running: {}", cmd);
 #endif
 
             FILE* pipe = popen(cmd.c_str(), "r");
@@ -3063,12 +3052,8 @@ void Editor::handleNormalMode(int c)
             unlink(tempPath.c_str());
 
 #ifdef UVIM_DEBUG_LOGGING
-            // Debug log
-            {
-                std::ofstream dbg("/tmp/uvim_debug.txt", std::ios::app);
-                dbg << "pclose status=" << status
-                    << " formatted.size()=" << formatted.size() << std::endl;
-            }
+            LOG_DEBUG(LOG, "pclose status={} formatted.size()={}", status,
+                      formatted.size());
 #endif
 
             // Check for errors
@@ -3817,4 +3802,3 @@ void Editor::handleNormalMode(int c)
 
     repeatCount = 0;
 }
-
