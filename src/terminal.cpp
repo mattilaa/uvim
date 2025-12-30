@@ -254,38 +254,41 @@ void Terminal::getWindowSize(int& rows, int& cols)
     rows = 24;
     cols = 80;
 #else
+    // 1) Primary: ioctl on stdout
     winsize ws{};
-    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0 &&
+       ws.ws_row > 0)
     {
-        write("\x1b[999C\x1b[999B");
-        write("\x1b[6n");
-        flush();
-
-        char buf[32];
-        int i = 0;
-        while(i < static_cast<int>(sizeof(buf)) - 1)
-        {
-            if(::read(STDIN_FILENO, &buf[i], 1) != 1)
-                break;
-            if(buf[i] == 'R')
-                break;
-            ++i;
-        }
-        buf[i] = '\0';
-
-        if(buf[0] == '\x1b' && buf[1] == '[')
-            std::sscanf(&buf[2], "%d;%d", &rows, &cols);
-        else
-        {
-            rows = 24;
-            cols = 80;
-        }
+        cols = static_cast<int>(ws.ws_col);
+        rows = static_cast<int>(ws.ws_row);
+        return;
     }
-    else
+
+    // 2) Secondary: environment variables (often set by shells/terminals)
+    auto parse_env_int = [](const char* name) -> int
     {
-        cols = ws.ws_col;
-        rows = ws.ws_row;
+        const char* v = std::getenv(name);
+        if(!v || !*v)
+            return 0;
+        char* end = nullptr;
+        long n = std::strtol(v, &end, 10);
+        if(end == v || n <= 0 || n > 10000)
+            return 0;
+        return static_cast<int>(n);
+    };
+
+    const int envCols = parse_env_int("COLUMNS");
+    const int envRows = parse_env_int("LINES");
+    if(envCols > 0 && envRows > 0)
+    {
+        cols = envCols;
+        rows = envRows;
+        return;
     }
+
+    // 3) Last resort
+    cols = 80;
+    rows = 24;
 #endif
 }
 
