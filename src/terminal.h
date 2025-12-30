@@ -1,60 +1,35 @@
 #pragma once
+
 #include <deque>
 #include <string>
-#include <termios.h>
-#include <unistd.h>
 
-constexpr int BLOCK_BG = 8;  // dark gray
-constexpr int CURSOR_BG = 7; // light gray
-constexpr int FG_NORMAL = 7; // white
+// Terminal backend selection
+// Prefer explicit build definitions from CMake:
+//   UVIM_TERMINAL_WIN32=1  (Windows console backend)
+//   UVIM_TERMINAL_POSIX=1  (POSIX termios backend)
+//
+// If neither is provided, fall back to platform default.
+#if defined(UVIM_TERMINAL_WIN32) && defined(UVIM_TERMINAL_POSIX)
+#error "Define only one of UVIM_TERMINAL_WIN32 or UVIM_TERMINAL_POSIX"
+#endif
+
+#if !defined(UVIM_TERMINAL_WIN32) && !defined(UVIM_TERMINAL_POSIX)
+#if defined(_WIN32)
+#define UVIM_TERMINAL_WIN32 1
+#else
+#define UVIM_TERMINAL_POSIX 1
+#endif
+#endif
+
+#if defined(UVIM_TERMINAL_WIN32)
+#include <cstdint>
+#else
+#include <termios.h>
+#endif
 
 class Terminal
 {
 public:
-    // Terminal modes
-    static void enableRawMode();
-    static void disableRawMode();
-    static void restoreTerminal();
-
-    // Screen control
-    static void clearScreen();
-    static void clearLine();
-    static void moveCursor(int row, int col);
-    static void hideCursor();
-    static void showCursor();
-
-    static void setCursorBlock();
-    static void setCursorBarBlinking();
-
-    // Screen info
-    static void getWindowSize(int& rows, int& cols);
-
-    // Output
-    static void write(const std::string& str);
-    static void write(char c);
-    static void flush();
-
-    // Input
-    static int readKey();
-
-    // Read key with timeout (milliseconds). Returns -1 if no key pressed within
-    // timeout.
-    static int readKeyTimeout(int timeoutMs);
-
-    // Push a key back to be read again by the next readKey() call
-    static void unreadKey(int key);
-
-    // Colors and styles
-    static void setColor(int fg, int bg = -1);
-    static void resetColor();
-    static void setBold();
-    static void setReverse();
-    static void resetAttributes();
-
-    // Cursor position
-    static void saveCursorPosition();
-    static void restoreCursorPosition();
-
     // Escape sequence constants (for building output strings)
     static constexpr const char* ESC_CURSOR_HOME = "\x1b[H";
     static constexpr const char* ESC_CLEAR_LINE = "\x1b[K";
@@ -105,9 +80,8 @@ public:
     static constexpr const char* BG_DEFAULT = "\x1b[49m";
 
     // Combined styles for common use cases
-    static constexpr const char* STYLE_SEARCH_MATCH =
-        "\x1b[43m\x1b[30m"; // Yellow bg, black fg
-    static constexpr const char* STYLE_SELECTION = "\x1b[7m"; // Reverse video
+    static constexpr const char* STYLE_SEARCH_MATCH = "\x1b[43m\x1b[30m";
+    static constexpr const char* STYLE_SELECTION = "\x1b[7m";
     static constexpr const char* STYLE_GREEN_BOLD = "\x1b[32;1m";
     static constexpr const char* STYLE_RESET_GREEN_BOLD = "\x1b[39;22m";
 
@@ -116,17 +90,12 @@ public:
     static constexpr const char* ESC_INSERT_LINE = "\x1b[L";
     static constexpr const char* ESC_RESET_SCROLL_REGION = "\x1b[r";
 
-    // Helper to build cursor position escape sequence
     static std::string cursorPos(int row, int col);
-
-    // Helper to build scroll region escape sequence
     static std::string scrollRegion(int top, int bottom);
 
-    // Helper for newline + clear
     static constexpr const char* NEWLINE_CLEAR = "\r\n\x1b[K";
 
-    // Special keys
-    enum Key
+    enum Key : int
     {
         ARROW_UP = 1000,
         ARROW_DOWN,
@@ -136,21 +105,17 @@ public:
         PAGE_DOWN,
         HOME,
         END,
-        DELETE_KEY, // Renamed from DELETE to avoid conflicts
+        DELETE_KEY,
 
-        // Backspace variants
         BACKSPACE = 8,
         DEL = 127,
 
-        // Common control characters
         ENTER = 13,
         ESC = 27,
         TAB = 9,
 
-        // Shift+Tab (reverse tab)
         SHIFT_TAB = 1100,
 
-        // Ctrl key combinations
         CTRL_A = 1,
         CTRL_B = 2,
         CTRL_C = 3,
@@ -158,12 +123,12 @@ public:
         CTRL_E = 5,
         CTRL_F = 6,
         CTRL_G = 7,
-        CTRL_H = 8, // Same as BACKSPACE
-        CTRL_I = 9, // Same as TAB
+        CTRL_H = 8,
+        CTRL_I = 9,
         CTRL_J = 10,
         CTRL_K = 11,
         CTRL_L = 12,
-        CTRL_M = 13, // Same as ENTER
+        CTRL_M = 13,
         CTRL_N = 14,
         CTRL_O = 15,
         CTRL_P = 16,
@@ -179,13 +144,43 @@ public:
         CTRL_Z = 26,
     };
 
+    static void enableRawMode();
+    static void disableRawMode();
+    static void restoreTerminal();
+
+    static void clearScreen();
+    static void clearLine();
+    static void moveCursor(int row, int col);
+    static void hideCursor();
+    static void showCursor();
+    static void getWindowSize(int& rows, int& cols);
+
+    static void write(const std::string& str);
+    static void write(char c);
+    static void flush();
+
+    static void unreadKey(int key);
+    static int readKey();
+    static int readKeyTimeout(int timeoutMs);
+
+    static void setColor(int fg, int bg = -1);
+    static void resetColor();
+    static void setBold();
+    static void setReverse();
+    static void resetAttributes();
+
+    static void saveCursorPosition();
+    static void restoreCursorPosition();
+
+    static void setCursorBlock();
+    static void setCursorBarBlinking();
+
 private:
+    static int readKeyInternal(int timeoutMs);
+
+#if defined(UVIM_TERMINAL_POSIX)
     static termios originalTermios;
+#endif
     static bool rawModeEnabled;
-
-    // Buffer for unread keys (pushed back via unreadKey())
     static std::deque<int> keyBuffer;
-
-    // Internal helper to read a single key from stdin with optional timeout
-    static int readKeyInternal(int timeoutMs = -1);
 };
