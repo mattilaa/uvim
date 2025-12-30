@@ -1,291 +1,372 @@
 #include "editor.h"
+
 #include <algorithm>
-#include <cctype>
+#include <array>
+#include <string_view>
+
+namespace
+{
+
+// ---------- ASCII helpers (constexpr, locale-free) ----------
+constexpr char ascii_tolower(char c) noexcept
+{
+    return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+constexpr bool is_space(char c) noexcept
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+           c == '\v';
+}
+
+constexpr bool is_digit(char c) noexcept
+{
+    return c >= '0' && c <= '9';
+}
+
+constexpr bool is_alpha(char c) noexcept
+{
+    c = ascii_tolower(c);
+    return c >= 'a' && c <= 'z';
+}
+
+constexpr bool is_alnum(char c) noexcept
+{
+    return is_alpha(c) || is_digit(c);
+}
+
+constexpr bool is_word_char(char c) noexcept
+{
+    return is_alnum(c) || c == '_';
+}
+
+// ---------- line helpers ----------
+inline int line_count(const std::vector<std::string>& ls) noexcept
+{
+    return static_cast<int>(ls.size());
+}
+
+inline int line_len(const std::vector<std::string>& ls, int y) noexcept
+{
+    if(y < 0 || y >= line_count(ls))
+        return 0;
+    return static_cast<int>(ls[static_cast<size_t>(y)].size());
+}
+
+inline std::string_view line_view(const std::vector<std::string>& ls,
+                                  int y) noexcept
+{
+    if(y < 0 || y >= line_count(ls))
+        return {};
+    return std::string_view{ls[static_cast<size_t>(y)]};
+}
+
+} // namespace
 
 void Editor::moveLeft(int count)
 {
+    if(!lines || lines->empty())
+        return;
+
+    int& cx = *cursorX;
+    int& cy = *cursorY;
+    int& wx = *wantedX;
+
     while(count-- > 0)
     {
-        if(*cursorX > 0)
+        if(cx > 0)
         {
-            (*cursorX)--;
+            --cx;
         }
-        else if(*cursorY > 0)
+        else if(cy > 0)
         {
-            (*cursorY)--;
-            *cursorX = (*lines)[*cursorY].length();
+            --cy;
+            cx = line_len(*lines, cy);
+        }
+        else
+        {
+            break;
         }
     }
-    *wantedX = *cursorX;
+
+    wx = cx;
 }
 
 void Editor::moveRight(int count)
 {
+    if(!lines || lines->empty())
+        return;
+
+    int& cx = *cursorX;
+    int& cy = *cursorY;
+    int& wx = *wantedX;
+
+    const int n = line_count(*lines);
+    cy = std::clamp(cy, 0, n - 1);
+
     while(count-- > 0)
     {
-        if(*cursorY < lines->size())
+        const int L = line_len(*lines, cy);
+        if(cx < L)
         {
-            if(*cursorX < (*lines)[*cursorY].length())
-            {
-                (*cursorX)++;
-            }
-            else if(*cursorY < lines->size() - 1)
-            {
-                (*cursorY)++;
-                *cursorX = 0;
-            }
+            ++cx;
+        }
+        else if(cy < n - 1)
+        {
+            ++cy;
+            cx = 0;
+        }
+        else
+        {
+            break;
         }
     }
-    *wantedX = *cursorX;
+
+    wx = cx;
 }
 
 void Editor::moveUp(int count)
 {
-    while(count-- > 0 && *cursorY > 0)
-    {
-        (*cursorY)--;
-    }
-    *cursorX = std::min(*wantedX, (int)(*lines)[*cursorY].length());
+    if(!lines || lines->empty())
+        return;
+
+    int& cx = *cursorX;
+    int& cy = *cursorY;
+    const int& wx = *wantedX;
+
+    const int n = line_count(*lines);
+    cy = std::clamp(cy, 0, n - 1);
+
+    cy = std::max(0, cy - std::max(0, count));
+    cx = std::min(wx, line_len(*lines, cy));
 }
 
 void Editor::moveDown(int count)
 {
-    while(count-- > 0 && *cursorY < lines->size() - 1)
-    {
-        (*cursorY)++;
-    }
-    *cursorX = std::min(*wantedX, (int)(*lines)[*cursorY].length());
+    if(!lines || lines->empty())
+        return;
+
+    int& cx = *cursorX;
+    int& cy = *cursorY;
+    const int& wx = *wantedX;
+
+    const int n = line_count(*lines);
+    cy = std::clamp(cy, 0, n - 1);
+
+    cy = std::min(n - 1, cy + std::max(0, count));
+    cx = std::min(wx, line_len(*lines, cy));
 }
 
 void Editor::moveWordForward()
 {
-    int y = *cursorY;
-    int x = *cursorX;
+    if(!lines || lines->empty())
+        return;
+
+    int y = std::clamp(*cursorY, 0, line_count(*lines) - 1);
+    int x = std::clamp(*cursorX, 0, line_len(*lines, y));
+
+    const int n = line_count(*lines);
 
     while(true)
     {
-        const std::string& line = (*lines)[y];
+        std::string_view ln = line_view(*lines, y);
+        const int L = static_cast<int>(ln.size());
 
-        if(x >= (int)line.length())
+        // At end of line: go to next line, skip leading spaces
+        if(x >= L)
         {
-            if(y + 1 >= (int)lines->size())
+            if(y + 1 >= n)
                 break;
-
-            y++;
+            ++y;
             x = 0;
 
-            while(x < (int)(*lines)[y].length() &&
-                  std::isspace((unsigned char)(*lines)[y][x]))
-            {
-                x++;
-            }
-
+            ln = line_view(*lines, y);
+            while(x < static_cast<int>(ln.size()) && is_space(ln[x]))
+                ++x;
             break;
         }
 
-        char c = line[x];
+        const char c = ln[x];
 
-        if(std::isspace((unsigned char)c))
+        // If on whitespace: skip whitespace -> lands on next token start
+        if(is_space(c))
         {
-            while(x < (int)line.length() &&
-                  std::isspace((unsigned char)line[x]))
-            {
-                x++;
-            }
+            while(x < L && is_space(ln[x]))
+                ++x;
             break;
         }
 
-        bool isAlphaWord = (std::isalnum((unsigned char)c) || c == '_');
-        x++;
+        // Otherwise: consume current "word class" (word vs non-word
+        // operator-ish)
+        const bool alphaWord = is_word_char(c);
+        ++x;
 
-        while(x < (int)line.length())
+        while(x < L)
         {
-            char d = line[x];
-            bool dAlpha = (std::isalnum((unsigned char)d) || d == '_');
-
-            if(std::isspace((unsigned char)d))
+            const char d = ln[x];
+            if(is_space(d))
                 break;
-            if(isAlphaWord != dAlpha)
+            if(alphaWord != is_word_char(d))
                 break;
-
-            x++;
+            ++x;
         }
-
         break;
     }
 
-    *cursorX = x;
     *cursorY = y;
+    *cursorX = x;
     *wantedX = x;
 }
 
 void Editor::moveWordBackward()
 {
-    int y = *cursorY;
-    int x = *cursorX;
+    if(!lines || lines->empty())
+        return;
+
+    int y = std::clamp(*cursorY, 0, line_count(*lines) - 1);
+    int x = std::clamp(*cursorX, 0, line_len(*lines, y));
 
     if(y == 0 && x == 0)
-    {
         return;
-    }
 
     if(x == 0)
     {
-        y--;
-        x = (*lines)[y].length();
+        --y;
+        x = line_len(*lines, y);
     }
 
-    const std::string& line = (*lines)[y];
+    std::string_view ln = line_view(*lines, y);
 
     if(x > 0)
-    {
-        x--;
-    }
+        --x;
 
-    while(x > 0 && std::isspace((unsigned char)line[x]))
-    {
-        x--;
-    }
+    while(x > 0 && is_space(ln[x]))
+        --x;
 
-    if(x >= 0 && !std::isspace((unsigned char)line[x]))
+    if(!ln.empty() && !is_space(ln[x]))
     {
-        bool isAlphaWord =
-            (std::isalnum((unsigned char)line[x]) || line[x] == '_');
+        const bool alphaWord = is_word_char(ln[x]);
 
         while(x > 0)
         {
-            char prevChar = line[x - 1];
-            bool prevAlpha =
-                (std::isalnum((unsigned char)prevChar) || prevChar == '_');
-
-            if(std::isspace((unsigned char)prevChar))
+            const char prev = ln[x - 1];
+            if(is_space(prev))
                 break;
-            if(isAlphaWord != prevAlpha)
+            if(alphaWord != is_word_char(prev))
                 break;
-
-            x--;
+            --x;
         }
     }
 
-    *cursorX = x;
     *cursorY = y;
+    *cursorX = x;
     *wantedX = x;
 }
 
 void Editor::moveToEndOfWord()
 {
-    int y = *cursorY;
-    int x = *cursorX;
+    if(!lines || lines->empty())
+        return;
 
-    const std::string& line = (*lines)[y];
+    int y = std::clamp(*cursorY, 0, line_count(*lines) - 1);
+    int x = std::clamp(*cursorX, 0, line_len(*lines, y));
+    const int n = line_count(*lines);
 
-    if(x >= (int)line.length() - 1)
+    auto advance_to_word_end_on_line = [&](std::string_view ln, int& xx)
     {
-        if(y + 1 < (int)lines->size())
+        const int L = static_cast<int>(ln.size());
+
+        while(xx < L && is_space(ln[xx]))
+            ++xx;
+        if(xx >= L)
+            return;
+
+        const bool alphaWord = is_word_char(ln[xx]);
+        while(xx < L - 1)
         {
-            y++;
+            const char next = ln[xx + 1];
+            if(is_space(next))
+                break;
+            if(alphaWord != is_word_char(next))
+                break;
+            ++xx;
+        }
+    };
+
+    std::string_view ln = line_view(*lines, y);
+    const int L = static_cast<int>(ln.size());
+
+    if(x >= L - 1)
+    {
+        if(y + 1 < n)
+        {
+            ++y;
             x = 0;
-            const std::string& nextLine = (*lines)[y];
-
-            while(x < (int)nextLine.length() &&
-                  std::isspace((unsigned char)nextLine[x]))
-            {
-                x++;
-            }
-
-            if(x < (int)nextLine.length())
-            {
-                bool isAlphaWord = (std::isalnum((unsigned char)nextLine[x]) ||
-                                    nextLine[x] == '_');
-
-                while(x < (int)nextLine.length() - 1)
-                {
-                    char nextChar = nextLine[x + 1];
-                    bool nextAlpha = (std::isalnum((unsigned char)nextChar) ||
-                                      nextChar == '_');
-
-                    if(std::isspace((unsigned char)nextChar))
-                        break;
-                    if(isAlphaWord != nextAlpha)
-                        break;
-
-                    x++;
-                }
-            }
+            ln = line_view(*lines, y);
+            advance_to_word_end_on_line(ln, x);
         }
     }
     else
     {
-        x++;
-
-        while(x < (int)line.length() && std::isspace((unsigned char)line[x]))
-        {
-            x++;
-        }
-
-        if(x < (int)line.length())
-        {
-            bool isAlphaWord =
-                (std::isalnum((unsigned char)line[x]) || line[x] == '_');
-
-            while(x < (int)line.length() - 1)
-            {
-                char nextChar = line[x + 1];
-                bool nextAlpha =
-                    (std::isalnum((unsigned char)nextChar) || nextChar == '_');
-
-                if(std::isspace((unsigned char)nextChar))
-                    break;
-                if(isAlphaWord != nextAlpha)
-                    break;
-
-                x++;
-            }
-        }
+        ++x;
+        ln = line_view(*lines, y);
+        advance_to_word_end_on_line(ln, x);
     }
 
-    *cursorX = x;
     *cursorY = y;
+    *cursorX = x;
     *wantedX = x;
 }
 
 void Editor::moveToLineStart()
 {
     *cursorX = 0;
-    *wantedX = *cursorX;
+    *wantedX = 0;
 }
 
 void Editor::moveToLineEnd()
 {
-    if(*cursorY < lines->size())
-    {
-        *cursorX = (*lines)[*cursorY].length();
-        if(*cursorX > 0 && currentMode == NORMAL)
-        {
-            (*cursorX)--;
-        }
-    }
-    *wantedX = *cursorX;
+    if(!lines || lines->empty())
+        return;
+
+    int& cx = *cursorX;
+    int& cy = *cursorY;
+    int& wx = *wantedX;
+
+    cy = std::clamp(cy, 0, line_count(*lines) - 1);
+
+    cx = line_len(*lines, cy);
+    if(cx > 0 && currentMode == NORMAL)
+        --cx;
+
+    wx = cx;
 }
 
 void Editor::moveToFirstLine()
 {
     *cursorY = 0;
     *cursorX = 0;
-    *wantedX = *cursorX;
+    *wantedX = 0;
 }
 
 void Editor::moveToLastLine()
 {
-    *cursorY = lines->size() - 1;
+    if(!lines || lines->empty())
+        return;
+
+    *cursorY = line_count(*lines) - 1;
     *cursorX = 0;
-    *wantedX = *cursorX;
+    *wantedX = 0;
 }
 
 void Editor::moveToLine(int line)
 {
-    *cursorY = std::max(0, std::min(line, (int)lines->size() - 1));
+    if(!lines || lines->empty())
+        return;
+
+    *cursorY = std::clamp(line, 0, line_count(*lines) - 1);
     *cursorX = 0;
+    *wantedX = 0;
 }
 
 void Editor::jumpForward()
@@ -352,7 +433,8 @@ void Editor::pushJumpLocation()
 
 void Editor::restoreJumpLocation(const JumpLocation& loc)
 {
-    if(loc.bufferIndex < 0 || loc.bufferIndex >= buffers.size())
+    if(loc.bufferIndex < 0 ||
+       loc.bufferIndex >= static_cast<int>(buffers.size()))
         return;
 
     switchToBuffer(loc.bufferIndex);
@@ -367,98 +449,102 @@ void Editor::restoreJumpLocation(const JumpLocation& loc)
 
 void Editor::scrollHalfPageDown(bool visual)
 {
-    int half = screenRows / 2;
+    const int half = screenRows / 2;
     moveDown(half);
     adjustViewport();
-
     if(visual)
         updateVisualSelection();
 }
 
 void Editor::scrollHalfPageUp(bool visual)
 {
-    int half = screenRows / 2;
+    const int half = screenRows / 2;
     moveUp(half);
     adjustViewport();
-
     if(visual)
         updateVisualSelection();
 }
 
 void Editor::moveToMatchingBracket()
 {
-    if(*cursorY >= lines->size())
+    if(!lines || lines->empty())
         return;
 
-    const std::string& line = (*lines)[*cursorY];
-    if(*cursorX >= line.length())
+    const int n = line_count(*lines);
+    int y = std::clamp(*cursorY, 0, n - 1);
+
+    std::string_view ln = line_view(*lines, y);
+    if(ln.empty())
         return;
 
-    char c = line[*cursorX];
-    char open, close;
+    int x = std::clamp(*cursorX, 0, static_cast<int>(ln.size()) - 1);
 
-    switch(c)
+    const char c = ln[x];
+
+    constexpr std::array<std::pair<char, char>, 3> pairs{{
+        {'(', ')'},
+        {'{', '}'},
+        {'[', ']'},
+    }};
+
+    char open = 0, close = 0;
+    for(auto [o, cl] : pairs)
     {
-    case '(':
-        open = '(';
-        close = ')';
-        break;
-    case ')':
-        open = '(';
-        close = ')';
-        break;
-    case '{':
-        open = '{';
-        close = '}';
-        break;
-    case '}':
-        open = '{';
-        close = '}';
-        break;
-    case '[':
-        open = '[';
-        close = ']';
-        break;
-    case ']':
-        open = '[';
-        close = ']';
-        break;
-    default:
-        return;
+        if(c == o)
+        {
+            open = o;
+            close = cl;
+            break;
+        }
+        if(c == cl)
+        {
+            open = o;
+            close = cl;
+            break;
+        }
     }
+    if(!open)
+        return;
 
-    int direction = (c == open) ? +1 : -1;
+    const int direction = (c == open) ? +1 : -1;
     int depth = 0;
-
-    int y = *cursorY;
-    int x = *cursorX;
 
     while(true)
     {
         x += direction;
 
-        while(x < 0 || (y < lines->size() && x >= (*lines)[y].length()))
+        // Walk across lines
+        while(true)
         {
+            if(y < 0 || y >= n)
+                return;
+
+            ln = line_view(*lines, y);
+            const int L = static_cast<int>(ln.size());
+
             if(direction == +1)
             {
-                y++;
+                if(x < L)
+                    break;
+                ++y;
                 x = 0;
             }
             else
             {
-                y--;
+                if(x >= 0)
+                    break;
+                --y;
                 if(y < 0)
                     return;
-                x = (*lines)[y].length() - 1;
+                ln = line_view(*lines, y);
+                x = static_cast<int>(ln.size()) - 1;
             }
-            if(y < 0 || y >= lines->size())
-                return;
         }
 
-        char ch = (*lines)[y][x];
+        const char ch = ln[x];
 
         if(ch == c)
-            depth++;
+            ++depth;
         else if(ch == (direction == +1 ? close : open))
         {
             if(depth == 0)
@@ -468,38 +554,54 @@ void Editor::moveToMatchingBracket()
                 *wantedX = x;
                 return;
             }
-            depth--;
+            --depth;
         }
     }
 }
 
 void Editor::adjustViewport()
 {
-    if(*cursorY < *offsetY)
+    if(!lines || lines->empty())
     {
-        *offsetY = std::max(0, *cursorY);
-    }
-    else if(*cursorY >= *offsetY + screenRows)
-    {
-        *offsetY = std::min((int)lines->size() - screenRows,
-                            *cursorY - screenRows + 1);
+        *offsetX = *offsetY = 0;
+        return;
     }
 
-    if(*cursorX < *offsetX)
-    {
-        *offsetX = *cursorX;
-    }
-    else if(*cursorX >= *offsetX + screenCols)
-    {
-        *offsetX = *cursorX - screenCols + 1;
-    }
+    const int n = line_count(*lines);
+    const int maxOffsetY = std::max(0, n - screenRows);
+    const int maxOffsetX =
+        std::max(0, 1000000000); // optional; horizontal clamp is app-specific
+
+    int& ox = *offsetX;
+    int& oy = *offsetY;
+    const int cx = *cursorX;
+    const int cy = *cursorY;
+
+    // Vertical
+    if(cy < oy)
+        oy = cy;
+    else if(cy >= oy + screenRows)
+        oy = cy - screenRows + 1;
+    oy = std::clamp(oy, 0, maxOffsetY);
+
+    // Horizontal
+    if(cx < ox)
+        ox = cx;
+    else if(cx >= ox + screenCols)
+        ox = cx - screenCols + 1;
+    ox = std::clamp(ox, 0, maxOffsetX);
 }
 
 void Editor::centerScreen()
 {
-    *offsetY = std::max(0, *cursorY - screenRows / 2);
-    if(*offsetY + screenRows > lines->size())
+    if(!lines || lines->empty())
     {
-        *offsetY = std::max(0, (int)lines->size() - screenRows);
+        *offsetY = 0;
+        return;
     }
+
+    const int n = line_count(*lines);
+    const int maxOffsetY = std::max(0, n - screenRows);
+
+    *offsetY = std::clamp(*cursorY - screenRows / 2, 0, maxOffsetY);
 }
