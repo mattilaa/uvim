@@ -365,7 +365,12 @@ void Editor::handleFileBrowserMode(int c)
             }
         }
         break;
-
+    case Terminal::CTRL_P:
+        setMode(FUZZY_FIND);
+        break;
+    case Terminal::CTRL_W:
+        setMode(BUFFER_BROWSER);
+        break;
     case 'g':
         browserCursor = 0;
         browserOffset = 0;
