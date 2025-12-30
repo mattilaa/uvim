@@ -22,14 +22,14 @@ static std::ostream& operator<<(std::ostream& oss, LogLevel level)
 {
     switch(level)
     {
-        case LogLevel::INFO:
-            return oss << "INFO";
-        case LogLevel::WARNING:
-            return oss << "WARNING";
-        case LogLevel::ERROR:
-            return oss << "ERROR";
-        case LogLevel::DEBUG:
-            return oss << "DEBUG";
+    case LogLevel::INFO:
+        return oss << "INFO";
+    case LogLevel::WARNING:
+        return oss << "WARNING";
+    case LogLevel::ERROR:
+        return oss << "ERROR";
+    case LogLevel::DEBUG:
+        return oss << "DEBUG";
     }
     return oss; // Because of some stupid compilers
 }
@@ -38,16 +38,21 @@ static std::string toColor(LogLevel level)
 {
     switch(level)
     {
-        case LogLevel::INFO:
-            return "\x1b[32;1m";
-        case LogLevel::WARNING:
-            return "\x1b[33;1m";
-        case LogLevel::ERROR:
-            return "\x1b[31;1m";
-        case LogLevel::DEBUG:
-            return "\x1b[36;1m";
+    case LogLevel::INFO:
+        return "\x1b[32;1m";
+    case LogLevel::WARNING:
+        return "\x1b[33;1m";
+    case LogLevel::ERROR:
+        return "\x1b[31;1m";
+    case LogLevel::DEBUG:
+        return "\x1b[36;1m";
     }
     return ""; // Because of some stupid compilers
+}
+
+static constexpr const char* resetColor()
+{
+    return "\x1b[0m";
 }
 
 // Global log file path - defaults to /tmp/uvim_debug.log
@@ -62,13 +67,22 @@ inline void setLogFilePath(const std::string& path)
     getLogFilePath() = path;
 }
 
+// Global color flag - defaults to false for file output
+inline bool& getUseColors()
+{
+    static bool use_colors = false;
+    return use_colors;
+}
+
+inline void setUseColors(bool use_colors)
+{
+    getUseColors() = use_colors;
+}
+
 class FileLogger
 {
 public:
-    FileLogger(std::string_view ctx = "")
-        : ctx(ctx)
-    {
-    }
+    FileLogger(std::string_view ctx = "") : ctx(ctx) {}
 
     FileLogger(const FileLogger& log, std::string_view new_ctx)
         : ctx(log.ctx.empty() ? std::string(new_ctx)
@@ -93,22 +107,23 @@ public:
         localtime_r(&tt, &tm);
 #endif
 
-        return std::format("{:02d}:{:02d}:{:02d}.{:06d}",
-                          tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
+        return std::format("{:02d}:{:02d}:{:02d}.{:06d}", tm.tm_hour, tm.tm_min,
+                           tm.tm_sec, ms);
     }
 
     void log(LogLevel level, std::string_view msg)
     {
-        std::string levelStr =
-            static_cast<int>(level) == 0 ? "INFO" :
-            static_cast<int>(level) == 1 ? "WARNING" :
-            static_cast<int>(level) == 2 ? "ERROR" : "DEBUG";
+        bool use_color = getUseColors();
 
-        std::string formatted = std::format("{} {} {}{}\n",
-            levelStr,
-            timestamp(),
-            ctx.empty() ? "" : ctx + " ",
-            msg);
+        std::string levelStr = static_cast<int>(level) == 0   ? "INFO"
+                               : static_cast<int>(level) == 1 ? "WARNING"
+                               : static_cast<int>(level) == 2 ? "ERROR"
+                                                              : "DEBUG";
+
+        std::string formatted =
+            std::format("{}{}{} {} {}{}\n", use_color ? toColor(level) : "",
+                        levelStr, use_color ? resetColor() : "", timestamp(),
+                        ctx.empty() ? "" : ctx + " ", msg);
 
         static std::mutex log_mutex;
         std::lock_guard<std::mutex> lock(log_mutex);
@@ -127,28 +142,51 @@ private:
 // Alias for backward compatibility
 using StdLogger = FileLogger;
 
-}  // namespace mla::log
+} // namespace mla::log
 
-#define LOG_INFO(logger, ...)                                \
-    do                                                       \
-    {                                                        \
-        logger.log(mla::log::LogLevel::INFO, std::format(__VA_ARGS__)); \
+#ifdef UVIM_DEBUG_LOGGING
+
+#define LOG_INFO(logger, ...)                                                  \
+    do                                                                         \
+    {                                                                          \
+        logger.log(mla::log::LogLevel::INFO, std::format(__VA_ARGS__));        \
     } while(0)
 
-#define LOG_DEBUG(logger, ...)                               \
-    do                                                       \
-    {                                                        \
-        logger.log(mla::log::LogLevel::DEBUG, std::format(__VA_ARGS__)); \
+#define LOG_DEBUG(logger, ...)                                                 \
+    do                                                                         \
+    {                                                                          \
+        logger.log(mla::log::LogLevel::DEBUG, std::format(__VA_ARGS__));       \
     } while(0)
 
-#define LOG_WARNING(logger, ...)                             \
-    do                                                       \
-    {                                                        \
-        logger.log(mla::log::LogLevel::WARNING, std::format(__VA_ARGS__)); \
+#define LOG_WARNING(logger, ...)                                               \
+    do                                                                         \
+    {                                                                          \
+        logger.log(mla::log::LogLevel::WARNING, std::format(__VA_ARGS__));     \
     } while(0)
 
-#define LOG_ERROR(logger, ...)                               \
-    do                                                       \
-    {                                                        \
-        logger.log(mla::log::LogLevel::ERROR, std::format(__VA_ARGS__)); \
+#define LOG_ERROR(logger, ...)                                                 \
+    do                                                                         \
+    {                                                                          \
+        logger.log(mla::log::LogLevel::ERROR, std::format(__VA_ARGS__));       \
     } while(0)
+
+#else
+
+#define LOG_INFO(logger, ...)                                                  \
+    do                                                                         \
+    {                                                                          \
+    } while(0)
+#define LOG_DEBUG(logger, ...)                                                 \
+    do                                                                         \
+    {                                                                          \
+    } while(0)
+#define LOG_WARNING(logger, ...)                                               \
+    do                                                                         \
+    {                                                                          \
+    } while(0)
+#define LOG_ERROR(logger, ...)                                                 \
+    do                                                                         \
+    {                                                                          \
+    } while(0)
+
+#endif

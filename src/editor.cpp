@@ -7,13 +7,11 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
-#include <climits>
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <limits.h>
 #include <memory>
 #include <pwd.h>
@@ -22,11 +20,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <unordered_set>
 
-#ifdef UVIM_DEBUG_LOGGING
 static mla::log::FileLogger LOG("uvim");
-#endif
 
 static bool isIdent(char c)
 {
@@ -2591,10 +2586,8 @@ void Editor::handleKeypress()
 {
     int c = Terminal::readKey();
 
-#ifdef UVIM_DEBUG_LOGGING
     LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
               static_cast<int>(currentMode));
-#endif
 
     switch(currentMode)
     {
@@ -2862,10 +2855,8 @@ void Editor::run()
 
 void Editor::handleNormalMode(int c)
 {
-#ifdef UVIM_DEBUG_LOGGING
     LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c,
               (char)c, commandBuffer);
-#endif
 
     static bool pendingDelete = false;
     static bool pendingYank = false;
@@ -2957,10 +2948,8 @@ void Editor::handleNormalMode(int c)
             commandBuffer.clear();
             repeatCount = 0;
 
-#ifdef UVIM_DEBUG_LOGGING
             LOG_DEBUG(LOG, "Leader-f pressed. filename='{}' isCppFile={}",
                       *filename, isCppFile());
-#endif
 
             if(!isCppFile())
             {
@@ -3013,13 +3002,11 @@ void Editor::handleNormalMode(int c)
                               " -assume-filename=\"" +
                               absFilename +
                               "\""
-                              " 2>/tmp/uvim_clang_err.txt";
+                              " 2>/tmp/uvim_clang_err.log";
 
-#ifdef UVIM_DEBUG_LOGGING
             LOG_DEBUG(LOG, "Temp file written: {} lines={}", tempPath,
                       lines->size());
             LOG_DEBUG(LOG, "Running: {}", cmd);
-#endif
 
             FILE* pipe = popen(cmd.c_str(), "r");
             if(!pipe)
@@ -3030,7 +3017,7 @@ void Editor::handleNormalMode(int c)
                       " -assume-filename=\"" +
                       absFilename +
                       "\""
-                      " 2>/tmp/uvim_clang_err.txt";
+                      " 2>/tmp/uvim_clang_err.log";
                 pipe = popen(cmd.c_str(), "r");
             }
 
@@ -3051,16 +3038,14 @@ void Editor::handleNormalMode(int c)
             int status = pclose(pipe);
             unlink(tempPath.c_str());
 
-#ifdef UVIM_DEBUG_LOGGING
             LOG_DEBUG(LOG, "pclose status={} formatted.size()={}", status,
                       formatted.size());
-#endif
 
             // Check for errors
             if(formatted.empty())
             {
                 // Read error file
-                std::ifstream errFile("/tmp/uvim_clang_err.txt");
+                std::ifstream errFile("/tmp/uvim_clang_err.log");
                 std::string errMsg;
                 if(errFile.is_open())
                 {

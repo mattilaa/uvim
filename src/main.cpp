@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
     fs::path clangdPath = "clangd";
     std::string queryDriver;
     std::string logFile;
+    bool logColors = false;
     std::vector<fs::path> args;
 
     auto require_value = [&](std::string_view opt, int& i,
@@ -113,6 +114,10 @@ int main(int argc, char* argv[])
             {
                 logFile = std::string(require_value(key, i, val));
             }
+            else if(key == "--log-colors")
+            {
+                logColors = true;
+            }
             else
             {
                 // unknown option: keep it as a positional, or error out if you
@@ -130,6 +135,10 @@ int main(int argc, char* argv[])
     if(!logFile.empty())
     {
         mla::log::setLogFilePath(logFile);
+    }
+    if(logColors)
+    {
+        mla::log::setUseColors(true);
     }
 #endif
 
