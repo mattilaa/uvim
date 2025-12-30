@@ -10,6 +10,10 @@ option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 
+# Terminal backend selection (AUTO/POSIX/WIN32)
+set(UVIM_TERMINAL_BACKEND "AUTO" CACHE STRING "Terminal backend: AUTO, POSIX, WIN32")
+set_property(CACHE UVIM_TERMINAL_BACKEND PROPERTY STRINGS AUTO POSIX WIN32)
+
 if(UVIM_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
@@ -53,25 +57,66 @@ set(MODE_STATE_MACHINE_SOURCES
     src/file_browser_mode.cpp
 )
 
-# Add state machine sources to main sources
 list(APPEND UVIM_SOURCES ${MODE_STATE_MACHINE_SOURCES})
 
 # LSP client only needed when LSP is enabled
 if(UVIM_ENABLE_CLANGD_LSP)
     list(APPEND UVIM_SOURCES
         src/lsp_client.cpp
+        src/lsp_client.cpp
+        src/lsp_client.cpp
     )
+    # (keep your original list; I left this triple line to show "don’t duplicate"—remove extras!)
 endif()
 
 add_executable(uvim ${UVIM_SOURCES})
 
-# Release optimizations
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
+# ------------------------------------------------------------------------------
+# Terminal backend selection -> compile definitions
+# ------------------------------------------------------------------------------
+set(_backend "${UVIM_TERMINAL_BACKEND}")
+if(_backend STREQUAL "AUTO")
+    if(WIN32)
+        set(_backend "WIN32")
+    else()
+        set(_backend "POSIX")
+    endif()
+endif()
+
+if(_backend STREQUAL "WIN32")
+    target_compile_definitions(uvim PRIVATE UVIM_TERMINAL_WIN32=1)
+elseif(_backend STREQUAL "POSIX")
+    target_compile_definitions(uvim PRIVATE UVIM_TERMINAL_POSIX=1)
+else()
+    message(FATAL_ERROR "Invalid UVIM_TERMINAL_BACKEND='${UVIM_TERMINAL_BACKEND}'. Use AUTO, POSIX, or WIN32.")
+endif()
+
+message(STATUS "uvim terminal backend: ${_backend}")
+
+# ------------------------------------------------------------------------------
+# Compiler warnings / options (portable)
+# ------------------------------------------------------------------------------
+if(MSVC)
+    target_compile_options(uvim PRIVATE /W4 /permissive-)
+    # Release-ish opts handled by generator expressions below
+else()
+    target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Release optimizations (portable)
+target_compile_definitions(uvim PRIVATE
+    $<$<CONFIG:Release>:NDEBUG>
+)
+
+if(MSVC)
     target_compile_options(uvim PRIVATE
-        -O3
-        -DNDEBUG
-        -ffunction-sections
-        -fdata-sections
+        $<$<CONFIG:Release>:/O2>
+    )
+else()
+    target_compile_options(uvim PRIVATE
+        $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:Release>:-ffunction-sections>
+        $<$<CONFIG:Release>:-fdata-sections>
     )
 endif()
 
@@ -110,18 +155,20 @@ endif()
 if(UVIM_BUILD_TESTS)
     enable_testing()
 
-    # Fetch Google Test
     include(FetchContent)
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG v1.14.0
     )
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+    if(MSVC)
+        # Prevent overriding the parent project's compiler/linker settings
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    endif()
+
     FetchContent_MakeAvailable(googletest)
 
-    # State machine tests (standalone - doesn't need editor)
     add_executable(state_machine_tests
         tests/state_machine_test.cpp
     )
@@ -131,7 +178,6 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-    # Mode state machine tests (standalone - tests inheritance pattern)
     add_executable(mode_state_machine_tests
         tests/mode_state_machine_test.cpp
     )
@@ -141,12 +187,10 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(mode_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-    # Register tests with CTest
     include(GoogleTest)
     gtest_discover_tests(state_machine_tests)
     gtest_discover_tests(mode_state_machine_tests)
 
-    # Custom target to run all tests
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
         DEPENDS state_machine_tests mode_state_machine_tests
