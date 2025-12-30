@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "gitignore.h"
 #include "terminal.h"
 #include <algorithm>
 #include <fstream>
@@ -13,7 +14,9 @@ void Editor::initializeGrepSearch()
         char cwd[PATH_MAX];
         if(getcwd(cwd, sizeof(cwd)))
         {
-            collectProjectFiles(std::string(cwd));
+            GitIgnore gitignore;
+            gitignore.loadRecursive(cwd);
+            collectProjectFiles(std::string(cwd), 0, gitignore);
         }
         fuzzyInitialized = true;
     }
@@ -109,8 +112,7 @@ bool Editor::isBinaryFile(const std::string& filepath)
     return nonPrintableRatio > 0.3;
 }
 
-void Editor::searchInFile(const std::string& filepath,
-                          const std::string& query)
+void Editor::searchInFile(const std::string& filepath, const std::string& query)
 {
     if(!isTextFile(filepath))
         return;
@@ -285,7 +287,8 @@ void Editor::drawGrepSearch()
 
     output += Terminal::NEWLINE_CLEAR;
     output += Terminal::FG_BRIGHT_BLACK;
-    output += "  [Enter: open] [Esc: cancel] [↑↓: navigate]";
+    output +=
+        "  [Enter: open] [Esc: cancel] [↑↓: navigate] [Ctrl+I: gitignore]";
     output += Terminal::FG_DEFAULT;
 
     output += Terminal::NEWLINE_CLEAR;
@@ -301,6 +304,10 @@ void Editor::drawGrepSearch()
     else if(!grepQuery.empty() && !grepSearching)
     {
         output += "  No matches";
+    }
+    if(respectGitignore)
+    {
+        output += " [gitignore]";
     }
     output += Terminal::FG_DEFAULT;
 
@@ -464,6 +471,16 @@ void Editor::handleGrepSearchMode(int c)
         grepMatches.clear();
         grepCursor = 0;
         grepOffset = 0;
+        break;
+
+    case Terminal::CTRL_I:
+        toggleGitignore();
+        fuzzyInitialized = false;
+        initializeGrepSearch();
+        if(!grepQuery.empty())
+        {
+            performGrepSearch();
+        }
         break;
 
     case Terminal::PAGE_DOWN:

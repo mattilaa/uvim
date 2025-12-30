@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "gitignore.h"
 #include "terminal.h"
 #include <sstream>
 
@@ -65,6 +66,13 @@ void Editor::loadDirectory(const std::string& pathStr)
         currentDirectory = file_utils::path_to_utf8_string(dirPath);
     }
 
+    // Load gitignore patterns
+    GitIgnore gitignore;
+    if(respectGitignore)
+    {
+        gitignore.loadRecursive(dirPath);
+    }
+
     std::vector<FileEntry> dirs;
     std::vector<FileEntry> files;
 
@@ -111,10 +119,16 @@ void Editor::loadDirectory(const std::string& pathStr)
         if(ec2)
             continue;
 
+        bool isDir = fs::is_directory(st);
+
+        // Check gitignore (skip .git and ignored files)
+        if(respectGitignore && gitignore.isIgnored(de.path(), isDir))
+            continue;
+
         FileEntry fe;
         fe.name = std::move(name);
         fe.path = file_utils::path_to_utf8_string(de.path());
-        fe.isDirectory = fs::is_directory(st);
+        fe.isDirectory = isDir;
 
         if(fs::is_regular_file(st))
         {
@@ -172,6 +186,15 @@ void Editor::toggleHidden()
                                 : "Hiding hidden files");
 }
 
+void Editor::toggleGitignore()
+{
+    respectGitignore = !respectGitignore;
+    fuzzyInitialized = false; // Force re-scan of project files
+    loadDirectory(currentDirectory);
+    setStatusMessage(respectGitignore ? "Respecting .gitignore"
+                                      : "Ignoring .gitignore");
+}
+
 std::string Editor::formatFileSize(size_t size)
 {
     const char* units[] = {"B", "K", "M", "G", "T"};
@@ -219,7 +242,8 @@ void Editor::drawFileBrowser()
     output += Terminal::ESC_RESET_ALL;
     output += Terminal::NEWLINE_CLEAR;
     output += Terminal::FG_BRIGHT_BLACK;
-    output += "  [Enter: open] [q: quit] [.: toggle hidden] [-: parent]";
+    output +=
+        "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore]";
     output += Terminal::FG_DEFAULT;
 
     int availableRows = screenRows - 2;
@@ -293,7 +317,12 @@ void Editor::drawFileBrowser()
     output += Terminal::NEWLINE_CLEAR;
     output += Terminal::STYLE_SELECTION;
 
-    std::string status = " BROWSE | " + currentDirectory;
+    std::string status = " BROWSE";
+    if(respectGitignore)
+        status += " [gi]";
+    if(showHidden)
+        status += " [H]";
+    status += " | " + currentDirectory;
     std::string right = " " + std::to_string(browserCursor + 1) + "/" +
                         std::to_string(fileList.size()) + " ";
 
@@ -388,6 +417,10 @@ void Editor::handleFileBrowserMode(int c)
     case '.':
         toggleHidden();
         break;
+    case 'i':
+    case Terminal::CTRL_I:
+        toggleGitignore();
+        break;
     case 'R':
         loadDirectory(currentDirectory);
         setStatusMessage("Refreshed");
@@ -401,8 +434,8 @@ void Editor::handleFileBrowserMode(int c)
         setMode(NORMAL);
         break;
     case '?':
-        setStatusMessage(
-            "[Enter/l]:open [h]:parent [j/k]:nav [.]:hidden [q]:quit");
+        setStatusMessage("[Enter/l]:open [h]:parent [j/k]:nav [.]:hidden "
+                         "[i]:gitignore [q]:quit");
         break;
     }
 

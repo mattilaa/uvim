@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "gitignore.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
@@ -16,7 +17,10 @@ void Editor::initializeFuzzyFind()
         char cwd[PATH_MAX];
         if(getcwd(cwd, sizeof(cwd)))
         {
-            collectProjectFiles(std::string(cwd));
+            // Load gitignore patterns
+            GitIgnore gitignore;
+            gitignore.loadRecursive(cwd);
+            collectProjectFiles(std::string(cwd), 0, gitignore);
         }
 
         fuzzyInitialized = true;
@@ -45,9 +49,10 @@ void Editor::initializeFuzzyFind()
               { return a.file.path < b.file.path; });
 }
 
-void Editor::collectProjectFiles(const std::string& dir, int depth)
+void Editor::collectProjectFiles(const std::string& dir, int depth,
+                                 const GitIgnore& gitignore)
 {
-    if(depth > 5)
+    if(depth > 10)
         return; // Limit recursion depth
 
     DIR* d = opendir(dir.c_str());
@@ -60,32 +65,37 @@ void Editor::collectProjectFiles(const std::string& dir, int depth)
         std::string name = entry->d_name;
 
         // Skip hidden files and special directories
-        if(name == "." || name == ".." || name[0] == '.')
-            continue;
-
-        // Skip common non-source directories
-        if(name == "node_modules" || name == "build" || name == "dist" ||
-           name == ".git" || name == "target" || name == "__pycache__")
+        if(name == "." || name == "..")
             continue;
 
         std::string fullPath = dir + "/" + name;
 
         struct stat st;
-        if(stat(fullPath.c_str(), &st) == 0)
+        if(stat(fullPath.c_str(), &st) != 0)
+            continue;
+
+        bool isDir = S_ISDIR(st.st_mode);
+
+        // Check gitignore
+        if(gitignore.isIgnored(fullPath, isDir))
+            continue;
+
+        // Skip hidden files (starting with .)
+        if(name[0] == '.')
+            continue;
+
+        FileEntry fileEntry;
+        fileEntry.name = name;
+        fileEntry.path = fullPath;
+        fileEntry.isDirectory = isDir;
+        fileEntry.size = st.st_size;
+        fileEntry.modTime = st.st_mtime;
+
+        allProjectFiles.push_back(fileEntry);
+
+        if(isDir)
         {
-            FileEntry fileEntry;
-            fileEntry.name = name;
-            fileEntry.path = fullPath;
-            fileEntry.isDirectory = S_ISDIR(st.st_mode);
-            fileEntry.size = st.st_size;
-            fileEntry.modTime = st.st_mtime;
-
-            allProjectFiles.push_back(fileEntry);
-
-            if(fileEntry.isDirectory)
-            {
-                collectProjectFiles(fullPath, depth + 1);
-            }
+            collectProjectFiles(fullPath, depth + 1, gitignore);
         }
     }
 
@@ -251,7 +261,8 @@ void Editor::drawFuzzyFind()
 
     output += Terminal::NEWLINE_CLEAR;
     output += Terminal::FG_BRIGHT_BLACK;
-    output += "  [Enter: open] [Esc: cancel] [↑↓: navigate]";
+    output +=
+        "  [Enter: open] [Esc: cancel] [↑↓: navigate] [Ctrl+I: gitignore]";
     output += Terminal::FG_DEFAULT;
     output += Terminal::NEWLINE_CLEAR;
     output += Terminal::FG_BRIGHT_BLACK;
@@ -267,6 +278,10 @@ void Editor::drawFuzzyFind()
     else
     {
         output += "  " + std::to_string(allProjectFiles.size()) + " files";
+    }
+    if(respectGitignore)
+    {
+        output += " [gitignore]";
     }
     output += Terminal::FG_DEFAULT;
 
@@ -423,6 +438,12 @@ void Editor::handleFuzzyFindMode(int c)
     case Terminal::CTRL_U:
         fuzzyQuery.clear();
         updateFuzzyMatches();
+        break;
+
+    case Terminal::CTRL_I:
+        toggleGitignore();
+        fuzzyInitialized = false;
+        initializeFuzzyFind();
         break;
 
     default:

@@ -17,6 +17,8 @@
 class LspClient;
 #endif
 
+class GitIgnore;
+
 class Editor
 {
 public:
@@ -64,6 +66,7 @@ public:
     int browserCursor = 0;
     int browserOffset = 0;
     bool showHidden = false;
+    bool respectGitignore = true;
 
     // Fuzzy finder
     // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
@@ -215,6 +218,7 @@ public:
     void sortFileList();
     void navigateTo(const FileEntry& entry);
     void toggleHidden();
+    void toggleGitignore();
     std::string formatFileSize(size_t size);
     std::string formatFileTime(time_t time);
     std::string getFilePermissions(const std::string& path);
@@ -230,7 +234,8 @@ public:
 
     // Fuzzy finder functions
     void initializeFuzzyFind();
-    void collectProjectFiles(const std::string& dir, int depth = 0);
+    void collectProjectFiles(const std::string& dir, int depth,
+                             const GitIgnore& gitignore);
     int fuzzyScore(const std::string& needle, const std::string& haystack,
                    std::vector<int>& matchPositions);
     void updateFuzzyMatches();
