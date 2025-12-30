@@ -561,47 +561,107 @@ void Editor::moveToMatchingBracket()
 
 void Editor::adjustViewport()
 {
-    if(!lines || lines->empty())
+    // uvim can start in FILE_BROWSER mode with skipInitialBuffer=true.
+    // If the user exits the browser without opening a file, buffer pointers
+    // (lines/cursorX/cursorY/offsetX/offsetY) may still be unset. Recover by
+    // ensuring a valid current buffer exists.
+    if(!lines || !cursorX || !cursorY || !offsetX || !offsetY)
     {
-        *offsetX = *offsetY = 0;
-        return;
+        if(buffers.empty())
+        {
+            createNewBuffer();
+        }
+        else
+        {
+            if(currentBufferIndex < 0 ||
+               currentBufferIndex >= static_cast<int>(buffers.size()))
+                currentBufferIndex = 0;
+            updateCurrentBufferPointers();
+        }
     }
 
-    const int n = line_count(*lines);
-    const int maxOffsetY = std::max(0, n - screenRows);
-    const int maxOffsetX =
-        std::max(0, 1000000000); // optional; horizontal clamp is app-specific
+    // If recovery failed for any reason, don't crash.
+    if(!lines || !cursorX || !cursorY || !offsetX || !offsetY)
+        return;
 
-    int& ox = *offsetX;
-    int& oy = *offsetY;
-    const int cx = *cursorX;
-    const int cy = *cursorY;
-
-    // Vertical
-    if(cy < oy)
-        oy = cy;
-    else if(cy >= oy + screenRows)
-        oy = cy - screenRows + 1;
-    oy = std::clamp(oy, 0, maxOffsetY);
-
-    // Horizontal
-    if(cx < ox)
-        ox = cx;
-    else if(cx >= ox + screenCols)
-        ox = cx - screenCols + 1;
-    ox = std::clamp(ox, 0, maxOffsetX);
-}
-
-void Editor::centerScreen()
-{
-    if(!lines || lines->empty())
+    if(lines->empty())
     {
+        *cursorX = 0;
+        *cursorY = 0;
+        *offsetX = 0;
         *offsetY = 0;
         return;
     }
 
     const int n = line_count(*lines);
-    const int maxOffsetY = std::max(0, n - screenRows);
 
-    *offsetY = std::clamp(*cursorY - screenRows / 2, 0, maxOffsetY);
+    int& cx = *cursorX;
+    int& cy = *cursorY;
+    int& ox = *offsetX;
+    int& oy = *offsetY;
+
+    // Keep cursor in a sane range before we compute the viewport.
+    cy = std::clamp(cy, 0, n - 1);
+    cx = std::clamp(cx, 0, line_len(*lines, cy));
+
+    // Screen rows/cols are the drawable area (status+msg bars already
+    // subtracted).
+    const int rows = std::max(1, screenRows);
+    const int cols = std::max(1, screenCols);
+
+    const int maxOffsetY = std::max(0, n - rows);
+
+    // Vertical
+    if(cy < oy)
+        oy = cy;
+    else if(cy >= oy + rows)
+        oy = cy - rows + 1;
+    oy = std::clamp(oy, 0, maxOffsetY);
+
+    // Horizontal (clamp to current cursor; avoids runaway offsets)
+    if(cx < ox)
+        ox = cx;
+    else if(cx >= ox + cols)
+        ox = cx - cols + 1;
+
+    // We don't know the longest visible line here without extra work,
+    // so clamp to [0..cx] to avoid huge offsets when cx is small.
+    ox = std::clamp(ox, 0, std::max(0, cx));
+}
+
+void Editor::centerScreen()
+{
+    // Same recovery logic as adjustViewport() to avoid null deref when
+    // called without an initialized buffer (e.g., exiting file browser).
+    if(!lines || !cursorY || !offsetY)
+    {
+        if(buffers.empty())
+        {
+            createNewBuffer();
+        }
+        else
+        {
+            if(currentBufferIndex < 0 ||
+               currentBufferIndex >= static_cast<int>(buffers.size()))
+                currentBufferIndex = 0;
+            updateCurrentBufferPointers();
+        }
+    }
+
+    if(!lines || !cursorY || !offsetY)
+        return;
+
+    if(lines->empty())
+    {
+        *cursorY = 0;
+        *offsetY = 0;
+        return;
+    }
+
+    const int n = line_count(*lines);
+    const int rows = std::max(1, screenRows);
+    const int maxOffsetY = std::max(0, n - rows);
+
+    *cursorY = std::clamp(*cursorY, 0, n - 1);
+    *offsetY = std::clamp(*cursorY - rows / 2, 0, maxOffsetY);
 }
