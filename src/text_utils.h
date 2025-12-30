@@ -4,8 +4,6 @@
 #include <string>
 #include <string_view>
 
-using u8sv = std::basic_string_view<char8_t>;
-
 namespace text_utils
 {
 
@@ -71,12 +69,13 @@ constexpr bool contains(std::string_view s, std::string_view needle) noexcept
 // --- UTF-8 appending (runtime; std::string mutation not constexpr in C++20)
 // ---
 
-inline void appendU8(std::string& out, u8sv s)
+inline void appendU8(std::string& out, std::u8string_view s)
 {
     out.append(reinterpret_cast<const char*>(s.data()), s.size());
 }
 
-inline void appendUtf8Repeat(std::string& out, u8sv glyph, int count)
+inline void appendUtf8Repeat(std::string& out, std::u8string_view glyph,
+                             int count)
 {
     for(int i = 0; i < count; ++i)
         appendU8(out, glyph);
