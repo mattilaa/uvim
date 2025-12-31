@@ -52,11 +52,8 @@ void Editor::undo()
             currentBuffer->undoStack[currentBuffer->undoIndex];
         *lines = state.lines;
 
-        if(currentBuffer->undoIndex > 0)
-        {
-            *cursorX = state.cursorX;
-            *cursorY = state.cursorY;
-        }
+        *cursorX = state.cursorX;
+        *cursorY = state.cursorY;
 
         if(*cursorY >= lines->size())
             *cursorY = lines->size() - 1;
@@ -66,6 +63,8 @@ void Editor::undo()
             *cursorX = (*lines)[*cursorY].length();
         if(*cursorX < 0)
             *cursorX = 0;
+
+        adjustViewport();
 
         if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
         {
@@ -97,6 +96,25 @@ void Editor::redo()
         *lines = state.lines;
         *cursorX = state.cursorX;
         *cursorY = state.cursorY;
+        // Clamp cursor to valid range for current buffer
+        if(lines->empty())
+        {
+            *cursorY = 0;
+            *cursorX = 0;
+        }
+        else
+        {
+            if(*cursorY >= (int)lines->size())
+                *cursorY = (int)lines->size() - 1;
+            if(*cursorY < 0)
+                *cursorY = 0;
+            if(*cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (int)(*lines)[*cursorY].length();
+            if(*cursorX < 0)
+                *cursorX = 0;
+        }
+
+        adjustViewport();
 
         if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
         {
