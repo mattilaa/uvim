@@ -2951,7 +2951,7 @@ void Editor::handleNormalMode(int c)
             LOG_DEBUG(LOG, "Leader-f pressed. filename='{}' isCppFile={}",
                       *filename, isCppFile());
 
-            if(!isCppFile())
+            if(!isCppFile() && !isHeaderFile(*filename))
             {
                 setStatusMessage("clang-format: not a C/C++ file (" +
                                  *filename + ")");
@@ -2997,30 +2997,52 @@ void Editor::handleNormalMode(int c)
             // Run clang-format with stdin, using actual filename for style
             // lookup clang-format searches for .clang-format starting from the
             // file's directory
-            std::string cmd = "cat \"" + tempPath +
-                              "\" | /opt/homebrew/bin/clang-format -style=file"
+            auto is_exec = [](const std::string& p) -> bool
+            { return ::access(p.c_str(), X_OK) == 0; };
+
+            std::string clangFormatExe;
+            {
+#ifdef __APPLE__
+                const std::vector<std::string> candidates = {
+                    "/opt/homebrew/bin/clang-format",
+                    "/opt/homebrew/opt/llvm/bin/clang-format",
+                    "/usr/local/bin/clang-format",
+                    "/usr/local/opt/llvm/bin/clang-format",
+                    "/usr/bin/clang-format",
+                };
+#else
+                const std::vector<std::string> candidates = {
+                    "/usr/bin/clang-format",
+                    "/usr/local/bin/clang-format",
+                };
+#endif
+                for(const auto& c : candidates)
+                {
+                    if(is_exec(c))
+                    {
+                        clangFormatExe = c;
+                        break;
+                    }
+                }
+            }
+
+            if(clangFormatExe.empty())
+                clangFormatExe = "clang-format"; // fall back to PATH lookup
+
+            // Run clang-format using stdin redirection (avoid piping via `cat`).
+            std::string cmd = "\"" + clangFormatExe + "\" -style=file"
                               " -assume-filename=\"" +
                               absFilename +
                               "\""
+                              " < \"" +
+                              tempPath +
+                              "\""
                               " 2>/tmp/uvim_clang_err.log";
-
             LOG_DEBUG(LOG, "Temp file written: {} lines={}", tempPath,
                       lines->size());
             LOG_DEBUG(LOG, "Running: {}", cmd);
 
             FILE* pipe = popen(cmd.c_str(), "r");
-            if(!pipe)
-            {
-                // Try without full path
-                cmd = "cat \"" + tempPath +
-                      "\" | clang-format -style=file"
-                      " -assume-filename=\"" +
-                      absFilename +
-                      "\""
-                      " 2>/tmp/uvim_clang_err.log";
-                pipe = popen(cmd.c_str(), "r");
-            }
-
             if(!pipe)
             {
                 unlink(tempPath.c_str());
@@ -3645,14 +3667,14 @@ void Editor::handleNormalMode(int c)
         if(commandBuffer == " ")
         {
             commandBuffer.clear(); // Double space cancels
+            setStatusMessage("");
+            repeatCount = 0;
+            return;
         }
-        else
-        {
-            commandBuffer = " ";
-            setStatusMessage("Leader");
-        }
-        break;
-
+        commandBuffer = " ";
+        setStatusMessage("Leader");
+        repeatCount = 0;
+        return;
     case 'x':
         while(count-- > 0)
         {
