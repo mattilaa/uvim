@@ -1822,6 +1822,38 @@ void Editor::handleInsertMode(int c)
 
 void Editor::handleVisualMode(int c)
 {
+    // ----- Leader (space) in visual modes -----
+    if(commandBuffer == " ")
+    {
+        if(c == 'f')
+        {
+            commandBuffer.clear();
+            repeatCount = 0;
+            clangFormatVisualSelection();
+            setMode(NORMAL);
+            return;
+        }
+        if(c == ' ')
+        {
+            commandBuffer.clear();
+            setStatusMessage("");
+            repeatCount = 0;
+            return;
+        }
+
+        // Unknown leader command: cancel leader and continue handling `c`.
+        commandBuffer.clear();
+        setStatusMessage("");
+        repeatCount = 0;
+    }
+
+    if(c == ' ')
+    {
+        commandBuffer = " ";
+        setStatusMessage("Leader");
+        repeatCount = 0;
+        return;
+    }
     if(c == Terminal::ESC || c == 'v')
     {
         setMode(NORMAL);
@@ -2024,6 +2056,38 @@ void Editor::handleVisualBlockMode(int c)
     if(c == Terminal::ESC || c == Terminal::CTRL_V)
     {
         setMode(NORMAL);
+        return;
+    }
+
+    // ----- Leader (space) in visual block mode -----
+    if(commandBuffer == " ")
+    {
+        if(c == 'f')
+        {
+            commandBuffer.clear();
+            repeatCount = 0;
+            clangFormatVisualBlockSelection();
+            setMode(NORMAL);
+            return;
+        }
+        if(c == ' ')
+        {
+            commandBuffer.clear();
+            setStatusMessage("");
+            repeatCount = 0;
+            return;
+        }
+
+        commandBuffer.clear();
+        setStatusMessage("");
+        repeatCount = 0;
+    }
+
+    if(c == ' ')
+    {
+        commandBuffer = " ";
+        setStatusMessage("Leader");
+        repeatCount = 0;
         return;
     }
 

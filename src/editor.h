@@ -531,6 +531,14 @@ public:
 
     bool isCppFile() const;
     bool isMlaFile() const;
+
+    // clang-format helpers (used by Leader+f in visual modes)
+    size_t byteOffsetForPosition(int y, int x) const;
+    bool clangFormatWithArgs(const std::string& extraArgs,
+                             const std::string& successMessage);
+    void clangFormatVisualSelection();
+    void clangFormatVisualBlockSelection();
+
     std::vector<Token> tokenizeLine(const std::string& line,
                                     bool& inBlockComment);
     std::string getColorCode(TokenType type) const;
