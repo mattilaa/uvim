@@ -3112,9 +3112,6 @@ void Editor::handleNormalMode(int c)
                 return;
             }
 
-            // Save state for undo
-            saveState();
-
             // Replace buffer content
             *lines = newLines;
             *dirty = true;
@@ -3140,6 +3137,9 @@ void Editor::handleNormalMode(int c)
                 if(*cursorX < 0)
                     *cursorX = 0;
             }
+
+            // Save state for undo
+            saveState();
 
             adjustViewport();
             needsFullRedraw = true;
