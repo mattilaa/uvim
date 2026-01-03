@@ -1716,6 +1716,35 @@ void Editor::toggleGrepPreview()
 
 void Editor::handleInsertMode(int c)
 {
+    // Handle completion navigation first if active
+    if(completionActive)
+    {
+        if(c == 14 || c == Terminal::ARROW_DOWN) // 14 is Ctrl-N
+        {
+            nextCompletion();
+            return;
+        }
+        if(c == 16 || c == Terminal::ARROW_UP) // 16 is Ctrl-P
+        {
+            previousCompletion();
+            return;
+        }
+        if(c == Terminal::TAB || c == Terminal::ENTER)
+        {
+            acceptCompletion();
+            return;
+        }
+        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        {
+            cancelCompletion();
+            setMode(NORMAL);
+            if(*cursorX > 0)
+                (*cursorX)--;
+            saveState();
+            return;
+        }
+    }
+
     if(c == Terminal::ESC || c == Terminal::CTRL_C)
     {
         // Exit insert mode
@@ -1723,6 +1752,30 @@ void Editor::handleInsertMode(int c)
             (*cursorX)--;
         saveState();
         setMode(NORMAL);
+        return;
+    }
+
+    // Trigger completion with Ctrl-N
+    if(c == 14) // 14 is Ctrl-N
+    {
+        if(!completionActive)
+        {
+            triggerCompletion();
+        }
+        else
+        {
+            nextCompletion();
+        }
+        return;
+    }
+
+    // Previous completion with Ctrl-P
+    if(c == 16) // 16 is Ctrl-P
+    {
+        if(completionActive)
+        {
+            previousCompletion();
+        }
         return;
     }
 
@@ -1736,6 +1789,12 @@ void Editor::handleInsertMode(int c)
                 (*lines)[*cursorY].erase(*cursorX, 1);
             }
             *dirty = true;
+
+            // Update completion filter if active
+            if(completionActive)
+            {
+                rebuildCompletionFilter();
+            }
         }
         else if(*cursorY > 0)
         {
@@ -1746,19 +1805,41 @@ void Editor::handleInsertMode(int c)
             (*cursorY)--;
             *cursorX = prevLen;
             *dirty = true;
+
+            // Cancel completion if joining lines
+            if(completionActive)
+            {
+                cancelCompletion();
+            }
         }
         return;
     }
 
     if(c == Terminal::ENTER)
     {
-        insertNewline();
+        // If completion is active, accept it
+        if(completionActive)
+        {
+            acceptCompletion();
+        }
+        else
+        {
+            insertNewline();
+        }
         return;
     }
 
     if(c == Terminal::TAB)
     {
-        insertTab();
+        // If completion is active, accept it
+        if(completionActive)
+        {
+            acceptCompletion();
+        }
+        else
+        {
+            insertTab();
+        }
         return;
     }
 
@@ -1766,6 +1847,12 @@ void Editor::handleInsertMode(int c)
     {
         if(*cursorX > 0)
             (*cursorX)--;
+
+        // Cancel completion if moving cursor
+        if(completionActive)
+        {
+            cancelCompletion();
+        }
         return;
     }
     if(c == Terminal::ARROW_RIGHT)
@@ -1773,11 +1860,22 @@ void Editor::handleInsertMode(int c)
         if(*cursorY < (int)lines->size() &&
            *cursorX < (int)(*lines)[*cursorY].length())
             (*cursorX)++;
+
+        // Cancel completion if moving cursor
+        if(completionActive)
+        {
+            cancelCompletion();
+        }
         return;
     }
     if(c == Terminal::ARROW_UP)
     {
-        if(*cursorY > 0)
+        // If completion is active, use for navigation
+        if(completionActive)
+        {
+            previousCompletion();
+        }
+        else if(*cursorY > 0)
         {
             (*cursorY)--;
             if(*cursorY < (int)lines->size() &&
@@ -1788,7 +1886,12 @@ void Editor::handleInsertMode(int c)
     }
     if(c == Terminal::ARROW_DOWN)
     {
-        if(*cursorY < (int)lines->size() - 1)
+        // If completion is active, use for navigation
+        if(completionActive)
+        {
+            nextCompletion();
+        }
+        else if(*cursorY < (int)lines->size() - 1)
         {
             (*cursorY)++;
             if(*cursorX > (int)(*lines)[*cursorY].length())
@@ -1800,12 +1903,24 @@ void Editor::handleInsertMode(int c)
     if(c == Terminal::CTRL_W)
     {
         deleteWordBackward();
+
+        // Update or cancel completion
+        if(completionActive)
+        {
+            rebuildCompletionFilter();
+        }
         return;
     }
 
     if(c == Terminal::CTRL_U)
     {
         deleteToLineStart();
+
+        // Cancel completion if deleting to line start
+        if(completionActive)
+        {
+            cancelCompletion();
+        }
         return;
     }
 
@@ -1813,10 +1928,40 @@ void Editor::handleInsertMode(int c)
     if(c >= 32 && c < 127)
     {
         insertChar((char)c);
+
+        // Update completion filter if active
+        if(completionActive)
+        {
+            rebuildCompletionFilter();
+        }
+        // Auto-trigger completion after typing '.' or '::' or '->'
+        else if(c == '.')
+        {
+            // Automatically trigger completion after dot
+            triggerCompletion();
+        }
+        else if(c == ':' && *cursorX >= 2 &&
+                (*lines)[*cursorY][*cursorX - 2] == ':')
+        {
+            // Trigger after ::
+            triggerCompletion();
+        }
+        else if(c == '>' && *cursorX >= 2 &&
+                (*lines)[*cursorY][*cursorX - 2] == '-')
+        {
+            // Trigger after ->
+            triggerCompletion();
+        }
     }
     else if(c >= 128)
     {
         insertUtf8Char(c);
+
+        // Update completion filter if active
+        if(completionActive)
+        {
+            rebuildCompletionFilter();
+        }
     }
 }
 
