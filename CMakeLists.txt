@@ -62,8 +62,6 @@ list(APPEND UVIM_SOURCES ${MODE_STATE_MACHINE_SOURCES})
 if(UVIM_ENABLE_CLANGD_LSP)
     list(APPEND UVIM_SOURCES
         src/lsp_client.cpp
-        src/lsp_client.cpp
-        src/lsp_client.cpp
     )
     # (keep your original list; I left this triple line to show "don’t duplicate"—remove extras!)
 endif()
@@ -131,10 +129,17 @@ if(UVIM_ENABLE_CLANGD_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
 
     include(FetchContent)
+    FetchContent_GetProperties(nlohmann_json)
+    if(nlohmann_json_POPULATED)
+        message(STATUS "Using cached nlohmann/json at: ${nlohmann_json_SOURCE_DIR}")
+    else()
+        message(STATUS "Fetching nlohmann/json (v3.11.3) ...")
+    endif()
     FetchContent_Declare(
       nlohmann_json
       GIT_REPOSITORY https://github.com/nlohmann/json.git
       GIT_TAG v3.11.3
+      GIT_PROGRESS TRUE
     )
     FetchContent_MakeAvailable(nlohmann_json)
 
