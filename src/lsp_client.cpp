@@ -739,6 +739,85 @@ LspClient::completion(const std::string& filePath, int line,
     return out;
 }
 
+std::vector<LspClient::Location>
+LspClient::references(const std::string& filePath, int line,
+                      int characterUtf8ByteOffset, bool includeDeclaration)
+{
+    std::vector<Location> out;
+    if(!running())
+        return out;
+
+    std::string abs = absPath(filePath);
+
+    // Convert UTF-8 byte offset to UTF-16 code units for LSP
+    int utf16ch = characterUtf8ByteOffset;
+    std::string text = readFileAll(abs);
+    if(!text.empty())
+    {
+        int curLine = 0;
+        size_t start = 0;
+        for(size_t i = 0; i <= text.size(); ++i)
+        {
+            if(i == text.size() || text[i] == '\n')
+            {
+                if(curLine == line)
+                {
+                    std::string ln = text.substr(start, i - start);
+                    utf16ch =
+                        utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                    break;
+                }
+                curLine++;
+                start = i + 1;
+            }
+        }
+    }
+
+    json params;
+    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    params["position"] = {{"line", line}, {"character", utf16ch}};
+    params["context"] = {{"includeDeclaration", includeDeclaration}};
+
+    int id = impl->sendRequest("textDocument/references", params);
+    auto resp = impl->waitResponse(id, 10000); // 10s timeout for references
+    if(!resp || !resp->is_object())
+        return out;
+
+    if(resp->contains("error"))
+        return out;
+
+    json result = resp->value("result", json());
+    if(!result.is_array())
+        return out;
+
+    out.reserve(result.size());
+    for(const auto& loc : result)
+    {
+        if(!loc.is_object())
+            continue;
+
+        std::string uri = loc.value("uri", "");
+        if(uri.empty())
+            continue;
+
+        json range = loc.value("range", json::object());
+        if(!range.is_object())
+            continue;
+
+        json startPos = range.value("start", json::object());
+        int locLine = startPos.value("line", 0);
+        int locChar = startPos.value("character", 0);
+
+        Location l;
+        l.path = uriToPath(uri);
+        l.line = locLine;
+        l.character = locChar;
+        out.push_back(std::move(l));
+    }
+
+    return out;
+}
+
 #else
 
 // If UVIM_ENABLE_CLANGD_LSP is not set, compile a stub that always disables.
@@ -770,6 +849,12 @@ std::optional<LspClient::Location> LspClient::definition(const std::string&,
 
 std::vector<LspClient::CompletionItem> LspClient::completion(const std::string&,
                                                              int, int)
+{
+    return {};
+}
+
+std::vector<LspClient::Location> LspClient::references(const std::string&, int,
+                                                       int, bool)
 {
     return {};
 }

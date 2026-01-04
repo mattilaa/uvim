@@ -91,6 +91,20 @@ public:
     bool grepSearching = false;
     bool grepCaseSensitive = false;
 
+    // References browser (LSP find references)
+    struct ReferenceEntry
+    {
+        std::string path;        // Full file path
+        std::string displayPath; // Relative/shortened path for display
+        int line = 0;            // 0-based line number
+        int col = 0;             // 0-based column
+        std::string lineContent; // Content of the line for preview
+    };
+    std::vector<ReferenceEntry> referencesList;
+    int referencesCursor = 0;
+    int referencesOffset = 0;
+    bool referencesPreview = true;
+
     // Screen
     int screenRows;
     int screenCols;
@@ -310,6 +324,22 @@ public:
     void highlightGrepMatches(const std::string& line, const std::string& query,
                               std::vector<std::pair<int, int>>& ranges);
     void goToDefinition();
+
+    // References browser functions (LSP find references)
+    void findReferences();
+    void clearReferences();
+    bool selectReference();
+    void openReferencePreview();
+    void referencesUp();
+    void referencesDown();
+    void referencesHalfPageUp();
+    void referencesHalfPageDown();
+    void referencesFirst();
+    void referencesLast();
+    void toggleReferencesPreview();
+    void drawReferences();
+    bool hasReferences() const;
+    std::string readLineFromFile(const std::string& path, int lineNum);
 
     // Movement commands
     void moveCursor(int key);

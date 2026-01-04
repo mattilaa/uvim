@@ -38,6 +38,7 @@ set(UVIM_CORE_SOURCES
     src/drawing.cpp
     src/lsp_completion.cpp
     src/cpp_constants.cpp
+    src/editor_references.cpp
 )
 
 # Helper functions (keep existing missing_functions.cpp)

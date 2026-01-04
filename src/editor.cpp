@@ -1868,6 +1868,12 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == REFERENCES)
+    {
+        drawReferences();
+        return;
+    }
+
     static int lastOffsetY = -1;
     static int lastOffsetX = -1;
     static Mode lastMode = NORMAL;

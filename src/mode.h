@@ -17,4 +17,5 @@ enum Mode
     BUFFER_BROWSER,
     GREP_SEARCH,
     OP_PENDING,
+    REFERENCES,
 };

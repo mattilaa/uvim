@@ -652,8 +652,56 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         return BufferBrowserMode{};
 
     case 'g':
-        // Grep search
-        return GrepSearchMode{};
+    {
+        // <leader>g prefix - wait for next char
+        // <leader>g alone = grep search (legacy)
+        // <leader>gr = find references
+        // <leader>gd = go to definition
+        int nextChar = Terminal::readKeyTimeout(500);
+        if(nextChar == -1 || nextChar == Terminal::ESC)
+        {
+            // Timeout or cancel - default to grep search
+            return GrepSearchMode{};
+        }
+        else if(nextChar == 'r')
+        {
+            // <leader>gr - Find all references
+            ed->findReferences();
+            if(ed->hasReferences())
+            {
+                return ReferencesMode{};
+            }
+            // No references found, stay in normal mode
+            return std::nullopt;
+        }
+        else if(nextChar == 'd')
+        {
+            // <leader>gd - Go to definition
+            ed->goToDefinition();
+            return std::nullopt;
+        }
+        else
+        {
+            // Unknown <leader>g command - default to grep
+            return GrepSearchMode{};
+        }
+    }
+
+    case 'r':
+    {
+        // <leader>r prefix - LSP commands
+        // <leader>rr = find references (alternative binding)
+        int nextChar = Terminal::readKeyTimeout(500);
+        if(nextChar == 'r')
+        {
+            ed->findReferences();
+            if(ed->hasReferences())
+            {
+                return ReferencesMode{};
+            }
+        }
+        return std::nullopt;
+    }
 
     case 'e':
         // File browser / explorer
@@ -677,6 +725,11 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     case '/':
         // Project-wide search
         return GrepSearchMode{};
+
+    case 'd':
+        // <leader>d - Go to definition (alternative)
+        ed->goToDefinition();
+        break;
 
     case '1':
     case '2':

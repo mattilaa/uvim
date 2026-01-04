@@ -74,6 +74,7 @@ struct FuzzyFindMode;
 struct BufferBrowserMode;
 struct GrepSearchMode;
 struct OperatorPendingMode;
+struct ReferencesMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -81,7 +82,7 @@ using ModeState =
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 OperatorPendingMode>;
+                 OperatorPendingMode, ReferencesMode>;
 
 // ============================================================================
 // State Definitions
@@ -100,7 +101,7 @@ struct NormalMode
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
 private:
-    // Helper methods for handling compound commands
+    // Helper methods for complex key sequences
     std::optional<ModeState> handleLeaderKey(ModeContext& ctx, int c);
     std::optional<ModeState> handleGCommand(ModeContext& ctx, int c);
     std::optional<ModeState> handleZCommand(ModeContext& ctx, int c);
@@ -178,7 +179,7 @@ struct CommandMode
         return "COMMAND";
     }
 
-    // Command-line completion state
+    // Tab completion state
     std::vector<std::string> completions;
     int completionIndex = -1;
     std::string originalInput;
@@ -188,6 +189,7 @@ struct CommandMode
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
+private:
     // Helper methods
     void handleTabCompletion(ModeContext& ctx);
     void handleReverseTabCompletion(ModeContext& ctx);
@@ -293,6 +295,19 @@ struct OperatorPendingMode
     explicit OperatorPendingMode(char pendingOp = 0, int cnt = 1)
         : op(pendingOp), count(cnt)
     {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+};
+
+struct ReferencesMode
+{
+    static constexpr const char* name()
+    {
+        return "REFERENCES";
     }
 
     void on_enter(ModeContext& ctx);

@@ -41,6 +41,12 @@ public:
     std::optional<Location> definition(const std::string& filePath, int line,
                                        int characterUtf8ByteOffset);
 
+    // Find all references to symbol at position
+    // Returns list of locations where the symbol is used
+    std::vector<Location> references(const std::string& filePath, int line,
+                                     int characterUtf8ByteOffset,
+                                     bool includeDeclaration = true);
+
     struct CompletionItem
     {
         std::string label;
