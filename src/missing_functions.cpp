@@ -2277,46 +2277,6 @@ void Editor::handleVisualBlockMode(int c)
     needsFullRedraw = true;
 }
 
-void Editor::handleCommandMode(int c)
-{
-    if(c == Terminal::ESC)
-    {
-        commandBuffer.clear();
-        setMode(NORMAL);
-        return;
-    }
-
-    if(c == Terminal::ENTER)
-    {
-        if(commandBuffer.length() > 1)
-        {
-            std::string cmd = commandBuffer.substr(1); // Remove ':'
-            executeCommand(cmd);
-        }
-        commandBuffer.clear();
-        setMode(NORMAL);
-        return;
-    }
-
-    if(c == Terminal::BACKSPACE || c == 127 || c == 8)
-    {
-        if(commandBuffer.length() > 1)
-        {
-            commandBuffer.pop_back();
-        }
-        else
-        {
-            setMode(NORMAL);
-        }
-        return;
-    }
-
-    if(c >= 32 && c < 127)
-    {
-        commandBuffer += (char)c;
-    }
-}
-
 void Editor::handleSearchMode(int c)
 {
     if(c == Terminal::ESC)

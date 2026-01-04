@@ -62,6 +62,7 @@ struct ModeContext
 // Forward declare all states for the variant
 struct NormalMode;
 struct InsertMode;
+struct ReplaceMode;
 struct VisualMode;
 struct VisualLineMode;
 struct VisualBlockMode;
@@ -76,10 +77,11 @@ struct OperatorPendingMode;
 
 // The variant holding all possible states
 using ModeState =
-    std::variant<NormalMode, InsertMode, VisualMode, VisualLineMode,
-                 VisualBlockMode, CommandMode, SearchForwardMode,
-                 SearchBackwardMode, FileBrowserMode, FuzzyFindMode,
-                 BufferBrowserMode, GrepSearchMode, OperatorPendingMode>;
+    std::variant<NormalMode, InsertMode, ReplaceMode, VisualMode,
+                 VisualLineMode, VisualBlockMode, CommandMode,
+                 SearchForwardMode, SearchBackwardMode, FileBrowserMode,
+                 FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
+                 OperatorPendingMode>;
 
 // ============================================================================
 // State Definitions
@@ -96,6 +98,12 @@ struct NormalMode
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+private:
+    // Helper methods for handling compound commands
+    std::optional<ModeState> handleLeaderKey(ModeContext& ctx, int c);
+    std::optional<ModeState> handleGCommand(ModeContext& ctx, int c);
+    std::optional<ModeState> handleZCommand(ModeContext& ctx, int c);
 };
 
 struct InsertMode
@@ -103,6 +111,19 @@ struct InsertMode
     static constexpr const char* name()
     {
         return "INSERT";
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+};
+
+struct ReplaceMode
+{
+    static constexpr const char* name()
+    {
+        return "REPLACE";
     }
 
     void on_enter(ModeContext& ctx);

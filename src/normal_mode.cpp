@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include <cctype>
 
 // ============================================================================
 // NormalMode Implementation
@@ -8,14 +9,14 @@
 
 void NormalMode::on_enter(ModeContext& ctx)
 {
-    ctx.commandBuffer.clear();
+    Editor* ed = ctx.editor;
     ctx.repeatCount = 0;
-    ctx.pendingOperator = 0;
-    ctx.pendingAwaitingObject = false;
-    ctx.pendingObjectType = 0;
-    ctx.pendingCount = 0;
+    ctx.commandBuffer.clear();
 
+    // Set block cursor for normal mode
     Terminal::setCursorBlock();
+
+    ed->needsFullRedraw = true;
 }
 
 void NormalMode::on_exit(ModeContext& /* ctx */)
@@ -29,499 +30,829 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape always stays in normal mode, clears any pending state
-    if(c == Terminal::ESC)
+    // ========================================================================
+    // Count Prefix Accumulation
+    // ========================================================================
+
+    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
     {
-        ctx.commandBuffer.clear();
-        ctx.repeatCount = 0;
-        ctx.setStatusMessage("");
+        ctx.repeatCount = c - '0';
         return std::nullopt;
     }
-
-    // Build repeat count from digits (except 0 at start which is line-start)
-    if(c >= '1' && c <= '9')
+    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
     {
         ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
-        ctx.commandBuffer += static_cast<char>(c);
-        return std::nullopt;
-    }
-    if(c == '0' && ctx.repeatCount > 0)
-    {
-        ctx.repeatCount = ctx.repeatCount * 10;
-        ctx.commandBuffer += '0';
         return std::nullopt;
     }
 
     int count = std::max(1, ctx.repeatCount);
 
     // ========================================================================
-    // Mode transitions
+    // Leader Key (Space)
     // ========================================================================
 
-    // Insert mode
+    if(ctx.commandBuffer == " ")
+    {
+        std::optional<ModeState> result = handleLeaderKey(ctx, c);
+        if(result.has_value())
+        {
+            return result;
+        }
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    if(c == ' ')
+    {
+        ctx.commandBuffer = " ";
+        ctx.setStatusMessage("Leader");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Mode Switching
+    // ========================================================================
+
+    // Insert modes
     if(c == 'i')
     {
+        ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'I')
     {
         ed->moveToFirstNonBlank();
+        ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'a')
     {
-        if(!ctx.lines().empty() && !ctx.lines()[ctx.cursorY()].empty())
+        if(ctx.cursorX() < (int)ctx.lines()[ctx.cursorY()].length())
         {
             ctx.cursorX()++;
-            if(ctx.cursorX() >
-               static_cast<int>(ctx.lines()[ctx.cursorY()].length()))
-                ctx.cursorX() = ctx.lines()[ctx.cursorY()].length();
         }
+        ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'A')
     {
         ed->moveToLineEnd();
-        ctx.cursorX()++;
+        ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'o')
     {
         ed->insertLineBelow();
+        ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'O')
     {
         ed->insertLineAbove();
-        return InsertMode{};
-    }
-    if(c == 's')
-    {
-        // Substitute: delete char and enter insert
-        if(!ctx.lines().empty() && !ctx.lines()[ctx.cursorY()].empty())
-        {
-            ed->deleteCharAtCursor();
-            ed->saveState();
-        }
-        return InsertMode{};
-    }
-    if(c == 'S')
-    {
-        // Substitute line
-        ed->deleteCurrentLine();
-        ed->insertLineAbove();
-        return InsertMode{};
-    }
-    if(c == 'C')
-    {
-        // Change to end of line
-        ed->deleteToEndOfLine();
-        ed->saveState();
+        ctx.repeatCount = 0;
         return InsertMode{};
     }
 
     // Visual modes
     if(c == 'v')
     {
+        ctx.repeatCount = 0;
         return VisualMode{};
     }
     if(c == 'V')
     {
+        ctx.repeatCount = 0;
         return VisualLineMode{};
     }
     if(c == Terminal::CTRL_V)
     {
+        ctx.repeatCount = 0;
         return VisualBlockMode{};
     }
 
     // Command mode
     if(c == ':')
     {
+        ctx.repeatCount = 0;
         return CommandMode{};
     }
 
     // Search modes
     if(c == '/')
     {
+        ctx.repeatCount = 0;
         return SearchForwardMode{};
     }
     if(c == '?')
     {
+        ctx.repeatCount = 0;
         return SearchBackwardMode{};
     }
 
     // ========================================================================
-    // Operator pending (d, c, y, =, etc.)
+    // Operators (d, c, y, >, <, =)
     // ========================================================================
 
-    if(c == 'd' || c == 'c' || c == 'y' || c == '=' || c == '>')
+    if(c == 'd' || c == 'c' || c == 'y' || c == '>' || c == '<' || c == '=')
     {
-        // Check for double-tap (dd, cc, yy, ==, >>)
-        int nextChar = Terminal::readKeyTimeout(200);
+        // Check for linewise operator (dd, cc, yy, etc.)
+        int nextChar = Terminal::readKey();
         if(nextChar == c)
         {
-            // Line-wise operation
+            // Linewise operation
             ed->handleLinewiseOperator(static_cast<char>(c), count);
             ctx.repeatCount = 0;
-            ctx.commandBuffer.clear();
             if(c == 'c')
             {
                 return InsertMode{};
             }
             return std::nullopt;
         }
-        else if(nextChar != -1)
+        else
         {
-            // Put the key back for operator-pending mode to process
-            Terminal::unreadKey(nextChar);
+            // Motion-based operator - need to handle the nextChar
+            // For now, just enter operator pending mode
+            // TODO: properly pass nextChar to operator pending
+            return OperatorPendingMode{static_cast<char>(c), count};
         }
-
-        return OperatorPendingMode{static_cast<char>(c), count};
-    }
-
-    if(c == '<')
-    {
-        int nextChar = Terminal::readKeyTimeout(200);
-        if(nextChar == '<')
-        {
-            ed->handleLinewiseOperator('<', count);
-            ctx.repeatCount = 0;
-            ctx.commandBuffer.clear();
-            return std::nullopt;
-        }
-        else if(nextChar != -1)
-        {
-            Terminal::unreadKey(nextChar);
-        }
-        return OperatorPendingMode{'<', count};
     }
 
     // ========================================================================
-    // Movement commands
+    // Basic Movement
     // ========================================================================
 
     if(c == 'h' || c == Terminal::ARROW_LEFT)
     {
         ed->moveLeft(count);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'j' || c == Terminal::ARROW_DOWN)
+    if(c == 'j' || c == Terminal::ARROW_DOWN)
     {
         ed->moveDown(count);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
+    if(c == 'k' || c == Terminal::ARROW_UP)
     {
         ed->moveUp(count);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'l' || c == Terminal::ARROW_RIGHT)
+    if(c == 'l' || c == Terminal::ARROW_RIGHT)
     {
         ed->moveRight(count);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'w')
+
+    // ========================================================================
+    // Word Movement
+    // ========================================================================
+
+    if(c == 'w')
     {
         for(int i = 0; i < count; i++)
             ed->moveWordForward();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'W')
+    if(c == 'W')
     {
         for(int i = 0; i < count; i++)
             ed->moveWordForwardBig();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'b')
+    if(c == 'b')
     {
         for(int i = 0; i < count; i++)
             ed->moveWordBackward();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'B')
+    if(c == 'B')
     {
         for(int i = 0; i < count; i++)
             ed->moveWordBackwardBig();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'e')
+    if(c == 'e')
     {
         for(int i = 0; i < count; i++)
             ed->moveToEndOfWord();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'E')
+    if(c == 'E')
     {
         for(int i = 0; i < count; i++)
             ed->moveToEndOfWordBig();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '0')
+
+    // ========================================================================
+    // Line Movement
+    // ========================================================================
+
+    if(c == '0')
     {
         ed->moveToLineStart();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '^')
+    if(c == '^')
     {
         ed->moveToFirstNonBlank();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '$')
+    if(c == '$')
     {
         ed->moveToLineEnd();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '%')
-    {
-        ed->moveToMatchingBracket();
-    }
-    else if(c == '{')
-    {
-        ed->moveParagraphBackward();
-    }
-    else if(c == '}')
-    {
-        ed->moveParagraphForward();
-    }
-    else if(c == 'G')
+
+    // ========================================================================
+    // File/Screen Movement
+    // ========================================================================
+
+    if(c == 'G')
     {
         if(ctx.repeatCount > 0)
+        {
             ed->moveToLine(ctx.repeatCount - 1);
+        }
         else
+        {
             ed->moveToLastLine();
+        }
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'g')
+
+    if(c == 'g')
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
-        {
-            if(ctx.repeatCount > 0)
-                ed->moveToLine(ctx.repeatCount - 1);
-            else
-                ed->moveToFirstLine();
-        }
-        else if(nextChar == 'd')
-        {
-            ed->goToDefinition();
-        }
-        else if(nextChar == 'f')
-        {
-            ed->goToFile();
-        }
-        else if(nextChar == 'a')
-        {
-            ed->switchToAlternateFile();
-        }
+        return handleGCommand(ctx, nextChar);
     }
-    else if(c == Terminal::CTRL_O)
-    {
-        ed->jumpBack();
-    }
-    else if(c == Terminal::CTRL_I)
-    {
-        ed->jumpForward();
-    }
-    else if(c == Terminal::CTRL_D)
-    {
-        ed->scrollHalfPageDown();
-    }
-    else if(c == Terminal::CTRL_U)
-    {
-        ed->scrollHalfPageUp();
-    }
-    else if(c == Terminal::CTRL_F || c == Terminal::PAGE_DOWN)
-    {
-        ed->scrollPageDown();
-    }
-    else if(c == Terminal::CTRL_B || c == Terminal::PAGE_UP)
-    {
-        ed->scrollPageUp();
-    }
-    else if(c == 'H')
+
+    if(c == 'H')
     {
         ed->moveToScreenTop();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'M')
+    if(c == 'M')
     {
         ed->moveToScreenMiddle();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'L')
+    if(c == 'L')
     {
         ed->moveToScreenBottom();
-    }
-    else if(c == 'z')
-    {
-        int nextChar = Terminal::readKey();
-        if(nextChar == 'z')
-            ed->centerScreen();
-        else if(nextChar == 't')
-            ed->scrollToTop();
-        else if(nextChar == 'b')
-            ed->scrollToBottom();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
     // ========================================================================
-    // Editing commands (single-key)
+    // Paragraph Movement
     // ========================================================================
 
-    else if(c == 'x')
+    if(c == '{')
     {
         for(int i = 0; i < count; i++)
-        {
-            ed->deleteCharAtCursor();
-        }
-        ed->saveState();
+            ed->moveParagraphBackward();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'X')
+    if(c == '}')
     {
         for(int i = 0; i < count; i++)
-        {
-            ed->deleteCharBeforeCursor();
-        }
-        ed->saveState();
-    }
-    else if(c == 'r')
-    {
-        int replaceChar = Terminal::readKey();
-        if(replaceChar != Terminal::ESC)
-        {
-            ed->replaceCharAtCursor(static_cast<char>(replaceChar));
-            ed->saveState();
-        }
-    }
-    else if(c == 'J')
-    {
-        ed->joinLines();
-        ed->saveState();
-    }
-    else if(c == 'p')
-    {
-        ed->pasteAfter();
-        ed->saveState();
-    }
-    else if(c == 'P')
-    {
-        ed->pasteBefore();
-        ed->saveState();
-    }
-    else if(c == 'u')
-    {
-        ed->undo();
-    }
-    else if(c == Terminal::CTRL_R)
-    {
-        ed->redo();
-    }
-    else if(c == '.')
-    {
-        ed->repeatLastChange();
-    }
-    else if(c == '~')
-    {
-        ed->toggleCase();
-        ed->saveState();
+            ed->moveParagraphForward();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
     // ========================================================================
-    // Search commands
+    // Scrolling
     // ========================================================================
 
-    else if(c == 'n')
+    if(c == Terminal::CTRL_D)
     {
-        ed->searchNext();
+        ed->scrollHalfPageDown(false);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == 'N')
+    if(c == Terminal::CTRL_U)
     {
-        ed->searchPrevious();
+        ed->scrollHalfPageUp(false);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '*')
+    if(c == Terminal::CTRL_F || c == Terminal::PAGE_DOWN)
+    {
+        ed->scrollPageDown();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == Terminal::CTRL_B || c == Terminal::PAGE_UP)
+    {
+        ed->scrollPageUp();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Character Search (f, F, t, T)
+    // ========================================================================
+
+    if(c == 'f' || c == 'F' || c == 't' || c == 'T')
+    {
+        int targetChar = Terminal::readKey();
+        if(targetChar != Terminal::ESC)
+        {
+            for(int i = 0; i < count; i++)
+            {
+                if(c == 'f')
+                    ed->findCharForward(static_cast<char>(targetChar));
+                else if(c == 'F')
+                    ed->findCharBackward(static_cast<char>(targetChar));
+                else if(c == 't')
+                    ed->findCharForwardBefore(static_cast<char>(targetChar));
+                else if(c == 'T')
+                    ed->findCharBackwardAfter(static_cast<char>(targetChar));
+            }
+        }
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Matching Bracket
+    // ========================================================================
+
+    if(c == '%')
+    {
+        ed->moveToMatchingBracket();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Search Navigation
+    // ========================================================================
+
+    if(c == 'n')
+    {
+        for(int i = 0; i < count; i++)
+            ed->searchNext();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == 'N')
+    {
+        for(int i = 0; i < count; i++)
+            ed->searchPrevious();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == '*')
     {
         ed->searchWordUnderCursor(true);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '#')
+    if(c == '#')
     {
         ed->searchWordUnderCursor(false);
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
     // ========================================================================
-    // Marks and jumps
+    // Editing Commands
     // ========================================================================
 
-    else if(c == 'm')
+    if(c == 'x')
     {
-        int mark = Terminal::readKey();
-        if((mark >= 'a' && mark <= 'z') || (mark >= 'A' && mark <= 'Z'))
-        {
-            ed->setMark(static_cast<char>(mark));
-        }
+        for(int i = 0; i < count; i++)
+            ed->deleteCharAtCursor();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == '\'' || c == '`')
+    if(c == 'X')
     {
-        int mark = Terminal::readKey();
-        if((mark >= 'a' && mark <= 'z') || (mark >= 'A' && mark <= 'Z'))
-        {
-            ed->jumpToMark(static_cast<char>(mark));
-        }
+        for(int i = 0; i < count; i++)
+            ed->deleteCharBeforeCursor();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-
-    // ========================================================================
-    // Leader key sequences (Space as leader)
-    // ========================================================================
-
-    else if(c == ' ')
+    if(c == 'r')
     {
-        int nextChar = Terminal::readKey();
-
-        if(nextChar == 'f')
+        int replaceChar = Terminal::readKey();
+        if(replaceChar != Terminal::ESC && replaceChar >= 32)
         {
-            // <leader>f - Fuzzy find files
-            return FuzzyFindMode{};
+            ed->replaceCharAtCursor(static_cast<char>(replaceChar));
         }
-        else if(nextChar == 'b')
-        {
-            // <leader>b - Buffer browser
-            return BufferBrowserMode{};
-        }
-        else if(nextChar == 'g')
-        {
-            // <leader>g - Grep search
-            return GrepSearchMode{};
-        }
-        else if(nextChar == 'e')
-        {
-            // <leader>e - File explorer
-            return FileBrowserMode{};
-        }
-        else if(nextChar == 'w')
-        {
-            // <leader>w - Save file
-            ed->saveFile();
-        }
-        else if(nextChar == 'q')
-        {
-            // <leader>q - Quit
-            ed->executeCommand("q");
-        }
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == 'R')
+    {
+        ctx.repeatCount = 0;
+        return ReplaceMode{};
+    }
+    if(c == 's')
+    {
+        ed->deleteCharAtCursor();
+        ctx.repeatCount = 0;
+        return InsertMode{};
+    }
+    if(c == 'S')
+    {
+        ed->deleteCurrentLine();
+        ed->insertLineAbove();
+        ctx.repeatCount = 0;
+        return InsertMode{};
+    }
+    if(c == 'C')
+    {
+        ed->deleteToEndOfLine();
+        ctx.repeatCount = 0;
+        return InsertMode{};
+    }
+    if(c == 'D')
+    {
+        ed->deleteToEndOfLine();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == 'J')
+    {
+        for(int i = 0; i < count; i++)
+            ed->joinLines();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == '~')
+    {
+        for(int i = 0; i < count; i++)
+            ed->toggleCase();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
     // ========================================================================
-    // Misc
+    // Yank/Put
     // ========================================================================
 
-    else if(c == Terminal::CTRL_G)
+    if(c == 'p')
+    {
+        for(int i = 0; i < count; i++)
+            ed->pasteAfter();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == 'P')
+    {
+        for(int i = 0; i < count; i++)
+            ed->pasteBefore();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == 'Y')
+    {
+        ed->yankLine();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Undo/Redo
+    // ========================================================================
+
+    if(c == 'u')
+    {
+        ed->undo();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == Terminal::CTRL_R)
+    {
+        ed->redo();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Marks
+    // ========================================================================
+
+    if(c == 'm')
+    {
+        int markChar = Terminal::readKey();
+        if(markChar >= 'a' && markChar <= 'z')
+        {
+            ed->setMark(static_cast<char>(markChar));
+        }
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == '\'' || c == '`')
+    {
+        int markChar = Terminal::readKey();
+        if(markChar >= 'a' && markChar <= 'z')
+        {
+            ed->jumpToMark(static_cast<char>(markChar));
+        }
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Jump List
+    // ========================================================================
+
+    if(c == Terminal::CTRL_O)
+    {
+        ed->jumpBack();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == Terminal::CTRL_I)
+    {
+        ed->jumpForward();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Misc Commands
+    // ========================================================================
+
+    if(c == '.')
+    {
+        ed->repeatLastChange();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == Terminal::CTRL_G)
     {
         ed->showFileInfo();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == Terminal::CTRL_L)
+    if(c == Terminal::CTRL_L)
     {
         ed->forceFullRedraw();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
-    else if(c == Terminal::CTRL_P)
+    if(c == 30) // Ctrl+6 / Ctrl+^
     {
-        // Ctrl+P - Fuzzy find files
-        return FuzzyFindMode{};
-    }
-    else if(c == Terminal::CTRL_S)
-    {
-        // Ctrl+S - Grep search (ripgrep)
-        return GrepSearchMode{};
-    }
-    else if(c == Terminal::CTRL_W)
-    {
-        // Ctrl+W - Buffer browser
-        return BufferBrowserMode{};
+        ed->switchToAlternateFile();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
-    // Reset count after command
+    // ========================================================================
+    // Z Commands (Scrolling)
+    // ========================================================================
+
+    if(c == 'z')
+    {
+        int nextChar = Terminal::readKey();
+        return handleZCommand(ctx, nextChar);
+    }
+
     ctx.repeatCount = 0;
-    ctx.commandBuffer.clear();
+    return std::nullopt;
+}
+
+std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
+{
+    Editor* ed = ctx.editor;
+
+    switch(c)
+    {
+    case 'f':
+        // Fuzzy file finder
+        return FuzzyFindMode{};
+
+    case 'b':
+        // Buffer browser
+        return BufferBrowserMode{};
+
+    case 'g':
+        // Grep search
+        return GrepSearchMode{};
+
+    case 'e':
+        // File browser / explorer
+        return FileBrowserMode{};
+
+    case 'w':
+        // Save file
+        ed->saveFile();
+        break;
+
+    case 'q':
+        // Quit
+        ed->forceQuit();
+        break;
+
+    case 'n':
+        // Clear search highlight
+        ed->clearSearch();
+        break;
+
+    case '/':
+        // Project-wide search
+        return GrepSearchMode{};
+
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+        // Switch to buffer by number
+        ed->switchToBuffer(c - '1');
+        break;
+
+    case ' ':
+        // Double space - do nothing
+        break;
+
+    default:
+        // Unknown leader command
+        ctx.setStatusMessage("Unknown leader command");
+        break;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
+{
+    Editor* ed = ctx.editor;
+
+    switch(c)
+    {
+    case 'g':
+        // gg - go to first line
+        ed->moveToFirstLine();
+        break;
+
+    case 'd':
+        // gd - go to definition
+        ed->goToDefinition();
+        break;
+
+    case 'f':
+        // gf - go to file under cursor
+        ed->goToFile();
+        break;
+
+    default:
+        ctx.setStatusMessage("Unknown g command");
+        break;
+    }
+
+    ctx.repeatCount = 0;
+    return std::nullopt;
+}
+
+std::optional<ModeState> NormalMode::handleZCommand(ModeContext& ctx, int c)
+{
+    Editor* ed = ctx.editor;
+
+    switch(c)
+    {
+    case 'z':
+        // zz - center cursor on screen
+        ed->centerScreen();
+        break;
+
+    case 't':
+        // zt - scroll cursor to top
+        ed->scrollToTop();
+        break;
+
+    case 'b':
+        // zb - scroll cursor to bottom
+        ed->scrollToBottom();
+        break;
+
+    default:
+        ctx.setStatusMessage("Unknown z command");
+        break;
+    }
+
+    ctx.repeatCount = 0;
+    return std::nullopt;
+}
+
+// ============================================================================
+// ReplaceMode Implementation
+// ============================================================================
+
+void ReplaceMode::on_enter(ModeContext& ctx)
+{
+    Editor* ed = ctx.editor;
+    ed->needsFullRedraw = true;
+
+    // Set cursor to bar for replace mode (no underline available)
+    Terminal::setCursorBarBlinking();
+}
+
+void ReplaceMode::on_exit(ModeContext& /* ctx */)
+{
+    // Restore block cursor
+    Terminal::setCursorBlock();
+}
+
+std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
+                                             const KeyEvent& event)
+{
+    Editor* ed = ctx.editor;
+    int c = event.key;
+
+    // ========================================================================
+    // Exit Replace Mode
+    // ========================================================================
+
+    if(c == Terminal::ESC || c == Terminal::CTRL_C)
+    {
+        if(ctx.cursorX() > 0)
+        {
+            ctx.cursorX()--;
+        }
+        ed->saveState();
+        return NormalMode{};
+    }
+
+    // ========================================================================
+    // Backspace
+    // ========================================================================
+
+    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    {
+        if(ctx.cursorX() > 0)
+        {
+            ctx.cursorX()--;
+            // In replace mode, backspace doesn't delete, just moves back
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Character Replacement
+    // ========================================================================
+
+    if(c >= 32 && c < 127)
+    {
+        auto& lines = ctx.lines();
+        int& cursorX = ctx.cursorX();
+        int cursorY = ctx.cursorY();
+
+        if(cursorY < (int)lines.size())
+        {
+            std::string& line = lines[cursorY];
+            if(cursorX < (int)line.length())
+            {
+                line[cursorX] = static_cast<char>(c);
+            }
+            else
+            {
+                line += static_cast<char>(c);
+            }
+            cursorX++;
+            *ed->dirty = true;
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Enter - Insert Newline
+    // ========================================================================
+
+    if(c == Terminal::ENTER)
+    {
+        ed->insertNewline();
+        return std::nullopt;
+    }
 
     return std::nullopt;
 }

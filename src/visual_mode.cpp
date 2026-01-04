@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include <algorithm>
 
 // ============================================================================
 // VisualMode Implementation
@@ -10,6 +11,7 @@ void VisualMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
+    // Initialize visual selection start
     ed->currentBuffer->visualStartX = ctx.cursorX();
     ed->currentBuffer->visualStartY = ctx.cursorY();
     ed->currentBuffer->visualEndX = ctx.cursorX();
@@ -20,7 +22,7 @@ void VisualMode::on_enter(ModeContext& ctx)
 
 void VisualMode::on_exit(ModeContext& /* ctx */)
 {
-    // Selection is cleared when exiting visual mode
+    // Nothing specific to do on exit
 }
 
 std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
@@ -29,76 +31,135 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape -> return to normal mode
-    if(c == Terminal::ESC)
+    // ========================================================================
+    // Leader Key (Space)
+    // ========================================================================
+
+    if(ctx.commandBuffer == " ")
+    {
+        if(c == 'f')
+        {
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            ed->clangFormatVisualSelection();
+            return NormalMode{};
+        }
+        if(c == ' ')
+        {
+            ctx.commandBuffer.clear();
+            ctx.setStatusMessage("");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        // Unknown leader command: cancel leader
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+    }
+
+    if(c == ' ')
+    {
+        ctx.commandBuffer = " ";
+        ctx.setStatusMessage("Leader");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Exit Visual Mode
+    // ========================================================================
+
+    if(c == Terminal::ESC || c == 'v')
     {
         return NormalMode{};
     }
 
-    // Switch to other visual modes
+    // ========================================================================
+    // Switch to Visual Line Mode
+    // ========================================================================
+
     if(c == 'V')
     {
         return VisualLineMode{};
     }
+
+    // ========================================================================
+    // Switch to Visual Block Mode
+    // ========================================================================
+
     if(c == Terminal::CTRL_V)
     {
         return VisualBlockMode{};
     }
-    if(c == 'v')
-    {
-        // v in visual mode returns to normal
-        return NormalMode{};
-    }
 
     // ========================================================================
-    // Movement commands (update visual selection)
+    // Movement
     // ========================================================================
 
-    if(c == 'h' || c == Terminal::ARROW_LEFT)
+    switch(c)
     {
+    case 'h':
+    case Terminal::ARROW_LEFT:
         ed->moveLeft(1);
-    }
-    else if(c == 'j' || c == Terminal::ARROW_DOWN)
-    {
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
         ed->moveDown(1);
-    }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
-    {
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
         ed->moveUp(1);
-    }
-    else if(c == 'l' || c == Terminal::ARROW_RIGHT)
-    {
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
         ed->moveRight(1);
-    }
-    else if(c == 'w')
-    {
+        break;
+
+    // Word movements
+    case 'w':
         ed->moveWordForward();
-    }
-    else if(c == 'b')
-    {
+        break;
+    case 'W':
+        ed->moveWordForwardBig();
+        break;
+    case 'b':
         ed->moveWordBackward();
-    }
-    else if(c == 'e')
-    {
+        break;
+    case 'B':
+        ed->moveWordBackwardBig();
+        break;
+    case 'e':
         ed->moveToEndOfWord();
-    }
-    else if(c == '0')
-    {
+        break;
+    case 'E':
+        ed->moveToEndOfWordBig();
+        break;
+
+    // Line movements
+    case '0':
         ed->moveToLineStart();
-    }
-    else if(c == '^')
-    {
+        break;
+    case '^':
         ed->moveToFirstNonBlank();
-    }
-    else if(c == '$')
-    {
+        break;
+    case '$':
         ed->moveToLineEnd();
-    }
-    else if(c == 'G')
-    {
+        break;
+
+    // Paragraph movements
+    case '{':
+        ed->moveParagraphBackward();
+        break;
+    case '}':
+        ed->moveParagraphForward();
+        break;
+
+    // File movements
+    case 'G':
         ed->moveToLastLine();
-    }
-    else if(c == 'g')
+        break;
+    case 'g':
     {
         int nextChar = Terminal::readKey();
         if(nextChar == 'g')
@@ -106,93 +167,117 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             ed->moveToFirstLine();
         }
     }
-    else if(c == '%')
-    {
+    break;
+
+    // Matching bracket
+    case '%':
         ed->moveToMatchingBracket();
-    }
-    else if(c == '{')
-    {
-        ed->moveParagraphBackward();
-    }
-    else if(c == '}')
-    {
-        ed->moveParagraphForward();
-    }
+        break;
 
-    // Update visual end position after movement
-    ed->currentBuffer->visualEndX = ctx.cursorX();
-    ed->currentBuffer->visualEndY = ctx.cursorY();
+    // Screen movements
+    case 'H':
+        ed->moveToScreenTop();
+        break;
+    case 'M':
+        ed->moveToScreenMiddle();
+        break;
+    case 'L':
+        ed->moveToScreenBottom();
+        break;
 
-    // ========================================================================
-    // Operations on selection
-    // ========================================================================
+    // Scrolling
+    case Terminal::CTRL_D:
+        ed->scrollHalfPageDown(false);
+        break;
+    case Terminal::CTRL_U:
+        ed->scrollHalfPageUp(false);
+        break;
+    case Terminal::CTRL_F:
+    case Terminal::PAGE_DOWN:
+        ed->scrollPageDown();
+        break;
+    case Terminal::CTRL_B:
+    case Terminal::PAGE_UP:
+        ed->scrollPageUp();
+        break;
 
-    if(c == 'd' || c == 'x')
-    {
+        // ========================================================================
+        // Operations on Selection
+        // ========================================================================
+
+    case 'd':
+    case 'x':
+        ed->yankSelection();
         ed->deleteSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == 'y')
-    {
+
+    case 'y':
         ed->yankSelection();
         return NormalMode{};
-    }
-    else if(c == 'c' || c == 's')
-    {
+
+    case 'c':
+        ed->yankSelection();
         ed->deleteSelection();
         ed->saveState();
         return InsertMode{};
-    }
-    else if(c == '>')
-    {
+
+    case '>':
         ed->indentSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == '<')
-    {
+
+    case '<':
         ed->dedentSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == '=')
-    {
-        ed->autoIndentSelection();
-        ed->saveState();
-        return NormalMode{};
-    }
-    else if(c == 'u')
-    {
-        ed->lowercaseSelection();
-        ed->saveState();
-        return NormalMode{};
-    }
-    else if(c == 'U')
-    {
-        ed->uppercaseSelection();
-        ed->saveState();
-        return NormalMode{};
-    }
-    else if(c == '~')
-    {
+
+    case '~':
         ed->toggleCaseSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == 'o')
+
+    case 'u':
+        ed->lowercaseSelection();
+        ed->saveState();
+        return NormalMode{};
+
+    case 'U':
+        ed->uppercaseSelection();
+        ed->saveState();
+        return NormalMode{};
+
+    case 'J':
     {
-        // Swap cursor to other end of selection
-        ed->swapVisualEnds();
-    }
-    else if(c == ':')
-    {
-        // Enter command mode with visual range
-        ed->setVisualRange();
-        return CommandMode{};
+        // Join selected lines
+        int startLine = std::min(ed->currentBuffer->visualStartY,
+                                 ed->currentBuffer->visualEndY);
+        int endLine = std::max(ed->currentBuffer->visualStartY,
+                               ed->currentBuffer->visualEndY);
+        ctx.cursorY() = startLine;
+        for(int i = startLine;
+            i < endLine && ctx.cursorY() < (int)ctx.lines().size() - 1; i++)
+        {
+            ed->joinLines();
+        }
+        ed->saveState();
+        return NormalMode{};
     }
 
+    // Swap selection ends
+    case 'o':
+    {
+        std::swap(ctx.cursorX(), ed->currentBuffer->visualStartX);
+        std::swap(ctx.cursorY(), ed->currentBuffer->visualStartY);
+    }
+    break;
+    }
+
+    // Update visual end
+    ed->currentBuffer->visualEndX = ctx.cursorX();
+    ed->currentBuffer->visualEndY = ctx.cursorY();
     ed->needsFullRedraw = true;
+
     return std::nullopt;
 }
 
@@ -204,15 +289,17 @@ void VisualLineMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    ed->currentBuffer->visualStartX = 0;
+    // Initialize visual line selection
     ed->currentBuffer->visualStartY = ctx.cursorY();
-    ed->currentBuffer->visualEndX = ctx.lines()[ctx.cursorY()].length();
     ed->currentBuffer->visualEndY = ctx.cursorY();
 
     ed->needsFullRedraw = true;
 }
 
-void VisualLineMode::on_exit(ModeContext& /* ctx */) {}
+void VisualLineMode::on_exit(ModeContext& /* ctx */)
+{
+    // Nothing specific to do on exit
+}
 
 std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
                                                 const KeyEvent& event)
@@ -220,44 +307,77 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape -> return to normal mode
-    if(c == Terminal::ESC)
+    // ========================================================================
+    // Leader Key (Space)
+    // ========================================================================
+
+    if(ctx.commandBuffer == " ")
+    {
+        if(c == 'f')
+        {
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            ed->clangFormatVisualSelection();
+            return NormalMode{};
+        }
+        if(c == ' ')
+        {
+            ctx.commandBuffer.clear();
+            ctx.setStatusMessage("");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+    }
+
+    if(c == ' ')
+    {
+        ctx.commandBuffer = " ";
+        ctx.setStatusMessage("Leader");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Exit / Switch Modes
+    // ========================================================================
+
+    if(c == Terminal::ESC || c == 'V')
     {
         return NormalMode{};
     }
 
-    // Switch to other visual modes
     if(c == 'v')
     {
         return VisualMode{};
     }
+
     if(c == Terminal::CTRL_V)
     {
         return VisualBlockMode{};
     }
-    if(c == 'V')
-    {
-        // V in visual line mode returns to normal
-        return NormalMode{};
-    }
 
     // ========================================================================
-    // Line-wise movement
+    // Movement
     // ========================================================================
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    switch(c)
     {
+    case 'j':
+    case Terminal::ARROW_DOWN:
         ed->moveDown(1);
-    }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
-    {
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
         ed->moveUp(1);
-    }
-    else if(c == 'G')
-    {
+        break;
+    case 'G':
         ed->moveToLastLine();
-    }
-    else if(c == 'g')
+        break;
+    case 'g':
     {
         int nextChar = Terminal::readKey();
         if(nextChar == 'g')
@@ -265,69 +385,82 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             ed->moveToFirstLine();
         }
     }
-    else if(c == '{')
-    {
+    break;
+    case '{':
         ed->moveParagraphBackward();
-    }
-    else if(c == '}')
-    {
+        break;
+    case '}':
         ed->moveParagraphForward();
-    }
+        break;
+    case Terminal::CTRL_D:
+        ed->scrollHalfPageDown(false);
+        break;
+    case Terminal::CTRL_U:
+        ed->scrollHalfPageUp(false);
+        break;
 
-    // Update visual end (line-wise)
-    ed->currentBuffer->visualEndY = ctx.cursorY();
+        // ========================================================================
+        // Line Operations
+        // ========================================================================
 
-    // ========================================================================
-    // Operations on line selection
-    // ========================================================================
-
-    if(c == 'd' || c == 'x')
-    {
+    case 'd':
+    case 'x':
+        ed->yankLineSelection();
         ed->deleteLineSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == 'y')
-    {
+
+    case 'y':
         ed->yankLineSelection();
         return NormalMode{};
-    }
-    else if(c == 'c' || c == 'S')
-    {
+
+    case 'c':
+        ed->yankLineSelection();
         ed->deleteLineSelection();
-        ed->insertLineAbove();
         ed->saveState();
         return InsertMode{};
-    }
-    else if(c == '>')
-    {
+
+    case '>':
         ed->indentLineSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == '<')
-    {
+
+    case '<':
         ed->dedentLineSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == '=')
-    {
+
+    case '=':
         ed->autoIndentLineSelection();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == 'o')
+
+    case 'J':
     {
-        ed->swapVisualEnds();
-    }
-    else if(c == ':')
-    {
-        ed->setVisualRange();
-        return CommandMode{};
+        int startLine = std::min(ed->currentBuffer->visualStartY,
+                                 ed->currentBuffer->visualEndY);
+        int endLine = std::max(ed->currentBuffer->visualStartY,
+                               ed->currentBuffer->visualEndY);
+        ctx.cursorY() = startLine;
+        for(int i = startLine;
+            i < endLine && ctx.cursorY() < (int)ctx.lines().size() - 1; i++)
+        {
+            ed->joinLines();
+        }
+        ed->saveState();
+        return NormalMode{};
     }
 
+    // Swap selection ends
+    case 'o':
+        std::swap(ctx.cursorY(), ed->currentBuffer->visualStartY);
+        break;
+    }
+
+    // Update visual end
+    ed->currentBuffer->visualEndY = ctx.cursorY();
     ed->needsFullRedraw = true;
+
     return std::nullopt;
 }
 
@@ -339,6 +472,7 @@ void VisualBlockMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
+    // Initialize visual block selection
     ed->currentBuffer->visualBlockStartX = ctx.cursorX();
     ed->currentBuffer->visualBlockStartY = ctx.cursorY();
     ed->currentBuffer->visualBlockEndX = ctx.cursorX();
@@ -347,7 +481,10 @@ void VisualBlockMode::on_enter(ModeContext& ctx)
     ed->needsFullRedraw = true;
 }
 
-void VisualBlockMode::on_exit(ModeContext& /* ctx */) {}
+void VisualBlockMode::on_exit(ModeContext& /* ctx */)
+{
+    // Nothing specific to do on exit
+}
 
 std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
                                                  const KeyEvent& event)
@@ -355,97 +492,111 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape -> return to normal mode
-    if(c == Terminal::ESC)
+    // ========================================================================
+    // Exit
+    // ========================================================================
+
+    if(c == Terminal::ESC || c == Terminal::CTRL_V)
     {
         return NormalMode{};
     }
 
-    // Switch to other visual modes
-    if(c == 'v')
+    // ========================================================================
+    // Leader Key (Space)
+    // ========================================================================
+
+    if(ctx.commandBuffer == " ")
     {
-        return VisualMode{};
+        if(c == 'f')
+        {
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            ed->clangFormatVisualBlockSelection();
+            return NormalMode{};
+        }
+        if(c == ' ')
+        {
+            ctx.commandBuffer.clear();
+            ctx.setStatusMessage("");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
     }
-    if(c == 'V')
+
+    if(c == ' ')
     {
-        return VisualLineMode{};
-    }
-    if(c == Terminal::CTRL_V)
-    {
-        // Ctrl+V in visual block mode returns to normal
-        return NormalMode{};
+        ctx.commandBuffer = " ";
+        ctx.setStatusMessage("Leader");
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
     // ========================================================================
-    // Block movement
+    // Movement
     // ========================================================================
 
-    if(c == 'h' || c == Terminal::ARROW_LEFT)
+    switch(c)
     {
+    case 'h':
+    case Terminal::ARROW_LEFT:
         ed->moveLeft(1);
-    }
-    else if(c == 'j' || c == Terminal::ARROW_DOWN)
-    {
+        break;
+    case 'j':
+    case Terminal::ARROW_DOWN:
         ed->moveDown(1);
-    }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
-    {
+        break;
+    case 'k':
+    case Terminal::ARROW_UP:
         ed->moveUp(1);
-    }
-    else if(c == 'l' || c == Terminal::ARROW_RIGHT)
-    {
+        break;
+    case 'l':
+    case Terminal::ARROW_RIGHT:
         ed->moveRight(1);
-    }
-    else if(c == '0')
-    {
-        ed->moveToLineStart();
-    }
-    else if(c == '$')
-    {
-        ed->moveToLineEnd();
-    }
+        break;
 
-    // Update block end position
-    ed->currentBuffer->visualBlockEndX = ctx.cursorX();
-    ed->currentBuffer->visualBlockEndY = ctx.cursorY();
+        // ========================================================================
+        // Block Operations
+        // ========================================================================
 
-    // ========================================================================
-    // Block operations
-    // ========================================================================
-
-    if(c == 'd' || c == 'x')
-    {
+    case 'd':
+    case 'x':
         ed->deleteVisualBlock();
         ed->saveState();
         return NormalMode{};
-    }
-    else if(c == 'y')
-    {
+
+    case 'y':
         ed->yankVisualBlock();
         return NormalMode{};
-    }
-    else if(c == 'c')
-    {
+
+    case 'c':
         ed->changeVisualBlock();
-        return InsertMode{}; // Special: block insert mode
-    }
-    else if(c == 'I')
-    {
-        // Insert at beginning of block
-        ed->prepareBlockInsert(true);
         return InsertMode{};
-    }
-    else if(c == 'A')
-    {
-        // Append at end of block
+
+    // Insert at block start
+    case 'I':
         ed->prepareBlockInsert(false);
         return InsertMode{};
-    }
-    else if(c == 'o' || c == 'O')
-    {
+
+    // Append at block end
+    case 'A':
+        ed->prepareBlockInsert(true);
+        return InsertMode{};
+
+    // Swap corners
+    case 'o':
+    case 'O':
         ed->swapVisualBlockCorner();
+        break;
     }
 
+    // Update block end
+    ed->currentBuffer->visualBlockEndX = ctx.cursorX();
+    ed->currentBuffer->visualBlockEndY = ctx.cursorY();
     ed->needsFullRedraw = true;
+
     return std::nullopt;
 }

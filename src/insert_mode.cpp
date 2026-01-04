@@ -8,18 +8,24 @@
 
 void InsertMode::on_enter(ModeContext& ctx)
 {
+    Editor* ed = ctx.editor;
+    ed->needsFullRedraw = true;
+
+    // Set cursor to bar for insert mode
     Terminal::setCursorBarBlinking();
-    ctx.editor->needsFullRedraw = true;
 }
 
 void InsertMode::on_exit(ModeContext& ctx)
 {
-    // Adjust cursor position (vim behavior: cursor moves left on exit)
-    if(ctx.cursorX() > 0)
+    Editor* ed = ctx.editor;
+
+    // Cancel any active completion
+    if(ed->completionActive)
     {
-        ctx.cursorX()--;
+        ed->cancelCompletion();
     }
-    ctx.editor->saveState();
+
+    // Restore block cursor
     Terminal::setCursorBlock();
 }
 
@@ -29,147 +35,314 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape -> return to normal mode
-    if(c == Terminal::ESC)
+    // ========================================================================
+    // Completion Navigation (when active)
+    // ========================================================================
+
+    if(ed->completionActive)
     {
-        return NormalMode{};
+        if(c == Terminal::CTRL_N || c == Terminal::ARROW_DOWN)
+        {
+            ed->nextCompletion();
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_P || c == Terminal::ARROW_UP)
+        {
+            ed->previousCompletion();
+            return std::nullopt;
+        }
+        if(c == Terminal::TAB || c == Terminal::ENTER)
+        {
+            ed->acceptCompletion();
+            return std::nullopt;
+        }
+        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        {
+            ed->cancelCompletion();
+            if(ctx.cursorX() > 0)
+            {
+                ctx.cursorX()--;
+            }
+            ed->saveState();
+            return NormalMode{};
+        }
     }
 
-    // Ctrl+C also exits insert mode (vim behavior)
-    if(c == Terminal::CTRL_C)
-    {
-        return NormalMode{};
-    }
+    // ========================================================================
+    // Exit Insert Mode
+    // ========================================================================
 
-    // Ctrl+[ is equivalent to Escape
-    if(c == 27) // ESC/Ctrl+[
+    if(c == Terminal::ESC || c == Terminal::CTRL_C)
     {
+        if(ctx.cursorX() > 0)
+        {
+            ctx.cursorX()--;
+        }
+        ed->saveState();
         return NormalMode{};
     }
 
     // ========================================================================
-    // Text insertion and editing
+    // Trigger/Navigate Completion
     // ========================================================================
 
-    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    if(c == Terminal::CTRL_N)
     {
-        ed->handleBackspace();
-    }
-    else if(c == Terminal::DELETE_KEY)
-    {
-        ed->deleteCharAtCursor();
-    }
-    else if(c == Terminal::ENTER)
-    {
-        ed->insertNewline();
-    }
-    else if(c == Terminal::TAB)
-    {
-        // Check if we should do completion or insert spaces
-        if(ed->shouldTriggerCompletion())
+        if(!ed->completionActive)
         {
             ed->triggerCompletion();
         }
         else
         {
+            ed->nextCompletion();
+        }
+        return std::nullopt;
+    }
+
+    if(c == Terminal::CTRL_P)
+    {
+        if(ed->completionActive)
+        {
+            ed->previousCompletion();
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Backspace
+    // ========================================================================
+
+    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    {
+        auto& lines = ctx.lines();
+        int& cursorX = ctx.cursorX();
+        int& cursorY = ctx.cursorY();
+
+        if(cursorX > 0)
+        {
+            cursorX--;
+            if(cursorY < (int)lines.size())
+            {
+                lines[cursorY].erase(cursorX, 1);
+            }
+            *ed->dirty = true;
+
+            // Update completion filter if active
+            if(ed->completionActive)
+            {
+                ed->rebuildCompletionFilter();
+            }
+        }
+        else if(cursorY > 0)
+        {
+            // Join with previous line
+            int prevLen = lines[cursorY - 1].length();
+            lines[cursorY - 1] += lines[cursorY];
+            lines.erase(lines.begin() + cursorY);
+            cursorY--;
+            cursorX = prevLen;
+            *ed->dirty = true;
+
+            // Cancel completion if joining lines
+            if(ed->completionActive)
+            {
+                ed->cancelCompletion();
+            }
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Enter / Newline
+    // ========================================================================
+
+    if(c == Terminal::ENTER)
+    {
+        if(ed->completionActive)
+        {
+            ed->acceptCompletion();
+        }
+        else
+        {
+            ed->insertNewline();
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Tab
+    // ========================================================================
+
+    if(c == Terminal::TAB)
+    {
+        if(ed->completionActive)
+        {
+            ed->acceptCompletion();
+        }
+        else
+        {
             ed->insertTab();
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Arrow Keys
+    // ========================================================================
+
+    if(c == Terminal::ARROW_LEFT)
+    {
+        if(ctx.cursorX() > 0)
+        {
+            ctx.cursorX()--;
+        }
+        if(ed->completionActive)
+        {
+            ed->cancelCompletion();
+        }
+        return std::nullopt;
+    }
+
+    if(c == Terminal::ARROW_RIGHT)
+    {
+        auto& lines = ctx.lines();
+        int& cursorX = ctx.cursorX();
+        int cursorY = ctx.cursorY();
+
+        if(cursorY < (int)lines.size() &&
+           cursorX < (int)lines[cursorY].length())
+        {
+            cursorX++;
+        }
+        if(ed->completionActive)
+        {
+            ed->cancelCompletion();
+        }
+        return std::nullopt;
+    }
+
+    if(c == Terminal::ARROW_UP)
+    {
+        if(ed->completionActive)
+        {
+            ed->previousCompletion();
+        }
+        else
+        {
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int& cursorY = ctx.cursorY();
+
+            if(cursorY > 0)
+            {
+                cursorY--;
+                if(cursorY < (int)lines.size() &&
+                   cursorX > (int)lines[cursorY].length())
+                {
+                    cursorX = lines[cursorY].length();
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    if(c == Terminal::ARROW_DOWN)
+    {
+        if(ed->completionActive)
+        {
+            ed->nextCompletion();
+        }
+        else
+        {
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int& cursorY = ctx.cursorY();
+
+            if(cursorY < (int)lines.size() - 1)
+            {
+                cursorY++;
+                if(cursorX > (int)lines[cursorY].length())
+                {
+                    cursorX = lines[cursorY].length();
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Ctrl+W - Delete Word Backward
+    // ========================================================================
+
+    if(c == Terminal::CTRL_W)
+    {
+        ed->deleteWordBackward();
+        if(ed->completionActive)
+        {
+            ed->rebuildCompletionFilter();
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Ctrl+U - Delete to Line Start
+    // ========================================================================
+
+    if(c == Terminal::CTRL_U)
+    {
+        ed->deleteToLineStart();
+        if(ed->completionActive)
+        {
+            ed->cancelCompletion();
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Regular Character Input
+    // ========================================================================
+
+    if(c >= 32 && c < 127)
+    {
+        ed->insertChar(static_cast<char>(c));
+
+        auto& lines = ctx.lines();
+        int cursorX = ctx.cursorX();
+        int cursorY = ctx.cursorY();
+
+        // Update completion filter if active
+        if(ed->completionActive)
+        {
+            ed->rebuildCompletionFilter();
+        }
+        // Auto-trigger completion after '.', '::', or '->'
+        else if(c == '.')
+        {
+            ed->triggerCompletion();
+        }
+        else if(c == ':' && cursorX >= 2 && lines[cursorY][cursorX - 2] == ':')
+        {
+            ed->triggerCompletion();
+        }
+        else if(c == '>' && cursorX >= 2 && lines[cursorY][cursorX - 2] == '-')
+        {
+            ed->triggerCompletion();
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // UTF-8 Character Input
+    // ========================================================================
+
+    if(c >= 128)
+    {
+        ed->insertUtf8Char(c);
+        if(ed->completionActive)
+        {
+            ed->rebuildCompletionFilter();
         }
     }
 
-    // ========================================================================
-    // Cursor movement in insert mode
-    // ========================================================================
-
-    else if(c == Terminal::ARROW_LEFT)
-    {
-        ed->moveLeft(1);
-    }
-    else if(c == Terminal::ARROW_RIGHT)
-    {
-        ed->moveRight(1);
-    }
-    else if(c == Terminal::ARROW_UP)
-    {
-        ed->moveUp(1);
-    }
-    else if(c == Terminal::ARROW_DOWN)
-    {
-        ed->moveDown(1);
-    }
-    else if(c == Terminal::HOME)
-    {
-        ed->moveToLineStart();
-    }
-    else if(c == Terminal::END)
-    {
-        ed->moveToLineEnd();
-    }
-    else if(c == Terminal::PAGE_UP)
-    {
-        ed->scrollPageUp();
-    }
-    else if(c == Terminal::PAGE_DOWN)
-    {
-        ed->scrollPageDown();
-    }
-
-    // ========================================================================
-    // Special insert mode commands
-    // ========================================================================
-
-    else if(c == Terminal::CTRL_W)
-    {
-        // Delete word before cursor
-        ed->deleteWordBackward();
-    }
-    else if(c == Terminal::CTRL_U)
-    {
-        // Delete to beginning of line
-        ed->deleteToLineStart();
-    }
-    else if(c == Terminal::CTRL_T)
-    {
-        // Indent current line
-        ed->indentCurrentLine();
-    }
-    else if(c == Terminal::CTRL_D)
-    {
-        // Dedent current line
-        ed->dedentCurrentLine();
-    }
-    else if(c == Terminal::CTRL_N)
-    {
-        // Next completion
-        ed->nextCompletion();
-    }
-    else if(c == Terminal::CTRL_P)
-    {
-        // Previous completion
-        ed->previousCompletion();
-    }
-    else if(c == Terminal::CTRL_O)
-    {
-        // Execute one normal mode command then return to insert
-        // This is a simplified implementation - full vim does more
-        int nextKey = Terminal::readKey();
-        ed->executeOneNormalCommand(nextKey);
-    }
-
-    // ========================================================================
-    // Regular character insertion
-    // ========================================================================
-
-    else if(c >= 32 && c < 127)
-    {
-        // Printable ASCII
-        ed->insertChar(static_cast<char>(c));
-    }
-    else if(c >= 128)
-    {
-        // UTF-8 multi-byte character - handle appropriately
-        ed->insertUtf8Char(c);
-    }
-
-    ctx.dirty() = true;
     return std::nullopt;
 }

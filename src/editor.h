@@ -549,4 +549,5 @@ public:
     void saveState();
     void undo();
     void redo();
+    bool lastFindTill{false};
 };

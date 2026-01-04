@@ -21,14 +21,13 @@ endif()
 # Include directories - make headers available to all targets
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-# Sources - main editor with extracted components
-set(UVIM_SOURCES
+# Core editor sources
+set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
     src/editor.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp
-    src/missing_functions.cpp
     src/search.cpp
     src/fuzzy_finder.cpp
     src/buffer_browser.cpp
@@ -41,7 +40,12 @@ set(UVIM_SOURCES
     src/cpp_constants.cpp
 )
 
-# Mode state machine sources
+# Helper functions (keep existing missing_functions.cpp)
+set(UVIM_HELPER_SOURCES
+    src/missing_functions.cpp
+)
+
+# Mode state machine sources (refactored)
 set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
     src/normal_mode.cpp
@@ -56,14 +60,18 @@ set(MODE_STATE_MACHINE_SOURCES
     src/file_browser_mode.cpp
 )
 
-list(APPEND UVIM_SOURCES ${MODE_STATE_MACHINE_SOURCES})
+# Combine all sources
+set(UVIM_SOURCES
+    ${UVIM_CORE_SOURCES}
+    ${UVIM_HELPER_SOURCES}
+    ${MODE_STATE_MACHINE_SOURCES}
+)
 
 # LSP client only needed when LSP is enabled
 if(UVIM_ENABLE_CLANGD_LSP)
     list(APPEND UVIM_SOURCES
         src/lsp_client.cpp
     )
-    # (keep your original list; I left this triple line to show "don’t duplicate"—remove extras!)
 endif()
 
 add_executable(uvim ${UVIM_SOURCES})
@@ -95,7 +103,6 @@ message(STATUS "uvim terminal backend: ${_backend}")
 # ------------------------------------------------------------------------------
 if(MSVC)
     target_compile_options(uvim PRIVATE /W4 /permissive-)
-    # Release-ish opts handled by generator expressions below
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
 endif()

@@ -8,16 +8,28 @@
 
 void SearchForwardMode::on_enter(ModeContext& ctx)
 {
-    ctx.commandBuffer = "/";
-    ctx.searchQuery.clear();
-    ctx.savedCursorX = ctx.cursorX();
-    ctx.savedCursorY = ctx.cursorY();
-    ctx.searchForward = true;
+    Editor* ed = ctx.editor;
 
-    ctx.editor->needsFullRedraw = true;
+    // Save cursor position for restoration on cancel
+    ed->savedCursorX = ctx.cursorX();
+    ed->savedCursorY = ctx.cursorY();
+
+    // Initialize search
+    ed->searchQuery.clear();
+    ed->searchForward = true;
+    ctx.commandBuffer = "/";
+
+    ed->needsFullRedraw = true;
+
+    // Set cursor to bar for search input
+    Terminal::setCursorBarBlinking();
 }
 
-void SearchForwardMode::on_exit(ModeContext& /* ctx */) {}
+void SearchForwardMode::on_exit(ModeContext& /* ctx */)
+{
+    // Restore block cursor
+    Terminal::setCursorBlock();
+}
 
 std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
                                                    const KeyEvent& event)
@@ -25,145 +37,175 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape -> cancel search, restore cursor
+    // ========================================================================
+    // Cancel Search
+    // ========================================================================
+
     if(c == Terminal::ESC)
     {
-        ctx.cursorX() = ctx.savedCursorX;
-        ctx.cursorY() = ctx.savedCursorY;
-        ctx.setStatusMessage("");
+        // Restore cursor position
+        ctx.cursorX() = ed->savedCursorX;
+        ctx.cursorY() = ed->savedCursorY;
+        ed->searchQuery.clear();
+        ctx.commandBuffer.clear();
         return NormalMode{};
     }
 
-    // Enter -> confirm search
+    // ========================================================================
+    // Execute Search
+    // ========================================================================
+
     if(c == Terminal::ENTER)
     {
-        if(!ctx.searchQuery.empty())
+        if(!ed->searchQuery.empty())
         {
-            ed->addSearchToHistory(ctx.searchQuery);
-            ed->performSearch(ctx.searchQuery, true);
+            ed->addSearchToHistory(ed->searchQuery);
+            ed->performSearch();
         }
+        ctx.commandBuffer.clear();
         return NormalMode{};
     }
 
+    // ========================================================================
     // Backspace
+    // ========================================================================
+
     if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
     {
-        if(!ctx.searchQuery.empty())
+        if(!ed->searchQuery.empty())
         {
-            ctx.searchQuery.pop_back();
-            ctx.commandBuffer = "/" + ctx.searchQuery;
+            ed->searchQuery.pop_back();
+            ctx.commandBuffer = "/" + ed->searchQuery;
 
-            // Restore position and re-search incrementally
-            ctx.cursorX() = ctx.savedCursorX;
-            ctx.cursorY() = ctx.savedCursorY;
-            if(!ctx.searchQuery.empty())
+            // Restore original position and re-search
+            ctx.cursorX() = ed->savedCursorX;
+            ctx.cursorY() = ed->savedCursorY;
+
+            if(!ed->searchQuery.empty())
             {
-                ed->performIncrementalSearch(ctx.searchQuery, true);
+                ed->findAllMatches();
+                if(!ed->searchMatches.empty())
+                {
+                    ed->jumpToMatch(0);
+                }
             }
         }
         else
         {
-            // Backspace on empty search returns to normal
-            ctx.cursorX() = ctx.savedCursorX;
-            ctx.cursorY() = ctx.savedCursorY;
+            // Empty query, cancel search
+            ctx.cursorX() = ed->savedCursorX;
+            ctx.cursorY() = ed->savedCursorY;
+            ctx.commandBuffer.clear();
             return NormalMode{};
         }
         return std::nullopt;
     }
 
-    // Ctrl+W - delete word
+    // ========================================================================
+    // History Navigation
+    // ========================================================================
+
+    if(c == Terminal::ARROW_UP || c == Terminal::CTRL_P)
+    {
+        std::string prevSearch = ed->getPreviousSearch();
+        if(!prevSearch.empty())
+        {
+            ed->searchQuery = prevSearch;
+            ctx.commandBuffer = "/" + ed->searchQuery;
+            ed->findAllMatches();
+            if(!ed->searchMatches.empty())
+            {
+                ed->jumpToMatch(0);
+            }
+        }
+        return std::nullopt;
+    }
+
+    if(c == Terminal::ARROW_DOWN || c == Terminal::CTRL_N)
+    {
+        std::string nextSearch = ed->getNextSearch();
+        if(!nextSearch.empty())
+        {
+            ed->searchQuery = nextSearch;
+            ctx.commandBuffer = "/" + ed->searchQuery;
+            ed->findAllMatches();
+            if(!ed->searchMatches.empty())
+            {
+                ed->jumpToMatch(0);
+            }
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Ctrl+W - Delete Word Backward
+    // ========================================================================
+
     if(c == Terminal::CTRL_W)
     {
         deleteWordBackward(ctx);
         return std::nullopt;
     }
 
-    // Ctrl+U - clear search
+    // ========================================================================
+    // Ctrl+U - Clear Search
+    // ========================================================================
+
     if(c == Terminal::CTRL_U)
     {
-        ctx.searchQuery.clear();
+        ed->searchQuery.clear();
         ctx.commandBuffer = "/";
-        ctx.cursorX() = ctx.savedCursorX;
-        ctx.cursorY() = ctx.savedCursorY;
+
+        ctx.cursorX() = ed->savedCursorX;
+        ctx.cursorY() = ed->savedCursorY;
         return std::nullopt;
     }
 
-    // Arrow up - previous search in history
-    if(c == Terminal::ARROW_UP)
-    {
-        std::string prev = ed->getPreviousSearch();
-        if(!prev.empty())
-        {
-            ctx.searchQuery = prev;
-            ctx.commandBuffer = "/" + ctx.searchQuery;
-        }
-        return std::nullopt;
-    }
+    // ========================================================================
+    // Regular Character Input
+    // ========================================================================
 
-    // Arrow down - next search in history
-    if(c == Terminal::ARROW_DOWN)
-    {
-        std::string next = ed->getNextSearch();
-        ctx.searchQuery = next;
-        ctx.commandBuffer = "/" + ctx.searchQuery;
-        return std::nullopt;
-    }
-
-    // Ctrl+N / Ctrl+P - next/previous match during incremental search
-    if(c == Terminal::CTRL_N)
-    {
-        ed->searchNext();
-        return std::nullopt;
-    }
-    if(c == Terminal::CTRL_P)
-    {
-        ed->searchPrevious();
-        return std::nullopt;
-    }
-
-    // Regular character input
     if(c >= 32 && c < 127)
     {
-        ctx.searchQuery += static_cast<char>(c);
-        ctx.commandBuffer = "/" + ctx.searchQuery;
+        ed->searchQuery += static_cast<char>(c);
+        ctx.commandBuffer = "/" + ed->searchQuery;
 
         // Incremental search
-        ed->performIncrementalSearch(ctx.searchQuery, true);
+        ed->findAllMatches();
+        if(!ed->searchMatches.empty())
+        {
+            ed->jumpToMatch(0);
+        }
     }
 
+    ed->needsFullRedraw = true;
     return std::nullopt;
 }
 
 void SearchForwardMode::deleteWordBackward(ModeContext& ctx)
 {
-    if(ctx.searchQuery.empty())
+    Editor* ed = ctx.editor;
+
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() == ' ')
     {
-        return;
+        ed->searchQuery.pop_back();
     }
-
-    size_t pos = ctx.searchQuery.length() - 1;
-
-    // Skip trailing spaces
-    while(pos > 0 && ctx.searchQuery[pos] == ' ')
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() != ' ')
     {
-        pos--;
+        ed->searchQuery.pop_back();
     }
+    ctx.commandBuffer = "/" + ed->searchQuery;
 
-    // Delete word characters
-    while(pos > 0 && ctx.searchQuery[pos] != ' ')
+    ctx.cursorX() = ed->savedCursorX;
+    ctx.cursorY() = ed->savedCursorY;
+
+    if(!ed->searchQuery.empty())
     {
-        pos--;
-    }
-
-    ctx.searchQuery = ctx.searchQuery.substr(0, pos > 0 ? pos + 1 : 0);
-    ctx.commandBuffer = "/" + ctx.searchQuery;
-
-    // Re-search incrementally
-    ctx.cursorX() = ctx.savedCursorX;
-    ctx.cursorY() = ctx.savedCursorY;
-    if(!ctx.searchQuery.empty())
-    {
-        ctx.editor->performIncrementalSearch(ctx.searchQuery, true);
+        ed->findAllMatches();
+        if(!ed->searchMatches.empty())
+        {
+            ed->jumpToMatch(0);
+        }
     }
 }
 
@@ -173,16 +215,28 @@ void SearchForwardMode::deleteWordBackward(ModeContext& ctx)
 
 void SearchBackwardMode::on_enter(ModeContext& ctx)
 {
-    ctx.commandBuffer = "?";
-    ctx.searchQuery.clear();
-    ctx.savedCursorX = ctx.cursorX();
-    ctx.savedCursorY = ctx.cursorY();
-    ctx.searchForward = false;
+    Editor* ed = ctx.editor;
 
-    ctx.editor->needsFullRedraw = true;
+    // Save cursor position for restoration on cancel
+    ed->savedCursorX = ctx.cursorX();
+    ed->savedCursorY = ctx.cursorY();
+
+    // Initialize search
+    ed->searchQuery.clear();
+    ed->searchForward = false;
+    ctx.commandBuffer = "?";
+
+    ed->needsFullRedraw = true;
+
+    // Set cursor to bar for search input
+    Terminal::setCursorBarBlinking();
 }
 
-void SearchBackwardMode::on_exit(ModeContext& /* ctx */) {}
+void SearchBackwardMode::on_exit(ModeContext& /* ctx */)
+{
+    // Restore block cursor
+    Terminal::setCursorBlock();
+}
 
 std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
                                                     const KeyEvent& event)
@@ -190,137 +244,197 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // Escape -> cancel search, restore cursor
+    // ========================================================================
+    // Cancel Search
+    // ========================================================================
+
     if(c == Terminal::ESC)
     {
-        ctx.cursorX() = ctx.savedCursorX;
-        ctx.cursorY() = ctx.savedCursorY;
-        ctx.setStatusMessage("");
+        ctx.cursorX() = ed->savedCursorX;
+        ctx.cursorY() = ed->savedCursorY;
+        ed->searchQuery.clear();
+        ctx.commandBuffer.clear();
         return NormalMode{};
     }
 
-    // Enter -> confirm search
+    // ========================================================================
+    // Execute Search
+    // ========================================================================
+
     if(c == Terminal::ENTER)
     {
-        if(!ctx.searchQuery.empty())
+        if(!ed->searchQuery.empty())
         {
-            ed->addSearchToHistory(ctx.searchQuery);
-            ed->performSearch(ctx.searchQuery, false);
+            ed->addSearchToHistory(ed->searchQuery);
+            ed->performSearch();
         }
+        ctx.commandBuffer.clear();
         return NormalMode{};
     }
 
+    // ========================================================================
     // Backspace
+    // ========================================================================
+
     if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
     {
-        if(!ctx.searchQuery.empty())
+        if(!ed->searchQuery.empty())
         {
-            ctx.searchQuery.pop_back();
-            ctx.commandBuffer = "?" + ctx.searchQuery;
+            ed->searchQuery.pop_back();
+            ctx.commandBuffer = "?" + ed->searchQuery;
 
-            ctx.cursorX() = ctx.savedCursorX;
-            ctx.cursorY() = ctx.savedCursorY;
-            if(!ctx.searchQuery.empty())
+            ctx.cursorX() = ed->savedCursorX;
+            ctx.cursorY() = ed->savedCursorY;
+
+            if(!ed->searchQuery.empty())
             {
-                ed->performIncrementalSearch(ctx.searchQuery, false);
+                ed->findAllMatches();
+                if(!ed->searchMatches.empty())
+                {
+                    // For backward search, find last match before cursor
+                    int bestIndex = ed->searchMatches.size() - 1;
+                    for(int i = ed->searchMatches.size() - 1; i >= 0; i--)
+                    {
+                        const auto& match = ed->searchMatches[i];
+                        if(match.row < ed->savedCursorY ||
+                           (match.row == ed->savedCursorY &&
+                            match.col < ed->savedCursorX))
+                        {
+                            bestIndex = i;
+                            break;
+                        }
+                    }
+                    ed->jumpToMatch(bestIndex);
+                }
             }
         }
         else
         {
-            ctx.cursorX() = ctx.savedCursorX;
-            ctx.cursorY() = ctx.savedCursorY;
+            ctx.cursorX() = ed->savedCursorX;
+            ctx.cursorY() = ed->savedCursorY;
+            ctx.commandBuffer.clear();
             return NormalMode{};
         }
         return std::nullopt;
     }
 
-    // Ctrl+W - delete word
+    // ========================================================================
+    // History Navigation
+    // ========================================================================
+
+    if(c == Terminal::ARROW_UP || c == Terminal::CTRL_P)
+    {
+        std::string prevSearch = ed->getPreviousSearch();
+        if(!prevSearch.empty())
+        {
+            ed->searchQuery = prevSearch;
+            ctx.commandBuffer = "?" + ed->searchQuery;
+            ed->findAllMatches();
+            if(!ed->searchMatches.empty())
+            {
+                ed->jumpToMatch(ed->searchMatches.size() - 1);
+            }
+        }
+        return std::nullopt;
+    }
+
+    if(c == Terminal::ARROW_DOWN || c == Terminal::CTRL_N)
+    {
+        std::string nextSearch = ed->getNextSearch();
+        if(!nextSearch.empty())
+        {
+            ed->searchQuery = nextSearch;
+            ctx.commandBuffer = "?" + ed->searchQuery;
+            ed->findAllMatches();
+            if(!ed->searchMatches.empty())
+            {
+                ed->jumpToMatch(ed->searchMatches.size() - 1);
+            }
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Ctrl+W - Delete Word Backward
+    // ========================================================================
+
     if(c == Terminal::CTRL_W)
     {
         deleteWordBackward(ctx);
         return std::nullopt;
     }
 
-    // Ctrl+U - clear search
+    // ========================================================================
+    // Ctrl+U - Clear Search
+    // ========================================================================
+
     if(c == Terminal::CTRL_U)
     {
-        ctx.searchQuery.clear();
+        ed->searchQuery.clear();
         ctx.commandBuffer = "?";
-        ctx.cursorX() = ctx.savedCursorX;
-        ctx.cursorY() = ctx.savedCursorY;
+
+        ctx.cursorX() = ed->savedCursorX;
+        ctx.cursorY() = ed->savedCursorY;
         return std::nullopt;
     }
 
-    // Arrow up/down - search history
-    if(c == Terminal::ARROW_UP)
-    {
-        std::string prev = ed->getPreviousSearch();
-        if(!prev.empty())
-        {
-            ctx.searchQuery = prev;
-            ctx.commandBuffer = "?" + ctx.searchQuery;
-        }
-        return std::nullopt;
-    }
-    if(c == Terminal::ARROW_DOWN)
-    {
-        std::string next = ed->getNextSearch();
-        ctx.searchQuery = next;
-        ctx.commandBuffer = "?" + ctx.searchQuery;
-        return std::nullopt;
-    }
+    // ========================================================================
+    // Regular Character Input
+    // ========================================================================
 
-    // Ctrl+N / Ctrl+P - next/previous match
-    if(c == Terminal::CTRL_N)
-    {
-        ed->searchNext();
-        return std::nullopt;
-    }
-    if(c == Terminal::CTRL_P)
-    {
-        ed->searchPrevious();
-        return std::nullopt;
-    }
-
-    // Regular character input
     if(c >= 32 && c < 127)
     {
-        ctx.searchQuery += static_cast<char>(c);
-        ctx.commandBuffer = "?" + ctx.searchQuery;
+        ed->searchQuery += static_cast<char>(c);
+        ctx.commandBuffer = "?" + ed->searchQuery;
 
-        // Incremental search
-        ed->performIncrementalSearch(ctx.searchQuery, false);
+        // Incremental search (backward)
+        ed->findAllMatches();
+        if(!ed->searchMatches.empty())
+        {
+            // Find last match before saved cursor position
+            int bestIndex = ed->searchMatches.size() - 1;
+            for(int i = ed->searchMatches.size() - 1; i >= 0; i--)
+            {
+                const auto& match = ed->searchMatches[i];
+                if(match.row < ed->savedCursorY ||
+                   (match.row == ed->savedCursorY &&
+                    match.col < ed->savedCursorX))
+                {
+                    bestIndex = i;
+                    break;
+                }
+            }
+            ed->jumpToMatch(bestIndex);
+        }
     }
 
+    ed->needsFullRedraw = true;
     return std::nullopt;
 }
 
 void SearchBackwardMode::deleteWordBackward(ModeContext& ctx)
 {
-    if(ctx.searchQuery.empty())
+    Editor* ed = ctx.editor;
+
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() == ' ')
     {
-        return;
+        ed->searchQuery.pop_back();
     }
-
-    size_t pos = ctx.searchQuery.length() - 1;
-
-    while(pos > 0 && ctx.searchQuery[pos] == ' ')
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() != ' ')
     {
-        pos--;
+        ed->searchQuery.pop_back();
     }
+    ctx.commandBuffer = "?" + ed->searchQuery;
 
-    while(pos > 0 && ctx.searchQuery[pos] != ' ')
+    ctx.cursorX() = ed->savedCursorX;
+    ctx.cursorY() = ed->savedCursorY;
+
+    if(!ed->searchQuery.empty())
     {
-        pos--;
-    }
-
-    ctx.searchQuery = ctx.searchQuery.substr(0, pos > 0 ? pos + 1 : 0);
-    ctx.commandBuffer = "?" + ctx.searchQuery;
-
-    ctx.cursorX() = ctx.savedCursorX;
-    ctx.cursorY() = ctx.savedCursorY;
-    if(!ctx.searchQuery.empty())
-    {
-        ctx.editor->performIncrementalSearch(ctx.searchQuery, false);
+        ed->findAllMatches();
+        if(!ed->searchMatches.empty())
+        {
+            ed->jumpToMatch(ed->searchMatches.size() - 1);
+        }
     }
 }
