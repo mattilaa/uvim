@@ -130,6 +130,15 @@ int main(int argc, char* argv[])
             args.emplace_back(a);
         }
     }
+
+    if(args.empty() && argc > 1)
+    {
+        std::string_view fallback{argv[argc - 1]};
+        if(!fallback.empty() && fallback[0] != '-')
+        {
+            args.emplace_back(fallback);
+        }
+    }
     // Set custom log file path if provided
 #ifdef UVIM_DEBUG_LOGGING
     if(!logFile.empty())
