@@ -54,11 +54,13 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == Terminal::CTRL_N || c == Terminal::ARROW_DOWN)
+    if(c == Terminal::CTRL_N || c == Terminal::CTRL_J ||
+       c == Terminal::ARROW_DOWN)
     {
         ed->fuzzyFindDown();
     }
-    else if(c == Terminal::CTRL_P || c == Terminal::ARROW_UP)
+    else if(c == Terminal::CTRL_P || c == Terminal::CTRL_K ||
+            c == Terminal::ARROW_UP)
     {
         ed->fuzzyFindUp();
     }
