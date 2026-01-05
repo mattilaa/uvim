@@ -559,6 +559,303 @@ void Editor::moveToMatchingBracket()
     }
 }
 
+void Editor::moveToFirstNonBlank()
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    const std::string& line = (*lines)[*cursorY];
+    *cursorX = 0;
+    while(*cursorX < (int)line.length() &&
+          (line[*cursorX] == ' ' || line[*cursorX] == '\t'))
+    {
+        (*cursorX)++;
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveParagraphForward()
+{
+    if(lines->empty())
+        return;
+
+    // Skip current non-empty lines
+    while(*cursorY < (int)lines->size() - 1 && !(*lines)[*cursorY].empty())
+    {
+        (*cursorY)++;
+    }
+    // Skip empty lines
+    while(*cursorY < (int)lines->size() - 1 && (*lines)[*cursorY].empty())
+    {
+        (*cursorY)++;
+    }
+    *cursorX = 0;
+    adjustViewport();
+}
+
+void Editor::moveParagraphBackward()
+{
+    if(lines->empty())
+        return;
+
+    // Skip current empty lines
+    while(*cursorY > 0 && (*lines)[*cursorY].empty())
+    {
+        (*cursorY)--;
+    }
+    // Skip non-empty lines
+    while(*cursorY > 0 && !(*lines)[*cursorY].empty())
+    {
+        (*cursorY)--;
+    }
+    *cursorX = 0;
+    adjustViewport();
+}
+
+void Editor::moveWordForwardBig()
+{
+    if(lines->empty() || *cursorY >= (int)lines->size())
+        return;
+
+    const std::string& line = (*lines)[*cursorY];
+
+    // Skip current non-whitespace
+    while(*cursorX < (int)line.length() && !std::isspace(line[*cursorX]))
+    {
+        (*cursorX)++;
+    }
+    // Skip whitespace
+    while(*cursorX < (int)line.length() && std::isspace(line[*cursorX]))
+    {
+        (*cursorX)++;
+    }
+    // If at end of line, move to next line
+    if(*cursorX >= (int)line.length() && *cursorY < (int)lines->size() - 1)
+    {
+        (*cursorY)++;
+        *cursorX = 0;
+        const std::string& nextLine = (*lines)[*cursorY];
+        while(*cursorX < (int)nextLine.length() &&
+              std::isspace(nextLine[*cursorX]))
+        {
+            (*cursorX)++;
+        }
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveWordBackwardBig()
+{
+    if(lines->empty() || *cursorY >= (int)lines->size())
+        return;
+
+    // Move back one if not at start
+    if(*cursorX > 0)
+        (*cursorX)--;
+    else if(*cursorY > 0)
+    {
+        (*cursorY)--;
+        *cursorX = (*lines)[*cursorY].length();
+        if(*cursorX > 0)
+            (*cursorX)--;
+    }
+
+    const std::string& line = (*lines)[*cursorY];
+
+    // Skip whitespace backward
+    while(*cursorX > 0 && std::isspace(line[*cursorX]))
+    {
+        (*cursorX)--;
+    }
+    // Skip non-whitespace backward
+    while(*cursorX > 0 && !std::isspace(line[*cursorX - 1]))
+    {
+        (*cursorX)--;
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::moveToEndOfWordBig()
+{
+    if(lines->empty() || *cursorY >= (int)lines->size())
+        return;
+
+    const std::string& line = (*lines)[*cursorY];
+
+    // Move forward one
+    if(*cursorX < (int)line.length())
+        (*cursorX)++;
+
+    // Skip whitespace
+    while(*cursorX < (int)line.length() && std::isspace(line[*cursorX]))
+    {
+        (*cursorX)++;
+    }
+    // Move to end of word
+    while(*cursorX < (int)line.length() - 1 &&
+          !std::isspace(line[*cursorX + 1]))
+    {
+        (*cursorX)++;
+    }
+    *wantedX = *cursorX;
+}
+
+void Editor::findCharForwardBefore(char c)
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    const std::string& line = (*lines)[*cursorY];
+
+    for(int i = *cursorX + 1; i < (int)line.length(); i++)
+    {
+        if(line[i] == c)
+        {
+            *cursorX = i - 1;
+            if(*cursorX < 0)
+                *cursorX = 0;
+            *wantedX = *cursorX;
+            return;
+        }
+    }
+}
+
+void Editor::findCharBackwardAfter(char c)
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    const std::string& line = (*lines)[*cursorY];
+
+    for(int i = *cursorX - 1; i >= 0; i--)
+    {
+        if(line[i] == c)
+        {
+            *cursorX = i + 1;
+            if(*cursorX >= (int)line.length())
+                *cursorX = line.length() - 1;
+            *wantedX = *cursorX;
+            return;
+        }
+    }
+}
+
+// ============================================================================
+// Character finding (f/F motions) - base implementations
+// These may already exist in another file, but are needed by operator_pending
+// ============================================================================
+
+void Editor::findCharForward(char c)
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    const std::string& line = (*lines)[*cursorY];
+
+    for(int i = *cursorX + 1; i < (int)line.length(); i++)
+    {
+        if(line[i] == c)
+        {
+            *cursorX = i;
+            *wantedX = *cursorX;
+            lastFindChar = c;
+            lastFindForward = true;
+            return;
+        }
+    }
+}
+
+void Editor::findCharBackward(char c)
+{
+    if(*cursorY >= (int)lines->size())
+        return;
+    const std::string& line = (*lines)[*cursorY];
+
+    for(int i = *cursorX - 1; i >= 0; i--)
+    {
+        if(line[i] == c)
+        {
+            *cursorX = i;
+            *wantedX = *cursorX;
+            lastFindChar = c;
+            lastFindForward = false;
+            return;
+        }
+    }
+}
+
+// ============================================================================
+// Scrolling Commands
+// ============================================================================
+
+void Editor::scrollToTop()
+{
+    *offsetY = 0;
+    *cursorY = 0;
+    *cursorX = 0;
+    needsFullRedraw = true;
+}
+
+void Editor::scrollToBottom()
+{
+    if(lines->empty())
+        return;
+    *cursorY = lines->size() - 1;
+    *cursorX = 0;
+    adjustViewport();
+    needsFullRedraw = true;
+}
+
+void Editor::scrollPageUp()
+{
+    int pageSize = screenRows - 2;
+    *cursorY -= pageSize;
+    if(*cursorY < 0)
+        *cursorY = 0;
+    *offsetY -= pageSize;
+    if(*offsetY < 0)
+        *offsetY = 0;
+    if(*cursorY < (int)lines->size())
+        *cursorX = std::min(*wantedX, (int)(*lines)[*cursorY].length());
+    needsFullRedraw = true;
+}
+
+void Editor::scrollPageDown()
+{
+    int pageSize = screenRows - 2;
+    *cursorY += pageSize;
+    if(*cursorY >= (int)lines->size())
+        *cursorY = lines->size() - 1;
+    *offsetY += pageSize;
+    int maxOffset = std::max(0, (int)lines->size() - screenRows + 2);
+    if(*offsetY > maxOffset)
+        *offsetY = maxOffset;
+    if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        *cursorX = std::min(*wantedX, (int)(*lines)[*cursorY].length());
+    needsFullRedraw = true;
+}
+
+void Editor::moveToScreenTop()
+{
+    *cursorY = *offsetY;
+    if(*cursorY >= (int)lines->size())
+        *cursorY = lines->size() - 1;
+    moveToFirstNonBlank();
+}
+
+void Editor::moveToScreenMiddle()
+{
+    *cursorY = *offsetY + (screenRows - 2) / 2;
+    if(*cursorY >= (int)lines->size())
+        *cursorY = lines->size() - 1;
+    moveToFirstNonBlank();
+}
+
+void Editor::moveToScreenBottom()
+{
+    *cursorY = *offsetY + screenRows - 3;
+    if(*cursorY >= (int)lines->size())
+        *cursorY = lines->size() - 1;
+    moveToFirstNonBlank();
+}
+
+
 void Editor::adjustViewport()
 {
     // uvim can start in FILE_BROWSER mode with skipInitialBuffer=true.

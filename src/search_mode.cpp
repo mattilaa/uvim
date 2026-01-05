@@ -438,3 +438,108 @@ void SearchBackwardMode::deleteWordBackward(ModeContext& ctx)
         }
     }
 }
+
+void Editor::performSearch(const std::string& query, bool forward)
+{
+    searchQuery = query;
+    searchForward = forward;
+    performSearch();
+}
+
+void Editor::performIncrementalSearch(const std::string& query, bool forward)
+{
+    searchQuery = query;
+    searchForward = forward;
+    findAllMatches();
+
+    if(!searchMatches.empty())
+    {
+        // Find closest match
+        int bestIndex = 0;
+        for(int i = 0; i < (int)searchMatches.size(); i++)
+        {
+            const auto& match = searchMatches[i];
+            if(forward)
+            {
+                if(match.row > savedCursorY ||
+                   (match.row == savedCursorY && match.col >= savedCursorX))
+                {
+                    bestIndex = i;
+                    break;
+                }
+            }
+            else
+            {
+                if(match.row < savedCursorY ||
+                   (match.row == savedCursorY && match.col <= savedCursorX))
+                {
+                    bestIndex = i;
+                }
+            }
+        }
+        jumpToMatch(bestIndex);
+    }
+    needsFullRedraw = true;
+}
+
+void Editor::searchWordUnderCursor(bool forward)
+{
+    std::string word = getSymbolUnderCursor();
+    if(!word.empty())
+    {
+        searchQuery = word;
+        searchForward = forward;
+        savedCursorX = *cursorX;
+        savedCursorY = *cursorY;
+        performSearch();
+    }
+}
+
+void Editor::addSearchToHistory(const std::string& query)
+{
+    if(query.empty())
+        return;
+
+    auto it = std::find(searchHistory.begin(), searchHistory.end(), query);
+    if(it != searchHistory.end())
+    {
+        searchHistory.erase(it);
+    }
+
+    searchHistory.push_back(query);
+    searchHistoryIndex = -1;
+
+    while(searchHistory.size() > 100)
+    {
+        searchHistory.erase(searchHistory.begin());
+    }
+}
+
+std::string Editor::getPreviousSearch()
+{
+    if(searchHistory.empty())
+        return "";
+
+    if(searchHistoryIndex < 0)
+    {
+        searchHistoryIndex = searchHistory.size() - 1;
+    }
+    else if(searchHistoryIndex > 0)
+    {
+        searchHistoryIndex--;
+    }
+    return searchHistory[searchHistoryIndex];
+}
+
+std::string Editor::getNextSearch()
+{
+    if(searchHistory.empty() || searchHistoryIndex < 0)
+        return "";
+
+    if(searchHistoryIndex < (int)searchHistory.size() - 1)
+    {
+        searchHistoryIndex++;
+        return searchHistory[searchHistoryIndex];
+    }
+    return "";
+}
