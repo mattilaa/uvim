@@ -33,6 +33,19 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
+    // Double operator (dd/cc/yy/>>/<< etc.) -> linewise operation
+    if(!awaitingObject && c == op)
+    {
+        ed->handleLinewiseOperator(op, count);
+        ctx.repeatCount = 0;
+        ctx.commandBuffer.clear();
+        if(op == 'c')
+        {
+            return InsertMode{};
+        }
+        return NormalMode{};
+    }
+
     // 'i' or 'a' enter text object mode
     if(!awaitingObject && (c == 'i' || c == 'a'))
     {

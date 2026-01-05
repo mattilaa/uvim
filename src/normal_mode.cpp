@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include <chrono>
 #include <cctype>
 
 // ============================================================================
@@ -50,6 +51,39 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
 
     int count = std::max(1, ctx.repeatCount);
+
+    // ========================================================================
+    // Escape Handling (double-ESC clears search)
+    // ========================================================================
+
+    if(c == Terminal::ESC)
+    {
+        auto now = std::chrono::steady_clock::now();
+        auto timeSinceLastEsc =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - ed->lastEscTime)
+                .count();
+
+        if(timeSinceLastEsc <= Editor::DOUBLE_ESC_TIMEOUT_MS &&
+           (!ed->searchMatches.empty() || !ed->searchQuery.empty()))
+        {
+            ed->clearSearch();
+            ctx.setStatusMessage("Search cleared");
+            ed->needsFullRedraw = true;
+            ed->lastEscTime = std::chrono::steady_clock::time_point();
+        }
+        else
+        {
+            ed->lastEscTime = now;
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            ctx.pendingOperator = 0;
+            ctx.pendingAwaitingObject = false;
+            ctx.pendingObjectType = 0;
+            ctx.pendingCount = 0;
+        }
+        return std::nullopt;
+    }
 
     // ========================================================================
     // Leader Key (Space)
@@ -204,26 +238,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == 'd' || c == 'c' || c == 'y' || c == '>' || c == '<' || c == '=')
     {
-        // Check for linewise operator (dd, cc, yy, etc.)
-        int nextChar = Terminal::readKey();
-        if(nextChar == c)
-        {
-            // Linewise operation
-            ed->handleLinewiseOperator(static_cast<char>(c), count);
-            ctx.repeatCount = 0;
-            if(c == 'c')
-            {
-                return InsertMode{};
-            }
-            return std::nullopt;
-        }
-        else
-        {
-            // Motion-based operator - need to handle the nextChar
-            // For now, just enter operator pending mode
-            // TODO: properly pass nextChar to operator pending
-            return OperatorPendingMode{static_cast<char>(c), count};
-        }
+        return OperatorPendingMode{static_cast<char>(c), count};
     }
 
     // ========================================================================
@@ -690,8 +705,8 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     switch(c)
     {
     case 'f':
-        // Fuzzy file finder
-        return FuzzyFindMode{};
+        ed->clangFormatWithArgs("", "clang-format: formatted file");
+        return std::nullopt;
 
     case 'b':
         // Buffer browser
@@ -776,6 +791,21 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     case 'e':
         // File browser / explorer
         return FileBrowserMode{"."};
+
+    case 'h':
+        // Jump to alternate file (header/source)
+        ed->jumpToAlternateFile();
+        break;
+
+    case 'y':
+        // Yank to system clipboard
+        ed->yankToSystemClipboard();
+        break;
+
+    case 'p':
+        // Paste from system clipboard
+        ed->pasteFromSystemClipboard();
+        break;
 
     case 'w':
         // Save file

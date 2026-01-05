@@ -4553,7 +4553,6 @@ void Editor::handleLinewiseOperator(char op, int count)
             deleteCurrentLine();
         }
         insertLineAbove();
-        setMode(INSERT);
         break;
     }
 }
