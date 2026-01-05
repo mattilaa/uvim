@@ -11,7 +11,6 @@
 void Editor::openFileBrowser(const std::string& path)
 {
     fileBrowser.open(*this, path);
-    setMode(FILE_BROWSER);
 }
 
 void FileBrowser::open(Editor& editor, const std::string& path)
@@ -53,6 +52,7 @@ void FileBrowser::open(Editor& editor, const std::string& path)
 
     browserCursor = 0;
     browserOffset = 0;
+    editor.setMode(FILE_BROWSER);
     editor.needsFullRedraw = true;
 }
 
@@ -196,6 +196,7 @@ void FileBrowser::navigateTo(Editor& editor, const FileEntry& entry)
     else
     {
         editor.openFile(entry.path);
+        editor.setMode(NORMAL);
     }
 }
 
@@ -443,8 +444,16 @@ bool FileBrowser::selectEntry(Editor& editor)
     if(browserCursor >= 0 && browserCursor < (int)fileList.size())
     {
         const FileEntry& entry = fileList[browserCursor];
-        navigateTo(editor, entry);
-        return !entry.isDirectory;
+        bool isDir =
+            entry.isDirectory || file_utils::is_directory(entry.path);
+        if(isDir)
+        {
+            open(editor, entry.path);
+            return false;
+        }
+        editor.openFile(entry.path);
+        editor.setMode(NORMAL);
+        return true;
     }
     return false;
 }

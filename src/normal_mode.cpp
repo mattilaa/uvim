@@ -62,6 +62,31 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         {
             return result;
         }
+        if(ctx.commandBuffer != " ")
+        {
+            return std::nullopt;
+        }
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Leader-b Buffer Commands
+    // ========================================================================
+
+    if(ctx.commandBuffer == " b")
+    {
+        if(c == 'd')
+        {
+            ctx.commandBuffer.clear();
+            ctx.setStatusMessage("");
+            ctx.repeatCount = 0;
+            ed->closeCurrentBuffer();
+            return std::nullopt;
+        }
+
         ctx.commandBuffer.clear();
         ctx.setStatusMessage("");
         ctx.repeatCount = 0;
@@ -670,7 +695,10 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case 'b':
         // Buffer browser
-        return BufferBrowserMode{};
+        ctx.commandBuffer = " b";
+        ctx.setStatusMessage("Leader-b");
+        ctx.repeatCount = 0;
+        return std::nullopt;
 
     case 'g':
     {
