@@ -6,6 +6,7 @@ enum Mode
 {
     NORMAL,
     INSERT,
+    REPLACE,
     VISUAL,
     VISUAL_LINE,
     VISUAL_BLOCK,

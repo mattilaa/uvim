@@ -12,6 +12,10 @@ void NormalMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
     ctx.repeatCount = 0;
     ctx.commandBuffer.clear();
+    ctx.pendingOperator = 0;
+    ctx.pendingAwaitingObject = false;
+    ctx.pendingObjectType = 0;
+    ctx.pendingCount = 0;
 
     // Set block cursor for normal mode
     Terminal::setCursorBlock();
@@ -138,6 +142,23 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         ctx.repeatCount = 0;
         return CommandMode{};
+    }
+
+    // Quick mode switching
+    if(c == Terminal::CTRL_P)
+    {
+        ctx.repeatCount = 0;
+        return FuzzyFindMode{};
+    }
+    if(c == Terminal::CTRL_W)
+    {
+        ctx.repeatCount = 0;
+        return BufferBrowserMode{};
+    }
+    if(c == Terminal::CTRL_S)
+    {
+        ctx.repeatCount = 0;
+        return GrepSearchMode{};
     }
 
     // Search modes
@@ -703,8 +724,32 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         return std::nullopt;
     }
 
+    case 'x':
+    {
+        std::string dir = ".";
+        if(!ed->filename->empty())
+        {
+            size_t lastSlash = ed->filename->find_last_of("/");
+            if(lastSlash != std::string::npos)
+            {
+                dir = ed->filename->substr(0, lastSlash);
+                if(dir.empty())
+                    dir = "/";
+            }
+        }
+        ed->currentDirectory = dir;
+        ed->loadDirectory(dir);
+        ed->browserCursor = 0;
+        ed->browserOffset = 0;
+        return FileBrowserMode{};
+    }
+
     case 'e':
         // File browser / explorer
+        ed->currentDirectory = ".";
+        ed->loadDirectory(ed->currentDirectory);
+        ed->browserCursor = 0;
+        ed->browserOffset = 0;
         return FileBrowserMode{};
 
     case 'w':

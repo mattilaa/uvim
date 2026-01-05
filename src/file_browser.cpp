@@ -7,6 +7,11 @@
 
 void Editor::openFileBrowser(const std::string& path)
 {
+    if(buffers.empty())
+    {
+        createNewBuffer();
+    }
+
     if(currentMode != FILE_BROWSER && currentBuffer != nullptr)
     {
         previousFile = *filename;
@@ -34,7 +39,6 @@ void Editor::openFileBrowser(const std::string& path)
     if(fileList.empty())
     {
         setStatusMessage("Failed to load directory: " + currentDirectory);
-        return;
     }
 
     setMode(FILE_BROWSER);
@@ -348,6 +352,11 @@ void Editor::drawFileBrowser()
 
 void Editor::handleFileBrowserMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     switch(c)
     {
     case Terminal::ENTER:

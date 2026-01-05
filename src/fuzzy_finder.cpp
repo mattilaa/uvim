@@ -389,6 +389,11 @@ void Editor::selectFuzzyMatch()
 
 void Editor::handleFuzzyFindMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     switch(c)
     {
     case Terminal::ENTER:

@@ -50,6 +50,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/command_mode.cpp
     src/search_mode.cpp
     src/operator_pending_mode.cpp
+    src/references_mode.cpp
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp

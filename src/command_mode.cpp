@@ -122,6 +122,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
 
 void Editor::handleCommandMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     if(c == Terminal::ESC)
     {
         commandBuffer.clear();

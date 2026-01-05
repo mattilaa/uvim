@@ -288,6 +288,9 @@ Editor::Editor(bool skipInitialBuffer)
         saveState();
         currentBuffer->savedUndoIndex = 0; // Mark initial empty buffer as saved
     }
+
+    modeStateMachine =
+        std::make_unique<ModeStateMachine>(createModeContext(this));
 }
 
 Editor::~Editor()
@@ -399,6 +402,11 @@ void Editor::enterOperatorPending(char op)
 
 void Editor::handleOperatorPendingMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     // If user pressed ESC, cancel
     if(c == Terminal::ESC)
     {
@@ -980,75 +988,73 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
 
 void Editor::setMode(Mode mode)
 {
-    Mode previousMode = currentMode;
     currentMode = mode;
     needsFullRedraw = true;
 
-    // Cursor shape handling (NEW)
-    if(mode == INSERT)
+    if(!modeStateMachine)
     {
-        Terminal::setCursorBarBlinking();
-    }
-    else
-    {
-        Terminal::setCursorBlock();
+        if(mode == INSERT)
+        {
+            Terminal::setCursorBarBlinking();
+        }
+        else
+        {
+            Terminal::setCursorBlock();
+        }
+        return;
     }
 
-    if(mode == NORMAL)
+    switch(mode)
     {
-        commandBuffer.clear();
-        repeatCount = 0;
-        pendingOperator = 0;
-        pendingAwaitingObject = false;
-        pendingObjectType = 0;
-        pendingCount = 0;
+    case NORMAL:
+        modeStateMachine->transitionTo(NormalMode{});
+        break;
+    case INSERT:
+        modeStateMachine->transitionTo(InsertMode{});
+        break;
+    case REPLACE:
+        modeStateMachine->transitionTo(ReplaceMode{});
+        break;
+    case VISUAL:
+        modeStateMachine->transitionTo(VisualMode{});
+        break;
+    case VISUAL_LINE:
+        modeStateMachine->transitionTo(VisualLineMode{});
+        break;
+    case VISUAL_BLOCK:
+        modeStateMachine->transitionTo(VisualBlockMode{});
+        break;
+    case COMMAND:
+        modeStateMachine->transitionTo(CommandMode{});
+        break;
+    case SEARCH_FORWARD:
+        modeStateMachine->transitionTo(SearchForwardMode{});
+        break;
+    case SEARCH_BACKWARD:
+        modeStateMachine->transitionTo(SearchBackwardMode{});
+        break;
+    case FILE_BROWSER:
+        modeStateMachine->transitionTo(FileBrowserMode{});
+        break;
+    case FUZZY_FIND:
+        modeStateMachine->transitionTo(FuzzyFindMode{});
+        break;
+    case BUFFER_BROWSER:
+        modeStateMachine->transitionTo(BufferBrowserMode{});
+        break;
+    case GREP_SEARCH:
+        modeStateMachine->transitionTo(GrepSearchMode{});
+        break;
+    case OP_PENDING:
+        modeStateMachine->transitionTo(
+            OperatorPendingMode{pendingOperator, pendingCount});
+        break;
+    case REFERENCES:
+        modeStateMachine->transitionTo(ReferencesMode{});
+        break;
     }
-    else if(mode == COMMAND)
-    {
-        commandBuffer = ":";
-    }
-    else if(mode == VISUAL || mode == VISUAL_LINE)
-    {
-        currentBuffer->visualStartX = *cursorX;
-        currentBuffer->visualStartY = *cursorY;
-        currentBuffer->visualEndX = *cursorX;
-        currentBuffer->visualEndY = *cursorY;
-    }
-    else if(mode == SEARCH_FORWARD)
-    {
-        commandBuffer = "/";
-        searchQuery.clear();
-        savedCursorX = *cursorX;
-        savedCursorY = *cursorY;
-        searchForward = true;
-    }
-    else if(mode == SEARCH_BACKWARD)
-    {
-        commandBuffer = "?";
-        searchQuery.clear();
-        savedCursorX = *cursorX;
-        savedCursorY = *cursorY;
-        searchForward = false;
-    }
-    else if(mode == FILE_BROWSER)
-    {
-        if(fileList.empty() && !currentDirectory.empty())
-        {
-            loadDirectory(currentDirectory);
-        }
-    }
-    else if(mode == FUZZY_FIND)
-    {
-        initializeFuzzyFind();
-    }
-    else if(mode == BUFFER_BROWSER)
-    {
-        initializeBufferBrowser();
-    }
-    else if(mode == GREP_SEARCH)
-    {
-        initializeGrepSearch();
-    }
+
+    syncModeFromStateMachine();
 }
 
 std::string Editor::getModeString() const
@@ -1059,6 +1065,8 @@ std::string Editor::getModeString() const
         return "NORMAL";
     case INSERT:
         return "INSERT";
+    case REPLACE:
+        return "REPLACE";
     case VISUAL:
         return "VISUAL";
     case VISUAL_LINE:
@@ -2007,6 +2015,8 @@ void Editor::goToDefinition()
 
 void Editor::refreshScreen()
 {
+    syncModeFromStateMachine();
+
     if(currentMode == FILE_BROWSER)
     {
         drawFileBrowser();
@@ -2066,8 +2076,9 @@ void Editor::refreshScreen()
     }
 
     bool isEditingMode =
-        (currentMode == INSERT || currentMode == COMMAND ||
-         currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD);
+        (currentMode == INSERT || currentMode == REPLACE ||
+         currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+         currentMode == SEARCH_BACKWARD);
 
     if(modeChanged || needsFullRedraw || *offsetX != lastOffsetX ||
        abs(scrollDelta) > screenRows / 2 || visualChanged ||
@@ -2751,6 +2762,88 @@ static std::string longestCommonPrefix(const std::vector<std::string>& strings)
     return prefix;
 }
 
+bool Editor::dispatchModeKey(int c)
+{
+    if(!modeStateMachine)
+    {
+        return false;
+    }
+
+    modeStateMachine->dispatch(c);
+    syncModeFromStateMachine();
+    return true;
+}
+
+void Editor::syncModeFromStateMachine()
+{
+    if(!modeStateMachine)
+    {
+        return;
+    }
+
+    const ModeState& state = modeStateMachine->state();
+    if(std::holds_alternative<NormalMode>(state))
+    {
+        currentMode = NORMAL;
+    }
+    else if(std::holds_alternative<InsertMode>(state))
+    {
+        currentMode = INSERT;
+    }
+    else if(std::holds_alternative<ReplaceMode>(state))
+    {
+        currentMode = REPLACE;
+    }
+    else if(std::holds_alternative<VisualMode>(state))
+    {
+        currentMode = VISUAL;
+    }
+    else if(std::holds_alternative<VisualLineMode>(state))
+    {
+        currentMode = VISUAL_LINE;
+    }
+    else if(std::holds_alternative<VisualBlockMode>(state))
+    {
+        currentMode = VISUAL_BLOCK;
+    }
+    else if(std::holds_alternative<CommandMode>(state))
+    {
+        currentMode = COMMAND;
+    }
+    else if(std::holds_alternative<SearchForwardMode>(state))
+    {
+        currentMode = SEARCH_FORWARD;
+    }
+    else if(std::holds_alternative<SearchBackwardMode>(state))
+    {
+        currentMode = SEARCH_BACKWARD;
+    }
+    else if(std::holds_alternative<FileBrowserMode>(state))
+    {
+        currentMode = FILE_BROWSER;
+    }
+    else if(std::holds_alternative<FuzzyFindMode>(state))
+    {
+        currentMode = FUZZY_FIND;
+    }
+    else if(std::holds_alternative<BufferBrowserMode>(state))
+    {
+        currentMode = BUFFER_BROWSER;
+    }
+    else if(std::holds_alternative<GrepSearchMode>(state))
+    {
+        currentMode = GREP_SEARCH;
+    }
+    else if(std::holds_alternative<OperatorPendingMode>(state))
+    {
+        currentMode = OP_PENDING;
+    }
+    else if(std::holds_alternative<ReferencesMode>(state))
+    {
+        currentMode = REFERENCES;
+    }
+}
+
 void Editor::handleKeypress()
 {
     int c = Terminal::readKey();
@@ -2758,12 +2851,18 @@ void Editor::handleKeypress()
     LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
               static_cast<int>(currentMode));
 
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     switch(currentMode)
     {
     case NORMAL:
         handleNormalMode(c);
         break;
     case INSERT:
+    case REPLACE:
         handleInsertMode(c);
         break;
     case VISUAL:
@@ -2794,6 +2893,8 @@ void Editor::handleKeypress()
         break;
     case OP_PENDING:
         handleOperatorPendingMode(c);
+        break;
+    default:
         break;
     }
 }
@@ -3026,6 +3127,11 @@ void Editor::handleNormalMode(int c)
 {
     LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c,
               (char)c, commandBuffer);
+
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
 
     static bool pendingDelete = false;
     static bool pendingYank = false;
@@ -5327,6 +5433,11 @@ void Editor::switchToAlternateFile()
 
 void Editor::handleInsertMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     // Delegate to state machine implementation in insert_mode.cpp
     InsertMode state;
     ModeContext ctx = createModeContext(this);
@@ -5352,6 +5463,11 @@ void Editor::handleInsertMode(int c)
 
 void Editor::handleVisualMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     // Delegate to state machine implementation in visual_mode.cpp
     VisualMode state;
     ModeContext ctx = createModeContext(this);
@@ -5383,6 +5499,11 @@ void Editor::handleVisualMode(int c)
 
 void Editor::handleVisualBlockMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     // Delegate to state machine implementation in visual_mode.cpp
     VisualBlockMode state;
     ModeContext ctx = createModeContext(this);
@@ -5406,6 +5527,11 @@ void Editor::handleVisualBlockMode(int c)
 
 void Editor::handleSearchMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     // Determine which search mode we're in and delegate accordingly
     if(currentMode == SEARCH_FORWARD)
     {

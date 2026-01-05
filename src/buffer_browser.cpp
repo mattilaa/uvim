@@ -185,6 +185,11 @@ void Editor::selectBufferMatch()
 
 void Editor::handleBufferBrowserMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     switch(c)
     {
     case Terminal::ENTER:

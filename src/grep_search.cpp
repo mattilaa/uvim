@@ -418,6 +418,11 @@ void Editor::selectGrepMatch()
 
 void Editor::handleGrepSearchMode(int c)
 {
+    if(dispatchModeKey(c))
+    {
+        return;
+    }
+
     switch(c)
     {
     case Terminal::ENTER:

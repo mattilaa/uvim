@@ -10,9 +10,6 @@ void ReferencesMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    // Set the legacy mode for drawing
-    ed->currentMode = REFERENCES;
-
     // References should already be populated before entering this mode
     // via ed->findReferences() called from normal mode
 
@@ -22,9 +19,6 @@ void ReferencesMode::on_enter(ModeContext& ctx)
 void ReferencesMode::on_exit(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
-
-    // Restore normal mode for legacy drawing
-    ed->currentMode = NORMAL;
 
     // Restore block cursor
     Terminal::setCursorBlock();

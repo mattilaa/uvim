@@ -11,7 +11,11 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
 
     // Load directory if not already loaded
-    if(ed->fileList.empty() && !ed->currentDirectory.empty())
+    if(ed->currentDirectory.empty())
+    {
+        ed->currentDirectory = ".";
+    }
+    if(ed->fileList.empty())
     {
         ed->loadDirectory(ed->currentDirectory);
     }

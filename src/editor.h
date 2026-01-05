@@ -18,6 +18,7 @@ class LspClient;
 #endif
 
 class GitIgnore;
+class ModeStateMachine;
 
 class Editor
 {
@@ -50,14 +51,14 @@ public:
     Buffer* currentBuffer = nullptr;
 
     // References to current buffer's data (for easier access)
-    std::vector<std::string>* lines;
-    std::string* filename;
-    bool* dirty;
-    int* cursorX;
-    int* cursorY;
-    int* wantedX;
-    int* offsetX;
-    int* offsetY;
+    std::vector<std::string>* lines = nullptr;
+    std::string* filename = nullptr;
+    bool* dirty = nullptr;
+    int* cursorX = nullptr;
+    int* cursorY = nullptr;
+    int* wantedX = nullptr;
+    int* offsetX = nullptr;
+    int* offsetY = nullptr;
 
     // File browser (FileEntry struct is now in file_entry.h)
     std::vector<FileEntry> fileList;
@@ -580,4 +581,9 @@ public:
     void undo();
     void redo();
     bool lastFindTill{false};
+
+private:
+    bool dispatchModeKey(int c);
+    void syncModeFromStateMachine();
+    std::unique_ptr<ModeStateMachine> modeStateMachine;
 };
