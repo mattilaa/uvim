@@ -118,6 +118,7 @@ public:
     bool commandRequestedModeSet = false;
     Mode commandRequestedMode = NORMAL;
     std::string commandRequestedPath;
+    std::string symbolPrefix;
 
     // clangd LSP (optional, runtime-enabled)
     bool clangdLspEnabled = false;

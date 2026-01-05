@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "log.h"
 #include "mode_state_machine.h"
+#include "stdlib_goto.h"
 #include "terminal.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -20,7 +21,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <unordered_map>
 #include <unistd.h>
 
 namespace fs = std::filesystem;
@@ -1316,6 +1316,24 @@ std::string Editor::getSymbolUnderCursor()
     while(r < line.size() && isIdent(line[r]))
         r++;
 
+    symbolPrefix.clear();
+    int prefixStart = l;
+    while(prefixStart >= 2 && line[prefixStart - 1] == ':' &&
+          line[prefixStart - 2] == ':')
+    {
+        int p = prefixStart - 3;
+        while(p >= 0 && isIdent(line[p]))
+            p--;
+        if(p + 1 >= prefixStart - 1)
+            break;
+        prefixStart = p + 1;
+    }
+
+    if(prefixStart < l)
+    {
+        symbolPrefix = line.substr(prefixStart, l - prefixStart);
+    }
+
     return line.substr(l, r - l);
 }
 
@@ -1926,62 +1944,17 @@ void Editor::goToDefinition()
         }
     }
 
-    if(isStdSymbol)
+    if(isStdSymbol || symbolPrefix.rfind("std::", 0) == 0)
     {
-        static const std::unordered_map<std::string, const char*> stdHeaders = {
-            {"string", "string"},
-            {"string_view", "string_view"},
-            {"vector", "vector"},
-            {"list", "list"},
-            {"map", "map"},
-            {"unordered_map", "unordered_map"},
-            {"set", "set"},
-            {"unordered_set", "unordered_set"},
-            {"deque", "deque"},
-            {"queue", "queue"},
-            {"stack", "stack"},
-            {"array", "array"},
-            {"optional", "optional"},
-            {"variant", "variant"},
-            {"tuple", "tuple"},
-            {"any", "any"},
-            {"regex", "regex"},
-            {"function", "functional"},
-            {"bind", "functional"},
-            {"unique_ptr", "memory"},
-            {"shared_ptr", "memory"},
-            {"weak_ptr", "memory"},
-            {"make_unique", "memory"},
-            {"make_shared", "memory"},
-            {"pair", "utility"},
-            {"make_pair", "utility"},
-            {"move", "utility"},
-            {"forward", "utility"},
-            {"cout", "iostream"},
-            {"cin", "iostream"},
-            {"cerr", "iostream"},
-            {"clog", "iostream"},
-            {"filesystem", "filesystem"},
-            {"path", "filesystem"},
-            {"chrono", "chrono"},
-            {"thread", "thread"},
-            {"mutex", "mutex"},
-            {"future", "future"},
-            {"sort", "algorithm"},
-            {"find", "algorithm"},
-            {"size_t", "cstddef"},
-            {"nullptr_t", "cstddef"},
-        };
-
-        auto it = stdHeaders.find(symbol);
-        if(it != stdHeaders.end())
+        std::string headerName = stdlib_goto::headerForSymbol(symbol);
+        if(!headerName.empty())
         {
-            std::string header = resolveSystemInclude(it->second);
+            std::string header = resolveSystemInclude(headerName);
             if(!header.empty())
             {
                 pushJumpLocation();
                 openFile(header);
-                setStatusMessage(std::string("gd → <sys>/") + it->second);
+                setStatusMessage(std::string("gd → <sys>/") + headerName);
                 return;
             }
         }
