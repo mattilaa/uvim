@@ -4,6 +4,7 @@
 // Using unscoped enum to match original Editor::Mode usage
 enum Mode
 {
+    WELCOME,
     NORMAL,
     INSERT,
     REPLACE,

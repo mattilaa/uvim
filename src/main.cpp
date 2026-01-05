@@ -166,6 +166,10 @@ int main(int argc, char* argv[])
             }
         }
     }
+    else
+    {
+        editor.setMode(WELCOME);
+    }
 
     editor.run();
     return 0;

@@ -43,6 +43,7 @@ set(UVIM_CORE_SOURCES
 set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
     src/normal_mode.cpp
+    src/welcome_mode.cpp
     src/insert_mode.cpp
     src/visual_mode.cpp
     src/command_mode.cpp

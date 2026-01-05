@@ -1006,6 +1006,9 @@ void Editor::setMode(Mode mode)
 
     switch(mode)
     {
+    case WELCOME:
+        modeStateMachine->transitionTo(WelcomeMode{});
+        break;
     case NORMAL:
         modeStateMachine->transitionTo(NormalMode{});
         break;
@@ -1061,6 +1064,8 @@ std::string Editor::getModeString() const
 {
     switch(currentMode)
     {
+    case WELCOME:
+        return "WELCOME";
     case NORMAL:
         return "NORMAL";
     case INSERT:
@@ -2041,6 +2046,19 @@ void Editor::refreshScreen()
 {
     syncModeFromStateMachine();
 
+    if(currentMode == WELCOME)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<WelcomeMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
     if(currentMode == FILE_BROWSER)
     {
         if(modeStateMachine)
@@ -2848,7 +2866,11 @@ void Editor::syncModeFromStateMachine()
     }
 
     const ModeState& state = modeStateMachine->state();
-    if(std::holds_alternative<NormalMode>(state))
+    if(std::holds_alternative<WelcomeMode>(state))
+    {
+        currentMode = WELCOME;
+    }
+    else if(std::holds_alternative<NormalMode>(state))
     {
         currentMode = NORMAL;
     }

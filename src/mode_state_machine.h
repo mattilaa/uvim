@@ -64,6 +64,7 @@ struct ModeContext
 
 // Forward declare all states for the variant
 struct NormalMode;
+struct WelcomeMode;
 struct InsertMode;
 struct ReplaceMode;
 struct VisualMode;
@@ -81,7 +82,7 @@ struct ReferencesMode;
 
 // The variant holding all possible states
 using ModeState =
-    std::variant<NormalMode, InsertMode, ReplaceMode, VisualMode,
+    std::variant<WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
@@ -90,6 +91,21 @@ using ModeState =
 // ============================================================================
 // State Definitions
 // ============================================================================
+
+struct WelcomeMode
+{
+    static constexpr const char* name()
+    {
+        return "WELCOME";
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+};
 
 struct NormalMode
 {

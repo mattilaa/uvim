@@ -38,13 +38,15 @@ struct TestModeContext
 
 // Forward declare states
 struct NormalMode;
+struct WelcomeMode;
 struct InsertMode;
 struct VisualMode;
 struct CommandMode;
 struct OperatorPendingMode;
 
 using TestModeState = std::variant<NormalMode, InsertMode, VisualMode,
-                                   CommandMode, OperatorPendingMode>;
+                                   CommandMode, OperatorPendingMode,
+                                   WelcomeMode>;
 
 // State definitions
 struct NormalMode
@@ -56,6 +58,21 @@ struct NormalMode
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = "-- NORMAL --";
+    }
+    void on_exit(TestModeContext&) {}
+    std::optional<TestModeState> handle(TestModeContext& ctx,
+                                        const KeyEvent& event);
+};
+
+struct WelcomeMode
+{
+    static constexpr const char* name()
+    {
+        return "WELCOME";
+    }
+    void on_enter(TestModeContext& ctx)
+    {
+        ctx.statusMessage = "-- WELCOME --";
     }
     void on_exit(TestModeContext&) {}
     std::optional<TestModeState> handle(TestModeContext& ctx,
@@ -174,6 +191,16 @@ inline std::optional<TestModeState> InsertMode::handle(TestModeContext&,
 {
     if(event.key == 27) // ESC
         return NormalMode{};
+    return std::nullopt;
+}
+
+inline std::optional<TestModeState> WelcomeMode::handle(TestModeContext&,
+                                                        const KeyEvent& event)
+{
+    if(event.key == 27) // ESC
+        return NormalMode{};
+    if(event.key == 'i')
+        return InsertMode{};
     return std::nullopt;
 }
 
@@ -343,6 +370,19 @@ TEST_F(ModeStateMachineTest, StartsInNormalMode)
 {
     EXPECT_STREQ(sm->currentStateName(), "NORMAL");
     EXPECT_TRUE(sm->isIn<mode_test::NormalMode>());
+}
+
+TEST_F(ModeStateMachineTest, WelcomeModeTransitions)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::WelcomeMode{});
+    EXPECT_TRUE(local.isIn<mode_test::WelcomeMode>());
+    EXPECT_STREQ(local.currentStateName(), "WELCOME");
+
+    local.dispatch('i');
+    EXPECT_TRUE(local.isIn<mode_test::InsertMode>());
+
+    local.dispatch(27);
+    EXPECT_TRUE(local.isIn<mode_test::NormalMode>());
 }
 
 TEST_F(ModeStateMachineTest, InsertModeOnI)
