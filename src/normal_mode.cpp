@@ -547,12 +547,16 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     if(c == 'C')
     {
         ed->deleteToEndOfLine();
+        ed->saveState();
+        ed->needsFullRedraw = true;
         ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'D')
     {
         ed->deleteToEndOfLine();
+        ed->saveState();
+        ed->needsFullRedraw = true;
         ctx.repeatCount = 0;
         return std::nullopt;
     }
