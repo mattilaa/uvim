@@ -22,6 +22,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+namespace fs = std::filesystem;
+
 static mla::log::FileLogger LOG("uvim");
 
 static bool isIdent(char c)
@@ -1700,8 +1702,168 @@ void Editor::autoIndentRange(int startLine, int endLine)
     needsFullRedraw = true;
 }
 
+// Helper function to extract include path from a line
+static std::pair<std::string, bool> extractIncludePath(const std::string& line)
+{
+    // Returns: {includePath, isSystemInclude}
+    // isSystemInclude = true for <>, false for ""
+
+    size_t includePos = line.find("#include");
+    if(includePos == std::string::npos)
+        return {"", false};
+
+    // Find the opening delimiter after #include
+    size_t pos = includePos + 8; // skip "#include"
+    while(pos < line.length() && std::isspace(line[pos]))
+        pos++;
+
+    if(pos >= line.length())
+        return {"", false};
+
+    bool isSystem = false;
+    char openDelim = line[pos];
+    char closeDelim;
+
+    if(openDelim == '<')
+    {
+        isSystem = true;
+        closeDelim = '>';
+    }
+    else if(openDelim == '"')
+    {
+        isSystem = false;
+        closeDelim = '"';
+    }
+    else
+    {
+        return {"", false};
+    }
+
+    pos++; // skip opening delimiter
+    size_t start = pos;
+    size_t end = line.find(closeDelim, pos);
+
+    if(end == std::string::npos)
+        return {"", false};
+
+    return {line.substr(start, end - start), isSystem};
+}
+
+// Helper function to resolve system include path
+static std::string resolveSystemInclude(const std::string& includeName)
+{
+    // Common system include paths (will be searched in order)
+    std::vector<std::string> systemPaths;
+
+    // Try to get paths from clang/g++ compiler
+    // This is a heuristic approach that works on most systems
+
+#ifdef __APPLE__
+    // macOS with Xcode
+    systemPaths = {
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/"
+        "Developer/SDKs/MacOSX.sdk/usr/include/c++/v1",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/"
+        "XcodeDefault.xctoolchain/usr/lib/clang/17/include",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/"
+        "Developer/SDKs/MacOSX.sdk/usr/include",
+        "/usr/local/include",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/"
+        "v1",
+        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+    };
+#else
+    // Linux/Unix
+    systemPaths = {
+        "/usr/include/c++/13",
+        "/usr/include/c++/12",
+        "/usr/include/c++/11",
+        "/usr/include/x86_64-linux-gnu/c++/13",
+        "/usr/include/x86_64-linux-gnu/c++/12",
+        "/usr/include/x86_64-linux-gnu/c++/11",
+        "/usr/include",
+        "/usr/local/include",
+    };
+#endif
+
+    // Search for the file in system paths
+    for(const auto& basePath : systemPaths)
+    {
+        std::string fullPath = basePath + "/" + includeName;
+        std::error_code ec;
+        if(fs::exists(fullPath, ec) && !ec)
+        {
+            return fullPath;
+        }
+    }
+
+    return "";
+}
+
 void Editor::goToDefinition()
 {
+    // First, check if we're on an #include line
+    if(*cursorY >= 0 && *cursorY < (int)lines->size())
+    {
+        const std::string& currentLine = (*lines)[*cursorY];
+        auto [includePath, isSystem] = extractIncludePath(currentLine);
+
+        if(!includePath.empty())
+        {
+            std::string resolvedPath;
+
+            if(isSystem)
+            {
+                // System include: search in system paths
+                resolvedPath = resolveSystemInclude(includePath);
+            }
+            else
+            {
+                // Local include: resolve relative to current file's directory
+                std::string currentDir = ".";
+                if(!filename->empty())
+                {
+                    size_t lastSlash = filename->rfind('/');
+                    if(lastSlash != std::string::npos)
+                    {
+                        currentDir = filename->substr(0, lastSlash);
+                    }
+                }
+
+                std::string tryPath = currentDir + "/" + includePath;
+                std::error_code ec;
+                if(fs::exists(tryPath, ec) && !ec)
+                {
+                    resolvedPath = tryPath;
+                }
+            }
+
+            if(!resolvedPath.empty())
+            {
+                pushJumpLocation();
+                openFile(resolvedPath);
+
+                // Show appropriate message
+                std::string displayPath = resolvedPath;
+                if(isSystem && resolvedPath.length() > 50)
+                {
+                    // Show shortened path for system headers
+                    size_t lastSlash = resolvedPath.rfind('/');
+                    if(lastSlash != std::string::npos)
+                        displayPath =
+                            ".../" + resolvedPath.substr(lastSlash + 1);
+                }
+                setStatusMessage("gd → " + displayPath);
+                return;
+            }
+            else
+            {
+                setStatusMessage("gd: include file not found: " + includePath);
+                return;
+            }
+        }
+    }
+
     std::string symbol = getSymbolUnderCursor();
     if(symbol.empty())
     {
@@ -3036,8 +3198,10 @@ void Editor::handleNormalMode(int c)
             if(clangFormatExe.empty())
                 clangFormatExe = "clang-format"; // fall back to PATH lookup
 
-            // Run clang-format using stdin redirection (avoid piping via `cat`).
-            std::string cmd = "\"" + clangFormatExe + "\" -style=file"
+            // Run clang-format using stdin redirection (avoid piping via
+            // `cat`).
+            std::string cmd = "\"" + clangFormatExe +
+                              "\" -style=file"
                               " -assume-filename=\"" +
                               absFilename +
                               "\""
@@ -5251,7 +5415,8 @@ void Editor::handleSearchMode(int c)
 
         auto nextState = state.handle(ctx, event);
 
-        if(nextState.has_value() && std::holds_alternative<NormalMode>(*nextState))
+        if(nextState.has_value() &&
+           std::holds_alternative<NormalMode>(*nextState))
         {
             setMode(NORMAL);
         }
@@ -5264,7 +5429,8 @@ void Editor::handleSearchMode(int c)
 
         auto nextState = state.handle(ctx, event);
 
-        if(nextState.has_value() && std::holds_alternative<NormalMode>(*nextState))
+        if(nextState.has_value() &&
+           std::holds_alternative<NormalMode>(*nextState))
         {
             setMode(NORMAL);
         }
