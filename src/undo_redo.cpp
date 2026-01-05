@@ -1,4 +1,5 @@
 #include "editor.h"
+#include <algorithm>
 
 void Editor::saveState()
 {
@@ -21,6 +22,18 @@ void Editor::saveState()
     state.lines = *lines;
     state.cursorX = *cursorX;
     state.cursorY = *cursorY;
+
+    if(currentBuffer->undoIndex >= 0 &&
+       currentBuffer->undoIndex < (int)currentBuffer->undoStack.size())
+    {
+        const Buffer::EditState& last =
+            currentBuffer->undoStack[currentBuffer->undoIndex];
+        if(last.lines == state.lines)
+        {
+            return; // Avoid duplicate undo steps with identical content.
+        }
+    }
+
     currentBuffer->undoStack.push_back(state);
     currentBuffer->undoIndex++;
 
@@ -47,22 +60,26 @@ void Editor::undo()
 
     if(currentBuffer->undoIndex > 0)
     {
+        int prevCursorX = *cursorX;
+        int prevCursorY = *cursorY;
+
         currentBuffer->undoIndex--;
         const Buffer::EditState& state =
             currentBuffer->undoStack[currentBuffer->undoIndex];
         *lines = state.lines;
 
-        *cursorX = state.cursorX;
-        *cursorY = state.cursorY;
-
-        if(*cursorY >= lines->size())
-            *cursorY = lines->size() - 1;
-        if(*cursorY < 0)
+        if(lines->empty())
+        {
             *cursorY = 0;
-        if(*cursorX > (*lines)[*cursorY].length())
-            *cursorX = (*lines)[*cursorY].length();
-        if(*cursorX < 0)
             *cursorX = 0;
+        }
+        else
+        {
+            *cursorY =
+                std::clamp(prevCursorY, 0, (int)lines->size() - 1);
+            *cursorX = std::clamp(
+                prevCursorX, 0, (int)(*lines)[*cursorY].length());
+        }
 
         adjustViewport();
 
@@ -90,12 +107,14 @@ void Editor::redo()
 
     if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
     {
+        int prevCursorX = *cursorX;
+        int prevCursorY = *cursorY;
+
         currentBuffer->undoIndex++;
         const Buffer::EditState& state =
             currentBuffer->undoStack[currentBuffer->undoIndex];
         *lines = state.lines;
-        *cursorX = state.cursorX;
-        *cursorY = state.cursorY;
+
         // Clamp cursor to valid range for current buffer
         if(lines->empty())
         {
@@ -104,14 +123,10 @@ void Editor::redo()
         }
         else
         {
-            if(*cursorY >= (int)lines->size())
-                *cursorY = (int)lines->size() - 1;
-            if(*cursorY < 0)
-                *cursorY = 0;
-            if(*cursorX > (int)(*lines)[*cursorY].length())
-                *cursorX = (int)(*lines)[*cursorY].length();
-            if(*cursorX < 0)
-                *cursorX = 0;
+            *cursorY =
+                std::clamp(prevCursorY, 0, (int)lines->size() - 1);
+            *cursorX = std::clamp(
+                prevCursorX, 0, (int)(*lines)[*cursorY].length());
         }
 
         adjustViewport();
