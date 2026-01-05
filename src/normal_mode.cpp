@@ -506,6 +506,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         for(int i = 0; i < count; i++)
             ed->deleteCharAtCursor();
+        ed->needsFullRedraw = true;
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -513,6 +514,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     {
         for(int i = 0; i < count; i++)
             ed->deleteCharBeforeCursor();
+        ed->needsFullRedraw = true;
         ctx.repeatCount = 0;
         return std::nullopt;
     }
