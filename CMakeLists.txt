@@ -30,9 +30,7 @@ set(UVIM_CORE_SOURCES
     src/text_operations.cpp
     src/search.cpp
     src/fuzzy_finder.cpp
-    src/buffer_browser.cpp
     src/grep_search.cpp
-    src/file_browser.cpp
     src/syntax_highlighting.cpp
     src/undo_redo.cpp
     src/drawing.cpp

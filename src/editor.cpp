@@ -1172,6 +1172,30 @@ void Editor::openFile(const std::string& fname)
                      std::to_string(currentBufferIndex + 1) + "]");
 }
 
+void Editor::openFileBrowser(const std::string& path)
+{
+    if(buffers.empty())
+    {
+        createNewBuffer();
+    }
+
+    std::string prev;
+    if(currentMode != FILE_BROWSER && currentBuffer != nullptr && filename)
+    {
+        prev = *filename;
+    }
+
+    if(modeStateMachine)
+    {
+        modeStateMachine->transitionTo(FileBrowserMode{path, prev});
+        syncModeFromStateMachine();
+    }
+    else
+    {
+        setMode(FILE_BROWSER);
+    }
+}
+
 void Editor::saveFile()
 {
     if(filename->empty())
@@ -2019,7 +2043,14 @@ void Editor::refreshScreen()
 
     if(currentMode == FILE_BROWSER)
     {
-        fileBrowser.draw(*this);
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<FileBrowserMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
         return;
     }
 
@@ -2031,7 +2062,14 @@ void Editor::refreshScreen()
 
     if(currentMode == BUFFER_BROWSER)
     {
-        bufferBrowser.draw(*this);
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<BufferBrowserMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
         return;
     }
 

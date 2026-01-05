@@ -765,14 +765,17 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
                     dir = "/";
             }
         }
-        ed->fileBrowser.open(*ed, dir);
-        return FileBrowserMode{};
+        std::string prev;
+        if(ed->currentBuffer != nullptr && ed->filename)
+        {
+            prev = *ed->filename;
+        }
+        return FileBrowserMode{dir, prev};
     }
 
     case 'e':
         // File browser / explorer
-        ed->fileBrowser.open(*ed, ".");
-        return FileBrowserMode{};
+        return FileBrowserMode{"."};
 
     case 'w':
         // Save file

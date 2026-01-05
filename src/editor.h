@@ -1,8 +1,6 @@
 #pragma once
 #include "buffer.h"
 #include "completion_entry.h"
-#include "buffer_browser.h"
-#include "file_browser.h"
 #include "file_entry.h"
 #include "jump_location.h"
 #include "mode.h"
@@ -62,8 +60,6 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
-    FileBrowser fileBrowser;
-
     // Fuzzy finder
     // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
     std::vector<FuzzyMatch> fuzzyMatches;
@@ -73,7 +69,7 @@ public:
     int fuzzyOffset = 0;
     bool fuzzyInitialized = false;
 
-    BufferBrowser bufferBrowser;
+    bool respectGitignore = true;
 
     // Grep search (GrepMatch struct is now in search_types.h)
     std::vector<GrepMatch> grepMatches;

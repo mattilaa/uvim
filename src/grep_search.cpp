@@ -305,7 +305,7 @@ void Editor::drawGrepSearch()
     {
         output += "  No matches";
     }
-    if(fileBrowser.isRespectGitignore())
+    if(respectGitignore)
     {
         output += " [gitignore]";
     }
@@ -479,7 +479,7 @@ void Editor::handleGrepSearchMode(int c)
         break;
 
     case Terminal::CTRL_I:
-        fileBrowser.toggleGitignore(*this);
+        respectGitignore = !respectGitignore;
         fuzzyInitialized = false;
         initializeGrepSearch();
         if(!grepQuery.empty())

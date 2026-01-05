@@ -307,7 +307,7 @@ void Editor::drawFuzzyFind()
     {
         output += "  " + std::to_string(allProjectFiles.size()) + " files";
     }
-    if(fileBrowser.isRespectGitignore())
+    if(respectGitignore)
     {
         output += " [gitignore]";
     }
@@ -474,7 +474,7 @@ void Editor::handleFuzzyFindMode(int c)
         break;
 
     case Terminal::CTRL_I:
-        fileBrowser.toggleGitignore(*this);
+        respectGitignore = !respectGitignore;
         fuzzyInitialized = false;
         initializeFuzzyFind();
         break;

@@ -1,6 +1,9 @@
 #pragma once
 
 #include "state_machine.h"
+#include "file_entry.h"
+#include "search_types.h"
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -235,10 +238,31 @@ struct FileBrowserMode
         return "BROWSE";
     }
 
+    std::vector<FileEntry> fileList;
+    std::string currentDirectory;
+    std::string previousFile;
+    int browserCursor = 0;
+    int browserOffset = 0;
+    bool showHidden = false;
+
+    FileBrowserMode() = default;
+    explicit FileBrowserMode(std::string startDir, std::string prevFile = {})
+        : currentDirectory(std::move(startDir)),
+          previousFile(std::move(prevFile))
+    {
+    }
+
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+
+private:
+    void loadDirectory(ModeContext& ctx, const std::string& pathStr);
+    std::string formatFileSize(size_t size) const;
+    std::string formatFileTime(time_t time) const;
 };
 
 struct FuzzyFindMode
@@ -261,10 +285,21 @@ struct BufferBrowserMode
         return "BUFFERS";
     }
 
+    std::vector<BufferMatch> bufferMatches;
+    std::string bufferQuery;
+    int bufferCursor = 0;
+    int bufferOffset = 0;
+
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+
+private:
+    void updateMatches(Editor& editor);
+    void selectMatch(Editor& editor);
 };
 
 struct GrepSearchMode
