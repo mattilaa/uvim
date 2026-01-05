@@ -2182,6 +2182,48 @@ void Editor::setStatusMessage(const std::string& msg)
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
+    auto saveAllBuffers = [&](bool forceExit) -> bool
+    {
+        int savedCount = 0;
+        int skippedNoName = 0;
+        int currentBuf = currentBufferIndex;
+
+        for(size_t i = 0; i < buffers.size(); i++)
+        {
+            if(buffers[i]->dirty)
+            {
+                if(buffers[i]->filename.empty())
+                {
+                    skippedNoName++;
+                    continue;
+                }
+                switchToBuffer(i);
+                saveFile();
+                savedCount++;
+            }
+        }
+
+        switchToBuffer(currentBuf);
+
+        if(!forceExit)
+        {
+            if(skippedNoName > 0)
+            {
+                setStatusMessage("Saved " + std::to_string(savedCount) +
+                                 " buffer(s), " +
+                                 std::to_string(skippedNoName) +
+                                 " unnamed");
+            }
+            else
+            {
+                setStatusMessage("Saved " + std::to_string(savedCount) +
+                                 " buffer(s)");
+            }
+        }
+
+        return skippedNoName == 0;
+    };
+
     // Buffer commands
     if(cmd == "bn" || cmd == "bnext")
     {
@@ -2241,21 +2283,11 @@ void Editor::executeCommand(const std::string& cmd)
     }
     else if(cmd == "wall" || cmd == "wa")
     {
-        int savedCount = 0;
-        int currentBuf = currentBufferIndex;
-
-        for(size_t i = 0; i < buffers.size(); i++)
-        {
-            if(buffers[i]->dirty && !buffers[i]->filename.empty())
-            {
-                switchToBuffer(i);
-                saveFile();
-                savedCount++;
-            }
-        }
-
-        switchToBuffer(currentBuf);
-        setStatusMessage("Saved " + std::to_string(savedCount) + " buffer(s)");
+        saveAllBuffers(false);
+    }
+    else if(cmd == "wa!")
+    {
+        saveAllBuffers(false);
     }
     else if(cmd == "qall" || cmd == "qa")
     {
@@ -2285,15 +2317,13 @@ void Editor::executeCommand(const std::string& cmd)
         Terminal::clearScreen();
         exit(0);
     }
-    else if(cmd == "wqall" || cmd == "wqa" || cmd == "xa")
+    else if(cmd == "qw" || cmd == "wqall" || cmd == "wqa" || cmd == "xa")
     {
-        for(size_t i = 0; i < buffers.size(); i++)
+        if(!saveAllBuffers(false))
         {
-            if(buffers[i]->dirty && !buffers[i]->filename.empty())
-            {
-                switchToBuffer(i);
-                saveFile();
-            }
+            setStatusMessage(
+                "Some buffers have no name (use :qw! to force)");
+            return;
         }
         Terminal::clearScreen();
         exit(0);
@@ -2346,16 +2376,14 @@ void Editor::executeCommand(const std::string& cmd)
     }
     else if(cmd == "q!")
     {
-        if(buffers.size() > 1)
-        {
-            *dirty = false;
-            closeCurrentBuffer();
-        }
-        else
-        {
-            Terminal::clearScreen();
-            exit(0);
-        }
+        Terminal::clearScreen();
+        exit(0);
+    }
+    else if(cmd == "qw!" || cmd == "wqall!" || cmd == "wqa!")
+    {
+        saveAllBuffers(true);
+        Terminal::clearScreen();
+        exit(0);
     }
     else if(cmd == "wq" || cmd == "x")
     {
@@ -4982,11 +5010,14 @@ std::vector<std::string>
 Editor::getCommandCompletions(const std::string& prefix)
 {
     std::vector<std::string> commands = {
-        "w",    "write",    "q",   "quit",    "wq",   "x",
-        "e",    "edit",     "new", "vnew",    "bn",   "bnext",
-        "bp",   "bprev",    "bd",  "bdelete", "ls",   "buffers",
-        "sp",   "split",    "vs",  "vsplit",  "only", "tabnew",
-        "tabc", "tabclose", "set", "syntax",  "noh",  "nohlsearch"};
+        "w",     "write",   "q",     "quit",    "q!",   "qa",
+        "qall",  "qa!",     "qall!", "wq",      "x",    "qw",
+        "qw!",   "wa",      "wall",  "wa!",     "wqa",  "wqall",
+        "wqa!",  "wqall!",  "xa",    "e",       "edit","new",
+        "vnew",  "bn",      "bnext", "bp",      "bprev","bd",
+        "bdelete","ls",     "buffers","sp",     "split","vs",
+        "vsplit","only",    "tabnew","tabc",    "tabclose","set",
+        "syntax","noh",     "nohlsearch"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
