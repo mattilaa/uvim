@@ -563,8 +563,8 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
 void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
                                   int start, int len, int fileRow)
 {
-    // Calculate the absolute line number in the file
-    int absoluteLineNum = fileRow + *offsetY;
+    // fileRow is already the absolute line index in the buffer
+    int absoluteLineNum = fileRow;
 
     // Helper function to scan a line and update block comment state
     // This needs to be careful about string literals and character literals
