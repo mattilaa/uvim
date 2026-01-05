@@ -7,7 +7,7 @@
 
 void Editor::openFileBrowser(const std::string& path)
 {
-    if(currentMode != FILE_BROWSER)
+    if(currentMode != FILE_BROWSER && currentBuffer != nullptr)
     {
         previousFile = *filename;
     }

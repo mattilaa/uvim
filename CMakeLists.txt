@@ -41,11 +41,6 @@ set(UVIM_CORE_SOURCES
     src/editor_references.cpp
 )
 
-# Helper functions (keep existing missing_functions.cpp)
-set(UVIM_HELPER_SOURCES
-    src/missing_functions.cpp
-)
-
 # Mode state machine sources (refactored)
 set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
@@ -64,7 +59,6 @@ set(MODE_STATE_MACHINE_SOURCES
 # Combine all sources
 set(UVIM_SOURCES
     ${UVIM_CORE_SOURCES}
-    ${UVIM_HELPER_SOURCES}
     ${MODE_STATE_MACHINE_SOURCES}
 )
 
