@@ -44,6 +44,23 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             std::string cmd = ctx.commandBuffer.substr(1); // Remove leading ':'
             ed->executeCommand(cmd);
+            if(ed->commandRequestedModeSet)
+            {
+                Mode mode = ed->commandRequestedMode;
+                std::string path = ed->commandRequestedPath;
+                ed->commandRequestedModeSet = false;
+                ed->commandRequestedPath.clear();
+
+                if(mode == FILE_BROWSER)
+                {
+                    std::string prev;
+                    if(ed->currentBuffer != nullptr && ed->filename)
+                    {
+                        prev = *ed->filename;
+                    }
+                    return FileBrowserMode{path, prev};
+                }
+            }
         }
         return NormalMode{};
     }

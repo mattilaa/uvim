@@ -115,6 +115,9 @@ public:
     Mode currentMode = NORMAL;
     std::string commandBuffer;
     std::string statusMessage;
+    bool commandRequestedModeSet = false;
+    Mode commandRequestedMode = NORMAL;
+    std::string commandRequestedPath;
 
     // clangd LSP (optional, runtime-enabled)
     bool clangdLspEnabled = false;

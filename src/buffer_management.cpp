@@ -60,14 +60,6 @@ void Editor::switchToBuffer(int index)
 
         std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
                           "/" + std::to_string(buffers.size());
-        if(!filename->empty())
-        {
-            msg += ": " + *filename;
-        }
-        else
-        {
-            msg += ": [No Name]";
-        }
         if(*dirty)
         {
             msg += " [+]";

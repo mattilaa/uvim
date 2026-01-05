@@ -1115,8 +1115,8 @@ void Editor::openFile(const std::string& fname)
     if(existing >= 0)
     {
         switchToBuffer(existing);
-        setStatusMessage("\"" + path + "\" [Buffer " +
-                         std::to_string(existing + 1) + "]");
+//        setStatusMessage("Buffer " + std::to_string(existing + 1) + "/" +
+//                         std::to_string(buffers.size()));
         return;
     }
 
@@ -1172,9 +1172,9 @@ void Editor::openFile(const std::string& fname)
     }
 #endif
 
-    setStatusMessage("\"" + *filename + "\" " + std::to_string(lines->size()) +
-                     " lines [Buffer " +
-                     std::to_string(currentBufferIndex + 1) + "]");
+//    setStatusMessage("Buffer " + std::to_string(currentBufferIndex + 1) + "/" +
+//                     std::to_string(buffers.size()) + " " +
+//                     std::to_string(lines->size()) + " lines");
 }
 
 void Editor::openFileBrowser(const std::string& path)
@@ -2361,14 +2361,18 @@ void Editor::executeCommand(const std::string& cmd)
                     dir = "/";
             }
         }
-        openFileBrowser(dir);
+        commandRequestedModeSet = true;
+        commandRequestedMode = FILE_BROWSER;
+        commandRequestedPath = dir;
         return;
     }
     else if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
             cmd == "Vexplore")
     {
         setStatusMessage("Split explorer not yet implemented");
-        openFileBrowser(".");
+        commandRequestedModeSet = true;
+        commandRequestedMode = FILE_BROWSER;
+        commandRequestedPath = ".";
         return;
     }
     // Standard commands
@@ -2428,7 +2432,9 @@ void Editor::executeCommand(const std::string& cmd)
 
         if(path == ".")
         {
-            openFileBrowser(".");
+            commandRequestedModeSet = true;
+            commandRequestedMode = FILE_BROWSER;
+            commandRequestedPath = ".";
             return;
         }
         else
@@ -2436,7 +2442,9 @@ void Editor::executeCommand(const std::string& cmd)
             struct stat fileStat;
             if(stat(path.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode))
             {
-                openFileBrowser(path);
+                commandRequestedModeSet = true;
+                commandRequestedMode = FILE_BROWSER;
+                commandRequestedPath = path;
                 return;
             }
             openFile(path);
@@ -3056,7 +3064,7 @@ void Editor::switchToBuffer(int index)
         {
             msg += " [+]";
         }
-        setStatusMessage(msg);
+        //setStatusMessage(msg);
     }
 }
 
@@ -3200,7 +3208,7 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
 }
 void Editor::run()
 {
-    setStatusMessage("Welcome to uVim!");
+//    setStatusMessage("Welcome to uVim!");
 
     while(true)
     {
