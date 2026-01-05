@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unordered_map>
 #include <unistd.h>
 
 namespace fs = std::filesystem;
@@ -1908,6 +1909,84 @@ void Editor::goToDefinition()
         return;
     }
 
+    bool isStdSymbol = false;
+    if(*cursorY >= 0 && *cursorY < (int)lines->size())
+    {
+        const std::string& line = (*lines)[*cursorY];
+        int x = *cursorX;
+        if(x >= 0 && x < (int)line.size() && isIdent(line[x]))
+        {
+            int l = x;
+            while(l > 0 && isIdent(line[l - 1]))
+                l--;
+            if(l >= 5 && line.compare(l - 5, 5, "std::") == 0)
+            {
+                isStdSymbol = true;
+            }
+        }
+    }
+
+    if(isStdSymbol)
+    {
+        static const std::unordered_map<std::string, const char*> stdHeaders = {
+            {"string", "string"},
+            {"string_view", "string_view"},
+            {"vector", "vector"},
+            {"list", "list"},
+            {"map", "map"},
+            {"unordered_map", "unordered_map"},
+            {"set", "set"},
+            {"unordered_set", "unordered_set"},
+            {"deque", "deque"},
+            {"queue", "queue"},
+            {"stack", "stack"},
+            {"array", "array"},
+            {"optional", "optional"},
+            {"variant", "variant"},
+            {"tuple", "tuple"},
+            {"any", "any"},
+            {"regex", "regex"},
+            {"function", "functional"},
+            {"bind", "functional"},
+            {"unique_ptr", "memory"},
+            {"shared_ptr", "memory"},
+            {"weak_ptr", "memory"},
+            {"make_unique", "memory"},
+            {"make_shared", "memory"},
+            {"pair", "utility"},
+            {"make_pair", "utility"},
+            {"move", "utility"},
+            {"forward", "utility"},
+            {"cout", "iostream"},
+            {"cin", "iostream"},
+            {"cerr", "iostream"},
+            {"clog", "iostream"},
+            {"filesystem", "filesystem"},
+            {"path", "filesystem"},
+            {"chrono", "chrono"},
+            {"thread", "thread"},
+            {"mutex", "mutex"},
+            {"future", "future"},
+            {"sort", "algorithm"},
+            {"find", "algorithm"},
+            {"size_t", "cstddef"},
+            {"nullptr_t", "cstddef"},
+        };
+
+        auto it = stdHeaders.find(symbol);
+        if(it != stdHeaders.end())
+        {
+            std::string header = resolveSystemInclude(it->second);
+            if(!header.empty())
+            {
+                pushJumpLocation();
+                openFile(header);
+                setStatusMessage(std::string("gd → <sys>/") + it->second);
+                return;
+            }
+        }
+    }
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
     // Prefer clangd definition when enabled; fallback to heuristic gd
     // otherwise.
@@ -1968,6 +2047,31 @@ void Editor::goToDefinition()
         }
     }
 #endif
+
+    // std::symbol fallback: open matching system header when possible
+    if(*cursorY >= 0 && *cursorY < (int)lines->size())
+    {
+        const std::string& line = (*lines)[*cursorY];
+        int x = *cursorX;
+        if(x >= 0 && x < (int)line.size() && isIdent(line[x]))
+        {
+            int l = x;
+            while(l > 0 && isIdent(line[l - 1]))
+                l--;
+
+            if(l >= 5 && line.compare(l - 5, 5, "std::") == 0)
+            {
+                std::string header = resolveSystemInclude(symbol);
+                if(!header.empty())
+                {
+                    pushJumpLocation();
+                    openFile(header);
+                    setStatusMessage("gd → <sys>/" + symbol);
+                    return;
+                }
+            }
+        }
+    }
 
     pushJumpLocation();
 
