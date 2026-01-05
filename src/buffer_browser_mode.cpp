@@ -28,7 +28,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == Terminal::ESC)
     {
         return NormalMode{};
     }
@@ -37,7 +37,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     // Selection
     // ========================================================================
 
-    if(c == Terminal::ENTER || c == 'l' || c == Terminal::ARROW_RIGHT)
+    if(c == Terminal::ENTER)
     {
         if(ed->selectBufferBrowserEntry())
         {
@@ -50,25 +50,14 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN || c == Terminal::CTRL_N)
+    if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN ||
+       c == Terminal::CTRL_N)
     {
         ed->bufferBrowserDown();
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP || c == Terminal::CTRL_P)
+    else if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
     {
         ed->bufferBrowserUp();
-    }
-    else if(c == 'G')
-    {
-        ed->bufferBrowserEnd();
-    }
-    else if(c == 'g')
-    {
-        int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
-        {
-            ed->bufferBrowserStart();
-        }
     }
     else if(c == Terminal::CTRL_D)
     {
@@ -78,7 +67,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
             ed->bufferBrowserDown();
         }
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == Terminal::PAGE_UP)
     {
         // Half page up
         for(int i = 0; i < ed->screenRows / 2; i++)
@@ -88,22 +77,26 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     }
 
     // ========================================================================
-    // Buffer Operations
+    // Input Editing
     // ========================================================================
 
-    else if(c == 'd' || c == 'D')
+    else if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
+            c == Terminal::CTRL_H)
     {
-        ed->deleteSelectedBuffer();
-    }
-
-    // Quick jump by number (1-9)
-    else if(c >= '1' && c <= '9')
-    {
-        int bufNum = c - '1';
-        if(ed->switchToBufferByNumber(bufNum))
+        if(!ed->bufferQuery.empty())
         {
-            return NormalMode{};
+            ed->bufferQuery.pop_back();
+            ed->updateBufferMatches();
+            ed->bufferCursor = 0;
+            ed->bufferOffset = 0;
         }
+    }
+    else if(c == Terminal::CTRL_U)
+    {
+        ed->bufferQuery.clear();
+        ed->updateBufferMatches();
+        ed->bufferCursor = 0;
+        ed->bufferOffset = 0;
     }
 
     // ========================================================================
@@ -111,7 +104,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     // ========================================================================
 
     // Switch to fuzzy find
-    else if(c == Terminal::CTRL_P || c == 'f')
+    else if(c == Terminal::CTRL_P)
     {
         return FuzzyFindMode{};
     }
@@ -120,6 +113,18 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     else if(c == Terminal::CTRL_S || c == '/')
     {
         return GrepSearchMode{};
+    }
+
+    // ========================================================================
+    // Character Input
+    // ========================================================================
+
+    else if(c >= 32 && c < 127)
+    {
+        ed->bufferQuery += static_cast<char>(c);
+        ed->updateBufferMatches();
+        ed->bufferCursor = 0;
+        ed->bufferOffset = 0;
     }
 
     ed->needsFullRedraw = true;
