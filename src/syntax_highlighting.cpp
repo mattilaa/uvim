@@ -563,12 +563,113 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
 void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
                                   int start, int len, int fileRow)
 {
-    static bool inBlockComment = false;
+    // Calculate the absolute line number in the file
+    int absoluteLineNum = fileRow + *offsetY;
 
-    if(fileRow == 0)
-        inBlockComment = false;
+    // Helper function to scan a line and update block comment state
+    // This needs to be careful about string literals and character literals
+    auto scanLineForBlockComments = [](const std::string& scanLine, bool& inComment)
+    {
+        size_t pos = 0;
+        size_t len = scanLine.length();
 
-    bool blockCommentState = inBlockComment;
+        while(pos < len)
+        {
+            if(inComment)
+            {
+                // Looking for closing */
+                size_t closePos = scanLine.find("*/", pos);
+                if(closePos != std::string::npos)
+                {
+                    inComment = false;
+                    pos = closePos + 2;
+                }
+                else
+                {
+                    break; // Still in block comment at end of line
+                }
+            }
+            else
+            {
+                char c = scanLine[pos];
+
+                // Skip string literals
+                if(c == '"')
+                {
+                    pos++;
+                    while(pos < len)
+                    {
+                        if(scanLine[pos] == '\\' && pos + 1 < len)
+                        {
+                            pos += 2; // Skip escaped character
+                        }
+                        else if(scanLine[pos] == '"')
+                        {
+                            pos++;
+                            break;
+                        }
+                        else
+                        {
+                            pos++;
+                        }
+                    }
+                    continue;
+                }
+
+                // Skip character literals
+                if(c == '\'')
+                {
+                    pos++;
+                    while(pos < len)
+                    {
+                        if(scanLine[pos] == '\\' && pos + 1 < len)
+                        {
+                            pos += 2; // Skip escaped character
+                        }
+                        else if(scanLine[pos] == '\'')
+                        {
+                            pos++;
+                            break;
+                        }
+                        else
+                        {
+                            pos++;
+                        }
+                    }
+                    continue;
+                }
+
+                // Check for line comment
+                if(pos + 1 < len && scanLine[pos] == '/' && scanLine[pos + 1] == '/')
+                {
+                    // Rest of line is a line comment
+                    break;
+                }
+
+                // Check for block comment start
+                if(pos + 1 < len && scanLine[pos] == '/' && scanLine[pos + 1] == '*')
+                {
+                    inComment = true;
+                    pos += 2;
+                    continue;
+                }
+
+                pos++;
+            }
+        }
+    };
+
+    // Determine block comment state for this line
+    // We scan from the beginning of the file to ensure correctness
+    // Performance optimization: this is a lightweight scan (just looking for comment delimiters)
+    bool blockCommentState = false;
+
+    for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+    {
+        scanLineForBlockComments((*lines)[i], blockCommentState);
+    }
+
+    // Now tokenize the current line
     std::vector<Token> tokens = tokenizeLine(line, blockCommentState);
 
     std::vector<TokenType> charColors(len, TOKEN_NORMAL);
@@ -622,6 +723,4 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     {
         output += Terminal::FG_DEFAULT;
     }
-
-    inBlockComment = blockCommentState;
 }
