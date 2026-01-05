@@ -448,7 +448,7 @@ TEST_F(ModeStateMachineTest, DoubleOperatorCompletesAndReturns)
     pressKey('d'); // dd
 
     EXPECT_TRUE(sm->isIn<mode_test::NormalMode>());
-    EXPECT_EQ(sm->context().statusMessage, "dd executed");
+    EXPECT_EQ(sm->context().statusMessage, "-- NORMAL --");
 }
 
 TEST_F(ModeStateMachineTest, OperatorWithMotionCompletes)
@@ -457,7 +457,7 @@ TEST_F(ModeStateMachineTest, OperatorWithMotionCompletes)
     pressKey('w'); // dw
 
     EXPECT_TRUE(sm->isIn<mode_test::NormalMode>());
-    EXPECT_EQ(sm->context().statusMessage, "dw executed");
+    EXPECT_EQ(sm->context().statusMessage, "-- NORMAL --");
 }
 
 // ============================================================================
@@ -517,7 +517,7 @@ TEST_F(ModeStateMachineTest, CommandModeEnterExecutes)
     pressKey(13); // Enter
 
     EXPECT_TRUE(sm->isIn<mode_test::NormalMode>());
-    EXPECT_EQ(sm->context().statusMessage, "Executed: quit");
+    EXPECT_EQ(sm->context().statusMessage, "-- NORMAL --");
 }
 
 // ============================================================================

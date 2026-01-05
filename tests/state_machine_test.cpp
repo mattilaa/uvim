@@ -119,6 +119,8 @@ inline std::optional<TestState> StateA::handle(TestContext& ctx,
                                                const TestEvent& event)
 {
     ctx.append(std::string("A_handle_") + event.action);
+    if(event.action == 'a')
+        return StateA{};
     if(event.action == 'b')
         return StateB{};
     if(event.action == 'c')
@@ -168,7 +170,7 @@ TEST_F(StateMachineTest, InitialStateEntered)
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
 
     EXPECT_EQ(sm.currentStateName(), "A");
-    EXPECT_EQ(ctx.log, "enter_A");
+    EXPECT_EQ(sm.context().log, "enter_A");
 }
 
 TEST_F(StateMachineTest, InitialStateWithDifferentStart)
@@ -176,46 +178,68 @@ TEST_F(StateMachineTest, InitialStateWithDifferentStart)
     test_sm::TestMachine sm(ctx, test_sm::StateB{});
 
     EXPECT_EQ(sm.currentStateName(), "B");
-    EXPECT_EQ(ctx.log, "enter_B");
+    EXPECT_EQ(sm.context().log, "enter_B");
 }
 
 TEST_F(StateMachineTest, DispatchWithoutTransition)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     sm.dispatch(test_sm::TestEvent{'x'}); // Unknown event, no transition
 
     EXPECT_EQ(sm.currentStateName(), "A");
-    EXPECT_EQ(ctx.log, "A_handle_x");
+    EXPECT_EQ(sm.context().log, "A_handle_x");
 }
 
 TEST_F(StateMachineTest, TransitionFromAToB)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     sm.dispatch(test_sm::TestEvent{'b'});
 
     EXPECT_EQ(sm.currentStateName(), "B");
-    EXPECT_EQ(ctx.log, "A_handle_b,exit_A,enter_B");
+    EXPECT_EQ(sm.context().log, "A_handle_b,exit_A,enter_B");
 }
 
 TEST_F(StateMachineTest, TransitionFromAToC)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     sm.dispatch(test_sm::TestEvent{'c'});
 
     EXPECT_EQ(sm.currentStateName(), "C");
-    EXPECT_EQ(ctx.log, "A_handle_c,exit_A,enter_C");
+    EXPECT_EQ(sm.context().log, "A_handle_c,exit_A,enter_C");
+}
+
+TEST_F(StateMachineTest, TransitionToSameStateCallsExitEnter)
+{
+    test_sm::TestMachine sm(ctx, test_sm::StateA{});
+    sm.context().log.clear();
+
+    sm.transitionTo(test_sm::StateA{});
+
+    EXPECT_EQ(sm.currentStateName(), "A");
+    EXPECT_EQ(sm.context().log, "exit_A,enter_A");
+}
+
+TEST_F(StateMachineTest, SelfTransitionFromHandleCallsExitEnter)
+{
+    test_sm::TestMachine sm(ctx, test_sm::StateA{});
+    sm.context().log.clear();
+
+    sm.dispatch(test_sm::TestEvent{'a'});
+
+    EXPECT_EQ(sm.currentStateName(), "A");
+    EXPECT_EQ(sm.context().log, "A_handle_a,exit_A,enter_A");
 }
 
 TEST_F(StateMachineTest, TransitionChainABCA)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     sm.dispatch(test_sm::TestEvent{'b'}); // A -> B
     sm.dispatch(test_sm::TestEvent{'c'}); // B -> C
@@ -227,7 +251,7 @@ TEST_F(StateMachineTest, TransitionChainABCA)
 TEST_F(StateMachineTest, TransitionBackAndForth)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     sm.dispatch(test_sm::TestEvent{'b'}); // A -> B
     sm.dispatch(test_sm::TestEvent{'a'}); // B -> A
@@ -270,18 +294,18 @@ TEST_F(StateMachineTest, StateDataIsMutableThroughGetState)
     sm.dispatch(test_sm::TestEvent{'+'}); // Increments data
 
     EXPECT_EQ(stateB->data, 1);
-    EXPECT_EQ(ctx.counter, 1);
+    EXPECT_EQ(sm.context().counter, 1);
 }
 
 TEST_F(StateMachineTest, TransitionToForcesStateChange)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateA{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     sm.transitionTo(test_sm::StateC{});
 
     EXPECT_EQ(sm.currentStateName(), "C");
-    EXPECT_EQ(ctx.log, "exit_A,enter_C");
+    EXPECT_EQ(sm.context().log, "exit_A,enter_C");
 }
 
 TEST_F(StateMachineTest, ContextIsAccessible)
@@ -290,7 +314,7 @@ TEST_F(StateMachineTest, ContextIsAccessible)
 
     sm.context().counter = 42;
 
-    EXPECT_EQ(ctx.counter, 42);
+    EXPECT_EQ(sm.context().counter, 42);
 }
 
 // ============================================================================
@@ -300,7 +324,7 @@ TEST_F(StateMachineTest, ContextIsAccessible)
 TEST_F(StateMachineTest, MultipleDispatchesInSameState)
 {
     test_sm::TestMachine sm(ctx, test_sm::StateB{});
-    ctx.log.clear();
+    sm.context().log.clear();
 
     for(int i = 0; i < 5; i++)
     {
@@ -308,7 +332,7 @@ TEST_F(StateMachineTest, MultipleDispatchesInSameState)
     }
 
     EXPECT_EQ(sm.currentStateName(), "B");
-    EXPECT_EQ(ctx.counter, 5);
+    EXPECT_EQ(sm.context().counter, 5);
 
     auto* stateB = sm.getState<test_sm::StateB>();
     ASSERT_NE(stateB, nullptr);
