@@ -60,13 +60,8 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
-    // Fuzzy finder
     // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
-    std::vector<FuzzyMatch> fuzzyMatches;
     std::vector<FileEntry> allProjectFiles; // All files in project
-    std::string fuzzyQuery;
-    int fuzzyCursor = 0;
-    int fuzzyOffset = 0;
     bool fuzzyInitialized = false;
 
     bool respectGitignore = true;
@@ -187,7 +182,6 @@ public:
     void handleVisualMode(int c);
     void handleCommandMode(int c);
     void handleSearchMode(int c);
-    void handleFuzzyFindMode(int c);
     void handleGrepSearchMode(int c);
     void handleKeypress();
 
@@ -229,26 +223,10 @@ public:
     std::string getSymbolUnderCursor();
 
     // Fuzzy finder functions
-    void initializeFuzzyFind();
     void collectProjectFiles(const std::string& dir, int depth,
                              const GitIgnore& gitignore);
     int fuzzyScore(const std::string& needle, const std::string& haystack,
                    std::vector<int>& matchPositions);
-    void updateFuzzyMatches();
-    void drawFuzzyFind();
-    void selectFuzzyMatch();
-
-    // Fuzzy finder navigation helpers (for mode handlers)
-    void fuzzyFindUp();
-    void fuzzyFindDown();
-    void fuzzyFindHalfPageUp();
-    void fuzzyFindHalfPageDown();
-    void fuzzyFindAddChar(char c);
-    void fuzzyFindBackspace();
-    void fuzzyFindDeleteWord();
-    void fuzzyFindClear();
-    bool selectFuzzyFindEntry();
-    void toggleFuzzyPreview();
 
     // File browser navigation helpers (for mode handlers)
     void deleteFilePrompt();

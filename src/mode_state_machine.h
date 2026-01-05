@@ -288,10 +288,31 @@ struct FuzzyFindMode
         return "FUZZY";
     }
 
+    std::vector<FuzzyMatch> matches;
+    std::string query;
+    int cursor = 0;
+    int offset = 0;
+
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+
+private:
+    void initializeFiles(Editor& editor);
+    void updateMatches(Editor& editor);
+    void moveDown(Editor& editor);
+    void moveUp(Editor& editor);
+    void halfPageDown(Editor& editor);
+    void halfPageUp(Editor& editor);
+    void addChar(Editor& editor, char c);
+    void backspace(Editor& editor);
+    void deleteWord(Editor& editor);
+    void clearQuery(Editor& editor);
+    void toggleGitignore(Editor& editor);
+    bool select(Editor& editor);
 };
 
 struct BufferBrowserMode

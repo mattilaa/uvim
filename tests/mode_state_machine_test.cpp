@@ -43,10 +43,14 @@ struct InsertMode;
 struct VisualMode;
 struct CommandMode;
 struct OperatorPendingMode;
+struct FuzzyFindMode;
+struct BufferBrowserMode;
+struct GrepSearchMode;
 
 using TestModeState = std::variant<NormalMode, InsertMode, VisualMode,
                                    CommandMode, OperatorPendingMode,
-                                   WelcomeMode>;
+                                   WelcomeMode, FuzzyFindMode,
+                                   BufferBrowserMode, GrepSearchMode>;
 
 // State definitions
 struct NormalMode
@@ -140,6 +144,51 @@ struct OperatorPendingMode
     void on_enter(TestModeContext& ctx)
     {
         ctx.statusMessage = std::string(1, op);
+    }
+    void on_exit(TestModeContext&) {}
+    std::optional<TestModeState> handle(TestModeContext& ctx,
+                                        const KeyEvent& event);
+};
+
+struct FuzzyFindMode
+{
+    static constexpr const char* name()
+    {
+        return "FUZZY";
+    }
+    void on_enter(TestModeContext& ctx)
+    {
+        ctx.statusMessage = "-- FUZZY --";
+    }
+    void on_exit(TestModeContext&) {}
+    std::optional<TestModeState> handle(TestModeContext& ctx,
+                                        const KeyEvent& event);
+};
+
+struct BufferBrowserMode
+{
+    static constexpr const char* name()
+    {
+        return "BUFFERS";
+    }
+    void on_enter(TestModeContext& ctx)
+    {
+        ctx.statusMessage = "-- BUFFERS --";
+    }
+    void on_exit(TestModeContext&) {}
+    std::optional<TestModeState> handle(TestModeContext& ctx,
+                                        const KeyEvent& event);
+};
+
+struct GrepSearchMode
+{
+    static constexpr const char* name()
+    {
+        return "GREP";
+    }
+    void on_enter(TestModeContext& ctx)
+    {
+        ctx.statusMessage = "-- GREP --";
     }
     void on_exit(TestModeContext&) {}
     std::optional<TestModeState> handle(TestModeContext& ctx,
@@ -254,6 +303,46 @@ OperatorPendingMode::handle(TestModeContext& ctx, const KeyEvent& event)
         return NormalMode{};
     }
 
+    return std::nullopt;
+}
+
+inline std::optional<TestModeState>
+FuzzyFindMode::handle(TestModeContext& ctx, const KeyEvent& event)
+{
+    (void)ctx;
+    int c = event.key;
+
+    if(c == 27) // ESC
+        return NormalMode{};
+    if(c == 13) // Enter
+        return NormalMode{};
+    if(c == 2) // Ctrl-B
+        return BufferBrowserMode{};
+    if(c == 19) // Ctrl-S
+        return GrepSearchMode{};
+
+    return std::nullopt;
+}
+
+inline std::optional<TestModeState>
+BufferBrowserMode::handle(TestModeContext& ctx, const KeyEvent& event)
+{
+    (void)ctx;
+    if(event.key == 27) // ESC
+        return NormalMode{};
+    if(event.key == 16) // Ctrl-P
+        return FuzzyFindMode{};
+    return std::nullopt;
+}
+
+inline std::optional<TestModeState>
+GrepSearchMode::handle(TestModeContext& ctx, const KeyEvent& event)
+{
+    (void)ctx;
+    if(event.key == 27) // ESC
+        return NormalMode{};
+    if(event.key == 16) // Ctrl-P
+        return FuzzyFindMode{};
     return std::nullopt;
 }
 
@@ -383,6 +472,42 @@ TEST_F(ModeStateMachineTest, WelcomeModeTransitions)
 
     local.dispatch(27);
     EXPECT_TRUE(local.isIn<mode_test::NormalMode>());
+}
+
+TEST_F(ModeStateMachineTest, FuzzyFindEscapeReturnsToNormal)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::FuzzyFindMode{});
+    EXPECT_TRUE(local.isIn<mode_test::FuzzyFindMode>());
+
+    local.dispatch(27); // ESC
+    EXPECT_TRUE(local.isIn<mode_test::NormalMode>());
+}
+
+TEST_F(ModeStateMachineTest, FuzzyFindEnterReturnsToNormal)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::FuzzyFindMode{});
+    EXPECT_TRUE(local.isIn<mode_test::FuzzyFindMode>());
+
+    local.dispatch(13); // Enter
+    EXPECT_TRUE(local.isIn<mode_test::NormalMode>());
+}
+
+TEST_F(ModeStateMachineTest, FuzzyFindSwitchesToBufferBrowser)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::FuzzyFindMode{});
+    EXPECT_TRUE(local.isIn<mode_test::FuzzyFindMode>());
+
+    local.dispatch(2); // Ctrl-B
+    EXPECT_TRUE(local.isIn<mode_test::BufferBrowserMode>());
+}
+
+TEST_F(ModeStateMachineTest, FuzzyFindSwitchesToGrepSearch)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::FuzzyFindMode{});
+    EXPECT_TRUE(local.isIn<mode_test::FuzzyFindMode>());
+
+    local.dispatch(19); // Ctrl-S
+    EXPECT_TRUE(local.isIn<mode_test::GrepSearchMode>());
 }
 
 TEST_F(ModeStateMachineTest, InsertModeOnI)

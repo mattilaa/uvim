@@ -2151,7 +2151,14 @@ void Editor::refreshScreen()
 
     if(currentMode == FUZZY_FIND)
     {
-        drawFuzzyFind();
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<FuzzyFindMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
         return;
     }
 
@@ -3055,7 +3062,6 @@ void Editor::handleKeypress()
     case FILE_BROWSER:
         break;
     case FUZZY_FIND:
-        handleFuzzyFindMode(c);
         break;
     case BUFFER_BROWSER:
         break;
@@ -5200,101 +5206,6 @@ void Editor::createNewFilePrompt()
 void Editor::createNewDirectoryPrompt()
 {
     setStatusMessage("New directory creation not yet implemented");
-}
-
-// ============================================================================
-// Fuzzy Finder Helpers
-// ============================================================================
-
-void Editor::fuzzyFindUp()
-{
-    if(fuzzyCursor > 0)
-    {
-        fuzzyCursor--;
-        if(fuzzyCursor < fuzzyOffset)
-            fuzzyOffset = fuzzyCursor;
-    }
-}
-
-void Editor::fuzzyFindDown()
-{
-    if(fuzzyCursor < (int)fuzzyMatches.size() - 1)
-    {
-        fuzzyCursor++;
-        int visible = screenRows - 4;
-        if(fuzzyCursor >= fuzzyOffset + visible)
-            fuzzyOffset = fuzzyCursor - visible + 1;
-    }
-}
-
-void Editor::fuzzyFindHalfPageUp()
-{
-    int half = (screenRows - 4) / 2;
-    fuzzyCursor -= half;
-    if(fuzzyCursor < 0)
-        fuzzyCursor = 0;
-    if(fuzzyCursor < fuzzyOffset)
-        fuzzyOffset = fuzzyCursor;
-}
-
-void Editor::fuzzyFindHalfPageDown()
-{
-    int half = (screenRows - 4) / 2;
-    fuzzyCursor += half;
-    if(fuzzyCursor >= (int)fuzzyMatches.size())
-        fuzzyCursor = fuzzyMatches.size() - 1;
-    int visible = screenRows - 4;
-    if(fuzzyCursor >= fuzzyOffset + visible)
-        fuzzyOffset = fuzzyCursor - visible + 1;
-}
-
-void Editor::fuzzyFindAddChar(char c)
-{
-    fuzzyQuery += c;
-    updateFuzzyMatches();
-    fuzzyCursor = 0;
-    fuzzyOffset = 0;
-}
-
-void Editor::fuzzyFindBackspace()
-{
-    if(!fuzzyQuery.empty())
-    {
-        fuzzyQuery.pop_back();
-        updateFuzzyMatches();
-        fuzzyCursor = 0;
-        fuzzyOffset = 0;
-    }
-}
-
-void Editor::fuzzyFindDeleteWord()
-{
-    while(!fuzzyQuery.empty() && fuzzyQuery.back() == ' ')
-        fuzzyQuery.pop_back();
-    while(!fuzzyQuery.empty() && fuzzyQuery.back() != ' ')
-        fuzzyQuery.pop_back();
-    updateFuzzyMatches();
-    fuzzyCursor = 0;
-    fuzzyOffset = 0;
-}
-
-void Editor::fuzzyFindClear()
-{
-    fuzzyQuery.clear();
-    updateFuzzyMatches();
-    fuzzyCursor = 0;
-    fuzzyOffset = 0;
-}
-
-bool Editor::selectFuzzyFindEntry()
-{
-    selectFuzzyMatch();
-    return true;
-}
-
-void Editor::toggleFuzzyPreview()
-{
-    // TODO: Implement fuzzy preview toggle
 }
 
 // ============================================================================
