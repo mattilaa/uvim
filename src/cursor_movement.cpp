@@ -481,6 +481,109 @@ void Editor::moveToMatchingBracket()
 
     const char c = ln[x];
 
+    // --------------------------------------------------------------------
+    // Block comment matching: /* ... */
+    //
+    // Support hitting '%' on either character of either delimiter:
+    //   - '/*' : cursor on '/' or '*'  -> jump forward to matching '*/'
+    //   - '*/' : cursor on '*' or '/'  -> jump backward to matching '/*'
+    //
+    // Note: C/C++ block comments do not nest, so we match the nearest
+    // corresponding delimiter in the chosen direction.
+    // --------------------------------------------------------------------
+    {
+        const int L = static_cast<int>(ln.size());
+        const char c = ln[x];
+
+        bool onOpen = false;
+        int openX = -1; // points at '/' in "/*"
+        if(c == '/' && x + 1 < L && ln[x + 1] == '*')
+        {
+            onOpen = true;
+            openX = x;
+        }
+        else if(c == '*' && x > 0 && ln[x - 1] == '/')
+        {
+            onOpen = true;
+            openX = x - 1;
+        }
+
+        bool onClose = false;
+        int closeX = -1; // points at '*' in "*/"
+        if(c == '*' && x + 1 < L && ln[x + 1] == '/')
+        {
+            onClose = true;
+            closeX = x;
+        }
+        else if(c == '/' && x > 0 && ln[x - 1] == '*')
+        {
+            onClose = true;
+            closeX = x - 1;
+        }
+
+        if(onOpen)
+        {
+            int yy = y;
+            int xx = openX + 2; // start scanning after "/*"
+
+            while(yy < n)
+            {
+                std::string_view lnv = line_view(*lines, yy);
+                const int LL = static_cast<int>(lnv.size());
+
+                for(; xx < LL - 1; ++xx)
+                {
+                    if(lnv[xx] == '*' && lnv[xx + 1] == '/')
+                    {
+                        *cursorY = yy;
+                        *cursorX = xx; // land on '*'
+                        *wantedX = xx;
+                        return;
+                    }
+                }
+
+                ++yy;
+                xx = 0;
+            }
+            return;
+        }
+
+        if(onClose)
+        {
+            int yy = y;
+            int xx = closeX - 1; // start scanning before '*'
+
+            while(yy >= 0)
+            {
+                std::string_view lnv = line_view(*lines, yy);
+                const int LL = static_cast<int>(lnv.size());
+
+                if(LL >= 2)
+                {
+                    int i = std::min(xx, LL - 2);
+                    for(; i >= 0; --i)
+                    {
+                        if(lnv[i] == '/' && lnv[i + 1] == '*')
+                        {
+                            *cursorY = yy;
+                            *cursorX = i; // land on '/'
+                            *wantedX = i;
+                            return;
+                        }
+                    }
+                }
+
+                --yy;
+                if(yy >= 0)
+                {
+                    const int prevLen = line_len(*lines, yy);
+                    xx = prevLen - 2; // last index where i+1 is valid
+                }
+            }
+            return;
+        }
+    }
+
     constexpr std::array<std::pair<char, char>, 3> pairs{{
         {'(', ')'},
         {'{', '}'},
