@@ -194,7 +194,7 @@ void Editor::referencesDown()
     if(referencesCursor < (int)referencesList.size() - 1)
     {
         referencesCursor++;
-        int visibleRows = screenRows - 4; // Account for header/footer
+        int visibleRows = screenRows - 3; // Header + status + message
         if(referencesCursor >= referencesOffset + visibleRows)
             referencesOffset = referencesCursor - visibleRows + 1;
     }
@@ -206,7 +206,7 @@ void Editor::referencesHalfPageUp()
     if(referencesList.empty())
         return;
 
-    int halfPage = (screenRows - 4) / 2;
+    int halfPage = (screenRows - 3) / 2;
     referencesCursor = std::max(0, referencesCursor - halfPage);
     referencesOffset = std::max(0, referencesOffset - halfPage);
     needsFullRedraw = true;
@@ -217,11 +217,11 @@ void Editor::referencesHalfPageDown()
     if(referencesList.empty())
         return;
 
-    int halfPage = (screenRows - 4) / 2;
+    int halfPage = (screenRows - 3) / 2;
     int maxCursor = (int)referencesList.size() - 1;
     referencesCursor = std::min(maxCursor, referencesCursor + halfPage);
 
-    int visibleRows = screenRows - 4;
+    int visibleRows = screenRows - 3;
     if(referencesCursor >= referencesOffset + visibleRows)
         referencesOffset = referencesCursor - visibleRows + 1;
 
@@ -244,7 +244,7 @@ void Editor::referencesLast()
         return;
 
     referencesCursor = (int)referencesList.size() - 1;
-    int visibleRows = screenRows - 4;
+    int visibleRows = screenRows - 3;
     referencesOffset = std::max(0, referencesCursor - visibleRows + 1);
     needsFullRedraw = true;
 }
@@ -278,28 +278,19 @@ void Editor::drawReferences()
     // References list
     int visibleRows = screenRows - 3; // Header + status + message bars
     std::string lastFile;
+    int row = 0;
+    int idx = referencesOffset;
 
-    for(int i = 0;
-        i < visibleRows && referencesOffset + i < (int)referencesList.size();
-        i++)
+    while(row < visibleRows && idx < (int)referencesList.size())
     {
-        int idx = referencesOffset + i;
         const auto& ref = referencesList[idx];
 
-        output += Terminal::ESC_CLEAR_LINE;
-
-        bool isSelected = (idx == referencesCursor);
-
-        // Show file header when file changes
+        // Show file header when file changes (never select header line)
         if(ref.displayPath != lastFile)
         {
-            if(isSelected)
-                output += Terminal::STYLE_SELECTION;
-            else
-            {
-                output += Terminal::FG_CYAN;
-                output += Terminal::ESC_BOLD;
-            }
+            output += Terminal::ESC_CLEAR_LINE;
+            output += Terminal::FG_CYAN;
+            output += Terminal::ESC_BOLD;
 
             std::string fileHeader = ref.displayPath;
             if((int)fileHeader.length() > screenCols - 2)
@@ -311,15 +302,15 @@ void Editor::drawReferences()
             output += "\r\n";
 
             lastFile = ref.displayPath;
-            i++; // Account for extra line
+            row++;
 
-            if(i >= visibleRows)
+            if(row >= visibleRows)
                 break;
-
-            output += Terminal::ESC_CLEAR_LINE;
-            isSelected = (idx == referencesCursor);
         }
 
+        output += Terminal::ESC_CLEAR_LINE;
+
+        bool isSelected = (idx == referencesCursor);
         if(isSelected)
             output += Terminal::STYLE_SELECTION;
 
@@ -356,11 +347,12 @@ void Editor::drawReferences()
             output += std::string(screenCols - usedCols, ' ');
 
         output += "\r\n";
+        row++;
+        idx++;
     }
 
     // Fill remaining lines
-    for(int i = referencesOffset + visibleRows;
-        i < visibleRows + referencesOffset; i++)
+    for(; row < visibleRows; row++)
     {
         output += Terminal::ESC_CLEAR_LINE;
         output += "~\r\n";

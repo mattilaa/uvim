@@ -884,6 +884,15 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         ed->goToFile();
         break;
 
+    case 'r':
+        // gr - find references
+        ed->findReferences();
+        if(ed->hasReferences())
+        {
+            return ReferencesMode{};
+        }
+        break;
+
     default:
         ctx.setStatusMessage("Unknown g command");
         break;
