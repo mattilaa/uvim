@@ -1,6 +1,8 @@
 #pragma once
 #include "buffer.h"
 #include "completion_entry.h"
+#include "buffer_browser.h"
+#include "file_browser.h"
 #include "file_entry.h"
 #include "jump_location.h"
 #include "mode.h"
@@ -60,14 +62,7 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
-    // File browser (FileEntry struct is now in file_entry.h)
-    std::vector<FileEntry> fileList;
-    std::string currentDirectory;
-    std::string previousFile;
-    int browserCursor = 0;
-    int browserOffset = 0;
-    bool showHidden = false;
-    bool respectGitignore = true;
+    FileBrowser fileBrowser;
 
     // Fuzzy finder
     // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
@@ -78,11 +73,7 @@ public:
     int fuzzyOffset = 0;
     bool fuzzyInitialized = false;
 
-    // Buffer browser (BufferMatch struct is now in search_types.h)
-    std::vector<BufferMatch> bufferMatches;
-    std::string bufferQuery;
-    int bufferCursor = 0;
-    int bufferOffset = 0;
+    BufferBrowser bufferBrowser;
 
     // Grep search (GrepMatch struct is now in search_types.h)
     std::vector<GrepMatch> grepMatches;
@@ -180,7 +171,6 @@ public:
     void drawRows();
     void drawStatusBar();
     void drawMessageBar();
-    void drawFileBrowser();
     void refreshScreen();
     void drawIncrementalUpdate();
     void drawFullScreen();
@@ -197,9 +187,7 @@ public:
     void handleVisualMode(int c);
     void handleCommandMode(int c);
     void handleSearchMode(int c);
-    void handleFileBrowserMode(int c);
     void handleFuzzyFindMode(int c);
-    void handleBufferBrowserMode(int c);
     void handleGrepSearchMode(int c);
     void handleKeypress();
 
@@ -229,13 +217,6 @@ public:
 
     // File browser functions
     void openFileBrowser(const std::string& path = ".");
-    void loadDirectory(const std::string& path);
-    void sortFileList();
-    void navigateTo(const FileEntry& entry);
-    void toggleHidden();
-    void toggleGitignore();
-    std::string formatFileSize(size_t size);
-    std::string formatFileTime(time_t time);
     std::string getFilePermissions(const std::string& path);
     std::string getRelativePath(const std::string& path);
     void createNewFile();
@@ -270,35 +251,10 @@ public:
     void toggleFuzzyPreview();
 
     // File browser navigation helpers (for mode handlers)
-    void fileBrowserUp();
-    void fileBrowserDown();
-    void fileBrowserStart();
-    void fileBrowserEnd();
-    void fileBrowserHalfPageUp();
-    void fileBrowserHalfPageDown();
-    void fileBrowserParent();
-    bool selectFileBrowserEntry();
-    void toggleHiddenFiles();
-    void refreshFileBrowser();
     void deleteFilePrompt();
     void renameFilePrompt();
     void createNewFilePrompt();
     void createNewDirectoryPrompt();
-
-    // Buffer browser functions
-    void initializeBufferBrowser();
-    void updateBufferMatches();
-    void drawBufferBrowser();
-    void selectBufferMatch();
-
-    // Buffer browser navigation helpers (for mode handlers)
-    void bufferBrowserUp();
-    void bufferBrowserDown();
-    void bufferBrowserStart();
-    void bufferBrowserEnd();
-    bool selectBufferBrowserEntry();
-    void deleteSelectedBuffer();
-    bool switchToBufferByNumber(int num);
 
     // Grep search functions
     void initializeGrepSearch();

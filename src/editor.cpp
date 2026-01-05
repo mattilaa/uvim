@@ -2019,7 +2019,7 @@ void Editor::refreshScreen()
 
     if(currentMode == FILE_BROWSER)
     {
-        drawFileBrowser();
+        fileBrowser.draw(*this);
         return;
     }
 
@@ -2031,7 +2031,7 @@ void Editor::refreshScreen()
 
     if(currentMode == BUFFER_BROWSER)
     {
-        drawBufferBrowser();
+        bufferBrowser.draw(*this);
         return;
     }
 
@@ -2880,13 +2880,11 @@ void Editor::handleKeypress()
         handleSearchMode(c);
         break;
     case FILE_BROWSER:
-        handleFileBrowserMode(c);
         break;
     case FUZZY_FIND:
         handleFuzzyFindMode(c);
         break;
     case BUFFER_BROWSER:
-        handleBufferBrowserMode(c);
         break;
     case GREP_SEARCH:
         handleGrepSearchMode(c);
@@ -5009,108 +5007,6 @@ std::vector<std::string> Editor::getPathCompletions(const std::string& path)
     return completions;
 }
 
-// ============================================================================
-// File Browser Helpers
-// ============================================================================
-
-void Editor::fileBrowserUp()
-{
-    if(browserCursor > 0)
-    {
-        browserCursor--;
-        if(browserCursor < browserOffset)
-            browserOffset = browserCursor;
-    }
-}
-
-void Editor::fileBrowserDown()
-{
-    if(browserCursor < (int)fileList.size() - 1)
-    {
-        browserCursor++;
-        int visible = screenRows - 4;
-        if(browserCursor >= browserOffset + visible)
-            browserOffset = browserCursor - visible + 1;
-    }
-}
-
-void Editor::fileBrowserStart()
-{
-    browserCursor = 0;
-    browserOffset = 0;
-}
-
-void Editor::fileBrowserEnd()
-{
-    browserCursor = fileList.size() - 1;
-    int visible = screenRows - 4;
-    if(browserCursor >= visible)
-        browserOffset = browserCursor - visible + 1;
-}
-
-void Editor::fileBrowserHalfPageUp()
-{
-    int half = (screenRows - 4) / 2;
-    browserCursor -= half;
-    if(browserCursor < 0)
-        browserCursor = 0;
-    if(browserCursor < browserOffset)
-        browserOffset = browserCursor;
-}
-
-void Editor::fileBrowserHalfPageDown()
-{
-    int half = (screenRows - 4) / 2;
-    browserCursor += half;
-    if(browserCursor >= (int)fileList.size())
-        browserCursor = fileList.size() - 1;
-    int visible = screenRows - 4;
-    if(browserCursor >= browserOffset + visible)
-        browserOffset = browserCursor - visible + 1;
-}
-
-void Editor::fileBrowserParent()
-{
-    size_t lastSlash = currentDirectory.find_last_of('/');
-    if(lastSlash != std::string::npos && lastSlash > 0)
-    {
-        std::string parent = currentDirectory.substr(0, lastSlash);
-        loadDirectory(parent);
-        browserCursor = 0;
-        browserOffset = 0;
-    }
-}
-
-bool Editor::selectFileBrowserEntry()
-{
-    if(browserCursor >= 0 && browserCursor < (int)fileList.size())
-    {
-        const FileEntry& entry = fileList[browserCursor];
-        if(entry.isDirectory)
-        {
-            openFileBrowser(entry.path);
-            return false;
-        }
-        openFile(entry.path);
-        setMode(NORMAL);
-        return true;
-    }
-    return false;
-}
-
-void Editor::toggleHiddenFiles()
-{
-    showHidden = !showHidden;
-    loadDirectory(currentDirectory);
-    browserCursor = 0;
-    browserOffset = 0;
-}
-
-void Editor::refreshFileBrowser()
-{
-    loadDirectory(currentDirectory);
-}
-
 void Editor::deleteFilePrompt()
 {
     setStatusMessage("File deletion not yet implemented");
@@ -5224,78 +5120,6 @@ bool Editor::selectFuzzyFindEntry()
 void Editor::toggleFuzzyPreview()
 {
     // TODO: Implement fuzzy preview toggle
-}
-
-// ============================================================================
-// Buffer Browser Helpers
-// ============================================================================
-
-void Editor::bufferBrowserUp()
-{
-    if(bufferCursor > 0)
-    {
-        bufferCursor--;
-        if(bufferCursor < bufferOffset)
-            bufferOffset = bufferCursor;
-    }
-}
-
-void Editor::bufferBrowserDown()
-{
-    if(bufferCursor < (int)bufferMatches.size() - 1)
-    {
-        bufferCursor++;
-        int visible = screenRows - 4;
-        if(bufferCursor >= bufferOffset + visible)
-            bufferOffset = bufferCursor - visible + 1;
-    }
-}
-
-void Editor::bufferBrowserStart()
-{
-    bufferCursor = 0;
-    bufferOffset = 0;
-}
-
-void Editor::bufferBrowserEnd()
-{
-    bufferCursor = bufferMatches.size() - 1;
-    int visible = screenRows - 4;
-    if(bufferCursor >= visible)
-        bufferOffset = bufferCursor - visible + 1;
-}
-
-bool Editor::selectBufferBrowserEntry()
-{
-    selectBufferMatch();
-    return true;
-}
-
-void Editor::deleteSelectedBuffer()
-{
-    if(bufferCursor >= 0 && bufferCursor < (int)bufferMatches.size())
-    {
-        int idx = bufferMatches[bufferCursor].bufferIndex;
-        if(idx != currentBufferIndex && idx >= 0 && idx < (int)buffers.size())
-        {
-            buffers.erase(buffers.begin() + idx);
-            if(currentBufferIndex > idx)
-                currentBufferIndex--;
-            updateCurrentBufferPointers();
-            updateBufferMatches();
-        }
-    }
-}
-
-bool Editor::switchToBufferByNumber(int num)
-{
-    if(num >= 1 && num <= (int)buffers.size())
-    {
-        switchToBuffer(num - 1);
-        setMode(NORMAL);
-        return true;
-    }
-    return false;
 }
 
 // ============================================================================

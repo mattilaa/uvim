@@ -1,49 +1,52 @@
+#include "buffer_browser.h"
 #include "editor.h"
 #include "terminal.h"
 #include <algorithm>
 
-void Editor::initializeBufferBrowser()
+void BufferBrowser::initialize(Editor& editor)
 {
     bufferQuery.clear();
     bufferCursor = 0;
     bufferOffset = 0;
-    updateBufferMatches();
+    updateMatches(editor);
 }
 
-void Editor::updateBufferMatches()
+void BufferBrowser::updateMatches(Editor& editor)
 {
     bufferMatches.clear();
 
-    for(size_t i = 0; i < buffers.size(); i++)
+    for(size_t i = 0; i < editor.buffers.size(); i++)
     {
         BufferMatch m;
         m.bufferIndex = (int)i;
 
-        std::string name =
-            buffers[i]->filename.empty() ? "[No Name]" : buffers[i]->filename;
+        std::string name = editor.buffers[i]->filename.empty()
+                               ? "[No Name]"
+                               : editor.buffers[i]->filename;
         std::string base = name;
-        if(!buffers[i]->filename.empty())
+        if(!editor.buffers[i]->filename.empty())
         {
-            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
+            size_t lastSlash = editor.buffers[i]->filename.find_last_of("/\\");
             if(lastSlash != std::string::npos)
-                base = buffers[i]->filename.substr(lastSlash + 1);
+                base = editor.buffers[i]->filename.substr(lastSlash + 1);
         }
 
         m.display = std::to_string(i + 1);
-        if((int)i == currentBufferIndex)
+        if((int)i == editor.currentBufferIndex)
             m.display += " *";
         else
             m.display += "  ";
 
-        if(buffers[i]->dirty)
+        if(editor.buffers[i]->dirty)
             m.display += " [+] ";
         else
             m.display += "     ";
 
         m.display += base;
-        if(!buffers[i]->filename.empty() && base != buffers[i]->filename)
+        if(!editor.buffers[i]->filename.empty() &&
+           base != editor.buffers[i]->filename)
         {
-            m.display += "  (" + buffers[i]->filename + ")";
+            m.display += "  (" + editor.buffers[i]->filename + ")";
         }
 
         if(bufferQuery.empty())
@@ -54,14 +57,15 @@ void Editor::updateBufferMatches()
         }
 
         std::vector<int> posDisplay;
-        int s1 = fuzzyScore(bufferQuery, m.display, posDisplay);
+        int s1 = editor.fuzzyScore(bufferQuery, m.display, posDisplay);
 
         std::vector<int> posName;
-        int s2 = buffers[i]->filename.empty()
+        int s2 = editor.buffers[i]->filename.empty()
                      ? -1
-                     : fuzzyScore(bufferQuery, buffers[i]->filename, posName);
+                     : editor.fuzzyScore(bufferQuery,
+                                         editor.buffers[i]->filename, posName);
         std::vector<int> posBase;
-        int s3 = fuzzyScore(bufferQuery, base, posBase);
+        int s3 = editor.fuzzyScore(bufferQuery, base, posBase);
 
         int best = std::max({s1, s2, s3 * 2});
 
@@ -98,10 +102,10 @@ void Editor::updateBufferMatches()
     }
 }
 
-void Editor::drawBufferBrowser()
+void BufferBrowser::draw(Editor& editor) const
 {
     std::string output;
-    output.reserve(screenRows * screenCols * 2);
+    output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
     output += Terminal::ESC_CLEAR_LINE;
@@ -118,7 +122,7 @@ void Editor::drawBufferBrowser()
 
     output += Terminal::NEWLINE_CLEAR;
     output += Terminal::FG_BRIGHT_BLACK;
-    output += "  [Enter: switch] [Esc: cancel] [↑↓: navigate]";
+    output += "  [Enter: switch] [Esc: cancel] [Ctrl+J/K: navigate]";
     output += Terminal::FG_DEFAULT;
 
     output += Terminal::NEWLINE_CLEAR;
@@ -133,14 +137,15 @@ void Editor::drawBufferBrowser()
     }
     else
     {
-        output += "  " + std::to_string(buffers.size()) + " buffers";
+        output += "  " + std::to_string(editor.buffers.size()) + " buffers";
     }
     output += Terminal::FG_DEFAULT;
 
-    int availableRows = screenRows - 3;
+    int availableRows = editor.screenRows - 3;
 
-    for(int i = 0;
-        i < availableRows && i + bufferOffset < (int)bufferMatches.size(); i++)
+    for(int i = 0; i < availableRows &&
+                    i + bufferOffset < (int)bufferMatches.size();
+        i++)
     {
         output += Terminal::NEWLINE_CLEAR;
         int idx = i + bufferOffset;
@@ -150,8 +155,8 @@ void Editor::drawBufferBrowser()
             output += Terminal::STYLE_SELECTION;
 
         std::string line = "  " + m.display;
-        if((int)line.length() > screenCols)
-            line = line.substr(0, screenCols);
+        if((int)line.length() > editor.screenCols)
+            line = line.substr(0, editor.screenCols);
 
         output += line;
         output += Terminal::ESC_RESET_ALL;
@@ -170,85 +175,130 @@ void Editor::drawBufferBrowser()
     Terminal::flush();
 }
 
-void Editor::selectBufferMatch()
+void BufferBrowser::selectMatch(Editor& editor)
 {
     if(bufferCursor >= 0 && bufferCursor < (int)bufferMatches.size())
     {
         int idx = bufferMatches[bufferCursor].bufferIndex;
-        if(idx >= 0 && idx < (int)buffers.size())
+        if(idx >= 0 && idx < (int)editor.buffers.size())
         {
-            switchToBuffer(idx);
+            editor.switchToBuffer(idx);
         }
-        setMode(NORMAL);
     }
 }
 
-void Editor::handleBufferBrowserMode(int c)
+void BufferBrowser::up(int screenRows)
 {
-    if(dispatchModeKey(c))
+    if(bufferCursor > 0)
     {
-        return;
+        bufferCursor--;
+        if(bufferCursor < bufferOffset)
+            bufferOffset = bufferCursor;
     }
+}
 
-    switch(c)
+void BufferBrowser::down(int screenRows)
+{
+    if(bufferCursor < (int)bufferMatches.size() - 1)
     {
-    case Terminal::ENTER:
-        selectBufferMatch();
-        break;
+        bufferCursor++;
+        int visible = screenRows - 4;
+        if(bufferCursor >= bufferOffset + visible)
+            bufferOffset = bufferCursor - visible + 1;
+    }
+}
 
-    case Terminal::ESC:
-        setMode(NORMAL);
-        needsFullRedraw = true;
-        break;
+void BufferBrowser::start()
+{
+    bufferCursor = 0;
+    bufferOffset = 0;
+}
 
-    case Terminal::ARROW_DOWN:
-    case Terminal::CTRL_N:
-    case Terminal::CTRL_J:
-        if(bufferCursor < (int)bufferMatches.size() - 1)
-        {
-            bufferCursor++;
-            if(bufferCursor >= bufferOffset + screenRows - 3)
-                bufferOffset = bufferCursor - screenRows + 4;
-        }
-        break;
+void BufferBrowser::end(int screenRows)
+{
+    bufferCursor = bufferMatches.size() - 1;
+    int visible = screenRows - 4;
+    if(bufferCursor >= visible)
+        bufferOffset = bufferCursor - visible + 1;
+}
 
-    case Terminal::ARROW_UP:
-    case Terminal::CTRL_P:
-    case Terminal::CTRL_K:
-        if(bufferCursor > 0)
-        {
-            bufferCursor--;
-            if(bufferCursor < bufferOffset)
-                bufferOffset = bufferCursor;
-        }
-        break;
+void BufferBrowser::halfPageUp(int screenRows)
+{
+    int half = (screenRows - 4) / 2;
+    bufferCursor -= half;
+    if(bufferCursor < 0)
+        bufferCursor = 0;
+    if(bufferCursor < bufferOffset)
+        bufferOffset = bufferCursor;
+}
 
-    case Terminal::BACKSPACE:
-    case Terminal::DEL:
-        if(!bufferQuery.empty())
-        {
-            bufferQuery.pop_back();
-            updateBufferMatches();
-            bufferCursor = 0;
-            bufferOffset = 0;
-        }
-        break;
+void BufferBrowser::halfPageDown(int screenRows)
+{
+    int half = (screenRows - 4) / 2;
+    bufferCursor += half;
+    if(bufferCursor >= (int)bufferMatches.size())
+        bufferCursor = bufferMatches.size() - 1;
+    int visible = screenRows - 4;
+    if(bufferCursor >= bufferOffset + visible)
+        bufferOffset = bufferCursor - visible + 1;
+}
 
-    case Terminal::CTRL_U:
-        bufferQuery.clear();
-        updateBufferMatches();
+void BufferBrowser::addChar(Editor& editor, char c)
+{
+    bufferQuery += c;
+    updateMatches(editor);
+    bufferCursor = 0;
+    bufferOffset = 0;
+}
+
+void BufferBrowser::backspace(Editor& editor)
+{
+    if(!bufferQuery.empty())
+    {
+        bufferQuery.pop_back();
+        updateMatches(editor);
         bufferCursor = 0;
         bufferOffset = 0;
-        break;
-
-    default:
-        if(c >= 32 && c < 127)
-        {
-            bufferQuery += static_cast<char>(c);
-            updateBufferMatches();
-            bufferCursor = 0;
-            bufferOffset = 0;
-        }
-        break;
     }
+}
+
+void BufferBrowser::clear(Editor& editor)
+{
+    bufferQuery.clear();
+    updateMatches(editor);
+    bufferCursor = 0;
+    bufferOffset = 0;
+}
+
+bool BufferBrowser::selectEntry(Editor& editor)
+{
+    selectMatch(editor);
+    return true;
+}
+
+void BufferBrowser::deleteSelected(Editor& editor)
+{
+    if(bufferCursor >= 0 && bufferCursor < (int)bufferMatches.size())
+    {
+        int idx = bufferMatches[bufferCursor].bufferIndex;
+        if(idx != editor.currentBufferIndex && idx >= 0 &&
+           idx < (int)editor.buffers.size())
+        {
+            editor.buffers.erase(editor.buffers.begin() + idx);
+            if(editor.currentBufferIndex > idx)
+                editor.currentBufferIndex--;
+            editor.updateCurrentBufferPointers();
+            updateMatches(editor);
+        }
+    }
+}
+
+bool BufferBrowser::switchToBufferByNumber(Editor& editor, int num)
+{
+    if(num >= 1 && num <= (int)editor.buffers.size())
+    {
+        editor.switchToBuffer(num - 1);
+        return true;
+    }
+    return false;
 }

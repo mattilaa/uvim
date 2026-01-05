@@ -9,7 +9,7 @@
 void BufferBrowserMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
-    ed->initializeBufferBrowser();
+    ed->bufferBrowser.initialize(*ed);
     ed->needsFullRedraw = true;
 }
 
@@ -39,7 +39,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ENTER)
     {
-        if(ed->selectBufferBrowserEntry())
+        if(ed->bufferBrowser.selectEntry(*ed))
         {
             return NormalMode{};
         }
@@ -53,27 +53,20 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN ||
        c == Terminal::CTRL_N)
     {
-        ed->bufferBrowserDown();
+        ed->bufferBrowser.down(ed->screenRows);
     }
     else if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
     {
-        ed->bufferBrowserUp();
+        ed->bufferBrowser.up(ed->screenRows);
     }
     else if(c == Terminal::CTRL_D)
     {
         // Half page down
-        for(int i = 0; i < ed->screenRows / 2; i++)
-        {
-            ed->bufferBrowserDown();
-        }
+        ed->bufferBrowser.halfPageDown(ed->screenRows);
     }
     else if(c == Terminal::PAGE_UP)
     {
-        // Half page up
-        for(int i = 0; i < ed->screenRows / 2; i++)
-        {
-            ed->bufferBrowserUp();
-        }
+        ed->bufferBrowser.halfPageUp(ed->screenRows);
     }
 
     // ========================================================================
@@ -83,20 +76,11 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     else if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
             c == Terminal::CTRL_H)
     {
-        if(!ed->bufferQuery.empty())
-        {
-            ed->bufferQuery.pop_back();
-            ed->updateBufferMatches();
-            ed->bufferCursor = 0;
-            ed->bufferOffset = 0;
-        }
+        ed->bufferBrowser.backspace(*ed);
     }
     else if(c == Terminal::CTRL_U)
     {
-        ed->bufferQuery.clear();
-        ed->updateBufferMatches();
-        ed->bufferCursor = 0;
-        ed->bufferOffset = 0;
+        ed->bufferBrowser.clear(*ed);
     }
 
     // ========================================================================
@@ -121,10 +105,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
 
     else if(c >= 32 && c < 127)
     {
-        ed->bufferQuery += static_cast<char>(c);
-        ed->updateBufferMatches();
-        ed->bufferCursor = 0;
-        ed->bufferOffset = 0;
+        ed->bufferBrowser.addChar(*ed, static_cast<char>(c));
     }
 
     ed->needsFullRedraw = true;

@@ -737,19 +737,13 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
                     dir = "/";
             }
         }
-        ed->currentDirectory = dir;
-        ed->loadDirectory(dir);
-        ed->browserCursor = 0;
-        ed->browserOffset = 0;
+        ed->fileBrowser.open(*ed, dir);
         return FileBrowserMode{};
     }
 
     case 'e':
         // File browser / explorer
-        ed->currentDirectory = ".";
-        ed->loadDirectory(ed->currentDirectory);
-        ed->browserCursor = 0;
-        ed->browserOffset = 0;
+        ed->fileBrowser.open(*ed, ".");
         return FileBrowserMode{};
 
     case 'w':

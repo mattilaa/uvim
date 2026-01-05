@@ -3,9 +3,37 @@
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
+#include <iomanip>
+#include <sstream>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+static std::string formatFileSizeShort(size_t size)
+{
+    const char* units[] = {"B", "K", "M", "G", "T"};
+    int unitIndex = 0;
+    double displaySize = size;
+
+    while(displaySize >= 1024 && unitIndex < 4)
+    {
+        displaySize /= 1024;
+        unitIndex++;
+    }
+
+    std::ostringstream ss;
+    if(unitIndex == 0)
+    {
+        ss << std::setw(5) << size << units[unitIndex];
+    }
+    else
+    {
+        ss << std::fixed << std::setprecision(1) << std::setw(5) << displaySize
+           << units[unitIndex];
+    }
+
+    return ss.str();
+}
 
 void Editor::initializeFuzzyFind()
 {
@@ -279,7 +307,7 @@ void Editor::drawFuzzyFind()
     {
         output += "  " + std::to_string(allProjectFiles.size()) + " files";
     }
-    if(respectGitignore)
+    if(fileBrowser.isRespectGitignore())
     {
         output += " [gitignore]";
     }
@@ -350,7 +378,7 @@ void Editor::drawFuzzyFind()
 
         if(screenCols > 60)
         {
-            std::string sizeStr = formatFileSize(match.file.size);
+            std::string sizeStr = formatFileSizeShort(match.file.size);
             int padding =
                 screenCols - 2 - displayPath.length() - sizeStr.length() - 2;
             if(padding > 0)
@@ -446,7 +474,7 @@ void Editor::handleFuzzyFindMode(int c)
         break;
 
     case Terminal::CTRL_I:
-        toggleGitignore();
+        fileBrowser.toggleGitignore(*this);
         fuzzyInitialized = false;
         initializeFuzzyFind();
         break;

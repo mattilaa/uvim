@@ -11,13 +11,13 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
 
     // Load directory if not already loaded
-    if(ed->currentDirectory.empty())
+    if(ed->fileBrowser.directory().empty())
     {
-        ed->currentDirectory = ".";
+        ed->fileBrowser.setDirectory(*ed, ".");
     }
-    if(ed->fileList.empty())
+    if(!ed->fileBrowser.hasEntries())
     {
-        ed->loadDirectory(ed->currentDirectory);
+        ed->fileBrowser.loadDirectory(*ed, ed->fileBrowser.directory());
     }
 
     ed->needsFullRedraw = true;
@@ -40,6 +40,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        ed->fileBrowser.restorePrevious(*ed);
         return NormalMode{};
     }
 
@@ -49,31 +50,31 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     if(c == 'j' || c == Terminal::ARROW_DOWN)
     {
-        ed->fileBrowserDown();
+        ed->fileBrowser.down(ed->screenRows);
     }
     else if(c == 'k' || c == Terminal::ARROW_UP)
     {
-        ed->fileBrowserUp();
+        ed->fileBrowser.up(ed->screenRows);
     }
     else if(c == 'G')
     {
-        ed->fileBrowserEnd();
+        ed->fileBrowser.end(ed->screenRows);
     }
     else if(c == 'g')
     {
         int nextChar = Terminal::readKey();
         if(nextChar == 'g')
         {
-            ed->fileBrowserStart();
+            ed->fileBrowser.start();
         }
     }
     else if(c == Terminal::CTRL_D)
     {
-        ed->fileBrowserHalfPageDown();
+        ed->fileBrowser.halfPageDown(ed->screenRows);
     }
     else if(c == Terminal::CTRL_U)
     {
-        ed->fileBrowserHalfPageUp();
+        ed->fileBrowser.halfPageUp(ed->screenRows);
     }
 
     // ========================================================================
@@ -82,7 +83,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     else if(c == Terminal::ENTER || c == 'l' || c == Terminal::ARROW_RIGHT)
     {
-        if(ed->selectFileBrowserEntry())
+        if(ed->fileBrowser.selectEntry(*ed))
         {
             // File was opened, return to normal mode
             return NormalMode{};
@@ -96,7 +97,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     else if(c == 'h' || c == Terminal::ARROW_LEFT || c == '-')
     {
-        ed->fileBrowserParent();
+        ed->fileBrowser.parent(*ed);
     }
 
     // ========================================================================
@@ -106,13 +107,17 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Toggle hidden files
     else if(c == '.')
     {
-        ed->toggleHiddenFiles();
+        ed->fileBrowser.toggleHidden(*ed);
+    }
+    else if(c == 'i' || c == Terminal::CTRL_I)
+    {
+        ed->fileBrowser.toggleGitignore(*ed);
     }
 
     // Refresh
     else if(c == 'r' || c == Terminal::CTRL_L)
     {
-        ed->refreshFileBrowser();
+        ed->fileBrowser.refresh(*ed);
     }
 
     // Create new file

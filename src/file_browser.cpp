@@ -1,20 +1,29 @@
+#include "file_browser.h"
 #include "editor.h"
 #include "gitignore.h"
 #include "terminal.h"
+#include <algorithm>
+#include <iomanip>
 #include <sstream>
 
 #include "file_utils.h"
 
 void Editor::openFileBrowser(const std::string& path)
 {
-    if(buffers.empty())
+    fileBrowser.open(*this, path);
+    setMode(FILE_BROWSER);
+}
+
+void FileBrowser::open(Editor& editor, const std::string& path)
+{
+    if(editor.buffers.empty())
     {
-        createNewBuffer();
+        editor.createNewBuffer();
     }
 
-    if(currentMode != FILE_BROWSER && currentBuffer != nullptr)
+    if(editor.currentMode != FILE_BROWSER && editor.currentBuffer != nullptr)
     {
-        previousFile = *filename;
+        previousFile = *editor.filename;
     }
 
     std::error_code ec;
@@ -34,20 +43,29 @@ void Editor::openFileBrowser(const std::string& path)
     }
 
     currentDirectory = resolved.string(); // or UTF-8 helper if you use one
-    loadDirectory(currentDirectory);
+    loadDirectory(editor, currentDirectory);
 
     if(fileList.empty())
     {
-        setStatusMessage("Failed to load directory: " + currentDirectory);
+        editor.setStatusMessage("Failed to load directory: " +
+                                currentDirectory);
     }
 
-    setMode(FILE_BROWSER);
     browserCursor = 0;
     browserOffset = 0;
-    needsFullRedraw = true;
+    editor.needsFullRedraw = true;
 }
 
-void Editor::loadDirectory(const std::string& pathStr)
+void FileBrowser::setDirectory(Editor& editor, const std::string& path)
+{
+    currentDirectory = path;
+    loadDirectory(editor, currentDirectory);
+    browserCursor = 0;
+    browserOffset = 0;
+    editor.needsFullRedraw = true;
+}
+
+void FileBrowser::loadDirectory(Editor& editor, const std::string& pathStr)
 {
     fileList.clear();
 
@@ -60,7 +78,7 @@ void Editor::loadDirectory(const std::string& pathStr)
         ec.clear();
         if(!fs::is_directory(dirPath, ec))
         {
-            setStatusMessage("Cannot open any directory!");
+            editor.setStatusMessage("Cannot open any directory!");
             return;
         }
         currentDirectory = ".";
@@ -169,37 +187,36 @@ void Editor::loadDirectory(const std::string& pathStr)
                     std::make_move_iterator(files.end()));
 }
 
-void Editor::navigateTo(const FileEntry& entry)
+void FileBrowser::navigateTo(Editor& editor, const FileEntry& entry)
 {
     if(entry.isDirectory)
     {
-        openFileBrowser(entry.path);
+        open(editor, entry.path);
     }
     else
     {
-        openFile(entry.path);
-        setMode(NORMAL);
+        editor.openFile(entry.path);
     }
 }
 
-void Editor::toggleHidden()
+void FileBrowser::toggleHidden(Editor& editor)
 {
     showHidden = !showHidden;
-    loadDirectory(currentDirectory);
-    setStatusMessage(showHidden ? "Showing hidden files"
-                                : "Hiding hidden files");
+    loadDirectory(editor, currentDirectory);
+    editor.setStatusMessage(showHidden ? "Showing hidden files"
+                                       : "Hiding hidden files");
 }
 
-void Editor::toggleGitignore()
+void FileBrowser::toggleGitignore(Editor& editor)
 {
     respectGitignore = !respectGitignore;
-    fuzzyInitialized = false; // Force re-scan of project files
-    loadDirectory(currentDirectory);
-    setStatusMessage(respectGitignore ? "Respecting .gitignore"
-                                      : "Ignoring .gitignore");
+    editor.fuzzyInitialized = false; // Force re-scan of project files
+    loadDirectory(editor, currentDirectory);
+    editor.setStatusMessage(respectGitignore ? "Respecting .gitignore"
+                                             : "Ignoring .gitignore");
 }
 
-std::string Editor::formatFileSize(size_t size)
+std::string FileBrowser::formatFileSize(size_t size) const
 {
     const char* units[] = {"B", "K", "M", "G", "T"};
     int unitIndex = 0;
@@ -225,7 +242,7 @@ std::string Editor::formatFileSize(size_t size)
     return ss.str();
 }
 
-std::string Editor::formatFileTime(time_t time)
+std::string FileBrowser::formatFileTime(time_t time) const
 {
     char buffer[20];
     struct tm* timeinfo = localtime(&time);
@@ -233,10 +250,10 @@ std::string Editor::formatFileTime(time_t time)
     return std::string(buffer);
 }
 
-void Editor::drawFileBrowser()
+void FileBrowser::draw(Editor& editor) const
 {
     std::string output;
-    output.reserve(screenRows * screenCols * 2);
+    output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
 
@@ -250,7 +267,7 @@ void Editor::drawFileBrowser()
         "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore]";
     output += Terminal::FG_DEFAULT;
 
-    int availableRows = screenRows - 2;
+    int availableRows = editor.screenRows - 2;
 
     for(int i = 0; i < availableRows && i + browserOffset < fileList.size();
         i++)
@@ -284,7 +301,7 @@ void Editor::drawFileBrowser()
             displayName += "/";
         }
 
-        int maxNameLen = screenCols - 30;
+        int maxNameLen = editor.screenCols - 30;
         if(displayName.length() > maxNameLen)
         {
             displayName = displayName.substr(0, maxNameLen - 3) + "...";
@@ -297,7 +314,8 @@ void Editor::drawFileBrowser()
             std::string info = formatFileSize(entry.size) + "  " +
                                formatFileTime(entry.modTime);
 
-            int padding = screenCols - 5 - displayName.length() - info.length();
+            int padding =
+                editor.screenCols - 5 - displayName.length() - info.length();
             if(padding > 0)
             {
                 output.append(padding, ' ');
@@ -331,7 +349,7 @@ void Editor::drawFileBrowser()
                         std::to_string(fileList.size()) + " ";
 
     output += status;
-    int padding = screenCols - status.length() - right.length();
+    int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)
     {
         output.append(padding, ' ');
@@ -340,113 +358,127 @@ void Editor::drawFileBrowser()
     output += Terminal::ESC_RESET_ALL;
 
     output += Terminal::NEWLINE_CLEAR;
-    if(!statusMessage.empty())
+    if(!editor.statusMessage.empty())
     {
-        output += statusMessage.substr(
-            0, std::min((size_t)screenCols, statusMessage.length()));
+        output += editor.statusMessage.substr(
+            0, std::min((size_t)editor.screenCols,
+                        editor.statusMessage.length()));
     }
 
     Terminal::write(output);
     Terminal::flush();
 }
 
-void Editor::handleFileBrowserMode(int c)
+void FileBrowser::up(int screenRows)
 {
-    if(dispatchModeKey(c))
+    if(browserCursor > 0)
     {
-        return;
+        browserCursor--;
+        if(browserCursor < browserOffset)
+            browserOffset = browserCursor;
     }
+}
 
-    switch(c)
+void FileBrowser::down(int screenRows)
+{
+    if(browserCursor < (int)fileList.size() - 1)
     {
-    case Terminal::ENTER:
-    case 'l':
-    case Terminal::ARROW_RIGHT:
-        if(browserCursor < fileList.size())
-        {
-            navigateTo(fileList[browserCursor]);
-        }
-        break;
-    case 'h':
-    case Terminal::ARROW_LEFT:
-    case '-':
-        if(currentDirectory != "/" && currentDirectory != "")
-        {
-            size_t lastSlash = currentDirectory.find_last_of("/");
-            std::string parentDir = "/";
-            if(lastSlash != std::string::npos && lastSlash > 0)
-            {
-                parentDir = currentDirectory.substr(0, lastSlash);
-            }
-            openFileBrowser(parentDir);
-        }
-        break;
-    case 'j':
-    case Terminal::ARROW_DOWN:
-        if(browserCursor < fileList.size() - 1)
-        {
-            browserCursor++;
-            if(browserCursor >= browserOffset + screenRows - 2)
-            {
-                browserOffset = browserCursor - screenRows + 3;
-            }
-        }
-        break;
-    case 'k':
-    case Terminal::ARROW_UP:
-        if(browserCursor > 0)
-        {
-            browserCursor--;
-            if(browserCursor < browserOffset)
-            {
-                browserOffset = browserCursor;
-            }
-        }
-        break;
-    case Terminal::CTRL_P:
-        setMode(FUZZY_FIND);
-        break;
-    case Terminal::CTRL_W:
-        setMode(BUFFER_BROWSER);
-        break;
-    case 'g':
+        browserCursor++;
+        int visible = screenRows - 4;
+        if(browserCursor >= browserOffset + visible)
+            browserOffset = browserCursor - visible + 1;
+    }
+}
+
+void FileBrowser::start()
+{
+    browserCursor = 0;
+    browserOffset = 0;
+}
+
+void FileBrowser::end(int screenRows)
+{
+    browserCursor = fileList.size() - 1;
+    int visible = screenRows - 4;
+    if(browserCursor >= visible)
+        browserOffset = browserCursor - visible + 1;
+}
+
+void FileBrowser::halfPageUp(int screenRows)
+{
+    int half = (screenRows - 4) / 2;
+    browserCursor -= half;
+    if(browserCursor < 0)
+        browserCursor = 0;
+    if(browserCursor < browserOffset)
+        browserOffset = browserCursor;
+}
+
+void FileBrowser::halfPageDown(int screenRows)
+{
+    int half = (screenRows - 4) / 2;
+    browserCursor += half;
+    if(browserCursor >= (int)fileList.size())
+        browserCursor = fileList.size() - 1;
+    int visible = screenRows - 4;
+    if(browserCursor >= browserOffset + visible)
+        browserOffset = browserCursor - visible + 1;
+}
+
+void FileBrowser::parent(Editor& editor)
+{
+    size_t lastSlash = currentDirectory.find_last_of('/');
+    if(lastSlash != std::string::npos && lastSlash > 0)
+    {
+        std::string parentDir = currentDirectory.substr(0, lastSlash);
+        loadDirectory(editor, parentDir);
         browserCursor = 0;
         browserOffset = 0;
-        break;
-    case 'G':
-        if(fileList.size() > 0)
-        {
-            browserCursor = fileList.size() - 1;
-            if(fileList.size() > screenRows - 2)
-            {
-                browserOffset = fileList.size() - screenRows + 2;
-            }
-        }
-        break;
-    case '.':
-        toggleHidden();
-        break;
-    case 'i':
-    case Terminal::CTRL_I:
-        toggleGitignore();
-        break;
-    case 'R':
-        loadDirectory(currentDirectory);
-        setStatusMessage("Refreshed");
-        break;
-    case 'q':
-    case Terminal::ESC:
-        if(!previousFile.empty())
-        {
-            openFile(previousFile);
-        }
-        setMode(NORMAL);
-        break;
-    case '?':
-        setStatusMessage("[Enter/l]:open [h]:parent [j/k]:nav [.]:hidden "
-                         "[i]:gitignore [q]:quit");
-        break;
+        editor.needsFullRedraw = true;
     }
+}
 
-    needsFullRedraw = true;
+bool FileBrowser::selectEntry(Editor& editor)
+{
+    if(browserCursor >= 0 && browserCursor < (int)fileList.size())
+    {
+        const FileEntry& entry = fileList[browserCursor];
+        navigateTo(editor, entry);
+        return !entry.isDirectory;
+    }
+    return false;
+}
+
+void FileBrowser::refresh(Editor& editor)
+{
+    loadDirectory(editor, currentDirectory);
+    editor.needsFullRedraw = true;
+}
+
+const std::string& FileBrowser::directory() const
+{
+    return currentDirectory;
+}
+
+bool FileBrowser::isRespectGitignore() const
+{
+    return respectGitignore;
+}
+
+bool FileBrowser::isShowHidden() const
+{
+    return showHidden;
+}
+
+bool FileBrowser::hasEntries() const
+{
+    return !fileList.empty();
+}
+
+void FileBrowser::restorePrevious(Editor& editor) const
+{
+    if(!previousFile.empty())
+    {
+        editor.openFile(previousFile);
+    }
 }
