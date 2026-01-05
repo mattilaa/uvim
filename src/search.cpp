@@ -108,8 +108,7 @@ void Editor::performSearch()
     }
 
     jumpToMatch(bestIndex);
-    setStatusMessage("Match " + std::to_string(currentMatchIndex + 1) + " of " +
-                     std::to_string(searchMatches.size()));
+    needsFullRedraw = true;
 }
 
 void Editor::searchNext()
@@ -133,8 +132,7 @@ void Editor::searchNext()
 
     currentMatchIndex = (currentMatchIndex + 1) % searchMatches.size();
     jumpToMatch(currentMatchIndex);
-    setStatusMessage("Match " + std::to_string(currentMatchIndex + 1) + " of " +
-                     std::to_string(searchMatches.size()));
+    needsFullRedraw = true;
 }
 
 void Editor::searchPrevious()
@@ -161,6 +159,7 @@ void Editor::searchPrevious()
     jumpToMatch(currentMatchIndex);
     setStatusMessage("Match " + std::to_string(currentMatchIndex + 1) + " of " +
                      std::to_string(searchMatches.size()));
+    needsFullRedraw = true;
 }
 
 void Editor::clearSearch()

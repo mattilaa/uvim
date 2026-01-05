@@ -89,8 +89,25 @@ void Editor::drawStatusBar()
     snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
 
+    std::string searchInfo;
+    if(!searchQuery.empty())
+    {
+        if(!searchMatches.empty())
+        {
+            searchInfo =
+                " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                std::to_string(searchMatches.size()) + "]";
+        }
+        else
+        {
+            searchInfo = " [No matches]";
+        }
+    }
+
+    std::string rightBlock = searchInfo + rightStatus;
+
     // Calculate available space for filename
-    int rightLen = strlen(rightStatus);
+    int rightLen = rightBlock.length();
     int availableForFile = screenCols - status.length() - rightLen - 1;
 
     std::string displayName = filename->empty() ? "[No Name]" : *filename;
@@ -111,7 +128,7 @@ void Editor::drawStatusBar()
     int padding = screenCols - status.length() - rightLen;
     while(padding-- > 0)
         Terminal::write(' ');
-    Terminal::write(rightStatus);
+    Terminal::write(rightBlock);
 
     Terminal::write(Terminal::ESC_RESET_ALL);
 }
@@ -388,8 +405,25 @@ void Editor::drawStatusBarQuick()
     snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
 
+    std::string searchInfo;
+    if(!searchQuery.empty())
+    {
+        if(!searchMatches.empty())
+        {
+            searchInfo =
+                " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                std::to_string(searchMatches.size()) + "]";
+        }
+        else
+        {
+            searchInfo = " [No matches]";
+        }
+    }
+
+    std::string rightBlock = searchInfo + rightStatus;
+
     // Calculate available space for filename
-    int rightLen = strlen(rightStatus);
+    int rightLen = rightBlock.length();
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
 
     std::string displayName = filename->empty() ? "[No Name]" : *filename;
@@ -412,7 +446,7 @@ void Editor::drawStatusBarQuick()
     {
         output.append(padding, ' ');
     }
-    output += rightStatus;
+    output += rightBlock;
     output += Terminal::ESC_RESET_ALL;
 
     Terminal::write(output);
@@ -567,8 +601,25 @@ void Editor::drawFullScreen()
     snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
 
+    std::string searchInfo;
+    if(!searchQuery.empty())
+    {
+        if(!searchMatches.empty())
+        {
+            searchInfo =
+                " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                std::to_string(searchMatches.size()) + "]";
+        }
+        else
+        {
+            searchInfo = " [No matches]";
+        }
+    }
+
+    std::string rightBlock = searchInfo + rightStatus;
+
     // Calculate available space for filename
-    int rightLen = strlen(rightStatus);
+    int rightLen = rightBlock.length();
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
 
     std::string displayName = filename->empty() ? "[No Name]" : *filename;
@@ -589,7 +640,7 @@ void Editor::drawFullScreen()
     int padding = screenCols - statusLeft.length() - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
-    output += rightStatus;
+    output += rightBlock;
     output += Terminal::ESC_RESET_ALL;
 
     // Message bar
