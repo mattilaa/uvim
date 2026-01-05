@@ -5085,7 +5085,14 @@ bool Editor::selectFileBrowserEntry()
 {
     if(browserCursor >= 0 && browserCursor < (int)fileList.size())
     {
-        navigateTo(fileList[browserCursor]);
+        const FileEntry& entry = fileList[browserCursor];
+        if(entry.isDirectory)
+        {
+            openFileBrowser(entry.path);
+            return false;
+        }
+        openFile(entry.path);
+        setMode(NORMAL);
         return true;
     }
     return false;
