@@ -175,6 +175,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
+    bool hideCursor =
+        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+         currentMode == VISUAL_BLOCK);
     output += Terminal::ESC_HIDE_CURSOR;
 
     if(scrollDelta > 0)
@@ -201,6 +204,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 const std::string& line = (*lines)[fileRow];
                 int start = *offsetX;
                 int len = std::min((int)line.length() - start, screenCols);
+                int visibleLen = (len > 0) ? len : 0;
+                bool showCursor =
+                    (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                     currentMode == VISUAL_BLOCK);
 
                 if(len > 0)
                 {
@@ -212,6 +219,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
                     else
                     {
                         bool needsHighlight = false;
+                        if(showCursor && fileRow == *cursorY)
+                        {
+                            int cursorCol = *cursorX - *offsetX;
+                            if(cursorCol >= 0 && cursorCol < len)
+                                needsHighlight = true;
+                        }
                         for(int x = 0; x < len; x++)
                         {
                             int col = x + *offsetX;
@@ -234,10 +247,6 @@ void Editor::drawScrollUpdate(int scrollDelta)
                             {
                                 int col = x + *offsetX;
                                 bool highlighted = false;
-                                bool showCursor =
-                                    (currentMode == VISUAL ||
-                                     currentMode == VISUAL_LINE ||
-                                     currentMode == VISUAL_BLOCK);
                                 bool isCursor =
                                     showCursor &&
                                     (fileRow == *cursorY && col == *cursorX);
@@ -266,6 +275,21 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 }
                             }
                         }
+                    }
+                }
+
+                if(showCursor && fileRow == *cursorY)
+                {
+                    int cursorCol = *cursorX - *offsetX;
+                    if(cursorCol >= visibleLen && cursorCol < screenCols)
+                    {
+                        output += theme.reset();
+                        int pad = cursorCol - visibleLen;
+                        if(pad > 0)
+                            output.append(pad, ' ');
+                        output += theme.cursor();
+                        output += ' ';
+                        output += theme.reset();
                     }
                 }
             }
@@ -304,6 +328,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 const std::string& line = (*lines)[fileRow];
                 int start = *offsetX;
                 int len = std::min((int)line.length() - start, screenCols);
+                int visibleLen = (len > 0) ? len : 0;
+                bool showCursor =
+                    (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                     currentMode == VISUAL_BLOCK);
 
                 if(len > 0)
                 {
@@ -315,6 +343,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
                     else
                     {
                         bool needsHighlight = false;
+                        if(showCursor && fileRow == *cursorY)
+                        {
+                            int cursorCol = *cursorX - *offsetX;
+                            if(cursorCol >= 0 && cursorCol < len)
+                                needsHighlight = true;
+                        }
                         for(int x = 0; x < len; x++)
                         {
                             int col = x + *offsetX;
@@ -337,10 +371,6 @@ void Editor::drawScrollUpdate(int scrollDelta)
                             {
                                 int col = x + *offsetX;
                                 bool highlighted = false;
-                                bool showCursor =
-                                    (currentMode == VISUAL ||
-                                     currentMode == VISUAL_LINE ||
-                                     currentMode == VISUAL_BLOCK);
                                 bool isCursor =
                                     showCursor &&
                                     (fileRow == *cursorY && col == *cursorX);
@@ -369,6 +399,21 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 }
                             }
                         }
+                    }
+                }
+
+                if(showCursor && fileRow == *cursorY)
+                {
+                    int cursorCol = *cursorX - *offsetX;
+                    if(cursorCol >= visibleLen && cursorCol < screenCols)
+                    {
+                        output += theme.reset();
+                        int pad = cursorCol - visibleLen;
+                        if(pad > 0)
+                            output.append(pad, ' ');
+                        output += theme.cursor();
+                        output += ' ';
+                        output += theme.reset();
                     }
                 }
             }
@@ -400,7 +445,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
         cursorCol = (*cursorX - *offsetX) + 1;
     }
     output += Terminal::cursorPos(cursorRow, cursorCol);
-    output += Terminal::ESC_SHOW_CURSOR;
+    if(!hideCursor)
+        output += Terminal::ESC_SHOW_CURSOR;
 
     lastCursorScreenY = cursorRow;
     lastCursorScreenX = cursorCol;
@@ -519,6 +565,15 @@ void Editor::drawFullScreen()
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
 
+    bool hideCursor =
+        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+         currentMode == VISUAL_BLOCK);
+
+    if(hideCursor)
+        output += Terminal::ESC_HIDE_CURSOR;
+    else
+        output += Terminal::ESC_SHOW_CURSOR;
+
     output += theme.reset();
     output += Terminal::ESC_CLEAR_SCREEN;
     output += Terminal::ESC_CURSOR_HOME;
@@ -535,9 +590,38 @@ void Editor::drawFullScreen()
 
         if(fileRow >= lines->size())
         {
-            output += theme.uiGutter();
-            output += "~";
-            output += theme.baseFg();
+            bool cursorRow =
+                (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                 currentMode == VISUAL_BLOCK) &&
+                fileRow == *cursorY;
+            if(cursorRow)
+            {
+                int cursorCol = *cursorX - *offsetX;
+                if(cursorCol <= 0)
+                {
+                    output += theme.cursor();
+                    output += ' ';
+                    output += theme.reset();
+                }
+                else
+                {
+                    output += theme.uiGutter();
+                    output += "~";
+                    output += theme.baseFg();
+                    int pad = cursorCol - 1;
+                    if(pad > 0)
+                        output.append(pad, ' ');
+                    output += theme.cursor();
+                    output += ' ';
+                    output += theme.reset();
+                }
+            }
+            else
+            {
+                output += theme.uiGutter();
+                output += "~";
+                output += theme.baseFg();
+            }
         }
         else
         {
@@ -557,6 +641,14 @@ void Editor::drawFullScreen()
                 if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
                    currentMode == VISUAL_BLOCK || !searchMatches.empty())
                 {
+                    if((currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                        currentMode == VISUAL_BLOCK) &&
+                       fileRow == *cursorY)
+                    {
+                        int cursorCol = *cursorX - *offsetX;
+                        if(cursorCol >= 0 && cursorCol < len)
+                            hasHighlighting = true;
+                    }
                     for(int x = 0; x < len; x++)
                     {
                         int col = x + *offsetX;
