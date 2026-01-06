@@ -154,8 +154,8 @@ void FuzzyFindMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output +=
-        "  [Enter: open] [Esc: cancel] [Ctrl+J/K: navigate] [Ctrl+I: gitignore]";
+    output += "  [Enter: open] [Esc: cancel] [Ctrl+J/K: navigate] [Ctrl+I: "
+              "gitignore]";
     output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
@@ -171,8 +171,8 @@ void FuzzyFindMode::draw(Editor& editor) const
     }
     else
     {
-        output += "  " + std::to_string(editor.allProjectFiles.size()) +
-                  " files";
+        output +=
+            "  " + std::to_string(editor.allProjectFiles.size()) + " files";
     }
     if(editor.respectGitignore)
     {

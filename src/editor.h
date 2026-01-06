@@ -5,8 +5,8 @@
 #include "jump_location.h"
 #include "mode.h"
 #include "search_types.h"
-#include "token_type.h"
 #include "theme.h"
+#include "token_type.h"
 #include <chrono>
 #include <ctime>
 #include <map>
@@ -28,8 +28,7 @@ public:
     // Mode enum is now in mode.h
     // JumpLocation struct is now in jump_location.h
 
-    Editor(bool skipInitialBuffer = false,
-           const std::string& configPath = "");
+    Editor(bool skipInitialBuffer = false, const std::string& configPath = "");
     ~Editor();
 
     // Optional clangd LSP integration (compiled in when UVIM_ENABLE_CLANGD_LSP

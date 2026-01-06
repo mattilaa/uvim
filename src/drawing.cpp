@@ -94,9 +94,8 @@ void Editor::drawStatusBar()
     {
         if(!searchMatches.empty())
         {
-            searchInfo =
-                " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                std::to_string(searchMatches.size()) + "]";
+            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                         std::to_string(searchMatches.size()) + "]";
         }
         else
         {
@@ -175,9 +174,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
-    bool hideCursor =
-        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-         currentMode == VISUAL_BLOCK);
+    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                       currentMode == VISUAL_BLOCK);
     output += Terminal::ESC_HIDE_CURSOR;
 
     if(scrollDelta > 0)
@@ -480,9 +478,8 @@ void Editor::drawStatusBarQuick()
     {
         if(!searchMatches.empty())
         {
-            searchInfo =
-                " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                std::to_string(searchMatches.size()) + "]";
+            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                         std::to_string(searchMatches.size()) + "]";
         }
         else
         {
@@ -565,9 +562,8 @@ void Editor::drawFullScreen()
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
 
-    bool hideCursor =
-        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-         currentMode == VISUAL_BLOCK);
+    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                       currentMode == VISUAL_BLOCK);
 
     if(hideCursor)
         output += Terminal::ESC_HIDE_CURSOR;
@@ -681,12 +677,11 @@ void Editor::drawFullScreen()
                     {
                         int col = x + *offsetX;
                         bool highlighted = false;
-                        bool showCursor =
-                            (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                             currentMode == VISUAL_BLOCK);
-                        bool isCursor =
-                            showCursor &&
-                            (fileRow == *cursorY && col == *cursorX);
+                        bool showCursor = (currentMode == VISUAL ||
+                                           currentMode == VISUAL_LINE ||
+                                           currentMode == VISUAL_BLOCK);
+                        bool isCursor = showCursor && (fileRow == *cursorY &&
+                                                       col == *cursorX);
                         if(isCursor)
                         {
                             output += theme.cursor();
@@ -754,9 +749,8 @@ void Editor::drawFullScreen()
     {
         if(!searchMatches.empty())
         {
-            searchInfo =
-                " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                std::to_string(searchMatches.size()) + "]";
+            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                         std::to_string(searchMatches.size()) + "]";
         }
         else
         {

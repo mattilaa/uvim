@@ -247,9 +247,8 @@ int main(int argc, char* argv[])
 
     if(initConfig)
     {
-        std::string path =
-            initConfigArg.empty() ? Theme::defaultConfigPath()
-                                  : std::string(initConfigArg);
+        std::string path = initConfigArg.empty() ? Theme::defaultConfigPath()
+                                                 : std::string(initConfigArg);
         if(path.empty())
             die("cannot determine config path");
         std::error_code ec;
@@ -293,14 +292,14 @@ int main(int argc, char* argv[])
 
     if(useClangd)
     {
-        std::string ccdir = ccdirArg.empty() ? std::string()
-                                             : std::string(ccdirArg);
-        std::string clangdPath =
-            clangdPathArg.empty() ? std::string("clangd")
-                                  : std::string(clangdPathArg);
-        std::string queryDriver =
-            queryDriverArg.empty() ? std::string()
-                                   : std::string(queryDriverArg);
+        std::string ccdir =
+            ccdirArg.empty() ? std::string() : std::string(ccdirArg);
+        std::string clangdPath = clangdPathArg.empty()
+                                     ? std::string("clangd")
+                                     : std::string(clangdPathArg);
+        std::string queryDriver = queryDriverArg.empty()
+                                      ? std::string()
+                                      : std::string(queryDriverArg);
         editor.enableClangdLsp(true, ccdir, clangdPath, queryDriver);
     }
 

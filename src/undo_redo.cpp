@@ -75,10 +75,9 @@ void Editor::undo()
         }
         else
         {
-            *cursorY =
-                std::clamp(prevCursorY, 0, (int)lines->size() - 1);
-            *cursorX = std::clamp(
-                prevCursorX, 0, (int)(*lines)[*cursorY].length());
+            *cursorY = std::clamp(prevCursorY, 0, (int)lines->size() - 1);
+            *cursorX =
+                std::clamp(prevCursorX, 0, (int)(*lines)[*cursorY].length());
         }
 
         adjustViewport();
@@ -123,10 +122,9 @@ void Editor::redo()
         }
         else
         {
-            *cursorY =
-                std::clamp(prevCursorY, 0, (int)lines->size() - 1);
-            *cursorX = std::clamp(
-                prevCursorX, 0, (int)(*lines)[*cursorY].length());
+            *cursorY = std::clamp(prevCursorY, 0, (int)lines->size() - 1);
+            *cursorX =
+                std::clamp(prevCursorX, 0, (int)(*lines)[*cursorY].length());
         }
 
         adjustViewport();

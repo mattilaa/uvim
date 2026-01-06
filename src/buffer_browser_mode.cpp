@@ -16,9 +16,7 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
     ctx.editor->needsFullRedraw = true;
 }
 
-void BufferBrowserMode::on_exit(ModeContext& /* ctx */)
-{
-}
+void BufferBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
 std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
                                                    const KeyEvent& event)

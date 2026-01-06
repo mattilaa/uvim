@@ -1,8 +1,8 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-#include <chrono>
 #include <cctype>
+#include <chrono>
 
 // ============================================================================
 // NormalMode Implementation
@@ -162,8 +162,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == 'A')
     {
-        if(ctx.cursorY() >= 0 &&
-           ctx.cursorY() < (int)ctx.lines().size())
+        if(ctx.cursorY() >= 0 && ctx.cursorY() < (int)ctx.lines().size())
         {
             int end = ctx.lines()[ctx.cursorY()].length();
             ctx.cursorX() = end;

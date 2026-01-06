@@ -13,8 +13,7 @@ namespace
 std::string toLower(std::string_view input)
 {
     std::string out(input);
-    std::transform(out.begin(), out.end(), out.begin(),
-                   [](unsigned char c)
+    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c)
                    { return static_cast<char>(std::tolower(c)); });
     return out;
 }
@@ -194,8 +193,7 @@ void GrepSearchMode::draw(Editor& editor) const
 
     int availableRows = editor.screenRows - 3;
 
-    for(int i = 0;
-        i < availableRows && i + offset < (int)matches.size(); i++)
+    for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
         output += Terminal::NEWLINE_CLEAR;
 

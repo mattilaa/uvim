@@ -546,7 +546,8 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
     // Helper function to scan a line and update block comment state
     // This needs to be careful about string literals and character literals
-    auto scanLineForBlockComments = [](const std::string& scanLine, bool& inComment)
+    auto scanLineForBlockComments =
+        [](const std::string& scanLine, bool& inComment)
     {
         size_t pos = 0;
         size_t len = scanLine.length();
@@ -618,14 +619,16 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
                 }
 
                 // Check for line comment
-                if(pos + 1 < len && scanLine[pos] == '/' && scanLine[pos + 1] == '/')
+                if(pos + 1 < len && scanLine[pos] == '/' &&
+                   scanLine[pos + 1] == '/')
                 {
                     // Rest of line is a line comment
                     break;
                 }
 
                 // Check for block comment start
-                if(pos + 1 < len && scanLine[pos] == '/' && scanLine[pos + 1] == '*')
+                if(pos + 1 < len && scanLine[pos] == '/' &&
+                   scanLine[pos + 1] == '*')
                 {
                     inComment = true;
                     pos += 2;
@@ -639,7 +642,8 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
     // Determine block comment state for this line
     // We scan from the beginning of the file to ensure correctness
-    // Performance optimization: this is a lightweight scan (just looking for comment delimiters)
+    // Performance optimization: this is a lightweight scan (just looking for
+    // comment delimiters)
     bool blockCommentState = false;
 
     for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
@@ -674,8 +678,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
         bool showCursor =
             (currentMode == VISUAL || currentMode == VISUAL_LINE ||
              currentMode == VISUAL_BLOCK);
-        bool isCursor =
-            showCursor && (fileRow == *cursorY && col == *cursorX);
+        bool isCursor = showCursor && (fileRow == *cursorY && col == *cursorX);
         if(isCursor)
         {
             output += theme.cursor();

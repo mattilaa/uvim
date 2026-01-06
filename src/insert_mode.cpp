@@ -365,12 +365,12 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 indent++;
             }
             std::string indentStr = line.substr(0, indent);
-            std::string innerIndent = indentStr + std::string(ed->tabSpaces, ' ');
+            std::string innerIndent =
+                indentStr + std::string(ed->tabSpaces, ' ');
 
             line = left + "{";
             lines.insert(lines.begin() + cursorY + 1, innerIndent);
-            lines.insert(lines.begin() + cursorY + 2,
-                         indentStr + "}" + right);
+            lines.insert(lines.begin() + cursorY + 2, indentStr + "}" + right);
 
             cursorY += 1;
             cursorX = innerIndent.length();

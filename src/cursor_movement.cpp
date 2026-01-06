@@ -956,7 +956,6 @@ void Editor::moveToScreenBottom()
     moveToFirstNonBlank();
 }
 
-
 void Editor::adjustViewport()
 {
     // uvim can start in FILE_BROWSER mode with skipInitialBuffer=true.

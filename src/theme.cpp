@@ -22,8 +22,8 @@ static std::string trim(const std::string& s)
     return s.substr(start, end - start);
 }
 
-static std::unordered_map<std::string, std::string> parseYamlMap(
-    const std::string& input)
+static std::unordered_map<std::string, std::string>
+parseYamlMap(const std::string& input)
 {
     std::unordered_map<std::string, std::string> out;
     std::vector<std::pair<int, std::string>> stack;
@@ -73,7 +73,8 @@ static std::unordered_map<std::string, std::string> parseYamlMap(
         {
             for(size_t i = 0; i < value.size(); ++i)
             {
-                if(value[i] == '#' && (i == 0 || std::isspace((unsigned char)value[i - 1])))
+                if(value[i] == '#' &&
+                   (i == 0 || std::isspace((unsigned char)value[i - 1])))
                 {
                     value = trim(value.substr(0, i));
                     break;

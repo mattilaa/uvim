@@ -217,10 +217,11 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
     return ax;
 }
 
-static void appendIncludeEntries(
-    const std::filesystem::path& baseDir, const std::string& dirPrefix,
-    const std::string& filePrefix, std::vector<CompletionEntry>& out,
-    std::unordered_set<std::string>& seen)
+static void appendIncludeEntries(const std::filesystem::path& baseDir,
+                                 const std::string& dirPrefix,
+                                 const std::string& filePrefix,
+                                 std::vector<CompletionEntry>& out,
+                                 std::unordered_set<std::string>& seen)
 {
     std::error_code ec;
     std::filesystem::path target = baseDir;
@@ -365,7 +366,8 @@ void Editor::requestCompletion()
                 "/Applications/Xcode.app/Contents/Developer/Platforms/"
                 "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include",
                 "/usr/local/include",
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+                "include/"
                 "c++/v1",
                 "/Library/Developer/CommandLineTools/usr/include/c++/v1",
             };
@@ -714,8 +716,7 @@ void Editor::drawCompletionPopup(std::string& output) const
         }
     };
 
-    auto appendSyntaxRow = [&](const std::string& text, bool selected,
-                               int kind)
+    auto appendSyntaxRow = [&](const std::string& text, bool selected, int kind)
     {
         if(!isCppFile())
         {

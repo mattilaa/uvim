@@ -104,6 +104,6 @@ private:
     static std::string bgSeq(const Color& c);
     static bool parseHexColor(std::string_view value, Color& out);
 
-    void applyOverrides(
-        const std::unordered_map<std::string, std::string>& values);
+    void
+    applyOverrides(const std::unordered_map<std::string, std::string>& values);
 };

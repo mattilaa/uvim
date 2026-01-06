@@ -1,8 +1,8 @@
 #pragma once
 
-#include "state_machine.h"
 #include "file_entry.h"
 #include "search_types.h"
+#include "state_machine.h"
 #include <ctime>
 #include <string>
 #include <string_view>

@@ -8,8 +8,8 @@
 #include "lsp_client.h"
 #endif
 #include <algorithm>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <chrono>
 #include <csignal>
 #include <cstring>
@@ -2787,8 +2787,8 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
     {
-        std::string_view arg = (cmd.rfind("b ", 0) == 0) ? cmd.substr(2)
-                                                         : cmd.substr(7);
+        std::string_view arg =
+            (cmd.rfind("b ", 0) == 0) ? cmd.substr(2) : cmd.substr(7);
         arg = trim_view(arg);
 
         int bufNum = 0;

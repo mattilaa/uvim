@@ -73,8 +73,8 @@ void WelcomeMode::draw(Editor& editor) const
         std::string desc;
     };
 
-    auto append_with_enter_color = [&](std::string& out,
-                                       const std::string& line)
+    auto append_with_enter_color =
+        [&](std::string& out, const std::string& line)
     {
         const std::string token = "<Enter>";
         size_t pos = 0;
@@ -115,10 +115,8 @@ void WelcomeMode::draw(Editor& editor) const
     };
 
     std::vector<Item> keys = {
-        {"i", "enter insert mode"},
-        {":", "command mode"},
-        {"Ctrl-P", "fuzzy find files"},
-        {"Ctrl-W", "buffer browser"},
+        {"i", "enter insert mode"},     {":", "command mode"},
+        {"Ctrl-P", "fuzzy find files"}, {"Ctrl-W", "buffer browser"},
         {"Ctrl-S", "search in files"},
     };
 

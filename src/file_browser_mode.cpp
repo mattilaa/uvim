@@ -1,8 +1,8 @@
 #include "editor.h"
+#include "file_utils.h"
+#include "gitignore.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-#include "gitignore.h"
-#include "file_utils.h"
 #include <algorithm>
 #include <ctime>
 #include <iomanip>
@@ -34,9 +34,7 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
     ed->needsFullRedraw = true;
 }
 
-void FileBrowserMode::on_exit(ModeContext& /* ctx */)
-{
-}
+void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
 std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                                                  const KeyEvent& event)
@@ -340,8 +338,8 @@ void FileBrowserMode::draw(Editor& editor) const
     if(!editor.statusMessage.empty())
     {
         output += editor.statusMessage.substr(
-            0, std::min((size_t)editor.screenCols,
-                        editor.statusMessage.length()));
+            0,
+            std::min((size_t)editor.screenCols, editor.statusMessage.length()));
     }
 
     Terminal::write(output);
@@ -354,8 +352,9 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     Editor* ed = ctx.editor;
     fileList.clear();
 
-    std::filesystem::path dirPath =
-        pathStr.empty() ? std::filesystem::path{"."} : std::filesystem::path{pathStr};
+    std::filesystem::path dirPath = pathStr.empty()
+                                        ? std::filesystem::path{"."}
+                                        : std::filesystem::path{pathStr};
 
     std::error_code ec;
     if(!std::filesystem::is_directory(dirPath, ec))
