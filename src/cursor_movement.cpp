@@ -373,7 +373,6 @@ void Editor::jumpForward()
 {
     if(jumpForwardStack.empty())
     {
-        setStatusMessage("Jump stack empty");
         return;
     }
 
@@ -396,7 +395,6 @@ void Editor::jumpBack()
 {
     if(jumpBackStack.empty())
     {
-        setStatusMessage("Jump stack empty");
         return;
     }
 

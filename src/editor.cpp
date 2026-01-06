@@ -2277,6 +2277,138 @@ void Editor::setStatusMessage(const std::string& msg)
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
+    if(!hasBuffer())
+    {
+        if(cmd == "q" || cmd == "q!" || cmd == "qa" || cmd == "qa!" ||
+           cmd == "qall" || cmd == "qall!")
+        {
+            Terminal::clearScreen();
+            exit(0);
+        }
+        if(cmd == "pwd")
+        {
+            char cwd[PATH_MAX];
+            if(getcwd(cwd, sizeof(cwd)))
+                setStatusMessage(std::string(cwd));
+            else
+                setStatusMessage("Error getting current directory");
+            return;
+        }
+        if(cmd.substr(0, 3) == "cd " || cmd == "cd")
+        {
+            std::string path = (cmd.length() > 3) ? cmd.substr(3) : "";
+            if(path.empty())
+            {
+                const char* home = getenv("HOME");
+                if(home)
+                    path = home;
+                else
+                    path = "/";
+            }
+            if(!path.empty() && path[0] == '~')
+            {
+                const char* home = getenv("HOME");
+                if(home)
+                    path = std::string(home) + path.substr(1);
+            }
+            if(chdir(path.c_str()) == 0)
+            {
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                    setStatusMessage(std::string(cwd));
+            }
+            else
+            {
+                setStatusMessage("Cannot change to: " + path);
+            }
+            return;
+        }
+        if(cmd == "Ex" || cmd == "ex" || cmd == "E" || cmd == "e ." ||
+           cmd == "Explore" || cmd == "explore")
+        {
+            commandRequestedModeSet = true;
+            commandRequestedMode = FILE_BROWSER;
+            commandRequestedPath = ".";
+            return;
+        }
+        if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
+           cmd == "Vexplore")
+        {
+            setStatusMessage("Split explorer not yet implemented");
+            commandRequestedModeSet = true;
+            commandRequestedMode = FILE_BROWSER;
+            commandRequestedPath = ".";
+            return;
+        }
+        if(cmd == "ls" || cmd == "buffers" || cmd == "bn" || cmd == "bnext" ||
+           cmd == "bp" || cmd == "bprev" || cmd == "bprevious" ||
+           cmd == "bd" || cmd == "bdelete")
+        {
+            setStatusMessage("No buffers");
+            return;
+        }
+        if(cmd == "enew")
+        {
+            createNewBuffer();
+            setStatusMessage("New buffer created");
+            return;
+        }
+        if(cmd.substr(0, 2) == "e " || cmd.substr(0, 5) == "edit ")
+        {
+            std::string path =
+                (cmd.substr(0, 2) == "e ") ? cmd.substr(2) : cmd.substr(5);
+
+            if(path == ".")
+            {
+                commandRequestedModeSet = true;
+                commandRequestedMode = FILE_BROWSER;
+                commandRequestedPath = ".";
+                return;
+            }
+            else
+            {
+                struct stat fileStat;
+                if(stat(path.c_str(), &fileStat) == 0 &&
+                   S_ISDIR(fileStat.st_mode))
+                {
+                    commandRequestedModeSet = true;
+                    commandRequestedMode = FILE_BROWSER;
+                    commandRequestedPath = path;
+                    return;
+                }
+                openFile(path);
+                setMode(NORMAL);
+                return;
+            }
+        }
+        if(cmd.substr(0, 6) == "tabnew" || cmd.substr(0, 5) == "tabe ")
+        {
+            std::string fname = "";
+            if(cmd.substr(0, 5) == "tabe " && cmd.length() > 5)
+            {
+                fname = cmd.substr(5);
+            }
+            else if(cmd.substr(0, 7) == "tabnew " && cmd.length() > 7)
+            {
+                fname = cmd.substr(7);
+            }
+
+            if(!fname.empty())
+            {
+                openFile(fname);
+            }
+            else
+            {
+                createNewBuffer();
+                setStatusMessage("New buffer created");
+            }
+            return;
+        }
+
+        setStatusMessage("No buffer");
+        return;
+    }
+
     auto saveAllBuffers = [&](bool forceExit) -> bool
     {
         int savedCount = 0;
@@ -3141,6 +3273,7 @@ void Editor::ensureBufferForMode(Mode mode)
     switch(mode)
     {
     case WELCOME:
+    case COMMAND:
     case FILE_BROWSER:
     case FUZZY_FIND:
     case BUFFER_BROWSER:
@@ -3920,7 +4053,6 @@ void Editor::handleNormalMode(int c)
         {
             // Double ESC detected - clear search highlights
             clearSearch();
-            setStatusMessage("Search cleared");
             needsFullRedraw = true; // Force full redraw to clear highlights
             lastEscTime = std::chrono::steady_clock::time_point(); // Reset
         }
