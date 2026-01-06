@@ -120,25 +120,26 @@ void BufferBrowserMode::draw(Editor& editor) const
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
+    output += editor.theme.reset();
     output += Terminal::ESC_CLEAR_LINE;
 
     output += Terminal::ESC_BOLD;
     output += "  Buffers: ";
-    output += Terminal::ESC_RESET_ALL;
-    output += Terminal::FG_GREEN;
+    output += editor.theme.reset();
+    output += editor.theme.uiPrompt();
     output += bufferQuery;
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += editor.theme.uiDim();
     output += "  [Enter: switch] [Esc: cancel] [Ctrl+J/K: navigate]";
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += editor.theme.uiDim();
     if(!bufferMatches.empty())
     {
         output += "  " + std::to_string(bufferMatches.size()) + " matches";
@@ -151,7 +152,7 @@ void BufferBrowserMode::draw(Editor& editor) const
     {
         output += "  " + std::to_string(editor.buffers.size()) + " buffers";
     }
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 3;
 
@@ -163,23 +164,23 @@ void BufferBrowserMode::draw(Editor& editor) const
         const BufferMatch& m = bufferMatches[idx];
 
         if(idx == bufferCursor)
-            output += Terminal::STYLE_SELECTION;
+            output += editor.theme.selection();
 
         std::string line = "  " + m.display;
         if((int)line.length() > editor.screenCols)
             line = line.substr(0, editor.screenCols);
 
         output += line;
-        output += Terminal::ESC_RESET_ALL;
+        output += editor.theme.reset();
     }
 
     for(int i = (int)bufferMatches.size() - bufferOffset; i < availableRows;
         i++)
     {
         output += Terminal::NEWLINE_CLEAR;
-        output += Terminal::FG_BLUE;
+        output += editor.theme.uiGutter();
         output += "~";
-        output += Terminal::FG_DEFAULT;
+        output += editor.theme.baseFg();
     }
 
     Terminal::write(output);

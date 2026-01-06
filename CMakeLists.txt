@@ -37,6 +37,7 @@ set(UVIM_CORE_SOURCES
     src/cpp_constants.cpp
     src/editor_references.cpp
     src/stdlib_goto.cpp
+    src/theme.cpp
 )
 
 # Mode state machine sources (refactored)

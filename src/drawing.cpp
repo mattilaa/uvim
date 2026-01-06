@@ -33,7 +33,7 @@ void Editor::drawRows()
                     ((currentMode == VISUAL || currentMode == VISUAL_LINE) &&
                      isInSelection(fileRow, fileCol));
 
-                Terminal::resetAttributes();
+                Terminal::write(theme.reset());
 
                 /* ---------- VISUAL BLOCK ---------- */
                 if(inBlock)
@@ -41,20 +41,20 @@ void Editor::drawRows()
                     if(isCursor)
                     {
                         // Cursor highlight (Neovim style)
-                        Terminal::setBold();
+                        Terminal::write(theme.cursor());
                         Terminal::write(ch);
                     }
                     else
                     {
                         // Visual block highlight
-                        Terminal::setReverse();
+                        Terminal::write(theme.selection());
                         Terminal::write(ch);
                     }
                 }
                 /* ---------- VISUAL / VISUAL LINE ---------- */
                 else if(inVisual)
                 {
-                    Terminal::setReverse();
+                    Terminal::write(theme.selection());
                     Terminal::write(ch);
                 }
                 /* ---------- NORMAL ---------- */
@@ -63,7 +63,7 @@ void Editor::drawRows()
                     Terminal::write(ch);
                 }
 
-                Terminal::resetAttributes();
+                Terminal::write(theme.reset());
             }
         }
 
@@ -74,7 +74,7 @@ void Editor::drawRows()
 void Editor::drawStatusBar()
 {
     Terminal::write(Terminal::NEWLINE_CLEAR);
-    Terminal::write(Terminal::STYLE_SELECTION);
+    Terminal::write(theme.statusBar());
 
     std::string status = " " + getModeString() + " | ";
 
@@ -130,7 +130,7 @@ void Editor::drawStatusBar()
         Terminal::write(' ');
     Terminal::write(rightBlock);
 
-    Terminal::write(Terminal::ESC_RESET_ALL);
+    Terminal::write(theme.reset());
 }
 
 void Editor::drawMessageBar()
@@ -193,7 +193,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
             int fileRow = row + *offsetY;
 
             output += Terminal::cursorPos(row + 1, 1);
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
             output += Terminal::ESC_CLEAR_LINE;
 
             if(fileRow < lines->size())
@@ -243,18 +243,18 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                     (fileRow == *cursorY && col == *cursorX);
                                 if(isCursor)
                                 {
-                                    output += Terminal::STYLE_CURSOR;
+                                    output += theme.cursor();
                                     highlighted = true;
                                 }
                                 else if(isInSelection(fileRow, col) ||
                                         isInVisualBlock(fileRow, col))
                                 {
-                                    output += Terminal::STYLE_SELECTION;
+                                    output += theme.selection();
                                     highlighted = true;
                                 }
                                 else if(isInSearchMatch(fileRow, col))
                                 {
-                                    output += Terminal::STYLE_SEARCH_MATCH;
+                                    output += theme.searchMatch();
                                     highlighted = true;
                                 }
 
@@ -262,7 +262,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                                 if(highlighted)
                                 {
-                                    output += Terminal::ESC_RESET_ALL;
+                                    output += theme.reset();
                                 }
                             }
                         }
@@ -271,9 +271,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
             }
             else
             {
-                output += Terminal::FG_BLUE;
+                output += theme.uiGutter();
                 output += "~";
-                output += Terminal::FG_DEFAULT;
+                output += theme.baseFg();
             }
         }
 
@@ -296,7 +296,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
             int fileRow = i + *offsetY;
 
             output += Terminal::cursorPos(i + 1, 1);
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
             output += Terminal::ESC_CLEAR_LINE;
 
             if(fileRow < lines->size())
@@ -346,18 +346,18 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                     (fileRow == *cursorY && col == *cursorX);
                                 if(isCursor)
                                 {
-                                    output += Terminal::STYLE_CURSOR;
+                                    output += theme.cursor();
                                     highlighted = true;
                                 }
                                 else if(isInSelection(fileRow, col) ||
                                         isInVisualBlock(fileRow, col))
                                 {
-                                    output += Terminal::STYLE_SELECTION;
+                                    output += theme.selection();
                                     highlighted = true;
                                 }
                                 else if(isInSearchMatch(fileRow, col))
                                 {
-                                    output += Terminal::STYLE_SEARCH_MATCH;
+                                    output += theme.searchMatch();
                                     highlighted = true;
                                 }
 
@@ -365,7 +365,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                                 if(highlighted)
                                 {
-                                    output += Terminal::ESC_RESET_ALL;
+                                    output += theme.reset();
                                 }
                             }
                         }
@@ -374,9 +374,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
             }
             else
             {
-                output += Terminal::FG_BLUE;
+                output += theme.uiGutter();
                 output += "~";
-                output += Terminal::FG_DEFAULT;
+                output += theme.baseFg();
             }
         }
 
@@ -415,7 +415,7 @@ void Editor::drawStatusBarQuick()
     output += Terminal::cursorPos(screenRows + 1, 1);
 
     output += Terminal::ESC_CLEAR_LINE;
-    output += Terminal::STYLE_SELECTION;
+    output += theme.statusBar();
 
     std::string statusLeft = " " + getModeString() + " | ";
 
@@ -471,7 +471,7 @@ void Editor::drawStatusBarQuick()
         output.append(padding, ' ');
     }
     output += rightBlock;
-    output += Terminal::ESC_RESET_ALL;
+    output += theme.reset();
 
     Terminal::write(output);
 }
@@ -519,7 +519,7 @@ void Editor::drawFullScreen()
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
 
-    output += Terminal::ESC_RESET_ALL;
+    output += theme.reset();
     output += Terminal::ESC_CLEAR_SCREEN;
     output += Terminal::ESC_CURSOR_HOME;
 
@@ -528,16 +528,16 @@ void Editor::drawFullScreen()
         if(y > 0)
             output += "\r\n";
 
-        output += Terminal::ESC_RESET_ALL;
+        output += theme.reset();
         output += Terminal::ESC_CLEAR_LINE;
 
         int fileRow = y + *offsetY;
 
         if(fileRow >= lines->size())
         {
-            output += Terminal::FG_BLUE;
+            output += theme.uiGutter();
             output += "~";
-            output += Terminal::FG_DEFAULT;
+            output += theme.baseFg();
         }
         else
         {
@@ -597,18 +597,18 @@ void Editor::drawFullScreen()
                             (fileRow == *cursorY && col == *cursorX);
                         if(isCursor)
                         {
-                            output += Terminal::STYLE_CURSOR;
+                            output += theme.cursor();
                             highlighted = true;
                         }
                         else if(isInSelection(fileRow, col) ||
                                 isInVisualBlock(fileRow, col))
                         {
-                            output += Terminal::STYLE_SELECTION;
+                            output += theme.selection();
                             highlighted = true;
                         }
                         else if(isInSearchMatch(fileRow, col))
                         {
-                            output += Terminal::STYLE_SEARCH_MATCH;
+                            output += theme.searchMatch();
                             highlighted = true;
                         }
 
@@ -616,7 +616,7 @@ void Editor::drawFullScreen()
 
                         if(highlighted)
                         {
-                            output += Terminal::ESC_RESET_ALL;
+                            output += theme.reset();
                         }
                     }
                 }
@@ -629,13 +629,13 @@ void Editor::drawFullScreen()
                 int cursorCol = *cursorX - *offsetX;
                 if(cursorCol >= visibleLen && cursorCol < screenCols)
                 {
-                    output += Terminal::ESC_RESET_ALL;
+                    output += theme.reset();
                     int pad = cursorCol - visibleLen;
                     if(pad > 0)
                         output.append(pad, ' ');
-                    output += Terminal::STYLE_CURSOR;
+                    output += theme.cursor();
                     output += ' ';
-                    output += Terminal::ESC_RESET_ALL;
+                    output += theme.reset();
                 }
             }
         }
@@ -643,7 +643,7 @@ void Editor::drawFullScreen()
 
     // Status bar
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::STYLE_SELECTION;
+    output += theme.statusBar();
 
     std::string statusLeft = " " + getModeString() + " | ";
 
@@ -697,7 +697,7 @@ void Editor::drawFullScreen()
     if(padding > 0)
         output.append(padding, ' ');
     output += rightBlock;
-    output += Terminal::ESC_RESET_ALL;
+    output += theme.reset();
 
     // Message bar
     output += Terminal::NEWLINE_CLEAR;

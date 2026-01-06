@@ -265,34 +265,35 @@ void Editor::drawGrepSearch()
     output.reserve(screenRows * screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
+    output += theme.reset();
     output += Terminal::ESC_CLEAR_LINE;
 
     output += Terminal::ESC_BOLD;
     output += "  Grep: ";
-    output += Terminal::ESC_RESET_ALL;
-    output += Terminal::FG_GREEN;
+    output += theme.reset();
+    output += theme.uiPrompt();
     output += grepQuery;
 
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += Terminal::FG_DEFAULT;
+    output += theme.baseFg();
 
     if(grepSearching)
     {
-        output += Terminal::FG_YELLOW;
+        output += theme.uiWarning();
         output += " (searching...)";
-        output += Terminal::FG_DEFAULT;
+        output += theme.baseFg();
     }
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += theme.uiDim();
     output +=
         "  [Enter: open] [Esc: cancel] [↑↓: navigate] [Ctrl+I: gitignore]";
-    output += Terminal::FG_DEFAULT;
+    output += theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += theme.uiDim();
     if(!grepMatches.empty())
     {
         output += "  " + std::to_string(grepMatches.size());
@@ -309,7 +310,7 @@ void Editor::drawGrepSearch()
     {
         output += " [gitignore]";
     }
-    output += Terminal::FG_DEFAULT;
+    output += theme.baseFg();
 
     int availableRows = screenRows - 3;
 
@@ -323,24 +324,24 @@ void Editor::drawGrepSearch()
 
         if(index == grepCursor)
         {
-            output += Terminal::STYLE_SELECTION;
+            output += theme.selection();
         }
 
         output += "  ";
 
-        output += Terminal::FG_CYAN;
+        output += theme.uiInfo();
         std::string displayName = match.filename;
         if(displayName.length() > 20)
         {
             displayName = displayName.substr(0, 17) + "...";
         }
         output += displayName;
-        output += Terminal::FG_DEFAULT;
+        output += theme.baseFg();
 
         output += ":";
-        output += Terminal::FG_YELLOW;
+        output += theme.uiWarning();
         output += std::to_string(match.lineNumber);
-        output += Terminal::FG_DEFAULT;
+        output += theme.baseFg();
         output += ": ";
 
         std::string content = match.lineContent;
@@ -362,9 +363,9 @@ void Editor::drawGrepSearch()
             if(pos != std::string::npos)
             {
                 output += content.substr(0, pos);
-                output += Terminal::STYLE_GREEN_BOLD;
+                output += theme.matchHighlight();
                 output += content.substr(pos, grepQuery.length());
-                output += Terminal::STYLE_RESET_GREEN_BOLD;
+                output += theme.baseFg();
                 output += content.substr(pos + grepQuery.length());
             }
             else
@@ -377,15 +378,15 @@ void Editor::drawGrepSearch()
             output += content;
         }
 
-        output += Terminal::ESC_RESET_ALL;
+        output += theme.reset();
     }
 
     for(int i = (int)grepMatches.size() - grepOffset; i < availableRows; i++)
     {
         output += Terminal::NEWLINE_CLEAR;
-        output += Terminal::FG_BLUE;
+        output += theme.uiGutter();
         output += "~";
-        output += Terminal::FG_DEFAULT;
+        output += theme.baseFg();
     }
 
     Terminal::write(output);

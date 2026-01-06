@@ -73,8 +73,8 @@ void WelcomeMode::draw(Editor& editor) const
         std::string desc;
     };
 
-    auto append_with_enter_color = [](std::string& out,
-                                      const std::string& line)
+    auto append_with_enter_color = [&](std::string& out,
+                                       const std::string& line)
     {
         const std::string token = "<Enter>";
         size_t pos = 0;
@@ -87,9 +87,9 @@ void WelcomeMode::draw(Editor& editor) const
                 break;
             }
             out.append(line, pos, hit - pos);
-            out += Terminal::FG_BRIGHT_CYAN;
+            out += editor.theme.uiInfo();
             out += token;
-            out += Terminal::FG_DEFAULT;
+            out += editor.theme.baseFg();
             pos = hit + token.size();
         }
     };
@@ -149,6 +149,7 @@ void WelcomeMode::draw(Editor& editor) const
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
+    output += editor.theme.reset();
 
     int maxWidth = 0;
     for(const auto& line : lines)
@@ -184,7 +185,7 @@ void WelcomeMode::draw(Editor& editor) const
             {
                 output += Terminal::ESC_BOLD;
                 append_with_enter_color(output, line);
-                output += Terminal::ESC_RESET_ALL;
+                output += editor.theme.reset();
             }
             else
             {

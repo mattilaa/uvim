@@ -334,29 +334,7 @@ void Editor::clangFormatVisualBlockSelection()
 }
 std::string Editor::getColorCode(TokenType type) const
 {
-    switch(type)
-    {
-    case TOKEN_KEYWORD:
-        return Terminal::FG_MAGENTA;
-    case TOKEN_TYPE:
-        return Terminal::FG_CYAN;
-    case TOKEN_STRING:
-        return Terminal::FG_GREEN;
-    case TOKEN_CHAR:
-        return Terminal::FG_GREEN;
-    case TOKEN_COMMENT:
-        return Terminal::FG_BRIGHT_BLACK;
-    case TOKEN_PREPROCESSOR:
-        return Terminal::FG_YELLOW;
-    case TOKEN_NUMBER:
-        return Terminal::FG_RED;
-    case TOKEN_OPERATOR:
-        return Terminal::FG_BRIGHT_YELLOW;
-    case TOKEN_FUNCTION:
-        return Terminal::FG_BRIGHT_BLUE;
-    default:
-        return Terminal::FG_DEFAULT;
-    }
+    return theme.syntax(type);
 }
 
 std::vector<Token> Editor::tokenizeLine(const std::string& line,
@@ -700,17 +678,17 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
             showCursor && (fileRow == *cursorY && col == *cursorX);
         if(isCursor)
         {
-            output += Terminal::STYLE_CURSOR;
+            output += theme.cursor();
             highlighted = true;
         }
         else if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
         {
-            output += Terminal::STYLE_SELECTION;
+            output += theme.selection();
             highlighted = true;
         }
         else if(isInSearchMatch(fileRow, col))
         {
-            output += Terminal::STYLE_SEARCH_MATCH;
+            output += theme.searchMatch();
             highlighted = true;
         }
 
@@ -724,13 +702,13 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
 
         if(highlighted)
         {
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
             currentColor = TOKEN_NORMAL;
         }
     }
 
     if(currentColor != TOKEN_NORMAL)
     {
-        output += Terminal::FG_DEFAULT;
+        output += theme.baseFg();
     }
 }

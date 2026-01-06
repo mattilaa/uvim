@@ -262,17 +262,16 @@ void Editor::drawReferences()
 
     output += Terminal::ESC_HIDE_CURSOR;
     output += Terminal::cursorPos(1, 1);
+    output += theme.reset();
 
     // Header
-    output += Terminal::BG_BLUE;
-    output += Terminal::FG_WHITE;
-    output += Terminal::ESC_BOLD;
+    output += theme.panel();
 
     std::string header =
         " References (" + std::to_string(referencesList.size()) + ")";
     header += std::string(std::max(0, screenCols - (int)header.length()), ' ');
     output += header;
-    output += Terminal::ESC_RESET_ALL;
+    output += theme.reset();
     output += "\r\n";
 
     // References list
@@ -289,7 +288,7 @@ void Editor::drawReferences()
         if(ref.displayPath != lastFile)
         {
             output += Terminal::ESC_CLEAR_LINE;
-            output += Terminal::FG_CYAN;
+            output += theme.uiInfo();
             output += Terminal::ESC_BOLD;
 
             std::string fileHeader = ref.displayPath;
@@ -298,7 +297,7 @@ void Editor::drawReferences()
                                                        screenCols + 5);
 
             output += " " + fileHeader;
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
             output += "\r\n";
 
             lastFile = ref.displayPath;
@@ -312,21 +311,21 @@ void Editor::drawReferences()
 
         bool isSelected = (idx == referencesCursor);
         if(isSelected)
-            output += Terminal::STYLE_SELECTION;
+            output += theme.selection();
 
         // Line number and content
         std::string lineNum = std::to_string(ref.line + 1);
         while(lineNum.length() < 5)
             lineNum = " " + lineNum;
 
-        output += Terminal::FG_YELLOW;
+        output += theme.uiWarning();
         if(isSelected)
-            output += Terminal::STYLE_SELECTION;
+            output += theme.selection();
         output += lineNum;
-        output += Terminal::ESC_RESET_ALL;
+        output += theme.reset();
 
         if(isSelected)
-            output += Terminal::STYLE_SELECTION;
+            output += theme.selection();
 
         output += " ";
 
@@ -339,7 +338,7 @@ void Editor::drawReferences()
         output += content;
 
         if(isSelected)
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
 
         // Fill rest of line
         int usedCols = 6 + 1 + content.length();
@@ -359,8 +358,7 @@ void Editor::drawReferences()
     }
 
     // Status bar
-    output += Terminal::BG_WHITE;
-    output += Terminal::FG_BLACK;
+    output += theme.statusBar();
 
     std::string status = " [" + std::to_string(referencesCursor + 1) + "/" +
                          std::to_string(referencesList.size()) + "]";
@@ -370,7 +368,7 @@ void Editor::drawReferences()
         status += std::string(screenCols - status.length(), ' ');
 
     output += status;
-    output += Terminal::ESC_RESET_ALL;
+    output += theme.reset();
 
     // Message bar
     output += "\r\n";

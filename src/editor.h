@@ -6,6 +6,7 @@
 #include "mode.h"
 #include "search_types.h"
 #include "token_type.h"
+#include "theme.h"
 #include <chrono>
 #include <ctime>
 #include <map>
@@ -123,6 +124,8 @@ public:
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
 #endif
+
+    Theme theme;
 
     // LSP completion popup (CompletionEntry struct is now in
     // completion_entry.h)

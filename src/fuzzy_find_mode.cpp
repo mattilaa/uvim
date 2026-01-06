@@ -138,27 +138,28 @@ void FuzzyFindMode::draw(Editor& editor) const
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
+    output += editor.theme.reset();
     output += Terminal::ESC_CLEAR_LINE;
 
     output += Terminal::ESC_BOLD;
     output += "  Find File: ";
-    output += Terminal::ESC_RESET_ALL;
-    output += Terminal::FG_GREEN;
+    output += editor.theme.reset();
+    output += editor.theme.uiPrompt();
     output += query;
 
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += editor.theme.uiDim();
     output +=
         "  [Enter: open] [Esc: cancel] [Ctrl+J/K: navigate] [Ctrl+I: gitignore]";
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += editor.theme.uiDim();
 
     if(!matches.empty())
     {
@@ -177,7 +178,7 @@ void FuzzyFindMode::draw(Editor& editor) const
     {
         output += " [gitignore]";
     }
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 3;
 
@@ -190,7 +191,7 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         if(index == cursor)
         {
-            output += Terminal::STYLE_SELECTION;
+            output += editor.theme.selection();
         }
 
         output += "  ";
@@ -220,12 +221,12 @@ void FuzzyFindMode::draw(Editor& editor) const
 
                     if(index != cursor)
                     {
-                        output += Terminal::STYLE_GREEN_BOLD;
+                        output += editor.theme.matchHighlight();
                     }
                     output += displayPath[pos];
                     if(index != cursor)
                     {
-                        output += Terminal::STYLE_RESET_GREEN_BOLD;
+                        output += editor.theme.baseFg();
                     }
 
                     lastPos = (size_t)pos + 1;
@@ -250,20 +251,20 @@ void FuzzyFindMode::draw(Editor& editor) const
             {
                 output.append(padding, ' ');
             }
-            output += Terminal::FG_BRIGHT_BLACK;
+            output += editor.theme.uiDim();
             output += sizeStr;
-            output += Terminal::FG_DEFAULT;
+            output += editor.theme.baseFg();
         }
 
-        output += Terminal::ESC_RESET_ALL;
+        output += editor.theme.reset();
     }
 
     for(int i = (int)matches.size() - offset; i < availableRows; i++)
     {
         output += Terminal::NEWLINE_CLEAR;
-        output += Terminal::FG_BLUE;
+        output += editor.theme.uiGutter();
         output += "~";
-        output += Terminal::FG_DEFAULT;
+        output += editor.theme.baseFg();
     }
 
     Terminal::write(output);

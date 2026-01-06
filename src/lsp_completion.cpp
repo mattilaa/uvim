@@ -673,7 +673,7 @@ void Editor::drawCompletionPopup(std::string& output) const
     text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
     text_utils::appendU8(output, u8"┐");
 
-    auto kindColor = [](int kind) -> const char*
+    auto kindColor = [&](int kind) -> const std::string&
     {
         // LSP CompletionItemKind colors (rough semantic mapping)
         switch(kind)
@@ -682,35 +682,35 @@ void Editor::drawCompletionPopup(std::string& output) const
         case 3:  // Function
         case 4:  // Constructor
         case 23: // Event
-            return Terminal::FG_BRIGHT_BLUE;
+            return theme.syntax(TOKEN_FUNCTION);
         case 5:  // Field
         case 6:  // Variable
         case 10: // Property
         case 18: // Reference
         case 25: // TypeParameter
-            return Terminal::FG_CYAN;
+            return theme.uiInfo();
         case 7:  // Class
         case 8:  // Interface
         case 13: // Enum
         case 22: // Struct
-            return Terminal::FG_MAGENTA;
+            return theme.syntax(TOKEN_TYPE);
         case 14: // Keyword
-            return Terminal::FG_BRIGHT_MAGENTA;
+            return theme.syntax(TOKEN_KEYWORD);
         case 11: // Unit
         case 12: // Value
         case 20: // EnumMember
         case 21: // Constant
-            return Terminal::FG_YELLOW;
+            return theme.uiWarning();
         case 24: // Operator
-            return Terminal::FG_BRIGHT_YELLOW;
+            return theme.syntax(TOKEN_OPERATOR);
         case 15: // Snippet
         case 16: // Color
-            return Terminal::FG_GREEN;
+            return theme.uiSuccess();
         case 17: // File
         case 19: // Folder
-            return Terminal::FG_BRIGHT_BLACK;
+            return theme.uiDim();
         default:
-            return Terminal::FG_DEFAULT;
+            return theme.baseFg();
         }
     };
 
@@ -720,10 +720,10 @@ void Editor::drawCompletionPopup(std::string& output) const
         if(!isCppFile())
         {
             if(selected)
-                output += Terminal::STYLE_SELECTION;
+                output += theme.selection();
             output += kindColor(kind);
             output += text;
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
             return;
         }
 
@@ -745,13 +745,13 @@ void Editor::drawCompletionPopup(std::string& output) const
         }
 
         if(selected)
-            output += Terminal::STYLE_SELECTION;
+            output += theme.selection();
 
         if(!hasColor)
         {
             output += kindColor(kind);
             output += text;
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
             return;
         }
 
@@ -766,7 +766,7 @@ void Editor::drawCompletionPopup(std::string& output) const
             output += text[i];
         }
 
-        output += Terminal::ESC_RESET_ALL;
+        output += theme.reset();
     };
 
     // Rows
@@ -795,7 +795,7 @@ void Editor::drawCompletionPopup(std::string& output) const
             output += std::string(pad, ' ');
 
         if(sel)
-            output += Terminal::ESC_RESET_ALL;
+            output += theme.reset();
 
         output += " ";
         text_utils::appendU8(output, u8"│");

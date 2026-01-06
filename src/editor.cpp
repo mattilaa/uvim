@@ -281,6 +281,8 @@ Editor::Editor(bool skipInitialBuffer)
     Terminal::enableRawMode();
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
+    theme = Theme::defaults();
+    theme.loadFromFile(Theme::defaultConfigPath());
 
     // Create initial empty buffer only if not opening files
     if(!skipInitialBuffer)

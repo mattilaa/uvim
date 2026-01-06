@@ -239,16 +239,17 @@ void FileBrowserMode::draw(Editor& editor) const
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_CURSOR_HOME;
+    output += editor.theme.reset();
 
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
     output += "  " + currentDirectory;
-    output += Terminal::ESC_RESET_ALL;
+    output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::FG_BRIGHT_BLACK;
+    output += editor.theme.uiDim();
     output +=
         "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore]";
-    output += Terminal::FG_DEFAULT;
+    output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 2;
 
@@ -262,14 +263,14 @@ void FileBrowserMode::draw(Editor& editor) const
 
         if(index == browserCursor)
         {
-            output += Terminal::STYLE_SELECTION;
+            output += editor.theme.selection();
         }
 
         output += "  ";
 
         if(entry.isDirectory)
         {
-            output += Terminal::FG_BLUE;
+            output += editor.theme.uiDirectory();
             output += "📁 ";
             output += Terminal::ESC_BOLD;
         }
@@ -304,23 +305,23 @@ void FileBrowserMode::draw(Editor& editor) const
                 output.append(padding, ' ');
             }
 
-            output += Terminal::FG_BRIGHT_BLACK;
+            output += editor.theme.uiDim();
             output += info;
         }
 
-        output += Terminal::ESC_RESET_ALL;
+        output += editor.theme.reset();
     }
 
     for(int i = fileList.size() - browserOffset; i < availableRows; i++)
     {
         output += Terminal::NEWLINE_CLEAR;
-        output += Terminal::FG_BLUE;
+        output += editor.theme.uiGutter();
         output += "~";
-        output += Terminal::FG_DEFAULT;
+        output += editor.theme.baseFg();
     }
 
     output += Terminal::NEWLINE_CLEAR;
-    output += Terminal::STYLE_SELECTION;
+    output += editor.theme.statusBar();
 
     std::string status = " BROWSE";
     if(editor.respectGitignore)
@@ -338,7 +339,7 @@ void FileBrowserMode::draw(Editor& editor) const
         output.append(padding, ' ');
     }
     output += right;
-    output += Terminal::ESC_RESET_ALL;
+    output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
     if(!editor.statusMessage.empty())
