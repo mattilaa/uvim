@@ -309,14 +309,14 @@ int main(int argc, char* argv[])
         // If first argument is a directory, open file browser
         if(is_directory(args[0]))
         {
-            editor.openFileBrowser(std::string(args[0]));
+            editor.openFileBrowser(args[0]);
         }
         else
         {
             // Open all files as separate buffers
             for(const auto& f : args)
             {
-                editor.openFile(std::string(f));
+                editor.openFile(f);
             }
         }
     }

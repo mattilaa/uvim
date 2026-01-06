@@ -1257,13 +1257,13 @@ std::string Editor::getModeString() const
     return "";
 }
 
-void Editor::openFile(const std::string& fname)
+void Editor::openFile(std::string_view fname)
 {
     // Normalize path (CRITICAL for buffer matching)
-    std::string path = fname;
+    std::string path(fname);
     try
     {
-        path = std::filesystem::canonical(fname).string();
+        path = std::filesystem::canonical(std::string(fname)).string();
     }
     catch(...)
     {
@@ -1351,7 +1351,7 @@ void Editor::openFile(const std::string& fname)
 //                     std::to_string(lines->size()) + " lines");
 }
 
-void Editor::openFileBrowser(const std::string& path)
+void Editor::openFileBrowser(std::string_view path)
 {
     std::string prev;
     if(currentMode != FILE_BROWSER && currentBuffer != nullptr && filename)
@@ -1361,7 +1361,7 @@ void Editor::openFileBrowser(const std::string& path)
 
     if(modeStateMachine)
     {
-        modeStateMachine->transitionTo(FileBrowserMode{path, prev});
+        modeStateMachine->transitionTo(FileBrowserMode{std::string(path), prev});
         syncModeFromStateMachine();
     }
     else

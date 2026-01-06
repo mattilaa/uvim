@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -41,7 +42,7 @@ public:
     bool isClangdLspEnabled() const;
 
     void run();
-    void openFile(const std::string& filename);
+    void openFile(std::string_view filename);
 
     // Buffer struct is now in buffer.h
     // JumpLocation struct is now in jump_location.h
@@ -222,7 +223,7 @@ public:
     void yankRange(int startY, int startX, int endY, int endX);
 
     // File browser functions
-    void openFileBrowser(const std::string& path = ".");
+    void openFileBrowser(std::string_view path = ".");
     std::string getFilePermissions(const std::string& path);
     std::string getRelativePath(const std::string& path);
     void createNewFile();
