@@ -67,21 +67,34 @@ static std::string uriToPath(const std::string& uri)
     if(uri.rfind(prefix, 0) == 0)
     {
         std::string p = uri.substr(prefix.size());
-        // unescape spaces
+        // Decode percent-encoded bytes (e.g. %20, %2B).
         std::string out;
         out.reserve(p.size());
+        auto hex = [](char c) -> int
+        {
+            if(c >= '0' && c <= '9')
+                return c - '0';
+            if(c >= 'a' && c <= 'f')
+                return 10 + (c - 'a');
+            if(c >= 'A' && c <= 'F')
+                return 10 + (c - 'A');
+            return -1;
+        };
+
         for(size_t i = 0; i < p.size(); ++i)
         {
-            if(p[i] == '%' && i + 2 < p.size() && p[i + 1] == '2' &&
-               p[i + 2] == '0')
+            if(p[i] == '%' && i + 2 < p.size())
             {
-                out.push_back(' ');
-                i += 2;
+                int hi = hex(p[i + 1]);
+                int lo = hex(p[i + 2]);
+                if(hi >= 0 && lo >= 0)
+                {
+                    out.push_back(static_cast<char>((hi << 4) | lo));
+                    i += 2;
+                    continue;
+                }
             }
-            else
-            {
-                out.push_back(p[i]);
-            }
+            out.push_back(p[i]);
         }
         return out;
     }
