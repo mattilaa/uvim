@@ -1,6 +1,8 @@
 #include "editor.h"
 #include "log.h"
+#include "theme.h"
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -50,6 +52,90 @@ static std::string_view require_value(std::string_view opt, int& i, int argc,
     return std::string_view{argv[++i]};
 }
 
+static std::string default_config_contents()
+{
+    return R"(editor:
+  tabspaces: 4
+  autobraces: true
+
+theme:
+  base:
+    fg: "#e0def4"
+    bg: "#1f1d2e"
+  ui:
+    dim: "#6e6a86"
+    accent: "#c4a7e7"
+    info: "#9ccfd8"
+    warning: "#f6c177"
+    success: "#9ece6a"
+    error: "#eb6f92"
+    directory: "#3e8fb0"
+    gutter: "#3e8fb0"
+    prompt: "#9ece6a"
+  statusline:
+    fg: "#e0def4"
+    bg: "#26233a"
+  selection:
+    fg: "#e0def4"
+    bg: "#403d52"
+  cursor:
+    fg: "#1f1d2e"
+    bg: "#f6c177"
+  search:
+    fg: "#1f1d2e"
+    bg: "#ebbcba"
+  panel:
+    fg: "#e0def4"
+    bg: "#2a283e"
+  syntax:
+    normal: "#e0def4"
+    keyword: "#c4a7e7"
+    type: "#9ccfd8"
+    string: "#9ece6a"
+    char: "#9ece6a"
+    comment: "#6e6a86"
+    preprocessor: "#f6c177"
+    number: "#eb6f92"
+    operator: "#f6c177"
+    function: "#7aa2f7"
+)";
+}
+
+static std::string find_project_config()
+{
+    std::vector<std::string> names = {"uvim.yaml", ".uvim.yaml", "uvim.yml",
+                                      ".uvim.yml"};
+    std::error_code ec;
+    fs::path cwd = fs::current_path(ec);
+    if(ec)
+        return "";
+
+    for(const auto& name : names)
+    {
+        fs::path candidate = cwd / name;
+        if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
+            return candidate.string();
+    }
+    return "";
+}
+
+static void print_help(const char* exe)
+{
+    std::cout
+        << "Usage: " << exe << " [options] [file|dir]\n"
+        << "\nOptions:\n"
+        << "  --help                 Show this help and exit\n"
+        << "  --version              Show version and exit\n"
+        << "  --config <path>         Use custom config path\n"
+        << "  --init-config [path]    Write default config and exit\n"
+        << "  --clangd               Enable clangd LSP\n"
+        << "  --ccdir <dir>           Compile commands dir for clangd\n"
+        << "  --clangd-path <path>    Path to clangd binary\n"
+        << "  --query-driver <list>   clangd query-driver allowlist\n"
+        << "  --log-file <path>       Debug log file (UVIM_DEBUG_LOGGING)\n"
+        << "  --log-colors           Enable colored log output\n";
+}
+
 int main(int argc, char* argv[])
 {
     bool useClangd = false;
@@ -58,6 +144,9 @@ int main(int argc, char* argv[])
     std::string queryDriver;
     std::string logFile;
     bool logColors = false;
+    std::string customConfigPath;
+    bool initConfig = false;
+    std::string initConfigPath;
     std::vector<fs::path> args;
 
     auto require_value = [&](std::string_view opt, int& i,
@@ -94,7 +183,21 @@ int main(int argc, char* argv[])
                 val = {};
             }
 
-            if(key == "--clangd")
+            if(key == "--help")
+            {
+                print_help(argv[0]);
+                return 0;
+            }
+            else if(key == "--version")
+            {
+#ifdef UVIM_VERSION
+                std::cout << "uvim " << UVIM_VERSION << "\n";
+#else
+                std::cout << "uvim\n";
+#endif
+                return 0;
+            }
+            else if(key == "--clangd")
             {
                 useClangd = true;
             }
@@ -118,6 +221,22 @@ int main(int argc, char* argv[])
             {
                 logColors = true;
             }
+            else if(key == "--config")
+            {
+                customConfigPath = std::string(require_value(key, i, val));
+            }
+            else if(key == "--init-config")
+            {
+                initConfig = true;
+                if(!val.empty())
+                {
+                    initConfigPath = std::string(val);
+                }
+                else if(i + 1 < argc && argv[i + 1][0] != '-')
+                {
+                    initConfigPath = std::string(argv[++i]);
+                }
+            }
             else
             {
                 // unknown option: keep it as a positional, or error out if you
@@ -139,6 +258,27 @@ int main(int argc, char* argv[])
             args.emplace_back(fallback);
         }
     }
+
+    if(initConfig)
+    {
+        std::string path =
+            initConfigPath.empty() ? Theme::defaultConfigPath()
+                                   : initConfigPath;
+        if(path.empty())
+            die("cannot determine config path");
+        std::error_code ec;
+        fs::path outPath(path);
+        if(fs::exists(outPath, ec))
+            die("config already exists", path);
+        fs::create_directories(outPath.parent_path(), ec);
+        std::ofstream out(outPath);
+        if(!out.is_open())
+            die("cannot write config", path);
+        out << default_config_contents();
+        out.close();
+        std::cout << "Wrote default config to " << outPath.string() << "\n";
+        return 0;
+    }
     // Set custom log file path if provided
 #ifdef UVIM_DEBUG_LOGGING
     if(!logFile.empty())
@@ -151,8 +291,17 @@ int main(int argc, char* argv[])
     }
 #endif
 
+    std::string projectConfig = find_project_config();
+    std::string configPath;
+    if(!projectConfig.empty())
+        configPath = projectConfig;
+    else if(!customConfigPath.empty())
+        configPath = customConfigPath;
+    else
+        configPath = Theme::defaultConfigPath();
+
     // Create editor with flag indicating whether we have files to open
-    Editor editor(!args.empty());
+    Editor editor(!args.empty(), configPath);
 
     if(useClangd)
     {

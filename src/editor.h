@@ -27,7 +27,8 @@ public:
     // Mode enum is now in mode.h
     // JumpLocation struct is now in jump_location.h
 
-    Editor(bool skipInitialBuffer = false);
+    Editor(bool skipInitialBuffer = false,
+           const std::string& configPath = "");
     ~Editor();
 
     // Optional clangd LSP integration (compiled in when UVIM_ENABLE_CLANGD_LSP
@@ -165,6 +166,7 @@ public:
     bool lastFindForward = true;
     bool autoBraces = true;
     int tabSpaces = 4;
+    std::string configPath;
 
     // Drawing - Original functions
     void draw();

@@ -19,6 +19,7 @@
 #include <memory>
 #include <pwd.h>
 #include <unordered_map>
+#include <vector>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -392,13 +393,13 @@ static bool isSourceFile(const std::string& path)
     return path == ".c" || path == ".cpp" || path == ".cc";
 }
 
-Editor::Editor(bool skipInitialBuffer)
+Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
 {
     Terminal::enableRawMode();
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
     theme = Theme::defaults();
-    const std::string configPath = Theme::defaultConfigPath();
+    this->configPath = configPath;
     theme.loadFromFile(configPath);
     if(!configPath.empty())
     {
@@ -424,6 +425,19 @@ Editor::Editor(bool skipInitialBuffer)
                 catch(...)
                 {
                 }
+            }
+            auto itb = values.find("editor.autobraces");
+            if(itb == values.end())
+                itb = values.find("settings.autobraces");
+            if(itb == values.end())
+                itb = values.find("autobraces");
+            if(itb != values.end())
+            {
+                std::string v = itb->second;
+                if(v == "true" || v == "1" || v == "on")
+                    autoBraces = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    autoBraces = false;
             }
         }
     }
