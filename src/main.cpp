@@ -1,7 +1,6 @@
 #include "editor.h"
 #include "log.h"
 #include "theme.h"
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -13,11 +12,10 @@
 
 namespace fs = std::filesystem;
 
-static bool is_directory(const std::filesystem::path& p)
+static bool is_directory(std::string_view p)
 {
-    namespace fs = std::filesystem;
     std::error_code ec;
-    return fs::is_directory(p, ec);
+    return fs::is_directory(fs::path(p), ec);
 }
 
 [[noreturn]] static void die(std::string_view msg, std::string_view arg = {})
@@ -52,9 +50,9 @@ static std::string_view require_value(std::string_view opt, int& i, int argc,
     return std::string_view{argv[++i]};
 }
 
-static std::string default_config_contents()
+static std::string_view default_config_contents()
 {
-    return R"(editor:
+    static constexpr char kDefaultConfig[] = R"(editor:
   tabspaces: 4
   autobraces: true
 
@@ -99,6 +97,7 @@ theme:
     operator: "#f6c177"
     function: "#7aa2f7"
 )";
+    return std::string_view{kDefaultConfig, sizeof(kDefaultConfig) - 1};
 }
 
 static std::string find_project_config()
@@ -139,28 +138,15 @@ static void print_help(const char* exe)
 int main(int argc, char* argv[])
 {
     bool useClangd = false;
-    fs::path ccdir;
-    fs::path clangdPath = "clangd";
-    std::string queryDriver;
-    std::string logFile;
+    std::string_view ccdirArg;
+    std::string_view clangdPathArg = "clangd";
+    std::string_view queryDriverArg;
+    std::string_view logFileArg;
     bool logColors = false;
-    std::string customConfigPath;
+    std::string_view customConfigArg;
+    std::string_view initConfigArg;
     bool initConfig = false;
-    std::string initConfigPath;
-    std::vector<fs::path> args;
-
-    auto require_value = [&](std::string_view opt, int& i,
-                             std::string_view inline_value) -> std::string_view
-    {
-        if(!inline_value.empty())
-            return inline_value;
-        if(i + 1 >= argc)
-        {
-            std::cerr << "Missing value for option: " << opt << "\n";
-            std::exit(2);
-        }
-        return std::string_view{argv[++i]};
-    };
+    std::vector<std::string_view> args;
 
     bool parse_options = true;
 
@@ -203,19 +189,19 @@ int main(int argc, char* argv[])
             }
             else if(key == "--ccdir")
             {
-                ccdir = require_value(key, i, val);
+                ccdirArg = require_value(key, i, argc, argv, val);
             }
             else if(key == "--clangd-path")
             {
-                clangdPath = require_value(key, i, val);
+                clangdPathArg = require_value(key, i, argc, argv, val);
             }
             else if(key == "--query-driver")
             {
-                queryDriver = std::string(require_value(key, i, val));
+                queryDriverArg = require_value(key, i, argc, argv, val);
             }
             else if(key == "--log-file")
             {
-                logFile = std::string(require_value(key, i, val));
+                logFileArg = require_value(key, i, argc, argv, val);
             }
             else if(key == "--log-colors")
             {
@@ -223,18 +209,18 @@ int main(int argc, char* argv[])
             }
             else if(key == "--config")
             {
-                customConfigPath = std::string(require_value(key, i, val));
+                customConfigArg = require_value(key, i, argc, argv, val);
             }
             else if(key == "--init-config")
             {
                 initConfig = true;
                 if(!val.empty())
                 {
-                    initConfigPath = std::string(val);
+                    initConfigArg = val;
                 }
                 else if(i + 1 < argc && argv[i + 1][0] != '-')
                 {
-                    initConfigPath = std::string(argv[++i]);
+                    initConfigArg = std::string_view{argv[++i]};
                 }
             }
             else
@@ -262,8 +248,8 @@ int main(int argc, char* argv[])
     if(initConfig)
     {
         std::string path =
-            initConfigPath.empty() ? Theme::defaultConfigPath()
-                                   : initConfigPath;
+            initConfigArg.empty() ? Theme::defaultConfigPath()
+                                  : std::string(initConfigArg);
         if(path.empty())
             die("cannot determine config path");
         std::error_code ec;
@@ -281,9 +267,9 @@ int main(int argc, char* argv[])
     }
     // Set custom log file path if provided
 #ifdef UVIM_DEBUG_LOGGING
-    if(!logFile.empty())
+    if(!logFileArg.empty())
     {
-        mla::log::setLogFilePath(logFile);
+        mla::log::setLogFilePath(std::string(logFileArg));
     }
     if(logColors)
     {
@@ -292,35 +278,45 @@ int main(int argc, char* argv[])
 #endif
 
     std::string projectConfig = find_project_config();
-    std::string configPath;
+    std::string defaultConfig = Theme::defaultConfigPath();
+    std::string_view configView;
     if(!projectConfig.empty())
-        configPath = projectConfig;
-    else if(!customConfigPath.empty())
-        configPath = customConfigPath;
+        configView = projectConfig;
+    else if(!customConfigArg.empty())
+        configView = customConfigArg;
     else
-        configPath = Theme::defaultConfigPath();
+        configView = defaultConfig;
+    std::string configPath = std::string(configView);
 
     // Create editor with flag indicating whether we have files to open
     Editor editor(!args.empty(), configPath);
 
     if(useClangd)
     {
+        std::string ccdir = ccdirArg.empty() ? std::string()
+                                             : std::string(ccdirArg);
+        std::string clangdPath =
+            clangdPathArg.empty() ? std::string("clangd")
+                                  : std::string(clangdPathArg);
+        std::string queryDriver =
+            queryDriverArg.empty() ? std::string()
+                                   : std::string(queryDriverArg);
         editor.enableClangdLsp(true, ccdir, clangdPath, queryDriver);
     }
 
     if(!args.empty())
     {
         // If first argument is a directory, open file browser
-        if(is_directory(args[0].c_str()))
+        if(is_directory(args[0]))
         {
-            editor.openFileBrowser(args[0]);
+            editor.openFileBrowser(std::string(args[0]));
         }
         else
         {
             // Open all files as separate buffers
             for(const auto& f : args)
             {
-                editor.openFile(f);
+                editor.openFile(std::string(f));
             }
         }
     }
