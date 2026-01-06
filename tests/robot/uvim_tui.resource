@@ -28,6 +28,8 @@ Cleanup Uvim Tui
     Stop Uvim
     ${is_temp} =    Run Keyword And Return Status    Directory Should Exist    ${TEMP_DIR}
     Run Keyword If    ${is_temp}    Remove Directory    ${TEMP_DIR}    recursive=true
+    ${pipe_exists} =    Run Keyword And Return Status    File Should Exist    ${CURDIR}/../../PIPE
+    Run Keyword If    ${pipe_exists}    Remove File    ${CURDIR}/../../PIPE
 
 Quit Uvim
     Send Keys    :
