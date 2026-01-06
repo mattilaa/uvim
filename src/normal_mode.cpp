@@ -162,7 +162,13 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == 'A')
     {
-        ed->moveToLineEnd();
+        if(ctx.cursorY() >= 0 &&
+           ctx.cursorY() < (int)ctx.lines().size())
+        {
+            int end = ctx.lines()[ctx.cursorY()].length();
+            ctx.cursorX() = end;
+            ctx.wantedX() = end;
+        }
         ctx.repeatCount = 0;
         return InsertMode{};
     }
