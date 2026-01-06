@@ -18,13 +18,13 @@
 #include <limits.h>
 #include <memory>
 #include <pwd.h>
-#include <unordered_map>
-#include <vector>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <unordered_map>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -32,8 +32,8 @@ static mla::log::FileLogger LOG("uvim");
 
 namespace
 {
-static std::unordered_map<std::string, std::string> parseYamlMap(
-    const std::string& input)
+static std::unordered_map<std::string, std::string>
+parseYamlMap(const std::string& input)
 {
     std::unordered_map<std::string, std::string> out;
     std::vector<std::pair<int, std::string>> stack;
@@ -1276,8 +1276,9 @@ void Editor::openFile(std::string_view fname)
     if(existing >= 0)
     {
         switchToBuffer(existing);
-//        setStatusMessage("Buffer " + std::to_string(existing + 1) + "/" +
-//                         std::to_string(buffers.size()));
+        //        setStatusMessage("Buffer " + std::to_string(existing + 1) +
+        //        "/" +
+        //                         std::to_string(buffers.size()));
         return;
     }
 
@@ -1346,9 +1347,10 @@ void Editor::openFile(std::string_view fname)
     }
 #endif
 
-//    setStatusMessage("Buffer " + std::to_string(currentBufferIndex + 1) + "/" +
-//                     std::to_string(buffers.size()) + " " +
-//                     std::to_string(lines->size()) + " lines");
+    //    setStatusMessage("Buffer " + std::to_string(currentBufferIndex + 1) +
+    //    "/" +
+    //                     std::to_string(buffers.size()) + " " +
+    //                     std::to_string(lines->size()) + " lines");
 }
 
 void Editor::openFileBrowser(std::string_view path)
@@ -1361,7 +1363,8 @@ void Editor::openFileBrowser(std::string_view path)
 
     if(modeStateMachine)
     {
-        modeStateMachine->transitionTo(FileBrowserMode{std::string(path), prev});
+        modeStateMachine->transitionTo(
+            FileBrowserMode{std::string(path), prev});
         syncModeFromStateMachine();
     }
     else
@@ -2504,8 +2507,8 @@ bool Editor::handleSetCommand(std::string_view cmd)
 
     if(opt.rfind("tabspaces=", 0) == 0)
     {
-        std::string value = std::string(
-            opt.substr(std::string("tabspaces=").length()));
+        std::string value =
+            std::string(opt.substr(std::string("tabspaces=").length()));
         try
         {
             int v = std::stoi(value);
@@ -2617,8 +2620,8 @@ void Editor::executeCommand(std::string_view cmd)
             return;
         }
         if(cmd == "ls" || cmd == "buffers" || cmd == "bn" || cmd == "bnext" ||
-           cmd == "bp" || cmd == "bprev" || cmd == "bprevious" ||
-           cmd == "bd" || cmd == "bdelete")
+           cmd == "bp" || cmd == "bprev" || cmd == "bprevious" || cmd == "bd" ||
+           cmd == "bdelete")
         {
             setStatusMessage("No buffers");
             return;
@@ -2631,9 +2634,9 @@ void Editor::executeCommand(std::string_view cmd)
         }
         if(cmd.rfind("e ", 0) == 0 || cmd.rfind("edit ", 0) == 0)
         {
-            std::string path =
-                (cmd.rfind("e ", 0) == 0) ? std::string(cmd.substr(2))
-                                          : std::string(cmd.substr(5));
+            std::string path = (cmd.rfind("e ", 0) == 0)
+                                   ? std::string(cmd.substr(2))
+                                   : std::string(cmd.substr(5));
 
             if(path == ".")
             {
@@ -2715,8 +2718,7 @@ void Editor::executeCommand(std::string_view cmd)
             {
                 setStatusMessage("Saved " + std::to_string(savedCount) +
                                  " buffer(s), " +
-                                 std::to_string(skippedNoName) +
-                                 " unnamed");
+                                 std::to_string(skippedNoName) + " unnamed");
             }
             else
             {
@@ -2752,9 +2754,9 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
     {
-        std::string arg =
-            (cmd.rfind("b ", 0) == 0) ? std::string(cmd.substr(2))
-                                      : std::string(cmd.substr(7));
+        std::string arg = (cmd.rfind("b ", 0) == 0)
+                              ? std::string(cmd.substr(2))
+                              : std::string(cmd.substr(7));
 
         try
         {
@@ -2826,8 +2828,7 @@ void Editor::executeCommand(std::string_view cmd)
     {
         if(!saveAllBuffers(false))
         {
-            setStatusMessage(
-                "Some buffers have no name (use :qw! to force)");
+            setStatusMessage("Some buffers have no name (use :qw! to force)");
             return;
         }
         Terminal::clearScreen();
@@ -2914,9 +2915,9 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd.rfind("e ", 0) == 0 || cmd.rfind("edit ", 0) == 0)
     {
-        std::string path =
-            (cmd.rfind("e ", 0) == 0) ? std::string(cmd.substr(2))
-                                      : std::string(cmd.substr(5));
+        std::string path = (cmd.rfind("e ", 0) == 0)
+                               ? std::string(cmd.substr(2))
+                               : std::string(cmd.substr(5));
 
         if(path == ".")
         {
@@ -2983,8 +2984,7 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
     {
-        std::string path =
-            (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
+        std::string path = (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
         if(path.empty())
         {
             // cd with no args goes to home directory
@@ -3230,7 +3230,7 @@ std::string Editor::getAlternateFilePath()
 }
 
 // Helper function for command-line path completion
-static std::vector<std::string> getPathCompletions(const std::string& partial)
+static std::vector<std::string> getPathCompletions(std::string_view partial)
 {
     std::vector<std::string> completions;
 
@@ -3238,7 +3238,7 @@ static std::vector<std::string> getPathCompletions(const std::string& partial)
     std::string prefix;
 
     // Handle ~ expansion
-    std::string expandedPartial = partial;
+    std::string expandedPartial(partial);
     if(!expandedPartial.empty() && expandedPartial[0] == '~')
     {
         const char* home = getenv("HOME");
@@ -3287,7 +3287,8 @@ static std::vector<std::string> getPathCompletions(const std::string& partial)
                 if(!partial.empty() && partial[0] == '~')
                 {
                     size_t origSlash = partial.find_last_of('/');
-                    fullPath = partial.substr(0, origSlash + 1) + name;
+                    fullPath =
+                        std::string(partial.substr(0, origSlash + 1)) + name;
                 }
                 else
                 {
@@ -3597,7 +3598,7 @@ void Editor::switchToBuffer(int index)
         {
             msg += " [+]";
         }
-        //setStatusMessage(msg);
+        // setStatusMessage(msg);
     }
 }
 
@@ -3741,7 +3742,7 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
 }
 void Editor::run()
 {
-//    setStatusMessage("Welcome to uVim!");
+    //    setStatusMessage("Welcome to uVim!");
 
     while(true)
     {
@@ -4977,16 +4978,16 @@ void Editor::insertLineBelow()
                     if(prevTrim.empty())
                         continue;
                     size_t prevIndent = leading_ws_len(prevLine);
-                if(prevIndent < indent)
-                {
-                    if(starts_control(prevTrim) &&
-                       prevTrim.find('{') == std::string::npos)
+                    if(prevIndent < indent)
                     {
-                        indentStr = prevLine.substr(0, prevIndent);
-                        adjusted = true;
+                        if(starts_control(prevTrim) &&
+                           prevTrim.find('{') == std::string::npos)
+                        {
+                            indentStr = prevLine.substr(0, prevIndent);
+                            adjusted = true;
+                        }
+                        break;
                     }
-                    break;
-                }
                 }
                 if(!adjusted && !indentStr.empty())
                 {
@@ -5781,18 +5782,17 @@ void Editor::commandHistoryDown()
     }
 }
 
-std::vector<std::string>
-Editor::getCommandCompletions(std::string_view prefix)
+std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
     std::vector<std::string> commands = {
-        "w",     "write",   "q",     "quit",    "q!",   "qa",
-        "qall",  "qa!",     "qall!", "wq",      "x",    "qw",
-        "qw!",   "wa",      "wall",  "wa!",     "wqa",  "wqall",
-        "wqa!",  "wqall!",  "xa",    "e",       "edit","new",
-        "vnew",  "bn",      "bnext", "bp",      "bprev","bd",
-        "bdelete","ls",     "buffers","sp",     "split","vs",
-        "vsplit","only",    "tabnew","tabc",    "tabclose","set",
-        "syntax","noh",     "nohlsearch"};
+        "w",       "write",  "q",         "quit", "q!",       "qa",
+        "qall",    "qa!",    "qall!",     "wq",   "x",        "qw",
+        "qw!",     "wa",     "wall",      "wa!",  "wqa",      "wqall",
+        "wqa!",    "wqall!", "xa",        "e",    "edit",     "new",
+        "vnew",    "bn",     "bnext",     "bp",   "bprev",    "bd",
+        "bdelete", "ls",     "buffers",   "sp",   "split",    "vs",
+        "vsplit",  "only",   "tabnew",    "tabc", "tabclose", "set",
+        "syntax",  "noh",    "nohlsearch"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
@@ -5808,47 +5808,7 @@ Editor::getCommandCompletions(std::string_view prefix)
 
 std::vector<std::string> Editor::getPathCompletions(std::string_view path)
 {
-    std::vector<std::string> completions;
-
-    std::string dir(path);
-    std::string prefix;
-
-    size_t lastSlash = path.find_last_of('/');
-    if(lastSlash != std::string_view::npos)
-    {
-        dir = std::string(path.substr(0, lastSlash + 1));
-        prefix = std::string(path.substr(lastSlash + 1));
-    }
-    else
-    {
-        dir = ".";
-        prefix = std::string(path);
-    }
-
-    DIR* d = opendir(dir.c_str());
-    if(d)
-    {
-        struct dirent* entry;
-        while((entry = readdir(d)) != nullptr)
-        {
-            std::string name = entry->d_name;
-            if(name[0] == '.' && prefix.empty())
-                continue;
-            if(name.find(prefix) == 0)
-            {
-                std::string fullPath = (dir == ".") ? name : dir + name;
-                if(entry->d_type == DT_DIR)
-                {
-                    fullPath += "/";
-                }
-                completions.push_back(fullPath);
-            }
-        }
-        closedir(d);
-    }
-
-    std::sort(completions.begin(), completions.end());
-    return completions;
+    return ::getPathCompletions(path);
 }
 
 void Editor::deleteFilePrompt()
