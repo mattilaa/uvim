@@ -3,8 +3,12 @@
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <optional>
+#include <unordered_set>
 
 // Very small snippet “desugaring”: turns clangd snippets into plain insert
 // text.
@@ -125,6 +129,139 @@ static inline int displayWidth(const std::string& s)
     return w;
 }
 
+struct IncludeContext
+{
+    bool isSystem = false;
+    int anchor = 0;
+    std::string dirPrefix;
+    std::string filePrefix;
+};
+
+static std::optional<IncludeContext> findIncludeContext(const std::string& line,
+                                                        int cursorX)
+{
+    size_t includePos = line.find("#include");
+    if(includePos == std::string::npos)
+        return std::nullopt;
+
+    size_t pos = includePos + 8; // skip "#include"
+    while(pos < line.size() && std::isspace((unsigned char)line[pos]))
+        pos++;
+
+    if(pos >= line.size())
+        return std::nullopt;
+
+    char openDelim = line[pos];
+    char closeDelim = 0;
+    bool isSystem = false;
+
+    if(openDelim == '<')
+    {
+        isSystem = true;
+        closeDelim = '>';
+    }
+    else if(openDelim == '"')
+    {
+        closeDelim = '"';
+    }
+    else
+    {
+        return std::nullopt;
+    }
+
+    int openPos = (int)pos;
+    if(cursorX <= openPos)
+        return std::nullopt;
+
+    size_t closePos = line.find(closeDelim, pos + 1);
+    if(closePos != std::string::npos && cursorX > (int)closePos)
+        return std::nullopt;
+
+    int pathStart = openPos + 1;
+    int pathEnd = (closePos == std::string::npos)
+                      ? cursorX
+                      : std::min(cursorX, (int)closePos);
+    if(pathEnd < pathStart)
+        pathEnd = pathStart;
+
+    std::string typed = line.substr(pathStart, pathEnd - pathStart);
+    size_t lastSlash = typed.find_last_of("/\\");
+
+    IncludeContext ctx;
+    ctx.isSystem = isSystem;
+    if(lastSlash == std::string::npos)
+    {
+        ctx.dirPrefix = "";
+        ctx.filePrefix = typed;
+        ctx.anchor = pathStart;
+    }
+    else
+    {
+        ctx.dirPrefix = typed.substr(0, lastSlash + 1);
+        ctx.filePrefix = typed.substr(lastSlash + 1);
+        ctx.anchor = pathStart + (int)lastSlash + 1;
+    }
+
+    return ctx;
+}
+
+static int computeCompletionAnchor(const std::string& line, int cursorX)
+{
+    auto includeCtx = findIncludeContext(line, cursorX);
+    if(includeCtx)
+        return includeCtx->anchor;
+
+    int ax = cursorX;
+    while(ax > 0 && text_utils::isIdent(line[ax - 1]))
+        --ax;
+    return ax;
+}
+
+static void appendIncludeEntries(
+    const std::filesystem::path& baseDir, const std::string& dirPrefix,
+    const std::string& filePrefix, std::vector<CompletionEntry>& out,
+    std::unordered_set<std::string>& seen)
+{
+    std::error_code ec;
+    std::filesystem::path target = baseDir;
+    if(!dirPrefix.empty())
+        target /= dirPrefix;
+
+    if(!std::filesystem::exists(target, ec) ||
+       !std::filesystem::is_directory(target, ec))
+        return;
+
+    for(const auto& entry : std::filesystem::directory_iterator(target, ec))
+    {
+        if(ec)
+            break;
+
+        std::string name = entry.path().filename().string();
+        if(!filePrefix.empty() &&
+           name.rfind(filePrefix, 0) != 0) // prefix match
+            continue;
+
+        std::string label = dirPrefix + name;
+        std::string insertText = name;
+
+        if(entry.is_directory(ec))
+        {
+            label += "/";
+            insertText += "/";
+        }
+
+        if(seen.insert(label).second)
+        {
+            CompletionEntry e;
+            e.label = label;
+            e.insertText = insertText;
+            e.isSnippet = false;
+            e.kind = entry.is_directory(ec) ? 19 : 17;
+            out.push_back(std::move(e));
+        }
+    }
+}
+
 static inline int fuzzyScore(const std::string& text,
                              const std::string& pattern)
 {
@@ -200,14 +337,84 @@ void Editor::requestCompletion()
         return;
     }
 
-    // Compute prefix/anchor (identifier chars).
     const std::string& line = (*lines)[*cursorY];
-    int ax = *cursorX;
-    while(ax > 0 && text_utils::isIdent(line[ax - 1]))
-        --ax;
+    int ax = computeCompletionAnchor(line, *cursorX);
 
     completionAnchorX = ax;
     completionAnchorY = *cursorY;
+
+    if(auto includeCtx = findIncludeContext(line, *cursorX))
+    {
+        completionAll.clear();
+        completionFiltered.clear();
+        completionSelected = 0;
+        completionScroll = 0;
+
+        std::unordered_set<std::string> seen;
+        completionAll.reserve(256);
+
+        if(includeCtx->isSystem)
+        {
+            std::vector<std::string> systemPaths;
+#ifdef __APPLE__
+            systemPaths = {
+                "/Applications/Xcode.app/Contents/Developer/Platforms/"
+                "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1",
+                "/Applications/Xcode.app/Contents/Developer/Toolchains/"
+                "XcodeDefault.xctoolchain/usr/lib/clang/17/include",
+                "/Applications/Xcode.app/Contents/Developer/Platforms/"
+                "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include",
+                "/usr/local/include",
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"
+                "c++/v1",
+                "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+            };
+#else
+            systemPaths = {
+                "/usr/include/c++/13",
+                "/usr/include/c++/12",
+                "/usr/include/c++/11",
+                "/usr/include/x86_64-linux-gnu/c++/13",
+                "/usr/include/x86_64-linux-gnu/c++/12",
+                "/usr/include/x86_64-linux-gnu/c++/11",
+                "/usr/include",
+                "/usr/local/include",
+            };
+#endif
+
+            for(const auto& base : systemPaths)
+            {
+                appendIncludeEntries(base, includeCtx->dirPrefix,
+                                     includeCtx->filePrefix, completionAll,
+                                     seen);
+            }
+        }
+        else
+        {
+            std::string currentDir = ".";
+            if(currentBuffer && !currentBuffer->filename.empty())
+            {
+                size_t lastSlash = currentBuffer->filename.rfind('/');
+                if(lastSlash != std::string::npos)
+                    currentDir = currentBuffer->filename.substr(0, lastSlash);
+            }
+
+            appendIncludeEntries(currentDir, includeCtx->dirPrefix,
+                                 includeCtx->filePrefix, completionAll, seen);
+        }
+
+        if(completionAll.empty())
+        {
+            cancelCompletion();
+            setStatusMessage("include completion: no results");
+            return;
+        }
+
+        completionActive = true;
+        rebuildCompletionFilter();
+        needsFullRedraw = true;
+        return;
+    }
 
     // Sync buffer text.
     std::string text;
@@ -302,10 +509,7 @@ void Editor::acceptCompletion()
     // Ensure anchor is on the current line (if the user moved, recompute).
     completionAnchorY = *cursorY;
     const std::string& line = (*lines)[*cursorY];
-    int ax = *cursorX;
-    while(ax > 0 && text_utils::isIdent(line[ax - 1]))
-        --ax;
-    completionAnchorX = ax;
+    completionAnchorX = computeCompletionAnchor(line, *cursorX);
 
     const CompletionEntry& it =
         completionAll[completionFiltered[completionSelected]];
