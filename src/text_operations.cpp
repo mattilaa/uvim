@@ -1,7 +1,9 @@
 #include "editor.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 
 void Editor::yankRange(int startY, int startX, int endY, int endX)
@@ -85,13 +87,54 @@ void Editor::insertNewline()
     }
 
     const std::string& currentLine = (*lines)[*cursorY];
-
-    size_t indent = 0;
-    while(indent < currentLine.length() &&
-          (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+    auto leading_ws_len = [](const std::string& s) -> size_t
     {
-        indent++;
-    }
+        size_t i = 0;
+        while(i < s.size() && (s[i] == ' ' || s[i] == '\t'))
+            ++i;
+        return i;
+    };
+    auto ltrim = [&](const std::string& s) -> std::string
+    {
+        size_t i = leading_ws_len(s);
+        return s.substr(i);
+    };
+    auto starts_with_kw = [](const std::string& s) -> bool
+    {
+        auto starts = [&](const char* kw) -> bool
+        {
+            size_t n = std::strlen(kw);
+            if(s.size() < n)
+                return false;
+            if(s.compare(0, n, kw) != 0)
+                return false;
+            if(s.size() == n)
+                return true;
+            char next = s[n];
+            return std::isspace((unsigned char)next) || next == ';';
+        };
+        return starts("return") || starts("break") || starts("continue") ||
+               starts("throw") || starts("goto");
+    };
+    auto starts_control = [](const std::string& s) -> bool
+    {
+        auto starts = [&](const char* kw) -> bool
+        {
+            size_t n = std::strlen(kw);
+            if(s.size() < n)
+                return false;
+            if(s.compare(0, n, kw) != 0)
+                return false;
+            if(s.size() == n)
+                return true;
+            char next = s[n];
+            return std::isspace((unsigned char)next) || next == '(';
+        };
+        return starts("if") || starts("for") || starts("while") ||
+               starts("else") || starts("switch");
+    };
+
+    size_t indent = leading_ws_len(currentLine);
     std::string indentStr = currentLine.substr(0, indent);
 
     bool addExtraIndent = false;
@@ -123,6 +166,48 @@ void Editor::insertNewline()
             remainder = "";
         }
         (*lines)[*cursorY] = currentLine.substr(0, *cursorX);
+    }
+
+    if(isCppFile() && !addExtraIndent && remainder.empty())
+    {
+        std::string trimmed = ltrim(currentLine);
+        if(starts_with_kw(trimmed))
+        {
+            bool adjusted = false;
+            for(int y = *cursorY - 1; y >= 0; --y)
+            {
+                const std::string& prevLine = (*lines)[y];
+                std::string prevTrim = ltrim(prevLine);
+                if(prevTrim.empty())
+                    continue;
+                size_t prevIndent = leading_ws_len(prevLine);
+                if(prevIndent < indent)
+                {
+                    if(starts_control(prevTrim) &&
+                       prevTrim.find('{') == std::string::npos)
+                    {
+                        indentStr = prevLine.substr(0, prevIndent);
+                        adjusted = true;
+                    }
+                    break;
+                }
+            }
+            if(!adjusted && !indentStr.empty())
+            {
+                if(indentStr.back() == '\t')
+                {
+                    indentStr.pop_back();
+                }
+                else if(indentStr.length() >= 4)
+                {
+                    indentStr.erase(indentStr.length() - 4);
+                }
+                else
+                {
+                    indentStr.clear();
+                }
+            }
+        }
     }
 
     std::string newLine = indentStr;
