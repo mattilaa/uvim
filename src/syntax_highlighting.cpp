@@ -693,7 +693,17 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
         int col = x + start;
 
         bool highlighted = false;
-        if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
+        bool showCursor =
+            (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+             currentMode == VISUAL_BLOCK);
+        bool isCursor =
+            showCursor && (fileRow == *cursorY && col == *cursorX);
+        if(isCursor)
+        {
+            output += Terminal::STYLE_CURSOR;
+            highlighted = true;
+        }
+        else if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
         {
             output += Terminal::STYLE_SELECTION;
             highlighted = true;

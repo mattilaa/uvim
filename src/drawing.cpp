@@ -193,6 +193,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
             int fileRow = row + *offsetY;
 
             output += Terminal::cursorPos(row + 1, 1);
+            output += Terminal::ESC_RESET_ALL;
             output += Terminal::ESC_CLEAR_LINE;
 
             if(fileRow < lines->size())
@@ -233,9 +234,20 @@ void Editor::drawScrollUpdate(int scrollDelta)
                             {
                                 int col = x + *offsetX;
                                 bool highlighted = false;
-
-                                if(isInSelection(fileRow, col) ||
-                                   isInVisualBlock(fileRow, col))
+                                bool showCursor =
+                                    (currentMode == VISUAL ||
+                                     currentMode == VISUAL_LINE ||
+                                     currentMode == VISUAL_BLOCK);
+                                bool isCursor =
+                                    showCursor &&
+                                    (fileRow == *cursorY && col == *cursorX);
+                                if(isCursor)
+                                {
+                                    output += Terminal::STYLE_CURSOR;
+                                    highlighted = true;
+                                }
+                                else if(isInSelection(fileRow, col) ||
+                                        isInVisualBlock(fileRow, col))
                                 {
                                     output += Terminal::STYLE_SELECTION;
                                     highlighted = true;
@@ -284,6 +296,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
             int fileRow = i + *offsetY;
 
             output += Terminal::cursorPos(i + 1, 1);
+            output += Terminal::ESC_RESET_ALL;
             output += Terminal::ESC_CLEAR_LINE;
 
             if(fileRow < lines->size())
@@ -324,9 +337,20 @@ void Editor::drawScrollUpdate(int scrollDelta)
                             {
                                 int col = x + *offsetX;
                                 bool highlighted = false;
-
-                                if(isInSelection(fileRow, col) ||
-                                   isInVisualBlock(fileRow, col))
+                                bool showCursor =
+                                    (currentMode == VISUAL ||
+                                     currentMode == VISUAL_LINE ||
+                                     currentMode == VISUAL_BLOCK);
+                                bool isCursor =
+                                    showCursor &&
+                                    (fileRow == *cursorY && col == *cursorX);
+                                if(isCursor)
+                                {
+                                    output += Terminal::STYLE_CURSOR;
+                                    highlighted = true;
+                                }
+                                else if(isInSelection(fileRow, col) ||
+                                        isInVisualBlock(fileRow, col))
                                 {
                                     output += Terminal::STYLE_SELECTION;
                                     highlighted = true;
@@ -495,6 +519,8 @@ void Editor::drawFullScreen()
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
 
+    output += Terminal::ESC_RESET_ALL;
+    output += Terminal::ESC_CLEAR_SCREEN;
     output += Terminal::ESC_CURSOR_HOME;
 
     for(int y = 0; y < screenRows; y++)
@@ -502,6 +528,7 @@ void Editor::drawFullScreen()
         if(y > 0)
             output += "\r\n";
 
+        output += Terminal::ESC_RESET_ALL;
         output += Terminal::ESC_CLEAR_LINE;
 
         int fileRow = y + *offsetY;
@@ -517,11 +544,13 @@ void Editor::drawFullScreen()
             const std::string& line = (*lines)[fileRow];
             int start = *offsetX;
             int len = line.length() - start;
+            int visibleLen = 0;
 
             if(len > 0)
             {
                 if(len > screenCols)
                     len = screenCols;
+                visibleLen = len;
 
                 bool hasHighlighting = false;
 
@@ -560,9 +589,19 @@ void Editor::drawFullScreen()
                     {
                         int col = x + *offsetX;
                         bool highlighted = false;
-
-                        if(isInSelection(fileRow, col) ||
-                           isInVisualBlock(fileRow, col))
+                        bool showCursor =
+                            (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                             currentMode == VISUAL_BLOCK);
+                        bool isCursor =
+                            showCursor &&
+                            (fileRow == *cursorY && col == *cursorX);
+                        if(isCursor)
+                        {
+                            output += Terminal::STYLE_CURSOR;
+                            highlighted = true;
+                        }
+                        else if(isInSelection(fileRow, col) ||
+                                isInVisualBlock(fileRow, col))
                         {
                             output += Terminal::STYLE_SELECTION;
                             highlighted = true;
@@ -580,6 +619,23 @@ void Editor::drawFullScreen()
                             output += Terminal::ESC_RESET_ALL;
                         }
                     }
+                }
+            }
+
+            if((currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                currentMode == VISUAL_BLOCK) &&
+               fileRow == *cursorY)
+            {
+                int cursorCol = *cursorX - *offsetX;
+                if(cursorCol >= visibleLen && cursorCol < screenCols)
+                {
+                    output += Terminal::ESC_RESET_ALL;
+                    int pad = cursorCol - visibleLen;
+                    if(pad > 0)
+                        output.append(pad, ' ');
+                    output += Terminal::STYLE_CURSOR;
+                    output += ' ';
+                    output += Terminal::ESC_RESET_ALL;
                 }
             }
         }

@@ -84,6 +84,7 @@ public:
     static constexpr const char* STYLE_SELECTION = "\x1b[7m";
     static constexpr const char* STYLE_GREEN_BOLD = "\x1b[32;1m";
     static constexpr const char* STYLE_RESET_GREEN_BOLD = "\x1b[39;22m";
+    static constexpr const char* STYLE_CURSOR = "\x1b[103m\x1b[30;1m";
 
     // Scroll region and line manipulation
     static constexpr const char* ESC_DELETE_LINE = "\x1b[M";
