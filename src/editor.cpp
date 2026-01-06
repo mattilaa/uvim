@@ -1133,8 +1133,21 @@ void Editor::openFile(const std::string& fname)
         return;
     }
 
-    // Always create a new buffer for explicit open/jump
-    createNewBuffer();
+    // Reuse a clean unnamed buffer if it exists, otherwise create a new one.
+    bool reused = false;
+    for(size_t i = 0; i < buffers.size(); ++i)
+    {
+        Buffer* buf = buffers[i].get();
+        if(buf->filename.empty() && !buf->dirty && buf->lines.size() == 1 &&
+           buf->lines[0].empty())
+        {
+            switchToBuffer((int)i);
+            reused = true;
+            break;
+        }
+    }
+    if(!reused)
+        createNewBuffer();
 
     *filename = path;
     lines->clear();
