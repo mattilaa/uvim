@@ -400,7 +400,7 @@ void Editor::selectGrepMatch()
 
     const GrepMatch& match = grepMatches[grepCursor];
 
-    openFile(match.filepath);
+    openFile(std::string_view(match.filepath));
 
     *cursorY = match.lineNumber - 1;
     if(*cursorY >= (int)lines->size())

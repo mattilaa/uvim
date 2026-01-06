@@ -140,7 +140,7 @@ bool Editor::selectReference()
     const auto& ref = referencesList[referencesCursor];
 
     // Open the file at the reference location
-    openFile(ref.path);
+    openFile(std::string_view(ref.path));
     moveToLine(ref.line);
     *cursorX = ref.col;
     if(*cursorX >= (int)(*lines)[*cursorY].length())
@@ -161,7 +161,7 @@ void Editor::openReferencePreview()
     const auto& ref = referencesList[referencesCursor];
 
     // Open file but don't clear references (stay in references mode)
-    openFile(ref.path);
+    openFile(std::string_view(ref.path));
     moveToLine(ref.line);
     *cursorX = ref.col;
     if(*cursorX >= (int)(*lines)[*cursorY].length())

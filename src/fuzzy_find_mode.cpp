@@ -460,7 +460,7 @@ bool FuzzyFindMode::select(Editor& editor)
         return false;
 
     const FuzzyMatch& match = matches[cursor];
-    editor.openFile(match.file.path);
+    editor.openFile(std::string_view(match.file.path));
     return true;
 }
 
