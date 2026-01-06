@@ -69,14 +69,6 @@ public:
 
     bool respectGitignore = true;
 
-    // Grep search (GrepMatch struct is now in search_types.h)
-    std::vector<GrepMatch> grepMatches;
-    std::string grepQuery;
-    int grepCursor = 0;
-    int grepOffset = 0;
-    bool grepSearching = false;
-    bool grepCaseSensitive = false;
-
     // References browser (LSP find references)
     struct ReferenceEntry
     {
@@ -191,7 +183,6 @@ public:
     void handleVisualMode(int c);
     void handleCommandMode(int c);
     void handleSearchMode(int c);
-    void handleGrepSearchMode(int c);
     void handleKeypress(int c);
     void handleResize();
 
@@ -247,30 +238,7 @@ public:
     void createNewFilePrompt();
     void createNewDirectoryPrompt();
 
-    // Grep search functions
-    void initializeGrepSearch();
-    void performGrepSearch();
-    void searchFileContent(const std::string& filepath);
-    bool isTextFile(const std::string& filepath);
-    bool isBinaryFile(const std::string& filepath);
-    void searchInFile(const std::string& filepath, std::string_view query);
-    void drawGrepSearch();
-    void selectGrepMatch();
-
-    // Grep search navigation helpers (for mode handlers)
-    void grepResultUp();
-    void grepResultDown();
-    void grepResultHalfPageUp();
-    void grepResultHalfPageDown();
-    void grepSearchAddChar(char c);
-    void grepSearchBackspace();
-    void grepSearchDeleteWord();
-    void grepSearchClear();
-    bool selectGrepResult();
-    void toggleGrepPreview();
-    std::string trimString(const std::string& str);
-    void highlightGrepMatches(std::string_view line, std::string_view query,
-                              std::vector<std::pair<int, int>>& ranges);
+    // Grep search is now handled by GrepSearchMode state.
     void goToDefinition();
 
     // References browser functions (LSP find references)

@@ -2374,7 +2374,14 @@ void Editor::refreshScreen()
 
     if(currentMode == GREP_SEARCH)
     {
-        drawGrepSearch();
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GrepSearchMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
         return;
     }
 
@@ -3500,9 +3507,6 @@ void Editor::handleKeypress(int c)
     case FUZZY_FIND:
         break;
     case BUFFER_BROWSER:
-        break;
-    case GREP_SEARCH:
-        handleGrepSearchMode(c);
         break;
     case OP_PENDING:
         handleOperatorPendingMode(c);
@@ -5858,95 +5862,6 @@ void Editor::createNewFilePrompt()
 void Editor::createNewDirectoryPrompt()
 {
     setStatusMessage("New directory creation not yet implemented");
-}
-
-// ============================================================================
-// Grep Search Helpers
-// ============================================================================
-
-void Editor::grepResultUp()
-{
-    if(grepCursor > 0)
-    {
-        grepCursor--;
-        if(grepCursor < grepOffset)
-            grepOffset = grepCursor;
-    }
-}
-
-void Editor::grepResultDown()
-{
-    if(grepCursor < (int)grepMatches.size() - 1)
-    {
-        grepCursor++;
-        int visible = screenRows - 4;
-        if(grepCursor >= grepOffset + visible)
-            grepOffset = grepCursor - visible + 1;
-    }
-}
-
-void Editor::grepResultHalfPageUp()
-{
-    int half = (screenRows - 4) / 2;
-    grepCursor -= half;
-    if(grepCursor < 0)
-        grepCursor = 0;
-    if(grepCursor < grepOffset)
-        grepOffset = grepCursor;
-}
-
-void Editor::grepResultHalfPageDown()
-{
-    int half = (screenRows - 4) / 2;
-    grepCursor += half;
-    if(grepCursor >= (int)grepMatches.size())
-        grepCursor = grepMatches.size() - 1;
-    int visible = screenRows - 4;
-    if(grepCursor >= grepOffset + visible)
-        grepOffset = grepCursor - visible + 1;
-}
-
-void Editor::grepSearchAddChar(char c)
-{
-    grepQuery += c;
-    performGrepSearch();
-}
-
-void Editor::grepSearchBackspace()
-{
-    if(!grepQuery.empty())
-    {
-        grepQuery.pop_back();
-        performGrepSearch();
-    }
-}
-
-void Editor::grepSearchDeleteWord()
-{
-    while(!grepQuery.empty() && grepQuery.back() == ' ')
-        grepQuery.pop_back();
-    while(!grepQuery.empty() && grepQuery.back() != ' ')
-        grepQuery.pop_back();
-    performGrepSearch();
-}
-
-void Editor::grepSearchClear()
-{
-    grepQuery.clear();
-    grepMatches.clear();
-    grepCursor = 0;
-    grepOffset = 0;
-}
-
-bool Editor::selectGrepResult()
-{
-    selectGrepMatch();
-    return true;
-}
-
-void Editor::toggleGrepPreview()
-{
-    // TODO: Implement grep preview toggle
 }
 
 // ============================================================================
