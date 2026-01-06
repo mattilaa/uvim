@@ -4334,8 +4334,17 @@ void Editor::joinLines()
 
 void Editor::insertLineAbove()
 {
-    lines->insert(lines->begin() + *cursorY, "");
-    *cursorX = 0;
+    const std::string& currentLine = (*lines)[*cursorY];
+    size_t indent = 0;
+    while(indent < currentLine.length() &&
+          (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+    {
+        indent++;
+    }
+    std::string indentStr = currentLine.substr(0, indent);
+
+    lines->insert(lines->begin() + *cursorY, indentStr);
+    *cursorX = (int)indentStr.length();
     *dirty = true;
     saveState();
     needsFullRedraw = true;
@@ -4349,10 +4358,35 @@ void Editor::insertLineBelow()
     }
     else
     {
-        lines->insert(lines->begin() + *cursorY + 1, "");
+        const std::string& currentLine = (*lines)[*cursorY];
+        size_t indent = 0;
+        while(indent < currentLine.length() &&
+              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+        {
+            indent++;
+        }
+        std::string indentStr = currentLine.substr(0, indent);
+
+        bool addExtraIndent = false;
+        if(isCppFile())
+        {
+            size_t lastNonSpace = currentLine.find_last_not_of(" \t");
+            if(lastNonSpace != std::string::npos &&
+               currentLine[lastNonSpace] == '{')
+            {
+                addExtraIndent = true;
+            }
+        }
+
+        std::string newLine = indentStr;
+        if(addExtraIndent)
+            newLine += "    ";
+
+        lines->insert(lines->begin() + *cursorY + 1, newLine);
     }
     (*cursorY)++;
-    *cursorX = 0;
+    if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        *cursorX = (int)(*lines)[*cursorY].length();
     *dirty = true;
     saveState();
     needsFullRedraw = true;
