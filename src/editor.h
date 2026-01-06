@@ -163,6 +163,7 @@ public:
     int repeatCount = 0;
     char lastFindChar = 0;
     bool lastFindForward = true;
+    bool autoBraces = true;
 
     // Drawing - Original functions
     void draw();
@@ -178,6 +179,7 @@ public:
     void drawScrollUpdate(int scrollDelta);
     void drawStatusBarQuick();
     void drawMessageBarQuick(); // Add this to redraw message bar
+    bool handleSetCommand(const std::string& cmd);
 
     // Mode handlers
     void handleNormalMode(int c);

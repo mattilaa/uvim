@@ -2288,6 +2288,58 @@ void Editor::setStatusMessage(const std::string& msg)
     statusMessage = msg;
 }
 
+bool Editor::handleSetCommand(const std::string& cmd)
+{
+    if(!cmd.starts_with("set "))
+        return false;
+
+    std::string opt = cmd.substr(4);
+    if(opt == "autobraces?")
+    {
+        setStatusMessage(std::string("autobraces=") +
+                         (autoBraces ? "true" : "false"));
+        return true;
+    }
+
+    auto set_flag = [&](bool value)
+    {
+        autoBraces = value;
+        setStatusMessage(std::string("autobraces=") +
+                         (autoBraces ? "true" : "false"));
+    };
+
+    if(opt == "autobraces")
+    {
+        set_flag(true);
+        return true;
+    }
+    if(opt == "noautobraces")
+    {
+        set_flag(false);
+        return true;
+    }
+    if(opt.rfind("autobraces=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("autobraces=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_flag(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_flag(false);
+        }
+        else
+        {
+            setStatusMessage("autobraces: expected true/false");
+        }
+        return true;
+    }
+
+    setStatusMessage("Unknown option: " + opt);
+    return true;
+}
+
 void Editor::handleResize()
 {
 #if defined(UVIM_TERMINAL_POSIX)
@@ -2307,6 +2359,9 @@ void Editor::handleResize()
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
+    if(handleSetCommand(cmd))
+        return;
+
     if(!hasBuffer())
     {
         if(cmd == "q" || cmd == "q!" || cmd == "qa" || cmd == "qa!" ||

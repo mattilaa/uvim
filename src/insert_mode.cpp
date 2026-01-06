@@ -306,6 +306,51 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(c >= 32 && c < 127)
     {
+        if(ed->autoBraces && c == '{')
+        {
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int& cursorY = ctx.cursorY();
+
+            if(cursorY >= (int)lines.size())
+                lines.resize(cursorY + 1);
+
+            std::string& line = lines[cursorY];
+            if(cursorX > (int)line.length())
+                cursorX = line.length();
+
+            std::string left = line.substr(0, cursorX);
+            std::string right = line.substr(cursorX);
+
+            size_t indent = 0;
+            while(indent < line.length() &&
+                  (line[indent] == ' ' || line[indent] == '\t'))
+            {
+                indent++;
+            }
+            std::string indentStr = line.substr(0, indent);
+            std::string innerIndent = indentStr + "    ";
+
+            line = left + "{";
+            lines.insert(lines.begin() + cursorY + 1, innerIndent);
+            lines.insert(lines.begin() + cursorY + 2,
+                         indentStr + "}" + right);
+
+            cursorY += 1;
+            cursorX = innerIndent.length();
+            *ed->dirty = true;
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(ed->autoBraces && (c == '(' || c == '['))
+        {
+            char close = (c == '(') ? ')' : ']';
+            ed->insertChar(static_cast<char>(c));
+            ed->insertChar(close);
+            ctx.cursorX()--;
+            return std::nullopt;
+        }
+
         ed->insertChar(static_cast<char>(c));
 
         auto& lines = ctx.lines();
