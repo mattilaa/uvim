@@ -164,6 +164,7 @@ public:
     char lastFindChar = 0;
     bool lastFindForward = true;
     bool autoBraces = true;
+    int tabSpaces = 4;
 
     // Drawing - Original functions
     void draw();

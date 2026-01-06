@@ -188,6 +188,42 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == Terminal::SHIFT_TAB)
+    {
+        if(!ed->completionActive)
+        {
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int cursorY = ctx.cursorY();
+            if(cursorY >= 0 && cursorY < (int)lines.size() && cursorX > 0)
+            {
+                std::string& line = lines[cursorY];
+                int remove = 0;
+                int i = cursorX - 1;
+                while(i >= 0 && remove < ed->tabSpaces && line[i] == ' ')
+                {
+                    remove++;
+                    i--;
+                }
+                if(remove > 0)
+                {
+                    line.erase(cursorX - remove, remove);
+                    cursorX -= remove;
+                    *ed->dirty = true;
+                    if(ed->completionActive)
+                        ed->rebuildCompletionFilter();
+                }
+                else if(cursorX > 0 && line[cursorX - 1] == '\t')
+                {
+                    line.erase(cursorX - 1, 1);
+                    cursorX--;
+                    *ed->dirty = true;
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
     // ========================================================================
     // Arrow Keys
     // ========================================================================
@@ -329,7 +365,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 indent++;
             }
             std::string indentStr = line.substr(0, indent);
-            std::string innerIndent = indentStr + "    ";
+            std::string innerIndent = indentStr + std::string(ed->tabSpaces, ' ');
 
             line = left + "{";
             lines.insert(lines.begin() + cursorY + 1, innerIndent);

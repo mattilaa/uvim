@@ -18,6 +18,7 @@
 #include <limits.h>
 #include <memory>
 #include <pwd.h>
+#include <unordered_map>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -27,6 +28,111 @@
 namespace fs = std::filesystem;
 
 static mla::log::FileLogger LOG("uvim");
+
+namespace
+{
+static std::unordered_map<std::string, std::string> parseYamlMap(
+    const std::string& input)
+{
+    std::unordered_map<std::string, std::string> out;
+    std::vector<std::pair<int, std::string>> stack;
+
+    std::istringstream stream(input);
+    std::string line;
+    while(std::getline(stream, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        size_t first = 0;
+        while(first < line.size() &&
+              (line[first] == ' ' || line[first] == '\t'))
+        {
+            ++first;
+        }
+
+        if(first >= line.size())
+            continue;
+        if(line[first] == '#')
+            continue;
+
+        int indent = 0;
+        for(size_t i = 0; i < first; ++i)
+        {
+            indent += (line[i] == '\t') ? 4 : 1;
+        }
+
+        std::string rest = line.substr(first);
+        size_t colon = rest.find(':');
+        if(colon == std::string::npos)
+            continue;
+
+        std::string key = rest.substr(0, colon);
+        std::string value = rest.substr(colon + 1);
+        auto trim = [](std::string& s)
+        {
+            size_t start = 0;
+            while(start < s.size() && std::isspace((unsigned char)s[start]))
+                ++start;
+            size_t end = s.size();
+            while(end > start && std::isspace((unsigned char)s[end - 1]))
+                --end;
+            s = s.substr(start, end - start);
+        };
+        trim(key);
+        trim(value);
+
+        if(value.empty())
+        {
+            while(!stack.empty() && indent <= stack.back().first)
+                stack.pop_back();
+            stack.emplace_back(indent, key);
+            continue;
+        }
+
+        if(!value.empty() && value[0] != '#')
+        {
+            for(size_t i = 0; i < value.size(); ++i)
+            {
+                if(value[i] == '#' &&
+                   (i == 0 || std::isspace((unsigned char)value[i - 1])))
+                {
+                    value = value.substr(0, i);
+                    trim(value);
+                    break;
+                }
+            }
+        }
+
+        if(value.size() >= 2)
+        {
+            char q = value.front();
+            if((q == '"' || q == '\'') && value.back() == q)
+            {
+                value = value.substr(1, value.size() - 2);
+            }
+        }
+
+        while(!stack.empty() && indent <= stack.back().first)
+            stack.pop_back();
+
+        std::string full;
+        for(const auto& part : stack)
+        {
+            if(!full.empty())
+                full += '.';
+            full += part.second;
+        }
+        if(!full.empty())
+            full += '.';
+        full += key;
+
+        out[full] = value;
+    }
+
+    return out;
+}
+} // namespace
 
 #if defined(UVIM_TERMINAL_POSIX)
 static volatile sig_atomic_t g_pending_resize = 0;
@@ -292,7 +398,35 @@ Editor::Editor(bool skipInitialBuffer)
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
     theme = Theme::defaults();
-    theme.loadFromFile(Theme::defaultConfigPath());
+    const std::string configPath = Theme::defaultConfigPath();
+    theme.loadFromFile(configPath);
+    if(!configPath.empty())
+    {
+        std::ifstream in(configPath);
+        if(in.is_open())
+        {
+            std::ostringstream buf;
+            buf << in.rdbuf();
+            auto values = parseYamlMap(buf.str());
+            auto it = values.find("editor.tabspaces");
+            if(it == values.end())
+                it = values.find("settings.tabspaces");
+            if(it == values.end())
+                it = values.find("tabspaces");
+            if(it != values.end())
+            {
+                try
+                {
+                    int v = std::stoi(it->second);
+                    if(v >= 1 && v <= 16)
+                        tabSpaces = v;
+                }
+                catch(...)
+                {
+                }
+            }
+        }
+    }
 
     // No buffers on start unless files are explicitly opened.
     (void)skipInitialBuffer;
@@ -2313,6 +2447,11 @@ bool Editor::handleSetCommand(const std::string& cmd)
                          (autoBraces ? "true" : "false"));
         return true;
     }
+    if(opt == "tabspaces?")
+    {
+        setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
+        return true;
+    }
 
     auto set_flag = [&](bool value)
     {
@@ -2345,6 +2484,29 @@ bool Editor::handleSetCommand(const std::string& cmd)
         else
         {
             setStatusMessage("autobraces: expected true/false");
+        }
+        return true;
+    }
+
+    if(opt.rfind("tabspaces=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("tabspaces=").length());
+        try
+        {
+            int v = std::stoi(value);
+            if(v >= 1 && v <= 16)
+            {
+                tabSpaces = v;
+                setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
+            }
+            else
+            {
+                setStatusMessage("tabspaces: expected 1-16");
+            }
+        }
+        catch(...)
+        {
+            setStatusMessage("tabspaces: expected number");
         }
         return true;
     }
@@ -4541,7 +4703,7 @@ void Editor::handleNormalMode(int c)
 
 void Editor::insertTab()
 {
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < tabSpaces; i++)
     {
         insertChar(' ');
     }
@@ -4826,7 +4988,7 @@ void Editor::insertLineBelow()
 
         std::string newLine = indentStr;
         if(addExtraIndent)
-            newLine += "    ";
+            newLine.append(tabSpaces, ' ');
 
         lines->insert(lines->begin() + *cursorY + 1, newLine);
     }

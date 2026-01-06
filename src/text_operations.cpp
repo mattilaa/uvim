@@ -213,7 +213,7 @@ void Editor::insertNewline()
     std::string newLine = indentStr;
     if(addExtraIndent)
     {
-        newLine += "    ";
+        newLine.append(tabSpaces, ' ');
     }
     newLine += remainder;
 
