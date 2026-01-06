@@ -186,7 +186,8 @@ public:
     void handleCommandMode(int c);
     void handleSearchMode(int c);
     void handleGrepSearchMode(int c);
-    void handleKeypress();
+    void handleKeypress(int c);
+    void handleResize();
 
     // Buffer management functions
     void createNewBuffer();

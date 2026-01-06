@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <csignal>
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
@@ -26,6 +27,15 @@
 namespace fs = std::filesystem;
 
 static mla::log::FileLogger LOG("uvim");
+
+#if defined(UVIM_TERMINAL_POSIX)
+static volatile sig_atomic_t g_pending_resize = 0;
+
+static void handle_sigwinch(int)
+{
+    g_pending_resize = 1;
+}
+#endif
 
 static bool isIdent(char c)
 {
@@ -286,6 +296,10 @@ Editor::Editor(bool skipInitialBuffer)
 
     // No buffers on start unless files are explicitly opened.
     (void)skipInitialBuffer;
+
+#if defined(UVIM_TERMINAL_POSIX)
+    std::signal(SIGWINCH, handle_sigwinch);
+#endif
 
     modeStateMachine =
         std::make_unique<ModeStateMachine>(createModeContext(this));
@@ -2274,6 +2288,22 @@ void Editor::setStatusMessage(const std::string& msg)
     statusMessage = msg;
 }
 
+void Editor::handleResize()
+{
+#if defined(UVIM_TERMINAL_POSIX)
+    if(!g_pending_resize)
+        return;
+    g_pending_resize = 0;
+
+    int rows = 0;
+    int cols = 0;
+    Terminal::getWindowSize(rows, cols);
+    screenRows = std::max(1, rows - 2);
+    screenCols = std::max(1, cols);
+    needsFullRedraw = true;
+#endif
+}
+
 // Command execution
 void Editor::executeCommand(const std::string& cmd)
 {
@@ -3150,10 +3180,10 @@ void Editor::syncModeFromStateMachine()
     }
 }
 
-void Editor::handleKeypress()
+void Editor::handleKeypress(int c)
 {
-    int c = Terminal::readKey();
-
+    if(c < 0)
+        return;
     LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
               static_cast<int>(currentMode));
 
@@ -3465,8 +3495,12 @@ void Editor::run()
 
     while(true)
     {
+        handleResize();
         draw();
-        handleKeypress();
+        int c = Terminal::readKeyTimeout(50);
+        if(c < 0)
+            continue;
+        handleKeypress(c);
     }
 }
 
