@@ -284,13 +284,8 @@ Editor::Editor(bool skipInitialBuffer)
     theme = Theme::defaults();
     theme.loadFromFile(Theme::defaultConfigPath());
 
-    // Create initial empty buffer only if not opening files
-    if(!skipInitialBuffer)
-    {
-        createNewBuffer();
-        saveState();
-        currentBuffer->savedUndoIndex = 0; // Mark initial empty buffer as saved
-    }
+    // No buffers on start unless files are explicitly opened.
+    (void)skipInitialBuffer;
 
     modeStateMachine =
         std::make_unique<ModeStateMachine>(createModeContext(this));
@@ -991,6 +986,7 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
 
 void Editor::setMode(Mode mode)
 {
+    ensureBufferForMode(mode);
     currentMode = mode;
     needsFullRedraw = true;
 
@@ -1182,11 +1178,6 @@ void Editor::openFile(const std::string& fname)
 
 void Editor::openFileBrowser(const std::string& path)
 {
-    if(buffers.empty())
-    {
-        createNewBuffer();
-    }
-
     std::string prev;
     if(currentMode != FILE_BROWSER && currentBuffer != nullptr && filename)
     {
@@ -2949,6 +2940,7 @@ bool Editor::dispatchModeKey(int c)
 
     modeStateMachine->dispatch(c);
     syncModeFromStateMachine();
+    ensureBufferForMode(currentMode);
     return true;
 }
 
@@ -3121,7 +3113,50 @@ void Editor::updateCurrentBufferPointers()
     }
     else
     {
+        currentBufferIndex = -1;
+        clearCurrentBufferPointers();
+    }
+}
+
+void Editor::clearCurrentBufferPointers()
+{
+    currentBuffer = nullptr;
+    lines = nullptr;
+    filename = nullptr;
+    dirty = nullptr;
+    cursorX = nullptr;
+    cursorY = nullptr;
+    wantedX = nullptr;
+    offsetX = nullptr;
+    offsetY = nullptr;
+}
+
+bool Editor::hasBuffer() const
+{
+    return currentBuffer != nullptr;
+}
+
+void Editor::ensureBufferForMode(Mode mode)
+{
+    switch(mode)
+    {
+    case WELCOME:
+    case FILE_BROWSER:
+    case FUZZY_FIND:
+    case BUFFER_BROWSER:
+    case GREP_SEARCH:
+    case REFERENCES:
+        return;
+    default:
+        break;
+    }
+
+    if(!hasBuffer())
+    {
         createNewBuffer();
+        saveState();
+        if(currentBuffer)
+            currentBuffer->savedUndoIndex = 0;
     }
 }
 
@@ -3191,10 +3226,10 @@ void Editor::closeCurrentBuffer()
 
     if(buffers.size() == 1)
     {
-        createNewBuffer();
         buffers.erase(buffers.begin());
-        currentBufferIndex = 0;
-        updateCurrentBufferPointers();
+        currentBufferIndex = -1;
+        clearCurrentBufferPointers();
+        setMode(WELCOME);
     }
     else
     {

@@ -16,11 +16,6 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    if(ed->buffers.empty())
-    {
-        ed->createNewBuffer();
-    }
-
     if(previousFile.empty() && ed->currentBuffer != nullptr && ed->filename)
     {
         previousFile = *ed->filename;

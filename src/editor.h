@@ -197,6 +197,9 @@ public:
     void listBuffers();
     int findBufferByFilename(const std::string& filename);
     void updateCurrentBufferPointers();
+    void clearCurrentBufferPointers();
+    bool hasBuffer() const;
+    void ensureBufferForMode(Mode mode);
     void saveBufferState();
     void restoreBufferState();
     bool searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
