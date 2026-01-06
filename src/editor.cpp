@@ -3,10 +3,12 @@
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
 #include "terminal.h"
+#include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <chrono>
 #include <csignal>
@@ -132,6 +134,30 @@ parseYamlMap(const std::string& input)
     }
 
     return out;
+}
+
+static std::string_view trim_view(std::string_view value)
+{
+    while(!value.empty() && text_utils::is_space(value.front()))
+        value.remove_prefix(1);
+    while(!value.empty() && text_utils::is_space(value.back()))
+        value.remove_suffix(1);
+    return value;
+}
+
+static bool parse_int(std::string_view value, int& out)
+{
+    value = trim_view(value);
+    if(value.empty())
+        return false;
+    int result = 0;
+    auto* begin = value.data();
+    auto* end = value.data() + value.size();
+    auto [ptr, ec] = std::from_chars(begin, end, result);
+    if(ec != std::errc() || ptr != end)
+        return false;
+    out = result;
+    return true;
 }
 } // namespace
 
@@ -2754,33 +2780,36 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
     {
-        std::string arg = (cmd.rfind("b ", 0) == 0)
-                              ? std::string(cmd.substr(2))
-                              : std::string(cmd.substr(7));
+        std::string_view arg = (cmd.rfind("b ", 0) == 0) ? cmd.substr(2)
+                                                         : cmd.substr(7);
+        arg = trim_view(arg);
 
-        try
+        int bufNum = 0;
+        if(parse_int(arg, bufNum))
         {
-            int bufNum = std::stoi(arg) - 1;
-            if(bufNum >= 0 && bufNum < buffers.size())
+            bufNum -= 1;
+            if(bufNum >= 0 && bufNum < (int)buffers.size())
             {
                 switchToBuffer(bufNum);
             }
             else
             {
-                setStatusMessage("Buffer " + arg + " does not exist");
+                setStatusMessage("Buffer " + std::string(arg) +
+                                 " does not exist");
             }
         }
-        catch(...)
+        else
         {
+            std::string needle(arg);
             for(size_t i = 0; i < buffers.size(); i++)
             {
-                if(buffers[i]->filename.find(arg) != std::string::npos)
+                if(buffers[i]->filename.find(needle) != std::string::npos)
                 {
                     switchToBuffer(i);
                     return;
                 }
             }
-            setStatusMessage("No matching buffer for " + arg);
+            setStatusMessage("No matching buffer for " + needle);
         }
     }
     else if(cmd == "enew")
@@ -3016,12 +3045,12 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else
     {
-        try
+        int line = 0;
+        if(parse_int(cmd, line))
         {
-            int line = std::stoi(std::string(cmd));
             moveToLine(line - 1);
         }
-        catch(...)
+        else
         {
             setStatusMessage("Not an editor command: " + std::string(cmd));
         }

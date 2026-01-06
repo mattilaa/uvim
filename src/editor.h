@@ -253,7 +253,7 @@ public:
     void searchFileContent(const std::string& filepath);
     bool isTextFile(const std::string& filepath);
     bool isBinaryFile(const std::string& filepath);
-    void searchInFile(const std::string& filepath, const std::string& query);
+    void searchInFile(const std::string& filepath, std::string_view query);
     void drawGrepSearch();
     void selectGrepMatch();
 
@@ -269,7 +269,7 @@ public:
     bool selectGrepResult();
     void toggleGrepPreview();
     std::string trimString(const std::string& str);
-    void highlightGrepMatches(const std::string& line, const std::string& query,
+    void highlightGrepMatches(std::string_view line, std::string_view query,
                               std::vector<std::pair<int, int>>& ranges);
     void goToDefinition();
 

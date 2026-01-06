@@ -112,8 +112,11 @@ bool Editor::isBinaryFile(const std::string& filepath)
     return nonPrintableRatio > 0.3;
 }
 
-void Editor::searchInFile(const std::string& filepath, const std::string& query)
+void Editor::searchInFile(const std::string& filepath, std::string_view query)
 {
+    if(query.empty())
+        return;
+
     if(!isTextFile(filepath))
         return;
 
@@ -121,10 +124,11 @@ void Editor::searchInFile(const std::string& filepath, const std::string& query)
     if(!file)
         return;
 
-    std::string lowerQuery = toLowerCase(query);
+    std::string lowerQuery = toLowerCase(std::string(query));
     std::string line;
     int lineNumber = 0;
 
+    size_t queryLen = query.size();
     while(std::getline(file, line))
     {
         lineNumber++;
@@ -146,10 +150,10 @@ void Editor::searchInFile(const std::string& filepath, const std::string& query)
             match.lineContent = trimString(line);
 
             match.highlightRanges.push_back(
-                std::make_pair((int)pos, (int)query.length()));
+                std::make_pair((int)pos, (int)queryLen));
 
             grepMatches.push_back(match);
-            pos += query.length();
+            pos += queryLen;
 
             if(grepMatches.size() >= 1000)
                 return;
@@ -526,16 +530,16 @@ void Editor::handleGrepSearchMode(int c)
     }
 }
 
-void Editor::highlightGrepMatches(const std::string& line,
-                                  const std::string& query,
+void Editor::highlightGrepMatches(std::string_view line,
+                                  std::string_view query,
                                   std::vector<std::pair<int, int>>& ranges)
 {
     ranges.clear();
     if(query.empty())
         return;
 
-    std::string searchLine = line;
-    std::string searchQuery = query;
+    std::string searchLine(line);
+    std::string searchQuery(query);
 
     if(!grepCaseSensitive)
     {
