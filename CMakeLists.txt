@@ -71,6 +71,7 @@ if(UVIM_ENABLE_CLANGD_LSP)
 endif()
 
 add_executable(uvim ${UVIM_SOURCES})
+target_compile_definitions(uvim PRIVATE UVIM_VERSION="${PROJECT_VERSION}")
 
 # ------------------------------------------------------------------------------
 # Terminal backend selection -> compile definitions
