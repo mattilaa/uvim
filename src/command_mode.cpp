@@ -42,7 +42,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     {
         if(ctx.commandBuffer.length() > 1)
         {
-            std::string cmd = ctx.commandBuffer.substr(1); // Remove leading ':'
+            std::string_view cmd(ctx.commandBuffer);
+            cmd.remove_prefix(1); // Remove leading ':'
             ed->executeCommand(cmd);
             if(ed->commandRequestedModeSet)
             {
@@ -155,7 +156,8 @@ void Editor::handleCommandMode(int c)
     {
         if(commandBuffer.length() > 1)
         {
-            std::string cmd = commandBuffer.substr(1); // Remove ':'
+            std::string_view cmd(commandBuffer);
+            cmd.remove_prefix(1);
             executeCommand(cmd);
         }
         commandBuffer.clear();
@@ -197,7 +199,8 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
         {
             // Complete file path after command
             std::string cmd = input.substr(0, spacePos);
-            std::string pathPart = input.substr(spacePos + 1);
+            std::string_view pathPart =
+                std::string_view(input).substr(spacePos + 1);
 
             if(cmd == "e" || cmd == "edit" || cmd == "w" || cmd == "tabe" ||
                cmd == "tabnew" || cmd == "cd")

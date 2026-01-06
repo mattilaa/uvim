@@ -2449,12 +2449,12 @@ void Editor::setStatusMessage(const std::string& msg)
     statusMessage = msg;
 }
 
-bool Editor::handleSetCommand(const std::string& cmd)
+bool Editor::handleSetCommand(std::string_view cmd)
 {
     if(!cmd.starts_with("set "))
         return false;
 
-    std::string opt = cmd.substr(4);
+    std::string opt = std::string(cmd.substr(4));
     if(opt == "autobraces?")
     {
         setStatusMessage(std::string("autobraces=") +
@@ -2504,7 +2504,8 @@ bool Editor::handleSetCommand(const std::string& cmd)
 
     if(opt.rfind("tabspaces=", 0) == 0)
     {
-        std::string value = opt.substr(std::string("tabspaces=").length());
+        std::string value = std::string(
+            opt.substr(std::string("tabspaces=").length()));
         try
         {
             int v = std::stoi(value);
@@ -2546,7 +2547,7 @@ void Editor::handleResize()
 }
 
 // Command execution
-void Editor::executeCommand(const std::string& cmd)
+void Editor::executeCommand(std::string_view cmd)
 {
     if(handleSetCommand(cmd))
         return;
@@ -2568,9 +2569,10 @@ void Editor::executeCommand(const std::string& cmd)
                 setStatusMessage("Error getting current directory");
             return;
         }
-        if(cmd.substr(0, 3) == "cd " || cmd == "cd")
+        if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
         {
-            std::string path = (cmd.length() > 3) ? cmd.substr(3) : "";
+            std::string path =
+                (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
             if(path.empty())
             {
                 const char* home = getenv("HOME");
@@ -2627,10 +2629,11 @@ void Editor::executeCommand(const std::string& cmd)
             setStatusMessage("New buffer created");
             return;
         }
-        if(cmd.substr(0, 2) == "e " || cmd.substr(0, 5) == "edit ")
+        if(cmd.rfind("e ", 0) == 0 || cmd.rfind("edit ", 0) == 0)
         {
             std::string path =
-                (cmd.substr(0, 2) == "e ") ? cmd.substr(2) : cmd.substr(5);
+                (cmd.rfind("e ", 0) == 0) ? std::string(cmd.substr(2))
+                                          : std::string(cmd.substr(5));
 
             if(path == ".")
             {
@@ -2655,16 +2658,16 @@ void Editor::executeCommand(const std::string& cmd)
                 return;
             }
         }
-        if(cmd.substr(0, 6) == "tabnew" || cmd.substr(0, 5) == "tabe ")
+        if(cmd.rfind("tabnew", 0) == 0 || cmd.rfind("tabe ", 0) == 0)
         {
             std::string fname = "";
-            if(cmd.substr(0, 5) == "tabe " && cmd.length() > 5)
+            if(cmd.rfind("tabe ", 0) == 0 && cmd.length() > 5)
             {
-                fname = cmd.substr(5);
+                fname = std::string(cmd.substr(5));
             }
-            else if(cmd.substr(0, 7) == "tabnew " && cmd.length() > 7)
+            else if(cmd.rfind("tabnew ", 0) == 0 && cmd.length() > 7)
             {
-                fname = cmd.substr(7);
+                fname = std::string(cmd.substr(7));
             }
 
             if(!fname.empty())
@@ -2747,10 +2750,11 @@ void Editor::executeCommand(const std::string& cmd)
     {
         listBuffers();
     }
-    else if(cmd.substr(0, 2) == "b " || cmd.substr(0, 7) == "buffer ")
+    else if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
     {
         std::string arg =
-            (cmd.substr(0, 2) == "b ") ? cmd.substr(2) : cmd.substr(7);
+            (cmd.rfind("b ", 0) == 0) ? std::string(cmd.substr(2))
+                                      : std::string(cmd.substr(7));
 
         try
         {
@@ -2903,15 +2907,16 @@ void Editor::executeCommand(const std::string& cmd)
             exit(0);
         }
     }
-    else if(cmd.substr(0, 2) == "w ")
+    else if(cmd.rfind("w ", 0) == 0)
     {
-        *filename = cmd.substr(2);
+        *filename = std::string(cmd.substr(2));
         saveFile();
     }
-    else if(cmd.substr(0, 2) == "e " || cmd.substr(0, 5) == "edit ")
+    else if(cmd.rfind("e ", 0) == 0 || cmd.rfind("edit ", 0) == 0)
     {
         std::string path =
-            (cmd.substr(0, 2) == "e ") ? cmd.substr(2) : cmd.substr(5);
+            (cmd.rfind("e ", 0) == 0) ? std::string(cmd.substr(2))
+                                      : std::string(cmd.substr(5));
 
         if(path == ".")
         {
@@ -2934,16 +2939,16 @@ void Editor::executeCommand(const std::string& cmd)
             setMode(NORMAL);
         }
     }
-    else if(cmd.substr(0, 6) == "tabnew" || cmd.substr(0, 5) == "tabe ")
+    else if(cmd.rfind("tabnew", 0) == 0 || cmd.rfind("tabe ", 0) == 0)
     {
         std::string fname = "";
-        if(cmd.substr(0, 5) == "tabe " && cmd.length() > 5)
+        if(cmd.rfind("tabe ", 0) == 0 && cmd.length() > 5)
         {
-            fname = cmd.substr(5);
+            fname = std::string(cmd.substr(5));
         }
-        else if(cmd.substr(0, 7) == "tabnew " && cmd.length() > 7)
+        else if(cmd.rfind("tabnew ", 0) == 0 && cmd.length() > 7)
         {
-            fname = cmd.substr(7);
+            fname = std::string(cmd.substr(7));
         }
 
         if(!fname.empty())
@@ -2976,9 +2981,10 @@ void Editor::executeCommand(const std::string& cmd)
             setStatusMessage("Error getting current directory");
         }
     }
-    else if(cmd.substr(0, 3) == "cd " || cmd == "cd")
+    else if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
     {
-        std::string path = (cmd.length() > 3) ? cmd.substr(3) : "";
+        std::string path =
+            (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
         if(path.empty())
         {
             // cd with no args goes to home directory
@@ -3012,12 +3018,12 @@ void Editor::executeCommand(const std::string& cmd)
     {
         try
         {
-            int line = std::stoi(cmd);
+            int line = std::stoi(std::string(cmd));
             moveToLine(line - 1);
         }
         catch(...)
         {
-            setStatusMessage("Not an editor command: " + cmd);
+            setStatusMessage("Not an editor command: " + std::string(cmd));
         }
     }
 }
@@ -5776,7 +5782,7 @@ void Editor::commandHistoryDown()
 }
 
 std::vector<std::string>
-Editor::getCommandCompletions(const std::string& prefix)
+Editor::getCommandCompletions(std::string_view prefix)
 {
     std::vector<std::string> commands = {
         "w",     "write",   "q",     "quit",    "q!",   "qa",
@@ -5791,7 +5797,8 @@ Editor::getCommandCompletions(const std::string& prefix)
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
     {
-        if(cmd.find(prefix) == 0)
+        if(prefix.size() <= cmd.size() &&
+           std::string_view(cmd).substr(0, prefix.size()) == prefix)
         {
             matches.push_back(cmd);
         }
@@ -5799,23 +5806,23 @@ Editor::getCommandCompletions(const std::string& prefix)
     return matches;
 }
 
-std::vector<std::string> Editor::getPathCompletions(const std::string& path)
+std::vector<std::string> Editor::getPathCompletions(std::string_view path)
 {
     std::vector<std::string> completions;
 
-    std::string dir = path;
+    std::string dir(path);
     std::string prefix;
 
     size_t lastSlash = path.find_last_of('/');
-    if(lastSlash != std::string::npos)
+    if(lastSlash != std::string_view::npos)
     {
-        dir = path.substr(0, lastSlash + 1);
-        prefix = path.substr(lastSlash + 1);
+        dir = std::string(path.substr(0, lastSlash + 1));
+        prefix = std::string(path.substr(lastSlash + 1));
     }
     else
     {
         dir = ".";
-        prefix = path;
+        prefix = std::string(path);
     }
 
     DIR* d = opendir(dir.c_str());

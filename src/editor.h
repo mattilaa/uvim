@@ -183,7 +183,7 @@ public:
     void drawScrollUpdate(int scrollDelta);
     void drawStatusBarQuick();
     void drawMessageBarQuick(); // Add this to redraw message bar
-    bool handleSetCommand(const std::string& cmd);
+    bool handleSetCommand(std::string_view cmd);
 
     // Mode handlers
     void handleNormalMode(int c);
@@ -459,7 +459,7 @@ public:
 
     // File operations
     void saveFile();
-    void executeCommand(const std::string& cmd);
+    void executeCommand(std::string_view cmd);
     void forceQuit();
     std::string getAlternateFilePath();
 
@@ -499,8 +499,8 @@ public:
     std::string commandInput;
     void commandHistoryUp();
     void commandHistoryDown();
-    std::vector<std::string> getCommandCompletions(const std::string& prefix);
-    std::vector<std::string> getPathCompletions(const std::string& path);
+    std::vector<std::string> getCommandCompletions(std::string_view prefix);
+    std::vector<std::string> getPathCompletions(std::string_view path);
 
     // Syntax highlighting (TokenType enum and Token struct are now in
     // token_type.h)
