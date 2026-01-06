@@ -360,7 +360,7 @@ std::string Editor::getColorCode(TokenType type) const
 }
 
 std::vector<Token> Editor::tokenizeLine(const std::string& line,
-                                        bool& inBlockComment)
+                                        bool& inBlockComment) const
 {
     std::vector<Token> tokens;
     std::string_view sv{line};

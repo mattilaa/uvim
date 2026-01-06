@@ -505,7 +505,7 @@ public:
     void clangFormatVisualBlockSelection();
 
     std::vector<Token> tokenizeLine(const std::string& line,
-                                    bool& inBlockComment);
+                                    bool& inBlockComment) const;
     std::string getColorCode(TokenType type) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow);

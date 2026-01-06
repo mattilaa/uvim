@@ -469,6 +469,102 @@ void Editor::drawCompletionPopup(std::string& output) const
     text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
     text_utils::appendU8(output, u8"┐");
 
+    auto kindColor = [](int kind) -> const char*
+    {
+        // LSP CompletionItemKind colors (rough semantic mapping)
+        switch(kind)
+        {
+        case 2:  // Method
+        case 3:  // Function
+        case 4:  // Constructor
+        case 23: // Event
+            return Terminal::FG_BRIGHT_BLUE;
+        case 5:  // Field
+        case 6:  // Variable
+        case 10: // Property
+        case 18: // Reference
+        case 25: // TypeParameter
+            return Terminal::FG_CYAN;
+        case 7:  // Class
+        case 8:  // Interface
+        case 13: // Enum
+        case 22: // Struct
+            return Terminal::FG_MAGENTA;
+        case 14: // Keyword
+            return Terminal::FG_BRIGHT_MAGENTA;
+        case 11: // Unit
+        case 12: // Value
+        case 20: // EnumMember
+        case 21: // Constant
+            return Terminal::FG_YELLOW;
+        case 24: // Operator
+            return Terminal::FG_BRIGHT_YELLOW;
+        case 15: // Snippet
+        case 16: // Color
+            return Terminal::FG_GREEN;
+        case 17: // File
+        case 19: // Folder
+            return Terminal::FG_BRIGHT_BLACK;
+        default:
+            return Terminal::FG_DEFAULT;
+        }
+    };
+
+    auto appendSyntaxRow = [&](const std::string& text, bool selected,
+                               int kind)
+    {
+        if(!isCppFile())
+        {
+            if(selected)
+                output += Terminal::STYLE_SELECTION;
+            output += kindColor(kind);
+            output += text;
+            output += Terminal::ESC_RESET_ALL;
+            return;
+        }
+
+        bool inBlockComment = false;
+        std::vector<Token> tokens = tokenizeLine(text, inBlockComment);
+        std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
+        bool hasColor = false;
+
+        for(const auto& token : tokens)
+        {
+            if(token.type != TOKEN_NORMAL)
+                hasColor = true;
+            int tokenEnd = token.start + token.length;
+            for(int pos = token.start; pos < tokenEnd && pos < (int)text.size();
+                pos++)
+            {
+                colors[pos] = token.type;
+            }
+        }
+
+        if(selected)
+            output += Terminal::STYLE_SELECTION;
+
+        if(!hasColor)
+        {
+            output += kindColor(kind);
+            output += text;
+            output += Terminal::ESC_RESET_ALL;
+            return;
+        }
+
+        TokenType current = TOKEN_NORMAL;
+        for(size_t i = 0; i < text.size(); ++i)
+        {
+            if(colors[i] != current)
+            {
+                current = colors[i];
+                output += getColorCode(current);
+            }
+            output += text[i];
+        }
+
+        output += Terminal::ESC_RESET_ALL;
+    };
+
     // Rows
     for(int i = 0; i < maxRows; ++i)
     {
@@ -482,15 +578,12 @@ void Editor::drawCompletionPopup(std::string& output) const
         output += " ";
 
         bool sel = (fidx == completionSelected);
-        if(sel)
-            output += Terminal::STYLE_SELECTION;
 
         std::string row = e.label;
         // Trim to fit
         while(displayWidth(row) > innerW)
             row.pop_back();
-
-        output += row;
+        appendSyntaxRow(row, sel, e.kind);
 
         // Pad to width
         int pad = innerW - displayWidth(row);
