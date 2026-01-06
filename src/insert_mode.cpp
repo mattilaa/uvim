@@ -41,12 +41,14 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(ed->completionActive)
     {
-        if(c == Terminal::CTRL_N || c == Terminal::ARROW_DOWN)
+        if(c == Terminal::CTRL_N || c == Terminal::CTRL_J ||
+           c == Terminal::ARROW_DOWN)
         {
             ed->nextCompletion();
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_P || c == Terminal::ARROW_UP)
+        if(c == Terminal::CTRL_P || c == Terminal::CTRL_K ||
+           c == Terminal::ARROW_UP)
         {
             ed->previousCompletion();
             return std::nullopt;
