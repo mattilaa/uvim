@@ -801,12 +801,12 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     }
 
     pythonLspEnabled = true;
-    setStatusMessage("python LSP: ON");
+   // setStatusMessage("python LSP: ON");
 #else
     (void)enable;
     (void)pythonLspPath;
     (void)pythonLspArgs;
-    setStatusMessage("python LSP: not compiled in");
+    //setStatusMessage("python LSP: not compiled in");
 #endif
 }
 
