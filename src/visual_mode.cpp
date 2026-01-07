@@ -32,6 +32,22 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     int c = event.key;
 
     // ========================================================================
+    // Count Prefix Accumulation
+    // ========================================================================
+
+    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    {
+        ctx.repeatCount = c - '0';
+        return std::nullopt;
+    }
+    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    {
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        return std::nullopt;
+    }
+    int count = std::max(1, ctx.repeatCount);
+
+    // ========================================================================
     // Leader Key (Space)
     // ========================================================================
 
@@ -97,67 +113,92 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     // Movement
     // ========================================================================
 
+    bool didMove = false;
     switch(c)
     {
     case 'h':
     case Terminal::ARROW_LEFT:
-        ed->moveLeft(1);
+        ed->moveLeft(count);
+        didMove = true;
         break;
     case 'j':
     case Terminal::ARROW_DOWN:
-        ed->moveDown(1);
+        ed->moveDown(count);
+        didMove = true;
         break;
     case 'k':
     case Terminal::ARROW_UP:
-        ed->moveUp(1);
+        ed->moveUp(count);
+        didMove = true;
         break;
     case 'l':
     case Terminal::ARROW_RIGHT:
-        ed->moveRight(1);
+        ed->moveRight(count);
+        didMove = true;
         break;
 
     // Word movements
     case 'w':
-        ed->moveWordForward();
+        for(int i = 0; i < count; i++)
+            ed->moveWordForward();
+        didMove = true;
         break;
     case 'W':
-        ed->moveWordForwardBig();
+        for(int i = 0; i < count; i++)
+            ed->moveWordForwardBig();
+        didMove = true;
         break;
     case 'b':
-        ed->moveWordBackward();
+        for(int i = 0; i < count; i++)
+            ed->moveWordBackward();
+        didMove = true;
         break;
     case 'B':
-        ed->moveWordBackwardBig();
+        for(int i = 0; i < count; i++)
+            ed->moveWordBackwardBig();
+        didMove = true;
         break;
     case 'e':
-        ed->moveToEndOfWord();
+        for(int i = 0; i < count; i++)
+            ed->moveToEndOfWord();
+        didMove = true;
         break;
     case 'E':
-        ed->moveToEndOfWordBig();
+        for(int i = 0; i < count; i++)
+            ed->moveToEndOfWordBig();
+        didMove = true;
         break;
 
     // Line movements
     case '0':
         ed->moveToLineStart();
+        didMove = true;
         break;
     case '^':
         ed->moveToFirstNonBlank();
+        didMove = true;
         break;
     case '$':
         ed->moveToLineEnd();
+        didMove = true;
         break;
 
     // Paragraph movements
     case '{':
-        ed->moveParagraphBackward();
+        for(int i = 0; i < count; i++)
+            ed->moveParagraphBackward();
+        didMove = true;
         break;
     case '}':
-        ed->moveParagraphForward();
+        for(int i = 0; i < count; i++)
+            ed->moveParagraphForward();
+        didMove = true;
         break;
 
     // File movements
     case 'G':
         ed->moveToLastLine();
+        didMove = true;
         break;
     case 'g':
     {
@@ -165,40 +206,46 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         if(nextChar == 'g')
         {
             ed->moveToFirstLine();
+            didMove = true;
         }
     }
     break;
-
-    // Matching bracket
-    case '%':
-        ed->moveToMatchingBracket();
-        break;
-
     // Screen movements
     case 'H':
         ed->moveToScreenTop();
+        didMove = true;
         break;
     case 'M':
         ed->moveToScreenMiddle();
+        didMove = true;
         break;
     case 'L':
         ed->moveToScreenBottom();
+        didMove = true;
         break;
 
     // Scrolling
     case Terminal::CTRL_D:
         ed->scrollHalfPageDown(false);
+        didMove = true;
         break;
     case Terminal::CTRL_U:
         ed->scrollHalfPageUp(false);
+        didMove = true;
+        break;
+    case '%':
+        ed->moveToMatchingBracket();
+        didMove = true;
         break;
     case Terminal::CTRL_F:
     case Terminal::PAGE_DOWN:
         ed->scrollPageDown();
+        didMove = true;
         break;
     case Terminal::CTRL_B:
     case Terminal::PAGE_UP:
         ed->scrollPageUp();
+        didMove = true;
         break;
 
         // ========================================================================
@@ -269,9 +316,13 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     {
         std::swap(ctx.cursorX(), ed->currentBuffer->visualStartX);
         std::swap(ctx.cursorY(), ed->currentBuffer->visualStartY);
+        didMove = true;
     }
     break;
     }
+
+    if(didMove)
+        ctx.repeatCount = 0;
 
     // Update visual end
     ed->currentBuffer->visualEndX = ctx.cursorX();
@@ -306,6 +357,22 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = event.key;
+
+    // ========================================================================
+    // Count Prefix Accumulation
+    // ========================================================================
+
+    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    {
+        ctx.repeatCount = c - '0';
+        return std::nullopt;
+    }
+    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    {
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        return std::nullopt;
+    }
+    int count = std::max(1, ctx.repeatCount);
 
     // ========================================================================
     // Leader Key (Space)
@@ -364,18 +431,22 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     // Movement
     // ========================================================================
 
+    bool didMove = false;
     switch(c)
     {
     case 'j':
     case Terminal::ARROW_DOWN:
-        ed->moveDown(1);
+        ed->moveDown(count);
+        didMove = true;
         break;
     case 'k':
     case Terminal::ARROW_UP:
-        ed->moveUp(1);
+        ed->moveUp(count);
+        didMove = true;
         break;
     case 'G':
         ed->moveToLastLine();
+        didMove = true;
         break;
     case 'g':
     {
@@ -383,20 +454,31 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         if(nextChar == 'g')
         {
             ed->moveToFirstLine();
+            didMove = true;
         }
     }
     break;
     case '{':
-        ed->moveParagraphBackward();
+        for(int i = 0; i < count; i++)
+            ed->moveParagraphBackward();
+        didMove = true;
         break;
     case '}':
-        ed->moveParagraphForward();
+        for(int i = 0; i < count; i++)
+            ed->moveParagraphForward();
+        didMove = true;
         break;
     case Terminal::CTRL_D:
         ed->scrollHalfPageDown(false);
+        didMove = true;
         break;
     case Terminal::CTRL_U:
         ed->scrollHalfPageUp(false);
+        didMove = true;
+        break;
+    case '%':
+        ed->moveToMatchingBracket();
+        didMove = true;
         break;
 
         // ========================================================================
@@ -454,8 +536,12 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     // Swap selection ends
     case 'o':
         std::swap(ctx.cursorY(), ed->currentBuffer->visualStartY);
+        didMove = true;
         break;
     }
+
+    if(didMove)
+        ctx.repeatCount = 0;
 
     // Update visual end
     ed->currentBuffer->visualEndY = ctx.cursorY();
@@ -491,6 +577,22 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = event.key;
+
+    // ========================================================================
+    // Count Prefix Accumulation
+    // ========================================================================
+
+    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    {
+        ctx.repeatCount = c - '0';
+        return std::nullopt;
+    }
+    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    {
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        return std::nullopt;
+    }
+    int count = std::max(1, ctx.repeatCount);
 
     // ========================================================================
     // Exit
@@ -539,23 +641,28 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
     // Movement
     // ========================================================================
 
+    bool didMove = false;
     switch(c)
     {
     case 'h':
     case Terminal::ARROW_LEFT:
-        ed->moveLeft(1);
+        ed->moveLeft(count);
+        didMove = true;
         break;
     case 'j':
     case Terminal::ARROW_DOWN:
-        ed->moveDown(1);
+        ed->moveDown(count);
+        didMove = true;
         break;
     case 'k':
     case Terminal::ARROW_UP:
-        ed->moveUp(1);
+        ed->moveUp(count);
+        didMove = true;
         break;
     case 'l':
     case Terminal::ARROW_RIGHT:
-        ed->moveRight(1);
+        ed->moveRight(count);
+        didMove = true;
         break;
 
         // ========================================================================
@@ -590,8 +697,12 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
     case 'o':
     case 'O':
         ed->swapVisualBlockCorner();
+        didMove = true;
         break;
     }
+
+    if(didMove)
+        ctx.repeatCount = 0;
 
     // Update block end
     ed->currentBuffer->visualBlockEndX = ctx.cursorX();
