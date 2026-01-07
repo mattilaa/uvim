@@ -527,6 +527,16 @@ void Editor::acceptCompletion()
     if(end < start)
         std::swap(start, end);
 
+    if(!insert.empty() && end < (int)mutableLine.size())
+    {
+        const char last = insert.back();
+        if((last == ')' || last == ']' || last == '}') &&
+           mutableLine[end] == last)
+        {
+            insert.pop_back(); // avoid double-closing when auto-braces inserted
+        }
+    }
+
     mutableLine.replace(start, end - start, insert);
     *cursorX = start + (int)insert.size();
     *wantedX = *cursorX;

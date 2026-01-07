@@ -381,6 +381,22 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         if(ed->autoBraces && (c == '(' || c == '['))
         {
             char close = (c == '(') ? ')' : ']';
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int cursorY = ctx.cursorY();
+
+            if(cursorY >= (int)lines.size())
+                lines.resize(cursorY + 1);
+            std::string& line = lines[cursorY];
+            if(cursorX > (int)line.length())
+                cursorX = line.length();
+
+            if(cursorX < (int)line.length() && line[cursorX] == close)
+            {
+                ed->insertChar(static_cast<char>(c));
+                return std::nullopt;
+            }
+
             ed->insertChar(static_cast<char>(c));
             ed->insertChar(close);
             ctx.cursorX()--;
