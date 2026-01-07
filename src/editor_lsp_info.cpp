@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "terminal.h"
 #include <algorithm>
+#include <string_view>
 
 static std::string filetypeLabel(const Editor& ed)
 {
@@ -72,16 +73,92 @@ void Editor::drawLspInfo()
     int row = 0;
     int idx = 0;
 
-    while(row < visibleRows && idx < (int)lspInfoLines.size())
+    auto renderLine = [&](const std::string& line)
     {
         output += Terminal::ESC_CLEAR_LINE;
-        std::string line = lspInfoLines[idx];
-        if((int)line.length() > screenCols)
-            line = line.substr(0, screenCols);
-        output += line;
-        if((int)line.length() < screenCols)
-            output.append(screenCols - line.length(), ' ');
+        if(line.empty())
+        {
+            output += "\r\n";
+            return;
+        }
+
+        auto renderKeyValue = [&](const std::string& key,
+                                  std::string_view value,
+                                  const std::string& keyColor)
+        {
+            output += keyColor;
+            output += key;
+            output += theme.reset();
+            output += " ";
+            output += std::string(value);
+        };
+
+        if(line.rfind("Buffer:", 0) == 0)
+        {
+            renderKeyValue("Buffer:", std::string_view(line).substr(7),
+                           theme.uiInfo());
+        }
+        else if(line.rfind("Filetype:", 0) == 0)
+        {
+            renderKeyValue("Filetype:", std::string_view(line).substr(9),
+                           theme.uiInfo());
+        }
+        else if(line.rfind("  binary:", 0) == 0)
+        {
+            output += "  ";
+            renderKeyValue("binary:", std::string_view(line).substr(9),
+                           theme.uiDim());
+        }
+        else if(line.rfind("clangd:", 0) == 0 ||
+                line.rfind("python:", 0) == 0 || line.rfind("robot:", 0) == 0)
+        {
+            size_t colon = line.find(':');
+            std::string_view label = std::string_view(line).substr(0, colon);
+            std::string_view status =
+                colon == std::string::npos
+                    ? std::string_view{}
+                    : std::string_view(line).substr(colon + 1);
+
+            output += theme.uiAccent();
+            output += std::string(label);
+            output += ":";
+            output += theme.reset();
+
+            std::string statusStr(status);
+            if(!statusStr.empty() && statusStr[0] == ' ')
+                statusStr.erase(0, 1);
+
+            const std::string* color = &theme.uiWarning();
+            if(statusStr == "ACTIVE")
+                color = &theme.uiSuccess();
+            else if(statusStr == "ON")
+                color = &theme.uiInfo();
+            else if(statusStr == "OFF")
+                color = &theme.uiWarning();
+            else if(statusStr.rfind("not", 0) == 0 ||
+                    statusStr.rfind("NOT", 0) == 0)
+                color = &theme.uiError();
+
+            output += " ";
+            output += *color;
+            output += statusStr;
+            output += theme.reset();
+        }
+        else
+        {
+            output += line;
+        }
+
+        // Pad to end of line
+        int visLen = std::min((int)line.length(), screenCols);
+        if(visLen < screenCols)
+            output.append(screenCols - visLen, ' ');
         output += "\r\n";
+    };
+
+    while(row < visibleRows && idx < (int)lspInfoLines.size())
+    {
+        renderLine(lspInfoLines[idx]);
         row++;
         idx++;
     }
