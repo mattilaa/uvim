@@ -794,7 +794,9 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
     {
         pythonLspClient.reset();
-        setStatusMessage("python LSP: failed to start");
+
+        LOG_ERROR(LOG, "Python LSP failed to start. Pyhtonh path: {}", this->pythonLspPath);
+        // setStatusMessage("python LSP: failed to start");
         return;
     }
 
