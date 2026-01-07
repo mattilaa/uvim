@@ -90,6 +90,9 @@ public:
     int referencesOffset = 0;
     bool referencesPreview = true;
 
+    // LSP info panel
+    std::vector<std::string> lspInfoLines;
+
     // Screen
     int screenRows;
     int screenCols;
@@ -275,6 +278,11 @@ public:
     void drawReferences();
     bool hasReferences() const;
     std::string readLineFromFile(const std::string& path, int lineNum);
+
+    // LSP info panel
+    void showLspInfo();
+    void clearLspInfo();
+    void drawLspInfo();
 
     // Movement commands
     void moveCursor(int key);

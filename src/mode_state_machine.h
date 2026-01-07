@@ -80,6 +80,7 @@ struct BufferBrowserMode;
 struct GrepSearchMode;
 struct OperatorPendingMode;
 struct ReferencesMode;
+struct LspInfoMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -87,7 +88,7 @@ using ModeState =
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 OperatorPendingMode, ReferencesMode>;
+                 OperatorPendingMode, ReferencesMode, LspInfoMode>;
 
 // ============================================================================
 // State Definitions
@@ -410,6 +411,19 @@ struct ReferencesMode
     static constexpr const char* name()
     {
         return "REFERENCES";
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+};
+
+struct LspInfoMode
+{
+    static constexpr const char* name()
+    {
+        return "LSP INFO";
     }
 
     void on_enter(ModeContext& ctx);

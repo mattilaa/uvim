@@ -45,6 +45,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string_view cmd(ctx.commandBuffer);
             cmd.remove_prefix(1); // Remove leading ':'
             ed->executeCommand(cmd);
+            if(ed->currentMode == LSP_INFO)
+            {
+                return LspInfoMode{};
+            }
             if(ed->commandRequestedModeSet)
             {
                 Mode mode = ed->commandRequestedMode;
@@ -60,6 +64,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                         prev = *ed->filename;
                     }
                     return FileBrowserMode{path, prev};
+                }
+                if(mode == LSP_INFO)
+                {
+                    return LspInfoMode{};
                 }
             }
         }

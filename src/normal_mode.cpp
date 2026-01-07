@@ -838,6 +838,13 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         break;
 
     case 'l':
+    {
+        int nextChar = Terminal::readKeyTimeout(500);
+        if(nextChar == 'i')
+        {
+            ed->showLspInfo();
+            return LspInfoMode{};
+        }
         if(ed->isPythonFile())
         {
             ed->pythonLintBuffer();
@@ -847,6 +854,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             ctx.setStatusMessage("lint: unsupported filetype");
         }
         break;
+    }
 
     case 'w':
         // Save file

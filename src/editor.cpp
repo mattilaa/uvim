@@ -1484,6 +1484,9 @@ void Editor::setMode(Mode mode)
     case REFERENCES:
         modeStateMachine->transitionTo(ReferencesMode{});
         break;
+    case LSP_INFO:
+        modeStateMachine->transitionTo(LspInfoMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -1521,6 +1524,8 @@ std::string Editor::getModeString() const
         return "BUFFERS";
     case GREP_SEARCH:
         return "GREP";
+    case LSP_INFO:
+        return "LSP INFO";
     }
     return "";
 }
@@ -2836,6 +2841,11 @@ void Editor::refreshScreen()
         drawReferences();
         return;
     }
+    if(currentMode == LSP_INFO)
+    {
+        drawLspInfo();
+        return;
+    }
 
     static int lastOffsetY = -1;
     static int lastOffsetX = -1;
@@ -3074,6 +3084,14 @@ void Editor::executeCommand(std::string_view cmd)
 {
     if(handleSetCommand(cmd))
         return;
+
+    if(cmd == "lspinfo")
+    {
+        showLspInfo();
+        commandRequestedModeSet = true;
+        commandRequestedMode = LSP_INFO;
+        return;
+    }
 
     if(!hasBuffer())
     {
@@ -3952,6 +3970,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = REFERENCES;
     }
+    else if(std::holds_alternative<LspInfoMode>(state))
+    {
+        currentMode = LSP_INFO;
+    }
 }
 
 void Editor::handleKeypress(int c)
@@ -4146,6 +4168,7 @@ void Editor::ensureBufferForMode(Mode mode)
     case BUFFER_BROWSER:
     case GREP_SEARCH:
     case REFERENCES:
+    case LSP_INFO:
         return;
     default:
         break;
@@ -6371,14 +6394,14 @@ void Editor::commandHistoryDown()
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
     std::vector<std::string> commands = {
-        "w",       "write",  "q",         "quit", "q!",       "qa",
-        "qall",    "qa!",    "qall!",     "wq",   "x",        "qw",
-        "qw!",     "wa",     "wall",      "wa!",  "wqa",      "wqall",
-        "wqa!",    "wqall!", "xa",        "e",    "edit",     "new",
-        "vnew",    "bn",     "bnext",     "bp",   "bprev",    "bd",
-        "bdelete", "ls",     "buffers",   "sp",   "split",    "vs",
-        "vsplit",  "only",   "tabnew",    "tabc", "tabclose", "set",
-        "syntax",  "noh",    "nohlsearch"};
+        "w",       "write",  "q",          "quit",   "q!",       "qa",
+        "qall",    "qa!",    "qall!",      "wq",     "x",        "qw",
+        "qw!",     "wa",     "wall",       "wa!",    "wqa",      "wqall",
+        "wqa!",    "wqall!", "xa",         "e",      "edit",     "new",
+        "vnew",    "bn",     "bnext",      "bp",     "bprev",    "bd",
+        "bdelete", "ls",     "buffers",    "sp",     "split",    "vs",
+        "vsplit",  "only",   "tabnew",     "tabc",   "tabclose", "set",
+        "syntax",  "noh",    "nohlsearch", "lspinfo"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

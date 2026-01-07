@@ -26,6 +26,7 @@ set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
     src/editor.cpp
+    src/editor_lsp_info.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp
     src/search.cpp
@@ -50,6 +51,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/search_mode.cpp
     src/operator_pending_mode.cpp
     src/references_mode.cpp
+    src/lsp_info_mode.cpp
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp

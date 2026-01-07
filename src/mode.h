@@ -20,4 +20,5 @@ enum Mode
     GREP_SEARCH,
     OP_PENDING,
     REFERENCES,
+    LSP_INFO,
 };
