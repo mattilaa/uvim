@@ -781,6 +781,16 @@ void Editor::acceptCompletion()
     *wantedX = *cursorX;
     *dirty = true;
 
+    if(!insert.empty() && *cursorX < (int)mutableLine.size())
+    {
+        const char last = insert.back();
+        if((last == ')' || last == ']' || last == '}') &&
+           mutableLine[*cursorX] == last)
+        {
+            mutableLine.erase(*cursorX, 1);
+        }
+    }
+
     cancelCompletion();
     needsFullRedraw = true;
 }

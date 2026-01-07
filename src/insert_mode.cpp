@@ -343,6 +343,23 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(c >= 32 && c < 127)
     {
+        if(ed->autoBraces && (c == ')' || c == ']' || c == '}'))
+        {
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int cursorY = ctx.cursorY();
+
+            if(cursorY >= 0 && cursorY < (int)lines.size())
+            {
+                std::string& line = lines[cursorY];
+                if(cursorX < (int)line.length() && line[cursorX] == c)
+                {
+                    cursorX++;
+                    return std::nullopt;
+                }
+            }
+        }
+
         if(ed->autoBraces && c == '{')
         {
             auto& lines = ctx.lines();
