@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 
 // ============================================================================
 // InsertMode Implementation
@@ -412,7 +413,15 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         // Update completion filter if active
         if(ed->completionActive)
         {
-            ed->rebuildCompletionFilter();
+            if(ed->completionFromLsp && ed->autoCompletion &&
+               ed->shouldTriggerCompletion())
+            {
+                ed->requestCompletion();
+            }
+            else
+            {
+                ed->rebuildCompletionFilter();
+            }
         }
         // Auto-trigger completion after '.', '::', or '->'
         else if(c == '.')
@@ -426,6 +435,28 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         else if(c == '>' && cursorX >= 2 && lines[cursorY][cursorX - 2] == '-')
         {
             ed->triggerCompletion();
+        }
+        else if(ed->autoCompletion && ed->shouldTriggerCompletion())
+        {
+            bool canAuto = true;
+            if(ed->isCppFile())
+                canAuto = ed->isClangdLspEnabled();
+            else if(ed->isPythonFile())
+                canAuto = ed->isPythonLspEnabled();
+            else if(ed->isRobotFile())
+                canAuto = ed->isRobotLspEnabled();
+
+            if(canAuto)
+            {
+                const std::string& line = lines[cursorY];
+                auto isWordChar = [](char ch)
+                { return text_utils::isIdent(ch) || ch == '-' || ch == '.'; };
+                int start = cursorX;
+                while(start > 0 && isWordChar(line[start - 1]))
+                    --start;
+                if(cursorX - start >= 2)
+                    ed->triggerCompletion();
+            }
         }
         return std::nullopt;
     }

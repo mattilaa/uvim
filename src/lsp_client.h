@@ -1,6 +1,7 @@
 #pragma once
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Minimal clangd LSP client (stdio JSON-RPC) used by uvim.
@@ -60,9 +61,10 @@ public:
 
     // Completion items at a given cursor position.
     // characterUtf8ByteOffset is a UTF-8 byte offset within the line.
-    std::vector<CompletionItem> completion(const std::string& filePath,
-                                           int line,
-                                           int characterUtf8ByteOffset);
+    std::vector<CompletionItem>
+    completion(const std::string& filePath, int line,
+               int characterUtf8ByteOffset, std::string_view lineText = {},
+               int triggerKind = 1, char triggerCharacter = '\0');
 
 private:
     struct Impl;

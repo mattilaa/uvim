@@ -139,6 +139,7 @@ public:
     // LSP completion popup (CompletionEntry struct is now in
     // completion_entry.h)
     bool completionActive = false;
+    bool completionFromLsp = false;
     std::vector<CompletionEntry> completionAll; // full list from clangd
     std::vector<int> completionFiltered; // indices into completionAll (sorted
                                          // by fuzzy score)
@@ -173,6 +174,7 @@ public:
     char lastFindChar = 0;
     bool lastFindForward = true;
     bool autoBraces = true;
+    bool autoCompletion = true;
     int tabSpaces = 4;
     std::string configPath;
     bool syntaxJson = true;

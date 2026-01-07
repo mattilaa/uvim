@@ -688,7 +688,8 @@ LspClient::definition(const std::string& filePath, int line,
 
 std::vector<LspClient::CompletionItem>
 LspClient::completion(const std::string& filePath, int line,
-                      int characterUtf8ByteOffset)
+                      int characterUtf8ByteOffset, std::string_view lineText,
+                      int triggerKind, char triggerCharacter)
 {
     std::vector<CompletionItem> out;
     if(!running())
@@ -698,24 +699,32 @@ LspClient::completion(const std::string& filePath, int line,
 
     // Convert UTF-8 byte offset to UTF-16 code units for LSP.
     int utf16ch = characterUtf8ByteOffset;
-    std::string text = readFileAll(abs);
-    if(!text.empty())
+    if(!lineText.empty())
     {
-        int curLine = 0;
-        size_t start = 0;
-        for(size_t i = 0; i <= text.size(); ++i)
+        utf16ch = utf8ByteOffsetToUtf16(std::string(lineText),
+                                        characterUtf8ByteOffset);
+    }
+    else
+    {
+        std::string text = readFileAll(abs);
+        if(!text.empty())
         {
-            if(i == text.size() || text[i] == '\n')
+            int curLine = 0;
+            size_t start = 0;
+            for(size_t i = 0; i <= text.size(); ++i)
             {
-                if(curLine == line)
+                if(i == text.size() || text[i] == '\n')
                 {
-                    std::string ln = text.substr(start, i - start);
-                    utf16ch =
-                        utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
-                    break;
+                    if(curLine == line)
+                    {
+                        std::string ln = text.substr(start, i - start);
+                        utf16ch =
+                            utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                        break;
+                    }
+                    curLine++;
+                    start = i + 1;
                 }
-                curLine++;
-                start = i + 1;
             }
         }
     }
@@ -724,7 +733,12 @@ LspClient::completion(const std::string& filePath, int line,
     params["textDocument"] = {{"uri", pathToFileUri(abs)}};
     params["position"] = {{"line", line}, {"character", utf16ch}};
     // Minimal context; clangd is fine without it, but it helps some servers.
-    params["context"] = {{"triggerKind", 1}};
+    params["context"] = {{"triggerKind", triggerKind}};
+    if(triggerCharacter != '\0')
+    {
+        std::string tc(1, triggerCharacter);
+        params["context"]["triggerCharacter"] = tc;
+    }
 
     int id = impl->sendRequest("textDocument/completion", params);
     auto resp = impl->waitResponse(id, 5000);
@@ -901,8 +915,8 @@ std::optional<LspClient::Location> LspClient::definition(const std::string&,
     return std::nullopt;
 }
 
-std::vector<LspClient::CompletionItem> LspClient::completion(const std::string&,
-                                                             int, int)
+std::vector<LspClient::CompletionItem>
+LspClient::completion(const std::string&, int, int, std::string_view, int, char)
 {
     return {};
 }

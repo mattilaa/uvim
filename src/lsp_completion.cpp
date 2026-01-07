@@ -334,6 +334,7 @@ void Editor::requestCompletion()
         completionFiltered.clear();
         completionSelected = 0;
         completionScroll = 0;
+        completionFromLsp = false;
 
         completionAll.reserve(words.size());
         for(const auto& w : words)
@@ -350,6 +351,7 @@ void Editor::requestCompletion()
         }
 
         completionActive = true;
+        completionFromLsp = false;
         rebuildCompletionFilter();
         needsFullRedraw = true;
         setStatusMessage(std::string(label) + " completion: keywords");
@@ -360,6 +362,7 @@ void Editor::requestCompletion()
         completionFiltered.clear();
         completionSelected = 0;
         completionScroll = 0;
+        completionFromLsp = false;
 
         auto isWordChar = [](char c)
         { return text_utils::isIdent(c) || c == '-' || c == '.'; };
@@ -398,6 +401,7 @@ void Editor::requestCompletion()
         }
 
         completionActive = true;
+        completionFromLsp = false;
         rebuildCompletionFilter();
         needsFullRedraw = true;
         setStatusMessage(std::string(label) + " completion: buffer words");
@@ -573,6 +577,7 @@ void Editor::requestCompletion()
             }
 
             completionActive = true;
+            completionFromLsp = false;
             rebuildCompletionFilter();
             needsFullRedraw = true;
             return;
@@ -590,8 +595,33 @@ void Editor::requestCompletion()
     }
     client->didChange(currentBuffer->filename, text, languageId);
 
-    auto items =
-        client->completion(currentBuffer->filename, *cursorY, *cursorX);
+    int triggerKind = 1;
+    char triggerChar = '\0';
+    if(*cursorX > 0 && line[*cursorX - 1] == '.')
+    {
+        triggerKind = 2;
+        triggerChar = '.';
+    }
+    else if(*cursorX > 1 && line[*cursorX - 1] == ':' &&
+            line[*cursorX - 2] == ':')
+    {
+        triggerKind = 2;
+        triggerChar = ':';
+    }
+    else if(*cursorX > 1 && line[*cursorX - 1] == '>' &&
+            line[*cursorX - 2] == '-')
+    {
+        triggerKind = 2;
+        triggerChar = '>';
+    }
+    else if(completionActive && completionFromLsp)
+    {
+        triggerKind = 3;
+    }
+
+    auto items = client->completion(currentBuffer->filename, *cursorY, *cursorX,
+                                    line, triggerKind, triggerChar);
+    completionFromLsp = true;
     completionAll.clear();
     completionAll.reserve(items.size());
 
@@ -671,6 +701,7 @@ void Editor::requestCompletion()
 void Editor::cancelCompletion()
 {
     completionActive = false;
+    completionFromLsp = false;
     completionAll.clear();
     completionFiltered.clear();
     completionSelected = 0;

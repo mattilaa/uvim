@@ -566,6 +566,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     autoBraces = false;
             }
+            auto itc = values.find("editor.autocomplete");
+            if(itc == values.end())
+                itc = values.find("settings.autocomplete");
+            if(itc == values.end())
+                itc = values.find("autocomplete");
+            if(itc != values.end())
+            {
+                std::string v = itc->second;
+                if(v == "true" || v == "1" || v == "on")
+                    autoCompletion = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    autoCompletion = false;
+            }
             auto itj = values.find("editor.syntax.json");
             if(itj == values.end())
                 itj = values.find("syntax.json");
@@ -2935,6 +2948,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
         return true;
     }
+    if(opt == "autocomplete?")
+    {
+        setStatusMessage(std::string("autocomplete=") +
+                         (autoCompletion ? "true" : "false"));
+        return true;
+    }
 
     auto set_flag = [&](bool value)
     {
@@ -2967,6 +2986,41 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("autobraces: expected true/false");
+        }
+        return true;
+    }
+
+    auto set_auto_completion = [&](bool value)
+    {
+        autoCompletion = value;
+        setStatusMessage(std::string("autocomplete=") +
+                         (autoCompletion ? "true" : "false"));
+    };
+
+    if(opt == "autocomplete")
+    {
+        set_auto_completion(true);
+        return true;
+    }
+    if(opt == "noautocomplete")
+    {
+        set_auto_completion(false);
+        return true;
+    }
+    if(opt.rfind("autocomplete=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("autocomplete=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_auto_completion(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_auto_completion(false);
+        }
+        else
+        {
+            setStatusMessage("autocomplete: expected true/false");
         }
         return true;
     }
@@ -6378,7 +6432,7 @@ bool Editor::shouldTriggerCompletion()
         return false;
 
     char prevChar = line[*cursorX - 1];
-    return std::isalnum(prevChar) || prevChar == '_' || prevChar == '.';
+    return text_utils::isIdent(prevChar) || prevChar == '-' || prevChar == '.';
 }
 
 void Editor::triggerCompletion()
