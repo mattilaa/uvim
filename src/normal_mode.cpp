@@ -720,6 +720,18 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         {
             ed->pythonFormatBuffer();
         }
+        else if(ed->isRobotFile())
+        {
+            ed->robotFormatBuffer();
+        }
+        else if(ed->isJsonFile())
+        {
+            ed->jsonFormatBuffer();
+        }
+        else if(ed->isYamlFile())
+        {
+            ed->yamlFormatBuffer();
+        }
         else
         {
             ed->clangFormatWithArgs("", "clang-format: formatted file");

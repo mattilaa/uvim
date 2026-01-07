@@ -61,6 +61,18 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             {
                 ed->pythonFormatBuffer();
             }
+            else if(ed->isRobotFile())
+            {
+                ed->robotFormatBuffer();
+            }
+            else if(ed->isJsonFile())
+            {
+                ed->jsonFormatBuffer();
+            }
+            else if(ed->isYamlFile())
+            {
+                ed->yamlFormatBuffer();
+            }
             else
             {
                 ed->clangFormatVisualSelection();
@@ -391,6 +403,18 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             {
                 ed->pythonFormatBuffer();
             }
+            else if(ed->isRobotFile())
+            {
+                ed->robotFormatBuffer();
+            }
+            else if(ed->isJsonFile())
+            {
+                ed->jsonFormatBuffer();
+            }
+            else if(ed->isYamlFile())
+            {
+                ed->yamlFormatBuffer();
+            }
             else
             {
                 ed->clangFormatVisualSelection();
@@ -626,6 +650,18 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
             if(ed->isPythonFile())
             {
                 ed->pythonFormatBuffer();
+            }
+            else if(ed->isRobotFile())
+            {
+                ed->robotFormatBuffer();
+            }
+            else if(ed->isJsonFile())
+            {
+                ed->jsonFormatBuffer();
+            }
+            else if(ed->isYamlFile())
+            {
+                ed->yamlFormatBuffer();
             }
             else
             {

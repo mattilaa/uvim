@@ -133,6 +133,32 @@ bool Editor::isPythonFile() const
            text_utils::iequals_ascii(ext, ".pyw");
 }
 
+bool Editor::isJsonFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+    return text_utils::iequals_ascii(ext, ".json") ||
+           text_utils::iequals_ascii(ext, ".jsonc");
+}
+
+bool Editor::isYamlFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+    return text_utils::iequals_ascii(ext, ".yaml") ||
+           text_utils::iequals_ascii(ext, ".yml");
+}
+
 size_t Editor::byteOffsetForPosition(int y, int x) const
 {
     if(!lines || lines->empty())
@@ -399,6 +425,294 @@ void Editor::pythonLintBuffer()
     if(nl != std::string::npos)
         output = output.substr(0, nl);
     setStatusMessage("ruff: " + output);
+}
+
+static std::string read_first_line(const std::string& path)
+{
+    std::ifstream in(path);
+    if(!in.is_open())
+        return {};
+    std::string line;
+    std::getline(in, line);
+    return line;
+}
+
+bool Editor::robotFormatBuffer()
+{
+    if(!lines || !filename)
+        return false;
+    if(!isRobotFile())
+    {
+        setStatusMessage("robotidy: not a Robot file");
+        return false;
+    }
+
+    const int savedY = cursorY ? *cursorY : 0;
+    const int savedX = cursorX ? *cursorX : 0;
+
+    std::string tempPath =
+        "/tmp/uvim_robot_" + std::to_string(getpid()) + ".robot";
+    std::ofstream tempFile(tempPath);
+    if(!tempFile.is_open())
+    {
+        setStatusMessage("robotidy: failed to create temp file");
+        return false;
+    }
+    for(size_t i = 0; i < lines->size(); ++i)
+        tempFile << (*lines)[i] << '\n';
+    tempFile.close();
+
+    int status = std::system(
+        ("robotidy --inplace \"" + tempPath + "\" 2>/tmp/uvim_robotidy_err.log")
+            .c_str());
+    if(status != 0)
+    {
+        std::string err = read_first_line("/tmp/uvim_robotidy_err.log");
+        if(err.empty())
+            err = "robotidy failed";
+        setStatusMessage(err);
+        unlink(tempPath.c_str());
+        return false;
+    }
+
+    status = std::system(("robocop --format --inplace \"" + tempPath +
+                          "\" 2>/tmp/uvim_robocop_err.log")
+                             .c_str());
+    if(status != 0)
+    {
+        std::string err = read_first_line("/tmp/uvim_robocop_err.log");
+        if(err.empty())
+            err = "robocop failed";
+        setStatusMessage(err);
+        unlink(tempPath.c_str());
+        return false;
+    }
+
+    std::ifstream in(tempPath);
+    if(!in.is_open())
+    {
+        unlink(tempPath.c_str());
+        setStatusMessage("robotidy: failed to read temp output");
+        return false;
+    }
+
+    std::vector<std::string> newLines;
+    std::string line;
+    while(std::getline(in, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        newLines.push_back(line);
+    }
+    in.close();
+    unlink(tempPath.c_str());
+
+    if(!newLines.empty() && newLines.back().empty())
+        newLines.pop_back();
+    if(newLines.empty())
+        newLines.push_back("");
+
+    if(newLines == *lines)
+    {
+        setStatusMessage("robotidy: no changes");
+        return true;
+    }
+
+    saveState();
+    *lines = std::move(newLines);
+    if(dirty)
+        *dirty = true;
+
+    if(cursorY && cursorX && lines && !lines->empty())
+    {
+        *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
+        *cursorX = std::clamp(savedX, 0, (int)(*lines)[*cursorY].size());
+    }
+
+    adjustViewport();
+    needsFullRedraw = true;
+    setStatusMessage("robotidy: formatted buffer");
+    return true;
+}
+
+bool Editor::jsonFormatBuffer()
+{
+    if(!lines || !filename)
+        return false;
+    if(!isJsonFile())
+    {
+        setStatusMessage("json.tool: not a JSON file");
+        return false;
+    }
+
+    const int savedY = cursorY ? *cursorY : 0;
+    const int savedX = cursorX ? *cursorX : 0;
+
+    std::string tempPath =
+        "/tmp/uvim_json_" + std::to_string(getpid()) + ".json";
+    std::string outPath =
+        "/tmp/uvim_json_" + std::to_string(getpid()) + "_out.json";
+    std::ofstream tempFile(tempPath);
+    if(!tempFile.is_open())
+    {
+        setStatusMessage("json.tool: failed to create temp file");
+        return false;
+    }
+    for(size_t i = 0; i < lines->size(); ++i)
+        tempFile << (*lines)[i] << '\n';
+    tempFile.close();
+
+    std::string cmd = "python -m json.tool \"" + tempPath + "\" > \"" +
+                      outPath + "\" 2>/tmp/uvim_json_err.log";
+    int status = std::system(cmd.c_str());
+    if(status != 0)
+    {
+        std::string err = read_first_line("/tmp/uvim_json_err.log");
+        if(err.empty())
+            err = "json.tool failed";
+        setStatusMessage(err);
+        unlink(tempPath.c_str());
+        unlink(outPath.c_str());
+        return false;
+    }
+
+    std::ifstream in(outPath);
+    if(!in.is_open())
+    {
+        unlink(tempPath.c_str());
+        unlink(outPath.c_str());
+        setStatusMessage("json.tool: failed to read temp output");
+        return false;
+    }
+
+    std::vector<std::string> newLines;
+    std::string line;
+    while(std::getline(in, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        newLines.push_back(line);
+    }
+    in.close();
+    unlink(tempPath.c_str());
+    unlink(outPath.c_str());
+
+    if(!newLines.empty() && newLines.back().empty())
+        newLines.pop_back();
+    if(newLines.empty())
+        newLines.push_back("");
+
+    if(newLines == *lines)
+    {
+        setStatusMessage("json.tool: no changes");
+        return true;
+    }
+
+    saveState();
+    *lines = std::move(newLines);
+    if(dirty)
+        *dirty = true;
+
+    if(cursorY && cursorX && lines && !lines->empty())
+    {
+        *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
+        *cursorX = std::clamp(savedX, 0, (int)(*lines)[*cursorY].size());
+    }
+
+    adjustViewport();
+    needsFullRedraw = true;
+    setStatusMessage("json.tool: formatted buffer");
+    return true;
+}
+
+bool Editor::yamlFormatBuffer()
+{
+    if(!lines || !filename)
+        return false;
+    if(!isYamlFile())
+    {
+        setStatusMessage("yaml: not a YAML file");
+        return false;
+    }
+
+    const int savedY = cursorY ? *cursorY : 0;
+    const int savedX = cursorX ? *cursorX : 0;
+
+    std::string tempPath =
+        "/tmp/uvim_yaml_" + std::to_string(getpid()) + ".yml";
+    std::string outPath =
+        "/tmp/uvim_yaml_" + std::to_string(getpid()) + "_out.yml";
+    std::ofstream tempFile(tempPath);
+    if(!tempFile.is_open())
+    {
+        setStatusMessage("yaml: failed to create temp file");
+        return false;
+    }
+    for(size_t i = 0; i < lines->size(); ++i)
+        tempFile << (*lines)[i] << '\n';
+    tempFile.close();
+
+    std::string cmd = "python -m yaml \"" + tempPath + "\" > \"" + outPath +
+                      "\" 2>/tmp/uvim_yaml_err.log";
+    int status = std::system(cmd.c_str());
+    if(status != 0)
+    {
+        std::string err = read_first_line("/tmp/uvim_yaml_err.log");
+        if(err.empty())
+            err = "yaml formatter failed";
+        setStatusMessage(err);
+        unlink(tempPath.c_str());
+        unlink(outPath.c_str());
+        return false;
+    }
+
+    std::ifstream in(outPath);
+    if(!in.is_open())
+    {
+        unlink(tempPath.c_str());
+        unlink(outPath.c_str());
+        setStatusMessage("yaml: failed to read temp output");
+        return false;
+    }
+
+    std::vector<std::string> newLines;
+    std::string line;
+    while(std::getline(in, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        newLines.push_back(line);
+    }
+    in.close();
+    unlink(tempPath.c_str());
+    unlink(outPath.c_str());
+
+    if(!newLines.empty() && newLines.back().empty())
+        newLines.pop_back();
+    if(newLines.empty())
+        newLines.push_back("");
+
+    if(newLines == *lines)
+    {
+        setStatusMessage("yaml: no changes");
+        return true;
+    }
+
+    saveState();
+    *lines = std::move(newLines);
+    if(dirty)
+        *dirty = true;
+
+    if(cursorY && cursorX && lines && !lines->empty())
+    {
+        *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
+        *cursorX = std::clamp(savedX, 0, (int)(*lines)[*cursorY].size());
+    }
+
+    adjustViewport();
+    needsFullRedraw = true;
+    setStatusMessage("yaml: formatted buffer");
+    return true;
 }
 
 void Editor::clangFormatVisualSelection()

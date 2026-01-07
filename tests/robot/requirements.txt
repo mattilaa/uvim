@@ -1,2 +1,5 @@
 robotframework>=6.1
 pexpect>=4.9.0
+robotframework-lsp
+robotframework-robocop
+PyYAML

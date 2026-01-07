@@ -494,8 +494,13 @@ public:
     bool isMlaFile() const;
     bool isRobotFile() const;
     bool isPythonFile() const;
+    bool isJsonFile() const;
+    bool isYamlFile() const;
     bool pythonFormatBuffer();
     void pythonLintBuffer();
+    bool robotFormatBuffer();
+    bool jsonFormatBuffer();
+    bool yamlFormatBuffer();
 
     // clang-format helpers (used by Leader+f in visual modes)
     size_t byteOffsetForPosition(int y, int x) const;
