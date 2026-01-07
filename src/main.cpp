@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
     std::string_view queryDriverArg;
     std::string_view robotLspPathArg = "robotframework-lsp";
     std::string_view robotLspArgsArg;
-    std::string_view pythonLspPathArg = "pylsp";
+    std::string_view pythonLspPathArg = "pyright-langserver";
     std::string_view pythonLspArgsArg;
     std::string_view logFileArg;
     bool logColors = false;
@@ -492,6 +492,52 @@ int main(int argc, char* argv[])
             args = split_args(pythonLspArgsArg);
         }
 
+        {
+            fs::path venvRoot = fs::current_path() / ".venv";
+            std::error_code ec;
+            if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
+            {
+                setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
+                prepend_env_path("PATH", (venvRoot / "bin").string());
+                std::string sp = find_site_packages(venvRoot);
+                prepend_env_path("PYTHONPATH", sp);
+            }
+        }
+
+        if(pyPath == "pyright-langserver")
+        {
+            fs::path venv = fs::current_path() / ".venv" / "bin";
+            fs::path pyrightPath = venv / "pyright-langserver";
+            std::error_code ec;
+            if(fs::exists(pyrightPath, ec) &&
+               fs::is_regular_file(pyrightPath, ec))
+            {
+                pyPath = pyrightPath.string();
+            }
+            else
+            {
+                std::string found = find_in_path("pyright-langserver");
+                if(!found.empty())
+                {
+                    pyPath = found;
+                }
+                else
+                {
+                    fs::path brewPath = "/opt/homebrew/bin/pyright-langserver";
+                    fs::path localPath = "/usr/local/bin/pyright-langserver";
+                    if(fs::exists(brewPath, ec) &&
+                       fs::is_regular_file(brewPath, ec))
+                    {
+                        pyPath = brewPath.string();
+                    }
+                    else if(fs::exists(localPath, ec) &&
+                            fs::is_regular_file(localPath, ec))
+                    {
+                        pyPath = localPath.string();
+                    }
+                }
+            }
+        }
         if(pyPath == "pylsp")
         {
             fs::path venv = fs::current_path() / ".venv" / "bin";
@@ -531,18 +577,6 @@ int main(int argc, char* argv[])
                 found = find_in_path("pyright-langserver");
                 if(!found.empty())
                     pyPath = found;
-            }
-        }
-
-        {
-            fs::path venvRoot = fs::current_path() / ".venv";
-            std::error_code ec;
-            if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
-            {
-                setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
-                prepend_env_path("PATH", (venvRoot / "bin").string());
-                std::string sp = find_site_packages(venvRoot);
-                prepend_env_path("PYTHONPATH", sp);
             }
         }
 
