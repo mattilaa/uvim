@@ -354,6 +354,54 @@ void Editor::requestCompletion()
         needsFullRedraw = true;
         setStatusMessage(std::string(label) + " completion: keywords");
     };
+    auto bufferWordFallback = [&](std::string_view label)
+    {
+        completionAll.clear();
+        completionFiltered.clear();
+        completionSelected = 0;
+        completionScroll = 0;
+
+        auto isWordChar = [](char c)
+        { return text_utils::isIdent(c) || c == '-' || c == '.'; };
+
+        std::unordered_set<std::string> seen;
+        completionAll.reserve(lines->size() * 2);
+
+        for(const auto& l : *lines)
+        {
+            size_t i = 0;
+            while(i < l.size())
+            {
+                while(i < l.size() && !isWordChar(l[i]))
+                    ++i;
+                size_t start = i;
+                while(i < l.size() && isWordChar(l[i]))
+                    ++i;
+                if(start >= i)
+                    continue;
+
+                std::string word = l.substr(start, i - start);
+                if(seen.insert(word).second)
+                {
+                    CompletionEntry e;
+                    e.label = std::move(word);
+                    completionAll.push_back(std::move(e));
+                }
+            }
+        }
+
+        if(completionAll.empty())
+        {
+            cancelCompletion();
+            setStatusMessage("completion: no words");
+            return;
+        }
+
+        completionActive = true;
+        rebuildCompletionFilter();
+        needsFullRedraw = true;
+        setStatusMessage(std::string(label) + " completion: buffer words");
+    };
 
     LspClient* client = nullptr;
     std::string label;
@@ -438,7 +486,10 @@ void Editor::requestCompletion()
     }
     else
     {
-        setStatusMessage("completion: no LSP for filetype");
+        const std::string& line = (*lines)[*cursorY];
+        completionAnchorX = computeCompletionAnchor(line, *cursorX);
+        completionAnchorY = *cursorY;
+        bufferWordFallback("buffer");
         return;
     }
 
