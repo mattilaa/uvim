@@ -175,6 +175,8 @@ public:
     bool autoBraces = true;
     int tabSpaces = 4;
     std::string configPath;
+    bool syntaxJson = true;
+    bool syntaxYaml = true;
 
     // Drawing - Original functions
     void draw();

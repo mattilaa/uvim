@@ -566,6 +566,22 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     autoBraces = false;
             }
+            auto itj = values.find("editor.syntax.json");
+            if(itj == values.end())
+                itj = values.find("syntax.json");
+            if(itj != values.end())
+            {
+                std::string v = itj->second;
+                syntaxJson = !(v == "false" || v == "0" || v == "off");
+            }
+            auto ity = values.find("editor.syntax.yaml");
+            if(ity == values.end())
+                ity = values.find("syntax.yaml");
+            if(ity != values.end())
+            {
+                std::string v = ity->second;
+                syntaxYaml = !(v == "false" || v == "0" || v == "off");
+            }
         }
     }
 

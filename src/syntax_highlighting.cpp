@@ -1105,6 +1105,101 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
+    if(isJsonFile() || isYamlFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        auto is_bool_null = [](std::string_view word) -> bool
+        {
+            return word == "true" || word == "false" || word == "null" ||
+                   word == "True" || word == "False" || word == "None";
+        };
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+            if(i < len - 1 && sv[i] == '/' && sv[i + 1] == '/')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(sv[i] == '"' || sv[i] == '\'')
+            {
+                char quote = sv[i];
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+
+                int tokenLen = i - start;
+                TokenType type = TOKEN_STRING;
+                int j = i;
+                while(j < len && text_utils::is_space(sv[j]))
+                    ++j;
+                if(j < len && sv[j] == ':')
+                    type = TOKEN_KEYWORD;
+                tokens.push_back({type, start, tokenLen});
+                continue;
+            }
+
+            if(text_utils::is_digit(sv[i]) ||
+               (sv[i] == '-' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
+            {
+                int start = i++;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                                  sv[i] == 'e' || sv[i] == 'E' ||
+                                  sv[i] == '_' || sv[i] == '+' || sv[i] == '-'))
+                {
+                    ++i;
+                }
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_alpha(sv[i]))
+            {
+                int start = i;
+                while(i < len && text_utils::is_alnum(sv[i]))
+                    ++i;
+                std::string_view word = sv.substr(start, i - start);
+                if(is_bool_null(word))
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                continue;
+            }
+
+            if(cpp_constants::is_operator_char(sv[i]))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
     std::vector<Token> tokens;
     std::string_view sv{line};
 
