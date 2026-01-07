@@ -18,14 +18,45 @@ namespace fs = std::filesystem;
 void Editor::findReferences()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!isClangdLspEnabled())
+    LspClient* client = nullptr;
+    std::string label;
+    std::string languageId;
+    if(isRobotFile())
     {
-        setStatusMessage("clangd: not enabled");
-        return;
+        if(!isRobotLspEnabled())
+        {
+            setStatusMessage("robot LSP: not enabled");
+            return;
+        }
+        client = robotLspClient.get();
+        label = "robot";
+        languageId = "robotframework";
     }
-    if(!isCppFile())
+    else if(isPythonFile())
     {
-        setStatusMessage("clangd references: only for C/C++");
+        if(!isPythonLspEnabled())
+        {
+            setStatusMessage("python LSP: not enabled");
+            return;
+        }
+        client = pythonLspClient.get();
+        label = "python";
+        languageId = "python";
+    }
+    else if(isCppFile())
+    {
+        if(!isClangdLspEnabled())
+        {
+            setStatusMessage("clangd: not enabled");
+            return;
+        }
+        client = lspClient.get();
+        label = "clangd";
+        languageId = "cpp";
+    }
+    else
+    {
+        setStatusMessage("references: no LSP for filetype");
         return;
     }
 
@@ -38,14 +69,14 @@ void Editor::findReferences()
         if(i + 1 < lines->size())
             text.push_back('\n');
     }
-    lspClient->didChange(currentBuffer->filename, text);
+    client->didChange(currentBuffer->filename, text, languageId);
 
     setStatusMessage("Finding references...");
     refreshScreen();
 
     // Query references
-    auto refs = lspClient->references(currentBuffer->filename, *cursorY,
-                                      *cursorX, true);
+    auto refs =
+        client->references(currentBuffer->filename, *cursorY, *cursorX, true);
 
     if(refs.empty())
     {
@@ -95,10 +126,10 @@ void Editor::findReferences()
     referencesOffset = 0;
     referencesPreview = true;
 
-    setStatusMessage(std::to_string(referencesList.size()) +
-                     " references found");
+    setStatusMessage(label + " references: " +
+                     std::to_string(referencesList.size()) + " found");
 #else
-    setStatusMessage("clangd references: not compiled in");
+    setStatusMessage("LSP references: not compiled in");
 #endif
 }
 

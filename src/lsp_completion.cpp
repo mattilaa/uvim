@@ -327,14 +327,118 @@ static inline int fuzzyScore(const std::string& text,
 void Editor::requestCompletion()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!isClangdLspEnabled())
+    auto keywordFallback =
+        [&](const std::vector<std::string_view>& words, std::string_view label)
     {
-        setStatusMessage("clangd completion: OFF");
-        return;
+        completionAll.clear();
+        completionFiltered.clear();
+        completionSelected = 0;
+        completionScroll = 0;
+
+        completionAll.reserve(words.size());
+        for(const auto& w : words)
+        {
+            CompletionEntry e;
+            e.label = std::string(w);
+            completionAll.push_back(std::move(e));
+        }
+
+        if(completionAll.empty())
+        {
+            cancelCompletion();
+            return;
+        }
+
+        completionActive = true;
+        rebuildCompletionFilter();
+        needsFullRedraw = true;
+        setStatusMessage(std::string(label) + " completion: keywords");
+    };
+
+    LspClient* client = nullptr;
+    std::string label;
+    std::string languageId;
+    if(isRobotFile())
+    {
+        if(!isRobotLspEnabled())
+        {
+            setStatusMessage("robot LSP: OFF");
+            static constexpr std::string_view kRobotKeywords[] = {
+                "*** Settings ***",
+                "*** Variables ***",
+                "*** Test Cases ***",
+                "*** Tasks ***",
+                "*** Keywords ***",
+                "*** Comments ***",
+                "Run Keyword",
+                "Run Keyword And Return Status",
+                "Run Keyword If",
+                "Run Keywords",
+                "Should Be Equal",
+                "Should Contain",
+                "Log",
+                "Sleep",
+                "FOR",
+                "END",
+                "IF",
+                "ELSE",
+                "ELSE IF",
+                "TRY",
+                "EXCEPT",
+                "FINALLY",
+            };
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            keywordFallback(
+                {std::begin(kRobotKeywords), std::end(kRobotKeywords)},
+                "robot");
+            return;
+        }
+        client = robotLspClient.get();
+        label = "robot";
+        languageId = "robotframework";
     }
-    if(!isCppFile())
+    else if(isPythonFile())
     {
-        setStatusMessage("clangd completion: only for C/C++");
+        if(!isPythonLspEnabled())
+        {
+            setStatusMessage("python LSP: OFF");
+            static constexpr std::string_view kPythonKeywords[] = {
+                "and",    "as",       "assert",   "async", "await",  "break",
+                "class",  "continue", "def",      "del",   "elif",   "else",
+                "except", "False",    "finally",  "for",   "from",   "global",
+                "if",     "import",   "in",       "is",    "lambda", "match",
+                "case",   "None",     "nonlocal", "not",   "or",     "pass",
+                "raise",  "return",   "True",     "try",   "while",  "with",
+                "yield",
+            };
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            keywordFallback(
+                {std::begin(kPythonKeywords), std::end(kPythonKeywords)},
+                "python");
+            return;
+        }
+        client = pythonLspClient.get();
+        label = "python";
+        languageId = "python";
+    }
+    else if(isCppFile())
+    {
+        if(!isClangdLspEnabled())
+        {
+            setStatusMessage("clangd completion: OFF");
+            return;
+        }
+        client = lspClient.get();
+        label = "clangd";
+        languageId = "cpp";
+    }
+    else
+    {
+        setStatusMessage("completion: no LSP for filetype");
         return;
     }
 
@@ -344,78 +448,84 @@ void Editor::requestCompletion()
     completionAnchorX = ax;
     completionAnchorY = *cursorY;
 
-    if(auto includeCtx = findIncludeContext(line, *cursorX))
+    if(isCppFile())
     {
-        completionAll.clear();
-        completionFiltered.clear();
-        completionSelected = 0;
-        completionScroll = 0;
-
-        std::unordered_set<std::string> seen;
-        completionAll.reserve(256);
-
-        if(includeCtx->isSystem)
+        if(auto includeCtx = findIncludeContext(line, *cursorX))
         {
-            std::vector<std::string> systemPaths;
+            completionAll.clear();
+            completionFiltered.clear();
+            completionSelected = 0;
+            completionScroll = 0;
+
+            std::unordered_set<std::string> seen;
+            completionAll.reserve(256);
+
+            if(includeCtx->isSystem)
+            {
+                std::vector<std::string> systemPaths;
 #ifdef __APPLE__
-            systemPaths = {
-                "/Applications/Xcode.app/Contents/Developer/Platforms/"
-                "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1",
-                "/Applications/Xcode.app/Contents/Developer/Toolchains/"
-                "XcodeDefault.xctoolchain/usr/lib/clang/17/include",
-                "/Applications/Xcode.app/Contents/Developer/Platforms/"
-                "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include",
-                "/usr/local/include",
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
-                "include/"
-                "c++/v1",
-                "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-            };
+                systemPaths = {
+                    "/Applications/Xcode.app/Contents/Developer/Platforms/"
+                    "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/"
+                    "v1",
+                    "/Applications/Xcode.app/Contents/Developer/Toolchains/"
+                    "XcodeDefault.xctoolchain/usr/lib/clang/17/include",
+                    "/Applications/Xcode.app/Contents/Developer/Platforms/"
+                    "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include",
+                    "/usr/local/include",
+                    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+                    "include/"
+                    "c++/v1",
+                    "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+                };
 #else
-            systemPaths = {
-                "/usr/include/c++/13",
-                "/usr/include/c++/12",
-                "/usr/include/c++/11",
-                "/usr/include/x86_64-linux-gnu/c++/13",
-                "/usr/include/x86_64-linux-gnu/c++/12",
-                "/usr/include/x86_64-linux-gnu/c++/11",
-                "/usr/include",
-                "/usr/local/include",
-            };
+                systemPaths = {
+                    "/usr/include/c++/13",
+                    "/usr/include/c++/12",
+                    "/usr/include/c++/11",
+                    "/usr/include/x86_64-linux-gnu/c++/13",
+                    "/usr/include/x86_64-linux-gnu/c++/12",
+                    "/usr/include/x86_64-linux-gnu/c++/11",
+                    "/usr/include",
+                    "/usr/local/include",
+                };
 #endif
 
-            for(const auto& base : systemPaths)
+                for(const auto& base : systemPaths)
+                {
+                    appendIncludeEntries(base, includeCtx->dirPrefix,
+                                         includeCtx->filePrefix, completionAll,
+                                         seen);
+                }
+            }
+            else
             {
-                appendIncludeEntries(base, includeCtx->dirPrefix,
+                std::string currentDir = ".";
+                if(currentBuffer && !currentBuffer->filename.empty())
+                {
+                    size_t lastSlash = currentBuffer->filename.rfind('/');
+                    if(lastSlash != std::string::npos)
+                        currentDir =
+                            currentBuffer->filename.substr(0, lastSlash);
+                }
+
+                appendIncludeEntries(currentDir, includeCtx->dirPrefix,
                                      includeCtx->filePrefix, completionAll,
                                      seen);
             }
-        }
-        else
-        {
-            std::string currentDir = ".";
-            if(currentBuffer && !currentBuffer->filename.empty())
+
+            if(completionAll.empty())
             {
-                size_t lastSlash = currentBuffer->filename.rfind('/');
-                if(lastSlash != std::string::npos)
-                    currentDir = currentBuffer->filename.substr(0, lastSlash);
+                cancelCompletion();
+                setStatusMessage("include completion: no results");
+                return;
             }
 
-            appendIncludeEntries(currentDir, includeCtx->dirPrefix,
-                                 includeCtx->filePrefix, completionAll, seen);
-        }
-
-        if(completionAll.empty())
-        {
-            cancelCompletion();
-            setStatusMessage("include completion: no results");
+            completionActive = true;
+            rebuildCompletionFilter();
+            needsFullRedraw = true;
             return;
         }
-
-        completionActive = true;
-        rebuildCompletionFilter();
-        needsFullRedraw = true;
-        return;
     }
 
     // Sync buffer text.
@@ -427,10 +537,10 @@ void Editor::requestCompletion()
         if(i + 1 < lines->size())
             text.push_back('\n');
     }
-    lspClient->didChange(currentBuffer->filename, text);
+    client->didChange(currentBuffer->filename, text, languageId);
 
     auto items =
-        lspClient->completion(currentBuffer->filename, *cursorY, *cursorX);
+        client->completion(currentBuffer->filename, *cursorY, *cursorX);
     completionAll.clear();
     completionAll.reserve(items.size());
 
@@ -446,7 +556,54 @@ void Editor::requestCompletion()
     if(completionAll.empty())
     {
         cancelCompletion();
-        setStatusMessage("clangd completion: no results");
+        if(isRobotFile())
+        {
+            static constexpr std::string_view kRobotKeywords[] = {
+                "*** Settings ***",
+                "*** Variables ***",
+                "*** Test Cases ***",
+                "*** Tasks ***",
+                "*** Keywords ***",
+                "*** Comments ***",
+                "Run Keyword",
+                "Run Keyword And Return Status",
+                "Run Keyword If",
+                "Run Keywords",
+                "Should Be Equal",
+                "Should Contain",
+                "Log",
+                "Sleep",
+                "FOR",
+                "END",
+                "IF",
+                "ELSE",
+                "ELSE IF",
+                "TRY",
+                "EXCEPT",
+                "FINALLY",
+            };
+            keywordFallback(
+                {std::begin(kRobotKeywords), std::end(kRobotKeywords)},
+                "robot");
+            return;
+        }
+        if(isPythonFile())
+        {
+            static constexpr std::string_view kPythonKeywords[] = {
+                "and",    "as",       "assert",   "async", "await",  "break",
+                "class",  "continue", "def",      "del",   "elif",   "else",
+                "except", "False",    "finally",  "for",   "from",   "global",
+                "if",     "import",   "in",       "is",    "lambda", "match",
+                "case",   "None",     "nonlocal", "not",   "or",     "pass",
+                "raise",  "return",   "True",     "try",   "while",  "with",
+                "yield",
+            };
+            keywordFallback(
+                {std::begin(kPythonKeywords), std::end(kPythonKeywords)},
+                "python");
+            return;
+        }
+        setStatusMessage(label + " completion: no results");
         return;
     }
 
@@ -456,7 +613,7 @@ void Editor::requestCompletion()
     rebuildCompletionFilter();
     needsFullRedraw = true;
 #else
-    setStatusMessage("clangd completion: not compiled in");
+    setStatusMessage("LSP completion: not compiled in");
 #endif
 }
 

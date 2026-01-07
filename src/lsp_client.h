@@ -27,6 +27,8 @@ public:
     bool start(const std::string& clangdPath, const std::string& rootDir,
                const std::string& compileCommandsDir = "",
                const std::string& queryDriverAllowList = "");
+    bool startServer(const std::string& serverPath, const std::string& rootDir,
+                     const std::vector<std::string>& args = {});
 
     void stop();
     bool running() const;
@@ -35,6 +37,8 @@ public:
     void didOpen(const std::string& filePath, const std::string& languageId,
                  const std::string& text);
     void didChange(const std::string& filePath, const std::string& text);
+    void didChange(const std::string& filePath, const std::string& text,
+                   const std::string& languageId);
     void didSave(const std::string& filePath);
 
     // Queries

@@ -233,10 +233,6 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         ed->scrollHalfPageUp(false);
         didMove = true;
         break;
-    case '%':
-        ed->moveToMatchingBracket();
-        didMove = true;
-        break;
     case Terminal::CTRL_F:
     case Terminal::PAGE_DOWN:
         ed->scrollPageDown();

@@ -209,9 +209,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isCppFile())
+                    if(isCppFile() || isRobotFile() || isPythonFile())
                     {
-                        // Use syntax highlighting for C++ files
+                        // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
                     }
                     else
@@ -333,9 +333,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isCppFile())
+                    if(isCppFile() || isRobotFile() || isPythonFile())
                     {
-                        // Use syntax highlighting for C++ files
+                        // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
                     }
                     else
@@ -659,10 +659,10 @@ void Editor::drawFullScreen()
                 }
 
                 // Check if we should use syntax highlighting
-                if(isCppFile())
+                if(isCppFile() || isRobotFile() || isPythonFile())
                 {
-                    // Use syntax highlighting for C++ files (handles selections
-                    // too)
+                    // Use syntax highlighting for supported files (handles
+                    // selections too)
                     renderLineWithSyntax(output, line, start, len, fileRow);
                 }
                 else if(!hasHighlighting)

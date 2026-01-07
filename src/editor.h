@@ -39,6 +39,14 @@ public:
                          const std::string& clangdPath = "clangd",
                          const std::string& queryDriverAllowList = "");
     bool isClangdLspEnabled() const;
+    void enableRobotLsp(bool enable,
+                        const std::string& robotLspPath = "robotframework-lsp",
+                        const std::vector<std::string>& robotLspArgs = {});
+    bool isRobotLspEnabled() const;
+    void enablePythonLsp(bool enable,
+                         const std::string& pythonLspPath = "pylsp",
+                         const std::vector<std::string>& pythonLspArgs = {});
+    bool isPythonLspEnabled() const;
 
     void run();
     void openFile(std::string_view filename);
@@ -114,8 +122,16 @@ public:
     std::string clangdLspCompileCommandsDir;
     std::string clangdLspPath = "clangd";
     std::string clangdLspQueryDriverAllowList;
+    bool robotLspEnabled = false;
+    std::string robotLspPath = "robotframework-lsp";
+    std::vector<std::string> robotLspArgs;
+    bool pythonLspEnabled = false;
+    std::string pythonLspPath = "pylsp";
+    std::vector<std::string> pythonLspArgs;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
+    std::unique_ptr<LspClient> robotLspClient;
+    std::unique_ptr<LspClient> pythonLspClient;
 #endif
 
     Theme theme;
@@ -476,6 +492,8 @@ public:
 
     bool isCppFile() const;
     bool isMlaFile() const;
+    bool isRobotFile() const;
+    bool isPythonFile() const;
 
     // clang-format helpers (used by Leader+f in visual modes)
     size_t byteOffsetForPosition(int y, int x) const;

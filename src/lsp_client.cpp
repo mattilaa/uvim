@@ -11,6 +11,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <thread>
@@ -391,6 +392,10 @@ struct LspClient::Impl
         json params;
         params["processId"] = (int)getpid();
         params["rootUri"] = pathToFileUri(rootDir);
+        params["rootPath"] = absPath(rootDir);
+        params["workspaceFolders"] = json::array({json{
+            {"uri", pathToFileUri(rootDir)},
+            {"name", std::filesystem::path(rootDir).filename().string()}}});
         params["capabilities"] = json::object(); // minimal
 
         int id = sendRequest("initialize", params);
@@ -446,6 +451,27 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
     return true;
 }
 
+bool LspClient::startServer(const std::string& serverPath,
+                            const std::string& rootDir,
+                            const std::vector<std::string>& args)
+{
+    if(running())
+        return true;
+
+    impl->rootDir = absPath(rootDir);
+
+    if(!impl->startClangd(serverPath, args))
+        return false;
+
+    if(!impl->initialize(impl->rootDir))
+    {
+        stop();
+        return false;
+    }
+
+    return true;
+}
+
 void LspClient::stop()
 {
     if(!impl)
@@ -463,27 +489,27 @@ void LspClient::stop()
         catch(...)
         {
         }
-
-        impl->alive.store(false);
-        if(impl->inFd >= 0)
-            close(impl->inFd);
-        if(impl->outFd >= 0)
-            close(impl->outFd);
-
-        if(impl->reader.joinable())
-            impl->reader.join();
-
-        if(impl->pid > 0)
-        {
-            int status = 0;
-            waitpid(impl->pid, &status, 0);
-        }
-
-        impl->inFd = impl->outFd = -1;
-        impl->pid = -1;
-        impl->responses.clear();
-        impl->docVersion.clear();
     }
+
+    impl->alive.store(false);
+    if(impl->inFd >= 0)
+        close(impl->inFd);
+    if(impl->outFd >= 0)
+        close(impl->outFd);
+
+    if(impl->reader.joinable())
+        impl->reader.join();
+
+    if(impl->pid > 0)
+    {
+        int status = 0;
+        waitpid(impl->pid, &status, 0);
+    }
+
+    impl->inFd = impl->outFd = -1;
+    impl->pid = -1;
+    impl->responses.clear();
+    impl->docVersion.clear();
 }
 
 bool LspClient::running() const
@@ -514,6 +540,12 @@ void LspClient::didOpen(const std::string& filePath,
 
 void LspClient::didChange(const std::string& filePath, const std::string& text)
 {
+    didChange(filePath, text, "cpp");
+}
+
+void LspClient::didChange(const std::string& filePath, const std::string& text,
+                          const std::string& languageId)
+{
     if(!running())
         return;
 
@@ -523,7 +555,7 @@ void LspClient::didChange(const std::string& filePath, const std::string& text)
     auto it0 = impl->docVersion.find(abs);
     if(it0 == impl->docVersion.end())
     {
-        didOpen(abs, "cpp", text);
+        didOpen(abs, languageId, text);
         return;
     }
 
@@ -843,6 +875,11 @@ bool LspClient::start(const std::string&, const std::string&,
 {
     return false;
 }
+bool LspClient::startServer(const std::string&, const std::string&,
+                            const std::vector<std::string>&)
+{
+    return false;
+}
 void LspClient::stop() {}
 bool LspClient::running() const
 {
@@ -853,6 +890,10 @@ void LspClient::didOpen(const std::string&, const std::string&,
 {
 }
 void LspClient::didChange(const std::string&, const std::string&) {}
+void LspClient::didChange(const std::string&, const std::string&,
+                          const std::string&)
+{
+}
 void LspClient::didSave(const std::string&) {}
 std::optional<LspClient::Location> LspClient::definition(const std::string&,
                                                          int, int)

@@ -32,6 +32,20 @@ namespace fs = std::filesystem;
 
 static mla::log::FileLogger LOG("uvim");
 
+// Local helpers used by gd fallbacks.
+static std::string_view robot_first_cell(std::string_view line);
+static bool robot_keyword_section(std::string_view line);
+static bool robot_section_header(std::string_view line);
+static bool robot_is_keyword_def(std::string_view line);
+static bool python_def_line(std::string_view line, std::string_view symbol);
+static bool find_robot_keyword_in_file(const std::string& path,
+                                       std::string_view keyword, int& outY,
+                                       int& outX);
+static bool find_python_def_in_file(const std::string& path,
+                                    std::string_view symbol, int& outY,
+                                    int& outX);
+static bool is_skip_dir(const std::filesystem::path& path);
+
 namespace
 {
 static std::unordered_map<std::string, std::string>
@@ -173,6 +187,93 @@ static void handle_sigwinch(int)
 static bool isIdent(char c)
 {
     return std::isalnum((unsigned char)c) || c == '_';
+}
+
+static std::string_view robot_first_cell(std::string_view line)
+{
+    line = trim_view(line);
+    if(line.empty())
+        return {};
+
+    size_t i = 0;
+    int spaceRun = 0;
+    for(; i < line.size(); ++i)
+    {
+        if(line[i] == '\t')
+            break;
+        if(line[i] == ' ')
+        {
+            spaceRun++;
+            if(spaceRun >= 2)
+                break;
+        }
+        else
+        {
+            spaceRun = 0;
+        }
+    }
+
+    size_t end = i;
+    if(end > 0 && line[end - 1] == ' ')
+        --end;
+    return line.substr(0, end);
+}
+
+static bool robot_keyword_section(std::string_view line)
+{
+    line = trim_view(line);
+    if(!(line.starts_with("***") && line.ends_with("***")))
+        return false;
+
+    line.remove_prefix(3);
+    line.remove_suffix(3);
+    line = trim_view(line);
+    return text_utils::iequals_ascii(line, "Keywords");
+}
+
+static bool robot_section_header(std::string_view line)
+{
+    line = trim_view(line);
+    return line.starts_with("***") && line.ends_with("***");
+}
+
+static bool robot_is_keyword_def(std::string_view line)
+{
+    if(line.empty())
+        return false;
+    if(text_utils::is_space(line.front()))
+        return false;
+    line = trim_view(line);
+    if(line.empty())
+        return false;
+    if(line.starts_with("***"))
+        return false;
+    if(line.starts_with("["))
+        return false;
+    if(line.starts_with("#"))
+        return false;
+    return true;
+}
+
+static bool python_def_line(std::string_view line, std::string_view symbol)
+{
+    line = trim_view(line);
+    if(line.starts_with("def "))
+        line.remove_prefix(4);
+    else if(line.starts_with("class "))
+        line.remove_prefix(6);
+    else
+        return false;
+
+    if(line.empty())
+        return false;
+    size_t i = 0;
+    while(i < line.size() && isIdent(line[i]))
+        ++i;
+    if(i == 0)
+        return false;
+    std::string_view name = line.substr(0, i);
+    return text_utils::iequals_ascii(name, symbol);
 }
 
 // Check if a line is likely a variable/parameter declaration for the symbol
@@ -570,6 +671,118 @@ bool Editor::isClangdLspEnabled() const
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     return clangdLspEnabled && lspClient && lspClient->running();
+#else
+    return false;
+#endif
+}
+
+void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
+                            const std::vector<std::string>& robotLspArgs)
+{
+    robotLspEnabled = false;
+    this->robotLspPath = robotLspPath;
+    this->robotLspArgs = robotLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(robotLspClient)
+        {
+            robotLspClient->stop();
+            robotLspClient.reset();
+        }
+        return;
+    }
+
+    char cwd[PATH_MAX];
+    std::string rootDir = ".";
+    if(getcwd(cwd, sizeof(cwd)))
+        rootDir = std::string(cwd);
+
+    std::vector<std::string> args = this->robotLspArgs;
+    if(args.empty())
+    {
+        args.push_back("--stdio");
+    }
+
+    robotLspClient = std::make_unique<LspClient>();
+    if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
+    {
+        robotLspClient.reset();
+        setStatusMessage("robot LSP: failed to start");
+        return;
+    }
+
+    robotLspEnabled = true;
+    setStatusMessage("robot LSP: ON");
+#else
+    (void)enable;
+    (void)robotLspPath;
+    (void)robotLspArgs;
+    setStatusMessage("robot LSP: not compiled in");
+#endif
+}
+
+bool Editor::isRobotLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return robotLspEnabled && robotLspClient && robotLspClient->running();
+#else
+    return false;
+#endif
+}
+
+void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
+                             const std::vector<std::string>& pythonLspArgs)
+{
+    pythonLspEnabled = false;
+    this->pythonLspPath = pythonLspPath;
+    this->pythonLspArgs = pythonLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(pythonLspClient)
+        {
+            pythonLspClient->stop();
+            pythonLspClient.reset();
+        }
+        return;
+    }
+
+    char cwd[PATH_MAX];
+    std::string rootDir = ".";
+    if(getcwd(cwd, sizeof(cwd)))
+        rootDir = std::string(cwd);
+
+    std::vector<std::string> args = this->pythonLspArgs;
+    if(args.empty())
+    {
+        args.push_back("--stdio");
+    }
+
+    pythonLspClient = std::make_unique<LspClient>();
+    if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
+    {
+        pythonLspClient.reset();
+        setStatusMessage("python LSP: failed to start");
+        return;
+    }
+
+    pythonLspEnabled = true;
+    setStatusMessage("python LSP: ON");
+#else
+    (void)enable;
+    (void)pythonLspPath;
+    (void)pythonLspArgs;
+    setStatusMessage("python LSP: not compiled in");
+#endif
+}
+
+bool Editor::isPythonLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return pythonLspEnabled && pythonLspClient && pythonLspClient->running();
 #else
     return false;
 #endif
@@ -1357,7 +1570,7 @@ void Editor::openFile(std::string_view fname)
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     // Notify LSP about the newly opened file so gd works from system headers
-    if(isClangdLspEnabled() && lspClient)
+    if(isClangdLspEnabled() && isCppFile() && lspClient)
     {
         // Build text content from loaded lines
         std::string text;
@@ -1369,7 +1582,31 @@ void Editor::openFile(std::string_view fname)
                 text.push_back('\n');
         }
         // didChange will call didOpen if needed
-        lspClient->didChange(path, text);
+        lspClient->didChange(path, text, "cpp");
+    }
+    if(isRobotLspEnabled() && isRobotFile() && robotLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        robotLspClient->didChange(path, text, "robotframework");
+    }
+    if(isPythonLspEnabled() && isPythonFile() && pythonLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        pythonLspClient->didChange(path, text, "python");
     }
 #endif
 
@@ -2158,9 +2395,189 @@ void Editor::goToDefinition()
     }
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
+    if(isRobotLspEnabled() && isRobotFile())
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+
+        robotLspClient->didChange(currentBuffer->filename, text,
+                                  "robotframework");
+        auto loc = robotLspClient->definition(currentBuffer->filename, *cursorY,
+                                              *cursorX);
+        if(loc)
+        {
+            pushJumpLocation();
+            openFile(loc->path);
+            *cursorY = loc->line;
+            *cursorX = loc->character;
+
+            if(*cursorY >= (int)lines->size())
+                *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+            if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+
+            centerScreen();
+            setStatusMessage("gd (robot) → " + loc->path + ":" +
+                             std::to_string(loc->line + 1));
+            return;
+        }
+
+        std::string_view lineView;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+            lineView = (*lines)[*cursorY];
+        std::string_view keyword = robot_first_cell(lineView);
+        if(keyword.empty())
+        {
+            setStatusMessage("gd (robot): no keyword");
+            return;
+        }
+
+        int defY = -1;
+        int defX = 0;
+        if(find_robot_keyword_in_file(currentBuffer->filename, keyword, defY,
+                                      defX))
+        {
+            *cursorY = defY;
+            *cursorX = defX;
+            centerScreen();
+            setStatusMessage("gd (robot) → " + *filename + ":" +
+                             std::to_string(defY + 1));
+            return;
+        }
+
+        std::filesystem::path root = std::filesystem::current_path();
+        std::error_code ec;
+        for(std::filesystem::recursive_directory_iterator it(
+                root,
+                std::filesystem::directory_options::skip_permission_denied, ec),
+            end;
+            it != end; ++it)
+        {
+            if(it->is_directory(ec) && is_skip_dir(it->path()))
+            {
+                it.disable_recursion_pending();
+                continue;
+            }
+            if(!it->is_regular_file(ec))
+                continue;
+            const auto& p = it->path();
+            std::string ext = p.extension().string();
+            if(ext != ".robot" && ext != ".resource" &&
+               ext != ".robotframework")
+                continue;
+            if(find_robot_keyword_in_file(p.string(), keyword, defY, defX))
+            {
+                pushJumpLocation();
+                openFile(p.string());
+                *cursorY = defY;
+                *cursorX = defX;
+                centerScreen();
+                setStatusMessage("gd (robot) → " + p.string() + ":" +
+                                 std::to_string(defY + 1));
+                return;
+            }
+        }
+
+        setStatusMessage("gd (robot): not found");
+        return;
+    }
+
+    if(isPythonLspEnabled() && isPythonFile())
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+
+        pythonLspClient->didChange(currentBuffer->filename, text, "python");
+        auto loc = pythonLspClient->definition(currentBuffer->filename,
+                                               *cursorY, *cursorX);
+        if(loc)
+        {
+            pushJumpLocation();
+            openFile(loc->path);
+            *cursorY = loc->line;
+            *cursorX = loc->character;
+
+            if(*cursorY >= (int)lines->size())
+                *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+            if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+
+            centerScreen();
+            setStatusMessage("gd (python) → " + loc->path + ":" +
+                             std::to_string(loc->line + 1));
+            return;
+        }
+
+        std::string symbol = getSymbolUnderCursor();
+        if(symbol.empty())
+        {
+            setStatusMessage("gd (python): no symbol");
+            return;
+        }
+
+        int defY = -1;
+        int defX = 0;
+        if(find_python_def_in_file(currentBuffer->filename, symbol, defY, defX))
+        {
+            *cursorY = defY;
+            *cursorX = defX;
+            centerScreen();
+            setStatusMessage("gd (python) → " + *filename + ":" +
+                             std::to_string(defY + 1));
+            return;
+        }
+
+        std::filesystem::path root = std::filesystem::current_path();
+        std::error_code ec;
+        for(std::filesystem::recursive_directory_iterator it(
+                root,
+                std::filesystem::directory_options::skip_permission_denied, ec),
+            end;
+            it != end; ++it)
+        {
+            if(it->is_directory(ec) && is_skip_dir(it->path()))
+            {
+                it.disable_recursion_pending();
+                continue;
+            }
+            if(!it->is_regular_file(ec))
+                continue;
+            const auto& p = it->path();
+            std::string ext = p.extension().string();
+            if(ext != ".py" && ext != ".pyi" && ext != ".pyw")
+                continue;
+            if(find_python_def_in_file(p.string(), symbol, defY, defX))
+            {
+                pushJumpLocation();
+                openFile(p.string());
+                *cursorY = defY;
+                *cursorX = defX;
+                centerScreen();
+                setStatusMessage("gd (python) → " + p.string() + ":" +
+                                 std::to_string(defY + 1));
+                return;
+            }
+        }
+
+        setStatusMessage("gd (python): not found");
+        return;
+    }
+
     // Prefer clangd definition when enabled; fallback to heuristic gd
     // otherwise.
-    if(isClangdLspEnabled())
+    if(isClangdLspEnabled() && isCppFile())
     {
         // Sync buffer text (full-text change) before querying.
         std::string text;
@@ -2176,7 +2593,7 @@ void Editor::goToDefinition()
         // If this file hasn't been seen yet, didOpen is fine; otherwise
         // didChange updates version. We'll conservatively call didChange after
         // didOpen attempt.
-        lspClient->didChange(currentBuffer->filename, text);
+        lspClient->didChange(currentBuffer->filename, text, "cpp");
 
         // LSP uses UTF-16 positions; lsp_client converts from utf8 byte offset.
         auto loc =
@@ -3532,6 +3949,72 @@ bool isLikelyDefinition(const std::string& line, const std::string& symbol)
         return true;
 
     return false;
+}
+
+static bool find_robot_keyword_in_file(const std::string& path,
+                                       std::string_view keyword, int& outY,
+                                       int& outX)
+{
+    std::ifstream file(path);
+    if(!file.is_open())
+        return false;
+
+    std::string line;
+    bool inKeywords = false;
+    int lineNo = 0;
+    while(std::getline(file, line))
+    {
+        std::string_view view{line};
+        if(robot_section_header(view))
+        {
+            inKeywords = robot_keyword_section(view);
+            lineNo++;
+            continue;
+        }
+        if(inKeywords && robot_is_keyword_def(view))
+        {
+            std::string_view name = robot_first_cell(view);
+            if(!name.empty() && text_utils::iequals_ascii(name, keyword))
+            {
+                outY = lineNo;
+                outX = 0;
+                return true;
+            }
+        }
+        lineNo++;
+    }
+    return false;
+}
+
+static bool find_python_def_in_file(const std::string& path,
+                                    std::string_view symbol, int& outY,
+                                    int& outX)
+{
+    std::ifstream file(path);
+    if(!file.is_open())
+        return false;
+
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(file, line))
+    {
+        std::string_view view{line};
+        if(python_def_line(view, symbol))
+        {
+            outY = lineNo;
+            outX = 0;
+            return true;
+        }
+        lineNo++;
+    }
+    return false;
+}
+
+static bool is_skip_dir(const std::filesystem::path& path)
+{
+    std::string name = path.filename().string();
+    return name == ".git" || name == ".venv" || name == "build" ||
+           name == "node_modules" || name == "dist" || name == "out";
 }
 
 void Editor::createNewBuffer()

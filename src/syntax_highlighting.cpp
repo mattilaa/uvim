@@ -99,6 +99,38 @@ bool Editor::isMlaFile() const
     return (ext == ".mla");
 }
 
+bool Editor::isRobotFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+
+    return text_utils::iequals_ascii(ext, ".robot") ||
+           text_utils::iequals_ascii(ext, ".resource") ||
+           text_utils::iequals_ascii(ext, ".robotframework");
+}
+
+bool Editor::isPythonFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+
+    return text_utils::iequals_ascii(ext, ".py") ||
+           text_utils::iequals_ascii(ext, ".pyi") ||
+           text_utils::iequals_ascii(ext, ".pyw");
+}
+
 size_t Editor::byteOffsetForPosition(int y, int x) const
 {
     if(!lines || lines->empty())
@@ -340,6 +372,295 @@ std::string Editor::getColorCode(TokenType type) const
 std::vector<Token> Editor::tokenizeLine(const std::string& line,
                                         bool& inBlockComment) const
 {
+    if(isRobotFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        int first = 0;
+        while(first < len && text_utils::is_space(sv[first]))
+            ++first;
+
+        if(first >= len)
+            return tokens;
+
+        std::string_view trimmed = sv.substr(first);
+        if(trimmed.starts_with("#"))
+        {
+            tokens.push_back({TOKEN_COMMENT, first, len - first});
+            return tokens;
+        }
+
+        if(trimmed.starts_with("***") && trimmed.ends_with("***"))
+        {
+            tokens.push_back({TOKEN_KEYWORD, first, len - first});
+            return tokens;
+        }
+
+        if(trimmed.starts_with("..."))
+        {
+            tokens.push_back({TOKEN_OPERATOR, first, 3});
+            i = first + 3;
+        }
+
+        if(sv[first] == '[')
+        {
+            size_t close = sv.find(']', (size_t)first + 1);
+            if(close != std::string_view::npos)
+            {
+                tokens.push_back(
+                    {TOKEN_KEYWORD, first, (int)(close - first + 1)});
+            }
+        }
+
+        auto is_keyword = [](std::string_view word) -> bool
+        {
+            static constexpr std::string_view kKeywords[] = {
+                "if",       "else",     "end",       "for",           "while",
+                "try",      "except",   "finally",   "return",        "break",
+                "continue", "skip",     "fail",      "run",           "keyword",
+                "library",  "resource", "variables", "documentation", "tags",
+                "metadata", "setup",    "teardown",  "suite",         "test",
+                "task",     "template", "timeout",   "default",       "force",
+            };
+            for(const auto& kw : kKeywords)
+            {
+                if(text_utils::iequals_ascii(word, kw))
+                    return true;
+            }
+            return false;
+        };
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#' && (i == first || text_utils::is_space(sv[i - 1])))
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if((sv[i] == '$' || sv[i] == '@' || sv[i] == '&') && i + 1 < len &&
+               sv[i + 1] == '{')
+            {
+                int start = i;
+                i += 2;
+                while(i < len && sv[i] != '}')
+                    ++i;
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_TYPE, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '"' || sv[i] == '\'')
+            {
+                char quote = sv[i];
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_digit(sv[i]))
+            {
+                int start = i;
+                while(i < len && text_utils::is_digit(sv[i]))
+                    ++i;
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_alpha(sv[i]) || sv[i] == '_')
+            {
+                int start = i;
+                while(i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_' ||
+                                  sv[i] == '.'))
+                {
+                    ++i;
+                }
+                std::string_view word = sv.substr(start, i - start);
+                if(is_keyword(word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
+                continue;
+            }
+
+            if(cpp_constants::is_operator_char(sv[i]))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
+    if(isPythonFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+        bool lastWasDef = false;
+        bool lastWasClass = false;
+
+        auto is_keyword = [](std::string_view word) -> bool
+        {
+            static constexpr std::string_view kKeywords[] = {
+                "and",    "as",       "assert",   "async", "await",  "break",
+                "class",  "continue", "def",      "del",   "elif",   "else",
+                "except", "False",    "finally",  "for",   "from",   "global",
+                "if",     "import",   "in",       "is",    "lambda", "match",
+                "case",   "None",     "nonlocal", "not",   "or",     "pass",
+                "raise",  "return",   "True",     "try",   "while",  "with",
+                "yield",
+            };
+            for(const auto& kw : kKeywords)
+            {
+                if(text_utils::iequals_ascii(word, kw))
+                    return true;
+            }
+            return false;
+        };
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '@')
+            {
+                int start = i++;
+                while(i < len && !text_utils::is_space(sv[i]))
+                    ++i;
+                tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                lastWasDef = false;
+                lastWasClass = false;
+                continue;
+            }
+
+            if(sv[i] == '#')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(sv[i] == '"' || sv[i] == '\'')
+            {
+                char quote = sv[i];
+                int start = i++;
+                if(i + 1 < len && sv[i] == quote && sv[i + 1] == quote)
+                {
+                    i += 2;
+                    tokens.push_back({TOKEN_STRING, start, len - start});
+                    break;
+                }
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_digit(sv[i]) ||
+               (sv[i] == '.' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
+            {
+                int start = i;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                                  sv[i] == 'e' || sv[i] == 'E' ||
+                                  sv[i] == '_' || sv[i] == 'j' ||
+                                  sv[i] == 'J' || sv[i] == '+' || sv[i] == '-'))
+                {
+                    ++i;
+                }
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_alpha(sv[i]) || sv[i] == '_')
+            {
+                int start = i;
+                while(i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_'))
+                    ++i;
+                std::string_view word = sv.substr(start, i - start);
+                if(is_keyword(word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                    lastWasDef = text_utils::iequals_ascii(word, "def");
+                    lastWasClass = text_utils::iequals_ascii(word, "class");
+                }
+                else if(lastWasDef)
+                {
+                    tokens.push_back({TOKEN_FUNCTION, start, i - start});
+                    lastWasDef = false;
+                }
+                else if(lastWasClass)
+                {
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    lastWasClass = false;
+                }
+                else
+                {
+                    int prev = start - 1;
+                    while(prev >= 0 && text_utils::is_space(sv[prev]))
+                        --prev;
+                    bool memberAccess = (prev >= 0 && sv[prev] == '.');
+
+                    int next = i;
+                    while(next < len && text_utils::is_space(sv[next]))
+                        ++next;
+                    bool isCall = (next < len && sv[next] == '(');
+
+                    if(isCall)
+                        tokens.push_back({TOKEN_FUNCTION, start, i - start});
+                    else if(memberAccess)
+                        tokens.push_back({TOKEN_TYPE, start, i - start});
+                }
+                continue;
+            }
+
+            if(cpp_constants::is_operator_char(sv[i]))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
     std::vector<Token> tokens;
     std::string_view sv{line};
 
