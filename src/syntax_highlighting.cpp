@@ -4,6 +4,8 @@
 #include "terminal.h"
 #include "text_utils.h"
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -269,6 +271,134 @@ bool Editor::clangFormatWithArgs(const std::string& extraArgs,
     needsFullRedraw = true;
     setStatusMessage(successMessage);
     return true;
+}
+
+bool Editor::pythonFormatBuffer()
+{
+    if(!lines || !filename)
+        return false;
+    if(!isPythonFile())
+    {
+        setStatusMessage("black: not a Python file");
+        return false;
+    }
+
+    const int savedY = cursorY ? *cursorY : 0;
+    const int savedX = cursorX ? *cursorX : 0;
+
+    std::string tempPath =
+        "/tmp/uvim_black_" + std::to_string(getpid()) + ".py";
+    std::ofstream tempFile(tempPath);
+    if(!tempFile.is_open())
+    {
+        setStatusMessage("black: failed to create temp file");
+        return false;
+    }
+
+    for(size_t i = 0; i < lines->size(); ++i)
+        tempFile << (*lines)[i] << '\n';
+    tempFile.close();
+
+    std::string cmd =
+        "black --quiet \"" + tempPath + "\" 2>/tmp/uvim_black_err.log";
+    int status = std::system(cmd.c_str());
+    (void)status;
+
+    std::ifstream in(tempPath);
+    if(!in.is_open())
+    {
+        unlink(tempPath.c_str());
+        setStatusMessage("black: failed to read temp output");
+        return false;
+    }
+
+    std::vector<std::string> newLines;
+    std::string line;
+    while(std::getline(in, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        newLines.push_back(line);
+    }
+    in.close();
+    unlink(tempPath.c_str());
+
+    if(!newLines.empty() && newLines.back().empty())
+        newLines.pop_back();
+    if(newLines.empty())
+        newLines.push_back("");
+
+    if(newLines == *lines)
+    {
+        setStatusMessage("black: no changes");
+        return true;
+    }
+
+    saveState();
+    *lines = std::move(newLines);
+    if(dirty)
+        *dirty = true;
+
+    if(cursorY && cursorX && lines && !lines->empty())
+    {
+        *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
+        *cursorX = std::clamp(savedX, 0, (int)(*lines)[*cursorY].size());
+    }
+
+    adjustViewport();
+    needsFullRedraw = true;
+    setStatusMessage("black: formatted buffer");
+    return true;
+}
+
+void Editor::pythonLintBuffer()
+{
+    if(!lines || !filename)
+        return;
+    if(!isPythonFile())
+    {
+        setStatusMessage("ruff: not a Python file");
+        return;
+    }
+
+    std::string tempPath = "/tmp/uvim_ruff_" + std::to_string(getpid()) + ".py";
+    std::ofstream tempFile(tempPath);
+    if(!tempFile.is_open())
+    {
+        setStatusMessage("ruff: failed to create temp file");
+        return;
+    }
+    for(size_t i = 0; i < lines->size(); ++i)
+        tempFile << (*lines)[i] << '\n';
+    tempFile.close();
+
+    std::string cmd =
+        "ruff check --quiet \"" + tempPath + "\" 2>/tmp/uvim_ruff_err.log";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        unlink(tempPath.c_str());
+        setStatusMessage("ruff: failed to run");
+        return;
+    }
+
+    std::string output;
+    char buffer[4096];
+    while(fgets(buffer, sizeof(buffer), pipe))
+        output += buffer;
+    pclose(pipe);
+    unlink(tempPath.c_str());
+
+    if(output.empty())
+    {
+        setStatusMessage("ruff: clean");
+        return;
+    }
+
+    size_t nl = output.find('\n');
+    if(nl != std::string::npos)
+        output = output.substr(0, nl);
+    setStatusMessage("ruff: " + output);
 }
 
 void Editor::clangFormatVisualSelection()

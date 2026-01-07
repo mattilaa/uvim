@@ -716,7 +716,14 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     switch(c)
     {
     case 'f':
-        ed->clangFormatWithArgs("", "clang-format: formatted file");
+        if(ed->isPythonFile())
+        {
+            ed->pythonFormatBuffer();
+        }
+        else
+        {
+            ed->clangFormatWithArgs("", "clang-format: formatted file");
+        }
         return std::nullopt;
 
     case 'b':
@@ -816,6 +823,17 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     case 'p':
         // Paste from system clipboard
         ed->pasteFromSystemClipboard();
+        break;
+
+    case 'l':
+        if(ed->isPythonFile())
+        {
+            ed->pythonLintBuffer();
+        }
+        else
+        {
+            ctx.setStatusMessage("lint: unsupported filetype");
+        }
         break;
 
     case 'w':

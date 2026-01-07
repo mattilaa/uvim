@@ -494,6 +494,8 @@ public:
     bool isMlaFile() const;
     bool isRobotFile() const;
     bool isPythonFile() const;
+    bool pythonFormatBuffer();
+    void pythonLintBuffer();
 
     // clang-format helpers (used by Leader+f in visual modes)
     size_t byteOffsetForPosition(int y, int x) const;

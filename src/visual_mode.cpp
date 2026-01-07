@@ -57,7 +57,14 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            ed->clangFormatVisualSelection();
+            if(ed->isPythonFile())
+            {
+                ed->pythonFormatBuffer();
+            }
+            else
+            {
+                ed->clangFormatVisualSelection();
+            }
             return NormalMode{};
         }
         if(c == ' ')
@@ -380,7 +387,14 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            ed->clangFormatVisualSelection();
+            if(ed->isPythonFile())
+            {
+                ed->pythonFormatBuffer();
+            }
+            else
+            {
+                ed->clangFormatVisualSelection();
+            }
             return NormalMode{};
         }
         if(c == ' ')
@@ -609,7 +623,14 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            ed->clangFormatVisualBlockSelection();
+            if(ed->isPythonFile())
+            {
+                ed->pythonFormatBuffer();
+            }
+            else
+            {
+                ed->clangFormatVisualBlockSelection();
+            }
             return NormalMode{};
         }
         if(c == ' ')
