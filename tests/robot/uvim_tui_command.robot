@@ -13,3 +13,25 @@ Command Mode Entry And Exit
     Send Escape
     Expect Mode    NORMAL
     Quit Uvim
+
+Quit With No Changes
+    Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${SAMPLE_FILE}
+    Expect Mode    NORMAL
+    Send Keys    :
+    Send Keys    q
+    Send Enter
+    Wait For Exit
+
+Quit With Changes Requires Force
+    Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${SAMPLE_FILE}
+    Expect Mode    NORMAL
+    Send Keys    i
+    Send Keys    x
+    Send Escape
+    Send Keys    :
+    Send Keys    q
+    Send Enter
+    Send Keys    :
+    Send Keys    q!
+    Send Enter
+    Wait For Exit

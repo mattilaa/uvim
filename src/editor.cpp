@@ -3414,13 +3414,18 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd == "q")
     {
-        if(*dirty)
+        bool anyDirty = false;
+        for(const auto& buf : buffers)
+        {
+            if(buf->dirty)
+            {
+                anyDirty = true;
+                break;
+            }
+        }
+        if(anyDirty)
         {
             setStatusMessage("No write since last change (add ! to override)");
-        }
-        else if(buffers.size() > 1)
-        {
-            closeCurrentBuffer();
         }
         else
         {
