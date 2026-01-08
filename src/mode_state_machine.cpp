@@ -92,3 +92,10 @@ ModeContext createModeContext(Editor* editor)
         .savedCursorY = editor->savedCursorY,
     };
 }
+
+ModeState defaultExitMode(const Editor* editor)
+{
+    if(!editor || editor->buffers.empty())
+        return WelcomeMode{};
+    return NormalMode{};
+}

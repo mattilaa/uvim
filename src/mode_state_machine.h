@@ -90,6 +90,8 @@ using ModeState =
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
                  OperatorPendingMode, ReferencesMode, LspInfoMode>;
 
+ModeState defaultExitMode(const Editor* editor);
+
 // ============================================================================
 // State Definitions
 // ============================================================================

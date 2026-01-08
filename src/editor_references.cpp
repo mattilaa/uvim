@@ -2,6 +2,7 @@
 // Add these declarations to editor.h and implementations here
 
 #include "editor.h"
+#include "enablelog.h"
 #include "lsp_client.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -25,7 +26,7 @@ void Editor::findReferences()
     {
         if(!isRobotLspEnabled())
         {
-            setStatusMessage("robot LSP: not enabled");
+            LOG_ERROR(LOG, "robot LSP: not enabled");
             return;
         }
         client = robotLspClient.get();
@@ -36,7 +37,7 @@ void Editor::findReferences()
     {
         if(!isPythonLspEnabled())
         {
-            setStatusMessage("python LSP: not enabled");
+            LOG_ERROR(LOG, "python LSP: not enabled");
             return;
         }
         client = pythonLspClient.get();
@@ -47,7 +48,7 @@ void Editor::findReferences()
     {
         if(!isClangdLspEnabled())
         {
-            setStatusMessage("clangd: not enabled");
+            LOG_ERROR(LOG, "clangd LSP: not enabled");
             return;
         }
         client = lspClient.get();
@@ -56,7 +57,7 @@ void Editor::findReferences()
     }
     else
     {
-        setStatusMessage("references: no LSP for filetype");
+        //setStatusMessage("references: no LSP for filetype");
         return;
     }
 

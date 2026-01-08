@@ -34,7 +34,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     if(c == Terminal::ESC)
     {
         ctx.setStatusMessage("");
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     // Enter -> execute command
@@ -71,7 +71,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 }
             }
         }
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     // Backspace
@@ -87,7 +87,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         else
         {
             // Backspace on empty command line returns to normal
-            return NormalMode{};
+            return defaultExitMode(ed);
         }
         return std::nullopt;
     }

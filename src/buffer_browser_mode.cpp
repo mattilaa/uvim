@@ -26,13 +26,13 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC)
     {
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     if(c == Terminal::ENTER)
     {
         selectMatch(*ed);
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN ||

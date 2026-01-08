@@ -51,7 +51,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC)
     {
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     // ========================================================================
@@ -62,7 +62,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         if(selectMatch(*ed))
         {
-            return NormalMode{};
+            return defaultExitMode(ed);
         }
         return std::nullopt;
     }

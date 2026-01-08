@@ -52,7 +52,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         {
             ed->openFile(std::string_view(previousFile));
         }
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     // ========================================================================
@@ -133,7 +133,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             else
             {
                 ed->openFile(std::string_view(entry.path));
-                return NormalMode{};
+                return defaultExitMode(ed);
             }
         }
     }

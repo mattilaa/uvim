@@ -1,5 +1,5 @@
 #include "editor.h"
-#include "log.h"
+#include "enablelog.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
 #include "terminal.h"
@@ -29,8 +29,6 @@
 #include <vector>
 
 namespace fs = std::filesystem;
-
-static mla::log::FileLogger LOG("uvim");
 
 // Local helpers used by gd fallbacks.
 static std::string_view robot_first_cell(std::string_view line);

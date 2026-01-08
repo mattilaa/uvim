@@ -69,14 +69,14 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC)
     {
-        return NormalMode{};
+        return defaultExitMode(ed);
     }
 
     if(c == Terminal::ENTER)
     {
         if(select(*ed))
         {
-            return NormalMode{};
+            return defaultExitMode(ed);
         }
         return std::nullopt;
     }
