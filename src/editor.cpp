@@ -735,18 +735,19 @@ void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
     robotLspClient = std::make_unique<LspClient>();
     if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
     {
+        LOG_ERROR(LOG, "Robot LSP failed to start, LSP path: {}",
+                  this->robotLspPath.c_str());
         robotLspClient.reset();
-        setStatusMessage("robot LSP: failed to start");
         return;
     }
 
     robotLspEnabled = true;
-    setStatusMessage("robot LSP: ON");
+    LOG_DEBUG(LOG, "Robot LSP enabled");
 #else
     (void)enable;
     (void)robotLspPath;
     (void)robotLspArgs;
-    setStatusMessage("robot LSP: not compiled in");
+    LOG_ERROR(LOG, "Robot LSP is not compiled in");
 #endif
 }
 
@@ -793,19 +794,18 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     {
         pythonLspClient.reset();
 
-        LOG_ERROR(LOG, "Python LSP failed to start. Pyhtonh path: {}",
+        LOG_ERROR(LOG, "Python LSP failed to start. Python LSP path: {}",
                   this->pythonLspPath);
-        // setStatusMessage("python LSP: failed to start");
         return;
     }
 
     pythonLspEnabled = true;
-    // setStatusMessage("python LSP: ON");
+    LOG_DEBUG(LOG, "Python LSP enabled");
 #else
     (void)enable;
     (void)pythonLspPath;
     (void)pythonLspArgs;
-    // setStatusMessage("python LSP: not compiled in");
+    LOG_ERROR(LOG, "python LSP support is not compiled");
 #endif
 }
 

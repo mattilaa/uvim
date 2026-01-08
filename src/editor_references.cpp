@@ -26,7 +26,7 @@ void Editor::findReferences()
     {
         if(!isRobotLspEnabled())
         {
-            LOG_ERROR(LOG, "robot LSP: not enabled");
+            LOG_WARNING(LOG, "Robot LSP is not enabled");
             return;
         }
         client = robotLspClient.get();
@@ -37,7 +37,7 @@ void Editor::findReferences()
     {
         if(!isPythonLspEnabled())
         {
-            LOG_ERROR(LOG, "python LSP: not enabled");
+            LOG_WARNING(LOG, "Python LSP is not enabled");
             return;
         }
         client = pythonLspClient.get();
@@ -48,7 +48,7 @@ void Editor::findReferences()
     {
         if(!isClangdLspEnabled())
         {
-            LOG_ERROR(LOG, "clangd LSP: not enabled");
+            LOG_WARNING(LOG, "Clangd LSP is not enabled");
             return;
         }
         client = lspClient.get();
