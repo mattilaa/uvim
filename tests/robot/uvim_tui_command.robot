@@ -35,3 +35,12 @@ Quit With Changes Requires Force
     Send Keys    q!
     Send Enter
     Wait For Exit
+
+Command Mode From Welcome
+    Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}
+    Expect Text    Welcome to uVim
+    Send Keys    :
+    Expect Mode    COMMAND
+    Send Keys    q
+    Send Enter
+    Wait For Exit

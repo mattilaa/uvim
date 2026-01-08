@@ -29,11 +29,12 @@ Command Write Shows Status
     Wait Until Keyword Succeeds    5x    0.1s    Expect Mode    INSERT
     Send Keys    robot-write
     Send Escape
+    Expect Mode    NORMAL
     Enter Command Mode
-    Send Keys    w${SPACE}${SAMPLE_FILE}
+    Send Keys    wq
     Send Enter
+    Wait For Exit
     Wait Until Keyword Succeeds    10x    0.1s    File Content Should Contain    ${SAMPLE_FILE}    robot-write
-    Force Quit Uvim
 
 *** Keywords ***
 File Content Should Contain
