@@ -5838,6 +5838,7 @@ void Editor::replaceCharAtCursor(char c)
     line[*cursorX] = c;
     *dirty = true;
     saveState();
+    needsFullRedraw = true;
 }
 
 void Editor::beginChangeRecording(int count)
