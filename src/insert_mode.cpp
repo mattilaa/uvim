@@ -7,6 +7,35 @@
 // InsertMode Implementation
 // ============================================================================
 
+namespace
+{
+bool isEscaped(const std::string& line, int pos)
+{
+    int backslashes = 0;
+    for(int i = pos - 1; i >= 0 && line[i] == '\\'; --i)
+        backslashes++;
+    return (backslashes % 2) == 1;
+}
+
+bool isCursorInsideQuote(const std::string& line, int cursorX, char quote)
+{
+    bool inside = false;
+    int limit = std::min(cursorX, (int)line.size());
+    for(int i = 0; i < limit; ++i)
+    {
+        if(line[i] == quote && !isEscaped(line, i))
+            inside = !inside;
+    }
+    return inside;
+}
+
+bool isCursorInString(const std::string& line, int cursorX)
+{
+    return isCursorInsideQuote(line, cursorX, '"') ||
+           isCursorInsideQuote(line, cursorX, '\'');
+}
+} // namespace
+
 void InsertMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -349,6 +378,14 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(c >= 32 && c < 127)
     {
+        bool inString = false;
+        {
+            auto& lines = ctx.lines();
+            int cursorY = ctx.cursorY();
+            if(cursorY >= 0 && cursorY < (int)lines.size())
+                inString = isCursorInString(lines[cursorY], ctx.cursorX());
+        }
+
         if(ed->autoBraces && (c == ')' || c == ']' || c == '}'))
         {
             auto& lines = ctx.lines();
@@ -366,7 +403,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             }
         }
 
-        if(ed->autoBraces && c == '{')
+        if(ed->autoBraces && c == '{' && !inString)
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
