@@ -176,6 +176,13 @@ public:
     int repeatCount = 0;
     char lastFindChar = 0;
     bool lastFindForward = true;
+    bool recordingChange = false;
+    bool replayingChange = false;
+    bool deferChangeCommit = false;
+    int pendingChangeCount = 1;
+    int lastChangeCount = 1;
+    std::vector<int> pendingChangeKeys;
+    std::vector<int> lastChangeKeys;
     bool autoBraces = true;
     bool autoCompletion = true;
     int tabSpaces = 4;
@@ -389,11 +396,20 @@ public:
     void deleteWordBackward();
     void handleBackspace();
     void replaceCharAtCursor(char c);
-    void repeatLastChange();
+    void repeatLastChange(int times = 1);
     void insertUtf8Char(int codepoint);
     void indentCurrentLine();
     void dedentCurrentLine();
     void handleLinewiseOperator(char op, int count);
+    void beginChangeRecording(int count = 1);
+    void recordChangeKey(int key);
+    void deferChangeRecordingCommit();
+    void commitChangeRecording();
+    void cancelChangeRecording();
+    void finishChangeRecordingIfDeferred();
+    bool isRecordingChange() const;
+    bool isReplayingChange() const;
+    int readKeyRecorded();
 
     // Completion helpers (for insert mode)
     bool shouldTriggerCompletion();

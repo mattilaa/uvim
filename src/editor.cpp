@@ -793,18 +793,19 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     {
         pythonLspClient.reset();
 
-        LOG_ERROR(LOG, "Python LSP failed to start. Pyhtonh path: {}", this->pythonLspPath);
+        LOG_ERROR(LOG, "Python LSP failed to start. Pyhtonh path: {}",
+                  this->pythonLspPath);
         // setStatusMessage("python LSP: failed to start");
         return;
     }
 
     pythonLspEnabled = true;
-   // setStatusMessage("python LSP: ON");
+    // setStatusMessage("python LSP: ON");
 #else
     (void)enable;
     (void)pythonLspPath;
     (void)pythonLspArgs;
-    //setStatusMessage("python LSP: not compiled in");
+    // setStatusMessage("python LSP: not compiled in");
 #endif
 }
 
@@ -1139,8 +1140,11 @@ void Editor::handleOperatorPendingMode(int c)
     pendingObjectType = 0;
     pendingCount = 0;
 
-    // Return to NORMAL unless operator was 'c' (which already set INSERT mode)
-    if(op != 'c')
+    if(op == 'c')
+    {
+        setMode(INSERT);
+    }
+    else
     {
         setMode(NORMAL);
     }
@@ -1396,7 +1400,6 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
         // After change, enter insert mode at start
         *cursorY = startY;
         *cursorX = startX;
-        setMode(INSERT);
     }
     else
     {
@@ -3895,6 +3898,8 @@ bool Editor::dispatchModeKey(int c)
     modeStateMachine->dispatch(c);
     syncModeFromStateMachine();
     ensureBufferForMode(currentMode);
+    if(replayingChange && !Terminal::hasBufferedKeys())
+        replayingChange = false;
     return true;
 }
 
@@ -5835,9 +5840,102 @@ void Editor::replaceCharAtCursor(char c)
     saveState();
 }
 
-void Editor::repeatLastChange()
+void Editor::beginChangeRecording(int count)
 {
-    setStatusMessage("Repeat not yet implemented");
+    if(replayingChange || recordingChange)
+        return;
+    recordingChange = true;
+    deferChangeCommit = false;
+    pendingChangeKeys.clear();
+    pendingChangeCount = (count > 0) ? count : 1;
+}
+
+void Editor::recordChangeKey(int key)
+{
+    if(!recordingChange || replayingChange)
+        return;
+    pendingChangeKeys.push_back(key);
+}
+
+void Editor::deferChangeRecordingCommit()
+{
+    if(!recordingChange || replayingChange)
+        return;
+    deferChangeCommit = true;
+}
+
+void Editor::commitChangeRecording()
+{
+    if(!recordingChange || replayingChange)
+        return;
+    if(!pendingChangeKeys.empty())
+    {
+        lastChangeKeys = pendingChangeKeys;
+        lastChangeCount = pendingChangeCount;
+    }
+    recordingChange = false;
+    deferChangeCommit = false;
+    pendingChangeKeys.clear();
+    pendingChangeCount = 1;
+}
+
+void Editor::cancelChangeRecording()
+{
+    recordingChange = false;
+    deferChangeCommit = false;
+    pendingChangeKeys.clear();
+    pendingChangeCount = 1;
+}
+
+void Editor::finishChangeRecordingIfDeferred()
+{
+    if(recordingChange && deferChangeCommit)
+    {
+        commitChangeRecording();
+    }
+}
+
+bool Editor::isRecordingChange() const
+{
+    return recordingChange;
+}
+
+bool Editor::isReplayingChange() const
+{
+    return replayingChange;
+}
+
+int Editor::readKeyRecorded()
+{
+    int key = Terminal::readKey();
+    recordChangeKey(key);
+    return key;
+}
+
+void Editor::repeatLastChange(int times)
+{
+    if(lastChangeKeys.empty())
+    {
+        setStatusMessage("No previous change");
+        return;
+    }
+    int repeats = std::max(1, times);
+    replayingChange = true;
+
+    for(int i = repeats - 1; i >= 0; --i)
+    {
+        std::vector<int> sequence;
+        if(lastChangeCount > 1)
+        {
+            std::string countStr = std::to_string(lastChangeCount);
+            for(char ch : countStr)
+                sequence.push_back(static_cast<unsigned char>(ch));
+        }
+        sequence.insert(sequence.end(), lastChangeKeys.begin(),
+                        lastChangeKeys.end());
+        for(auto it = sequence.rbegin(); it != sequence.rend(); ++it)
+            Terminal::unreadKey(*it);
+    }
 }
 
 void Editor::insertUtf8Char(int c)

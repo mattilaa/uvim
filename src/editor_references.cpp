@@ -57,7 +57,7 @@ void Editor::findReferences()
     }
     else
     {
-        //setStatusMessage("references: no LSP for filetype");
+        // setStatusMessage("references: no LSP for filetype");
         return;
     }
 

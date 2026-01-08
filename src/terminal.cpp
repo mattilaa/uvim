@@ -328,6 +328,11 @@ void Terminal::unreadKey(int key)
     keyBuffer.push_front(key);
 }
 
+bool Terminal::hasBufferedKeys()
+{
+    return !keyBuffer.empty();
+}
+
 int Terminal::readKeyInternal(int timeoutMs)
 {
     const auto timeout =

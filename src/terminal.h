@@ -161,6 +161,7 @@ public:
     static void flush();
 
     static void unreadKey(int key);
+    static bool hasBufferedKeys();
     static int readKey();
     static int readKeyTimeout(int timeoutMs);
 

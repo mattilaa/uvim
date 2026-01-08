@@ -30,7 +30,13 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     if(c == Terminal::ESC)
     {
         ctx.setStatusMessage("");
+        ed->cancelChangeRecording();
         return NormalMode{};
+    }
+
+    if(ed->isRecordingChange() && !ed->isReplayingChange())
+    {
+        ed->recordChangeKey(c);
     }
 
     // Double operator (dd/cc/yy/>>/<< etc.) -> linewise operation
@@ -41,8 +47,10 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         ctx.commandBuffer.clear();
         if(op == 'c')
         {
+            ed->deferChangeRecordingCommit();
             return InsertMode{};
         }
+        ed->commitChangeRecording();
         return NormalMode{};
     }
 
@@ -128,7 +136,8 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
             break;
         case 'g':
         {
-            int nextChar = Terminal::readKey();
+            int nextChar = ed->isRecordingChange() ? ed->readKeyRecorded()
+                                                   : Terminal::readKey();
             if(nextChar == 'g')
             {
                 ed->moveToFirstLine();
@@ -156,7 +165,8 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         case 't':
         case 'T':
         {
-            int targetChar = Terminal::readKey();
+            int targetChar = ed->isRecordingChange() ? ed->readKeyRecorded()
+                                                     : Terminal::readKey();
             if(targetChar != Terminal::ESC)
             {
                 if(c == 'f')
@@ -183,6 +193,7 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
             ctx.wantedX() = saveWanted;
             ctx.offsetY() = saveOffsetY;
             ctx.offsetX() = saveOffsetX;
+            ed->cancelChangeRecording();
             return NormalMode{};
         }
 
@@ -235,6 +246,7 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     if(!rangeFound)
     {
         ctx.setStatusMessage("No object found");
+        ed->cancelChangeRecording();
         return NormalMode{};
     }
 
@@ -247,8 +259,10 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     // 'c' operator enters insert mode after deletion
     if(op == 'c')
     {
+        ed->deferChangeRecordingCommit();
         return InsertMode{};
     }
 
+    ed->commitChangeRecording();
     return NormalMode{};
 }

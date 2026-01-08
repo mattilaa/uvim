@@ -1,6 +1,7 @@
 *** Settings ***
 Library    OperatingSystem
 Library    String
+Library    Collections
 Library    ${CURDIR}/uvim_tui.py
 
 *** Variables ***

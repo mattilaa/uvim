@@ -142,17 +142,26 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Insert modes
     if(c == 'i')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'I')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ed->moveToFirstNonBlank();
         ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'a')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         if(ctx.cursorX() < (int)ctx.lines()[ctx.cursorY()].length())
         {
             ctx.cursorX()++;
@@ -162,6 +171,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == 'A')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         if(ctx.cursorY() >= 0 && ctx.cursorY() < (int)ctx.lines().size())
         {
             int end = ctx.lines()[ctx.cursorY()].length();
@@ -173,12 +185,18 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == 'o')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ed->insertLineBelow();
         ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'O')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ed->insertLineAbove();
         ctx.repeatCount = 0;
         return InsertMode{};
@@ -243,6 +261,11 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == 'd' || c == 'c' || c == 'y' || c == '>' || c == '<' || c == '=')
     {
+        if(c != 'y')
+        {
+            ed->beginChangeRecording(count);
+            ed->recordChangeKey(c);
+        }
         return OperatorPendingMode{static_cast<char>(c), count};
     }
 
@@ -509,43 +532,65 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == 'x')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         for(int i = 0; i < count; i++)
             ed->deleteCharAtCursor();
         ed->needsFullRedraw = true;
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == 'X')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         for(int i = 0; i < count; i++)
             ed->deleteCharBeforeCursor();
         ed->needsFullRedraw = true;
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == 'r')
     {
-        int replaceChar = Terminal::readKey();
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        int replaceChar = ed->readKeyRecorded();
         if(replaceChar != Terminal::ESC && replaceChar >= 32)
         {
             ed->replaceCharAtCursor(static_cast<char>(replaceChar));
+            ed->commitChangeRecording();
+        }
+        else
+        {
+            ed->cancelChangeRecording();
         }
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == 'R')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ctx.repeatCount = 0;
         return ReplaceMode{};
     }
     if(c == 's')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ed->deleteCharAtCursor();
         ctx.repeatCount = 0;
         return InsertMode{};
     }
     if(c == 'S')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ed->deleteCurrentLine();
         ed->insertLineAbove();
         ctx.repeatCount = 0;
@@ -553,6 +598,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == 'C')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
+        ed->deferChangeRecordingCommit();
         ed->deleteToEndOfLine();
         ed->saveState();
         ed->needsFullRedraw = true;
@@ -561,23 +609,32 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == 'D')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         ed->deleteToEndOfLine();
         ed->saveState();
         ed->needsFullRedraw = true;
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == 'J')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         for(int i = 0; i < count; i++)
             ed->joinLines();
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == '~')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         for(int i = 0; i < count; i++)
             ed->toggleCase();
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -588,15 +645,21 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == 'p')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         for(int i = 0; i < count; i++)
             ed->pasteAfter();
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == 'P')
     {
+        ed->beginChangeRecording(count);
+        ed->recordChangeKey(c);
         for(int i = 0; i < count; i++)
             ed->pasteBefore();
+        ed->commitChangeRecording();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -672,7 +735,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == '.')
     {
-        ed->repeatLastChange();
+        ed->repeatLastChange(ctx.repeatCount);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -988,8 +1051,10 @@ void ReplaceMode::on_enter(ModeContext& ctx)
     Terminal::setCursorBarBlinking();
 }
 
-void ReplaceMode::on_exit(ModeContext& /* ctx */)
+void ReplaceMode::on_exit(ModeContext& ctx)
 {
+    ctx.editor->finishChangeRecordingIfDeferred();
+
     // Restore block cursor
     Terminal::setCursorBlock();
 }
@@ -999,6 +1064,10 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = event.key;
+    if(ed->isRecordingChange() && !ed->isReplayingChange())
+    {
+        ed->recordChangeKey(c);
+    }
 
     // ========================================================================
     // Exit Replace Mode

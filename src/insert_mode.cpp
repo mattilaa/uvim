@@ -26,6 +26,8 @@ void InsertMode::on_exit(ModeContext& ctx)
         ed->cancelCompletion();
     }
 
+    ed->finishChangeRecordingIfDeferred();
+
     // Restore block cursor
     Terminal::setCursorBlock();
 }
@@ -35,6 +37,10 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = event.key;
+    if(ed->isRecordingChange() && !ed->isReplayingChange())
+    {
+        ed->recordChangeKey(c);
+    }
 
     // ========================================================================
     // Completion Navigation (when active)
