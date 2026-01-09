@@ -30,4 +30,4 @@ Leader F Formats Robot File
     Wait For Exit
     ${updated} =    Get File    ${robot_path}
     Should Contain    ${updated}    ${SPACE}${SPACE}${SPACE}${SPACE}Start Uvim In Dir
-    Should Not Contain    ${updated}    Start Uvim In Dir
+    Should Not Contain    ${updated}    \nStart Uvim In Dir
