@@ -502,12 +502,104 @@ static std::string normalize_robot_line(const std::string& line, int spaceCount)
     return out;
 }
 
+static bool has_robot_cell_separator(std::string_view line)
+{
+    for(size_t i = 0; i < line.size(); ++i)
+    {
+        if(line[i] == '\t')
+            return true;
+        if(line[i] == ' ' && i + 1 < line.size() && line[i + 1] == ' ')
+            return true;
+    }
+    return false;
+}
+
+static std::string_view trim_robot_header(std::string_view line)
+{
+    while(!line.empty() &&
+          (line.front() == ' ' || line.front() == '\t' || line.front() == '\r'))
+        line.remove_prefix(1);
+    while(!line.empty() &&
+          (line.back() == ' ' || line.back() == '\t' || line.back() == '\r'))
+        line.remove_suffix(1);
+    return line;
+}
+
 static std::vector<std::string>
 normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount)
 {
-    std::vector<std::string> out = input;
-    for(auto& line : out)
-        line = normalize_robot_line(line, spaceCount);
+    enum class Section
+    {
+        None,
+        Settings,
+        TestCases,
+        Tasks,
+        Keywords,
+        Other,
+    };
+
+    Section section = Section::None;
+    bool prevNonEmptyIndented = false;
+    bool prevNonEmptyTitle = false;
+    std::vector<std::string> out;
+    out.reserve(input.size());
+
+    for(const auto& raw : input)
+    {
+        std::string line = normalize_robot_line(raw, spaceCount);
+        std::string_view trimmed = trim_robot_header(line);
+        if(trimmed.empty() || trimmed.front() == '#')
+        {
+            out.push_back(std::move(line));
+            continue;
+        }
+
+        if(trimmed.rfind("***", 0) == 0 && trimmed.ends_with("***"))
+        {
+            std::string_view inner = trimmed.substr(3, trimmed.size() - 6);
+            inner = trim_robot_header(inner);
+            if(text_utils::iequals_ascii(inner, "Settings"))
+                section = Section::Settings;
+            else if(text_utils::iequals_ascii(inner, "Test Cases"))
+                section = Section::TestCases;
+            else if(text_utils::iequals_ascii(inner, "Tasks"))
+                section = Section::Tasks;
+            else if(text_utils::iequals_ascii(inner, "Keywords"))
+                section = Section::Keywords;
+            else
+                section = Section::Other;
+
+            out.push_back(std::move(line));
+            prevNonEmptyIndented = false;
+            prevNonEmptyTitle = false;
+            continue;
+        }
+
+        bool needsIndent =
+            (section == Section::TestCases || section == Section::Tasks ||
+             section == Section::Keywords);
+        bool hasIndent = !line.empty() && (line[0] == ' ' || line[0] == '\t');
+        if(needsIndent && !hasIndent)
+        {
+            bool shouldIndent = false;
+            if(has_robot_cell_separator(line))
+                shouldIndent = true;
+            else if(prevNonEmptyTitle)
+                shouldIndent = true;
+
+            if(shouldIndent)
+            {
+                line.insert(0, std::string(spaceCount, ' '));
+                hasIndent = true;
+            }
+        }
+
+        prevNonEmptyIndented = hasIndent;
+        prevNonEmptyTitle = !hasIndent;
+
+        out.push_back(std::move(line));
+    }
+
     return out;
 }
 
@@ -632,7 +724,7 @@ bool Editor::robotFormatBuffer()
         return false;
     };
 
-    if(newLines == *lines || looks_like_robocop_log())
+    if(looks_like_robocop_log())
     {
         auto normalized = normalize_robot_spacing(*lines, 4);
         if(normalized != *lines)
@@ -646,6 +738,17 @@ bool Editor::robotFormatBuffer()
             setStatusMessage("robocop: normalized spacing");
             return true;
         }
+        setStatusMessage("robocop: no changes");
+        needsFullRedraw = true;
+        return true;
+    }
+
+    auto normalized = normalize_robot_spacing(newLines, 4);
+    if(normalized != newLines)
+        newLines = std::move(normalized);
+
+    if(newLines == *lines)
+    {
         setStatusMessage("robocop: no changes");
         needsFullRedraw = true;
         return true;
