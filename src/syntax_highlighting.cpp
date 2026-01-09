@@ -437,13 +437,87 @@ static std::string read_first_line(const std::string& path)
     return line;
 }
 
+static std::string normalize_robot_line(const std::string& line, int spaceCount)
+{
+    if(line.empty())
+        return line;
+    auto first_non_ws = line.find_first_not_of(" \t");
+    if(first_non_ws == std::string::npos)
+        return line;
+    std::string_view trimmed(line.c_str() + first_non_ws,
+                             line.size() - first_non_ws);
+    if(trimmed.rfind("***", 0) == 0 || trimmed.rfind("#", 0) == 0)
+        return line;
+
+    std::vector<std::string> cells;
+    size_t i = 0;
+    if(line[0] == ' ' || line[0] == '\t')
+        cells.emplace_back("");
+
+    auto push_cell = [&](std::string& cell)
+    {
+        cells.push_back(cell);
+        cell.clear();
+    };
+
+    std::string cell;
+    while(i < line.size())
+    {
+        char c = line[i];
+        if(c == '\t')
+        {
+            push_cell(cell);
+            ++i;
+            while(i < line.size() && line[i] == ' ')
+                ++i;
+            continue;
+        }
+        if(c == ' ')
+        {
+            size_t j = i;
+            while(j < line.size() && line[j] == ' ')
+                ++j;
+            if(j - i >= 2)
+            {
+                push_cell(cell);
+                i = j;
+                continue;
+            }
+        }
+        cell.push_back(c);
+        ++i;
+    }
+    push_cell(cell);
+
+    if(cells.size() <= 1)
+        return line;
+
+    std::string out;
+    for(size_t idx = 0; idx < cells.size(); ++idx)
+    {
+        if(idx > 0)
+            out.append(spaceCount, ' ');
+        out += cells[idx];
+    }
+    return out;
+}
+
+static std::vector<std::string>
+normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount)
+{
+    std::vector<std::string> out = input;
+    for(auto& line : out)
+        line = normalize_robot_line(line, spaceCount);
+    return out;
+}
+
 bool Editor::robotFormatBuffer()
 {
     if(!lines || !filename)
         return false;
     if(!isRobotFile())
     {
-        setStatusMessage("robotidy: not a Robot file");
+        setStatusMessage("robocop: not a Robot file");
         return false;
     }
 
@@ -455,44 +529,72 @@ bool Editor::robotFormatBuffer()
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        setStatusMessage("robotidy: failed to create temp file");
+        setStatusMessage("robocop: failed to create temp file");
         return false;
     }
     for(size_t i = 0; i < lines->size(); ++i)
         tempFile << (*lines)[i] << '\n';
     tempFile.close();
 
-    int status = std::system(
-        ("robotidy --inplace \"" + tempPath + "\" 2>/tmp/uvim_robotidy_err.log")
-            .c_str());
-    if(status != 0)
-    {
-        std::string err = read_first_line("/tmp/uvim_robotidy_err.log");
-        if(err.empty())
-            err = "robotidy failed";
-        setStatusMessage(err);
-        unlink(tempPath.c_str());
-        return false;
-    }
+    const std::string robocopErr = "/tmp/uvim_robocop_err.log";
+    const std::string robocopOut = "/tmp/uvim_robocop_out.log";
+    const std::string robocopFmt = "/tmp/uvim_robocop_fmt.log";
 
-    status = std::system(("robocop --format --inplace \"" + tempPath +
-                          "\" 2>/tmp/uvim_robocop_err.log")
-                             .c_str());
-    if(status != 0)
+    auto run_robocop_output = [&](const std::string& extraArgs,
+                                  const char* outputFlag) -> bool
     {
-        std::string err = read_first_line("/tmp/uvim_robocop_err.log");
+        std::string cmd = "robocop format " + extraArgs + " " + outputFlag +
+                          " \"" + robocopFmt + "\" \"" + tempPath + "\" >" +
+                          robocopOut + " 2>" + robocopErr;
+        int status = std::system(cmd.c_str());
+        return status == 0;
+    };
+
+    auto run_robocop_output_after = [&](const std::string& extraArgs,
+                                        const char* outputFlag) -> bool
+    {
+        std::string cmd = "robocop format " + extraArgs + " \"" + tempPath +
+                          "\" " + outputFlag + " \"" + robocopFmt + "\" >" +
+                          robocopOut + " 2>" + robocopErr;
+        int status = std::system(cmd.c_str());
+        return status == 0;
+    };
+
+    auto run_robocop_stdout = [&](const std::string& extraArgs) -> bool
+    {
+        std::string cmd = "robocop format " + extraArgs + " \"" + tempPath +
+                          "\" >\"" + robocopFmt + "\" 2>" + robocopErr;
+        int status = std::system(cmd.c_str());
+        return status == 0;
+    };
+
+    bool robocopOk = run_robocop_output("", "--output") ||
+                     run_robocop_output("", "--output-file") ||
+                     run_robocop_output("", "-o") ||
+                     run_robocop_output_after("", "--output") ||
+                     run_robocop_output_after("", "--output-file") ||
+                     run_robocop_output_after("", "-o") ||
+                     run_robocop_stdout("");
+
+    if(!robocopOk)
+    {
+        std::string err = read_first_line(robocopErr);
         if(err.empty())
             err = "robocop failed";
         setStatusMessage(err);
         unlink(tempPath.c_str());
+        unlink(robocopFmt.c_str());
         return false;
     }
 
-    std::ifstream in(tempPath);
+    const std::string& readPath =
+        std::filesystem::exists(robocopFmt) ? robocopFmt : tempPath;
+    std::ifstream in(readPath);
     if(!in.is_open())
     {
         unlink(tempPath.c_str());
-        setStatusMessage("robotidy: failed to read temp output");
+        unlink(robocopFmt.c_str());
+        setStatusMessage("robocop: failed to read temp output");
         return false;
     }
 
@@ -506,15 +608,46 @@ bool Editor::robotFormatBuffer()
     }
     in.close();
     unlink(tempPath.c_str());
+    unlink(robocopFmt.c_str());
 
     if(!newLines.empty() && newLines.back().empty())
         newLines.pop_back();
     if(newLines.empty())
         newLines.push_back("");
 
-    if(newLines == *lines)
+    auto looks_like_robocop_log = [&]() -> bool
     {
-        setStatusMessage("robotidy: no changes");
+        if(newLines.empty())
+            return false;
+        if(newLines[0].rfind("Usage: robocop", 0) == 0)
+            return true;
+        if(newLines[0].rfind("Reformatted ", 0) == 0)
+            return true;
+        for(const auto& l : newLines)
+        {
+            if(l.find("file reformatted") != std::string::npos ||
+               l.find("files left unchanged") != std::string::npos)
+                return true;
+        }
+        return false;
+    };
+
+    if(newLines == *lines || looks_like_robocop_log())
+    {
+        auto normalized = normalize_robot_spacing(*lines, 4);
+        if(normalized != *lines)
+        {
+            saveState();
+            *lines = std::move(normalized);
+            if(dirty)
+                *dirty = true;
+            adjustViewport();
+            needsFullRedraw = true;
+            setStatusMessage("robocop: normalized spacing");
+            return true;
+        }
+        setStatusMessage("robocop: no changes");
+        needsFullRedraw = true;
         return true;
     }
 
@@ -531,7 +664,7 @@ bool Editor::robotFormatBuffer()
 
     adjustViewport();
     needsFullRedraw = true;
-    setStatusMessage("robotidy: formatted buffer");
+    setStatusMessage("robocop: formatted buffer");
     return true;
 }
 
