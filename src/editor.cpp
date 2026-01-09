@@ -221,6 +221,22 @@ static std::unordered_set<std::string> default_robot_custom_keywords()
 {
     return {};
 }
+
+static std::unordered_set<std::string> default_robot_settings()
+{
+    static constexpr std::string_view kSettings[] = {
+        "resource",      "library",      "variables",      "documentation",
+        "metadata",      "suite setup",  "suite teardown", "test setup",
+        "test teardown", "task setup",   "task teardown",  "test template",
+        "task template", "test timeout", "task timeout",   "force tags",
+        "default tags",
+    };
+    std::unordered_set<std::string> out;
+    out.reserve(std::size(kSettings));
+    for(auto setting : kSettings)
+        out.insert(ascii_lower(setting));
+    return out;
+}
 } // namespace
 
 #if defined(UVIM_TERMINAL_POSIX)
@@ -578,6 +594,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
     theme.loadFromFile(configPath);
     robotKeywordSet = default_robot_keywords();
     robotCustomKeywordSet = default_robot_custom_keywords();
+    robotSettingSet = default_robot_settings();
     if(!configPath.empty())
     {
         std::ifstream in(configPath);
@@ -698,6 +715,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 for(const auto& item : list)
                     robotCustomKeywordSet.insert(ascii_lower(item));
             }
+            auto itrs = values.find("editor.syntax.robot.settings");
+            if(itrs == values.end())
+                itrs = values.find("syntax.robot.settings");
+            if(itrs != values.end())
+            {
+                auto list = split_csv(itrs->second);
+                if(!list.empty())
+                {
+                    robotSettingSet.clear();
+                    for(const auto& item : list)
+                        robotSettingSet.insert(ascii_lower(item));
+                }
+            }
         }
     }
 
@@ -725,6 +755,13 @@ bool Editor::isRobotCustomKeyword(std::string_view word) const
         return false;
     return robotCustomKeywordSet.find(ascii_lower(word)) !=
            robotCustomKeywordSet.end();
+}
+
+bool Editor::isRobotSetting(std::string_view cell) const
+{
+    if(robotSettingSet.empty())
+        return false;
+    return robotSettingSet.find(ascii_lower(cell)) != robotSettingSet.end();
 }
 
 Editor::~Editor()

@@ -1033,6 +1033,12 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                     cellStart, static_cast<size_t>(cellEnd - cellStart));
                 bool isSettingCell = cell.starts_with('[');
                 bool highlightedCell = false;
+                if(isRobotSetting(cell))
+                {
+                    tokens.push_back(
+                        {TOKEN_KEYWORD, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
                 if(isRobotCustomKeyword(cell))
                 {
                     tokens.push_back(

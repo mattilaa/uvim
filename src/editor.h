@@ -195,6 +195,7 @@ public:
     bool syntaxRobotHighlightCalls = true;
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
+    std::unordered_set<std::string> robotSettingSet;
 
     // Drawing - Original functions
     void draw();
@@ -222,6 +223,7 @@ public:
     void handleResize();
     bool isRobotKeyword(std::string_view word) const;
     bool isRobotCustomKeyword(std::string_view word) const;
+    bool isRobotSetting(std::string_view cell) const;
 
     // Buffer management functions
     void createNewBuffer();
