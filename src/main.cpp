@@ -60,6 +60,11 @@ static std::string_view default_config_contents()
   syntax:
     json: true
     yaml: true
+    robot:
+      keywords: "if, else, end, for, while, try, except, finally, return, break, continue, skip, fail, run, keyword, library, resource, variables, documentation, tags, metadata, setup, teardown, suite, test, task, template, timeout, default, force"
+      highlight_titles: true
+      highlight_calls: true
+      custom_keywords: ""
 
 theme:
   base:

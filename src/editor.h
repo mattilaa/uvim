@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -189,6 +190,11 @@ public:
     std::string configPath;
     bool syntaxJson = true;
     bool syntaxYaml = true;
+    bool syntaxRobotKeywords = true;
+    bool syntaxRobotHighlightTitles = true;
+    bool syntaxRobotHighlightCalls = true;
+    std::unordered_set<std::string> robotKeywordSet;
+    std::unordered_set<std::string> robotCustomKeywordSet;
 
     // Drawing - Original functions
     void draw();
@@ -214,6 +220,8 @@ public:
     void handleSearchMode(int c);
     void handleKeypress(int c);
     void handleResize();
+    bool isRobotKeyword(std::string_view word) const;
+    bool isRobotCustomKeyword(std::string_view word) const;
 
     // Buffer management functions
     void createNewBuffer();
