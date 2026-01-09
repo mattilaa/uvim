@@ -55,12 +55,37 @@ class UvimTui:
             f"Timeout waiting for text {text!r}. Last output: {cleaned_tail!r}"
         )
 
+    def _wait_for_raw_text(self, text, timeout):
+        self._ensure_child()
+        deadline = time.monotonic() + float(timeout)
+        buffer = ""
+        while time.monotonic() < deadline:
+            try:
+                chunk = self.child.read_nonblocking(size=1024, timeout=0.1)
+            except pexpect.TIMEOUT:
+                chunk = ""
+            except pexpect.EOF:
+                break
+            if chunk:
+                buffer += chunk
+                if len(buffer) > 65536:
+                    buffer = buffer[-65536:]
+            if text in buffer:
+                return
+        tail = buffer[-200:]
+        raise AssertionError(
+            f"Timeout waiting for raw text {text!r}. Last output: {tail!r}"
+        )
+
     def expect_mode(self, mode, timeout=5.0):
         target = f" {mode} | "
         self._wait_for_text(target, timeout)
 
     def expect_text(self, text, timeout=5.0):
         self._wait_for_text(text, timeout)
+
+    def expect_raw_text(self, text, timeout=5.0):
+        self._wait_for_raw_text(text, timeout)
 
     def send_keys(self, text):
         self._ensure_child()
@@ -135,6 +160,10 @@ def expect_mode(mode, timeout=5.0):
 
 def expect_text(text, timeout=5.0):
     _TUI.expect_text(text, timeout=timeout)
+
+
+def expect_raw_text(text, timeout=5.0):
+    _TUI.expect_raw_text(text, timeout=timeout)
 
 
 def send_keys(text):
