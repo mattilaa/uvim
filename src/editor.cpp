@@ -26,6 +26,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -170,6 +171,71 @@ static bool parse_int(std::string_view value, int& out)
         return false;
     out = result;
     return true;
+}
+
+static std::string ascii_lower(std::string_view value)
+{
+    std::string out;
+    out.reserve(value.size());
+    for(char c : value)
+        out.push_back(text_utils::ascii_tolower(c));
+    return out;
+}
+
+static std::vector<std::string> split_csv(std::string_view input)
+{
+    std::vector<std::string> out;
+    size_t start = 0;
+    while(start <= input.size())
+    {
+        size_t comma = input.find(',', start);
+        size_t end = (comma == std::string_view::npos) ? input.size() : comma;
+        std::string_view part = trim_view(input.substr(start, end - start));
+        if(!part.empty())
+            out.emplace_back(part);
+        if(comma == std::string_view::npos)
+            break;
+        start = comma + 1;
+    }
+    return out;
+}
+
+static std::unordered_set<std::string> default_robot_keywords()
+{
+    static constexpr std::string_view kKeywords[] = {
+        "if",       "else",     "end",       "for",           "while",
+        "try",      "except",   "finally",   "return",        "break",
+        "continue", "skip",     "fail",      "run",           "keyword",
+        "library",  "resource", "variables", "documentation", "tags",
+        "metadata", "setup",    "teardown",  "suite",         "test",
+        "task",     "template", "timeout",   "default",       "force",
+    };
+    std::unordered_set<std::string> out;
+    out.reserve(std::size(kKeywords));
+    for(auto kw : kKeywords)
+        out.insert(ascii_lower(kw));
+    return out;
+}
+
+static std::unordered_set<std::string> default_robot_custom_keywords()
+{
+    return {};
+}
+
+static std::unordered_set<std::string> default_robot_settings()
+{
+    static constexpr std::string_view kSettings[] = {
+        "resource",      "library",      "variables",      "documentation",
+        "metadata",      "suite setup",  "suite teardown", "test setup",
+        "test teardown", "task setup",   "task teardown",  "test template",
+        "task template", "test timeout", "task timeout",   "force tags",
+        "default tags",
+    };
+    std::unordered_set<std::string> out;
+    out.reserve(std::size(kSettings));
+    for(auto setting : kSettings)
+        out.insert(ascii_lower(setting));
+    return out;
 }
 } // namespace
 
@@ -526,6 +592,9 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
     theme = Theme::defaults();
     this->configPath = configPath;
     theme.loadFromFile(configPath);
+    robotKeywordSet = default_robot_keywords();
+    robotCustomKeywordSet = default_robot_custom_keywords();
+    robotSettingSet = default_robot_settings();
     if(!configPath.empty())
     {
         std::ifstream in(configPath);
@@ -593,6 +662,72 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 std::string v = ity->second;
                 syntaxYaml = !(v == "false" || v == "0" || v == "off");
             }
+            auto itrk = values.find("editor.syntax.robot.keywords");
+            if(itrk == values.end())
+                itrk = values.find("syntax.robot.keywords");
+            if(itrk != values.end())
+            {
+                std::string v = itrk->second;
+                std::string lower = ascii_lower(v);
+                if(lower == "false" || lower == "0" || lower == "off" ||
+                   lower == "none")
+                {
+                    syntaxRobotKeywords = false;
+                    robotKeywordSet.clear();
+                }
+                else
+                {
+                    auto list = split_csv(v);
+                    if(!list.empty())
+                    {
+                        syntaxRobotKeywords = true;
+                        robotKeywordSet.clear();
+                        for(const auto& item : list)
+                            robotKeywordSet.insert(ascii_lower(item));
+                    }
+                }
+            }
+            auto itrkt = values.find("editor.syntax.robot.highlight_titles");
+            if(itrkt == values.end())
+                itrkt = values.find("syntax.robot.highlight_titles");
+            if(itrkt != values.end())
+            {
+                std::string v = ascii_lower(itrkt->second);
+                syntaxRobotHighlightTitles =
+                    !(v == "false" || v == "0" || v == "off");
+            }
+            auto itrkc = values.find("editor.syntax.robot.highlight_calls");
+            if(itrkc == values.end())
+                itrkc = values.find("syntax.robot.highlight_calls");
+            if(itrkc != values.end())
+            {
+                std::string v = ascii_lower(itrkc->second);
+                syntaxRobotHighlightCalls =
+                    !(v == "false" || v == "0" || v == "off");
+            }
+            auto itrc = values.find("editor.syntax.robot.custom_keywords");
+            if(itrc == values.end())
+                itrc = values.find("syntax.robot.custom_keywords");
+            if(itrc != values.end())
+            {
+                auto list = split_csv(itrc->second);
+                robotCustomKeywordSet.clear();
+                for(const auto& item : list)
+                    robotCustomKeywordSet.insert(ascii_lower(item));
+            }
+            auto itrs = values.find("editor.syntax.robot.settings");
+            if(itrs == values.end())
+                itrs = values.find("syntax.robot.settings");
+            if(itrs != values.end())
+            {
+                auto list = split_csv(itrs->second);
+                if(!list.empty())
+                {
+                    robotSettingSet.clear();
+                    for(const auto& item : list)
+                        robotSettingSet.insert(ascii_lower(item));
+                }
+            }
         }
     }
 
@@ -605,6 +740,28 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
 
     modeStateMachine =
         std::make_unique<ModeStateMachine>(createModeContext(this));
+}
+
+bool Editor::isRobotKeyword(std::string_view word) const
+{
+    if(!syntaxRobotKeywords || robotKeywordSet.empty())
+        return false;
+    return robotKeywordSet.find(ascii_lower(word)) != robotKeywordSet.end();
+}
+
+bool Editor::isRobotCustomKeyword(std::string_view word) const
+{
+    if(robotCustomKeywordSet.empty())
+        return false;
+    return robotCustomKeywordSet.find(ascii_lower(word)) !=
+           robotCustomKeywordSet.end();
+}
+
+bool Editor::isRobotSetting(std::string_view cell) const
+{
+    if(robotSettingSet.empty())
+        return false;
+    return robotSettingSet.find(ascii_lower(cell)) != robotSettingSet.end();
 }
 
 Editor::~Editor()

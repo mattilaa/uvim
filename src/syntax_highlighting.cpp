@@ -976,10 +976,12 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
             return tokens;
         }
 
+        bool isContinuation = false;
         if(trimmed.starts_with("..."))
         {
             tokens.push_back({TOKEN_OPERATOR, first, 3});
             i = first + 3;
+            isContinuation = true;
         }
 
         if(sv[first] == '[')
@@ -992,23 +994,72 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
             }
         }
 
-        auto is_keyword = [](std::string_view word) -> bool
+        auto is_keyword = [&](std::string_view word) -> bool
+        { return isRobotKeyword(word); };
+
+        auto parse_first_cell = [&](int start) -> std::pair<int, int>
         {
-            static constexpr std::string_view kKeywords[] = {
-                "if",       "else",     "end",       "for",           "while",
-                "try",      "except",   "finally",   "return",        "break",
-                "continue", "skip",     "fail",      "run",           "keyword",
-                "library",  "resource", "variables", "documentation", "tags",
-                "metadata", "setup",    "teardown",  "suite",         "test",
-                "task",     "template", "timeout",   "default",       "force",
-            };
-            for(const auto& kw : kKeywords)
+            int idx = start;
+            int spaceRun = 0;
+            for(; idx < len; ++idx)
             {
-                if(text_utils::iequals_ascii(word, kw))
-                    return true;
+                if(sv[idx] == '\t')
+                    break;
+                if(sv[idx] == ' ')
+                {
+                    ++spaceRun;
+                    if(spaceRun >= 2)
+                        break;
+                }
+                else
+                {
+                    spaceRun = 0;
+                }
             }
-            return false;
+            int end = idx;
+            if(end > start && sv[end - 1] == ' ')
+                --end;
+            if(end < start)
+                end = start;
+            return {start, end};
         };
+
+        if(!isContinuation)
+        {
+            auto [cellStart, cellEnd] = parse_first_cell(first);
+            if(cellEnd > cellStart)
+            {
+                std::string_view cell = sv.substr(
+                    cellStart, static_cast<size_t>(cellEnd - cellStart));
+                bool isSettingCell = cell.starts_with('[');
+                bool highlightedCell = false;
+                if(isRobotSetting(cell))
+                {
+                    tokens.push_back(
+                        {TOKEN_KEYWORD, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
+                if(isRobotCustomKeyword(cell))
+                {
+                    tokens.push_back(
+                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
+                if(!highlightedCell && syntaxRobotHighlightTitles &&
+                   first == 0 && !isSettingCell)
+                {
+                    tokens.push_back(
+                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
+                if(!highlightedCell && syntaxRobotHighlightCalls &&
+                   !isSettingCell)
+                {
+                    tokens.push_back(
+                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                }
+            }
+        }
 
         while(i < len)
         {
