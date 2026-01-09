@@ -450,8 +450,8 @@ static std::string normalize_robot_line(const std::string& line, int spaceCount)
         return line;
 
     std::vector<std::string> cells;
-    size_t i = 0;
-    if(line[0] == ' ' || line[0] == '\t')
+    size_t i = first_non_ws;
+    if(first_non_ws > 0)
         cells.emplace_back("");
 
     auto push_cell = [&](std::string& cell)
@@ -525,8 +525,83 @@ static std::string_view trim_robot_header(std::string_view line)
     return line;
 }
 
+static bool ascii_starts_with(std::string_view value,
+                              std::string_view prefix) noexcept
+{
+    if(value.size() < prefix.size())
+        return false;
+    for(size_t i = 0; i < prefix.size(); ++i)
+    {
+        if(text_utils::ascii_tolower(value[i]) != prefix[i])
+            return false;
+    }
+    return true;
+}
+
+static bool split_robot_first_cell(std::string_view line, size_t start,
+                                   std::string_view& first,
+                                   std::string_view& rest)
+{
+    size_t i = start;
+    while(i < line.size())
+    {
+        if(line[i] == '\t')
+        {
+            first = line.substr(start, i - start);
+            size_t j = i + 1;
+            while(j < line.size() && line[j] == ' ')
+                ++j;
+            rest = line.substr(j);
+            return true;
+        }
+        if(line[i] == ' ')
+        {
+            size_t j = i;
+            while(j < line.size() && line[j] == ' ')
+                ++j;
+            if(j - i >= 2)
+            {
+                first = line.substr(start, i - start);
+                rest = line.substr(j);
+                return true;
+            }
+            i = j;
+            continue;
+        }
+        ++i;
+    }
+    return false;
+}
+
+static bool
+match_robot_setting_prefix(std::string_view line,
+                           const std::unordered_set<std::string>& settings,
+                           size_t& matchLen)
+{
+    matchLen = 0;
+    if(settings.empty())
+        return false;
+
+    for(const auto& setting : settings)
+    {
+        std::string_view prefix(setting);
+        if(!ascii_starts_with(line, prefix))
+            continue;
+        if(line.size() > prefix.size())
+        {
+            char next = line[prefix.size()];
+            if(next != ' ' && next != '\t')
+                continue;
+        }
+        if(prefix.size() > matchLen)
+            matchLen = prefix.size();
+    }
+    return matchLen > 0;
+}
+
 static std::vector<std::string>
-normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount)
+normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
+                        const std::unordered_set<std::string>& settings)
 {
     enum class Section
     {
@@ -539,7 +614,60 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount)
     };
 
     Section section = Section::None;
-    bool prevNonEmptyIndented = false;
+    size_t settingsFirstWidth = 0;
+    for(const auto& setting : settings)
+        settingsFirstWidth = std::max(settingsFirstWidth, setting.size());
+
+    for(const auto& raw : input)
+    {
+        std::string line = normalize_robot_line(raw, spaceCount);
+        std::string_view trimmed = trim_robot_header(line);
+        if(trimmed.empty() || trimmed.front() == '#')
+            continue;
+
+        if(trimmed.rfind("***", 0) == 0 && trimmed.ends_with("***"))
+        {
+            std::string_view inner = trimmed.substr(3, trimmed.size() - 6);
+            inner = trim_robot_header(inner);
+            if(text_utils::iequals_ascii(inner, "Settings"))
+                section = Section::Settings;
+            else if(text_utils::iequals_ascii(inner, "Test Cases"))
+                section = Section::TestCases;
+            else if(text_utils::iequals_ascii(inner, "Tasks"))
+                section = Section::Tasks;
+            else if(text_utils::iequals_ascii(inner, "Keywords"))
+                section = Section::Keywords;
+            else
+                section = Section::Other;
+            continue;
+        }
+
+        if(section == Section::Settings)
+        {
+            size_t firstNonWs = line.find_first_not_of(" \t");
+            if(firstNonWs == std::string_view::npos)
+                continue;
+            std::string_view lineView(line);
+            std::string_view trimmedLine = lineView.substr(firstNonWs);
+            std::string_view firstCell;
+            std::string_view restCell;
+            if(split_robot_first_cell(trimmedLine, 0, firstCell, restCell))
+            {
+                settingsFirstWidth =
+                    std::max(settingsFirstWidth, firstCell.size());
+            }
+            else
+            {
+                size_t matchLen = 0;
+                if(match_robot_setting_prefix(trimmedLine, settings, matchLen))
+                {
+                    settingsFirstWidth = std::max(settingsFirstWidth, matchLen);
+                }
+            }
+        }
+    }
+
+    section = Section::None;
     bool prevNonEmptyTitle = false;
     std::vector<std::string> out;
     out.reserve(input.size());
@@ -570,9 +698,60 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount)
                 section = Section::Other;
 
             out.push_back(std::move(line));
-            prevNonEmptyIndented = false;
             prevNonEmptyTitle = false;
             continue;
+        }
+
+        if(settingsFirstWidth > 0)
+        {
+            size_t firstNonWs = line.find_first_not_of(" 	");
+            if(firstNonWs != std::string_view::npos)
+            {
+                std::string prefix(line.substr(0, firstNonWs));
+                std::string_view lineView(line);
+                std::string_view trimmedLine = lineView.substr(firstNonWs);
+                size_t matchLen = 0;
+                bool match =
+                    match_robot_setting_prefix(trimmedLine, settings, matchLen);
+                if(match && section == Section::Settings)
+                {
+                    size_t restStart = matchLen;
+                    while(restStart < trimmedLine.size() &&
+                          (trimmedLine[restStart] == ' ' ||
+                           trimmedLine[restStart] == '	'))
+                    {
+                        ++restStart;
+                    }
+                    std::string rebuilt = prefix;
+                    std::string_view firstMatch =
+                        trimmedLine.substr(0, matchLen);
+                    rebuilt += firstMatch;
+                    size_t pad = (settingsFirstWidth > matchLen)
+                                     ? (settingsFirstWidth - matchLen)
+                                     : 0;
+                    rebuilt.append(pad + (size_t)spaceCount, ' ');
+                    rebuilt += trimmedLine.substr(restStart);
+                    line = std::move(rebuilt);
+                }
+                else if(section == Section::Settings)
+                {
+                    std::string_view firstCell;
+                    std::string_view restCell;
+                    if(split_robot_first_cell(trimmedLine, 0, firstCell,
+                                              restCell))
+                    {
+                        std::string rebuilt = prefix;
+                        rebuilt += firstCell;
+                        size_t pad =
+                            (settingsFirstWidth > firstCell.size())
+                                ? (settingsFirstWidth - firstCell.size())
+                                : 0;
+                        rebuilt.append(pad + (size_t)spaceCount, ' ');
+                        rebuilt += restCell;
+                        line = std::move(rebuilt);
+                    }
+                }
+            }
         }
 
         bool needsIndent =
@@ -594,7 +773,6 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount)
             }
         }
 
-        prevNonEmptyIndented = hasIndent;
         prevNonEmptyTitle = !hasIndent;
 
         out.push_back(std::move(line));
@@ -726,11 +904,11 @@ bool Editor::robotFormatBuffer()
 
     if(looks_like_robocop_log())
     {
-        auto normalized = normalize_robot_spacing(*lines, 4);
+        auto normalized = normalize_robot_spacing(*lines, 4, robotSettingSet);
         if(normalized != *lines)
         {
-            saveState();
             *lines = std::move(normalized);
+            saveState();
             if(dirty)
                 *dirty = true;
             adjustViewport();
@@ -743,7 +921,7 @@ bool Editor::robotFormatBuffer()
         return true;
     }
 
-    auto normalized = normalize_robot_spacing(newLines, 4);
+    auto normalized = normalize_robot_spacing(newLines, 4, robotSettingSet);
     if(normalized != newLines)
         newLines = std::move(normalized);
 
@@ -754,8 +932,8 @@ bool Editor::robotFormatBuffer()
         return true;
     }
 
-    saveState();
     *lines = std::move(newLines);
+    saveState();
     if(dirty)
         *dirty = true;
 
