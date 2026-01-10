@@ -646,6 +646,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     autoCompletion = false;
             }
+            auto itsc = values.find("editor.usesystemclipboard");
+            if(itsc == values.end())
+                itsc = values.find("settings.usesystemclipboard");
+            if(itsc == values.end())
+                itsc = values.find("usesystemclipboard");
+            if(itsc != values.end())
+            {
+                std::string v = itsc->second;
+                if(v == "true" || v == "1" || v == "on")
+                    useSystemClipboard = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    useSystemClipboard = false;
+            }
             auto itj = values.find("editor.syntax.json");
             if(itj == values.end())
                 itj = values.find("syntax.json");
@@ -4934,6 +4947,7 @@ void Editor::handleNormalMode(int c)
         if(pendingYank)
         {
             // yy detected - yank multiple lines
+            LOG_DEBUG(LOG, "yy detected, count={}", count);
             yankBuffer.clear();
             int startLine = *cursorY;
             int endLine =
@@ -4944,9 +4958,21 @@ void Editor::handleNormalMode(int c)
                 yankBuffer += (*lines)[i] + "\n";
             }
 
+            LOG_DEBUG(LOG, "yy: yankBuffer.length()={}, useSystemClipboard={}",
+                     yankBuffer.length(), useSystemClipboard);
+
             int linesYanked = endLine - startLine + 1;
-            setStatusMessage(std::to_string(linesYanked) + " line" +
-                             (linesYanked > 1 ? "s" : "") + " yanked");
+            std::string msg = std::to_string(linesYanked) + " line" +
+                             (linesYanked > 1 ? "s" : "") + " yanked";
+
+            if(useSystemClipboard && !yankBuffer.empty())
+            {
+                LOG_DEBUG(LOG, "yy: calling setSystemClipboard");
+                setSystemClipboard(yankBuffer);
+                msg += " (copied to clipboard)";
+            }
+
+            setStatusMessage(msg);
             pendingYank = false;
             repeatCount = 0;
             return;
@@ -6177,13 +6203,26 @@ void Editor::handleLinewiseOperator(char op, int count)
         break;
     case 'y':
     {
+        LOG_DEBUG(LOG, "handleLinewiseOperator: yy detected, count={}, cursorY={}",
+                 count, *cursorY);
         yankBuffer.clear();
         int endLine = std::min(*cursorY + count, (int)lines->size());
         for(int y = *cursorY; y < endLine; y++)
         {
             yankBuffer += (*lines)[y] + "\n";
         }
-        setStatusMessage(std::to_string(count) + " lines yanked");
+
+        LOG_DEBUG(LOG, "handleLinewiseOperator: yankBuffer.length()={}, useSystemClipboard={}",
+                 yankBuffer.length(), useSystemClipboard);
+
+        std::string msg = std::to_string(count) + " lines yanked";
+        if(useSystemClipboard && !yankBuffer.empty())
+        {
+            LOG_DEBUG(LOG, "handleLinewiseOperator: calling setSystemClipboard");
+            setSystemClipboard(yankBuffer);
+            msg += " (copied to clipboard)";
+        }
+        setStatusMessage(msg);
     }
     break;
     case '>':
@@ -6414,6 +6453,11 @@ void Editor::yankLineSelection()
     for(int y = startY; y <= endY && y < (int)lines->size(); y++)
     {
         yankBuffer += (*lines)[y] + "\n";
+    }
+
+    if(useSystemClipboard && !yankBuffer.empty())
+    {
+        setSystemClipboard(yankBuffer);
     }
     setStatusMessage(std::to_string(endY - startY + 1) + " lines yanked");
 }

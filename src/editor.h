@@ -186,6 +186,7 @@ public:
     std::vector<int> lastChangeKeys;
     bool autoBraces = true;
     bool autoCompletion = true;
+    bool useSystemClipboard = true;
     int tabSpaces = 4;
     std::string configPath;
     bool syntaxJson = true;

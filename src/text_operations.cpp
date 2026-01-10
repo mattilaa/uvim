@@ -1,10 +1,12 @@
 #include "editor.h"
+#include "enablelog.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
+#include <unistd.h>
 
 void Editor::yankRange(int startY, int startX, int endY, int endX)
 {
@@ -307,7 +309,14 @@ void Editor::yankLine()
     if(*cursorY < lines->size())
     {
         yankBuffer = (*lines)[*cursorY] + "\n";
-        setStatusMessage("Line yanked");
+
+        std::string msg = "Line yanked";
+        if(useSystemClipboard && !yankBuffer.empty())
+        {
+            setSystemClipboard(yankBuffer);
+            msg += " (copied to clipboard)";
+        }
+        setStatusMessage(msg);
     }
 }
 
@@ -317,6 +326,11 @@ void Editor::yankToLineEnd()
     {
         yankBuffer = (*lines)[*cursorY].substr(*cursorX);
         setStatusMessage("Yanked to line end");
+
+        if(useSystemClipboard && !yankBuffer.empty())
+        {
+            setSystemClipboard(yankBuffer);
+        }
     }
 }
 
@@ -356,6 +370,11 @@ void Editor::yankSelection()
             yankBuffer += (*lines)[endY].substr(0, endX + 1);
         }
         setStatusMessage("Selection yanked");
+    }
+
+    if(useSystemClipboard && !yankBuffer.empty())
+    {
+        setSystemClipboard(yankBuffer);
     }
 }
 
@@ -409,6 +428,42 @@ std::string Editor::getSystemClipboard()
 
 void Editor::setSystemClipboard(const std::string& text)
 {
+    LOG_DEBUG(LOG, "setSystemClipboard called, text.length()={}, useSystemClipboard={}",
+              text.length(), useSystemClipboard);
+
+    if(text.empty())
+    {
+        LOG_DEBUG(LOG, "setSystemClipboard: text is empty, returning");
+        return;
+    }
+
+#ifdef __APPLE__
+    // On macOS, use pbcopy directly
+    LOG_DEBUG(LOG, "setSystemClipboard: opening pipe to pbcopy");
+    FILE* pipe = popen("pbcopy", "w");
+    if(!pipe)
+    {
+        LOG_DEBUG(LOG, "setSystemClipboard: failed to open pipe to pbcopy");
+        return;
+    }
+
+    LOG_DEBUG(LOG, "setSystemClipboard: writing {} bytes to pbcopy", text.length());
+    size_t written = fwrite(text.c_str(), 1, text.length(), pipe);
+    LOG_DEBUG(LOG, "setSystemClipboard: wrote {} bytes, flushing", written);
+    fflush(pipe);
+
+    LOG_DEBUG(LOG, "setSystemClipboard: closing pipe (waiting for pbcopy to complete)");
+    int status = pclose(pipe);
+    LOG_DEBUG(LOG, "setSystemClipboard: pclose returned status={}", status);
+
+    if(status != 0)
+    {
+        LOG_DEBUG(LOG, "setSystemClipboard: pbcopy failed with status {}", status);
+        return;
+    }
+
+    LOG_DEBUG(LOG, "setSystemClipboard: completed successfully");
+#else
     std::string cmd = setClipboardCommand();
     if(cmd.empty())
         return;
@@ -418,7 +473,9 @@ void Editor::setSystemClipboard(const std::string& text)
         return;
 
     fwrite(text.c_str(), 1, text.length(), pipe);
+    fflush(pipe);
     pclose(pipe);
+#endif
 }
 
 void Editor::yankToSystemClipboard()
@@ -448,7 +505,24 @@ void Editor::pasteFromSystemClipboard()
 void Editor::pasteAfter()
 {
     if(yankBuffer.empty())
-        return;
+    {
+        if(useSystemClipboard)
+        {
+            std::string clipboard = getSystemClipboard();
+            if(!clipboard.empty())
+            {
+                yankBuffer = clipboard;
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            return;
+        }
+    }
 
     if(yankBuffer.back() == '\n')
     {
@@ -490,7 +564,24 @@ void Editor::pasteAfter()
 void Editor::pasteBefore()
 {
     if(yankBuffer.empty())
-        return;
+    {
+        if(useSystemClipboard)
+        {
+            std::string clipboard = getSystemClipboard();
+            if(!clipboard.empty())
+            {
+                yankBuffer = clipboard;
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            return;
+        }
+    }
 
     if(yankBuffer.back() == '\n')
     {
@@ -564,6 +655,11 @@ void Editor::yankVisualBlock()
     yankBuffer = "\x02" + yankBuffer;
 
     setStatusMessage("Block yanked");
+
+    if(useSystemClipboard && yankBuffer.length() > 1)
+    {
+        setSystemClipboard(yankBuffer.substr(1));
+    }
 }
 
 void Editor::changeVisualBlock()
