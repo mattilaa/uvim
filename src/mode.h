@@ -21,4 +21,5 @@ enum Mode
     OP_PENDING,
     REFERENCES,
     LSP_INFO,
+    HELP,
 };

@@ -1660,6 +1660,9 @@ void Editor::setMode(Mode mode)
     case LSP_INFO:
         modeStateMachine->transitionTo(LspInfoMode{});
         break;
+    case HELP:
+        modeStateMachine->transitionTo(HelpMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -1699,6 +1702,12 @@ std::string Editor::getModeString() const
         return "GREP";
     case LSP_INFO:
         return "LSP INFO";
+    case REFERENCES:
+        return "REFERENCES";
+    case OP_PENDING:
+        return "OP_PENDING";
+    case HELP:
+        return "HELP";
     }
     return "";
 }
@@ -3020,6 +3029,19 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == HELP)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<HelpMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
     static int lastOffsetY = -1;
     static int lastOffsetX = -1;
     static Mode lastMode = NORMAL;
@@ -3263,6 +3285,28 @@ void Editor::executeCommand(std::string_view cmd)
         showLspInfo();
         commandRequestedModeSet = true;
         commandRequestedMode = LSP_INFO;
+        return;
+    }
+
+    if(cmd == "help" || cmd.rfind("help ", 0) == 0 || cmd.rfind("h ", 0) == 0)
+    {
+        std::string topic;
+        if(cmd == "help" || cmd == "h")
+        {
+            topic = ""; // Default help
+        }
+        else if(cmd.rfind("help ", 0) == 0)
+        {
+            topic = std::string(cmd.substr(5));
+        }
+        else if(cmd.rfind("h ", 0) == 0)
+        {
+            topic = std::string(cmd.substr(2));
+        }
+
+        commandRequestedModeSet = true;
+        commandRequestedMode = HELP;
+        commandRequestedPath = topic; // Reuse path field for topic
         return;
     }
 
@@ -4154,6 +4198,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = LSP_INFO;
     }
+    else if(std::holds_alternative<HelpMode>(state))
+    {
+        currentMode = HELP;
+    }
 }
 
 void Editor::handleKeypress(int c)
@@ -4959,11 +5007,11 @@ void Editor::handleNormalMode(int c)
             }
 
             LOG_DEBUG(LOG, "yy: yankBuffer.length()={}, useSystemClipboard={}",
-                     yankBuffer.length(), useSystemClipboard);
+                      yankBuffer.length(), useSystemClipboard);
 
             int linesYanked = endLine - startLine + 1;
             std::string msg = std::to_string(linesYanked) + " line" +
-                             (linesYanked > 1 ? "s" : "") + " yanked";
+                              (linesYanked > 1 ? "s" : "") + " yanked";
 
             if(useSystemClipboard && !yankBuffer.empty())
             {
@@ -6203,8 +6251,9 @@ void Editor::handleLinewiseOperator(char op, int count)
         break;
     case 'y':
     {
-        LOG_DEBUG(LOG, "handleLinewiseOperator: yy detected, count={}, cursorY={}",
-                 count, *cursorY);
+        LOG_DEBUG(LOG,
+                  "handleLinewiseOperator: yy detected, count={}, cursorY={}",
+                  count, *cursorY);
         yankBuffer.clear();
         int endLine = std::min(*cursorY + count, (int)lines->size());
         for(int y = *cursorY; y < endLine; y++)
@@ -6212,13 +6261,16 @@ void Editor::handleLinewiseOperator(char op, int count)
             yankBuffer += (*lines)[y] + "\n";
         }
 
-        LOG_DEBUG(LOG, "handleLinewiseOperator: yankBuffer.length()={}, useSystemClipboard={}",
-                 yankBuffer.length(), useSystemClipboard);
+        LOG_DEBUG(LOG,
+                  "handleLinewiseOperator: yankBuffer.length()={}, "
+                  "useSystemClipboard={}",
+                  yankBuffer.length(), useSystemClipboard);
 
         std::string msg = std::to_string(count) + " lines yanked";
         if(useSystemClipboard && !yankBuffer.empty())
         {
-            LOG_DEBUG(LOG, "handleLinewiseOperator: calling setSystemClipboard");
+            LOG_DEBUG(LOG,
+                      "handleLinewiseOperator: calling setSystemClipboard");
             setSystemClipboard(yankBuffer);
             msg += " (copied to clipboard)";
         }

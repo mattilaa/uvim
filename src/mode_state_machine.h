@@ -81,6 +81,7 @@ struct GrepSearchMode;
 struct OperatorPendingMode;
 struct ReferencesMode;
 struct LspInfoMode;
+struct HelpMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -88,7 +89,7 @@ using ModeState =
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 OperatorPendingMode, ReferencesMode, LspInfoMode>;
+                 OperatorPendingMode, ReferencesMode, LspInfoMode, HelpMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -435,6 +436,38 @@ struct LspInfoMode
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+};
+
+struct HelpMode
+{
+    static constexpr const char* name()
+    {
+        return "HELP";
+    }
+
+    std::string topic;
+    std::vector<std::string> lines;
+    int scrollOffset = 0;
+    std::string previousFile;
+    bool commandMode = false;
+    std::string commandInput;
+
+    HelpMode() = default;
+    explicit HelpMode(std::string helpTopic, std::string prevFile = {})
+        : topic(std::move(helpTopic)), previousFile(std::move(prevFile))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+
+private:
+    void loadHelpContent(const std::string& helpTopic);
+    void executeCommand(ModeContext& ctx);
 };
 
 // ============================================================================

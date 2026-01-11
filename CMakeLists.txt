@@ -52,6 +52,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/operator_pending_mode.cpp
     src/references_mode.cpp
     src/lsp_info_mode.cpp
+    src/help_mode.cpp
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp

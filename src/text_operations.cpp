@@ -428,8 +428,10 @@ std::string Editor::getSystemClipboard()
 
 void Editor::setSystemClipboard(const std::string& text)
 {
-    LOG_DEBUG(LOG, "setSystemClipboard called, text.length()={}, useSystemClipboard={}",
-              text.length(), useSystemClipboard);
+    LOG_DEBUG(
+        LOG,
+        "setSystemClipboard called, text.length()={}, useSystemClipboard={}",
+        text.length(), useSystemClipboard);
 
     if(text.empty())
     {
@@ -447,18 +449,22 @@ void Editor::setSystemClipboard(const std::string& text)
         return;
     }
 
-    LOG_DEBUG(LOG, "setSystemClipboard: writing {} bytes to pbcopy", text.length());
+    LOG_DEBUG(LOG, "setSystemClipboard: writing {} bytes to pbcopy",
+              text.length());
     size_t written = fwrite(text.c_str(), 1, text.length(), pipe);
     LOG_DEBUG(LOG, "setSystemClipboard: wrote {} bytes, flushing", written);
     fflush(pipe);
 
-    LOG_DEBUG(LOG, "setSystemClipboard: closing pipe (waiting for pbcopy to complete)");
+    LOG_DEBUG(
+        LOG,
+        "setSystemClipboard: closing pipe (waiting for pbcopy to complete)");
     int status = pclose(pipe);
     LOG_DEBUG(LOG, "setSystemClipboard: pclose returned status={}", status);
 
     if(status != 0)
     {
-        LOG_DEBUG(LOG, "setSystemClipboard: pbcopy failed with status {}", status);
+        LOG_DEBUG(LOG, "setSystemClipboard: pbcopy failed with status {}",
+                  status);
         return;
     }
 

@@ -69,6 +69,15 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 {
                     return LspInfoMode{};
                 }
+                if(mode == HELP)
+                {
+                    std::string prev;
+                    if(ed->currentBuffer != nullptr && ed->filename)
+                    {
+                        prev = *ed->filename;
+                    }
+                    return HelpMode{path, prev}; // path contains the topic
+                }
             }
         }
         return defaultExitMode(ed);

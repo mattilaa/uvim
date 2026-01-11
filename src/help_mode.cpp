@@ -1,0 +1,583 @@
+#include "editor.h"
+#include "mode_state_machine.h"
+#include "terminal.h"
+#include <algorithm>
+#include <sstream>
+
+// ============================================================================
+// Help Mode Implementation
+// ============================================================================
+
+void HelpMode::on_enter(ModeContext& ctx)
+{
+    Editor* ed = ctx.editor;
+
+    if(previousFile.empty() && ed->currentBuffer != nullptr && ed->filename)
+    {
+        previousFile = *ed->filename;
+    }
+
+    loadHelpContent(topic);
+    ed->needsFullRedraw = true;
+}
+
+void HelpMode::on_exit(ModeContext& /* ctx */) {}
+
+std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
+                                          const KeyEvent& event)
+{
+    Editor* ed = ctx.editor;
+    int c = event.key;
+
+    // ========================================================================
+    // Command Mode Handling
+    // ========================================================================
+
+    if(commandMode)
+    {
+        if(c == Terminal::ESC)
+        {
+            commandMode = false;
+            commandInput.clear();
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        else if(c == Terminal::ENTER)
+        {
+            executeCommand(ctx);
+            commandMode = false;
+            commandInput.clear();
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        else if(c == Terminal::BACKSPACE || c == 127)
+        {
+            if(!commandInput.empty())
+            {
+                commandInput.pop_back();
+                ed->needsFullRedraw = true;
+            }
+            return std::nullopt;
+        }
+        else if(c >= 32 && c < 127)
+        {
+            commandInput += static_cast<char>(c);
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Enter Command Mode
+    // ========================================================================
+
+    if(c == ':')
+    {
+        commandMode = true;
+        commandInput.clear();
+        ed->needsFullRedraw = true;
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Exit
+    // ========================================================================
+
+    if(c == Terminal::ESC || c == 'q')
+    {
+        if(!previousFile.empty())
+        {
+            ed->openFile(std::string_view(previousFile));
+        }
+        return defaultExitMode(ed);
+    }
+
+    // ========================================================================
+    // Navigation
+    // ========================================================================
+
+    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    {
+        int maxScroll = std::max(0, (int)lines.size() - (ed->screenRows - 3));
+        if(scrollOffset < maxScroll)
+        {
+            scrollOffset++;
+        }
+    }
+    else if(c == 'k' || c == Terminal::ARROW_UP)
+    {
+        if(scrollOffset > 0)
+        {
+            scrollOffset--;
+        }
+    }
+    else if(c == 'G')
+    {
+        scrollOffset = std::max(0, (int)lines.size() - (ed->screenRows - 3));
+    }
+    else if(c == 'g')
+    {
+        int nextChar = Terminal::readKey();
+        if(nextChar == 'g')
+        {
+            scrollOffset = 0;
+        }
+    }
+    else if(c == Terminal::CTRL_D)
+    {
+        int half = (ed->screenRows - 3) / 2;
+        scrollOffset += half;
+        int maxScroll = std::max(0, (int)lines.size() - (ed->screenRows - 3));
+        if(scrollOffset > maxScroll)
+            scrollOffset = maxScroll;
+    }
+    else if(c == Terminal::CTRL_U)
+    {
+        int half = (ed->screenRows - 3) / 2;
+        scrollOffset -= half;
+        if(scrollOffset < 0)
+            scrollOffset = 0;
+    }
+
+    ed->needsFullRedraw = true;
+    return std::nullopt;
+}
+
+void HelpMode::draw(Editor& editor) const
+{
+    std::string output;
+    output.reserve(editor.screenRows * editor.screenCols * 2);
+
+    output += Terminal::ESC_CURSOR_HOME;
+    output += editor.theme.reset();
+
+    // Draw header
+    output += Terminal::ESC_CLEAR_LINE;
+    output += editor.theme.uiAccent();
+    output += Terminal::ESC_BOLD;
+    output += "  HELP";
+    if(!topic.empty())
+    {
+        output += ": " + topic;
+    }
+    output += editor.theme.reset();
+    output += Terminal::NEWLINE_CLEAR;
+    output += editor.theme.uiDim();
+    output += "  [q: quit] [j/k: scroll] [gg/G: top/bottom] [:help <topic>: "
+              "navigate]";
+    output += editor.theme.baseFg();
+
+    int availableRows = editor.screenRows - 2;
+
+    // Draw help content
+    for(int i = 0; i < availableRows && i + scrollOffset < (int)lines.size();
+        i++)
+    {
+        output += Terminal::NEWLINE_CLEAR;
+
+        const std::string& line = lines[i + scrollOffset];
+
+        // Apply syntax highlighting to the line
+        output += "  ";
+
+        // Check if line is a topic title (starts with # or all caps)
+        if(!line.empty() && line[0] == '#')
+        {
+            // Topic title
+            output += editor.theme.syntax(TOKEN_KEYWORD);
+            output += Terminal::ESC_BOLD;
+            output += line.substr(1); // Skip #
+            output += editor.theme.reset();
+        }
+        else if(!line.empty() && std::isupper(line[0]) &&
+                line.find(':') != std::string::npos && line.find(':') < 30)
+        {
+            // Section header (e.g., "COMMANDS:")
+            output += editor.theme.uiAccent();
+            output += Terminal::ESC_BOLD;
+            output += line;
+            output += editor.theme.reset();
+        }
+        else
+        {
+            // Regular line with command highlighting
+            std::string processedLine;
+            size_t pos = 0;
+
+            while(pos < line.length())
+            {
+                // Look for commands starting with : or starting with uppercase
+                if(line[pos] == ':')
+                {
+                    // Find end of command
+                    size_t end = pos + 1;
+                    while(end < line.length() &&
+                          (std::isalnum(line[end]) || line[end] == '!' ||
+                           line[end] == '?'))
+                    {
+                        end++;
+                    }
+
+                    // Highlight command
+                    processedLine += editor.theme.syntax(TOKEN_STRING);
+                    processedLine += Terminal::ESC_BOLD;
+                    processedLine += line.substr(pos, end - pos);
+                    processedLine += editor.theme.reset();
+                    pos = end;
+                }
+                else if(line[pos] == '`')
+                {
+                    // Code/command in backticks
+                    size_t end = line.find('`', pos + 1);
+                    if(end != std::string::npos)
+                    {
+                        processedLine += editor.theme.syntax(TOKEN_FUNCTION);
+                        processedLine += line.substr(pos + 1, end - pos - 1);
+                        processedLine += editor.theme.reset();
+                        pos = end + 1;
+                    }
+                    else
+                    {
+                        processedLine += line[pos++];
+                    }
+                }
+                else
+                {
+                    processedLine += line[pos++];
+                }
+            }
+
+            output += processedLine;
+        }
+
+        output += editor.theme.reset();
+    }
+
+    // Fill remaining lines
+    for(int i = std::min((int)lines.size() - scrollOffset, availableRows);
+        i < availableRows; i++)
+    {
+        output += Terminal::NEWLINE_CLEAR;
+        output += editor.theme.uiGutter();
+        output += "  ~";
+        output += editor.theme.baseFg();
+    }
+
+    // Status bar
+    output += Terminal::NEWLINE_CLEAR;
+    output += editor.theme.statusBar();
+
+    std::string status = " HELP";
+    if(!topic.empty())
+        status += " | " + topic;
+
+    std::string right = " " + std::to_string(scrollOffset + 1) + "-" +
+                        std::to_string(std::min(scrollOffset + availableRows,
+                                                (int)lines.size())) +
+                        "/" + std::to_string(lines.size()) + " ";
+
+    output += status;
+    int padding = editor.screenCols - status.length() - right.length();
+    if(padding > 0)
+    {
+        output.append(padding, ' ');
+    }
+    output += right;
+    output += editor.theme.reset();
+
+    // Message line
+    output += Terminal::NEWLINE_CLEAR;
+    if(commandMode)
+    {
+        output += ":";
+        output += commandInput;
+    }
+    else if(!editor.statusMessage.empty())
+    {
+        output += editor.statusMessage.substr(
+            0,
+            std::min((size_t)editor.screenCols, editor.statusMessage.length()));
+    }
+
+    Terminal::write(output);
+    Terminal::flush();
+}
+
+void HelpMode::loadHelpContent(const std::string& helpTopic)
+{
+    lines.clear();
+
+    // Convert topic to lowercase for matching
+    std::string topic_lower = helpTopic;
+    std::transform(topic_lower.begin(), topic_lower.end(), topic_lower.begin(),
+                   ::tolower);
+
+    // Load help content based on topic
+    if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
+    {
+        lines = {
+            "# uvim Help",
+            "",
+            "Welcome to uvim! Type `:help <topic>` for specific help.",
+            "",
+            "AVAILABLE TOPICS:",
+            "  `:help commands`   - List of all commands",
+            "  `:help modes`      - Editor modes",
+            "  `:help navigation` - Moving around",
+            "  `:help editing`    - Editing text",
+            "  `:help files`      - File operations",
+            "  `:help buffers`    - Buffer management",
+            "  `:help search`     - Searching and replacing",
+            "  `:help clipboard`  - Clipboard operations",
+            "",
+            "QUICK START:",
+            "  `i`        - Enter insert mode",
+            "  `ESC`      - Return to normal mode",
+            "  `:w`       - Save file",
+            "  `:q`       - Quit",
+            "  `:wq`      - Save and quit",
+            "",
+            "NAVIGATION:",
+            "  `h j k l`  - Move left/down/up/right",
+            "  `gg`       - Go to top",
+            "  `G`        - Go to bottom",
+            "  `Ctrl-f`   - Fuzzy file finder",
+            "  `Space-e`  - File browser",
+            "",
+            "Press `q` to close this help window.",
+        };
+    }
+    else if(topic_lower == "commands")
+    {
+        lines = {
+            "# Command Reference",
+            "",
+            "FILE OPERATIONS:",
+            "  `:w`              - Write (save) current file",
+            "  `:w <file>`       - Save to specific file",
+            "  `:q`              - Quit (fails if unsaved changes)",
+            "  `:q!`             - Force quit without saving",
+            "  `:wq` or `:x`     - Save and quit",
+            "  `:wa`             - Write all buffers",
+            "  `:qa`             - Quit all buffers",
+            "  `:qa!`            - Force quit all",
+            "  `:wqa` or `:xa`   - Write all and quit",
+            "",
+            "BUFFER MANAGEMENT:",
+            "  `:bn` or `:bnext`     - Next buffer",
+            "  `:bp` or `:bprev`     - Previous buffer",
+            "  `:bd` or `:bdelete`   - Delete buffer",
+            "  `:bd!`                - Force delete buffer",
+            "  `:ls` or `:buffers`   - List buffers",
+            "  `:b <n>`              - Switch to buffer n",
+            "  `:enew`               - Create new buffer",
+            "",
+            "FILE BROWSER:",
+            "  `:Ex` or `:Explore`   - Open file browser",
+            "  `:cd <path>`          - Change directory",
+            "  `:pwd`                - Print working directory",
+            "",
+            "FILE BROWSER COMMANDS:",
+            "  `:q`                  - Exit file browser",
+            "  `:cd <path>`          - Change directory",
+            "  `:mkdir <name>`       - Create directory",
+            "  `:touch <name>`       - Create file",
+            "  `:delete` or `:d`     - Delete selected file",
+            "  `:rename <name>`      - Rename selected file",
+            "",
+            "SETTINGS:",
+            "  `:set number` or `:set nu`     - Show line numbers",
+            "  `:set nonumber` or `:set nonu` - Hide line numbers",
+            "  `:set ignorecase` or `:set ic` - Case insensitive search",
+            "  `:set smartcase` or `:set scs` - Smart case search",
+            "",
+            "HELP:",
+            "  `:help`           - Show this help",
+            "  `:help <topic>`   - Show help for topic",
+        };
+    }
+    else if(topic_lower == "modes")
+    {
+        lines = {
+            "# Editor Modes",
+            "",
+            "NORMAL MODE:",
+            "  Default mode for navigation and commands.",
+            "  Press `ESC` to return to normal mode from any other mode.",
+            "",
+            "INSERT MODE:",
+            "  `i`     - Insert before cursor",
+            "  `I`     - Insert at beginning of line",
+            "  `a`     - Append after cursor",
+            "  `A`     - Append at end of line",
+            "  `o`     - Open new line below",
+            "  `O`     - Open new line above",
+            "",
+            "VISUAL MODE:",
+            "  `v`     - Character-wise visual selection",
+            "  `V`     - Line-wise visual selection",
+            "  `Ctrl-v` - Block visual selection",
+            "  `y`     - Yank (copy) selection",
+            "  `d`     - Delete selection",
+            "  `c`     - Change selection",
+            "",
+            "COMMAND MODE:",
+            "  `:`     - Enter command mode",
+            "  Type commands and press Enter to execute.",
+            "",
+            "SEARCH MODE:",
+            "  `/`     - Search forward",
+            "  `?`     - Search backward",
+            "  `n`     - Next match",
+            "  `N`     - Previous match",
+            "",
+            "FILE BROWSER MODE:",
+            "  `Space-e` - Open file browser",
+            "  `j/k`     - Navigate up/down",
+            "  `Enter`   - Open file/directory",
+            "  `h` or `-`  - Go to parent directory",
+            "  `.`       - Toggle hidden files",
+            "  `i`       - Toggle gitignore",
+            "  `:`       - Enter command mode in browser",
+            "  `q`       - Quit file browser",
+        };
+    }
+    else if(topic_lower == "navigation")
+    {
+        lines = {
+            "# Navigation",
+            "",
+            "BASIC MOVEMENT:",
+            "  `h`       - Move left",
+            "  `j`       - Move down",
+            "  `k`       - Move up",
+            "  `l`       - Move right",
+            "  `w`       - Move to next word",
+            "  `b`       - Move to previous word",
+            "  `e`       - Move to end of word",
+            "",
+            "LINE MOVEMENT:",
+            "  `0`       - Move to beginning of line",
+            "  `^`       - Move to first non-blank character",
+            "  `$`       - Move to end of line",
+            "  `gg`      - Go to first line",
+            "  `G`       - Go to last line",
+            "  `<n>G`    - Go to line n",
+            "",
+            "SCREEN MOVEMENT:",
+            "  `Ctrl-f`  - Page down",
+            "  `Ctrl-b`  - Page up",
+            "  `Ctrl-d`  - Half page down",
+            "  `Ctrl-u`  - Half page up",
+            "  `zz`      - Center screen on cursor",
+            "",
+            "FILE NAVIGATION:",
+            "  `Ctrl-p`  - Fuzzy file finder",
+            "  `Space-e` - File browser",
+            "  `Space-b` - Buffer browser",
+            "  `Space-s` - Grep search",
+        };
+    }
+    else if(topic_lower == "clipboard")
+    {
+        lines = {
+            "# Clipboard Operations",
+            "",
+            "YANK (COPY):",
+            "  `yy`      - Yank current line",
+            "  `<n>yy`   - Yank n lines",
+            "  `yw`      - Yank word",
+            "  `y$`      - Yank to end of line",
+            "  `v<move>y` - Yank visual selection",
+            "  `V<move>y` - Yank visual line selection",
+            "",
+            "PASTE:",
+            "  `p`       - Paste after cursor",
+            "  `P`       - Paste before cursor",
+            "",
+            "SYSTEM CLIPBOARD:",
+            "  By default, `useSystemClipboard` is enabled.",
+            "  All yank operations automatically copy to system clipboard.",
+            "  Paste operations fall back to system clipboard if internal",
+            "  buffer is empty.",
+            "",
+            "  This allows seamless integration with other applications:",
+            "  - Yank in uvim → Paste in terminal or other apps",
+            "  - Copy in other apps → Paste in uvim",
+            "",
+            "DELETE (CUT):",
+            "  `dd`      - Delete (cut) current line",
+            "  `<n>dd`   - Delete n lines",
+            "  `dw`      - Delete word",
+            "  `d$`      - Delete to end of line",
+        };
+    }
+    else
+    {
+        // Unknown topic - show available topics
+        lines = {
+            "# Unknown topic: " + helpTopic,
+            "",
+            "Available help topics:",
+            "  `:help commands`",
+            "  `:help modes`",
+            "  `:help navigation`",
+            "  `:help editing`",
+            "  `:help files`",
+            "  `:help buffers`",
+            "  `:help search`",
+            "  `:help clipboard`",
+            "",
+            "Type `:help` to see the main help page.",
+        };
+    }
+}
+
+void HelpMode::executeCommand(ModeContext& ctx)
+{
+    Editor* ed = ctx.editor;
+
+    // Parse command and arguments
+    std::string cmd;
+    std::string args;
+    size_t spacePos = commandInput.find(' ');
+    if(spacePos != std::string::npos)
+    {
+        cmd = commandInput.substr(0, spacePos);
+        args = commandInput.substr(spacePos + 1);
+        // Trim leading spaces from args
+        while(!args.empty() && args[0] == ' ')
+            args.erase(0, 1);
+    }
+    else
+    {
+        cmd = commandInput;
+    }
+
+    // Handle :help command to navigate to different topics
+    if(cmd == "help" || cmd == "h")
+    {
+        std::string newTopic = args.empty() ? "" : args;
+        topic = newTopic;
+        scrollOffset = 0;
+        loadHelpContent(topic);
+        ed->setStatusMessage("Help: " + (topic.empty() ? "index" : topic));
+        ed->needsFullRedraw = true;
+        return;
+    }
+
+    // Handle :q to exit help
+    if(cmd == "q" || cmd == "q!")
+    {
+        if(!previousFile.empty())
+        {
+            ed->openFile(std::string_view(previousFile));
+        }
+        ed->setMode(NORMAL);
+        return;
+    }
+
+    // Unknown command
+    ed->setStatusMessage("Unknown command: :" + cmd);
+}

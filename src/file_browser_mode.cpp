@@ -767,7 +767,8 @@ std::optional<ModeState> FileBrowserMode::executeCommand(ModeContext& ctx)
                     }
                     else
                     {
-                        ed->setStatusMessage("HOME environment variable not set");
+                        ed->setStatusMessage(
+                            "HOME environment variable not set");
                         return std::nullopt;
                     }
                 }
@@ -779,8 +780,8 @@ std::optional<ModeState> FileBrowserMode::executeCommand(ModeContext& ctx)
             else
             {
                 // Relative path
-                targetPath =
-                    std::filesystem::path(currentDirectory) / std::filesystem::path(args);
+                targetPath = std::filesystem::path(currentDirectory) /
+                             std::filesystem::path(args);
             }
 
             std::error_code ec;
@@ -801,11 +802,25 @@ std::optional<ModeState> FileBrowserMode::executeCommand(ModeContext& ctx)
     // ========================================================================
     // Help command
     // ========================================================================
-    else if(cmd == "help" || cmd == "h" || cmd == "?")
+    else if(cmd == "help" || cmd == "h")
     {
-        ed->setStatusMessage(
-            ":q :d[elete] :r[ename] <name> :mkdir <name> :touch <name> :cd "
-            "<path>");
+        // If no args, show brief command list in status
+        //       if(args.empty())
+        //       {
+        //           ed->setStatusMessage(
+        //               ":q :help <topic> :d[elete] :r[ename] <name> :mkdir
+        //               <name> :touch <name> :cd "
+        //               "<path>");
+        //           return std::nullopt;
+        //       }
+        // If args provided, open full help mode
+        return HelpMode{args, previousFile};
+    }
+    else if(cmd == "?")
+    {
+        ed->setStatusMessage(":q :help <topic> :d[elete] :r[ename] <name> "
+                             ":mkdir <name> :touch <name> :cd "
+                             "<path>");
         return std::nullopt;
     }
 
