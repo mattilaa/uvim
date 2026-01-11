@@ -285,7 +285,7 @@ private:
     void loadDirectory(ModeContext& ctx, const std::string& pathStr);
     std::string formatFileSize(size_t size) const;
     std::string formatFileTime(time_t time) const;
-    void executeCommand(ModeContext& ctx);
+    std::optional<ModeState> executeCommand(ModeContext& ctx);
 };
 
 struct FuzzyFindMode

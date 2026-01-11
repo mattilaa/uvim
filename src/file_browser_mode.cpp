@@ -59,11 +59,13 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
         else if(c == Terminal::ENTER)
         {
-            executeCommand(ctx);
+            auto result = executeCommand(ctx);
             commandMode = false;
             commandInput.clear();
             ed->needsFullRedraw = true;
-            return std::nullopt;
+
+            // If command returned a mode change, return it
+            return result;
         }
         else if(c == Terminal::BACKSPACE || c == 127)
         {
@@ -560,13 +562,13 @@ std::string FileBrowserMode::formatFileTime(time_t time) const
     return std::string(buffer);
 }
 
-void FileBrowserMode::executeCommand(ModeContext& ctx)
+std::optional<ModeState> FileBrowserMode::executeCommand(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
     if(commandInput.empty())
     {
-        return;
+        return std::nullopt;
     }
 
     // Parse command and arguments
@@ -586,6 +588,32 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
         cmd = commandInput;
     }
 
+    // ========================================================================
+    // Quit commands - exit file browser mode
+    // ========================================================================
+    if(cmd == "q" || cmd == "q!")
+    {
+        if(!previousFile.empty())
+        {
+            ed->openFile(std::string_view(previousFile));
+        }
+        return defaultExitMode(ed);
+    }
+
+    if(cmd == "wq" || cmd == "x")
+    {
+        ed->setStatusMessage("Not applicable in file browser mode");
+        return std::nullopt;
+    }
+
+    // Quit all commands - delegate to editor to quit entire application
+    if(cmd == "qa" || cmd == "qall" || cmd == "qa!" || cmd == "qall!" ||
+       cmd == "wqa" || cmd == "wqall" || cmd == "xa")
+    {
+        ed->executeCommand(cmd);
+        return std::nullopt;
+    }
+
     // Get current file entry if one is selected
     const FileEntry* currentEntry = nullptr;
     if(browserCursor >= 0 && browserCursor < (int)fileList.size())
@@ -601,11 +629,12 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
         if(!currentEntry || currentEntry->name == "..")
         {
             ed->setStatusMessage("No file selected to delete");
-            return;
+            return std::nullopt;
         }
 
         // Reuse existing delete logic
         ed->deleteFilePrompt();
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -618,7 +647,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
             if(!currentEntry || currentEntry->name == "..")
             {
                 ed->setStatusMessage("No file selected to rename");
-                return;
+                return std::nullopt;
             }
             // Reuse existing rename prompt
             ed->renameFilePrompt();
@@ -629,7 +658,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
             if(!currentEntry || currentEntry->name == "..")
             {
                 ed->setStatusMessage("No file selected to rename");
-                return;
+                return std::nullopt;
             }
 
             std::filesystem::path oldPath(currentEntry->path);
@@ -648,6 +677,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
                 loadDirectory(ctx, currentDirectory);
             }
         }
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -677,6 +707,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
                 loadDirectory(ctx, currentDirectory);
             }
         }
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -705,6 +736,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
                 loadDirectory(ctx, currentDirectory);
             }
         }
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -736,7 +768,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
                     else
                     {
                         ed->setStatusMessage("HOME environment variable not set");
-                        return;
+                        return std::nullopt;
                     }
                 }
                 else
@@ -763,6 +795,7 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
                 ed->setStatusMessage("Not a directory: " + args);
             }
         }
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -771,8 +804,9 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
     else if(cmd == "help" || cmd == "h" || cmd == "?")
     {
         ed->setStatusMessage(
-            "Commands: :d[elete] :r[ename] <name> :mkdir <name> :touch <name> "
-            ":cd <path>");
+            ":q :d[elete] :r[ename] <name> :mkdir <name> :touch <name> :cd "
+            "<path>");
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -783,4 +817,6 @@ void FileBrowserMode::executeCommand(ModeContext& ctx)
         ed->setStatusMessage("Unknown command: " + cmd +
                              " (try :help for list)");
     }
+
+    return std::nullopt;
 }
