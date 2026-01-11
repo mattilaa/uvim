@@ -13,13 +13,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure
+      - name: Configure (Debug)
         run: |
           cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DUVIM_BUILD_TESTS=ON \
             -DUVIM_ENABLE_CLANGD_LSP=OFF
 
-      - name: Build
+      - name: Build (Debug)
         run: cmake --build build
 
       - name: Unit tests
@@ -32,3 +33,86 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tests/robot/requirements.txt
           UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
+
+  sanitizers-debug:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (Debug + ASan/UBSan)
+        run: |
+          cmake -S . -B build-sanitizers \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUVIM_BUILD_TESTS=ON \
+            -DUVIM_ENABLE_CLANGD_LSP=OFF \
+            -DUVIM_ENABLE_SANITIZERS=ON
+
+      - name: Build (Debug + ASan/UBSan)
+        run: cmake --build build-sanitizers
+
+      - name: Sanity check (Debug + Sanitizers)
+        run: |
+          echo "=== Using sanitizer build dir ==="
+          echo "PWD=$PWD"
+          echo "BUILD_DIR=$PWD/build-sanitizers"
+          echo
+          echo "=== CMake cache (key settings) ==="
+          grep -E '^(CMAKE_BUILD_TYPE:|UVIM_ENABLE_SANITIZERS:|CMAKE_C_COMPILER:|CMAKE_CXX_COMPILER:)' build-sanitizers/CMakeCache.txt || true
+          echo
+          echo "=== Check binary is instrumented (links ASan runtime) ==="
+          if [ -f "build-sanitizers/uvim" ]; then
+            otool -L build-sanitizers/uvim | grep -E 'asan' || echo "NOTE: did not find 'asan' in linked libs (unexpected if ASan is enabled)"
+          else
+            echo "ERROR: build-sanitizers/uvim not found"
+            ls -la build-sanitizers || true
+          fi
+          echo
+          echo "=== Robot will run this binary ==="
+          echo "UVIM_BIN=$PWD/build-sanitizers/uvim"
+
+      - name: Unit tests (ASan/UBSan)
+        env:
+          # LeakSanitizer is not reliably supported on macOS runners; avoid aborting the job.
+          ASAN_OPTIONS: "halt_on_error=1:detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: ctest --test-dir build-sanitizers --output-on-failure
+
+      - name: Robot tests (ASan/UBSan)
+        env:
+          ASAN_OPTIONS: "halt_on_error=1:detect_leaks=0"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r tests/robot/requirements.txt
+          UVIM_BIN="$PWD/build-sanitizers/uvim" ./tests/robot/run_robot.sh tests/robot/
+
+  release-artifacts:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (Release)
+        run: |
+          cmake -S . -B build-release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUVIM_BUILD_TESTS=OFF \
+            -DUVIM_ENABLE_CLANGD_LSP=OFF
+
+      - name: Build (Release)
+        run: cmake --build build-release
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          tar -czf dist/uvim-macos-release.tar.gz -C build-release uvim
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uvim-macos-release
+          path: dist/uvim-macos-release.tar.gz
+          if-no-files-found: error

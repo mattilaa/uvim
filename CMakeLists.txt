@@ -9,6 +9,11 @@ option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
+option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
+
+if(UVIM_ENABLE_SANITIZERS)
+    message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
+endif()
 
 # Terminal backend selection (AUTO/POSIX/WIN32)
 set(UVIM_TERMINAL_BACKEND "AUTO" CACHE STRING "Terminal backend: AUTO, POSIX, WIN32")
@@ -106,6 +111,36 @@ else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+# ------------------------------------------------------------------------------
+# Sanitizers (ASan + UBSan) - behind a flag
+# ------------------------------------------------------------------------------
+function(uvim_enable_sanitizers target)
+    if(NOT UVIM_ENABLE_SANITIZERS)
+        return()
+    endif()
+
+    # MSVC does not support -fsanitize flags (unless using clang-cl in some setups).
+    if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+        message(WARNING "UVIM_ENABLE_SANITIZERS=ON requested, but MSVC does not support ASan/UBSan via -fsanitize. Ignoring for target: ${target}")
+        return()
+    endif()
+
+    set(_uvim_sanitize_flags "-fsanitize=address,undefined")
+
+    target_compile_options(${target} PRIVATE
+        ${_uvim_sanitize_flags}
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=all
+    )
+    target_link_options(${target} PRIVATE
+        ${_uvim_sanitize_flags}
+    )
+endfunction()
+
+# Apply sanitizers to main binary
+uvim_enable_sanitizers(uvim)
+
+
 # Release optimizations (portable)
 target_compile_definitions(uvim PRIVATE
     $<$<CONFIG:Release>:NDEBUG>
@@ -182,6 +217,7 @@ if(UVIM_BUILD_TESTS)
     add_executable(state_machine_tests
         tests/state_machine_test.cpp
     )
+    uvim_enable_sanitizers(state_machine_tests)
     target_link_libraries(state_machine_tests
         GTest::gtest_main
         GTest::gmock
@@ -191,6 +227,7 @@ if(UVIM_BUILD_TESTS)
     add_executable(mode_state_machine_tests
         tests/mode_state_machine_test.cpp
     )
+    uvim_enable_sanitizers(mode_state_machine_tests)
     target_link_libraries(mode_state_machine_tests
         GTest::gtest_main
         GTest::gmock
