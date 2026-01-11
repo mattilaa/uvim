@@ -4,7 +4,9 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
+#include <cstdlib>
 #include <ctime>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 
@@ -41,6 +43,57 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = event.key;
+
+    // ========================================================================
+    // Command Mode Handling
+    // ========================================================================
+
+    if(commandMode)
+    {
+        if(c == Terminal::ESC)
+        {
+            commandMode = false;
+            commandInput.clear();
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        else if(c == Terminal::ENTER)
+        {
+            executeCommand(ctx);
+            commandMode = false;
+            commandInput.clear();
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        else if(c == Terminal::BACKSPACE || c == 127)
+        {
+            if(!commandInput.empty())
+            {
+                commandInput.pop_back();
+                ed->needsFullRedraw = true;
+            }
+            return std::nullopt;
+        }
+        else if(c >= 32 && c < 127)
+        {
+            commandInput += static_cast<char>(c);
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    // ========================================================================
+    // Enter Command Mode
+    // ========================================================================
+
+    if(c == ':')
+    {
+        commandMode = true;
+        commandInput.clear();
+        ed->needsFullRedraw = true;
+        return std::nullopt;
+    }
 
     // ========================================================================
     // Exit
@@ -241,7 +294,8 @@ void FileBrowserMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
     output +=
-        "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore]";
+        "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore] "
+        "[:cmd]";
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 2;
@@ -335,7 +389,12 @@ void FileBrowserMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
-    if(!editor.statusMessage.empty())
+    if(commandMode)
+    {
+        output += editor.theme.baseFg();
+        output += ":" + commandInput;
+    }
+    else if(!editor.statusMessage.empty())
     {
         output += editor.statusMessage.substr(
             0,
@@ -499,4 +558,229 @@ std::string FileBrowserMode::formatFileTime(time_t time) const
     struct tm* timeinfo = localtime(&time);
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", timeinfo);
     return std::string(buffer);
+}
+
+void FileBrowserMode::executeCommand(ModeContext& ctx)
+{
+    Editor* ed = ctx.editor;
+
+    if(commandInput.empty())
+    {
+        return;
+    }
+
+    // Parse command and arguments
+    std::string cmd;
+    std::string args;
+    size_t spacePos = commandInput.find(' ');
+    if(spacePos != std::string::npos)
+    {
+        cmd = commandInput.substr(0, spacePos);
+        args = commandInput.substr(spacePos + 1);
+        // Trim leading spaces from args
+        while(!args.empty() && args[0] == ' ')
+            args.erase(0, 1);
+    }
+    else
+    {
+        cmd = commandInput;
+    }
+
+    // Get current file entry if one is selected
+    const FileEntry* currentEntry = nullptr;
+    if(browserCursor >= 0 && browserCursor < (int)fileList.size())
+    {
+        currentEntry = &fileList[browserCursor];
+    }
+
+    // ========================================================================
+    // Delete command
+    // ========================================================================
+    if(cmd == "delete" || cmd == "d" || cmd == "rm")
+    {
+        if(!currentEntry || currentEntry->name == "..")
+        {
+            ed->setStatusMessage("No file selected to delete");
+            return;
+        }
+
+        // Reuse existing delete logic
+        ed->deleteFilePrompt();
+    }
+
+    // ========================================================================
+    // Rename/Move command
+    // ========================================================================
+    else if(cmd == "rename" || cmd == "r" || cmd == "mv")
+    {
+        if(args.empty())
+        {
+            if(!currentEntry || currentEntry->name == "..")
+            {
+                ed->setStatusMessage("No file selected to rename");
+                return;
+            }
+            // Reuse existing rename prompt
+            ed->renameFilePrompt();
+        }
+        else
+        {
+            // Rename with provided name
+            if(!currentEntry || currentEntry->name == "..")
+            {
+                ed->setStatusMessage("No file selected to rename");
+                return;
+            }
+
+            std::filesystem::path oldPath(currentEntry->path);
+            std::filesystem::path newPath =
+                oldPath.parent_path() / std::filesystem::path(args);
+
+            std::error_code ec;
+            std::filesystem::rename(oldPath, newPath, ec);
+            if(ec)
+            {
+                ed->setStatusMessage("Failed to rename: " + ec.message());
+            }
+            else
+            {
+                ed->setStatusMessage("Renamed to: " + args);
+                loadDirectory(ctx, currentDirectory);
+            }
+        }
+    }
+
+    // ========================================================================
+    // Make directory command
+    // ========================================================================
+    else if(cmd == "mkdir" || cmd == "md")
+    {
+        if(args.empty())
+        {
+            ed->createNewDirectoryPrompt();
+        }
+        else
+        {
+            std::filesystem::path dirPath =
+                std::filesystem::path(currentDirectory) /
+                std::filesystem::path(args);
+            std::error_code ec;
+            std::filesystem::create_directory(dirPath, ec);
+            if(ec)
+            {
+                ed->setStatusMessage("Failed to create directory: " +
+                                     ec.message());
+            }
+            else
+            {
+                ed->setStatusMessage("Created directory: " + args);
+                loadDirectory(ctx, currentDirectory);
+            }
+        }
+    }
+
+    // ========================================================================
+    // Create file command
+    // ========================================================================
+    else if(cmd == "touch" || cmd == "new")
+    {
+        if(args.empty())
+        {
+            ed->createNewFilePrompt();
+        }
+        else
+        {
+            std::filesystem::path filePath =
+                std::filesystem::path(currentDirectory) /
+                std::filesystem::path(args);
+            std::ofstream file(filePath);
+            if(!file.is_open())
+            {
+                ed->setStatusMessage("Failed to create file: " + args);
+            }
+            else
+            {
+                file.close();
+                ed->setStatusMessage("Created file: " + args);
+                loadDirectory(ctx, currentDirectory);
+            }
+        }
+    }
+
+    // ========================================================================
+    // Change directory command
+    // ========================================================================
+    else if(cmd == "cd")
+    {
+        if(args.empty())
+        {
+            ed->setStatusMessage("Usage: :cd <path>");
+        }
+        else
+        {
+            std::filesystem::path targetPath;
+            if(args[0] == '/' || args[0] == '~')
+            {
+                // Absolute path
+                if(args[0] == '~')
+                {
+                    const char* home = getenv("HOME");
+                    if(home)
+                    {
+                        targetPath = std::filesystem::path(home);
+                        if(args.length() > 1 && args[1] == '/')
+                        {
+                            targetPath /= args.substr(2);
+                        }
+                    }
+                    else
+                    {
+                        ed->setStatusMessage("HOME environment variable not set");
+                        return;
+                    }
+                }
+                else
+                {
+                    targetPath = std::filesystem::path(args);
+                }
+            }
+            else
+            {
+                // Relative path
+                targetPath =
+                    std::filesystem::path(currentDirectory) / std::filesystem::path(args);
+            }
+
+            std::error_code ec;
+            if(std::filesystem::is_directory(targetPath, ec) && !ec)
+            {
+                loadDirectory(ctx, file_utils::path_to_utf8_string(targetPath));
+                browserCursor = 0;
+                browserOffset = 0;
+            }
+            else
+            {
+                ed->setStatusMessage("Not a directory: " + args);
+            }
+        }
+    }
+
+    // ========================================================================
+    // Help command
+    // ========================================================================
+    else if(cmd == "help" || cmd == "h" || cmd == "?")
+    {
+        ed->setStatusMessage(
+            "Commands: :d[elete] :r[ename] <name> :mkdir <name> :touch <name> "
+            ":cd <path>");
+    }
+
+    // ========================================================================
+    // Unknown command
+    // ========================================================================
+    else
+    {
+        ed->setStatusMessage("Unknown command: " + cmd +
+                             " (try :help for list)");
+    }
 }

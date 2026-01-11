@@ -264,6 +264,8 @@ struct FileBrowserMode
     int browserCursor = 0;
     int browserOffset = 0;
     bool showHidden = false;
+    bool commandMode = false;
+    std::string commandInput;
 
     FileBrowserMode() = default;
     explicit FileBrowserMode(std::string startDir, std::string prevFile = {})
@@ -283,6 +285,7 @@ private:
     void loadDirectory(ModeContext& ctx, const std::string& pathStr);
     std::string formatFileSize(size_t size) const;
     std::string formatFileTime(time_t time) const;
+    void executeCommand(ModeContext& ctx);
 };
 
 struct FuzzyFindMode
