@@ -120,12 +120,18 @@ struct WelcomeMode
         return "WELCOME";
     }
 
+    CommandPrompt commandPrompt;
+
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
     void draw(Editor& editor) const;
+
+private:
+    std::optional<ModeState> executeCommand(ModeContext& ctx,
+                                            std::string_view commandLine);
 };
 
 struct NormalMode

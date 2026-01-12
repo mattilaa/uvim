@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -22,14 +23,17 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
+    std::optional<ModeState> nextState;
+    if(commandPrompt.handle(
+           ctx, c, [&](std::string_view commandLine)
+           { return executeCommand(ctx, commandLine); }, nextState))
+    {
+        return nextState;
+    }
+
     if(c == Terminal::ESC || c == Terminal::ENTER)
     {
         return NormalMode{};
-    }
-
-    if(c == ':')
-    {
-        return CommandMode{};
     }
 
     if(c == 'i' || c == 'I')
@@ -63,6 +67,62 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     }
 
     return NormalMode{};
+}
+
+std::optional<ModeState>
+WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
+{
+    Editor* ed = ctx.editor;
+
+    while(!commandLine.empty() && text_utils::is_space(commandLine.front()))
+        commandLine.remove_prefix(1);
+    if(commandLine.empty())
+        return std::nullopt;
+
+    ed->executeCommand(commandLine);
+
+    if(ed->currentMode == LSP_INFO)
+    {
+        return LspInfoMode{};
+    }
+
+    if(ed->commandRequestedModeSet)
+    {
+        Mode mode = ed->commandRequestedMode;
+        std::string path = ed->commandRequestedPath;
+        ed->commandRequestedModeSet = false;
+        ed->commandRequestedPath.clear();
+
+        if(mode == FILE_BROWSER)
+        {
+            std::string prev;
+            if(ed->currentBuffer != nullptr && ed->filename)
+            {
+                prev = *ed->filename;
+            }
+            return FileBrowserMode{path, prev};
+        }
+        if(mode == LSP_INFO)
+        {
+            return LspInfoMode{};
+        }
+        if(mode == HELP)
+        {
+            std::string prev;
+            if(ed->currentBuffer != nullptr && ed->filename)
+            {
+                prev = *ed->filename;
+            }
+            return HelpMode{path, prev};
+        }
+    }
+
+    if(ed->hasBuffer())
+    {
+        return NormalMode{};
+    }
+
+    return std::nullopt;
 }
 
 void WelcomeMode::draw(Editor& editor) const
@@ -190,6 +250,15 @@ void WelcomeMode::draw(Editor& editor) const
                 append_with_enter_color(output, line);
             }
         }
+    }
+
+    if(commandPrompt.isActive())
+    {
+        output += Terminal::cursorPos(editor.screenRows, 1);
+        output += Terminal::ESC_CLEAR_LINE;
+        output += editor.theme.baseFg();
+        output += ":";
+        output += commandPrompt.getInput();
     }
 
     Terminal::write(output);

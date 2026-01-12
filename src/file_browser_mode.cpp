@@ -317,7 +317,8 @@ void FileBrowserMode::draw(Editor& editor) const
         output += editor.theme.reset();
     }
 
-    for(int i = fileList.size() - browserOffset; i < availableRows; i++)
+    int fillerStart = std::max(0, (int)fileList.size() - browserOffset);
+    for(int i = fillerStart; i < availableRows; i++)
     {
         output += Terminal::NEWLINE_CLEAR;
         output += editor.theme.uiGutter();
@@ -404,7 +405,8 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
 
     {
         std::error_code parentEc;
-        std::filesystem::path resolved = std::filesystem::absolute(dirPath, parentEc);
+        std::filesystem::path resolved =
+            std::filesystem::absolute(dirPath, parentEc);
         if(parentEc || resolved.empty())
         {
             resolved = dirPath;
@@ -494,6 +496,25 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
                     std::make_move_iterator(dirs.end()));
     fileList.insert(fileList.end(), std::make_move_iterator(files.begin()),
                     std::make_move_iterator(files.end()));
+
+    if(fileList.empty())
+    {
+        browserCursor = 0;
+        browserOffset = 0;
+        return;
+    }
+
+    if(browserCursor >= (int)fileList.size())
+        browserCursor = (int)fileList.size() - 1;
+    if(browserCursor < 0)
+        browserCursor = 0;
+
+    int visible = std::max(1, ed->screenRows - 4);
+    if(browserOffset > browserCursor)
+        browserOffset = browserCursor;
+    int maxOffset = std::max(0, (int)fileList.size() - visible);
+    if(browserOffset > maxOffset)
+        browserOffset = maxOffset;
 }
 
 std::string FileBrowserMode::formatFileSize(size_t size) const
