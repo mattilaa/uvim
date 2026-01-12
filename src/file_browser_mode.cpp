@@ -360,6 +360,7 @@ void FileBrowserMode::draw(Editor& editor) const
     }
 
     editor.drawCommandHistoryPopup(output);
+    editor.drawCommandPopup(output);
 
     Terminal::write(output);
     Terminal::flush();
@@ -815,14 +816,35 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                              "<path>");
         return std::nullopt;
     }
-
     // ========================================================================
     // Unknown command
     // ========================================================================
     else
     {
-        ctx.setStatusMessage("Unknown command: " + cmd +
-                             " (try :help for list)");
+        ctx.executeCommand(commandLine);
+
+        if(ctx.currentMode() == LSP_INFO)
+        {
+            return LspInfoMode{};
+        }
+
+        Mode mode = NORMAL;
+        std::string path;
+        if(ctx.takeCommandRequest(mode, path))
+        {
+            if(mode == FILE_BROWSER)
+            {
+                return FileBrowserMode{path, previousFile};
+            }
+            if(mode == LSP_INFO)
+            {
+                return LspInfoMode{};
+            }
+            if(mode == HELP)
+            {
+                return HelpMode{path, previousFile};
+            }
+        }
     }
 
     return std::nullopt;

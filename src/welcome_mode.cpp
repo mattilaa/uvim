@@ -65,7 +65,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
         ctx.forceQuit();
     }
 
-    return NormalMode{};
+    return std::nullopt;
 }
 
 std::optional<ModeState>
@@ -260,6 +260,7 @@ void WelcomeMode::draw(Editor& editor) const
     }
 
     editor.drawCommandHistoryPopup(output);
+    editor.drawCommandPopup(output);
 
     Terminal::write(output);
     Terminal::write(Terminal::cursorPos(1, 1));

@@ -558,6 +558,7 @@ void Editor::drawMessageBarQuick()
     // Completion popup (clangd)
     drawCompletionPopup(output);
     drawCommandHistoryPopup(output);
+    drawCommandPopup(output);
 
     Terminal::write(output);
 }
@@ -823,6 +824,7 @@ void Editor::drawFullScreen()
     // Completion popup (clangd)
     drawCompletionPopup(output);
     drawCommandHistoryPopup(output);
+    drawCommandPopup(output);
 
     Terminal::write(output);
     updateCursorPosition();

@@ -5554,6 +5554,112 @@ std::optional<std::string> Editor::commandHistoryDown()
     return commandInput;
 }
 
+void Editor::startCommandPopup()
+{
+    commandPopupActive = true;
+    commandPopupQuery.clear();
+    commandPopupCursor = 0;
+    commandPopupOffset = 0;
+    commandPopupAll = getCommandCompletions("");
+    updateCommandPopup("");
+}
+
+void Editor::cancelCommandPopup()
+{
+    commandPopupActive = false;
+    commandPopupQuery.clear();
+    commandPopupFiltered.clear();
+    commandPopupCursor = 0;
+    commandPopupOffset = 0;
+}
+
+void Editor::updateCommandPopup(std::string_view query)
+{
+    if(!commandPopupActive)
+        return;
+
+    commandPopupQuery = std::string(query);
+    commandPopupFiltered.clear();
+    commandPopupCursor = 0;
+    commandPopupOffset = 0;
+
+    bool isSetQuery = commandPopupQuery.rfind("set", 0) == 0;
+    if(isSetQuery)
+        commandPopupAll = getSetCompletions("");
+    else
+        commandPopupAll = getCommandCompletions("");
+
+    if(commandPopupQuery.empty())
+    {
+        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
+            commandPopupFiltered.push_back(i);
+        needsFullRedraw = true;
+        return;
+    }
+
+    std::vector<std::pair<int, int>> scored;
+    std::vector<int> positions;
+    scored.reserve(commandPopupAll.size());
+
+    for(int i = 0; i < (int)commandPopupAll.size(); ++i)
+    {
+        int score =
+            fuzzyScore(commandPopupQuery, commandPopupAll[i], positions);
+        if(score >= 0)
+            scored.emplace_back(i, score);
+    }
+
+    std::stable_sort(scored.begin(), scored.end(),
+                     [](const std::pair<int, int>& left,
+                        const std::pair<int, int>& right)
+                     {
+                         if(left.second != right.second)
+                             return left.second > right.second;
+                         return left.first < right.first;
+                     });
+
+    for(const auto& entry : scored)
+        commandPopupFiltered.push_back(entry.first);
+
+    needsFullRedraw = true;
+}
+
+void Editor::moveCommandPopupCursor(int delta)
+{
+    if(!commandPopupActive || commandPopupFiltered.empty())
+        return;
+
+    int next = commandPopupCursor + delta;
+    if(next < 0)
+        next = 0;
+    if(next >= (int)commandPopupFiltered.size())
+        next = (int)commandPopupFiltered.size() - 1;
+    commandPopupCursor = next;
+
+    const int window = std::min(8, (int)commandPopupFiltered.size());
+    if(commandPopupCursor < commandPopupOffset)
+        commandPopupOffset = commandPopupCursor;
+    else if(commandPopupCursor >= commandPopupOffset + window)
+        commandPopupOffset = commandPopupCursor - window + 1;
+
+    needsFullRedraw = true;
+}
+
+bool Editor::isCommandPopupActive() const
+{
+    return commandPopupActive;
+}
+
+std::optional<std::string> Editor::commandPopupSelection() const
+{
+    if(!commandPopupActive || commandPopupFiltered.empty())
+        return std::nullopt;
+    int idx = commandPopupFiltered[commandPopupCursor];
+    if(idx < 0 || idx >= (int)commandPopupAll.size())
+        return std::nullopt;
+    return commandPopupAll[idx];
+}
+
 void Editor::startCommandHistorySearch(std::string_view seed)
 {
     commandHistorySearchActive = true;
@@ -5685,6 +5791,110 @@ const std::string& Editor::commandHistorySearchQuery() const
     return commandHistorySearchQueryValue;
 }
 
+void Editor::drawCommandPopup(std::string& output) const
+{
+    if(!commandPopupActive)
+        return;
+    if(commandHistorySearchActive)
+        return;
+
+    output += theme.baseFg();
+
+    int rows = 0;
+    if(commandPopupFiltered.empty())
+        rows = 1;
+    else
+        rows = std::min(8, (int)commandPopupFiltered.size());
+    if(rows <= 0)
+        return;
+
+    int maxContent = 0;
+    if(commandPopupFiltered.empty())
+    {
+        maxContent = displayWidth("No matches");
+    }
+    else
+    {
+        for(int i = 0; i < rows; ++i)
+        {
+            int idx = commandPopupFiltered[i + commandPopupOffset];
+            if(idx >= 0 && idx < (int)commandPopupAll.size())
+            {
+                maxContent =
+                    std::max(maxContent, displayWidth(commandPopupAll[idx]));
+            }
+        }
+    }
+
+    int innerW = std::max(10, maxContent);
+    int totalW = innerW + 4;
+    if(totalW > screenCols)
+    {
+        totalW = screenCols;
+        innerW = std::max(4, totalW - 4);
+    }
+
+    int totalH = rows + 2;
+    int top = screenRows - totalH + 1;
+    if(top < 1)
+        top = 1;
+    int left = 2;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
+
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+
+    moveTo(top, left);
+    text_utils::appendU8(output, u8"╭");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"╮");
+
+    for(int i = 0; i < rows; ++i)
+    {
+        moveTo(top + 1 + i, left);
+        text_utils::appendU8(output, u8"│ ");
+
+        std::string line;
+        if(commandPopupFiltered.empty())
+        {
+            line = "No matches";
+        }
+        else
+        {
+            int idx = commandPopupFiltered[i + commandPopupOffset];
+            if(idx >= 0 && idx < (int)commandPopupAll.size())
+                line = commandPopupAll[idx];
+        }
+
+        if((int)line.length() > innerW)
+            line = line.substr(0, innerW - 3) + "...";
+
+        if(!commandPopupFiltered.empty() &&
+           (i + commandPopupOffset) == commandPopupCursor)
+        {
+            output += theme.selection();
+            output.append(line);
+            output += theme.reset();
+        }
+        else
+        {
+            output += theme.syntax(TOKEN_FUNCTION);
+            output.append(line);
+            output += theme.reset();
+        }
+
+        int pad = innerW - displayWidth(line);
+        if(pad > 0)
+            output.append(pad, ' ');
+        text_utils::appendU8(output, u8" │");
+    }
+
+    moveTo(top + totalH - 1, left);
+    text_utils::appendU8(output, u8"╰");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"╯");
+}
+
 void Editor::drawCommandHistoryPopup(std::string& output) const
 {
     if(!commandHistorySearchActive)
@@ -5810,6 +6020,31 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
            std::string_view(cmd).substr(0, prefix.size()) == prefix)
         {
             matches.push_back(cmd);
+        }
+    }
+    return matches;
+}
+
+std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
+{
+    static const std::vector<std::string> options = {
+        "set autobraces",   "set noautobraces", "set autobraces?",
+        "set autobraces=",  "set autocomplete", "set noautocomplete",
+        "set autocomplete?","set autocomplete=", "set tabspaces?",
+        "set tabspaces=",   "set tabspaces=2", "set tabspaces=4",
+        "set tabspaces=8",  "set tabspaces=1", "set tabspaces=3",
+        "set tabspaces=5",  "set tabspaces=6", "set tabspaces=7",
+        "set tabspaces=9",  "set tabspaces=10","set tabspaces=12",
+        "set tabspaces=16",
+    };
+
+    std::vector<std::string> matches;
+    for(const auto& opt : options)
+    {
+        if(prefix.size() <= opt.size() &&
+           std::string_view(opt).substr(0, prefix.size()) == prefix)
+        {
+            matches.push_back(opt);
         }
     }
     return matches;

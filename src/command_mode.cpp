@@ -13,6 +13,8 @@ void CommandMode::on_enter(ModeContext& ctx)
     completions.clear();
     completionIndex = -1;
     originalInput.clear();
+    ctx.startCommandPopup();
+    ctx.updateCommandPopup("");
 
     ctx.requestFullRedraw();
 }
@@ -22,6 +24,7 @@ void CommandMode::on_exit(ModeContext& ctx)
     ctx.commandBuffer.clear();
     completions.clear();
     completionIndex = -1;
+    ctx.cancelCommandPopup();
     if(ctx.isCommandHistorySearchActive())
     {
         ctx.cancelCommandHistorySearch();
@@ -32,6 +35,28 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                                              const KeyEvent& event)
 {
     int c = event.key;
+    auto updatePopup = [&]()
+    {
+        if(ctx.commandBuffer.length() <= 1)
+        {
+            if(!ctx.isCommandPopupActive())
+                ctx.startCommandPopup();
+            ctx.updateCommandPopup("");
+            return;
+        }
+
+        std::string query = ctx.commandBuffer.substr(1);
+        bool isSetQuery = query.rfind("set", 0) == 0;
+        if(query.find(' ') != std::string::npos && !isSetQuery)
+        {
+            ctx.cancelCommandPopup();
+            return;
+        }
+
+        if(!ctx.isCommandPopupActive())
+            ctx.startCommandPopup();
+        ctx.updateCommandPopup(query);
+    };
 
     if(ctx.isCommandHistorySearchActive())
     {
@@ -39,6 +64,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             std::string restored = ctx.cancelCommandHistorySearch();
             ctx.commandBuffer = ":" + restored;
+            updatePopup();
             return std::nullopt;
         }
 
@@ -46,6 +72,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             std::string selected = ctx.acceptCommandHistorySearch();
             ctx.commandBuffer = ":" + selected;
+            updatePopup();
             return std::nullopt;
         }
 
@@ -96,6 +123,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     if(c == Terminal::ESC)
     {
         ctx.setStatusMessage("");
+        ctx.cancelCommandPopup();
         return ctx.hasBuffer() ? ModeState{NormalMode{}}
                                : ModeState{WelcomeMode{}};
     }
@@ -103,8 +131,18 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Enter -> execute command
     if(c == Terminal::ENTER)
     {
+        if(ctx.isCommandPopupActive())
+        {
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                if(ctx.commandBuffer.find(' ') == std::string::npos)
+                    ctx.commandBuffer = ":" + *selection;
+            }
+        }
+
         if(ctx.commandBuffer.length() > 1)
         {
+            ctx.cancelCommandPopup();
             std::string_view cmd(ctx.commandBuffer);
             cmd.remove_prefix(1); // Remove leading ':'
             ctx.executeCommand(cmd);
@@ -153,9 +191,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             // Reset completions when text changes
             completions.clear();
             completionIndex = -1;
+            updatePopup();
         }
         else
         {
+            ctx.cancelCommandPopup();
             // Backspace on empty command line returns to normal
             return ctx.hasBuffer() ? ModeState{NormalMode{}}
                                    : ModeState{WelcomeMode{}};
@@ -172,6 +212,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             seed = ctx.commandBuffer.substr(1);
         }
         ctx.startCommandHistorySearch(seed);
+        ctx.cancelCommandPopup();
         completions.clear();
         completionIndex = -1;
         return std::nullopt;
@@ -181,6 +222,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     if(c == Terminal::TAB)
     {
         handleTabCompletion(ctx);
+        updatePopup();
         return std::nullopt;
     }
 
@@ -188,6 +230,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     if(c == Terminal::SHIFT_TAB)
     {
         handleReverseTabCompletion(ctx);
+        updatePopup();
         return std::nullopt;
     }
 
@@ -195,6 +238,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     if(c == Terminal::CTRL_W)
     {
         deleteWordBackward(ctx);
+        updatePopup();
         return std::nullopt;
     }
 
@@ -204,27 +248,58 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         ctx.commandBuffer = ":";
         completions.clear();
         completionIndex = -1;
+        updatePopup();
         return std::nullopt;
     }
 
-    // Arrow keys/Ctrl+K for command history
-    if(c == Terminal::ARROW_UP || c == Terminal::CTRL_K)
+    if(c == Terminal::CTRL_K)
+    {
+        if(ctx.isCommandPopupActive())
+        {
+            ctx.moveCommandPopupCursor(-1);
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                if(ctx.commandBuffer.find(' ') == std::string::npos)
+                    ctx.commandBuffer = ":" + *selection;
+            }
+            return std::nullopt;
+        }
+    }
+
+    if(c == Terminal::CTRL_J)
+    {
+        if(ctx.isCommandPopupActive())
+        {
+            ctx.moveCommandPopupCursor(1);
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                if(ctx.commandBuffer.find(' ') == std::string::npos)
+                    ctx.commandBuffer = ":" + *selection;
+            }
+            return std::nullopt;
+        }
+    }
+
+    // Arrow keys for command history
+    if(c == Terminal::ARROW_UP)
     {
         if(auto cmd = ctx.commandHistoryUp())
         {
             ctx.commandBuffer = ":" + *cmd;
             completions.clear();
             completionIndex = -1;
+            updatePopup();
         }
         return std::nullopt;
     }
-    if(c == Terminal::ARROW_DOWN || c == Terminal::CTRL_J)
+    if(c == Terminal::ARROW_DOWN)
     {
         if(auto cmd = ctx.commandHistoryDown())
         {
             ctx.commandBuffer = ":" + *cmd;
             completions.clear();
             completionIndex = -1;
+            updatePopup();
         }
         return std::nullopt;
     }
@@ -236,6 +311,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         // Reset completions when text changes
         completions.clear();
         completionIndex = -1;
+        updatePopup();
     }
 
     return std::nullopt;
@@ -289,12 +365,20 @@ void Editor::handleCommandMode(int c)
 void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
     std::string input = ctx.commandBuffer.substr(1); // Remove ':'
+    bool wholeCompletion = false;
 
     // If we don't have completions yet, generate them
     if(completions.empty())
     {
         originalInput = input;
 
+        if(input.rfind("set", 0) == 0)
+        {
+            completions = ctx.getSetCompletions(input);
+            wholeCompletion = true;
+        }
+        else
+        {
         // Check if this is a file path completion
         size_t spacePos = input.find(' ');
         if(spacePos != std::string::npos)
@@ -315,6 +399,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
             // Complete command names
             completions = ctx.getCommandCompletions(input);
         }
+        }
 
         if(completions.empty())
         {
@@ -330,16 +415,21 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
     }
 
     // Apply completion
+    if(wholeCompletion || originalInput.rfind("set", 0) == 0)
+    {
+        ctx.commandBuffer = ":" + completions[completionIndex];
+        return;
+    }
+
     size_t spacePos = originalInput.find(' ');
     if(spacePos != std::string::npos)
     {
         std::string cmd = originalInput.substr(0, spacePos);
         ctx.commandBuffer = ":" + cmd + " " + completions[completionIndex];
+        return;
     }
-    else
-    {
-        ctx.commandBuffer = ":" + completions[completionIndex];
-    }
+
+    ctx.commandBuffer = ":" + completions[completionIndex];
 }
 
 void CommandMode::handleReverseTabCompletion(ModeContext& ctx)

@@ -179,6 +179,42 @@ std::optional<std::string> ModeContext::commandHistoryDown()
     return editor->commandHistoryDown();
 }
 
+std::vector<std::string>
+ModeContext::getSetCompletions(std::string_view prefix)
+{
+    return editor->getSetCompletions(prefix);
+}
+
+void ModeContext::startCommandPopup()
+{
+    editor->startCommandPopup();
+}
+
+void ModeContext::cancelCommandPopup()
+{
+    editor->cancelCommandPopup();
+}
+
+void ModeContext::updateCommandPopup(std::string_view query)
+{
+    editor->updateCommandPopup(query);
+}
+
+void ModeContext::moveCommandPopupCursor(int delta)
+{
+    editor->moveCommandPopupCursor(delta);
+}
+
+bool ModeContext::isCommandPopupActive() const
+{
+    return editor->isCommandPopupActive();
+}
+
+std::optional<std::string> ModeContext::commandPopupSelection() const
+{
+    return editor->commandPopupSelection();
+}
+
 void ModeContext::startCommandHistorySearch(std::string_view seed)
 {
     editor->startCommandHistorySearch(seed);
@@ -991,6 +1027,103 @@ bool CommandPrompt::handle(
     std::optional<ModeState>& nextState)
 {
     Editor* ed = ctx.editor;
+    auto clearCompletions = [&]()
+    {
+        completions.clear();
+        completionIndex = -1;
+        originalInput.clear();
+    };
+
+    auto handleTabCompletion = [&](bool reverse)
+    {
+        std::string inputText = input;
+        bool wholeCompletion = false;
+
+        if(completions.empty())
+        {
+            originalInput = inputText;
+
+            if(inputText.rfind("set", 0) == 0)
+            {
+                completions = ctx.getSetCompletions(inputText);
+                wholeCompletion = true;
+            }
+            else
+            {
+            size_t spacePos = inputText.find(' ');
+            if(spacePos != std::string::npos)
+            {
+                std::string cmd = inputText.substr(0, spacePos);
+                std::string_view pathPart =
+                    std::string_view(inputText).substr(spacePos + 1);
+
+                if(cmd == "e" || cmd == "edit" || cmd == "w" ||
+                   cmd == "tabe" || cmd == "tabnew" || cmd == "cd")
+                {
+                    completions = ctx.getPathCompletions(pathPart);
+                }
+            }
+            else
+            {
+                completions = ctx.getCommandCompletions(inputText);
+            }
+            }
+
+            if(completions.empty())
+                return;
+        }
+
+        if(reverse)
+        {
+            completionIndex--;
+            if(completionIndex < 0)
+                completionIndex = (int)completions.size() - 1;
+        }
+        else
+        {
+            completionIndex++;
+            if(completionIndex >= (int)completions.size())
+                completionIndex = 0;
+        }
+
+        if(wholeCompletion || originalInput.rfind("set", 0) == 0)
+        {
+            input = completions[completionIndex];
+            return;
+        }
+
+        size_t spacePos = originalInput.find(' ');
+        if(spacePos != std::string::npos)
+        {
+            std::string cmd = originalInput.substr(0, spacePos);
+            input = cmd + " " + completions[completionIndex];
+            return;
+        }
+
+        input = completions[completionIndex];
+    };
+
+    auto updatePopup = [&]()
+    {
+        if(input.empty())
+        {
+            if(!ctx.isCommandPopupActive())
+                ctx.startCommandPopup();
+            ctx.updateCommandPopup("");
+            return;
+        }
+
+        bool isSetQuery = input.rfind("set", 0) == 0;
+        if(input.find(' ') != std::string::npos && !isSetQuery)
+        {
+            ctx.cancelCommandPopup();
+            return;
+        }
+
+        if(!ctx.isCommandPopupActive())
+            ctx.startCommandPopup();
+        ctx.updateCommandPopup(input);
+    };
 
     if(!active)
     {
@@ -998,6 +1131,8 @@ bool CommandPrompt::handle(
         {
             active = true;
             input.clear();
+            clearCompletions();
+            updatePopup();
             ed->needsFullRedraw = true;
             nextState.reset();
             return true;
@@ -1005,11 +1140,35 @@ bool CommandPrompt::handle(
         return false;
     }
 
+    if(ctx.isCommandPopupActive())
+    {
+        if(key == Terminal::CTRL_K)
+        {
+            ctx.moveCommandPopupCursor(-1);
+            if(auto selection = ctx.commandPopupSelection())
+                input = *selection;
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+        if(key == Terminal::CTRL_J)
+        {
+            ctx.moveCommandPopupCursor(1);
+            if(auto selection = ctx.commandPopupSelection())
+                input = *selection;
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+    }
+
     if(ctx.isCommandHistorySearchActive())
     {
         if(key == Terminal::ESC)
         {
             input = ctx.cancelCommandHistorySearch();
+            clearCompletions();
+            updatePopup();
             ed->needsFullRedraw = true;
             nextState.reset();
             return true;
@@ -1018,6 +1177,8 @@ bool CommandPrompt::handle(
         if(key == Terminal::ENTER)
         {
             input = ctx.acceptCommandHistorySearch();
+            clearCompletions();
+            updatePopup();
             ed->needsFullRedraw = true;
             nextState.reset();
             return true;
@@ -1048,6 +1209,8 @@ bool CommandPrompt::handle(
                 query.pop_back();
                 ctx.updateCommandHistorySearchQuery(query);
                 input = query;
+                clearCompletions();
+                updatePopup();
                 ed->needsFullRedraw = true;
             }
             nextState.reset();
@@ -1058,6 +1221,8 @@ bool CommandPrompt::handle(
         {
             ctx.updateCommandHistorySearchQuery("");
             input.clear();
+            clearCompletions();
+            updatePopup();
             ed->needsFullRedraw = true;
             nextState.reset();
             return true;
@@ -1069,6 +1234,8 @@ bool CommandPrompt::handle(
             query += static_cast<char>(key);
             ctx.updateCommandHistorySearchQuery(query);
             input = query;
+            clearCompletions();
+            updatePopup();
             ed->needsFullRedraw = true;
             nextState.reset();
             return true;
@@ -1082,6 +1249,8 @@ bool CommandPrompt::handle(
     {
         active = false;
         input.clear();
+        clearCompletions();
+        ctx.cancelCommandPopup();
         ed->needsFullRedraw = true;
         nextState.reset();
         return true;
@@ -1089,9 +1258,19 @@ bool CommandPrompt::handle(
 
     if(key == Terminal::ENTER)
     {
+        if(ctx.isCommandPopupActive())
+        {
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                if(input.find(' ') == std::string::npos)
+                    input = *selection;
+            }
+        }
         nextState = execute(input);
         active = false;
         input.clear();
+        clearCompletions();
+        ctx.cancelCommandPopup();
         ed->needsFullRedraw = true;
         return true;
     }
@@ -1101,8 +1280,28 @@ bool CommandPrompt::handle(
         if(!input.empty())
         {
             input.pop_back();
+            clearCompletions();
+            updatePopup();
             ed->needsFullRedraw = true;
         }
+        nextState.reset();
+        return true;
+    }
+
+    if(key == Terminal::TAB)
+    {
+        handleTabCompletion(false);
+        updatePopup();
+        ed->needsFullRedraw = true;
+        nextState.reset();
+        return true;
+    }
+
+    if(key == Terminal::SHIFT_TAB)
+    {
+        handleTabCompletion(true);
+        updatePopup();
+        ed->needsFullRedraw = true;
         nextState.reset();
         return true;
     }
@@ -1110,6 +1309,8 @@ bool CommandPrompt::handle(
     if(key == Terminal::CTRL_F)
     {
         ctx.startCommandHistorySearch(input);
+        clearCompletions();
+        ctx.cancelCommandPopup();
         ed->needsFullRedraw = true;
         nextState.reset();
         return true;
@@ -1120,6 +1321,8 @@ bool CommandPrompt::handle(
         if(auto cmd = ctx.commandHistoryUp())
         {
             input = *cmd;
+            clearCompletions();
+            ctx.cancelCommandPopup();
             ed->needsFullRedraw = true;
         }
         nextState.reset();
@@ -1131,6 +1334,8 @@ bool CommandPrompt::handle(
         if(auto cmd = ctx.commandHistoryDown())
         {
             input = *cmd;
+            clearCompletions();
+            ctx.cancelCommandPopup();
             ed->needsFullRedraw = true;
         }
         nextState.reset();
@@ -1140,6 +1345,8 @@ bool CommandPrompt::handle(
     if(key >= 32 && key < 127)
     {
         input += static_cast<char>(key);
+        clearCompletions();
+        updatePopup();
         ed->needsFullRedraw = true;
         nextState.reset();
         return true;

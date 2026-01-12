@@ -91,6 +91,13 @@ struct ModeContext
     bool takeCommandRequest(Mode& mode, std::string& path);
     std::optional<std::string> commandHistoryUp();
     std::optional<std::string> commandHistoryDown();
+    std::vector<std::string> getSetCompletions(std::string_view prefix);
+    void startCommandPopup();
+    void cancelCommandPopup();
+    void updateCommandPopup(std::string_view query);
+    void moveCommandPopupCursor(int delta);
+    bool isCommandPopupActive() const;
+    std::optional<std::string> commandPopupSelection() const;
     void startCommandHistorySearch(std::string_view seed);
     std::string cancelCommandHistorySearch();
     std::string acceptCommandHistorySearch();
@@ -322,6 +329,9 @@ struct CommandPrompt
 private:
     bool active = false;
     std::string input;
+    std::vector<std::string> completions;
+    int completionIndex = -1;
+    std::string originalInput;
 };
 
 // ============================================================================

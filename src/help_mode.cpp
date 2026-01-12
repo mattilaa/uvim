@@ -256,6 +256,7 @@ void HelpMode::draw(Editor& editor) const
     }
 
     editor.drawCommandHistoryPopup(output);
+    editor.drawCommandPopup(output);
 
     Terminal::write(output);
     Terminal::flush();
@@ -385,6 +386,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-k` - Previous command in history",
             "  `Ctrl-j` - Next command in history",
             "  `Ctrl-f` - Fuzzy history search",
+            "  Command list shows and filters while you type",
             "",
             "SEARCH MODE:",
             "  `/`     - Search forward",

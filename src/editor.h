@@ -522,6 +522,12 @@ public:
     std::vector<std::string> commandHistory;
     int commandHistoryIndex = -1;
     std::string commandInput;
+    bool commandPopupActive = false;
+    std::vector<std::string> commandPopupAll;
+    std::vector<int> commandPopupFiltered;
+    int commandPopupCursor = 0;
+    int commandPopupOffset = 0;
+    std::string commandPopupQuery;
     bool commandHistorySearchActive = false;
     std::string commandHistorySearchQueryValue;
     std::string commandHistorySearchOriginal;
@@ -530,6 +536,13 @@ public:
     int commandHistorySearchOffset = 0;
     std::optional<std::string> commandHistoryUp();
     std::optional<std::string> commandHistoryDown();
+    std::vector<std::string> getSetCompletions(std::string_view prefix);
+    void startCommandPopup();
+    void cancelCommandPopup();
+    void updateCommandPopup(std::string_view query);
+    void moveCommandPopupCursor(int delta);
+    bool isCommandPopupActive() const;
+    std::optional<std::string> commandPopupSelection() const;
     void startCommandHistorySearch(std::string_view seed);
     std::string cancelCommandHistorySearch();
     std::string acceptCommandHistorySearch();
@@ -537,6 +550,7 @@ public:
     void moveCommandHistorySearchCursor(int delta);
     bool isCommandHistorySearchActive() const;
     const std::string& commandHistorySearchQuery() const;
+    void drawCommandPopup(std::string& output) const;
     void drawCommandHistoryPopup(std::string& output) const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
