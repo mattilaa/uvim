@@ -402,11 +402,23 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     const auto push_entry = [&](FileEntry&& fe)
     { (fe.isDirectory ? dirs : files).push_back(std::move(fe)); };
 
-    if(dirPath.has_parent_path())
     {
+        std::error_code parentEc;
+        std::filesystem::path resolved = std::filesystem::absolute(dirPath, parentEc);
+        if(parentEc || resolved.empty())
+        {
+            resolved = dirPath;
+        }
+
+        std::filesystem::path parentPath = resolved.parent_path();
+        if(parentPath.empty())
+        {
+            parentPath = resolved;
+        }
+
         FileEntry up;
         up.name = "..";
-        up.path = file_utils::path_to_utf8_string(dirPath.parent_path());
+        up.path = file_utils::path_to_utf8_string(parentPath);
         up.isDirectory = true;
         up.size = 0;
         up.modTime = 0;
