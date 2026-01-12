@@ -61,6 +61,885 @@ int ModeContext::screenCols() const
     return editor->screenCols;
 }
 
+void ModeContext::requestFullRedraw()
+{
+    editor->needsFullRedraw = true;
+}
+
+void ModeContext::forceFullRedraw()
+{
+    editor->forceFullRedraw();
+}
+
+bool ModeContext::hasBuffer() const
+{
+    return editor->hasBuffer();
+}
+
+bool ModeContext::hasCurrentBuffer() const
+{
+    return editor->currentBuffer != nullptr;
+}
+
+bool ModeContext::hasFilename() const
+{
+    return editor->filename && !editor->filename->empty();
+}
+
+std::string_view ModeContext::currentFilename() const
+{
+    if(editor->filename)
+        return *editor->filename;
+    return std::string_view{};
+}
+
+Mode ModeContext::currentMode() const
+{
+    return editor->currentMode;
+}
+
+std::chrono::steady_clock::time_point& ModeContext::lastEscTime()
+{
+    return editor->lastEscTime;
+}
+
+bool ModeContext::hasSearchMatches() const
+{
+    return !editor->searchMatches.empty();
+}
+
+bool ModeContext::hasSearchQuery() const
+{
+    return !editor->searchQuery.empty();
+}
+
+bool ModeContext::completionActive() const
+{
+    return editor->completionActive;
+}
+
+bool ModeContext::completionFromLsp() const
+{
+    return editor->completionFromLsp;
+}
+
+bool ModeContext::autoCompletion() const
+{
+    return editor->autoCompletion;
+}
+
+bool ModeContext::autoBraces() const
+{
+    return editor->autoBraces;
+}
+
+int ModeContext::tabSpaces() const
+{
+    return editor->tabSpaces;
+}
+
+bool ModeContext::respectGitignore() const
+{
+    return editor->respectGitignore;
+}
+
+void ModeContext::setRespectGitignore(bool value)
+{
+    editor->respectGitignore = value;
+}
+
+void ModeContext::setFuzzyInitialized(bool value)
+{
+    editor->fuzzyInitialized = value;
+}
+
+void ModeContext::executeCommand(std::string_view cmd)
+{
+    editor->executeCommand(cmd);
+}
+
+bool ModeContext::takeCommandRequest(Mode& mode, std::string& path)
+{
+    if(!editor->commandRequestedModeSet)
+        return false;
+    mode = editor->commandRequestedMode;
+    path = editor->commandRequestedPath;
+    editor->commandRequestedModeSet = false;
+    editor->commandRequestedPath.clear();
+    return true;
+}
+
+void ModeContext::commandHistoryUp()
+{
+    editor->commandHistoryUp();
+}
+
+void ModeContext::commandHistoryDown()
+{
+    editor->commandHistoryDown();
+}
+
+std::vector<std::string>
+ModeContext::getCommandCompletions(std::string_view prefix)
+{
+    return editor->getCommandCompletions(prefix);
+}
+
+std::vector<std::string> ModeContext::getPathCompletions(std::string_view path)
+{
+    return editor->getPathCompletions(path);
+}
+
+void ModeContext::openFile(std::string_view path)
+{
+    editor->openFile(path);
+}
+
+void ModeContext::openFileBrowser(std::string_view path)
+{
+    editor->openFileBrowser(path);
+}
+
+void ModeContext::switchToBuffer(int index)
+{
+    editor->switchToBuffer(index);
+}
+
+void ModeContext::closeCurrentBuffer()
+{
+    editor->closeCurrentBuffer();
+}
+
+void ModeContext::saveFile()
+{
+    editor->saveFile();
+}
+
+void ModeContext::deleteFilePrompt()
+{
+    editor->deleteFilePrompt();
+}
+
+void ModeContext::renameFilePrompt()
+{
+    editor->renameFilePrompt();
+}
+
+void ModeContext::createNewFilePrompt()
+{
+    editor->createNewFilePrompt();
+}
+
+void ModeContext::createNewDirectoryPrompt()
+{
+    editor->createNewDirectoryPrompt();
+}
+
+bool ModeContext::pythonFormatBuffer()
+{
+    return editor->pythonFormatBuffer();
+}
+
+void ModeContext::pythonLintBuffer()
+{
+    editor->pythonLintBuffer();
+}
+
+bool ModeContext::robotFormatBuffer()
+{
+    return editor->robotFormatBuffer();
+}
+
+bool ModeContext::jsonFormatBuffer()
+{
+    return editor->jsonFormatBuffer();
+}
+
+bool ModeContext::yamlFormatBuffer()
+{
+    return editor->yamlFormatBuffer();
+}
+
+bool ModeContext::clangFormatWithArgs(const std::string& extraArgs,
+                                      const std::string& successMessage)
+{
+    return editor->clangFormatWithArgs(extraArgs, successMessage);
+}
+
+void ModeContext::clangFormatVisualSelection()
+{
+    editor->clangFormatVisualSelection();
+}
+
+void ModeContext::clangFormatVisualBlockSelection()
+{
+    editor->clangFormatVisualBlockSelection();
+}
+
+void ModeContext::performSearch()
+{
+    editor->performSearch();
+}
+
+void ModeContext::performIncrementalSearch(const std::string& query,
+                                           bool forward)
+{
+    editor->performIncrementalSearch(query, forward);
+}
+
+void ModeContext::addSearchToHistory(const std::string& query)
+{
+    editor->addSearchToHistory(query);
+}
+
+std::string ModeContext::getPreviousSearch()
+{
+    return editor->getPreviousSearch();
+}
+
+std::string ModeContext::getNextSearch()
+{
+    return editor->getNextSearch();
+}
+
+void ModeContext::findAllMatches()
+{
+    editor->findAllMatches();
+}
+
+void ModeContext::jumpToMatch(int index)
+{
+    editor->jumpToMatch(index);
+}
+
+void ModeContext::searchNext()
+{
+    editor->searchNext();
+}
+
+void ModeContext::searchPrevious()
+{
+    editor->searchPrevious();
+}
+
+void ModeContext::searchWordUnderCursor(bool forward)
+{
+    editor->searchWordUnderCursor(forward);
+}
+
+void ModeContext::clearSearch()
+{
+    editor->clearSearch();
+}
+
+void ModeContext::nextCompletion()
+{
+    editor->nextCompletion();
+}
+
+void ModeContext::previousCompletion()
+{
+    editor->previousCompletion();
+}
+
+void ModeContext::acceptCompletion()
+{
+    editor->acceptCompletion();
+}
+
+void ModeContext::cancelCompletion()
+{
+    editor->cancelCompletion();
+}
+
+void ModeContext::rebuildCompletionFilter()
+{
+    editor->rebuildCompletionFilter();
+}
+
+void ModeContext::triggerCompletion()
+{
+    editor->triggerCompletion();
+}
+
+void ModeContext::requestCompletion()
+{
+    editor->requestCompletion();
+}
+
+bool ModeContext::shouldTriggerCompletion() const
+{
+    return editor->shouldTriggerCompletion();
+}
+
+void ModeContext::beginChangeRecording(int count)
+{
+    editor->beginChangeRecording(count);
+}
+
+void ModeContext::recordChangeKey(int key)
+{
+    editor->recordChangeKey(key);
+}
+
+void ModeContext::deferChangeRecordingCommit()
+{
+    editor->deferChangeRecordingCommit();
+}
+
+void ModeContext::finishChangeRecordingIfDeferred()
+{
+    editor->finishChangeRecordingIfDeferred();
+}
+
+bool ModeContext::isRecordingChange() const
+{
+    return editor->isRecordingChange();
+}
+
+bool ModeContext::isReplayingChange() const
+{
+    return editor->isReplayingChange();
+}
+
+void ModeContext::cancelChangeRecording()
+{
+    editor->cancelChangeRecording();
+}
+
+void ModeContext::commitChangeRecording()
+{
+    editor->commitChangeRecording();
+}
+
+int ModeContext::readKeyRecorded()
+{
+    return editor->readKeyRecorded();
+}
+
+void ModeContext::repeatLastChange(int times)
+{
+    editor->repeatLastChange(times);
+}
+
+void ModeContext::moveLeft()
+{
+    editor->moveLeft();
+}
+
+void ModeContext::moveRight()
+{
+    editor->moveRight();
+}
+
+void ModeContext::moveUp(int count)
+{
+    editor->moveUp(count);
+}
+
+void ModeContext::moveDown(int count)
+{
+    editor->moveDown(count);
+}
+
+void ModeContext::moveWordForward()
+{
+    editor->moveWordForward();
+}
+
+void ModeContext::moveWordBackward()
+{
+    editor->moveWordBackward();
+}
+
+void ModeContext::moveWordForwardBig()
+{
+    editor->moveWordForwardBig();
+}
+
+void ModeContext::moveWordBackwardBig()
+{
+    editor->moveWordBackwardBig();
+}
+
+void ModeContext::moveToEndOfWord()
+{
+    editor->moveToEndOfWord();
+}
+
+void ModeContext::moveToEndOfWordBig()
+{
+    editor->moveToEndOfWordBig();
+}
+
+void ModeContext::moveToLineStart()
+{
+    editor->moveToLineStart();
+}
+
+void ModeContext::moveToLineEnd()
+{
+    editor->moveToLineEnd();
+}
+
+void ModeContext::moveToFirstLine()
+{
+    editor->moveToFirstLine();
+}
+
+void ModeContext::moveToLastLine()
+{
+    editor->moveToLastLine();
+}
+
+void ModeContext::moveToLine(int line)
+{
+    editor->moveToLine(line);
+}
+
+void ModeContext::moveToFirstNonBlank()
+{
+    editor->moveToFirstNonBlank();
+}
+
+void ModeContext::moveToMatchingBracket()
+{
+    editor->moveToMatchingBracket();
+}
+
+void ModeContext::moveParagraphForward()
+{
+    editor->moveParagraphForward();
+}
+
+void ModeContext::moveParagraphBackward()
+{
+    editor->moveParagraphBackward();
+}
+
+void ModeContext::moveToScreenTop()
+{
+    editor->moveToScreenTop();
+}
+
+void ModeContext::moveToScreenMiddle()
+{
+    editor->moveToScreenMiddle();
+}
+
+void ModeContext::moveToScreenBottom()
+{
+    editor->moveToScreenBottom();
+}
+
+void ModeContext::scrollPageUp()
+{
+    editor->scrollPageUp();
+}
+
+void ModeContext::scrollPageDown()
+{
+    editor->scrollPageDown();
+}
+
+void ModeContext::scrollHalfPageUp()
+{
+    editor->scrollHalfPageUp();
+}
+
+void ModeContext::scrollHalfPageDown()
+{
+    editor->scrollHalfPageDown();
+}
+
+void ModeContext::scrollToTop()
+{
+    editor->scrollToTop();
+}
+
+void ModeContext::scrollToBottom()
+{
+    editor->scrollToBottom();
+}
+
+void ModeContext::centerScreen()
+{
+    editor->centerScreen();
+}
+
+void ModeContext::insertLineAbove()
+{
+    editor->insertLineAbove();
+}
+
+void ModeContext::insertLineBelow()
+{
+    editor->insertLineBelow();
+}
+
+void ModeContext::insertNewline()
+{
+    editor->insertNewline();
+}
+
+void ModeContext::insertTab()
+{
+    editor->insertTab();
+}
+
+void ModeContext::insertChar(char c)
+{
+    editor->insertChar(c);
+}
+
+void ModeContext::insertUtf8Char(int c)
+{
+    editor->insertUtf8Char(c);
+}
+
+void ModeContext::replaceCharAtCursor(char c)
+{
+    editor->replaceCharAtCursor(c);
+}
+
+void ModeContext::deleteCharAtCursor()
+{
+    editor->deleteCharAtCursor();
+}
+
+void ModeContext::deleteCharBeforeCursor()
+{
+    editor->deleteCharBeforeCursor();
+}
+
+void ModeContext::deleteCurrentLine()
+{
+    editor->deleteCurrentLine();
+}
+
+void ModeContext::deleteToEndOfLine()
+{
+    editor->deleteToEndOfLine();
+}
+
+void ModeContext::deleteWordBackward()
+{
+    editor->deleteWordBackward();
+}
+
+void ModeContext::deleteToLineStart()
+{
+    editor->deleteToLineStart();
+}
+
+void ModeContext::joinLines()
+{
+    editor->joinLines();
+}
+
+void ModeContext::toggleCase()
+{
+    editor->toggleCase();
+}
+
+void ModeContext::pasteAfter()
+{
+    editor->pasteAfter();
+}
+
+void ModeContext::pasteBefore()
+{
+    editor->pasteBefore();
+}
+
+void ModeContext::pasteFromSystemClipboard()
+{
+    editor->pasteFromSystemClipboard();
+}
+
+void ModeContext::yankLine()
+{
+    editor->yankLine();
+}
+
+void ModeContext::yankToSystemClipboard()
+{
+    editor->yankToSystemClipboard();
+}
+
+void ModeContext::saveState()
+{
+    editor->saveState();
+}
+
+void ModeContext::deleteSelection()
+{
+    editor->deleteSelection();
+}
+
+void ModeContext::yankSelection()
+{
+    editor->yankSelection();
+}
+
+void ModeContext::deleteVisualBlock()
+{
+    editor->deleteVisualBlock();
+}
+
+void ModeContext::yankVisualBlock()
+{
+    editor->yankVisualBlock();
+}
+
+void ModeContext::indentSelection()
+{
+    editor->indentSelection();
+}
+
+void ModeContext::dedentSelection()
+{
+    editor->dedentSelection();
+}
+
+void ModeContext::autoIndentSelection()
+{
+    editor->autoIndentSelection();
+}
+
+void ModeContext::indentLineSelection()
+{
+    editor->indentLineSelection();
+}
+
+void ModeContext::dedentLineSelection()
+{
+    editor->dedentLineSelection();
+}
+
+void ModeContext::autoIndentLineSelection()
+{
+    editor->autoIndentLineSelection();
+}
+
+void ModeContext::lowercaseSelection()
+{
+    editor->lowercaseSelection();
+}
+
+void ModeContext::uppercaseSelection()
+{
+    editor->uppercaseSelection();
+}
+
+void ModeContext::toggleCaseSelection()
+{
+    editor->toggleCaseSelection();
+}
+
+void ModeContext::yankLineSelection()
+{
+    editor->yankLineSelection();
+}
+
+void ModeContext::deleteLineSelection()
+{
+    editor->deleteLineSelection();
+}
+
+void ModeContext::prepareBlockInsert(bool atEnd)
+{
+    editor->prepareBlockInsert(atEnd);
+}
+
+void ModeContext::swapVisualBlockCorner()
+{
+    editor->swapVisualBlockCorner();
+}
+
+void ModeContext::changeVisualBlock()
+{
+    editor->changeVisualBlock();
+}
+
+bool ModeContext::getTextObjectRange(char objChar, bool around, int& outStartY,
+                                     int& outStartX, int& outEndY, int& outEndX)
+{
+    return editor->getTextObjectRange(objChar, around, outStartY, outStartX,
+                                      outEndY, outEndX);
+}
+
+void ModeContext::applyOperatorToRange(char op, int startY, int startX,
+                                       int endY, int endX)
+{
+    editor->applyOperatorToRange(op, startY, startX, endY, endX);
+}
+
+void ModeContext::handleLinewiseOperator(char op, int count)
+{
+    editor->handleLinewiseOperator(op, count);
+}
+
+void ModeContext::jumpBack()
+{
+    editor->jumpBack();
+}
+
+void ModeContext::jumpForward()
+{
+    editor->jumpForward();
+}
+
+void ModeContext::jumpToAlternateFile()
+{
+    editor->jumpToAlternateFile();
+}
+
+void ModeContext::switchToAlternateFile()
+{
+    editor->switchToAlternateFile();
+}
+
+void ModeContext::setMark(char mark)
+{
+    editor->setMark(mark);
+}
+
+void ModeContext::jumpToMark(char mark)
+{
+    editor->jumpToMark(mark);
+}
+
+void ModeContext::goToDefinition()
+{
+    editor->goToDefinition();
+}
+
+void ModeContext::findReferences()
+{
+    editor->findReferences();
+}
+
+bool ModeContext::hasReferences() const
+{
+    return editor->hasReferences();
+}
+
+void ModeContext::clearReferences()
+{
+    editor->clearReferences();
+}
+
+void ModeContext::referencesUp()
+{
+    editor->referencesUp();
+}
+
+void ModeContext::referencesDown()
+{
+    editor->referencesDown();
+}
+
+void ModeContext::referencesFirst()
+{
+    editor->referencesFirst();
+}
+
+void ModeContext::referencesLast()
+{
+    editor->referencesLast();
+}
+
+void ModeContext::referencesHalfPageUp()
+{
+    editor->referencesHalfPageUp();
+}
+
+void ModeContext::referencesHalfPageDown()
+{
+    editor->referencesHalfPageDown();
+}
+
+void ModeContext::selectReference()
+{
+    editor->selectReference();
+}
+
+void ModeContext::toggleReferencesPreview()
+{
+    editor->toggleReferencesPreview();
+}
+
+void ModeContext::openReferencePreview()
+{
+    editor->openReferencePreview();
+}
+
+void ModeContext::showFileInfo()
+{
+    editor->showFileInfo();
+}
+
+void ModeContext::goToFile()
+{
+    editor->goToFile();
+}
+
+void ModeContext::showLspInfo()
+{
+    editor->showLspInfo();
+}
+
+void ModeContext::clearLspInfo()
+{
+    editor->clearLspInfo();
+}
+
+void ModeContext::forceQuit()
+{
+    editor->forceQuit();
+}
+
+bool ModeContext::isCppFile() const
+{
+    return editor->isCppFile();
+}
+
+bool ModeContext::isPythonFile() const
+{
+    return editor->isPythonFile();
+}
+
+bool ModeContext::isRobotFile() const
+{
+    return editor->isRobotFile();
+}
+
+bool ModeContext::isJsonFile() const
+{
+    return editor->isJsonFile();
+}
+
+bool ModeContext::isYamlFile() const
+{
+    return editor->isYamlFile();
+}
+
+bool ModeContext::isClangdLspEnabled() const
+{
+    return editor->isClangdLspEnabled();
+}
+
+bool ModeContext::isPythonLspEnabled() const
+{
+    return editor->isPythonLspEnabled();
+}
+
+bool ModeContext::isRobotLspEnabled() const
+{
+    return editor->isRobotLspEnabled();
+}
+
 bool CommandPrompt::isActive() const
 {
     return active;

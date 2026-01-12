@@ -16,11 +16,9 @@
 
 void FileBrowserMode::on_enter(ModeContext& ctx)
 {
-    Editor* ed = ctx.editor;
-
-    if(previousFile.empty() && ed->currentBuffer != nullptr && ed->filename)
+    if(previousFile.empty() && ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
-        previousFile = *ed->filename;
+        previousFile = std::string(ctx.currentFilename());
     }
 
     if(currentDirectory.empty())
@@ -33,7 +31,7 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
         loadDirectory(ctx, currentDirectory);
     }
 
-    ed->needsFullRedraw = true;
+    ctx.requestFullRedraw();
 }
 
 void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
@@ -41,7 +39,6 @@ void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
 std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                                                  const KeyEvent& event)
 {
-    Editor* ed = ctx.editor;
     int c = event.key;
 
     std::optional<ModeState> nextState;
@@ -60,9 +57,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         if(!previousFile.empty())
         {
-            ed->openFile(std::string_view(previousFile));
+            ctx.openFile(std::string_view(previousFile));
         }
-        return defaultExitMode(ed);
+        return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                               : ModeState{WelcomeMode{}};
     }
 
     // ========================================================================
@@ -74,7 +72,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor < (int)fileList.size() - 1)
         {
             browserCursor++;
-            int visible = ed->screenRows - 4;
+            int visible = ctx.screenRows() - 4;
             if(browserCursor >= browserOffset + visible)
                 browserOffset = browserCursor - visible + 1;
         }
@@ -91,7 +89,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     else if(c == 'G')
     {
         browserCursor = fileList.size() - 1;
-        int visible = ed->screenRows - 4;
+        int visible = ctx.screenRows() - 4;
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
     }
@@ -106,17 +104,17 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == Terminal::CTRL_D)
     {
-        int half = (ed->screenRows - 4) / 2;
+        int half = (ctx.screenRows() - 4) / 2;
         browserCursor += half;
         if(browserCursor >= (int)fileList.size())
             browserCursor = fileList.size() - 1;
-        int visible = ed->screenRows - 4;
+        int visible = ctx.screenRows() - 4;
         if(browserCursor >= browserOffset + visible)
             browserOffset = browserCursor - visible + 1;
     }
     else if(c == Terminal::CTRL_U)
     {
-        int half = (ed->screenRows - 4) / 2;
+        int half = (ctx.screenRows() - 4) / 2;
         browserCursor -= half;
         if(browserCursor < 0)
             browserCursor = 0;
@@ -143,8 +141,9 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             }
             else
             {
-                ed->openFile(std::string_view(entry.path));
-                return defaultExitMode(ed);
+                ctx.openFile(std::string_view(entry.path));
+                return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                       : ModeState{WelcomeMode{}};
             }
         }
     }
@@ -174,16 +173,16 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         showHidden = !showHidden;
         loadDirectory(ctx, currentDirectory);
-        ed->setStatusMessage(showHidden ? "Showing hidden files"
+        ctx.setStatusMessage(showHidden ? "Showing hidden files"
                                         : "Hiding hidden files");
     }
     else if(c == 'i' || c == Terminal::CTRL_I)
     {
-        ed->respectGitignore = !ed->respectGitignore;
-        ed->fuzzyInitialized = false;
+        ctx.setRespectGitignore(!ctx.respectGitignore());
+        ctx.setFuzzyInitialized(false);
         loadDirectory(ctx, currentDirectory);
-        ed->setStatusMessage(ed->respectGitignore ? "Respecting .gitignore"
-                                                  : "Ignoring .gitignore");
+        ctx.setStatusMessage(ctx.respectGitignore() ? "Respecting .gitignore"
+                                                    : "Ignoring .gitignore");
     }
 
     // Refresh
@@ -195,25 +194,25 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Create new file
     else if(c == '%')
     {
-        ed->createNewFilePrompt();
+        ctx.createNewFilePrompt();
     }
 
     // Create new directory
     else if(c == 'd')
     {
-        ed->createNewDirectoryPrompt();
+        ctx.createNewDirectoryPrompt();
     }
 
     // Delete file/directory
     else if(c == 'D')
     {
-        ed->deleteFilePrompt();
+        ctx.deleteFilePrompt();
     }
 
     // Rename file/directory
     else if(c == 'R')
     {
-        ed->renameFilePrompt();
+        ctx.renameFilePrompt();
     }
 
     // ========================================================================
@@ -233,7 +232,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return GrepSearchMode{};
     }
 
-    ed->needsFullRedraw = true;
+    ctx.requestFullRedraw();
     return std::nullopt;
 }
 
@@ -367,7 +366,6 @@ void FileBrowserMode::draw(Editor& editor) const
 void FileBrowserMode::loadDirectory(ModeContext& ctx,
                                     const std::string& pathStr)
 {
-    Editor* ed = ctx.editor;
     fileList.clear();
 
     std::filesystem::path dirPath = pathStr.empty()
@@ -381,7 +379,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
         ec.clear();
         if(!std::filesystem::is_directory(dirPath, ec))
         {
-            ed->setStatusMessage("Cannot open any directory!");
+            ctx.setStatusMessage("Cannot open any directory!");
             return;
         }
         currentDirectory = ".";
@@ -392,7 +390,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     }
 
     GitIgnore gitignore;
-    if(ed->respectGitignore)
+    if(ctx.respectGitignore())
     {
         gitignore.loadRecursive(dirPath);
     }
@@ -456,7 +454,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
 
         bool isDir = std::filesystem::is_directory(st);
 
-        if(ed->respectGitignore && gitignore.isIgnored(de.path(), isDir))
+        if(ctx.respectGitignore() && gitignore.isIgnored(de.path(), isDir))
             continue;
 
         FileEntry fe;
@@ -509,7 +507,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     if(browserCursor < 0)
         browserCursor = 0;
 
-    int visible = std::max(1, ed->screenRows - 4);
+    int visible = std::max(1, ctx.screenRows() - 4);
     if(browserOffset > browserCursor)
         browserOffset = browserCursor;
     int maxOffset = std::max(0, (int)fileList.size() - visible);
@@ -554,8 +552,6 @@ std::string FileBrowserMode::formatFileTime(time_t time) const
 std::optional<ModeState>
 FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
 {
-    Editor* ed = ctx.editor;
-
     if(commandLine.empty())
     {
         return std::nullopt;
@@ -588,14 +584,15 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     {
         if(!previousFile.empty())
         {
-            ed->openFile(std::string_view(previousFile));
+            ctx.openFile(std::string_view(previousFile));
         }
-        return defaultExitMode(ed);
+        return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                               : ModeState{WelcomeMode{}};
     }
 
     if(cmd == "wq" || cmd == "x")
     {
-        ed->setStatusMessage("Not applicable in file browser mode");
+        ctx.setStatusMessage("Not applicable in file browser mode");
         return std::nullopt;
     }
 
@@ -603,7 +600,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     if(cmd == "qa" || cmd == "qall" || cmd == "qa!" || cmd == "qall!" ||
        cmd == "wqa" || cmd == "wqall" || cmd == "xa")
     {
-        ed->executeCommand(cmd);
+        ctx.executeCommand(cmd);
         return std::nullopt;
     }
 
@@ -621,12 +618,12 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     {
         if(!currentEntry || currentEntry->name == "..")
         {
-            ed->setStatusMessage("No file selected to delete");
+            ctx.setStatusMessage("No file selected to delete");
             return std::nullopt;
         }
 
         // Reuse existing delete logic
-        ed->deleteFilePrompt();
+        ctx.deleteFilePrompt();
         return std::nullopt;
     }
 
@@ -639,18 +636,18 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         {
             if(!currentEntry || currentEntry->name == "..")
             {
-                ed->setStatusMessage("No file selected to rename");
+                ctx.setStatusMessage("No file selected to rename");
                 return std::nullopt;
             }
             // Reuse existing rename prompt
-            ed->renameFilePrompt();
+            ctx.renameFilePrompt();
         }
         else
         {
             // Rename with provided name
             if(!currentEntry || currentEntry->name == "..")
             {
-                ed->setStatusMessage("No file selected to rename");
+                ctx.setStatusMessage("No file selected to rename");
                 return std::nullopt;
             }
 
@@ -662,11 +659,11 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             std::filesystem::rename(oldPath, newPath, ec);
             if(ec)
             {
-                ed->setStatusMessage("Failed to rename: " + ec.message());
+                ctx.setStatusMessage("Failed to rename: " + ec.message());
             }
             else
             {
-                ed->setStatusMessage("Renamed to: " + args);
+                ctx.setStatusMessage("Renamed to: " + args);
                 loadDirectory(ctx, currentDirectory);
             }
         }
@@ -680,7 +677,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     {
         if(args.empty())
         {
-            ed->createNewDirectoryPrompt();
+            ctx.createNewDirectoryPrompt();
         }
         else
         {
@@ -691,12 +688,12 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             std::filesystem::create_directory(dirPath, ec);
             if(ec)
             {
-                ed->setStatusMessage("Failed to create directory: " +
+                ctx.setStatusMessage("Failed to create directory: " +
                                      ec.message());
             }
             else
             {
-                ed->setStatusMessage("Created directory: " + args);
+                ctx.setStatusMessage("Created directory: " + args);
                 loadDirectory(ctx, currentDirectory);
             }
         }
@@ -710,7 +707,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     {
         if(args.empty())
         {
-            ed->createNewFilePrompt();
+            ctx.createNewFilePrompt();
         }
         else
         {
@@ -720,12 +717,12 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             std::ofstream file(filePath);
             if(!file.is_open())
             {
-                ed->setStatusMessage("Failed to create file: " + args);
+                ctx.setStatusMessage("Failed to create file: " + args);
             }
             else
             {
                 file.close();
-                ed->setStatusMessage("Created file: " + args);
+                ctx.setStatusMessage("Created file: " + args);
                 loadDirectory(ctx, currentDirectory);
             }
         }
@@ -739,7 +736,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     {
         if(args.empty())
         {
-            ed->setStatusMessage("Usage: :cd <path>");
+            ctx.setStatusMessage("Usage: :cd <path>");
         }
         else
         {
@@ -760,7 +757,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     }
                     else
                     {
-                        ed->setStatusMessage(
+                        ctx.setStatusMessage(
                             "HOME environment variable not set");
                         return std::nullopt;
                     }
@@ -786,7 +783,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             }
             else
             {
-                ed->setStatusMessage("Not a directory: " + args);
+                ctx.setStatusMessage("Not a directory: " + args);
             }
         }
         return std::nullopt;
@@ -811,7 +808,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     }
     else if(cmd == "?")
     {
-        ed->setStatusMessage(":q :help <topic> :d[elete] :r[ename] <name> "
+        ctx.setStatusMessage(":q :help <topic> :d[elete] :r[ename] <name> "
                              ":mkdir <name> :touch <name> :cd "
                              "<path>");
         return std::nullopt;
@@ -822,7 +819,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     // ========================================================================
     else
     {
-        ed->setStatusMessage("Unknown command: " + cmd +
+        ctx.setStatusMessage("Unknown command: " + cmd +
                              " (try :help for list)");
     }
 

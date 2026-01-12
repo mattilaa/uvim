@@ -10,15 +10,13 @@
 
 void HelpMode::on_enter(ModeContext& ctx)
 {
-    Editor* ed = ctx.editor;
-
-    if(previousFile.empty() && ed->currentBuffer != nullptr && ed->filename)
+    if(previousFile.empty() && ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
-        previousFile = *ed->filename;
+        previousFile = std::string(ctx.currentFilename());
     }
 
     loadHelpContent(topic);
-    ed->needsFullRedraw = true;
+    ctx.requestFullRedraw();
 }
 
 void HelpMode::on_exit(ModeContext& /* ctx */) {}
@@ -26,7 +24,6 @@ void HelpMode::on_exit(ModeContext& /* ctx */) {}
 std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
                                           const KeyEvent& event)
 {
-    Editor* ed = ctx.editor;
     int c = event.key;
 
     std::optional<ModeState> nextState;
@@ -45,7 +42,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     {
         if(!previousFile.empty())
         {
-            ed->openFile(std::string_view(previousFile));
+            ctx.openFile(std::string_view(previousFile));
             return NormalMode{};
         }
         return WelcomeMode{};
@@ -57,7 +54,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
 
     if(c == 'j' || c == Terminal::ARROW_DOWN)
     {
-        int maxScroll = std::max(0, (int)lines.size() - (ed->screenRows - 3));
+        int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
         if(scrollOffset < maxScroll)
         {
             scrollOffset++;
@@ -72,7 +69,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     }
     else if(c == 'G')
     {
-        scrollOffset = std::max(0, (int)lines.size() - (ed->screenRows - 3));
+        scrollOffset = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
     }
     else if(c == 'g')
     {
@@ -84,21 +81,21 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     }
     else if(c == Terminal::CTRL_D)
     {
-        int half = (ed->screenRows - 3) / 2;
+        int half = (ctx.screenRows() - 3) / 2;
         scrollOffset += half;
-        int maxScroll = std::max(0, (int)lines.size() - (ed->screenRows - 3));
+        int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
         if(scrollOffset > maxScroll)
             scrollOffset = maxScroll;
     }
     else if(c == Terminal::CTRL_U)
     {
-        int half = (ed->screenRows - 3) / 2;
+        int half = (ctx.screenRows() - 3) / 2;
         scrollOffset -= half;
         if(scrollOffset < 0)
             scrollOffset = 0;
     }
 
-    ed->needsFullRedraw = true;
+    ctx.requestFullRedraw();
     return std::nullopt;
 }
 
@@ -495,8 +492,6 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
                                                   std::string_view commandLine)
 {
-    Editor* ed = ctx.editor;
-
     // Parse command and arguments
     std::string cmd;
     std::string args;
@@ -524,8 +519,8 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
         topic = newTopic;
         scrollOffset = 0;
         loadHelpContent(topic);
-        ed->setStatusMessage("Help: " + (topic.empty() ? "index" : topic));
-        ed->needsFullRedraw = true;
+        ctx.setStatusMessage("Help: " + (topic.empty() ? "index" : topic));
+        ctx.requestFullRedraw();
         return std::nullopt;
     }
 
@@ -534,13 +529,13 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
     {
         if(!previousFile.empty())
         {
-            ed->openFile(std::string_view(previousFile));
+            ctx.openFile(std::string_view(previousFile));
             return NormalMode{};
         }
         return WelcomeMode{};
     }
 
     // Unknown command
-    ed->setStatusMessage("Unknown command: :" + cmd);
+    ctx.setStatusMessage("Unknown command: :" + cmd);
     return std::nullopt;
 }

@@ -14,7 +14,7 @@ void CommandMode::on_enter(ModeContext& ctx)
     completionIndex = -1;
     originalInput.clear();
 
-    ctx.editor->needsFullRedraw = true;
+    ctx.requestFullRedraw();
 }
 
 void CommandMode::on_exit(ModeContext& ctx)
@@ -27,14 +27,14 @@ void CommandMode::on_exit(ModeContext& ctx)
 std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                                              const KeyEvent& event)
 {
-    Editor* ed = ctx.editor;
     int c = event.key;
 
     // Escape -> cancel and return to normal mode
     if(c == Terminal::ESC)
     {
         ctx.setStatusMessage("");
-        return defaultExitMode(ed);
+        return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                               : ModeState{WelcomeMode{}};
     }
 
     // Enter -> execute command
@@ -44,24 +44,21 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             std::string_view cmd(ctx.commandBuffer);
             cmd.remove_prefix(1); // Remove leading ':'
-            ed->executeCommand(cmd);
-            if(ed->currentMode == LSP_INFO)
+            ctx.executeCommand(cmd);
+            if(ctx.currentMode() == LSP_INFO)
             {
                 return LspInfoMode{};
             }
-            if(ed->commandRequestedModeSet)
+            Mode mode = NORMAL;
+            std::string path;
+            if(ctx.takeCommandRequest(mode, path))
             {
-                Mode mode = ed->commandRequestedMode;
-                std::string path = ed->commandRequestedPath;
-                ed->commandRequestedModeSet = false;
-                ed->commandRequestedPath.clear();
-
                 if(mode == FILE_BROWSER)
                 {
                     std::string prev;
-                    if(ed->currentBuffer != nullptr && ed->filename)
+                    if(ctx.hasCurrentBuffer() && ctx.hasFilename())
                     {
-                        prev = *ed->filename;
+                        prev = std::string(ctx.currentFilename());
                     }
                     return FileBrowserMode{path, prev};
                 }
@@ -72,15 +69,16 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(mode == HELP)
                 {
                     std::string prev;
-                    if(ed->currentBuffer != nullptr && ed->filename)
+                    if(ctx.hasCurrentBuffer() && ctx.hasFilename())
                     {
-                        prev = *ed->filename;
+                        prev = std::string(ctx.currentFilename());
                     }
                     return HelpMode{path, prev}; // path contains the topic
                 }
             }
         }
-        return defaultExitMode(ed);
+        return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                               : ModeState{WelcomeMode{}};
     }
 
     // Backspace
@@ -96,7 +94,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         else
         {
             // Backspace on empty command line returns to normal
-            return defaultExitMode(ed);
+            return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                   : ModeState{WelcomeMode{}};
         }
         return std::nullopt;
     }
@@ -134,12 +133,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Arrow keys for command history
     if(c == Terminal::ARROW_UP)
     {
-        ed->commandHistoryUp();
+        ctx.commandHistoryUp();
         return std::nullopt;
     }
     if(c == Terminal::ARROW_DOWN)
     {
-        ed->commandHistoryDown();
+        ctx.commandHistoryDown();
         return std::nullopt;
     }
 
@@ -202,7 +201,6 @@ void Editor::handleCommandMode(int c)
 }
 void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
-    Editor* ed = ctx.editor;
     std::string input = ctx.commandBuffer.substr(1); // Remove ':'
 
     // If we don't have completions yet, generate them
@@ -222,13 +220,13 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
             if(cmd == "e" || cmd == "edit" || cmd == "w" || cmd == "tabe" ||
                cmd == "tabnew" || cmd == "cd")
             {
-                completions = ed->getPathCompletions(pathPart);
+                completions = ctx.getPathCompletions(pathPart);
             }
         }
         else
         {
             // Complete command names
-            completions = ed->getCommandCompletions(input);
+            completions = ctx.getCommandCompletions(input);
         }
 
         if(completions.empty())

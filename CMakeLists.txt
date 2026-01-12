@@ -31,6 +31,7 @@ set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
     src/editor.cpp
+    src/editor_mode_handlers.cpp
     src/editor_lsp_info.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp

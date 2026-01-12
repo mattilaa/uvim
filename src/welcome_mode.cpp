@@ -12,7 +12,7 @@
 
 void WelcomeMode::on_enter(ModeContext& ctx)
 {
-    ctx.editor->needsFullRedraw = true;
+    ctx.requestFullRedraw();
 }
 
 void WelcomeMode::on_exit(ModeContext& /* ctx */) {}
@@ -20,7 +20,6 @@ void WelcomeMode::on_exit(ModeContext& /* ctx */) {}
 std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
                                              const KeyEvent& event)
 {
-    Editor* ed = ctx.editor;
     int c = event.key;
 
     std::optional<ModeState> nextState;
@@ -63,7 +62,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 
     if(c == 'q')
     {
-        ed->forceQuit();
+        ctx.forceQuit();
     }
 
     return NormalMode{};
@@ -72,33 +71,28 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 std::optional<ModeState>
 WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
 {
-    Editor* ed = ctx.editor;
-
     while(!commandLine.empty() && text_utils::is_space(commandLine.front()))
         commandLine.remove_prefix(1);
     if(commandLine.empty())
         return std::nullopt;
 
-    ed->executeCommand(commandLine);
+    ctx.executeCommand(commandLine);
 
-    if(ed->currentMode == LSP_INFO)
+    if(ctx.currentMode() == LSP_INFO)
     {
         return LspInfoMode{};
     }
 
-    if(ed->commandRequestedModeSet)
+    Mode mode = NORMAL;
+    std::string path;
+    if(ctx.takeCommandRequest(mode, path))
     {
-        Mode mode = ed->commandRequestedMode;
-        std::string path = ed->commandRequestedPath;
-        ed->commandRequestedModeSet = false;
-        ed->commandRequestedPath.clear();
-
         if(mode == FILE_BROWSER)
         {
             std::string prev;
-            if(ed->currentBuffer != nullptr && ed->filename)
+            if(ctx.hasCurrentBuffer() && ctx.hasFilename())
             {
-                prev = *ed->filename;
+                prev = std::string(ctx.currentFilename());
             }
             return FileBrowserMode{path, prev};
         }
@@ -109,15 +103,15 @@ WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         if(mode == HELP)
         {
             std::string prev;
-            if(ed->currentBuffer != nullptr && ed->filename)
+            if(ctx.hasCurrentBuffer() && ctx.hasFilename())
             {
-                prev = *ed->filename;
+                prev = std::string(ctx.currentFilename());
             }
             return HelpMode{path, prev};
         }
     }
 
-    if(ed->hasBuffer())
+    if(ctx.hasBuffer())
     {
         return NormalMode{};
     }
@@ -259,6 +253,10 @@ void WelcomeMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
         output += ":";
         output += commandPrompt.getInput();
+
+        output += Terminal::cursorPos(editor.screenRows + 1, 1);
+        output += Terminal::ESC_CLEAR_LINE;
+        output += " COMMAND | ";
     }
 
     Terminal::write(output);
