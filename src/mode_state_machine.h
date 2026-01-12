@@ -4,6 +4,8 @@
 #include "search_types.h"
 #include "state_machine.h"
 #include <ctime>
+#include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -92,6 +94,20 @@ using ModeState =
                  OperatorPendingMode, ReferencesMode, LspInfoMode, HelpMode>;
 
 ModeState defaultExitMode(const Editor* editor);
+
+struct CommandPrompt
+{
+    bool isActive() const;
+    const std::string& getInput() const;
+    bool handle(ModeContext& ctx, int key,
+                const std::function<std::optional<ModeState>(std::string_view)>&
+                    execute,
+                std::optional<ModeState>& nextState);
+
+private:
+    bool active = false;
+    std::string input;
+};
 
 // ============================================================================
 // State Definitions
@@ -265,8 +281,7 @@ struct FileBrowserMode
     int browserCursor = 0;
     int browserOffset = 0;
     bool showHidden = false;
-    bool commandMode = false;
-    std::string commandInput;
+    CommandPrompt commandPrompt;
 
     FileBrowserMode() = default;
     explicit FileBrowserMode(std::string startDir, std::string prevFile = {})
@@ -286,7 +301,8 @@ private:
     void loadDirectory(ModeContext& ctx, const std::string& pathStr);
     std::string formatFileSize(size_t size) const;
     std::string formatFileTime(time_t time) const;
-    std::optional<ModeState> executeCommand(ModeContext& ctx);
+    std::optional<ModeState> executeCommand(ModeContext& ctx,
+                                            std::string_view commandLine);
 };
 
 struct FuzzyFindMode
@@ -449,8 +465,7 @@ struct HelpMode
     std::vector<std::string> lines;
     int scrollOffset = 0;
     std::string previousFile;
-    bool commandMode = false;
-    std::string commandInput;
+    CommandPrompt commandPrompt;
 
     HelpMode() = default;
     explicit HelpMode(std::string helpTopic, std::string prevFile = {})
@@ -467,7 +482,8 @@ struct HelpMode
 
 private:
     void loadHelpContent(const std::string& helpTopic);
-    void executeCommand(ModeContext& ctx);
+    std::optional<ModeState> executeCommand(ModeContext& ctx,
+                                            std::string_view commandLine);
 };
 
 // ============================================================================

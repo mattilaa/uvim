@@ -1776,6 +1776,14 @@ void Editor::openFile(std::string_view fname)
     *cursorX = *cursorY = 0;
     *offsetX = *offsetY = 0;
 
+    // Record file modification time for external change detection
+    std::error_code ec;
+    auto ftime = std::filesystem::last_write_time(path, ec);
+    if(!ec)
+    {
+        currentBuffer->lastModificationTime = ftime;
+    }
+
     // Reset undo state cleanly
     currentBuffer->undoStack.clear();
     currentBuffer->undoIndex = -1;
@@ -1925,6 +1933,14 @@ void Editor::saveFile()
         currentBuffer->savedUndoIndex =
             currentBuffer->undoIndex; // Mark this state as saved
 
+        // Update file modification time after saving
+        std::error_code ec;
+        auto ftime = std::filesystem::last_write_time(*filename, ec);
+        if(!ec)
+        {
+            currentBuffer->lastModificationTime = ftime;
+        }
+
         std::string msg = "\"" + *filename + "\" " +
                           std::to_string(lines->size()) + "L written";
         if(linesModified > 0)
@@ -1938,6 +1954,84 @@ void Editor::saveFile()
     {
         setStatusMessage("Can't save! I/O error");
     }
+}
+
+void Editor::checkFileChanges()
+{
+    // Only check if we have a valid file and buffer
+    if(!currentBuffer || filename->empty() || *dirty)
+        return;
+
+    std::error_code ec;
+
+    // Check if file still exists
+    if(!std::filesystem::exists(*filename, ec) || ec)
+        return;
+
+    // Get current modification time
+    auto currentTime = std::filesystem::last_write_time(*filename, ec);
+    if(ec)
+        return;
+
+    // Compare with stored modification time
+    if(currentTime != currentBuffer->lastModificationTime)
+    {
+        // File has been modified externally, reload it
+        reloadCurrentFile();
+    }
+}
+
+void Editor::reloadCurrentFile()
+{
+    if(!currentBuffer || filename->empty())
+        return;
+
+    // Save cursor position
+    int savedCursorX = *cursorX;
+    int savedCursorY = *cursorY;
+    int savedOffsetX = *offsetX;
+    int savedOffsetY = *offsetY;
+
+    std::string filepath = *filename;
+
+    // Reload the file
+    lines->clear();
+
+    std::ifstream file(filepath);
+    if(file.is_open())
+    {
+        std::string line;
+        while(std::getline(file, line))
+        {
+            if(!line.empty() && line.back() == '\r')
+                line.pop_back();
+            lines->push_back(line);
+        }
+        file.close();
+    }
+
+    if(lines->empty())
+        lines->push_back("");
+
+    // Update modification time
+    std::error_code ec;
+    auto ftime = std::filesystem::last_write_time(filepath, ec);
+    if(!ec)
+    {
+        currentBuffer->lastModificationTime = ftime;
+    }
+
+    // Restore cursor position (clamped to valid range)
+    *cursorY = std::min(savedCursorY, (int)lines->size() - 1);
+    *cursorX = std::min(savedCursorX, (int)(*lines)[*cursorY].length());
+    *offsetX = savedOffsetX;
+    *offsetY =
+        std::min(savedOffsetY, std::max(0, (int)lines->size() - screenRows));
+
+    *dirty = false;
+    needsFullRedraw = true;
+
+    setStatusMessage("File reloaded from disk");
 }
 
 // Jump between header and source file
@@ -4421,6 +4515,9 @@ void Editor::switchToBuffer(int index)
         restoreBufferState();
         needsFullRedraw = true;
 
+        // Check if the file has been modified externally
+        checkFileChanges();
+
         std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
                           "/" + std::to_string(buffers.size());
         if(!filename->empty())
@@ -4587,7 +4684,11 @@ void Editor::run()
         draw();
         int c = Terminal::readKeyTimeout(50);
         if(c < 0)
+        {
+            // No key pressed, check if file has changed externally
+            checkFileChanges();
             continue;
+        }
         handleKeypress(c);
     }
 }

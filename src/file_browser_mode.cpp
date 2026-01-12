@@ -44,57 +44,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // ========================================================================
-    // Command Mode Handling
-    // ========================================================================
-
-    if(commandMode)
+    std::optional<ModeState> nextState;
+    if(commandPrompt.handle(
+           ctx, c, [&](std::string_view commandLine)
+           { return executeCommand(ctx, commandLine); }, nextState))
     {
-        if(c == Terminal::ESC)
-        {
-            commandMode = false;
-            commandInput.clear();
-            ed->needsFullRedraw = true;
-            return std::nullopt;
-        }
-        else if(c == Terminal::ENTER)
-        {
-            auto result = executeCommand(ctx);
-            commandMode = false;
-            commandInput.clear();
-            ed->needsFullRedraw = true;
-
-            // If command returned a mode change, return it
-            return result;
-        }
-        else if(c == Terminal::BACKSPACE || c == 127)
-        {
-            if(!commandInput.empty())
-            {
-                commandInput.pop_back();
-                ed->needsFullRedraw = true;
-            }
-            return std::nullopt;
-        }
-        else if(c >= 32 && c < 127)
-        {
-            commandInput += static_cast<char>(c);
-            ed->needsFullRedraw = true;
-            return std::nullopt;
-        }
-        return std::nullopt;
-    }
-
-    // ========================================================================
-    // Enter Command Mode
-    // ========================================================================
-
-    if(c == ':')
-    {
-        commandMode = true;
-        commandInput.clear();
-        ed->needsFullRedraw = true;
-        return std::nullopt;
+        return nextState;
     }
 
     // ========================================================================
@@ -181,7 +136,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             if(entry.isDirectory ||
                file_utils::is_directory(std::filesystem::path(entry.path)))
             {
-                loadDirectory(ctx, entry.path);
+                std::string targetPath = entry.path;
+                loadDirectory(ctx, targetPath);
                 browserCursor = 0;
                 browserOffset = 0;
             }
@@ -391,10 +347,10 @@ void FileBrowserMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
-    if(commandMode)
+    if(commandPrompt.isActive())
     {
         output += editor.theme.baseFg();
-        output += ":" + commandInput;
+        output += ":" + commandPrompt.getInput();
     }
     else if(!editor.statusMessage.empty())
     {
@@ -562,11 +518,12 @@ std::string FileBrowserMode::formatFileTime(time_t time) const
     return std::string(buffer);
 }
 
-std::optional<ModeState> FileBrowserMode::executeCommand(ModeContext& ctx)
+std::optional<ModeState>
+FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
 {
     Editor* ed = ctx.editor;
 
-    if(commandInput.empty())
+    if(commandLine.empty())
     {
         return std::nullopt;
     }
@@ -574,18 +531,21 @@ std::optional<ModeState> FileBrowserMode::executeCommand(ModeContext& ctx)
     // Parse command and arguments
     std::string cmd;
     std::string args;
-    size_t spacePos = commandInput.find(' ');
-    if(spacePos != std::string::npos)
+    size_t spacePos = commandLine.find(' ');
+    if(spacePos != std::string_view::npos)
     {
-        cmd = commandInput.substr(0, spacePos);
-        args = commandInput.substr(spacePos + 1);
+        cmd = std::string(commandLine.substr(0, spacePos));
+        std::string_view argsView = commandLine.substr(spacePos + 1);
         // Trim leading spaces from args
-        while(!args.empty() && args[0] == ' ')
-            args.erase(0, 1);
+        while(!argsView.empty() && argsView.front() == ' ')
+        {
+            argsView.remove_prefix(1);
+        }
+        args = std::string(argsView);
     }
     else
     {
-        cmd = commandInput;
+        cmd = std::string(commandLine);
     }
 
     // ========================================================================

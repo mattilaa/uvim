@@ -29,55 +29,12 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = event.key;
 
-    // ========================================================================
-    // Command Mode Handling
-    // ========================================================================
-
-    if(commandMode)
+    std::optional<ModeState> nextState;
+    if(commandPrompt.handle(
+           ctx, c, [&](std::string_view commandLine)
+           { return executeCommand(ctx, commandLine); }, nextState))
     {
-        if(c == Terminal::ESC)
-        {
-            commandMode = false;
-            commandInput.clear();
-            ed->needsFullRedraw = true;
-            return std::nullopt;
-        }
-        else if(c == Terminal::ENTER)
-        {
-            executeCommand(ctx);
-            commandMode = false;
-            commandInput.clear();
-            ed->needsFullRedraw = true;
-            return std::nullopt;
-        }
-        else if(c == Terminal::BACKSPACE || c == 127)
-        {
-            if(!commandInput.empty())
-            {
-                commandInput.pop_back();
-                ed->needsFullRedraw = true;
-            }
-            return std::nullopt;
-        }
-        else if(c >= 32 && c < 127)
-        {
-            commandInput += static_cast<char>(c);
-            ed->needsFullRedraw = true;
-            return std::nullopt;
-        }
-        return std::nullopt;
-    }
-
-    // ========================================================================
-    // Enter Command Mode
-    // ========================================================================
-
-    if(c == ':')
-    {
-        commandMode = true;
-        commandInput.clear();
-        ed->needsFullRedraw = true;
-        return std::nullopt;
+        return nextState;
     }
 
     // ========================================================================
@@ -89,8 +46,9 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         if(!previousFile.empty())
         {
             ed->openFile(std::string_view(previousFile));
+            return NormalMode{};
         }
-        return defaultExitMode(ed);
+        return WelcomeMode{};
     }
 
     // ========================================================================
@@ -288,10 +246,10 @@ void HelpMode::draw(Editor& editor) const
 
     // Message line
     output += Terminal::NEWLINE_CLEAR;
-    if(commandMode)
+    if(commandPrompt.isActive())
     {
         output += ":";
-        output += commandInput;
+        output += commandPrompt.getInput();
     }
     else if(!editor.statusMessage.empty())
     {
@@ -534,25 +492,29 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     }
 }
 
-void HelpMode::executeCommand(ModeContext& ctx)
+std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
+                                                  std::string_view commandLine)
 {
     Editor* ed = ctx.editor;
 
     // Parse command and arguments
     std::string cmd;
     std::string args;
-    size_t spacePos = commandInput.find(' ');
-    if(spacePos != std::string::npos)
+    size_t spacePos = commandLine.find(' ');
+    if(spacePos != std::string_view::npos)
     {
-        cmd = commandInput.substr(0, spacePos);
-        args = commandInput.substr(spacePos + 1);
+        cmd = std::string(commandLine.substr(0, spacePos));
+        std::string_view argsView = commandLine.substr(spacePos + 1);
         // Trim leading spaces from args
-        while(!args.empty() && args[0] == ' ')
-            args.erase(0, 1);
+        while(!argsView.empty() && argsView.front() == ' ')
+        {
+            argsView.remove_prefix(1);
+        }
+        args = std::string(argsView);
     }
     else
     {
-        cmd = commandInput;
+        cmd = std::string(commandLine);
     }
 
     // Handle :help command to navigate to different topics
@@ -564,7 +526,7 @@ void HelpMode::executeCommand(ModeContext& ctx)
         loadHelpContent(topic);
         ed->setStatusMessage("Help: " + (topic.empty() ? "index" : topic));
         ed->needsFullRedraw = true;
-        return;
+        return std::nullopt;
     }
 
     // Handle :q to exit help
@@ -573,11 +535,12 @@ void HelpMode::executeCommand(ModeContext& ctx)
         if(!previousFile.empty())
         {
             ed->openFile(std::string_view(previousFile));
+            return NormalMode{};
         }
-        ed->setMode(NORMAL);
-        return;
+        return WelcomeMode{};
     }
 
     // Unknown command
     ed->setStatusMessage("Unknown command: :" + cmd);
+    return std::nullopt;
 }

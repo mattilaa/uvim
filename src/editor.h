@@ -484,6 +484,8 @@ public:
     void executeCommand(std::string_view cmd);
     void forceQuit();
     std::string getAlternateFilePath();
+    void checkFileChanges();
+    void reloadCurrentFile();
 
     // Utilities
     void setStatusMessage(const std::string& msg);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -10,6 +11,7 @@ struct Buffer
     std::vector<std::string> lines;
     std::string filename;
     bool dirty = false;
+    std::filesystem::file_time_type lastModificationTime{};
 
     // Cursor position per buffer
     int cursorX = 0;

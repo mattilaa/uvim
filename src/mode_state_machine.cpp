@@ -61,6 +61,77 @@ int ModeContext::screenCols() const
     return editor->screenCols;
 }
 
+bool CommandPrompt::isActive() const
+{
+    return active;
+}
+
+const std::string& CommandPrompt::getInput() const
+{
+    return input;
+}
+
+bool CommandPrompt::handle(
+    ModeContext& ctx, int key,
+    const std::function<std::optional<ModeState>(std::string_view)>& execute,
+    std::optional<ModeState>& nextState)
+{
+    Editor* ed = ctx.editor;
+
+    if(!active)
+    {
+        if(key == ':')
+        {
+            active = true;
+            input.clear();
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+        return false;
+    }
+
+    if(key == Terminal::ESC)
+    {
+        active = false;
+        input.clear();
+        ed->needsFullRedraw = true;
+        nextState.reset();
+        return true;
+    }
+
+    if(key == Terminal::ENTER)
+    {
+        nextState = execute(input);
+        active = false;
+        input.clear();
+        ed->needsFullRedraw = true;
+        return true;
+    }
+
+    if(key == Terminal::BACKSPACE || key == Terminal::DEL)
+    {
+        if(!input.empty())
+        {
+            input.pop_back();
+            ed->needsFullRedraw = true;
+        }
+        nextState.reset();
+        return true;
+    }
+
+    if(key >= 32 && key < 127)
+    {
+        input += static_cast<char>(key);
+        ed->needsFullRedraw = true;
+        nextState.reset();
+        return true;
+    }
+
+    nextState.reset();
+    return true;
+}
+
 // ============================================================================
 // ModeStateMachine Implementation
 // ============================================================================
