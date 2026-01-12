@@ -259,6 +259,8 @@ void WelcomeMode::draw(Editor& editor) const
         output += " COMMAND | ";
     }
 
+    editor.drawCommandHistoryPopup(output);
+
     Terminal::write(output);
     Terminal::write(Terminal::cursorPos(1, 1));
     Terminal::flush();

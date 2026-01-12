@@ -3049,6 +3049,13 @@ void Editor::handleResize()
 // Command execution
 void Editor::executeCommand(std::string_view cmd)
 {
+    if(!cmd.empty())
+    {
+        if(commandHistory.empty() || commandHistory.back() != cmd)
+            commandHistory.push_back(std::string(cmd));
+        commandHistoryIndex = -1;
+    }
+
     if(handleSetCommand(cmd))
         return;
 
@@ -5515,10 +5522,10 @@ void Editor::executeOneNormalCommand(int key)
 // Command History
 // ============================================================================
 
-void Editor::commandHistoryUp()
+std::optional<std::string> Editor::commandHistoryUp()
 {
     if(commandHistory.empty())
-        return;
+        return std::nullopt;
     if(commandHistoryIndex < 0)
     {
         commandHistoryIndex = commandHistory.size() - 1;
@@ -5528,22 +5535,260 @@ void Editor::commandHistoryUp()
         commandHistoryIndex--;
     }
     commandInput = commandHistory[commandHistoryIndex];
+    return commandInput;
 }
 
-void Editor::commandHistoryDown()
+std::optional<std::string> Editor::commandHistoryDown()
 {
     if(commandHistory.empty() || commandHistoryIndex < 0)
-        return;
+        return std::nullopt;
     if(commandHistoryIndex < (int)commandHistory.size() - 1)
     {
         commandHistoryIndex++;
         commandInput = commandHistory[commandHistoryIndex];
+        return commandInput;
+    }
+
+    commandHistoryIndex = -1;
+    commandInput.clear();
+    return commandInput;
+}
+
+void Editor::startCommandHistorySearch(std::string_view seed)
+{
+    commandHistorySearchActive = true;
+    commandHistorySearchOriginal = std::string(seed);
+    commandHistorySearchQueryValue = std::string(seed);
+    commandHistorySearchCursor = 0;
+    commandHistorySearchOffset = 0;
+    updateCommandHistorySearchQuery(commandHistorySearchQueryValue);
+}
+
+std::string Editor::cancelCommandHistorySearch()
+{
+    std::string restored = commandHistorySearchOriginal;
+    commandHistorySearchActive = false;
+    commandHistorySearchQueryValue.clear();
+    commandHistorySearchOriginal.clear();
+    commandHistorySearchMatches.clear();
+    commandHistorySearchCursor = 0;
+    commandHistorySearchOffset = 0;
+    needsFullRedraw = true;
+    return restored;
+}
+
+std::string Editor::acceptCommandHistorySearch()
+{
+    std::string selected;
+    if(!commandHistorySearchMatches.empty() &&
+       commandHistorySearchCursor >= 0 &&
+       commandHistorySearchCursor <
+           (int)commandHistorySearchMatches.size())
+    {
+        int idx = commandHistorySearchMatches[commandHistorySearchCursor];
+        if(idx >= 0 && idx < (int)commandHistory.size())
+            selected = commandHistory[idx];
+    }
+    if(selected.empty())
+        selected = commandHistorySearchQueryValue;
+
+    commandHistorySearchActive = false;
+    commandHistorySearchQueryValue.clear();
+    commandHistorySearchOriginal.clear();
+    commandHistorySearchMatches.clear();
+    commandHistorySearchCursor = 0;
+    commandHistorySearchOffset = 0;
+    needsFullRedraw = true;
+    return selected;
+}
+
+void Editor::updateCommandHistorySearchQuery(std::string_view query)
+{
+    commandHistorySearchQueryValue = std::string(query);
+    commandHistorySearchMatches.clear();
+    commandHistorySearchCursor = 0;
+    commandHistorySearchOffset = 0;
+
+    if(commandHistory.empty())
+    {
+        needsFullRedraw = true;
+        return;
+    }
+
+    if(commandHistorySearchQueryValue.empty())
+    {
+        for(int i = (int)commandHistory.size() - 1; i >= 0; --i)
+            commandHistorySearchMatches.push_back(i);
+        needsFullRedraw = true;
+        return;
+    }
+
+    std::vector<std::pair<int, int>> scored;
+    scored.reserve(commandHistory.size());
+    std::vector<int> positions;
+
+    for(int i = 0; i < (int)commandHistory.size(); ++i)
+    {
+        int score =
+            fuzzyScore(commandHistorySearchQueryValue, commandHistory[i],
+                       positions);
+        if(score >= 0)
+            scored.emplace_back(i, score);
+    }
+
+    if(!scored.empty())
+    {
+        std::stable_sort(
+            scored.begin(), scored.end(),
+            [](const std::pair<int, int>& left,
+               const std::pair<int, int>& right)
+            {
+                if(left.second != right.second)
+                    return left.second > right.second;
+                return left.first > right.first;
+            });
+        for(const auto& entry : scored)
+            commandHistorySearchMatches.push_back(entry.first);
+    }
+
+    needsFullRedraw = true;
+}
+
+void Editor::moveCommandHistorySearchCursor(int delta)
+{
+    if(!commandHistorySearchActive || commandHistorySearchMatches.empty())
+        return;
+    int next = commandHistorySearchCursor + delta;
+    if(next < 0)
+        next = 0;
+    if(next >= (int)commandHistorySearchMatches.size())
+        next = (int)commandHistorySearchMatches.size() - 1;
+    commandHistorySearchCursor = next;
+
+    const int window = std::min(8, (int)commandHistorySearchMatches.size());
+    if(commandHistorySearchCursor < commandHistorySearchOffset)
+        commandHistorySearchOffset = commandHistorySearchCursor;
+    else if(commandHistorySearchCursor >= commandHistorySearchOffset + window)
+        commandHistorySearchOffset =
+            commandHistorySearchCursor - window + 1;
+
+    needsFullRedraw = true;
+}
+
+bool Editor::isCommandHistorySearchActive() const
+{
+    return commandHistorySearchActive;
+}
+
+const std::string& Editor::commandHistorySearchQuery() const
+{
+    return commandHistorySearchQueryValue;
+}
+
+void Editor::drawCommandHistoryPopup(std::string& output) const
+{
+    if(!commandHistorySearchActive)
+        return;
+
+    output += theme.baseFg();
+
+    int rows = 0;
+    if(commandHistorySearchMatches.empty())
+    {
+        rows = 1;
     }
     else
     {
-        commandHistoryIndex = -1;
-        commandInput.clear();
+        rows = std::min(8, (int)commandHistorySearchMatches.size());
     }
+
+    if(rows <= 0)
+        return;
+
+    int maxContent = 0;
+    if(commandHistorySearchMatches.empty())
+    {
+        maxContent = displayWidth("No matches");
+    }
+    else
+    {
+        for(int i = 0; i < rows; ++i)
+        {
+            int idx = commandHistorySearchMatches[i + commandHistorySearchOffset];
+            if(idx >= 0 && idx < (int)commandHistory.size())
+            {
+                maxContent = std::max(
+                    maxContent, displayWidth(commandHistory[idx]));
+            }
+        }
+    }
+
+    int innerW = std::max(12, maxContent);
+    int totalW = innerW + 4;
+    if(totalW > screenCols)
+    {
+        totalW = screenCols;
+        innerW = std::max(4, totalW - 4);
+    }
+
+    int totalH = rows + 2;
+    int top = screenRows - totalH + 1;
+    if(top < 1)
+        top = 1;
+    int left = 2;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
+
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+
+    moveTo(top, left);
+    output += "+";
+    output.append(innerW + 2, '-');
+    output += "+";
+
+    for(int i = 0; i < rows; ++i)
+    {
+        moveTo(top + 1 + i, left);
+        output += "| ";
+
+        std::string line;
+        if(commandHistorySearchMatches.empty())
+        {
+            line = "No matches";
+        }
+        else
+        {
+            int idx =
+                commandHistorySearchMatches[i + commandHistorySearchOffset];
+            if(idx >= 0 && idx < (int)commandHistory.size())
+                line = commandHistory[idx];
+        }
+
+        if((int)line.length() > innerW)
+            line = line.substr(0, innerW - 3) + "...";
+
+        if(!commandHistorySearchMatches.empty() &&
+           (i + commandHistorySearchOffset) == commandHistorySearchCursor)
+        {
+            output += theme.selection();
+            output.append(line);
+            output += theme.reset();
+        }
+        else
+        {
+            output.append(line);
+        }
+
+        int pad = innerW - displayWidth(line);
+        if(pad > 0)
+            output.append(pad, ' ');
+        output += " |";
+    }
+
+    moveTo(top + totalH - 1, left);
+    output += "+";
+    output.append(innerW + 2, '-');
+    output += "+";
 }
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)

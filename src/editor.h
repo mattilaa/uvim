@@ -11,6 +11,7 @@
 #include <ctime>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -521,8 +522,22 @@ public:
     std::vector<std::string> commandHistory;
     int commandHistoryIndex = -1;
     std::string commandInput;
-    void commandHistoryUp();
-    void commandHistoryDown();
+    bool commandHistorySearchActive = false;
+    std::string commandHistorySearchQueryValue;
+    std::string commandHistorySearchOriginal;
+    std::vector<int> commandHistorySearchMatches;
+    int commandHistorySearchCursor = 0;
+    int commandHistorySearchOffset = 0;
+    std::optional<std::string> commandHistoryUp();
+    std::optional<std::string> commandHistoryDown();
+    void startCommandHistorySearch(std::string_view seed);
+    std::string cancelCommandHistorySearch();
+    std::string acceptCommandHistorySearch();
+    void updateCommandHistorySearchQuery(std::string_view query);
+    void moveCommandHistorySearchCursor(int delta);
+    bool isCommandHistorySearchActive() const;
+    const std::string& commandHistorySearchQuery() const;
+    void drawCommandHistoryPopup(std::string& output) const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
 

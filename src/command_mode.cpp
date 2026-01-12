@@ -22,12 +22,75 @@ void CommandMode::on_exit(ModeContext& ctx)
     ctx.commandBuffer.clear();
     completions.clear();
     completionIndex = -1;
+    if(ctx.isCommandHistorySearchActive())
+    {
+        ctx.cancelCommandHistorySearch();
+    }
 }
 
 std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                                              const KeyEvent& event)
 {
     int c = event.key;
+
+    if(ctx.isCommandHistorySearchActive())
+    {
+        if(c == Terminal::ESC)
+        {
+            std::string restored = ctx.cancelCommandHistorySearch();
+            ctx.commandBuffer = ":" + restored;
+            return std::nullopt;
+        }
+
+        if(c == Terminal::ENTER)
+        {
+            std::string selected = ctx.acceptCommandHistorySearch();
+            ctx.commandBuffer = ":" + selected;
+            return std::nullopt;
+        }
+
+        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN)
+        {
+            ctx.moveCommandHistorySearchCursor(1);
+            return std::nullopt;
+        }
+
+        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
+        {
+            ctx.moveCommandHistorySearchCursor(-1);
+            return std::nullopt;
+        }
+
+        if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+        {
+            std::string query(ctx.commandHistorySearchQuery());
+            if(!query.empty())
+            {
+                query.pop_back();
+                ctx.updateCommandHistorySearchQuery(query);
+                ctx.commandBuffer = ":" + query;
+            }
+            return std::nullopt;
+        }
+
+        if(c == Terminal::CTRL_U)
+        {
+            ctx.updateCommandHistorySearchQuery("");
+            ctx.commandBuffer = ":";
+            return std::nullopt;
+        }
+
+        if(c >= 32 && c < 127)
+        {
+            std::string query(ctx.commandHistorySearchQuery());
+            query += static_cast<char>(c);
+            ctx.updateCommandHistorySearchQuery(query);
+            ctx.commandBuffer = ":" + query;
+            return std::nullopt;
+        }
+
+        return std::nullopt;
+    }
 
     // Escape -> cancel and return to normal mode
     if(c == Terminal::ESC)
@@ -100,6 +163,20 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    // Ctrl+F - fuzzy search command history
+    if(c == Terminal::CTRL_F)
+    {
+        std::string seed;
+        if(ctx.commandBuffer.length() > 1)
+        {
+            seed = ctx.commandBuffer.substr(1);
+        }
+        ctx.startCommandHistorySearch(seed);
+        completions.clear();
+        completionIndex = -1;
+        return std::nullopt;
+    }
+
     // Tab completion
     if(c == Terminal::TAB)
     {
@@ -130,15 +207,25 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    // Arrow keys for command history
-    if(c == Terminal::ARROW_UP)
+    // Arrow keys/Ctrl+K for command history
+    if(c == Terminal::ARROW_UP || c == Terminal::CTRL_K)
     {
-        ctx.commandHistoryUp();
+        if(auto cmd = ctx.commandHistoryUp())
+        {
+            ctx.commandBuffer = ":" + *cmd;
+            completions.clear();
+            completionIndex = -1;
+        }
         return std::nullopt;
     }
-    if(c == Terminal::ARROW_DOWN)
+    if(c == Terminal::ARROW_DOWN || c == Terminal::CTRL_J)
     {
-        ctx.commandHistoryDown();
+        if(auto cmd = ctx.commandHistoryDown())
+        {
+            ctx.commandBuffer = ":" + *cmd;
+            completions.clear();
+            completionIndex = -1;
+        }
         return std::nullopt;
     }
 

@@ -359,6 +359,8 @@ void FileBrowserMode::draw(Editor& editor) const
             std::min((size_t)editor.screenCols, editor.statusMessage.length()));
     }
 
+    editor.drawCommandHistoryPopup(output);
+
     Terminal::write(output);
     Terminal::flush();
 }

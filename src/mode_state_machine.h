@@ -89,8 +89,15 @@ struct ModeContext
     // Command helpers
     void executeCommand(std::string_view cmd);
     bool takeCommandRequest(Mode& mode, std::string& path);
-    void commandHistoryUp();
-    void commandHistoryDown();
+    std::optional<std::string> commandHistoryUp();
+    std::optional<std::string> commandHistoryDown();
+    void startCommandHistorySearch(std::string_view seed);
+    std::string cancelCommandHistorySearch();
+    std::string acceptCommandHistorySearch();
+    void updateCommandHistorySearchQuery(std::string_view query);
+    void moveCommandHistorySearchCursor(int delta);
+    bool isCommandHistorySearchActive() const;
+    std::string_view commandHistorySearchQuery() const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
 

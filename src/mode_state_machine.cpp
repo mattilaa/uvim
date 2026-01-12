@@ -169,14 +169,49 @@ bool ModeContext::takeCommandRequest(Mode& mode, std::string& path)
     return true;
 }
 
-void ModeContext::commandHistoryUp()
+std::optional<std::string> ModeContext::commandHistoryUp()
 {
-    editor->commandHistoryUp();
+    return editor->commandHistoryUp();
 }
 
-void ModeContext::commandHistoryDown()
+std::optional<std::string> ModeContext::commandHistoryDown()
 {
-    editor->commandHistoryDown();
+    return editor->commandHistoryDown();
+}
+
+void ModeContext::startCommandHistorySearch(std::string_view seed)
+{
+    editor->startCommandHistorySearch(seed);
+}
+
+std::string ModeContext::cancelCommandHistorySearch()
+{
+    return editor->cancelCommandHistorySearch();
+}
+
+std::string ModeContext::acceptCommandHistorySearch()
+{
+    return editor->acceptCommandHistorySearch();
+}
+
+void ModeContext::updateCommandHistorySearchQuery(std::string_view query)
+{
+    editor->updateCommandHistorySearchQuery(query);
+}
+
+void ModeContext::moveCommandHistorySearchCursor(int delta)
+{
+    editor->moveCommandHistorySearchCursor(delta);
+}
+
+bool ModeContext::isCommandHistorySearchActive() const
+{
+    return editor->isCommandHistorySearchActive();
+}
+
+std::string_view ModeContext::commandHistorySearchQuery() const
+{
+    return editor->commandHistorySearchQuery();
 }
 
 std::vector<std::string>
@@ -970,6 +1005,79 @@ bool CommandPrompt::handle(
         return false;
     }
 
+    if(ctx.isCommandHistorySearchActive())
+    {
+        if(key == Terminal::ESC)
+        {
+            input = ctx.cancelCommandHistorySearch();
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+
+        if(key == Terminal::ENTER)
+        {
+            input = ctx.acceptCommandHistorySearch();
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+
+        if(key == Terminal::CTRL_J || key == Terminal::ARROW_DOWN)
+        {
+            ctx.moveCommandHistorySearchCursor(1);
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+
+        if(key == Terminal::CTRL_K || key == Terminal::ARROW_UP)
+        {
+            ctx.moveCommandHistorySearchCursor(-1);
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+
+        if(key == Terminal::BACKSPACE || key == Terminal::DEL ||
+           key == Terminal::CTRL_H)
+        {
+            std::string query(ctx.commandHistorySearchQuery());
+            if(!query.empty())
+            {
+                query.pop_back();
+                ctx.updateCommandHistorySearchQuery(query);
+                input = query;
+                ed->needsFullRedraw = true;
+            }
+            nextState.reset();
+            return true;
+        }
+
+        if(key == Terminal::CTRL_U)
+        {
+            ctx.updateCommandHistorySearchQuery("");
+            input.clear();
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+
+        if(key >= 32 && key < 127)
+        {
+            std::string query(ctx.commandHistorySearchQuery());
+            query += static_cast<char>(key);
+            ctx.updateCommandHistorySearchQuery(query);
+            input = query;
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
+
+        nextState.reset();
+        return true;
+    }
+
     if(key == Terminal::ESC)
     {
         active = false;
@@ -993,6 +1101,36 @@ bool CommandPrompt::handle(
         if(!input.empty())
         {
             input.pop_back();
+            ed->needsFullRedraw = true;
+        }
+        nextState.reset();
+        return true;
+    }
+
+    if(key == Terminal::CTRL_F)
+    {
+        ctx.startCommandHistorySearch(input);
+        ed->needsFullRedraw = true;
+        nextState.reset();
+        return true;
+    }
+
+    if(key == Terminal::CTRL_K || key == Terminal::ARROW_UP)
+    {
+        if(auto cmd = ctx.commandHistoryUp())
+        {
+            input = *cmd;
+            ed->needsFullRedraw = true;
+        }
+        nextState.reset();
+        return true;
+    }
+
+    if(key == Terminal::CTRL_J || key == Terminal::ARROW_DOWN)
+    {
+        if(auto cmd = ctx.commandHistoryDown())
+        {
+            input = *cmd;
             ed->needsFullRedraw = true;
         }
         nextState.reset();
