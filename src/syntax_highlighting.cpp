@@ -159,6 +159,35 @@ bool Editor::isYamlFile() const
            text_utils::iequals_ascii(ext, ".yml");
 }
 
+bool Editor::isCMakeFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+
+    std::string_view pathSv{*filename};
+    size_t slashPos = pathSv.find_last_of("/\\");
+    std::string_view base = (slashPos == std::string_view::npos)
+                                ? pathSv
+                                : pathSv.substr(slashPos + 1);
+
+    auto ends_with = [](std::string_view value, std::string_view suffix) -> bool
+    {
+        if(value.size() < suffix.size())
+            return false;
+        return text_utils::iequals_ascii(
+            value.substr(value.size() - suffix.size()), suffix);
+    };
+
+    if(text_utils::iequals_ascii(base, "CMakeLists.txt") ||
+       text_utils::iequals_ascii(base, "CMakeFiles.txt") ||
+       text_utils::iequals_ascii(base, "CMakeCache.txt"))
+    {
+        return true;
+    }
+
+    return ends_with(base, ".cmake") || ends_with(base, ".cmake.in");
+}
+
 size_t Editor::byteOffsetForPosition(int y, int x) const
 {
     if(!lines || lines->empty())
@@ -1553,6 +1582,297 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                         tokens.push_back({TOKEN_FUNCTION, start, i - start});
                     else if(memberAccess)
                         tokens.push_back({TOKEN_TYPE, start, i - start});
+                }
+                continue;
+            }
+
+            if(cpp_constants::is_operator_char(sv[i]))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
+    if(isCMakeFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        auto is_keyword = [](std::string_view word) -> bool
+        {
+            static constexpr std::string_view kKeywords[] = {
+                "cmake_minimum_required",
+                "project",
+                "include",
+                "include_guard",
+                "add_subdirectory",
+                "if",
+                "elseif",
+                "else",
+                "endif",
+                "foreach",
+                "endforeach",
+                "while",
+                "endwhile",
+                "function",
+                "endfunction",
+                "macro",
+                "endmacro",
+                "break",
+                "continue",
+                "return",
+                "set",
+                "unset",
+                "option",
+                "set_property",
+                "get_property",
+                "get_target_property",
+                "set_target_properties",
+                "set_source_files_properties",
+                "set_directory_properties",
+                "add_executable",
+                "add_library",
+                "add_dependencies",
+                "target_sources",
+                "target_link_libraries",
+                "target_include_directories",
+                "target_compile_definitions",
+                "target_compile_options",
+                "target_compile_features",
+                "target_link_options",
+                "target_link_directories",
+                "target_precompile_headers",
+                "add_custom_command",
+                "add_custom_target",
+                "add_compile_options",
+                "add_link_options",
+                "add_compile_definitions",
+                "add_test",
+                "enable_testing",
+                "set_tests_properties",
+                "ctest",
+                "install",
+                "export",
+                "configure_file",
+                "file",
+                "list",
+                "string",
+                "math",
+                "execute_process",
+                "find_package",
+                "find_program",
+                "find_library",
+                "find_path",
+                "find_file",
+                "find_dependency",
+                "find_host_package",
+                "include_directories",
+                "link_directories",
+                "link_libraries",
+                "check_ipo_supported",
+                "get_filename_component",
+                "cmake_parse_arguments",
+                "cmake_dependent_option",
+                "mark_as_advanced",
+                "try_compile",
+                "try_run",
+                "cmake_path",
+                "cmake_policy",
+                "cmake_print_properties",
+                "cmake_host_system_information",
+                "message",
+                "on",
+                "off",
+                "true",
+                "false",
+                "yes",
+                "no",
+            };
+            for(const auto& kw : kKeywords)
+            {
+                if(text_utils::iequals_ascii(word, kw))
+                    return true;
+            }
+            return false;
+        };
+
+        int first = 0;
+        while(first < len && text_utils::is_space(sv[first]))
+            ++first;
+
+        if(first < len && sv[first] == '#')
+        {
+            tokens.push_back({TOKEN_COMMENT, first, len - first});
+            return tokens;
+        }
+
+        if(first < len && (text_utils::is_alpha(sv[first]) || sv[first] == '_'))
+        {
+            int start = first;
+            int end = start;
+            while(end < len && (text_utils::is_alnum(sv[end]) ||
+                                sv[end] == '_' || sv[end] == '-'))
+            {
+                ++end;
+            }
+            std::string_view word = sv.substr(start, end - start);
+            TokenType type = is_keyword(word) ? TOKEN_KEYWORD : TOKEN_FUNCTION;
+            tokens.push_back({type, start, end - start});
+            i = end;
+        }
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(sv[i] == '"' || sv[i] == '\'')
+            {
+                char quote = sv[i];
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '[')
+            {
+                int start = i;
+                int j = i + 1;
+                while(j < len && sv[j] == '=')
+                    ++j;
+                if(j < len && sv[j] == '[')
+                {
+                    int eqCount = j - (i + 1);
+                    int k = j + 1;
+                    while(k < len)
+                    {
+                        if(sv[k] == ']')
+                        {
+                            int t = k + 1;
+                            int eqSeen = 0;
+                            while(eqSeen < eqCount && t < len && sv[t] == '=')
+                            {
+                                ++t;
+                                ++eqSeen;
+                            }
+                            if(eqSeen == eqCount && t < len && sv[t] == ']')
+                            {
+                                tokens.push_back(
+                                    {TOKEN_STRING, start, t - start + 1});
+                                i = t + 1;
+                                break;
+                            }
+                        }
+                        ++k;
+                    }
+                    if(k < len)
+                        continue;
+                }
+            }
+
+            if(sv[i] == '$')
+            {
+                int start = i;
+                if(i + 1 < len && sv[i + 1] == '<')
+                {
+                    i += 2;
+                    while(i < len && sv[i] != '>')
+                        ++i;
+                    if(i < len)
+                        ++i;
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+                if(i + 1 < len && sv[i + 1] == '{')
+                {
+                    i += 2;
+                    while(i < len && sv[i] != '}')
+                        ++i;
+                    if(i < len)
+                        ++i;
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+                if(i + 5 < len &&
+                   text_utils::iequals_ascii(sv.substr(i, 5), "$ENV{"))
+                {
+                    i += 5;
+                    while(i < len && sv[i] != '}')
+                        ++i;
+                    if(i < len)
+                        ++i;
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+                if(i + 7 < len &&
+                   text_utils::iequals_ascii(sv.substr(i, 7), "$CACHE{"))
+                {
+                    i += 7;
+                    while(i < len && sv[i] != '}')
+                        ++i;
+                    if(i < len)
+                        ++i;
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+            }
+
+            if(text_utils::is_digit(sv[i]) ||
+               (sv[i] == '-' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
+            {
+                int start = i++;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.'))
+                    ++i;
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_alpha(sv[i]) || sv[i] == '_')
+            {
+                int start = i;
+                while(i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_' ||
+                                  sv[i] == '-'))
+                {
+                    ++i;
+                }
+                std::string_view word = sv.substr(start, i - start);
+                if(is_keyword(word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
+                else
+                {
+                    int next = i;
+                    while(next < len && text_utils::is_space(sv[next]))
+                        ++next;
+                    if(next < len && sv[next] == '(')
+                        tokens.push_back({TOKEN_FUNCTION, start, i - start});
                 }
                 continue;
             }

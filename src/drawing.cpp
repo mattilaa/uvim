@@ -210,7 +210,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 if(len > 0)
                 {
                     if(isCppFile() || isRobotFile() || isPythonFile() ||
-                       (isJsonFile() && syntaxJson) ||
+                       isCMakeFile() || (isJsonFile() && syntaxJson) ||
                        (isYamlFile() && syntaxYaml))
                     {
                         // Use syntax highlighting for supported files
@@ -336,7 +336,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 if(len > 0)
                 {
                     if(isCppFile() || isRobotFile() || isPythonFile() ||
-                       (isJsonFile() && syntaxJson) ||
+                       isCMakeFile() || (isJsonFile() && syntaxJson) ||
                        (isYamlFile() && syntaxYaml))
                     {
                         // Use syntax highlighting for supported files
@@ -664,7 +664,8 @@ void Editor::drawFullScreen()
 
                 // Check if we should use syntax highlighting
                 if(isCppFile() || isRobotFile() || isPythonFile() ||
-                   (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml))
+                   isCMakeFile() || (isJsonFile() && syntaxJson) ||
+                   (isYamlFile() && syntaxYaml))
                 {
                     // Use syntax highlighting for supported files (handles
                     // selections too)
