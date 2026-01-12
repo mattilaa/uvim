@@ -189,7 +189,7 @@ public:
     bool autoCompletion = true;
     bool useSystemClipboard = true;
     int tabSpaces = 4;
-    bool showTabs = false;
+    bool showTabs = true;
     int tabBarOffset = 0;
     std::string configPath;
     bool syntaxJson = true;
