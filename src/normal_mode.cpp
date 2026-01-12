@@ -85,6 +85,16 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(ed->showTabs && (c == Terminal::CTRL_H || c == Terminal::CTRL_L))
+    {
+        if(c == Terminal::CTRL_H)
+            ed->previousBuffer();
+        else
+            ed->nextBuffer();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     // ========================================================================
     // Leader Key (Space)
     // ========================================================================

@@ -659,6 +659,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     useSystemClipboard = false;
             }
+            auto itt = values.find("editor.showtabs");
+            if(itt == values.end())
+                itt = values.find("settings.showtabs");
+            if(itt == values.end())
+                itt = values.find("showtabs");
+            if(itt != values.end())
+            {
+                std::string v = itt->second;
+                if(v == "true" || v == "1" || v == "on")
+                    showTabs = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    showTabs = false;
+            }
             auto itj = values.find("editor.syntax.json");
             if(itj == values.end())
                 itj = values.find("syntax.json");
@@ -2887,7 +2900,7 @@ void Editor::updateCursorPosition()
     }
     else
     {
-        cursorRow = (*cursorY - *offsetY) + 1;
+        cursorRow = (*cursorY - *offsetY) + 1 + tabBarRows();
         cursorCol = (*cursorX - *offsetX) + 1;
     }
 
@@ -2906,6 +2919,16 @@ void Editor::draw()
 void Editor::setStatusMessage(const std::string& msg)
 {
     statusMessage = msg;
+}
+
+int Editor::tabBarRows() const
+{
+    return (showTabs && !buffers.empty()) ? 1 : 0;
+}
+
+int Editor::contentRows() const
+{
+    return std::max(1, screenRows - tabBarRows());
 }
 
 bool Editor::handleSetCommand(std::string_view cmd)
@@ -2929,6 +2952,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         setStatusMessage(std::string("autocomplete=") +
                          (autoCompletion ? "true" : "false"));
+        return true;
+    }
+    if(opt == "showtabs?")
+    {
+        setStatusMessage(std::string("showtabs=") +
+                         (showTabs ? "true" : "false"));
         return true;
     }
 
@@ -2984,6 +3013,22 @@ bool Editor::handleSetCommand(std::string_view cmd)
         set_auto_completion(false);
         return true;
     }
+    if(opt == "showtabs")
+    {
+        showTabs = true;
+        tabBarOffset = 0;
+        setStatusMessage("showtabs=true");
+        needsFullRedraw = true;
+        return true;
+    }
+    if(opt == "noshowtabs")
+    {
+        showTabs = false;
+        tabBarOffset = 0;
+        setStatusMessage("showtabs=false");
+        needsFullRedraw = true;
+        return true;
+    }
     if(opt.rfind("autocomplete=", 0) == 0)
     {
         std::string value = opt.substr(std::string("autocomplete=").length());
@@ -2998,6 +3043,29 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("autocomplete: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("showtabs=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("showtabs=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            showTabs = true;
+            tabBarOffset = 0;
+            setStatusMessage("showtabs=true");
+            needsFullRedraw = true;
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            showTabs = false;
+            tabBarOffset = 0;
+            setStatusMessage("showtabs=false");
+            needsFullRedraw = true;
+        }
+        else
+        {
+            setStatusMessage("showtabs: expected true/false");
         }
         return true;
     }
@@ -6030,8 +6098,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
     static const std::vector<std::string> options = {
         "set autobraces",   "set noautobraces", "set autobraces?",
         "set autobraces=",  "set autocomplete", "set noautocomplete",
-        "set autocomplete?","set autocomplete=", "set tabspaces?",
-        "set tabspaces=",   "set tabspaces=2", "set tabspaces=4",
+        "set autocomplete?","set autocomplete=", "set showtabs",
+        "set noshowtabs",   "set showtabs?",   "set showtabs=",
+        "set tabspaces?",   "set tabspaces=",  "set tabspaces=2",
+        "set tabspaces=4",
         "set tabspaces=8",  "set tabspaces=1", "set tabspaces=3",
         "set tabspaces=5",  "set tabspaces=6", "set tabspaces=7",
         "set tabspaces=9",  "set tabspaces=10","set tabspaces=12",

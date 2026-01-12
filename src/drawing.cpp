@@ -4,9 +4,133 @@
 #include <cstdio>
 #include <cstring>
 
+std::string Editor::buildTabBarLine()
+{
+    if(!showTabs || buffers.empty())
+        return "";
+
+    const int maxLabelWidth =
+        std::min(24, std::max(8, screenCols / 4));
+
+    std::vector<std::string> labels;
+    labels.reserve(buffers.size());
+    for(const auto& bufPtr : buffers)
+    {
+        const Buffer* buf = bufPtr.get();
+        std::string name =
+            buf->filename.empty() ? "[No Name]" : buf->filename;
+        size_t slash = name.find_last_of("/\\");
+        if(slash != std::string::npos)
+            name = name.substr(slash + 1);
+        if(buf->dirty)
+            name += "*";
+
+        int nameMax = std::max(1, maxLabelWidth - 2);
+        if((int)name.size() > nameMax)
+        {
+            if(nameMax >= 3)
+                name = name.substr(0, nameMax - 3) + "...";
+            else
+                name.resize(nameMax);
+        }
+
+        labels.push_back(" " + name + " ");
+    }
+
+    int offset = std::clamp(tabBarOffset, 0, (int)labels.size() - 1);
+    auto computeEnd = [&](int start, int rightReserve) -> int
+    {
+        int leftReserve = (start > 0) ? 1 : 0;
+        int available = screenCols - leftReserve - rightReserve;
+        int used = 0;
+        int end = start - 1;
+        for(int i = start; i < (int)labels.size(); ++i)
+        {
+            int w = (int)labels[i].size();
+            if(used + w > available)
+                break;
+            used += w;
+            end = i;
+        }
+        if(end < start)
+            end = start;
+        return end;
+    };
+
+    int end = computeEnd(offset, 0);
+    bool rightHidden = end < (int)labels.size() - 1;
+    if(rightHidden)
+        end = computeEnd(offset, 1);
+
+    while(currentBufferIndex > end && offset < (int)labels.size() - 1)
+    {
+        offset++;
+        end = computeEnd(offset, 0);
+        rightHidden = end < (int)labels.size() - 1;
+        if(rightHidden)
+            end = computeEnd(offset, 1);
+    }
+    while(currentBufferIndex < offset && offset > 0)
+    {
+        offset--;
+        end = computeEnd(offset, 0);
+        rightHidden = end < (int)labels.size() - 1;
+        if(rightHidden)
+            end = computeEnd(offset, 1);
+    }
+
+    tabBarOffset = offset;
+
+    std::string line;
+    line.reserve(screenCols * 2);
+
+    if(offset > 0)
+    {
+        line += theme.uiDim();
+        line += "<";
+        line += theme.reset();
+    }
+
+    for(int i = offset; i <= end && i < (int)labels.size(); ++i)
+    {
+        if(i == currentBufferIndex)
+        {
+            line += theme.selection();
+            line += labels[i];
+            line += theme.reset();
+        }
+        else
+        {
+            line += theme.uiDim();
+            line += labels[i];
+            line += theme.reset();
+        }
+    }
+
+    if(rightHidden)
+    {
+        line += theme.uiDim();
+        line += ">";
+        line += theme.reset();
+    }
+
+    return line;
+}
+
 void Editor::drawRows()
 {
-    for(int y = 0; y < screenRows; y++)
+    int tabRows = tabBarRows();
+    int rows = contentRows();
+
+    if(tabRows > 0)
+    {
+        Terminal::clearLine();
+        std::string line = buildTabBarLine();
+        Terminal::write(line);
+        Terminal::write("\r\n");
+    }
+
+    for(int y = 0; y < rows; y++)
     {
         int fileRow = y + *offsetY;
         Terminal::clearLine();
@@ -165,6 +289,12 @@ void Editor::drawMessageBar()
 // Optimized drawing functions
 void Editor::drawScrollUpdate(int scrollDelta)
 {
+    if(tabBarRows() > 0)
+    {
+        drawFullScreen();
+        return;
+    }
+
     if(abs(scrollDelta) >= screenRows - 2)
     {
         drawFullScreen();
@@ -582,7 +712,18 @@ void Editor::drawFullScreen()
     output += Terminal::ESC_CLEAR_SCREEN;
     output += Terminal::ESC_CURSOR_HOME;
 
-    for(int y = 0; y < screenRows; y++)
+    int tabRows = tabBarRows();
+    int rows = contentRows();
+
+    if(tabRows > 0)
+    {
+        output += theme.reset();
+        output += Terminal::ESC_CLEAR_LINE;
+        output += buildTabBarLine();
+        output += "\r\n";
+    }
+
+    for(int y = 0; y < rows; y++)
     {
         if(y > 0)
             output += "\r\n";

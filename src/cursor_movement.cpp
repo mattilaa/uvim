@@ -447,7 +447,7 @@ void Editor::restoreJumpLocation(const JumpLocation& loc)
 
 void Editor::scrollHalfPageDown(bool visual)
 {
-    const int half = screenRows / 2;
+    const int half = contentRows() / 2;
     moveDown(half);
     adjustViewport();
     if(visual)
@@ -456,7 +456,7 @@ void Editor::scrollHalfPageDown(bool visual)
 
 void Editor::scrollHalfPageUp(bool visual)
 {
-    const int half = screenRows / 2;
+    const int half = contentRows() / 2;
     moveUp(half);
     adjustViewport();
     if(visual)
@@ -905,7 +905,7 @@ void Editor::scrollToBottom()
 
 void Editor::scrollPageUp()
 {
-    int pageSize = screenRows - 2;
+    int pageSize = contentRows() - 2;
     *cursorY -= pageSize;
     if(*cursorY < 0)
         *cursorY = 0;
@@ -919,12 +919,12 @@ void Editor::scrollPageUp()
 
 void Editor::scrollPageDown()
 {
-    int pageSize = screenRows - 2;
+    int pageSize = contentRows() - 2;
     *cursorY += pageSize;
     if(*cursorY >= (int)lines->size())
         *cursorY = lines->size() - 1;
     *offsetY += pageSize;
-    int maxOffset = std::max(0, (int)lines->size() - screenRows + 2);
+    int maxOffset = std::max(0, (int)lines->size() - contentRows() + 2);
     if(*offsetY > maxOffset)
         *offsetY = maxOffset;
     if(*cursorY >= 0 && *cursorY < (int)lines->size())
@@ -942,7 +942,7 @@ void Editor::moveToScreenTop()
 
 void Editor::moveToScreenMiddle()
 {
-    *cursorY = *offsetY + (screenRows - 2) / 2;
+    *cursorY = *offsetY + (contentRows() - 2) / 2;
     if(*cursorY >= (int)lines->size())
         *cursorY = lines->size() - 1;
     moveToFirstNonBlank();
@@ -950,7 +950,7 @@ void Editor::moveToScreenMiddle()
 
 void Editor::moveToScreenBottom()
 {
-    *cursorY = *offsetY + screenRows - 3;
+    *cursorY = *offsetY + contentRows() - 3;
     if(*cursorY >= (int)lines->size())
         *cursorY = lines->size() - 1;
     moveToFirstNonBlank();
@@ -1003,7 +1003,7 @@ void Editor::adjustViewport()
 
     // Screen rows/cols are the drawable area (status+msg bars already
     // subtracted).
-    const int rows = std::max(1, screenRows);
+    const int rows = std::max(1, contentRows());
     const int cols = std::max(1, screenCols);
 
     const int maxOffsetY = std::max(0, n - rows);
@@ -1056,7 +1056,7 @@ void Editor::centerScreen()
     }
 
     const int n = line_count(*lines);
-    const int rows = std::max(1, screenRows);
+    const int rows = std::max(1, contentRows());
     const int maxOffsetY = std::max(0, n - rows);
 
     *cursorY = std::clamp(*cursorY, 0, n - 1);

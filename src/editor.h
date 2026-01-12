@@ -189,6 +189,8 @@ public:
     bool autoCompletion = true;
     bool useSystemClipboard = true;
     int tabSpaces = 4;
+    bool showTabs = false;
+    int tabBarOffset = 0;
     std::string configPath;
     bool syntaxJson = true;
     bool syntaxYaml = true;
@@ -208,12 +210,15 @@ public:
     void drawIncrementalUpdate();
     void drawFullScreen();
     void updateCursorPosition();
+    std::string buildTabBarLine();
 
     // Drawing - NEW OPTIMIZATION FUNCTIONS
     void drawScrollUpdate(int scrollDelta);
     void drawStatusBarQuick();
     void drawMessageBarQuick(); // Add this to redraw message bar
     bool handleSetCommand(std::string_view cmd);
+    int tabBarRows() const;
+    int contentRows() const;
 
     // Mode handlers
     void handleNormalMode(int c);
