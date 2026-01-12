@@ -188,6 +188,71 @@ bool Editor::isCMakeFile() const
     return ends_with(base, ".cmake") || ends_with(base, ".cmake.in");
 }
 
+bool Editor::isShellFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+
+    std::string_view pathSv{*filename};
+    size_t slashPos = pathSv.find_last_of("/\\");
+    std::string_view base = (slashPos == std::string_view::npos)
+                                ? pathSv
+                                : pathSv.substr(slashPos + 1);
+
+    auto ends_with = [](std::string_view value, std::string_view suffix) -> bool
+    {
+        if(value.size() < suffix.size())
+            return false;
+        return text_utils::iequals_ascii(
+            value.substr(value.size() - suffix.size()), suffix);
+    };
+
+    if(ends_with(base, ".sh") || ends_with(base, ".bash") ||
+       ends_with(base, ".zsh") || ends_with(base, ".ksh") ||
+       ends_with(base, ".dash") || ends_with(base, ".profile"))
+    {
+        return true;
+    }
+
+    if(text_utils::iequals_ascii(base, ".bashrc") ||
+       text_utils::iequals_ascii(base, ".bash_profile") ||
+       text_utils::iequals_ascii(base, ".bash_logout") ||
+       text_utils::iequals_ascii(base, ".zshrc") ||
+       text_utils::iequals_ascii(base, ".zprofile") ||
+       text_utils::iequals_ascii(base, ".zlogin") ||
+       text_utils::iequals_ascii(base, ".zlogout") ||
+       text_utils::iequals_ascii(base, ".kshrc"))
+    {
+        return true;
+    }
+
+    if(lines && !lines->empty())
+    {
+        std::string_view first{(*lines)[0]};
+        if(first.starts_with("#!"))
+        {
+            bool hasShell = text_utils::contains(first, "bash") ||
+                            text_utils::contains(first, "zsh") ||
+                            text_utils::contains(first, "ksh") ||
+                            text_utils::contains(first, "dash");
+            if(!hasShell)
+            {
+                if(first.find("/sh") != std::string_view::npos ||
+                   first.find(" sh") != std::string_view::npos)
+                {
+                    hasShell = true;
+                }
+            }
+            if(hasShell)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 size_t Editor::byteOffsetForPosition(int y, int x) const
 {
     if(!lines || lines->empty())
@@ -1890,6 +1955,189 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
+    if(isShellFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+        bool lastWasFunctionKeyword = false;
+
+        auto is_keyword = [](std::string_view word) -> bool
+        {
+            static constexpr std::string_view kKeywords[] = {
+                "if",    "then",    "else",     "elif",    "fi",
+                "for",   "in",      "do",       "done",    "while",
+                "until", "case",    "esac",     "select",  "function",
+                "time",  "coproc",  "return",   "break",   "continue",
+                "local", "export",  "readonly", "declare", "typeset",
+                "unset", "shift",   "getopts",  "source",  ".",
+                "alias", "unalias", "trap",     "set",     "eval",
+                "exec",  "true",    "false",
+            };
+            for(const auto& kw : kKeywords)
+            {
+                if(text_utils::iequals_ascii(word, kw))
+                    return true;
+            }
+            return false;
+        };
+
+        int first = 0;
+        while(first < len && text_utils::is_space(sv[first]))
+            ++first;
+        if(first < len && sv[first] == '#' && first + 1 < len &&
+           sv[first + 1] == '!')
+        {
+            tokens.push_back({TOKEN_COMMENT, first, len - first});
+            return tokens;
+        }
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#' && (i == 0 || text_utils::is_space(sv[i - 1])))
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(sv[i] == '.')
+            {
+                tokens.push_back({TOKEN_KEYWORD, i, 1});
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '"' || sv[i] == '\'')
+            {
+                char quote = sv[i];
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '`')
+            {
+                int start = i++;
+                while(i < len && sv[i] != '`')
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '$')
+            {
+                int start = i++;
+                if(i < len && sv[i] == '{')
+                {
+                    ++i;
+                    while(i < len && sv[i] != '}')
+                        ++i;
+                    if(i < len)
+                        ++i;
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+                if(i < len && sv[i] == '(')
+                {
+                    int depth = 1;
+                    ++i;
+                    while(i < len && depth > 0)
+                    {
+                        if(sv[i] == '(')
+                            ++depth;
+                        else if(sv[i] == ')')
+                            --depth;
+                        ++i;
+                    }
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+                while(i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_' ||
+                                  sv[i] == '?'))
+                {
+                    ++i;
+                }
+                tokens.push_back({TOKEN_TYPE, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_digit(sv[i]) ||
+               (sv[i] == '-' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
+            {
+                int start = i++;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.'))
+                    ++i;
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_alpha(sv[i]) || sv[i] == '_')
+            {
+                int start = i;
+                while(i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_' ||
+                                  sv[i] == '-'))
+                {
+                    ++i;
+                }
+                std::string_view word = sv.substr(start, i - start);
+                if(is_keyword(word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                    lastWasFunctionKeyword =
+                        text_utils::iequals_ascii(word, "function");
+                }
+                else if(lastWasFunctionKeyword)
+                {
+                    tokens.push_back({TOKEN_FUNCTION, start, i - start});
+                    lastWasFunctionKeyword = false;
+                }
+                else
+                {
+                    int next = i;
+                    while(next < len && text_utils::is_space(sv[next]))
+                        ++next;
+                    if(next < len && sv[next] == '(')
+                        tokens.push_back({TOKEN_FUNCTION, start, i - start});
+                }
+                continue;
+            }
+
+            if(cpp_constants::is_operator_char(sv[i]))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
     if(isJsonFile() || isYamlFile())
     {
         std::vector<Token> tokens;
@@ -2290,10 +2538,12 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     // Performance optimization: this is a lightweight scan (just looking for
     // comment delimiters)
     bool blockCommentState = false;
-
-    for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+    if(isCppFile())
     {
-        scanLineForBlockComments((*lines)[i], blockCommentState);
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scanLineForBlockComments((*lines)[i], blockCommentState);
+        }
     }
 
     // Now tokenize the current line

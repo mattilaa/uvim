@@ -538,6 +538,7 @@ public:
     bool isJsonFile() const;
     bool isYamlFile() const;
     bool isCMakeFile() const;
+    bool isShellFile() const;
     bool pythonFormatBuffer();
     void pythonLintBuffer();
     bool robotFormatBuffer();
