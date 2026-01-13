@@ -95,6 +95,25 @@ WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
     if(commandLine.empty())
         return std::nullopt;
 
+    if(commandLine == "help" || commandLine.rfind("help ", 0) == 0 ||
+       commandLine == "h" || commandLine.rfind("h ", 0) == 0)
+    {
+        std::string topic;
+        if(commandLine == "help" || commandLine == "h")
+        {
+            topic = "";
+        }
+        else if(commandLine.rfind("help ", 0) == 0)
+        {
+            topic = std::string(commandLine.substr(5));
+        }
+        else
+        {
+            topic = std::string(commandLine.substr(2));
+        }
+        return HelpMode{topic};
+    }
+
     ctx.executeCommand(commandLine);
 
     if(ctx.currentMode() == LSP_INFO)
@@ -265,17 +284,25 @@ void WelcomeMode::draw(Editor& editor) const
         }
     }
 
+    int labelRow = editor.screenRows + 1;
+    int promptRow = editor.screenRows + 2;
+
+    output += Terminal::cursorPos(promptRow, 1);
+    output += Terminal::ESC_CLEAR_LINE;
+    output += Terminal::cursorPos(labelRow, 1);
+    output += Terminal::ESC_CLEAR_LINE;
+
     if(commandPrompt.isActive())
     {
-        output += Terminal::cursorPos(editor.screenRows, 1);
-        output += Terminal::ESC_CLEAR_LINE;
+        output += Terminal::cursorPos(promptRow, 1);
         output += editor.theme.baseFg();
         output += ":";
         output += commandPrompt.getInput();
 
-        output += Terminal::cursorPos(editor.screenRows + 1, 1);
-        output += Terminal::ESC_CLEAR_LINE;
+        output += Terminal::cursorPos(labelRow, 1);
+        output += Terminal::ESC_BOLD;
         output += " COMMAND | ";
+        output += editor.theme.reset();
     }
 
     editor.drawCommandHistoryPopup(output);

@@ -1390,7 +1390,7 @@ ModeContext createModeContext(Editor* editor)
 
 ModeState defaultExitMode(const Editor* editor)
 {
-    if(!editor || editor->buffers.empty())
+    if(!editor || !editor->hasBuffer())
         return WelcomeMode{};
     return NormalMode{};
 }

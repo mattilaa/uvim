@@ -6097,7 +6097,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "vnew",    "bn",     "bnext",      "bp",     "bprev",    "bd",
         "bdelete", "ls",     "buffers",    "sp",     "split",    "vs",
         "vsplit",  "only",   "tabnew",     "tabc",   "tabclose", "set",
-        "syntax",  "noh",    "nohlsearch", "lspinfo"};
+        "syntax",  "noh",    "nohlsearch", "lspinfo", "help",    "h"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
