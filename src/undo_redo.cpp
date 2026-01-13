@@ -36,6 +36,7 @@ void Editor::saveState()
 
     currentBuffer->undoStack.push_back(state);
     currentBuffer->undoIndex++;
+    currentBuffer->lspSyncNeeded = true;
 
     if(currentBuffer->undoStack.size() > 100)
     {
@@ -90,6 +91,7 @@ void Editor::undo()
         {
             *dirty = true;
         }
+        currentBuffer->lspSyncNeeded = true;
 
         needsFullRedraw = true;
     }
@@ -137,6 +139,7 @@ void Editor::redo()
         {
             *dirty = true;
         }
+        currentBuffer->lspSyncNeeded = true;
 
         needsFullRedraw = true;
     }

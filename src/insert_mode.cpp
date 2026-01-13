@@ -57,6 +57,10 @@ void InsertMode::on_exit(ModeContext& ctx)
 
     ed->finishChangeRecordingIfDeferred();
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    ed->syncClangdDiagnosticsIfNeeded(true);
+#endif
+
     // Restore block cursor
     Terminal::setCursorBlock();
 }

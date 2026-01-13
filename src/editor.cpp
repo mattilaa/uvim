@@ -1484,6 +1484,10 @@ void Editor::openFile(std::string_view fname)
     *dirty = false;
     *cursorX = *cursorY = 0;
     *offsetX = *offsetY = 0;
+    currentBuffer->lspSyncNeeded = false;
+    currentBuffer->lspHashValid = false;
+    currentBuffer->lspDiagnosticsSeenValid = false;
+    currentBuffer->lspDiagnosticsSeenRevision = 0;
 
     // Record file modification time for external change detection
     std::error_code ec;
@@ -1516,6 +1520,7 @@ void Editor::openFile(std::string_view fname)
         }
         // didChange will call didOpen if needed
         lspClient->didChange(path, text, "cpp");
+        currentBuffer->lspSyncNeeded = false;
     }
     if(isRobotLspEnabled() && isRobotFile() && robotLspClient)
     {
@@ -2756,6 +2761,13 @@ void Editor::refreshScreen()
 {
     syncModeFromStateMachine();
 
+    if(diagnosticPopupActive &&
+       (*cursorY != diagnosticPopupCursorY ||
+        *cursorX != diagnosticPopupCursorX))
+    {
+        closeDiagnosticPopup();
+    }
+
     if(currentMode == WELCOME)
     {
         if(modeStateMachine)
@@ -2845,6 +2857,26 @@ void Editor::refreshScreen()
         return;
     }
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(currentMode != INSERT)
+    {
+        if(currentBuffer && isClangdLspEnabled() && isCppFile() && lspClient &&
+           !currentBuffer->filename.empty())
+        {
+            size_t revision =
+                lspClient->diagnosticsRevision(currentBuffer->filename);
+            if(!currentBuffer->lspDiagnosticsSeenValid ||
+               revision != currentBuffer->lspDiagnosticsSeenRevision)
+            {
+                currentBuffer->lspDiagnosticsSeenRevision = revision;
+                currentBuffer->lspDiagnosticsSeenValid = true;
+                needsFullRedraw = true;
+            }
+        }
+        syncClangdDiagnosticsIfNeeded(false);
+    }
+#endif
+
     static int lastOffsetY = -1;
     static int lastOffsetX = -1;
     static Mode lastMode = NORMAL;
@@ -2919,7 +2951,7 @@ void Editor::updateCursorPosition()
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1 + tabBarRows();
-        cursorCol = (*cursorX - *offsetX) + 1;
+        cursorCol = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
@@ -2947,6 +2979,69 @@ int Editor::tabBarRows() const
 int Editor::contentRows() const
 {
     return std::max(1, screenRows - tabBarRows());
+}
+
+void Editor::syncClangdDiagnosticsIfNeeded(bool force)
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!currentBuffer || !isClangdLspEnabled() || !isCppFile() || !lspClient)
+        return;
+
+    bool shouldCheck = force || currentBuffer->lspSyncNeeded || *dirty;
+    if(!shouldCheck)
+        return;
+
+    auto hashBuffer = [](const std::vector<std::string>& src) -> size_t
+    {
+        size_t h = 1469598103934665603ull;
+        for(const auto& line : src)
+        {
+            for(unsigned char c : line)
+            {
+                h ^= c;
+                h *= 1099511628211ull;
+            }
+            h ^= '\n';
+            h *= 1099511628211ull;
+        }
+        return h;
+    };
+
+    size_t newHash = hashBuffer(*lines);
+    if(force || !currentBuffer->lspHashValid ||
+       newHash != currentBuffer->lspContentHash)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        lspClient->didChange(currentBuffer->filename, text, "cpp");
+        currentBuffer->lspContentHash = newHash;
+        currentBuffer->lspHashValid = true;
+    }
+
+    if(diagnosticPopupActive)
+    {
+        std::optional<LspDiagnosticSummary> diag =
+            getClangdDiagnosticForLine(diagnosticPopupLine);
+        if(!diag || diag->severity <= 0 || diag->severity > 2)
+        {
+            closeDiagnosticPopup();
+        }
+        else
+        {
+            diagnosticPopupData = *diag;
+        }
+    }
+
+    currentBuffer->lspSyncNeeded = false;
+#else
+    (void)force;
+#endif
 }
 
 bool Editor::handleSetCommand(std::string_view cmd)

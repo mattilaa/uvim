@@ -181,6 +181,12 @@ struct LspClient::Impl
 
     std::string rootDir;
     std::unordered_map<std::string, int> docVersion;
+    mutable std::mutex diagMutex;
+    std::unordered_map<std::string, std::vector<LspClient::Diagnostic>>
+        diagnosticsByFile;
+    std::unordered_map<std::string, size_t> diagnosticsRevision;
+    std::mutex applyMutex;
+    std::vector<json> pendingApplyEdits;
 
     bool sendRaw(const std::string& payload)
     {
@@ -333,7 +339,99 @@ struct LspClient::Impl
                         cv.notify_all();
                     }
                 }
-                // notifications ignored for now
+                else if(msg.contains("method") && msg["method"].is_string())
+                {
+                    std::string method = msg["method"].get<std::string>();
+                    if(method == "textDocument/publishDiagnostics")
+                    {
+                        json params = msg.value("params", json::object());
+                        std::string uri = params.value("uri", "");
+                        if(!uri.empty())
+                        {
+                            std::string path =
+                                absPath(uriToPath(uri));
+                            std::vector<LspClient::Diagnostic> diags;
+                            if(params.contains("diagnostics") &&
+                               params["diagnostics"].is_array())
+                            {
+                                const json& entries =
+                                    params["diagnostics"];
+                                diags.reserve(entries.size());
+                                for(const auto& item : entries)
+                                {
+                                    if(!item.is_object())
+                                        continue;
+                                    json range =
+                                        item.value("range", json::object());
+                                    json start =
+                                        range.value("start", json::object());
+                                    json end =
+                                        range.value("end", json::object());
+                                    LspClient::Diagnostic diag;
+                                    diag.line = start.value("line", 0);
+                                    diag.character =
+                                        start.value("character", 0);
+                                    diag.endLine = end.value("line", diag.line);
+                                    diag.endCharacter =
+                                        end.value("character",
+                                                  diag.character);
+                                    diag.severity =
+                                        item.value("severity", 0);
+                                    diag.message =
+                                        item.value("message", std::string{});
+                                    diag.source =
+                                        item.value("source", std::string{});
+                                    if(item.contains("code"))
+                                    {
+                                        try
+                                        {
+                                            diag.codeJson =
+                                                item["code"].dump();
+                                        }
+                                        catch(...)
+                                        {
+                                        }
+                                    }
+                                    if(item.contains("data"))
+                                    {
+                                        try
+                                        {
+                                            diag.dataJson =
+                                                item["data"].dump();
+                                        }
+                                        catch(...)
+                                        {
+                                        }
+                                    }
+                                    diags.push_back(std::move(diag));
+                                }
+                            }
+                            {
+                                std::lock_guard<std::mutex> lk(diagMutex);
+                                diagnosticsByFile[path] = std::move(diags);
+                                diagnosticsRevision[path]++;
+                            }
+                        }
+                    }
+                    else if(method == "workspace/applyEdit")
+                    {
+                        json params = msg.value("params", json::object());
+                        if(params.contains("edit"))
+                        {
+                            std::lock_guard<std::mutex> lk(applyMutex);
+                            pendingApplyEdits.push_back(
+                                params.value("edit", json::object()));
+                        }
+                        if(msg.contains("id"))
+                        {
+                            json resp;
+                            resp["jsonrpc"] = "2.0";
+                            resp["id"] = msg["id"];
+                            resp["result"] = {{"applied", true}};
+                            sendRaw(resp.dump());
+                        }
+                    }
+                }
             }
         }
 
@@ -877,6 +975,292 @@ LspClient::references(const std::string& filePath, int line,
     return out;
 }
 
+std::vector<LspClient::Diagnostic>
+LspClient::diagnostics(const std::string& filePath) const
+{
+    if(!impl)
+        return {};
+    std::string abs = absPath(filePath);
+    std::lock_guard<std::mutex> lk(impl->diagMutex);
+    auto it = impl->diagnosticsByFile.find(abs);
+    if(it == impl->diagnosticsByFile.end())
+        return {};
+    return it->second;
+}
+
+void LspClient::clearDiagnostics(const std::string& filePath)
+{
+    if(!impl)
+        return;
+    std::string abs = absPath(filePath);
+    std::lock_guard<std::mutex> lk(impl->diagMutex);
+    impl->diagnosticsByFile.erase(abs);
+}
+
+size_t LspClient::diagnosticsRevision(const std::string& filePath) const
+{
+    if(!impl)
+        return 0;
+    std::string abs = absPath(filePath);
+    std::lock_guard<std::mutex> lk(impl->diagMutex);
+    auto it = impl->diagnosticsRevision.find(abs);
+    if(it == impl->diagnosticsRevision.end())
+        return 0;
+    return it->second;
+}
+
+static std::vector<LspClient::TextEdit>
+parseTextEditsForUri(const json& edits, const std::string& targetPath)
+{
+    std::vector<LspClient::TextEdit> out;
+    if(!edits.is_array())
+        return out;
+
+    for(const auto& edit : edits)
+    {
+        if(!edit.is_object())
+            continue;
+        json range = edit.value("range", json::object());
+        json start = range.value("start", json::object());
+        json end = range.value("end", json::object());
+        LspClient::TextEdit te;
+        te.startLine = start.value("line", 0);
+        te.startCharacter = start.value("character", 0);
+        te.endLine = end.value("line", te.startLine);
+        te.endCharacter = end.value("character", te.startCharacter);
+        te.newText = edit.value("newText", std::string{});
+        out.push_back(std::move(te));
+    }
+
+    return out;
+}
+
+static void parseWorkspaceEditInto(
+    const json& editObj, const std::string& filePath,
+    std::vector<LspClient::TextEdit>& out)
+{
+    if(!editObj.is_object())
+        return;
+    if(editObj.contains("changes") && editObj["changes"].is_object())
+    {
+        const json& changes = editObj["changes"];
+        for(auto it = changes.begin(); it != changes.end(); ++it)
+        {
+            std::string path = uriToPath(it.key());
+            if(absPath(path) != absPath(filePath))
+                continue;
+            std::vector<LspClient::TextEdit> edits =
+                parseTextEditsForUri(it.value(), path);
+            out.insert(out.end(), edits.begin(), edits.end());
+        }
+        return;
+    }
+    if(editObj.contains("documentChanges") &&
+       editObj["documentChanges"].is_array())
+    {
+        for(const auto& change : editObj["documentChanges"])
+        {
+            if(!change.is_object())
+                continue;
+            json textDoc = change.value("textDocument", json::object());
+            std::string uri = textDoc.value("uri", std::string{});
+            if(uri.empty())
+                continue;
+            std::string path = uriToPath(uri);
+            if(absPath(path) != absPath(filePath))
+                continue;
+            std::vector<LspClient::TextEdit> edits =
+                parseTextEditsForUri(change.value("edits", json::array()),
+                                     path);
+            out.insert(out.end(), edits.begin(), edits.end());
+        }
+    }
+}
+
+std::vector<LspClient::CodeAction>
+LspClient::codeActions(const std::string& filePath, int line,
+                       std::string_view lineText,
+                       const std::vector<Diagnostic>& diagnostics)
+{
+    std::vector<CodeAction> out;
+    if(!running())
+        return out;
+
+    std::string abs = absPath(filePath);
+
+    int endCharUtf16 =
+        utf8ByteOffsetToUtf16(std::string(lineText), (int)lineText.size());
+
+    json diagArray = json::array();
+    for(const auto& d : diagnostics)
+    {
+        json range;
+        range["start"] = {{"line", d.line}, {"character", d.character}};
+        range["end"] = {{"line", d.endLine}, {"character", d.endCharacter}};
+        json jd;
+        jd["range"] = range;
+        if(d.severity > 0)
+            jd["severity"] = d.severity;
+        if(!d.message.empty())
+            jd["message"] = d.message;
+        if(!d.source.empty())
+            jd["source"] = d.source;
+        if(!d.codeJson.empty())
+        {
+            try
+            {
+                jd["code"] = json::parse(d.codeJson);
+            }
+            catch(...)
+            {
+            }
+        }
+        if(!d.dataJson.empty())
+        {
+            try
+            {
+                jd["data"] = json::parse(d.dataJson);
+            }
+            catch(...)
+            {
+            }
+        }
+        diagArray.push_back(jd);
+    }
+
+    json params;
+    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    params["range"] = {
+        {"start", {{"line", line}, {"character", 0}}},
+        {"end", {{"line", line}, {"character", endCharUtf16}}}};
+    params["context"] = {{"diagnostics", diagArray}};
+
+    int id = impl->sendRequest("textDocument/codeAction", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->is_object())
+        return out;
+    if(resp->contains("error"))
+        return out;
+
+    json result = resp->value("result", json());
+    if(!result.is_array())
+        return out;
+
+    for(const auto& item : result)
+    {
+        if(!item.is_object())
+            continue;
+
+        CodeAction action;
+        action.title = item.value("title", std::string{});
+
+        json editObj = item.value("edit", json::object());
+        if(editObj.is_object())
+        {
+            parseWorkspaceEditInto(editObj, filePath, action.edits);
+        }
+
+        if(action.edits.empty() && item.contains("command") &&
+           item["command"].is_object())
+        {
+            json cmd = item["command"];
+            action.command = cmd.value("command", std::string{});
+            json args = cmd.value("arguments", json::array());
+            if(args.is_array())
+            {
+                for(const auto& arg : args)
+                {
+                    try
+                    {
+                        action.commandArgsJson.push_back(arg.dump());
+                    }
+                    catch(...)
+                    {
+                    }
+                    if(!arg.is_object())
+                        continue;
+                    if(arg.contains("workspaceEdit"))
+                    {
+                        parseWorkspaceEditInto(
+                            arg.value("workspaceEdit", json::object()),
+                            filePath, action.edits);
+                    }
+                    else
+                    {
+                        parseWorkspaceEditInto(arg, filePath, action.edits);
+                    }
+                }
+            }
+        }
+
+        if(action.edits.empty() && action.command.empty())
+            continue;
+        if(action.title.empty())
+            action.title = "Fix";
+        out.push_back(std::move(action));
+    }
+
+    return out;
+}
+
+std::vector<LspClient::TextEdit>
+LspClient::executeCommand(const std::string& command,
+                          const std::vector<std::string>& argumentsJson,
+                          const std::string& filePath)
+{
+    std::vector<TextEdit> out;
+    if(!running())
+        return out;
+
+    json args = json::array();
+    for(const auto& arg : argumentsJson)
+    {
+        try
+        {
+            args.push_back(json::parse(arg));
+        }
+        catch(...)
+        {
+        }
+    }
+
+    json params;
+    params["command"] = command;
+    if(!args.empty())
+        params["arguments"] = args;
+
+    int id = impl->sendRequest("workspace/executeCommand", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(resp && resp->is_object() && !resp->contains("error"))
+    {
+        json result = resp->value("result", json());
+        if(result.is_object())
+        {
+            if(result.contains("edit"))
+            {
+                parseWorkspaceEditInto(result.value("edit", json::object()),
+                                       filePath, out);
+            }
+            else
+            {
+                parseWorkspaceEditInto(result, filePath, out);
+            }
+        }
+    }
+
+    std::vector<json> applyEdits;
+    {
+        std::lock_guard<std::mutex> lk(impl->applyMutex);
+        applyEdits.swap(impl->pendingApplyEdits);
+    }
+    for(const auto& edit : applyEdits)
+    {
+        parseWorkspaceEditInto(edit, filePath, out);
+    }
+
+    return out;
+}
+
 #else
 
 // If UVIM_ENABLE_CLANGD_LSP is not set, compile a stub that always disables.
@@ -923,6 +1307,36 @@ LspClient::completion(const std::string&, int, int, std::string_view, int, char)
 
 std::vector<LspClient::Location> LspClient::references(const std::string&, int,
                                                        int, bool)
+{
+    return {};
+}
+
+std::vector<LspClient::Diagnostic>
+LspClient::diagnostics(const std::string&) const
+{
+    return {};
+}
+
+void LspClient::clearDiagnostics(const std::string&)
+{
+}
+
+size_t LspClient::diagnosticsRevision(const std::string&) const
+{
+    return 0;
+}
+
+std::vector<LspClient::CodeAction>
+LspClient::codeActions(const std::string&, int, std::string_view,
+                       const std::vector<Diagnostic>&)
+{
+    return {};
+}
+
+std::vector<LspClient::TextEdit>
+LspClient::executeCommand(const std::string&,
+                          const std::vector<std::string>&,
+                          const std::string&)
 {
     return {};
 }

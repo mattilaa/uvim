@@ -8,7 +8,9 @@
 #include <cstring>
 #include <filesystem>
 #include <optional>
+#include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 // Very small snippet “desugaring”: turns clangd snippets into plain insert
 // text.
@@ -884,7 +886,7 @@ void Editor::drawCompletionPopup(std::string& output) const
     // Determine cursor position on screen
     // Use the editor's viewport offsets.
     int cy = (*cursorY - *offsetY) + 1;
-    int cx = (*cursorX - *offsetX) + 1;
+    int cx = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
     if(cy < 1)
         cy = 1;
     if(cy > screenRows)
@@ -1066,4 +1068,456 @@ void Editor::drawCompletionPopup(std::string& output) const
     text_utils::appendU8(output, u8"└");
     text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
     text_utils::appendU8(output, u8"┐");
+}
+
+std::unordered_map<int, Editor::LspDiagnosticSummary>
+Editor::getClangdDiagnosticsByLine() const
+{
+    std::unordered_map<int, LspDiagnosticSummary> out;
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(currentMode == INSERT)
+        return out;
+    if(!isClangdLspEnabled() || !lspClient || !currentBuffer)
+        return out;
+    if(currentBuffer->filename.empty())
+        return out;
+
+    std::vector<LspClient::Diagnostic> diagnostics =
+        lspClient->diagnostics(currentBuffer->filename);
+    for(const auto& diag : diagnostics)
+    {
+        if(diag.severity <= 0 || diag.severity > 2)
+            continue;
+        auto& slot = out[diag.line];
+        if(slot.severity == 0 || diag.severity < slot.severity ||
+           (diag.severity == slot.severity &&
+            diag.character < slot.character))
+        {
+            slot.severity = diag.severity;
+            slot.character = diag.character;
+            slot.message = diag.message;
+        }
+    }
+#endif
+    return out;
+}
+
+std::optional<Editor::LspDiagnosticSummary>
+Editor::getClangdDiagnosticForLine(int line) const
+{
+    std::unordered_map<int, LspDiagnosticSummary> byLine =
+        getClangdDiagnosticsByLine();
+    auto it = byLine.find(line);
+    if(it == byLine.end())
+        return std::nullopt;
+    return it->second;
+}
+
+static inline int diagnosticDisplayWidth(const std::string& s)
+{
+    int w = 0;
+    for(size_t i = 0; i < s.size();)
+    {
+        unsigned char c = (unsigned char)s[i];
+        if(c < 0x80)
+        {
+            ++w;
+            ++i;
+            continue;
+        }
+        if((c & 0xE0) == 0xC0)
+            i += 2;
+        else if((c & 0xF0) == 0xE0)
+            i += 3;
+        else if((c & 0xF8) == 0xF0)
+            i += 4;
+        else
+            ++i;
+        ++w;
+    }
+    return w;
+}
+
+void Editor::drawDiagnosticPopup(std::string& output) const
+{
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+        return;
+    if(completionActive && currentMode == INSERT)
+        return;
+    if(!currentBuffer)
+        return;
+    if(!diagnosticPopupActive)
+        return;
+    if(diagnosticPopupData.severity <= 0 ||
+       diagnosticPopupData.severity > 2)
+        return;
+
+    std::string label =
+        (diagnosticPopupData.severity == 1) ? "error" : "warning";
+    std::string message = diagnosticPopupData.message;
+    if(message.empty())
+        return;
+
+    std::vector<std::string> rows;
+    rows.push_back(label + ": " + message);
+    if(!diagnosticPopupFixes.empty())
+    {
+        rows.push_back("fixes:");
+        int maxFixRows = std::min(6, (int)diagnosticPopupFixes.size());
+        int start = std::clamp(diagnosticPopupFixScroll, 0,
+                               std::max(0, (int)diagnosticPopupFixes.size() -
+                                               maxFixRows));
+        int end = std::min((int)diagnosticPopupFixes.size(),
+                           start + maxFixRows);
+        for(int i = start; i < end; ++i)
+        {
+            rows.push_back(diagnosticPopupFixes[i].title);
+        }
+    }
+
+    int innerW = 0;
+    for(const auto& row : rows)
+        innerW = std::max(innerW, diagnosticDisplayWidth(row));
+    int maxInner = std::max(10, screenCols - 4);
+    if(innerW > maxInner)
+    {
+        int trim = std::max(0, maxInner - 3);
+        for(auto& row : rows)
+        {
+            if(trim > 0 && trim < (int)row.size())
+            {
+                row = row.substr(0, (size_t)trim) + "...";
+            }
+        }
+        innerW = 0;
+        for(const auto& row : rows)
+            innerW = std::max(innerW, diagnosticDisplayWidth(row));
+    }
+
+    int totalW = innerW + 4;
+    if(totalW > screenCols)
+    {
+        totalW = screenCols;
+        innerW = std::max(1, totalW - 4);
+    }
+    if(!rows.empty() && diagnosticDisplayWidth(rows[0]) > innerW)
+    {
+        int trim = std::max(0, innerW - 3);
+        for(auto& row : rows)
+        {
+            if(trim > 0 && trim < (int)row.size())
+            {
+                row = row.substr(0, (size_t)trim) + "...";
+            }
+        }
+        innerW = 0;
+        for(const auto& row : rows)
+            innerW = std::max(innerW, diagnosticDisplayWidth(row));
+    }
+
+    int totalH = (int)rows.size() + 2;
+    int cy = (*cursorY - *offsetY) + 1;
+    int cx = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
+    if(cy < 1)
+        cy = 1;
+    if(cy > screenRows)
+        cy = screenRows;
+    if(cx < 1)
+        cx = 1;
+    if(cx > screenCols)
+        cx = screenCols;
+
+    int top = cy + 1;
+    if(top + totalH - 1 > screenRows)
+        top = cy - totalH;
+    if(top < 1)
+        top = 1;
+
+    int left = cx;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
+
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+    const std::string& color = (diagnosticPopupData.severity == 1)
+                                   ? theme.uiError()
+                                   : theme.uiWarning();
+
+    moveTo(top, left);
+    text_utils::appendU8(output, u8"┌");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┐");
+
+    moveTo(top + 1, left);
+    for(size_t i = 0; i < rows.size(); ++i)
+    {
+        text_utils::appendU8(output, u8"│");
+        output += " ";
+        if(i == 0)
+        {
+            output += color;
+        }
+        else if(i == 1 && !diagnosticPopupFixes.empty())
+        {
+            output += theme.uiDim();
+        }
+        else if(!diagnosticPopupFixes.empty())
+        {
+            int fixIndex = (int)i - 2 + diagnosticPopupFixScroll;
+            if(fixIndex == diagnosticPopupFixIndex)
+                output += theme.selection();
+            else
+                output += theme.uiInfo();
+        }
+
+        output += rows[i];
+        output += theme.reset();
+        int pad = innerW - diagnosticDisplayWidth(rows[i]);
+        if(pad > 0)
+            output.append(pad, ' ');
+        output += " ";
+        text_utils::appendU8(output, u8"│");
+        if(i + 1 < rows.size())
+            moveTo(top + 1 + (int)i + 1, left);
+    }
+
+    moveTo(top + 1 + (int)rows.size(), left);
+    text_utils::appendU8(output, u8"└");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┐");
+}
+
+void Editor::openDiagnosticPopupForCursor()
+{
+    diagnosticPopupActive = false;
+    diagnosticPopupLine = -1;
+    diagnosticPopupCursorX = -1;
+    diagnosticPopupCursorY = -1;
+    diagnosticPopupData = {};
+    diagnosticPopupFixes.clear();
+    diagnosticPopupFixIndex = 0;
+    diagnosticPopupFixScroll = 0;
+
+    if(!currentBuffer)
+        return;
+
+    syncClangdDiagnosticsIfNeeded(true);
+
+    std::optional<LspDiagnosticSummary> diag =
+        getClangdDiagnosticForLine(*cursorY);
+    if(!diag || diag->severity <= 0 || diag->severity > 2)
+    {
+        setStatusMessage("No diagnostics on this line");
+        needsFullRedraw = true;
+        return;
+    }
+
+    diagnosticPopupActive = true;
+    diagnosticPopupLine = *cursorY;
+    diagnosticPopupCursorX = *cursorX;
+    diagnosticPopupCursorY = *cursorY;
+    diagnosticPopupData = *diag;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(isClangdLspEnabled() && lspClient && currentBuffer &&
+       !currentBuffer->filename.empty())
+    {
+        std::vector<LspClient::Diagnostic> diags =
+            lspClient->diagnostics(currentBuffer->filename);
+        std::vector<LspClient::Diagnostic> lineDiags;
+        for(const auto& d : diags)
+        {
+            if(d.line == *cursorY && (d.severity == 1 || d.severity == 2))
+                lineDiags.push_back(d);
+        }
+        if(!lineDiags.empty())
+        {
+            std::string_view lineText;
+            if(*cursorY >= 0 && *cursorY < (int)lines->size())
+                lineText = (*lines)[*cursorY];
+            std::vector<LspClient::CodeAction> actions =
+                lspClient->codeActions(currentBuffer->filename, *cursorY,
+                                       lineText, lineDiags);
+            for(const auto& action : actions)
+            {
+                DiagnosticFix fix;
+                fix.title = action.title;
+                for(const auto& edit : action.edits)
+                {
+                    DiagnosticFixEdit e;
+                    e.startLine = edit.startLine;
+                    e.startCharacter = edit.startCharacter;
+                    e.endLine = edit.endLine;
+                    e.endCharacter = edit.endCharacter;
+                    e.newText = edit.newText;
+                    fix.edits.push_back(std::move(e));
+                }
+                fix.command = action.command;
+                fix.commandArgsJson = action.commandArgsJson;
+                if(!fix.edits.empty() || !fix.command.empty())
+                    diagnosticPopupFixes.push_back(std::move(fix));
+            }
+        }
+    }
+#endif
+
+    needsFullRedraw = true;
+}
+
+void Editor::closeDiagnosticPopup()
+{
+    if(!diagnosticPopupActive)
+        return;
+    diagnosticPopupActive = false;
+    diagnosticPopupLine = -1;
+    diagnosticPopupCursorX = -1;
+    diagnosticPopupCursorY = -1;
+    diagnosticPopupData = {};
+    diagnosticPopupFixes.clear();
+    diagnosticPopupFixIndex = 0;
+    diagnosticPopupFixScroll = 0;
+    needsFullRedraw = true;
+}
+
+static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
+{
+    if(utf16Offset <= 0)
+        return 0;
+    int u16 = 0;
+    int i = 0;
+    while(i < (int)line.size())
+    {
+        unsigned char c = (unsigned char)line[i];
+        int codepoint = 0;
+        int len = 1;
+
+        if(c < 0x80)
+        {
+            codepoint = c;
+            len = 1;
+        }
+        else if((c & 0xE0) == 0xC0 && i + 1 < (int)line.size())
+        {
+            codepoint = ((c & 0x1F) << 6) | ((unsigned char)line[i + 1] & 0x3F);
+            len = 2;
+        }
+        else if((c & 0xF0) == 0xE0 && i + 2 < (int)line.size())
+        {
+            codepoint = ((c & 0x0F) << 12) |
+                        (((unsigned char)line[i + 1] & 0x3F) << 6) |
+                        ((unsigned char)line[i + 2] & 0x3F);
+            len = 3;
+        }
+        else if((c & 0xF8) == 0xF0 && i + 3 < (int)line.size())
+        {
+            codepoint = ((c & 0x07) << 18) |
+                        (((unsigned char)line[i + 1] & 0x3F) << 12) |
+                        (((unsigned char)line[i + 2] & 0x3F) << 6) |
+                        ((unsigned char)line[i + 3] & 0x3F);
+            len = 4;
+        }
+
+        int u16len = (codepoint <= 0xFFFF) ? 1 : 2;
+        if(u16 + u16len > utf16Offset)
+            break;
+
+        u16 += u16len;
+        i += len;
+    }
+    return i;
+}
+
+void Editor::applyDiagnosticFix(int index)
+{
+    if(!currentBuffer)
+        return;
+    if(index < 0 || index >= (int)diagnosticPopupFixes.size())
+        return;
+
+    std::vector<DiagnosticFixEdit> edits =
+        diagnosticPopupFixes[index].edits;
+    if(edits.empty() && !diagnosticPopupFixes[index].command.empty())
+    {
+#ifdef UVIM_ENABLE_CLANGD_LSP
+        if(isClangdLspEnabled() && lspClient)
+        {
+            std::vector<LspClient::TextEdit> lspEdits =
+                lspClient->executeCommand(
+                    diagnosticPopupFixes[index].command,
+                    diagnosticPopupFixes[index].commandArgsJson,
+                    currentBuffer->filename);
+            for(const auto& edit : lspEdits)
+            {
+                DiagnosticFixEdit local;
+                local.startLine = edit.startLine;
+                local.startCharacter = edit.startCharacter;
+                local.endLine = edit.endLine;
+                local.endCharacter = edit.endCharacter;
+                local.newText = edit.newText;
+                edits.push_back(std::move(local));
+            }
+        }
+#endif
+    }
+    if(edits.empty())
+        return;
+    std::sort(edits.begin(), edits.end(),
+              [](const DiagnosticFixEdit& a, const DiagnosticFixEdit& b)
+              {
+                  if(a.startLine != b.startLine)
+                      return a.startLine > b.startLine;
+                  return a.startCharacter > b.startCharacter;
+              });
+
+    for(const auto& edit : edits)
+    {
+        if(edit.startLine < 0 || edit.startLine >= (int)lines->size())
+            continue;
+        if(edit.endLine < 0 || edit.endLine >= (int)lines->size())
+            continue;
+
+        std::string& startLine = (*lines)[edit.startLine];
+        std::string& endLine = (*lines)[edit.endLine];
+        int startByte = utf16ToUtf8ByteOffset(startLine, edit.startCharacter);
+        int endByte = utf16ToUtf8ByteOffset(endLine, edit.endCharacter);
+
+        if(edit.startLine == edit.endLine)
+        {
+            startLine = startLine.substr(0, startByte) + edit.newText +
+                        endLine.substr(endByte);
+            continue;
+        }
+
+        std::string prefix = startLine.substr(0, startByte);
+        std::string suffix = endLine.substr(endByte);
+        std::string combined = prefix + edit.newText + suffix;
+
+        std::vector<std::string> newLines;
+        size_t pos = 0;
+        while(pos <= combined.size())
+        {
+            size_t next = combined.find('\n', pos);
+            if(next == std::string::npos)
+            {
+                newLines.push_back(combined.substr(pos));
+                break;
+            }
+            newLines.push_back(combined.substr(pos, next - pos));
+            pos = next + 1;
+        }
+
+        lines->erase(lines->begin() + edit.startLine,
+                     lines->begin() + edit.endLine + 1);
+        lines->insert(lines->begin() + edit.startLine, newLines.begin(),
+                      newLines.end());
+    }
+
+    *dirty = true;
+    saveState();
+    currentBuffer->lspSyncNeeded = true;
+    adjustViewport();
+    closeDiagnosticPopup();
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    syncClangdDiagnosticsIfNeeded(true);
+#endif
 }

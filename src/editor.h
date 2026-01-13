@@ -164,6 +164,52 @@ public:
     void completionPrev();
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
+    static constexpr int kDiagnosticGutterWidth = 1;
+
+    struct LspDiagnosticSummary
+    {
+        int severity = 0;
+        int character = 0;
+        std::string message;
+    };
+
+    std::unordered_map<int, LspDiagnosticSummary>
+    getClangdDiagnosticsByLine() const;
+    std::optional<LspDiagnosticSummary>
+    getClangdDiagnosticForLine(int line) const;
+    void drawDiagnosticPopup(std::string& output) const;
+    void openDiagnosticPopupForCursor();
+    void closeDiagnosticPopup();
+    void syncClangdDiagnosticsIfNeeded(bool force);
+
+    bool diagnosticPopupActive = false;
+    int diagnosticPopupLine = -1;
+    int diagnosticPopupCursorX = -1;
+    int diagnosticPopupCursorY = -1;
+    LspDiagnosticSummary diagnosticPopupData{};
+
+    struct DiagnosticFixEdit
+    {
+        int startLine = 0;
+        int startCharacter = 0;
+        int endLine = 0;
+        int endCharacter = 0;
+        std::string newText;
+    };
+
+    struct DiagnosticFix
+    {
+        std::string title;
+        std::vector<DiagnosticFixEdit> edits;
+        std::string command;
+        std::vector<std::string> commandArgsJson;
+    };
+
+    std::vector<DiagnosticFix> diagnosticPopupFixes;
+    int diagnosticPopupFixIndex = 0;
+    int diagnosticPopupFixScroll = 0;
+
+    void applyDiagnosticFix(int index);
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;

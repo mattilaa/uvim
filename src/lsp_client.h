@@ -17,6 +17,36 @@ public:
         int character = 0; // 0-based (UTF-16 code units)
     };
 
+    struct Diagnostic
+    {
+        int line = 0;      // 0-based
+        int character = 0; // 0-based (UTF-16 code units)
+        int endLine = 0;   // 0-based
+        int endCharacter = 0; // 0-based (UTF-16 code units)
+        int severity = 0;  // 1=Error, 2=Warning, 3=Info, 4=Hint
+        std::string message;
+        std::string source;
+        std::string codeJson;
+        std::string dataJson;
+    };
+
+    struct TextEdit
+    {
+        int startLine = 0;
+        int startCharacter = 0;
+        int endLine = 0;
+        int endCharacter = 0;
+        std::string newText;
+    };
+
+    struct CodeAction
+    {
+        std::string title;
+        std::vector<TextEdit> edits;
+        std::string command;
+        std::vector<std::string> commandArgsJson;
+    };
+
     LspClient();
     ~LspClient();
 
@@ -65,6 +95,20 @@ public:
     completion(const std::string& filePath, int line,
                int characterUtf8ByteOffset, std::string_view lineText = {},
                int triggerKind = 1, char triggerCharacter = '\0');
+
+    // Latest diagnostics for a file path (from publishDiagnostics).
+    std::vector<Diagnostic> diagnostics(const std::string& filePath) const;
+    void clearDiagnostics(const std::string& filePath);
+    size_t diagnosticsRevision(const std::string& filePath) const;
+
+    std::vector<CodeAction>
+    codeActions(const std::string& filePath, int line,
+                std::string_view lineText,
+                const std::vector<Diagnostic>& diagnostics);
+    std::vector<TextEdit>
+    executeCommand(const std::string& command,
+                   const std::vector<std::string>& argumentsJson,
+                   const std::string& filePath);
 
 private:
     struct Impl;

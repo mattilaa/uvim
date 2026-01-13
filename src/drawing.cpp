@@ -121,6 +121,9 @@ void Editor::drawRows()
 {
     int tabRows = tabBarRows();
     int rows = contentRows();
+    int textCols = std::max(1, screenCols - kDiagnosticGutterWidth);
+    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
+        getClangdDiagnosticsByLine();
 
     if(tabRows > 0)
     {
@@ -137,13 +140,33 @@ void Editor::drawRows()
 
         if(fileRow >= lines->size())
         {
+            Terminal::write(theme.uiGutter());
+            Terminal::write(' ');
+            Terminal::write(theme.uiGutter());
             Terminal::write('~');
+            Terminal::write(theme.baseFg());
         }
         else
         {
             const std::string& line = (*lines)[fileRow];
 
-            for(int x = 0; x < screenCols; x++)
+            auto diagIt = diagnosticsByLine.find(fileRow);
+            if(diagIt != diagnosticsByLine.end())
+            {
+                if(diagIt->second.severity == 1)
+                    Terminal::write(theme.uiError());
+                else
+                    Terminal::write(theme.uiWarning());
+                Terminal::write(diagIt->second.severity == 1 ? 'E' : 'W');
+            }
+            else
+            {
+                Terminal::write(theme.uiGutter());
+                Terminal::write(' ');
+            }
+            Terminal::write(theme.baseFg());
+
+            for(int x = 0; x < textCols; x++)
             {
                 int fileCol = x + *offsetX;
                 char ch = (fileCol < line.length()) ? line[fileCol] : ' ';
@@ -301,6 +324,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
         return;
     }
 
+    int textCols = std::max(1, screenCols - kDiagnosticGutterWidth);
+    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
+        getClangdDiagnosticsByLine();
+
     std::string output;
     output.reserve(screenRows * screenCols * 2);
 
@@ -329,9 +356,28 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
             if(fileRow < lines->size())
             {
+                auto diagIt = diagnosticsByLine.find(fileRow);
+                if(diagIt != diagnosticsByLine.end())
+                {
+                    output += (diagIt->second.severity == 1) ? theme.uiError()
+                                                             : theme.uiWarning();
+                    output +=
+                        (diagIt->second.severity == 1) ? 'E' : 'W';
+                }
+                else
+                {
+                    output += theme.uiGutter();
+                    output += ' ';
+                }
+                output += theme.baseFg();
+
                 const std::string& line = (*lines)[fileRow];
                 int start = *offsetX;
-                int len = std::min((int)line.length() - start, screenCols);
+                int len = (int)line.length() - start;
+                if(len < 0)
+                    len = 0;
+                if(len > textCols)
+                    len = textCols;
                 int visibleLen = (len > 0) ? len : 0;
                 bool showCursor =
                     (currentMode == VISUAL || currentMode == VISUAL_LINE ||
@@ -412,7 +458,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 if(showCursor && fileRow == *cursorY)
                 {
                     int cursorCol = *cursorX - *offsetX;
-                    if(cursorCol >= visibleLen && cursorCol < screenCols)
+                    if(cursorCol >= visibleLen && cursorCol < textCols)
                     {
                         output += theme.reset();
                         int pad = cursorCol - visibleLen;
@@ -426,6 +472,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
             }
             else
             {
+                output += theme.uiGutter();
+                output += ' ';
                 output += theme.uiGutter();
                 output += "~";
                 output += theme.baseFg();
@@ -456,9 +504,28 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
             if(fileRow < lines->size())
             {
+                auto diagIt = diagnosticsByLine.find(fileRow);
+                if(diagIt != diagnosticsByLine.end())
+                {
+                    output += (diagIt->second.severity == 1) ? theme.uiError()
+                                                             : theme.uiWarning();
+                    output +=
+                        (diagIt->second.severity == 1) ? 'E' : 'W';
+                }
+                else
+                {
+                    output += theme.uiGutter();
+                    output += ' ';
+                }
+                output += theme.baseFg();
+
                 const std::string& line = (*lines)[fileRow];
                 int start = *offsetX;
-                int len = std::min((int)line.length() - start, screenCols);
+                int len = (int)line.length() - start;
+                if(len < 0)
+                    len = 0;
+                if(len > textCols)
+                    len = textCols;
                 int visibleLen = (len > 0) ? len : 0;
                 bool showCursor =
                     (currentMode == VISUAL || currentMode == VISUAL_LINE ||
@@ -539,7 +606,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 if(showCursor && fileRow == *cursorY)
                 {
                     int cursorCol = *cursorX - *offsetX;
-                    if(cursorCol >= visibleLen && cursorCol < screenCols)
+                    if(cursorCol >= visibleLen && cursorCol < textCols)
                     {
                         output += theme.reset();
                         int pad = cursorCol - visibleLen;
@@ -553,6 +620,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
             }
             else
             {
+                output += theme.uiGutter();
+                output += ' ';
                 output += theme.uiGutter();
                 output += "~";
                 output += theme.baseFg();
@@ -576,7 +645,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1;
-        cursorCol = (*cursorX - *offsetX) + 1;
+        cursorCol = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
     }
     output += Terminal::cursorPos(cursorRow, cursorCol);
     if(!hideCursor)
@@ -687,6 +756,7 @@ void Editor::drawMessageBarQuick()
 
     // Completion popup (clangd)
     drawCompletionPopup(output);
+    drawDiagnosticPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 
@@ -699,6 +769,10 @@ void Editor::drawFullScreen()
 
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
+
+    int textCols = std::max(1, screenCols - kDiagnosticGutterWidth);
+    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
+        getClangdDiagnosticsByLine();
 
     bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
                        currentMode == VISUAL_BLOCK);
@@ -744,12 +818,42 @@ void Editor::drawFullScreen()
                 int cursorCol = *cursorX - *offsetX;
                 if(cursorCol <= 0)
                 {
+                    auto diagIt = diagnosticsByLine.find(fileRow);
+                    if(diagIt != diagnosticsByLine.end())
+                    {
+                        output += (diagIt->second.severity == 1)
+                                      ? theme.uiError()
+                                      : theme.uiWarning();
+                        output +=
+                            (diagIt->second.severity == 1) ? 'E' : 'W';
+                    }
+                    else
+                    {
+                        output += theme.uiGutter();
+                        output += ' ';
+                    }
+                    output += theme.baseFg();
                     output += theme.cursor();
                     output += ' ';
                     output += theme.reset();
                 }
                 else
                 {
+                    auto diagIt = diagnosticsByLine.find(fileRow);
+                    if(diagIt != diagnosticsByLine.end())
+                    {
+                        output += (diagIt->second.severity == 1)
+                                      ? theme.uiError()
+                                      : theme.uiWarning();
+                        output +=
+                            (diagIt->second.severity == 1) ? 'E' : 'W';
+                    }
+                    else
+                    {
+                        output += theme.uiGutter();
+                        output += ' ';
+                    }
+                    output += theme.baseFg();
                     output += theme.uiGutter();
                     output += "~";
                     output += theme.baseFg();
@@ -763,6 +867,20 @@ void Editor::drawFullScreen()
             }
             else
             {
+                auto diagIt = diagnosticsByLine.find(fileRow);
+                if(diagIt != diagnosticsByLine.end())
+                {
+                    output += (diagIt->second.severity == 1)
+                                  ? theme.uiError()
+                                  : theme.uiWarning();
+                    output += (diagIt->second.severity == 1) ? 'E' : 'W';
+                }
+                else
+                {
+                    output += theme.uiGutter();
+                    output += ' ';
+                }
+                output += theme.baseFg();
                 output += theme.uiGutter();
                 output += "~";
                 output += theme.baseFg();
@@ -770,15 +888,31 @@ void Editor::drawFullScreen()
         }
         else
         {
+            auto diagIt = diagnosticsByLine.find(fileRow);
+            if(diagIt != diagnosticsByLine.end())
+            {
+                output += (diagIt->second.severity == 1) ? theme.uiError()
+                                                         : theme.uiWarning();
+                output += (diagIt->second.severity == 1) ? 'E' : 'W';
+            }
+            else
+            {
+                output += theme.uiGutter();
+                output += ' ';
+            }
+            output += theme.baseFg();
+
             const std::string& line = (*lines)[fileRow];
             int start = *offsetX;
-            int len = line.length() - start;
+            int len = (int)line.length() - start;
+            if(len < 0)
+                len = 0;
             int visibleLen = 0;
 
             if(len > 0)
             {
-                if(len > screenCols)
-                    len = screenCols;
+                if(len > textCols)
+                    len = textCols;
                 visibleLen = len;
 
                 bool hasHighlighting = false;
@@ -865,7 +999,7 @@ void Editor::drawFullScreen()
                fileRow == *cursorY)
             {
                 int cursorCol = *cursorX - *offsetX;
-                if(cursorCol >= visibleLen && cursorCol < screenCols)
+                if(cursorCol >= visibleLen && cursorCol < textCols)
                 {
                     output += theme.reset();
                     int pad = cursorCol - visibleLen;
@@ -964,6 +1098,7 @@ void Editor::drawFullScreen()
 
     // Completion popup (clangd)
     drawCompletionPopup(output);
+    drawDiagnosticPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 

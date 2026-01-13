@@ -21,6 +21,10 @@ void NormalMode::on_enter(ModeContext& ctx)
     // Set block cursor for normal mode
     Terminal::setCursorBlock();
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    ed->syncClangdDiagnosticsIfNeeded(true);
+#endif
+
     ed->needsFullRedraw = true;
 }
 
@@ -34,6 +38,63 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = event.key;
+
+    if(ed->diagnosticPopupActive)
+    {
+        if(c == 'q')
+        {
+            ed->closeDiagnosticPopup();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN)
+        {
+            if(!ed->diagnosticPopupFixes.empty())
+            {
+                ed->diagnosticPopupFixIndex =
+                    std::min(ed->diagnosticPopupFixIndex + 1,
+                             (int)ed->diagnosticPopupFixes.size() - 1);
+                int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
+                if(ed->diagnosticPopupFixIndex <
+                   ed->diagnosticPopupFixScroll)
+                    ed->diagnosticPopupFixScroll =
+                        ed->diagnosticPopupFixIndex;
+                else if(ed->diagnosticPopupFixIndex >=
+                        ed->diagnosticPopupFixScroll + window)
+                    ed->diagnosticPopupFixScroll =
+                        ed->diagnosticPopupFixIndex - window + 1;
+                ed->needsFullRedraw = true;
+            }
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
+        {
+            if(!ed->diagnosticPopupFixes.empty())
+            {
+                ed->diagnosticPopupFixIndex =
+                    std::max(ed->diagnosticPopupFixIndex - 1, 0);
+                int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
+                if(ed->diagnosticPopupFixIndex <
+                   ed->diagnosticPopupFixScroll)
+                    ed->diagnosticPopupFixScroll =
+                        ed->diagnosticPopupFixIndex;
+                else if(ed->diagnosticPopupFixIndex >=
+                        ed->diagnosticPopupFixScroll + window)
+                    ed->diagnosticPopupFixScroll =
+                        ed->diagnosticPopupFixIndex - window + 1;
+                ed->needsFullRedraw = true;
+            }
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::ENTER)
+        {
+            ed->applyDiagnosticFix(ed->diagnosticPopupFixIndex);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+    }
 
     // ========================================================================
     // Count Prefix Accumulation
@@ -82,6 +143,13 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             ctx.pendingObjectType = 0;
             ctx.pendingCount = 0;
         }
+        return std::nullopt;
+    }
+
+    if(ed->diagnosticPopupActive && c == 'q')
+    {
+        ed->closeDiagnosticPopup();
+        ctx.repeatCount = 0;
         return std::nullopt;
     }
 
@@ -892,8 +960,9 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     }
 
     case 'e':
-        // File browser / explorer
-        return FileBrowserMode{"."};
+        // Diagnostics popup for current line
+        ed->openDiagnosticPopupForCursor();
+        return std::nullopt;
 
     case 'h':
         // Jump to alternate file (header/source)

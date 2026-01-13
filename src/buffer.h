@@ -51,6 +51,11 @@ struct Buffer
     int visualBlockEndX = 0;
     int visualBlockEndY = 0;
     std::string visualBlockInsertText; // Text to insert in visual block mode
+    bool lspSyncNeeded = false;
+    bool lspHashValid = false;
+    size_t lspContentHash = 0;
+    bool lspDiagnosticsSeenValid = false;
+    size_t lspDiagnosticsSeenRevision = 0;
 
     Buffer()
     {
