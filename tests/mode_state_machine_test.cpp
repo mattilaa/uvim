@@ -44,12 +44,13 @@ struct VisualMode;
 struct CommandMode;
 struct OperatorPendingMode;
 struct FuzzyFindMode;
+struct FileBrowserMode;
 struct BufferBrowserMode;
 struct GrepSearchMode;
 
 using TestModeState = std::variant<NormalMode, InsertMode, VisualMode,
                                    CommandMode, OperatorPendingMode,
-                                   WelcomeMode, FuzzyFindMode,
+                                   WelcomeMode, FuzzyFindMode, FileBrowserMode,
                                    BufferBrowserMode, GrepSearchMode>;
 
 // State definitions
@@ -165,6 +166,21 @@ struct FuzzyFindMode
                                         const KeyEvent& event);
 };
 
+struct FileBrowserMode
+{
+    static constexpr const char* name()
+    {
+        return "FILE_BROWSER";
+    }
+    void on_enter(TestModeContext& ctx)
+    {
+        ctx.statusMessage = "-- FILE_BROWSER --";
+    }
+    void on_exit(TestModeContext&) {}
+    std::optional<TestModeState> handle(TestModeContext& ctx,
+                                        const KeyEvent& event);
+};
+
 struct BufferBrowserMode
 {
     static constexpr const char* name()
@@ -243,11 +259,21 @@ inline std::optional<TestModeState> InsertMode::handle(TestModeContext&,
     return std::nullopt;
 }
 
-inline std::optional<TestModeState> WelcomeMode::handle(TestModeContext&,
+inline std::optional<TestModeState> WelcomeMode::handle(TestModeContext& ctx,
                                                         const KeyEvent& event)
 {
-    if(event.key == 27) // ESC
-        return NormalMode{};
+    if(ctx.commandBuffer == " ")
+    {
+        ctx.commandBuffer.clear();
+        if(event.key == 'x')
+            return FileBrowserMode{};
+        return std::nullopt;
+    }
+    if(event.key == ' ')
+    {
+        ctx.commandBuffer = " ";
+        return std::nullopt;
+    }
     if(event.key == 'i')
         return InsertMode{};
     return std::nullopt;
@@ -321,6 +347,14 @@ FuzzyFindMode::handle(TestModeContext& ctx, const KeyEvent& event)
     if(c == 19) // Ctrl-S
         return GrepSearchMode{};
 
+    return std::nullopt;
+}
+
+inline std::optional<TestModeState>
+FileBrowserMode::handle(TestModeContext&, const KeyEvent& event)
+{
+    if(event.key == 'q' || event.key == 27) // q or ESC
+        return WelcomeMode{};
     return std::nullopt;
 }
 
@@ -472,6 +506,27 @@ TEST_F(ModeStateMachineTest, WelcomeModeTransitions)
 
     local.dispatch(27);
     EXPECT_TRUE(local.isIn<mode_test::NormalMode>());
+}
+
+TEST_F(ModeStateMachineTest, WelcomeEscStaysInWelcome)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::WelcomeMode{});
+    EXPECT_TRUE(local.isIn<mode_test::WelcomeMode>());
+
+    local.dispatch(27);
+    EXPECT_TRUE(local.isIn<mode_test::WelcomeMode>());
+    EXPECT_STREQ(local.currentStateName(), "WELCOME");
+}
+
+TEST_F(ModeStateMachineTest, WelcomeLeaderXOpensFileBrowser)
+{
+    mode_test::TestModeStateMachine local(ctx, mode_test::WelcomeMode{});
+    EXPECT_TRUE(local.isIn<mode_test::WelcomeMode>());
+
+    local.dispatch(' ');
+    local.dispatch('x');
+    EXPECT_TRUE(local.isIn<mode_test::FileBrowserMode>());
+    EXPECT_STREQ(local.currentStateName(), "FILE_BROWSER");
 }
 
 TEST_F(ModeStateMachineTest, FuzzyFindEscapeReturnsToNormal)

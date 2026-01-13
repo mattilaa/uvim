@@ -768,6 +768,24 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
         std::make_unique<ModeStateMachine>(createModeContext(this));
 }
 
+#ifdef UVIM_TESTING
+Editor::Editor(TestTag /* tag */, int rows, int cols)
+{
+    screenRows = std::max(1, rows - 2);
+    screenCols = std::max(1, cols);
+    theme = Theme::defaults();
+    configPath.clear();
+    robotKeywordSet = default_robot_keywords();
+    robotCustomKeywordSet = default_robot_custom_keywords();
+    robotSettingSet = default_robot_settings();
+}
+
+Editor Editor::createForTests(int rows, int cols)
+{
+    return Editor(TestTag{}, rows, cols);
+}
+#endif
+
 bool Editor::isRobotKeyword(std::string_view word) const
 {
     if(!syntaxRobotKeywords || robotKeywordSet.empty())

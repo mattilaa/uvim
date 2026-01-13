@@ -32,6 +32,9 @@ public:
 
     Editor(bool skipInitialBuffer = false, const std::string& configPath = "");
     ~Editor();
+#ifdef UVIM_TESTING
+    static Editor createForTests(int rows = 24, int cols = 80);
+#endif
 
     // Optional clangd LSP integration (compiled in when UVIM_ENABLE_CLANGD_LSP
     // is set). Enable at runtime via: uvim --clangd [--ccdir <build_dir>]
@@ -599,6 +602,12 @@ public:
     bool lastFindTill{false};
 
 private:
+#ifdef UVIM_TESTING
+    struct TestTag
+    {
+    };
+    Editor(TestTag tag, int rows, int cols);
+#endif
     bool dispatchModeKey(int c);
     void syncModeFromStateMachine();
     std::unique_ptr<ModeStateMachine> modeStateMachine;
