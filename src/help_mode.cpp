@@ -499,50 +499,42 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
                                                   std::string_view commandLine)
 {
-    // Parse command and arguments
-    std::string cmd;
-    std::string args;
-    size_t spacePos = commandLine.find(' ');
-    if(spacePos != std::string_view::npos)
-    {
-        cmd = std::string(commandLine.substr(0, spacePos));
-        std::string_view argsView = commandLine.substr(spacePos + 1);
-        // Trim leading spaces from args
-        while(!argsView.empty() && argsView.front() == ' ')
+    return dispatchCommandLine(
+        ctx, commandLine,
+        [&](ModeContext& ctx, const ParsedCommand& command,
+            std::optional<ModeState>& nextState) -> bool
         {
-            argsView.remove_prefix(1);
-        }
-        args = std::string(argsView);
-    }
-    else
-    {
-        cmd = std::string(commandLine);
-    }
+            // Handle :help command to navigate to different topics
+            if(command.cmd == "help" || command.cmd == "h")
+            {
+                std::string newTopic =
+                    command.args.empty() ? "" : command.args;
+                topic = newTopic;
+                scrollOffset = 0;
+                loadHelpContent(topic);
+                ctx.setStatusMessage(
+                    "Help: " + (topic.empty() ? "index" : topic));
+                ctx.requestFullRedraw();
+                return true;
+            }
 
-    // Handle :help command to navigate to different topics
-    if(cmd == "help" || cmd == "h")
-    {
-        std::string newTopic = args.empty() ? "" : args;
-        topic = newTopic;
-        scrollOffset = 0;
-        loadHelpContent(topic);
-        ctx.setStatusMessage("Help: " + (topic.empty() ? "index" : topic));
-        ctx.requestFullRedraw();
-        return std::nullopt;
-    }
+            // Handle :q to exit help
+            if(command.cmd == "q" || command.cmd == "q!")
+            {
+                if(!previousFile.empty())
+                {
+                    ctx.openFile(std::string_view(previousFile));
+                    nextState = NormalMode{};
+                }
+                else
+                {
+                    nextState = WelcomeMode{};
+                }
+                return true;
+            }
 
-    // Handle :q to exit help
-    if(cmd == "q" || cmd == "q!")
-    {
-        if(!previousFile.empty())
-        {
-            ctx.openFile(std::string_view(previousFile));
-            return NormalMode{};
-        }
-        return WelcomeMode{};
-    }
-
-    // Unknown command
-    ctx.setStatusMessage("Unknown command: :" + cmd);
-    return std::nullopt;
+            // Unknown command
+            ctx.setStatusMessage("Unknown command: :" + command.cmd);
+            return true;
+        });
 }

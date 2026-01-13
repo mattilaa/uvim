@@ -555,297 +555,251 @@ std::string FileBrowserMode::formatFileTime(time_t time) const
 std::optional<ModeState>
 FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
 {
-    if(commandLine.empty())
-    {
-        return std::nullopt;
-    }
-
-    // Parse command and arguments
-    std::string cmd;
-    std::string args;
-    size_t spacePos = commandLine.find(' ');
-    if(spacePos != std::string_view::npos)
-    {
-        cmd = std::string(commandLine.substr(0, spacePos));
-        std::string_view argsView = commandLine.substr(spacePos + 1);
-        // Trim leading spaces from args
-        while(!argsView.empty() && argsView.front() == ' ')
+    return dispatchCommandLine(
+        ctx, commandLine,
+        [&](ModeContext& ctx, const ParsedCommand& command,
+            std::optional<ModeState>& nextState) -> bool
         {
-            argsView.remove_prefix(1);
-        }
-        args = std::string(argsView);
-    }
-    else
-    {
-        cmd = std::string(commandLine);
-    }
+            const std::string& cmd = command.cmd;
+            const std::string& args = command.args;
 
-    // ========================================================================
-    // Quit commands - exit file browser mode
-    // ========================================================================
-    if(cmd == "q" || cmd == "q!")
-    {
-        if(!previousFile.empty())
-        {
-            ctx.openFile(std::string_view(previousFile));
-        }
-        return ctx.hasBuffer() ? ModeState{NormalMode{}}
-                               : ModeState{WelcomeMode{}};
-    }
-
-    if(cmd == "wq" || cmd == "x")
-    {
-        ctx.setStatusMessage("Not applicable in file browser mode");
-        return std::nullopt;
-    }
-
-    // Quit all commands - delegate to editor to quit entire application
-    if(cmd == "qa" || cmd == "qall" || cmd == "qa!" || cmd == "qall!" ||
-       cmd == "wqa" || cmd == "wqall" || cmd == "xa")
-    {
-        ctx.executeCommand(cmd);
-        return std::nullopt;
-    }
-
-    // Get current file entry if one is selected
-    const FileEntry* currentEntry = nullptr;
-    if(browserCursor >= 0 && browserCursor < (int)fileList.size())
-    {
-        currentEntry = &fileList[browserCursor];
-    }
-
-    // ========================================================================
-    // Delete command
-    // ========================================================================
-    if(cmd == "delete" || cmd == "d" || cmd == "rm")
-    {
-        if(!currentEntry || currentEntry->name == "..")
-        {
-            ctx.setStatusMessage("No file selected to delete");
-            return std::nullopt;
-        }
-
-        // Reuse existing delete logic
-        ctx.deleteFilePrompt();
-        return std::nullopt;
-    }
-
-    // ========================================================================
-    // Rename/Move command
-    // ========================================================================
-    else if(cmd == "rename" || cmd == "r" || cmd == "mv")
-    {
-        if(args.empty())
-        {
-            if(!currentEntry || currentEntry->name == "..")
+            // =================================================================
+            // Quit commands - exit file browser mode
+            // =================================================================
+            if(cmd == "q" || cmd == "q!")
             {
-                ctx.setStatusMessage("No file selected to rename");
-                return std::nullopt;
-            }
-            // Reuse existing rename prompt
-            ctx.renameFilePrompt();
-        }
-        else
-        {
-            // Rename with provided name
-            if(!currentEntry || currentEntry->name == "..")
-            {
-                ctx.setStatusMessage("No file selected to rename");
-                return std::nullopt;
-            }
-
-            std::filesystem::path oldPath(currentEntry->path);
-            std::filesystem::path newPath =
-                oldPath.parent_path() / std::filesystem::path(args);
-
-            std::error_code ec;
-            std::filesystem::rename(oldPath, newPath, ec);
-            if(ec)
-            {
-                ctx.setStatusMessage("Failed to rename: " + ec.message());
-            }
-            else
-            {
-                ctx.setStatusMessage("Renamed to: " + args);
-                loadDirectory(ctx, currentDirectory);
-            }
-        }
-        return std::nullopt;
-    }
-
-    // ========================================================================
-    // Make directory command
-    // ========================================================================
-    else if(cmd == "mkdir" || cmd == "md")
-    {
-        if(args.empty())
-        {
-            ctx.createNewDirectoryPrompt();
-        }
-        else
-        {
-            std::filesystem::path dirPath =
-                std::filesystem::path(currentDirectory) /
-                std::filesystem::path(args);
-            std::error_code ec;
-            std::filesystem::create_directory(dirPath, ec);
-            if(ec)
-            {
-                ctx.setStatusMessage("Failed to create directory: " +
-                                     ec.message());
-            }
-            else
-            {
-                ctx.setStatusMessage("Created directory: " + args);
-                loadDirectory(ctx, currentDirectory);
-            }
-        }
-        return std::nullopt;
-    }
-
-    // ========================================================================
-    // Create file command
-    // ========================================================================
-    else if(cmd == "touch" || cmd == "new")
-    {
-        if(args.empty())
-        {
-            ctx.createNewFilePrompt();
-        }
-        else
-        {
-            std::filesystem::path filePath =
-                std::filesystem::path(currentDirectory) /
-                std::filesystem::path(args);
-            std::ofstream file(filePath);
-            if(!file.is_open())
-            {
-                ctx.setStatusMessage("Failed to create file: " + args);
-            }
-            else
-            {
-                file.close();
-                ctx.setStatusMessage("Created file: " + args);
-                loadDirectory(ctx, currentDirectory);
-            }
-        }
-        return std::nullopt;
-    }
-
-    // ========================================================================
-    // Change directory command
-    // ========================================================================
-    else if(cmd == "cd")
-    {
-        if(args.empty())
-        {
-            ctx.setStatusMessage("Usage: :cd <path>");
-        }
-        else
-        {
-            std::filesystem::path targetPath;
-            if(args[0] == '/' || args[0] == '~')
-            {
-                // Absolute path
-                if(args[0] == '~')
+                if(!previousFile.empty())
                 {
-                    const char* home = getenv("HOME");
-                    if(home)
+                    ctx.openFile(std::string_view(previousFile));
+                }
+                nextState = ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                            : ModeState{WelcomeMode{}};
+                return true;
+            }
+
+            if(cmd == "wq" || cmd == "x")
+            {
+                ctx.setStatusMessage("Not applicable in file browser mode");
+                return true;
+            }
+
+            // Quit all commands - delegate to editor to quit entire application
+            if(cmd == "qa" || cmd == "qall" || cmd == "qa!" ||
+               cmd == "qall!" || cmd == "wqa" || cmd == "wqall" || cmd == "xa")
+            {
+                ctx.executeCommand(cmd);
+                return true;
+            }
+
+            // Get current file entry if one is selected
+            const FileEntry* currentEntry = nullptr;
+            if(browserCursor >= 0 && browserCursor < (int)fileList.size())
+            {
+                currentEntry = &fileList[browserCursor];
+            }
+
+            // =================================================================
+            // Delete command
+            // =================================================================
+            if(cmd == "delete" || cmd == "d" || cmd == "rm")
+            {
+                if(!currentEntry || currentEntry->name == "..")
+                {
+                    ctx.setStatusMessage("No file selected to delete");
+                    return true;
+                }
+
+                // Reuse existing delete logic
+                ctx.deleteFilePrompt();
+                return true;
+            }
+
+            // =================================================================
+            // Rename/Move command
+            // =================================================================
+            if(cmd == "rename" || cmd == "r" || cmd == "mv")
+            {
+                if(args.empty())
+                {
+                    if(!currentEntry || currentEntry->name == "..")
                     {
-                        targetPath = std::filesystem::path(home);
-                        if(args.length() > 1 && args[1] == '/')
+                        ctx.setStatusMessage("No file selected to rename");
+                        return true;
+                    }
+                    // Reuse existing rename prompt
+                    ctx.renameFilePrompt();
+                }
+                else
+                {
+                    // Rename with provided name
+                    if(!currentEntry || currentEntry->name == "..")
+                    {
+                        ctx.setStatusMessage("No file selected to rename");
+                        return true;
+                    }
+
+                    std::filesystem::path oldPath(currentEntry->path);
+                    std::filesystem::path newPath =
+                        oldPath.parent_path() / std::filesystem::path(args);
+
+                    std::error_code ec;
+                    std::filesystem::rename(oldPath, newPath, ec);
+                    if(ec)
+                    {
+                        ctx.setStatusMessage("Failed to rename: " +
+                                             ec.message());
+                    }
+                    else
+                    {
+                        ctx.setStatusMessage("Renamed to: " + args);
+                        loadDirectory(ctx, currentDirectory);
+                    }
+                }
+                return true;
+            }
+
+            // =================================================================
+            // Make directory command
+            // =================================================================
+            if(cmd == "mkdir" || cmd == "md")
+            {
+                if(args.empty())
+                {
+                    ctx.createNewDirectoryPrompt();
+                }
+                else
+                {
+                    std::filesystem::path dirPath =
+                        std::filesystem::path(currentDirectory) /
+                        std::filesystem::path(args);
+                    std::error_code ec;
+                    std::filesystem::create_directory(dirPath, ec);
+                    if(ec)
+                    {
+                        ctx.setStatusMessage("Failed to create directory: " +
+                                             ec.message());
+                    }
+                    else
+                    {
+                        ctx.setStatusMessage("Created directory: " + args);
+                        loadDirectory(ctx, currentDirectory);
+                    }
+                }
+                return true;
+            }
+
+            // =================================================================
+            // Create file command
+            // =================================================================
+            if(cmd == "touch" || cmd == "new")
+            {
+                if(args.empty())
+                {
+                    ctx.createNewFilePrompt();
+                }
+                else
+                {
+                    std::filesystem::path filePath =
+                        std::filesystem::path(currentDirectory) /
+                        std::filesystem::path(args);
+                    std::ofstream file(filePath);
+                    if(!file.is_open())
+                    {
+                        ctx.setStatusMessage("Failed to create file: " + args);
+                    }
+                    else
+                    {
+                        file.close();
+                        ctx.setStatusMessage("Created file: " + args);
+                        loadDirectory(ctx, currentDirectory);
+                    }
+                }
+                return true;
+            }
+
+            // =================================================================
+            // Change directory command
+            // =================================================================
+            if(cmd == "cd")
+            {
+                if(args.empty())
+                {
+                    ctx.setStatusMessage("Usage: :cd <path>");
+                }
+                else
+                {
+                    std::filesystem::path targetPath;
+                    if(args[0] == '/' || args[0] == '~')
+                    {
+                        // Absolute path
+                        if(args[0] == '~')
                         {
-                            targetPath /= args.substr(2);
+                            const char* home = getenv("HOME");
+                            if(home)
+                            {
+                                targetPath = std::filesystem::path(home);
+                                if(args.length() > 1 && args[1] == '/')
+                                {
+                                    targetPath /= args.substr(2);
+                                }
+                            }
+                            else
+                            {
+                                ctx.setStatusMessage(
+                                    "HOME environment variable not set");
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            targetPath = std::filesystem::path(args);
                         }
                     }
                     else
                     {
-                        ctx.setStatusMessage(
-                            "HOME environment variable not set");
-                        return std::nullopt;
+                        // Relative path
+                        targetPath =
+                            std::filesystem::path(currentDirectory) /
+                            std::filesystem::path(args);
+                    }
+
+                    std::error_code ec;
+                    if(std::filesystem::is_directory(targetPath, ec) && !ec)
+                    {
+                        loadDirectory(
+                            ctx, file_utils::path_to_utf8_string(targetPath));
+                        browserCursor = 0;
+                        browserOffset = 0;
+                    }
+                    else
+                    {
+                        ctx.setStatusMessage("Not a directory: " + args);
                     }
                 }
-                else
-                {
-                    targetPath = std::filesystem::path(args);
-                }
-            }
-            else
-            {
-                // Relative path
-                targetPath = std::filesystem::path(currentDirectory) /
-                             std::filesystem::path(args);
+                return true;
             }
 
-            std::error_code ec;
-            if(std::filesystem::is_directory(targetPath, ec) && !ec)
+            // =================================================================
+            // Help command
+            // =================================================================
+            if(cmd == "help" || cmd == "h")
             {
-                loadDirectory(ctx, file_utils::path_to_utf8_string(targetPath));
-                browserCursor = 0;
-                browserOffset = 0;
+                nextState = HelpMode{args, previousFile};
+                return true;
             }
-            else
+            if(cmd == "?")
             {
-                ctx.setStatusMessage("Not a directory: " + args);
+                ctx.setStatusMessage(
+                    ":q :help <topic> :d[elete] :r[ename] <name> "
+                    ":mkdir <name> :touch <name> :cd "
+                    "<path>");
+                return true;
             }
-        }
-        return std::nullopt;
-    }
 
-    // ========================================================================
-    // Help command
-    // ========================================================================
-    else if(cmd == "help" || cmd == "h")
-    {
-        // If no args, show brief command list in status
-        //       if(args.empty())
-        //       {
-        //           ed->setStatusMessage(
-        //               ":q :help <topic> :d[elete] :r[ename] <name> :mkdir
-        //               <name> :touch <name> :cd "
-        //               "<path>");
-        //           return std::nullopt;
-        //       }
-        // If args provided, open full help mode
-        return HelpMode{args, previousFile};
-    }
-    else if(cmd == "?")
-    {
-        ctx.setStatusMessage(":q :help <topic> :d[elete] :r[ename] <name> "
-                             ":mkdir <name> :touch <name> :cd "
-                             "<path>");
-        return std::nullopt;
-    }
-    // ========================================================================
-    // Unknown command
-    // ========================================================================
-    else
-    {
-        ctx.executeCommand(commandLine);
-
-        if(ctx.currentMode() == LSP_INFO)
+            return false;
+        },
+        [&](ModeContext& ctx, std::string_view line)
         {
-            return LspInfoMode{};
-        }
-
-        Mode mode = NORMAL;
-        std::string path;
-        if(ctx.takeCommandRequest(mode, path))
-        {
-            if(mode == FILE_BROWSER)
-            {
-                return FileBrowserMode{path, previousFile};
-            }
-            if(mode == LSP_INFO)
-            {
-                return LspInfoMode{};
-            }
-            if(mode == HELP)
-            {
-                return HelpMode{path, previousFile};
-            }
-        }
-    }
-
-    return std::nullopt;
+            return dispatchEditorCommand(ctx, line, previousFile, false);
+        });
 }

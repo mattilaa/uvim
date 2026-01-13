@@ -1,7 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-#include "text_utils.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -90,71 +89,28 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 std::optional<ModeState>
 WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
 {
-    while(!commandLine.empty() && text_utils::is_space(commandLine.front()))
-        commandLine.remove_prefix(1);
-    if(commandLine.empty())
-        return std::nullopt;
-
-    if(commandLine == "help" || commandLine.rfind("help ", 0) == 0 ||
-       commandLine == "h" || commandLine.rfind("h ", 0) == 0)
+    std::string previousFile;
+    if(ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
-        std::string topic;
-        if(commandLine == "help" || commandLine == "h")
-        {
-            topic = "";
-        }
-        else if(commandLine.rfind("help ", 0) == 0)
-        {
-            topic = std::string(commandLine.substr(5));
-        }
-        else
-        {
-            topic = std::string(commandLine.substr(2));
-        }
-        return HelpMode{topic};
+        previousFile = std::string(ctx.currentFilename());
     }
 
-    ctx.executeCommand(commandLine);
-
-    if(ctx.currentMode() == LSP_INFO)
-    {
-        return LspInfoMode{};
-    }
-
-    Mode mode = NORMAL;
-    std::string path;
-    if(ctx.takeCommandRequest(mode, path))
-    {
-        if(mode == FILE_BROWSER)
+    return dispatchCommandLine(
+        ctx, commandLine,
+        [&](ModeContext& /* ctx */, const ParsedCommand& command,
+            std::optional<ModeState>& nextState) -> bool
         {
-            std::string prev;
-            if(ctx.hasCurrentBuffer() && ctx.hasFilename())
+            if(command.cmd == "help" || command.cmd == "h")
             {
-                prev = std::string(ctx.currentFilename());
+                nextState = HelpMode{command.args, previousFile};
+                return true;
             }
-            return FileBrowserMode{path, prev};
-        }
-        if(mode == LSP_INFO)
+            return false;
+        },
+        [&](ModeContext& ctx, std::string_view line)
         {
-            return LspInfoMode{};
-        }
-        if(mode == HELP)
-        {
-            std::string prev;
-            if(ctx.hasCurrentBuffer() && ctx.hasFilename())
-            {
-                prev = std::string(ctx.currentFilename());
-            }
-            return HelpMode{path, prev};
-        }
-    }
-
-    if(ctx.hasBuffer())
-    {
-        return NormalMode{};
-    }
-
-    return std::nullopt;
+            return dispatchEditorCommand(ctx, line, previousFile, true);
+        });
 }
 
 void WelcomeMode::draw(Editor& editor) const
