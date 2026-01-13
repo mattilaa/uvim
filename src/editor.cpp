@@ -1488,6 +1488,10 @@ void Editor::openFile(std::string_view fname)
     currentBuffer->lspHashValid = false;
     currentBuffer->lspDiagnosticsSeenValid = false;
     currentBuffer->lspDiagnosticsSeenRevision = 0;
+    currentBuffer->clangIndentWidthValid = false;
+    currentBuffer->clangIndentWidth = -1;
+    currentBuffer->clangBraceStyleValid = false;
+    currentBuffer->clangBraceNewLine = false;
 
     // Record file modification time for external change detection
     std::error_code ec;
@@ -2979,6 +2983,207 @@ int Editor::tabBarRows() const
 int Editor::contentRows() const
 {
     return std::max(1, screenRows - tabBarRows());
+}
+
+static std::optional<int> parseIndentWidthLine(const std::string& line)
+{
+    size_t start = 0;
+    while(start < line.size() && (line[start] == ' ' || line[start] == '\t'))
+        start++;
+    if(start >= line.size() || line[start] == '#')
+        return std::nullopt;
+
+    constexpr std::string_view key = "IndentWidth";
+    if(line.compare(start, key.size(), key) != 0)
+        return std::nullopt;
+    size_t pos = start + key.size();
+    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
+        pos++;
+    if(pos >= line.size() || line[pos] != ':')
+        return std::nullopt;
+    pos++;
+    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
+        pos++;
+    if(pos >= line.size())
+        return std::nullopt;
+
+    size_t end = pos;
+    while(end < line.size() && std::isdigit((unsigned char)line[end]))
+        end++;
+    if(end == pos)
+        return std::nullopt;
+
+    try
+    {
+        int value = std::stoi(line.substr(pos, end - pos));
+        if(value > 0)
+            return value;
+    }
+    catch(...)
+    {
+    }
+    return std::nullopt;
+}
+
+static std::optional<std::string>
+parseScalarValueLine(const std::string& line, std::string_view key)
+{
+    size_t start = 0;
+    while(start < line.size() && (line[start] == ' ' || line[start] == '\t'))
+        start++;
+    if(start >= line.size() || line[start] == '#')
+        return std::nullopt;
+
+    if(line.compare(start, key.size(), key) != 0)
+        return std::nullopt;
+    size_t pos = start + key.size();
+    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
+        pos++;
+    if(pos >= line.size() || line[pos] != ':')
+        return std::nullopt;
+    pos++;
+    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
+        pos++;
+    if(pos >= line.size())
+        return std::nullopt;
+
+    std::string value = line.substr(pos);
+    while(!value.empty() &&
+          (value.back() == ' ' || value.back() == '\t' ||
+           value.back() == '\r' || value.back() == '\n'))
+        value.pop_back();
+    return value;
+}
+
+static bool parseBraceNewLineValue(std::string value)
+{
+    for(char& c : value)
+        c = (char)std::tolower((unsigned char)c);
+    if(value == "allman" || value == "whitesmiths" || value == "gnu")
+        return true;
+    if(value == "attach" || value == "stroustrup" || value == "linux" ||
+       value == "webkit")
+        return false;
+    if(value == "true" || value == "always")
+        return true;
+    if(value == "false" || value == "never")
+        return false;
+    return false;
+}
+
+void Editor::updateClangFormatIndentWidth()
+{
+    if(!currentBuffer)
+        return;
+
+    currentBuffer->clangIndentWidthValid = true;
+    currentBuffer->clangIndentWidth = -1;
+    currentBuffer->clangBraceStyleValid = true;
+    currentBuffer->clangBraceNewLine = false;
+
+    if(!isCppFile() || !filename || filename->empty())
+        return;
+
+    std::filesystem::path path = *filename;
+    if(path.is_relative())
+        path = std::filesystem::absolute(path);
+    if(path.has_parent_path())
+        path = path.parent_path();
+
+    std::error_code ec;
+    while(true)
+    {
+        std::filesystem::path clangFormat = path / ".clang-format";
+        std::filesystem::path altFormat = path / "_clang-format";
+        std::filesystem::path found;
+
+        if(std::filesystem::exists(clangFormat, ec))
+            found = clangFormat;
+        else if(std::filesystem::exists(altFormat, ec))
+            found = altFormat;
+
+        if(!found.empty())
+        {
+            std::ifstream in(found);
+            if(in.is_open())
+            {
+                std::string line;
+                bool inBraceWrapping = false;
+                size_t braceWrappingIndent = 0;
+                while(std::getline(in, line))
+                {
+                    std::optional<int> width =
+                        parseIndentWidthLine(line);
+                    if(width)
+                    {
+                        currentBuffer->clangIndentWidth = *width;
+                    }
+
+                    auto breakValue =
+                        parseScalarValueLine(line, "BreakBeforeBraces");
+                    if(breakValue)
+                    {
+                        currentBuffer->clangBraceNewLine =
+                            parseBraceNewLineValue(*breakValue);
+                        continue;
+                    }
+
+                    auto braceWrapping =
+                        parseScalarValueLine(line, "BraceWrapping");
+                    if(braceWrapping)
+                    {
+                        inBraceWrapping = true;
+                        braceWrappingIndent = line.find_first_not_of(" \t");
+                        if(braceWrappingIndent == std::string::npos)
+                            braceWrappingIndent = 0;
+                        continue;
+                    }
+
+                    if(inBraceWrapping)
+                    {
+                        size_t indent =
+                            line.find_first_not_of(" \t");
+                        if(indent == std::string::npos)
+                            continue;
+                        if(indent <= braceWrappingIndent)
+                        {
+                            inBraceWrapping = false;
+                            continue;
+                        }
+
+                        auto afterControl =
+                            parseScalarValueLine(line,
+                                                 "AfterControlStatement");
+                        if(afterControl)
+                        {
+                            currentBuffer->clangBraceNewLine =
+                                parseBraceNewLineValue(*afterControl);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        if(path == path.root_path())
+            break;
+        path = path.parent_path();
+    }
+}
+
+int Editor::indentWidthForBraces() const
+{
+    if(currentBuffer && currentBuffer->clangIndentWidthValid &&
+       currentBuffer->clangIndentWidth > 0)
+        return currentBuffer->clangIndentWidth;
+    return tabSpaces;
+}
+
+bool Editor::braceNewLineForAutoBraces() const
+{
+    if(currentBuffer && currentBuffer->clangBraceStyleValid)
+        return currentBuffer->clangBraceNewLine;
+    return false;
 }
 
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)

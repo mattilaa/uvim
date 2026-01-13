@@ -43,6 +43,8 @@ void InsertMode::on_enter(ModeContext& ctx)
 
     // Set cursor to bar for insert mode
     Terminal::setCursorBarBlinking();
+
+    ed->updateClangFormatIndentWidth();
 }
 
 void InsertMode::on_exit(ModeContext& ctx)
@@ -431,14 +433,28 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             }
             std::string indentStr = line.substr(0, indent);
             std::string innerIndent =
-                indentStr + std::string(ed->tabSpaces, ' ');
+                indentStr +
+                std::string(ed->indentWidthForBraces(), ' ');
 
-            line = left + "{";
-            lines.insert(lines.begin() + cursorY + 1, innerIndent);
-            lines.insert(lines.begin() + cursorY + 2, indentStr + "}" + right);
-
-            cursorY += 1;
-            cursorX = innerIndent.length();
+            if(ed->braceNewLineForAutoBraces())
+            {
+                line = left;
+                lines.insert(lines.begin() + cursorY + 1, indentStr + "{");
+                lines.insert(lines.begin() + cursorY + 2, innerIndent);
+                lines.insert(lines.begin() + cursorY + 3,
+                             indentStr + "}" + right);
+                cursorY += 2;
+                cursorX = innerIndent.length();
+            }
+            else
+            {
+                line = left + "{";
+                lines.insert(lines.begin() + cursorY + 1, innerIndent);
+                lines.insert(lines.begin() + cursorY + 2,
+                             indentStr + "}" + right);
+                cursorY += 1;
+                cursorX = innerIndent.length();
+            }
             *ed->dirty = true;
             ed->needsFullRedraw = true;
             return std::nullopt;

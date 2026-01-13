@@ -56,6 +56,10 @@ struct Buffer
     size_t lspContentHash = 0;
     bool lspDiagnosticsSeenValid = false;
     size_t lspDiagnosticsSeenRevision = 0;
+    bool clangIndentWidthValid = false;
+    int clangIndentWidth = -1;
+    bool clangBraceStyleValid = false;
+    bool clangBraceNewLine = false;
 
     Buffer()
     {

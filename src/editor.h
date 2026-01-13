@@ -210,6 +210,9 @@ public:
     int diagnosticPopupFixScroll = 0;
 
     void applyDiagnosticFix(int index);
+    void updateClangFormatIndentWidth();
+    int indentWidthForBraces() const;
+    bool braceNewLineForAutoBraces() const;
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;
