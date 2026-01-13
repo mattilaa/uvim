@@ -530,6 +530,7 @@ void Editor::pasteAfter()
         }
     }
 
+    bool hasNewline = (yankBuffer.find('\n') != std::string::npos);
     if(yankBuffer.back() == '\n')
     {
         lines->insert(lines->begin() + *cursorY + 1, "");
@@ -552,6 +553,45 @@ void Editor::pasteAfter()
             }
             insertPos++;
         }
+    }
+    else if(hasNewline)
+    {
+        if(*cursorX < (*lines)[*cursorY].length())
+            (*cursorX)++;
+        std::string& curLine = (*lines)[*cursorY];
+        int insertPos = *cursorX
+            < (int)curLine.length() ? *cursorX : (int)curLine.length();
+
+        std::vector<std::string> parts;
+        parts.reserve(8);
+        size_t start = 0;
+        while(start <= yankBuffer.size())
+        {
+            size_t pos = yankBuffer.find('\n', start);
+            if(pos == std::string::npos)
+            {
+                parts.push_back(yankBuffer.substr(start));
+                break;
+            }
+            parts.push_back(yankBuffer.substr(start, pos - start));
+            start = pos + 1;
+        }
+
+        std::string suffix = curLine.substr(insertPos);
+        curLine.erase(insertPos);
+        curLine += parts[0];
+
+        int insertRow = *cursorY + 1;
+        for(size_t i = 1; i < parts.size(); ++i)
+        {
+            lines->insert(lines->begin() + insertRow, parts[i]);
+            insertRow++;
+        }
+
+        int lastRow = *cursorY + (int)parts.size() - 1;
+        (*lines)[lastRow] += suffix;
+        *cursorY = lastRow;
+        *cursorX = (int)(*lines)[lastRow].length() - (int)suffix.length();
     }
     else
     {
@@ -589,6 +629,7 @@ void Editor::pasteBefore()
         }
     }
 
+    bool hasNewline = (yankBuffer.find('\n') != std::string::npos);
     if(yankBuffer.back() == '\n')
     {
         std::istringstream ss(yankBuffer);
@@ -601,6 +642,43 @@ void Editor::pasteBefore()
             insertPos++;
         }
         *cursorX = 0;
+    }
+    else if(hasNewline)
+    {
+        std::string& curLine = (*lines)[*cursorY];
+        int insertPos = *cursorX
+            < (int)curLine.length() ? *cursorX : (int)curLine.length();
+
+        std::vector<std::string> parts;
+        parts.reserve(8);
+        size_t start = 0;
+        while(start <= yankBuffer.size())
+        {
+            size_t pos = yankBuffer.find('\n', start);
+            if(pos == std::string::npos)
+            {
+                parts.push_back(yankBuffer.substr(start));
+                break;
+            }
+            parts.push_back(yankBuffer.substr(start, pos - start));
+            start = pos + 1;
+        }
+
+        std::string suffix = curLine.substr(insertPos);
+        curLine.erase(insertPos);
+        curLine += parts[0];
+
+        int insertRow = *cursorY + 1;
+        for(size_t i = 1; i < parts.size(); ++i)
+        {
+            lines->insert(lines->begin() + insertRow, parts[i]);
+            insertRow++;
+        }
+
+        int lastRow = *cursorY + (int)parts.size() - 1;
+        (*lines)[lastRow] += suffix;
+        *cursorY = lastRow;
+        *cursorX = (int)(*lines)[lastRow].length() - (int)suffix.length();
     }
     else
     {

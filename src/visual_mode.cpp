@@ -20,9 +20,9 @@ void VisualMode::on_enter(ModeContext& ctx)
     ed->needsFullRedraw = true;
 }
 
-void VisualMode::on_exit(ModeContext& /* ctx */)
+void VisualMode::on_exit(ModeContext& ctx)
 {
-    // Nothing specific to do on exit
+    ctx.editor->needsFullRedraw = true;
 }
 
 std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
@@ -362,9 +362,9 @@ void VisualLineMode::on_enter(ModeContext& ctx)
     ed->needsFullRedraw = true;
 }
 
-void VisualLineMode::on_exit(ModeContext& /* ctx */)
+void VisualLineMode::on_exit(ModeContext& ctx)
 {
-    // Nothing specific to do on exit
+    ctx.editor->needsFullRedraw = true;
 }
 
 std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
@@ -601,9 +601,9 @@ void VisualBlockMode::on_enter(ModeContext& ctx)
     ed->needsFullRedraw = true;
 }
 
-void VisualBlockMode::on_exit(ModeContext& /* ctx */)
+void VisualBlockMode::on_exit(ModeContext& ctx)
 {
-    // Nothing specific to do on exit
+    ctx.editor->needsFullRedraw = true;
 }
 
 std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,

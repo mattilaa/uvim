@@ -885,8 +885,8 @@ void Editor::drawCompletionPopup(std::string& output) const
 
     // Determine cursor position on screen
     // Use the editor's viewport offsets.
-    int cy = (*cursorY - *offsetY) + 1;
-    int cx = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
+    int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
+    int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
     if(cy < 1)
         cy = 1;
     if(cy > screenRows)
@@ -920,7 +920,7 @@ void Editor::drawCompletionPopup(std::string& output) const
     int totalH = maxRows + 2;
     int top = cy + 1;
     if(top + totalH - 1 > screenRows)
-        top = cy - totalH;
+        top = cy - totalH + 1;
     if(top < 1)
         top = 1;
 
@@ -1217,8 +1217,8 @@ void Editor::drawDiagnosticPopup(std::string& output) const
     }
 
     int totalH = (int)rows.size() + 2;
-    int cy = (*cursorY - *offsetY) + 1;
-    int cx = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
+    int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
+    int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
     if(cy < 1)
         cy = 1;
     if(cy > screenRows)

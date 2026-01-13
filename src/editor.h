@@ -165,6 +165,8 @@ public:
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
     static constexpr int kDiagnosticGutterWidth = 1;
+    int lineNumberWidth() const;
+    int gutterWidth() const;
 
     struct LspDiagnosticSummary
     {
@@ -240,6 +242,7 @@ public:
     bool autoBraces = true;
     bool autoCompletion = true;
     bool useSystemClipboard = true;
+    bool showRelativeLineNumbers = true;
     int tabSpaces = 4;
     bool showTabs = true;
     int tabBarOffset = 0;

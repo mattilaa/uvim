@@ -1004,8 +1004,7 @@ void Editor::adjustViewport()
     // Screen rows/cols are the drawable area (status+msg bars already
     // subtracted).
     const int rows = std::max(1, contentRows());
-    const int cols =
-        std::max(1, screenCols - Editor::kDiagnosticGutterWidth);
+    const int cols = std::max(1, screenCols - gutterWidth());
 
     const int maxOffsetY = std::max(0, n - rows);
 

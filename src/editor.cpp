@@ -672,6 +672,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     showTabs = false;
             }
+            auto itrn = values.find("editor.relativenumber");
+            if(itrn == values.end())
+                itrn = values.find("settings.relativenumber");
+            if(itrn == values.end())
+                itrn = values.find("relativenumber");
+            if(itrn != values.end())
+            {
+                std::string v = itrn->second;
+                if(v == "true" || v == "1" || v == "on")
+                    showRelativeLineNumbers = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    showRelativeLineNumbers = false;
+            }
             auto itj = values.find("editor.syntax.json");
             if(itj == values.end())
                 itj = values.find("syntax.json");
@@ -2886,6 +2899,7 @@ void Editor::refreshScreen()
     static Mode lastMode = NORMAL;
     static int lastVisualStartY = -1;
     static int lastVisualEndY = -1;
+    static int lastCursorY = -1;
 
     int prevOffsetY = lastOffsetY;
     adjustViewport();
@@ -2893,6 +2907,7 @@ void Editor::refreshScreen()
     bool scrolled = (*offsetY != lastOffsetY || *offsetX != lastOffsetX);
     bool modeChanged = (currentMode != lastMode);
     int scrollDelta = *offsetY - lastOffsetY;
+    bool cursorMoved = (*cursorY != lastCursorY);
 
     bool visualChanged = false;
     if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
@@ -2918,7 +2933,8 @@ void Editor::refreshScreen()
        abs(scrollDelta) > screenRows / 2 || visualChanged ||
        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
         currentMode == VISUAL_BLOCK) ||
-       isEditingMode)
+       isEditingMode ||
+       (showRelativeLineNumbers && cursorMoved))
     {
         drawFullScreen();
     }
@@ -2940,6 +2956,7 @@ void Editor::refreshScreen()
     lastOffsetY = *offsetY;
     lastOffsetX = *offsetX;
     lastMode = currentMode;
+    lastCursorY = *cursorY;
     needsFullRedraw = false;
 }
 void Editor::updateCursorPosition()
@@ -2955,7 +2972,7 @@ void Editor::updateCursorPosition()
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1 + tabBarRows();
-        cursorCol = (*cursorX - *offsetX) + 1 + kDiagnosticGutterWidth;
+        cursorCol = (*cursorX - *offsetX) + 1 + gutterWidth();
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
@@ -2983,6 +3000,23 @@ int Editor::tabBarRows() const
 int Editor::contentRows() const
 {
     return std::max(1, screenRows - tabBarRows());
+}
+
+int Editor::lineNumberWidth() const
+{
+    if(!showRelativeLineNumbers || !lines)
+        return 0;
+    int maxLine = std::max(1, (int)lines->size());
+    return (int)std::to_string(maxLine).length();
+}
+
+int Editor::gutterWidth() const
+{
+    int width = kDiagnosticGutterWidth;
+    int numbers = lineNumberWidth();
+    if(numbers > 0)
+        width += numbers + 1; // add space after line number
+    return width;
 }
 
 static std::optional<int> parseIndentWidthLine(const std::string& line)
@@ -4294,6 +4328,7 @@ void Editor::syncModeFromStateMachine()
         return;
     }
 
+    Mode prevMode = currentMode;
     const ModeState& state = modeStateMachine->state();
     if(std::holds_alternative<WelcomeMode>(state))
     {
@@ -4367,6 +4402,9 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = HELP;
     }
+
+    if(currentMode != prevMode)
+        needsFullRedraw = true;
 }
 
 void Editor::handleKeypress(int c)
