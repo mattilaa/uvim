@@ -22,6 +22,19 @@
 
 using nlohmann::json;
 
+#ifdef UVIM_DEBUG_LSP
+static void logLspDebug(const std::string& tag, const json& payload)
+{
+    static std::mutex logMutex;
+    std::lock_guard<std::mutex> lk(logMutex);
+    std::ofstream out("/tmp/uvim_lsp_codeactions.log", std::ios::app);
+    if(!out.is_open())
+        return;
+    out << "=== " << tag << " ===\n";
+    out << payload.dump(2) << "\n";
+}
+#endif
+
 static std::string readFileAll(const std::string& path)
 {
     std::ifstream f(path, std::ios::binary);
@@ -1077,6 +1090,87 @@ static void parseWorkspaceEditInto(
     }
 }
 
+static void fillCodeActionFromJson(const json& item,
+                                   const std::string& filePath,
+                                   LspClient::CodeAction& action)
+{
+    if(!item.is_object())
+        return;
+    if(action.title.empty())
+        action.title = item.value("title", std::string{});
+
+    if(item.contains("edit"))
+    {
+        parseWorkspaceEditInto(item.value("edit", json::object()), filePath,
+                               action.edits);
+    }
+
+    if(item.contains("command") && item["command"].is_string())
+    {
+        if(action.command.empty())
+            action.command = item.value("command", std::string{});
+        json args = item.value("arguments", json::array());
+        if(args.is_array())
+        {
+            for(const auto& arg : args)
+            {
+                try
+                {
+                    action.commandArgsJson.push_back(arg.dump());
+                }
+                catch(...)
+                {
+                }
+                if(!arg.is_object())
+                    continue;
+                if(arg.contains("workspaceEdit"))
+                {
+                    parseWorkspaceEditInto(
+                        arg.value("workspaceEdit", json::object()),
+                        filePath, action.edits);
+                }
+                else
+                {
+                    parseWorkspaceEditInto(arg, filePath, action.edits);
+                }
+            }
+        }
+    }
+
+    if(item.contains("command") && item["command"].is_object())
+    {
+        json cmd = item["command"];
+        if(action.command.empty())
+            action.command = cmd.value("command", std::string{});
+        json args = cmd.value("arguments", json::array());
+        if(args.is_array())
+        {
+            for(const auto& arg : args)
+            {
+                try
+                {
+                    action.commandArgsJson.push_back(arg.dump());
+                }
+                catch(...)
+                {
+                }
+                if(!arg.is_object())
+                    continue;
+                if(arg.contains("workspaceEdit"))
+                {
+                    parseWorkspaceEditInto(
+                        arg.value("workspaceEdit", json::object()),
+                        filePath, action.edits);
+                }
+                else
+                {
+                    parseWorkspaceEditInto(arg, filePath, action.edits);
+                }
+            }
+        }
+    }
+}
+
 std::vector<LspClient::CodeAction>
 LspClient::codeActions(const std::string& filePath, int line,
                        std::string_view lineText,
@@ -1137,6 +1231,15 @@ LspClient::codeActions(const std::string& filePath, int line,
 
     int id = impl->sendRequest("textDocument/codeAction", params);
     auto resp = impl->waitResponse(id, 5000);
+#ifdef UVIM_DEBUG_LSP
+    if(resp && resp->is_object())
+    {
+        json logPayload = json::object();
+        logPayload["request"] = params;
+        logPayload["response"] = *resp;
+        logLspDebug("codeAction", logPayload);
+    }
+#endif
     if(!resp || !resp->is_object())
         return out;
     if(resp->contains("error"))
@@ -1152,44 +1255,27 @@ LspClient::codeActions(const std::string& filePath, int line,
             continue;
 
         CodeAction action;
-        action.title = item.value("title", std::string{});
+        fillCodeActionFromJson(item, filePath, action);
 
-        json editObj = item.value("edit", json::object());
-        if(editObj.is_object())
+        if(action.edits.empty() && action.command.empty() &&
+           item.contains("data"))
         {
-            parseWorkspaceEditInto(editObj, filePath, action.edits);
-        }
-
-        if(action.edits.empty() && item.contains("command") &&
-           item["command"].is_object())
-        {
-            json cmd = item["command"];
-            action.command = cmd.value("command", std::string{});
-            json args = cmd.value("arguments", json::array());
-            if(args.is_array())
+            int rid = impl->sendRequest("codeAction/resolve", item);
+            auto resolved = impl->waitResponse(rid, 5000);
+#ifdef UVIM_DEBUG_LSP
+            if(resolved && resolved->is_object())
             {
-                for(const auto& arg : args)
-                {
-                    try
-                    {
-                        action.commandArgsJson.push_back(arg.dump());
-                    }
-                    catch(...)
-                    {
-                    }
-                    if(!arg.is_object())
-                        continue;
-                    if(arg.contains("workspaceEdit"))
-                    {
-                        parseWorkspaceEditInto(
-                            arg.value("workspaceEdit", json::object()),
-                            filePath, action.edits);
-                    }
-                    else
-                    {
-                        parseWorkspaceEditInto(arg, filePath, action.edits);
-                    }
-                }
+                json logPayload = json::object();
+                logPayload["request"] = item;
+                logPayload["response"] = *resolved;
+                logLspDebug("codeActionResolve", logPayload);
+            }
+#endif
+            if(resolved && resolved->is_object() &&
+               !resolved->contains("error"))
+            {
+                json resolvedAction = resolved->value("result", json::object());
+                fillCodeActionFromJson(resolvedAction, filePath, action);
             }
         }
 

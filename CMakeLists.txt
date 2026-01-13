@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
+option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
 
@@ -192,6 +193,11 @@ endif()
 # Debug logging
 if(UVIM_DEBUG_LOGGING)
     target_compile_definitions(uvim PRIVATE UVIM_DEBUG_LOGGING=1)
+endif()
+
+# LSP debug logging
+if(UVIM_DEBUG_LSP)
+    target_compile_definitions(uvim PRIVATE UVIM_DEBUG_LSP=1)
 endif()
 
 # ============================================================================
