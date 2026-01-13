@@ -853,6 +853,26 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 {
     Editor* ed = ctx.editor;
+    auto openFileBrowser = [&]() -> std::optional<ModeState>
+    {
+        std::string dir = ".";
+        if(!ed->filename->empty())
+        {
+            size_t lastSlash = ed->filename->find_last_of("/");
+            if(lastSlash != std::string::npos)
+            {
+                dir = ed->filename->substr(0, lastSlash);
+                if(dir.empty())
+                    dir = "/";
+            }
+        }
+        std::string prev;
+        if(ed->currentBuffer != nullptr && ed->filename)
+        {
+            prev = *ed->filename;
+        }
+        return FileBrowserMode{dir, prev};
+    };
 
     switch(c)
     {
@@ -939,30 +959,16 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     }
 
     case 'x':
-    {
-        std::string dir = ".";
-        if(!ed->filename->empty())
-        {
-            size_t lastSlash = ed->filename->find_last_of("/");
-            if(lastSlash != std::string::npos)
-            {
-                dir = ed->filename->substr(0, lastSlash);
-                if(dir.empty())
-                    dir = "/";
-            }
-        }
-        std::string prev;
-        if(ed->currentBuffer != nullptr && ed->filename)
-        {
-            prev = *ed->filename;
-        }
-        return FileBrowserMode{dir, prev};
-    }
+        return openFileBrowser();
 
     case 'e':
         // Diagnostics popup for current line
-        ed->openDiagnosticPopupForCursor();
-        return std::nullopt;
+        if(ed->getClangdDiagnosticForLine(*ed->cursorY))
+        {
+            ed->openDiagnosticPopupForCursor();
+            return std::nullopt;
+        }
+        return openFileBrowser();
 
     case 'h':
         // Jump to alternate file (header/source)
