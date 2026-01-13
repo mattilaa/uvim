@@ -32,7 +32,26 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == Terminal::ENTER)
     {
-        return NormalMode{};
+        ctx.commandBuffer.clear();
+        return std::nullopt;
+    }
+
+    if(ctx.commandBuffer == " ")
+    {
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        if(c == 'x')
+        {
+            return FileBrowserMode{"."};
+        }
+        return std::nullopt;
+    }
+
+    if(c == ' ')
+    {
+        ctx.commandBuffer = " ";
+        ctx.setStatusMessage("Leader");
+        return std::nullopt;
     }
 
     if(c == 'i' || c == 'I')
