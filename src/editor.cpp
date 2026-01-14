@@ -12,6 +12,8 @@
 #include <charconv>
 #include <chrono>
 #include <csignal>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
@@ -684,6 +686,63 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                     showRelativeLineNumbers = true;
                 else if(v == "false" || v == "0" || v == "off")
                     showRelativeLineNumbers = false;
+            }
+            auto itgc = values.find("editor.gitdefaultcolors");
+            if(itgc == values.end())
+                itgc = values.find("settings.gitdefaultcolors");
+            if(itgc == values.end())
+                itgc = values.find("gitdefaultcolors");
+            if(itgc != values.end())
+            {
+                std::string v = itgc->second;
+                if(v == "true" || v == "1" || v == "on")
+                    gitUseDefaultColors = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    gitUseDefaultColors = false;
+            }
+            auto itctp = values.find("editor.commenttogglepartial");
+            if(itctp == values.end())
+                itctp = values.find("settings.commenttogglepartial");
+            if(itctp == values.end())
+                itctp = values.find("commenttogglepartial");
+            if(itctp != values.end())
+            {
+                std::string v = itctp->second;
+                if(v == "true" || v == "1" || v == "on")
+                    commentTogglePartial = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    commentTogglePartial = false;
+            }
+            auto itfol = values.find("editor.formatoninsertleave");
+            if(itfol == values.end())
+                itfol = values.find("settings.formatoninsertleave");
+            if(itfol == values.end())
+                itfol = values.find("formatoninsertleave");
+            if(itfol != values.end())
+            {
+                std::string v = itfol->second;
+                if(v == "true" || v == "1" || v == "on")
+                    formatOnInsertLeave = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    formatOnInsertLeave = false;
+            }
+            auto itfmt = values.find("editor.formatondoubleesctimeoutms");
+            if(itfmt == values.end())
+                itfmt = values.find("settings.formatondoubleesctimeoutms");
+            if(itfmt == values.end())
+                itfmt = values.find("formatondoubleesctimeoutms");
+            if(itfmt != values.end())
+            {
+                std::string v = itfmt->second;
+                try
+                {
+                    int ms = std::stoi(v);
+                    if(ms > 0 && ms <= 5000)
+                        formatOnDoubleEscTimeoutMs = ms;
+                }
+                catch(...)
+                {
+                }
             }
             auto itj = values.find("editor.syntax.json");
             if(itj == values.end())
@@ -1385,6 +1444,12 @@ void Editor::setMode(Mode mode)
     case HELP:
         modeStateMachine->transitionTo(HelpMode{});
         break;
+    case GIT_SHOW:
+        modeStateMachine->transitionTo(GitShowCommitMode{});
+        break;
+    case GIT_LOG:
+        modeStateMachine->transitionTo(GitLogMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -1430,6 +1495,10 @@ std::string Editor::getModeString() const
         return "OP_PENDING";
     case HELP:
         return "HELP";
+    case GIT_SHOW:
+        return "GITSHOW";
+    case GIT_LOG:
+        return "GITLOG";
     }
     return "";
 }
@@ -2874,8 +2943,34 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == GIT_SHOW)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GitShowCommitMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
+    if(currentMode == GIT_LOG)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GitLogMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(currentMode != INSERT)
+    if(currentMode != INSERT && !showGitBlame)
     {
         if(currentBuffer && isClangdLspEnabled() && isCppFile() && lspClient &&
            !currentBuffer->filename.empty())
@@ -2908,6 +3003,9 @@ void Editor::refreshScreen()
     bool modeChanged = (currentMode != lastMode);
     int scrollDelta = *offsetY - lastOffsetY;
     bool cursorMoved = (*cursorY != lastCursorY);
+
+    if(showGitBlame && currentBuffer && !currentBuffer->blameValid)
+        updateGitBlameForVisibleRange();
 
     bool visualChanged = false;
     if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
@@ -3012,11 +3110,536 @@ int Editor::lineNumberWidth() const
 
 int Editor::gutterWidth() const
 {
-    int width = kDiagnosticGutterWidth;
+    int width = showGitBlame ? kGitBlameWidth : kDiagnosticGutterWidth;
     int numbers = lineNumberWidth();
     if(numbers > 0)
         width += numbers + 1; // add space after line number
     return width;
+}
+
+static bool is_hex_token(const std::string& token)
+{
+    if(token.empty())
+        return false;
+    for(char c : token)
+    {
+        if(!std::isxdigit(static_cast<unsigned char>(c)))
+            return false;
+    }
+    return true;
+}
+
+static std::string trim_newline(std::string s)
+{
+    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
+        s.pop_back();
+    return s;
+}
+
+static bool is_inside_git_repo(const std::string& filePath)
+{
+    fs::path path(filePath);
+    std::string dir = path.has_parent_path() ? path.parent_path().string()
+                                             : std::string(".");
+    std::string cmd =
+        "git -C \"" + dir + "\" rev-parse --is-inside-work-tree 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return false;
+    char buffer[128];
+    std::string out;
+    if(fgets(buffer, sizeof(buffer), pipe))
+        out = trim_newline(buffer);
+    pclose(pipe);
+    return out == "true";
+}
+
+static std::string format_git_date(const std::string& secondsText)
+{
+    if(secondsText.empty())
+        return "";
+    long long seconds = 0;
+    auto begin = secondsText.data();
+    auto end = secondsText.data() + secondsText.size();
+    auto result = std::from_chars(begin, end, seconds);
+    if(result.ec != std::errc())
+        return "";
+    std::time_t t = static_cast<std::time_t>(seconds);
+    std::tm tm{};
+    if(!localtime_r(&t, &tm))
+        return "";
+    char buf[16];
+    if(std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm) == 0)
+        return "";
+    return std::string(buf);
+}
+
+static std::string blame_hash_for_line(const std::string& filePath, int line)
+{
+    fs::path path(filePath);
+    std::string dir = path.has_parent_path() ? path.parent_path().string()
+                                             : std::string(".");
+    std::string cmd = "git -C \"" + dir +
+                      "\" blame --line-porcelain -L " +
+                      std::to_string(line + 1) + "," +
+                      std::to_string(line + 1) + " -- \"" + filePath +
+                      "\" 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return "";
+    char buffer[256];
+    std::string firstLine;
+    if(fgets(buffer, sizeof(buffer), pipe))
+        firstLine = trim_newline(buffer);
+    pclose(pipe);
+    if(firstLine.empty())
+        return "";
+    size_t space = firstLine.find(' ');
+    std::string token =
+        (space == std::string::npos) ? firstLine : firstLine.substr(0, space);
+    if(!is_hex_token(token))
+        return "";
+    return token;
+}
+
+void Editor::toggleGitBlame()
+{
+    showGitBlame = !showGitBlame;
+    if(showGitBlame)
+    {
+        if(!gitAvailableKnown)
+        {
+            gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
+            gitAvailableKnown = true;
+        }
+        if(!gitAvailable)
+        {
+            showGitBlame = false;
+            setStatusMessage("git not installed");
+            return;
+        }
+        if(!currentBuffer || currentBuffer->filename.empty())
+        {
+            showGitBlame = false;
+            setStatusMessage("git blame: no file");
+            return;
+        }
+        if(!is_inside_git_repo(currentBuffer->filename))
+        {
+            showGitBlame = false;
+            setStatusMessage("git blame: not a repo");
+            return;
+        }
+        if(diagnosticPopupActive)
+            closeDiagnosticPopup();
+        if(currentBuffer)
+            currentBuffer->blameValid = false;
+        updateGitBlameForVisibleRange();
+        setStatusMessage("git blame on");
+    }
+    else
+    {
+        setStatusMessage("git blame off");
+    }
+    needsFullRedraw = true;
+}
+
+void Editor::updateGitBlameForVisibleRange()
+{
+    if(!showGitBlame || !currentBuffer || currentBuffer->filename.empty())
+        return;
+
+    fs::path path(currentBuffer->filename);
+    std::string dir = path.has_parent_path() ? path.parent_path().string()
+                                             : std::string(".");
+    std::string blameTarget = currentBuffer->filename;
+    std::string tempPath;
+    if(dirty && *dirty)
+    {
+        tempPath = "/tmp/uvim_blame_" + std::to_string(getpid()) + ".tmp";
+        std::ofstream tempFile(tempPath);
+        if(tempFile.is_open())
+        {
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                tempFile << (*lines)[i] << '\n';
+            }
+            tempFile.close();
+        }
+    }
+
+    std::string cmd = "git -C \"" + dir + "\" blame --line-porcelain ";
+    if(!tempPath.empty())
+        cmd += "--contents \"" + tempPath + "\" ";
+    cmd += "-- \"" + blameTarget + "\" 2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        setStatusMessage("git blame: failed to run");
+        if(!tempPath.empty())
+            unlink(tempPath.c_str());
+        return;
+    }
+
+    std::vector<Buffer::BlameEntry> entries;
+    entries.reserve(lines->size());
+    std::string hash;
+    std::string author;
+    std::string authorTime;
+    char buffer[512];
+    while(fgets(buffer, sizeof(buffer), pipe))
+    {
+        std::string line = trim_newline(buffer);
+        if(line.empty())
+            continue;
+        if(line[0] == '\t')
+        {
+            Buffer::BlameEntry entry;
+            entry.hash = hash;
+            entry.author = author;
+            entry.date = format_git_date(authorTime);
+            entry.valid = !hash.empty();
+            entries.push_back(std::move(entry));
+            hash.clear();
+            author.clear();
+            authorTime.clear();
+            continue;
+        }
+        if(line.rfind("author ", 0) == 0)
+        {
+            author = line.substr(7);
+            continue;
+        }
+        if(line.rfind("author-time ", 0) == 0)
+        {
+            authorTime = line.substr(12);
+            continue;
+        }
+        size_t space = line.find(' ');
+        if(space != std::string::npos)
+        {
+            std::string token = line.substr(0, space);
+            if(is_hex_token(token))
+                hash = token;
+        }
+    }
+    pclose(pipe);
+    if(!tempPath.empty())
+        unlink(tempPath.c_str());
+
+    if((int)entries.size() != (int)lines->size())
+    {
+        setStatusMessage("git blame: failed");
+        currentBuffer->blameValid = false;
+        return;
+    }
+
+    currentBuffer->blameEntries = std::move(entries);
+    currentBuffer->blameStart = 0;
+    currentBuffer->blameEnd = (int)currentBuffer->blameEntries.size() - 1;
+    currentBuffer->blameValid = true;
+}
+
+std::string Editor::blameDisplayForLine(int row) const
+{
+    if(!showGitBlame || !currentBuffer)
+        return "";
+    if(row < 0 || row >= (int)currentBuffer->blameEntries.size())
+        return "";
+    const auto& entry = currentBuffer->blameEntries[row];
+    if(!entry.valid)
+        return "";
+
+    auto isUncommitted = [&](const Buffer::BlameEntry& e) -> bool
+    {
+        if(e.hash.empty())
+            return false;
+        for(char c : e.hash)
+        {
+            if(c != '0')
+                return false;
+        }
+        return true;
+    };
+
+    std::string hash = entry.hash;
+    if(hash.size() > 7)
+        hash = hash.substr(0, 7);
+    std::string out = isUncommitted(entry) ? "not committed" : hash;
+    if(!entry.author.empty())
+        out += " " + entry.author;
+    if(!entry.date.empty())
+        out += " " + entry.date;
+    if((int)out.size() > kGitBlameWidth)
+        out.resize(kGitBlameWidth);
+    return out;
+}
+
+std::string Editor::blameFullForLine(int row) const
+{
+    if(!showGitBlame || !currentBuffer)
+        return "";
+    if(row < 0 || row >= (int)currentBuffer->blameEntries.size())
+        return "";
+    const auto& entry = currentBuffer->blameEntries[row];
+    if(!entry.valid)
+        return "";
+
+    auto isUncommitted = [&](const Buffer::BlameEntry& e) -> bool
+    {
+        if(e.hash.empty())
+            return false;
+        for(char c : e.hash)
+        {
+            if(c != '0')
+                return false;
+        }
+        return true;
+    };
+
+    std::string out = isUncommitted(entry) ? "not committed" : entry.hash;
+    if(!entry.author.empty())
+        out += " " + entry.author;
+    if(!entry.date.empty())
+        out += " " + entry.date;
+    return out;
+}
+
+void Editor::openGitShowCommitMode()
+{
+    if(!gitAvailableKnown)
+    {
+        gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
+        gitAvailableKnown = true;
+    }
+    if(!gitAvailable)
+    {
+        setStatusMessage("git not installed");
+        return;
+    }
+    if(!currentBuffer || currentBuffer->filename.empty())
+    {
+        setStatusMessage("git show: no file");
+        return;
+    }
+    if(!is_inside_git_repo(currentBuffer->filename))
+    {
+        setStatusMessage("git show: not a repo");
+        return;
+    }
+
+    std::string hash;
+    int row = *cursorY;
+    if(currentBuffer->blameValid && row >= currentBuffer->blameStart &&
+       row <= currentBuffer->blameEnd &&
+       row < (int)currentBuffer->blameEntries.size())
+    {
+        const auto& entry = currentBuffer->blameEntries[row];
+        if(entry.valid)
+            hash = entry.hash;
+    }
+    if(hash.empty())
+        hash = blame_hash_for_line(currentBuffer->filename, row);
+    if(hash.empty())
+    {
+        setStatusMessage("git show: no blame hash");
+        return;
+    }
+
+    std::vector<std::string> linesOut = loadGitShowLines(hash);
+    if(linesOut.empty())
+    {
+        setStatusMessage("git show: no output");
+        return;
+    }
+
+    if(modeStateMachine)
+    {
+        modeStateMachine->transitionTo(
+            GitShowCommitMode{hash, std::move(linesOut)});
+        syncModeFromStateMachine();
+        needsFullRedraw = true;
+    }
+}
+
+std::vector<std::string> Editor::loadGitShowLines(const std::string& hash)
+{
+    if(!currentBuffer || currentBuffer->filename.empty())
+        return {};
+    fs::path path(currentBuffer->filename);
+    std::string dir = path.has_parent_path() ? path.parent_path().string()
+                                             : std::string(".");
+    std::string cmd = "git -C \"" + dir + "\" --no-pager show " +
+                      std::string(gitUseDefaultColors ? "--color=always "
+                                                      : "--no-color ") +
+                      hash + " 2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return {};
+
+    std::string output;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe))
+        output += buffer;
+    pclose(pipe);
+
+    if(output.empty())
+        return {};
+
+    std::vector<std::string> linesOut;
+    size_t pos = 0;
+    while(pos <= output.size())
+    {
+        size_t next = output.find('\n', pos);
+        if(next == std::string::npos)
+        {
+            linesOut.push_back(output.substr(pos));
+            break;
+        }
+        linesOut.push_back(output.substr(pos, next - pos));
+        pos = next + 1;
+    }
+
+    return linesOut;
+}
+
+void Editor::openGitLogMode()
+{
+    if(!gitAvailableKnown)
+    {
+        gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
+        gitAvailableKnown = true;
+    }
+    if(!gitAvailable)
+    {
+        setStatusMessage("git not installed");
+        return;
+    }
+    if(!currentBuffer || currentBuffer->filename.empty())
+    {
+        setStatusMessage("git log: no file");
+        return;
+    }
+    if(!is_inside_git_repo(currentBuffer->filename))
+    {
+        setStatusMessage("git log: not a repo");
+        return;
+    }
+
+    fs::path path(currentBuffer->filename);
+    std::string dir = path.has_parent_path() ? path.parent_path().string()
+                                             : std::string(".");
+    std::string cmd =
+        "git -C \"" + dir +
+        "\" --no-pager log --no-color --pretty=format:%h\\\t%s 2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        setStatusMessage("git log: failed to run");
+        return;
+    }
+
+    std::vector<GitLogMode::Entry> entries;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe))
+    {
+        std::string line = trim_newline(buffer);
+        if(line.empty())
+            continue;
+        size_t tab = line.find('\t');
+        if(tab == std::string::npos)
+            continue;
+        GitLogMode::Entry entry;
+        entry.hash = line.substr(0, tab);
+        entry.subject = line.substr(tab + 1);
+        entries.push_back(std::move(entry));
+    }
+    pclose(pipe);
+
+    if(entries.empty())
+    {
+        setStatusMessage("git log: no output");
+        return;
+    }
+
+    if(modeStateMachine)
+    {
+        modeStateMachine->transitionTo(GitLogMode{std::move(entries), false});
+        syncModeFromStateMachine();
+        needsFullRedraw = true;
+    }
+}
+
+void Editor::openGitLogModeForFile()
+{
+    if(!gitAvailableKnown)
+    {
+        gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
+        gitAvailableKnown = true;
+    }
+    if(!gitAvailable)
+    {
+        setStatusMessage("git not installed");
+        return;
+    }
+    if(!currentBuffer || currentBuffer->filename.empty())
+    {
+        setStatusMessage("git log: no file");
+        return;
+    }
+    if(!is_inside_git_repo(currentBuffer->filename))
+    {
+        setStatusMessage("git log: not a repo");
+        return;
+    }
+
+    fs::path path(currentBuffer->filename);
+    std::string dir = path.has_parent_path() ? path.parent_path().string()
+                                             : std::string(".");
+    std::string cmd =
+        "git -C \"" + dir +
+        "\" --no-pager log --no-color --pretty=format:%h\\\t%s -- \"" +
+        currentBuffer->filename + "\" 2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        setStatusMessage("git log: failed to run");
+        return;
+    }
+
+    std::vector<GitLogMode::Entry> entries;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe))
+    {
+        std::string line = trim_newline(buffer);
+        if(line.empty())
+            continue;
+        size_t tab = line.find('\t');
+        if(tab == std::string::npos)
+            continue;
+        GitLogMode::Entry entry;
+        entry.hash = line.substr(0, tab);
+        entry.subject = line.substr(tab + 1);
+        entries.push_back(std::move(entry));
+    }
+    pclose(pipe);
+
+    if(entries.empty())
+    {
+        setStatusMessage("git log: no output");
+        return;
+    }
+
+    if(modeStateMachine)
+    {
+        modeStateMachine->transitionTo(GitLogMode{std::move(entries), true});
+        syncModeFromStateMachine();
+        needsFullRedraw = true;
+    }
 }
 
 static std::optional<int> parseIndentWidthLine(const std::string& line)
@@ -3220,6 +3843,70 @@ bool Editor::braceNewLineForAutoBraces() const
     return false;
 }
 
+void Editor::commentLines(int startY, int endY)
+{
+    if(!currentBuffer || !lines)
+        return;
+    if(!isCppFile() && !isPythonFile())
+    {
+        setStatusMessage("comment: unsupported filetype");
+        return;
+    }
+
+    std::string prefix = isPythonFile() ? "#" : "//";
+    if(startY > endY)
+        std::swap(startY, endY);
+
+    bool allCommented = true;
+    bool anyCommented = false;
+    for(int y = startY; y <= endY && y < (int)lines->size(); ++y)
+    {
+        const std::string& line = (*lines)[y];
+        size_t pos = line.find_first_not_of(" \t");
+        if(pos == std::string::npos)
+            continue;
+        if(line.compare(pos, prefix.size(), prefix) == 0)
+        {
+            anyCommented = true;
+        }
+        else
+        {
+            allCommented = false;
+        }
+    }
+
+    if(commentTogglePartial && anyCommented)
+        allCommented = true;
+
+    for(int y = startY; y <= endY && y < (int)lines->size(); ++y)
+    {
+        std::string& line = (*lines)[y];
+        size_t pos = line.find_first_not_of(" \t");
+        if(pos == std::string::npos)
+            continue;
+
+        if(allCommented)
+        {
+            if(line.compare(pos, prefix.size(), prefix) != 0)
+                continue;
+            size_t eraseLen = prefix.size();
+            if(pos + eraseLen < line.size() && line[pos + eraseLen] == ' ')
+                eraseLen++;
+            line.erase(pos, eraseLen);
+            continue;
+        }
+
+        if(line.compare(pos, prefix.size(), prefix) == 0)
+            continue;
+        line.insert(pos, prefix + " ");
+    }
+
+    *dirty = true;
+    saveState();
+    currentBuffer->lspSyncNeeded = true;
+    needsFullRedraw = true;
+}
+
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -3312,6 +3999,36 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (showTabs ? "true" : "false"));
         return true;
     }
+    if(opt == "gitblameinfo?")
+    {
+        setStatusMessage(std::string("gitblameinfo=") +
+                         (showGitBlameInfo ? "true" : "false"));
+        return true;
+    }
+    if(opt == "gitdefaultcolors?")
+    {
+        setStatusMessage(std::string("gitdefaultcolors=") +
+                         (gitUseDefaultColors ? "true" : "false"));
+        return true;
+    }
+    if(opt == "commenttogglepartial?")
+    {
+        setStatusMessage(std::string("commenttogglepartial=") +
+                         (commentTogglePartial ? "true" : "false"));
+        return true;
+    }
+    if(opt == "formatoninsertleave?")
+    {
+        setStatusMessage(std::string("formatoninsertleave=") +
+                         (formatOnInsertLeave ? "true" : "false"));
+        return true;
+    }
+    if(opt == "formatondoubleesctimeoutms?")
+    {
+        setStatusMessage("formatondoubleesctimeoutms=" +
+                         std::to_string(formatOnDoubleEscTimeoutMs));
+        return true;
+    }
 
     auto set_flag = [&](bool value)
     {
@@ -3328,6 +4045,78 @@ bool Editor::handleSetCommand(std::string_view cmd)
     if(opt == "noautobraces")
     {
         set_flag(false);
+        return true;
+    }
+    if(opt == "gitblameinfo")
+    {
+        showGitBlameInfo = true;
+        setStatusMessage("gitblameinfo=true");
+        return true;
+    }
+    if(opt == "nogitblameinfo" || opt == "disablegitblame")
+    {
+        showGitBlameInfo = false;
+        setStatusMessage("gitblameinfo=false");
+        return true;
+    }
+    if(opt == "enablegitdefaultcolors")
+    {
+        gitUseDefaultColors = true;
+        setStatusMessage("gitdefaultcolors=true");
+        return true;
+    }
+    if(opt == "disablegitdefaultcolors")
+    {
+        gitUseDefaultColors = false;
+        setStatusMessage("gitdefaultcolors=false");
+        return true;
+    }
+    if(opt == "commenttogglepartial")
+    {
+        commentTogglePartial = true;
+        setStatusMessage("commenttogglepartial=true");
+        return true;
+    }
+    if(opt == "nocommenttogglepartial")
+    {
+        commentTogglePartial = false;
+        setStatusMessage("commenttogglepartial=false");
+        return true;
+    }
+    if(opt == "formatoninsertleave")
+    {
+        formatOnInsertLeave = true;
+        setStatusMessage("formatoninsertleave=true");
+        return true;
+    }
+    if(opt == "noformatoninsertleave")
+    {
+        formatOnInsertLeave = false;
+        setStatusMessage("formatoninsertleave=false");
+        return true;
+    }
+    if(opt.rfind("formatondoubleesctimeoutms=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("formatondoubleesctimeoutms=").length());
+        try
+        {
+            int ms = std::stoi(value);
+            if(ms > 0 && ms <= 5000)
+            {
+                formatOnDoubleEscTimeoutMs = ms;
+                setStatusMessage("formatondoubleesctimeoutms=" +
+                                 std::to_string(formatOnDoubleEscTimeoutMs));
+            }
+            else
+            {
+                setStatusMessage("formatondoubleesctimeoutms: expected 1-5000");
+            }
+        }
+        catch(...)
+        {
+            setStatusMessage("formatondoubleesctimeoutms: expected number");
+        }
         return true;
     }
     if(opt.rfind("autobraces=", 0) == 0)
@@ -4401,6 +5190,14 @@ void Editor::syncModeFromStateMachine()
     else if(std::holds_alternative<HelpMode>(state))
     {
         currentMode = HELP;
+    }
+    else if(std::holds_alternative<GitShowCommitMode>(state))
+    {
+        currentMode = GIT_SHOW;
+    }
+    else if(std::holds_alternative<GitLogMode>(state))
+    {
+        currentMode = GIT_LOG;
     }
 
     if(currentMode != prevMode)
@@ -5756,6 +6553,12 @@ void Editor::deleteLineSelection()
         if(y < (int)lines->size())
         {
             lines->erase(lines->begin() + y);
+            if(currentBuffer && currentBuffer->blameValid &&
+               y < (int)currentBuffer->blameEntries.size())
+            {
+                currentBuffer->blameEntries.erase(
+                    currentBuffer->blameEntries.begin() + y);
+            }
         }
     }
 
@@ -5765,6 +6568,12 @@ void Editor::deleteLineSelection()
     *cursorY = std::min(startY, (int)lines->size() - 1);
     *cursorX = 0;
     *dirty = true;
+    if(currentBuffer && currentBuffer->blameValid)
+    {
+        currentBuffer->blameStart = 0;
+        currentBuffer->blameEnd =
+            (int)currentBuffer->blameEntries.size() - 1;
+    }
     saveState();
     setMode(NORMAL);
     needsFullRedraw = true;
@@ -6008,15 +6817,53 @@ void Editor::updateCommandPopup(std::string_view query)
     commandPopupOffset = 0;
 
     bool isSetQuery = commandPopupQuery.rfind("set", 0) == 0;
+    bool isHelpQuery = commandPopupQuery == "help" ||
+                       commandPopupQuery == "h" ||
+                       commandPopupQuery.rfind("help ", 0) == 0 ||
+                       commandPopupQuery.rfind("h ", 0) == 0;
     if(isSetQuery)
+    {
         commandPopupAll = getSetCompletions("");
+    }
+    else if(isHelpQuery)
+    {
+        std::string cmd =
+            (commandPopupQuery.rfind("h", 0) == 0 &&
+             commandPopupQuery.rfind("help", 0) != 0)
+                ? "h"
+                : "help";
+        std::string topicPrefix;
+        if(commandPopupQuery.size() > cmd.size() &&
+           commandPopupQuery[cmd.size()] == ' ')
+        {
+            topicPrefix = commandPopupQuery.substr(cmd.size() + 1);
+        }
+        auto topics = getHelpCompletions(topicPrefix);
+        commandPopupAll.clear();
+        for(const auto& topic : topics)
+            commandPopupAll.push_back(cmd + " " + topic);
+    }
     else
+    {
         commandPopupAll = getCommandCompletions("");
+    }
 
     if(commandPopupQuery.empty())
     {
         for(int i = 0; i < (int)commandPopupAll.size(); ++i)
             commandPopupFiltered.push_back(i);
+        needsFullRedraw = true;
+        return;
+    }
+
+    if(isHelpQuery)
+    {
+        std::string prefix = commandPopupQuery;
+        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
+        {
+            if(commandPopupAll[i].rfind(prefix, 0) == 0)
+                commandPopupFiltered.push_back(i);
+        }
         needsFullRedraw = true;
         return;
     }
@@ -6449,6 +7296,24 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
     return matches;
 }
 
+std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
+{
+    static const std::vector<std::string> topics = {
+        "commands", "modes", "navigation", "editing", "files",
+        "buffers",  "search", "clipboard",  "git",    "help"};
+
+    std::vector<std::string> matches;
+    for(const auto& topic : topics)
+    {
+        if(prefix.size() <= topic.size() &&
+           std::string_view(topic).substr(0, prefix.size()) == prefix)
+        {
+            matches.push_back(topic);
+        }
+    }
+    return matches;
+}
+
 std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> options = {
@@ -6462,6 +7327,20 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set tabspaces=5",  "set tabspaces=6", "set tabspaces=7",
         "set tabspaces=9",  "set tabspaces=10","set tabspaces=12",
         "set tabspaces=16",
+        "set commenttogglepartial",
+        "set nocommenttogglepartial",
+        "set commenttogglepartial?",
+        "set formatoninsertleave",
+        "set noformatoninsertleave",
+        "set formatoninsertleave?",
+        "set formatondoubleesctimeoutms?",
+        "set formatondoubleesctimeoutms=",
+        "set gitdefaultcolors?",
+        "set enablegitdefaultcolors",
+        "set disablegitdefaultcolors",
+        "set gitblameinfo?",
+        "set gitblameinfo",
+        "set nogitblameinfo",
     };
 
     std::vector<std::string> matches;

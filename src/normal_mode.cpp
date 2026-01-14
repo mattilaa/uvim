@@ -125,16 +125,25 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                 now - ed->lastEscTime)
                 .count();
 
-        if(timeSinceLastEsc <= Editor::DOUBLE_ESC_TIMEOUT_MS &&
-           (!ed->searchMatches.empty() || !ed->searchQuery.empty()))
+        if(timeSinceLastEsc <= ed->formatOnDoubleEscTimeoutMs)
         {
-            ed->clearSearch();
-            ctx.setStatusMessage("Search cleared");
-            ed->needsFullRedraw = true;
+            if(!ed->searchMatches.empty() || !ed->searchQuery.empty())
+            {
+                ed->clearSearch();
+                ctx.setStatusMessage("Search cleared");
+                ed->needsFullRedraw = true;
+            }
+            else if(ed->formatOnDoubleEscPending &&
+                    ed->formatOnInsertLeave && ed->isCppFile())
+            {
+                ed->clangFormatWithArgs("", "clang-format: formatted file");
+            }
+            ed->formatOnDoubleEscPending = false;
             ed->lastEscTime = std::chrono::steady_clock::time_point();
         }
         else
         {
+            ed->formatOnDoubleEscPending = false;
             ed->lastEscTime = now;
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
@@ -1074,6 +1083,33 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         // gf - go to file under cursor
         ed->goToFile();
         break;
+
+    case 'b':
+    {
+        int nextChar = Terminal::readKeyTimeout(500);
+        if(nextChar == 'v')
+        {
+            ed->openGitShowCommitMode();
+            return std::nullopt;
+        }
+        // gb - toggle git blame gutter
+        ed->toggleGitBlame();
+        break;
+    }
+
+    case 'l':
+    {
+        int nextChar = Terminal::readKeyTimeout(500);
+        if(nextChar == 'f')
+        {
+            // glf - git log for current file
+            ed->openGitLogModeForFile();
+            return std::nullopt;
+        }
+        // gl - git log view
+        ed->openGitLogMode();
+        break;
+    }
 
     case 'r':
         // gr - find references

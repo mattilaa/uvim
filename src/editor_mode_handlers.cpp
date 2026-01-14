@@ -729,6 +729,8 @@ void Editor::handleNormalMode(int c)
             {
                 deleteLine();
             }
+            if(showGitBlame && currentBuffer)
+                currentBuffer->blameValid = false;
             saveState();
             setStatusMessage(std::to_string(count) + " line(s) deleted");
             pendingDelete = false;

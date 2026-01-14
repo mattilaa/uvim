@@ -22,4 +22,6 @@ enum Mode
     REFERENCES,
     LSP_INFO,
     HELP,
+    GIT_SHOW,
+    GIT_LOG,
 };

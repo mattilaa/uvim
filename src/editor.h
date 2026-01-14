@@ -165,6 +165,7 @@ public:
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
     static constexpr int kDiagnosticGutterWidth = 1;
+    static constexpr int kGitBlameWidth = 20;
     int lineNumberWidth() const;
     int gutterWidth() const;
 
@@ -215,6 +216,15 @@ public:
     void updateClangFormatIndentWidth();
     int indentWidthForBraces() const;
     bool braceNewLineForAutoBraces() const;
+    void commentLines(int startY, int endY);
+    void toggleGitBlame();
+    void updateGitBlameForVisibleRange();
+    std::string blameDisplayForLine(int row) const;
+    std::string blameFullForLine(int row) const;
+    void openGitShowCommitMode();
+    std::vector<std::string> loadGitShowLines(const std::string& hash);
+    void openGitLogMode();
+    void openGitLogModeForFile();
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;
@@ -243,6 +253,15 @@ public:
     bool autoCompletion = true;
     bool useSystemClipboard = true;
     bool showRelativeLineNumbers = true;
+    bool showGitBlame = false;
+    bool showGitBlameInfo = true;
+    bool gitUseDefaultColors = true;
+    bool gitAvailableKnown = false;
+    bool commentTogglePartial = false;
+    bool formatOnInsertLeave = true;
+    bool formatOnDoubleEscPending = false;
+    int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
+    bool gitAvailable = false;
     int tabSpaces = 4;
     bool showTabs = true;
     int tabBarOffset = 0;
@@ -613,6 +632,7 @@ public:
     void drawCommandPopup(std::string& output) const;
     void drawCommandHistoryPopup(std::string& output) const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
+    std::vector<std::string> getHelpCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
 
     // Syntax highlighting (TokenType enum and Token struct are now in

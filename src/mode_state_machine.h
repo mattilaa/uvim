@@ -92,6 +92,7 @@ struct ModeContext
     std::optional<std::string> commandHistoryUp();
     std::optional<std::string> commandHistoryDown();
     std::vector<std::string> getSetCompletions(std::string_view prefix);
+    std::vector<std::string> getHelpCompletions(std::string_view prefix);
     void startCommandPopup();
     void cancelCommandPopup();
     void updateCommandPopup(std::string_view query);
@@ -306,6 +307,8 @@ struct OperatorPendingMode;
 struct ReferencesMode;
 struct LspInfoMode;
 struct HelpMode;
+struct GitShowCommitMode;
+struct GitLogMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -313,7 +316,8 @@ using ModeState =
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 OperatorPendingMode, ReferencesMode, LspInfoMode, HelpMode>;
+                 OperatorPendingMode, ReferencesMode, LspInfoMode, HelpMode,
+                 GitShowCommitMode, GitLogMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -741,6 +745,81 @@ private:
     void loadHelpContent(const std::string& helpTopic);
     std::optional<ModeState> executeCommand(ModeContext& ctx,
                                             std::string_view commandLine);
+};
+
+struct GitLogMode
+{
+    static constexpr const char* name()
+    {
+        return "GITLOG";
+    }
+
+    struct Entry
+    {
+        std::string hash;
+        std::string subject;
+    };
+
+    std::vector<Entry> entries;
+    std::vector<int> filtered;
+    std::string query;
+    int scrollOffset = 0;
+    int cursor = 0;
+    bool fileOnly = false;
+    bool searchActive = false;
+    bool searchForward = true;
+    std::string searchQuery;
+    int searchPrevCursor = 0;
+    int searchPrevScroll = 0;
+
+    GitLogMode() = default;
+    GitLogMode(std::vector<Entry> items, bool fileOnlyLog)
+        : entries(std::move(items)), fileOnly(fileOnlyLog)
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+
+    void rebuildFilter(Editor& editor);
+};
+
+struct GitShowCommitMode
+{
+    static constexpr const char* name()
+    {
+        return "GITSHOW";
+    }
+
+    std::string commitHash;
+    std::vector<std::string> lines;
+    int scrollOffset = 0;
+    std::optional<GitLogMode> returnLog;
+    bool searchActive = false;
+    bool searchForward = true;
+    std::string searchQuery;
+    int searchIndex = 0;
+    int searchPrevIndex = 0;
+    int searchPrevScroll = 0;
+
+    GitShowCommitMode() = default;
+    GitShowCommitMode(std::string hash, std::vector<std::string> content,
+                      std::optional<GitLogMode> returnLogState = std::nullopt)
+        : commitHash(std::move(hash)), lines(std::move(content)),
+          returnLog(std::move(returnLogState))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
 };
 
 // ============================================================================

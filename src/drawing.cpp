@@ -142,19 +142,31 @@ void Editor::drawRows()
 
         auto renderGutter = [&](int row)
         {
-            auto diagIt = diagnosticsByLine.find(row);
-            if(diagIt != diagnosticsByLine.end())
+            if(showGitBlame)
             {
-                if(diagIt->second.severity == 1)
-                    Terminal::write(theme.uiError());
-                else
-                    Terminal::write(theme.uiWarning());
-                Terminal::write(diagIt->second.severity == 1 ? 'E' : 'W');
+                std::string blame = blameDisplayForLine(row);
+                Terminal::write(theme.uiDim());
+                Terminal::write(blame);
+                if((int)blame.size() < kGitBlameWidth)
+                    Terminal::write(std::string(kGitBlameWidth - blame.size(),
+                                                ' '));
             }
             else
             {
-                Terminal::write(theme.uiGutter());
-                Terminal::write(' ');
+                auto diagIt = diagnosticsByLine.find(row);
+                if(diagIt != diagnosticsByLine.end())
+                {
+                    if(diagIt->second.severity == 1)
+                        Terminal::write(theme.uiError());
+                    else
+                        Terminal::write(theme.uiWarning());
+                    Terminal::write(diagIt->second.severity == 1 ? 'E' : 'W');
+                }
+                else
+                {
+                    Terminal::write(theme.uiGutter());
+                    Terminal::write(' ');
+                }
             }
 
             if(showNumbers)
@@ -333,6 +345,12 @@ void Editor::drawMessageBar()
             }
         }
     }
+    else if(showGitBlame && showGitBlameInfo)
+    {
+        std::string blame = blameFullForLine(*cursorY);
+        if(!blame.empty())
+            Terminal::write("blame: " + blame);
+    }
     else if(!statusMessage.empty())
     {
         int msglen = std::min((int)statusMessage.length(), screenCols);
@@ -370,17 +388,28 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
     auto appendGutter = [&](int row)
     {
-        auto diagIt = diagnosticsByLine.find(row);
-        if(diagIt != diagnosticsByLine.end())
+        if(showGitBlame)
         {
-            output += (diagIt->second.severity == 1) ? theme.uiError()
-                                                     : theme.uiWarning();
-            output += (diagIt->second.severity == 1) ? 'E' : 'W';
+            std::string blame = blameDisplayForLine(row);
+            output += theme.uiDim();
+            output += blame;
+            if((int)blame.size() < kGitBlameWidth)
+                output.append(kGitBlameWidth - blame.size(), ' ');
         }
         else
         {
-            output += theme.uiGutter();
-            output += ' ';
+            auto diagIt = diagnosticsByLine.find(row);
+            if(diagIt != diagnosticsByLine.end())
+            {
+                output += (diagIt->second.severity == 1) ? theme.uiError()
+                                                         : theme.uiWarning();
+                output += (diagIt->second.severity == 1) ? 'E' : 'W';
+            }
+            else
+            {
+                output += theme.uiGutter();
+                output += ' ';
+            }
         }
 
         if(showNumbers)
@@ -795,6 +824,12 @@ void Editor::drawMessageBarQuick()
             }
         }
     }
+    else if(showGitBlame && showGitBlameInfo)
+    {
+        std::string blame = blameFullForLine(*cursorY);
+        if(!blame.empty())
+            output += "blame: " + blame;
+    }
     else if(!statusMessage.empty())
     {
         int msglen = std::min((int)statusMessage.length(), screenCols);
@@ -848,17 +883,28 @@ void Editor::drawFullScreen()
 
     auto appendGutter = [&](int row)
     {
-        auto diagIt = diagnosticsByLine.find(row);
-        if(diagIt != diagnosticsByLine.end())
+        if(showGitBlame)
         {
-            output += (diagIt->second.severity == 1) ? theme.uiError()
-                                                     : theme.uiWarning();
-            output += (diagIt->second.severity == 1) ? 'E' : 'W';
+            std::string blame = blameDisplayForLine(row);
+            output += theme.uiDim();
+            output += blame;
+            if((int)blame.size() < kGitBlameWidth)
+                output.append(kGitBlameWidth - blame.size(), ' ');
         }
         else
         {
-            output += theme.uiGutter();
-            output += ' ';
+            auto diagIt = diagnosticsByLine.find(row);
+            if(diagIt != diagnosticsByLine.end())
+            {
+                output += (diagIt->second.severity == 1) ? theme.uiError()
+                                                         : theme.uiWarning();
+                output += (diagIt->second.severity == 1) ? 'E' : 'W';
+            }
+            else
+            {
+                output += theme.uiGutter();
+                output += ' ';
+            }
         }
 
         if(showNumbers)
@@ -1095,6 +1141,12 @@ void Editor::drawFullScreen()
                 output += " [No matches]";
             }
         }
+    }
+    else if(showGitBlame && showGitBlameInfo)
+    {
+        std::string blame = blameFullForLine(*cursorY);
+        if(!blame.empty())
+            output += "blame: " + blame;
     }
     else if(!statusMessage.empty())
     {

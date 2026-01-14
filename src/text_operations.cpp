@@ -55,6 +55,20 @@ void Editor::deleteRange(int startY, int startX, int endY, int endX)
         lines->insert(lines->begin() + startY, prefix + suffix);
     }
 
+    if(currentBuffer && currentBuffer->blameValid && startY != endY &&
+       startY < (int)currentBuffer->blameEntries.size())
+    {
+        int removeCount =
+            std::min((endY - startY + 1),
+                     (int)currentBuffer->blameEntries.size() - startY);
+        currentBuffer->blameEntries.erase(
+            currentBuffer->blameEntries.begin() + startY,
+            currentBuffer->blameEntries.begin() + startY + removeCount);
+        currentBuffer->blameStart = 0;
+        currentBuffer->blameEnd =
+            (int)currentBuffer->blameEntries.size() - 1;
+    }
+
     if(lines->empty())
         lines->push_back("");
     if(*cursorY >= lines->size())
@@ -244,6 +258,15 @@ void Editor::deleteChar()
         *cursorX = (*lines)[*cursorY - 1].length();
         (*lines)[*cursorY - 1] += (*lines)[*cursorY];
         lines->erase(lines->begin() + *cursorY);
+        if(currentBuffer && currentBuffer->blameValid &&
+           *cursorY < (int)currentBuffer->blameEntries.size())
+        {
+            currentBuffer->blameEntries.erase(
+                currentBuffer->blameEntries.begin() + *cursorY);
+            currentBuffer->blameStart = 0;
+            currentBuffer->blameEnd =
+                (int)currentBuffer->blameEntries.size() - 1;
+        }
         (*cursorY)--;
         needsFullRedraw = true;
     }
@@ -263,6 +286,15 @@ void Editor::deleteCharForward()
     {
         (*lines)[*cursorY] += (*lines)[*cursorY + 1];
         lines->erase(lines->begin() + *cursorY + 1);
+        if(currentBuffer && currentBuffer->blameValid &&
+           *cursorY + 1 < (int)currentBuffer->blameEntries.size())
+        {
+            currentBuffer->blameEntries.erase(
+                currentBuffer->blameEntries.begin() + *cursorY + 1);
+            currentBuffer->blameStart = 0;
+            currentBuffer->blameEnd =
+                (int)currentBuffer->blameEntries.size() - 1;
+        }
         needsFullRedraw = true;
     }
     *dirty = true;
@@ -280,6 +312,9 @@ void Editor::deleteLine()
     {
         lines->push_back("");
     }
+
+    if(currentBuffer)
+        currentBuffer->blameValid = false;
 
     if(*cursorY >= lines->size())
     {

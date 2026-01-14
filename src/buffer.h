@@ -25,11 +25,23 @@ struct Buffer
     // Marks per buffer
     std::unordered_map<char, std::pair<int, int>> marks;
 
+    struct BlameEntry
+    {
+        std::string hash;
+        std::string author;
+        std::string date;
+        bool valid = false;
+    };
+
     // Undo/redo stack per buffer
     struct EditState
     {
         std::vector<std::string> lines;
         int cursorX, cursorY;
+        std::vector<BlameEntry> blameEntries;
+        int blameStart = -1;
+        int blameEnd = -1;
+        bool blameValid = false;
     };
     std::vector<EditState> undoStack;
     int undoIndex = -1;
@@ -60,6 +72,10 @@ struct Buffer
     int clangIndentWidth = -1;
     bool clangBraceStyleValid = false;
     bool clangBraceNewLine = false;
+    std::vector<BlameEntry> blameEntries;
+    int blameStart = -1;
+    int blameEnd = -1;
+    bool blameValid = false;
 
     Buffer()
     {

@@ -1075,6 +1075,8 @@ Editor::getClangdDiagnosticsByLine() const
 {
     std::unordered_map<int, LspDiagnosticSummary> out;
 #ifdef UVIM_ENABLE_CLANGD_LSP
+    if(showGitBlame)
+        return out;
     if(currentMode == INSERT)
         return out;
     if(!isClangdLspEnabled() || !lspClient || !currentBuffer)
@@ -1140,6 +1142,8 @@ static inline int diagnosticDisplayWidth(const std::string& s)
 
 void Editor::drawDiagnosticPopup(std::string& output) const
 {
+    if(showGitBlame)
+        return;
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
         return;

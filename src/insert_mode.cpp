@@ -54,7 +54,6 @@ void InsertMode::on_exit(ModeContext& ctx)
     // Cancel any active completion
     if(ed->completionActive)
     {
-        ed->cancelCompletion();
     }
 
     ed->finishChangeRecordingIfDeferred();
@@ -107,6 +106,12 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             {
                 ctx.cursorX()--;
             }
+            if(c == Terminal::ESC)
+            {
+                ed->formatOnDoubleEscPending =
+                    ed->formatOnInsertLeave && ed->isCppFile();
+                ed->lastEscTime = std::chrono::steady_clock::now();
+            }
             ed->saveState();
             return NormalMode{};
         }
@@ -121,6 +126,12 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         if(ctx.cursorX() > 0)
         {
             ctx.cursorX()--;
+        }
+        if(c == Terminal::ESC)
+        {
+            ed->formatOnDoubleEscPending =
+                ed->formatOnInsertLeave && ed->isCppFile();
+            ed->lastEscTime = std::chrono::steady_clock::now();
         }
         ed->saveState();
         return NormalMode{};
@@ -438,13 +449,27 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             if(ed->braceNewLineForAutoBraces())
             {
-                line = left;
-                lines.insert(lines.begin() + cursorY + 1, indentStr + "{");
-                lines.insert(lines.begin() + cursorY + 2, innerIndent);
-                lines.insert(lines.begin() + cursorY + 3,
-                             indentStr + "}" + right);
-                cursorY += 2;
-                cursorX = innerIndent.length();
+                bool blankLine =
+                    line.find_first_not_of(" \t") == std::string::npos;
+                if(blankLine)
+                {
+                    line = indentStr + "{";
+                    lines.insert(lines.begin() + cursorY + 1, innerIndent);
+                    lines.insert(lines.begin() + cursorY + 2,
+                                 indentStr + "}" + right);
+                    cursorY += 1;
+                    cursorX = innerIndent.length();
+                }
+                else
+                {
+                    line = left;
+                    lines.insert(lines.begin() + cursorY + 1, indentStr + "{");
+                    lines.insert(lines.begin() + cursorY + 2, innerIndent);
+                    lines.insert(lines.begin() + cursorY + 3,
+                                 indentStr + "}" + right);
+                    cursorY += 2;
+                    cursorX = innerIndent.length();
+                }
             }
             else
             {

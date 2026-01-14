@@ -47,7 +47,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
 
         std::string query = ctx.commandBuffer.substr(1);
         bool isSetQuery = query.rfind("set", 0) == 0;
-        if(query.find(' ') != std::string::npos && !isSetQuery)
+        bool isHelpQuery = query == "help" || query == "h" ||
+                           query.rfind("help ", 0) == 0 ||
+                           query.rfind("h ", 0) == 0;
+        if(query.find(' ') != std::string::npos && !isSetQuery && !isHelpQuery)
         {
             ctx.cancelCommandPopup();
             return;
@@ -135,8 +138,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(ctx.commandBuffer.find(' ') == std::string::npos)
+                if(ctx.commandBuffer.find(' ') == std::string::npos ||
+                   selection->find(' ') != std::string::npos)
+                {
                     ctx.commandBuffer = ":" + *selection;
+                }
             }
         }
 
@@ -259,8 +265,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.moveCommandPopupCursor(-1);
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(ctx.commandBuffer.find(' ') == std::string::npos)
+                if(ctx.commandBuffer.find(' ') == std::string::npos ||
+                   selection->find(' ') != std::string::npos)
+                {
                     ctx.commandBuffer = ":" + *selection;
+                }
             }
             return std::nullopt;
         }
@@ -273,8 +282,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.moveCommandPopupCursor(1);
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(ctx.commandBuffer.find(' ') == std::string::npos)
+                if(ctx.commandBuffer.find(' ') == std::string::npos ||
+                   selection->find(' ') != std::string::npos)
+                {
                     ctx.commandBuffer = ":" + *selection;
+                }
             }
             return std::nullopt;
         }
@@ -366,6 +378,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
     std::string input = ctx.commandBuffer.substr(1); // Remove ':'
     bool wholeCompletion = false;
+    bool helpCompletion = false;
 
     // If we don't have completions yet, generate them
     if(completions.empty())
@@ -379,26 +392,38 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
         }
         else
         {
-        // Check if this is a file path completion
-        size_t spacePos = input.find(' ');
-        if(spacePos != std::string::npos)
-        {
-            // Complete file path after command
-            std::string cmd = input.substr(0, spacePos);
-            std::string_view pathPart =
-                std::string_view(input).substr(spacePos + 1);
-
-            if(cmd == "e" || cmd == "edit" || cmd == "w" || cmd == "tabe" ||
-               cmd == "tabnew" || cmd == "cd")
+            // Check if this is a file path or help topic completion
+            size_t spacePos = input.find(' ');
+            if(spacePos != std::string::npos)
             {
-                completions = ctx.getPathCompletions(pathPart);
+                std::string cmd = input.substr(0, spacePos);
+                std::string_view pathPart =
+                    std::string_view(input).substr(spacePos + 1);
+
+                if(cmd == "help" || cmd == "h")
+                {
+                    completions = ctx.getHelpCompletions(pathPart);
+                    helpCompletion = true;
+                }
+                else if(cmd == "e" || cmd == "edit" || cmd == "w" ||
+                        cmd == "tabe" || cmd == "tabnew" || cmd == "cd")
+                {
+                    completions = ctx.getPathCompletions(pathPart);
+                }
             }
-        }
-        else
-        {
-            // Complete command names
-            completions = ctx.getCommandCompletions(input);
-        }
+            else
+            {
+                if(input == "help" || input == "h")
+                {
+                    completions = ctx.getHelpCompletions("");
+                    helpCompletion = true;
+                }
+                else
+                {
+                    // Complete command names
+                    completions = ctx.getCommandCompletions(input);
+                }
+            }
         }
 
         if(completions.empty())
@@ -418,6 +443,17 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
     if(wholeCompletion || originalInput.rfind("set", 0) == 0)
     {
         ctx.commandBuffer = ":" + completions[completionIndex];
+        return;
+    }
+
+    if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
+       originalInput.rfind("h", 0) == 0)
+    {
+        std::string cmd = (originalInput.rfind("h", 0) == 0 &&
+                           originalInput.rfind("help", 0) != 0)
+                              ? "h"
+                              : "help";
+        ctx.commandBuffer = ":" + cmd + " " + completions[completionIndex];
         return;
     }
 

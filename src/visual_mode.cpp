@@ -279,10 +279,22 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         return NormalMode{};
 
     case 'c':
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == 'i')
+        {
+            int startY = std::min(ed->currentBuffer->visualStartY,
+                                  ed->currentBuffer->visualEndY);
+            int endY = std::max(ed->currentBuffer->visualStartY,
+                                ed->currentBuffer->visualEndY);
+            ed->commentLines(startY, endY);
+            return NormalMode{};
+        }
         ed->yankSelection();
         ed->deleteSelection();
         ed->saveState();
         return InsertMode{};
+    }
 
     case '>':
         ed->indentSelection();
@@ -531,10 +543,22 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         return NormalMode{};
 
     case 'c':
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == 'i')
+        {
+            int startY = std::min(ed->currentBuffer->visualStartY,
+                                  ed->currentBuffer->visualEndY);
+            int endY = std::max(ed->currentBuffer->visualStartY,
+                                ed->currentBuffer->visualEndY);
+            ed->commentLines(startY, endY);
+            return NormalMode{};
+        }
         ed->yankLineSelection();
         ed->deleteLineSelection();
         ed->saveState();
         return InsertMode{};
+    }
 
     case '>':
         ed->indentLineSelection();

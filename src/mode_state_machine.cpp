@@ -186,6 +186,12 @@ ModeContext::getSetCompletions(std::string_view prefix)
     return editor->getSetCompletions(prefix);
 }
 
+std::vector<std::string>
+ModeContext::getHelpCompletions(std::string_view prefix)
+{
+    return editor->getHelpCompletions(prefix);
+}
+
 void ModeContext::startCommandPopup()
 {
     editor->startCommandPopup();
@@ -1134,6 +1140,7 @@ bool CommandPrompt::handle(
     {
         std::string inputText = input;
         bool wholeCompletion = false;
+        bool helpCompletion = false;
 
         if(completions.empty())
         {
@@ -1146,23 +1153,36 @@ bool CommandPrompt::handle(
             }
             else
             {
-            size_t spacePos = inputText.find(' ');
-            if(spacePos != std::string::npos)
-            {
-                std::string cmd = inputText.substr(0, spacePos);
-                std::string_view pathPart =
-                    std::string_view(inputText).substr(spacePos + 1);
-
-                if(cmd == "e" || cmd == "edit" || cmd == "w" ||
-                   cmd == "tabe" || cmd == "tabnew" || cmd == "cd")
+                size_t spacePos = inputText.find(' ');
+                if(spacePos != std::string::npos)
                 {
-                    completions = ctx.getPathCompletions(pathPart);
+                    std::string cmd = inputText.substr(0, spacePos);
+                    std::string_view pathPart =
+                        std::string_view(inputText).substr(spacePos + 1);
+
+                    if(cmd == "help" || cmd == "h")
+                    {
+                        completions = ctx.getHelpCompletions(pathPart);
+                        helpCompletion = true;
+                    }
+                    else if(cmd == "e" || cmd == "edit" || cmd == "w" ||
+                            cmd == "tabe" || cmd == "tabnew" || cmd == "cd")
+                    {
+                        completions = ctx.getPathCompletions(pathPart);
+                    }
                 }
-            }
-            else
-            {
-                completions = ctx.getCommandCompletions(inputText);
-            }
+                else
+                {
+                    if(inputText == "help" || inputText == "h")
+                    {
+                        completions = ctx.getHelpCompletions("");
+                        helpCompletion = true;
+                    }
+                    else
+                    {
+                        completions = ctx.getCommandCompletions(inputText);
+                    }
+                }
             }
 
             if(completions.empty())
@@ -1188,6 +1208,18 @@ bool CommandPrompt::handle(
             return;
         }
 
+        if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
+           originalInput.rfind("h", 0) == 0)
+        {
+            std::string cmd =
+                (originalInput.rfind("h", 0) == 0 &&
+                 originalInput.rfind("help", 0) != 0)
+                    ? "h"
+                    : "help";
+            input = cmd + " " + completions[completionIndex];
+            return;
+        }
+
         size_t spacePos = originalInput.find(' ');
         if(spacePos != std::string::npos)
         {
@@ -1210,7 +1242,10 @@ bool CommandPrompt::handle(
         }
 
         bool isSetQuery = input.rfind("set", 0) == 0;
-        if(input.find(' ') != std::string::npos && !isSetQuery)
+        bool isHelpQuery = input == "help" || input == "h" ||
+                           input.rfind("help ", 0) == 0 ||
+                           input.rfind("h ", 0) == 0;
+        if(input.find(' ') != std::string::npos && !isSetQuery && !isHelpQuery)
         {
             ctx.cancelCommandPopup();
             return;
@@ -1358,8 +1393,11 @@ bool CommandPrompt::handle(
         {
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(input.find(' ') == std::string::npos)
+                if(input.find(' ') == std::string::npos ||
+                   selection->find(' ') != std::string::npos)
+                {
                     input = *selection;
+                }
             }
         }
         nextState = execute(input);

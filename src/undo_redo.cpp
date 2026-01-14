@@ -22,6 +22,10 @@ void Editor::saveState()
     state.lines = *lines;
     state.cursorX = *cursorX;
     state.cursorY = *cursorY;
+    state.blameEntries = currentBuffer->blameEntries;
+    state.blameStart = currentBuffer->blameStart;
+    state.blameEnd = currentBuffer->blameEnd;
+    state.blameValid = currentBuffer->blameValid;
 
     if(currentBuffer->undoIndex >= 0 &&
        currentBuffer->undoIndex < (int)currentBuffer->undoStack.size())
@@ -37,6 +41,8 @@ void Editor::saveState()
     currentBuffer->undoStack.push_back(state);
     currentBuffer->undoIndex++;
     currentBuffer->lspSyncNeeded = true;
+    if(showGitBlame)
+        currentBuffer->blameValid = false;
 
     if(currentBuffer->undoStack.size() > 100)
     {
@@ -68,6 +74,10 @@ void Editor::undo()
         const Buffer::EditState& state =
             currentBuffer->undoStack[currentBuffer->undoIndex];
         *lines = state.lines;
+        currentBuffer->blameEntries = state.blameEntries;
+        currentBuffer->blameStart = state.blameStart;
+        currentBuffer->blameEnd = state.blameEnd;
+        currentBuffer->blameValid = state.blameValid;
 
         if(lines->empty())
         {
@@ -115,6 +125,10 @@ void Editor::redo()
         const Buffer::EditState& state =
             currentBuffer->undoStack[currentBuffer->undoIndex];
         *lines = state.lines;
+        currentBuffer->blameEntries = state.blameEntries;
+        currentBuffer->blameStart = state.blameStart;
+        currentBuffer->blameEnd = state.blameEnd;
+        currentBuffer->blameValid = state.blameValid;
 
         // Clamp cursor to valid range for current buffer
         if(lines->empty())

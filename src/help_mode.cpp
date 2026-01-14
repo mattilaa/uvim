@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <sstream>
 
@@ -268,6 +269,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 
     // Convert topic to lowercase for matching
     std::string topic_lower = helpTopic;
+    while(!topic_lower.empty() && text_utils::is_space(topic_lower.front()))
+        topic_lower.erase(topic_lower.begin());
+    while(!topic_lower.empty() && text_utils::is_space(topic_lower.back()))
+        topic_lower.pop_back();
     std::transform(topic_lower.begin(), topic_lower.end(), topic_lower.begin(),
                    ::tolower);
 
@@ -288,6 +293,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help buffers`    - Buffer management",
             "  `:help search`     - Searching and replacing",
             "  `:help clipboard`  - Clipboard operations",
+            "  `:help git`        - Git integrations",
             "",
             "QUICK START:",
             "  `i`        - Enter insert mode",
@@ -344,6 +350,14 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:delete` or `:d`     - Delete selected file",
             "  `:rename <name>`      - Rename selected file",
             "",
+            "GIT:",
+            "  `gb`      - Toggle git blame gutter",
+            "  `gbv`     - Show commit diff for line under cursor",
+            "  `gl`      - Show git log (repo)",
+            "  `glf`     - Show git log (current file)",
+            "  `:set disablegitdefaultcolors` - Use editor theme for git views",
+            "  `:set enablegitdefaultcolors`  - Use git's default colors",
+            "",
             "SETTINGS:",
             "  `:set number` or `:set nu`     - Show line numbers",
             "  `:set nonumber` or `:set nonu` - Hide line numbers",
@@ -353,6 +367,29 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "HELP:",
             "  `:help`           - Show this help",
             "  `:help <topic>`   - Show help for topic",
+        };
+    }
+    else if(topic_lower == "git")
+    {
+        lines = {
+            "# Git Integrations",
+            "",
+            "GIT BLAME:",
+            "  `gb`   - Toggle git blame gutter",
+            "  `gbv`  - Show commit diff for line under cursor",
+            "",
+            "GIT LOG:",
+            "  `gl`   - Browse git log (repo)",
+            "  `glf`  - Browse git log (current file)",
+            "  Use `ctrl-j/k` to move, `enter` to open diff, `q` to quit",
+            "",
+            "GIT VIEW COLORS:",
+            "  `:set disablegitdefaultcolors` - Use editor theme colors",
+            "  `:set enablegitdefaultcolors`  - Use git's default colors",
+            "",
+            "COMMENT TOGGLE:",
+            "  `:set commenttogglepartial`   - Toggle on any commented line",
+            "  `:set nocommenttogglepartial` - Toggle only if all commented",
         };
     }
     else if(topic_lower == "modes")
@@ -490,6 +527,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help buffers`",
             "  `:help search`",
             "  `:help clipboard`",
+            "  `:help git`",
             "",
             "Type `:help` to see the main help page.",
         };
