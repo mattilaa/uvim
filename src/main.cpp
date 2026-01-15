@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "log.h"
 #include "theme.h"
+#include <clocale>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -240,6 +241,8 @@ static void print_help(const char* exe)
 
 int main(int argc, char* argv[])
 {
+    std::setlocale(LC_CTYPE, "");
+
     bool useClangd = false;
     bool useRobotLsp = false;
     bool usePythonLsp = false;

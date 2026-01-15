@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "enablelog.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -250,8 +251,13 @@ void Editor::deleteChar()
 
     if(*cursorX > 0)
     {
-        (*lines)[*cursorY].erase(*cursorX - 1, 1);
-        (*cursorX)--;
+        std::string& line = (*lines)[*cursorY];
+        int start = text_utils::prevUtf8CharStart(line, *cursorX);
+        int len = *cursorX - start;
+        if(len <= 0)
+            return;
+        line.erase(start, len);
+        *cursorX = start;
     }
     else
     {
@@ -280,7 +286,20 @@ void Editor::deleteCharForward()
 
     if(*cursorX < (*lines)[*cursorY].length())
     {
-        (*lines)[*cursorY].erase(*cursorX, 1);
+        std::string& line = (*lines)[*cursorY];
+        int start = *cursorX;
+        if(start > 0 && start < (int)line.size())
+        {
+            unsigned char c = (unsigned char)line[start];
+            if((c & 0xC0) == 0x80)
+                start = text_utils::prevUtf8CharStart(line, start);
+        }
+        int end = text_utils::nextUtf8CharStart(line, start);
+        int len = end - start;
+        if(len <= 0)
+            return;
+        line.erase(start, len);
+        *cursorX = start;
     }
     else if(*cursorY < lines->size() - 1)
     {
@@ -592,7 +611,10 @@ void Editor::pasteAfter()
     else if(hasNewline)
     {
         if(*cursorX < (*lines)[*cursorY].length())
-            (*cursorX)++;
+        {
+            std::string_view ln((*lines)[*cursorY]);
+            *cursorX = text_utils::nextUtf8CharStart(ln, *cursorX);
+        }
         std::string& curLine = (*lines)[*cursorY];
         int insertPos = *cursorX
             < (int)curLine.length() ? *cursorX : (int)curLine.length();
@@ -631,9 +653,15 @@ void Editor::pasteAfter()
     else
     {
         if(*cursorX < (*lines)[*cursorY].length())
-            (*cursorX)++;
-        (*lines)[*cursorY].insert(*cursorX, yankBuffer);
-        *cursorX += yankBuffer.length() - 1;
+        {
+            std::string_view ln((*lines)[*cursorY]);
+            *cursorX = text_utils::nextUtf8CharStart(ln, *cursorX);
+        }
+        int insertPos = *cursorX;
+        (*lines)[*cursorY].insert(insertPos, yankBuffer);
+        int lastStart =
+            text_utils::prevUtf8CharStart(yankBuffer, (int)yankBuffer.size());
+        *cursorX = insertPos + lastStart;
     }
 
     *dirty = true;

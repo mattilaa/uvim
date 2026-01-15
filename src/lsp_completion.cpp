@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "emoji_list.h"
 #include "lsp_client.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -7,6 +8,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -129,6 +131,53 @@ static inline int displayWidth(const std::string& s)
         ++w;
     }
     return w;
+}
+
+static std::string stripEmojiSelectors(const std::string& s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for(size_t i = 0; i < s.size();)
+    {
+        unsigned char c = (unsigned char)s[i];
+        int codepoint = 0;
+        int len = 1;
+        if(c < 0x80)
+        {
+            codepoint = c;
+            len = 1;
+        }
+        else if((c & 0xE0) == 0xC0 && i + 1 < s.size())
+        {
+            codepoint = ((c & 0x1F) << 6) | ((unsigned char)s[i + 1] & 0x3F);
+            len = 2;
+        }
+        else if((c & 0xF0) == 0xE0 && i + 2 < s.size())
+        {
+            codepoint = ((c & 0x0F) << 12) |
+                        (((unsigned char)s[i + 1] & 0x3F) << 6) |
+                        ((unsigned char)s[i + 2] & 0x3F);
+            len = 3;
+        }
+        else if((c & 0xF8) == 0xF0 && i + 3 < s.size())
+        {
+            codepoint = ((c & 0x07) << 18) |
+                        (((unsigned char)s[i + 1] & 0x3F) << 12) |
+                        (((unsigned char)s[i + 2] & 0x3F) << 6) |
+                        ((unsigned char)s[i + 3] & 0x3F);
+            len = 4;
+        }
+        else
+        {
+            codepoint = c;
+            len = 1;
+        }
+
+        if(codepoint != 0xFE0F && codepoint != 0xFE0E)
+            out.append(s, i, len);
+        i += len;
+    }
+    return out;
 }
 
 struct IncludeContext
@@ -1067,7 +1116,331 @@ void Editor::drawCompletionPopup(std::string& output) const
     moveTo(top + 1 + maxRows, left);
     text_utils::appendU8(output, u8"└");
     text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┘");
+}
+
+void Editor::openEmojiPopup()
+{
+    if(emojiEntries.empty())
+    {
+        emojiEntries.reserve(std::size(kEmojiList));
+        for(const auto& e : kEmojiList)
+        {
+            EmojiEntry entry;
+            entry.emoji = e.emoji;
+            entry.name = e.name;
+            entry.emojiDisplay = stripEmojiSelectors(entry.emoji);
+            entry.label = entry.emojiDisplay + std::string(" ") + entry.name;
+            emojiEntries.push_back(std::move(entry));
+        }
+    }
+
+    if(emojiEntries.empty())
+    {
+        setStatusMessage("emoji: no entries");
+        return;
+    }
+
+    emojiPopupActive = true;
+    emojiQuery.clear();
+    rebuildEmojiFilter();
+}
+
+void Editor::cancelEmojiPopup()
+{
+    emojiPopupActive = false;
+    emojiQuery.clear();
+    emojiFiltered.clear();
+    emojiSelected = 0;
+    emojiScroll = 0;
+    emojiPopupLastValid = false;
+    needsFullRedraw = true;
+}
+
+void Editor::acceptEmoji()
+{
+    if(!emojiPopupActive || emojiFiltered.empty())
+        return;
+
+    const std::string& emoji =
+        emojiEntries[emojiFiltered[emojiSelected]].emoji;
+    for(char byte : emoji)
+        insertChar(byte);
+    *wantedX = *cursorX;
+
+    cancelEmojiPopup();
+}
+
+void Editor::emojiNext()
+{
+    if(!emojiPopupActive || emojiFiltered.empty())
+        return;
+    emojiSelected = (emojiSelected + 1) % (int)emojiFiltered.size();
+
+    const int win = std::min(8, (int)emojiFiltered.size());
+    if(emojiSelected < emojiScroll)
+        emojiScroll = emojiSelected;
+    else if(emojiSelected >= emojiScroll + win)
+        emojiScroll = emojiSelected - win + 1;
+
+}
+
+void Editor::emojiPrev()
+{
+    if(!emojiPopupActive || emojiFiltered.empty())
+        return;
+    emojiSelected = (emojiSelected - 1);
+    if(emojiSelected < 0)
+        emojiSelected = (int)emojiFiltered.size() - 1;
+
+    const int win = std::min(8, (int)emojiFiltered.size());
+    if(emojiSelected < emojiScroll)
+        emojiScroll = emojiSelected;
+    else if(emojiSelected >= emojiScroll + win)
+        emojiScroll = emojiSelected - win + 1;
+
+}
+
+void Editor::rebuildEmojiFilter()
+{
+    emojiFiltered.clear();
+    emojiSelected = 0;
+    emojiScroll = 0;
+
+    if(emojiEntries.empty())
+        return;
+
+    struct Scored
+    {
+        int idx;
+        int score;
+    };
+    std::vector<Scored> scored;
+    scored.reserve(emojiEntries.size());
+
+    for(int i = 0; i < (int)emojiEntries.size(); ++i)
+    {
+        const auto& e = emojiEntries[i];
+        int s = ::fuzzyScore(e.name, emojiQuery);
+        if(s >= 0)
+            scored.push_back({i, s});
+    }
+
+    std::stable_sort(scored.begin(), scored.end(),
+                     [](const Scored& x, const Scored& y)
+                     { return x.score > y.score; });
+
+    emojiFiltered.reserve(scored.size());
+    for(const auto& s : scored)
+        emojiFiltered.push_back(s.idx);
+}
+
+void Editor::drawEmojiPopup(std::string& output) const
+{
+    if(!emojiPopupActive || currentMode != NORMAL)
+        return;
+
+    const int totalItems = (int)emojiFiltered.size();
+    const int maxRows =
+        std::min({8, std::max(1, totalItems), screenRows - 3});
+    if(maxRows <= 0)
+        return;
+
+    int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
+    int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
+    if(cy < 1)
+        cy = 1;
+    if(cy > screenRows)
+        cy = screenRows;
+    if(cx < 1)
+        cx = 1;
+    if(cx > screenCols)
+        cx = screenCols;
+
+    const std::string queryLabel = "emoji: " + emojiQuery;
+    auto emojiGlyphWidth = [](std::string_view s) -> int
+    {
+        int w = 0;
+        for(size_t i = 0; i < s.size();)
+        {
+            unsigned char c = (unsigned char)s[i];
+            if(c < 0x80)
+            {
+                w += 1;
+                i += 1;
+                continue;
+            }
+
+            int codepoint = 0;
+            int len = 1;
+            if((c & 0xE0) == 0xC0 && i + 1 < s.size())
+            {
+                codepoint = ((c & 0x1F) << 6) | ((unsigned char)s[i + 1] & 0x3F);
+                len = 2;
+            }
+            else if((c & 0xF0) == 0xE0 && i + 2 < s.size())
+            {
+                codepoint = ((c & 0x0F) << 12) |
+                            (((unsigned char)s[i + 1] & 0x3F) << 6) |
+                            ((unsigned char)s[i + 2] & 0x3F);
+                len = 3;
+            }
+            else if((c & 0xF8) == 0xF0 && i + 3 < s.size())
+            {
+                codepoint = ((c & 0x07) << 18) |
+                            (((unsigned char)s[i + 1] & 0x3F) << 12) |
+                            (((unsigned char)s[i + 2] & 0x3F) << 6) |
+                            ((unsigned char)s[i + 3] & 0x3F);
+                len = 4;
+            }
+            else
+            {
+                codepoint = c;
+                len = 1;
+            }
+
+            if(codepoint == 0xFE0F || codepoint == 0xFE0E ||
+               codepoint == 0x200D)
+            {
+                // variation selectors + ZWJ
+            }
+            else
+            {
+                w += 2; // treat emoji codepoints as wide
+            }
+            i += len;
+        }
+        return w;
+    };
+    auto emojiRowWidth = [&](const EmojiEntry& e) -> int
+    {
+        return emojiGlyphWidth(e.emojiDisplay) + 1 + (int)e.name.size();
+    };
+
+    int maxW = displayWidth(queryLabel);
+    if(!emojiFiltered.empty())
+    {
+        for(int idx : emojiFiltered)
+            maxW = std::max(maxW, emojiRowWidth(emojiEntries[idx]));
+    }
+    else
+    {
+        maxW = std::max(maxW, displayWidth("no matches"));
+    }
+    int innerW = std::max(12, maxW);
+    int totalW = innerW + 4;
+    if(totalW > screenCols)
+    {
+        totalW = screenCols;
+        innerW = std::max(4, totalW - 4);
+    }
+
+    const int innerRows = maxRows + 1; // header + list
+    int totalH = innerRows + 2;
+    int top = cy + 1;
+    if(top + totalH - 1 > screenRows)
+        top = cy - totalH + 1;
+    if(top < 1)
+        top = 1;
+
+    int left = cx;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
+
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+
+    if(emojiPopupLastValid)
+    {
+        for(int r = 0; r < emojiPopupLastHeight; ++r)
+        {
+            moveTo(emojiPopupLastTop + r, emojiPopupLastLeft);
+            output.append(emojiPopupLastWidth, ' ');
+        }
+    }
+
+    for(int r = 0; r < totalH; ++r)
+    {
+        moveTo(top + r, left);
+        output.append(totalW, ' ');
+    }
+
+    moveTo(top, left);
+    text_utils::appendU8(output, u8"┌");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
     text_utils::appendU8(output, u8"┐");
+
+    moveTo(top + 1, left);
+    text_utils::appendU8(output, u8"│");
+    output += " ";
+    std::string header = queryLabel;
+    while(displayWidth(header) > innerW)
+        header.pop_back();
+    output += header;
+    moveTo(top + 1, left + totalW - 1);
+    text_utils::appendU8(output, u8"│");
+
+    for(int i = 0; i < maxRows; ++i)
+    {
+        int idx = emojiScroll + i;
+        if(idx >= totalItems && !emojiFiltered.empty())
+            break;
+        const bool hasSelection = !emojiFiltered.empty();
+        const int entryIndex = hasSelection ? emojiFiltered[idx] : -1;
+
+        moveTo(top + 2 + i, left);
+        text_utils::appendU8(output, u8"│");
+        output += " ";
+
+        bool sel = hasSelection && (idx == emojiSelected);
+        if(sel)
+            output += theme.selection();
+
+        std::string row;
+        int rowWidth = 0;
+        if(hasSelection)
+        {
+            const auto& e = emojiEntries[entryIndex];
+            int nameAvail = innerW - (emojiGlyphWidth(e.emojiDisplay) + 1);
+            if(nameAvail <= 0)
+            {
+                row = e.emojiDisplay;
+                rowWidth = emojiGlyphWidth(e.emojiDisplay);
+            }
+            else
+            {
+                std::string name = e.name;
+                if((int)name.size() > nameAvail)
+                    name = name.substr(0, nameAvail);
+                row = e.emojiDisplay + std::string(" ") + name;
+                rowWidth =
+                    emojiGlyphWidth(e.emojiDisplay) + 1 + (int)name.size();
+            }
+        }
+        else
+        {
+            row = "no matches";
+            rowWidth = (int)row.size();
+        }
+
+        output += row;
+
+        if(sel)
+            output += theme.reset();
+
+        moveTo(top + 2 + i, left + totalW - 1);
+        text_utils::appendU8(output, u8"│");
+    }
+
+    moveTo(top + 1 + innerRows, left);
+    text_utils::appendU8(output, u8"└");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┘");
+
+    emojiPopupLastTop = top;
+    emojiPopupLastLeft = left;
+    emojiPopupLastWidth = totalW;
+    emojiPopupLastHeight = totalH;
+    emojiPopupLastValid = true;
 }
 
 std::unordered_map<int, Editor::LspDiagnosticSummary>

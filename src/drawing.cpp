@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -721,7 +722,21 @@ void Editor::drawScrollUpdate(int scrollDelta)
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1;
-        cursorCol = (*cursorX - *offsetX) + 1 + gutterWidth();
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            int start = std::clamp(*offsetX, 0, (int)line.size());
+            int end = std::clamp(*cursorX, 0, (int)line.size());
+            if(end < start)
+                std::swap(start, end);
+            cursorCol = text_utils::utf8DisplayWidth(
+                            std::string_view(line).substr(start, end - start)) +
+                        1 + gutterWidth();
+        }
+        else
+        {
+            cursorCol = 1 + gutterWidth();
+        }
     }
     output += Terminal::cursorPos(cursorRow, cursorCol);
     if(!hideCursor)
@@ -838,6 +853,7 @@ void Editor::drawMessageBarQuick()
 
     // Completion popup (clangd)
     drawCompletionPopup(output);
+    drawEmojiPopup(output);
     drawDiagnosticPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
@@ -1156,6 +1172,7 @@ void Editor::drawFullScreen()
 
     // Completion popup (clangd)
     drawCompletionPopup(output);
+    drawEmojiPopup(output);
     drawDiagnosticPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);

@@ -3070,7 +3070,21 @@ void Editor::updateCursorPosition()
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1 + tabBarRows();
-        cursorCol = (*cursorX - *offsetX) + 1 + gutterWidth();
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            int start = std::clamp(*offsetX, 0, (int)line.size());
+            int end = std::clamp(*cursorX, 0, (int)line.size());
+            if(end < start)
+                std::swap(start, end);
+            cursorCol = text_utils::utf8DisplayWidth(
+                            std::string_view(line).substr(start, end - start)) +
+                        1 + gutterWidth();
+        }
+        else
+        {
+            cursorCol = 1 + gutterWidth();
+        }
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
@@ -4291,6 +4305,11 @@ void Editor::executeCommand(std::string_view cmd)
         showLspInfo();
         commandRequestedModeSet = true;
         commandRequestedMode = LSP_INFO;
+        return;
+    }
+    if(cmd == "emoji" || cmd == "em")
+    {
+        openEmojiPopup();
         return;
     }
 
@@ -7300,7 +7319,8 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "vnew",    "bn",     "bnext",      "bp",     "bprev",    "bd",
         "bdelete", "ls",     "buffers",    "sp",     "split",    "vs",
         "vsplit",  "only",   "tabnew",     "tabc",   "tabclose", "set",
-        "syntax",  "noh",    "nohlsearch", "lspinfo", "help",    "h"};
+        "syntax",  "noh",    "nohlsearch", "lspinfo", "emoji",   "em",
+        "help",    "h"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

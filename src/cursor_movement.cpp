@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "text_utils.h"
 
 #include <algorithm>
 #include <array>
@@ -76,7 +77,15 @@ void Editor::moveLeft(int count)
     {
         if(cx > 0)
         {
-            --cx;
+            if(cy >= 0 && cy < line_count(*lines))
+            {
+                std::string_view ln = line_view(*lines, cy);
+                cx = text_utils::prevUtf8CharStart(ln, cx);
+            }
+            else
+            {
+                --cx;
+            }
         }
         else if(cy > 0)
         {
@@ -109,7 +118,8 @@ void Editor::moveRight(int count)
         const int L = line_len(*lines, cy);
         if(cx < L)
         {
-            ++cx;
+            std::string_view ln = line_view(*lines, cy);
+            cx = text_utils::nextUtf8CharStart(ln, cx);
         }
         else if(cy < n - 1)
         {
@@ -139,6 +149,11 @@ void Editor::moveUp(int count)
 
     cy = std::max(0, cy - std::max(0, count));
     cx = std::min(wx, line_len(*lines, cy));
+    if(cy >= 0 && cy < line_count(*lines))
+    {
+        std::string_view ln = line_view(*lines, cy);
+        cx = text_utils::prevUtf8CharStart(ln, cx);
+    }
 }
 
 void Editor::moveDown(int count)
@@ -155,6 +170,11 @@ void Editor::moveDown(int count)
 
     cy = std::min(n - 1, cy + std::max(0, count));
     cx = std::min(wx, line_len(*lines, cy));
+    if(cy >= 0 && cy < line_count(*lines))
+    {
+        std::string_view ln = line_view(*lines, cy);
+        cx = text_utils::prevUtf8CharStart(ln, cx);
+    }
 }
 
 void Editor::moveWordForward()

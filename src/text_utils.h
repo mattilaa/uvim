@@ -1,6 +1,7 @@
 #pragma once
 #include <climits>
 #include <codecvt>
+#include <cwchar>
 #include <cstddef>
 #include <cstdint>
 #include <locale>
@@ -82,6 +83,74 @@ inline void appendUtf8Repeat(std::string& out, std::u8string_view glyph,
 {
     for(int i = 0; i < count; ++i)
         appendU8(out, glyph);
+}
+
+inline int prevUtf8CharStart(std::string_view s, int index)
+{
+    if(index <= 0)
+        return 0;
+    if(index > (int)s.size())
+        index = (int)s.size();
+    int i = index - 1;
+    while(i > 0)
+    {
+        unsigned char c = (unsigned char)s[i];
+        if((c & 0xC0) != 0x80)
+            break;
+        --i;
+    }
+    return i;
+}
+
+inline int nextUtf8CharStart(std::string_view s, int index)
+{
+    if(index < 0)
+        return 0;
+    if(index >= (int)s.size())
+        return (int)s.size();
+    int i = index + 1;
+    while(i < (int)s.size())
+    {
+        unsigned char c = (unsigned char)s[i];
+        if((c & 0xC0) != 0x80)
+            break;
+        ++i;
+    }
+    return i;
+}
+
+inline int utf8DisplayWidth(std::string_view s)
+{
+    int width = 0;
+    std::mbstate_t st{};
+    const char* p = s.data();
+    size_t len = s.size();
+
+    while(len > 0)
+    {
+        wchar_t wc = 0;
+        size_t n = std::mbrtowc(&wc, p, len, &st);
+        if(n == static_cast<size_t>(-1) || n == static_cast<size_t>(-2))
+        {
+            // Invalid sequence: treat byte as width 1.
+            ++width;
+            ++p;
+            --len;
+            std::mbstate_t reset{};
+            st = reset;
+            continue;
+        }
+        if(n == 0)
+            break;
+
+        int w = ::wcwidth(wc);
+        if(w < 0)
+            w = 1;
+        width += w;
+        p += n;
+        len -= n;
+    }
+    return width;
 }
 
 // Convert a UTF-8 byte offset in a line to UTF-16 code units (LSP uses UTF-16).

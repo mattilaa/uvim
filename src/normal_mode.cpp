@@ -96,6 +96,70 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         }
     }
 
+    if(c == Terminal::CTRL_E)
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == Terminal::CTRL_M || nextChar == Terminal::ENTER)
+        {
+            ed->openEmojiPopup();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    if(ed->emojiPopupActive)
+    {
+        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
+        {
+            ed->emojiNext();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP || c == 'k')
+        {
+            ed->emojiPrev();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::ENTER)
+        {
+            ed->acceptEmoji();
+            ctx.repeatCount = 0;
+            return InsertMode{};
+        }
+        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        {
+            ed->cancelEmojiPopup();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
+           c == Terminal::CTRL_H)
+        {
+            if(!ed->emojiQuery.empty())
+            {
+                ed->emojiQuery.pop_back();
+                ed->rebuildEmojiFilter();
+            }
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c >= 32 && c < 127)
+        {
+            ed->emojiQuery.push_back((char)c);
+            ed->rebuildEmojiFilter();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     // ========================================================================
     // Count Prefix Accumulation
     // ========================================================================
@@ -971,6 +1035,16 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         return openFileBrowser();
 
     case 'e':
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == 'm')
+        {
+            ed->openEmojiPopup();
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+
         // Diagnostics popup for current line
         if(ed->getClangdDiagnosticForLine(*ed->cursorY))
         {
@@ -978,6 +1052,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             return std::nullopt;
         }
         return openFileBrowser();
+    }
 
     case 'h':
         // Jump to alternate file (header/source)

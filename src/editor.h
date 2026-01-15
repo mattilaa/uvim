@@ -164,6 +164,34 @@ public:
     void completionPrev();
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
+
+    struct EmojiEntry
+    {
+        std::string emoji;
+        std::string emojiDisplay;
+        std::string name;
+        std::string label;
+    };
+
+    bool emojiPopupActive = false;
+    std::vector<EmojiEntry> emojiEntries;
+    std::vector<int> emojiFiltered;
+    std::string emojiQuery;
+    int emojiSelected = 0;
+    int emojiScroll = 0;
+    mutable int emojiPopupLastTop = 0;
+    mutable int emojiPopupLastLeft = 0;
+    mutable int emojiPopupLastWidth = 0;
+    mutable int emojiPopupLastHeight = 0;
+    mutable bool emojiPopupLastValid = false;
+
+    void openEmojiPopup();
+    void cancelEmojiPopup();
+    void acceptEmoji();
+    void emojiNext();
+    void emojiPrev();
+    void rebuildEmojiFilter();
+    void drawEmojiPopup(std::string& output) const;
     static constexpr int kDiagnosticGutterWidth = 1;
     static constexpr int kGitBlameWidth = 20;
     int lineNumberWidth() const;

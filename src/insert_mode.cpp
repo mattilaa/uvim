@@ -76,6 +76,48 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         ed->recordChangeKey(c);
     }
 
+    if(ed->emojiPopupActive)
+    {
+        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
+        {
+            ed->emojiNext();
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP || c == 'k')
+        {
+            ed->emojiPrev();
+            return std::nullopt;
+        }
+        if(c == Terminal::ENTER)
+        {
+            ed->acceptEmoji();
+            return std::nullopt;
+        }
+        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        {
+            ed->cancelEmojiPopup();
+            return std::nullopt;
+        }
+        if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
+           c == Terminal::CTRL_H)
+        {
+            if(!ed->emojiQuery.empty())
+            {
+                ed->emojiQuery.pop_back();
+                ed->rebuildEmojiFilter();
+            }
+            return std::nullopt;
+        }
+        if(c >= 32 && c < 127)
+        {
+            ed->emojiQuery.push_back((char)c);
+            ed->rebuildEmojiFilter();
+            return std::nullopt;
+        }
+
+        return std::nullopt;
+    }
+
     // ========================================================================
     // Completion Navigation (when active)
     // ========================================================================
@@ -175,10 +217,16 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
         if(cursorX > 0)
         {
-            cursorX--;
             if(cursorY < (int)lines.size())
             {
-                lines[cursorY].erase(cursorX, 1);
+                int start =
+                    text_utils::prevUtf8CharStart(lines[cursorY], cursorX);
+                int len = cursorX - start;
+                if(len > 0)
+                {
+                    lines[cursorY].erase(start, len);
+                    cursorX = start;
+                }
             }
             *ed->dirty = true;
 
