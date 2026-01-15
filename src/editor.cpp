@@ -661,6 +661,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     useSystemClipboard = false;
             }
+            auto itutf = values.find("editor.utf8");
+            if(itutf == values.end())
+                itutf = values.find("settings.utf8");
+            if(itutf == values.end())
+                itutf = values.find("utf8");
+            if(itutf != values.end())
+            {
+                std::string v = itutf->second;
+                if(v == "true" || v == "1" || v == "on")
+                    utf8Mode = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    utf8Mode = false;
+            }
             auto itt = values.find("editor.showtabs");
             if(itt == values.end())
                 itt = values.find("settings.showtabs");
@@ -3070,7 +3083,7 @@ void Editor::updateCursorPosition()
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1 + tabBarRows();
-        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        if(utf8Mode && *cursorY >= 0 && *cursorY < (int)lines->size())
         {
             const std::string& line = (*lines)[*cursorY];
             int start = std::clamp(*offsetX, 0, (int)line.size());
@@ -3083,7 +3096,7 @@ void Editor::updateCursorPosition()
         }
         else
         {
-            cursorCol = 1 + gutterWidth();
+            cursorCol = (*cursorX - *offsetX) + 1 + gutterWidth();
         }
     }
 
@@ -4013,6 +4026,11 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (showTabs ? "true" : "false"));
         return true;
     }
+    if(opt == "utf8?")
+    {
+        setStatusMessage(std::string("utf8=") + (utf8Mode ? "true" : "false"));
+        return true;
+    }
     if(opt == "gitblameinfo?")
     {
         setStatusMessage(std::string("gitblameinfo=") +
@@ -4184,6 +4202,20 @@ bool Editor::handleSetCommand(std::string_view cmd)
         needsFullRedraw = true;
         return true;
     }
+    if(opt == "utf8")
+    {
+        utf8Mode = true;
+        setStatusMessage("utf8=true");
+        needsFullRedraw = true;
+        return true;
+    }
+    if(opt == "noutf8")
+    {
+        utf8Mode = false;
+        setStatusMessage("utf8=false");
+        needsFullRedraw = true;
+        return true;
+    }
     if(opt.rfind("autocomplete=", 0) == 0)
     {
         std::string value = opt.substr(std::string("autocomplete=").length());
@@ -4221,6 +4253,27 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("showtabs: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("utf8=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("utf8=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            utf8Mode = true;
+            setStatusMessage("utf8=true");
+            needsFullRedraw = true;
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            utf8Mode = false;
+            setStatusMessage("utf8=false");
+            needsFullRedraw = true;
+        }
+        else
+        {
+            setStatusMessage("utf8: expected true/false");
         }
         return true;
     }
@@ -7379,6 +7432,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set gitblameinfo?",
         "set gitblameinfo",
         "set nogitblameinfo",
+        "set utf8",
+        "set noutf8",
+        "set utf8?",
+        "set utf8=",
     };
 
     std::vector<std::string> matches;

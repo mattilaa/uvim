@@ -293,6 +293,7 @@ public:
     bool gitAvailable = false;
     int tabSpaces = 4;
     bool showTabs = true;
+    bool utf8Mode = true;
     int tabBarOffset = 0;
     std::string configPath;
     bool syntaxJson = true;

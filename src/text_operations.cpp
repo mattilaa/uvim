@@ -252,12 +252,20 @@ void Editor::deleteChar()
     if(*cursorX > 0)
     {
         std::string& line = (*lines)[*cursorY];
-        int start = text_utils::prevUtf8CharStart(line, *cursorX);
-        int len = *cursorX - start;
-        if(len <= 0)
-            return;
-        line.erase(start, len);
-        *cursorX = start;
+        if(utf8Mode)
+        {
+            int start = text_utils::prevUtf8CharStart(line, *cursorX);
+            int len = *cursorX - start;
+            if(len <= 0)
+                return;
+            line.erase(start, len);
+            *cursorX = start;
+        }
+        else
+        {
+            line.erase(*cursorX - 1, 1);
+            (*cursorX)--;
+        }
     }
     else
     {
@@ -287,19 +295,26 @@ void Editor::deleteCharForward()
     if(*cursorX < (*lines)[*cursorY].length())
     {
         std::string& line = (*lines)[*cursorY];
-        int start = *cursorX;
-        if(start > 0 && start < (int)line.size())
+        if(utf8Mode)
         {
-            unsigned char c = (unsigned char)line[start];
-            if((c & 0xC0) == 0x80)
-                start = text_utils::prevUtf8CharStart(line, start);
+            int start = *cursorX;
+            if(start > 0 && start < (int)line.size())
+            {
+                unsigned char c = (unsigned char)line[start];
+                if((c & 0xC0) == 0x80)
+                    start = text_utils::prevUtf8CharStart(line, start);
+            }
+            int end = text_utils::nextUtf8CharStart(line, start);
+            int len = end - start;
+            if(len <= 0)
+                return;
+            line.erase(start, len);
+            *cursorX = start;
         }
-        int end = text_utils::nextUtf8CharStart(line, start);
-        int len = end - start;
-        if(len <= 0)
-            return;
-        line.erase(start, len);
-        *cursorX = start;
+        else
+        {
+            line.erase(*cursorX, 1);
+        }
     }
     else if(*cursorY < lines->size() - 1)
     {
@@ -612,8 +627,15 @@ void Editor::pasteAfter()
     {
         if(*cursorX < (*lines)[*cursorY].length())
         {
-            std::string_view ln((*lines)[*cursorY]);
-            *cursorX = text_utils::nextUtf8CharStart(ln, *cursorX);
+            if(utf8Mode)
+            {
+                std::string_view ln((*lines)[*cursorY]);
+                *cursorX = text_utils::nextUtf8CharStart(ln, *cursorX);
+            }
+            else
+            {
+                (*cursorX)++;
+            }
         }
         std::string& curLine = (*lines)[*cursorY];
         int insertPos = *cursorX
@@ -654,14 +676,28 @@ void Editor::pasteAfter()
     {
         if(*cursorX < (*lines)[*cursorY].length())
         {
-            std::string_view ln((*lines)[*cursorY]);
-            *cursorX = text_utils::nextUtf8CharStart(ln, *cursorX);
+            if(utf8Mode)
+            {
+                std::string_view ln((*lines)[*cursorY]);
+                *cursorX = text_utils::nextUtf8CharStart(ln, *cursorX);
+            }
+            else
+            {
+                (*cursorX)++;
+            }
         }
         int insertPos = *cursorX;
         (*lines)[*cursorY].insert(insertPos, yankBuffer);
-        int lastStart =
-            text_utils::prevUtf8CharStart(yankBuffer, (int)yankBuffer.size());
-        *cursorX = insertPos + lastStart;
+        if(utf8Mode)
+        {
+            int lastStart = text_utils::prevUtf8CharStart(
+                yankBuffer, (int)yankBuffer.size());
+            *cursorX = insertPos + lastStart;
+        }
+        else
+        {
+            *cursorX = insertPos + (int)yankBuffer.length() - 1;
+        }
     }
 
     *dirty = true;

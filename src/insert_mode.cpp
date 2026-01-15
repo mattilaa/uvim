@@ -219,13 +219,21 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         {
             if(cursorY < (int)lines.size())
             {
-                int start =
-                    text_utils::prevUtf8CharStart(lines[cursorY], cursorX);
-                int len = cursorX - start;
-                if(len > 0)
+                if(ed->utf8Mode)
                 {
-                    lines[cursorY].erase(start, len);
-                    cursorX = start;
+                    int start =
+                        text_utils::prevUtf8CharStart(lines[cursorY], cursorX);
+                    int len = cursorX - start;
+                    if(len > 0)
+                    {
+                        lines[cursorY].erase(start, len);
+                        cursorX = start;
+                    }
+                }
+                else
+                {
+                    cursorX--;
+                    lines[cursorY].erase(cursorX, 1);
                 }
             }
             *ed->dirty = true;

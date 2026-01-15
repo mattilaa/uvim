@@ -722,7 +722,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
     else
     {
         cursorRow = (*cursorY - *offsetY) + 1;
-        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        if(utf8Mode && *cursorY >= 0 && *cursorY < (int)lines->size())
         {
             const std::string& line = (*lines)[*cursorY];
             int start = std::clamp(*offsetX, 0, (int)line.size());
@@ -735,7 +735,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
         }
         else
         {
-            cursorCol = 1 + gutterWidth();
+            cursorCol = (*cursorX - *offsetX) + 1 + gutterWidth();
         }
     }
     output += Terminal::cursorPos(cursorRow, cursorCol);

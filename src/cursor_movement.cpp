@@ -77,7 +77,7 @@ void Editor::moveLeft(int count)
     {
         if(cx > 0)
         {
-            if(cy >= 0 && cy < line_count(*lines))
+            if(utf8Mode && cy >= 0 && cy < line_count(*lines))
             {
                 std::string_view ln = line_view(*lines, cy);
                 cx = text_utils::prevUtf8CharStart(ln, cx);
@@ -118,8 +118,15 @@ void Editor::moveRight(int count)
         const int L = line_len(*lines, cy);
         if(cx < L)
         {
-            std::string_view ln = line_view(*lines, cy);
-            cx = text_utils::nextUtf8CharStart(ln, cx);
+            if(utf8Mode)
+            {
+                std::string_view ln = line_view(*lines, cy);
+                cx = text_utils::nextUtf8CharStart(ln, cx);
+            }
+            else
+            {
+                ++cx;
+            }
         }
         else if(cy < n - 1)
         {
@@ -149,7 +156,7 @@ void Editor::moveUp(int count)
 
     cy = std::max(0, cy - std::max(0, count));
     cx = std::min(wx, line_len(*lines, cy));
-    if(cy >= 0 && cy < line_count(*lines))
+    if(utf8Mode && cy >= 0 && cy < line_count(*lines))
     {
         std::string_view ln = line_view(*lines, cy);
         cx = text_utils::prevUtf8CharStart(ln, cx);
@@ -170,7 +177,7 @@ void Editor::moveDown(int count)
 
     cy = std::min(n - 1, cy + std::max(0, count));
     cx = std::min(wx, line_len(*lines, cy));
-    if(cy >= 0 && cy < line_count(*lines))
+    if(utf8Mode && cy >= 0 && cy < line_count(*lines))
     {
         std::string_view ln = line_view(*lines, cy);
         cx = text_utils::prevUtf8CharStart(ln, cx);
