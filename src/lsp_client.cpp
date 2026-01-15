@@ -20,6 +20,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "text_utils.h"
+
 using nlohmann::json;
 
 #ifdef UVIM_DEBUG_LSP
@@ -113,68 +115,6 @@ static std::string uriToPath(const std::string& uri)
         return out;
     }
     return uri;
-}
-
-// Convert a UTF-8 byte offset in a line to UTF-16 code units (LSP uses UTF-16).
-static int utf8ByteOffsetToUtf16(const std::string& line, int byteOffset)
-{
-    if(byteOffset <= 0)
-        return 0;
-    if(byteOffset > (int)line.size())
-        byteOffset = (int)line.size();
-
-    int u16 = 0;
-    int i = 0;
-    while(i < byteOffset)
-    {
-        unsigned char c = (unsigned char)line[i];
-        int codepoint = 0;
-        int len = 1;
-
-        if(c < 0x80)
-        {
-            codepoint = c;
-            len = 1;
-        }
-        else if((c & 0xE0) == 0xC0 && i + 1 < (int)line.size())
-        {
-            codepoint = ((c & 0x1F) << 6) | ((unsigned char)line[i + 1] & 0x3F);
-            len = 2;
-        }
-        else if((c & 0xF0) == 0xE0 && i + 2 < (int)line.size())
-        {
-            codepoint = ((c & 0x0F) << 12) |
-                        (((unsigned char)line[i + 1] & 0x3F) << 6) |
-                        ((unsigned char)line[i + 2] & 0x3F);
-            len = 3;
-        }
-        else if((c & 0xF8) == 0xF0 && i + 3 < (int)line.size())
-        {
-            codepoint = ((c & 0x07) << 18) |
-                        (((unsigned char)line[i + 1] & 0x3F) << 12) |
-                        (((unsigned char)line[i + 2] & 0x3F) << 6) |
-                        ((unsigned char)line[i + 3] & 0x3F);
-            len = 4;
-        }
-        else
-        {
-            // invalid; treat as single byte
-            codepoint = c;
-            len = 1;
-        }
-
-        if(i + len > byteOffset)
-            break;
-
-        // UTF-16 units
-        if(codepoint <= 0xFFFF)
-            u16 += 1;
-        else
-            u16 += 2;
-
-        i += len;
-    }
-    return u16;
 }
 
 struct LspClient::Impl
@@ -772,7 +712,8 @@ LspClient::definition(const std::string& filePath, int line,
                 {
                     std::string ln = text.substr(start, i - start);
                     utf16ch =
-                        utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                        text_utils::utf8ByteOffsetToUtf16(ln,
+                                                           characterUtf8ByteOffset);
                     break;
                 }
                 curLine++;
@@ -812,8 +753,8 @@ LspClient::completion(const std::string& filePath, int line,
     int utf16ch = characterUtf8ByteOffset;
     if(!lineText.empty())
     {
-        utf16ch = utf8ByteOffsetToUtf16(std::string(lineText),
-                                        characterUtf8ByteOffset);
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                                    characterUtf8ByteOffset);
     }
     else
     {
@@ -830,7 +771,8 @@ LspClient::completion(const std::string& filePath, int line,
                     {
                         std::string ln = text.substr(start, i - start);
                         utf16ch =
-                            utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                            text_utils::utf8ByteOffsetToUtf16(
+                                ln, characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -934,7 +876,8 @@ LspClient::references(const std::string& filePath, int line,
                 {
                     std::string ln = text.substr(start, i - start);
                     utf16ch =
-                        utf8ByteOffsetToUtf16(ln, characterUtf8ByteOffset);
+                        text_utils::utf8ByteOffsetToUtf16(ln,
+                                                           characterUtf8ByteOffset);
                     break;
                 }
                 curLine++;
@@ -1183,7 +1126,8 @@ LspClient::codeActions(const std::string& filePath, int line,
     std::string abs = absPath(filePath);
 
     int endCharUtf16 =
-        utf8ByteOffsetToUtf16(std::string(lineText), (int)lineText.size());
+        text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                          (int)lineText.size());
 
     json diagArray = json::array();
     for(const auto& d : diagnostics)

@@ -225,6 +225,7 @@ if(UVIM_BUILD_TESTS)
 
     add_executable(state_machine_tests
         tests/state_machine_test.cpp
+        tests/text_utils_test.cpp
     )
     uvim_enable_sanitizers(state_machine_tests)
     target_link_libraries(state_machine_tests

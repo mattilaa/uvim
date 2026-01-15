@@ -572,7 +572,32 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(c >= 128)
     {
-        ed->insertUtf8Char(c);
+        std::string bytes;
+        bytes.push_back(static_cast<char>(c));
+        int expected = 1;
+        unsigned char lead = (unsigned char)c;
+        if((lead & 0xE0) == 0xC0)
+            expected = 2;
+        else if((lead & 0xF0) == 0xE0)
+            expected = 3;
+        else if((lead & 0xF8) == 0xF0)
+            expected = 4;
+
+        for(int i = 1; i < expected; ++i)
+        {
+            int next = Terminal::readKeyTimeout(0);
+            if(next < 0)
+                break;
+            if((next & 0xC0) != 0x80)
+            {
+                Terminal::unreadKey(next);
+                break;
+            }
+            bytes.push_back(static_cast<char>(next));
+        }
+
+        for(char byte : bytes)
+            ed->insertChar(byte);
         if(ed->completionActive)
         {
             ed->rebuildCompletionFilter();
