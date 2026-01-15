@@ -423,6 +423,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-k` - Previous command in history",
             "  `Ctrl-j` - Next command in history",
             "  `Ctrl-f` - Fuzzy history search",
+            "  `:/...` - Search forward (regex)",
+            "  `:?...` - Search backward (regex)",
             "  Command list shows and filters while you type",
             "",
             "SEARCH MODE:",

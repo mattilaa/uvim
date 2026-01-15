@@ -4265,6 +4265,24 @@ void Editor::executeCommand(std::string_view cmd)
         commandHistoryIndex = -1;
     }
 
+    if(!cmd.empty() && (cmd.front() == '/' || cmd.front() == '?'))
+    {
+        if(!hasBuffer())
+        {
+            setStatusMessage("No buffer");
+            return;
+        }
+        std::string query = std::string(cmd.substr(1));
+        if(!query.empty())
+        {
+            addSearchToHistory(query);
+            savedCursorX = *cursorX;
+            savedCursorY = *cursorY;
+            performSearch(query, cmd.front() == '/');
+        }
+        return;
+    }
+
     if(handleSetCommand(cmd))
         return;
 

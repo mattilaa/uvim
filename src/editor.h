@@ -228,6 +228,7 @@ public:
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;
+    bool searchRegexError = false;
     std::vector<SearchMatch> searchMatches;
     int currentMatchIndex = -1;
     int savedCursorX = 0;

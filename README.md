@@ -7,8 +7,21 @@ Reduced version of Vim.
 - Vim like text object handling
 - Fzf style file browsing
 - Ripgrep search from files
+- Regex search in buffers (`/` and `?`, plus `:/` and `:?` from command mode)
 - Syntax highlighting
 - Really small binary
+
+## Search examples
+
+In normal mode:
+
+- `/foo.*bar` - regex search forward
+- `?^word` - regex search backward
+
+In command mode:
+
+- `:/foo.*bar` - regex search forward
+- `:?^word` - regex search backward
 
 ## Robot Framework tests (venv setup)
 

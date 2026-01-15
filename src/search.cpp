@@ -1,4 +1,5 @@
 #include "editor.h"
+#include <regex>
 
 void Editor::startSearchForward()
 {
@@ -15,24 +16,55 @@ void Editor::startSearchBackward()
 void Editor::findAllMatches()
 {
     searchMatches.clear();
+    searchRegexError = false;
     if(searchQuery.empty())
         return;
 
-    std::string lowerQuery = toLowerCase(searchQuery);
+    std::regex pattern;
+    try
+    {
+        pattern = std::regex(searchQuery, std::regex_constants::icase);
+    }
+    catch(const std::regex_error&)
+    {
+        setStatusMessage("Invalid regex: " + searchQuery);
+        searchRegexError = true;
+        return;
+    }
 
     for(int row = 0; row < lines->size(); row++)
     {
-        std::string lowerLine = toLowerCase((*lines)[row]);
-        size_t pos = 0;
+        const std::string& line = (*lines)[row];
+        auto start = line.cbegin();
 
-        while((pos = lowerLine.find(lowerQuery, pos)) != std::string::npos)
+        while(start != line.cend())
         {
-            SearchMatch match;
-            match.row = row;
-            match.col = pos;
-            match.len = searchQuery.length();
-            searchMatches.push_back(match);
-            pos += searchQuery.length();
+            std::smatch match;
+            if(!std::regex_search(start, line.cend(), match, pattern))
+                break;
+
+            int col =
+                (int)std::distance(line.cbegin(), start) + match.position();
+            int len = match.length();
+            if(len > 0)
+            {
+                SearchMatch entry;
+                entry.row = row;
+                entry.col = col;
+                entry.len = len;
+                searchMatches.push_back(entry);
+            }
+
+            if(len == 0)
+            {
+                if(col >= (int)line.size())
+                    break;
+                start = line.cbegin() + col + 1;
+            }
+            else
+            {
+                start = line.cbegin() + col + len;
+            }
         }
     }
 }
@@ -52,6 +84,9 @@ void Editor::jumpToMatch(int index)
 void Editor::performSearch()
 {
     findAllMatches();
+
+    if(searchRegexError)
+        return;
 
     if(searchMatches.empty())
     {
@@ -118,6 +153,8 @@ void Editor::searchNext()
         if(!searchQuery.empty())
         {
             findAllMatches();
+            if(searchRegexError)
+                return;
             if(searchMatches.empty())
             {
                 setStatusMessage("Pattern not found: " + searchQuery);
@@ -142,6 +179,8 @@ void Editor::searchPrevious()
         if(!searchQuery.empty())
         {
             findAllMatches();
+            if(searchRegexError)
+                return;
             if(searchMatches.empty())
             {
                 setStatusMessage("Pattern not found: " + searchQuery);
