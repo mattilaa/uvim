@@ -153,6 +153,58 @@ inline int utf8DisplayWidth(std::string_view s)
     return width;
 }
 
+// Approximate terminal display width.
+// - strips ANSI escapes
+// - counts UTF-8 codepoints as width 1 (good enough for popups)
+inline int displayWidth(std::string_view s)
+{
+    auto isAnsiStart = [](std::string_view text, size_t i) -> bool
+    {
+        return i + 1 < text.size() && text[i] == '\x1b' &&
+               text[i + 1] == '[';
+    };
+    auto skipAnsi = [](std::string_view text, size_t i) -> size_t
+    {
+        i += 2;
+        while(i < text.size())
+        {
+            char c = text[i++];
+            if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+                break;
+        }
+        return i;
+    };
+
+    int w = 0;
+    for(size_t i = 0; i < s.size();)
+    {
+        if(isAnsiStart(s, i))
+        {
+            i = skipAnsi(s, i);
+            continue;
+        }
+
+        unsigned char c = (unsigned char)s[i];
+        if(c < 0x80)
+        {
+            ++w;
+            ++i;
+            continue;
+        }
+
+        if((c & 0xE0) == 0xC0)
+            i += 2;
+        else if((c & 0xF0) == 0xE0)
+            i += 3;
+        else if((c & 0xF8) == 0xF0)
+            i += 4;
+        else
+            ++i;
+        ++w;
+    }
+    return w;
+}
+
 // Convert a UTF-8 byte offset in a line to UTF-16 code units (LSP uses UTF-16).
 inline int utf8ByteOffsetToUtf16(std::string_view line, int byteOffset)
 {

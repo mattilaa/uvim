@@ -4,6 +4,8 @@
 #include "stdlib_goto.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include "widgets/command_history_popup.h"
+#include "widgets/command_popup.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -7174,208 +7176,32 @@ void Editor::drawCommandPopup(std::string& output) const
         return;
     if(commandHistorySearchActive)
         return;
-
-    output += theme.baseFg();
-
-    int rows = 0;
-    if(commandPopupFiltered.empty())
-        rows = 1;
-    else
-        rows = std::min(8, (int)commandPopupFiltered.size());
-    if(rows <= 0)
-        return;
-
-    int maxContent = 0;
-    if(commandPopupFiltered.empty())
-    {
-        maxContent = displayWidth("No matches");
-    }
-    else
-    {
-        for(int i = 0; i < rows; ++i)
-        {
-            int idx = commandPopupFiltered[i + commandPopupOffset];
-            if(idx >= 0 && idx < (int)commandPopupAll.size())
-            {
-                maxContent =
-                    std::max(maxContent, displayWidth(commandPopupAll[idx]));
-            }
-        }
-    }
-
-    int innerW = std::max(10, maxContent);
-    int totalW = innerW + 4;
-    if(totalW > screenCols)
-    {
-        totalW = screenCols;
-        innerW = std::max(4, totalW - 4);
-    }
-
-    int totalH = rows + 2;
-    int top = screenRows - totalH + 1;
-    if(top < 1)
-        top = 1;
-    int left = 2;
-    if(left + totalW - 1 > screenCols)
-        left = std::max(1, screenCols - totalW + 1);
-
-    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
-
-    moveTo(top, left);
-    text_utils::appendU8(output, u8"╭");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"╮");
-
-    for(int i = 0; i < rows; ++i)
-    {
-        moveTo(top + 1 + i, left);
-        text_utils::appendU8(output, u8"│ ");
-
-        std::string line;
-        if(commandPopupFiltered.empty())
-        {
-            line = "No matches";
-        }
-        else
-        {
-            int idx = commandPopupFiltered[i + commandPopupOffset];
-            if(idx >= 0 && idx < (int)commandPopupAll.size())
-                line = commandPopupAll[idx];
-        }
-
-        if((int)line.length() > innerW)
-            line = line.substr(0, innerW - 3) + "...";
-
-        if(!commandPopupFiltered.empty() &&
-           (i + commandPopupOffset) == commandPopupCursor)
-        {
-            output += theme.selection();
-            output.append(line);
-            output += theme.reset();
-        }
-        else
-        {
-            output += theme.syntax(TOKEN_FUNCTION);
-            output.append(line);
-            output += theme.reset();
-        }
-
-        int pad = innerW - displayWidth(line);
-        if(pad > 0)
-            output.append(pad, ' ');
-        text_utils::appendU8(output, u8" │");
-    }
-
-    moveTo(top + totalH - 1, left);
-    text_utils::appendU8(output, u8"╰");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"╯");
+    widgets::CommandPopupView view{
+        .theme = theme,
+        .screenRows = screenRows,
+        .screenCols = screenCols,
+        .entries = commandPopupAll,
+        .filtered = commandPopupFiltered,
+        .offset = commandPopupOffset,
+        .cursor = commandPopupCursor,
+    };
+    widgets::drawCommandPopup(output, view);
 }
 
 void Editor::drawCommandHistoryPopup(std::string& output) const
 {
     if(!commandHistorySearchActive)
         return;
-
-    output += theme.baseFg();
-
-    int rows = 0;
-    if(commandHistorySearchMatches.empty())
-    {
-        rows = 1;
-    }
-    else
-    {
-        rows = std::min(8, (int)commandHistorySearchMatches.size());
-    }
-
-    if(rows <= 0)
-        return;
-
-    int maxContent = 0;
-    if(commandHistorySearchMatches.empty())
-    {
-        maxContent = displayWidth("No matches");
-    }
-    else
-    {
-        for(int i = 0; i < rows; ++i)
-        {
-            int idx = commandHistorySearchMatches[i + commandHistorySearchOffset];
-            if(idx >= 0 && idx < (int)commandHistory.size())
-            {
-                maxContent = std::max(
-                    maxContent, displayWidth(commandHistory[idx]));
-            }
-        }
-    }
-
-    int innerW = std::max(12, maxContent);
-    int totalW = innerW + 4;
-    if(totalW > screenCols)
-    {
-        totalW = screenCols;
-        innerW = std::max(4, totalW - 4);
-    }
-
-    int totalH = rows + 2;
-    int top = screenRows - totalH + 1;
-    if(top < 1)
-        top = 1;
-    int left = 2;
-    if(left + totalW - 1 > screenCols)
-        left = std::max(1, screenCols - totalW + 1);
-
-    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
-
-    moveTo(top, left);
-    output += "+";
-    output.append(innerW + 2, '-');
-    output += "+";
-
-    for(int i = 0; i < rows; ++i)
-    {
-        moveTo(top + 1 + i, left);
-        output += "| ";
-
-        std::string line;
-        if(commandHistorySearchMatches.empty())
-        {
-            line = "No matches";
-        }
-        else
-        {
-            int idx =
-                commandHistorySearchMatches[i + commandHistorySearchOffset];
-            if(idx >= 0 && idx < (int)commandHistory.size())
-                line = commandHistory[idx];
-        }
-
-        if((int)line.length() > innerW)
-            line = line.substr(0, innerW - 3) + "...";
-
-        if(!commandHistorySearchMatches.empty() &&
-           (i + commandHistorySearchOffset) == commandHistorySearchCursor)
-        {
-            output += theme.selection();
-            output.append(line);
-            output += theme.reset();
-        }
-        else
-        {
-            output.append(line);
-        }
-
-        int pad = innerW - displayWidth(line);
-        if(pad > 0)
-            output.append(pad, ' ');
-        output += " |";
-    }
-
-    moveTo(top + totalH - 1, left);
-    output += "+";
-    output.append(innerW + 2, '-');
-    output += "+";
+    widgets::CommandHistoryPopupView view{
+        .theme = theme,
+        .screenRows = screenRows,
+        .screenCols = screenCols,
+        .history = commandHistory,
+        .matches = commandHistorySearchMatches,
+        .offset = commandHistorySearchOffset,
+        .cursor = commandHistorySearchCursor,
+    };
+    widgets::drawCommandHistoryPopup(output, view);
 }
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)

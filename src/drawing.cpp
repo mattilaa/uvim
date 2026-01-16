@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include "widgets/status_bar.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -264,99 +265,54 @@ void Editor::drawRows()
 
 void Editor::drawStatusBar()
 {
-    Terminal::write(Terminal::NEWLINE_CLEAR);
-    Terminal::write(theme.statusBar());
+    std::string output;
+    output += Terminal::NEWLINE_CLEAR;
 
-    std::string status = " " + getModeString() + " | ";
+    std::string displayName =
+        (filename && !filename->empty()) ? *filename : "[No Name]";
+    bool isDirty = (dirty && *dirty);
 
-    // Add buffer indicator
-    if(buffers.size() > 1)
-    {
-        status += "[" + std::to_string(currentBufferIndex + 1) + "/" +
-                  std::to_string(buffers.size()) + "] ";
-    }
-
-    char rightStatus[32];
-    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
-             *cursorX + 1);
-
-    std::string searchInfo;
-    if(!searchQuery.empty())
-    {
-        if(!searchMatches.empty())
-        {
-            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                         std::to_string(searchMatches.size()) + "]";
-        }
-        else
-        {
-            searchInfo = " [No matches]";
-        }
-    }
-
-    std::string rightBlock = searchInfo + rightStatus;
-
-    // Calculate available space for filename
-    int rightLen = rightBlock.length();
-    int availableForFile = screenCols - status.length() - rightLen - 1;
-
-    std::string displayName = filename->empty() ? "[No Name]" : *filename;
-    if(*dirty)
-        displayName += " [+]";
-
-    // Truncate filename from the beginning if too long
-    if((int)displayName.length() > availableForFile && availableForFile > 4)
-    {
-        displayName = "..." + displayName.substr(displayName.length() -
-                                                 availableForFile + 3);
-    }
-
-    status += displayName;
-
-    Terminal::write(status);
-
-    int padding = screenCols - status.length() - rightLen;
-    while(padding-- > 0)
-        Terminal::write(' ');
-    Terminal::write(rightBlock);
-
-    Terminal::write(theme.reset());
+    widgets::StatusBarView view{
+        .theme = theme,
+        .screenCols = screenCols,
+        .modeLabel = getModeString(),
+        .currentBufferIndex = currentBufferIndex,
+        .bufferCount = (int)buffers.size(),
+        .cursorY = *cursorY,
+        .cursorX = *cursorX,
+        .filename = displayName,
+        .dirty = isDirty,
+        .searchQuery = searchQuery,
+        .searchMatchIndex = currentMatchIndex,
+        .searchMatchCount = (int)searchMatches.size(),
+    };
+    widgets::appendStatusBar(output, view);
+    Terminal::write(output);
 }
 
 void Editor::drawMessageBar()
 {
-    Terminal::write(Terminal::NEWLINE_CLEAR);
+    std::string output;
+    output += Terminal::NEWLINE_CLEAR;
 
-    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
-       currentMode == SEARCH_BACKWARD)
-    {
-        Terminal::write(commandBuffer);
-        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
-        {
-            if(!searchMatches.empty())
-            {
-                std::string matchInfo =
-                    " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                    std::to_string(searchMatches.size()) + "]";
-                Terminal::write(matchInfo);
-            }
-            else if(!searchQuery.empty())
-            {
-                Terminal::write(" [No matches]");
-            }
-        }
-    }
-    else if(showGitBlame && showGitBlameInfo)
-    {
-        std::string blame = blameFullForLine(*cursorY);
-        if(!blame.empty())
-            Terminal::write("blame: " + blame);
-    }
-    else if(!statusMessage.empty())
-    {
-        int msglen = std::min((int)statusMessage.length(), screenCols);
-        Terminal::write(statusMessage.substr(0, msglen));
-    }
+    std::string blame;
+    if(showGitBlame && showGitBlameInfo)
+        blame = blameFullForLine(*cursorY);
+
+    widgets::MessageBarView view{
+        .currentMode = currentMode,
+        .screenCols = screenCols,
+        .commandBuffer = commandBuffer,
+        .searchQuery = searchQuery,
+        .searchMatchIndex = currentMatchIndex,
+        .searchMatchCount = (int)searchMatches.size(),
+        .showGitBlame = showGitBlame,
+        .showGitBlameInfo = showGitBlameInfo,
+        .blameLine = blame,
+        .statusMessage = statusMessage,
+    };
+    widgets::appendMessageBar(output, view);
+    Terminal::write(output);
 }
 
 // Optimized drawing functions
@@ -755,62 +711,25 @@ void Editor::drawStatusBarQuick()
     output += Terminal::cursorPos(screenRows + 1, 1);
 
     output += Terminal::ESC_CLEAR_LINE;
-    output += theme.statusBar();
+    std::string displayName =
+        (filename && !filename->empty()) ? *filename : "[No Name]";
+    bool isDirty = (dirty && *dirty);
 
-    std::string statusLeft = " " + getModeString() + " | ";
-
-    if(buffers.size() > 1)
-    {
-        statusLeft += "[" + std::to_string(currentBufferIndex + 1) + "/" +
-                      std::to_string(buffers.size()) + "] ";
-    }
-
-    char rightStatus[32];
-    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
-             *cursorX + 1);
-
-    std::string searchInfo;
-    if(!searchQuery.empty())
-    {
-        if(!searchMatches.empty())
-        {
-            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                         std::to_string(searchMatches.size()) + "]";
-        }
-        else
-        {
-            searchInfo = " [No matches]";
-        }
-    }
-
-    std::string rightBlock = searchInfo + rightStatus;
-
-    // Calculate available space for filename
-    int rightLen = rightBlock.length();
-    int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
-
-    std::string displayName = filename->empty() ? "[No Name]" : *filename;
-    if(*dirty)
-        displayName += " [+]";
-
-    // Truncate filename from the beginning if too long
-    if((int)displayName.length() > availableForFile && availableForFile > 4)
-    {
-        displayName = "..." + displayName.substr(displayName.length() -
-                                                 availableForFile + 3);
-    }
-
-    statusLeft += displayName;
-
-    output += statusLeft;
-
-    int padding = screenCols - statusLeft.length() - rightLen;
-    if(padding > 0)
-    {
-        output.append(padding, ' ');
-    }
-    output += rightBlock;
-    output += theme.reset();
+    widgets::StatusBarView view{
+        .theme = theme,
+        .screenCols = screenCols,
+        .modeLabel = getModeString(),
+        .currentBufferIndex = currentBufferIndex,
+        .bufferCount = (int)buffers.size(),
+        .cursorY = *cursorY,
+        .cursorX = *cursorX,
+        .filename = displayName,
+        .dirty = isDirty,
+        .searchQuery = searchQuery,
+        .searchMatchIndex = currentMatchIndex,
+        .searchMatchCount = (int)searchMatches.size(),
+    };
+    widgets::appendStatusBar(output, view);
 
     Terminal::write(output);
 }
@@ -822,34 +741,23 @@ void Editor::drawMessageBarQuick()
 
     output += Terminal::ESC_CLEAR_LINE;
 
-    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
-       currentMode == SEARCH_BACKWARD)
-    {
-        output += commandBuffer;
-        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
-        {
-            if(!searchMatches.empty())
-            {
-                output += " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                          std::to_string(searchMatches.size()) + "]";
-            }
-            else if(!searchQuery.empty())
-            {
-                output += " [No matches]";
-            }
-        }
-    }
-    else if(showGitBlame && showGitBlameInfo)
-    {
-        std::string blame = blameFullForLine(*cursorY);
-        if(!blame.empty())
-            output += "blame: " + blame;
-    }
-    else if(!statusMessage.empty())
-    {
-        int msglen = std::min((int)statusMessage.length(), screenCols);
-        output.append(statusMessage, 0, msglen);
-    }
+    std::string blame;
+    if(showGitBlame && showGitBlameInfo)
+        blame = blameFullForLine(*cursorY);
+
+    widgets::MessageBarView view{
+        .currentMode = currentMode,
+        .screenCols = screenCols,
+        .commandBuffer = commandBuffer,
+        .searchQuery = searchQuery,
+        .searchMatchIndex = currentMatchIndex,
+        .searchMatchCount = (int)searchMatches.size(),
+        .showGitBlame = showGitBlame,
+        .showGitBlameInfo = showGitBlameInfo,
+        .blameLine = blame,
+        .statusMessage = statusMessage,
+    };
+    widgets::appendMessageBar(output, view);
 
     // Completion popup (clangd)
     drawCompletionPopup(output);

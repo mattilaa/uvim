@@ -45,6 +45,10 @@ set(UVIM_CORE_SOURCES
     src/editor_references.cpp
     src/stdlib_goto.cpp
     src/theme.cpp
+    src/widgets/command_popup.cpp
+    src/widgets/command_history_popup.cpp
+    src/widgets/completion_popup.cpp
+    src/widgets/status_bar.cpp
 )
 
 # Mode state machine sources (refactored)
