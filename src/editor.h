@@ -280,6 +280,7 @@ public:
     std::vector<int> lastChangeKeys;
     bool autoBraces = true;
     bool autoCompletion = true;
+    bool completionAutoParens = true;
     bool useSystemClipboard = true;
     bool showRelativeLineNumbers = true;
     bool showGitBlame = false;

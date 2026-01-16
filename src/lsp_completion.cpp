@@ -810,6 +810,32 @@ void Editor::acceptCompletion()
     if(it.isSnippet)
         insert = stripSnippet(insert);
 
+    bool functionLike = completionAutoParens && !it.isSnippet;
+    if(functionLike)
+    {
+        bool hasParen =
+            (it.label.find('(') != std::string::npos) ||
+            (insert.find('(') != std::string::npos);
+        functionLike = hasParen;
+    }
+    if(functionLike)
+    {
+        auto baseFrom = [&](const std::string& text) -> std::string
+        {
+            size_t pos = text.find('(');
+            if(pos == std::string::npos)
+                return text;
+            return text.substr(0, pos);
+        };
+        std::string name = baseFrom(insert);
+        if(name == insert && it.label.find('(') != std::string::npos)
+            name = baseFrom(it.label);
+        if(!name.empty())
+            insert = name;
+        else
+            functionLike = false;
+    }
+
     // Replace prefix [anchorX, cursorX)
     std::string& mutableLine = (*lines)[*cursorY];
     int start =
@@ -817,6 +843,17 @@ void Editor::acceptCompletion()
     int end = std::max(0, std::min(*cursorX, (int)mutableLine.size()));
     if(end < start)
         std::swap(start, end);
+
+    if(!insert.empty() && std::isspace((unsigned char)insert.front()))
+    {
+        if(start < (int)mutableLine.size() &&
+           !std::isspace((unsigned char)mutableLine[start]))
+        {
+            size_t first = insert.find_first_not_of(" \t");
+            if(first != std::string::npos)
+                insert.erase(0, first);
+        }
+    }
 
     if(!insert.empty() && end < (int)mutableLine.size())
     {
@@ -833,7 +870,53 @@ void Editor::acceptCompletion()
     *wantedX = *cursorX;
     *dirty = true;
 
-    if(!insert.empty() && *cursorX < (int)mutableLine.size())
+    if(functionLike)
+    {
+        int cursorPos = *cursorX;
+        if(cursorPos < (int)mutableLine.size() && mutableLine[cursorPos] == '(')
+        {
+            cursorPos += 1;
+        }
+        else
+        {
+            mutableLine.insert(cursorPos, "();");
+            cursorPos += 1;
+        }
+
+        int closePos = -1;
+        for(int i = cursorPos; i < (int)mutableLine.size(); ++i)
+        {
+            if(mutableLine[i] == ')')
+            {
+                closePos = i;
+                break;
+            }
+        }
+        if(closePos >= 0)
+        {
+            bool hasNonSpaceAfter = false;
+            for(int i = closePos + 1; i < (int)mutableLine.size(); ++i)
+            {
+                char ch = mutableLine[i];
+                if(ch != ' ' && ch != '\t')
+                {
+                    hasNonSpaceAfter = true;
+                    break;
+                }
+            }
+            if(!hasNonSpaceAfter)
+            {
+                if(closePos + 1 >= (int)mutableLine.size() ||
+                   mutableLine[closePos + 1] != ';')
+                {
+                    mutableLine.insert(closePos + 1, ";");
+                }
+            }
+        }
+        *cursorX = cursorPos;
+        *wantedX = *cursorX;
+    }
+    else if(!insert.empty() && *cursorX < (int)mutableLine.size())
     {
         const char last = insert.back();
         if((last == ')' || last == ']' || last == '}') &&

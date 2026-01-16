@@ -650,6 +650,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     autoCompletion = false;
             }
+            auto itcap = values.find("editor.completionautoparens");
+            if(itcap == values.end())
+                itcap = values.find("settings.completionautoparens");
+            if(itcap == values.end())
+                itcap = values.find("completionautoparens");
+            if(itcap != values.end())
+            {
+                std::string v = itcap->second;
+                if(v == "true" || v == "1" || v == "on")
+                    completionAutoParens = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    completionAutoParens = false;
+            }
             auto itsc = values.find("editor.usesystemclipboard");
             if(itsc == values.end())
                 itsc = values.find("settings.usesystemclipboard");
@@ -4038,6 +4051,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoCompletion ? "true" : "false"));
         return true;
     }
+    if(opt == "completionautoparens?")
+    {
+        setStatusMessage(std::string("completionautoparens=") +
+                         (completionAutoParens ? "true" : "false"));
+        return true;
+    }
     if(opt == "showtabs?")
     {
         setStatusMessage(std::string("showtabs=") +
@@ -4194,6 +4213,13 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoCompletion ? "true" : "false"));
     };
 
+    auto set_completion_auto_parens = [&](bool value)
+    {
+        completionAutoParens = value;
+        setStatusMessage(std::string("completionautoparens=") +
+                         (completionAutoParens ? "true" : "false"));
+    };
+
     if(opt == "autocomplete")
     {
         set_auto_completion(true);
@@ -4202,6 +4228,16 @@ bool Editor::handleSetCommand(std::string_view cmd)
     if(opt == "noautocomplete")
     {
         set_auto_completion(false);
+        return true;
+    }
+    if(opt == "completionautoparens")
+    {
+        set_completion_auto_parens(true);
+        return true;
+    }
+    if(opt == "nocompletionautoparens")
+    {
+        set_completion_auto_parens(false);
         return true;
     }
     if(opt == "showtabs")
@@ -4248,6 +4284,24 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("autocomplete: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("completionautoparens=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("completionautoparens=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_completion_auto_parens(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_completion_auto_parens(false);
+        }
+        else
+        {
+            setStatusMessage("completionautoparens: expected true/false");
         }
         return true;
     }
@@ -7252,7 +7306,9 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
     static const std::vector<std::string> options = {
         "set autobraces",   "set noautobraces", "set autobraces?",
         "set autobraces=",  "set autocomplete", "set noautocomplete",
-        "set autocomplete?","set autocomplete=", "set showtabs",
+        "set autocomplete?","set autocomplete=", "set completionautoparens",
+        "set nocompletionautoparens", "set completionautoparens?",
+        "set completionautoparens=", "set showtabs",
         "set noshowtabs",   "set showtabs?",   "set showtabs=",
         "set tabspaces?",   "set tabspaces=",  "set tabspaces=2",
         "set tabspaces=4",
