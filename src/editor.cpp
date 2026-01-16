@@ -3025,6 +3025,17 @@ void Editor::refreshScreen()
     int prevOffsetY = lastOffsetY;
     adjustViewport();
 
+    if(splitActive)
+    {
+        drawFullScreen();
+        lastOffsetY = *offsetY;
+        lastOffsetX = *offsetX;
+        lastMode = currentMode;
+        lastCursorY = *cursorY;
+        needsFullRedraw = false;
+        return;
+    }
+
     bool scrolled = (*offsetY != lastOffsetY || *offsetX != lastOffsetX);
     bool modeChanged = (currentMode != lastMode);
     int scrollDelta = *offsetY - lastOffsetY;
@@ -3095,7 +3106,8 @@ void Editor::updateCursorPosition()
     }
     else
     {
-        cursorRow = (*cursorY - *offsetY) + 1 + tabBarRows();
+        PaneLayout layout = getPaneLayout(activePane);
+        cursorRow = layout.y + (*cursorY - *offsetY) + 1 + tabBarRows();
         if(utf8Mode && *cursorY >= 0 && *cursorY < (int)lines->size())
         {
             const std::string& line = (*lines)[*cursorY];
@@ -3105,11 +3117,12 @@ void Editor::updateCursorPosition()
                 std::swap(start, end);
             cursorCol = text_utils::utf8DisplayWidth(
                             std::string_view(line).substr(start, end - start)) +
-                        1 + gutterWidth();
+                        1 + gutterWidth() + layout.x;
         }
         else
         {
-            cursorCol = (*cursorX - *offsetX) + 1 + gutterWidth();
+            cursorCol =
+                layout.x + (*cursorX - *offsetX) + 1 + gutterWidth();
         }
     }
 
@@ -3155,15 +3168,195 @@ int Editor::tabBarRows() const
 
 int Editor::contentRows() const
 {
+    if(splitActive)
+    {
+        PaneLayout layout = getPaneLayout(activePane);
+        return std::max(1, layout.rows - tabBarRows());
+    }
     return std::max(1, screenRows - tabBarRows());
+}
+
+Editor::PaneLayout Editor::getPaneLayout(int pane) const
+{
+    PaneLayout layout;
+    layout.x = 0;
+    layout.y = 0;
+    layout.rows = screenRows;
+    layout.cols = screenCols;
+
+    if(!splitActive)
+        return layout;
+
+    if(splitVertical)
+    {
+        if(screenCols < 2)
+            return layout;
+        int leftCols = screenCols / 2;
+        int rightCols = screenCols - leftCols;
+        if(rightCols > 1)
+            rightCols -= 1; // avoid auto-wrap at last column
+        if(pane == 0)
+        {
+            layout.x = 0;
+            layout.cols = leftCols;
+        }
+        else
+        {
+            layout.x = leftCols;
+            layout.cols = rightCols;
+        }
+        layout.y = 0;
+        layout.rows = screenRows;
+    }
+    else
+    {
+        if(screenRows < 2)
+            return layout;
+        int topRows = screenRows / 2;
+        int bottomRows = screenRows - topRows;
+        layout.x = 0;
+        layout.cols = screenCols;
+        if(pane == 0)
+        {
+            layout.y = 0;
+            layout.rows = topRows;
+        }
+        else
+        {
+            layout.y = topRows;
+            layout.rows = bottomRows;
+        }
+    }
+
+    layout.rows = std::max(1, layout.rows);
+    layout.cols = std::max(1, layout.cols);
+    return layout;
+}
+
+void Editor::setPanePointers(int pane)
+{
+    cursorX = &splitPanes[pane].cursorX;
+    cursorY = &splitPanes[pane].cursorY;
+    wantedX = &splitPanes[pane].wantedX;
+    offsetX = &splitPanes[pane].offsetX;
+    offsetY = &splitPanes[pane].offsetY;
+}
+
+void Editor::enableSplit(bool vertical)
+{
+    if(!currentBuffer)
+    {
+        setStatusMessage("No buffer");
+        return;
+    }
+    if(splitActive)
+    {
+        syncBufferStateFromActivePane();
+    }
+    splitActive = true;
+    splitVertical = vertical;
+    activePane = 0;
+    splitTabBarOffset[0] = tabBarOffset;
+    splitTabBarOffset[1] = tabBarOffset;
+    initSplitPanesFromBuffer();
+    setPanePointers(activePane);
+    needsFullRedraw = true;
+}
+
+void Editor::closeSplit()
+{
+    if(!splitActive)
+        return;
+    syncBufferStateFromActivePane();
+    int paneIndex = activePane;
+    splitActive = false;
+    currentBufferIndex = splitPanes[paneIndex].bufferIndex;
+    tabBarOffset = splitTabBarOffset[paneIndex];
+    activePane = 0;
+    updateCurrentBufferPointers();
+    needsFullRedraw = true;
+}
+
+void Editor::switchPane()
+{
+    if(!splitActive)
+        return;
+    syncBufferStateFromActivePane();
+    splitTabBarOffset[activePane] = tabBarOffset;
+    activePane = (activePane == 0) ? 1 : 0;
+    tabBarOffset = splitTabBarOffset[activePane];
+    currentBufferIndex = splitPanes[activePane].bufferIndex;
+    updateCurrentBufferPointers();
+    adjustViewport();
+    needsFullRedraw = true;
+}
+
+void Editor::syncBufferStateFromActivePane()
+{
+    if(!currentBuffer)
+        return;
+    currentBuffer->cursorX = splitPanes[activePane].cursorX;
+    currentBuffer->cursorY = splitPanes[activePane].cursorY;
+    currentBuffer->wantedX = splitPanes[activePane].wantedX;
+    currentBuffer->offsetX = splitPanes[activePane].offsetX;
+    currentBuffer->offsetY = splitPanes[activePane].offsetY;
+}
+
+void Editor::initSplitPanesFromBuffer()
+{
+    if(!currentBuffer)
+        return;
+    PaneState state;
+    state.bufferIndex = currentBufferIndex;
+    state.cursorX = currentBuffer->cursorX;
+    state.cursorY = currentBuffer->cursorY;
+    state.wantedX = currentBuffer->wantedX;
+    state.offsetX = currentBuffer->offsetX;
+    state.offsetY = currentBuffer->offsetY;
+    splitPanes[0] = state;
+    splitPanes[1] = state;
+}
+
+void Editor::switchToBufferInActivePane(int index)
+{
+    if(index < 0 || index >= buffers.size())
+        return;
+    syncBufferStateFromActivePane();
+    splitTabBarOffset[activePane] = tabBarOffset;
+    tabBarOffset = splitTabBarOffset[activePane];
+    splitPanes[activePane].bufferIndex = index;
+    currentBufferIndex = index;
+    updateCurrentBufferPointers();
+    restoreBufferState();
+    needsFullRedraw = true;
+}
+
+bool Editor::canSplit() const
+{
+    if(!splitActive)
+        return false;
+    if(splitVertical)
+        return screenCols >= 2;
+    return screenRows >= 2;
 }
 
 int Editor::lineNumberWidth() const
 {
-    if(!showRelativeLineNumbers || !lines)
+    if(!showRelativeLineNumbers)
         return 0;
-    int maxLine = std::max(1, (int)lines->size());
-    return (int)std::to_string(maxLine).length();
+    int maxLine = 1;
+    if(!buffers.empty())
+    {
+        for(const auto& buf : buffers)
+        {
+            int count = (int)buf->lines.size();
+            if(count > maxLine)
+                maxLine = count;
+        }
+    }
+    if(maxLine > maxLineCountSeen)
+        maxLineCountSeen = maxLine;
+    return (int)std::to_string(maxLineCountSeen).length();
 }
 
 int Editor::gutterWidth() const
@@ -4776,8 +4969,21 @@ void Editor::executeCommand(std::string_view cmd)
     {
         saveFile();
     }
+    else if(cmd == "vs" || cmd == "vsplit")
+    {
+        enableSplit(true);
+    }
+    else if(cmd == "vh" || cmd == "hs" || cmd == "hsplit")
+    {
+        enableSplit(false);
+    }
     else if(cmd == "q")
     {
+        if(splitActive)
+        {
+            closeSplit();
+            return;
+        }
         bool anyDirty = false;
         for(const auto& buf : buffers)
         {
@@ -5505,6 +5711,11 @@ void Editor::createNewBuffer()
     buffers.push_back(std::move(buffer));
     currentBufferIndex = buffers.size() - 1;
     updateCurrentBufferPointers();
+    if(splitActive)
+    {
+        splitPanes[activePane].bufferIndex = currentBufferIndex;
+        setPanePointers(activePane);
+    }
     needsFullRedraw = true;
 }
 
@@ -5516,11 +5727,18 @@ void Editor::updateCurrentBufferPointers()
         lines = &currentBuffer->lines;
         filename = &currentBuffer->filename;
         dirty = &currentBuffer->dirty;
-        cursorX = &currentBuffer->cursorX;
-        cursorY = &currentBuffer->cursorY;
-        wantedX = &currentBuffer->wantedX;
-        offsetX = &currentBuffer->offsetX;
-        offsetY = &currentBuffer->offsetY;
+        if(splitActive)
+        {
+            setPanePointers(activePane);
+        }
+        else
+        {
+            cursorX = &currentBuffer->cursorX;
+            cursorY = &currentBuffer->cursorY;
+            wantedX = &currentBuffer->wantedX;
+            offsetX = &currentBuffer->offsetX;
+            offsetY = &currentBuffer->offsetY;
+        }
     }
     else
     {
@@ -5577,11 +5795,18 @@ void Editor::switchToBuffer(int index)
 {
     if(index >= 0 && index < buffers.size())
     {
-        saveBufferState();
-        currentBufferIndex = index;
-        updateCurrentBufferPointers();
-        restoreBufferState();
-        needsFullRedraw = true;
+        if(splitActive)
+        {
+            switchToBufferInActivePane(index);
+        }
+        else
+        {
+            saveBufferState();
+            currentBufferIndex = index;
+            updateCurrentBufferPointers();
+            restoreBufferState();
+            needsFullRedraw = true;
+        }
 
         // Check if the file has been modified externally
         checkFileChanges();
@@ -5645,21 +5870,39 @@ void Editor::closeCurrentBuffer()
         buffers.erase(buffers.begin());
         currentBufferIndex = -1;
         clearCurrentBufferPointers();
+        splitActive = false;
         setMode(WELCOME);
     }
     else
     {
+        int removedIndex = currentBufferIndex;
         buffers.erase(buffers.begin() + currentBufferIndex);
         if(currentBufferIndex >= buffers.size())
         {
             currentBufferIndex = buffers.size() - 1;
         }
         updateCurrentBufferPointers();
+        if(splitActive)
+        {
+            for(int i = 0; i < 2; i++)
+            {
+                int& paneIndex = splitPanes[i].bufferIndex;
+                if(paneIndex == removedIndex)
+                {
+                    paneIndex = currentBufferIndex;
+                }
+                else if(paneIndex > removedIndex)
+                {
+                    paneIndex -= 1;
+                }
+            }
+            currentBufferIndex = splitPanes[activePane].bufferIndex;
+            updateCurrentBufferPointers();
+        }
         restoreBufferState();
     }
 
     needsFullRedraw = true;
-    setStatusMessage("Buffer closed");
 }
 
 void Editor::listBuffers()
@@ -7267,9 +7510,9 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "wqa!",    "wqall!", "xa",         "e",      "edit",     "new",
         "vnew",    "bn",     "bnext",      "bp",     "bprev",    "bd",
         "bdelete", "ls",     "buffers",    "sp",     "split",    "vs",
-        "vsplit",  "only",   "tabnew",     "tabc",   "tabclose", "set",
-        "syntax",  "noh",    "nohlsearch", "lspinfo", "emoji",   "em",
-        "help",    "h"};
+        "vsplit",  "vh",     "hs",         "hsplit", "only",     "tabnew",
+        "tabc",    "tabclose", "set",      "syntax", "noh",      "nohlsearch",
+        "lspinfo", "emoji",  "em",         "help",   "h"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

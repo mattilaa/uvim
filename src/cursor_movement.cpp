@@ -1017,6 +1017,15 @@ void Editor::adjustViewport()
         return;
     }
 
+    if(splitActive)
+    {
+        PaneLayout layout = getPaneLayout(activePane);
+        int rows = std::max(1, layout.rows - tabBarRows());
+        int cols = std::max(1, layout.cols - gutterWidth());
+        adjustViewportForPane(splitPanes[activePane], rows, cols);
+        return;
+    }
+
     const int n = line_count(*lines);
 
     int& cx = *cursorX;
@@ -1051,6 +1060,42 @@ void Editor::adjustViewport()
     // We don't know the longest visible line here without extra work,
     // so clamp to [0..cx] to avoid huge offsets when cx is small.
     ox = std::clamp(ox, 0, std::max(0, cx));
+}
+
+void Editor::adjustViewportForPane(PaneState& pane, int rows, int cols)
+{
+    if(!lines || lines->empty())
+    {
+        pane.cursorX = 0;
+        pane.cursorY = 0;
+        pane.offsetX = 0;
+        pane.offsetY = 0;
+        pane.wantedX = 0;
+        return;
+    }
+
+    const int n = line_count(*lines);
+
+    pane.cursorY = std::clamp(pane.cursorY, 0, n - 1);
+    pane.cursorX = std::clamp(pane.cursorX, 0, line_len(*lines, pane.cursorY));
+
+    rows = std::max(1, rows);
+    cols = std::max(1, cols);
+
+    const int maxOffsetY = std::max(0, n - rows);
+
+    if(pane.cursorY < pane.offsetY)
+        pane.offsetY = pane.cursorY;
+    else if(pane.cursorY >= pane.offsetY + rows)
+        pane.offsetY = pane.cursorY - rows + 1;
+    pane.offsetY = std::clamp(pane.offsetY, 0, maxOffsetY);
+
+    if(pane.cursorX < pane.offsetX)
+        pane.offsetX = pane.cursorX;
+    else if(pane.cursorX >= pane.offsetX + cols)
+        pane.offsetX = pane.cursorX - cols + 1;
+
+    pane.offsetX = std::clamp(pane.offsetX, 0, std::max(0, pane.cursorX));
 }
 
 void Editor::centerScreen()

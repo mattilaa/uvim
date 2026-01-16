@@ -111,6 +111,25 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == Terminal::CTRL_M)
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == 'h' || nextChar == 'j' || nextChar == 'k' ||
+           nextChar == 'l')
+        {
+            if(nextChar == 'h' || nextChar == 'k')
+                ed->previousBuffer();
+            else
+                ed->nextBuffer();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     if(ed->emojiPopupActive)
     {
         if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
@@ -225,6 +244,28 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ed->closeDiagnosticPopup();
         ctx.repeatCount = 0;
         return std::nullopt;
+    }
+
+    if(ed->splitActive)
+    {
+        if(c == Terminal::CTRL_J || c == Terminal::CTRL_K)
+        {
+            ed->switchPane();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_H)
+        {
+            ed->previousBuffer();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == Terminal::CTRL_L)
+        {
+            ed->nextBuffer();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
     }
 
     if(ed->showTabs && (c == Terminal::CTRL_H || c == Terminal::CTRL_L))

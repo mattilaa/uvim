@@ -41,6 +41,7 @@ public:
     const std::string& cursor() const;
     const std::string& searchMatch() const;
     const std::string& statusBar() const;
+    const std::string& tabBar() const;
     const std::string& panel() const;
 
     const std::string& uiDim() const;
@@ -71,6 +72,7 @@ private:
     Color ui_prompt_;
 
     Pair status_bar_;
+    Pair tab_bar_;
     Pair selection_;
     Pair cursor_;
     Pair search_;
@@ -85,6 +87,7 @@ private:
     std::string cursor_seq_;
     std::string search_seq_;
     std::string status_bar_seq_;
+    std::string tab_bar_seq_;
     std::string panel_seq_;
     std::string ui_dim_seq_;
     std::string ui_accent_seq_;

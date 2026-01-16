@@ -134,6 +134,9 @@ Theme Theme::defaults()
     t.status_bar_.fg = t.base_fg_;
     t.status_bar_.bg = {0x26, 0x23, 0x3A, true};
 
+    t.tab_bar_.fg = t.base_fg_;
+    t.tab_bar_.bg = {0x2A, 0x27, 0x3F, true};
+
     t.selection_.fg = t.base_fg_;
     t.selection_.bg = {0x40, 0x3D, 0x52, true};
 
@@ -230,6 +233,11 @@ const std::string& Theme::statusBar() const
     return status_bar_seq_;
 }
 
+const std::string& Theme::tabBar() const
+{
+    return tab_bar_seq_;
+}
+
 const std::string& Theme::panel() const
 {
     return panel_seq_;
@@ -304,6 +312,7 @@ void Theme::rebuildSequences()
                   (cursor_.bold ? Terminal::ESC_BOLD : "");
     search_seq_ = fgSeq(search_.fg) + bgSeq(search_.bg);
     status_bar_seq_ = fgSeq(status_bar_.fg) + bgSeq(status_bar_.bg);
+    tab_bar_seq_ = fgSeq(tab_bar_.fg) + bgSeq(tab_bar_.bg);
     panel_seq_ = fgSeq(panel_.fg) + bgSeq(panel_.bg) +
                  (panel_.bold ? Terminal::ESC_BOLD : "");
 
@@ -428,6 +437,8 @@ void Theme::applyOverrides(
 
     set_color("theme.statusline.fg", status_bar_.fg);
     set_color("theme.statusline.bg", status_bar_.bg);
+    set_color("theme.tabbar.fg", tab_bar_.fg);
+    set_color("theme.tabbar.bg", tab_bar_.bg);
     set_color("theme.selection.fg", selection_.fg);
     set_color("theme.selection.bg", selection_.bg);
     set_color("theme.cursor.fg", cursor_.fg);

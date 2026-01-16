@@ -6,13 +6,13 @@
 #include <cstdio>
 #include <cstring>
 
-std::string Editor::buildTabBarLine()
+std::string Editor::buildTabBarLine(int width)
 {
     if(!showTabs || buffers.empty())
         return "";
 
-    const int maxLabelWidth =
-        std::min(24, std::max(8, screenCols / 4));
+    width = std::max(1, width);
+    const int maxLabelWidth = std::min(24, std::max(8, width / 4));
 
     std::vector<std::string> labels;
     labels.reserve(buffers.size());
@@ -43,7 +43,7 @@ std::string Editor::buildTabBarLine()
     auto computeEnd = [&](int start, int rightReserve) -> int
     {
         int leftReserve = (start > 0) ? 1 : 0;
-        int available = screenCols - leftReserve - rightReserve;
+        int available = width - leftReserve - rightReserve;
         int used = 0;
         int end = start - 1;
         for(int i = start; i < (int)labels.size(); ++i)
@@ -84,13 +84,13 @@ std::string Editor::buildTabBarLine()
     tabBarOffset = offset;
 
     std::string line;
-    line.reserve(screenCols * 2);
+    line.reserve(width * 2);
 
     if(offset > 0)
     {
         line += theme.uiDim();
         line += "<";
-        line += theme.reset();
+        line += theme.tabBar();
     }
 
     for(int i = offset; i <= end && i < (int)labels.size(); ++i)
@@ -99,13 +99,13 @@ std::string Editor::buildTabBarLine()
         {
             line += theme.selection();
             line += labels[i];
-            line += theme.reset();
+            line += theme.tabBar();
         }
         else
         {
             line += theme.uiDim();
             line += labels[i];
-            line += theme.reset();
+            line += theme.tabBar();
         }
     }
 
@@ -113,7 +113,7 @@ std::string Editor::buildTabBarLine()
     {
         line += theme.uiDim();
         line += ">";
-        line += theme.reset();
+        line += theme.tabBar();
     }
 
     return line;
@@ -131,9 +131,12 @@ void Editor::drawRows()
 
     if(tabRows > 0)
     {
+        std::string line = buildTabBarLine(screenCols);
+        Terminal::write(theme.tabBar());
         Terminal::clearLine();
-        std::string line = buildTabBarLine();
         Terminal::write(line);
+        Terminal::write(Terminal::ESC_CLEAR_LINE);
+        Terminal::write(theme.reset());
         Terminal::write("\r\n");
     }
 
@@ -771,6 +774,16 @@ void Editor::drawMessageBarQuick()
 
 void Editor::drawFullScreen()
 {
+    if(splitActive && canSplit())
+    {
+        drawSplitFullScreen();
+        return;
+    }
+    drawFullScreenSingle();
+}
+
+void Editor::drawFullScreenSingle()
+{
     adjustViewport();
 
     std::string output;
@@ -801,7 +814,11 @@ void Editor::drawFullScreen()
     {
         output += theme.reset();
         output += Terminal::ESC_CLEAR_LINE;
-        output += buildTabBarLine();
+        std::string line = buildTabBarLine(screenCols);
+        output += theme.tabBar();
+        output += line;
+        output += Terminal::ESC_CLEAR_LINE;
+        output += theme.reset();
         output += "\r\n";
     }
 
@@ -1079,6 +1096,468 @@ void Editor::drawFullScreen()
     }
 
     // Completion popup (clangd)
+    drawCompletionPopup(output);
+    drawEmojiPopup(output);
+    drawDiagnosticPopup(output);
+    drawCommandHistoryPopup(output);
+    drawCommandPopup(output);
+
+    Terminal::write(output);
+    updateCursorPosition();
+    Terminal::flush();
+}
+
+void Editor::drawSplitFullScreen()
+{
+    PaneLayout layout0 = getPaneLayout(0);
+    PaneLayout layout1 = getPaneLayout(1);
+
+    int rows0 = std::max(1, layout0.rows - tabBarRows());
+    int rows1 = std::max(1, layout1.rows - tabBarRows());
+    int cols0 = std::max(1, layout0.cols - gutterWidth());
+    int cols1 = std::max(1, layout1.cols - gutterWidth());
+    adjustViewportForPane(splitPanes[0], rows0, cols0);
+    adjustViewportForPane(splitPanes[1], rows1, cols1);
+
+    int tabRows = tabBarRows();
+
+    std::string tabLine0;
+    std::string tabLine1;
+    if(tabRows > 0)
+    {
+        int savedIndex = currentBufferIndex;
+        int savedTabOffset = tabBarOffset;
+        currentBufferIndex = splitPanes[0].bufferIndex;
+        tabBarOffset = splitTabBarOffset[0];
+        tabLine0 = buildTabBarLine(layout0.cols);
+        splitTabBarOffset[0] = tabBarOffset;
+        currentBufferIndex = splitPanes[1].bufferIndex;
+        tabBarOffset = splitTabBarOffset[1];
+        tabLine1 = buildTabBarLine(layout1.cols);
+        splitTabBarOffset[1] = tabBarOffset;
+        currentBufferIndex = savedIndex;
+        tabBarOffset = savedTabOffset;
+    }
+
+    int numberWidth = lineNumberWidth();
+    bool showNumbers = numberWidth > 0;
+    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
+        getClangdDiagnosticsByLine();
+
+    struct PanePointerGuard
+    {
+        Editor* editor;
+        int* cursorX;
+        int* cursorY;
+        int* wantedX;
+        int* offsetX;
+        int* offsetY;
+
+        PanePointerGuard(Editor* ed, int pane) : editor(ed)
+        {
+            cursorX = ed->cursorX;
+            cursorY = ed->cursorY;
+            wantedX = ed->wantedX;
+            offsetX = ed->offsetX;
+            offsetY = ed->offsetY;
+            ed->setPanePointers(pane);
+        }
+
+        ~PanePointerGuard()
+        {
+            editor->cursorX = cursorX;
+            editor->cursorY = cursorY;
+            editor->wantedX = wantedX;
+            editor->offsetX = offsetX;
+            editor->offsetY = offsetY;
+        }
+    };
+
+    struct BufferPointerGuard
+    {
+        Editor* editor;
+        int savedIndex;
+        Buffer* savedBuffer;
+        std::vector<std::string>* savedLines;
+        std::string* savedFilename;
+        bool* savedDirty;
+
+        BufferPointerGuard(Editor* ed, int bufferIndex) : editor(ed)
+        {
+            savedIndex = ed->currentBufferIndex;
+            savedBuffer = ed->currentBuffer;
+            savedLines = ed->lines;
+            savedFilename = ed->filename;
+            savedDirty = ed->dirty;
+            if(bufferIndex >= 0 &&
+               bufferIndex < static_cast<int>(ed->buffers.size()))
+            {
+                ed->currentBufferIndex = bufferIndex;
+                ed->currentBuffer = ed->buffers[bufferIndex].get();
+                ed->lines = &ed->currentBuffer->lines;
+                ed->filename = &ed->currentBuffer->filename;
+                ed->dirty = &ed->currentBuffer->dirty;
+            }
+        }
+
+        ~BufferPointerGuard()
+        {
+            editor->currentBufferIndex = savedIndex;
+            editor->currentBuffer = savedBuffer;
+            editor->lines = savedLines;
+            editor->filename = savedFilename;
+            editor->dirty = savedDirty;
+        }
+    };
+
+    auto renderPaneRow = [&](int pane, int localRow, int paneWidth) -> std::string
+    {
+        std::string row;
+        row.reserve(paneWidth * 2);
+
+        PaneLayout layout = getPaneLayout(pane);
+        if(localRow < 0 || localRow >= layout.rows)
+        {
+            row.append(paneWidth, ' ');
+            return row;
+        }
+
+        if(tabRows > 0 && localRow == 0)
+        {
+            const std::string& tabLine =
+                (pane == 0) ? tabLine0 : tabLine1;
+            row += theme.tabBar();
+            row += tabLine;
+            if(paneWidth == screenCols)
+            {
+                row += Terminal::ESC_CLEAR_LINE;
+                row += theme.reset();
+                return row;
+            }
+            int visible = text_utils::displayWidth(tabLine);
+            if(visible < paneWidth)
+                row.append(paneWidth - visible, ' ');
+            row += theme.reset();
+            return row;
+        }
+
+        BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
+        PanePointerGuard guard(this, pane);
+
+        int textCols = std::max(1, paneWidth - gutterWidth());
+        int fileRow = (localRow - tabRows) + *offsetY;
+
+        auto appendGutter = [&](int rowIndex)
+        {
+            if(showGitBlame)
+            {
+                std::string blame = blameDisplayForLine(rowIndex);
+                row += theme.uiDim();
+                row += blame;
+                if((int)blame.size() < kGitBlameWidth)
+                    row.append(kGitBlameWidth - blame.size(), ' ');
+            }
+            else
+            {
+                auto diagIt = diagnosticsByLine.find(rowIndex);
+                if(diagIt != diagnosticsByLine.end())
+                {
+                    row += (diagIt->second.severity == 1) ? theme.uiError()
+                                                          : theme.uiWarning();
+                    row += (diagIt->second.severity == 1) ? 'E' : 'W';
+                }
+                else
+                {
+                    row += theme.uiGutter();
+                    row += ' ';
+                }
+            }
+
+            if(showNumbers)
+            {
+                std::string num;
+                bool isCurrent = false;
+                if(rowIndex >= 0 && rowIndex < (int)lines->size())
+                {
+                    if(rowIndex == *cursorY)
+                    {
+                        isCurrent = true;
+                        num = std::to_string(rowIndex + 1);
+                    }
+                    else
+                    {
+                        int rel = std::abs(rowIndex - *cursorY);
+                        num = std::to_string(rel);
+                    }
+                }
+                row += isCurrent ? theme.uiInfo() : theme.uiDim();
+                if((int)num.size() < numberWidth)
+                    row.append(numberWidth - num.size(), ' ');
+                row += num;
+                row += ' ';
+            }
+
+            row += theme.baseFg();
+        };
+
+        if(fileRow >= (int)lines->size())
+        {
+            appendGutter(fileRow);
+            row += theme.uiGutter();
+            row += "~";
+            row += theme.baseFg();
+            int visible = gutterWidth() + 1;
+            if(visible < paneWidth)
+                row.append(paneWidth - visible, ' ');
+            return row;
+        }
+
+        appendGutter(fileRow);
+        const std::string& line = (*lines)[fileRow];
+        int start = *offsetX;
+        int len = (int)line.length() - start;
+        if(len < 0)
+            len = 0;
+        int visibleLen = 0;
+
+        if(len > 0)
+        {
+            if(len > textCols)
+                len = textCols;
+            visibleLen = len;
+
+            bool hasHighlighting = false;
+            if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
+               currentMode == VISUAL_BLOCK || !searchMatches.empty())
+            {
+                if((currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                    currentMode == VISUAL_BLOCK) &&
+                   fileRow == *cursorY)
+                {
+                    int cursorCol = *cursorX - *offsetX;
+                    if(cursorCol >= 0 && cursorCol < len)
+                        hasHighlighting = true;
+                }
+                for(int x = 0; x < len; x++)
+                {
+                    int col = x + *offsetX;
+                    if(isInSelection(fileRow, col) ||
+                       isInVisualBlock(fileRow, col) ||
+                       isInSearchMatch(fileRow, col))
+                    {
+                        hasHighlighting = true;
+                        break;
+                    }
+                }
+            }
+
+            if(isCppFile() || isRobotFile() || isPythonFile() ||
+               isCMakeFile() || isShellFile() ||
+               (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml))
+            {
+                renderLineWithSyntax(row, line, start, len, fileRow);
+            }
+            else if(!hasHighlighting)
+            {
+                row.append(line, start, len);
+            }
+            else
+            {
+                for(int x = 0; x < len; x++)
+                {
+                    int col = x + *offsetX;
+                    bool highlighted = false;
+                    bool showCursor =
+                        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                         currentMode == VISUAL_BLOCK);
+                    bool isCursor =
+                        showCursor && (fileRow == *cursorY && col == *cursorX);
+                    if(isCursor)
+                    {
+                        row += theme.cursor();
+                        highlighted = true;
+                    }
+                    else if(isInSelection(fileRow, col) ||
+                            isInVisualBlock(fileRow, col))
+                    {
+                        row += theme.selection();
+                        highlighted = true;
+                    }
+                    else if(isInSearchMatch(fileRow, col))
+                    {
+                        row += theme.searchMatch();
+                        highlighted = true;
+                    }
+
+                    row += line[col];
+
+                    if(highlighted)
+                    {
+                        row += theme.reset();
+                    }
+                }
+            }
+        }
+
+        if((currentMode == VISUAL || currentMode == VISUAL_LINE ||
+            currentMode == VISUAL_BLOCK) &&
+           fileRow == *cursorY)
+        {
+            int cursorCol = *cursorX - *offsetX;
+            if(cursorCol >= visibleLen && cursorCol < textCols)
+            {
+                row += theme.reset();
+                int pad = cursorCol - visibleLen;
+                if(pad > 0)
+                    row.append(pad, ' ');
+                row += theme.cursor();
+                row += ' ';
+                row += theme.reset();
+                visibleLen = cursorCol + 1;
+            }
+        }
+
+        if(visibleLen < textCols)
+            row.append(textCols - visibleLen, ' ');
+        return row;
+    };
+
+    std::string output;
+    output.reserve((screenRows + 3) * screenCols * 3);
+
+    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                       currentMode == VISUAL_BLOCK);
+    if(hideCursor)
+        output += Terminal::ESC_HIDE_CURSOR;
+    else
+        output += Terminal::ESC_SHOW_CURSOR;
+
+    output += theme.reset();
+    output += Terminal::ESC_CLEAR_SCREEN;
+    output += Terminal::ESC_CURSOR_HOME;
+
+    if(splitVertical)
+    {
+        for(int row = 0; row < screenRows; row++)
+        {
+            if(row > 0)
+                output += "\r\n";
+            output += theme.reset();
+            output += Terminal::ESC_CLEAR_LINE;
+            output += renderPaneRow(0, row - layout0.y, layout0.cols);
+            output += renderPaneRow(1, row - layout1.y, layout1.cols);
+        }
+    }
+    else
+    {
+        for(int row = 0; row < layout0.rows; row++)
+        {
+            if(row > 0)
+                output += "\r\n";
+            output += theme.reset();
+            output += Terminal::ESC_CLEAR_LINE;
+            output += renderPaneRow(0, row, layout0.cols);
+            if(layout0.cols < screenCols)
+                output.append(screenCols - layout0.cols, ' ');
+        }
+        for(int row = 0; row < layout1.rows; row++)
+        {
+            output += "\r\n";
+            output += theme.reset();
+            output += Terminal::ESC_CLEAR_LINE;
+            output += renderPaneRow(1, row, layout1.cols);
+            if(layout1.cols < screenCols)
+                output.append(screenCols - layout1.cols, ' ');
+        }
+    }
+
+    // Status bar
+    output += Terminal::NEWLINE_CLEAR;
+    output += theme.statusBar();
+
+    std::string statusLeft = " " + getModeString() + " | ";
+
+    if(buffers.size() > 1)
+    {
+        statusLeft += "[" + std::to_string(currentBufferIndex + 1) + "/" +
+                      std::to_string(buffers.size()) + "] ";
+    }
+
+    char rightStatus[32];
+    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
+             *cursorX + 1);
+
+    std::string searchInfo;
+    if(!searchQuery.empty())
+    {
+        if(!searchMatches.empty())
+        {
+            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                         std::to_string(searchMatches.size()) + "]";
+        }
+        else
+        {
+            searchInfo = " [No matches]";
+        }
+    }
+
+    std::string rightBlock = searchInfo + rightStatus;
+
+    int rightLen = rightBlock.length();
+    int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
+
+    std::string displayName = filename->empty() ? "[No Name]" : *filename;
+    if(*dirty)
+        displayName += " [+]";
+
+    if((int)displayName.length() > availableForFile && availableForFile > 4)
+    {
+        displayName = "..." + displayName.substr(displayName.length() -
+                                                 availableForFile + 3);
+    }
+
+    statusLeft += displayName;
+
+    output += statusLeft;
+
+    int padding = screenCols - statusLeft.length() - rightLen;
+    if(padding > 0)
+        output.append(padding, ' ');
+    output += rightBlock;
+    output += theme.reset();
+
+    // Message bar
+    output += Terminal::NEWLINE_CLEAR;
+
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+    {
+        output += commandBuffer;
+        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
+        {
+            if(!searchMatches.empty())
+            {
+                output += " [" + std::to_string(currentMatchIndex + 1) + "/" +
+                          std::to_string(searchMatches.size()) + "]";
+            }
+            else if(!searchQuery.empty())
+            {
+                output += " [No matches]";
+            }
+        }
+    }
+    else if(showGitBlame && showGitBlameInfo)
+    {
+        std::string blame = blameFullForLine(*cursorY);
+        if(!blame.empty())
+            output += "blame: " + blame;
+    }
+    else if(!statusMessage.empty())
+    {
+        int msglen = std::min((int)statusMessage.length(), screenCols);
+        output.append(statusMessage, 0, msglen);
+    }
+
     drawCompletionPopup(output);
     drawEmojiPopup(output);
     drawDiagnosticPopup(output);

@@ -281,6 +281,26 @@ public:
     bool autoBraces = true;
     bool autoCompletion = true;
     bool completionAutoParens = true;
+    struct PaneState
+    {
+        int bufferIndex = -1;
+        int cursorX = 0;
+        int cursorY = 0;
+        int wantedX = 0;
+        int offsetX = 0;
+        int offsetY = 0;
+    };
+    struct PaneLayout
+    {
+        int x = 0;
+        int y = 0;
+        int rows = 0;
+        int cols = 0;
+    };
+    bool splitActive = false;
+    bool splitVertical = true;
+    int activePane = 0;
+    PaneState splitPanes[2];
     bool useSystemClipboard = true;
     bool showRelativeLineNumbers = true;
     bool showGitBlame = false;
@@ -296,6 +316,8 @@ public:
     bool showTabs = true;
     bool utf8Mode = true;
     int tabBarOffset = 0;
+    int splitTabBarOffset[2] = {0, 0};
+    mutable int maxLineCountSeen = 1;
     std::string configPath;
     bool syntaxJson = true;
     bool syntaxYaml = true;
@@ -314,8 +336,10 @@ public:
     void refreshScreen();
     void drawIncrementalUpdate();
     void drawFullScreen();
+    void drawSplitFullScreen();
+    void drawFullScreenSingle();
     void updateCursorPosition();
-    std::string buildTabBarLine();
+    std::string buildTabBarLine(int width);
 
     // Drawing - NEW OPTIMIZATION FUNCTIONS
     void drawScrollUpdate(int scrollDelta);
@@ -324,6 +348,16 @@ public:
     bool handleSetCommand(std::string_view cmd);
     int tabBarRows() const;
     int contentRows() const;
+    PaneLayout getPaneLayout(int pane) const;
+    void setPanePointers(int pane);
+    void enableSplit(bool vertical);
+    void closeSplit();
+    void switchPane();
+    void syncBufferStateFromActivePane();
+    void initSplitPanesFromBuffer();
+    void switchToBufferInActivePane(int index);
+    void adjustViewportForPane(PaneState& pane, int rows, int cols);
+    bool canSplit() const;
 
     // Mode handlers
     void handleNormalMode(int c);
