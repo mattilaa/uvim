@@ -30,6 +30,7 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     if(c == Terminal::ESC)
     {
         ctx.setStatusMessage("");
+        ed->noteDoubleEscStatusClear();
         ed->cancelChangeRecording();
         return NormalMode{};
     }

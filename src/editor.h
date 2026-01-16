@@ -599,6 +599,7 @@ public:
 
     // Utilities
     void setStatusMessage(const std::string& msg);
+    bool noteDoubleEscStatusClear();
     void setMode(Mode mode);
     std::string getModeString() const;
     bool isWordChar(char c) const;

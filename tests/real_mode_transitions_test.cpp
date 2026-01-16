@@ -44,3 +44,16 @@ TEST(RealModeTransitionsTest, LspInfoQuitWithNoBufferReturnsWelcome)
 
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
+
+TEST(RealModeTransitionsTest, DoubleEscClearsStatusMessageInWelcome)
+{
+    Editor editor = Editor::createForTests();
+    editor.setStatusMessage("Message");
+    auto sm = makeMachine(editor, WelcomeMode{});
+
+    sm.dispatch(Terminal::ESC);
+    EXPECT_EQ(editor.statusMessage, "Message");
+
+    sm.dispatch(Terminal::ESC);
+    EXPECT_TRUE(editor.statusMessage.empty());
+}

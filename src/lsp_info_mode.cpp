@@ -27,6 +27,8 @@ std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        if(c == Terminal::ESC)
+            ed->noteDoubleEscStatusClear();
         return ctx.hasBuffer() ? ModeState{NormalMode{}}
                                : ModeState{WelcomeMode{}};
     }

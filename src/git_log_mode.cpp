@@ -159,6 +159,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 cursor = searchPrevCursor;
                 scrollOffset = searchPrevScroll;
                 searchQuery.clear();
+                ed->setStatusMessage("");
                 ed->lastEscTime = std::chrono::steady_clock::time_point();
             }
             else
@@ -253,6 +254,8 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        if(c == Terminal::ESC)
+            ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
 

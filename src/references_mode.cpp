@@ -36,6 +36,8 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        if(c == Terminal::ESC)
+            ed->noteDoubleEscStatusClear();
         ed->clearReferences();
         return NormalMode{};
     }

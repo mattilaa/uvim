@@ -98,6 +98,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                 searchIndex = searchPrevIndex;
                 scrollOffset = searchPrevScroll;
                 searchQuery.clear();
+                ctx.editor->setStatusMessage("");
                 ctx.lastEscTime() = std::chrono::steady_clock::time_point();
             }
             else
@@ -183,6 +184,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        if(c == Terminal::ESC)
+            ctx.editor->noteDoubleEscStatusClear();
         if(returnLog.has_value())
             return *returnLog;
         return NormalMode{};

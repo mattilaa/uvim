@@ -26,6 +26,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC)
     {
+        ed->noteDoubleEscStatusClear();
         return defaultExitMode(ed);
     }
 

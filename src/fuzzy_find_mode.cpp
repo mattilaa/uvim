@@ -69,6 +69,7 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC)
     {
+        ed->noteDoubleEscStatusClear();
         return defaultExitMode(ed);
     }
 

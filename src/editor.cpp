@@ -3115,6 +3115,24 @@ void Editor::setStatusMessage(const std::string& msg)
     statusMessage = msg;
 }
 
+bool Editor::noteDoubleEscStatusClear()
+{
+    auto now = std::chrono::steady_clock::now();
+    auto timeSinceLastEsc =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now -
+                                                              lastEscTime)
+            .count();
+    if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS)
+    {
+        setStatusMessage("");
+        needsFullRedraw = true;
+        lastEscTime = std::chrono::steady_clock::time_point();
+        return true;
+    }
+    lastEscTime = now;
+    return false;
+}
+
 int Editor::tabBarRows() const
 {
     return (showTabs && !buffers.empty()) ? 1 : 0;

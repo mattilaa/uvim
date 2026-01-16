@@ -65,6 +65,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     {
         if(c == Terminal::ESC)
         {
+            ctx.editor->noteDoubleEscStatusClear();
             std::string restored = ctx.cancelCommandHistorySearch();
             ctx.commandBuffer = ":" + restored;
             updatePopup();
@@ -125,6 +126,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Escape -> cancel and return to normal mode
     if(c == Terminal::ESC)
     {
+        ctx.editor->noteDoubleEscStatusClear();
         ctx.setStatusMessage("");
         ctx.cancelCommandPopup();
         return ctx.hasBuffer() ? ModeState{NormalMode{}}
@@ -338,6 +340,7 @@ void Editor::handleCommandMode(int c)
 
     if(c == Terminal::ESC)
     {
+        noteDoubleEscStatusClear();
         commandBuffer.clear();
         setMode(NORMAL);
         return;

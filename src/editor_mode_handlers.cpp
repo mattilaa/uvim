@@ -939,12 +939,16 @@ void Editor::handleNormalMode(int c)
                                                                   lastEscTime)
                 .count();
 
-        if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS &&
-           (!searchMatches.empty() || !searchQuery.empty()))
+        if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS)
         {
-            // Double ESC detected - clear search highlights
-            clearSearch();
-            needsFullRedraw = true; // Force full redraw to clear highlights
+            if(!searchMatches.empty() || !searchQuery.empty())
+            {
+                // Double ESC detected - clear search highlights
+                clearSearch();
+                needsFullRedraw = true; // Force full redraw to clear highlights
+            }
+            setStatusMessage("");
+            needsFullRedraw = true;
             lastEscTime = std::chrono::steady_clock::time_point(); // Reset
         }
         else

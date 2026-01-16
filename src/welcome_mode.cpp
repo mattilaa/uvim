@@ -31,6 +31,8 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == Terminal::ENTER)
     {
+        if(c == Terminal::ESC)
+            ctx.editor->noteDoubleEscStatusClear();
         ctx.commandBuffer.clear();
         return std::nullopt;
     }

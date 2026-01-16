@@ -194,7 +194,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             if(!ed->searchMatches.empty() || !ed->searchQuery.empty())
             {
                 ed->clearSearch();
-                ctx.setStatusMessage("Search cleared");
                 ed->needsFullRedraw = true;
             }
             else if(ed->formatOnDoubleEscPending &&
@@ -202,6 +201,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             {
                 ed->clangFormatWithArgs("", "clang-format: formatted file");
             }
+            ctx.setStatusMessage("");
+            ed->needsFullRedraw = true;
             ed->formatOnDoubleEscPending = false;
             ed->lastEscTime = std::chrono::steady_clock::time_point();
         }

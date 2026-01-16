@@ -107,6 +107,8 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'v')
     {
+        if(c == Terminal::ESC)
+            ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
 
@@ -460,6 +462,8 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'V')
     {
+        if(c == Terminal::ESC)
+            ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
 
@@ -658,6 +662,8 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == Terminal::CTRL_V)
     {
+        if(c == Terminal::ESC)
+            ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
 

@@ -55,6 +55,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        if(c == Terminal::ESC)
+            ctx.editor->noteDoubleEscStatusClear();
         if(!previousFile.empty())
         {
             ctx.openFile(std::string_view(previousFile));
