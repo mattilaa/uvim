@@ -970,8 +970,6 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
 
     clangdLspEnabled = true;
     clangdLspCompileCommandsDir = ccdir;
-    setStatusMessage("clangd LSP: ON" +
-                     (ccdir.empty() ? "" : (" (ccdir=" + ccdir + ")")));
 #else
     (void)enable;
     (void)compileCommandsDir;
