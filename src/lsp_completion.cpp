@@ -1550,7 +1550,7 @@ void Editor::drawDiagnosticPopup(std::string& output) const
     moveTo(top + 1 + (int)rows.size(), left);
     text_utils::appendU8(output, u8"└");
     text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┐");
+    text_utils::appendU8(output, u8"┘");
 }
 
 void Editor::drawSymbolPopup(std::string& output) const
