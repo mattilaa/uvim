@@ -766,6 +766,7 @@ void Editor::drawMessageBarQuick()
     drawCompletionPopup(output);
     drawEmojiPopup(output);
     drawDiagnosticPopup(output);
+    drawSymbolPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 
@@ -1099,6 +1100,7 @@ void Editor::drawFullScreenSingle()
     drawCompletionPopup(output);
     drawEmojiPopup(output);
     drawDiagnosticPopup(output);
+    drawSymbolPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 
@@ -1561,6 +1563,7 @@ void Editor::drawSplitFullScreen()
     drawCompletionPopup(output);
     drawEmojiPopup(output);
     drawDiagnosticPopup(output);
+    drawSymbolPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 

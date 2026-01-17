@@ -10,6 +10,7 @@ std::string headerForSymbol(const std::string& symbol)
         // Strings
         {"string", "string"},
         {"string_view", "string_view"},
+        {"basic_string", "string"},
         {"u8string", "string"},
         {"u16string", "string"},
         {"u32string", "string"},

@@ -1135,6 +1135,11 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         ed->saveFile();
         break;
 
+    case 's':
+        // Show signature popup for symbol under cursor
+        ed->openSymbolPopupForCursor();
+        break;
+
     case 'q':
         // Quit
         ed->forceQuit();

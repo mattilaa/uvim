@@ -1553,6 +1553,83 @@ void Editor::drawDiagnosticPopup(std::string& output) const
     text_utils::appendU8(output, u8"┐");
 }
 
+void Editor::drawSymbolPopup(std::string& output) const
+{
+    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+       currentMode == SEARCH_BACKWARD)
+        return;
+    if(completionActive && currentMode == INSERT)
+        return;
+    if(!currentBuffer)
+        return;
+    if(!symbolPopupActive || symbolPopupText.empty())
+        return;
+
+    std::string row = symbolPopupText;
+    int innerW = text_utils::displayWidth(row);
+    int maxInner = std::max(10, screenCols - 4);
+    if(innerW > maxInner)
+    {
+        int trim = std::max(0, maxInner - 3);
+        if(trim > 0 && trim < (int)row.size())
+            row = row.substr(0, (size_t)trim) + "...";
+        innerW = text_utils::displayWidth(row);
+    }
+
+    int totalW = innerW + 4;
+    if(totalW > screenCols)
+    {
+        totalW = screenCols;
+        innerW = std::max(1, totalW - 4);
+    }
+
+    int totalH = 3;
+    int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
+    int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
+    if(cy < 1)
+        cy = 1;
+    if(cy > screenRows)
+        cy = screenRows;
+    if(cx < 1)
+        cx = 1;
+    if(cx > screenCols)
+        cx = screenCols;
+
+    int top = cy + 1;
+    if(top + totalH - 1 > screenRows)
+        top = cy - totalH;
+    if(top < 1)
+        top = 1;
+
+    int left = cx;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
+
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+
+    moveTo(top, left);
+    text_utils::appendU8(output, u8"┌");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┐");
+
+    moveTo(top + 1, left);
+    text_utils::appendU8(output, u8"│");
+    output += " ";
+    output += theme.panel();
+    output += row;
+    output += theme.reset();
+    int pad = innerW - text_utils::displayWidth(row);
+    if(pad > 0)
+        output.append(pad, ' ');
+    output += " ";
+    text_utils::appendU8(output, u8"│");
+
+    moveTo(top + 2, left);
+    text_utils::appendU8(output, u8"└");
+    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
+    text_utils::appendU8(output, u8"┘");
+}
+
 void Editor::openDiagnosticPopupForCursor()
 {
     diagnosticPopupActive = false;

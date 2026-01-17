@@ -209,8 +209,11 @@ public:
     std::optional<LspDiagnosticSummary>
     getClangdDiagnosticForLine(int line) const;
     void drawDiagnosticPopup(std::string& output) const;
+    void drawSymbolPopup(std::string& output) const;
     void openDiagnosticPopupForCursor();
     void closeDiagnosticPopup();
+    void openSymbolPopupForCursor();
+    void closeSymbolPopup();
     void syncClangdDiagnosticsIfNeeded(bool force);
 
     bool diagnosticPopupActive = false;
@@ -239,6 +242,11 @@ public:
     std::vector<DiagnosticFix> diagnosticPopupFixes;
     int diagnosticPopupFixIndex = 0;
     int diagnosticPopupFixScroll = 0;
+
+    bool symbolPopupActive = false;
+    int symbolPopupCursorX = -1;
+    int symbolPopupCursorY = -1;
+    std::string symbolPopupText;
 
     void applyDiagnosticFix(int index);
     void updateClangFormatIndentWidth();

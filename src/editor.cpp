@@ -2879,6 +2879,11 @@ void Editor::refreshScreen()
     {
         closeDiagnosticPopup();
     }
+    if(symbolPopupActive &&
+       (*cursorY != symbolPopupCursorY || *cursorX != symbolPopupCursorX))
+    {
+        closeSymbolPopup();
+    }
 
     if(currentMode == WELCOME)
     {
@@ -5984,6 +5989,525 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
         }
     }
     return false;
+}
+
+static std::string trim_ascii_ws(std::string_view s)
+{
+    size_t start = 0;
+    while(start < s.size() && std::isspace((unsigned char)s[start]))
+        ++start;
+    size_t end = s.size();
+    while(end > start && std::isspace((unsigned char)s[end - 1]))
+        --end;
+    return std::string(s.substr(start, end - start));
+}
+
+static std::string collect_signature_line(
+    const std::vector<std::string>& lines, int startY, int maxLines)
+{
+    if(startY < 0 || startY >= (int)lines.size())
+        return "";
+    std::string out = trim_ascii_ws(lines[startY]);
+    if(out.find('(') == std::string::npos)
+        return out;
+    if(out.find(')') != std::string::npos || out.find('{') != std::string::npos)
+        return out;
+
+    for(int i = 1; i <= maxLines && startY + i < (int)lines.size(); ++i)
+    {
+        std::string chunk = trim_ascii_ws(lines[startY + i]);
+        if(chunk.empty())
+            continue;
+        out += " " + chunk;
+        if(chunk.find(')') != std::string::npos ||
+           chunk.find('{') != std::string::npos ||
+           chunk.find(';') != std::string::npos)
+        {
+            break;
+        }
+    }
+    return out;
+}
+
+static std::string extract_initializer_type_candidate(std::string_view rhs)
+{
+    rhs = trim_view(rhs);
+    if(rhs.empty())
+        return "";
+    if(!rhs.empty() && rhs.back() == ';')
+        rhs.remove_suffix(1);
+    rhs = trim_view(rhs);
+    if(rhs.empty())
+        return "";
+
+    int depth = 0;
+    std::string token;
+    token.reserve(rhs.size());
+    for(size_t i = 0; i < rhs.size(); ++i)
+    {
+        char c = rhs[i];
+        if(c == '<')
+            depth++;
+        else if(c == '>')
+            depth = std::max(0, depth - 1);
+        if(depth == 0 && (c == '(' || c == '{' || c == ';'))
+            break;
+        token.push_back(c);
+    }
+    return trim_ascii_ws(token);
+}
+
+static bool is_control_statement(std::string_view line)
+{
+    line = trim_view(line);
+    auto starts = [&](std::string_view kw)
+    {
+        if(!line.starts_with(kw))
+            return false;
+        if(line.size() == kw.size())
+            return true;
+        char next = line[kw.size()];
+        return text_utils::is_space(next) || next == '(';
+    };
+    return starts("if") || starts("for") || starts("while") ||
+           starts("switch") || starts("return") || starts("throw") ||
+           starts("catch") || starts("else");
+}
+
+static bool find_declaration_in_lines(const std::vector<std::string>& lines,
+                                      const std::string& symbol, int& outY,
+                                      int& outX)
+{
+    if(symbol.empty())
+        return false;
+    for(int y = 0; y < (int)lines.size(); ++y)
+    {
+        const std::string& line = lines[y];
+        if(line.find(symbol) == std::string::npos)
+            continue;
+        if(is_control_statement(line))
+            continue;
+
+        size_t pos = 0;
+        while((pos = line.find(symbol, pos)) != std::string::npos)
+        {
+            bool leftOk = true;
+            if(pos > 0)
+            {
+                char prev = line[pos - 1];
+                if(isIdent(prev) || prev == '.' || prev == '>' || prev == '*')
+                {
+                    leftOk = false;
+                }
+                else if(prev == ':' && (pos < 2 || line[pos - 2] != ':'))
+                {
+                    leftOk = false;
+                }
+            }
+            if(!leftOk)
+            {
+                pos += symbol.size();
+                continue;
+            }
+            size_t after = pos + symbol.size();
+            if(after < line.size() && isIdent(line[after]))
+            {
+                pos += symbol.size();
+                continue;
+            }
+            while(after < line.size() &&
+                  std::isspace((unsigned char)line[after]))
+            {
+                ++after;
+            }
+            if(after >= line.size() || line[after] != '(')
+            {
+                pos += symbol.size();
+                continue;
+            }
+            outY = y;
+            outX = (int)pos;
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool load_file_lines(const std::string& path,
+                            std::vector<std::string>& out)
+{
+    std::ifstream in(path);
+    if(!in.is_open())
+        return false;
+    out.clear();
+    std::string line;
+    while(std::getline(in, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        out.push_back(line);
+    }
+    if(out.empty())
+        out.push_back("");
+    return true;
+}
+
+static std::string last_qualifier(std::string_view text)
+{
+    std::string s(text);
+    while(s.size() >= 2 && s.substr(s.size() - 2) == "::")
+        s.resize(s.size() - 2);
+    size_t pos = s.rfind("::");
+    if(pos != std::string::npos)
+        s = s.substr(pos + 2);
+    return s;
+}
+
+static std::string extract_type_before_name(const std::string& line,
+                                            const std::string& name)
+{
+    if(name.empty())
+        return "";
+    size_t pos = line.find(name);
+    while(pos != std::string::npos)
+    {
+        bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
+        size_t end = pos + name.size();
+        bool rightOk = (end >= line.size()) || !isIdent(line[end]);
+        if(leftOk && rightOk)
+            break;
+        pos = line.find(name, pos + name.size());
+    }
+    if(pos == std::string::npos)
+        return "";
+
+    int i = (int)pos - 1;
+    auto is_skip = [](char c)
+    { return c == ' ' || c == '\t' || c == '*' || c == '&'; };
+    while(i >= 0 && is_skip(line[i]))
+        --i;
+
+    auto skip_template = [&](int& idx)
+    {
+        if(idx < 0 || line[idx] != '>')
+            return;
+        int depth = 0;
+        while(idx >= 0)
+        {
+            char c = line[idx];
+            if(c == '>')
+                depth++;
+            else if(c == '<')
+            {
+                depth--;
+                if(depth == 0)
+                {
+                    --idx;
+                    return;
+                }
+            }
+            --idx;
+        }
+    };
+
+    std::string qualifiers[] = {"const",    "volatile", "mutable",
+                                "static",   "constexpr", "inline",
+                                "typename", "class",     "struct"};
+
+    while(i >= 0)
+    {
+        while(i >= 0 && is_skip(line[i]))
+            --i;
+        skip_template(i);
+        while(i >= 0 && is_skip(line[i]))
+            --i;
+        if(i < 0)
+            break;
+
+        int end = i;
+        while(i >= 0 && (isIdent(line[i]) || line[i] == ':'))
+            --i;
+        if(end < 0 || end < i + 1)
+            break;
+        std::string token = line.substr((size_t)i + 1,
+                                        (size_t)(end - i));
+        bool isQualifier = false;
+        for(const auto& q : qualifiers)
+        {
+            if(token == q)
+            {
+                isQualifier = true;
+                break;
+            }
+        }
+        if(isQualifier)
+            continue;
+        return token;
+    }
+    return "";
+}
+
+void Editor::openSymbolPopupForCursor()
+{
+    closeSymbolPopup();
+    if(!currentBuffer || !lines)
+        return;
+
+    std::string symbol = getSymbolUnderCursor();
+    if(symbol.empty())
+    {
+        setStatusMessage("No symbol");
+        needsFullRedraw = true;
+        return;
+    }
+
+    int defY = -1;
+    int defX = 0;
+    std::string signature;
+
+    bool memberCall = false;
+    std::string memberObject;
+    {
+        const std::string& line = (*lines)[*cursorY];
+        int x = *cursorX;
+        if(x >= 0 && x < (int)line.size() && isIdent(line[x]))
+        {
+            int l = x;
+            while(l > 0 && isIdent(line[l - 1]))
+                l--;
+            int p = l - 1;
+            while(p >= 0 && std::isspace((unsigned char)line[p]))
+                --p;
+            if(p >= 0 && line[p] == '.')
+            {
+                memberCall = true;
+                int end = p - 1;
+                while(end >= 0 && std::isspace((unsigned char)line[end]))
+                    --end;
+                int start = end;
+                while(start >= 0 && isIdent(line[start]))
+                    --start;
+                if(end >= 0)
+                    memberObject =
+                        line.substr((size_t)start + 1,
+                                    (size_t)(end - start));
+            }
+            else if(p >= 1 && line[p] == '>' && line[p - 1] == '-')
+            {
+                memberCall = true;
+                int end = p - 2;
+                while(end >= 0 && std::isspace((unsigned char)line[end]))
+                    --end;
+                int start = end;
+                while(start >= 0 && isIdent(line[start]))
+                    --start;
+                if(end >= 0)
+                    memberObject =
+                        line.substr((size_t)start + 1,
+                                    (size_t)(end - start));
+            }
+        }
+    }
+
+    auto resolve_return_type_for_function =
+        [&](const std::string& funcName, const std::string& candidate,
+            const std::vector<std::string>& currentLines) -> std::string
+    {
+        if(funcName.empty())
+            return "";
+        int y = -1;
+        int x = 0;
+        if(find_declaration_in_lines(currentLines, funcName, y, x))
+        {
+            std::string type =
+                extract_type_before_name(currentLines[y], funcName);
+            if(!type.empty())
+                return type;
+        }
+
+        std::string alternate = findAlternateFile(currentBuffer->filename);
+        if(!alternate.empty())
+        {
+            std::vector<std::string> altLines;
+            if(load_file_lines(alternate, altLines))
+            {
+                if(find_declaration_in_lines(altLines, funcName, y, x))
+                {
+                    std::string type =
+                        extract_type_before_name(altLines[y], funcName);
+                    if(!type.empty())
+                        return type;
+                }
+            }
+        }
+
+        if(candidate.rfind("std::", 0) == 0)
+        {
+            std::string base = last_qualifier(candidate.substr(5));
+            std::string header = stdlib_goto::headerForSymbol(base);
+            if(header.empty())
+                header = stdlib_goto::headerForSymbol(funcName);
+            if(!header.empty())
+            {
+                std::string headerPath = resolveSystemInclude(header);
+                if(!headerPath.empty())
+                {
+                    std::vector<std::string> headerLines;
+                    if(load_file_lines(headerPath, headerLines))
+                    {
+                        if(find_declaration_in_lines(headerLines, funcName, y,
+                                                     x))
+                        {
+                            std::string type = extract_type_before_name(
+                                headerLines[y], funcName);
+                            if(!type.empty())
+                                return type;
+                        }
+                    }
+                }
+            }
+        }
+
+        return "";
+    };
+
+    auto infer_auto_type_from_decl =
+        [&](const std::string& declLine, const std::string& varName,
+            const std::vector<std::string>& currentLines) -> std::string
+    {
+        size_t eq = declLine.find('=');
+        if(eq == std::string::npos)
+            return "";
+        std::string_view rhs = std::string_view(declLine).substr(eq + 1);
+        std::string candidate = extract_initializer_type_candidate(rhs);
+        if(candidate.empty())
+            return "";
+        std::string funcName = last_qualifier(candidate);
+        std::string type =
+            resolve_return_type_for_function(funcName, candidate, currentLines);
+        if(!type.empty())
+            return type;
+        return candidate;
+    };
+
+    if(memberCall && !memberObject.empty())
+    {
+        int objY = -1;
+        int objX = 0;
+        if(searchLocalDefinition(*lines, memberObject, *cursorY, *cursorX, objY,
+                                 objX) ||
+           searchMemberDefinition(*lines, memberObject, objY, objX))
+        {
+            std::string declLine = (*lines)[objY];
+            std::string typeToken =
+                extract_type_before_name(declLine, memberObject);
+            if(typeToken == "auto")
+            {
+                typeToken = infer_auto_type_from_decl(declLine, memberObject,
+                                                      *lines);
+            }
+            if(!typeToken.empty())
+            {
+                std::string base = last_qualifier(typeToken);
+                std::string header = stdlib_goto::headerForSymbol(base);
+                if(!header.empty())
+                {
+                    std::string headerPath = resolveSystemInclude(header);
+                    if(!headerPath.empty())
+                    {
+                        std::vector<std::string> headerLines;
+                        if(load_file_lines(headerPath, headerLines))
+                        {
+                            if(find_declaration_in_lines(headerLines, symbol,
+                                                         defY, defX))
+                            {
+                                signature =
+                                    collect_signature_line(headerLines, defY,
+                                                           3);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if(signature.empty() && symbolPrefix.rfind("std::", 0) == 0)
+    {
+        std::string base = last_qualifier(symbolPrefix.substr(5));
+        std::string header = stdlib_goto::headerForSymbol(base);
+        if(header.empty())
+            header = stdlib_goto::headerForSymbol(symbol);
+        if(!header.empty())
+        {
+            std::string headerPath = resolveSystemInclude(header);
+            if(!headerPath.empty())
+            {
+                std::vector<std::string> headerLines;
+                if(load_file_lines(headerPath, headerLines))
+                {
+                    if(find_declaration_in_lines(headerLines, symbol, defY,
+                                                 defX))
+                    {
+                        signature =
+                            collect_signature_line(headerLines, defY, 3);
+                    }
+                }
+            }
+        }
+    }
+
+    if(signature.empty())
+    {
+        std::string alternate = findAlternateFile(currentBuffer->filename);
+        if(!alternate.empty())
+        {
+            std::vector<std::string> altLines;
+            if(load_file_lines(alternate, altLines))
+            {
+                if(find_declaration_in_lines(altLines, symbol, defY, defX))
+                    signature = collect_signature_line(altLines, defY, 3);
+            }
+        }
+    }
+
+    if(signature.empty())
+    {
+        if(find_declaration_in_lines(*lines, symbol, defY, defX))
+        {
+            signature = collect_signature_line(*lines, defY, 3);
+        }
+        else if(searchMemberDefinition(*lines, symbol, defY, defX))
+        {
+            signature = collect_signature_line(*lines, defY, 1);
+        }
+        else if(searchLocalDefinition(*lines, symbol, *cursorY, *cursorX, defY,
+                                      defX))
+        {
+            signature = collect_signature_line(*lines, defY, 1);
+        }
+    }
+
+    if(signature.empty())
+    {
+        std::string qualified =
+            symbolPrefix.empty() ? symbol : symbolPrefix + symbol;
+        signature = qualified + "()";
+    }
+
+    symbolPopupText = std::move(signature);
+    symbolPopupActive = true;
+    symbolPopupCursorX = *cursorX;
+    symbolPopupCursorY = *cursorY;
+    needsFullRedraw = true;
+}
+
+void Editor::closeSymbolPopup()
+{
+    symbolPopupActive = false;
+    symbolPopupCursorX = -1;
+    symbolPopupCursorY = -1;
+    symbolPopupText.clear();
 }
 void Editor::run()
 {
