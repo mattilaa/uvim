@@ -327,6 +327,7 @@ public:
     bool formatOnInsertLeave = true;
     bool formatOnDoubleEscPending = false;
     int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
+    bool gdCenterScreen = true;
     bool gitAvailable = false;
     int tabSpaces = 4;
     bool showTabs = true;

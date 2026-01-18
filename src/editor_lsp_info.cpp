@@ -71,7 +71,6 @@ void Editor::drawLspInfo()
     header += std::string(std::max(0, screenCols - (int)header.length()), ' ');
     output += header;
     output += theme.reset();
-    output += "\r\n";
 
     int visibleRows = screenRows - 3;
     int row = 0;
@@ -79,12 +78,8 @@ void Editor::drawLspInfo()
 
     auto renderLine = [&](const std::string& line)
     {
-        output += Terminal::ESC_CLEAR_LINE;
         if(line.empty())
-        {
-            output += "\r\n";
             return;
-        }
 
         auto renderKeyValue = [&](const std::string& key,
                                   std::string_view value,
@@ -153,16 +148,12 @@ void Editor::drawLspInfo()
         {
             output += line;
         }
-
-        // Pad to end of line
-        int visLen = std::min((int)line.length(), screenCols);
-        if(visLen < screenCols)
-            output.append(screenCols - visLen, ' ');
-        output += "\r\n";
     };
 
     while(row < visibleRows && idx < (int)lspInfoLines.size())
     {
+        output += Terminal::cursorPos(2 + row, 1);
+        output += Terminal::ESC_CLEAR_LINE;
         renderLine(lspInfoLines[idx]);
         row++;
         idx++;
@@ -170,11 +161,13 @@ void Editor::drawLspInfo()
 
     for(; row < visibleRows; row++)
     {
+        output += Terminal::cursorPos(2 + row, 1);
         output += Terminal::ESC_CLEAR_LINE;
-        output += "~\r\n";
+        output += "~";
     }
 
     // Status bar
+    output += Terminal::cursorPos(screenRows - 1, 1);
     output += theme.statusBar();
     std::string status = " <q/Esc> close  <r> refresh ";
     if((int)status.length() < screenCols)
@@ -183,7 +176,7 @@ void Editor::drawLspInfo()
     output += theme.reset();
 
     // Message bar
-    output += "\r\n";
+    output += Terminal::cursorPos(screenRows, 1);
     output += Terminal::ESC_CLEAR_LINE;
     if(!statusMessage.empty())
         output += statusMessage;

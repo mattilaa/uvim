@@ -772,6 +772,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 {
                 }
             }
+            auto itgdc = values.find("editor.gdcenter");
+            if(itgdc == values.end())
+                itgdc = values.find("settings.gdcenter");
+            if(itgdc == values.end())
+                itgdc = values.find("gdcenter");
+            if(itgdc != values.end())
+            {
+                std::string v = itgdc->second;
+                if(v == "true" || v == "1" || v == "on")
+                    gdCenterScreen = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    gdCenterScreen = false;
+            }
             auto itj = values.find("editor.syntax.json");
             if(itj == values.end())
                 itj = values.find("syntax.json");
@@ -2564,6 +2577,14 @@ void Editor::goToDefinition()
         return;
     }
 
+    auto apply_gd_viewport = [&]()
+    {
+        if(gdCenterScreen)
+            centerScreen();
+        else
+            adjustViewport();
+    };
+
     bool isStdSymbol = false;
     if(*cursorY >= 0 && *cursorY < (int)lines->size())
     {
@@ -2625,7 +2646,7 @@ void Editor::goToDefinition()
             if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
                 *cursorX = (*lines)[*cursorY].length();
 
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd (robot) → " + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
@@ -2648,7 +2669,7 @@ void Editor::goToDefinition()
         {
             *cursorY = defY;
             *cursorX = defX;
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd (robot) → " + *filename + ":" +
                              std::to_string(defY + 1));
             return;
@@ -2680,7 +2701,7 @@ void Editor::goToDefinition()
                 openFile(p.string());
                 *cursorY = defY;
                 *cursorX = defX;
-                centerScreen();
+                apply_gd_viewport();
                 setStatusMessage("gd (robot) → " + p.string() + ":" +
                                  std::to_string(defY + 1));
                 return;
@@ -2717,7 +2738,7 @@ void Editor::goToDefinition()
             if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
                 *cursorX = (*lines)[*cursorY].length();
 
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd (python) → " + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
@@ -2736,7 +2757,7 @@ void Editor::goToDefinition()
         {
             *cursorY = defY;
             *cursorX = defX;
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd (python) → " + *filename + ":" +
                              std::to_string(defY + 1));
             return;
@@ -2767,7 +2788,7 @@ void Editor::goToDefinition()
                 openFile(p.string());
                 *cursorY = defY;
                 *cursorX = defX;
-                centerScreen();
+                apply_gd_viewport();
                 setStatusMessage("gd (python) → " + p.string() + ":" +
                                  std::to_string(defY + 1));
                 return;
@@ -2804,7 +2825,7 @@ void Editor::goToDefinition()
             if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
                 *cursorX = (*lines)[*cursorY].length();
 
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd (mlang) → " + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
@@ -2852,7 +2873,7 @@ void Editor::goToDefinition()
             if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
                 *cursorX = (*lines)[*cursorY].length();
 
-            centerScreen();
+            apply_gd_viewport();
 
             // Show a cleaner message for system headers
             std::string displayPath = loc->path;
@@ -2914,7 +2935,7 @@ void Editor::goToDefinition()
         {
             *cursorY = y;
             *cursorX = x;
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd → local '" + symbol + "' at " +
                              std::to_string(y + 1) + ":" +
                              std::to_string(x + 1));
@@ -2929,7 +2950,7 @@ void Editor::goToDefinition()
         {
             *cursorY = y;
             *cursorX = x;
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd → member '" + symbol + "' at " +
                              std::to_string(y + 1) + ":" +
                              std::to_string(x + 1));
@@ -2946,7 +2967,7 @@ void Editor::goToDefinition()
         {
             *cursorY = y;
             *cursorX = x;
-            centerScreen();
+            apply_gd_viewport();
             setStatusMessage("gd → " + alternate);
             return;
         }
@@ -2960,7 +2981,7 @@ void Editor::goToDefinition()
     {
         *cursorY = y;
         *cursorX = x;
-        centerScreen();
+        apply_gd_viewport();
         setStatusMessage("gd (same file)");
         return;
     }
@@ -4393,6 +4414,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (formatOnInsertLeave ? "true" : "false"));
         return true;
     }
+    if(opt == "gdcenter?")
+    {
+        setStatusMessage(std::string("gdcenter=") +
+                         (gdCenterScreen ? "true" : "false"));
+        return true;
+    }
     if(opt == "formatondoubleesctimeoutms?")
     {
         setStatusMessage("formatondoubleesctimeoutms=" +
@@ -4405,6 +4432,13 @@ bool Editor::handleSetCommand(std::string_view cmd)
         autoBraces = value;
         setStatusMessage(std::string("autobraces=") +
                          (autoBraces ? "true" : "false"));
+    };
+
+    auto set_gdcenter = [&](bool value)
+    {
+        gdCenterScreen = value;
+        setStatusMessage(std::string("gdcenter=") +
+                         (gdCenterScreen ? "true" : "false"));
     };
 
     if(opt == "autobraces")
@@ -4459,6 +4493,16 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("formatoninsertleave=true");
         return true;
     }
+    if(opt == "gdcenter")
+    {
+        set_gdcenter(true);
+        return true;
+    }
+    if(opt == "nogdcenter")
+    {
+        set_gdcenter(false);
+        return true;
+    }
     if(opt == "noformatoninsertleave")
     {
         formatOnInsertLeave = false;
@@ -4486,6 +4530,23 @@ bool Editor::handleSetCommand(std::string_view cmd)
         catch(...)
         {
             setStatusMessage("formatondoubleesctimeoutms: expected number");
+        }
+        return true;
+    }
+    if(opt.rfind("gdcenter=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("gdcenter=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_gdcenter(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_gdcenter(false);
+        }
+        else
+        {
+            setStatusMessage("gdcenter: expected true/false");
         }
         return true;
     }
@@ -8189,6 +8250,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set commenttogglepartial",
         "set nocommenttogglepartial",
         "set commenttogglepartial?",
+        "set gdcenter",
+        "set nogdcenter",
+        "set gdcenter?",
+        "set gdcenter=",
         "set formatoninsertleave",
         "set noformatoninsertleave",
         "set formatoninsertleave?",

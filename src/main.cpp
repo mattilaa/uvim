@@ -58,6 +58,7 @@ static std::string_view default_config_contents()
   tabspaces: 4
   autobraces: true
   autocomplete: true
+  gdcenter: true
   syntax:
     json: true
     yaml: true

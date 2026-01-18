@@ -365,6 +365,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set nonumber` or `:set nonu` - Hide line numbers",
             "  `:set ignorecase` or `:set ic` - Case insensitive search",
             "  `:set smartcase` or `:set scs` - Smart case search",
+            "  `:set gdcenter`               - Center view after gd",
+            "  `:set nogdcenter`             - Keep view steady after gd",
             "",
             "HELP:",
             "  `:help`           - Show this help",
