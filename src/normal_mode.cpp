@@ -96,40 +96,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         }
     }
 
-    if(c == Terminal::CTRL_E)
-    {
-        int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == Terminal::CTRL_M || nextChar == Terminal::ENTER)
-        {
-            ed->openEmojiPopup();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(nextChar != -1)
-            Terminal::unreadKey(nextChar);
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
-    if(c == Terminal::CTRL_M)
-    {
-        int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == 'h' || nextChar == 'j' || nextChar == 'k' ||
-           nextChar == 'l')
-        {
-            if(nextChar == 'h' || nextChar == 'k')
-                ed->previousBuffer();
-            else
-                ed->nextBuffer();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(nextChar != -1)
-            Terminal::unreadKey(nextChar);
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
     if(ed->emojiPopupActive)
     {
         if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
@@ -175,6 +141,40 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    if(c == Terminal::CTRL_E)
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == Terminal::CTRL_M || nextChar == Terminal::ENTER)
+        {
+            ed->openEmojiPopup();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    if(c == Terminal::CTRL_M)
+    {
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == 'h' || nextChar == 'j' || nextChar == 'k' ||
+           nextChar == 'l')
+        {
+            if(nextChar == 'h' || nextChar == 'k')
+                ed->previousBuffer();
+            else
+                ed->nextBuffer();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
         ctx.repeatCount = 0;
         return std::nullopt;
     }

@@ -1053,9 +1053,18 @@ void Editor::acceptEmoji()
 
     const std::string& emoji =
         emojiEntries[emojiFiltered[emojiSelected]].emoji;
-    for(char byte : emoji)
-        insertChar(byte);
-    *wantedX = *cursorX;
+    if(lines)
+    {
+        if(*cursorY >= (int)lines->size())
+            lines->push_back("");
+        (*lines)[*cursorY].insert(*cursorX, emoji);
+        *cursorX += (int)emoji.size();
+        *dirty = true;
+        saveState();
+        currentBuffer->lspSyncNeeded = true;
+        needsFullRedraw = true;
+        *wantedX = *cursorX;
+    }
 
     cancelEmojiPopup();
 }
