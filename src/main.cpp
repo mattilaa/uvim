@@ -235,6 +235,10 @@ static void print_help(const char* exe)
         << "  --python-lsp-path <path> Path to Python LSP server\n"
         << "  --python-lsp-args <args> Extra args for Python LSP "
            "(space-separated)\n"
+        << "  --mlang-lsp            Enable Mlang LSP\n"
+        << "  --mlang-lsp-path <path> Path to Mlang LSP server\n"
+        << "  --mlang-lsp-args <args> Extra args for Mlang LSP "
+           "(space-separated)\n"
         << "  --log-file <path>       Debug log file (UVIM_DEBUG_LOGGING)\n"
         << "  --log-colors           Enable colored log output\n";
 }
@@ -246,6 +250,7 @@ int main(int argc, char* argv[])
     bool useClangd = false;
     bool useRobotLsp = false;
     bool usePythonLsp = false;
+    bool useMlangLsp = false;
     std::string_view ccdirArg;
     std::string_view clangdPathArg = "clangd";
     std::string_view queryDriverArg;
@@ -253,6 +258,8 @@ int main(int argc, char* argv[])
     std::string_view robotLspArgsArg;
     std::string_view pythonLspPathArg = "pyright-langserver";
     std::string_view pythonLspArgsArg;
+    std::string_view mlangLspPathArg = "python3";
+    std::string_view mlangLspArgsArg;
     std::string_view logFileArg;
     bool logColors = false;
     std::string_view customConfigArg;
@@ -334,6 +341,18 @@ int main(int argc, char* argv[])
             else if(key == "--python-lsp-args")
             {
                 pythonLspArgsArg = require_value(key, i, argc, argv, val);
+            }
+            else if(key == "--mlang-lsp")
+            {
+                useMlangLsp = true;
+            }
+            else if(key == "--mlang-lsp-path")
+            {
+                mlangLspPathArg = require_value(key, i, argc, argv, val);
+            }
+            else if(key == "--mlang-lsp-args")
+            {
+                mlangLspArgsArg = require_value(key, i, argc, argv, val);
             }
             else if(key == "--log-file")
             {
@@ -606,6 +625,33 @@ int main(int argc, char* argv[])
                 args.push_back("--stdio");
         }
         editor.enablePythonLsp(true, pyPath, args);
+    }
+
+    if(useMlangLsp)
+    {
+        std::string mlangPath = std::string(mlangLspPathArg);
+        std::vector<std::string> args;
+        if(!mlangLspArgsArg.empty())
+        {
+            args = split_args(mlangLspArgsArg);
+        }
+        if(args.empty())
+        {
+            bool isPython =
+                (mlangPath.find("python") != std::string::npos);
+            if(isPython)
+            {
+                fs::path localLsp = fs::current_path() / "tools" /
+                                    "mlang_lsp" / "mlang_lsp.py";
+                std::error_code ec;
+                if(fs::exists(localLsp, ec))
+                    args.push_back(localLsp.string());
+                else
+                    args.push_back("tools/mlang_lsp/mlang_lsp.py");
+            }
+            args.push_back("--stdio");
+        }
+        editor.enableMlangLsp(true, mlangPath, args);
     }
 
     if(!args.empty())

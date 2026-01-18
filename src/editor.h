@@ -52,6 +52,10 @@ public:
                          const std::string& pythonLspPath = "pylsp",
                          const std::vector<std::string>& pythonLspArgs = {});
     bool isPythonLspEnabled() const;
+    void enableMlangLsp(bool enable,
+                        const std::string& mlangLspPath = "python3",
+                        const std::vector<std::string>& mlangLspArgs = {});
+    bool isMlangLspEnabled() const;
 
     void run();
     void openFile(std::string_view filename);
@@ -136,10 +140,14 @@ public:
     bool pythonLspEnabled = false;
     std::string pythonLspPath = "pylsp";
     std::vector<std::string> pythonLspArgs;
+    bool mlangLspEnabled = false;
+    std::string mlangLspPath = "python3";
+    std::vector<std::string> mlangLspArgs;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
     std::unique_ptr<LspClient> robotLspClient;
     std::unique_ptr<LspClient> pythonLspClient;
+    std::unique_ptr<LspClient> mlangLspClient;
 #endif
 
     Theme theme;

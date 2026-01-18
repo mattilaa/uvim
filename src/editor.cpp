@@ -1117,6 +1117,61 @@ bool Editor::isPythonLspEnabled() const
 #endif
 }
 
+void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
+                            const std::vector<std::string>& mlangLspArgs)
+{
+    mlangLspEnabled = false;
+    this->mlangLspPath = mlangLspPath;
+    this->mlangLspArgs = mlangLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(mlangLspClient)
+        {
+            mlangLspClient->stop();
+            mlangLspClient.reset();
+        }
+        return;
+    }
+
+    char cwd[PATH_MAX];
+    std::string rootDir = ".";
+    if(getcwd(cwd, sizeof(cwd)))
+        rootDir = std::string(cwd);
+
+    std::vector<std::string> args = this->mlangLspArgs;
+    if(args.empty())
+        args.push_back("--stdio");
+
+    mlangLspClient = std::make_unique<LspClient>();
+    if(!mlangLspClient->startServer(this->mlangLspPath, rootDir, args))
+    {
+        mlangLspClient.reset();
+        LOG_ERROR(LOG, "Mlang LSP failed to start. LSP path: {}",
+                  this->mlangLspPath);
+        return;
+    }
+
+    mlangLspEnabled = true;
+    LOG_DEBUG(LOG, "Mlang LSP enabled");
+#else
+    (void)enable;
+    (void)mlangLspPath;
+    (void)mlangLspArgs;
+    LOG_ERROR(LOG, "Mlang LSP is not compiled");
+#endif
+}
+
+bool Editor::isMlangLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return mlangLspEnabled && mlangLspClient && mlangLspClient->running();
+#else
+    return false;
+#endif
+}
+
 void Editor::enterOperatorPending(char op)
 {
     pendingOperator = op;
@@ -1657,6 +1712,18 @@ void Editor::openFile(std::string_view fname)
                 text.push_back('\n');
         }
         pythonLspClient->didChange(path, text, "python");
+    }
+    if(isMlangLspEnabled() && isMlaFile() && mlangLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        mlangLspClient->didChange(path, text, "mlang");
     }
 #endif
 
@@ -2708,6 +2775,42 @@ void Editor::goToDefinition()
         }
 
         setStatusMessage("gd (python): not found");
+        return;
+    }
+
+    if(isMlangLspEnabled() && isMlaFile())
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+
+        mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
+        auto loc = mlangLspClient->definition(currentBuffer->filename,
+                                              *cursorY, *cursorX);
+        if(loc)
+        {
+            pushJumpLocation();
+            openFile(loc->path);
+            *cursorY = loc->line;
+            *cursorX = loc->character;
+
+            if(*cursorY >= (int)lines->size())
+                *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+            if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
+                *cursorX = (*lines)[*cursorY].length();
+
+            centerScreen();
+            setStatusMessage("gd (mlang) → " + loc->path + ":" +
+                             std::to_string(loc->line + 1));
+            return;
+        }
+
+        setStatusMessage("gd (mlang): not found");
         return;
     }
 

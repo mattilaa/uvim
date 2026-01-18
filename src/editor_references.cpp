@@ -44,6 +44,17 @@ void Editor::findReferences()
         label = "python";
         languageId = "python";
     }
+    else if(isMlaFile())
+    {
+        if(!isMlangLspEnabled())
+        {
+            LOG_WARNING(LOG, "Mlang LSP is not enabled");
+            return;
+        }
+        client = mlangLspClient.get();
+        label = "mlang";
+        languageId = "mlang";
+    }
     else if(isCppFile())
     {
         if(!isClangdLspEnabled())

@@ -9,6 +9,8 @@ static std::string filetypeLabel(const Editor& ed)
         return "cpp";
     if(ed.isPythonFile())
         return "python";
+    if(ed.isMlaFile())
+        return "mlang";
     if(ed.isRobotFile())
         return "robot";
     if(ed.isJsonFile())
@@ -45,10 +47,12 @@ void Editor::showLspInfo()
     appendLsp("clangd", isClangdLspEnabled(), isCppFile(), clangdLspPath);
     appendLsp("python", isPythonLspEnabled(), isPythonFile(), pythonLspPath);
     appendLsp("robot", isRobotLspEnabled(), isRobotFile(), robotLspPath);
+    appendLsp("mlang", isMlangLspEnabled(), isMlaFile(), mlangLspPath);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");
     lspInfoLines.push_back("robot: not compiled");
+    lspInfoLines.push_back("mlang: not compiled");
 #endif
 }
 
@@ -110,7 +114,8 @@ void Editor::drawLspInfo()
                            theme.uiDim());
         }
         else if(line.rfind("clangd:", 0) == 0 ||
-                line.rfind("python:", 0) == 0 || line.rfind("robot:", 0) == 0)
+                line.rfind("python:", 0) == 0 || line.rfind("robot:", 0) == 0 ||
+                line.rfind("mlang:", 0) == 0)
         {
             size_t colon = line.find(':');
             std::string_view label = std::string_view(line).substr(0, colon);

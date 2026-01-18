@@ -11,6 +11,13 @@ Reduced version of Vim.
 - Syntax highlighting
 - Really small binary
 
+## LSP flags
+
+- `--clangd` enable clangd LSP
+- `--robot-lsp` enable Robot Framework LSP
+- `--python-lsp` enable Python LSP
+- `--mlang-lsp` enable Mlang LSP (expects the Mlang repo `tools/mlang_lsp`)
+
 ## Search examples
 
 In normal mode:
