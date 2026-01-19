@@ -1687,7 +1687,7 @@ void Editor::openFile(std::string_view fname)
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     // Notify LSP about the newly opened file so gd works from system headers
-    if(isClangdLspEnabled() && isCppFile() && lspClient)
+    if(isClangdLspEnabled() && isCppFile() && !isMlaFile() && lspClient)
     {
         // Build text content from loaded lines
         std::string text;
@@ -2837,7 +2837,7 @@ void Editor::goToDefinition()
 
     // Prefer clangd definition when enabled; fallback to heuristic gd
     // otherwise.
-    if(isClangdLspEnabled() && isCppFile())
+    if(isClangdLspEnabled() && isCppFile() && !isMlaFile())
     {
         // Sync buffer text (full-text change) before querying.
         std::string text;
@@ -3127,7 +3127,7 @@ void Editor::refreshScreen()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {
-        if(currentBuffer && isClangdLspEnabled() && isCppFile() && lspClient &&
+        if(currentBuffer && isClangdLspEnabled() && isCppFile() && !isMlaFile() && lspClient &&
            !currentBuffer->filename.empty())
         {
             size_t revision =
@@ -8340,6 +8340,156 @@ void Editor::previousCompletion()
 {
     completionPrev();
 }
+
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
+{
+    if(utf16Offset <= 0)
+        return 0;
+
+    int u16 = 0;
+    int i = 0;
+    while(i < (int)line.size() && u16 < utf16Offset)
+    {
+        unsigned char c = (unsigned char)line[i];
+        int codepoint = 0;
+        int len = 1;
+
+        if(c < 0x80)
+        {
+            codepoint = c;
+            len = 1;
+        }
+        else if((c & 0xE0) == 0xC0 && i + 1 < (int)line.size())
+        {
+            codepoint = ((c & 0x1F) << 6) |
+                        ((unsigned char)line[i + 1] & 0x3F);
+            len = 2;
+        }
+        else if((c & 0xF0) == 0xE0 && i + 2 < (int)line.size())
+        {
+            codepoint = ((c & 0x0F) << 12) |
+                        (((unsigned char)line[i + 1] & 0x3F) << 6) |
+                        ((unsigned char)line[i + 2] & 0x3F);
+            len = 3;
+        }
+        else if((c & 0xF8) == 0xF0 && i + 3 < (int)line.size())
+        {
+            codepoint = ((c & 0x07) << 18) |
+                        (((unsigned char)line[i + 1] & 0x3F) << 12) |
+                        (((unsigned char)line[i + 2] & 0x3F) << 6) |
+                        ((unsigned char)line[i + 3] & 0x3F);
+            len = 4;
+        }
+
+        int u16len = (codepoint <= 0xFFFF) ? 1 : 2;
+        if(u16 + u16len > utf16Offset)
+            break;
+
+        u16 += u16len;
+        i += len;
+    }
+    return i;
+}
+
+bool Editor::mlangFormatBuffer()
+{
+    if(!currentBuffer || !lines)
+        return false;
+    if(!isMlaFile())
+        return false;
+    if(!isMlangLspEnabled() || !mlangLspClient)
+    {
+        setStatusMessage("mlang LSP: OFF");
+        return false;
+    }
+
+    std::string text;
+    text.reserve(lines->size() * 80);
+    for(size_t i = 0; i < lines->size(); ++i)
+    {
+        text += (*lines)[i];
+        if(i + 1 < lines->size())
+            text.push_back('\n');
+    }
+    mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
+    mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
+
+    std::vector<LspClient::TextEdit> edits =
+        mlangLspClient->formatting(currentBuffer->filename, 4, true);
+    if(edits.empty())
+    {
+        setStatusMessage("format: no changes");
+        return true;
+    }
+
+    std::sort(edits.begin(), edits.end(),
+              [](const LspClient::TextEdit& a, const LspClient::TextEdit& b)
+              {
+                  if(a.startLine != b.startLine)
+                      return a.startLine > b.startLine;
+                  return a.startCharacter > b.startCharacter;
+              });
+
+    for(const auto& edit : edits)
+    {
+        if(edit.startLine < 0 || edit.startLine >= (int)lines->size())
+            continue;
+        if(edit.endLine < 0 || edit.endLine >= (int)lines->size())
+            continue;
+
+        std::string& startLine = (*lines)[edit.startLine];
+        std::string& endLine = (*lines)[edit.endLine];
+        int startByte = utf16ToUtf8ByteOffset(startLine, edit.startCharacter);
+        int endByte = utf16ToUtf8ByteOffset(endLine, edit.endCharacter);
+
+        if(edit.startLine == edit.endLine)
+        {
+            startLine = startLine.substr(0, startByte) + edit.newText +
+                        endLine.substr(endByte);
+            continue;
+        }
+
+        std::string prefix = startLine.substr(0, startByte);
+        std::string suffix = endLine.substr(endByte);
+        std::string combined = prefix + edit.newText + suffix;
+
+        std::vector<std::string> newLines;
+        size_t pos = 0;
+        while(pos <= combined.size())
+        {
+            size_t next = combined.find('\n', pos);
+            if(next == std::string::npos)
+            {
+                newLines.push_back(combined.substr(pos));
+                break;
+            }
+            newLines.push_back(combined.substr(pos, next - pos));
+            pos = next + 1;
+        }
+
+        lines->erase(lines->begin() + edit.startLine,
+                     lines->begin() + edit.endLine + 1);
+        lines->insert(lines->begin() + edit.startLine, newLines.begin(),
+                      newLines.end());
+    }
+
+    *dirty = true;
+    saveState();
+    currentBuffer->lspSyncNeeded = true;
+    adjustViewport();
+    needsFullRedraw = true;
+    setStatusMessage("mlang: formatted buffer");
+    return true;
+}
+#else
+bool Editor::mlangFormatBuffer()
+{
+    setStatusMessage("mlang LSP: not compiled");
+    return false;
+}
+#endif
 
 // ============================================================================
 // Compatibility Aliases

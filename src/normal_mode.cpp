@@ -216,7 +216,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                 ed->needsFullRedraw = true;
             }
             else if(ed->formatOnDoubleEscPending &&
-                    ed->formatOnInsertLeave && ed->isCppFile())
+                    ed->formatOnInsertLeave && ed->isCppFile() && !ed->isMlaFile())
             {
                 ed->clangFormatWithArgs("", "clang-format: formatted file");
             }
@@ -1007,6 +1007,10 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         else if(ed->isYamlFile())
         {
             ed->yamlFormatBuffer();
+        }
+        else if(ed->isMlaFile())
+        {
+            ed->mlangFormatBuffer();
         }
         else
         {

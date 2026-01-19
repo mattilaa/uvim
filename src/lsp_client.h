@@ -110,6 +110,11 @@ public:
                    const std::vector<std::string>& argumentsJson,
                    const std::string& filePath);
 
+    // Document formatting (textDocument/formatting)
+    std::vector<TextEdit>
+    formatting(const std::string& filePath, int tabSize = 4,
+               bool insertSpaces = true);
+
 private:
     struct Impl;
     Impl* impl;

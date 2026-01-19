@@ -275,7 +275,7 @@ bool Editor::clangFormatWithArgs(const std::string& extraArgs,
     if(!lines || !filename)
         return false;
 
-    if(!isCppFile())
+    if(!isCppFile() || isMlaFile())
     {
         setStatusMessage("clang-format: not a C/C++ file (" + *filename + ")");
         return false;

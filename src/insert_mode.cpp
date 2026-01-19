@@ -151,7 +151,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(c == Terminal::ESC)
             {
                 ed->formatOnDoubleEscPending =
-                    ed->formatOnInsertLeave && ed->isCppFile();
+                    ed->formatOnInsertLeave && ed->isCppFile() && !ed->isMlaFile();
                 ed->lastEscTime = std::chrono::steady_clock::now();
             }
             ed->saveState();
@@ -172,7 +172,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         if(c == Terminal::ESC)
         {
             ed->formatOnDoubleEscPending =
-                ed->formatOnInsertLeave && ed->isCppFile();
+                ed->formatOnInsertLeave && ed->isCppFile() && !ed->isMlaFile();
             ed->lastEscTime = std::chrono::steady_clock::now();
         }
         ed->saveState();

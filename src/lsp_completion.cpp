@@ -529,6 +529,21 @@ void Editor::requestCompletion()
         label = "python";
         languageId = "python";
     }
+    else if(isMlaFile())
+    {
+        if(!isMlangLspEnabled())
+        {
+            setStatusMessage("mlang LSP: OFF");
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            bufferWordFallback("buffer");
+            return;
+        }
+        client = mlangLspClient.get();
+        label = "mlang";
+        languageId = "mlang";
+    }
     else if(isCppFile())
     {
         if(!isClangdLspEnabled())

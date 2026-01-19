@@ -736,6 +736,7 @@ public:
     bool robotFormatBuffer();
     bool jsonFormatBuffer();
     bool yamlFormatBuffer();
+    bool mlangFormatBuffer();
 
     // clang-format helpers (used by Leader+f in visual modes)
     size_t byteOffsetForPosition(int y, int x) const;

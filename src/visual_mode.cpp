@@ -73,6 +73,10 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             {
                 ed->yamlFormatBuffer();
             }
+            else if(ed->isMlaFile())
+            {
+                ed->mlangFormatBuffer();
+            }
             else
             {
                 ed->clangFormatVisualSelection();
@@ -429,6 +433,10 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             {
                 ed->yamlFormatBuffer();
             }
+            else if(ed->isMlaFile())
+            {
+                ed->mlangFormatBuffer();
+            }
             else
             {
                 ed->clangFormatVisualSelection();
@@ -692,6 +700,10 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
             else if(ed->isYamlFile())
             {
                 ed->yamlFormatBuffer();
+            }
+            else if(ed->isMlaFile())
+            {
+                ed->mlangFormatBuffer();
             }
             else
             {

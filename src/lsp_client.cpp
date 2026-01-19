@@ -1234,6 +1234,31 @@ LspClient::codeActions(const std::string& filePath, int line,
 }
 
 std::vector<LspClient::TextEdit>
+LspClient::formatting(const std::string& filePath, int tabSize,
+                      bool insertSpaces)
+{
+    std::vector<TextEdit> out;
+    if(!running())
+        return out;
+
+    std::string abs = absPath(filePath);
+    json params;
+    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    params["options"] = {{"tabSize", tabSize},
+                         {"insertSpaces", insertSpaces}};
+
+    int id = impl->sendRequest("textDocument/formatting", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->is_object())
+        return out;
+    if(resp->contains("error"))
+        return out;
+
+    json result = resp->value("result", json());
+    return parseTextEditsForUri(result, abs);
+}
+
+std::vector<LspClient::TextEdit>
 LspClient::executeCommand(const std::string& command,
                           const std::vector<std::string>& argumentsJson,
                           const std::string& filePath)
@@ -1361,6 +1386,31 @@ LspClient::codeActions(const std::string&, int, std::string_view,
                        const std::vector<Diagnostic>&)
 {
     return {};
+}
+
+std::vector<LspClient::TextEdit>
+LspClient::formatting(const std::string& filePath, int tabSize,
+                      bool insertSpaces)
+{
+    std::vector<TextEdit> out;
+    if(!running())
+        return out;
+
+    std::string abs = absPath(filePath);
+    json params;
+    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    params["options"] = {{"tabSize", tabSize},
+                         {"insertSpaces", insertSpaces}};
+
+    int id = impl->sendRequest("textDocument/formatting", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->is_object())
+        return out;
+    if(resp->contains("error"))
+        return out;
+
+    json result = resp->value("result", json());
+    return parseTextEditsForUri(result, abs);
 }
 
 std::vector<LspClient::TextEdit>
