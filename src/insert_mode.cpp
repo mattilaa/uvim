@@ -606,6 +606,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 canAuto = ed->isPythonLspEnabled();
             else if(ed->isRobotFile())
                 canAuto = ed->isRobotLspEnabled();
+            else if(ed->isMlaFile())
+                canAuto = ed->isMlangLspEnabled();
 
             if(canAuto)
             {

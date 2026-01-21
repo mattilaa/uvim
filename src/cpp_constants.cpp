@@ -63,7 +63,7 @@ static constexpr auto CPP_TYPES = sort_array(std::to_array<sv>(
      "std::array", "std::string", "std::string_view",
      // ... etc ... (paste the entire list)
      "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "print", "println",
-     "eprint", "eprintln", "string", "list", "map", "tuple"}));
+     "eprint", "eprintln", "string", "str8", "str16", "list", "map", "tuple"}));
 
 constexpr sv CPP_OP_CHARS = "+-*/%=<>!&|^~?:.,;()[]{}\\";
 
