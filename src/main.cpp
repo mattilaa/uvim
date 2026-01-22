@@ -219,6 +219,9 @@ static void print_help(const char* exe)
 {
     std::cout
         << "Usage: " << exe << " [options] [file|dir]\n"
+#ifdef UVIM_VERSION
+        << "Version: " << UVIM_VERSION << "\n"
+#endif
         << "\nOptions:\n"
         << "  --help                 Show this help and exit\n"
         << "  --version              Show version and exit\n"
