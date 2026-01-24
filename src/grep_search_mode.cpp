@@ -1,7 +1,9 @@
 #include "editor.h"
+#include "constants.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -392,8 +394,19 @@ bool GrepSearchMode::isTextFile(const std::string& filepath) const
     if(dotPos != std::string::npos)
     {
         ext = filepath.substr(dotPos);
+        std::string_view extView = ext;
+        bool isPythonExt = std::any_of(
+            constants::PYTHON_FILE_EXTENSIONS.begin(),
+            constants::PYTHON_FILE_EXTENSIONS.end(),
+            [&](std::string_view e)
+            { return text_utils::iequals_ascii(extView, e); });
+        bool isMlaExt = std::any_of(constants::MLA_FILE_EXTENSIONS.begin(),
+                                    constants::MLA_FILE_EXTENSIONS.end(),
+                                    [&](std::string_view e)
+                                    { return text_utils::iequals_ascii(extView, e); });
+
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
-           ext == ".hpp" || ext == ".py" || ext == ".js" || ext == ".ts" ||
+           ext == ".hpp" || isPythonExt || ext == ".js" || ext == ".ts" ||
            ext == ".jsx" || ext == ".tsx" || ext == ".java" || ext == ".rs" ||
            ext == ".go" || ext == ".rb" || ext == ".php" || ext == ".sh" ||
            ext == ".bash" || ext == ".zsh" || ext == ".vim" || ext == ".lua" ||
@@ -402,7 +415,7 @@ bool GrepSearchMode::isTextFile(const std::string& filepath) const
            ext == ".xml" || ext == ".json" || ext == ".yaml" || ext == ".yml" ||
            ext == ".toml" || ext == ".ini" || ext == ".conf" ||
            ext == ".config" || ext == ".log" || ext == ".cmake" ||
-           ext == ".make" || ext == ".mk" || ext == ".am" || ext == ".mla")
+           ext == ".make" || ext == ".mk" || ext == ".am" || isMlaExt)
         {
             return true;
         }

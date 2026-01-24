@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "constants.h"
 #include "enablelog.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
@@ -2780,7 +2781,13 @@ void Editor::goToDefinition()
                 continue;
             const auto& p = it->path();
             std::string ext = p.extension().string();
-            if(ext != ".py" && ext != ".pyi" && ext != ".pyw")
+            std::string_view extView = ext;
+            bool isPythonExt = std::any_of(
+                constants::PYTHON_FILE_EXTENSIONS.begin(),
+                constants::PYTHON_FILE_EXTENSIONS.end(),
+                [&](std::string_view e)
+                { return text_utils::iequals_ascii(extView, e); });
+            if(!isPythonExt)
                 continue;
             if(find_python_def_in_file(p.string(), symbol, defY, defX))
             {

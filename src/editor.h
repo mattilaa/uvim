@@ -14,6 +14,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -143,6 +144,10 @@ public:
     bool mlangLspEnabled = false;
     std::string mlangLspPath = "python3";
     std::vector<std::string> mlangLspArgs;
+    mutable bool mlangTokensLoaded = false;
+    mutable bool mlangTokensAvailable = false;
+    mutable bool mlangTokensCaseInsensitive = false;
+    mutable std::unordered_map<std::string, TokenType> mlangTokenTypes;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
     std::unique_ptr<LspClient> robotLspClient;
@@ -750,6 +755,8 @@ public:
     std::string getColorCode(TokenType type) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow);
+    void ensureMlangTokensLoaded() const;
+    std::optional<TokenType> lookupMlangTokenType(std::string_view word) const;
 
     // Undo/Redo (now per-buffer, accessed through currentBuffer)
     void saveState();

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <unistd.h>
 
 template <class Arr>
@@ -53,6 +54,46 @@ inline bool is_two_char_op(char a, char b) noexcept
     }
 }
 
+namespace
+{
+std::string ascii_lower(std::string_view value)
+{
+    std::string out;
+    out.reserve(value.size());
+    for(char c : value)
+        out.push_back(text_utils::ascii_tolower(c));
+    return out;
+}
+
+std::optional<TokenType> parse_token_type(std::string_view value)
+{
+    const std::string type = ascii_lower(value);
+    if(type == "normal")
+        return TOKEN_NORMAL;
+    if(type == "keyword")
+        return TOKEN_KEYWORD;
+    if(type == "type")
+        return TOKEN_TYPE;
+    if(type == "string")
+        return TOKEN_STRING;
+    if(type == "char")
+        return TOKEN_CHAR;
+    if(type == "comment")
+        return TOKEN_COMMENT;
+    if(type == "preprocessor")
+        return TOKEN_PREPROCESSOR;
+    if(type == "number")
+        return TOKEN_NUMBER;
+    if(type == "operator")
+        return TOKEN_OPERATOR;
+    if(type == "function" || type == "builtin")
+        return TOKEN_FUNCTION;
+    if(type == "constant" || type == "literal" || type == "bool")
+        return TOKEN_KEYWORD;
+    return std::nullopt;
+}
+} // namespace
+
 bool Editor::isCppFile() const
 {
     if(!filename || filename->empty())
@@ -93,12 +134,17 @@ bool Editor::isMlaFile() const
     if(filename->empty())
         return false;
 
-    size_t dotPos = filename->find_last_of('.');
-    if(dotPos == std::string::npos)
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
         return false;
 
-    std::string ext = filename->substr(dotPos);
-    return (ext == ".mla");
+    std::string_view ext = pathSv.substr(dot);
+
+    return std::any_of(constants::MLA_FILE_EXTENSIONS.begin(),
+                       constants::MLA_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
 }
 
 bool Editor::isRobotFile() const
@@ -112,9 +158,10 @@ bool Editor::isRobotFile() const
         return false;
     std::string_view ext = pathSv.substr(dot);
 
-    return text_utils::iequals_ascii(ext, ".robot") ||
-           text_utils::iequals_ascii(ext, ".resource") ||
-           text_utils::iequals_ascii(ext, ".robotframework");
+    return std::any_of(constants::ROBOT_FILE_EXTENSIONS.begin(),
+                       constants::ROBOT_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
 }
 
 bool Editor::isPythonFile() const
@@ -128,9 +175,118 @@ bool Editor::isPythonFile() const
         return false;
     std::string_view ext = pathSv.substr(dot);
 
-    return text_utils::iequals_ascii(ext, ".py") ||
-           text_utils::iequals_ascii(ext, ".pyi") ||
-           text_utils::iequals_ascii(ext, ".pyw");
+    return std::any_of(constants::PYTHON_FILE_EXTENSIONS.begin(),
+                       constants::PYTHON_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
+}
+
+void Editor::ensureMlangTokensLoaded() const
+{
+    if(mlangTokensLoaded)
+        return;
+
+    mlangTokensLoaded = true;
+    mlangTokensAvailable = false;
+    mlangTokensCaseInsensitive = false;
+    mlangTokenTypes.clear();
+
+    auto load_from_path = [&](const std::filesystem::path& path) -> bool
+    {
+        std::error_code ec;
+        if(!std::filesystem::exists(path, ec))
+            return false;
+
+        std::ifstream in(path);
+        if(!in)
+            return false;
+
+        nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
+        if(root.is_discarded())
+            return false;
+
+        mlangTokensCaseInsensitive = root.value("case_insensitive", false);
+
+        auto add_tokens = [&](std::string_view typeName,
+                              const nlohmann::json& items)
+        {
+            auto tokenType = parse_token_type(typeName);
+            if(!tokenType || !items.is_array())
+                return;
+
+            for(const auto& item : items)
+            {
+                if(!item.is_string())
+                    continue;
+                std::string key = item.get<std::string>();
+                if(mlangTokensCaseInsensitive)
+                    key = ascii_lower(key);
+                mlangTokenTypes[key] = *tokenType;
+            }
+        };
+
+        if(root.contains("tokens"))
+        {
+            const auto& tokens = root["tokens"];
+            if(tokens.is_array())
+            {
+                for(const auto& entry : tokens)
+                {
+                    if(!entry.is_object())
+                        continue;
+                    std::string type =
+                        entry.value("type", std::string{});
+                    add_tokens(type,
+                               entry.value("items", nlohmann::json::array()));
+                }
+            }
+            else if(tokens.is_object())
+            {
+                for(auto it = tokens.begin(); it != tokens.end(); ++it)
+                {
+                    add_tokens(it.key(), it.value());
+                }
+            }
+        }
+
+        mlangTokensAvailable = !mlangTokenTypes.empty();
+        return mlangTokensAvailable;
+    };
+
+    std::vector<std::filesystem::path> candidates;
+    if(!mlangLspPath.empty())
+    {
+        std::filesystem::path lspPath = mlangLspPath;
+        if(lspPath.is_relative())
+            lspPath = std::filesystem::absolute(lspPath);
+        std::filesystem::path dir = lspPath.parent_path();
+        if(!dir.empty())
+            candidates.push_back(dir / "mlang_commands.json");
+    }
+
+    candidates.push_back(std::filesystem::current_path() /
+                         "mlang_commands.json");
+
+    for(const auto& candidate : candidates)
+    {
+        if(load_from_path(candidate))
+            return;
+    }
+}
+
+std::optional<TokenType>
+Editor::lookupMlangTokenType(std::string_view word) const
+{
+    ensureMlangTokensLoaded();
+    if(!mlangTokensAvailable)
+        return std::nullopt;
+
+    std::string key = mlangTokensCaseInsensitive ? ascii_lower(word)
+                                                 : std::string(word);
+    auto it = mlangTokenTypes.find(key);
+    if(it == mlangTokenTypes.end())
+        return std::nullopt;
+    return it->second;
 }
 
 bool Editor::isJsonFile() const
@@ -142,8 +298,10 @@ bool Editor::isJsonFile() const
     if(dot == std::string_view::npos)
         return false;
     std::string_view ext = pathSv.substr(dot);
-    return text_utils::iequals_ascii(ext, ".json") ||
-           text_utils::iequals_ascii(ext, ".jsonc");
+    return std::any_of(constants::JSON_FILE_EXTENSIONS.begin(),
+                       constants::JSON_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
 }
 
 bool Editor::isYamlFile() const
@@ -155,8 +313,10 @@ bool Editor::isYamlFile() const
     if(dot == std::string_view::npos)
         return false;
     std::string_view ext = pathSv.substr(dot);
-    return text_utils::iequals_ascii(ext, ".yaml") ||
-           text_utils::iequals_ascii(ext, ".yml");
+    return std::any_of(constants::YAML_FILE_EXTENSIONS.begin(),
+                       constants::YAML_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
 }
 
 bool Editor::isCMakeFile() const
@@ -178,14 +338,18 @@ bool Editor::isCMakeFile() const
             value.substr(value.size() - suffix.size()), suffix);
     };
 
-    if(text_utils::iequals_ascii(base, "CMakeLists.txt") ||
-       text_utils::iequals_ascii(base, "CMakeFiles.txt") ||
-       text_utils::iequals_ascii(base, "CMakeCache.txt"))
-    {
+    bool isCmakeBasename =
+        std::any_of(constants::CMAKE_FILE_BASENAMES.begin(),
+                    constants::CMAKE_FILE_BASENAMES.end(),
+                    [&](std::string_view name)
+                    { return text_utils::iequals_ascii(base, name); });
+    if(isCmakeBasename)
         return true;
-    }
 
-    return ends_with(base, ".cmake") || ends_with(base, ".cmake.in");
+    return std::any_of(constants::CMAKE_FILE_SUFFIXES.begin(),
+                       constants::CMAKE_FILE_SUFFIXES.end(),
+                       [&](std::string_view suffix)
+                       { return ends_with(base, suffix); });
 }
 
 bool Editor::isShellFile() const
@@ -207,21 +371,22 @@ bool Editor::isShellFile() const
             value.substr(value.size() - suffix.size()), suffix);
     };
 
-    if(ends_with(base, ".sh") || ends_with(base, ".bash") ||
-       ends_with(base, ".zsh") || ends_with(base, ".ksh") ||
-       ends_with(base, ".dash") || ends_with(base, ".profile"))
+    bool hasShellExtension =
+        std::any_of(constants::SHELL_FILE_EXTENSIONS.begin(),
+                    constants::SHELL_FILE_EXTENSIONS.end(),
+                    [&](std::string_view ext)
+                    { return ends_with(base, ext); });
+    if(hasShellExtension)
     {
         return true;
     }
 
-    if(text_utils::iequals_ascii(base, ".bashrc") ||
-       text_utils::iequals_ascii(base, ".bash_profile") ||
-       text_utils::iequals_ascii(base, ".bash_logout") ||
-       text_utils::iequals_ascii(base, ".zshrc") ||
-       text_utils::iequals_ascii(base, ".zprofile") ||
-       text_utils::iequals_ascii(base, ".zlogin") ||
-       text_utils::iequals_ascii(base, ".zlogout") ||
-       text_utils::iequals_ascii(base, ".kshrc"))
+    bool hasShellBasename =
+        std::any_of(constants::SHELL_FILE_BASENAMES.begin(),
+                    constants::SHELL_FILE_BASENAMES.end(),
+                    [&](std::string_view name)
+                    { return text_utils::iequals_ascii(base, name); });
+    if(hasShellBasename)
     {
         return true;
     }
@@ -231,10 +396,11 @@ bool Editor::isShellFile() const
         std::string_view first{(*lines)[0]};
         if(first.starts_with("#!"))
         {
-            bool hasShell = text_utils::contains(first, "bash") ||
-                            text_utils::contains(first, "zsh") ||
-                            text_utils::contains(first, "ksh") ||
-                            text_utils::contains(first, "dash");
+            bool hasShell = std::any_of(
+                constants::SHELL_SHEBANG_HINTS.begin(),
+                constants::SHELL_SHEBANG_HINTS.end(),
+                [&](std::string_view hint)
+                { return text_utils::contains(first, hint); });
             if(!hasShell)
             {
                 if(first.find("/sh") != std::string_view::npos ||
@@ -1664,6 +1830,246 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
+    if(isMlaFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        auto is_keyword = [](std::string_view word) -> bool
+        {
+            static constexpr std::string_view kKeywords[] = {
+                "pub",      "extern", "fn",       "impl",     "return",
+                "if",       "else",   "match",    "enum",     "for",
+                "in",       "break",  "continue", "mod",      "use",
+                "let",      "var",    "true",     "false",
+            };
+            for(const auto& kw : kKeywords)
+            {
+                if(text_utils::iequals_ascii(word, kw))
+                    return true;
+            }
+            return false;
+        };
+
+        auto is_builtin_type = [](std::string_view word) -> bool
+        {
+            static constexpr std::string_view kTypes[] = {
+                "void",  "bool",  "int",   "float", "double", "string",
+                "str8",  "str16", "list",  "map",   "tuple",  "struct",
+                "i8",    "i16",   "i32",   "i64",   "u8",     "u16",
+                "u32",   "u64",
+            };
+            for(const auto& t : kTypes)
+            {
+                if(text_utils::iequals_ascii(word, t))
+                    return true;
+            }
+            return false;
+        };
+
+        while(i < len)
+        {
+            while(i < len && text_utils::is_space(sv[i]))
+                ++i;
+            if(i >= len)
+                break;
+
+            // In block comment: consume until "*/" or EOL
+            if(inBlockComment)
+            {
+                const int start = i;
+                while(i < len &&
+                      !(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/'))
+                    ++i;
+
+                if(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/')
+                {
+                    i += 2;
+                    inBlockComment = false;
+                }
+
+                tokens.push_back({TOKEN_COMMENT, start, i - start});
+                continue;
+            }
+
+            // Preprocessor line (only if first non-space is '#')
+            if(i == 0 && sv[i] == '#')
+            {
+                tokens.push_back({TOKEN_PREPROCESSOR, i, len - i});
+                break;
+            }
+
+            // Line comment
+            if(i < len - 1 && sv[i] == '/' && sv[i + 1] == '/')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            // Block comment start
+            if(i < len - 1 && sv[i] == '/' && sv[i + 1] == '*')
+            {
+                const int start = i;
+                i += 2;
+
+                while(i < len - 1 && !(sv[i] == '*' && sv[i + 1] == '/'))
+                    ++i;
+
+                if(i < len - 1 && sv[i] == '*' && sv[i + 1] == '/')
+                {
+                    i += 2;
+                }
+                else
+                {
+                    inBlockComment = true;
+                    i = len;
+                }
+
+                tokens.push_back({TOKEN_COMMENT, start, i - start});
+                continue;
+            }
+
+            // String literal
+            if(sv[i] == '"')
+            {
+                const int start = i++;
+                while(i < len && sv[i] != '"')
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            // Character literal
+            if(sv[i] == '\'')
+            {
+                const int start = i++;
+                while(i < len && sv[i] != '\'')
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+
+                tokens.push_back({TOKEN_CHAR, start, i - start});
+                continue;
+            }
+
+            // Number
+            if(text_utils::is_digit(sv[i]) ||
+               (sv[i] == '.' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
+            {
+                const int start = i;
+                bool hasHex = false;
+
+                if(sv[i] == '0' && i + 1 < len &&
+                   (sv[i + 1] == 'x' || sv[i + 1] == 'X'))
+                {
+                    hasHex = true;
+                    i += 2;
+                }
+
+                while(i < len && (text_utils::is_digit(sv[i]) ||
+                                  (hasHex && text_utils::is_xdigit(sv[i])) ||
+                                  sv[i] == '.' || sv[i] == 'e' ||
+                                  sv[i] == 'E' || sv[i] == 'f' ||
+                                  sv[i] == 'F' || sv[i] == 'u' ||
+                                  sv[i] == 'U' || sv[i] == 'l' ||
+                                  sv[i] == 'L'))
+                {
+                    ++i;
+                }
+
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            // Identifier / keyword / type / function
+            if(text_utils::is_alpha(sv[i]) || sv[i] == '_')
+            {
+                const int start = i;
+                while(i < len &&
+                      (text_utils::is_alnum(sv[i]) || sv[i] == '_' ||
+                       sv[i] == ':'))
+                    ++i;
+
+                const std::string_view word = sv.substr(start, i - start);
+                bool isBangCall = false;
+                if(i < len && sv[i] == '!' &&
+                   (text_utils::iequals_ascii(word, "print") ||
+                    text_utils::iequals_ascii(word, "println") ||
+                    text_utils::iequals_ascii(word, "eprint") ||
+                    text_utils::iequals_ascii(word, "eprintln")))
+                {
+                    isBangCall = true;
+                    ++i;
+                }
+
+                int j = i;
+                while(j < len && text_utils::is_space(sv[j]))
+                    ++j;
+
+                TokenType type = TOKEN_NORMAL;
+                if(auto mapped = lookupMlangTokenType(word))
+                {
+                    type = *mapped;
+                }
+                else if(is_keyword(word))
+                {
+                    type = TOKEN_KEYWORD;
+                }
+                else if(is_builtin_type(word))
+                {
+                    type = TOKEN_TYPE;
+                }
+                else if(isBangCall)
+                {
+                    type = TOKEN_FUNCTION;
+                }
+                else if(j < len && sv[j] == '(')
+                {
+                    type = TOKEN_FUNCTION;
+                }
+
+                tokens.push_back({type, start, i - start});
+                continue;
+            }
+
+            // Operators / punctuation
+            if(cpp_constants::is_operator_char(sv[i]))
+            {
+                const int start = i++;
+                if(i < len)
+                {
+                    const char a = sv[i - 1], b = sv[i];
+                    if(is_two_char_op(a, b))
+                        ++i;
+                }
+
+                tokens.push_back({TOKEN_OPERATOR, start, i - start});
+                continue;
+            }
+
+            // Fallback: single char
+            tokens.push_back({TOKEN_NORMAL, i, 1});
+            ++i;
+        }
+
+        return tokens;
+    }
+
     if(isCMakeFile())
     {
         std::vector<Token> tokens;
@@ -2538,7 +2944,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     // Performance optimization: this is a lightweight scan (just looking for
     // comment delimiters)
     bool blockCommentState = false;
-    if(isCppFile())
+    if(isCppFile() || isMlaFile())
     {
         for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
         {

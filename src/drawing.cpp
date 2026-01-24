@@ -436,8 +436,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isCppFile() || isRobotFile() || isPythonFile() ||
-                       isCMakeFile() || isShellFile() ||
+                    if(isCppFile() || isMlaFile() || isRobotFile() ||
+                       isPythonFile() || isCMakeFile() || isShellFile() ||
                        (isJsonFile() && syntaxJson) ||
                        (isYamlFile() && syntaxYaml))
                     {
@@ -570,8 +570,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isCppFile() || isRobotFile() || isPythonFile() ||
-                       isCMakeFile() || isShellFile() ||
+                    if(isCppFile() || isMlaFile() || isRobotFile() ||
+                       isPythonFile() || isCMakeFile() || isShellFile() ||
                        (isJsonFile() && syntaxJson) ||
                        (isYamlFile() && syntaxYaml))
                     {
@@ -936,8 +936,8 @@ void Editor::drawFullScreenSingle()
                 }
 
                 // Check if we should use syntax highlighting
-                if(isCppFile() || isRobotFile() || isPythonFile() ||
-                   isCMakeFile() || isShellFile() ||
+                if(isCppFile() || isMlaFile() || isRobotFile() ||
+                   isPythonFile() || isCMakeFile() || isShellFile() ||
                    (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml))
                 {
                     // Use syntax highlighting for supported files (handles
@@ -1353,8 +1353,8 @@ void Editor::drawSplitFullScreen()
                 }
             }
 
-            if(isCppFile() || isRobotFile() || isPythonFile() ||
-               isCMakeFile() || isShellFile() ||
+            if(isCppFile() || isMlaFile() || isRobotFile() ||
+               isPythonFile() || isCMakeFile() || isShellFile() ||
                (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml))
             {
                 renderLineWithSyntax(row, line, start, len, fileRow);
