@@ -294,3 +294,11 @@ if(UVIM_BUILD_TESTS)
         DEPENDS state_machine_tests mode_state_machine_tests real_mode_transitions_tests
     )
 endif()
+
+# ============================================================================
+# Install (binary only)
+# ============================================================================
+install(TARGETS uvim
+    RUNTIME DESTINATION bin
+    COMPONENT uvim
+)
