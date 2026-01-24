@@ -14,7 +14,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -144,10 +143,6 @@ public:
     bool mlangLspEnabled = false;
     std::string mlangLspPath = "python3";
     std::vector<std::string> mlangLspArgs;
-    mutable bool mlangTokensLoaded = false;
-    mutable bool mlangTokensAvailable = false;
-    mutable bool mlangTokensCaseInsensitive = false;
-    mutable std::unordered_map<std::string, TokenType> mlangTokenTypes;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
     std::unique_ptr<LspClient> robotLspClient;

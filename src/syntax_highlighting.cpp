@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <unordered_map>
 #include <unistd.h>
 
 template <class Arr>
@@ -56,6 +57,20 @@ inline bool is_two_char_op(char a, char b) noexcept
 
 namespace
 {
+struct MlangTokenCache
+{
+    bool loaded = false;
+    bool available = false;
+    bool caseInsensitive = false;
+    std::unordered_map<std::string, TokenType> tokenTypes;
+};
+
+MlangTokenCache& mlang_cache()
+{
+    static MlangTokenCache cache;
+    return cache;
+}
+
 std::string ascii_lower(std::string_view value)
 {
     std::string out;
@@ -183,13 +198,14 @@ bool Editor::isPythonFile() const
 
 void Editor::ensureMlangTokensLoaded() const
 {
-    if(mlangTokensLoaded)
+    auto& cache = mlang_cache();
+    if(cache.loaded)
         return;
 
-    mlangTokensLoaded = true;
-    mlangTokensAvailable = false;
-    mlangTokensCaseInsensitive = false;
-    mlangTokenTypes.clear();
+    cache.loaded = true;
+    cache.available = false;
+    cache.caseInsensitive = false;
+    cache.tokenTypes.clear();
 
     auto load_from_path = [&](const std::filesystem::path& path) -> bool
     {
@@ -205,7 +221,7 @@ void Editor::ensureMlangTokensLoaded() const
         if(root.is_discarded())
             return false;
 
-        mlangTokensCaseInsensitive = root.value("case_insensitive", false);
+        cache.caseInsensitive = root.value("case_insensitive", false);
 
         auto add_tokens = [&](std::string_view typeName,
                               const nlohmann::json& items)
@@ -219,9 +235,9 @@ void Editor::ensureMlangTokensLoaded() const
                 if(!item.is_string())
                     continue;
                 std::string key = item.get<std::string>();
-                if(mlangTokensCaseInsensitive)
+                if(cache.caseInsensitive)
                     key = ascii_lower(key);
-                mlangTokenTypes[key] = *tokenType;
+                cache.tokenTypes[key] = *tokenType;
             }
         };
 
@@ -249,8 +265,8 @@ void Editor::ensureMlangTokensLoaded() const
             }
         }
 
-        mlangTokensAvailable = !mlangTokenTypes.empty();
-        return mlangTokensAvailable;
+        cache.available = !cache.tokenTypes.empty();
+        return cache.available;
     };
 
     std::vector<std::filesystem::path> candidates;
@@ -278,13 +294,14 @@ std::optional<TokenType>
 Editor::lookupMlangTokenType(std::string_view word) const
 {
     ensureMlangTokensLoaded();
-    if(!mlangTokensAvailable)
+    auto& cache = mlang_cache();
+    if(!cache.available)
         return std::nullopt;
 
-    std::string key = mlangTokensCaseInsensitive ? ascii_lower(word)
-                                                 : std::string(word);
-    auto it = mlangTokenTypes.find(key);
-    if(it == mlangTokenTypes.end())
+    std::string key =
+        cache.caseInsensitive ? ascii_lower(word) : std::string(word);
+    auto it = cache.tokenTypes.find(key);
+    if(it == cache.tokenTypes.end())
         return std::nullopt;
     return it->second;
 }
