@@ -1,9 +1,11 @@
 #include "editor.h"
 #include "log.h"
 #include "theme.h"
+#include <array>
 #include <clocale>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -217,34 +219,49 @@ static std::string find_project_config()
 
 static void print_help(const char* exe)
 {
-    std::cout
-        << "Usage: " << exe << " [options] [file|dir]\n"
+    std::cout << "Usage: " << exe << " [options] [file|dir]\n"
 #ifdef UVIM_VERSION
-        << "Version: " << UVIM_VERSION << "\n"
+              << "Version: " << UVIM_VERSION << "\n"
 #endif
-        << "\nOptions:\n"
-        << "  --help                 Show this help and exit\n"
-        << "  --version              Show version and exit\n"
-        << "  --config <path>         Use custom config path\n"
-        << "  --init-config [path]    Write default config and exit\n"
-        << "  --clangd               Enable clangd LSP\n"
-        << "  --ccdir <dir>           Compile commands dir for clangd\n"
-        << "  --clangd-path <path>    Path to clangd binary\n"
-        << "  --query-driver <list>   clangd query-driver allowlist\n"
-        << "  --robot-lsp            Enable Robot Framework LSP\n"
-        << "  --robot-lsp-path <path> Path to Robot LSP server\n"
-        << "  --robot-lsp-args <args> Extra args for Robot LSP "
-           "(space-separated)\n"
-        << "  --python-lsp           Enable Python LSP\n"
-        << "  --python-lsp-path <path> Path to Python LSP server\n"
-        << "  --python-lsp-args <args> Extra args for Python LSP "
-           "(space-separated)\n"
-        << "  --mlang-lsp            Enable Mlang LSP\n"
-        << "  --mlang-lsp-path <path> Path to Mlang LSP server\n"
-        << "  --mlang-lsp-args <args> Extra args for Mlang LSP "
-           "(space-separated)\n"
-        << "  --log-file <path>       Debug log file (UVIM_DEBUG_LOGGING)\n"
-        << "  --log-colors           Enable colored log output\n";
+              << "\nOptions:\n";
+
+    struct HelpRow
+    {
+        std::string_view option;
+        std::string_view description;
+    };
+
+    const std::array<HelpRow, 19> rows = {{
+        {"--help", "Show this help and exit"},
+        {"--version", "Show version and exit"},
+        {"--config <path>", "Use custom config path"},
+        {"--init-config [path]", "Write default config and exit"},
+        {"--clangd", "Enable clangd LSP"},
+        {"--ccdir <dir>", "Compile commands dir for clangd"},
+        {"--clangd-path <path>", "Path to clangd binary"},
+        {"--query-driver <list>", "clangd query-driver allowlist"},
+        {"--robot-lsp", "Enable Robot Framework LSP"},
+        {"--robot-lsp-path <path>", "Path to Robot LSP server"},
+        {"--robot-lsp-args <args>", "Extra args for Robot LSP (space-separated)"},
+        {"--python-lsp", "Enable Python LSP"},
+        {"--python-lsp-path <path>", "Path to Python LSP server"},
+        {"--python-lsp-args <args>", "Extra args for Python LSP (space-separated)"},
+        {"--mlang-lsp", "Enable Mlang LSP"},
+        {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
+        {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
+        {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
+        {"--log-colors", "Enable colored log output"},
+    }};
+
+    size_t maxOptLen = 0;
+    for(const auto& row : rows)
+        maxOptLen = std::max(maxOptLen, row.option.size());
+
+    for(const auto& row : rows)
+    {
+        std::cout << "  " << std::left << std::setw((int)maxOptLen + 2)
+                  << row.option << row.description << "\n";
+    }
 }
 
 int main(int argc, char* argv[])
