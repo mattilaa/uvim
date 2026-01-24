@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "log.h"
 #include "theme.h"
+#include <algorithm>
 #include <array>
 #include <clocale>
 #include <cstdlib>
@@ -217,214 +218,515 @@ static std::string find_project_config()
     return "";
 }
 
-static void print_help(const char* exe)
+namespace cli
 {
-    std::cout << "Usage: " << exe << " [options] [file|dir]\n"
-#ifdef UVIM_VERSION
-              << "Version: " << UVIM_VERSION << "\n"
-#endif
-              << "\nOptions:\n";
+constexpr std::string_view kHelp = "--help";
+constexpr std::string_view kVersion = "--version";
+constexpr std::string_view kConfig = "--config";
+constexpr std::string_view kInitConfig = "--init-config";
+constexpr std::string_view kClangd = "--clangd";
+constexpr std::string_view kCcdir = "--ccdir";
+constexpr std::string_view kClangdPath = "--clangd-path";
+constexpr std::string_view kQueryDriver = "--query-driver";
+constexpr std::string_view kRobotLsp = "--robot-lsp";
+constexpr std::string_view kRobotLspPath = "--robot-lsp-path";
+constexpr std::string_view kRobotLspArgs = "--robot-lsp-args";
+constexpr std::string_view kPythonLsp = "--python-lsp";
+constexpr std::string_view kPythonLspPath = "--python-lsp-path";
+constexpr std::string_view kPythonLspArgs = "--python-lsp-args";
+constexpr std::string_view kMlangLsp = "--mlang-lsp";
+constexpr std::string_view kMlangLspPath = "--mlang-lsp-path";
+constexpr std::string_view kMlangLspArgs = "--mlang-lsp-args";
+constexpr std::string_view kLogFile = "--log-file";
+constexpr std::string_view kLogColors = "--log-colors";
 
-    struct HelpRow
-    {
-        std::string_view option;
-        std::string_view description;
-    };
-
-    const std::array<HelpRow, 19> rows = {{
-        {"--help", "Show this help and exit"},
-        {"--version", "Show version and exit"},
-        {"--config <path>", "Use custom config path"},
-        {"--init-config [path]", "Write default config and exit"},
-        {"--clangd", "Enable clangd LSP"},
-        {"--ccdir <dir>", "Compile commands dir for clangd"},
-        {"--clangd-path <path>", "Path to clangd binary"},
-        {"--query-driver <list>", "clangd query-driver allowlist"},
-        {"--robot-lsp", "Enable Robot Framework LSP"},
-        {"--robot-lsp-path <path>", "Path to Robot LSP server"},
-        {"--robot-lsp-args <args>", "Extra args for Robot LSP (space-separated)"},
-        {"--python-lsp", "Enable Python LSP"},
-        {"--python-lsp-path <path>", "Path to Python LSP server"},
-        {"--python-lsp-args <args>", "Extra args for Python LSP (space-separated)"},
-        {"--mlang-lsp", "Enable Mlang LSP"},
-        {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
-        {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
-        {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
-        {"--log-colors", "Enable colored log output"},
-    }};
-
-    size_t maxOptLen = 0;
-    for(const auto& row : rows)
-        maxOptLen = std::max(maxOptLen, row.option.size());
-
-    for(const auto& row : rows)
-    {
-        std::cout << "  " << std::left << std::setw((int)maxOptLen + 2)
-                  << row.option << row.description << "\n";
-    }
-}
-
-int main(int argc, char* argv[])
+struct HelpRow
 {
-    std::setlocale(LC_CTYPE, "");
+    std::string_view option;
+    std::string_view description;
+};
 
+constexpr std::array<HelpRow, 19> kHelpRows = {{
+    {kHelp, "Show this help and exit"},
+    {kVersion, "Show version and exit"},
+    {"--config <path>", "Use custom config path"},
+    {"--init-config [path]", "Write default config and exit"},
+    {kClangd, "Enable clangd LSP"},
+    {"--ccdir <dir>", "Compile commands dir for clangd"},
+    {"--clangd-path <path>", "Path to clangd binary"},
+    {"--query-driver <list>", "clangd query-driver allowlist"},
+    {kRobotLsp, "Enable Robot Framework LSP"},
+    {"--robot-lsp-path <path>", "Path to Robot LSP server"},
+    {"--robot-lsp-args <args>", "Extra args for Robot LSP (space-separated)"},
+    {kPythonLsp, "Enable Python LSP"},
+    {"--python-lsp-path <path>", "Path to Python LSP server"},
+    {"--python-lsp-args <args>", "Extra args for Python LSP (space-separated)"},
+    {kMlangLsp, "Enable Mlang LSP"},
+    {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
+    {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
+    {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
+    {kLogColors, "Enable colored log output"},
+}};
+
+struct Options
+{
+    bool showHelp = false;
+    bool showVersion = false;
+    bool initConfig = false;
+    bool logColors = false;
     bool useClangd = false;
     bool useRobotLsp = false;
     bool usePythonLsp = false;
     bool useMlangLsp = false;
-    std::string_view ccdirArg;
-    std::string_view clangdPathArg = "clangd";
-    std::string_view queryDriverArg;
-    std::string_view robotLspPathArg = "robotframework-lsp";
-    std::string_view robotLspArgsArg;
-    std::string_view pythonLspPathArg = "pyright-langserver";
-    std::string_view pythonLspArgsArg;
-    std::string_view mlangLspPathArg = "python3";
-    std::string_view mlangLspArgsArg;
-    std::string_view logFileArg;
-    bool logColors = false;
-    std::string_view customConfigArg;
-    std::string_view initConfigArg;
-    bool initConfig = false;
-    std::vector<std::string_view> args;
 
-    bool parse_options = true;
+    std::string ccdir;
+    std::string clangdPath = "clangd";
+    std::string queryDriver;
+    std::string robotLspPath = "robotframework-lsp";
+    std::string robotLspArgs;
+    std::string pythonLspPath = "pyright-langserver";
+    std::string pythonLspArgs;
+    std::string mlangLspPath = "python3";
+    std::string mlangLspArgs;
+    std::string logFile;
+    std::string customConfig;
+    std::string initConfigPath;
+    std::vector<std::string> args;
+};
 
-    for(int i = 1; i < argc; ++i)
+class CommandLine
+{
+public:
+    static void print_help(const char* exe)
     {
-        std::string_view a{argv[i]};
-
-        if(parse_options && a == "--")
-        { // stop option parsing
-            parse_options = false;
-            continue;
-        }
-
-        if(parse_options && a.rfind("--", 0) == 0)
-        {
-            std::string_view key, val;
-            if(!split_eq(a, key, val))
-            {
-                key = a;
-                val = {};
-            }
-
-            if(key == "--help")
-            {
-                print_help(argv[0]);
-                return 0;
-            }
-            else if(key == "--version")
-            {
+        std::cout << "Usage: " << exe << " [options] [file|dir]\n"
 #ifdef UVIM_VERSION
-                std::cout << "uvim " << UVIM_VERSION << "\n";
-#else
-                std::cout << "uvim\n";
+                  << "Version: " << UVIM_VERSION << "\n"
 #endif
-                return 0;
-            }
-            else if(key == "--clangd")
+                  << "\nOptions:\n";
+
+        size_t maxOptLen = 0;
+        for(const auto& row : kHelpRows)
+            maxOptLen = std::max(maxOptLen, row.option.size());
+
+        for(const auto& row : kHelpRows)
+        {
+            std::cout << "  " << std::left << std::setw((int)maxOptLen + 2)
+                      << row.option << row.description << "\n";
+        }
+    }
+
+    static Options parse(int argc, char* argv[])
+    {
+        Options opts;
+        bool parse_options = true;
+
+        for(int i = 1; i < argc; ++i)
+        {
+            std::string_view a{argv[i]};
+
+            if(parse_options && a == "--")
             {
-                useClangd = true;
+                parse_options = false;
+                continue;
             }
-            else if(key == "--ccdir")
+
+            if(parse_options && a.rfind("--", 0) == 0)
             {
-                ccdirArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--clangd-path")
-            {
-                clangdPathArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--query-driver")
-            {
-                queryDriverArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--robot-lsp")
-            {
-                useRobotLsp = true;
-            }
-            else if(key == "--robot-lsp-path")
-            {
-                robotLspPathArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--robot-lsp-args")
-            {
-                robotLspArgsArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--python-lsp")
-            {
-                usePythonLsp = true;
-            }
-            else if(key == "--python-lsp-path")
-            {
-                pythonLspPathArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--python-lsp-args")
-            {
-                pythonLspArgsArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--mlang-lsp")
-            {
-                useMlangLsp = true;
-            }
-            else if(key == "--mlang-lsp-path")
-            {
-                mlangLspPathArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--mlang-lsp-args")
-            {
-                mlangLspArgsArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--log-file")
-            {
-                logFileArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--log-colors")
-            {
-                logColors = true;
-            }
-            else if(key == "--config")
-            {
-                customConfigArg = require_value(key, i, argc, argv, val);
-            }
-            else if(key == "--init-config")
-            {
-                initConfig = true;
-                if(!val.empty())
+                std::string_view key, val;
+                if(!split_eq(a, key, val))
                 {
-                    initConfigArg = val;
+                    key = a;
+                    val = {};
                 }
-                else if(i + 1 < argc && argv[i + 1][0] != '-')
+
+                if(key == kHelp)
                 {
-                    initConfigArg = std::string_view{argv[++i]};
+                    opts.showHelp = true;
+                }
+                else if(key == kVersion)
+                {
+                    opts.showVersion = true;
+                }
+                else if(key == kClangd)
+                {
+                    opts.useClangd = true;
+                }
+                else if(key == kCcdir)
+                {
+                    opts.ccdir =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kClangdPath)
+                {
+                    opts.clangdPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kQueryDriver)
+                {
+                    opts.queryDriver =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kRobotLsp)
+                {
+                    opts.useRobotLsp = true;
+                }
+                else if(key == kRobotLspPath)
+                {
+                    opts.robotLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kRobotLspArgs)
+                {
+                    opts.robotLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kPythonLsp)
+                {
+                    opts.usePythonLsp = true;
+                }
+                else if(key == kPythonLspPath)
+                {
+                    opts.pythonLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kPythonLspArgs)
+                {
+                    opts.pythonLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kMlangLsp)
+                {
+                    opts.useMlangLsp = true;
+                }
+                else if(key == kMlangLspPath)
+                {
+                    opts.mlangLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kMlangLspArgs)
+                {
+                    opts.mlangLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kLogFile)
+                {
+                    opts.logFile =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kLogColors)
+                {
+                    opts.logColors = true;
+                }
+                else if(key == kConfig)
+                {
+                    opts.customConfig =
+                        std::string(require_value(key, i, argc, argv, val));
+                }
+                else if(key == kInitConfig)
+                {
+                    opts.initConfig = true;
+                    if(!val.empty())
+                    {
+                        opts.initConfigPath = std::string(val);
+                    }
+                    else if(i + 1 < argc && argv[i + 1][0] != '-')
+                    {
+                        opts.initConfigPath = std::string(argv[++i]);
+                    }
+                }
+                else
+                {
+                    opts.args.emplace_back(std::string(a));
                 }
             }
             else
             {
-                // unknown option: keep it as a positional, or error out if you
-                // prefer
-                args.emplace_back(a);
+                opts.args.emplace_back(std::string(a));
             }
         }
-        else
+
+        if(opts.args.empty() && argc > 1)
         {
-            args.emplace_back(a);
+            std::string_view fallback{argv[argc - 1]};
+            if(!fallback.empty() && fallback[0] != '-')
+            {
+                opts.args.emplace_back(std::string(fallback));
+            }
         }
+
+        return opts;
+    }
+};
+} // namespace cli
+
+struct EditorSettings
+{
+    bool useClangd = false;
+    bool useRobotLsp = false;
+    bool usePythonLsp = false;
+    bool useMlangLsp = false;
+
+    std::string ccdir;
+    std::string clangdPath = "clangd";
+    std::string queryDriver;
+    std::string robotLspPath = "robotframework-lsp";
+    std::string robotLspArgs;
+    std::string pythonLspPath = "pyright-langserver";
+    std::string pythonLspArgs;
+    std::string mlangLspPath = "python3";
+    std::string mlangLspArgs;
+
+    static EditorSettings fromOptions(const cli::Options& opts)
+    {
+        EditorSettings out;
+        out.useClangd = opts.useClangd;
+        out.useRobotLsp = opts.useRobotLsp;
+        out.usePythonLsp = opts.usePythonLsp;
+        out.useMlangLsp = opts.useMlangLsp;
+        out.ccdir = opts.ccdir;
+        out.clangdPath = opts.clangdPath.empty() ? "clangd" : opts.clangdPath;
+        out.queryDriver = opts.queryDriver;
+        out.robotLspPath = opts.robotLspPath;
+        out.robotLspArgs = opts.robotLspArgs;
+        out.pythonLspPath = opts.pythonLspPath;
+        out.pythonLspArgs = opts.pythonLspArgs;
+        out.mlangLspPath = opts.mlangLspPath;
+        out.mlangLspArgs = opts.mlangLspArgs;
+        return out;
     }
 
-    if(args.empty() && argc > 1)
+    void apply(Editor& editor) const
     {
-        std::string_view fallback{argv[argc - 1]};
-        if(!fallback.empty() && fallback[0] != '-')
+        if(useClangd)
         {
-            args.emplace_back(fallback);
+            editor.enableClangdLsp(true, ccdir, clangdPath, queryDriver);
+        }
+
+        if(useRobotLsp)
+        {
+            std::vector<std::string> args;
+            if(!robotLspArgs.empty())
+                args = split_args(robotLspArgs);
+
+            std::string robotPath = robotLspPath;
+            if(robotPath == "robotframework-lsp")
+            {
+                fs::path venv = fs::current_path() / ".venv" / "bin";
+                fs::path robotPathVenv = venv / "robotframework-lsp";
+                fs::path pythonPath = venv / "python";
+                std::error_code ec;
+                if(fs::exists(robotPathVenv, ec) &&
+                   fs::is_regular_file(robotPathVenv, ec))
+                {
+                    robotPath = robotPathVenv.string();
+                }
+                else if(fs::exists(pythonPath, ec) &&
+                        fs::is_regular_file(pythonPath, ec))
+                {
+                    robotPath = pythonPath.string();
+                    if(args.empty())
+                    {
+                        args.push_back("-m");
+                        args.push_back("robotframework_ls");
+                    }
+                }
+            }
+            if(robotPath == "robotframework-lsp")
+            {
+                std::string found = find_in_path("robotframework-lsp");
+                if(!found.empty())
+                    robotPath = found;
+            }
+            {
+                fs::path venvRoot = fs::current_path() / ".venv";
+                std::error_code ec;
+                if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
+                {
+                    setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
+                    prepend_env_path("PATH", (venvRoot / "bin").string());
+                    std::string sp = find_site_packages(venvRoot);
+                    prepend_env_path("PYTHONPATH", sp);
+                    prepend_env_path("ROBOT_PYTHONPATH", sp);
+                }
+            }
+            if(args.empty())
+                args.push_back("--stdio");
+            editor.enableRobotLsp(true, robotPath, args);
+        }
+
+        if(usePythonLsp)
+        {
+            std::string pyPath = pythonLspPath;
+            std::vector<std::string> args;
+            if(!pythonLspArgs.empty())
+            {
+                args = split_args(pythonLspArgs);
+            }
+
+            {
+                fs::path venvRoot = fs::current_path() / ".venv";
+                std::error_code ec;
+                if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
+                {
+                    setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
+                    prepend_env_path("PATH", (venvRoot / "bin").string());
+                    std::string sp = find_site_packages(venvRoot);
+                    prepend_env_path("PYTHONPATH", sp);
+                }
+            }
+
+            if(pyPath == "pyright-langserver")
+            {
+                fs::path venv = fs::current_path() / ".venv" / "bin";
+                fs::path pyrightPath = venv / "pyright-langserver";
+                std::error_code ec;
+                if(fs::exists(pyrightPath, ec) &&
+                   fs::is_regular_file(pyrightPath, ec))
+                {
+                    pyPath = pyrightPath.string();
+                }
+                else
+                {
+                    std::string found = find_in_path("pyright-langserver");
+                    if(!found.empty())
+                    {
+                        pyPath = found;
+                    }
+                    else
+                    {
+                        fs::path brewPath =
+                            "/opt/homebrew/bin/pyright-langserver";
+                        fs::path localPath =
+                            "/usr/local/bin/pyright-langserver";
+                        if(fs::exists(brewPath, ec) &&
+                           fs::is_regular_file(brewPath, ec))
+                        {
+                            pyPath = brewPath.string();
+                        }
+                        else if(fs::exists(localPath, ec) &&
+                                fs::is_regular_file(localPath, ec))
+                        {
+                            pyPath = localPath.string();
+                        }
+                    }
+                }
+            }
+            if(pyPath == "pylsp")
+            {
+                fs::path venv = fs::current_path() / ".venv" / "bin";
+                fs::path pylspPath = venv / "pylsp";
+                fs::path pyrightPath = venv / "pyright-langserver";
+                fs::path pythonPath = venv / "python";
+                std::error_code ec;
+                if(fs::exists(pylspPath, ec) &&
+                   fs::is_regular_file(pylspPath, ec))
+                {
+                    pyPath = pylspPath.string();
+                }
+                else if(fs::exists(pyrightPath, ec) &&
+                        fs::is_regular_file(pyrightPath, ec))
+                {
+                    pyPath = pyrightPath.string();
+                }
+                else if(fs::exists(pythonPath, ec) &&
+                        fs::is_regular_file(pythonPath, ec))
+                {
+                    pyPath = pythonPath.string();
+                    if(args.empty())
+                    {
+                        args.push_back("-m");
+                        args.push_back("pylsp");
+                    }
+                }
+            }
+            if(pyPath == "pylsp")
+            {
+                std::string found = find_in_path("pylsp");
+                if(!found.empty())
+                {
+                    pyPath = found;
+                }
+                else
+                {
+                    found = find_in_path("pyright-langserver");
+                    if(!found.empty())
+                        pyPath = found;
+                }
+            }
+
+            if(args.empty())
+                args.push_back("--stdio");
+            if(pyPath.find("pyright-langserver") != std::string::npos)
+            {
+                bool hasStdio = false;
+                for(const auto& a : args)
+                {
+                    if(a == "--stdio")
+                    {
+                        hasStdio = true;
+                        break;
+                    }
+                }
+                if(!hasStdio)
+                    args.push_back("--stdio");
+            }
+            editor.enablePythonLsp(true, pyPath, args);
+        }
+
+        if(useMlangLsp)
+        {
+            std::string mlangPath = mlangLspPath;
+            std::vector<std::string> args;
+            if(!mlangLspArgs.empty())
+            {
+                args = split_args(mlangLspArgs);
+            }
+            if(args.empty())
+            {
+                bool isPython =
+                    (mlangPath.find("python") != std::string::npos);
+                if(isPython)
+                {
+                    fs::path localLsp = fs::current_path() / "tools" /
+                                        "mlang_lsp" / "mlang_lsp.py";
+                    std::error_code ec;
+                    if(fs::exists(localLsp, ec))
+                        args.push_back(localLsp.string());
+                    else
+                        args.push_back("tools/mlang_lsp/mlang_lsp.py");
+                }
+                args.push_back("--stdio");
+            }
+            editor.enableMlangLsp(true, mlangPath, args);
         }
     }
+};
 
-    if(initConfig)
+int main(int argc, char* argv[])
+{
+    std::setlocale(LC_CTYPE, "");
+    const cli::Options opts = cli::CommandLine::parse(argc, argv);
+    if(opts.showHelp)
     {
-        std::string path = initConfigArg.empty() ? Theme::defaultConfigPath()
-                                                 : std::string(initConfigArg);
+        cli::CommandLine::print_help(argv[0]);
+        return 0;
+    }
+    if(opts.showVersion)
+    {
+#ifdef UVIM_VERSION
+        std::cout << "uvim " << UVIM_VERSION << "\n";
+#else
+        std::cout << "uvim\n";
+#endif
+        return 0;
+    }
+
+    if(opts.initConfig)
+    {
+        std::string path = opts.initConfigPath.empty()
+                               ? Theme::defaultConfigPath()
+                               : opts.initConfigPath;
         if(path.empty())
             die("cannot determine config path");
         std::error_code ec;
@@ -442,11 +744,11 @@ int main(int argc, char* argv[])
     }
     // Set custom log file path if provided
 #ifdef UVIM_DEBUG_LOGGING
-    if(!logFileArg.empty())
+    if(!opts.logFile.empty())
     {
-        mla::log::setLogFilePath(std::string(logFileArg));
+        mla::log::setLogFilePath(opts.logFile);
     }
-    if(logColors)
+    if(opts.logColors)
     {
         mla::log::setUseColors(true);
     }
@@ -457,235 +759,27 @@ int main(int argc, char* argv[])
     std::string_view configView;
     if(!projectConfig.empty())
         configView = projectConfig;
-    else if(!customConfigArg.empty())
-        configView = customConfigArg;
+    else if(!opts.customConfig.empty())
+        configView = opts.customConfig;
     else
         configView = defaultConfig;
     std::string configPath = std::string(configView);
 
     // Create editor with flag indicating whether we have files to open
-    Editor editor(!args.empty(), configPath);
+    Editor editor(!opts.args.empty(), configPath);
+    EditorSettings::fromOptions(opts).apply(editor);
 
-    if(useClangd)
-    {
-        std::string ccdir =
-            ccdirArg.empty() ? std::string() : std::string(ccdirArg);
-        std::string clangdPath = clangdPathArg.empty()
-                                     ? std::string("clangd")
-                                     : std::string(clangdPathArg);
-        std::string queryDriver = queryDriverArg.empty()
-                                      ? std::string()
-                                      : std::string(queryDriverArg);
-        editor.enableClangdLsp(true, ccdir, clangdPath, queryDriver);
-    }
-
-    if(useRobotLsp)
-    {
-        std::vector<std::string> args;
-        if(!robotLspArgsArg.empty())
-        {
-            args = split_args(robotLspArgsArg);
-        }
-        std::string robotPath = std::string(robotLspPathArg);
-        if(robotPath == "robotframework-lsp")
-        {
-            fs::path venv = fs::current_path() / ".venv" / "bin";
-            fs::path robotPathVenv = venv / "robotframework-lsp";
-            fs::path pythonPath = venv / "python";
-            std::error_code ec;
-            if(fs::exists(robotPathVenv, ec) &&
-               fs::is_regular_file(robotPathVenv, ec))
-            {
-                robotPath = robotPathVenv.string();
-            }
-            else if(fs::exists(pythonPath, ec) &&
-                    fs::is_regular_file(pythonPath, ec))
-            {
-                robotPath = pythonPath.string();
-                if(args.empty())
-                {
-                    args.push_back("-m");
-                    args.push_back("robotframework_ls");
-                }
-            }
-        }
-        if(robotPath == "robotframework-lsp")
-        {
-            std::string found = find_in_path("robotframework-lsp");
-            if(!found.empty())
-                robotPath = found;
-        }
-        {
-            fs::path venvRoot = fs::current_path() / ".venv";
-            std::error_code ec;
-            if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
-            {
-                setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
-                prepend_env_path("PATH", (venvRoot / "bin").string());
-                std::string sp = find_site_packages(venvRoot);
-                prepend_env_path("PYTHONPATH", sp);
-                prepend_env_path("ROBOT_PYTHONPATH", sp);
-            }
-        }
-        if(args.empty())
-            args.push_back("--stdio");
-        editor.enableRobotLsp(true, robotPath, args);
-    }
-
-    if(usePythonLsp)
-    {
-        std::string pyPath = std::string(pythonLspPathArg);
-        std::vector<std::string> args;
-        if(!pythonLspArgsArg.empty())
-        {
-            args = split_args(pythonLspArgsArg);
-        }
-
-        {
-            fs::path venvRoot = fs::current_path() / ".venv";
-            std::error_code ec;
-            if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
-            {
-                setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
-                prepend_env_path("PATH", (venvRoot / "bin").string());
-                std::string sp = find_site_packages(venvRoot);
-                prepend_env_path("PYTHONPATH", sp);
-            }
-        }
-
-        if(pyPath == "pyright-langserver")
-        {
-            fs::path venv = fs::current_path() / ".venv" / "bin";
-            fs::path pyrightPath = venv / "pyright-langserver";
-            std::error_code ec;
-            if(fs::exists(pyrightPath, ec) &&
-               fs::is_regular_file(pyrightPath, ec))
-            {
-                pyPath = pyrightPath.string();
-            }
-            else
-            {
-                std::string found = find_in_path("pyright-langserver");
-                if(!found.empty())
-                {
-                    pyPath = found;
-                }
-                else
-                {
-                    fs::path brewPath = "/opt/homebrew/bin/pyright-langserver";
-                    fs::path localPath = "/usr/local/bin/pyright-langserver";
-                    if(fs::exists(brewPath, ec) &&
-                       fs::is_regular_file(brewPath, ec))
-                    {
-                        pyPath = brewPath.string();
-                    }
-                    else if(fs::exists(localPath, ec) &&
-                            fs::is_regular_file(localPath, ec))
-                    {
-                        pyPath = localPath.string();
-                    }
-                }
-            }
-        }
-        if(pyPath == "pylsp")
-        {
-            fs::path venv = fs::current_path() / ".venv" / "bin";
-            fs::path pylspPath = venv / "pylsp";
-            fs::path pyrightPath = venv / "pyright-langserver";
-            fs::path pythonPath = venv / "python";
-            std::error_code ec;
-            if(fs::exists(pylspPath, ec) && fs::is_regular_file(pylspPath, ec))
-            {
-                pyPath = pylspPath.string();
-            }
-            else if(fs::exists(pyrightPath, ec) &&
-                    fs::is_regular_file(pyrightPath, ec))
-            {
-                pyPath = pyrightPath.string();
-            }
-            else if(fs::exists(pythonPath, ec) &&
-                    fs::is_regular_file(pythonPath, ec))
-            {
-                pyPath = pythonPath.string();
-                if(args.empty())
-                {
-                    args.push_back("-m");
-                    args.push_back("pylsp");
-                }
-            }
-        }
-        if(pyPath == "pylsp")
-        {
-            std::string found = find_in_path("pylsp");
-            if(!found.empty())
-            {
-                pyPath = found;
-            }
-            else
-            {
-                found = find_in_path("pyright-langserver");
-                if(!found.empty())
-                    pyPath = found;
-            }
-        }
-
-        if(args.empty())
-            args.push_back("--stdio");
-        if(pyPath.find("pyright-langserver") != std::string::npos)
-        {
-            bool hasStdio = false;
-            for(const auto& a : args)
-            {
-                if(a == "--stdio")
-                {
-                    hasStdio = true;
-                    break;
-                }
-            }
-            if(!hasStdio)
-                args.push_back("--stdio");
-        }
-        editor.enablePythonLsp(true, pyPath, args);
-    }
-
-    if(useMlangLsp)
-    {
-        std::string mlangPath = std::string(mlangLspPathArg);
-        std::vector<std::string> args;
-        if(!mlangLspArgsArg.empty())
-        {
-            args = split_args(mlangLspArgsArg);
-        }
-        if(args.empty())
-        {
-            bool isPython =
-                (mlangPath.find("python") != std::string::npos);
-            if(isPython)
-            {
-                fs::path localLsp = fs::current_path() / "tools" /
-                                    "mlang_lsp" / "mlang_lsp.py";
-                std::error_code ec;
-                if(fs::exists(localLsp, ec))
-                    args.push_back(localLsp.string());
-                else
-                    args.push_back("tools/mlang_lsp/mlang_lsp.py");
-            }
-            args.push_back("--stdio");
-        }
-        editor.enableMlangLsp(true, mlangPath, args);
-    }
-
-    if(!args.empty())
+    if(!opts.args.empty())
     {
         // If first argument is a directory, open file browser
-        if(is_directory(args[0]))
+        if(is_directory(opts.args[0]))
         {
-            editor.openFileBrowser(args[0]);
+            editor.openFileBrowser(opts.args[0]);
         }
         else
         {
             // Open all files as separate buffers
-            for(const auto& f : args)
+            for(const auto& f : opts.args)
             {
                 editor.openFile(f);
             }
