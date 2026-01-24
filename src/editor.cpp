@@ -600,6 +600,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
     robotKeywordSet = default_robot_keywords();
     robotCustomKeywordSet = default_robot_custom_keywords();
     robotSettingSet = default_robot_settings();
+    mlangTokenCache = std::make_shared<MlangTokenCache>();
     if(!configPath.empty())
     {
         std::ifstream in(configPath);
@@ -892,6 +893,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     robotKeywordSet = default_robot_keywords();
     robotCustomKeywordSet = default_robot_custom_keywords();
     robotSettingSet = default_robot_settings();
+    mlangTokenCache = std::make_shared<MlangTokenCache>();
 }
 
 Editor Editor::createForTests(int rows, int cols)

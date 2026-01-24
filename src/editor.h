@@ -14,6 +14,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -23,6 +24,17 @@ class LspClient;
 
 class GitIgnore;
 class ModeStateMachine;
+
+struct MlangTokenCache
+{
+    bool loaded = false;
+    bool available = false;
+    bool caseInsensitive = false;
+    std::unordered_map<std::string, TokenType> tokenTypes;
+    std::string root;
+    std::string configPath;
+    std::string lspPath;
+};
 
 class Editor
 {
@@ -143,6 +155,7 @@ public:
     bool mlangLspEnabled = false;
     std::string mlangLspPath = "python3";
     std::vector<std::string> mlangLspArgs;
+    std::shared_ptr<MlangTokenCache> mlangTokenCache;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
     std::unique_ptr<LspClient> robotLspClient;

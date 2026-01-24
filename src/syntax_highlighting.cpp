@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <unordered_map>
+#include <sstream>
 #include <unistd.h>
 
 template <class Arr>
@@ -57,20 +57,6 @@ inline bool is_two_char_op(char a, char b) noexcept
 
 namespace
 {
-struct MlangTokenCache
-{
-    bool loaded = false;
-    bool available = false;
-    bool caseInsensitive = false;
-    std::unordered_map<std::string, TokenType> tokenTypes;
-};
-
-MlangTokenCache& mlang_cache()
-{
-    static MlangTokenCache cache;
-    return cache;
-}
-
 std::string ascii_lower(std::string_view value)
 {
     std::string out;
@@ -106,6 +92,113 @@ std::optional<TokenType> parse_token_type(std::string_view value)
     if(type == "constant" || type == "literal" || type == "bool")
         return TOKEN_KEYWORD;
     return std::nullopt;
+}
+
+std::filesystem::path find_mlang_root()
+{
+    std::error_code ec;
+    std::filesystem::path dir = std::filesystem::current_path(ec);
+    if(ec)
+        return {};
+
+    for(;;)
+    {
+        if(std::filesystem::exists(dir / ".mlangd", ec))
+            return dir;
+        if(dir.has_parent_path())
+        {
+            auto parent = dir.parent_path();
+            if(parent == dir)
+                break;
+            dir = parent;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return std::filesystem::current_path(ec);
+}
+
+struct MlangConfig
+{
+    std::string commandsJson;
+    std::string buildDir;
+    bool caseInsensitive = false;
+    bool caseInsensitiveSet = false;
+};
+
+MlangConfig parse_mlangd(const std::filesystem::path& path)
+{
+    MlangConfig cfg;
+    std::ifstream in(path);
+    if(!in)
+        return cfg;
+
+    std::string contents((std::istreambuf_iterator<char>(in)),
+                         std::istreambuf_iterator<char>());
+    if(contents.empty())
+        return cfg;
+
+    auto trim = [](std::string& s)
+    {
+        size_t start = 0;
+        while(start < s.size() && text_utils::is_space(s[start]))
+            ++start;
+        size_t end = s.size();
+        while(end > start && text_utils::is_space(s[end - 1]))
+            --end;
+        s = s.substr(start, end - start);
+    };
+
+    // JSON format
+    if(!contents.empty() && contents.find('{') != std::string::npos)
+    {
+        nlohmann::json root = nlohmann::json::parse(contents, nullptr, false);
+        if(!root.is_discarded() && root.is_object())
+        {
+            cfg.commandsJson = root.value("commands_json", std::string{});
+            cfg.buildDir = root.value("build_dir", std::string{});
+            if(root.contains("case_insensitive"))
+            {
+                cfg.caseInsensitive = root.value("case_insensitive", false);
+                cfg.caseInsensitiveSet = true;
+            }
+        }
+        return cfg;
+    }
+
+    // key=value format
+    std::istringstream iss(contents);
+    std::string line;
+    while(std::getline(iss, line))
+    {
+        trim(line);
+        if(line.empty())
+            continue;
+        if(line.starts_with("#") || line.starts_with("//"))
+            continue;
+        auto pos = line.find('=');
+        if(pos == std::string::npos)
+            continue;
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+        trim(key);
+        trim(value);
+        if(key == "commands_json")
+            cfg.commandsJson = value;
+        else if(key == "build_dir")
+            cfg.buildDir = value;
+        else if(key == "case_insensitive")
+        {
+            cfg.caseInsensitive =
+                (value == "1" || value == "true" || value == "yes");
+            cfg.caseInsensitiveSet = true;
+        }
+    }
+
+    return cfg;
 }
 } // namespace
 
@@ -198,16 +291,57 @@ bool Editor::isPythonFile() const
 
 void Editor::ensureMlangTokensLoaded() const
 {
-    auto& cache = mlang_cache();
-    if(cache.loaded)
+    if(!mlangTokenCache)
         return;
+
+    auto& cache = *mlangTokenCache;
+    std::filesystem::path root = find_mlang_root();
+    std::string rootStr = root.empty() ? std::string{} : root.string();
+    const bool hasExplicitLspPath =
+        !mlangLspPath.empty() && mlangLspPath != "python3";
+    const std::string effectiveLspPath = hasExplicitLspPath ? mlangLspPath
+                                                            : std::string{};
+
+    if(cache.loaded && cache.root == rootStr && cache.lspPath == effectiveLspPath)
+    {
+        return;
+    }
 
     cache.loaded = true;
     cache.available = false;
     cache.caseInsensitive = false;
     cache.tokenTypes.clear();
+    cache.root = rootStr;
+    cache.configPath.clear();
+    cache.lspPath = effectiveLspPath;
 
-    auto load_from_path = [&](const std::filesystem::path& path) -> bool
+    std::filesystem::path configPath;
+    MlangConfig cfg;
+    if(!rootStr.empty())
+    {
+        configPath = root / ".mlangd";
+        cfg = parse_mlangd(configPath);
+        if(!cfg.commandsJson.empty() || !cfg.buildDir.empty() ||
+           cfg.caseInsensitiveSet)
+        {
+            cache.configPath = configPath.string();
+            if(cfg.caseInsensitiveSet)
+                cache.caseInsensitive = cfg.caseInsensitive;
+        }
+    }
+
+    auto resolve_path = [&](const std::string& value) -> std::filesystem::path
+    {
+        std::filesystem::path p(value);
+        if(p.empty())
+            return {};
+        if(p.is_relative() && !rootStr.empty())
+            p = root / p;
+        return p;
+    };
+
+    auto load_from_path = [&](const std::filesystem::path& path,
+                              bool allowJsonCase) -> bool
     {
         std::error_code ec;
         if(!std::filesystem::exists(path, ec))
@@ -221,7 +355,9 @@ void Editor::ensureMlangTokensLoaded() const
         if(root.is_discarded())
             return false;
 
-        cache.caseInsensitive = root.value("case_insensitive", false);
+        if(allowJsonCase)
+            cache.caseInsensitive =
+                root.value("case_insensitive", cache.caseInsensitive);
 
         auto add_tokens = [&](std::string_view typeName,
                               const nlohmann::json& items)
@@ -270,7 +406,15 @@ void Editor::ensureMlangTokensLoaded() const
     };
 
     std::vector<std::filesystem::path> candidates;
-    if(!mlangLspPath.empty())
+    if(!cfg.commandsJson.empty())
+        candidates.push_back(resolve_path(cfg.commandsJson));
+    else
+    {
+        std::string buildDir = cfg.buildDir.empty() ? "build" : cfg.buildDir;
+        if(!rootStr.empty())
+            candidates.push_back(root / buildDir / "mlang_commands.json");
+    }
+    if(hasExplicitLspPath)
     {
         std::filesystem::path lspPath = mlangLspPath;
         if(lspPath.is_relative())
@@ -285,7 +429,7 @@ void Editor::ensureMlangTokensLoaded() const
 
     for(const auto& candidate : candidates)
     {
-        if(load_from_path(candidate))
+        if(load_from_path(candidate, !cfg.caseInsensitiveSet))
             return;
     }
 }
@@ -294,14 +438,14 @@ std::optional<TokenType>
 Editor::lookupMlangTokenType(std::string_view word) const
 {
     ensureMlangTokensLoaded();
-    auto& cache = mlang_cache();
-    if(!cache.available)
+    if(!mlangTokenCache || !mlangTokenCache->available)
         return std::nullopt;
 
     std::string key =
-        cache.caseInsensitive ? ascii_lower(word) : std::string(word);
-    auto it = cache.tokenTypes.find(key);
-    if(it == cache.tokenTypes.end())
+        mlangTokenCache->caseInsensitive ? ascii_lower(word)
+                                         : std::string(word);
+    auto it = mlangTokenCache->tokenTypes.find(key);
+    if(it == mlangTokenCache->tokenTypes.end())
         return std::nullopt;
     return it->second;
 }
@@ -981,7 +1125,7 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
 
         if(settingsFirstWidth > 0)
         {
-            size_t firstNonWs = line.find_first_not_of(" 	");
+            size_t firstNonWs = line.find_first_not_of("    ");
             if(firstNonWs != std::string_view::npos)
             {
                 std::string prefix(line.substr(0, firstNonWs));
@@ -995,7 +1139,7 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
                     size_t restStart = matchLen;
                     while(restStart < trimmedLine.size() &&
                           (trimmedLine[restStart] == ' ' ||
-                           trimmedLine[restStart] == '	'))
+                           trimmedLine[restStart] == '  '))
                     {
                         ++restStart;
                     }
