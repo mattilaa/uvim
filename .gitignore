@@ -1,5 +1,6 @@
 build
 build-release
+*.out
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
