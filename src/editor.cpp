@@ -950,11 +950,17 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
         return;
     }
 
-    // Determine project root (cwd at startup is good enough for uvim).
-    char cwd[PATH_MAX];
     std::string rootDir = ".";
-    if(getcwd(cwd, sizeof(cwd)))
-        rootDir = std::string(cwd);
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
 
     // Auto-detect compile_commands.json if caller didn't specify --ccdir
     std::string ccdir = clangdLspCompileCommandsDir;
@@ -1036,10 +1042,17 @@ void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
         return;
     }
 
-    char cwd[PATH_MAX];
     std::string rootDir = ".";
-    if(getcwd(cwd, sizeof(cwd)))
-        rootDir = std::string(cwd);
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
 
     std::vector<std::string> args = this->robotLspArgs;
     if(args.empty())
@@ -1093,10 +1106,17 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
         return;
     }
 
-    char cwd[PATH_MAX];
     std::string rootDir = ".";
-    if(getcwd(cwd, sizeof(cwd)))
-        rootDir = std::string(cwd);
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
 
     std::vector<std::string> args = this->pythonLspArgs;
     if(args.empty())
@@ -1151,10 +1171,17 @@ void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
         return;
     }
 
-    char cwd[PATH_MAX];
     std::string rootDir = ".";
-    if(getcwd(cwd, sizeof(cwd)))
-        rootDir = std::string(cwd);
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
 
     std::vector<std::string> args = this->mlangLspArgs;
     if(args.empty())

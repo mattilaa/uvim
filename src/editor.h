@@ -131,6 +131,7 @@ public:
     std::vector<std::string> screenBuffer;
     std::string lastStatusBar;
     std::string lastMessageBar;
+    std::string projectRoot;
 
     // Modes
     Mode currentMode = NORMAL;
@@ -771,6 +772,9 @@ public:
     void undo();
     void redo();
     bool lastFindTill{false};
+
+    void setProjectRoot(const std::string& path) { projectRoot = path; }
+    const std::string& getProjectRoot() const { return projectRoot; }
 
 private:
 #ifdef UVIM_TESTING

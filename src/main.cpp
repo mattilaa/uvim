@@ -23,6 +23,51 @@ static bool is_directory(std::string_view p)
     return fs::is_directory(fs::path(p), ec);
 }
 
+static bool is_regular_file(std::string_view p)
+{
+    std::error_code ec;
+    return fs::is_regular_file(fs::path(p), ec);
+}
+
+static fs::path find_workspace_root(const std::vector<std::string>& args)
+{
+    std::error_code ec;
+    fs::path base = fs::current_path(ec);
+    if(!args.empty())
+    {
+        fs::path first = fs::path(args[0]);
+        if(is_directory(args[0]))
+            base = first;
+        else if(is_regular_file(args[0]))
+            base = first.parent_path();
+    }
+    if(base.empty())
+        return fs::current_path(ec);
+
+    fs::path dir = fs::absolute(base, ec);
+    if(ec)
+        dir = base;
+
+    for(;;)
+    {
+        if(fs::exists(dir / ".clangd", ec) || fs::exists(dir / ".mlangd", ec))
+            return dir;
+        if(dir.has_parent_path())
+        {
+            fs::path parent = dir.parent_path();
+            if(parent == dir)
+                break;
+            dir = parent;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return base;
+}
+
 [[noreturn]] static void die(std::string_view msg, std::string_view arg = {})
 {
     std::cerr << "Error: " << msg;
@@ -767,6 +812,8 @@ int main(int argc, char* argv[])
 
     // Create editor with flag indicating whether we have files to open
     Editor editor(!opts.args.empty(), configPath);
+    fs::path workspaceRoot = find_workspace_root(opts.args);
+    editor.setProjectRoot(workspaceRoot.string());
     EditorSettings::fromOptions(opts).apply(editor);
 
     if(!opts.args.empty())

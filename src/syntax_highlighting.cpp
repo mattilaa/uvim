@@ -94,10 +94,11 @@ std::optional<TokenType> parse_token_type(std::string_view value)
     return std::nullopt;
 }
 
-std::filesystem::path find_mlang_root()
+std::filesystem::path find_mlang_root(const std::filesystem::path& start)
 {
     std::error_code ec;
-    std::filesystem::path dir = std::filesystem::current_path(ec);
+    std::filesystem::path dir = start.empty() ? std::filesystem::current_path(ec)
+                                              : start;
     if(ec)
         return {};
 
@@ -295,7 +296,9 @@ void Editor::ensureMlangTokensLoaded() const
         return;
 
     auto& cache = *mlangTokenCache;
-    std::filesystem::path root = find_mlang_root();
+    std::filesystem::path start =
+        projectRoot.empty() ? std::filesystem::path{} : std::filesystem::path(projectRoot);
+    std::filesystem::path root = find_mlang_root(start);
     std::string rootStr = root.empty() ? std::string{} : root.string();
     const bool hasExplicitLspPath =
         !mlangLspPath.empty() && mlangLspPath != "python3";
