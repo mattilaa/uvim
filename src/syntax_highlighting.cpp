@@ -483,6 +483,21 @@ bool Editor::isYamlFile() const
                        { return text_utils::iequals_ascii(ext, e); });
 }
 
+bool Editor::isTomlFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+    return std::any_of(constants::TOML_FILE_EXTENSIONS.begin(),
+                       constants::TOML_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
+}
+
 bool Editor::isCMakeFile() const
 {
     if(!filename || filename->empty())
@@ -1652,7 +1667,9 @@ std::string Editor::getColorCode(TokenType type) const
 }
 
 std::vector<Token> Editor::tokenizeLine(const std::string& line,
-                                        bool& inBlockComment) const
+                                        bool& inBlockComment,
+                                        bool& inTomlMultiline,
+                                        char& tomlQuote) const
 {
     if(isRobotFile())
     {
@@ -2708,33 +2725,125 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isJsonFile() || isYamlFile())
+    if(isJsonFile() || isYamlFile() || isTomlFile())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
         const int len = static_cast<int>(sv.size());
         int i = 0;
 
-        auto is_bool_null = [](std::string_view word) -> bool
+        const bool isJson = isJsonFile();
+        const bool isYaml = isYamlFile();
+        const bool isToml = isTomlFile();
+        bool seenEquals = false;
+
+        auto is_escaped = [&](int pos) -> bool
         {
+            if(pos <= 0)
+                return false;
+            int backslashes = 0;
+            int j = pos - 1;
+            while(j >= 0 && sv[j] == '\\')
+            {
+                ++backslashes;
+                --j;
+            }
+            return (backslashes % 2) == 1;
+        };
+
+        auto is_bool_null = [&](std::string_view word) -> bool
+        {
+            if(isToml)
+                return word == "true" || word == "false";
             return word == "true" || word == "false" || word == "null" ||
                    word == "True" || word == "False" || word == "None";
         };
 
         while(i < len)
         {
+            if(isToml && inTomlMultiline)
+            {
+                int start = i;
+                bool closed = false;
+                while(i + 2 < len)
+                {
+                    if(sv[i] == tomlQuote && sv[i + 1] == tomlQuote &&
+                       sv[i + 2] == tomlQuote)
+                    {
+                        if(tomlQuote == '"' && is_escaped(i))
+                        {
+                            ++i;
+                            continue;
+                        }
+                        i += 3;
+                        closed = true;
+                        break;
+                    }
+                    ++i;
+                }
+                if(!closed)
+                {
+                    i = len;
+                    tokens.push_back({TOKEN_STRING, start, i - start});
+                    return tokens;
+                }
+                inTomlMultiline = false;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
             if(text_utils::is_space(sv[i]))
             {
                 ++i;
                 continue;
             }
 
-            if(sv[i] == '#')
+            if(isToml && sv[i] == '[')
+            {
+                int start = i;
+                int closePos = -1;
+                if(i + 1 < len && sv[i + 1] == '[')
+                {
+                    i += 2;
+                    while(i + 1 < len)
+                    {
+                        if(sv[i] == ']' && sv[i + 1] == ']')
+                        {
+                            closePos = i + 1;
+                            i += 2;
+                            break;
+                        }
+                        ++i;
+                    }
+                }
+                else
+                {
+                    ++i;
+                    while(i < len)
+                    {
+                        if(sv[i] == ']')
+                        {
+                            closePos = i;
+                            ++i;
+                            break;
+                        }
+                        ++i;
+                    }
+                }
+                if(closePos >= start)
+                {
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                    continue;
+                }
+                i = start;
+            }
+
+            if((isYaml || isToml) && sv[i] == '#')
             {
                 tokens.push_back({TOKEN_COMMENT, i, len - i});
                 break;
             }
-            if(i < len - 1 && sv[i] == '/' && sv[i + 1] == '/')
+            if(isJson && i < len - 1 && sv[i] == '/' && sv[i + 1] == '/')
             {
                 tokens.push_back({TOKEN_COMMENT, i, len - i});
                 break;
@@ -2744,24 +2853,88 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
             {
                 char quote = sv[i];
                 int start = i++;
-                while(i < len && sv[i] != quote)
+                if(isToml && i + 1 < len && sv[i] == quote &&
+                   sv[i + 1] == quote)
                 {
-                    if(sv[i] == '\\' && i + 1 < len)
-                        i += 2;
-                    else
+                    // Triple-quoted TOML literal/basic string.
+                    if(quote == '"' && is_escaped(start))
+                    {
+                        // Escaped triple-quote inside a basic string.
+                        tokens.push_back({TOKEN_STRING, start, 1});
+                        continue;
+                    }
+                    i += 2;
+                    bool closed = false;
+                    while(i + 2 < len)
+                    {
+                        if(sv[i] == quote && sv[i + 1] == quote &&
+                           sv[i + 2] == quote)
+                        {
+                            if(quote == '"' && is_escaped(i))
+                            {
+                                ++i;
+                                continue;
+                            }
+                            if(quote == '"' && i + 3 < len && sv[i + 3] == '"')
+                                i += 4;
+                            else
+                                i += 3;
+                            closed = true;
+                            break;
+                        }
+                        ++i;
+                    }
+                    if(!closed)
+                    {
+                        i = len;
+                        inTomlMultiline = true;
+                        tomlQuote = quote;
+                    }
+                }
+                else
+                {
+                    while(i < len && sv[i] != quote)
+                    {
+                        if(sv[i] == '\\' && i + 1 < len)
+                            i += 2;
+                        else
+                            ++i;
+                    }
+                    if(i < len)
                         ++i;
                 }
-                if(i < len)
-                    ++i;
 
                 int tokenLen = i - start;
                 TokenType type = TOKEN_STRING;
                 int j = i;
                 while(j < len && text_utils::is_space(sv[j]))
                     ++j;
-                if(j < len && sv[j] == ':')
+                if(isToml)
+                {
+                    if(!seenEquals && j < len && sv[j] == '=')
+                        type = TOKEN_KEYWORD;
+                }
+                else if(j < len && sv[j] == ':')
+                {
                     type = TOKEN_KEYWORD;
+                }
                 tokens.push_back({type, start, tokenLen});
+                continue;
+            }
+
+            if(isToml && text_utils::is_digit(sv[i]) && i + 9 < len &&
+               text_utils::is_digit(sv[i + 1]) &&
+               text_utils::is_digit(sv[i + 2]) &&
+               text_utils::is_digit(sv[i + 3]) && sv[i + 4] == '-' &&
+               text_utils::is_digit(sv[i + 5]) &&
+               text_utils::is_digit(sv[i + 6]) && sv[i + 7] == '-' &&
+               text_utils::is_digit(sv[i + 8]) &&
+               text_utils::is_digit(sv[i + 9]))
+            {
+                int start = i;
+                while(i < len && !text_utils::is_space(sv[i]) && sv[i] != '#')
+                    ++i;
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
                 continue;
             }
 
@@ -2769,13 +2942,54 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                (sv[i] == '-' && i + 1 < len && text_utils::is_digit(sv[i + 1])))
             {
                 int start = i++;
-                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
-                                  sv[i] == 'e' || sv[i] == 'E' ||
-                                  sv[i] == '_' || sv[i] == '+' || sv[i] == '-'))
+                if(isToml && start + 1 < len && sv[start] == '0' &&
+                   (sv[start + 1] == 'x' || sv[start + 1] == 'X' ||
+                    sv[start + 1] == 'o' || sv[start + 1] == 'O' ||
+                    sv[start + 1] == 'b' || sv[start + 1] == 'B'))
                 {
                     ++i;
+                    while(i < len && (text_utils::is_xdigit(sv[i]) ||
+                                      sv[i] == '_' ||
+                                      ((sv[start + 1] == 'b' ||
+                                        sv[start + 1] == 'B') &&
+                                       (sv[i] == '0' || sv[i] == '1'))))
+                    {
+                        ++i;
+                    }
+                }
+                else
+                {
+                    while(i < len &&
+                          (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                           sv[i] == 'e' || sv[i] == 'E' || sv[i] == '_' ||
+                           sv[i] == '+' || sv[i] == '-'))
+                    {
+                        ++i;
+                    }
                 }
                 tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(isToml && (text_utils::is_alpha(sv[i]) || sv[i] == '_' ||
+                          sv[i] == '-'))
+            {
+                int start = i;
+                while(i < len && (text_utils::is_alnum(sv[i]) || sv[i] == '_' ||
+                                  sv[i] == '-' || sv[i] == '.'))
+                    ++i;
+                std::string_view word = sv.substr(start, i - start);
+                int j = i;
+                while(j < len && text_utils::is_space(sv[j]))
+                    ++j;
+                if(!seenEquals && j < len && sv[j] == '=')
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
+                else if(is_bool_null(word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
                 continue;
             }
 
@@ -2788,6 +3002,19 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                 if(is_bool_null(word))
                     tokens.push_back({TOKEN_KEYWORD, start, i - start});
                 continue;
+            }
+
+            if(isToml && sv[i] == '=')
+            {
+                seenEquals = true;
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            if(isToml && (sv[i] == ',' || sv[i] == '}'))
+            {
+                seenEquals = false;
             }
 
             if(cpp_constants::is_operator_char(sv[i]))
@@ -3108,6 +3335,8 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     // Performance optimization: this is a lightweight scan (just looking for
     // comment delimiters)
     bool blockCommentState = false;
+    bool tomlMultilineState = false;
+    char tomlQuote = 0;
     if(isCppFile() || isMlaFile())
     {
         for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
@@ -3115,9 +3344,61 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
             scanLineForBlockComments((*lines)[i], blockCommentState);
         }
     }
+    if(isTomlFile())
+    {
+        auto scanLineForTomlMultiline = [](const std::string& scanLine,
+                                           bool& inMultiline,
+                                           char& quoteChar)
+        {
+            for(size_t i = 0; i + 2 < scanLine.size(); ++i)
+            {
+                char c = scanLine[i];
+                if(c != '"' && c != '\'')
+                    continue;
+                if(scanLine[i + 1] != c || scanLine[i + 2] != c)
+                    continue;
+
+                if(c == '"')
+                {
+                    size_t j = i;
+                    int backslashes = 0;
+                    while(j > 0 && scanLine[j - 1] == '\\')
+                    {
+                        ++backslashes;
+                        --j;
+                    }
+                    if((backslashes % 2) == 1)
+                    {
+                        i += 2;
+                        continue;
+                    }
+                }
+
+                if(!inMultiline)
+                {
+                    inMultiline = true;
+                    quoteChar = c;
+                }
+                else if(quoteChar == c)
+                {
+                    inMultiline = false;
+                }
+                if(c == '"' && i + 3 < scanLine.size() && scanLine[i + 3] == '"')
+                    i += 3;
+                else
+                    i += 2;
+            }
+        };
+
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scanLineForTomlMultiline((*lines)[i], tomlMultilineState, tomlQuote);
+        }
+    }
 
     // Now tokenize the current line
-    std::vector<Token> tokens = tokenizeLine(line, blockCommentState);
+    std::vector<Token> tokens =
+        tokenizeLine(line, blockCommentState, tomlMultilineState, tomlQuote);
 
     std::vector<TokenType> charColors(len, TOKEN_NORMAL);
 

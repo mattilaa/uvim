@@ -114,7 +114,10 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         }
 
         bool inBlockComment = false;
-        std::vector<Token> tokens = editor.tokenizeLine(text, inBlockComment);
+        bool inTomlMultiline = false;
+        char tomlQuote = 0;
+        std::vector<Token> tokens =
+            editor.tokenizeLine(text, inBlockComment, inTomlMultiline, tomlQuote);
         std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
         bool hasColor = false;
 

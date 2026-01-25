@@ -743,6 +743,7 @@ public:
     bool isPythonFile() const;
     bool isJsonFile() const;
     bool isYamlFile() const;
+    bool isTomlFile() const;
     bool isCMakeFile() const;
     bool isShellFile() const;
     bool pythonFormatBuffer();
@@ -760,7 +761,9 @@ public:
     void clangFormatVisualBlockSelection();
 
     std::vector<Token> tokenizeLine(const std::string& line,
-                                    bool& inBlockComment) const;
+                                    bool& inBlockComment,
+                                    bool& inTomlMultiline,
+                                    char& tomlQuote) const;
     std::string getColorCode(TokenType type) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow);

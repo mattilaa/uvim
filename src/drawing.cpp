@@ -439,7 +439,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                     if(isCppFile() || isMlaFile() || isRobotFile() ||
                        isPythonFile() || isCMakeFile() || isShellFile() ||
                        (isJsonFile() && syntaxJson) ||
-                       (isYamlFile() && syntaxYaml))
+                       (isYamlFile() && syntaxYaml) || isTomlFile())
                     {
                         // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
@@ -573,7 +573,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                     if(isCppFile() || isMlaFile() || isRobotFile() ||
                        isPythonFile() || isCMakeFile() || isShellFile() ||
                        (isJsonFile() && syntaxJson) ||
-                       (isYamlFile() && syntaxYaml))
+                       (isYamlFile() && syntaxYaml) || isTomlFile())
                     {
                         // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
@@ -938,7 +938,8 @@ void Editor::drawFullScreenSingle()
                 // Check if we should use syntax highlighting
                 if(isCppFile() || isMlaFile() || isRobotFile() ||
                    isPythonFile() || isCMakeFile() || isShellFile() ||
-                   (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml))
+                   (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml) ||
+                   isTomlFile())
                 {
                     // Use syntax highlighting for supported files (handles
                     // selections too)
@@ -1355,7 +1356,8 @@ void Editor::drawSplitFullScreen()
 
             if(isCppFile() || isMlaFile() || isRobotFile() ||
                isPythonFile() || isCMakeFile() || isShellFile() ||
-               (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml))
+               (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml) ||
+               isTomlFile())
             {
                 renderLineWithSyntax(row, line, start, len, fileRow);
             }
