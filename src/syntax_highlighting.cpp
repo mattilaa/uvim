@@ -301,7 +301,7 @@ void Editor::ensureMlangTokensLoaded() const
     std::filesystem::path root = find_mlang_root(start);
     std::string rootStr = root.empty() ? std::string{} : root.string();
     const bool hasExplicitLspPath =
-        !mlangLspPath.empty() && mlangLspPath != "python3";
+        !mlangLspPath.empty() && mlangLspPath != "mlangd";
     const std::string effectiveLspPath = hasExplicitLspPath ? mlangLspPath
                                                             : std::string{};
 

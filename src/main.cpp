@@ -331,7 +331,7 @@ struct Options
     std::string robotLspArgs;
     std::string pythonLspPath = "pyright-langserver";
     std::string pythonLspArgs;
-    std::string mlangLspPath = "python3";
+    std::string mlangLspPath = "mlangd";
     std::string mlangLspArgs;
     std::string logFile;
     std::string customConfig;
@@ -519,7 +519,7 @@ struct EditorSettings
     std::string robotLspArgs;
     std::string pythonLspPath = "pyright-langserver";
     std::string pythonLspArgs;
-    std::string mlangLspPath = "python3";
+    std::string mlangLspPath = "mlangd";
     std::string mlangLspArgs;
 
     static EditorSettings fromOptions(const cli::Options& opts)
@@ -726,6 +726,46 @@ struct EditorSettings
             if(!mlangLspArgs.empty())
             {
                 args = split_args(mlangLspArgs);
+            }
+            if(mlangPath == "mlangd")
+            {
+                std::string found = find_in_path("mlangd");
+                if(!found.empty())
+                {
+                    mlangPath = found;
+                }
+                else
+                {
+                    const char* home = std::getenv("HOME");
+                    if(home && *home)
+                    {
+                        fs::path localPath = fs::path(home) / ".local" / "bin" /
+                                             "mlangd";
+                        std::error_code ec;
+                        if(fs::exists(localPath, ec) &&
+                           fs::is_regular_file(localPath, ec))
+                        {
+                            mlangPath = localPath.string();
+                        }
+                    }
+
+                    if(mlangPath == "mlangd")
+                    {
+                        std::error_code ec;
+                        fs::path brewPath = "/opt/homebrew/bin/mlangd";
+                        fs::path localPath = "/usr/local/bin/mlangd";
+                        if(fs::exists(brewPath, ec) &&
+                           fs::is_regular_file(brewPath, ec))
+                        {
+                            mlangPath = brewPath.string();
+                        }
+                        else if(fs::exists(localPath, ec) &&
+                                fs::is_regular_file(localPath, ec))
+                        {
+                            mlangPath = localPath.string();
+                        }
+                    }
+                }
             }
             if(args.empty())
             {
