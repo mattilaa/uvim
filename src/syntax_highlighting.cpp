@@ -509,6 +509,13 @@ bool Editor::isCMakeFile() const
     std::string_view base = (slashPos == std::string_view::npos)
                                 ? pathSv
                                 : pathSv.substr(slashPos + 1);
+    /*
+    if(base.size() >= 6 &&
+       text_utils::iequals_ascii(base.substr(0, 6), "README"))
+    {
+        return true;
+    }
+    */
 
     auto ends_with = [](std::string_view value, std::string_view suffix) -> bool
     {
@@ -547,6 +554,21 @@ bool Editor::isHtmlFile() const
                        { return text_utils::iequals_ascii(ext, e); });
 }
 
+bool Editor::isXmlFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+    return std::any_of(constants::XML_FILE_EXTENSIONS.begin(),
+                       constants::XML_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
+}
+
 bool Editor::isMarkupTextFile() const
 {
     if(!filename || filename->empty())
@@ -575,6 +597,14 @@ bool Editor::isMarkupTextFile() const
                              { return text_utils::iequals_ascii(ext, e); });
     if(!isTxt)
         return false;
+
+    if(text_utils::iequals_ascii(ext, ".rd") ||
+       text_utils::iequals_ascii(ext, ".rdoc") ||
+       text_utils::iequals_ascii(ext, ".md") ||
+       text_utils::iequals_ascii(ext, ".markdown"))
+    {
+        return true;
+    }
 
     if(!lines || lines->empty())
         return false;
@@ -620,10 +650,20 @@ bool Editor::isRdocFile() const
     std::string_view base = (slashPos == std::string_view::npos)
                                 ? pathSv
                                 : pathSv.substr(slashPos + 1);
-    return std::any_of(constants::MARKUP_README_BASENAMES.begin(),
-                       constants::MARKUP_README_BASENAMES.end(),
-                       [&](std::string_view name)
-                       { return text_utils::iequals_ascii(base, name); });
+    bool isReadme =
+        std::any_of(constants::MARKUP_README_BASENAMES.begin(),
+                    constants::MARKUP_README_BASENAMES.end(),
+                    [&](std::string_view name)
+                    { return text_utils::iequals_ascii(base, name); });
+    if(isReadme)
+        return true;
+
+    auto dot = base.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = base.substr(dot);
+    return text_utils::iequals_ascii(ext, ".rd") ||
+           text_utils::iequals_ascii(ext, ".rdoc");
 }
 
 bool Editor::isShellFile() const
@@ -2822,7 +2862,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isMarkupTextFile())
+    if(isMarkupTextFile() || isRdocFile())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2888,7 +2928,9 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
 
             if(sv[first] == '#')
             {
-                tokens.push_back({markupHeadingToken, first, len - first});
+                TokenType t =
+                    isRdocFile() ? markupRdocTopicToken : markupHeadingToken;
+                tokens.push_back({t, first, len - first});
                 return tokens;
             }
 
@@ -3110,7 +3152,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isHtmlFile())
+    if(isHtmlFile() || isXmlFile())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -3119,6 +3161,30 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
 
         while(i < len)
         {
+            if(isXmlFile() && i + 8 < len && sv.substr(i, 9) == "<![CDATA[")
+            {
+                int start = i;
+                i += 9;
+                while(i + 2 < len && sv.substr(i, 3) != "]]>")
+                    ++i;
+                if(i + 2 < len)
+                    i += 3;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(isXmlFile() && i + 1 < len && sv[i] == '<' && sv[i + 1] == '?')
+            {
+                int start = i;
+                i += 2;
+                while(i + 1 < len && !(sv[i] == '?' && sv[i + 1] == '>'))
+                    ++i;
+                if(i + 1 < len)
+                    i += 2;
+                tokens.push_back({TOKEN_PREPROCESSOR, start, i - start});
+                continue;
+            }
+
             if(i + 3 < len && sv.substr(i, 4) == "<!--")
             {
                 int start = i;

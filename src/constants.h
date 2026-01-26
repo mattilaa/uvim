@@ -70,8 +70,16 @@ static constexpr std::array<std::string_view, 2> HTML_FILE_EXTENSIONS = {
     ".htm",
 };
 
-static constexpr std::array<std::string_view, 1> MARKUP_TEXT_EXTENSIONS = {
+static constexpr std::array<std::string_view, 1> XML_FILE_EXTENSIONS = {
+    ".xml",
+};
+
+static constexpr std::array<std::string_view, 5> MARKUP_TEXT_EXTENSIONS = {
     ".txt",
+    ".md",
+    ".markdown",
+    ".rd",
+    ".rdoc",
 };
 
 static constexpr std::array<std::string_view, 1> MARKUP_README_BASENAMES = {

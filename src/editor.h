@@ -757,6 +757,7 @@ public:
     bool isHtmlFile() const;
     bool isMarkupTextFile() const;
     bool isRdocFile() const;
+    bool isXmlFile() const;
     bool isCMakeFile() const;
     bool isShellFile() const;
     bool pythonFormatBuffer();
