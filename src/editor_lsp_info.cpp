@@ -5,17 +5,17 @@
 
 static std::string filetypeLabel(const Editor& ed)
 {
-    if(ed.isCppFile())
+    if(ed.isFileType<FileType::Cpp>())
         return "cpp";
-    if(ed.isPythonFile())
+    if(ed.isFileType<FileType::Python>())
         return "python";
-    if(ed.isMlaFile())
+    if(ed.isFileType<FileType::Mla>())
         return "mlang";
-    if(ed.isRobotFile())
+    if(ed.isFileType<FileType::Robot>())
         return "robot";
-    if(ed.isJsonFile())
+    if(ed.isFileType<FileType::Json>())
         return "json";
-    if(ed.isYamlFile())
+    if(ed.isFileType<FileType::Yaml>())
         return "yaml";
     return "text";
 }
@@ -44,10 +44,10 @@ void Editor::showLspInfo()
         lspInfoLines.push_back("  binary: " + path);
     };
 
-    appendLsp("clangd", isClangdLspEnabled(), isCppFile(), clangdLspPath);
-    appendLsp("python", isPythonLspEnabled(), isPythonFile(), pythonLspPath);
-    appendLsp("robot", isRobotLspEnabled(), isRobotFile(), robotLspPath);
-    appendLsp("mlang", isMlangLspEnabled(), isMlaFile(), mlangLspPath);
+    appendLsp("clangd", isClangdLspEnabled(), isFileType<FileType::Cpp>(), clangdLspPath);
+    appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(), pythonLspPath);
+    appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(), robotLspPath);
+    appendLsp("mlang", isMlangLspEnabled(), isFileType<FileType::Mla>(), mlangLspPath);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");

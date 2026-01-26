@@ -436,12 +436,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isCppFile() || isMlaFile() || isRobotFile() ||
-                       isPythonFile() || isCMakeFile() || isShellFile() ||
-                       isHtmlFile() || isXmlFile() || isMarkupTextFile() ||
-                       isRdocFile() ||
-                       (isJsonFile() && syntaxJson) ||
-                       (isYamlFile() && syntaxYaml) || isTomlFile())
+                    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
+                       isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
+                       isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+                       isFileType<FileType::Rdoc>() ||
+                       (isFileType<FileType::Json>() && syntaxJson) ||
+                       (isFileType<FileType::Yaml>() && syntaxYaml) || isFileType<FileType::Toml>())
                     {
                         // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
@@ -572,12 +572,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isCppFile() || isMlaFile() || isRobotFile() ||
-                       isPythonFile() || isCMakeFile() || isShellFile() ||
-                       isHtmlFile() || isXmlFile() || isMarkupTextFile() ||
-                       isRdocFile() ||
-                       (isJsonFile() && syntaxJson) ||
-                       (isYamlFile() && syntaxYaml) || isTomlFile())
+                    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
+                       isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
+                       isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+                       isFileType<FileType::Rdoc>() ||
+                       (isFileType<FileType::Json>() && syntaxJson) ||
+                       (isFileType<FileType::Yaml>() && syntaxYaml) || isFileType<FileType::Toml>())
                     {
                         // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
@@ -940,12 +940,12 @@ void Editor::drawFullScreenSingle()
                 }
 
                 // Check if we should use syntax highlighting
-                if(isCppFile() || isMlaFile() || isRobotFile() ||
-                   isPythonFile() || isCMakeFile() || isShellFile() ||
-                   isHtmlFile() || isXmlFile() || isMarkupTextFile() ||
-                   isRdocFile() ||
-                   (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml) ||
-                   isTomlFile())
+                if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
+                   isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
+                   isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+                   isFileType<FileType::Rdoc>() ||
+                   (isFileType<FileType::Json>() && syntaxJson) || (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                   isFileType<FileType::Toml>())
                 {
                     // Use syntax highlighting for supported files (handles
                     // selections too)
@@ -1360,12 +1360,12 @@ void Editor::drawSplitFullScreen()
                 }
             }
 
-            if(isCppFile() || isMlaFile() || isRobotFile() ||
-               isPythonFile() || isCMakeFile() || isShellFile() ||
-               isHtmlFile() || isXmlFile() || isMarkupTextFile() ||
-               isRdocFile() ||
-               (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml) ||
-               isTomlFile())
+            if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
+               isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
+               isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+               isFileType<FileType::Rdoc>() ||
+               (isFileType<FileType::Json>() && syntaxJson) || (isFileType<FileType::Yaml>() && syntaxYaml) ||
+               isFileType<FileType::Toml>())
             {
                 renderLineWithSyntax(row, line, start, len, fileRow);
             }

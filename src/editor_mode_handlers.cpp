@@ -447,9 +447,9 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
 
             LOG_DEBUG(LOG, "Leader-f pressed. filename='{}' isCppFile={}",
-                      *filename, isCppFile());
+                      *filename, isFileType<FileType::Cpp>());
 
-            if(!isCppFile() && !isHeaderFile(*filename))
+            if(!isFileType<FileType::Cpp>() && !isHeaderFile(*filename))
             {
                 setStatusMessage("clang-format: not a C/C++ file (" +
                                  *filename + ")");

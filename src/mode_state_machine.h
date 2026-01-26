@@ -274,11 +274,6 @@ struct ModeContext
     void forceQuit();
 
     // Language/LSP checks
-    bool isCppFile() const;
-    bool isPythonFile() const;
-    bool isRobotFile() const;
-    bool isJsonFile() const;
-    bool isYamlFile() const;
     bool isClangdLspEnabled() const;
     bool isPythonLspEnabled() const;
     bool isRobotLspEnabled() const;

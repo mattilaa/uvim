@@ -978,31 +978,6 @@ void ModeContext::forceQuit()
     editor->forceQuit();
 }
 
-bool ModeContext::isCppFile() const
-{
-    return editor->isCppFile();
-}
-
-bool ModeContext::isPythonFile() const
-{
-    return editor->isPythonFile();
-}
-
-bool ModeContext::isRobotFile() const
-{
-    return editor->isRobotFile();
-}
-
-bool ModeContext::isJsonFile() const
-{
-    return editor->isJsonFile();
-}
-
-bool ModeContext::isYamlFile() const
-{
-    return editor->isYamlFile();
-}
-
 bool ModeContext::isClangdLspEnabled() const
 {
     return editor->isClangdLspEnabled();

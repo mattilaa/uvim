@@ -216,7 +216,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                 ed->needsFullRedraw = true;
             }
             else if(ed->formatOnDoubleEscPending &&
-                    ed->formatOnInsertLeave && ed->isCppFile() && !ed->isMlaFile())
+                    ed->formatOnInsertLeave && ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>())
             {
                 ed->clangFormatWithArgs("", "clang-format: formatted file");
             }
@@ -992,23 +992,23 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     switch(c)
     {
     case 'f':
-        if(ed->isPythonFile())
+        if(ed->isFileType<FileType::Python>())
         {
             ed->pythonFormatBuffer();
         }
-        else if(ed->isRobotFile())
+        else if(ed->isFileType<FileType::Robot>())
         {
             ed->robotFormatBuffer();
         }
-        else if(ed->isJsonFile())
+        else if(ed->isFileType<FileType::Json>())
         {
             ed->jsonFormatBuffer();
         }
-        else if(ed->isYamlFile())
+        else if(ed->isFileType<FileType::Yaml>())
         {
             ed->yamlFormatBuffer();
         }
-        else if(ed->isMlaFile())
+        else if(ed->isFileType<FileType::Mla>())
         {
             ed->mlangFormatBuffer();
         }
@@ -1123,7 +1123,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             ed->showLspInfo();
             return LspInfoMode{};
         }
-        if(ed->isPythonFile())
+        if(ed->isFileType<FileType::Python>())
         {
             ed->pythonLintBuffer();
         }

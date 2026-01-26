@@ -95,6 +95,18 @@ std::optional<TokenType> parse_token_type(std::string_view value)
     return std::nullopt;
 }
 
+template <const auto& Extensions>
+bool has_known_extension(std::string_view pathSv)
+{
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+    return std::any_of(Extensions.begin(), Extensions.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
+}
+
 std::filesystem::path find_mlang_root(const std::filesystem::path& start)
 {
     std::error_code ec;
@@ -204,91 +216,210 @@ MlangConfig parse_mlangd(const std::filesystem::path& path)
 }
 } // namespace
 
-bool Editor::isCppFile() const
+bool Editor::isFileType(FileType type) const
 {
     if(!filename || filename->empty())
         return false;
-
-    // Work with views to avoid copies
     std::string_view pathSv{*filename};
 
-    // Use filesystem for extension logic
-    std::filesystem::path p{*filename};
-
-    // If there is no extension, keep your "stdlib header path" heuristics
-    if(!p.has_extension())
+    switch(type)
     {
-        return text_utils::contains(pathSv, "/c++/") ||
-               text_utils::contains(pathSv, "/bits/") ||
-               text_utils::contains(pathSv, "/ext/") ||
-               text_utils::contains(pathSv, "/__");
+    case FileType::Cpp:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::cpp_suffixes,
+                                      constants::cpp_stdlib_patterns>(pathSv);
     }
+    case FileType::Mla:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::mla_suffixes>(pathSv);
+    }
+    case FileType::Robot:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::robot_suffixes>(pathSv);
+    }
+    case FileType::Python:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::python_suffixes>(pathSv);
+    }
+    case FileType::Json:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::json_suffixes>(pathSv);
+    }
+    case FileType::Yaml:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::yaml_suffixes>(pathSv);
+    }
+    case FileType::Toml:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::toml_suffixes>(pathSv);
+    }
+    case FileType::Html:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::html_suffixes>(pathSv);
+    }
+    case FileType::Xml:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::xml_suffixes>(pathSv);
+    }
+    case FileType::MarkupText:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+        bool isReadmeMarkup =
+            std::any_of(constants::markup_readme_basenames.begin(),
+                        constants::markup_readme_basenames.end(),
+                        [&](std::string_view name)
+                        { return text_utils::iequals_ascii(base, name); });
+        if(isReadmeMarkup)
+            return true;
 
-    // Compare extensions (including the dot) without allocating a new string
-    // Note: path.extension() returns a path; .string() allocates. Use native
-    // string view if possible: We'll just take a small allocation-free route by
-    // comparing on the filename view.
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
+        auto dot = base.find_last_of('.');
+        if(dot == std::string_view::npos)
+            return false;
+        std::string_view ext = base.substr(dot);
+        bool isMarkup =
+            constants::matches_file_patterns(ext,
+                                             constants::markup_text_suffixes);
+        if(!isMarkup)
+            return false;
+
+        if(text_utils::iequals_ascii(ext, ".rd") ||
+           text_utils::iequals_ascii(ext, ".rdoc") ||
+           text_utils::iequals_ascii(ext, ".md") ||
+           text_utils::iequals_ascii(ext, ".markdown"))
+        {
+            return true;
+        }
+
+        if(!lines || lines->empty())
+            return false;
+
+        const int maxLines = std::min<int>(50, lines->size());
+        for(int i = 0; i < maxLines; ++i)
+        {
+            std::string_view ln{(*lines)[i]};
+            if(ln.empty())
+                continue;
+            if(ln.starts_with("#") || ln.starts_with("##") ||
+               ln.starts_with("```") || ln.starts_with("~~~") ||
+               ln.starts_with("* ") || ln.starts_with("- ") ||
+               ln.starts_with("+ "))
+            {
+                return true;
+            }
+            if(ln.size() > 2 && text_utils::is_digit(ln[0]) && ln[1] == '.' &&
+               ln[2] == ' ')
+            {
+                return true;
+            }
+            if(ln.find("**") != std::string_view::npos ||
+               ln.find("`") != std::string_view::npos ||
+               ln.find("[") != std::string_view::npos &&
+                   ln.find("]") != std::string_view::npos &&
+                   ln.find("(") != std::string_view::npos &&
+                   ln.find(")") != std::string_view::npos)
+            {
+                return true;
+            }
+        }
+
         return false;
-    std::string_view ext = pathSv.substr(dot); // includes '.'
+    }
+    case FileType::Rdoc:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+        bool isReadme =
+            std::any_of(constants::markup_readme_basenames.begin(),
+                        constants::markup_readme_basenames.end(),
+                        [&](std::string_view name)
+                        { return text_utils::iequals_ascii(base, name); });
+        if(isReadme)
+            return true;
 
-    return std::any_of(constants::CPP_FILE_EXTENSIONS.begin(),
-                       constants::CPP_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
+        auto dot = base.find_last_of('.');
+        if(dot == std::string_view::npos)
+            return false;
+        std::string_view ext = base.substr(dot);
+        return text_utils::iequals_ascii(ext, ".rd") ||
+               text_utils::iequals_ascii(ext, ".rdoc");
+    }
+    case FileType::CMake:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+        return constants::is_filetype<constants::cmake_prefixes,
+                                      constants::cmake_suffixes>(base);
+    }
+    case FileType::Shell:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
 
-bool Editor::isMlaFile() const
-{
-    if(filename->empty())
+        bool hasShellExtension =
+            constants::is_filetype<constants::no_pattern,
+                                   constants::shell_suffixes>(base);
+        if(hasShellExtension)
+        {
+            return true;
+        }
+
+        bool hasShellBasename =
+            std::any_of(constants::shell_basenames.begin(),
+                        constants::shell_basenames.end(),
+                        [&](std::string_view name)
+                        { return text_utils::iequals_ascii(base, name); });
+        if(hasShellBasename)
+        {
+            return true;
+        }
+
+        if(lines && !lines->empty())
+        {
+            std::string_view first{(*lines)[0]};
+            if(first.starts_with("#!"))
+            {
+                bool hasShell = std::any_of(
+                    constants::shell_shebang_hints.begin(),
+                    constants::shell_shebang_hints.end(),
+                    [&](std::string_view hint)
+                    { return text_utils::contains(first, hint); });
+                if(!hasShell)
+                {
+                    if(first.find("/sh") != std::string_view::npos ||
+                       first.find(" sh") != std::string_view::npos)
+                    {
+                        hasShell = true;
+                    }
+                }
+                if(hasShell)
+                {
+                    return true;
+                }
+            }
+        }
+
         return false;
-
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-
-    std::string_view ext = pathSv.substr(dot);
-
-    return std::any_of(constants::MLA_FILE_EXTENSIONS.begin(),
-                       constants::MLA_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isRobotFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-
-    return std::any_of(constants::ROBOT_FILE_EXTENSIONS.begin(),
-                       constants::ROBOT_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isPythonFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-
-    return std::any_of(constants::PYTHON_FILE_EXTENSIONS.begin(),
-                       constants::PYTHON_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
+    }
+    }
+    return false;
 }
 
 void Editor::ensureMlangTokensLoaded() const
@@ -454,285 +585,6 @@ Editor::lookupMlangTokenType(std::string_view word) const
     return it->second;
 }
 
-bool Editor::isJsonFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-    return std::any_of(constants::JSON_FILE_EXTENSIONS.begin(),
-                       constants::JSON_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isYamlFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-    return std::any_of(constants::YAML_FILE_EXTENSIONS.begin(),
-                       constants::YAML_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isTomlFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-    return std::any_of(constants::TOML_FILE_EXTENSIONS.begin(),
-                       constants::TOML_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isCMakeFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-
-    std::string_view pathSv{*filename};
-    size_t slashPos = pathSv.find_last_of("/\\");
-    std::string_view base = (slashPos == std::string_view::npos)
-                                ? pathSv
-                                : pathSv.substr(slashPos + 1);
-    /*
-    if(base.size() >= 6 &&
-       text_utils::iequals_ascii(base.substr(0, 6), "README"))
-    {
-        return true;
-    }
-    */
-
-    auto ends_with = [](std::string_view value, std::string_view suffix) -> bool
-    {
-        if(value.size() < suffix.size())
-            return false;
-        return text_utils::iequals_ascii(
-            value.substr(value.size() - suffix.size()), suffix);
-    };
-
-    bool isCmakeBasename =
-        std::any_of(constants::CMAKE_FILE_BASENAMES.begin(),
-                    constants::CMAKE_FILE_BASENAMES.end(),
-                    [&](std::string_view name)
-                    { return text_utils::iequals_ascii(base, name); });
-    if(isCmakeBasename)
-        return true;
-
-    return std::any_of(constants::CMAKE_FILE_SUFFIXES.begin(),
-                       constants::CMAKE_FILE_SUFFIXES.end(),
-                       [&](std::string_view suffix)
-                       { return ends_with(base, suffix); });
-}
-
-bool Editor::isHtmlFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-    return std::any_of(constants::HTML_FILE_EXTENSIONS.begin(),
-                       constants::HTML_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isXmlFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-    std::string_view pathSv{*filename};
-    auto dot = pathSv.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = pathSv.substr(dot);
-    return std::any_of(constants::XML_FILE_EXTENSIONS.begin(),
-                       constants::XML_FILE_EXTENSIONS.end(),
-                       [&](std::string_view e)
-                       { return text_utils::iequals_ascii(ext, e); });
-}
-
-bool Editor::isMarkupTextFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-
-    std::string_view pathSv{*filename};
-    size_t slashPos = pathSv.find_last_of("/\\");
-    std::string_view base = (slashPos == std::string_view::npos)
-                                ? pathSv
-                                : pathSv.substr(slashPos + 1);
-    bool isReadmeMarkup =
-        std::any_of(constants::MARKUP_README_BASENAMES.begin(),
-                    constants::MARKUP_README_BASENAMES.end(),
-                    [&](std::string_view name)
-                    { return text_utils::iequals_ascii(base, name); });
-    if(isReadmeMarkup)
-        return true;
-
-    auto dot = base.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = base.substr(dot);
-    bool isTxt = std::any_of(constants::MARKUP_TEXT_EXTENSIONS.begin(),
-                             constants::MARKUP_TEXT_EXTENSIONS.end(),
-                             [&](std::string_view e)
-                             { return text_utils::iequals_ascii(ext, e); });
-    if(!isTxt)
-        return false;
-
-    if(text_utils::iequals_ascii(ext, ".rd") ||
-       text_utils::iequals_ascii(ext, ".rdoc") ||
-       text_utils::iequals_ascii(ext, ".md") ||
-       text_utils::iequals_ascii(ext, ".markdown"))
-    {
-        return true;
-    }
-
-    if(!lines || lines->empty())
-        return false;
-
-    // Heuristic: look for common markup cues in first ~50 lines.
-    const int maxLines = std::min<int>(50, lines->size());
-    for(int i = 0; i < maxLines; ++i)
-    {
-        std::string_view ln{(*lines)[i]};
-        if(ln.empty())
-            continue;
-        if(ln.starts_with("#") || ln.starts_with("##") || ln.starts_with("```") ||
-           ln.starts_with("~~~") || ln.starts_with("* ") ||
-           ln.starts_with("- ") || ln.starts_with("+ "))
-        {
-            return true;
-        }
-        if(ln.size() > 2 && text_utils::is_digit(ln[0]) && ln[1] == '.' &&
-           ln[2] == ' ')
-        {
-            return true;
-        }
-        if(ln.find("**") != std::string_view::npos ||
-           ln.find("`") != std::string_view::npos ||
-           ln.find("[") != std::string_view::npos &&
-               ln.find("]") != std::string_view::npos &&
-               ln.find("(") != std::string_view::npos &&
-               ln.find(")") != std::string_view::npos)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool Editor::isRdocFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-    std::string_view pathSv{*filename};
-    size_t slashPos = pathSv.find_last_of("/\\");
-    std::string_view base = (slashPos == std::string_view::npos)
-                                ? pathSv
-                                : pathSv.substr(slashPos + 1);
-    bool isReadme =
-        std::any_of(constants::MARKUP_README_BASENAMES.begin(),
-                    constants::MARKUP_README_BASENAMES.end(),
-                    [&](std::string_view name)
-                    { return text_utils::iequals_ascii(base, name); });
-    if(isReadme)
-        return true;
-
-    auto dot = base.find_last_of('.');
-    if(dot == std::string_view::npos)
-        return false;
-    std::string_view ext = base.substr(dot);
-    return text_utils::iequals_ascii(ext, ".rd") ||
-           text_utils::iequals_ascii(ext, ".rdoc");
-}
-
-bool Editor::isShellFile() const
-{
-    if(!filename || filename->empty())
-        return false;
-
-    std::string_view pathSv{*filename};
-    size_t slashPos = pathSv.find_last_of("/\\");
-    std::string_view base = (slashPos == std::string_view::npos)
-                                ? pathSv
-                                : pathSv.substr(slashPos + 1);
-
-    auto ends_with = [](std::string_view value, std::string_view suffix) -> bool
-    {
-        if(value.size() < suffix.size())
-            return false;
-        return text_utils::iequals_ascii(
-            value.substr(value.size() - suffix.size()), suffix);
-    };
-
-    bool hasShellExtension =
-        std::any_of(constants::SHELL_FILE_EXTENSIONS.begin(),
-                    constants::SHELL_FILE_EXTENSIONS.end(),
-                    [&](std::string_view ext)
-                    { return ends_with(base, ext); });
-    if(hasShellExtension)
-    {
-        return true;
-    }
-
-    bool hasShellBasename =
-        std::any_of(constants::SHELL_FILE_BASENAMES.begin(),
-                    constants::SHELL_FILE_BASENAMES.end(),
-                    [&](std::string_view name)
-                    { return text_utils::iequals_ascii(base, name); });
-    if(hasShellBasename)
-    {
-        return true;
-    }
-
-    if(lines && !lines->empty())
-    {
-        std::string_view first{(*lines)[0]};
-        if(first.starts_with("#!"))
-        {
-            bool hasShell = std::any_of(
-                constants::SHELL_SHEBANG_HINTS.begin(),
-                constants::SHELL_SHEBANG_HINTS.end(),
-                [&](std::string_view hint)
-                { return text_utils::contains(first, hint); });
-            if(!hasShell)
-            {
-                if(first.find("/sh") != std::string_view::npos ||
-                   first.find(" sh") != std::string_view::npos)
-                {
-                    hasShell = true;
-                }
-            }
-            if(hasShell)
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 size_t Editor::byteOffsetForPosition(int y, int x) const
 {
     if(!lines || lines->empty())
@@ -755,7 +607,7 @@ bool Editor::clangFormatWithArgs(const std::string& extraArgs,
     if(!lines || !filename)
         return false;
 
-    if(!isCppFile() || isMlaFile())
+    if(!isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
     {
         setStatusMessage("clang-format: not a C/C++ file (" + *filename + ")");
         return false;
@@ -877,7 +729,7 @@ bool Editor::pythonFormatBuffer()
 {
     if(!lines || !filename)
         return false;
-    if(!isPythonFile())
+    if(!isFileType<FileType::Python>())
     {
         setStatusMessage("black: not a Python file");
         return false;
@@ -955,7 +807,7 @@ void Editor::pythonLintBuffer()
 {
     if(!lines || !filename)
         return;
-    if(!isPythonFile())
+    if(!isFileType<FileType::Python>())
     {
         setStatusMessage("ruff: not a Python file");
         return;
@@ -1359,7 +1211,7 @@ bool Editor::robotFormatBuffer()
 {
     if(!lines || !filename)
         return false;
-    if(!isRobotFile())
+    if(!isFileType<FileType::Robot>())
     {
         setStatusMessage("robocop: not a Robot file");
         return false;
@@ -1527,7 +1379,7 @@ bool Editor::jsonFormatBuffer()
 {
     if(!lines || !filename)
         return false;
-    if(!isJsonFile())
+    if(!isFileType<FileType::Json>())
     {
         setStatusMessage("json.tool: not a JSON file");
         return false;
@@ -1617,7 +1469,7 @@ bool Editor::yamlFormatBuffer()
 {
     if(!lines || !filename)
         return false;
-    if(!isYamlFile())
+    if(!isFileType<FileType::Yaml>())
     {
         setStatusMessage("yaml: not a YAML file");
         return false;
@@ -1808,7 +1660,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                                         bool& inMarkupFence,
                                         char& markupFenceChar) const
 {
-    if(isRobotFile())
+    if(isFileType<FileType::Robot>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2002,7 +1854,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isPythonFile())
+    if(isFileType<FileType::Python>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2148,7 +2000,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isMlaFile())
+    if(isFileType<FileType::Mla>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2388,7 +2240,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isCMakeFile())
+    if(isFileType<FileType::CMake>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2679,7 +2531,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isShellFile())
+    if(isFileType<FileType::Shell>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2862,7 +2714,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isMarkupTextFile() || isRdocFile())
+    if(isFileType<FileType::MarkupText>() || isFileType<FileType::Rdoc>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2929,7 +2781,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
             if(sv[first] == '#')
             {
                 TokenType t =
-                    isRdocFile() ? markupRdocTopicToken : markupHeadingToken;
+                    isFileType<FileType::Rdoc>() ? markupRdocTopicToken : markupHeadingToken;
                 tokens.push_back({t, first, len - first});
                 return tokens;
             }
@@ -2948,7 +2800,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                 if(j < len && text_utils::is_space(sv[j]))
                 {
                     TokenType t =
-                        isRdocFile() ? markupRdocTopicToken : markupHeadingToken;
+                        isFileType<FileType::Rdoc>() ? markupRdocTopicToken : markupHeadingToken;
                     tokens.push_back({t, first, len - first});
                     return tokens;
                 }
@@ -3152,7 +3004,7 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isHtmlFile() || isXmlFile())
+    if(isFileType<FileType::Html>() || isFileType<FileType::Xml>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -3161,7 +3013,8 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
 
         while(i < len)
         {
-            if(isXmlFile() && i + 8 < len && sv.substr(i, 9) == "<![CDATA[")
+            if(isFileType<FileType::Xml>() && i + 8 < len &&
+               sv.substr(i, 9) == "<![CDATA[")
             {
                 int start = i;
                 i += 9;
@@ -3173,7 +3026,8 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                 continue;
             }
 
-            if(isXmlFile() && i + 1 < len && sv[i] == '<' && sv[i + 1] == '?')
+            if(isFileType<FileType::Xml>() && i + 1 < len && sv[i] == '<' &&
+               sv[i + 1] == '?')
             {
                 int start = i;
                 i += 2;
@@ -3240,16 +3094,16 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
-    if(isJsonFile() || isYamlFile() || isTomlFile())
+    if(isFileType<FileType::Json>() || isFileType<FileType::Yaml>() || isFileType<FileType::Toml>())
     {
         std::vector<Token> tokens;
         std::string_view sv{line};
         const int len = static_cast<int>(sv.size());
         int i = 0;
 
-        const bool isJson = isJsonFile();
-        const bool isYaml = isYamlFile();
-        const bool isToml = isTomlFile();
+        const bool isJson = isFileType<FileType::Json>();
+        const bool isYaml = isFileType<FileType::Yaml>();
+        const bool isToml = isFileType<FileType::Toml>();
         bool seenEquals = false;
 
         auto is_escaped = [&](int pos) -> bool
@@ -3854,14 +3708,14 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     char tomlQuote = 0;
     bool markupFenceState = false;
     char markupFenceChar = 0;
-    if(isCppFile() || isMlaFile())
+    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
     {
         for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
         {
             scanLineForBlockComments((*lines)[i], blockCommentState);
         }
     }
-    if(isTomlFile())
+    if(isFileType<FileType::Toml>())
     {
         auto scanLineForTomlMultiline = [](const std::string& scanLine,
                                            bool& inMultiline,
@@ -3912,7 +3766,7 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
             scanLineForTomlMultiline((*lines)[i], tomlMultilineState, tomlQuote);
         }
     }
-    if(isMarkupTextFile())
+    if(isFileType<FileType::MarkupText>())
     {
         auto scanLineForMarkupFence = [](const std::string& scanLine,
                                          bool& inFence,

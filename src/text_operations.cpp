@@ -151,7 +151,7 @@ void Editor::insertNewline()
                starts("else") || starts("switch");
     };
 
-    if(autoTags && (isHtmlFile() || isXmlFile()))
+    if(autoTags && (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
     {
         int cx = *cursorX;
         if(cx > 0 && cx <= (int)currentLine.size())
@@ -252,7 +252,7 @@ void Editor::insertNewline()
     std::string indentStr = currentLine.substr(0, indent);
 
     bool addExtraIndent = false;
-    if(isCppFile() && *cursorX > 0)
+    if(isFileType<FileType::Cpp>() && *cursorX > 0)
     {
         int checkPos = *cursorX - 1;
         while(checkPos >= 0 &&
@@ -282,7 +282,7 @@ void Editor::insertNewline()
         (*lines)[*cursorY] = currentLine.substr(0, *cursorX);
     }
 
-    if(isCppFile() && !addExtraIndent && remainder.empty())
+    if(isFileType<FileType::Cpp>() && !addExtraIndent && remainder.empty())
     {
         std::string trimmed = ltrim(currentLine);
         if(starts_with_kw(trimmed))

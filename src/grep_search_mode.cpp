@@ -394,16 +394,11 @@ bool GrepSearchMode::isTextFile(const std::string& filepath) const
     if(dotPos != std::string::npos)
     {
         ext = filepath.substr(dotPos);
-        std::string_view extView = ext;
-        bool isPythonExt = std::any_of(
-            constants::PYTHON_FILE_EXTENSIONS.begin(),
-            constants::PYTHON_FILE_EXTENSIONS.end(),
-            [&](std::string_view e)
-            { return text_utils::iequals_ascii(extView, e); });
-        bool isMlaExt = std::any_of(constants::MLA_FILE_EXTENSIONS.begin(),
-                                    constants::MLA_FILE_EXTENSIONS.end(),
-                                    [&](std::string_view e)
-                                    { return text_utils::iequals_ascii(extView, e); });
+        bool isPythonExt =
+            constants::is_filetype<constants::no_pattern,
+                                   constants::python_suffixes>(filepath);
+        bool isMlaExt = constants::is_filetype<constants::no_pattern,
+                                              constants::mla_suffixes>(filepath);
 
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
            ext == ".hpp" || isPythonExt || ext == ".js" || ext == ".ts" ||

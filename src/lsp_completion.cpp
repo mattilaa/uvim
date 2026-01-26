@@ -462,7 +462,7 @@ void Editor::requestCompletion()
     LspClient* client = nullptr;
     std::string label;
     std::string languageId;
-    if(isRobotFile())
+    if(isFileType<FileType::Robot>())
     {
         if(!isRobotLspEnabled())
         {
@@ -503,7 +503,7 @@ void Editor::requestCompletion()
         label = "robot";
         languageId = "robotframework";
     }
-    else if(isPythonFile())
+    else if(isFileType<FileType::Python>())
     {
         if(!isPythonLspEnabled())
         {
@@ -529,7 +529,7 @@ void Editor::requestCompletion()
         label = "python";
         languageId = "python";
     }
-    else if(isMlaFile())
+    else if(isFileType<FileType::Mla>())
     {
         if(!isMlangLspEnabled())
         {
@@ -544,7 +544,7 @@ void Editor::requestCompletion()
         label = "mlang";
         languageId = "mlang";
     }
-    else if(isCppFile())
+    else if(isFileType<FileType::Cpp>())
     {
         if(!isClangdLspEnabled())
         {
@@ -570,7 +570,7 @@ void Editor::requestCompletion()
     completionAnchorX = ax;
     completionAnchorY = *cursorY;
 
-    if(isCppFile())
+    if(isFileType<FileType::Cpp>())
     {
         if(auto includeCtx = findIncludeContext(line, *cursorX))
         {
@@ -704,7 +704,7 @@ void Editor::requestCompletion()
     if(completionAll.empty())
     {
         cancelCompletion();
-        if(isRobotFile())
+        if(isFileType<FileType::Robot>())
         {
             static constexpr std::string_view kRobotKeywords[] = {
                 "*** Settings ***",
@@ -735,7 +735,7 @@ void Editor::requestCompletion()
                 "robot");
             return;
         }
-        if(isPythonFile())
+        if(isFileType<FileType::Python>())
         {
             static constexpr std::string_view kPythonKeywords[] = {
                 "and",    "as",       "assert",   "async", "await",  "break",

@@ -57,23 +57,23 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            if(ed->isPythonFile())
+            if(ed->isFileType<FileType::Python>())
             {
                 ed->pythonFormatBuffer();
             }
-            else if(ed->isRobotFile())
+            else if(ed->isFileType<FileType::Robot>())
             {
                 ed->robotFormatBuffer();
             }
-            else if(ed->isJsonFile())
+            else if(ed->isFileType<FileType::Json>())
             {
                 ed->jsonFormatBuffer();
             }
-            else if(ed->isYamlFile())
+            else if(ed->isFileType<FileType::Yaml>())
             {
                 ed->yamlFormatBuffer();
             }
-            else if(ed->isMlaFile())
+            else if(ed->isFileType<FileType::Mla>())
             {
                 ed->mlangFormatBuffer();
             }
@@ -447,23 +447,23 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            if(ed->isPythonFile())
+            if(ed->isFileType<FileType::Python>())
             {
                 ed->pythonFormatBuffer();
             }
-            else if(ed->isRobotFile())
+            else if(ed->isFileType<FileType::Robot>())
             {
                 ed->robotFormatBuffer();
             }
-            else if(ed->isJsonFile())
+            else if(ed->isFileType<FileType::Json>())
             {
                 ed->jsonFormatBuffer();
             }
-            else if(ed->isYamlFile())
+            else if(ed->isFileType<FileType::Yaml>())
             {
                 ed->yamlFormatBuffer();
             }
-            else if(ed->isMlaFile())
+            else if(ed->isFileType<FileType::Mla>())
             {
                 ed->mlangFormatBuffer();
             }
@@ -745,23 +745,23 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            if(ed->isPythonFile())
+            if(ed->isFileType<FileType::Python>())
             {
                 ed->pythonFormatBuffer();
             }
-            else if(ed->isRobotFile())
+            else if(ed->isFileType<FileType::Robot>())
             {
                 ed->robotFormatBuffer();
             }
-            else if(ed->isJsonFile())
+            else if(ed->isFileType<FileType::Json>())
             {
                 ed->jsonFormatBuffer();
             }
-            else if(ed->isYamlFile())
+            else if(ed->isFileType<FileType::Yaml>())
             {
                 ed->yamlFormatBuffer();
             }
-            else if(ed->isMlaFile())
+            else if(ed->isFileType<FileType::Mla>())
             {
                 ed->mlangFormatBuffer();
             }

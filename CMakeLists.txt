@@ -251,6 +251,16 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(mode_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+    add_executable(constants_tests
+        tests/constants_test.cpp
+    )
+    uvim_enable_sanitizers(constants_tests)
+    target_link_libraries(constants_tests
+        GTest::gtest_main
+        GTest::gmock
+    )
+    target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
     set(UVIM_TEST_SOURCES
         ${UVIM_CORE_SOURCES}
         ${MODE_STATE_MACHINE_SOURCES}
@@ -262,6 +272,7 @@ if(UVIM_BUILD_TESTS)
 
     add_executable(real_mode_transitions_tests
         tests/real_mode_transitions_test.cpp
+        tests/editor_filetype_test.cpp
         ${UVIM_TEST_SOURCES}
     )
     uvim_enable_sanitizers(real_mode_transitions_tests)
@@ -287,11 +298,12 @@ if(UVIM_BUILD_TESTS)
     include(GoogleTest)
     gtest_discover_tests(state_machine_tests)
     gtest_discover_tests(mode_state_machine_tests)
+    gtest_discover_tests(constants_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS state_machine_tests mode_state_machine_tests real_mode_transitions_tests
+        DEPENDS state_machine_tests mode_state_machine_tests constants_tests real_mode_transitions_tests
     )
 endif()
 

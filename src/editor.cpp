@@ -1798,7 +1798,7 @@ void Editor::openFile(std::string_view fname)
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     // Notify LSP about the newly opened file so gd works from system headers
-    if(isClangdLspEnabled() && isCppFile() && !isMlaFile() && lspClient)
+    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() && lspClient)
     {
         // Build text content from loaded lines
         std::string text;
@@ -1813,7 +1813,7 @@ void Editor::openFile(std::string_view fname)
         lspClient->didChange(path, text, "cpp");
         currentBuffer->lspSyncNeeded = false;
     }
-    if(isRobotLspEnabled() && isRobotFile() && robotLspClient)
+    if(isRobotLspEnabled() && isFileType<FileType::Robot>() && robotLspClient)
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -1825,7 +1825,7 @@ void Editor::openFile(std::string_view fname)
         }
         robotLspClient->didChange(path, text, "robotframework");
     }
-    if(isPythonLspEnabled() && isPythonFile() && pythonLspClient)
+    if(isPythonLspEnabled() && isFileType<FileType::Python>() && pythonLspClient)
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -1837,7 +1837,7 @@ void Editor::openFile(std::string_view fname)
         }
         pythonLspClient->didChange(path, text, "python");
     }
-    if(isMlangLspEnabled() && isMlaFile() && mlangLspClient)
+    if(isMlangLspEnabled() && isFileType<FileType::Mla>() && mlangLspClient)
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -2730,7 +2730,7 @@ void Editor::goToDefinition()
     }
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(isRobotLspEnabled() && isRobotFile())
+    if(isRobotLspEnabled() && isFileType<FileType::Robot>())
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -2823,7 +2823,7 @@ void Editor::goToDefinition()
         return;
     }
 
-    if(isPythonLspEnabled() && isPythonFile())
+    if(isPythonLspEnabled() && isFileType<FileType::Python>())
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -2890,14 +2890,8 @@ void Editor::goToDefinition()
             if(!it->is_regular_file(ec))
                 continue;
             const auto& p = it->path();
-            std::string ext = p.extension().string();
-            std::string_view extView = ext;
-            bool isPythonExt = std::any_of(
-                constants::PYTHON_FILE_EXTENSIONS.begin(),
-                constants::PYTHON_FILE_EXTENSIONS.end(),
-                [&](std::string_view e)
-                { return text_utils::iequals_ascii(extView, e); });
-            if(!isPythonExt)
+            if(!constants::is_filetype<constants::no_pattern,
+                                       constants::python_suffixes>(p.string()))
                 continue;
             if(find_python_def_in_file(p.string(), symbol, defY, defX))
             {
@@ -2916,7 +2910,7 @@ void Editor::goToDefinition()
         return;
     }
 
-    if(isMlangLspEnabled() && isMlaFile())
+    if(isMlangLspEnabled() && isFileType<FileType::Mla>())
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -2954,7 +2948,7 @@ void Editor::goToDefinition()
 
     // Prefer clangd definition when enabled; fallback to heuristic gd
     // otherwise.
-    if(isClangdLspEnabled() && isCppFile() && !isMlaFile())
+    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>())
     {
         // Sync buffer text (full-text change) before querying.
         std::string text;
@@ -3244,7 +3238,7 @@ void Editor::refreshScreen()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {
-        if(currentBuffer && isClangdLspEnabled() && isCppFile() && !isMlaFile() && lspClient &&
+        if(currentBuffer && isClangdLspEnabled() && isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() && lspClient &&
            !currentBuffer->filename.empty())
         {
             size_t revision =
@@ -4235,7 +4229,7 @@ void Editor::updateClangFormatIndentWidth()
     currentBuffer->clangBraceStyleValid = true;
     currentBuffer->clangBraceNewLine = false;
 
-    if(!isCppFile() || !filename || filename->empty())
+    if(!isFileType<FileType::Cpp>() || !filename || filename->empty())
         return;
 
     std::filesystem::path path = *filename;
@@ -4344,13 +4338,13 @@ void Editor::commentLines(int startY, int endY)
 {
     if(!currentBuffer || !lines)
         return;
-    if(!isCppFile() && !isPythonFile())
+    if(!isFileType<FileType::Cpp>() && !isFileType<FileType::Python>())
     {
         setStatusMessage("comment: unsupported filetype");
         return;
     }
 
-    std::string prefix = isPythonFile() ? "#" : "//";
+    std::string prefix = isFileType<FileType::Python>() ? "#" : "//";
     if(startY > endY)
         std::swap(startY, endY);
 
@@ -4407,7 +4401,7 @@ void Editor::commentLines(int startY, int endY)
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!currentBuffer || !isClangdLspEnabled() || !isCppFile() || !lspClient)
+    if(!currentBuffer || !isClangdLspEnabled() || !isFileType<FileType::Cpp>() || !lspClient)
         return;
 
     bool shouldCheck = force || currentBuffer->lspSyncNeeded || *dirty;
@@ -6968,7 +6962,7 @@ void Editor::insertLineAbove()
         indent++;
     }
     std::string indentStr = currentLine.substr(0, indent);
-    if(autoTags && (isHtmlFile() || isXmlFile()))
+    if(autoTags && (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
     {
         size_t pos = currentLine.find('<');
         if(pos != std::string::npos)
@@ -6998,9 +6992,9 @@ void Editor::insertLineAbove()
                         std::string_view tag =
                             std::string_view(currentLine).substr(
                                 nameStart, nameEnd - nameStart);
-                        if(isHtmlFile())
+                        if(isFileType<FileType::Html>())
                         {
-                            for(auto v : constants::HTML_VOID_TAGS)
+                            for(auto v : constants::html_void_tags)
                             {
                                 if(text_utils::iequals_ascii(tag, v))
                                 {
@@ -7017,7 +7011,7 @@ void Editor::insertLineAbove()
             }
         }
     }
-    if(isCppFile())
+    if(isFileType<FileType::Cpp>())
     {
         std::string trimmed = ltrim(currentLine);
         if(starts_with_kw(trimmed))
@@ -7130,7 +7124,7 @@ void Editor::insertLineBelow()
         std::string indentStr = currentLine.substr(0, indent);
 
         bool addExtraIndent = false;
-        if(isCppFile())
+        if(isFileType<FileType::Cpp>())
         {
             size_t lastNonSpace = currentLine.find_last_not_of(" \t");
             if(lastNonSpace != std::string::npos &&
@@ -7139,7 +7133,7 @@ void Editor::insertLineBelow()
                 addExtraIndent = true;
             }
         }
-        if(autoTags && (isHtmlFile() || isXmlFile()))
+        if(autoTags && (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
         {
             bool htmlShouldIndent = false;
             size_t lt = currentLine.rfind('<');
@@ -7168,12 +7162,12 @@ void Editor::insertLineBelow()
                         };
                         while(nameEnd < gt && isTagChar(currentLine[nameEnd]))
                             ++nameEnd;
-                        if(nameEnd > nameStart && isHtmlFile())
+                        if(nameEnd > nameStart && isFileType<FileType::Html>())
                         {
                             std::string_view tag =
                                 std::string_view(currentLine).substr(
                                     nameStart, nameEnd - nameStart);
-                            for(auto v : constants::HTML_VOID_TAGS)
+                            for(auto v : constants::html_void_tags)
                             {
                                 if(text_utils::iequals_ascii(tag, v))
                                 {
@@ -7191,7 +7185,7 @@ void Editor::insertLineBelow()
                 addExtraIndent = true;
         }
 
-        if(isCppFile() && !addExtraIndent)
+        if(isFileType<FileType::Cpp>() && !addExtraIndent)
         {
             std::string trimmed = ltrim(currentLine);
             if(starts_with_kw(trimmed))
@@ -8654,7 +8648,7 @@ bool Editor::mlangFormatBuffer()
 {
     if(!currentBuffer || !lines)
         return false;
-    if(!isMlaFile())
+    if(!isFileType<FileType::Mla>())
         return false;
     if(!isMlangLspEnabled() || !mlangLspClient)
     {

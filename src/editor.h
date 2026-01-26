@@ -36,6 +36,23 @@ struct MlangTokenCache
     std::string lspPath;
 };
 
+enum class FileType
+{
+    Cpp,
+    Mla,
+    Robot,
+    Python,
+    Json,
+    Yaml,
+    Toml,
+    Html,
+    Xml,
+    MarkupText,
+    Rdoc,
+    CMake,
+    Shell,
+};
+
 class Editor
 {
 public:
@@ -748,19 +765,13 @@ public:
     std::vector<JumpLocation> jumpBackStack;
     std::vector<JumpLocation> jumpForwardStack;
 
-    bool isCppFile() const;
-    bool isMlaFile() const;
-    bool isRobotFile() const;
-    bool isPythonFile() const;
-    bool isJsonFile() const;
-    bool isYamlFile() const;
-    bool isTomlFile() const;
-    bool isHtmlFile() const;
-    bool isMarkupTextFile() const;
-    bool isRdocFile() const;
-    bool isXmlFile() const;
-    bool isCMakeFile() const;
-    bool isShellFile() const;
+    bool isFileType(FileType type) const;
+    template <FileType Type>
+    bool isFileType() const
+    {
+        return isFileType(Type);
+    }
+
     bool pythonFormatBuffer();
     void pythonLintBuffer();
     bool robotFormatBuffer();

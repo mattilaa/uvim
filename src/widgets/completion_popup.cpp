@@ -103,7 +103,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
     auto appendSyntaxRow = [&](const std::string& text, bool selected, int kind)
     {
-        if(!editor.isCppFile())
+        if(!editor.isFileType<FileType::Cpp>())
         {
             if(selected)
                 output += editor.theme.selection();

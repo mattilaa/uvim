@@ -22,7 +22,7 @@ void Editor::findReferences()
     LspClient* client = nullptr;
     std::string label;
     std::string languageId;
-    if(isRobotFile())
+    if(isFileType<FileType::Robot>())
     {
         if(!isRobotLspEnabled())
         {
@@ -33,7 +33,7 @@ void Editor::findReferences()
         label = "robot";
         languageId = "robotframework";
     }
-    else if(isPythonFile())
+    else if(isFileType<FileType::Python>())
     {
         if(!isPythonLspEnabled())
         {
@@ -44,7 +44,7 @@ void Editor::findReferences()
         label = "python";
         languageId = "python";
     }
-    else if(isMlaFile())
+    else if(isFileType<FileType::Mla>())
     {
         if(!isMlangLspEnabled())
         {
@@ -55,7 +55,7 @@ void Editor::findReferences()
         label = "mlang";
         languageId = "mlang";
     }
-    else if(isCppFile())
+    else if(isFileType<FileType::Cpp>())
     {
         if(!isClangdLspEnabled())
         {

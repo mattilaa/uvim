@@ -152,7 +152,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(c == Terminal::ESC)
             {
                 ed->formatOnDoubleEscPending =
-                    ed->formatOnInsertLeave && ed->isCppFile() && !ed->isMlaFile();
+                    ed->formatOnInsertLeave && ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>();
                 ed->lastEscTime = std::chrono::steady_clock::now();
             }
             ed->saveState();
@@ -173,7 +173,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         if(c == Terminal::ESC)
         {
             ed->formatOnDoubleEscPending =
-                ed->formatOnInsertLeave && ed->isCppFile() && !ed->isMlaFile();
+                ed->formatOnInsertLeave && ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>();
             ed->lastEscTime = std::chrono::steady_clock::now();
         }
         ed->saveState();
@@ -567,7 +567,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
 
         if(ed->autoTags && c == '>' && !inString &&
-           (ed->isHtmlFile() || ed->isXmlFile()))
+           (ed->isFileType<FileType::Html>() || ed->isFileType<FileType::Xml>()))
         {
             ed->insertChar(static_cast<char>(c));
 
@@ -618,9 +618,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             std::string tag = line.substr(nameStart, nameEnd - nameStart);
             bool isVoid = false;
-            if(ed->isHtmlFile())
+            if(ed->isFileType<FileType::Html>())
             {
-                for(auto v : constants::HTML_VOID_TAGS)
+                for(auto v : constants::html_void_tags)
                 {
                     if(text_utils::iequals_ascii(tag, v))
                     {
@@ -644,7 +644,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         auto& lines = ctx.lines();
         int cursorX = ctx.cursorX();
         int cursorY = ctx.cursorY();
-        bool isMarkup = ed->isHtmlFile() || ed->isXmlFile();
+        bool isMarkup =
+            ed->isFileType<FileType::Html>() || ed->isFileType<FileType::Xml>();
 
         // Update completion filter if active
         if(ed->completionActive)
@@ -677,13 +678,13 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         else if(ed->autoCompletion && ed->shouldTriggerCompletion())
         {
             bool canAuto = true;
-            if(ed->isCppFile())
+            if(ed->isFileType<FileType::Cpp>())
                 canAuto = ed->isClangdLspEnabled();
-            else if(ed->isPythonFile())
+            else if(ed->isFileType<FileType::Python>())
                 canAuto = ed->isPythonLspEnabled();
-            else if(ed->isRobotFile())
+            else if(ed->isFileType<FileType::Robot>())
                 canAuto = ed->isRobotLspEnabled();
-            else if(ed->isMlaFile())
+            else if(ed->isFileType<FileType::Mla>())
                 canAuto = ed->isMlangLspEnabled();
             else if(isMarkup)
                 canAuto = false;
