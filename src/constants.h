@@ -74,6 +74,23 @@ static constexpr std::array<std::string_view, 1> XML_FILE_EXTENSIONS = {
     ".xml",
 };
 
+static constexpr std::array<std::string_view, 14> HTML_VOID_TAGS = {
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+};
+
 static constexpr std::array<std::string_view, 5> MARKUP_TEXT_EXTENSIONS = {
     ".txt",
     ".md",

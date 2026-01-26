@@ -105,6 +105,7 @@ static std::string_view default_config_contents()
     static constexpr char kDefaultConfig[] = R"(editor:
   tabspaces: 4
   autobraces: true
+  autotags: true
   autocomplete: true
   gdcenter: true
   syntax:

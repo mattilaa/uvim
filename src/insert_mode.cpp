@@ -1,3 +1,4 @@
+#include "constants.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -565,17 +566,91 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
+        if(ed->autoTags && c == '>' && !inString &&
+           (ed->isHtmlFile() || ed->isXmlFile()))
+        {
+            ed->insertChar(static_cast<char>(c));
+
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int cursorY = ctx.cursorY();
+            if(cursorY < 0 || cursorY >= (int)lines.size())
+                return std::nullopt;
+
+            std::string& line = lines[cursorY];
+            int gtPos = cursorX - 1;
+            if(gtPos < 0 || gtPos >= (int)line.size())
+                return std::nullopt;
+
+            int ltPos = (int)line.rfind('<', (size_t)gtPos);
+            if(ltPos == (int)std::string::npos)
+                return std::nullopt;
+
+            if(ltPos + 1 < (int)line.size())
+            {
+                char next = line[ltPos + 1];
+                if(next == '/' || next == '!' || next == '?')
+                    return std::nullopt;
+            }
+
+            int j = gtPos - 1;
+            while(j > ltPos && text_utils::is_space(line[j]))
+                --j;
+            if(j > ltPos && line[j] == '/')
+                return std::nullopt;
+
+            int nameStart = ltPos + 1;
+            while(nameStart < gtPos && text_utils::is_space(line[nameStart]))
+                ++nameStart;
+            if(nameStart >= gtPos)
+                return std::nullopt;
+
+            int nameEnd = nameStart;
+            auto isTagChar = [](char ch)
+            {
+                return text_utils::is_alnum(ch) || ch == ':' || ch == '_' ||
+                       ch == '-';
+            };
+            while(nameEnd < gtPos && isTagChar(line[nameEnd]))
+                ++nameEnd;
+            if(nameEnd == nameStart)
+                return std::nullopt;
+
+            std::string tag = line.substr(nameStart, nameEnd - nameStart);
+            bool isVoid = false;
+            if(ed->isHtmlFile())
+            {
+                for(auto v : constants::HTML_VOID_TAGS)
+                {
+                    if(text_utils::iequals_ascii(tag, v))
+                    {
+                        isVoid = true;
+                        break;
+                    }
+                }
+            }
+            if(isVoid)
+                return std::nullopt;
+
+            std::string close = "</" + tag + ">";
+
+            line.insert((size_t)cursorX, close);
+            *ed->dirty = true;
+            return std::nullopt;
+        }
+
         ed->insertChar(static_cast<char>(c));
 
         auto& lines = ctx.lines();
         int cursorX = ctx.cursorX();
         int cursorY = ctx.cursorY();
+        bool isMarkup = ed->isHtmlFile() || ed->isXmlFile();
 
         // Update completion filter if active
         if(ed->completionActive)
         {
             if(ed->completionFromLsp && ed->autoCompletion &&
-               ed->shouldTriggerCompletion())
+               ed->shouldTriggerCompletion() && !isMarkup)
             {
                 ed->requestCompletion();
             }
@@ -585,15 +660,17 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             }
         }
         // Auto-trigger completion after '.', '::', or '->'
-        else if(c == '.')
+        else if(c == '.' && !isMarkup)
         {
             ed->triggerCompletion();
         }
-        else if(c == ':' && cursorX >= 2 && lines[cursorY][cursorX - 2] == ':')
+        else if(c == ':' && !isMarkup && cursorX >= 2 &&
+                lines[cursorY][cursorX - 2] == ':')
         {
             ed->triggerCompletion();
         }
-        else if(c == '>' && cursorX >= 2 && lines[cursorY][cursorX - 2] == '-')
+        else if(c == '>' && !isMarkup && cursorX >= 2 &&
+                lines[cursorY][cursorX - 2] == '-')
         {
             ed->triggerCompletion();
         }
@@ -608,6 +685,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 canAuto = ed->isRobotLspEnabled();
             else if(ed->isMlaFile())
                 canAuto = ed->isMlangLspEnabled();
+            else if(isMarkup)
+                canAuto = false;
 
             if(canAuto)
             {

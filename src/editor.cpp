@@ -665,6 +665,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     autoBraces = false;
             }
+            auto ittg = values.find("editor.autotags");
+            if(ittg == values.end())
+                ittg = values.find("settings.autotags");
+            if(ittg == values.end())
+                ittg = values.find("autotags");
+            if(ittg != values.end())
+            {
+                std::string v = ittg->second;
+                if(v == "true" || v == "1" || v == "on")
+                    autoTags = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    autoTags = false;
+            }
             auto itc = values.find("editor.autocomplete");
             if(itc == values.end())
                 itc = values.find("settings.autocomplete");
@@ -4466,6 +4479,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoBraces ? "true" : "false"));
         return true;
     }
+    if(opt == "autotags?")
+    {
+        setStatusMessage(std::string("autotags=") +
+                         (autoTags ? "true" : "false"));
+        return true;
+    }
     if(opt == "tabspaces?")
     {
         setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
@@ -4538,6 +4557,13 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoBraces ? "true" : "false"));
     };
 
+    auto set_autotags = [&](bool value)
+    {
+        autoTags = value;
+        setStatusMessage(std::string("autotags=") +
+                         (autoTags ? "true" : "false"));
+    };
+
     auto set_gdcenter = [&](bool value)
     {
         gdCenterScreen = value;
@@ -4553,6 +4579,16 @@ bool Editor::handleSetCommand(std::string_view cmd)
     if(opt == "noautobraces")
     {
         set_flag(false);
+        return true;
+    }
+    if(opt == "autotags")
+    {
+        set_autotags(true);
+        return true;
+    }
+    if(opt == "noautotags")
+    {
+        set_autotags(false);
         return true;
     }
     if(opt == "gitblameinfo")
@@ -4668,6 +4704,23 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("autobraces: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("autotags=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("autotags=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_autotags(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_autotags(false);
+        }
+        else
+        {
+            setStatusMessage("autotags: expected true/false");
         }
         return true;
     }
@@ -6915,6 +6968,55 @@ void Editor::insertLineAbove()
         indent++;
     }
     std::string indentStr = currentLine.substr(0, indent);
+    if(autoTags && (isHtmlFile() || isXmlFile()))
+    {
+        size_t pos = currentLine.find('<');
+        if(pos != std::string::npos)
+        {
+            size_t gt = currentLine.find('>', pos);
+            if(gt != std::string::npos && pos + 1 < currentLine.size())
+            {
+                char next = currentLine[pos + 1];
+                if(next != '/' && next != '!' && next != '?')
+                {
+                    size_t nameStart = pos + 1;
+                    while(nameStart < gt &&
+                          (currentLine[nameStart] == ' ' ||
+                           currentLine[nameStart] == '\t'))
+                        ++nameStart;
+                    size_t nameEnd = nameStart;
+                    auto isTagChar = [](char ch)
+                    {
+                        return text_utils::is_alnum(ch) || ch == ':' ||
+                               ch == '_' || ch == '-';
+                    };
+                    while(nameEnd < gt && isTagChar(currentLine[nameEnd]))
+                        ++nameEnd;
+                    bool isVoid = false;
+                    if(nameEnd > nameStart)
+                    {
+                        std::string_view tag =
+                            std::string_view(currentLine).substr(
+                                nameStart, nameEnd - nameStart);
+                        if(isHtmlFile())
+                        {
+                            for(auto v : constants::HTML_VOID_TAGS)
+                            {
+                                if(text_utils::iequals_ascii(tag, v))
+                                {
+                                    isVoid = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if(isVoid)
+                        return;
+                    indentStr.append(tabSpaces, ' ');
+                }
+            }
+        }
+    }
     if(isCppFile())
     {
         std::string trimmed = ltrim(currentLine);
@@ -7036,6 +7138,57 @@ void Editor::insertLineBelow()
             {
                 addExtraIndent = true;
             }
+        }
+        if(autoTags && (isHtmlFile() || isXmlFile()))
+        {
+            bool htmlShouldIndent = false;
+            size_t lt = currentLine.rfind('<');
+            size_t gt = currentLine.rfind('>');
+            if(lt != std::string::npos && gt != std::string::npos && lt < gt &&
+               lt + 1 < currentLine.size())
+            {
+                char next = currentLine[lt + 1];
+                if(next != '/' && next != '!' && next != '?')
+                {
+                    size_t selfClose = currentLine.rfind('/');
+                    if(selfClose == std::string::npos || selfClose < lt ||
+                       selfClose > gt)
+                    {
+                        bool isVoid = false;
+                        size_t nameStart = lt + 1;
+                        while(nameStart < gt &&
+                              (currentLine[nameStart] == ' ' ||
+                               currentLine[nameStart] == '\t'))
+                            ++nameStart;
+                        size_t nameEnd = nameStart;
+                        auto isTagChar = [](char ch)
+                        {
+                            return text_utils::is_alnum(ch) || ch == ':' ||
+                                   ch == '_' || ch == '-';
+                        };
+                        while(nameEnd < gt && isTagChar(currentLine[nameEnd]))
+                            ++nameEnd;
+                        if(nameEnd > nameStart && isHtmlFile())
+                        {
+                            std::string_view tag =
+                                std::string_view(currentLine).substr(
+                                    nameStart, nameEnd - nameStart);
+                            for(auto v : constants::HTML_VOID_TAGS)
+                            {
+                                if(text_utils::iequals_ascii(tag, v))
+                                {
+                                    isVoid = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if(!isVoid)
+                            htmlShouldIndent = true;
+                    }
+                }
+            }
+            if(htmlShouldIndent)
+                addExtraIndent = true;
         }
 
         if(isCppFile() && !addExtraIndent)

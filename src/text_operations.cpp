@@ -151,6 +151,103 @@ void Editor::insertNewline()
                starts("else") || starts("switch");
     };
 
+    if(autoTags && (isHtmlFile() || isXmlFile()))
+    {
+        int cx = *cursorX;
+        if(cx > 0 && cx <= (int)currentLine.size())
+        {
+            size_t gt = currentLine.rfind('>', (size_t)(cx - 1));
+            if(gt != std::string::npos)
+            {
+                size_t lt = currentLine.rfind('<', gt);
+                if(lt != std::string::npos && lt + 1 < currentLine.size())
+                {
+                    char next = currentLine[lt + 1];
+                    if(next != '/' && next != '!' && next != '?')
+                    {
+                        size_t nameStart = lt + 1;
+                        while(nameStart < gt &&
+                              (currentLine[nameStart] == ' ' ||
+                               currentLine[nameStart] == '\t'))
+                        {
+                            ++nameStart;
+                        }
+                        size_t nameEnd = nameStart;
+                        auto isTagChar = [](char ch)
+                        {
+                            return text_utils::is_alnum(ch) || ch == ':' ||
+                                   ch == '_' || ch == '-';
+                        };
+                        while(nameEnd < gt && isTagChar(currentLine[nameEnd]))
+                            ++nameEnd;
+                        if(nameEnd > nameStart)
+                        {
+                            std::string openTag =
+                                currentLine.substr(nameStart,
+                                                   nameEnd - nameStart);
+                            size_t closeStart =
+                                currentLine.find("</", (size_t)cx);
+                            if(closeStart != std::string::npos)
+                            {
+                                size_t closeNameStart = closeStart + 2;
+                                size_t closeNameEnd = closeNameStart;
+                                while(closeNameEnd < currentLine.size() &&
+                                      isTagChar(currentLine[closeNameEnd]))
+                                    ++closeNameEnd;
+                                if(closeNameEnd > closeNameStart)
+                                {
+                                    std::string closeTag = currentLine.substr(
+                                        closeNameStart,
+                                        closeNameEnd - closeNameStart);
+                                    if(closeTag == openTag)
+                                    {
+                                        bool onlySpace = true;
+                                        for(size_t k = (size_t)cx;
+                                            k < closeStart; ++k)
+                                        {
+                                            char ch = currentLine[k];
+                                            if(ch != ' ' && ch != '\t')
+                                            {
+                                                onlySpace = false;
+                                                break;
+                                            }
+                                        }
+                                        if(onlySpace)
+                                        {
+                                            size_t indent =
+                                                leading_ws_len(currentLine);
+                                            std::string indentStr =
+                                                currentLine.substr(0, indent);
+                                            std::string innerIndent =
+                                                indentStr +
+                                                std::string(tabSpaces, ' ');
+                                            std::string before =
+                                                currentLine.substr(0, gt + 1);
+                                            std::string after =
+                                                currentLine.substr(closeStart);
+                                            (*lines)[*cursorY] = before;
+                                            lines->insert(
+                                                lines->begin() + *cursorY + 1,
+                                                innerIndent);
+                                            lines->insert(
+                                                lines->begin() + *cursorY + 2,
+                                                indentStr + after);
+                                            (*cursorY)++;
+                                            *cursorX = innerIndent.length();
+                                            *dirty = true;
+                                            needsFullRedraw = true;
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     size_t indent = leading_ws_len(currentLine);
     std::string indentStr = currentLine.substr(0, indent);
 
