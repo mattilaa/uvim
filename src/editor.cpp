@@ -52,6 +52,32 @@ static bool is_skip_dir(const std::filesystem::path& path);
 
 namespace
 {
+static TokenType parse_token_type(std::string_view value, TokenType fallback)
+{
+    std::string v = text_utils::ascii_lower(value);
+    if(v == "normal")
+        return TOKEN_NORMAL;
+    if(v == "keyword")
+        return TOKEN_KEYWORD;
+    if(v == "type")
+        return TOKEN_TYPE;
+    if(v == "string")
+        return TOKEN_STRING;
+    if(v == "char")
+        return TOKEN_CHAR;
+    if(v == "comment")
+        return TOKEN_COMMENT;
+    if(v == "preprocessor")
+        return TOKEN_PREPROCESSOR;
+    if(v == "number")
+        return TOKEN_NUMBER;
+    if(v == "operator")
+        return TOKEN_OPERATOR;
+    if(v == "function")
+        return TOKEN_FUNCTION;
+    return fallback;
+}
+
 static std::unordered_map<std::string, std::string>
 parseYamlMap(const std::string& input)
 {
@@ -869,6 +895,48 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                         robotSettingSet.insert(ascii_lower(item));
                 }
             }
+
+            auto get = [&](std::string_view key) -> std::optional<std::string>
+            {
+                auto it = values.find(std::string(key));
+                if(it != values.end())
+                    return it->second;
+                return std::nullopt;
+            };
+
+            auto set_token = [&](std::string_view key, TokenType& target)
+            {
+                auto v = get(key);
+                if(v)
+                    target = parse_token_type(*v, target);
+            };
+
+            set_token("editor.syntax.markup.heading_token",
+                      markupHeadingToken);
+            set_token("syntax.markup.heading_token", markupHeadingToken);
+            set_token("editor.syntax.markup.bold_token", markupBoldToken);
+            set_token("syntax.markup.bold_token", markupBoldToken);
+            set_token("editor.syntax.markup.italic_token", markupItalicToken);
+            set_token("syntax.markup.italic_token", markupItalicToken);
+            set_token("editor.syntax.markup.code_token", markupCodeToken);
+            set_token("syntax.markup.code_token", markupCodeToken);
+            set_token("editor.syntax.markup.blockquote_token",
+                      markupBlockquoteToken);
+            set_token("syntax.markup.blockquote_token", markupBlockquoteToken);
+            set_token("editor.syntax.markup.fence_token", markupFenceToken);
+            set_token("syntax.markup.fence_token", markupFenceToken);
+            set_token("editor.syntax.markup.link_text_token",
+                      markupLinkTextToken);
+            set_token("syntax.markup.link_text_token", markupLinkTextToken);
+            set_token("editor.syntax.markup.link_url_token",
+                      markupLinkUrlToken);
+            set_token("syntax.markup.link_url_token", markupLinkUrlToken);
+            set_token("editor.syntax.markup.link_title_token",
+                      markupLinkTitleToken);
+            set_token("syntax.markup.link_title_token", markupLinkTitleToken);
+            set_token("editor.syntax.markup.rdoc_topic_token",
+                      markupRdocTopicToken);
+            set_token("syntax.markup.rdoc_topic_token", markupRdocTopicToken);
         }
     }
 

@@ -358,6 +358,16 @@ public:
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
     std::unordered_set<std::string> robotSettingSet;
+    TokenType markupHeadingToken = TOKEN_KEYWORD;
+    TokenType markupBoldToken = TOKEN_KEYWORD;
+    TokenType markupItalicToken = TOKEN_TYPE;
+    TokenType markupCodeToken = TOKEN_STRING;
+    TokenType markupBlockquoteToken = TOKEN_COMMENT;
+    TokenType markupFenceToken = TOKEN_PREPROCESSOR;
+    TokenType markupLinkTextToken = TOKEN_TYPE;
+    TokenType markupLinkUrlToken = TOKEN_STRING;
+    TokenType markupLinkTitleToken = TOKEN_TYPE;
+    TokenType markupRdocTopicToken = TOKEN_FUNCTION;
 
     // Drawing - Original functions
     void draw();
@@ -744,6 +754,9 @@ public:
     bool isJsonFile() const;
     bool isYamlFile() const;
     bool isTomlFile() const;
+    bool isHtmlFile() const;
+    bool isMarkupTextFile() const;
+    bool isRdocFile() const;
     bool isCMakeFile() const;
     bool isShellFile() const;
     bool pythonFormatBuffer();
@@ -763,7 +776,9 @@ public:
     std::vector<Token> tokenizeLine(const std::string& line,
                                     bool& inBlockComment,
                                     bool& inTomlMultiline,
-                                    char& tomlQuote) const;
+                                    char& tomlQuote,
+                                    bool& inMarkupFence,
+                                    char& markupFenceChar) const;
     std::string getColorCode(TokenType type) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow);

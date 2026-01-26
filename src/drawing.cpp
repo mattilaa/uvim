@@ -438,6 +438,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 {
                     if(isCppFile() || isMlaFile() || isRobotFile() ||
                        isPythonFile() || isCMakeFile() || isShellFile() ||
+                       isHtmlFile() || isMarkupTextFile() ||
                        (isJsonFile() && syntaxJson) ||
                        (isYamlFile() && syntaxYaml) || isTomlFile())
                     {
@@ -572,6 +573,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 {
                     if(isCppFile() || isMlaFile() || isRobotFile() ||
                        isPythonFile() || isCMakeFile() || isShellFile() ||
+                       isHtmlFile() || isMarkupTextFile() ||
                        (isJsonFile() && syntaxJson) ||
                        (isYamlFile() && syntaxYaml) || isTomlFile())
                     {
@@ -938,6 +940,7 @@ void Editor::drawFullScreenSingle()
                 // Check if we should use syntax highlighting
                 if(isCppFile() || isMlaFile() || isRobotFile() ||
                    isPythonFile() || isCMakeFile() || isShellFile() ||
+                   isHtmlFile() || isMarkupTextFile() ||
                    (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml) ||
                    isTomlFile())
                 {
@@ -1356,6 +1359,7 @@ void Editor::drawSplitFullScreen()
 
             if(isCppFile() || isMlaFile() || isRobotFile() ||
                isPythonFile() || isCMakeFile() || isShellFile() ||
+               isHtmlFile() || isMarkupTextFile() ||
                (isJsonFile() && syntaxJson) || (isYamlFile() && syntaxYaml) ||
                isTomlFile())
             {

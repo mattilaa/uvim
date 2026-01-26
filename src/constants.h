@@ -65,6 +65,19 @@ static constexpr std::array<std::string_view, 1> TOML_FILE_EXTENSIONS = {
     ".toml",
 };
 
+static constexpr std::array<std::string_view, 2> HTML_FILE_EXTENSIONS = {
+    ".html",
+    ".htm",
+};
+
+static constexpr std::array<std::string_view, 1> MARKUP_TEXT_EXTENSIONS = {
+    ".txt",
+};
+
+static constexpr std::array<std::string_view, 1> MARKUP_README_BASENAMES = {
+    "README.rd",
+};
+
 static constexpr std::array<std::string_view, 3> CMAKE_FILE_BASENAMES = {
     "CMakeLists.txt",
     "CMakeFiles.txt",

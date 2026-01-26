@@ -70,6 +70,15 @@ constexpr bool contains(std::string_view s, std::string_view needle) noexcept
     return s.find(needle) != std::string_view::npos;
 }
 
+inline std::string ascii_lower(std::string_view value)
+{
+    std::string out;
+    out.reserve(value.size());
+    for(char c : value)
+        out.push_back(ascii_tolower(c));
+    return out;
+}
+
 // --- UTF-8 appending (runtime; std::string mutation not constexpr in C++20)
 // ---
 

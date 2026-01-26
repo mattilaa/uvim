@@ -3,6 +3,7 @@
 #include "editor.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -529,6 +530,100 @@ bool Editor::isCMakeFile() const
                        constants::CMAKE_FILE_SUFFIXES.end(),
                        [&](std::string_view suffix)
                        { return ends_with(base, suffix); });
+}
+
+bool Editor::isHtmlFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+    std::string_view pathSv{*filename};
+    auto dot = pathSv.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = pathSv.substr(dot);
+    return std::any_of(constants::HTML_FILE_EXTENSIONS.begin(),
+                       constants::HTML_FILE_EXTENSIONS.end(),
+                       [&](std::string_view e)
+                       { return text_utils::iequals_ascii(ext, e); });
+}
+
+bool Editor::isMarkupTextFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+
+    std::string_view pathSv{*filename};
+    size_t slashPos = pathSv.find_last_of("/\\");
+    std::string_view base = (slashPos == std::string_view::npos)
+                                ? pathSv
+                                : pathSv.substr(slashPos + 1);
+    bool isReadmeMarkup =
+        std::any_of(constants::MARKUP_README_BASENAMES.begin(),
+                    constants::MARKUP_README_BASENAMES.end(),
+                    [&](std::string_view name)
+                    { return text_utils::iequals_ascii(base, name); });
+    if(isReadmeMarkup)
+        return true;
+
+    auto dot = base.find_last_of('.');
+    if(dot == std::string_view::npos)
+        return false;
+    std::string_view ext = base.substr(dot);
+    bool isTxt = std::any_of(constants::MARKUP_TEXT_EXTENSIONS.begin(),
+                             constants::MARKUP_TEXT_EXTENSIONS.end(),
+                             [&](std::string_view e)
+                             { return text_utils::iequals_ascii(ext, e); });
+    if(!isTxt)
+        return false;
+
+    if(!lines || lines->empty())
+        return false;
+
+    // Heuristic: look for common markup cues in first ~50 lines.
+    const int maxLines = std::min<int>(50, lines->size());
+    for(int i = 0; i < maxLines; ++i)
+    {
+        std::string_view ln{(*lines)[i]};
+        if(ln.empty())
+            continue;
+        if(ln.starts_with("#") || ln.starts_with("##") || ln.starts_with("```") ||
+           ln.starts_with("~~~") || ln.starts_with("* ") ||
+           ln.starts_with("- ") || ln.starts_with("+ "))
+        {
+            return true;
+        }
+        if(ln.size() > 2 && text_utils::is_digit(ln[0]) && ln[1] == '.' &&
+           ln[2] == ' ')
+        {
+            return true;
+        }
+        if(ln.find("**") != std::string_view::npos ||
+           ln.find("`") != std::string_view::npos ||
+           ln.find("[") != std::string_view::npos &&
+               ln.find("]") != std::string_view::npos &&
+               ln.find("(") != std::string_view::npos &&
+               ln.find(")") != std::string_view::npos)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Editor::isRdocFile() const
+{
+    if(!filename || filename->empty())
+        return false;
+    std::string_view pathSv{*filename};
+    size_t slashPos = pathSv.find_last_of("/\\");
+    std::string_view base = (slashPos == std::string_view::npos)
+                                ? pathSv
+                                : pathSv.substr(slashPos + 1);
+    return std::any_of(constants::MARKUP_README_BASENAMES.begin(),
+                       constants::MARKUP_README_BASENAMES.end(),
+                       [&](std::string_view name)
+                       { return text_utils::iequals_ascii(base, name); });
 }
 
 bool Editor::isShellFile() const
@@ -1669,7 +1764,9 @@ std::string Editor::getColorCode(TokenType type) const
 std::vector<Token> Editor::tokenizeLine(const std::string& line,
                                         bool& inBlockComment,
                                         bool& inTomlMultiline,
-                                        char& tomlQuote) const
+                                        char& tomlQuote,
+                                        bool& inMarkupFence,
+                                        char& markupFenceChar) const
 {
     if(isRobotFile())
     {
@@ -2725,6 +2822,358 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
         return tokens;
     }
 
+    if(isMarkupTextFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+
+        if(len == 0)
+            return tokens;
+
+        int first = 0;
+        while(first < len && text_utils::is_space(sv[first]))
+            ++first;
+
+        auto is_escaped = [&](int pos) -> bool
+        {
+            if(pos <= 0)
+                return false;
+            int backslashes = 0;
+            int j = pos - 1;
+            while(j >= 0 && sv[j] == '\\')
+            {
+                ++backslashes;
+                --j;
+            }
+            return (backslashes % 2) == 1;
+        };
+
+        auto is_fence = [&](char fenceChar) -> bool
+        {
+            if(first + 2 >= len)
+                return false;
+            if(sv[first] != fenceChar || sv[first + 1] != fenceChar ||
+               sv[first + 2] != fenceChar)
+            {
+                return false;
+            }
+            return true;
+        };
+
+            if(inMarkupFence)
+            {
+                if(is_fence(markupFenceChar))
+                {
+                    inMarkupFence = false;
+                    tokens.push_back({markupFenceToken, first, len - first});
+                }
+                else
+                {
+                    tokens.push_back({markupCodeToken, 0, len});
+                }
+                return tokens;
+            }
+
+        if(first < len)
+        {
+            if(sv.substr(first).starts_with("```") ||
+               sv.substr(first).starts_with("~~~"))
+            {
+                tokens.push_back({TOKEN_PREPROCESSOR, first, len - first});
+                inMarkupFence = true;
+                markupFenceChar = sv[first];
+                return tokens;
+            }
+
+            if(sv[first] == '#')
+            {
+                tokens.push_back({markupHeadingToken, first, len - first});
+                return tokens;
+            }
+
+            if(sv[first] == '>')
+            {
+                tokens.push_back({markupBlockquoteToken, first, len - first});
+                return tokens;
+            }
+
+            if(sv[first] == '=')
+            {
+                int j = first;
+                while(j < len && sv[j] == '=')
+                    ++j;
+                if(j < len && text_utils::is_space(sv[j]))
+                {
+                    TokenType t =
+                        isRdocFile() ? markupRdocTopicToken : markupHeadingToken;
+                    tokens.push_back({t, first, len - first});
+                    return tokens;
+                }
+            }
+
+            if((sv[first] == '*' || sv[first] == '-' || sv[first] == '+') &&
+               first + 1 < len && sv[first + 1] == ' ')
+            {
+                tokens.push_back({TOKEN_OPERATOR, first, 1});
+            }
+
+            if(text_utils::is_digit(sv[first]))
+            {
+                int j = first;
+                while(j < len && text_utils::is_digit(sv[j]))
+                    ++j;
+                if(j + 1 < len && sv[j] == '.' && sv[j + 1] == ' ')
+                {
+                    tokens.push_back({TOKEN_OPERATOR, first, j - first + 1});
+                }
+            }
+        }
+
+        int i = 0;
+        while(i < len)
+        {
+            if(sv[i] == '\\' && i + 1 < len)
+            {
+                i += 2;
+                continue;
+            }
+
+            if(sv[i] == '`')
+            {
+                int start = i++;
+                while(i < len && sv[i] != '`')
+                    ++i;
+                if(i < len)
+                    ++i;
+                tokens.push_back({markupCodeToken, start, i - start});
+                continue;
+            }
+
+            if((sv[i] == '*' || sv[i] == '_') && i + 1 < len)
+            {
+                char marker = sv[i];
+                int markerLen = (sv[i + 1] == marker) ? 2 : 1;
+                int start = i;
+                i += markerLen;
+                int contentStart = i;
+                while(i < len)
+                {
+                    if(i + markerLen - 1 < len)
+                    {
+                        bool match = true;
+                        for(int k = 0; k < markerLen; ++k)
+                        {
+                            if(sv[i + k] != marker ||
+                               is_escaped((int)i + k))
+                            {
+                                match = false;
+                                break;
+                            }
+                        }
+                        if(match)
+                        {
+                            TokenType t =
+                                (markerLen == 2) ? markupBoldToken
+                                                 : markupItalicToken;
+                            tokens.push_back({t, start, i + markerLen - start});
+                            i += markerLen;
+                            break;
+                        }
+                    }
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i == len && contentStart < len)
+                {
+                    i = contentStart;
+                }
+                continue;
+            }
+
+            if(sv[i] == '[')
+            {
+                int start = i++;
+                int depth = 1;
+                while(i < len && depth > 0)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                    {
+                        i += 2;
+                        continue;
+                    }
+                    if(sv[i] == '[')
+                    {
+                        ++depth;
+                        ++i;
+                        continue;
+                    }
+                    if(sv[i] == ']')
+                    {
+                        --depth;
+                        ++i;
+                        if(depth == 0)
+                            break;
+                        continue;
+                    }
+                    ++i;
+                }
+                if(i <= len)
+                    tokens.push_back({markupLinkTextToken, start, i - start});
+
+                int j = i;
+                while(j < len && text_utils::is_space(sv[j]))
+                    ++j;
+                if(j < len && sv[j] == '(')
+                {
+                    int pstart = j;
+                    ++j;
+                    while(j < len && text_utils::is_space(sv[j]))
+                        ++j;
+
+                    int urlStart = j;
+                    bool inQuote = false;
+                    char q = 0;
+                    int urlEnd = j;
+                    while(j < len)
+                    {
+                        if(!inQuote && (sv[j] == '"' || sv[j] == '\''))
+                            break;
+                        if(!inQuote && sv[j] == ')')
+                            break;
+                        if(sv[j] == '\\' && j + 1 < len)
+                            j += 2;
+                        else
+                            ++j;
+                        urlEnd = j;
+                    }
+                    if(urlEnd > urlStart)
+                    tokens.push_back(
+                        {markupLinkUrlToken, urlStart, urlEnd - urlStart});
+
+                    while(j < len && text_utils::is_space(sv[j]))
+                        ++j;
+                    if(j < len && (sv[j] == '"' || sv[j] == '\''))
+                    {
+                        char tq = sv[j];
+                        int tstart = j;
+                        ++j;
+                        while(j < len && (sv[j] != tq || is_escaped(j)))
+                        {
+                            if(sv[j] == '\\' && j + 1 < len)
+                                j += 2;
+                            else
+                                ++j;
+                        }
+                        if(j < len)
+                            ++j;
+                        tokens.push_back(
+                            {markupLinkTitleToken, tstart, j - tstart});
+                    }
+
+                    while(j < len && sv[j] != ')')
+                    {
+                        if(sv[j] == '\\' && j + 1 < len)
+                            j += 2;
+                        else
+                            ++j;
+                    }
+                    if(j < len && sv[j] == ')')
+                        ++j;
+                    tokens.push_back({TOKEN_OPERATOR, pstart, j - pstart});
+                    i = j;
+                }
+                continue;
+            }
+
+            if(sv[i] == '(')
+            {
+                int start = i++;
+                while(i < len && sv[i] != ')')
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
+    if(isHtmlFile())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        while(i < len)
+        {
+            if(i + 3 < len && sv.substr(i, 4) == "<!--")
+            {
+                int start = i;
+                i += 4;
+                while(i + 2 < len && sv.substr(i, 3) != "-->")
+                    ++i;
+                if(i + 2 < len)
+                    i += 3;
+                tokens.push_back({TOKEN_COMMENT, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '<')
+            {
+                int start = i++;
+                bool inQuote = false;
+                char quoteChar = 0;
+                while(i < len)
+                {
+                    if(!inQuote && (sv[i] == '"' || sv[i] == '\''))
+                    {
+                        inQuote = true;
+                        quoteChar = sv[i];
+                        int s = i++;
+                        while(i < len && sv[i] != quoteChar)
+                        {
+                            if(sv[i] == '\\' && i + 1 < len)
+                                i += 2;
+                            else
+                                ++i;
+                        }
+                        if(i < len)
+                            ++i;
+                        tokens.push_back({TOKEN_STRING, s, i - s});
+                        continue;
+                    }
+                    if(inQuote && sv[i] == quoteChar)
+                        inQuote = false;
+                    if(!inQuote && sv[i] == '>')
+                    {
+                        ++i;
+                        break;
+                    }
+                    ++i;
+                }
+                tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
     if(isJsonFile() || isYamlFile() || isTomlFile())
     {
         std::vector<Token> tokens;
@@ -3337,6 +3786,8 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
     bool blockCommentState = false;
     bool tomlMultilineState = false;
     char tomlQuote = 0;
+    bool markupFenceState = false;
+    char markupFenceChar = 0;
     if(isCppFile() || isMlaFile())
     {
         for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
@@ -3395,10 +3846,47 @@ void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
             scanLineForTomlMultiline((*lines)[i], tomlMultilineState, tomlQuote);
         }
     }
+    if(isMarkupTextFile())
+    {
+        auto scanLineForMarkupFence = [](const std::string& scanLine,
+                                         bool& inFence,
+                                         char& fenceChar)
+        {
+            size_t i = 0;
+            while(i < scanLine.size() &&
+                  text_utils::is_space(scanLine[i]))
+            {
+                ++i;
+            }
+            if(i + 2 >= scanLine.size())
+                return;
+            char c = scanLine[i];
+            if((c == '`' || c == '~') && scanLine[i + 1] == c &&
+               scanLine[i + 2] == c)
+            {
+                if(!inFence)
+                {
+                    inFence = true;
+                    fenceChar = c;
+                }
+                else if(fenceChar == c)
+                {
+                    inFence = false;
+                }
+            }
+        };
+
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scanLineForMarkupFence((*lines)[i], markupFenceState,
+                                   markupFenceChar);
+        }
+    }
 
     // Now tokenize the current line
     std::vector<Token> tokens =
-        tokenizeLine(line, blockCommentState, tomlMultilineState, tomlQuote);
+        tokenizeLine(line, blockCommentState, tomlMultilineState, tomlQuote,
+                     markupFenceState, markupFenceChar);
 
     std::vector<TokenType> charColors(len, TOKEN_NORMAL);
 
