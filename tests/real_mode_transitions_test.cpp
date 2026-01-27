@@ -57,3 +57,32 @@ TEST(RealModeTransitionsTest, DoubleEscClearsStatusMessageInWelcome)
     sm.dispatch(Terminal::ESC);
     EXPECT_TRUE(editor.statusMessage.empty());
 }
+
+TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.useSystemClipboard = false;
+    editor.currentBuffer->lines = {"one two three"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch('v');
+    sm.dispatch('l');
+    sm.dispatch('l');
+    sm.dispatch('y');
+
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    sm.dispatch('v');
+    sm.dispatch('l');
+    sm.dispatch('l');
+    sm.dispatch('p');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "one one three");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}

@@ -83,6 +83,21 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             }
             return NormalMode{};
         }
+        if(c == 'p')
+        {
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            std::string clipboard = ed->getSystemClipboard();
+            if(clipboard.empty())
+            {
+                ctx.setStatusMessage("System clipboard is empty");
+                return std::nullopt;
+            }
+            ed->deleteSelection();
+            ed->yankBuffer = clipboard;
+            ed->pasteBefore();
+            return NormalMode{};
+        }
         if(c == ' ')
         {
             ctx.commandBuffer.clear();
@@ -284,6 +299,21 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         ed->yankSelection();
         return NormalMode{};
 
+    case 'p':
+    {
+        std::string pasteBuffer = ed->yankBuffer;
+        if(pasteBuffer.empty() && ed->useSystemClipboard)
+        {
+            pasteBuffer = ed->getSystemClipboard();
+        }
+        if(pasteBuffer.empty())
+            return std::nullopt;
+        ed->yankBuffer = pasteBuffer;
+        ed->deleteSelection();
+        ed->pasteBefore();
+        return NormalMode{};
+    }
+
     case 'c':
     {
         int nextChar = Terminal::readKeyTimeout(300);
@@ -443,6 +473,21 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             }
             return NormalMode{};
         }
+        if(c == 'p')
+        {
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            std::string clipboard = ed->getSystemClipboard();
+            if(clipboard.empty())
+            {
+                ctx.setStatusMessage("System clipboard is empty");
+                return std::nullopt;
+            }
+            ed->deleteLineSelection();
+            ed->yankBuffer = clipboard;
+            ed->pasteBefore();
+            return NormalMode{};
+        }
         if(c == ' ')
         {
             ctx.commandBuffer.clear();
@@ -553,6 +598,21 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     case 'y':
         ed->yankLineSelection();
         return NormalMode{};
+
+    case 'p':
+    {
+        std::string pasteBuffer = ed->yankBuffer;
+        if(pasteBuffer.empty() && ed->useSystemClipboard)
+        {
+            pasteBuffer = ed->getSystemClipboard();
+        }
+        if(pasteBuffer.empty())
+            return std::nullopt;
+        ed->deleteLineSelection();
+        ed->yankBuffer = pasteBuffer;
+        ed->pasteBefore();
+        return NormalMode{};
+    }
 
     case 'c':
     {
