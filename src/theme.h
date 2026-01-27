@@ -24,7 +24,7 @@ public:
         bool underline = false;
     };
 
-    static constexpr int kTokenTypeCount = TOKEN_FUNCTION + 1;
+    static constexpr int kTokenTypeCount = TOKEN_MEMBER + 1;
 
     Theme();
 

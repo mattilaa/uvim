@@ -40,7 +40,8 @@ set(UVIM_CORE_SOURCES
     src/cursor_movement.cpp
     src/text_operations.cpp
     src/search.cpp
-    src/syntax_highlighting.cpp
+    src/formatter.cpp
+    src/syntax_highlighter.cpp
     src/undo_redo.cpp
     src/drawing.cpp
     src/lsp_completion.cpp
@@ -273,6 +274,7 @@ if(UVIM_BUILD_TESTS)
     add_executable(real_mode_transitions_tests
         tests/real_mode_transitions_test.cpp
         tests/editor_filetype_test.cpp
+        tests/syntax_highlighter_test.cpp
         ${UVIM_TEST_SOURCES}
     )
     uvim_enable_sanitizers(real_mode_transitions_tests)

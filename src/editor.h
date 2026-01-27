@@ -1,5 +1,6 @@
 #pragma once
 #include "buffer.h"
+#include "file_type.h"
 #include "completion_entry.h"
 #include "file_entry.h"
 #include "jump_location.h"
@@ -24,6 +25,8 @@ class LspClient;
 
 class GitIgnore;
 class ModeStateMachine;
+class SyntaxHighlighter;
+class Formatter;
 
 struct MlangTokenCache
 {
@@ -34,23 +37,6 @@ struct MlangTokenCache
     std::string root;
     std::string configPath;
     std::string lspPath;
-};
-
-enum class FileType
-{
-    Cpp,
-    Mla,
-    Robot,
-    Python,
-    Json,
-    Yaml,
-    Toml,
-    Html,
-    Xml,
-    MarkupText,
-    Rdoc,
-    CMake,
-    Shell,
 };
 
 class Editor
@@ -93,6 +79,8 @@ public:
     // JumpLocation struct is now in jump_location.h
 
     bool visualBlockChanging = false;
+    std::unique_ptr<SyntaxHighlighter> syntaxHighlighter;
+    std::unique_ptr<Formatter> formatter;
     // Buffer management
     std::vector<std::unique_ptr<Buffer>> buffers;
     int currentBufferIndex = -1;
@@ -373,6 +361,9 @@ public:
     bool syntaxRobotKeywords = true;
     bool syntaxRobotHighlightTitles = true;
     bool syntaxRobotHighlightCalls = true;
+    bool syntaxCppHighlightMembers = true;
+    bool syntaxCppHighlightTypeNames = true;
+    bool syntaxCppHighlightImplicitMembers = true;
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
     std::unordered_set<std::string> robotSettingSet;

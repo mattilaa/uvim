@@ -12,7 +12,8 @@ enum TokenType
     TOKEN_PREPROCESSOR,
     TOKEN_NUMBER,
     TOKEN_OPERATOR,
-    TOKEN_FUNCTION
+    TOKEN_FUNCTION,
+    TOKEN_MEMBER
 };
 
 // Token structure for syntax highlighting

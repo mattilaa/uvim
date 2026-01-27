@@ -1,0 +1,2172 @@
+#include "syntax_highlighter.h"
+#include "constants.h"
+#include "cpp_constants.h"
+#include "editor.h"
+#include "text_utils.h"
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <sstream>
+#include <unordered_set>
+
+template <class Arr>
+inline bool contains_sorted(const Arr& arr, std::string_view s)
+{
+    return std::ranges::binary_search(arr, s);
+}
+
+inline bool is_two_char_op(char a, char b) noexcept
+{
+    switch(a)
+    {
+    case '+':
+        return (b == '+' || b == '=');
+    case '-':
+        return (b == '-' || b == '=' || b == '>');
+    case '&':
+        return (b == '&');
+    case '|':
+        return (b == '|');
+    case '=':
+        return (b == '=');
+    case '!':
+        return (b == '=');
+    case '<':
+        return (b == '<' || b == '=');
+    case '>':
+        return (b == '>' || b == '=');
+    case ':':
+        return (b == ':');
+    case '.':
+        // treats ".." as two-char; "..." will become ".." + "."
+        return (b == '.');
+    case '*':
+        return (b == '=');
+    case '/':
+        return (b == '=');
+    case '%':
+        return (b == '=');
+    default:
+        return false;
+    }
+}
+
+namespace
+{
+std::string ascii_lower(std::string_view value)
+{
+    std::string out;
+    out.reserve(value.size());
+    for(char c : value)
+        out.push_back(text_utils::ascii_tolower(c));
+    return out;
+}
+
+std::optional<TokenType> parse_token_type(std::string_view value)
+{
+    const std::string type = ascii_lower(value);
+    if(type == "normal")
+        return TOKEN_NORMAL;
+    if(type == "keyword")
+        return TOKEN_KEYWORD;
+    if(type == "type")
+        return TOKEN_TYPE;
+    if(type == "string")
+        return TOKEN_STRING;
+    if(type == "char")
+        return TOKEN_CHAR;
+    if(type == "comment")
+        return TOKEN_COMMENT;
+    if(type == "preprocessor")
+        return TOKEN_PREPROCESSOR;
+    if(type == "number")
+        return TOKEN_NUMBER;
+    if(type == "operator")
+        return TOKEN_OPERATOR;
+    if(type == "function" || type == "builtin")
+        return TOKEN_FUNCTION;
+    if(type == "constant" || type == "literal" || type == "bool")
+        return TOKEN_KEYWORD;
+    return std::nullopt;
+}
+
+struct CppMethodScanState
+{
+    bool inBlockComment = false;
+    bool inMethod = false;
+    bool pendingMethod = false;
+    int braceDepth = 0;
+    int methodBraceDepth = 0;
+};
+
+void scan_line_for_cpp_method_context(
+    const std::string& line,
+    const std::unordered_set<std::string>& classNames,
+    CppMethodScanState& state, bool* lineHasMethodStart)
+{
+    size_t i = 0;
+    const size_t len = line.size();
+    while(i < len)
+    {
+        if(state.inBlockComment)
+        {
+            size_t closePos = line.find("*/", i);
+            if(closePos == std::string::npos)
+                return;
+            state.inBlockComment = false;
+            i = closePos + 2;
+            continue;
+        }
+
+        char c = line[i];
+        if(c == '/' && i + 1 < len && line[i + 1] == '/')
+            return;
+        if(c == '/' && i + 1 < len && line[i + 1] == '*')
+        {
+            state.inBlockComment = true;
+            i += 2;
+            continue;
+        }
+        if(c == '"' || c == '\'')
+        {
+            char quote = c;
+            ++i;
+            while(i < len)
+            {
+                if(line[i] == '\\' && i + 1 < len)
+                {
+                    i += 2;
+                    continue;
+                }
+                if(line[i] == quote)
+                {
+                    ++i;
+                    break;
+                }
+                ++i;
+            }
+            continue;
+        }
+        if(c == '{')
+        {
+            ++state.braceDepth;
+            if(state.pendingMethod)
+            {
+                state.inMethod = true;
+                state.methodBraceDepth = state.braceDepth;
+                state.pendingMethod = false;
+                if(lineHasMethodStart)
+                    *lineHasMethodStart = true;
+            }
+            ++i;
+            continue;
+        }
+        if(c == '}')
+        {
+            if(state.inMethod && state.braceDepth == state.methodBraceDepth)
+                state.inMethod = false;
+            if(state.braceDepth > 0)
+                --state.braceDepth;
+            ++i;
+            continue;
+        }
+        if(c == ';')
+        {
+            if(state.pendingMethod)
+                state.pendingMethod = false;
+            ++i;
+            continue;
+        }
+        if(text_utils::is_alpha(c) || c == '_')
+        {
+            size_t start = i;
+            ++i;
+            while(i < len && (text_utils::is_alpha(line[i]) ||
+                              text_utils::is_digit(line[i]) ||
+                              line[i] == '_'))
+            {
+                ++i;
+            }
+            std::string_view ident(line.data() + start, i - start);
+            if(!classNames.empty() &&
+               classNames.find(std::string(ident)) != classNames.end())
+            {
+                size_t j = i;
+                while(j < len && text_utils::is_space(line[j]))
+                    ++j;
+                if(j + 1 < len && line[j] == ':' && line[j + 1] == ':')
+                {
+                    j += 2;
+                    while(j < len && text_utils::is_space(line[j]))
+                        ++j;
+                    if(j < len && (text_utils::is_alpha(line[j]) ||
+                                   line[j] == '_' || line[j] == '~'))
+                    {
+                        ++j;
+                        while(j < len &&
+                              (text_utils::is_alpha(line[j]) ||
+                               text_utils::is_digit(line[j]) ||
+                               line[j] == '_'))
+                        {
+                            ++j;
+                        }
+                        while(j < len && text_utils::is_space(line[j]))
+                            ++j;
+                        if(j < len && line[j] == '(')
+                            state.pendingMethod = true;
+                    }
+                }
+            }
+            continue;
+        }
+        ++i;
+    }
+}
+
+std::filesystem::path find_mlang_root(const std::filesystem::path& start)
+{
+    std::error_code ec;
+    std::filesystem::path dir = start.empty() ? std::filesystem::current_path(ec)
+                                              : start;
+    if(ec)
+        return {};
+
+    for(;;)
+    {
+        if(std::filesystem::exists(dir / ".mlangd", ec))
+            return dir;
+        if(dir.has_parent_path())
+        {
+            auto parent = dir.parent_path();
+            if(parent == dir)
+                break;
+            dir = parent;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return std::filesystem::current_path(ec);
+}
+
+struct MlangConfig
+{
+    std::string commandsJson;
+    std::string buildDir;
+    bool caseInsensitive = false;
+    bool caseInsensitiveSet = false;
+};
+
+MlangConfig parse_mlangd(const std::filesystem::path& path)
+{
+    MlangConfig cfg;
+    std::ifstream in(path);
+    if(!in)
+        return cfg;
+
+    std::string contents((std::istreambuf_iterator<char>(in)),
+                         std::istreambuf_iterator<char>());
+    if(contents.empty())
+        return cfg;
+
+    auto trim = [](std::string& s)
+    {
+        size_t start = 0;
+        while(start < s.size() && text_utils::is_space(s[start]))
+            ++start;
+        size_t end = s.size();
+        while(end > start && text_utils::is_space(s[end - 1]))
+            --end;
+        s = s.substr(start, end - start);
+    };
+
+    // JSON format
+    if(!contents.empty() && contents.find('{') != std::string::npos)
+    {
+        nlohmann::json root = nlohmann::json::parse(contents, nullptr, false);
+        if(!root.is_discarded() && root.is_object())
+        {
+            cfg.commandsJson = root.value("commands_json", std::string{});
+            cfg.buildDir = root.value("build_dir", std::string{});
+            if(root.contains("case_insensitive"))
+            {
+                cfg.caseInsensitive = root.value("case_insensitive", false);
+                cfg.caseInsensitiveSet = true;
+            }
+        }
+        return cfg;
+    }
+
+    // key=value format
+    std::istringstream iss(contents);
+    std::string line;
+    while(std::getline(iss, line))
+    {
+        trim(line);
+        if(line.empty())
+            continue;
+        if(line.starts_with("#") || line.starts_with("//"))
+            continue;
+        auto pos = line.find('=');
+        if(pos == std::string::npos)
+            continue;
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+        trim(key);
+        trim(value);
+        if(key == "commands_json")
+            cfg.commandsJson = value;
+        else if(key == "build_dir")
+            cfg.buildDir = value;
+        else if(key == "case_insensitive")
+        {
+            cfg.caseInsensitive =
+                (value == "1" || value == "true" || value == "yes");
+            cfg.caseInsensitiveSet = true;
+        }
+    }
+
+    return cfg;
+}
+} // namespace
+
+SyntaxHighlighter::SyntaxHighlighter(Editor* editor) : editor(editor) {}
+
+void SyntaxHighlighter::ensureCppMemberIndex() const
+{
+    if(cppMemberIndexLoaded)
+        return;
+    cppMemberIndexLoaded = true;
+    cppMemberNames.clear();
+    cppClassNames.clear();
+
+    if(!editor)
+        return;
+
+    std::filesystem::path root =
+        editor->projectRoot.empty()
+            ? std::filesystem::current_path()
+            : std::filesystem::path(editor->projectRoot);
+    std::error_code ec;
+    if(root.empty() || !std::filesystem::exists(root, ec))
+        return;
+
+    auto is_header = [](const std::filesystem::path& path) -> bool
+    {
+        std::string ext = path.extension().string();
+        for(char& c : ext)
+            c = (char)std::tolower((unsigned char)c);
+        return ext == ".h" || ext == ".hpp" || ext == ".hxx" || ext == ".hh" ||
+               ext == ".inl" || ext == ".tpp";
+    };
+
+    auto is_skip_dir = [](const std::filesystem::path& path) -> bool
+    {
+        std::string name = path.filename().string();
+        return name == ".git" || name == ".venv" || name == "build" ||
+               name == "node_modules" || name == "dist" || name == "out";
+    };
+
+    bool inBlockComment = false;
+    for(std::filesystem::recursive_directory_iterator it(
+            root, std::filesystem::directory_options::skip_permission_denied,
+            ec),
+        end;
+        it != end; ++it)
+    {
+        if(it->is_directory(ec) && is_skip_dir(it->path()))
+        {
+            it.disable_recursion_pending();
+            continue;
+        }
+        if(!it->is_regular_file(ec))
+            continue;
+        if(!is_header(it->path()))
+            continue;
+
+        std::ifstream in(it->path());
+        if(!in)
+            continue;
+
+        bool inClass = false;
+        int braceDepth = 0;
+        std::string line;
+        while(std::getline(in, line))
+        {
+            if(!line.empty() && line.back() == '\r')
+                line.pop_back();
+
+            // strip comments
+            std::string cleaned;
+            cleaned.reserve(line.size());
+            for(size_t i = 0; i < line.size(); ++i)
+            {
+                if(inBlockComment)
+                {
+                    if(i + 1 < line.size() && line[i] == '*' &&
+                       line[i + 1] == '/')
+                    {
+                        inBlockComment = false;
+                        ++i;
+                    }
+                    continue;
+                }
+                if(i + 1 < line.size() && line[i] == '/' &&
+                   line[i + 1] == '*')
+                {
+                    inBlockComment = true;
+                    ++i;
+                    continue;
+                }
+                if(i + 1 < line.size() && line[i] == '/' &&
+                   line[i + 1] == '/')
+                {
+                    break;
+                }
+                cleaned.push_back(line[i]);
+            }
+
+            if(cleaned.empty())
+                continue;
+
+            auto has_keyword = [&](std::string_view kw) -> bool
+            {
+                return cleaned.find(kw) != std::string::npos;
+            };
+
+            if(!inClass)
+            {
+                if((has_keyword("class ") || has_keyword("struct ")) &&
+                   cleaned.find('{') != std::string::npos)
+                {
+                    inClass = true;
+                    braceDepth = 0;
+                    size_t pos = cleaned.find("class ");
+                    size_t skip = 6;
+                    if(pos == std::string::npos)
+                    {
+                        pos = cleaned.find("struct ");
+                        skip = 7;
+                    }
+                    if(pos != std::string::npos)
+                    {
+                        size_t i = pos + skip;
+                        while(i < cleaned.size() &&
+                              text_utils::is_space(cleaned[i]))
+                            ++i;
+                        size_t start = i;
+                        while(i < cleaned.size() &&
+                              (text_utils::is_alpha(cleaned[i]) ||
+                               text_utils::is_digit(cleaned[i]) ||
+                               cleaned[i] == '_'))
+                        {
+                            ++i;
+                        }
+                        if(i > start)
+                            cppClassNames.insert(
+                                std::string(cleaned.substr(start, i - start)));
+                    }
+                }
+            }
+
+            bool parseMembers = inClass;
+            for(char c : cleaned)
+            {
+                if(c == '{')
+                    ++braceDepth;
+                else if(c == '}')
+                    --braceDepth;
+            }
+            bool classEnded = inClass && braceDepth <= 0;
+
+            auto finalize_line = [&]() {
+                if(classEnded)
+                    inClass = false;
+            };
+
+            if(!parseMembers)
+            {
+                finalize_line();
+                continue;
+            }
+
+            std::string_view memberLine(cleaned);
+            size_t bracePos = memberLine.rfind('{');
+            if(bracePos != std::string_view::npos)
+                memberLine = memberLine.substr(bracePos + 1);
+            size_t closePos = memberLine.find('}');
+            if(closePos != std::string_view::npos)
+                memberLine = memberLine.substr(0, closePos);
+
+            if(has_keyword("typedef") || has_keyword("using ") ||
+               has_keyword("enum ") || has_keyword("template"))
+            {
+                finalize_line();
+                continue;
+            }
+
+            size_t segStart = 0;
+            bool foundSemi = false;
+            while(segStart < memberLine.size())
+            {
+                size_t semi = memberLine.find(';', segStart);
+                if(semi == std::string_view::npos)
+                    break;
+                foundSemi = true;
+                std::string_view stmt = memberLine.substr(segStart, semi - segStart);
+                if(stmt.find('(') != std::string_view::npos)
+                {
+                    segStart = semi + 1;
+                    continue;
+                }
+
+                auto eq = stmt.find('=');
+                if(eq != std::string_view::npos)
+                    stmt = stmt.substr(0, eq);
+
+                // split by commas to catch "int a, b"
+                size_t start = 0;
+                while(start < stmt.size())
+                {
+                    size_t comma = stmt.find(',', start);
+                    std::string_view part =
+                        stmt.substr(start, comma == std::string::npos
+                                                 ? std::string::npos
+                                                 : comma - start);
+                    // find last identifier
+                    int i = (int)part.size() - 1;
+                    while(i >= 0 && text_utils::is_space(part[i]))
+                        --i;
+                    int end = i;
+                    while(i >= 0 &&
+                          (text_utils::is_alpha(part[i]) ||
+                           text_utils::is_digit(part[i]) || part[i] == '_'))
+                    {
+                        --i;
+                    }
+                    int begin = i + 1;
+                    if(begin <= end)
+                    {
+                        std::string name(part.substr(begin, end - begin + 1));
+                        if(!name.empty())
+                            cppMemberNames.insert(name);
+                    }
+                    if(comma == std::string::npos)
+                        break;
+                    start = comma + 1;
+                }
+                segStart = semi + 1;
+            }
+
+            if(!foundSemi)
+            {
+                finalize_line();
+                continue;
+            }
+
+            finalize_line();
+        }
+    }
+}
+
+bool SyntaxHighlighter::isFileType(FileType type) const
+{
+    if(!editor)
+        return false;
+    std::string_view pathSv;
+    if(editor->filename && !editor->filename->empty())
+    {
+        pathSv = *editor->filename;
+    }
+    else if(editor->currentBuffer && !editor->currentBuffer->filename.empty())
+    {
+        pathSv = editor->currentBuffer->filename;
+    }
+    else
+    {
+        return false;
+    }
+
+    switch(type)
+    {
+    case FileType::Cpp:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::cpp_suffixes,
+                                      constants::cpp_stdlib_patterns>(pathSv);
+    }
+    case FileType::Mla:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::mla_suffixes>(pathSv);
+    }
+    case FileType::Robot:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::robot_suffixes>(pathSv);
+    }
+    case FileType::Python:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::python_suffixes>(pathSv);
+    }
+    case FileType::Json:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::json_suffixes>(pathSv);
+    }
+    case FileType::Yaml:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::yaml_suffixes>(pathSv);
+    }
+    case FileType::Toml:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::toml_suffixes>(pathSv);
+    }
+    case FileType::Html:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::html_suffixes>(pathSv);
+    }
+    case FileType::Xml:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::xml_suffixes>(pathSv);
+    }
+    case FileType::MarkupText:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+        bool isReadmeMarkup =
+            std::any_of(constants::markup_readme_basenames.begin(),
+                        constants::markup_readme_basenames.end(),
+                        [&](std::string_view name)
+                        { return text_utils::iequals_ascii(base, name); });
+        if(isReadmeMarkup)
+            return true;
+
+        auto dot = base.find_last_of('.');
+        if(dot == std::string_view::npos)
+            return false;
+        std::string_view ext = base.substr(dot);
+        bool isMarkup =
+            constants::matches_file_patterns(ext,
+                                             constants::markup_text_suffixes);
+        if(!isMarkup)
+            return false;
+
+        if(text_utils::iequals_ascii(ext, ".rd") ||
+           text_utils::iequals_ascii(ext, ".rdoc") ||
+           text_utils::iequals_ascii(ext, ".md") ||
+           text_utils::iequals_ascii(ext, ".markdown"))
+        {
+            return true;
+        }
+
+        if(!editor->lines || editor->lines->empty())
+            return false;
+
+        const int maxLines = std::min<int>(50, editor->lines->size());
+        for(int i = 0; i < maxLines; ++i)
+        {
+            std::string_view ln{(*editor->lines)[i]};
+            if(ln.empty())
+                continue;
+            if(ln.starts_with("#") || ln.starts_with("##") ||
+               ln.starts_with("```") || ln.starts_with("~~~") ||
+               ln.starts_with("* ") || ln.starts_with("- ") ||
+               ln.starts_with("+ "))
+            {
+                return true;
+            }
+            if(ln.size() > 2 && text_utils::is_digit(ln[0]) && ln[1] == '.' &&
+               ln[2] == ' ')
+            {
+                return true;
+            }
+            if(ln.find("**") != std::string_view::npos ||
+               ln.find("`") != std::string_view::npos ||
+               ln.find("[") != std::string_view::npos &&
+                   ln.find("]") != std::string_view::npos &&
+                   ln.find("(") != std::string_view::npos &&
+                   ln.find(")") != std::string_view::npos)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    case FileType::Rdoc:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+        bool isReadme =
+            std::any_of(constants::markup_readme_basenames.begin(),
+                        constants::markup_readme_basenames.end(),
+                        [&](std::string_view name)
+                        { return text_utils::iequals_ascii(base, name); });
+        if(isReadme)
+            return true;
+
+        auto dot = base.find_last_of('.');
+        if(dot == std::string_view::npos)
+            return false;
+        std::string_view ext = base.substr(dot);
+        return text_utils::iequals_ascii(ext, ".rd") ||
+               text_utils::iequals_ascii(ext, ".rdoc");
+    }
+    case FileType::CMake:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+        return constants::is_filetype<constants::cmake_prefixes,
+                                      constants::cmake_suffixes>(base);
+    }
+    case FileType::Shell:
+    {
+        size_t slashPos = pathSv.find_last_of("/\\");
+        std::string_view base = (slashPos == std::string_view::npos)
+                                    ? pathSv
+                                    : pathSv.substr(slashPos + 1);
+
+        bool hasShellExtension =
+            constants::is_filetype<constants::no_pattern,
+                                   constants::shell_suffixes>(base);
+        if(hasShellExtension)
+        {
+            return true;
+        }
+
+        bool hasShellBasename =
+            std::any_of(constants::shell_basenames.begin(),
+                        constants::shell_basenames.end(),
+                        [&](std::string_view name)
+                        { return text_utils::iequals_ascii(base, name); });
+        if(hasShellBasename)
+        {
+            return true;
+        }
+
+        if(editor->lines && !editor->lines->empty())
+        {
+            std::string_view first{(*editor->lines)[0]};
+            if(first.starts_with("#!"))
+            {
+                bool hasShell = std::any_of(
+                    constants::shell_shebang_hints.begin(),
+                    constants::shell_shebang_hints.end(),
+                    [&](std::string_view hint)
+                    { return text_utils::contains(first, hint); });
+                if(!hasShell)
+                {
+                    if(first.find("/sh") != std::string_view::npos ||
+                       first.find(" sh") != std::string_view::npos)
+                    {
+                        hasShell = true;
+                    }
+                }
+                if(hasShell)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+    }
+    return false;
+}
+
+void SyntaxHighlighter::ensureMlangTokensLoaded() const
+{
+    if(!editor || !editor->mlangTokenCache)
+        return;
+
+    auto& cache = *editor->mlangTokenCache;
+    std::filesystem::path start = editor->projectRoot.empty()
+                                      ? std::filesystem::path{}
+                                      : std::filesystem::path(editor->projectRoot);
+    std::filesystem::path root = find_mlang_root(start);
+    std::string rootStr = root.empty() ? std::string{} : root.string();
+    const bool hasExplicitLspPath =
+        !editor->mlangLspPath.empty() && editor->mlangLspPath != "mlangd";
+    const std::string effectiveLspPath =
+        hasExplicitLspPath ? editor->mlangLspPath : std::string{};
+
+    if(cache.loaded && cache.root == rootStr &&
+       cache.lspPath == effectiveLspPath)
+    {
+        return;
+    }
+
+    cache.loaded = true;
+    cache.available = false;
+    cache.caseInsensitive = false;
+    cache.tokenTypes.clear();
+    cache.root = rootStr;
+    cache.configPath.clear();
+    cache.lspPath = effectiveLspPath;
+
+    std::filesystem::path configPath;
+    MlangConfig cfg;
+    if(!rootStr.empty())
+    {
+        configPath = root / ".mlangd";
+        cfg = parse_mlangd(configPath);
+        if(!cfg.commandsJson.empty() || !cfg.buildDir.empty() ||
+           cfg.caseInsensitiveSet)
+        {
+            cache.configPath = configPath.string();
+            if(cfg.caseInsensitiveSet)
+                cache.caseInsensitive = cfg.caseInsensitive;
+        }
+    }
+
+    auto resolve_path = [&](const std::string& value) -> std::filesystem::path
+    {
+        std::filesystem::path p(value);
+        if(p.empty())
+            return {};
+        if(p.is_relative() && !rootStr.empty())
+            p = root / p;
+        return p;
+    };
+
+    auto load_from_path = [&](const std::filesystem::path& path,
+                              bool allowJsonCase) -> bool
+    {
+        std::error_code ec;
+        if(!std::filesystem::exists(path, ec))
+            return false;
+
+        std::ifstream in(path);
+        if(!in)
+            return false;
+
+        nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
+        if(root.is_discarded())
+            return false;
+
+        if(allowJsonCase)
+            cache.caseInsensitive =
+                root.value("case_insensitive", cache.caseInsensitive);
+
+        auto add_tokens = [&](std::string_view typeName,
+                              const nlohmann::json& items)
+        {
+            auto tokenType = parse_token_type(typeName);
+            if(!tokenType || !items.is_array())
+                return;
+
+            for(const auto& item : items)
+            {
+                if(!item.is_string())
+                    continue;
+                std::string key = item.get<std::string>();
+                if(cache.caseInsensitive)
+                    key = ascii_lower(key);
+                cache.tokenTypes[key] = *tokenType;
+            }
+        };
+
+        if(root.contains("tokens"))
+        {
+            const auto& tokens = root["tokens"];
+            if(tokens.is_array())
+            {
+                for(const auto& entry : tokens)
+                {
+                    if(!entry.is_object())
+                        continue;
+                    std::string type =
+                        entry.value("type", std::string{});
+                    add_tokens(type,
+                               entry.value("items", nlohmann::json::array()));
+                }
+            }
+            else if(tokens.is_object())
+            {
+                for(auto it = tokens.begin(); it != tokens.end(); ++it)
+                {
+                    add_tokens(it.key(), it.value());
+                }
+            }
+        }
+
+        cache.available = !cache.tokenTypes.empty();
+        return cache.available;
+    };
+
+    std::vector<std::filesystem::path> candidates;
+    if(!cfg.commandsJson.empty())
+        candidates.push_back(resolve_path(cfg.commandsJson));
+    else
+    {
+        std::string buildDir = cfg.buildDir.empty() ? "build" : cfg.buildDir;
+        if(!rootStr.empty())
+            candidates.push_back(root / buildDir / "mlang_commands.json");
+    }
+    if(hasExplicitLspPath)
+    {
+        std::filesystem::path lspPath = editor->mlangLspPath;
+        if(lspPath.is_relative())
+            lspPath = std::filesystem::absolute(lspPath);
+        std::filesystem::path dir = lspPath.parent_path();
+        if(!dir.empty())
+            candidates.push_back(dir / "mlang_commands.json");
+    }
+
+    candidates.push_back(std::filesystem::current_path() /
+                         "mlang_commands.json");
+
+    for(const auto& candidate : candidates)
+    {
+        if(load_from_path(candidate, !cfg.caseInsensitiveSet))
+            return;
+    }
+}
+
+std::optional<TokenType>
+SyntaxHighlighter::lookupMlangTokenType(std::string_view word) const
+{
+    ensureMlangTokensLoaded();
+    if(!editor || !editor->mlangTokenCache ||
+       !editor->mlangTokenCache->available)
+        return std::nullopt;
+
+    std::string key =
+        editor->mlangTokenCache->caseInsensitive ? ascii_lower(word)
+                                                 : std::string(word);
+    auto it = editor->mlangTokenCache->tokenTypes.find(key);
+    if(it == editor->mlangTokenCache->tokenTypes.end())
+        return std::nullopt;
+    return it->second;
+}
+
+std::string SyntaxHighlighter::getColorCode(TokenType type) const
+{
+    if(!editor)
+        return {};
+    return editor->theme.syntax(type);
+}
+
+std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
+                                                   bool& inBlockComment,
+                                                   bool& inTomlMultiline,
+                                                   char& tomlQuote,
+                                                   bool& inMarkupFence,
+                                                   char& markupFenceChar,
+                                                   bool inCppMethodContext) const
+{
+    if(!editor)
+        return {};
+
+    std::vector<Token> extraTypeTokens;
+
+    auto isRobotKeyword = [&](std::string_view word)
+    { return editor->isRobotKeyword(word); };
+    auto isRobotSetting = [&](std::string_view cell)
+    { return editor->isRobotSetting(cell); };
+    auto isRobotCustomKeyword = [&](std::string_view word)
+    { return editor->isRobotCustomKeyword(word); };
+    const bool syntaxRobotHighlightTitles = editor->syntaxRobotHighlightTitles;
+    const bool syntaxRobotHighlightCalls = editor->syntaxRobotHighlightCalls;
+    const bool syntaxJson = editor->syntaxJson;
+    const bool syntaxYaml = editor->syntaxYaml;
+    const bool syntaxRobotKeywords = editor->syntaxRobotKeywords;
+    const bool syntaxCppHighlightMembers = editor->syntaxCppHighlightMembers;
+    const bool syntaxCppHighlightTypeNames = editor->syntaxCppHighlightTypeNames;
+    const bool syntaxCppHighlightImplicitMembers =
+        editor->syntaxCppHighlightImplicitMembers;
+
+    if(isFileType<FileType::Cpp>())
+    {
+        size_t first = 0;
+        while(first < line.size() && text_utils::is_space(line[first]))
+            ++first;
+        if(first < line.size() && line[first] == '#')
+        {
+            return {{TOKEN_PREPROCESSOR, (int)first,
+                     (int)(line.size() - first)}};
+        }
+    }
+
+    if(isFileType<FileType::Robot>())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        int first = 0;
+        while(first < len && text_utils::is_space(sv[first]))
+            ++first;
+
+        if(first >= len)
+            return tokens;
+
+        std::string_view trimmed = sv.substr(first);
+        if(trimmed.starts_with("#"))
+        {
+            tokens.push_back({TOKEN_COMMENT, first, len - first});
+            return tokens;
+        }
+
+        if(trimmed.starts_with("***") && trimmed.ends_with("***"))
+        {
+            tokens.push_back({TOKEN_KEYWORD, first, len - first});
+            return tokens;
+        }
+
+        bool isContinuation = false;
+        if(trimmed.starts_with("..."))
+        {
+            tokens.push_back({TOKEN_OPERATOR, first, 3});
+            i = first + 3;
+            isContinuation = true;
+        }
+
+        if(sv[first] == '[')
+        {
+            size_t close = sv.find(']', (size_t)first + 1);
+            if(close != std::string_view::npos)
+            {
+                tokens.push_back(
+                    {TOKEN_KEYWORD, first, (int)(close - first + 1)});
+            }
+        }
+
+        auto is_keyword = [&](std::string_view word) -> bool
+        { return isRobotKeyword(word); };
+
+        auto parse_first_cell = [&](int start) -> std::pair<int, int>
+        {
+            int idx = start;
+            int spaceRun = 0;
+            for(; idx < len; ++idx)
+            {
+                if(sv[idx] == '\t')
+                    break;
+                if(sv[idx] == ' ')
+                {
+                    ++spaceRun;
+                    if(spaceRun >= 2)
+                        break;
+                }
+                else
+                {
+                    spaceRun = 0;
+                }
+            }
+            int end = idx;
+            if(end > start && sv[end - 1] == ' ')
+                --end;
+            if(end < start)
+                end = start;
+            return {start, end};
+        };
+
+        if(!isContinuation)
+        {
+            auto [cellStart, cellEnd] = parse_first_cell(first);
+            if(cellEnd > cellStart)
+            {
+                std::string_view cell = sv.substr(
+                    cellStart, static_cast<size_t>(cellEnd - cellStart));
+                bool isSettingCell = cell.starts_with('[');
+                bool highlightedCell = false;
+                if(isRobotSetting(cell))
+                {
+                    tokens.push_back(
+                        {TOKEN_KEYWORD, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
+                if(isRobotCustomKeyword(cell))
+                {
+                    tokens.push_back(
+                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
+                if(!highlightedCell && syntaxRobotHighlightTitles &&
+                   first == 0 && !isSettingCell)
+                {
+                    tokens.push_back(
+                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                    highlightedCell = true;
+                }
+                if(!highlightedCell && syntaxRobotHighlightCalls &&
+                   !isSettingCell)
+                {
+                    tokens.push_back(
+                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                }
+            }
+        }
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#' && (i == first || text_utils::is_space(sv[i - 1])))
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if((sv[i] == '$' || sv[i] == '@' || sv[i] == '&') && i + 1 < len &&
+               sv[i + 1] == '{')
+            {
+                int start = i;
+                i += 2;
+                while(i < len && sv[i] != '}')
+                    ++i;
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_TYPE, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '"' || sv[i] == '\'')
+            {
+                char quote = sv[i];
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            int start = i;
+            while(i < len && !text_utils::is_space(sv[i]) && sv[i] != '#')
+                ++i;
+            if(i > start)
+            {
+                std::string_view word = sv.substr(start, i - start);
+                if(syntaxRobotKeywords && is_keyword(word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
+            }
+        }
+
+        return tokens;
+    }
+
+    if(isFileType<FileType::Json>())
+    {
+        if(!syntaxJson)
+            return {};
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+        while(i < len)
+        {
+            char c = sv[i];
+
+            if(text_utils::is_space(c))
+            {
+                ++i;
+                continue;
+            }
+
+            if(c == '/' && i + 1 < len && sv[i + 1] == '/')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(c == '"')
+            {
+                int start = i++;
+                while(i < len && sv[i] != '"')
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if((c >= '0' && c <= '9') || c == '-')
+            {
+                int start = i++;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                                  sv[i] == 'e' || sv[i] == 'E' ||
+                                  sv[i] == '+' || sv[i] == '-'))
+                {
+                    ++i;
+                }
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(std::isalpha(static_cast<unsigned char>(c)))
+            {
+                int start = i++;
+                while(i < len &&
+                      std::isalpha(static_cast<unsigned char>(sv[i])))
+                {
+                    ++i;
+                }
+                std::string_view word = sv.substr(start, i - start);
+                if(word == "true" || word == "false" || word == "null")
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
+                continue;
+            }
+
+            if(std::string_view("{}[]:,.").find(c) != std::string_view::npos)
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
+        return tokens;
+    }
+
+    if(isFileType<FileType::Yaml>())
+    {
+        if(!syntaxYaml)
+            return {};
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(sv[i] == '\'' || sv[i] == '"')
+            {
+                char quote = sv[i];
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            int start = i;
+            while(i < len && !text_utils::is_space(sv[i]) && sv[i] != ':')
+                ++i;
+            if(i < len && sv[i] == ':')
+            {
+                tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            if(i > start)
+            {
+                std::string_view word = sv.substr(start, i - start);
+                if(word == "true" || word == "false" || word == "null")
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                }
+            }
+        }
+        return tokens;
+    }
+
+    if(isFileType<FileType::Toml>())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        while(i < len)
+        {
+            if(text_utils::is_space(sv[i]))
+            {
+                ++i;
+                continue;
+            }
+
+            if(sv[i] == '#')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+
+            if(sv[i] == '[')
+            {
+                int start = i++;
+                if(i < len && sv[i] == '[')
+                    ++i;
+                while(i < len && sv[i] != ']')
+                    ++i;
+                if(i < len)
+                {
+                    ++i;
+                    if(i < len && sv[i] == ']')
+                        ++i;
+                }
+                tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                continue;
+            }
+
+            if(sv[i] == '\'' || sv[i] == '"')
+            {
+                char quote = sv[i];
+                int start = i++;
+                if(i + 1 < len && sv[i] == quote && sv[i + 1] == quote)
+                {
+                    i += 2;
+                    inTomlMultiline = true;
+                    tomlQuote = quote;
+                }
+                while(i < len)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                    {
+                        i += 2;
+                        continue;
+                    }
+                    if(sv[i] == quote)
+                    {
+                        if(inTomlMultiline)
+                        {
+                            if(i + 2 < len && sv[i + 1] == quote &&
+                               sv[i + 2] == quote)
+                            {
+                                i += 3;
+                                inTomlMultiline = false;
+                                break;
+                            }
+                            ++i;
+                            continue;
+                        }
+                        ++i;
+                        break;
+                    }
+                    ++i;
+                }
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+
+            if(text_utils::is_digit(sv[i]) || sv[i] == '-' || sv[i] == '+')
+            {
+                int start = i++;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                                  sv[i] == 'e' || sv[i] == 'E' ||
+                                  sv[i] == '+' || sv[i] == '-'))
+                {
+                    ++i;
+                }
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+
+            if(std::string_view("=.,{}[]").find(sv[i]) != std::string_view::npos)
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            int start = i;
+            while(i < len && !text_utils::is_space(sv[i]) && sv[i] != '=')
+                ++i;
+            if(i < len && sv[i] == '=')
+            {
+                tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                continue;
+            }
+        }
+
+        return tokens;
+    }
+
+    std::vector<Token> tokens;
+    std::string_view sv{line};
+    const int len = static_cast<int>(sv.size());
+    int i = 0;
+
+    auto push_token = [&](TokenType type, int start, int length)
+    { tokens.push_back({type, start, length}); };
+
+    if(inBlockComment)
+    {
+        size_t end = sv.find("*/");
+        if(end != std::string_view::npos)
+        {
+            int len = (int)end + 2;
+            push_token(TOKEN_COMMENT, 0, len);
+            inBlockComment = false;
+            i = len;
+        }
+        else
+        {
+            push_token(TOKEN_COMMENT, 0, len);
+            return tokens;
+        }
+    }
+
+    if(inMarkupFence)
+    {
+        size_t fenceStart = line.find(markupFenceChar);
+        if(fenceStart != std::string::npos)
+        {
+            bool isFence = fenceStart + 2 < line.size() &&
+                           line[fenceStart + 1] == markupFenceChar &&
+                           line[fenceStart + 2] == markupFenceChar;
+            if(isFence)
+            {
+                push_token(TOKEN_KEYWORD, (int)fenceStart,
+                           (int)(line.size() - fenceStart));
+                inMarkupFence = false;
+                return tokens;
+            }
+        }
+        push_token(TOKEN_STRING, 0, len);
+        return tokens;
+    }
+
+    while(i < len)
+    {
+        char c = sv[i];
+
+        if(c == '/' && i + 1 < len)
+        {
+            if(sv[i + 1] == '/')
+            {
+                push_token(TOKEN_COMMENT, i, len - i);
+                break;
+            }
+            if(sv[i + 1] == '*')
+            {
+                int start = i;
+                i += 2;
+                size_t end = sv.find("*/", (size_t)i);
+                if(end != std::string_view::npos)
+                {
+                    int tokenLen = (int)end + 2 - start;
+                    push_token(TOKEN_COMMENT, start, tokenLen);
+                    i = start + tokenLen;
+                }
+                else
+                {
+                    push_token(TOKEN_COMMENT, start, len - start);
+                    inBlockComment = true;
+                    break;
+                }
+                continue;
+            }
+        }
+
+        if(c == '"' || c == '\'')
+        {
+            char quote = c;
+            int start = i++;
+            bool isChar = (quote == '\'');
+            while(i < len)
+            {
+                if(sv[i] == '\\' && i + 1 < len)
+                {
+                    i += 2;
+                    continue;
+                }
+                if(sv[i] == quote)
+                {
+                    ++i;
+                    break;
+                }
+                ++i;
+            }
+            push_token(isChar ? TOKEN_CHAR : TOKEN_STRING, start, i - start);
+            continue;
+        }
+
+        if(c == '#' && isFileType<FileType::MarkupText>())
+        {
+            if(i + 1 < len && sv[i + 1] == '#')
+            {
+                push_token(TOKEN_KEYWORD, i, len - i);
+                break;
+            }
+            push_token(TOKEN_KEYWORD, i, len - i);
+            break;
+        }
+
+        if(text_utils::is_space(c))
+        {
+            ++i;
+            continue;
+        }
+
+        if(text_utils::is_digit(c))
+        {
+            int start = i++;
+            while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                              sv[i] == 'x' || sv[i] == 'X' ||
+                              sv[i] == 'b' || sv[i] == 'B' ||
+                              sv[i] == '_'))
+                ++i;
+            push_token(TOKEN_NUMBER, start, i - start);
+            continue;
+        }
+
+        if(text_utils::is_alpha(c) || c == '_' ||
+           (c == '#' && i + 1 < len && text_utils::is_alpha(sv[i + 1])))
+        {
+            int start = i++;
+            while(i < len &&
+                  (text_utils::is_alpha(sv[i]) || text_utils::is_digit(sv[i]) ||
+                   sv[i] == '_' || sv[i] == '#' || sv[i] == '@'))
+            {
+                ++i;
+            }
+
+            std::string_view word = sv.substr(start, i - start);
+            if(isFileType<FileType::Cpp>())
+            {
+                if(cpp_constants::is_keyword(word))
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    if(word == "template" && syntaxCppHighlightTypeNames)
+                    {
+                        size_t lt = sv.find('<', i);
+                        if(lt != std::string_view::npos)
+                        {
+                            int depth = 0;
+                            for(size_t j = lt; j < sv.size(); ++j)
+                            {
+                                char ch = sv[j];
+                                if(ch == '<')
+                                {
+                                    ++depth;
+                                    continue;
+                                }
+                                if(ch == '>')
+                                {
+                                    --depth;
+                                    if(depth <= 0)
+                                        break;
+                                    continue;
+                                }
+                                if(ch == '"' || ch == '\'')
+                                {
+                                    char quote = ch;
+                                    ++j;
+                                    while(j < sv.size())
+                                    {
+                                        if(sv[j] == '\\' && j + 1 < sv.size())
+                                        {
+                                            j += 2;
+                                            continue;
+                                        }
+                                        if(sv[j] == quote)
+                                            break;
+                                        ++j;
+                                    }
+                                    continue;
+                                }
+                                if(text_utils::is_alpha(ch) || ch == '_')
+                                {
+                                    size_t nameStart = j;
+                                    ++j;
+                                    while(j < sv.size() &&
+                                          (text_utils::is_alpha(sv[j]) ||
+                                           text_utils::is_digit(sv[j]) ||
+                                           sv[j] == '_'))
+                                    {
+                                        ++j;
+                                    }
+                                    std::string_view ident =
+                                        sv.substr(nameStart, j - nameStart);
+                                    if(ident != "typename" && ident != "class" &&
+                                       ident != "struct" && ident != "template")
+                                    {
+                                        extraTypeTokens.push_back(
+                                            {TOKEN_TYPE, (int)nameStart,
+                                             (int)(j - nameStart)});
+                                    }
+                                    --j;
+                                }
+                            }
+                        }
+                    }
+                    if(syntaxCppHighlightTypeNames &&
+                       (word == "class" || word == "struct" || word == "enum" ||
+                        word == "union" || word == "typedef" ||
+                        word == "using"))
+                    {
+                        int j = i;
+                        while(j < len && text_utils::is_space(sv[j]))
+                            ++j;
+                        if(j < len &&
+                           (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                        {
+                            int typeStart = j++;
+                            while(j < len &&
+                                  (text_utils::is_alpha(sv[j]) ||
+                                   text_utils::is_digit(sv[j]) || sv[j] == '_'))
+                            {
+                                ++j;
+                            }
+                            push_token(TOKEN_TYPE, typeStart, j - typeStart);
+                            i = j;
+                        }
+                    }
+                    continue;
+                }
+                if(cpp_constants::is_type(word))
+                {
+                    push_token(TOKEN_TYPE, start, i - start);
+                    if(syntaxCppHighlightMembers)
+                    {
+                        int j = i;
+                        while(j < len && text_utils::is_space(sv[j]))
+                            ++j;
+                        if(j < len &&
+                           (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                        {
+                            int nameStart = j++;
+                            while(j < len &&
+                                  (text_utils::is_alpha(sv[j]) ||
+                                   text_utils::is_digit(sv[j]) || sv[j] == '_'))
+                            {
+                                ++j;
+                            }
+                            int k = j;
+                            while(k < len && text_utils::is_space(sv[k]))
+                                ++k;
+                            bool hasParen = false;
+                            for(int t = k; t < len; ++t)
+                            {
+                                if(sv[t] == '(')
+                                {
+                                    hasParen = true;
+                                    break;
+                                }
+                                if(sv[t] == ';' || sv[t] == '=' || sv[t] == ',')
+                                    break;
+                            }
+                            if(!hasParen)
+                            {
+                                push_token(TOKEN_MEMBER, nameStart, j - nameStart);
+                                i = j;
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if(syntaxCppHighlightMembers)
+                {
+                    int p = start - 1;
+                    while(p >= 0 && text_utils::is_space(sv[p]))
+                        --p;
+                    if(p >= 0 && sv[p] == '.')
+                    {
+                        push_token(TOKEN_MEMBER, start, i - start);
+                        continue;
+                    }
+                    if(p >= 0 && sv[p] == '>' && p - 1 >= 0 && sv[p - 1] == '-')
+                    {
+                        push_token(TOKEN_MEMBER, start, i - start);
+                        continue;
+                    }
+                }
+                if(syntaxCppHighlightImplicitMembers && inCppMethodContext &&
+                   cppMemberNames.find(std::string(word)) !=
+                       cppMemberNames.end())
+                {
+                    push_token(TOKEN_MEMBER, start, i - start);
+                    continue;
+                }
+            }
+            else if(isFileType<FileType::Mla>())
+            {
+                if(auto mapped = lookupMlangTokenType(word))
+                {
+                    push_token(*mapped, start, i - start);
+                    continue;
+                }
+            }
+            else if(isFileType<FileType::MarkupText>())
+            {
+                if(word == "---" || word == "===")
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    continue;
+                }
+            }
+
+            if(word == "true" || word == "false" || word == "null")
+            {
+                push_token(TOKEN_KEYWORD, start, i - start);
+                continue;
+            }
+
+            if(word == "TODO" || word == "FIXME" || word == "NOTE")
+            {
+                push_token(TOKEN_KEYWORD, start, i - start);
+                continue;
+            }
+
+            if(word == "BEGIN" || word == "END")
+            {
+                push_token(TOKEN_KEYWORD, start, i - start);
+                continue;
+            }
+
+            if(word == "WARNING" || word == "ERROR")
+            {
+                push_token(TOKEN_KEYWORD, start, i - start);
+                continue;
+            }
+
+            int lookahead = i;
+            while(lookahead < len && text_utils::is_space(sv[lookahead]))
+                ++lookahead;
+            if(isFileType<FileType::Cpp>() && syntaxCppHighlightTypeNames &&
+               lookahead + 1 < len && sv[lookahead] == ':' &&
+               sv[lookahead + 1] == ':')
+            {
+                push_token(TOKEN_TYPE, start, i - start);
+                continue;
+            }
+            if(lookahead < len && sv[lookahead] == '(')
+            {
+                push_token(TOKEN_FUNCTION, start, i - start);
+                continue;
+            }
+        }
+
+        if(std::ispunct(static_cast<unsigned char>(c)))
+        {
+            if(isFileType<FileType::Cpp>() && syntaxCppHighlightMembers)
+            {
+                if(c == '.')
+                {
+                    push_token(TOKEN_OPERATOR, i, 1);
+                    int j = i + 1;
+                    while(j < len && text_utils::is_space(sv[j]))
+                        ++j;
+                    if(j < len &&
+                       (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                    {
+                        int memberStart = j++;
+                        while(j < len &&
+                              (text_utils::is_alpha(sv[j]) ||
+                               text_utils::is_digit(sv[j]) || sv[j] == '_'))
+                        {
+                            ++j;
+                        }
+                        push_token(TOKEN_MEMBER, memberStart, j - memberStart);
+                        i = j;
+                        continue;
+                    }
+                }
+                if(c == '-' && i + 1 < len && sv[i + 1] == '>')
+                {
+                    push_token(TOKEN_OPERATOR, i, 2);
+                    int j = i + 2;
+                    while(j < len && text_utils::is_space(sv[j]))
+                        ++j;
+                    if(j < len &&
+                       (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                    {
+                        int memberStart = j++;
+                        while(j < len &&
+                              (text_utils::is_alpha(sv[j]) ||
+                               text_utils::is_digit(sv[j]) || sv[j] == '_'))
+                        {
+                            ++j;
+                        }
+                        push_token(TOKEN_MEMBER, memberStart, j - memberStart);
+                        i = j;
+                        continue;
+                    }
+                }
+            }
+            int start = i++;
+            if(i < len)
+            {
+                char a = sv[start];
+                char b = sv[i];
+                if(is_two_char_op(a, b))
+                {
+                    ++i;
+                    push_token(TOKEN_OPERATOR, start, 2);
+                    continue;
+                }
+            }
+            push_token(TOKEN_OPERATOR, start, 1);
+            continue;
+        }
+
+        ++i;
+    }
+
+    if(!extraTypeTokens.empty())
+    {
+        tokens.insert(tokens.end(), extraTypeTokens.begin(),
+                      extraTypeTokens.end());
+    }
+
+    return tokens;
+}
+
+void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
+                                             const std::string& line, int start,
+                                             int len, int fileRow) const
+{
+    if(!editor || !editor->lines || !editor->cursorX || !editor->cursorY)
+        return;
+
+    auto* lines = editor->lines;
+    auto* cursorX = editor->cursorX;
+    auto* cursorY = editor->cursorY;
+    const auto& theme = editor->theme;
+    const auto currentMode = editor->currentMode;
+    auto isInSelection = [&](int row, int col)
+    { return editor->isInSelection(row, col); };
+    auto isInVisualBlock = [&](int row, int col)
+    { return editor->isInVisualBlock(row, col); };
+    auto isInSearchMatch = [&](int row, int col)
+    { return editor->isInSearchMatch(row, col); };
+
+    // fileRow is already the absolute line index in the buffer
+    int absoluteLineNum = fileRow;
+
+    // Helper function to scan a line and update block comment state
+    // This needs to be careful about string literals and character literals
+    auto scanLineForBlockComments =
+        [](const std::string& scanLine, bool& inComment)
+    {
+        size_t pos = 0;
+        size_t len = scanLine.length();
+
+        while(pos < len)
+        {
+            if(inComment)
+            {
+                // Looking for closing */
+                size_t closePos = scanLine.find("*/", pos);
+                if(closePos != std::string::npos)
+                {
+                    inComment = false;
+                    pos = closePos + 2;
+                }
+                else
+                {
+                    break; // Still in block comment at end of line
+                }
+            }
+            else
+            {
+                char c = scanLine[pos];
+
+                // Skip string literals
+                if(c == '"')
+                {
+                    pos++;
+                    while(pos < len)
+                    {
+                        if(scanLine[pos] == '\\' && pos + 1 < len)
+                        {
+                            pos += 2; // Skip escaped character
+                        }
+                        else if(scanLine[pos] == '"')
+                        {
+                            pos++;
+                            break;
+                        }
+                        else
+                        {
+                            pos++;
+                        }
+                    }
+                    continue;
+                }
+
+                // Skip character literals
+                if(c == '\'')
+                {
+                    pos++;
+                    while(pos < len)
+                    {
+                        if(scanLine[pos] == '\\' && pos + 1 < len)
+                        {
+                            pos += 2; // Skip escaped character
+                        }
+                        else if(scanLine[pos] == '\'')
+                        {
+                            pos++;
+                            break;
+                        }
+                        else
+                        {
+                            pos++;
+                        }
+                    }
+                    continue;
+                }
+
+                // Check for line comment
+                if(pos + 1 < len && scanLine[pos] == '/' &&
+                   scanLine[pos + 1] == '/')
+                {
+                    // Rest of line is a line comment
+                    break;
+                }
+
+                // Check for block comment start
+                if(pos + 1 < len && scanLine[pos] == '/' &&
+                   scanLine[pos + 1] == '*')
+                {
+                    inComment = true;
+                    pos += 2;
+                    continue;
+                }
+
+                pos++;
+            }
+        }
+    };
+
+    // Determine block comment state for this line
+    // We scan from the beginning of the file to ensure correctness
+    // Performance optimization: this is a lightweight scan (just looking for
+    // comment delimiters)
+    bool blockCommentState = false;
+    bool tomlMultilineState = false;
+    char tomlQuote = 0;
+    bool markupFenceState = false;
+    char markupFenceChar = 0;
+    bool inCppMethodContext = false;
+    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
+    {
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scanLineForBlockComments((*lines)[i], blockCommentState);
+        }
+    }
+    if(isFileType<FileType::Cpp>() && editor->syntaxCppHighlightImplicitMembers)
+    {
+        ensureCppMemberIndex();
+        CppMethodScanState methodState;
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scan_line_for_cpp_method_context((*lines)[i], cppClassNames,
+                                             methodState, nullptr);
+        }
+        bool lineHasMethodStart = false;
+        if(absoluteLineNum < (int)lines->size())
+        {
+            scan_line_for_cpp_method_context((*lines)[absoluteLineNum],
+                                             cppClassNames, methodState,
+                                             &lineHasMethodStart);
+        }
+        inCppMethodContext = methodState.inMethod || lineHasMethodStart;
+    }
+    if(isFileType<FileType::Toml>())
+    {
+        auto scanLineForTomlMultiline = [](const std::string& scanLine,
+                                           bool& inMultiline,
+                                           char& quoteChar)
+        {
+            for(size_t i = 0; i + 2 < scanLine.size(); ++i)
+            {
+                char c = scanLine[i];
+                if(c != '"' && c != '\'')
+                    continue;
+                if(scanLine[i + 1] != c || scanLine[i + 2] != c)
+                    continue;
+
+                if(c == '"')
+                {
+                    size_t j = i;
+                    int backslashes = 0;
+                    while(j > 0 && scanLine[j - 1] == '\\')
+                    {
+                        ++backslashes;
+                        --j;
+                    }
+                    if((backslashes % 2) == 1)
+                    {
+                        i += 2;
+                        continue;
+                    }
+                }
+
+                if(!inMultiline)
+                {
+                    inMultiline = true;
+                    quoteChar = c;
+                }
+                else if(quoteChar == c)
+                {
+                    inMultiline = false;
+                }
+                if(c == '"' && i + 3 < scanLine.size() && scanLine[i + 3] == '"')
+                    i += 3;
+                else
+                    i += 2;
+            }
+        };
+
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scanLineForTomlMultiline((*lines)[i], tomlMultilineState,
+                                     tomlQuote);
+        }
+    }
+    if(isFileType<FileType::MarkupText>())
+    {
+        auto scanLineForMarkupFence = [](const std::string& scanLine,
+                                         bool& inFence,
+                                         char& fenceChar)
+        {
+            size_t i = 0;
+            while(i < scanLine.size() &&
+                  text_utils::is_space(scanLine[i]))
+            {
+                ++i;
+            }
+            if(i + 2 >= scanLine.size())
+                return;
+            char c = scanLine[i];
+            if((c == '`' || c == '~') && scanLine[i + 1] == c &&
+               scanLine[i + 2] == c)
+            {
+                if(!inFence)
+                {
+                    inFence = true;
+                    fenceChar = c;
+                }
+                else if(fenceChar == c)
+                {
+                    inFence = false;
+                }
+            }
+        };
+
+        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        {
+            scanLineForMarkupFence((*lines)[i], markupFenceState,
+                                   markupFenceChar);
+        }
+    }
+
+    // Now tokenize the current line
+    std::vector<Token> tokens =
+        tokenizeLine(line, blockCommentState, tomlMultilineState, tomlQuote,
+                     markupFenceState, markupFenceChar, inCppMethodContext);
+
+    std::vector<TokenType> charColors(len, TOKEN_NORMAL);
+
+    for(const auto& token : tokens)
+    {
+        int tokenEnd = token.start + token.length;
+        for(int pos = token.start; pos < tokenEnd; pos++)
+        {
+            int visiblePos = pos - start;
+            if(visiblePos >= 0 && visiblePos < len)
+            {
+                charColors[visiblePos] = token.type;
+            }
+        }
+    }
+
+    TokenType currentColor = TOKEN_NORMAL;
+    for(int x = 0; x < len; x++)
+    {
+        int col = x + start;
+
+        bool highlighted = false;
+        bool showCursor =
+            (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+             currentMode == VISUAL_BLOCK);
+        bool isCursor = showCursor && (fileRow == *cursorY && col == *cursorX);
+        if(isCursor)
+        {
+            output += theme.cursor();
+            highlighted = true;
+        }
+        else if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
+        {
+            output += theme.selection();
+            highlighted = true;
+        }
+        else if(isInSearchMatch(fileRow, col))
+        {
+            output += theme.searchMatch();
+            highlighted = true;
+        }
+
+        if(!highlighted && charColors[x] != currentColor)
+        {
+            currentColor = charColors[x];
+            output += getColorCode(currentColor);
+        }
+
+        output += line[col];
+
+        if(highlighted)
+        {
+            output += theme.reset();
+            currentColor = TOKEN_NORMAL;
+        }
+    }
+
+    if(currentColor != TOKEN_NORMAL)
+    {
+        output += theme.baseFg();
+    }
+}

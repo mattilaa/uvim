@@ -1,4 +1,6 @@
 #include "editor.h"
+#include "formatter.h"
+#include "syntax_highlighter.h"
 #include "constants.h"
 #include "enablelog.h"
 #include "mode_state_machine.h"
@@ -885,6 +887,33 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 syntaxRobotHighlightCalls =
                     !(v == "false" || v == "0" || v == "off");
             }
+            auto itcm = values.find("editor.syntax.cpp.highlight_members");
+            if(itcm == values.end())
+                itcm = values.find("syntax.cpp.highlight_members");
+            if(itcm != values.end())
+            {
+                std::string v = ascii_lower(itcm->second);
+                syntaxCppHighlightMembers =
+                    !(v == "false" || v == "0" || v == "off");
+            }
+            auto itct = values.find("editor.syntax.cpp.highlight_type_names");
+            if(itct == values.end())
+                itct = values.find("syntax.cpp.highlight_type_names");
+            if(itct != values.end())
+            {
+                std::string v = ascii_lower(itct->second);
+                syntaxCppHighlightTypeNames =
+                    !(v == "false" || v == "0" || v == "off");
+            }
+            auto itci = values.find("editor.syntax.cpp.highlight_implicit_members");
+            if(itci == values.end())
+                itci = values.find("syntax.cpp.highlight_implicit_members");
+            if(itci != values.end())
+            {
+                std::string v = ascii_lower(itci->second);
+                syntaxCppHighlightImplicitMembers =
+                    !(v == "false" || v == "0" || v == "off");
+            }
             auto itrc = values.find("editor.syntax.robot.custom_keywords");
             if(itrc == values.end())
                 itrc = values.find("syntax.robot.custom_keywords");
@@ -962,6 +991,8 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
 
     modeStateMachine =
         std::make_unique<ModeStateMachine>(createModeContext(this));
+    syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
+    formatter = std::make_unique<Formatter>(this);
 }
 
 #ifdef UVIM_TESTING
@@ -975,6 +1006,8 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     robotCustomKeywordSet = default_robot_custom_keywords();
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
+    syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
+    formatter = std::make_unique<Formatter>(this);
 }
 
 Editor Editor::createForTests(int rows, int cols)
@@ -982,6 +1015,118 @@ Editor Editor::createForTests(int rows, int cols)
     return Editor(TestTag{}, rows, cols);
 }
 #endif
+
+bool Editor::isFileType(FileType type) const
+{
+    if(!syntaxHighlighter)
+        return false;
+    return syntaxHighlighter->isFileType(type);
+}
+
+size_t Editor::byteOffsetForPosition(int y, int x) const
+{
+    if(!formatter)
+        return 0;
+    return formatter->byteOffsetForPosition(y, x);
+}
+
+bool Editor::clangFormatWithArgs(const std::string& extraArgs,
+                                 const std::string& successMessage)
+{
+    if(!formatter)
+        return false;
+    return formatter->clangFormatWithArgs(extraArgs, successMessage);
+}
+
+bool Editor::pythonFormatBuffer()
+{
+    if(!formatter)
+        return false;
+    return formatter->pythonFormatBuffer();
+}
+
+void Editor::pythonLintBuffer()
+{
+    if(formatter)
+        formatter->pythonLintBuffer();
+}
+
+bool Editor::robotFormatBuffer()
+{
+    if(!formatter)
+        return false;
+    return formatter->robotFormatBuffer();
+}
+
+bool Editor::jsonFormatBuffer()
+{
+    if(!formatter)
+        return false;
+    return formatter->jsonFormatBuffer();
+}
+
+bool Editor::yamlFormatBuffer()
+{
+    if(!formatter)
+        return false;
+    return formatter->yamlFormatBuffer();
+}
+
+void Editor::clangFormatVisualSelection()
+{
+    if(formatter)
+        formatter->clangFormatVisualSelection();
+}
+
+void Editor::clangFormatVisualBlockSelection()
+{
+    if(formatter)
+        formatter->clangFormatVisualBlockSelection();
+}
+
+void Editor::ensureMlangTokensLoaded() const
+{
+    if(syntaxHighlighter)
+        syntaxHighlighter->ensureMlangTokensLoaded();
+}
+
+std::optional<TokenType>
+Editor::lookupMlangTokenType(std::string_view word) const
+{
+    if(!syntaxHighlighter)
+        return std::nullopt;
+    return syntaxHighlighter->lookupMlangTokenType(word);
+}
+
+std::string Editor::getColorCode(TokenType type) const
+{
+    if(!syntaxHighlighter)
+        return {};
+    return syntaxHighlighter->getColorCode(type);
+}
+
+std::vector<Token> Editor::tokenizeLine(const std::string& line,
+                                        bool& inBlockComment,
+                                        bool& inTomlMultiline,
+                                        char& tomlQuote,
+                                        bool& inMarkupFence,
+                                        char& markupFenceChar) const
+{
+    if(!syntaxHighlighter)
+        return {};
+    return syntaxHighlighter->tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                           tomlQuote, inMarkupFence,
+                                           markupFenceChar);
+}
+
+void Editor::renderLineWithSyntax(std::string& output,
+                                  const std::string& line, int start, int len,
+                                  int fileRow)
+{
+    if(syntaxHighlighter)
+        syntaxHighlighter->renderLineWithSyntax(output, line, start, len,
+                                                fileRow);
+}
 
 bool Editor::isRobotKeyword(std::string_view word) const
 {

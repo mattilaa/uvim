@@ -161,6 +161,7 @@ Theme Theme::defaults()
     t.syntax_[TOKEN_NUMBER] = {0xEB, 0x6F, 0x92, true};
     t.syntax_[TOKEN_OPERATOR] = {0xF6, 0xC1, 0x77, true};
     t.syntax_[TOKEN_FUNCTION] = {0x7A, 0xA2, 0xF7, true};
+    t.syntax_[TOKEN_MEMBER] = t.syntax_[TOKEN_FUNCTION];
 
     t.rebuildSequences();
     return t;
@@ -458,4 +459,5 @@ void Theme::applyOverrides(
     set_color("theme.syntax.number", syntax_[TOKEN_NUMBER]);
     set_color("theme.syntax.operator", syntax_[TOKEN_OPERATOR]);
     set_color("theme.syntax.function", syntax_[TOKEN_FUNCTION]);
+    set_color("theme.syntax.member", syntax_[TOKEN_MEMBER]);
 }
