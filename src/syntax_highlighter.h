@@ -31,7 +31,9 @@ public:
                                     char& tomlQuote,
                                     bool& inMarkupFence,
                                     char& markupFenceChar,
-                                    bool inCppMethodContext = false) const;
+                                    bool inCppMethodContext = false,
+                                    bool inCppFunctionContext = false,
+                                    bool inCppParamListContext = false) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow) const;
 

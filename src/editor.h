@@ -364,6 +364,7 @@ public:
     bool syntaxCppHighlightMembers = true;
     bool syntaxCppHighlightTypeNames = true;
     bool syntaxCppHighlightImplicitMembers = true;
+    bool syntaxCppHighlightParamTypes = true;
     bool syntaxCppHighlightSystemIncludes = true;
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
@@ -783,7 +784,10 @@ public:
                                     bool& inTomlMultiline,
                                     char& tomlQuote,
                                     bool& inMarkupFence,
-                                    char& markupFenceChar) const;
+                                    char& markupFenceChar,
+                                    bool inCppMethodContext = false,
+                                    bool inCppFunctionContext = false,
+                                    bool inCppParamListContext = false) const;
     std::string getColorCode(TokenType type) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow);

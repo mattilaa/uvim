@@ -914,6 +914,15 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 syntaxCppHighlightImplicitMembers =
                     !(v == "false" || v == "0" || v == "off");
             }
+            auto itcp = values.find("editor.syntax.cpp.highlight_param_types");
+            if(itcp == values.end())
+                itcp = values.find("syntax.cpp.highlight_param_types");
+            if(itcp != values.end())
+            {
+                std::string v = ascii_lower(itcp->second);
+                syntaxCppHighlightParamTypes =
+                    !(v == "false" || v == "0" || v == "off");
+            }
             auto itcs =
                 values.find("editor.syntax.cpp.highlight_system_includes");
             if(itcs == values.end())
@@ -1120,13 +1129,18 @@ std::vector<Token> Editor::tokenizeLine(const std::string& line,
                                         bool& inTomlMultiline,
                                         char& tomlQuote,
                                         bool& inMarkupFence,
-                                        char& markupFenceChar) const
+                                        char& markupFenceChar,
+                                        bool inCppMethodContext,
+                                        bool inCppFunctionContext,
+                                        bool inCppParamListContext) const
 {
     if(!syntaxHighlighter)
         return {};
     return syntaxHighlighter->tokenizeLine(line, inBlockComment, inTomlMultiline,
                                            tomlQuote, inMarkupFence,
-                                           markupFenceChar);
+                                           markupFenceChar, inCppMethodContext,
+                                           inCppFunctionContext,
+                                           inCppParamListContext);
 }
 
 void Editor::renderLineWithSyntax(std::string& output,
@@ -4704,6 +4718,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (syntaxCppHighlightSystemIncludes ? "true" : "false"));
         return true;
     }
+    if(opt == "syntax.cpp.highlight_param_types?")
+    {
+        setStatusMessage(std::string("syntax.cpp.highlight_param_types=") +
+                         (syntaxCppHighlightParamTypes ? "true" : "false"));
+        return true;
+    }
 
     auto set_flag = [&](bool value)
     {
@@ -4746,6 +4766,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         syntaxCppHighlightSystemIncludes = false;
         setStatusMessage("syntax.cpp.highlight_system_includes=false");
+        return true;
+    }
+    if(opt == "syntax.cpp.highlight_param_types")
+    {
+        syntaxCppHighlightParamTypes = true;
+        setStatusMessage("syntax.cpp.highlight_param_types=true");
+        return true;
+    }
+    if(opt == "nosyntax.cpp.highlight_param_types")
+    {
+        syntaxCppHighlightParamTypes = false;
+        setStatusMessage("syntax.cpp.highlight_param_types=false");
         return true;
     }
     if(opt == "autotags")
@@ -8692,6 +8724,9 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set syntax.cpp.highlight_system_includes",
         "set nosyntax.cpp.highlight_system_includes",
         "set syntax.cpp.highlight_system_includes?",
+        "set syntax.cpp.highlight_param_types",
+        "set nosyntax.cpp.highlight_param_types",
+        "set syntax.cpp.highlight_param_types?",
         "set utf8",
         "set noutf8",
         "set utf8?",
