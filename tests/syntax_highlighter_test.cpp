@@ -43,6 +43,16 @@ bool hasTokenAt(const std::vector<Token>& tokens, int start, int length,
     }
     return false;
 }
+
+bool hasTokenType(const std::vector<Token>& tokens, TokenType type)
+{
+    for(const auto& token : tokens)
+    {
+        if(token.type == type)
+            return true;
+    }
+    return false;
+}
 } // namespace
 
 TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
@@ -182,4 +192,95 @@ TEST(SyntaxHighlighterTest, HighlightsCppPreprocessorLine)
     EXPECT_EQ(tokens[0].type, TOKEN_PREPROCESSOR);
     EXPECT_EQ(tokens[0].start, 0);
     EXPECT_EQ(tokens[0].length, (int)line.size());
+}
+
+TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+
+    const std::string line = "std::vector<int> v;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int vecPos = (int)line.find("vector");
+    ASSERT_NE(vecPos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, vecPos, 6, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+
+    auto root = makeTempRoot();
+    auto includeDir = root / "include";
+    std::filesystem::create_directories(includeDir);
+    {
+        std::ofstream hdr(includeDir / "vector");
+        hdr << "// header\n";
+    }
+    {
+        std::ofstream cc(root / "compile_commands.json");
+        cc << R"([{"directory": ")" << root.string()
+           << R"(", "command": "clang++ -Iinclude -c main.cpp"}])";
+    }
+
+    editor.setProjectRoot(root.string());
+    *editor.filename = (root / "main.cpp").string();
+
+    const std::string line = "#include <vector>";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int start = (int)line.find('<');
+    int end = (int)line.find('>');
+    ASSERT_NE(start, (int)std::string::npos);
+    ASSERT_NE(end, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, start, end - start + 1, TOKEN_STRING));
+}
+
+TEST(SyntaxHighlighterTest, NoSystemIncludeHighlightWhenDisabled)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+
+    auto root = makeTempRoot();
+    auto includeDir = root / "include";
+    std::filesystem::create_directories(includeDir);
+    {
+        std::ofstream hdr(includeDir / "vector");
+        hdr << "// header\n";
+    }
+    {
+        std::ofstream cc(root / "compile_commands.json");
+        cc << R"([{"directory": ")" << root.string()
+           << R"(", "command": "clang++ -Iinclude -c main.cpp"}])";
+    }
+
+    editor.setProjectRoot(root.string());
+    *editor.filename = (root / "main.cpp").string();
+    editor.syntaxCppHighlightSystemIncludes = false;
+
+    const std::string line = "#include <vector>";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    EXPECT_FALSE(hasTokenType(tokens, TOKEN_STRING));
 }

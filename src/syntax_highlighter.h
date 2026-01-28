@@ -2,6 +2,7 @@
 
 #include "file_type.h"
 #include "token_type.h"
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -39,6 +40,10 @@ private:
     mutable bool cppMemberIndexLoaded = false;
     mutable std::unordered_set<std::string> cppMemberNames;
     mutable std::unordered_set<std::string> cppClassNames;
+    mutable bool systemIncludeDirsLoaded = false;
+    mutable std::vector<std::filesystem::path> systemIncludeDirs;
 
     void ensureCppMemberIndex() const;
+    void ensureSystemIncludeDirsLoaded() const;
+    bool isSystemInclude(std::string_view header) const;
 };

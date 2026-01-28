@@ -364,6 +364,7 @@ public:
     bool syntaxCppHighlightMembers = true;
     bool syntaxCppHighlightTypeNames = true;
     bool syntaxCppHighlightImplicitMembers = true;
+    bool syntaxCppHighlightSystemIncludes = true;
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
     std::unordered_set<std::string> robotSettingSet;

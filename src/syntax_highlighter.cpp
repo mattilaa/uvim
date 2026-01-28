@@ -92,6 +92,66 @@ std::optional<TokenType> parse_token_type(std::string_view value)
     return std::nullopt;
 }
 
+std::vector<std::string> split_command_line(std::string_view command)
+{
+    std::vector<std::string> args;
+    std::string current;
+    bool inQuote = false;
+    char quoteChar = 0;
+
+    auto flush = [&]()
+    {
+        if(!current.empty())
+        {
+            args.push_back(current);
+            current.clear();
+        }
+    };
+
+    for(size_t i = 0; i < command.size(); ++i)
+    {
+        char c = command[i];
+        if(inQuote)
+        {
+            if(c == '\\' && i + 1 < command.size())
+            {
+                current.push_back(command[i + 1]);
+                ++i;
+                continue;
+            }
+            if(c == quoteChar)
+            {
+                inQuote = false;
+                continue;
+            }
+            current.push_back(c);
+            continue;
+        }
+
+        if(text_utils::is_space(c))
+        {
+            flush();
+            continue;
+        }
+        if(c == '"' || c == '\'')
+        {
+            inQuote = true;
+            quoteChar = c;
+            continue;
+        }
+        if(c == '\\' && i + 1 < command.size())
+        {
+            current.push_back(command[i + 1]);
+            ++i;
+            continue;
+        }
+        current.push_back(c);
+    }
+
+    flush();
+    return args;
+}
+
 struct CppMethodScanState
 {
     bool inBlockComment = false;
@@ -573,6 +633,135 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
     }
 }
 
+void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
+{
+    if(systemIncludeDirsLoaded)
+        return;
+    systemIncludeDirsLoaded = true;
+    systemIncludeDirs.clear();
+
+    if(!editor)
+        return;
+
+    std::filesystem::path baseDir;
+    if(!editor->clangdLspCompileCommandsDir.empty())
+        baseDir = editor->clangdLspCompileCommandsDir;
+    else if(!editor->projectRoot.empty())
+        baseDir = editor->projectRoot;
+    else
+        baseDir = std::filesystem::current_path();
+
+    std::filesystem::path ccPath = baseDir / "compile_commands.json";
+    if(!std::filesystem::exists(ccPath))
+    {
+        std::filesystem::path alt = baseDir / "build" / "compile_commands.json";
+        if(std::filesystem::exists(alt))
+        {
+            ccPath = alt;
+            baseDir = alt.parent_path();
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    std::ifstream in(ccPath);
+    if(!in)
+        return;
+
+    nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
+    if(!root.is_array())
+        return;
+
+    std::unordered_set<std::string> seen;
+
+    for(const auto& item : root)
+    {
+        if(!item.is_object())
+            continue;
+        std::string directory = item.value("directory", baseDir.string());
+        std::vector<std::string> args;
+        if(item.contains("arguments") && item["arguments"].is_array())
+        {
+            for(const auto& arg : item["arguments"])
+            {
+                if(arg.is_string())
+                    args.push_back(arg.get<std::string>());
+            }
+        }
+        else if(item.contains("command") && item["command"].is_string())
+        {
+            args = split_command_line(item["command"].get<std::string>());
+        }
+        if(args.empty())
+            continue;
+
+        auto add_path = [&](const std::string& raw)
+        {
+            if(raw.empty())
+                return;
+            std::filesystem::path path(raw);
+            if(path.is_relative())
+                path = std::filesystem::path(directory) / path;
+            path = path.lexically_normal();
+            std::error_code ec;
+            if(!std::filesystem::exists(path, ec) ||
+               !std::filesystem::is_directory(path, ec))
+                return;
+            std::string key = path.string();
+            if(seen.insert(key).second)
+                systemIncludeDirs.push_back(path);
+        };
+
+        for(size_t i = 0; i < args.size(); ++i)
+        {
+            const std::string& arg = args[i];
+            auto consume = [&](const std::string& prefix) -> bool
+            {
+                if(arg == prefix)
+                {
+                    if(i + 1 < args.size())
+                    {
+                        add_path(args[i + 1]);
+                        ++i;
+                    }
+                    return true;
+                }
+                if(arg.rfind(prefix, 0) == 0 && arg.size() > prefix.size())
+                {
+                    add_path(arg.substr(prefix.size()));
+                    return true;
+                }
+                return false;
+            };
+
+            if(consume("-I"))
+                continue;
+            if(consume("-isystem"))
+                continue;
+            if(consume("-iquote"))
+                continue;
+        }
+    }
+}
+
+bool SyntaxHighlighter::isSystemInclude(std::string_view header) const
+{
+    ensureSystemIncludeDirsLoaded();
+    if(systemIncludeDirs.empty())
+        return false;
+
+    for(const auto& dir : systemIncludeDirs)
+    {
+        std::filesystem::path path = dir / std::string(header);
+        std::error_code ec;
+        if(std::filesystem::exists(path, ec))
+            return true;
+    }
+    return false;
+}
+
 bool SyntaxHighlighter::isFileType(FileType type) const
 {
     if(!editor)
@@ -992,6 +1181,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
     const bool syntaxCppHighlightTypeNames = editor->syntaxCppHighlightTypeNames;
     const bool syntaxCppHighlightImplicitMembers =
         editor->syntaxCppHighlightImplicitMembers;
+    const bool syntaxCppHighlightSystemIncludes =
+        editor->syntaxCppHighlightSystemIncludes;
 
     if(isFileType<FileType::Cpp>())
     {
@@ -1000,8 +1191,57 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
             ++first;
         if(first < line.size() && line[first] == '#')
         {
-            return {{TOKEN_PREPROCESSOR, (int)first,
-                     (int)(line.size() - first)}};
+            std::vector<Token> preprocessorTokens;
+            preprocessorTokens.push_back(
+                {TOKEN_PREPROCESSOR, (int)first, (int)(line.size() - first)});
+            if(syntaxCppHighlightSystemIncludes)
+            {
+                size_t pos = first + 1;
+                while(pos < line.size() && text_utils::is_space(line[pos]))
+                    ++pos;
+                constexpr std::string_view includeKw = "include";
+                constexpr std::string_view includeNextKw = "include_next";
+                auto starts_with_kw = [&](std::string_view kw) -> bool
+                {
+                    if(pos + kw.size() > line.size())
+                        return false;
+                    if(line.compare(pos, kw.size(), kw) != 0)
+                        return false;
+                    size_t end = pos + kw.size();
+                    if(end < line.size() &&
+                       (text_utils::is_alpha(line[end]) ||
+                        text_utils::is_digit(line[end]) || line[end] == '_'))
+                        return false;
+                    return true;
+                };
+                if(starts_with_kw(includeKw) || starts_with_kw(includeNextKw))
+                {
+                    pos += starts_with_kw(includeKw) ? includeKw.size()
+                                                     : includeNextKw.size();
+                    while(pos < line.size() && text_utils::is_space(line[pos]))
+                        ++pos;
+                    if(pos < line.size() && (line[pos] == '<' || line[pos] == '"'))
+                    {
+                        char open = line[pos];
+                        char close = (open == '<') ? '>' : '"';
+                        size_t start = pos;
+                        ++pos;
+                        size_t end = line.find(close, pos);
+                        if(end != std::string::npos && end > pos)
+                        {
+                            std::string_view header =
+                                std::string_view(line).substr(pos, end - pos);
+                            if(isSystemInclude(header))
+                            {
+                                preprocessorTokens.push_back(
+                                    {TOKEN_STRING, (int)start,
+                                     (int)(end - start + 1)});
+                            }
+                        }
+                    }
+                }
+            }
+            return preprocessorTokens;
         }
     }
 
@@ -1710,6 +1950,12 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                     int p = start - 1;
                     while(p >= 0 && text_utils::is_space(sv[p]))
                         --p;
+                    if(syntaxCppHighlightTypeNames && p >= 1 && sv[p] == ':' &&
+                       sv[p - 1] == ':')
+                    {
+                        push_token(TOKEN_TYPE, start, i - start);
+                        continue;
+                    }
                     if(p >= 0 && sv[p] == '.')
                     {
                         push_token(TOKEN_MEMBER, start, i - start);

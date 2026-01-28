@@ -914,6 +914,16 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 syntaxCppHighlightImplicitMembers =
                     !(v == "false" || v == "0" || v == "off");
             }
+            auto itcs =
+                values.find("editor.syntax.cpp.highlight_system_includes");
+            if(itcs == values.end())
+                itcs = values.find("syntax.cpp.highlight_system_includes");
+            if(itcs != values.end())
+            {
+                std::string v = ascii_lower(itcs->second);
+                syntaxCppHighlightSystemIncludes =
+                    !(v == "false" || v == "0" || v == "off");
+            }
             auto itrc = values.find("editor.syntax.robot.custom_keywords");
             if(itrc == values.end())
                 itrc = values.find("syntax.robot.custom_keywords");
@@ -4688,6 +4698,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          std::to_string(formatOnDoubleEscTimeoutMs));
         return true;
     }
+    if(opt == "syntax.cpp.highlight_system_includes?")
+    {
+        setStatusMessage(std::string("syntax.cpp.highlight_system_includes=") +
+                         (syntaxCppHighlightSystemIncludes ? "true" : "false"));
+        return true;
+    }
 
     auto set_flag = [&](bool value)
     {
@@ -4718,6 +4734,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
     if(opt == "noautobraces")
     {
         set_flag(false);
+        return true;
+    }
+    if(opt == "syntax.cpp.highlight_system_includes")
+    {
+        syntaxCppHighlightSystemIncludes = true;
+        setStatusMessage("syntax.cpp.highlight_system_includes=true");
+        return true;
+    }
+    if(opt == "nosyntax.cpp.highlight_system_includes")
+    {
+        syntaxCppHighlightSystemIncludes = false;
+        setStatusMessage("syntax.cpp.highlight_system_includes=false");
         return true;
     }
     if(opt == "autotags")
@@ -8661,6 +8689,9 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set gitblameinfo?",
         "set gitblameinfo",
         "set nogitblameinfo",
+        "set syntax.cpp.highlight_system_includes",
+        "set nosyntax.cpp.highlight_system_includes",
+        "set syntax.cpp.highlight_system_includes?",
         "set utf8",
         "set noutf8",
         "set utf8?",
