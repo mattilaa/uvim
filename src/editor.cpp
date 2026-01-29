@@ -957,6 +957,15 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                         robotSettingSet.insert(ascii_lower(item));
                 }
             }
+            auto itpf = values.find("editor.python.formatter");
+            if(itpf == values.end())
+                itpf = values.find("python.formatter");
+            if(itpf != values.end())
+            {
+                std::string v = ascii_lower(itpf->second);
+                if(v == "black" || v == "ruff")
+                    pythonFormatter = v;
+            }
 
             auto get = [&](std::string_view key) -> std::optional<std::string>
             {
@@ -4241,6 +4250,16 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          std::to_string(formatOnDoubleEscTimeoutMs));
         return true;
     }
+    if(opt == "python.formatter?")
+    {
+        setStatusMessage("python.formatter=" + pythonFormatter);
+        return true;
+    }
+    if(opt == "pyfmt?")
+    {
+        setStatusMessage("python.formatter=" + pythonFormatter);
+        return true;
+    }
     if(opt == "syntax.cpp.highlight_system_includes?")
     {
         setStatusMessage(std::string("syntax.cpp.highlight_system_includes=") +
@@ -4307,6 +4326,22 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         syntaxCppHighlightParamTypes = false;
         setStatusMessage("syntax.cpp.highlight_param_types=false");
+        return true;
+    }
+    if(opt.rfind("python.formatter=", 0) == 0 ||
+       opt.rfind("pyfmt=", 0) == 0)
+    {
+        std::string value = opt.substr(opt.find('=') + 1);
+        std::string v = ascii_lower(value);
+        if(v == "black" || v == "ruff")
+        {
+            pythonFormatter = v;
+            setStatusMessage("python.formatter=" + pythonFormatter);
+        }
+        else
+        {
+            setStatusMessage("python.formatter: expected black|ruff");
+        }
         return true;
     }
     if(opt == "autotags")
@@ -4677,6 +4712,27 @@ void Editor::executeCommand(std::string_view cmd)
         showLspInfo();
         commandRequestedModeSet = true;
         commandRequestedMode = LSP_INFO;
+        return;
+    }
+    if(cmd == "format" || cmd == "fmt")
+    {
+        if(isFileType<FileType::Python>())
+        {
+            pythonFormatBuffer();
+            return;
+        }
+        if(isFileType<FileType::Mla>())
+        {
+            mlangFormatBuffer();
+            return;
+        }
+        if(isFileType<FileType::Cpp>() ||
+           (filename && !filename->empty() && isHeaderFile(*filename)))
+        {
+            clangFormatWithArgs("", "clang-format: formatted file");
+            return;
+        }
+        setStatusMessage("format: unsupported file type");
         return;
     }
     if(cmd == "emoji" || cmd == "em")
@@ -8256,6 +8312,12 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set syntax.cpp.highlight_param_types",
         "set nosyntax.cpp.highlight_param_types",
         "set syntax.cpp.highlight_param_types?",
+        "set python.formatter?",
+        "set python.formatter=ruff",
+        "set python.formatter=black",
+        "set pyfmt=ruff",
+        "set pyfmt=black",
+        "set pyfmt?",
         "set utf8",
         "set noutf8",
         "set utf8?",

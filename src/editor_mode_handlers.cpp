@@ -442,209 +442,21 @@ void Editor::handleNormalMode(int c)
         }
         else if(c == 'f')
         {
-            // Leader + f: format file with clang-format
+            // Leader + f: format file
             commandBuffer.clear();
             repeatCount = 0;
 
-            LOG_DEBUG(LOG, "Leader-f pressed. filename='{}' isCppFile={}",
-                      *filename, isFileType<FileType::Cpp>());
-
-            if(!isFileType<FileType::Cpp>() && !isHeaderFile(*filename))
+            if(isFileType<FileType::Python>())
             {
-                setStatusMessage("clang-format: not a C/C++ file (" +
-                                 *filename + ")");
+                pythonFormatBuffer();
                 return;
             }
-
-            // Save current cursor position
-            int savedY = *cursorY;
-            int savedX = *cursorX;
-
-            // Write buffer to temp file
-            std::string tempPath =
-                "/tmp/uvim_format_" + std::to_string(getpid()) + ".tmp";
-            std::ofstream tempFile(tempPath);
-            if(!tempFile.is_open())
+            if(isFileType<FileType::Cpp>() || isHeaderFile(*filename))
             {
-                setStatusMessage("clang-format: failed to create temp file");
+                clangFormatWithArgs("", "clang-format: formatted file");
                 return;
             }
-
-            // Write content with trailing newline
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                tempFile << (*lines)[i] << '\n';
-            }
-            tempFile.close();
-
-            // Get the directory of the current file for clang-format to find
-            // .clang-format
-            std::string fileDir = ".";
-            std::string absFilename = *filename;
-
-            // Make filename absolute if it isn't
-            if(!absFilename.empty() && absFilename[0] != '/')
-            {
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                {
-                    absFilename = std::string(cwd) + "/" + *filename;
-                }
-            }
-
-            // Run clang-format with stdin, using actual filename for style
-            // lookup clang-format searches for .clang-format starting from the
-            // file's directory
-            auto is_exec = [](const std::string& p) -> bool
-            { return ::access(p.c_str(), X_OK) == 0; };
-
-            std::string clangFormatExe;
-            {
-#ifdef __APPLE__
-                const std::vector<std::string> candidates = {
-                    "/opt/homebrew/bin/clang-format",
-                    "/opt/homebrew/opt/llvm/bin/clang-format",
-                    "/usr/local/bin/clang-format",
-                    "/usr/local/opt/llvm/bin/clang-format",
-                    "/usr/bin/clang-format",
-                };
-#else
-                const std::vector<std::string> candidates = {
-                    "/usr/bin/clang-format",
-                    "/usr/local/bin/clang-format",
-                };
-#endif
-                for(const auto& c : candidates)
-                {
-                    if(is_exec(c))
-                    {
-                        clangFormatExe = c;
-                        break;
-                    }
-                }
-            }
-
-            if(clangFormatExe.empty())
-                clangFormatExe = "clang-format"; // fall back to PATH lookup
-
-            // Run clang-format using stdin redirection (avoid piping via
-            // `cat`).
-            std::string cmd = "\"" + clangFormatExe +
-                              "\" -style=file"
-                              " -assume-filename=\"" +
-                              absFilename +
-                              "\""
-                              " < \"" +
-                              tempPath +
-                              "\""
-                              " 2>/tmp/uvim_clang_err.log";
-            LOG_DEBUG(LOG, "Temp file written: {} lines={}", tempPath,
-                      lines->size());
-            LOG_DEBUG(LOG, "Running: {}", cmd);
-
-            FILE* pipe = popen(cmd.c_str(), "r");
-            if(!pipe)
-            {
-                unlink(tempPath.c_str());
-                setStatusMessage("clang-format: failed to run");
-                return;
-            }
-
-            // Read formatted output
-            std::string formatted;
-            char buffer[4096];
-            while(fgets(buffer, sizeof(buffer), pipe))
-            {
-                formatted += buffer;
-            }
-            int status = pclose(pipe);
-            unlink(tempPath.c_str());
-
-            LOG_DEBUG(LOG, "pclose status={} formatted.size()={}", status,
-                      formatted.size());
-
-            // Check for errors
-            if(formatted.empty())
-            {
-                // Read error file
-                std::ifstream errFile("/tmp/uvim_clang_err.log");
-                std::string errMsg;
-                if(errFile.is_open())
-                {
-                    std::getline(errFile, errMsg);
-                    errFile.close();
-                }
-                if(errMsg.empty())
-                    errMsg = "no output (exit=" +
-                             std::to_string(WEXITSTATUS(status)) + ")";
-                setStatusMessage("clang-format: " + errMsg.substr(0, 50));
-                return;
-            }
-
-            // Parse formatted output into lines
-            std::vector<std::string> newLines;
-            std::istringstream iss(formatted);
-            std::string line;
-            while(std::getline(iss, line))
-            {
-                // Remove \r if present
-                if(!line.empty() && line.back() == '\r')
-                    line.pop_back();
-                newLines.push_back(line);
-            }
-
-            // Remove trailing empty line if present (clang-format adds one)
-            if(!newLines.empty() && newLines.back().empty())
-            {
-                newLines.pop_back();
-            }
-
-            // Ensure at least one line
-            if(newLines.empty())
-            {
-                newLines.push_back("");
-            }
-
-            // Check if anything changed
-            if(newLines == *lines)
-            {
-                setStatusMessage("clang-format: no changes needed");
-                return;
-            }
-
-            // Replace buffer content
-            *lines = newLines;
-            *dirty = true;
-
-            // Restore cursor position (clamped to valid range)
-            if(lines->empty())
-            {
-                *cursorY = 0;
-                *cursorX = 0;
-            }
-            else
-            {
-                *cursorY = savedY;
-                if(*cursorY >= (int)lines->size())
-                    *cursorY = (int)lines->size() - 1;
-                if(*cursorY < 0)
-                    *cursorY = 0;
-
-                *cursorX = savedX;
-                int lineLen = (int)(*lines)[*cursorY].length();
-                if(*cursorX > lineLen)
-                    *cursorX = lineLen > 0 ? lineLen - 1 : 0;
-                if(*cursorX < 0)
-                    *cursorX = 0;
-            }
-
-            // Save state for undo
-            saveState();
-
-            adjustViewport();
-            needsFullRedraw = true;
-            setStatusMessage("clang-format: formatted " +
-                             std::to_string(lines->size()) + " lines");
+            setStatusMessage("format: unsupported file type (" + *filename + ")");
             return;
         }
         else if(c == 'x')

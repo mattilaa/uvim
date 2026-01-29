@@ -160,7 +160,7 @@ bool Formatter::pythonFormatBuffer()
         return false;
     if(!editor->isFileType<FileType::Python>())
     {
-        editor->setStatusMessage("black: not a Python file");
+        editor->setStatusMessage("python: not a Python file");
         return false;
     }
 
@@ -168,7 +168,7 @@ bool Formatter::pythonFormatBuffer()
     const int savedX = editor->cursorX ? *editor->cursorX : 0;
 
     std::string tempPath =
-        "/tmp/uvim_black_" + std::to_string(getpid()) + ".py";
+        "/tmp/uvim_pyfmt_" + std::to_string(getpid()) + ".py";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -180,10 +180,34 @@ bool Formatter::pythonFormatBuffer()
         tempFile << (*editor->lines)[i] << '\n';
     tempFile.close();
 
-    std::string cmd =
-        "black --quiet \"" + tempPath + "\" 2>/tmp/uvim_black_err.log";
+    std::string errPath = "/tmp/uvim_pyfmt_err.log";
+    std::string cmd;
+    if(editor->pythonFormatter == "ruff")
+    {
+        cmd = "ruff format \"" + tempPath + "\" 2>\"" + errPath + "\"";
+    }
+    else
+    {
+        cmd = "black --quiet \"" + tempPath + "\" 2>\"" + errPath + "\"";
+    }
+
     int status = std::system(cmd.c_str());
-    (void)status;
+    if(status != 0)
+    {
+        std::ifstream errFile(errPath);
+        std::string errMsg;
+        if(errFile.is_open())
+        {
+            std::getline(errFile, errMsg);
+            errFile.close();
+        }
+        if(errMsg.empty())
+            errMsg = editor->pythonFormatter + " failed";
+        unlink(tempPath.c_str());
+        editor->setStatusMessage(editor->pythonFormatter + ": " +
+                                 errMsg.substr(0, 80));
+        return false;
+    }
 
     std::ifstream in(tempPath);
     if(!in.is_open())
@@ -211,7 +235,7 @@ bool Formatter::pythonFormatBuffer()
 
     if(newLines == *editor->lines)
     {
-        editor->setStatusMessage("black: no changes");
+        editor->setStatusMessage(editor->pythonFormatter + ": no changes");
         return true;
     }
 
@@ -228,7 +252,7 @@ bool Formatter::pythonFormatBuffer()
 
     editor->adjustViewport();
     editor->needsFullRedraw = true;
-    editor->setStatusMessage("black: formatted buffer");
+    editor->setStatusMessage(editor->pythonFormatter + ": formatted buffer");
     return true;
 }
 

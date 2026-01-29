@@ -117,6 +117,8 @@ static std::string_view default_config_contents()
       highlight_calls: true
       custom_keywords: ""
       settings: "resource, library, variables, documentation, metadata, suite setup, suite teardown, test setup, test teardown, task setup, task teardown, test template, task template, test timeout, task timeout, force tags, default tags"
+  python:
+    formatter: "ruff"
 
 theme:
   base:

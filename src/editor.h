@@ -368,6 +368,7 @@ public:
     bool syntaxCppHighlightSystemIncludes = true;
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
+    std::string pythonFormatter = "ruff";
     std::unordered_set<std::string> robotSettingSet;
     TokenType markupHeadingToken = TOKEN_KEYWORD;
     TokenType markupBoldToken = TOKEN_KEYWORD;
