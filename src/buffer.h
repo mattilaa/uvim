@@ -1,5 +1,6 @@
 #pragma once
 
+#include "syntax_state.h"
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -76,6 +77,25 @@ struct Buffer
     int blameStart = -1;
     int blameEnd = -1;
     bool blameValid = false;
+
+    struct SyntaxCacheLine
+    {
+        bool valid = false;
+        bool inBlockComment = false;
+        bool inTomlMultiline = false;
+        char tomlQuote = 0;
+        bool inMarkupFence = false;
+        char markupFenceChar = 0;
+        CppMethodScanState methodState;
+        CppFunctionScanState functionState;
+        CppParamListScanState paramState;
+        bool inCppMethodContext = false;
+        bool inCppFunctionContext = false;
+        bool inCppParamListContext = false;
+    };
+
+    std::vector<SyntaxCacheLine> syntaxCache;
+    int syntaxCacheComputedUpTo = -1;
 
     Buffer()
     {

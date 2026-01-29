@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "cpp_constants.h"
 #include "editor.h"
+#include "syntax_state.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
@@ -151,31 +152,6 @@ std::vector<std::string> split_command_line(std::string_view command)
     flush();
     return args;
 }
-
-struct CppMethodScanState
-{
-    bool inBlockComment = false;
-    bool inMethod = false;
-    bool pendingMethod = false;
-    int braceDepth = 0;
-    int methodBraceDepth = 0;
-};
-
-struct CppFunctionScanState
-{
-    bool inBlockComment = false;
-    bool inFunction = false;
-    bool pendingFunction = false;
-    int braceDepth = 0;
-    int functionBraceDepth = 0;
-};
-
-struct CppParamListScanState
-{
-    bool inBlockComment = false;
-    bool inParamList = false;
-    int parenDepth = 0;
-};
 
 void scan_line_for_cpp_method_context(
     const std::string& line,
@@ -2785,6 +2761,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         return;
 
     auto* lines = editor->lines;
+    auto* buffer = editor->currentBuffer;
     auto* cursorX = editor->cursorX;
     auto* cursorY = editor->cursorY;
     const auto& theme = editor->theme;
@@ -2895,10 +2872,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         }
     };
 
-    // Determine block comment state for this line
-    // We scan from the beginning of the file to ensure correctness
-    // Performance optimization: this is a lightweight scan (just looking for
-    // comment delimiters)
+    // Determine block comment / fence / context state for this line
     bool blockCommentState = false;
     bool tomlMultilineState = false;
     char tomlQuote = 0;
@@ -2907,145 +2881,245 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
     bool inCppMethodContext = false;
     bool inCppFunctionContext = false;
     bool inCppParamListContext = false;
-    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
-    {
-        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
-        {
-            scanLineForBlockComments((*lines)[i], blockCommentState);
-        }
-    }
-    if(isFileType<FileType::Cpp>())
-    {
-        CppFunctionScanState functionState;
-        CppParamListScanState paramState;
-        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
-        {
-            scan_line_for_cpp_function_context((*lines)[i], functionState,
-                                               nullptr);
-            scan_line_for_cpp_param_list_context((*lines)[i], paramState,
-                                                 nullptr);
-        }
-        bool inParamListAtLineStart = paramState.inParamList;
-        bool lineHasFunctionStart = false;
-        bool lineHasParamListStart = false;
-        if(absoluteLineNum < (int)lines->size())
-        {
-            scan_line_for_cpp_function_context((*lines)[absoluteLineNum],
-                                               functionState,
-                                               &lineHasFunctionStart);
-            scan_line_for_cpp_param_list_context((*lines)[absoluteLineNum],
-                                                 paramState,
-                                                 &lineHasParamListStart);
-        }
-        inCppFunctionContext =
-            functionState.inFunction || lineHasFunctionStart;
-        inCppParamListContext =
-            inParamListAtLineStart || lineHasParamListStart;
-    }
-    if(isFileType<FileType::Cpp>() && editor->syntaxCppHighlightImplicitMembers)
-    {
-        ensureCppMemberIndex();
-        CppMethodScanState methodState;
-        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
-        {
-            scan_line_for_cpp_method_context((*lines)[i], cppClassNames,
-                                             methodState, nullptr);
-        }
-        bool lineHasMethodStart = false;
-        if(absoluteLineNum < (int)lines->size())
-        {
-            scan_line_for_cpp_method_context((*lines)[absoluteLineNum],
-                                             cppClassNames, methodState,
-                                             &lineHasMethodStart);
-        }
-        inCppMethodContext = methodState.inMethod || lineHasMethodStart;
-    }
-    if(isFileType<FileType::Toml>())
-    {
-        auto scanLineForTomlMultiline = [](const std::string& scanLine,
-                                           bool& inMultiline,
-                                           char& quoteChar)
-        {
-            for(size_t i = 0; i + 2 < scanLine.size(); ++i)
-            {
-                char c = scanLine[i];
-                if(c != '"' && c != '\'')
-                    continue;
-                if(scanLine[i + 1] != c || scanLine[i + 2] != c)
-                    continue;
 
-                if(c == '"')
-                {
-                    size_t j = i;
-                    int backslashes = 0;
-                    while(j > 0 && scanLine[j - 1] == '\\')
-                    {
-                        ++backslashes;
-                        --j;
-                    }
-                    if((backslashes % 2) == 1)
-                    {
-                        i += 2;
-                        continue;
-                    }
-                }
-
-                if(!inMultiline)
-                {
-                    inMultiline = true;
-                    quoteChar = c;
-                }
-                else if(quoteChar == c)
-                {
-                    inMultiline = false;
-                }
-                if(c == '"' && i + 3 < scanLine.size() && scanLine[i + 3] == '"')
-                    i += 3;
-                else
-                    i += 2;
-            }
-        };
-
-        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
-        {
-            scanLineForTomlMultiline((*lines)[i], tomlMultilineState,
-                                     tomlQuote);
-        }
-    }
-    if(isFileType<FileType::MarkupText>())
+    auto scanLineForTomlMultiline = [](const std::string& scanLine,
+                                       bool& inMultiline, char& quoteChar)
     {
-        auto scanLineForMarkupFence = [](const std::string& scanLine,
-                                         bool& inFence,
-                                         char& fenceChar)
+        for(size_t i = 0; i + 2 < scanLine.size(); ++i)
         {
-            size_t i = 0;
-            while(i < scanLine.size() &&
-                  text_utils::is_space(scanLine[i]))
-            {
-                ++i;
-            }
-            if(i + 2 >= scanLine.size())
-                return;
             char c = scanLine[i];
-            if((c == '`' || c == '~') && scanLine[i + 1] == c &&
-               scanLine[i + 2] == c)
+            if(c != '"' && c != '\'')
+                continue;
+            if(scanLine[i + 1] != c || scanLine[i + 2] != c)
+                continue;
+
+            if(c == '"')
             {
-                if(!inFence)
+                size_t j = i;
+                int backslashes = 0;
+                while(j > 0 && scanLine[j - 1] == '\\')
                 {
-                    inFence = true;
-                    fenceChar = c;
+                    ++backslashes;
+                    --j;
                 }
-                else if(fenceChar == c)
+                if((backslashes % 2) == 1)
                 {
-                    inFence = false;
+                    i += 2;
+                    continue;
                 }
+            }
+
+            if(!inMultiline)
+            {
+                inMultiline = true;
+                quoteChar = c;
+            }
+            else if(quoteChar == c)
+            {
+                inMultiline = false;
+            }
+            if(c == '"' && i + 3 < scanLine.size() && scanLine[i + 3] == '"')
+                i += 3;
+            else
+                i += 2;
+        }
+    };
+
+    auto scanLineForMarkupFence = [](const std::string& scanLine,
+                                     bool& inFence, char& fenceChar)
+    {
+        size_t i = 0;
+        while(i < scanLine.size() && text_utils::is_space(scanLine[i]))
+            ++i;
+        if(i + 2 >= scanLine.size())
+            return;
+        char c = scanLine[i];
+        if((c == '`' || c == '~') && scanLine[i + 1] == c &&
+           scanLine[i + 2] == c)
+        {
+            if(!inFence)
+            {
+                inFence = true;
+                fenceChar = c;
+            }
+            else if(fenceChar == c)
+            {
+                inFence = false;
+            }
+        }
+    };
+
+    if(buffer && !buffer->dirty)
+    {
+        if((int)buffer->syntaxCache.size() != (int)lines->size())
+        {
+            buffer->syntaxCache.assign(lines->size(), {});
+            buffer->syntaxCacheComputedUpTo = -1;
+        }
+
+        if(isFileType<FileType::Cpp>())
+            ensureCppMemberIndex();
+
+        auto compute_to = [&](int target)
+        {
+            int startLine = buffer->syntaxCacheComputedUpTo + 1;
+            if(startLine < 0)
+                startLine = 0;
+
+            for(int i = startLine; i <= target && i < (int)lines->size(); ++i)
+            {
+                Buffer::SyntaxCacheLine lineState;
+                if(i == 0)
+                {
+                    lineState.methodState = CppMethodScanState{};
+                    lineState.functionState = CppFunctionScanState{};
+                    lineState.paramState = CppParamListScanState{};
+                }
+                else
+                {
+                    const auto& prev = buffer->syntaxCache[i - 1];
+                    lineState.inBlockComment = prev.inBlockComment;
+                    lineState.inTomlMultiline = prev.inTomlMultiline;
+                    lineState.tomlQuote = prev.tomlQuote;
+                    lineState.inMarkupFence = prev.inMarkupFence;
+                    lineState.markupFenceChar = prev.markupFenceChar;
+                    lineState.methodState = prev.methodState;
+                    lineState.functionState = prev.functionState;
+                    lineState.paramState = prev.paramState;
+                }
+
+                const std::string& curLine = (*lines)[i];
+                bool methodStart = false;
+                bool functionStart = false;
+                bool paramStart = false;
+                bool methodBefore = lineState.methodState.inMethod;
+                bool functionBefore = lineState.functionState.inFunction;
+                bool paramBefore = lineState.paramState.inParamList;
+
+                if(isFileType<FileType::Cpp>())
+                {
+                    scan_line_for_cpp_method_context(curLine, cppClassNames,
+                                                     lineState.methodState,
+                                                     &methodStart);
+                    scan_line_for_cpp_function_context(curLine,
+                                                       lineState.functionState,
+                                                       &functionStart);
+                    scan_line_for_cpp_param_list_context(curLine,
+                                                         lineState.paramState,
+                                                         &paramStart);
+                }
+
+                lineState.inCppMethodContext = methodBefore || methodStart;
+                lineState.inCppFunctionContext = functionBefore || functionStart;
+                lineState.inCppParamListContext = paramBefore || paramStart;
+
+                if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
+                    scanLineForBlockComments(curLine, lineState.inBlockComment);
+
+                if(isFileType<FileType::Toml>())
+                    scanLineForTomlMultiline(curLine, lineState.inTomlMultiline,
+                                             lineState.tomlQuote);
+
+                if(isFileType<FileType::MarkupText>())
+                    scanLineForMarkupFence(curLine, lineState.inMarkupFence,
+                                           lineState.markupFenceChar);
+
+                lineState.valid = true;
+                buffer->syntaxCache[i] = lineState;
+                buffer->syntaxCacheComputedUpTo = i;
             }
         };
 
-        for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+        compute_to(absoluteLineNum);
+        if(absoluteLineNum > 0 &&
+           absoluteLineNum - 1 < (int)buffer->syntaxCache.size())
         {
-            scanLineForMarkupFence((*lines)[i], markupFenceState,
-                                   markupFenceChar);
+            const auto& prev = buffer->syntaxCache[absoluteLineNum - 1];
+            blockCommentState = prev.inBlockComment;
+            tomlMultilineState = prev.inTomlMultiline;
+            tomlQuote = prev.tomlQuote;
+            markupFenceState = prev.inMarkupFence;
+            markupFenceChar = prev.markupFenceChar;
+        }
+        if(absoluteLineNum < (int)buffer->syntaxCache.size())
+        {
+            const auto& cur = buffer->syntaxCache[absoluteLineNum];
+            inCppMethodContext = cur.inCppMethodContext;
+            inCppFunctionContext = cur.inCppFunctionContext;
+            inCppParamListContext = cur.inCppParamListContext;
+        }
+    }
+    else
+    {
+        if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
+        {
+            for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+            {
+                scanLineForBlockComments((*lines)[i], blockCommentState);
+            }
+        }
+        if(isFileType<FileType::Cpp>())
+        {
+            CppFunctionScanState functionState;
+            CppParamListScanState paramState;
+            for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+            {
+                scan_line_for_cpp_function_context((*lines)[i], functionState,
+                                                   nullptr);
+                scan_line_for_cpp_param_list_context((*lines)[i], paramState,
+                                                     nullptr);
+            }
+            bool inParamListAtLineStart = paramState.inParamList;
+            bool lineHasFunctionStart = false;
+            bool lineHasParamListStart = false;
+            if(absoluteLineNum < (int)lines->size())
+            {
+                scan_line_for_cpp_function_context((*lines)[absoluteLineNum],
+                                                   functionState,
+                                                   &lineHasFunctionStart);
+                scan_line_for_cpp_param_list_context((*lines)[absoluteLineNum],
+                                                     paramState,
+                                                     &lineHasParamListStart);
+            }
+            inCppFunctionContext =
+                functionState.inFunction || lineHasFunctionStart;
+            inCppParamListContext =
+                inParamListAtLineStart || lineHasParamListStart;
+        }
+        if(isFileType<FileType::Cpp>() &&
+           editor->syntaxCppHighlightImplicitMembers)
+        {
+            ensureCppMemberIndex();
+            CppMethodScanState methodState;
+            for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+            {
+                scan_line_for_cpp_method_context((*lines)[i], cppClassNames,
+                                                 methodState, nullptr);
+            }
+            bool lineHasMethodStart = false;
+            if(absoluteLineNum < (int)lines->size())
+            {
+                scan_line_for_cpp_method_context((*lines)[absoluteLineNum],
+                                                 cppClassNames, methodState,
+                                                 &lineHasMethodStart);
+            }
+            inCppMethodContext = methodState.inMethod || lineHasMethodStart;
+        }
+        if(isFileType<FileType::Toml>())
+        {
+            for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+            {
+                scanLineForTomlMultiline((*lines)[i], tomlMultilineState,
+                                         tomlQuote);
+            }
+        }
+        if(isFileType<FileType::MarkupText>())
+        {
+            for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+            {
+                scanLineForMarkupFence((*lines)[i], markupFenceState,
+                                       markupFenceChar);
+            }
         }
     }
 
