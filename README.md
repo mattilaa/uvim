@@ -11,6 +11,21 @@ Reduced version of Vim.
 - Syntax highlighting
 - Really small binary
 
+## Config
+
+Generate the default config:
+
+```sh
+uvim --init-config
+```
+
+This writes to `~/.config/uvim/config.yaml` (or `$XDG_CONFIG_HOME/uvim/config.yaml`
+if `XDG_CONFIG_HOME` is set). You can also provide a custom path:
+
+```sh
+uvim --init-config /path/to/uvim.yaml
+```
+
 ## LSP flags
 
 - `--clangd` enable clangd LSP

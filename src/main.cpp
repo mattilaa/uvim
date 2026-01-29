@@ -298,7 +298,9 @@ constexpr std::array<HelpRow, 19> kHelpRows = {{
     {kHelp, "Show this help and exit"},
     {kVersion, "Show version and exit"},
     {"--config <path>", "Use custom config path"},
-    {"--init-config [path]", "Write default config and exit"},
+    {"--init-config [path]",
+     "Write default config to $XDG_CONFIG_HOME/uvim/config.yaml (defaults to "
+     "~/.config/uvim/config.yaml) and exit"},
     {kClangd, "Enable clangd LSP"},
     {"--ccdir <dir>", "Compile commands dir for clangd"},
     {"--clangd-path <path>", "Path to clangd binary"},
