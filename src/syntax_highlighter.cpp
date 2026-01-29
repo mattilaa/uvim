@@ -5,6 +5,7 @@
 #include "syntax_state.h"
 #include "text_utils.h"
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
@@ -91,6 +92,36 @@ std::optional<TokenType> parse_token_type(std::string_view value)
     if(type == "constant" || type == "literal" || type == "bool")
         return TOKEN_KEYWORD;
     return std::nullopt;
+}
+
+bool is_mlang_keyword(std::string_view word)
+{
+    static constexpr std::array<std::string_view, 18> kKeywords = {
+        "break", "continue", "else",  "enum",  "extern", "fn",
+        "for",   "if",       "impl",  "in",    "let",    "match",
+        "mod",   "pub",      "return","struct","use",    "var"};
+    return std::ranges::any_of(
+        kKeywords, [&](std::string_view kw) { return kw == word; });
+}
+
+bool is_mlang_type(std::string_view word)
+{
+    static constexpr std::array<std::string_view, 19> kTypes = {
+        "bool",  "double", "float", "i16",   "i32",   "i64",
+        "i8",    "int",    "list",  "map",   "str16", "str8",
+        "string","tuple",  "u16",   "u32",   "u64",   "u8",
+        "void"};
+    return std::ranges::any_of(
+        kTypes, [&](std::string_view ty) { return ty == word; });
+}
+
+bool is_mlang_builtin(std::string_view word)
+{
+    static constexpr std::array<std::string_view, 7> kBuiltins = {
+        "assert_eq", "debug", "eprint", "eprintln",
+        "format", "print", "println"};
+    return std::ranges::any_of(
+        kBuiltins, [&](std::string_view fn) { return fn == word; });
 }
 
 std::vector<std::string> split_command_line(std::string_view command)
@@ -500,7 +531,8 @@ std::filesystem::path find_mlang_root(const std::filesystem::path& start)
 
     for(;;)
     {
-        if(std::filesystem::exists(dir / ".mlangd", ec))
+        if(std::filesystem::exists(dir / ".mlangd", ec) ||
+           std::filesystem::exists(dir / "mlang_commands.json", ec))
             return dir;
         if(dir.has_parent_path())
         {
@@ -1203,10 +1235,20 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         return;
 
     auto& cache = *editor->mlangTokenCache;
-    std::filesystem::path start =
-        editor->projectRoot.empty()
-            ? std::filesystem::path{}
-            : std::filesystem::path(editor->projectRoot);
+    std::filesystem::path start;
+    if(editor->currentBuffer && !editor->currentBuffer->filename.empty())
+    {
+        start = std::filesystem::path(editor->currentBuffer->filename)
+                    .parent_path();
+    }
+    else if(editor->filename && !editor->filename->empty())
+    {
+        start = std::filesystem::path(*editor->filename).parent_path();
+    }
+    else if(!editor->projectRoot.empty())
+    {
+        start = std::filesystem::path(editor->projectRoot);
+    }
     std::filesystem::path root = find_mlang_root(start);
     std::string rootStr = root.empty() ? std::string{} : root.string();
     const bool hasExplicitLspPath =
@@ -2610,6 +2652,27 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 {
                     push_token(*mapped, start, i - start);
                     continue;
+                }
+                if(is_mlang_keyword(word))
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    continue;
+                }
+                if(is_mlang_type(word))
+                {
+                    push_token(TOKEN_TYPE, start, i - start);
+                    continue;
+                }
+                if(is_mlang_builtin(word))
+                {
+                    int j = i;
+                    while(j < len && text_utils::is_space(sv[j]))
+                        ++j;
+                    if(j < len && sv[j] == '!')
+                    {
+                        push_token(TOKEN_FUNCTION, start, i - start);
+                        continue;
+                    }
                 }
             }
             else if(isFileType<FileType::MarkupText>())
