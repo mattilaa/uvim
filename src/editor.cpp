@@ -3895,11 +3895,6 @@ void Editor::toggleGitBlame()
         if(currentBuffer)
             currentBuffer->blameValid = false;
         updateGitBlameForVisibleRange();
-        setStatusMessage("git blame on");
-    }
-    else
-    {
-        setStatusMessage("git blame off");
     }
     needsFullRedraw = true;
 }
