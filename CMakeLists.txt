@@ -41,6 +41,7 @@ set(UVIM_CORE_SOURCES
     src/text_operations.cpp
     src/search.cpp
     src/formatter.cpp
+    src/git_handler.cpp
     src/syntax_highlighter.cpp
     src/undo_redo.cpp
     src/drawing.cpp

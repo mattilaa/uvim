@@ -1,0 +1,28 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+class Editor;
+
+class GitHandler
+{
+public:
+    explicit GitHandler(Editor* editor);
+
+    void toggleGitBlame();
+    void updateGitBlameForVisibleRange();
+    std::string blameDisplayForLine(int row) const;
+    std::string blameFullForLine(int row) const;
+    void openGitShowCommitMode();
+    std::vector<std::string> loadGitShowLines(const std::string& hash);
+    void openGitLogMode();
+    void openGitLogModeForFile();
+
+private:
+    Editor* editor;
+    bool gitAvailableKnown = false;
+    bool gitAvailable = false;
+
+    bool ensureGitAvailable();
+};

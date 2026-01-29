@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "formatter.h"
+#include "git_handler.h"
 #include "syntax_highlighter.h"
 #include "constants.h"
 #include "enablelog.h"
@@ -1012,6 +1013,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
         std::make_unique<ModeStateMachine>(createModeContext(this));
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
+    gitHandler = std::make_unique<GitHandler>(this);
 }
 
 #ifdef UVIM_TESTING
@@ -1027,6 +1029,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
+    gitHandler = std::make_unique<GitHandler>(this);
 }
 
 Editor Editor::createForTests(int rows, int cols)
@@ -3777,524 +3780,55 @@ int Editor::gutterWidth() const
     return width;
 }
 
-static bool is_hex_token(const std::string& token)
-{
-    if(token.empty())
-        return false;
-    for(char c : token)
-    {
-        if(!std::isxdigit(static_cast<unsigned char>(c)))
-            return false;
-    }
-    return true;
-}
-
-static std::string trim_newline(std::string s)
-{
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
-
-static bool is_inside_git_repo(const std::string& filePath)
-{
-    fs::path path(filePath);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd =
-        "git -C \"" + dir + "\" rev-parse --is-inside-work-tree 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if(!pipe)
-        return false;
-    char buffer[128];
-    std::string out;
-    if(fgets(buffer, sizeof(buffer), pipe))
-        out = trim_newline(buffer);
-    pclose(pipe);
-    return out == "true";
-}
-
-static std::string format_git_date(const std::string& secondsText)
-{
-    if(secondsText.empty())
-        return "";
-    long long seconds = 0;
-    auto begin = secondsText.data();
-    auto end = secondsText.data() + secondsText.size();
-    auto result = std::from_chars(begin, end, seconds);
-    if(result.ec != std::errc())
-        return "";
-    std::time_t t = static_cast<std::time_t>(seconds);
-    std::tm tm{};
-    if(!localtime_r(&t, &tm))
-        return "";
-    char buf[16];
-    if(std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm) == 0)
-        return "";
-    return std::string(buf);
-}
-
-static std::string blame_hash_for_line(const std::string& filePath, int line)
-{
-    fs::path path(filePath);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd = "git -C \"" + dir +
-                      "\" blame --line-porcelain -L " +
-                      std::to_string(line + 1) + "," +
-                      std::to_string(line + 1) + " -- \"" + filePath +
-                      "\" 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if(!pipe)
-        return "";
-    char buffer[256];
-    std::string firstLine;
-    if(fgets(buffer, sizeof(buffer), pipe))
-        firstLine = trim_newline(buffer);
-    pclose(pipe);
-    if(firstLine.empty())
-        return "";
-    size_t space = firstLine.find(' ');
-    std::string token =
-        (space == std::string::npos) ? firstLine : firstLine.substr(0, space);
-    if(!is_hex_token(token))
-        return "";
-    return token;
-}
-
 void Editor::toggleGitBlame()
 {
-    showGitBlame = !showGitBlame;
-    if(showGitBlame)
-    {
-        if(!gitAvailableKnown)
-        {
-            gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
-            gitAvailableKnown = true;
-        }
-        if(!gitAvailable)
-        {
-            showGitBlame = false;
-            setStatusMessage("git not installed");
-            return;
-        }
-        if(!currentBuffer || currentBuffer->filename.empty())
-        {
-            showGitBlame = false;
-            setStatusMessage("git blame: no file");
-            return;
-        }
-        if(!is_inside_git_repo(currentBuffer->filename))
-        {
-            showGitBlame = false;
-            setStatusMessage("git blame: not a repo");
-            return;
-        }
-        if(diagnosticPopupActive)
-            closeDiagnosticPopup();
-        if(currentBuffer)
-            currentBuffer->blameValid = false;
-        updateGitBlameForVisibleRange();
-    }
-    needsFullRedraw = true;
+    if(gitHandler)
+        gitHandler->toggleGitBlame();
 }
 
 void Editor::updateGitBlameForVisibleRange()
 {
-    if(!showGitBlame || !currentBuffer || currentBuffer->filename.empty())
-        return;
-
-    fs::path path(currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string blameTarget = currentBuffer->filename;
-    std::string tempPath;
-    if(dirty && *dirty)
-    {
-        tempPath = "/tmp/uvim_blame_" + std::to_string(getpid()) + ".tmp";
-        std::ofstream tempFile(tempPath);
-        if(tempFile.is_open())
-        {
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                tempFile << (*lines)[i] << '\n';
-            }
-            tempFile.close();
-        }
-    }
-
-    std::string cmd = "git -C \"" + dir + "\" blame --line-porcelain ";
-    if(!tempPath.empty())
-        cmd += "--contents \"" + tempPath + "\" ";
-    cmd += "-- \"" + blameTarget + "\" 2>/dev/null";
-
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if(!pipe)
-    {
-        setStatusMessage("git blame: failed to run");
-        if(!tempPath.empty())
-            unlink(tempPath.c_str());
-        return;
-    }
-
-    std::vector<Buffer::BlameEntry> entries;
-    entries.reserve(lines->size());
-    std::string hash;
-    std::string author;
-    std::string authorTime;
-    char buffer[512];
-    while(fgets(buffer, sizeof(buffer), pipe))
-    {
-        std::string line = trim_newline(buffer);
-        if(line.empty())
-            continue;
-        if(line[0] == '\t')
-        {
-            Buffer::BlameEntry entry;
-            entry.hash = hash;
-            entry.author = author;
-            entry.date = format_git_date(authorTime);
-            entry.valid = !hash.empty();
-            entries.push_back(std::move(entry));
-            hash.clear();
-            author.clear();
-            authorTime.clear();
-            continue;
-        }
-        if(line.rfind("author ", 0) == 0)
-        {
-            author = line.substr(7);
-            continue;
-        }
-        if(line.rfind("author-time ", 0) == 0)
-        {
-            authorTime = line.substr(12);
-            continue;
-        }
-        size_t space = line.find(' ');
-        if(space != std::string::npos)
-        {
-            std::string token = line.substr(0, space);
-            if(is_hex_token(token))
-                hash = token;
-        }
-    }
-    pclose(pipe);
-    if(!tempPath.empty())
-        unlink(tempPath.c_str());
-
-    if((int)entries.size() != (int)lines->size())
-    {
-        setStatusMessage("git blame: failed");
-        currentBuffer->blameValid = false;
-        return;
-    }
-
-    currentBuffer->blameEntries = std::move(entries);
-    currentBuffer->blameStart = 0;
-    currentBuffer->blameEnd = (int)currentBuffer->blameEntries.size() - 1;
-    currentBuffer->blameValid = true;
+    if(gitHandler)
+        gitHandler->updateGitBlameForVisibleRange();
 }
 
 std::string Editor::blameDisplayForLine(int row) const
 {
-    if(!showGitBlame || !currentBuffer)
-        return "";
-    if(row < 0 || row >= (int)currentBuffer->blameEntries.size())
-        return "";
-    const auto& entry = currentBuffer->blameEntries[row];
-    if(!entry.valid)
-        return "";
-
-    auto isUncommitted = [&](const Buffer::BlameEntry& e) -> bool
-    {
-        if(e.hash.empty())
-            return false;
-        for(char c : e.hash)
-        {
-            if(c != '0')
-                return false;
-        }
-        return true;
-    };
-
-    std::string hash = entry.hash;
-    if(hash.size() > 7)
-        hash = hash.substr(0, 7);
-    std::string out = isUncommitted(entry) ? "not committed" : hash;
-    if(!entry.author.empty())
-        out += " " + entry.author;
-    if(!entry.date.empty())
-        out += " " + entry.date;
-    if((int)out.size() > kGitBlameWidth)
-        out.resize(kGitBlameWidth);
-    return out;
+    if(gitHandler)
+        return gitHandler->blameDisplayForLine(row);
+    return "";
 }
 
 std::string Editor::blameFullForLine(int row) const
 {
-    if(!showGitBlame || !currentBuffer)
-        return "";
-    if(row < 0 || row >= (int)currentBuffer->blameEntries.size())
-        return "";
-    const auto& entry = currentBuffer->blameEntries[row];
-    if(!entry.valid)
-        return "";
-
-    auto isUncommitted = [&](const Buffer::BlameEntry& e) -> bool
-    {
-        if(e.hash.empty())
-            return false;
-        for(char c : e.hash)
-        {
-            if(c != '0')
-                return false;
-        }
-        return true;
-    };
-
-    std::string out = isUncommitted(entry) ? "not committed" : entry.hash;
-    if(!entry.author.empty())
-        out += " " + entry.author;
-    if(!entry.date.empty())
-        out += " " + entry.date;
-    return out;
+    if(gitHandler)
+        return gitHandler->blameFullForLine(row);
+    return "";
 }
 
 void Editor::openGitShowCommitMode()
 {
-    if(!gitAvailableKnown)
-    {
-        gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
-        gitAvailableKnown = true;
-    }
-    if(!gitAvailable)
-    {
-        setStatusMessage("git not installed");
-        return;
-    }
-    if(!currentBuffer || currentBuffer->filename.empty())
-    {
-        setStatusMessage("git show: no file");
-        return;
-    }
-    if(!is_inside_git_repo(currentBuffer->filename))
-    {
-        setStatusMessage("git show: not a repo");
-        return;
-    }
-
-    std::string hash;
-    int row = *cursorY;
-    if(currentBuffer->blameValid && row >= currentBuffer->blameStart &&
-       row <= currentBuffer->blameEnd &&
-       row < (int)currentBuffer->blameEntries.size())
-    {
-        const auto& entry = currentBuffer->blameEntries[row];
-        if(entry.valid)
-            hash = entry.hash;
-    }
-    if(hash.empty())
-        hash = blame_hash_for_line(currentBuffer->filename, row);
-    if(hash.empty())
-    {
-        setStatusMessage("git show: no blame hash");
-        return;
-    }
-
-    std::vector<std::string> linesOut = loadGitShowLines(hash);
-    if(linesOut.empty())
-    {
-        setStatusMessage("git show: no output");
-        return;
-    }
-
-    if(modeStateMachine)
-    {
-        modeStateMachine->transitionTo(
-            GitShowCommitMode{hash, std::move(linesOut)});
-        syncModeFromStateMachine();
-        needsFullRedraw = true;
-    }
+    if(gitHandler)
+        gitHandler->openGitShowCommitMode();
 }
 
 std::vector<std::string> Editor::loadGitShowLines(const std::string& hash)
 {
-    if(!currentBuffer || currentBuffer->filename.empty())
-        return {};
-    fs::path path(currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd = "git -C \"" + dir + "\" --no-pager show " +
-                      std::string(gitUseDefaultColors ? "--color=always "
-                                                      : "--no-color ") +
-                      hash + " 2>/dev/null";
-
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if(!pipe)
-        return {};
-
-    std::string output;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
-        output += buffer;
-    pclose(pipe);
-
-    if(output.empty())
-        return {};
-
-    std::vector<std::string> linesOut;
-    size_t pos = 0;
-    while(pos <= output.size())
-    {
-        size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
-        {
-            linesOut.push_back(output.substr(pos));
-            break;
-        }
-        linesOut.push_back(output.substr(pos, next - pos));
-        pos = next + 1;
-    }
-
-    return linesOut;
+    if(gitHandler)
+        return gitHandler->loadGitShowLines(hash);
+    return {};
 }
 
 void Editor::openGitLogMode()
 {
-    if(!gitAvailableKnown)
-    {
-        gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
-        gitAvailableKnown = true;
-    }
-    if(!gitAvailable)
-    {
-        setStatusMessage("git not installed");
-        return;
-    }
-    if(!currentBuffer || currentBuffer->filename.empty())
-    {
-        setStatusMessage("git log: no file");
-        return;
-    }
-    if(!is_inside_git_repo(currentBuffer->filename))
-    {
-        setStatusMessage("git log: not a repo");
-        return;
-    }
-
-    fs::path path(currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd =
-        "git -C \"" + dir +
-        "\" --no-pager log --no-color --pretty=format:%h\\\t%s 2>/dev/null";
-
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if(!pipe)
-    {
-        setStatusMessage("git log: failed to run");
-        return;
-    }
-
-    std::vector<GitLogMode::Entry> entries;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
-    {
-        std::string line = trim_newline(buffer);
-        if(line.empty())
-            continue;
-        size_t tab = line.find('\t');
-        if(tab == std::string::npos)
-            continue;
-        GitLogMode::Entry entry;
-        entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
-        entries.push_back(std::move(entry));
-    }
-    pclose(pipe);
-
-    if(entries.empty())
-    {
-        setStatusMessage("git log: no output");
-        return;
-    }
-
-    if(modeStateMachine)
-    {
-        modeStateMachine->transitionTo(GitLogMode{std::move(entries), false});
-        syncModeFromStateMachine();
-        needsFullRedraw = true;
-    }
+    if(gitHandler)
+        gitHandler->openGitLogMode();
 }
 
 void Editor::openGitLogModeForFile()
 {
-    if(!gitAvailableKnown)
-    {
-        gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
-        gitAvailableKnown = true;
-    }
-    if(!gitAvailable)
-    {
-        setStatusMessage("git not installed");
-        return;
-    }
-    if(!currentBuffer || currentBuffer->filename.empty())
-    {
-        setStatusMessage("git log: no file");
-        return;
-    }
-    if(!is_inside_git_repo(currentBuffer->filename))
-    {
-        setStatusMessage("git log: not a repo");
-        return;
-    }
-
-    fs::path path(currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd =
-        "git -C \"" + dir +
-        "\" --no-pager log --no-color --pretty=format:%h\\\t%s -- \"" +
-        currentBuffer->filename + "\" 2>/dev/null";
-
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if(!pipe)
-    {
-        setStatusMessage("git log: failed to run");
-        return;
-    }
-
-    std::vector<GitLogMode::Entry> entries;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
-    {
-        std::string line = trim_newline(buffer);
-        if(line.empty())
-            continue;
-        size_t tab = line.find('\t');
-        if(tab == std::string::npos)
-            continue;
-        GitLogMode::Entry entry;
-        entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
-        entries.push_back(std::move(entry));
-    }
-    pclose(pipe);
-
-    if(entries.empty())
-    {
-        setStatusMessage("git log: no output");
-        return;
-    }
-
-    if(modeStateMachine)
-    {
-        modeStateMachine->transitionTo(GitLogMode{std::move(entries), true});
-        syncModeFromStateMachine();
-        needsFullRedraw = true;
-    }
+    if(gitHandler)
+        gitHandler->openGitLogModeForFile();
 }
 
 static std::optional<int> parseIndentWidthLine(const std::string& line)

@@ -27,6 +27,7 @@ class GitIgnore;
 class ModeStateMachine;
 class SyntaxHighlighter;
 class Formatter;
+class GitHandler;
 
 struct MlangTokenCache
 {
@@ -342,13 +343,12 @@ public:
     bool showGitBlame = false;
     bool showGitBlameInfo = true;
     bool gitUseDefaultColors = true;
-    bool gitAvailableKnown = false;
     bool commentTogglePartial = false;
     bool formatOnInsertLeave = true;
     bool formatOnDoubleEscPending = false;
     int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
     bool gdCenterScreen = true;
-    bool gitAvailable = false;
+    std::unique_ptr<GitHandler> gitHandler;
     int tabSpaces = 4;
     bool showTabs = true;
     bool utf8Mode = true;
@@ -804,6 +804,7 @@ public:
     const std::string& getProjectRoot() const { return projectRoot; }
 
 private:
+    friend class GitHandler;
 #ifdef UVIM_TESTING
     struct TestTag
     {
