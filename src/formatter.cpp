@@ -69,7 +69,7 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     auto buildCmd = [&](const std::string& exe) -> std::string
     {
         std::string cmd = "cat \"" + tempPath + "\" | " + exe +
-                          " -style=file -assume-editor->filename=\"" + absFilename +
+                          " -style=file -assume-filename=\"" + absFilename +
                           "\"";
         if(!extraArgs.empty())
             cmd += " " + extraArgs;
