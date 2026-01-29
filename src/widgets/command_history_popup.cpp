@@ -37,9 +37,8 @@ void drawCommandHistoryPopup(std::string& output,
             int idx = view.matches[i + view.offset];
             if(idx >= 0 && idx < (int)view.history.size())
             {
-                maxContent =
-                    std::max(maxContent,
-                             text_utils::displayWidth(view.history[idx]));
+                maxContent = std::max(
+                    maxContent, text_utils::displayWidth(view.history[idx]));
             }
         }
     }

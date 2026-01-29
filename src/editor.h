@@ -1,8 +1,8 @@
 #pragma once
 #include "buffer.h"
-#include "file_type.h"
 #include "completion_entry.h"
 #include "file_entry.h"
+#include "file_type.h"
 #include "jump_location.h"
 #include "mode.h"
 #include "search_types.h"
@@ -781,10 +781,8 @@ public:
     void clangFormatVisualBlockSelection();
 
     std::vector<Token> tokenizeLine(const std::string& line,
-                                    bool& inBlockComment,
-                                    bool& inTomlMultiline,
-                                    char& tomlQuote,
-                                    bool& inMarkupFence,
+                                    bool& inBlockComment, bool& inTomlMultiline,
+                                    char& tomlQuote, bool& inMarkupFence,
                                     char& markupFenceChar,
                                     bool inCppMethodContext = false,
                                     bool inCppFunctionContext = false,
@@ -801,8 +799,14 @@ public:
     void redo();
     bool lastFindTill{false};
 
-    void setProjectRoot(const std::string& path) { projectRoot = path; }
-    const std::string& getProjectRoot() const { return projectRoot; }
+    void setProjectRoot(const std::string& path)
+    {
+        projectRoot = path;
+    }
+    const std::string& getProjectRoot() const
+    {
+        return projectRoot;
+    }
 
 private:
     friend class GitHandler;

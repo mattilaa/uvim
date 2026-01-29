@@ -152,7 +152,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(c == Terminal::ESC)
             {
                 ed->formatOnDoubleEscPending =
-                    ed->formatOnInsertLeave && ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>();
+                    ed->formatOnInsertLeave &&
+                    ed->isFileType<FileType::Cpp>() &&
+                    !ed->isFileType<FileType::Mla>();
                 ed->lastEscTime = std::chrono::steady_clock::now();
             }
             ed->saveState();
@@ -172,8 +174,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
         if(c == Terminal::ESC)
         {
-            ed->formatOnDoubleEscPending =
-                ed->formatOnInsertLeave && ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>();
+            ed->formatOnDoubleEscPending = ed->formatOnInsertLeave &&
+                                           ed->isFileType<FileType::Cpp>() &&
+                                           !ed->isFileType<FileType::Mla>();
             ed->lastEscTime = std::chrono::steady_clock::now();
         }
         ed->saveState();
@@ -501,8 +504,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             }
             std::string indentStr = line.substr(0, indent);
             std::string innerIndent =
-                indentStr +
-                std::string(ed->indentWidthForBraces(), ' ');
+                indentStr + std::string(ed->indentWidthForBraces(), ' ');
 
             if(ed->braceNewLineForAutoBraces())
             {
@@ -567,7 +569,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
 
         if(ed->autoTags && c == '>' && !inString &&
-           (ed->isFileType<FileType::Html>() || ed->isFileType<FileType::Xml>()))
+           (ed->isFileType<FileType::Html>() ||
+            ed->isFileType<FileType::Xml>()))
         {
             ed->insertChar(static_cast<char>(c));
 

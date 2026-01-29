@@ -586,8 +586,8 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             }
 
             // Quit all commands - delegate to editor to quit entire application
-            if(cmd == "qa" || cmd == "qall" || cmd == "qa!" ||
-               cmd == "qall!" || cmd == "wqa" || cmd == "wqall" || cmd == "xa")
+            if(cmd == "qa" || cmd == "qall" || cmd == "qa!" || cmd == "qall!" ||
+               cmd == "wqa" || cmd == "wqall" || cmd == "xa")
             {
                 ctx.executeCommand(cmd);
                 return true;
@@ -760,9 +760,8 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     else
                     {
                         // Relative path
-                        targetPath =
-                            std::filesystem::path(currentDirectory) /
-                            std::filesystem::path(args);
+                        targetPath = std::filesystem::path(currentDirectory) /
+                                     std::filesystem::path(args);
                     }
 
                     std::error_code ec;
@@ -801,7 +800,5 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             return false;
         },
         [&](ModeContext& ctx, std::string_view line)
-        {
-            return dispatchEditorCommand(ctx, line, previousFile, false);
-        });
+        { return dispatchEditorCommand(ctx, line, previousFile, false); });
 }

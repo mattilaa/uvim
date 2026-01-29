@@ -26,9 +26,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     {
         if(view.searchMatchCount > 0)
         {
-            searchInfo =
-                " [" + std::to_string(view.searchMatchIndex + 1) + "/" +
-                std::to_string(view.searchMatchCount) + "]";
+            searchInfo = " [" + std::to_string(view.searchMatchIndex + 1) +
+                         "/" + std::to_string(view.searchMatchCount) + "]";
         }
         else
         {
@@ -48,9 +47,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
 
     if((int)displayName.length() > availableForFile && availableForFile > 4)
     {
-        displayName =
-            "..." + displayName.substr(displayName.length() -
-                                       availableForFile + 3);
+        displayName = "..." + displayName.substr(displayName.length() -
+                                                 availableForFile + 3);
     }
 
     status += displayName;
@@ -85,8 +83,7 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
         return;
     }
 
-    if(view.showGitBlame && view.showGitBlameInfo &&
-       !view.blameLine.empty())
+    if(view.showGitBlame && view.showGitBlameInfo && !view.blameLine.empty())
     {
         output += "blame: " + std::string(view.blameLine);
         return;
@@ -94,8 +91,8 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
 
     if(!view.statusMessage.empty())
     {
-        int msglen = std::min((int)view.statusMessage.length(),
-                              view.screenCols);
+        int msglen =
+            std::min((int)view.statusMessage.length(), view.screenCols);
         output.append(view.statusMessage, 0, msglen);
     }
 }

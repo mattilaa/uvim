@@ -301,14 +301,12 @@ struct LspClient::Impl
                         std::string uri = params.value("uri", "");
                         if(!uri.empty())
                         {
-                            std::string path =
-                                absPath(uriToPath(uri));
+                            std::string path = absPath(uriToPath(uri));
                             std::vector<LspClient::Diagnostic> diags;
                             if(params.contains("diagnostics") &&
                                params["diagnostics"].is_array())
                             {
-                                const json& entries =
-                                    params["diagnostics"];
+                                const json& entries = params["diagnostics"];
                                 diags.reserve(entries.size());
                                 for(const auto& item : entries)
                                 {
@@ -326,10 +324,8 @@ struct LspClient::Impl
                                         start.value("character", 0);
                                     diag.endLine = end.value("line", diag.line);
                                     diag.endCharacter =
-                                        end.value("character",
-                                                  diag.character);
-                                    diag.severity =
-                                        item.value("severity", 0);
+                                        end.value("character", diag.character);
+                                    diag.severity = item.value("severity", 0);
                                     diag.message =
                                         item.value("message", std::string{});
                                     diag.source =
@@ -338,8 +334,7 @@ struct LspClient::Impl
                                     {
                                         try
                                         {
-                                            diag.codeJson =
-                                                item["code"].dump();
+                                            diag.codeJson = item["code"].dump();
                                         }
                                         catch(...)
                                         {
@@ -349,8 +344,7 @@ struct LspClient::Impl
                                     {
                                         try
                                         {
-                                            diag.dataJson =
-                                                item["data"].dump();
+                                            diag.dataJson = item["data"].dump();
                                         }
                                         catch(...)
                                         {
@@ -711,9 +705,8 @@ LspClient::definition(const std::string& filePath, int line,
                 if(curLine == line)
                 {
                     std::string ln = text.substr(start, i - start);
-                    utf16ch =
-                        text_utils::utf8ByteOffsetToUtf16(ln,
-                                                           characterUtf8ByteOffset);
+                    utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                        ln, characterUtf8ByteOffset);
                     break;
                 }
                 curLine++;
@@ -770,9 +763,8 @@ LspClient::completion(const std::string& filePath, int line,
                     if(curLine == line)
                     {
                         std::string ln = text.substr(start, i - start);
-                        utf16ch =
-                            text_utils::utf8ByteOffsetToUtf16(
-                                ln, characterUtf8ByteOffset);
+                        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                            ln, characterUtf8ByteOffset);
                         break;
                     }
                     curLine++;
@@ -875,9 +867,8 @@ LspClient::references(const std::string& filePath, int line,
                 if(curLine == line)
                 {
                     std::string ln = text.substr(start, i - start);
-                    utf16ch =
-                        text_utils::utf8ByteOffsetToUtf16(ln,
-                                                           characterUtf8ByteOffset);
+                    utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                        ln, characterUtf8ByteOffset);
                     break;
                 }
                 curLine++;
@@ -991,9 +982,9 @@ parseTextEditsForUri(const json& edits, const std::string& targetPath)
     return out;
 }
 
-static void parseWorkspaceEditInto(
-    const json& editObj, const std::string& filePath,
-    std::vector<LspClient::TextEdit>& out)
+static void parseWorkspaceEditInto(const json& editObj,
+                                   const std::string& filePath,
+                                   std::vector<LspClient::TextEdit>& out)
 {
     if(!editObj.is_object())
         return;
@@ -1025,9 +1016,8 @@ static void parseWorkspaceEditInto(
             std::string path = uriToPath(uri);
             if(absPath(path) != absPath(filePath))
                 continue;
-            std::vector<LspClient::TextEdit> edits =
-                parseTextEditsForUri(change.value("edits", json::array()),
-                                     path);
+            std::vector<LspClient::TextEdit> edits = parseTextEditsForUri(
+                change.value("edits", json::array()), path);
             out.insert(out.end(), edits.begin(), edits.end());
         }
     }
@@ -1069,8 +1059,8 @@ static void fillCodeActionFromJson(const json& item,
                 if(arg.contains("workspaceEdit"))
                 {
                     parseWorkspaceEditInto(
-                        arg.value("workspaceEdit", json::object()),
-                        filePath, action.edits);
+                        arg.value("workspaceEdit", json::object()), filePath,
+                        action.edits);
                 }
                 else
                 {
@@ -1102,8 +1092,8 @@ static void fillCodeActionFromJson(const json& item,
                 if(arg.contains("workspaceEdit"))
                 {
                     parseWorkspaceEditInto(
-                        arg.value("workspaceEdit", json::object()),
-                        filePath, action.edits);
+                        arg.value("workspaceEdit", json::object()), filePath,
+                        action.edits);
                 }
                 else
                 {
@@ -1125,9 +1115,8 @@ LspClient::codeActions(const std::string& filePath, int line,
 
     std::string abs = absPath(filePath);
 
-    int endCharUtf16 =
-        text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
-                                          (int)lineText.size());
+    int endCharUtf16 = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                                         (int)lineText.size());
 
     json diagArray = json::array();
     for(const auto& d : diagnostics)
@@ -1168,9 +1157,8 @@ LspClient::codeActions(const std::string& filePath, int line,
 
     json params;
     params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["range"] = {
-        {"start", {{"line", line}, {"character", 0}}},
-        {"end", {{"line", line}, {"character", endCharUtf16}}}};
+    params["range"] = {{"start", {{"line", line}, {"character", 0}}},
+                       {"end", {{"line", line}, {"character", endCharUtf16}}}};
     params["context"] = {{"diagnostics", diagArray}};
 
     int id = impl->sendRequest("textDocument/codeAction", params);
@@ -1244,8 +1232,7 @@ LspClient::formatting(const std::string& filePath, int tabSize,
     std::string abs = absPath(filePath);
     json params;
     params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["options"] = {{"tabSize", tabSize},
-                         {"insertSpaces", insertSpaces}};
+    params["options"] = {{"tabSize", tabSize}, {"insertSpaces", insertSpaces}};
 
     int id = impl->sendRequest("textDocument/formatting", params);
     auto resp = impl->waitResponse(id, 5000);
@@ -1372,9 +1359,7 @@ LspClient::diagnostics(const std::string&) const
     return {};
 }
 
-void LspClient::clearDiagnostics(const std::string&)
-{
-}
+void LspClient::clearDiagnostics(const std::string&) {}
 
 size_t LspClient::diagnosticsRevision(const std::string&) const
 {
@@ -1399,8 +1384,7 @@ LspClient::formatting(const std::string& filePath, int tabSize,
     std::string abs = absPath(filePath);
     json params;
     params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["options"] = {{"tabSize", tabSize},
-                         {"insertSpaces", insertSpaces}};
+    params["options"] = {{"tabSize", tabSize}, {"insertSpaces", insertSpaces}};
 
     int id = impl->sendRequest("textDocument/formatting", params);
     auto resp = impl->waitResponse(id, 5000);
@@ -1414,8 +1398,7 @@ LspClient::formatting(const std::string& filePath, int tabSize,
 }
 
 std::vector<LspClient::TextEdit>
-LspClient::executeCommand(const std::string&,
-                          const std::vector<std::string>&,
+LspClient::executeCommand(const std::string&, const std::vector<std::string>&,
                           const std::string&)
 {
     return {};

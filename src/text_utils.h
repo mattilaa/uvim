@@ -1,9 +1,9 @@
 #pragma once
 #include <climits>
 #include <codecvt>
-#include <cwchar>
 #include <cstddef>
 #include <cstdint>
+#include <cwchar>
 #include <locale>
 #include <string>
 #include <string_view>
@@ -168,10 +168,7 @@ inline int utf8DisplayWidth(std::string_view s)
 inline int displayWidth(std::string_view s)
 {
     auto isAnsiStart = [](std::string_view text, size_t i) -> bool
-    {
-        return i + 1 < text.size() && text[i] == '\x1b' &&
-               text[i + 1] == '[';
-    };
+    { return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == '['; };
     auto skipAnsi = [](std::string_view text, size_t i) -> size_t
     {
         i += 2;
@@ -238,8 +235,7 @@ inline int utf8ByteOffsetToUtf16(std::string_view line, int byteOffset)
         }
         else if((c & 0xE0) == 0xC0 && i + 1 < (int)line.size())
         {
-            codepoint =
-                ((c & 0x1F) << 6) | ((unsigned char)line[i + 1] & 0x3F);
+            codepoint = ((c & 0x1F) << 6) | ((unsigned char)line[i + 1] & 0x3F);
             len = 2;
         }
         else if((c & 0xF0) == 0xE0 && i + 2 < (int)line.size())

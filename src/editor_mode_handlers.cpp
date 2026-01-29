@@ -456,7 +456,8 @@ void Editor::handleNormalMode(int c)
                 clangFormatWithArgs("", "clang-format: formatted file");
                 return;
             }
-            setStatusMessage("format: unsupported file type (" + *filename + ")");
+            setStatusMessage("format: unsupported file type (" + *filename +
+                             ")");
             return;
         }
         else if(c == 'x')

@@ -32,9 +32,8 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
             int idx = view.filtered[i + view.offset];
             if(idx >= 0 && idx < (int)view.entries.size())
             {
-                maxContent =
-                    std::max(maxContent,
-                             text_utils::displayWidth(view.entries[idx]));
+                maxContent = std::max(
+                    maxContent, text_utils::displayWidth(view.entries[idx]));
             }
         }
     }
@@ -82,8 +81,7 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         if((int)line.length() > innerW)
             line = line.substr(0, innerW - 3) + "...";
 
-        if(!view.filtered.empty() &&
-           (i + view.offset) == view.cursor)
+        if(!view.filtered.empty() && (i + view.offset) == view.cursor)
         {
             output += view.theme.selection();
             output.append(line);

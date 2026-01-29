@@ -66,8 +66,7 @@ void Editor::deleteRange(int startY, int startX, int endY, int endX)
             currentBuffer->blameEntries.begin() + startY,
             currentBuffer->blameEntries.begin() + startY + removeCount);
         currentBuffer->blameStart = 0;
-        currentBuffer->blameEnd =
-            (int)currentBuffer->blameEntries.size() - 1;
+        currentBuffer->blameEnd = (int)currentBuffer->blameEntries.size() - 1;
     }
 
     if(lines->empty())
@@ -151,7 +150,8 @@ void Editor::insertNewline()
                starts("else") || starts("switch");
     };
 
-    if(autoTags && (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
+    if(autoTags &&
+       (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
     {
         int cx = *cursorX;
         if(cx > 0 && cx <= (int)currentLine.size())
@@ -182,9 +182,8 @@ void Editor::insertNewline()
                             ++nameEnd;
                         if(nameEnd > nameStart)
                         {
-                            std::string openTag =
-                                currentLine.substr(nameStart,
-                                                   nameEnd - nameStart);
+                            std::string openTag = currentLine.substr(
+                                nameStart, nameEnd - nameStart);
                             size_t closeStart =
                                 currentLine.find("</", (size_t)cx);
                             if(closeStart != std::string::npos)
@@ -226,12 +225,12 @@ void Editor::insertNewline()
                                             std::string after =
                                                 currentLine.substr(closeStart);
                                             (*lines)[*cursorY] = before;
-                                            lines->insert(
-                                                lines->begin() + *cursorY + 1,
-                                                innerIndent);
-                                            lines->insert(
-                                                lines->begin() + *cursorY + 2,
-                                                indentStr + after);
+                                            lines->insert(lines->begin() +
+                                                              *cursorY + 1,
+                                                          innerIndent);
+                                            lines->insert(lines->begin() +
+                                                              *cursorY + 2,
+                                                          indentStr + after);
                                             (*cursorY)++;
                                             *cursorX = innerIndent.length();
                                             *dirty = true;
@@ -735,8 +734,8 @@ void Editor::pasteAfter()
             }
         }
         std::string& curLine = (*lines)[*cursorY];
-        int insertPos = *cursorX
-            < (int)curLine.length() ? *cursorX : (int)curLine.length();
+        int insertPos =
+            *cursorX < (int)curLine.length() ? *cursorX : (int)curLine.length();
 
         std::vector<std::string> parts;
         parts.reserve(8);
@@ -842,8 +841,8 @@ void Editor::pasteBefore()
     else if(hasNewline)
     {
         std::string& curLine = (*lines)[*cursorY];
-        int insertPos = *cursorX
-            < (int)curLine.length() ? *cursorX : (int)curLine.length();
+        int insertPos =
+            *cursorX < (int)curLine.length() ? *cursorX : (int)curLine.length();
 
         std::vector<std::string> parts;
         parts.reserve(8);

@@ -154,8 +154,7 @@ std::vector<std::string> split_command_line(std::string_view command)
 }
 
 void scan_line_for_cpp_method_context(
-    const std::string& line,
-    const std::unordered_set<std::string>& classNames,
+    const std::string& line, const std::unordered_set<std::string>& classNames,
     CppMethodScanState& state, bool* lineHasMethodStart)
 {
     size_t i = 0;
@@ -236,8 +235,7 @@ void scan_line_for_cpp_method_context(
             size_t start = i;
             ++i;
             while(i < len && (text_utils::is_alpha(line[i]) ||
-                              text_utils::is_digit(line[i]) ||
-                              line[i] == '_'))
+                              text_utils::is_digit(line[i]) || line[i] == '_'))
             {
                 ++i;
             }
@@ -259,8 +257,7 @@ void scan_line_for_cpp_method_context(
                         ++j;
                         while(j < len &&
                               (text_utils::is_alpha(line[j]) ||
-                               text_utils::is_digit(line[j]) ||
-                               line[j] == '_'))
+                               text_utils::is_digit(line[j]) || line[j] == '_'))
                         {
                             ++j;
                         }
@@ -448,8 +445,7 @@ void scan_line_for_cpp_function_context(const std::string& line,
         }
         if(c == '}')
         {
-            if(state.inFunction &&
-               state.braceDepth == state.functionBraceDepth)
+            if(state.inFunction && state.braceDepth == state.functionBraceDepth)
                 state.inFunction = false;
             if(state.braceDepth > 0)
                 --state.braceDepth;
@@ -468,8 +464,7 @@ void scan_line_for_cpp_function_context(const std::string& line,
             size_t start = i;
             ++i;
             while(i < len && (text_utils::is_alpha(line[i]) ||
-                              text_utils::is_digit(line[i]) ||
-                              line[i] == '_'))
+                              text_utils::is_digit(line[i]) || line[i] == '_'))
             {
                 ++i;
             }
@@ -498,8 +493,8 @@ void scan_line_for_cpp_function_context(const std::string& line,
 std::filesystem::path find_mlang_root(const std::filesystem::path& start)
 {
     std::error_code ec;
-    std::filesystem::path dir = start.empty() ? std::filesystem::current_path(ec)
-                                              : start;
+    std::filesystem::path dir =
+        start.empty() ? std::filesystem::current_path(ec) : start;
     if(ec)
         return {};
 
@@ -642,9 +637,9 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
     };
 
     bool inBlockComment = false;
-    for(std::filesystem::recursive_directory_iterator it(
-            root, std::filesystem::directory_options::skip_permission_denied,
-            ec),
+    for(std::filesystem::recursive_directory_iterator
+            it(root, std::filesystem::directory_options::skip_permission_denied,
+               ec),
         end;
         it != end; ++it)
     {
@@ -686,15 +681,13 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                     }
                     continue;
                 }
-                if(i + 1 < line.size() && line[i] == '/' &&
-                   line[i + 1] == '*')
+                if(i + 1 < line.size() && line[i] == '/' && line[i + 1] == '*')
                 {
                     inBlockComment = true;
                     ++i;
                     continue;
                 }
-                if(i + 1 < line.size() && line[i] == '/' &&
-                   line[i + 1] == '/')
+                if(i + 1 < line.size() && line[i] == '/' && line[i + 1] == '/')
                 {
                     break;
                 }
@@ -705,9 +698,7 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                 continue;
 
             auto has_keyword = [&](std::string_view kw) -> bool
-            {
-                return cleaned.find(kw) != std::string::npos;
-            };
+            { return cleaned.find(kw) != std::string::npos; };
 
             auto parse_class_name = [&]()
             {
@@ -772,7 +763,8 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
             }
             bool classEnded = inClass && braceDepth <= 0;
 
-            auto finalize_line = [&]() {
+            auto finalize_line = [&]()
+            {
                 if(classEnded)
                     inClass = false;
             };
@@ -806,7 +798,8 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                 if(semi == std::string_view::npos)
                     break;
                 foundSemi = true;
-                std::string_view stmt = memberLine.substr(segStart, semi - segStart);
+                std::string_view stmt =
+                    memberLine.substr(segStart, semi - segStart);
                 if(stmt.find('(') != std::string_view::npos)
                 {
                     segStart = semi + 1;
@@ -822,10 +815,9 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                 while(start < stmt.size())
                 {
                     size_t comma = stmt.find(',', start);
-                    std::string_view part =
-                        stmt.substr(start, comma == std::string::npos
-                                                 ? std::string::npos
-                                                 : comma - start);
+                    std::string_view part = stmt.substr(
+                        start, comma == std::string::npos ? std::string::npos
+                                                          : comma - start);
                     // find last identifier
                     int i = (int)part.size() - 1;
                     while(i >= 0 && text_utils::is_space(part[i]))
@@ -1063,11 +1055,10 @@ bool SyntaxHighlighter::isFileType(FileType type) const
         std::string_view base = (slashPos == std::string_view::npos)
                                     ? pathSv
                                     : pathSv.substr(slashPos + 1);
-        bool isReadmeMarkup =
-            std::any_of(constants::markup_readme_basenames.begin(),
-                        constants::markup_readme_basenames.end(),
-                        [&](std::string_view name)
-                        { return text_utils::iequals_ascii(base, name); });
+        bool isReadmeMarkup = std::any_of(
+            constants::markup_readme_basenames.begin(),
+            constants::markup_readme_basenames.end(), [&](std::string_view name)
+            { return text_utils::iequals_ascii(base, name); });
         if(isReadmeMarkup)
             return true;
 
@@ -1075,9 +1066,8 @@ bool SyntaxHighlighter::isFileType(FileType type) const
         if(dot == std::string_view::npos)
             return false;
         std::string_view ext = base.substr(dot);
-        bool isMarkup =
-            constants::matches_file_patterns(ext,
-                                             constants::markup_text_suffixes);
+        bool isMarkup = constants::matches_file_patterns(
+            ext, constants::markup_text_suffixes);
         if(!isMarkup)
             return false;
 
@@ -1129,11 +1119,10 @@ bool SyntaxHighlighter::isFileType(FileType type) const
         std::string_view base = (slashPos == std::string_view::npos)
                                     ? pathSv
                                     : pathSv.substr(slashPos + 1);
-        bool isReadme =
-            std::any_of(constants::markup_readme_basenames.begin(),
-                        constants::markup_readme_basenames.end(),
-                        [&](std::string_view name)
-                        { return text_utils::iequals_ascii(base, name); });
+        bool isReadme = std::any_of(
+            constants::markup_readme_basenames.begin(),
+            constants::markup_readme_basenames.end(), [&](std::string_view name)
+            { return text_utils::iequals_ascii(base, name); });
         if(isReadme)
             return true;
 
@@ -1168,11 +1157,10 @@ bool SyntaxHighlighter::isFileType(FileType type) const
             return true;
         }
 
-        bool hasShellBasename =
-            std::any_of(constants::shell_basenames.begin(),
-                        constants::shell_basenames.end(),
-                        [&](std::string_view name)
-                        { return text_utils::iequals_ascii(base, name); });
+        bool hasShellBasename = std::any_of(
+            constants::shell_basenames.begin(),
+            constants::shell_basenames.end(), [&](std::string_view name)
+            { return text_utils::iequals_ascii(base, name); });
         if(hasShellBasename)
         {
             return true;
@@ -1183,11 +1171,11 @@ bool SyntaxHighlighter::isFileType(FileType type) const
             std::string_view first{(*editor->lines)[0]};
             if(first.starts_with("#!"))
             {
-                bool hasShell = std::any_of(
-                    constants::shell_shebang_hints.begin(),
-                    constants::shell_shebang_hints.end(),
-                    [&](std::string_view hint)
-                    { return text_utils::contains(first, hint); });
+                bool hasShell =
+                    std::any_of(constants::shell_shebang_hints.begin(),
+                                constants::shell_shebang_hints.end(),
+                                [&](std::string_view hint)
+                                { return text_utils::contains(first, hint); });
                 if(!hasShell)
                 {
                     if(first.find("/sh") != std::string_view::npos ||
@@ -1215,9 +1203,10 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         return;
 
     auto& cache = *editor->mlangTokenCache;
-    std::filesystem::path start = editor->projectRoot.empty()
-                                      ? std::filesystem::path{}
-                                      : std::filesystem::path(editor->projectRoot);
+    std::filesystem::path start =
+        editor->projectRoot.empty()
+            ? std::filesystem::path{}
+            : std::filesystem::path(editor->projectRoot);
     std::filesystem::path root = find_mlang_root(start);
     std::string rootStr = root.empty() ? std::string{} : root.string();
     const bool hasExplicitLspPath =
@@ -1283,8 +1272,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             cache.caseInsensitive =
                 root.value("case_insensitive", cache.caseInsensitive);
 
-        auto add_tokens = [&](std::string_view typeName,
-                              const nlohmann::json& items)
+        auto add_tokens =
+            [&](std::string_view typeName, const nlohmann::json& items)
         {
             auto tokenType = parse_token_type(typeName);
             if(!tokenType || !items.is_array())
@@ -1310,8 +1299,7 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                 {
                     if(!entry.is_object())
                         continue;
-                    std::string type =
-                        entry.value("type", std::string{});
+                    std::string type = entry.value("type", std::string{});
                     add_tokens(type,
                                entry.value("items", nlohmann::json::array()));
                 }
@@ -1366,9 +1354,9 @@ SyntaxHighlighter::lookupMlangTokenType(std::string_view word) const
        !editor->mlangTokenCache->available)
         return std::nullopt;
 
-    std::string key =
-        editor->mlangTokenCache->caseInsensitive ? ascii_lower(word)
-                                                 : std::string(word);
+    std::string key = editor->mlangTokenCache->caseInsensitive
+                          ? ascii_lower(word)
+                          : std::string(word);
     auto it = editor->mlangTokenCache->tokenTypes.find(key);
     if(it == editor->mlangTokenCache->tokenTypes.end())
         return std::nullopt;
@@ -1382,15 +1370,11 @@ std::string SyntaxHighlighter::getColorCode(TokenType type) const
     return editor->theme.syntax(type);
 }
 
-std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
-                                                   bool& inBlockComment,
-                                                   bool& inTomlMultiline,
-                                                   char& tomlQuote,
-                                                   bool& inMarkupFence,
-                                                   char& markupFenceChar,
-                                                   bool inCppMethodContext,
-                                                   bool inCppFunctionContext,
-                                                   bool inCppParamListContext) const
+std::vector<Token> SyntaxHighlighter::tokenizeLine(
+    const std::string& line, bool& inBlockComment, bool& inTomlMultiline,
+    char& tomlQuote, bool& inMarkupFence, char& markupFenceChar,
+    bool inCppMethodContext, bool inCppFunctionContext,
+    bool inCppParamListContext) const
 {
     if(!editor)
         return {};
@@ -1410,7 +1394,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
     const bool syntaxYaml = editor->syntaxYaml;
     const bool syntaxRobotKeywords = editor->syntaxRobotKeywords;
     const bool syntaxCppHighlightMembers = editor->syntaxCppHighlightMembers;
-    const bool syntaxCppHighlightTypeNames = editor->syntaxCppHighlightTypeNames;
+    const bool syntaxCppHighlightTypeNames =
+        editor->syntaxCppHighlightTypeNames;
     const bool syntaxCppHighlightImplicitMembers =
         editor->syntaxCppHighlightImplicitMembers;
     const bool syntaxCppHighlightParamTypes =
@@ -1466,14 +1451,12 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                 quote = ch;
                 continue;
             }
-            if(ch == '/' && idx + 1 < (int)line.size() &&
-               line[idx + 1] == '/')
+            if(ch == '/' && idx + 1 < (int)line.size() && line[idx + 1] == '/')
             {
                 inLineComment = true;
                 continue;
             }
-            if(ch == '/' && idx + 1 < (int)line.size() &&
-               line[idx + 1] == '*')
+            if(ch == '/' && idx + 1 < (int)line.size() && line[idx + 1] == '*')
             {
                 inBlock = true;
                 ++idx;
@@ -1495,16 +1478,14 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                     int end = back;
                     while(end >= 0 &&
                           (text_utils::is_alpha(line[end]) ||
-                           text_utils::is_digit(line[end]) ||
-                           line[end] == '_'))
+                           text_utils::is_digit(line[end]) || line[end] == '_'))
                         --end;
                     int start = end + 1;
                     if(start <= back)
                     {
-                        std::string_view name =
-                            std::string_view(line).substr(start, back - start + 1);
-                        if(!name.empty() &&
-                           !cpp_constants::is_keyword(name))
+                        std::string_view name = std::string_view(line).substr(
+                            start, back - start + 1);
+                        if(!name.empty() && !cpp_constants::is_keyword(name))
                         {
                             parenDepth = 1;
                             paramListStart = idx;
@@ -1521,7 +1502,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                 if(parenDepth == 0 && paramListStart >= 0)
                 {
                     size_t after = idx + 1;
-                    while(after < line.size() && text_utils::is_space(line[after]))
+                    while(after < line.size() &&
+                          text_utils::is_space(line[after]))
                         ++after;
                     if(after < line.size())
                     {
@@ -1581,7 +1563,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                                                      : includeNextKw.size();
                     while(pos < line.size() && text_utils::is_space(line[pos]))
                         ++pos;
-                    if(pos < line.size() && (line[pos] == '<' || line[pos] == '"'))
+                    if(pos < line.size() &&
+                       (line[pos] == '<' || line[pos] == '"'))
                     {
                         char open = line[pos];
                         char close = (open == '<') ? '>' : '"';
@@ -1872,8 +1855,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
             "yield",
         };
         static constexpr std::string_view kPythonTypes[] = {
-            "int",  "bool", "str", "float", "bytes", "complex", "list",
-            "dict", "set",  "tuple", "None",
+            "int",  "bool", "str", "float", "bytes", "complex",
+            "list", "dict", "set", "tuple", "None",
         };
         auto is_keyword = [&](std::string_view word) -> bool
         {
@@ -1947,8 +1930,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
             if(text_utils::is_digit(c))
             {
                 int start = i++;
-                while(i < len && (text_utils::is_digit(sv[i]) ||
-                                  sv[i] == '.' || sv[i] == '_'))
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                                  sv[i] == '_'))
                     ++i;
                 tokens.push_back({TOKEN_NUMBER, start, i - start});
                 continue;
@@ -1956,9 +1939,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
             if(text_utils::is_alpha(c) || c == '_')
             {
                 int start = i++;
-                while(i < len &&
-                      (text_utils::is_alpha(sv[i]) || text_utils::is_digit(sv[i]) ||
-                       sv[i] == '_'))
+                while(i < len && (text_utils::is_alpha(sv[i]) ||
+                                  text_utils::is_digit(sv[i]) || sv[i] == '_'))
                 {
                     ++i;
                 }
@@ -2209,7 +2191,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                 continue;
             }
 
-            if(std::string_view("=.,{}[]").find(sv[i]) != std::string_view::npos)
+            if(std::string_view("=.,{}[]").find(sv[i]) !=
+               std::string_view::npos)
             {
                 tokens.push_back({TOKEN_OPERATOR, i, 1});
                 ++i;
@@ -2350,9 +2333,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
         {
             int start = i++;
             while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
-                              sv[i] == 'x' || sv[i] == 'X' ||
-                              sv[i] == 'b' || sv[i] == 'B' ||
-                              sv[i] == '_'))
+                              sv[i] == 'x' || sv[i] == 'X' || sv[i] == 'b' ||
+                              sv[i] == 'B' || sv[i] == '_'))
                 ++i;
             push_token(TOKEN_NUMBER, start, i - start);
             continue;
@@ -2370,18 +2352,18 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
             }
 
             std::string_view word = sv.substr(start, i - start);
-                bool inParamList = inCppParamListContext;
-                if(!inParamList)
+            bool inParamList = inCppParamListContext;
+            if(!inParamList)
+            {
+                if(paramListStart >= 0 &&
+                   (paramListEnd > paramListStart || paramListOpen) &&
+                   start > paramListStart &&
+                   (paramListEnd > paramListStart ? start < paramListEnd
+                                                  : true))
                 {
-                    if(paramListStart >= 0 &&
-                       (paramListEnd > paramListStart || paramListOpen) &&
-                       start > paramListStart &&
-                       (paramListEnd > paramListStart ? start < paramListEnd
-                                                      : true))
-                    {
-                        inParamList = true;
-                    }
+                    inParamList = true;
                 }
+            }
             if(isFileType<FileType::Cpp>())
             {
                 if(cpp_constants::is_keyword(word))
@@ -2438,8 +2420,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                                     }
                                     std::string_view ident =
                                         sv.substr(nameStart, j - nameStart);
-                                    if(ident != "typename" && ident != "class" &&
-                                       ident != "struct" && ident != "template")
+                                    if(ident != "typename" &&
+                                       ident != "class" && ident != "struct" &&
+                                       ident != "template")
                                     {
                                         extraTypeTokens.push_back(
                                             {TOKEN_TYPE, (int)nameStart,
@@ -2515,7 +2498,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                             }
                             if(!hasParen)
                             {
-                                push_token(TOKEN_MEMBER, nameStart, j - nameStart);
+                                push_token(TOKEN_MEMBER, nameStart,
+                                           j - nameStart);
                                 i = j;
                             }
                         }
@@ -2688,8 +2672,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                     int j = i + 1;
                     while(j < len && text_utils::is_space(sv[j]))
                         ++j;
-                    if(j < len &&
-                       (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                    if(j < len && (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
                     {
                         int memberStart = j++;
                         while(j < len &&
@@ -2709,8 +2692,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(const std::string& line,
                     int j = i + 2;
                     while(j < len && text_utils::is_space(sv[j]))
                         ++j;
-                    if(j < len &&
-                       (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                    if(j < len && (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
                     {
                         int memberStart = j++;
                         while(j < len &&
@@ -2882,8 +2864,8 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
     bool inCppFunctionContext = false;
     bool inCppParamListContext = false;
 
-    auto scanLineForTomlMultiline = [](const std::string& scanLine,
-                                       bool& inMultiline, char& quoteChar)
+    auto scanLineForTomlMultiline =
+        [](const std::string& scanLine, bool& inMultiline, char& quoteChar)
     {
         for(size_t i = 0; i + 2 < scanLine.size(); ++i)
         {
@@ -2925,8 +2907,8 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         }
     };
 
-    auto scanLineForMarkupFence = [](const std::string& scanLine,
-                                     bool& inFence, char& fenceChar)
+    auto scanLineForMarkupFence =
+        [](const std::string& scanLine, bool& inFence, char& fenceChar)
     {
         size_t i = 0;
         while(i < scanLine.size() && text_utils::is_space(scanLine[i]))
@@ -3001,16 +2983,15 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     scan_line_for_cpp_method_context(curLine, cppClassNames,
                                                      lineState.methodState,
                                                      &methodStart);
-                    scan_line_for_cpp_function_context(curLine,
-                                                       lineState.functionState,
-                                                       &functionStart);
-                    scan_line_for_cpp_param_list_context(curLine,
-                                                         lineState.paramState,
-                                                         &paramStart);
+                    scan_line_for_cpp_function_context(
+                        curLine, lineState.functionState, &functionStart);
+                    scan_line_for_cpp_param_list_context(
+                        curLine, lineState.paramState, &paramStart);
                 }
 
                 lineState.inCppMethodContext = methodBefore || methodStart;
-                lineState.inCppFunctionContext = functionBefore || functionStart;
+                lineState.inCppFunctionContext =
+                    functionBefore || functionStart;
                 lineState.inCppParamListContext = paramBefore || paramStart;
 
                 if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())

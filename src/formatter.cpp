@@ -31,14 +31,16 @@ size_t Formatter::byteOffsetForPosition(int y, int x) const
 }
 
 bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
-                                 const std::string& successMessage)
+                                    const std::string& successMessage)
 {
     if(!editor->lines || !editor->filename)
         return false;
 
-    if(!editor->isFileType<FileType::Cpp>() || editor->isFileType<FileType::Mla>())
+    if(!editor->isFileType<FileType::Cpp>() ||
+       editor->isFileType<FileType::Mla>())
     {
-        editor->setStatusMessage("clang-format: not a C/C++ file (" + *editor->filename + ")");
+        editor->setStatusMessage("clang-format: not a C/C++ file (" +
+                                 *editor->filename + ")");
         return false;
     }
 
@@ -142,10 +144,13 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     if(editor->dirty)
         *editor->dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines && !editor->lines->empty())
+    if(editor->cursorY && editor->cursorX && editor->lines &&
+       !editor->lines->empty())
     {
-        *editor->cursorY = std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor->cursorY =
+            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
+        *editor->cursorX = std::clamp(
+            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
     }
 
     editor->adjustViewport();
@@ -244,10 +249,13 @@ bool Formatter::pythonFormatBuffer()
     if(editor->dirty)
         *editor->dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines && !editor->lines->empty())
+    if(editor->cursorY && editor->cursorX && editor->lines &&
+       !editor->lines->empty())
     {
-        *editor->cursorY = std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor->cursorY =
+            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
+        *editor->cursorX = std::clamp(
+            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
     }
 
     editor->adjustViewport();
@@ -783,7 +791,8 @@ bool Formatter::robotFormatBuffer()
 
     if(looks_like_robocop_log())
     {
-        auto normalized = normalize_robot_spacing(*editor->lines, 4, editor->robotSettingSet);
+        auto normalized =
+            normalize_robot_spacing(*editor->lines, 4, editor->robotSettingSet);
         if(normalized != *editor->lines)
         {
             *editor->lines = std::move(normalized);
@@ -800,7 +809,8 @@ bool Formatter::robotFormatBuffer()
         return true;
     }
 
-    auto normalized = normalize_robot_spacing(newLines, 4, editor->robotSettingSet);
+    auto normalized =
+        normalize_robot_spacing(newLines, 4, editor->robotSettingSet);
     if(normalized != newLines)
         newLines = std::move(normalized);
 
@@ -816,10 +826,13 @@ bool Formatter::robotFormatBuffer()
     if(editor->dirty)
         *editor->dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines && !editor->lines->empty())
+    if(editor->cursorY && editor->cursorX && editor->lines &&
+       !editor->lines->empty())
     {
-        *editor->cursorY = std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor->cursorY =
+            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
+        *editor->cursorX = std::clamp(
+            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
     }
 
     editor->adjustViewport();
@@ -906,10 +919,13 @@ bool Formatter::jsonFormatBuffer()
     if(editor->dirty)
         *editor->dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines && !editor->lines->empty())
+    if(editor->cursorY && editor->cursorX && editor->lines &&
+       !editor->lines->empty())
     {
-        *editor->cursorY = std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor->cursorY =
+            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
+        *editor->cursorX = std::clamp(
+            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
     }
 
     editor->adjustViewport();
@@ -996,10 +1012,13 @@ bool Formatter::yamlFormatBuffer()
     if(editor->dirty)
         *editor->dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines && !editor->lines->empty())
+    if(editor->cursorY && editor->cursorX && editor->lines &&
+       !editor->lines->empty())
     {
-        *editor->cursorY = std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor->cursorY =
+            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
+        *editor->cursorX = std::clamp(
+            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
     }
 
     editor->adjustViewport();
@@ -1010,8 +1029,8 @@ bool Formatter::yamlFormatBuffer()
 
 void Formatter::clangFormatVisualSelection()
 {
-    if(!editor || (editor->currentMode != VISUAL &&
-                   editor->currentMode != VISUAL_LINE))
+    if(!editor ||
+       (editor->currentMode != VISUAL && editor->currentMode != VISUAL_LINE))
         return;
 
     if(!editor->lines || editor->lines->empty())
@@ -1022,16 +1041,16 @@ void Formatter::clangFormatVisualSelection()
 
     if(editor->currentMode == VISUAL_LINE)
     {
-        const int startY =
-            std::min(editor->currentBuffer->visualStartY, editor->currentBuffer->visualEndY);
-        const int endY =
-            std::max(editor->currentBuffer->visualStartY, editor->currentBuffer->visualEndY);
+        const int startY = std::min(editor->currentBuffer->visualStartY,
+                                    editor->currentBuffer->visualEndY);
+        const int endY = std::max(editor->currentBuffer->visualStartY,
+                                  editor->currentBuffer->visualEndY);
 
         const int startLine = startY + 1;
         const int endLine = endY + 1;
 
-        const std::string args =
-            "-lines=" + std::to_string(startLine) + ":" + std::to_string(endLine);
+        const std::string args = "-lines=" + std::to_string(startLine) + ":" +
+                                 std::to_string(endLine);
 
         clangFormatWithArgs(args, "clang-format: formatted selection (lines)");
         return;

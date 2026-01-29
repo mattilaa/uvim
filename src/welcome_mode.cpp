@@ -110,9 +110,7 @@ WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             return false;
         },
         [&](ModeContext& ctx, std::string_view line)
-        {
-            return dispatchEditorCommand(ctx, line, previousFile, true);
-        });
+        { return dispatchEditorCommand(ctx, line, previousFile, true); });
 }
 
 void WelcomeMode::draw(Editor& editor) const

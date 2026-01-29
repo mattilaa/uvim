@@ -55,10 +55,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                     std::min(ed->diagnosticPopupFixIndex + 1,
                              (int)ed->diagnosticPopupFixes.size() - 1);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
-                if(ed->diagnosticPopupFixIndex <
-                   ed->diagnosticPopupFixScroll)
-                    ed->diagnosticPopupFixScroll =
-                        ed->diagnosticPopupFixIndex;
+                if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
+                    ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
                 else if(ed->diagnosticPopupFixIndex >=
                         ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
@@ -75,10 +73,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                 ed->diagnosticPopupFixIndex =
                     std::max(ed->diagnosticPopupFixIndex - 1, 0);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
-                if(ed->diagnosticPopupFixIndex <
-                   ed->diagnosticPopupFixScroll)
-                    ed->diagnosticPopupFixScroll =
-                        ed->diagnosticPopupFixIndex;
+                if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
+                    ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
                 else if(ed->diagnosticPopupFixIndex >=
                         ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
@@ -215,8 +211,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
                 ed->clearSearch();
                 ed->needsFullRedraw = true;
             }
-            else if(ed->formatOnDoubleEscPending &&
-                    ed->formatOnInsertLeave && ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>())
+            else if(ed->formatOnDoubleEscPending && ed->formatOnInsertLeave &&
+                    ed->isFileType<FileType::Cpp>() &&
+                    !ed->isFileType<FileType::Mla>())
             {
                 ed->clangFormatWithArgs("", "clang-format: formatted file");
             }

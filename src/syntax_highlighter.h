@@ -26,10 +26,8 @@ public:
     std::optional<TokenType> lookupMlangTokenType(std::string_view word) const;
     std::string getColorCode(TokenType type) const;
     std::vector<Token> tokenizeLine(const std::string& line,
-                                    bool& inBlockComment,
-                                    bool& inTomlMultiline,
-                                    char& tomlQuote,
-                                    bool& inMarkupFence,
+                                    bool& inBlockComment, bool& inTomlMultiline,
+                                    char& tomlQuote, bool& inMarkupFence,
                                     char& markupFenceChar,
                                     bool inCppMethodContext = false,
                                     bool inCppFunctionContext = false,

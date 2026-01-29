@@ -19,8 +19,7 @@ std::string Editor::buildTabBarLine(int width)
     for(const auto& bufPtr : buffers)
     {
         const Buffer* buf = bufPtr.get();
-        std::string name =
-            buf->filename.empty() ? "[No Name]" : buf->filename;
+        std::string name = buf->filename.empty() ? "[No Name]" : buf->filename;
         size_t slash = name.find_last_of("/\\");
         if(slash != std::string::npos)
             name = name.substr(slash + 1);
@@ -153,8 +152,8 @@ void Editor::drawRows()
                 Terminal::write(theme.uiDim());
                 Terminal::write(blame);
                 if((int)blame.size() < kGitBlameWidth)
-                    Terminal::write(std::string(kGitBlameWidth - blame.size(),
-                                                ' '));
+                    Terminal::write(
+                        std::string(kGitBlameWidth - blame.size(), ' '));
             }
             else
             {
@@ -436,12 +435,19 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
-                       isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
-                       isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+                    if(isFileType<FileType::Cpp>() ||
+                       isFileType<FileType::Mla>() ||
+                       isFileType<FileType::Robot>() ||
+                       isFileType<FileType::Python>() ||
+                       isFileType<FileType::CMake>() ||
+                       isFileType<FileType::Shell>() ||
+                       isFileType<FileType::Html>() ||
+                       isFileType<FileType::Xml>() ||
+                       isFileType<FileType::MarkupText>() ||
                        isFileType<FileType::Rdoc>() ||
                        (isFileType<FileType::Json>() && syntaxJson) ||
-                       (isFileType<FileType::Yaml>() && syntaxYaml) || isFileType<FileType::Toml>())
+                       (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                       isFileType<FileType::Toml>())
                     {
                         // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
@@ -572,12 +578,19 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(len > 0)
                 {
-                    if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
-                       isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
-                       isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+                    if(isFileType<FileType::Cpp>() ||
+                       isFileType<FileType::Mla>() ||
+                       isFileType<FileType::Robot>() ||
+                       isFileType<FileType::Python>() ||
+                       isFileType<FileType::CMake>() ||
+                       isFileType<FileType::Shell>() ||
+                       isFileType<FileType::Html>() ||
+                       isFileType<FileType::Xml>() ||
+                       isFileType<FileType::MarkupText>() ||
                        isFileType<FileType::Rdoc>() ||
                        (isFileType<FileType::Json>() && syntaxJson) ||
-                       (isFileType<FileType::Yaml>() && syntaxYaml) || isFileType<FileType::Toml>())
+                       (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                       isFileType<FileType::Toml>())
                     {
                         // Use syntax highlighting for supported files
                         renderLineWithSyntax(output, line, start, len, fileRow);
@@ -940,11 +953,17 @@ void Editor::drawFullScreenSingle()
                 }
 
                 // Check if we should use syntax highlighting
-                if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
-                   isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
-                   isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+                if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() ||
+                   isFileType<FileType::Robot>() ||
+                   isFileType<FileType::Python>() ||
+                   isFileType<FileType::CMake>() ||
+                   isFileType<FileType::Shell>() ||
+                   isFileType<FileType::Html>() ||
+                   isFileType<FileType::Xml>() ||
+                   isFileType<FileType::MarkupText>() ||
                    isFileType<FileType::Rdoc>() ||
-                   (isFileType<FileType::Json>() && syntaxJson) || (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                   (isFileType<FileType::Json>() && syntaxJson) ||
+                   (isFileType<FileType::Yaml>() && syntaxYaml) ||
                    isFileType<FileType::Toml>())
                 {
                     // Use syntax highlighting for supported files (handles
@@ -1219,7 +1238,8 @@ void Editor::drawSplitFullScreen()
         }
     };
 
-    auto renderPaneRow = [&](int pane, int localRow, int paneWidth) -> std::string
+    auto renderPaneRow = [&](int pane, int localRow,
+                             int paneWidth) -> std::string
     {
         std::string row;
         row.reserve(paneWidth * 2);
@@ -1233,8 +1253,7 @@ void Editor::drawSplitFullScreen()
 
         if(tabRows > 0 && localRow == 0)
         {
-            const std::string& tabLine =
-                (pane == 0) ? tabLine0 : tabLine1;
+            const std::string& tabLine = (pane == 0) ? tabLine0 : tabLine1;
             row += theme.tabBar();
             row += tabLine;
             if(paneWidth == screenCols)
@@ -1360,11 +1379,15 @@ void Editor::drawSplitFullScreen()
                 }
             }
 
-            if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() || isFileType<FileType::Robot>() ||
-               isFileType<FileType::Python>() || isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
-               isFileType<FileType::Html>() || isFileType<FileType::Xml>() || isFileType<FileType::MarkupText>() ||
+            if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>() ||
+               isFileType<FileType::Robot>() ||
+               isFileType<FileType::Python>() ||
+               isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
+               isFileType<FileType::Html>() || isFileType<FileType::Xml>() ||
+               isFileType<FileType::MarkupText>() ||
                isFileType<FileType::Rdoc>() ||
-               (isFileType<FileType::Json>() && syntaxJson) || (isFileType<FileType::Yaml>() && syntaxYaml) ||
+               (isFileType<FileType::Json>() && syntaxJson) ||
+               (isFileType<FileType::Yaml>() && syntaxYaml) ||
                isFileType<FileType::Toml>())
             {
                 renderLineWithSyntax(row, line, start, len, fileRow);

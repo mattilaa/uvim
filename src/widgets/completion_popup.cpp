@@ -17,8 +17,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     if(editor.currentMode != INSERT)
         return;
 
-    const int maxRows = std::min({8, (int)editor.completionFiltered.size(),
-                                  editor.screenRows - 2});
+    const int maxRows = std::min(
+        {8, (int)editor.completionFiltered.size(), editor.screenRows - 2});
     if(maxRows <= 0)
         return;
 
@@ -31,8 +31,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     const int cap = std::min((int)editor.completionFiltered.size(), 500);
     for(int i = 0; i < cap; ++i)
     {
-        const auto& e =
-            editor.completionAll[editor.completionFiltered[i]];
+        const auto& e = editor.completionAll[editor.completionFiltered[i]];
         maxW = std::max(maxW, text_utils::displayWidth(e.label));
     }
     int innerW = std::max(12, maxW);
@@ -119,8 +118,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         bool inMarkupFence = false;
         char markupFenceChar = 0;
         std::vector<Token> tokens =
-            editor.tokenizeLine(text, inBlockComment, inTomlMultiline, tomlQuote,
-                                inMarkupFence, markupFenceChar);
+            editor.tokenizeLine(text, inBlockComment, inTomlMultiline,
+                                tomlQuote, inMarkupFence, markupFenceChar);
         std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
         bool hasColor = false;
 

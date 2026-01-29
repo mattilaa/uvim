@@ -180,8 +180,7 @@ std::optional<std::string> ModeContext::commandHistoryDown()
     return editor->commandHistoryDown();
 }
 
-std::vector<std::string>
-ModeContext::getSetCompletions(std::string_view prefix)
+std::vector<std::string> ModeContext::getSetCompletions(std::string_view prefix)
 {
     return editor->getSetCompletions(prefix);
 }
@@ -1050,10 +1049,10 @@ dispatchCommandLine(ModeContext& ctx, std::string_view commandLine,
     return std::nullopt;
 }
 
-std::optional<ModeState>
-dispatchEditorCommand(ModeContext& ctx, std::string_view commandLine,
-                      std::string_view previousFile,
-                      bool returnToNormalIfBuffer)
+std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
+                                               std::string_view commandLine,
+                                               std::string_view previousFile,
+                                               bool returnToNormalIfBuffer)
 {
     ctx.executeCommand(commandLine);
 
@@ -1186,11 +1185,10 @@ bool CommandPrompt::handle(
         if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
            originalInput.rfind("h", 0) == 0)
         {
-            std::string cmd =
-                (originalInput.rfind("h", 0) == 0 &&
-                 originalInput.rfind("help", 0) != 0)
-                    ? "h"
-                    : "help";
+            std::string cmd = (originalInput.rfind("h", 0) == 0 &&
+                               originalInput.rfind("help", 0) != 0)
+                                  ? "h"
+                                  : "help";
             input = cmd + " " + completions[completionIndex];
             return;
         }

@@ -13,7 +13,6 @@
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
-#include <algorithm>
 
 // Very small snippet “desugaring”: turns clangd snippets into plain insert
 // text.
@@ -828,9 +827,8 @@ void Editor::acceptCompletion()
     bool functionLike = completionAutoParens && !it.isSnippet;
     if(functionLike)
     {
-        bool hasParen =
-            (it.label.find('(') != std::string::npos) ||
-            (insert.find('(') != std::string::npos);
+        bool hasParen = (it.label.find('(') != std::string::npos) ||
+                        (insert.find('(') != std::string::npos);
         functionLike = hasParen;
     }
     if(functionLike)
@@ -1066,8 +1064,7 @@ void Editor::acceptEmoji()
     if(!emojiPopupActive || emojiFiltered.empty())
         return;
 
-    const std::string& emoji =
-        emojiEntries[emojiFiltered[emojiSelected]].emoji;
+    const std::string& emoji = emojiEntries[emojiFiltered[emojiSelected]].emoji;
     if(lines)
     {
         if(*cursorY >= (int)lines->size())
@@ -1095,7 +1092,6 @@ void Editor::emojiNext()
         emojiScroll = emojiSelected;
     else if(emojiSelected >= emojiScroll + win)
         emojiScroll = emojiSelected - win + 1;
-
 }
 
 void Editor::emojiPrev()
@@ -1111,7 +1107,6 @@ void Editor::emojiPrev()
         emojiScroll = emojiSelected;
     else if(emojiSelected >= emojiScroll + win)
         emojiScroll = emojiSelected - win + 1;
-
 }
 
 void Editor::rebuildEmojiFilter()
@@ -1154,8 +1149,7 @@ void Editor::drawEmojiPopup(std::string& output) const
         return;
 
     const int totalItems = (int)emojiFiltered.size();
-    const int maxRows =
-        std::min({8, std::max(1, totalItems), screenRows - 3});
+    const int maxRows = std::min({8, std::max(1, totalItems), screenRows - 3});
     if(maxRows <= 0)
         return;
 
@@ -1188,7 +1182,8 @@ void Editor::drawEmojiPopup(std::string& output) const
             int len = 1;
             if((c & 0xE0) == 0xC0 && i + 1 < s.size())
             {
-                codepoint = ((c & 0x1F) << 6) | ((unsigned char)s[i + 1] & 0x3F);
+                codepoint =
+                    ((c & 0x1F) << 6) | ((unsigned char)s[i + 1] & 0x3F);
                 len = 2;
             }
             else if((c & 0xF0) == 0xE0 && i + 2 < s.size())
@@ -1226,9 +1221,7 @@ void Editor::drawEmojiPopup(std::string& output) const
         return w;
     };
     auto emojiRowWidth = [&](const EmojiEntry& e) -> int
-    {
-        return emojiGlyphWidth(e.emojiDisplay) + 1 + (int)e.name.size();
-    };
+    { return emojiGlyphWidth(e.emojiDisplay) + 1 + (int)e.name.size(); };
 
     int maxW = displayWidth(queryLabel);
     if(!emojiFiltered.empty())
@@ -1378,8 +1371,7 @@ Editor::getClangdDiagnosticsByLine() const
             continue;
         auto& slot = out[diag.line];
         if(slot.severity == 0 || diag.severity < slot.severity ||
-           (diag.severity == slot.severity &&
-            diag.character < slot.character))
+           (diag.severity == slot.severity && diag.character < slot.character))
         {
             slot.severity = diag.severity;
             slot.character = diag.character;
@@ -1439,8 +1431,7 @@ void Editor::drawDiagnosticPopup(std::string& output) const
         return;
     if(!diagnosticPopupActive)
         return;
-    if(diagnosticPopupData.severity <= 0 ||
-       diagnosticPopupData.severity > 2)
+    if(diagnosticPopupData.severity <= 0 || diagnosticPopupData.severity > 2)
         return;
 
     std::string label =
@@ -1455,11 +1446,11 @@ void Editor::drawDiagnosticPopup(std::string& output) const
     {
         rows.push_back("fixes:");
         int maxFixRows = std::min(6, (int)diagnosticPopupFixes.size());
-        int start = std::clamp(diagnosticPopupFixScroll, 0,
-                               std::max(0, (int)diagnosticPopupFixes.size() -
-                                               maxFixRows));
-        int end = std::min((int)diagnosticPopupFixes.size(),
-                           start + maxFixRows);
+        int start = std::clamp(
+            diagnosticPopupFixScroll, 0,
+            std::max(0, (int)diagnosticPopupFixes.size() - maxFixRows));
+        int end =
+            std::min((int)diagnosticPopupFixes.size(), start + maxFixRows);
         for(int i = start; i < end; ++i)
         {
             rows.push_back(diagnosticPopupFixes[i].title);
@@ -1702,9 +1693,8 @@ void Editor::openDiagnosticPopupForCursor()
             std::string_view lineText;
             if(*cursorY >= 0 && *cursorY < (int)lines->size())
                 lineText = (*lines)[*cursorY];
-            std::vector<LspClient::CodeAction> actions =
-                lspClient->codeActions(currentBuffer->filename, *cursorY,
-                                       lineText, lineDiags);
+            std::vector<LspClient::CodeAction> actions = lspClient->codeActions(
+                currentBuffer->filename, *cursorY, lineText, lineDiags);
             for(const auto& action : actions)
             {
                 DiagnosticFix fix;
@@ -1801,8 +1791,7 @@ void Editor::applyDiagnosticFix(int index)
     if(index < 0 || index >= (int)diagnosticPopupFixes.size())
         return;
 
-    std::vector<DiagnosticFixEdit> edits =
-        diagnosticPopupFixes[index].edits;
+    std::vector<DiagnosticFixEdit> edits = diagnosticPopupFixes[index].edits;
     if(edits.empty() && !diagnosticPopupFixes[index].command.empty())
     {
 #ifdef UVIM_ENABLE_CLANGD_LSP

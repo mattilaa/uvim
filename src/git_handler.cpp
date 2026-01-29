@@ -1,8 +1,8 @@
 #include "git_handler.h"
 #include "editor.h"
 #include "mode_state_machine.h"
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -37,8 +37,8 @@ std::string trim_newline(std::string s)
 bool is_inside_git_repo(const std::string& filePath)
 {
     fs::path path(filePath);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string cmd =
         "git -C \"" + dir + "\" rev-parse --is-inside-work-tree 2>/dev/null";
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -75,10 +75,9 @@ std::string format_git_date(const std::string& secondsText)
 std::string blame_hash_for_line(const std::string& filePath, int line)
 {
     fs::path path(filePath);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd = "git -C \"" + dir +
-                      "\" blame --line-porcelain -L " +
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
+    std::string cmd = "git -C \"" + dir + "\" blame --line-porcelain -L " +
                       std::to_string(line + 1) + "," +
                       std::to_string(line + 1) + " -- \"" + filePath +
                       "\" 2>/dev/null";
@@ -151,8 +150,8 @@ void GitHandler::updateGitBlameForVisibleRange()
         return;
 
     fs::path path(editor->currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string blameTarget = editor->currentBuffer->filename;
     std::string tempPath;
     if(editor->dirty && *editor->dirty)
@@ -366,13 +365,13 @@ std::vector<std::string> GitHandler::loadGitShowLines(const std::string& hash)
     if(!editor->currentBuffer || editor->currentBuffer->filename.empty())
         return {};
     fs::path path(editor->currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
-    std::string cmd = "git -C \"" + dir + "\" --no-pager show " +
-                      std::string(editor->gitUseDefaultColors
-                                      ? "--color=always "
-                                      : "--no-color ") +
-                      hash + " 2>/dev/null";
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
+    std::string cmd =
+        "git -C \"" + dir + "\" --no-pager show " +
+        std::string(editor->gitUseDefaultColors ? "--color=always "
+                                                : "--no-color ") +
+        hash + " 2>/dev/null";
 
     FILE* pipe = popen(cmd.c_str(), "r");
     if(!pipe)
@@ -423,8 +422,8 @@ void GitHandler::openGitLogMode()
     }
 
     fs::path path(editor->currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string cmd =
         "git -C \"" + dir +
         "\" --no-pager log --no-color --pretty=format:%h\\\t%s 2>/dev/null";
@@ -487,8 +486,8 @@ void GitHandler::openGitLogModeForFile()
     }
 
     fs::path path(editor->currentBuffer->filename);
-    std::string dir = path.has_parent_path() ? path.parent_path().string()
-                                             : std::string(".");
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string cmd =
         "git -C \"" + dir +
         "\" --no-pager log --no-color --pretty=format:%h\\\t%s -- \"" +

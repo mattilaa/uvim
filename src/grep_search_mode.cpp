@@ -1,5 +1,5 @@
-#include "editor.h"
 #include "constants.h"
+#include "editor.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -397,8 +397,9 @@ bool GrepSearchMode::isTextFile(const std::string& filepath) const
         bool isPythonExt =
             constants::is_filetype<constants::no_pattern,
                                    constants::python_suffixes>(filepath);
-        bool isMlaExt = constants::is_filetype<constants::no_pattern,
-                                              constants::mla_suffixes>(filepath);
+        bool isMlaExt =
+            constants::is_filetype<constants::no_pattern,
+                                   constants::mla_suffixes>(filepath);
 
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
            ext == ".hpp" || isPythonExt || ext == ".js" || ext == ".ts" ||

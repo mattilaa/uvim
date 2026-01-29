@@ -322,13 +322,12 @@ struct ParsedCommand
     std::string args;
 };
 
-using ModeCommandCallback = std::function<bool(
-    ModeContext& ctx, const ParsedCommand& command,
-    std::optional<ModeState>& nextState)>;
+using ModeCommandCallback =
+    std::function<bool(ModeContext& ctx, const ParsedCommand& command,
+                       std::optional<ModeState>& nextState)>;
 
-using CommandFallback =
-    std::function<std::optional<ModeState>(ModeContext& ctx,
-                                           std::string_view commandLine)>;
+using CommandFallback = std::function<std::optional<ModeState>(
+    ModeContext& ctx, std::string_view commandLine)>;
 
 ParsedCommand parseCommandLine(std::string_view commandLine);
 
@@ -337,10 +336,10 @@ dispatchCommandLine(ModeContext& ctx, std::string_view commandLine,
                     const ModeCommandCallback& modeHandler,
                     const CommandFallback& fallbackHandler = CommandFallback{});
 
-std::optional<ModeState>
-dispatchEditorCommand(ModeContext& ctx, std::string_view commandLine,
-                      std::string_view previousFile,
-                      bool returnToNormalIfBuffer);
+std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
+                                               std::string_view commandLine,
+                                               std::string_view previousFile,
+                                               bool returnToNormalIfBuffer);
 
 struct CommandPrompt
 {

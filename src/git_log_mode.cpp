@@ -43,8 +43,8 @@ void GitLogMode::rebuildFilter(Editor& editor)
             filtered.push_back(item.first);
     }
 
-    cursor = std::clamp(cursor, 0,
-                        filtered.empty() ? 0 : (int)filtered.size() - 1);
+    cursor =
+        std::clamp(cursor, 0, filtered.empty() ? 0 : (int)filtered.size() - 1);
     int window = std::max(1, editor.screenRows - 2);
     if(cursor < scrollOffset)
         scrollOffset = cursor;
@@ -278,8 +278,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
     }
 
     int window = std::max(1, ed->screenRows - 2);
-    int maxScroll =
-        std::max(0, (int)filtered.size() - window);
+    int maxScroll = std::max(0, (int)filtered.size() - window);
 
     if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
     {
@@ -418,7 +417,8 @@ void GitLogMode::draw(Editor& editor) const
     output += editor.theme.statusBar();
 
     std::string status = " GITLOG";
-    std::string right = " " + std::to_string(filtered.empty() ? 0 : cursor + 1) +
+    std::string right = " " +
+                        std::to_string(filtered.empty() ? 0 : cursor + 1) +
                         "/" + std::to_string(filtered.size()) + " ";
 
     output += status;

@@ -44,10 +44,14 @@ void Editor::showLspInfo()
         lspInfoLines.push_back("  binary: " + path);
     };
 
-    appendLsp("clangd", isClangdLspEnabled(), isFileType<FileType::Cpp>(), clangdLspPath);
-    appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(), pythonLspPath);
-    appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(), robotLspPath);
-    appendLsp("mlang", isMlangLspEnabled(), isFileType<FileType::Mla>(), mlangLspPath);
+    appendLsp("clangd", isClangdLspEnabled(), isFileType<FileType::Cpp>(),
+              clangdLspPath);
+    appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(),
+              pythonLspPath);
+    appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
+              robotLspPath);
+    appendLsp("mlang", isMlangLspEnabled(), isFileType<FileType::Mla>(),
+              mlangLspPath);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");

@@ -551,13 +551,12 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
             // Handle :help command to navigate to different topics
             if(command.cmd == "help" || command.cmd == "h")
             {
-                std::string newTopic =
-                    command.args.empty() ? "" : command.args;
+                std::string newTopic = command.args.empty() ? "" : command.args;
                 topic = newTopic;
                 scrollOffset = 0;
                 loadHelpContent(topic);
-                ctx.setStatusMessage(
-                    "Help: " + (topic.empty() ? "index" : topic));
+                ctx.setStatusMessage("Help: " +
+                                     (topic.empty() ? "index" : topic));
                 ctx.requestFullRedraw();
                 return true;
             }

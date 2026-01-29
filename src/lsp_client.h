@@ -19,11 +19,11 @@ public:
 
     struct Diagnostic
     {
-        int line = 0;      // 0-based
-        int character = 0; // 0-based (UTF-16 code units)
-        int endLine = 0;   // 0-based
+        int line = 0;         // 0-based
+        int character = 0;    // 0-based (UTF-16 code units)
+        int endLine = 0;      // 0-based
         int endCharacter = 0; // 0-based (UTF-16 code units)
-        int severity = 0;  // 1=Error, 2=Warning, 3=Info, 4=Hint
+        int severity = 0;     // 1=Error, 2=Warning, 3=Info, 4=Hint
         std::string message;
         std::string source;
         std::string codeJson;
@@ -111,9 +111,8 @@ public:
                    const std::string& filePath);
 
     // Document formatting (textDocument/formatting)
-    std::vector<TextEdit>
-    formatting(const std::string& filePath, int tabSize = 4,
-               bool insertSpaces = true);
+    std::vector<TextEdit> formatting(const std::string& filePath,
+                                     int tabSize = 4, bool insertSpaces = true);
 
 private:
     struct Impl;

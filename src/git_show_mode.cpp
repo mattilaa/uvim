@@ -76,8 +76,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         if(found >= 0)
         {
             searchIndex = found;
-            int maxScroll = std::max(0, (int)lines.size() -
-                                           (ctx.screenRows() - 2));
+            int maxScroll =
+                std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
             scrollOffset = std::clamp(found, 0, maxScroll);
             return true;
         }
@@ -147,8 +147,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                 if(found >= 0)
                 {
                     searchIndex = found;
-                    int maxScroll = std::max(0, (int)lines.size() -
-                                                   (ctx.screenRows() - 2));
+                    int maxScroll =
+                        std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
                     scrollOffset = std::clamp(found, 0, maxScroll);
                 }
                 else
@@ -191,8 +191,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    int maxScroll =
-        std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
+    int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
 
     if(c == 'j' || c == Terminal::ARROW_DOWN)
     {
@@ -216,8 +215,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
     }
     else if(c == Terminal::PAGE_DOWN)
     {
-        scrollOffset = std::min(scrollOffset + (ctx.screenRows() - 2),
-                                maxScroll);
+        scrollOffset =
+            std::min(scrollOffset + (ctx.screenRows() - 2), maxScroll);
     }
     else if(c == Terminal::PAGE_UP)
     {
@@ -290,8 +289,7 @@ void GitShowCommitMode::draw(Editor& editor) const
             {
                 const std::string& line = lines[idx];
                 if(line.rfind("diff --git", 0) == 0 ||
-                   line.rfind("--- ", 0) == 0 ||
-                   line.rfind("+++ ", 0) == 0)
+                   line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0)
                 {
                     output += editor.theme.uiAccent();
                 }

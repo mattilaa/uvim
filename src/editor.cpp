@@ -1,11 +1,11 @@
 #include "editor.h"
-#include "formatter.h"
-#include "git_handler.h"
-#include "syntax_highlighter.h"
 #include "constants.h"
 #include "enablelog.h"
+#include "formatter.h"
+#include "git_handler.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
+#include "syntax_highlighter.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/command_history_popup.h"
@@ -906,7 +906,8 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 syntaxCppHighlightTypeNames =
                     !(v == "false" || v == "0" || v == "off");
             }
-            auto itci = values.find("editor.syntax.cpp.highlight_implicit_members");
+            auto itci =
+                values.find("editor.syntax.cpp.highlight_implicit_members");
             if(itci == values.end())
                 itci = values.find("syntax.cpp.highlight_implicit_members");
             if(itci != values.end())
@@ -982,8 +983,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                     target = parse_token_type(*v, target);
             };
 
-            set_token("editor.syntax.markup.heading_token",
-                      markupHeadingToken);
+            set_token("editor.syntax.markup.heading_token", markupHeadingToken);
             set_token("syntax.markup.heading_token", markupHeadingToken);
             set_token("editor.syntax.markup.bold_token", markupBoldToken);
             set_token("syntax.markup.bold_token", markupBoldToken);
@@ -1136,28 +1136,23 @@ std::string Editor::getColorCode(TokenType type) const
     return syntaxHighlighter->getColorCode(type);
 }
 
-std::vector<Token> Editor::tokenizeLine(const std::string& line,
-                                        bool& inBlockComment,
-                                        bool& inTomlMultiline,
-                                        char& tomlQuote,
-                                        bool& inMarkupFence,
-                                        char& markupFenceChar,
-                                        bool inCppMethodContext,
-                                        bool inCppFunctionContext,
-                                        bool inCppParamListContext) const
+std::vector<Token>
+Editor::tokenizeLine(const std::string& line, bool& inBlockComment,
+                     bool& inTomlMultiline, char& tomlQuote,
+                     bool& inMarkupFence, char& markupFenceChar,
+                     bool inCppMethodContext, bool inCppFunctionContext,
+                     bool inCppParamListContext) const
 {
     if(!syntaxHighlighter)
         return {};
-    return syntaxHighlighter->tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                           tomlQuote, inMarkupFence,
-                                           markupFenceChar, inCppMethodContext,
-                                           inCppFunctionContext,
-                                           inCppParamListContext);
+    return syntaxHighlighter->tokenizeLine(
+        line, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar, inCppMethodContext, inCppFunctionContext,
+        inCppParamListContext);
 }
 
-void Editor::renderLineWithSyntax(std::string& output,
-                                  const std::string& line, int start, int len,
-                                  int fileRow)
+void Editor::renderLineWithSyntax(std::string& output, const std::string& line,
+                                  int start, int len, int fileRow)
 {
     if(syntaxHighlighter)
         syntaxHighlighter->renderLineWithSyntax(output, line, start, len,
@@ -1979,7 +1974,8 @@ void Editor::openFile(std::string_view fname)
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     // Notify LSP about the newly opened file so gd works from system headers
-    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() && lspClient)
+    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() &&
+       !isFileType<FileType::Mla>() && lspClient)
     {
         // Build text content from loaded lines
         std::string text;
@@ -2006,7 +2002,8 @@ void Editor::openFile(std::string_view fname)
         }
         robotLspClient->didChange(path, text, "robotframework");
     }
-    if(isPythonLspEnabled() && isFileType<FileType::Python>() && pythonLspClient)
+    if(isPythonLspEnabled() && isFileType<FileType::Python>() &&
+       pythonLspClient)
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -3103,8 +3100,8 @@ void Editor::goToDefinition()
         }
 
         mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
-        auto loc = mlangLspClient->definition(currentBuffer->filename,
-                                              *cursorY, *cursorX);
+        auto loc = mlangLspClient->definition(currentBuffer->filename, *cursorY,
+                                              *cursorX);
         if(loc)
         {
             pushJumpLocation();
@@ -3129,7 +3126,8 @@ void Editor::goToDefinition()
 
     // Prefer clangd definition when enabled; fallback to heuristic gd
     // otherwise.
-    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>())
+    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() &&
+       !isFileType<FileType::Mla>())
     {
         // Sync buffer text (full-text change) before querying.
         std::string text;
@@ -3289,9 +3287,8 @@ void Editor::refreshScreen()
 {
     syncModeFromStateMachine();
 
-    if(diagnosticPopupActive &&
-       (*cursorY != diagnosticPopupCursorY ||
-        *cursorX != diagnosticPopupCursorX))
+    if(diagnosticPopupActive && (*cursorY != diagnosticPopupCursorY ||
+                                 *cursorX != diagnosticPopupCursorX))
     {
         closeDiagnosticPopup();
     }
@@ -3419,8 +3416,9 @@ void Editor::refreshScreen()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {
-        if(currentBuffer && isClangdLspEnabled() && isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() && lspClient &&
-           !currentBuffer->filename.empty())
+        if(currentBuffer && isClangdLspEnabled() &&
+           isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() &&
+           lspClient && !currentBuffer->filename.empty())
         {
             size_t revision =
                 lspClient->diagnosticsRevision(currentBuffer->filename);
@@ -3489,8 +3487,7 @@ void Editor::refreshScreen()
        abs(scrollDelta) > screenRows / 2 || visualChanged ||
        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
         currentMode == VISUAL_BLOCK) ||
-       isEditingMode ||
-       (showRelativeLineNumbers && cursorMoved))
+       isEditingMode || (showRelativeLineNumbers && cursorMoved))
     {
         drawFullScreen();
     }
@@ -3542,8 +3539,7 @@ void Editor::updateCursorPosition()
         }
         else
         {
-            cursorCol =
-                layout.x + (*cursorX - *offsetX) + 1 + gutterWidth();
+            cursorCol = layout.x + (*cursorX - *offsetX) + 1 + gutterWidth();
         }
     }
 
@@ -3568,8 +3564,7 @@ bool Editor::noteDoubleEscStatusClear()
 {
     auto now = std::chrono::steady_clock::now();
     auto timeSinceLastEsc =
-        std::chrono::duration_cast<std::chrono::milliseconds>(now -
-                                                              lastEscTime)
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - lastEscTime)
             .count();
     if(timeSinceLastEsc <= DOUBLE_ESC_TIMEOUT_MS)
     {
@@ -3880,8 +3875,8 @@ static std::optional<int> parseIndentWidthLine(const std::string& line)
     return std::nullopt;
 }
 
-static std::optional<std::string>
-parseScalarValueLine(const std::string& line, std::string_view key)
+static std::optional<std::string> parseScalarValueLine(const std::string& line,
+                                                       std::string_view key)
 {
     size_t start = 0;
     while(start < line.size() && (line[start] == ' ' || line[start] == '\t'))
@@ -3903,9 +3898,8 @@ parseScalarValueLine(const std::string& line, std::string_view key)
         return std::nullopt;
 
     std::string value = line.substr(pos);
-    while(!value.empty() &&
-          (value.back() == ' ' || value.back() == '\t' ||
-           value.back() == '\r' || value.back() == '\n'))
+    while(!value.empty() && (value.back() == ' ' || value.back() == '\t' ||
+                             value.back() == '\r' || value.back() == '\n'))
         value.pop_back();
     return value;
 }
@@ -3967,8 +3961,7 @@ void Editor::updateClangFormatIndentWidth()
                 size_t braceWrappingIndent = 0;
                 while(std::getline(in, line))
                 {
-                    std::optional<int> width =
-                        parseIndentWidthLine(line);
+                    std::optional<int> width = parseIndentWidthLine(line);
                     if(width)
                     {
                         currentBuffer->clangIndentWidth = *width;
@@ -3996,8 +3989,7 @@ void Editor::updateClangFormatIndentWidth()
 
                     if(inBraceWrapping)
                     {
-                        size_t indent =
-                            line.find_first_not_of(" \t");
+                        size_t indent = line.find_first_not_of(" \t");
                         if(indent == std::string::npos)
                             continue;
                         if(indent <= braceWrappingIndent)
@@ -4007,8 +3999,7 @@ void Editor::updateClangFormatIndentWidth()
                         }
 
                         auto afterControl =
-                            parseScalarValueLine(line,
-                                                 "AfterControlStatement");
+                            parseScalarValueLine(line, "AfterControlStatement");
                         if(afterControl)
                         {
                             currentBuffer->clangBraceNewLine =
@@ -4108,7 +4099,8 @@ void Editor::commentLines(int startY, int endY)
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!currentBuffer || !isClangdLspEnabled() || !isFileType<FileType::Cpp>() || !lspClient)
+    if(!currentBuffer || !isClangdLspEnabled() ||
+       !isFileType<FileType::Cpp>() || !lspClient)
         return;
 
     bool shouldCheck = force || currentBuffer->lspSyncNeeded || *dirty;
@@ -4328,8 +4320,7 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("syntax.cpp.highlight_param_types=false");
         return true;
     }
-    if(opt.rfind("python.formatter=", 0) == 0 ||
-       opt.rfind("pyfmt=", 0) == 0)
+    if(opt.rfind("python.formatter=", 0) == 0 || opt.rfind("pyfmt=", 0) == 0)
     {
         std::string value = opt.substr(opt.find('=') + 1);
         std::string v = ascii_lower(value);
@@ -6107,8 +6098,8 @@ static std::string trim_ascii_ws(std::string_view s)
     return std::string(s.substr(start, end - start));
 }
 
-static std::string collect_signature_line(
-    const std::vector<std::string>& lines, int startY, int maxLines)
+static std::string collect_signature_line(const std::vector<std::string>& lines,
+                                          int startY, int maxLines)
 {
     if(startY < 0 || startY >= (int)lines.size())
         return "";
@@ -6315,7 +6306,7 @@ static std::string extract_type_before_name(const std::string& line,
         }
     };
 
-    std::string qualifiers[] = {"const",    "volatile", "mutable",
+    std::string qualifiers[] = {"const",    "volatile",  "mutable",
                                 "static",   "constexpr", "inline",
                                 "typename", "class",     "struct"};
 
@@ -6334,8 +6325,7 @@ static std::string extract_type_before_name(const std::string& line,
             --i;
         if(end < 0 || end < i + 1)
             break;
-        std::string token = line.substr((size_t)i + 1,
-                                        (size_t)(end - i));
+        std::string token = line.substr((size_t)i + 1, (size_t)(end - i));
         bool isQualifier = false;
         for(const auto& q : qualifiers)
         {
@@ -6394,8 +6384,7 @@ void Editor::openSymbolPopupForCursor()
                     --start;
                 if(end >= 0)
                     memberObject =
-                        line.substr((size_t)start + 1,
-                                    (size_t)(end - start));
+                        line.substr((size_t)start + 1, (size_t)(end - start));
             }
             else if(p >= 1 && line[p] == '>' && line[p - 1] == '-')
             {
@@ -6408,8 +6397,7 @@ void Editor::openSymbolPopupForCursor()
                     --start;
                 if(end >= 0)
                     memberObject =
-                        line.substr((size_t)start + 1,
-                                    (size_t)(end - start));
+                        line.substr((size_t)start + 1, (size_t)(end - start));
             }
         }
     }
@@ -6508,8 +6496,8 @@ void Editor::openSymbolPopupForCursor()
                 extract_type_before_name(declLine, memberObject);
             if(typeToken == "auto")
             {
-                typeToken = infer_auto_type_from_decl(declLine, memberObject,
-                                                      *lines);
+                typeToken =
+                    infer_auto_type_from_decl(declLine, memberObject, *lines);
             }
             if(!typeToken.empty())
             {
@@ -6526,9 +6514,8 @@ void Editor::openSymbolPopupForCursor()
                             if(find_declaration_in_lines(headerLines, symbol,
                                                          defY, defX))
                             {
-                                signature =
-                                    collect_signature_line(headerLines, defY,
-                                                           3);
+                                signature = collect_signature_line(headerLines,
+                                                                   defY, 3);
                             }
                         }
                     }
@@ -6752,7 +6739,8 @@ void Editor::insertLineAbove()
         indent++;
     }
     std::string indentStr = currentLine.substr(0, indent);
-    if(autoTags && (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
+    if(autoTags &&
+       (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
     {
         size_t pos = currentLine.find('<');
         if(pos != std::string::npos)
@@ -6764,9 +6752,8 @@ void Editor::insertLineAbove()
                 if(next != '/' && next != '!' && next != '?')
                 {
                     size_t nameStart = pos + 1;
-                    while(nameStart < gt &&
-                          (currentLine[nameStart] == ' ' ||
-                           currentLine[nameStart] == '\t'))
+                    while(nameStart < gt && (currentLine[nameStart] == ' ' ||
+                                             currentLine[nameStart] == '\t'))
                         ++nameStart;
                     size_t nameEnd = nameStart;
                     auto isTagChar = [](char ch)
@@ -6780,8 +6767,8 @@ void Editor::insertLineAbove()
                     if(nameEnd > nameStart)
                     {
                         std::string_view tag =
-                            std::string_view(currentLine).substr(
-                                nameStart, nameEnd - nameStart);
+                            std::string_view(currentLine)
+                                .substr(nameStart, nameEnd - nameStart);
                         if(isFileType<FileType::Html>())
                         {
                             for(auto v : constants::html_void_tags)
@@ -6923,7 +6910,8 @@ void Editor::insertLineBelow()
                 addExtraIndent = true;
             }
         }
-        if(autoTags && (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
+        if(autoTags &&
+           (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
         {
             bool htmlShouldIndent = false;
             size_t lt = currentLine.rfind('<');
@@ -6955,8 +6943,8 @@ void Editor::insertLineBelow()
                         if(nameEnd > nameStart && isFileType<FileType::Html>())
                         {
                             std::string_view tag =
-                                std::string_view(currentLine).substr(
-                                    nameStart, nameEnd - nameStart);
+                                std::string_view(currentLine)
+                                    .substr(nameStart, nameEnd - nameStart);
                             for(auto v : constants::html_void_tags)
                             {
                                 if(text_utils::iequals_ascii(tag, v))
@@ -7705,8 +7693,7 @@ void Editor::deleteLineSelection()
     if(currentBuffer && currentBuffer->blameValid)
     {
         currentBuffer->blameStart = 0;
-        currentBuffer->blameEnd =
-            (int)currentBuffer->blameEntries.size() - 1;
+        currentBuffer->blameEnd = (int)currentBuffer->blameEntries.size() - 1;
     }
     saveState();
     setMode(NORMAL);
@@ -7961,11 +7948,10 @@ void Editor::updateCommandPopup(std::string_view query)
     }
     else if(isHelpQuery)
     {
-        std::string cmd =
-            (commandPopupQuery.rfind("h", 0) == 0 &&
-             commandPopupQuery.rfind("help", 0) != 0)
-                ? "h"
-                : "help";
+        std::string cmd = (commandPopupQuery.rfind("h", 0) == 0 &&
+                           commandPopupQuery.rfind("help", 0) != 0)
+                              ? "h"
+                              : "help";
         std::string topicPrefix;
         if(commandPopupQuery.size() > cmd.size() &&
            commandPopupQuery[cmd.size()] == ' ')
@@ -8014,14 +8000,14 @@ void Editor::updateCommandPopup(std::string_view query)
             scored.emplace_back(i, score);
     }
 
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const std::pair<int, int>& left,
-                        const std::pair<int, int>& right)
-                     {
-                         if(left.second != right.second)
-                             return left.second > right.second;
-                         return left.first < right.first;
-                     });
+    std::stable_sort(
+        scored.begin(), scored.end(),
+        [](const std::pair<int, int>& left, const std::pair<int, int>& right)
+        {
+            if(left.second != right.second)
+                return left.second > right.second;
+            return left.first < right.first;
+        });
 
     for(const auto& entry : scored)
         commandPopupFiltered.push_back(entry.first);
@@ -8093,8 +8079,7 @@ std::string Editor::acceptCommandHistorySearch()
     std::string selected;
     if(!commandHistorySearchMatches.empty() &&
        commandHistorySearchCursor >= 0 &&
-       commandHistorySearchCursor <
-           (int)commandHistorySearchMatches.size())
+       commandHistorySearchCursor < (int)commandHistorySearchMatches.size())
     {
         int idx = commandHistorySearchMatches[commandHistorySearchCursor];
         if(idx >= 0 && idx < (int)commandHistory.size())
@@ -8140,24 +8125,22 @@ void Editor::updateCommandHistorySearchQuery(std::string_view query)
 
     for(int i = 0; i < (int)commandHistory.size(); ++i)
     {
-        int score =
-            fuzzyScore(commandHistorySearchQueryValue, commandHistory[i],
-                       positions);
+        int score = fuzzyScore(commandHistorySearchQueryValue,
+                               commandHistory[i], positions);
         if(score >= 0)
             scored.emplace_back(i, score);
     }
 
     if(!scored.empty())
     {
-        std::stable_sort(
-            scored.begin(), scored.end(),
-            [](const std::pair<int, int>& left,
-               const std::pair<int, int>& right)
-            {
-                if(left.second != right.second)
-                    return left.second > right.second;
-                return left.first > right.first;
-            });
+        std::stable_sort(scored.begin(), scored.end(),
+                         [](const std::pair<int, int>& left,
+                            const std::pair<int, int>& right)
+                         {
+                             if(left.second != right.second)
+                                 return left.second > right.second;
+                             return left.first > right.first;
+                         });
         for(const auto& entry : scored)
             commandHistorySearchMatches.push_back(entry.first);
     }
@@ -8180,8 +8163,7 @@ void Editor::moveCommandHistorySearchCursor(int delta)
     if(commandHistorySearchCursor < commandHistorySearchOffset)
         commandHistorySearchOffset = commandHistorySearchCursor;
     else if(commandHistorySearchCursor >= commandHistorySearchOffset + window)
-        commandHistorySearchOffset =
-            commandHistorySearchCursor - window + 1;
+        commandHistorySearchOffset = commandHistorySearchCursor - window + 1;
 
     needsFullRedraw = true;
 }
@@ -8233,15 +8215,15 @@ void Editor::drawCommandHistoryPopup(std::string& output) const
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
     std::vector<std::string> commands = {
-        "w",       "write",  "q",          "quit",   "q!",       "qa",
-        "qall",    "qa!",    "qall!",      "wq",     "x",        "qw",
-        "qw!",     "wa",     "wall",       "wa!",    "wqa",      "wqall",
-        "wqa!",    "wqall!", "xa",         "e",      "edit",     "new",
-        "vnew",    "bn",     "bnext",      "bp",     "bprev",    "bd",
-        "bdelete", "ls",     "buffers",    "sp",     "split",    "vs",
-        "vsplit",  "vh",     "hs",         "hsplit", "only",     "tabnew",
-        "tabc",    "tabclose", "set",      "syntax", "noh",      "nohlsearch",
-        "lspinfo", "emoji",  "em",         "help",   "h"};
+        "w",       "write",    "q",       "quit",   "q!",    "qa",
+        "qall",    "qa!",      "qall!",   "wq",     "x",     "qw",
+        "qw!",     "wa",       "wall",    "wa!",    "wqa",   "wqall",
+        "wqa!",    "wqall!",   "xa",      "e",      "edit",  "new",
+        "vnew",    "bn",       "bnext",   "bp",     "bprev", "bd",
+        "bdelete", "ls",       "buffers", "sp",     "split", "vs",
+        "vsplit",  "vh",       "hs",      "hsplit", "only",  "tabnew",
+        "tabc",    "tabclose", "set",     "syntax", "noh",   "nohlsearch",
+        "lspinfo", "emoji",    "em",      "help",   "h"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
@@ -8258,8 +8240,8 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> topics = {
-        "commands", "modes", "navigation", "editing", "files",
-        "buffers",  "search", "clipboard",  "git",    "help"};
+        "commands", "modes",  "navigation", "editing", "files",
+        "buffers",  "search", "clipboard",  "git",     "help"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)
@@ -8276,17 +8258,35 @@ std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> options = {
-        "set autobraces",   "set noautobraces", "set autobraces?",
-        "set autobraces=",  "set autocomplete", "set noautocomplete",
-        "set autocomplete?","set autocomplete=", "set completionautoparens",
-        "set nocompletionautoparens", "set completionautoparens?",
-        "set completionautoparens=", "set showtabs",
-        "set noshowtabs",   "set showtabs?",   "set showtabs=",
-        "set tabspaces?",   "set tabspaces=",  "set tabspaces=2",
+        "set autobraces",
+        "set noautobraces",
+        "set autobraces?",
+        "set autobraces=",
+        "set autocomplete",
+        "set noautocomplete",
+        "set autocomplete?",
+        "set autocomplete=",
+        "set completionautoparens",
+        "set nocompletionautoparens",
+        "set completionautoparens?",
+        "set completionautoparens=",
+        "set showtabs",
+        "set noshowtabs",
+        "set showtabs?",
+        "set showtabs=",
+        "set tabspaces?",
+        "set tabspaces=",
+        "set tabspaces=2",
         "set tabspaces=4",
-        "set tabspaces=8",  "set tabspaces=1", "set tabspaces=3",
-        "set tabspaces=5",  "set tabspaces=6", "set tabspaces=7",
-        "set tabspaces=9",  "set tabspaces=10","set tabspaces=12",
+        "set tabspaces=8",
+        "set tabspaces=1",
+        "set tabspaces=3",
+        "set tabspaces=5",
+        "set tabspaces=6",
+        "set tabspaces=7",
+        "set tabspaces=9",
+        "set tabspaces=10",
+        "set tabspaces=12",
         "set tabspaces=16",
         "set commenttogglepartial",
         "set nocommenttogglepartial",
@@ -8394,7 +8394,6 @@ void Editor::previousCompletion()
     completionPrev();
 }
 
-
 #ifdef UVIM_ENABLE_CLANGD_LSP
 static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
 {
@@ -8416,8 +8415,7 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
         }
         else if((c & 0xE0) == 0xC0 && i + 1 < (int)line.size())
         {
-            codepoint = ((c & 0x1F) << 6) |
-                        ((unsigned char)line[i + 1] & 0x3F);
+            codepoint = ((c & 0x1F) << 6) | ((unsigned char)line[i + 1] & 0x3F);
             len = 2;
         }
         else if((c & 0xF0) == 0xE0 && i + 2 < (int)line.size())

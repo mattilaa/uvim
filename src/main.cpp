@@ -744,8 +744,8 @@ struct EditorSettings
                     const char* home = std::getenv("HOME");
                     if(home && *home)
                     {
-                        fs::path localPath = fs::path(home) / ".local" / "bin" /
-                                             "mlangd";
+                        fs::path localPath =
+                            fs::path(home) / ".local" / "bin" / "mlangd";
                         std::error_code ec;
                         if(fs::exists(localPath, ec) &&
                            fs::is_regular_file(localPath, ec))
@@ -774,8 +774,7 @@ struct EditorSettings
             }
             if(args.empty())
             {
-                bool isPython =
-                    (mlangPath.find("python") != std::string::npos);
+                bool isPython = (mlangPath.find("python") != std::string::npos);
                 if(isPython)
                 {
                     fs::path localLsp = fs::current_path() / "tools" /
