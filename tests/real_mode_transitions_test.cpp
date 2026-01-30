@@ -86,3 +86,69 @@ TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
     EXPECT_EQ(editor.currentBuffer->lines[0], "one one three");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
+
+TEST(RealModeTransitionsTest, InsertModeAutoPairsDoubleQuote)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('"');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"\"");
+    EXPECT_EQ(*editor.cursorX, 1);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+
+    sm.dispatch('"');
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"\"");
+    EXPECT_EQ(*editor.cursorX, 2);
+}
+
+TEST(RealModeTransitionsTest, InsertModeAutoPairsSingleQuote)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('\'');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "''");
+    EXPECT_EQ(*editor.cursorX, 1);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+
+    sm.dispatch('\'');
+    EXPECT_EQ(editor.currentBuffer->lines[0], "''");
+    EXPECT_EQ(*editor.cursorX, 2);
+}
+
+TEST(RealModeTransitionsTest, InsertModeAutoPairsBacktick)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('`');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "``");
+    EXPECT_EQ(*editor.cursorX, 1);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+
+    sm.dispatch('`');
+    EXPECT_EQ(editor.currentBuffer->lines[0], "``");
+    EXPECT_EQ(*editor.cursorX, 2);
+}
