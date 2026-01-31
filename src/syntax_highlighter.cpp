@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -64,6 +65,67 @@ std::string ascii_lower(std::string_view value)
     for(char c : value)
         out.push_back(text_utils::ascii_tolower(c));
     return out;
+}
+
+std::vector<std::filesystem::path> default_mlang_stdlib_paths()
+{
+    std::vector<std::filesystem::path> paths;
+    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
+        paths.emplace_back(env);
+    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
+        paths.emplace_back(std::string(xdg) + "/mlang/stdlib");
+    if(const char* home = std::getenv("HOME"))
+        paths.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
+    paths.emplace_back("/usr/local/share/mlang/stdlib");
+    paths.emplace_back("/usr/share/mlang/stdlib");
+    return paths;
+}
+
+void load_builtin_types_from_file(MlangTokenCache& cache,
+                                  const std::filesystem::path& path)
+{
+    std::ifstream in(path);
+    if(!in)
+        return;
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(in, line))
+    {
+        ++lineNo;
+        const std::string marker = "// @builtin ";
+        if(line.rfind(marker, 0) != 0)
+            continue;
+        std::string name = line.substr(marker.size());
+        if(name.empty())
+            continue;
+        if(cache.caseInsensitive)
+            name = ascii_lower(name);
+        MlangTokenCache::BuiltinTypeDef def;
+        def.path = path.string();
+        def.line = lineNo - 1;
+        cache.builtinTypes.emplace(std::move(name), std::move(def));
+    }
+}
+
+void ensure_builtin_types_loaded(MlangTokenCache& cache)
+{
+    if(cache.builtinTypesLoaded)
+        return;
+    for(const auto& root : default_mlang_stdlib_paths())
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "types.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        load_builtin_types_from_file(cache, p);
+        if(!cache.builtinTypes.empty())
+        {
+            cache.builtinTypesLoaded = true;
+            return;
+        }
+    }
 }
 
 std::optional<TokenType> parse_token_type(std::string_view value)
@@ -1256,7 +1318,7 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         hasExplicitLspPath ? editor->mlangLspPath : std::string{};
 
     if(cache.loaded && cache.root == rootStr &&
-       cache.lspPath == effectiveLspPath)
+       cache.lspPath == effectiveLspPath && cache.builtinTypesLoaded)
     {
         return;
     }
@@ -1380,8 +1442,24 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
+        if(!cache.builtinTypes.empty())
+        {
+            for(const auto& kv : cache.builtinTypes)
+            {
+                cache.tokenTypes.emplace(kv.first, TOKEN_TYPE);
+            }
+        }
+
         cache.available = !cache.tokenTypes.empty();
         cache.builtinTypesLoaded = !cache.builtinTypes.empty();
+        if(!cache.builtinTypesLoaded)
+            ensure_builtin_types_loaded(cache);
+        if(cache.builtinTypesLoaded)
+        {
+            for(const auto& kv : cache.builtinTypes)
+                cache.tokenTypes.emplace(kv.first, TOKEN_TYPE);
+            cache.available = true;
+        }
         return cache.available;
     };
 
@@ -1411,6 +1489,16 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     {
         if(load_from_path(candidate, !cfg.caseInsensitiveSet))
             return;
+    }
+
+    // Fallback: load builtin types from installed stdlib even if there is no
+    // mlang_commands.json in the project.
+    ensure_builtin_types_loaded(cache);
+    if(cache.builtinTypesLoaded)
+    {
+        for(const auto& kv : cache.builtinTypes)
+            cache.tokenTypes.emplace(kv.first, TOKEN_TYPE);
+        cache.available = true;
     }
 }
 
