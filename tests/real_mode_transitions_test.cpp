@@ -230,3 +230,47 @@ TEST(RealModeTransitionsTest, CompletionTrimsLeadingSpaceAfterDot)
     EXPECT_EQ(editor.currentBuffer->lines[0], "ctx.cancelCommandPopup();");
     EXPECT_EQ(*editor.cursorX, 23);
 }
+
+TEST(RealModeTransitionsTest, FormatOnSaveCallsFormatterHookWhenEnabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.formatOnSave = true;
+    editor.currentBuffer->filename = "/tmp/uvim_format_on_save.mla";
+    editor.currentBuffer->lines = {"fn main() {}"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    bool called = false;
+    editor.formatOnSaveTestHook = [&]()
+    {
+        called = true;
+        return true;
+    };
+
+    editor.saveFile();
+
+    EXPECT_TRUE(called);
+}
+
+TEST(RealModeTransitionsTest, FormatOnSaveSkipsFormatterHookWhenDisabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.formatOnSave = false;
+    editor.currentBuffer->filename = "/tmp/uvim_format_on_save_off.mla";
+    editor.currentBuffer->lines = {"fn main() {}"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    bool called = false;
+    editor.formatOnSaveTestHook = [&]()
+    {
+        called = true;
+        return true;
+    };
+
+    editor.saveFile();
+
+    EXPECT_FALSE(called);
+}
