@@ -133,6 +133,38 @@ void load_builtin_macros_from_file(MlangTokenCache& cache,
     }
 }
 
+void load_builtin_functions_from_file(MlangTokenCache& cache,
+                                      const std::filesystem::path& path)
+{
+    std::ifstream in(path);
+    if(!in)
+        return;
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(in, line))
+    {
+        ++lineNo;
+        const std::string marker = "// @builtin_fn ";
+        if(line.rfind(marker, 0) != 0)
+            continue;
+        std::string name = line.substr(marker.size());
+        if(name.empty())
+            continue;
+        if(cache.caseInsensitive)
+            name = ascii_lower(name);
+        MlangTokenCache::BuiltinTypeDef def;
+        def.path = path.string();
+        def.line = lineNo - 1;
+        cache.builtinFunctions.emplace(name, def);
+        auto sep = name.rfind("::");
+        if(sep != std::string::npos && sep + 2 < name.size())
+        {
+            std::string base = name.substr(sep + 2);
+            cache.builtinFunctions.emplace(std::move(base), def);
+        }
+    }
+}
+
 void ensure_builtin_types_loaded(MlangTokenCache& cache)
 {
     if(cache.builtinTypesLoaded)
@@ -170,6 +202,27 @@ void ensure_builtin_macros_loaded(MlangTokenCache& cache)
         if(!cache.builtinMacros.empty())
         {
             cache.builtinMacrosLoaded = true;
+            return;
+        }
+    }
+}
+
+void ensure_builtin_functions_loaded(MlangTokenCache& cache)
+{
+    if(cache.builtinFunctionsLoaded)
+        return;
+    for(const auto& root : default_mlang_stdlib_paths())
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "test.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        load_builtin_functions_from_file(cache, p);
+        if(!cache.builtinFunctions.empty())
+        {
+            cache.builtinFunctionsLoaded = true;
             return;
         }
     }
@@ -215,10 +268,10 @@ bool is_mlang_keyword(std::string_view word)
 
 bool is_mlang_type(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 19> kTypes = {
-        "bool", "double", "float", "i16",   "i32",  "i64",    "i8",
-        "int",  "list",   "map",   "str16", "str8", "string", "tuple",
-        "u16",  "u32",    "u64",   "u8",    "void"};
+    static constexpr std::array<std::string_view, 21> kTypes = {
+        "bool", "double", "float",  "i16",  "i32",   "i64",   "i8",
+        "int",  "list",   "map",    "str16","str8",  "string","tuple",
+        "u16",  "u32",    "u64",    "u8",   "void",  "Result","Option"};
     return std::ranges::any_of(kTypes,
                                [&](std::string_view ty) { return ty == word; });
 }
@@ -1378,6 +1431,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     cache.builtinTypesLoaded = false;
     cache.builtinMacros.clear();
     cache.builtinMacrosLoaded = false;
+    cache.builtinFunctions.clear();
+    cache.builtinFunctionsLoaded = false;
     cache.root = rootStr;
     cache.configPath.clear();
     cache.lspPath = effectiveLspPath;
@@ -1515,6 +1570,36 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
+        if(root.contains("builtin_functions"))
+        {
+            const auto& fns = root["builtin_functions"];
+            if(fns.is_array())
+            {
+                for(const auto& entry : fns)
+                {
+                    if(!entry.is_object())
+                        continue;
+                    std::string name = entry.value("name", std::string{});
+                    std::string path = entry.value("path", std::string{});
+                    int line = entry.value("line", 1);
+                    if(name.empty() || path.empty())
+                        continue;
+                    if(cache.caseInsensitive)
+                        name = ascii_lower(name);
+                    MlangTokenCache::BuiltinTypeDef def;
+                    def.path = path;
+                    def.line = line > 0 ? line - 1 : 0;
+                    cache.builtinFunctions.emplace(name, def);
+                    auto sep = name.rfind("::");
+                    if(sep != std::string::npos && sep + 2 < name.size())
+                    {
+                        std::string base = name.substr(sep + 2);
+                        cache.builtinFunctions.emplace(std::move(base), def);
+                    }
+                }
+            }
+        }
+
         if(!cache.builtinTypes.empty())
         {
             for(const auto& kv : cache.builtinTypes)
@@ -1529,10 +1614,24 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             ensure_builtin_types_loaded(cache);
         if(!cache.builtinMacrosLoaded)
             ensure_builtin_macros_loaded(cache);
+        if(!cache.builtinFunctionsLoaded)
+            ensure_builtin_functions_loaded(cache);
         if(cache.builtinTypesLoaded)
         {
             for(const auto& kv : cache.builtinTypes)
                 cache.tokenTypes.emplace(kv.first, TOKEN_TYPE);
+            cache.available = true;
+        }
+        if(cache.builtinMacrosLoaded)
+        {
+            for(const auto& kv : cache.builtinMacros)
+                cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
+            cache.available = true;
+        }
+        if(cache.builtinFunctionsLoaded)
+        {
+            for(const auto& kv : cache.builtinFunctions)
+                cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
             cache.available = true;
         }
         return cache.available;
@@ -1579,6 +1678,13 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     if(cache.builtinMacrosLoaded)
     {
         for(const auto& kv : cache.builtinMacros)
+            cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
+        cache.available = true;
+    }
+    ensure_builtin_functions_loaded(cache);
+    if(cache.builtinFunctionsLoaded)
+    {
+        for(const auto& kv : cache.builtinFunctions)
             cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
         cache.available = true;
     }
