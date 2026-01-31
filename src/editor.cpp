@@ -668,6 +668,32 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     autoBraces = false;
             }
+            auto itq = values.find("editor.autoquotes");
+            if(itq == values.end())
+                itq = values.find("settings.autoquotes");
+            if(itq == values.end())
+                itq = values.find("autoquotes");
+            if(itq != values.end())
+            {
+                std::string v = itq->second;
+                if(v == "true" || v == "1" || v == "on")
+                    autoQuotes = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    autoQuotes = false;
+            }
+            auto itbs = values.find("editor.autobracesinstrings");
+            if(itbs == values.end())
+                itbs = values.find("settings.autobracesinstrings");
+            if(itbs == values.end())
+                itbs = values.find("autobracesinstrings");
+            if(itbs != values.end())
+            {
+                std::string v = itbs->second;
+                if(v == "true" || v == "1" || v == "on")
+                    autoBracesInStrings = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    autoBracesInStrings = false;
+            }
             auto ittg = values.find("editor.autotags");
             if(ittg == values.end())
                 ittg = values.find("settings.autotags");
@@ -4172,6 +4198,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoBraces ? "true" : "false"));
         return true;
     }
+    if(opt == "autoquotes?")
+    {
+        setStatusMessage(std::string("autoquotes=") +
+                         (autoQuotes ? "true" : "false"));
+        return true;
+    }
+    if(opt == "autobracesinstrings?")
+    {
+        setStatusMessage(std::string("autobracesinstrings=") +
+                         (autoBracesInStrings ? "true" : "false"));
+        return true;
+    }
     if(opt == "autotags?")
     {
         setStatusMessage(std::string("autotags=") +
@@ -4272,6 +4310,20 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoBraces ? "true" : "false"));
     };
 
+    auto set_auto_quotes = [&](bool value)
+    {
+        autoQuotes = value;
+        setStatusMessage(std::string("autoquotes=") +
+                         (autoQuotes ? "true" : "false"));
+    };
+
+    auto set_auto_braces_in_strings = [&](bool value)
+    {
+        autoBracesInStrings = value;
+        setStatusMessage(std::string("autobracesinstrings=") +
+                         (autoBracesInStrings ? "true" : "false"));
+    };
+
     auto set_autotags = [&](bool value)
     {
         autoTags = value;
@@ -4294,6 +4346,26 @@ bool Editor::handleSetCommand(std::string_view cmd)
     if(opt == "noautobraces")
     {
         set_flag(false);
+        return true;
+    }
+    if(opt == "autoquotes")
+    {
+        set_auto_quotes(true);
+        return true;
+    }
+    if(opt == "noautoquotes")
+    {
+        set_auto_quotes(false);
+        return true;
+    }
+    if(opt == "autobracesinstrings")
+    {
+        set_auto_braces_in_strings(true);
+        return true;
+    }
+    if(opt == "noautobracesinstrings")
+    {
+        set_auto_braces_in_strings(false);
         return true;
     }
     if(opt == "syntax.cpp.highlight_system_includes")
@@ -4458,6 +4530,41 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("autobraces: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("autoquotes=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("autoquotes=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_auto_quotes(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_auto_quotes(false);
+        }
+        else
+        {
+            setStatusMessage("autoquotes: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("autobracesinstrings=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("autobracesinstrings=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_auto_braces_in_strings(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_auto_braces_in_strings(false);
+        }
+        else
+        {
+            setStatusMessage("autobracesinstrings: expected true/false");
         }
         return true;
     }
@@ -8262,6 +8369,14 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set noautobraces",
         "set autobraces?",
         "set autobraces=",
+        "set autoquotes",
+        "set noautoquotes",
+        "set autoquotes?",
+        "set autoquotes=",
+        "set autobracesinstrings",
+        "set noautobracesinstrings",
+        "set autobracesinstrings?",
+        "set autobracesinstrings=",
         "set autocomplete",
         "set noautocomplete",
         "set autocomplete?",

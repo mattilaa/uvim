@@ -378,6 +378,15 @@ static inline int fuzzyScore(const std::string& text,
 void Editor::requestCompletion()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
+    static constexpr std::string_view kMlangBuiltins[] = {
+        "println!",
+        "print!",
+        "eprintln!",
+        "eprint!",
+        "debug!",
+        "format!",
+        "assert_eq!",
+    };
     auto keywordFallback =
         [&](const std::vector<std::string_view>& words, std::string_view label)
     {
@@ -536,7 +545,9 @@ void Editor::requestCompletion()
             const std::string& line = (*lines)[*cursorY];
             completionAnchorX = computeCompletionAnchor(line, *cursorX);
             completionAnchorY = *cursorY;
-            bufferWordFallback("buffer");
+            keywordFallback(
+                {std::begin(kMlangBuiltins), std::end(kMlangBuiltins)},
+                "mlang");
             return;
         }
         client = mlangLspClient.get();
@@ -700,6 +711,24 @@ void Editor::requestCompletion()
         completionAll.push_back(std::move(e));
     }
 
+    if(isFileType<FileType::Mla>())
+    {
+        std::unordered_set<std::string> seen;
+        seen.reserve(completionAll.size() * 2 + 8);
+        for(const auto& e : completionAll)
+            seen.insert(e.label);
+        for(const auto& kw : kMlangBuiltins)
+        {
+            std::string labelStr(kw);
+            if(seen.insert(labelStr).second)
+            {
+                CompletionEntry e;
+                e.label = std::move(labelStr);
+                completionAll.push_back(std::move(e));
+            }
+        }
+    }
+
     if(completionAll.empty())
     {
         cancelCompletion();
@@ -748,6 +777,13 @@ void Editor::requestCompletion()
             keywordFallback(
                 {std::begin(kPythonKeywords), std::end(kPythonKeywords)},
                 "python");
+            return;
+        }
+        if(isFileType<FileType::Mla>())
+        {
+            keywordFallback(
+                {std::begin(kMlangBuiltins), std::end(kMlangBuiltins)},
+                "mlang");
             return;
         }
         setStatusMessage(label + " completion: no results");

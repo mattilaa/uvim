@@ -315,6 +315,8 @@ public:
     std::vector<int> pendingChangeKeys;
     std::vector<int> lastChangeKeys;
     bool autoBraces = true;
+    bool autoQuotes = true;
+    bool autoBracesInStrings = true;
     bool autoTags = true;
     bool autoCompletion = true;
     bool completionAutoParens = true;

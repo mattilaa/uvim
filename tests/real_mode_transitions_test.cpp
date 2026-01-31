@@ -152,3 +152,58 @@ TEST(RealModeTransitionsTest, InsertModeAutoPairsBacktick)
     EXPECT_EQ(editor.currentBuffer->lines[0], "``");
     EXPECT_EQ(*editor.cursorX, 2);
 }
+
+TEST(RealModeTransitionsTest, InsertModeAutoQuotesDisabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.autoQuotes = false;
+    editor.currentBuffer->lines = {""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('"');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"");
+    EXPECT_EQ(*editor.cursorX, 1);
+}
+
+TEST(RealModeTransitionsTest, InsertModeAutoBracesInStrings)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('"');
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"{}\"");
+    EXPECT_EQ(*editor.cursorX, 2);
+}
+
+TEST(RealModeTransitionsTest, InsertModeAutoBracesInStringsDisabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.autoBracesInStrings = false;
+    editor.currentBuffer->lines = {""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('"');
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"{\"");
+    EXPECT_EQ(*editor.cursorX, 2);
+}

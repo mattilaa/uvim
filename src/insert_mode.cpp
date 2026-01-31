@@ -480,7 +480,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             }
         }
 
-        if(ed->autoBraces &&
+        if(ed->autoBraces && ed->autoQuotes &&
            (c == '"' || c == '\'' || c == '`'))
         {
             auto handleQuote = [&](char quote) -> bool
@@ -514,6 +514,30 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             if(handleQuote(static_cast<char>(c)))
                 return std::nullopt;
+        }
+
+        if(ed->autoBraces && ed->autoBracesInStrings && c == '{' && inString)
+        {
+            auto& lines = ctx.lines();
+            int& cursorX = ctx.cursorX();
+            int cursorY = ctx.cursorY();
+
+            if(cursorY >= (int)lines.size())
+                lines.resize(cursorY + 1);
+            std::string& line = lines[cursorY];
+            if(cursorX > (int)line.length())
+                cursorX = line.length();
+
+            if(cursorX < (int)line.length() && line[cursorX] == '}')
+            {
+                ed->insertChar('{');
+                return std::nullopt;
+            }
+
+            ed->insertChar('{');
+            ed->insertChar('}');
+            ctx.cursorX()--;
+            return std::nullopt;
         }
 
         if(ed->autoBraces && c == '{' && !inString)
