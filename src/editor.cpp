@@ -824,6 +824,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     formatOnInsertLeave = false;
             }
+            auto itfs = values.find("editor.formatonsave");
+            if(itfs == values.end())
+                itfs = values.find("settings.formatonsave");
+            if(itfs == values.end())
+                itfs = values.find("formatonsave");
+            if(itfs != values.end())
+            {
+                std::string v = itfs->second;
+                if(v == "true" || v == "1" || v == "on")
+                    formatOnSave = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    formatOnSave = false;
+            }
             auto itfmt = values.find("editor.formatondoubleesctimeoutms");
             if(itfmt == values.end())
                 itfmt = values.find("settings.formatondoubleesctimeoutms");
@@ -2081,6 +2094,22 @@ void Editor::openFileBrowser(std::string_view path)
     }
 }
 
+bool Editor::formatBufferForSave()
+{
+#ifdef UVIM_TESTING
+    if(formatOnSaveTestHook)
+        return formatOnSaveTestHook();
+#endif
+    if(isFileType<FileType::Python>())
+        return pythonFormatBuffer();
+    if(isFileType<FileType::Mla>())
+        return mlangFormatBuffer();
+    if(isFileType<FileType::Cpp>() ||
+       (filename && !filename->empty() && isHeaderFile(*filename)))
+        return clangFormatWithArgs("", "clang-format: formatted file");
+    return false;
+}
+
 void Editor::saveFile()
 {
     if(filename->empty())
@@ -2088,6 +2117,9 @@ void Editor::saveFile()
         setStatusMessage("No file name");
         return;
     }
+
+    if(formatOnSave)
+        formatBufferForSave();
 
     // Clean up lines before saving: convert tabs to spaces, remove trailing
     // whitespace
@@ -3144,6 +3176,30 @@ void Editor::goToDefinition()
             setStatusMessage("gd (mlang) → " + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
+        }
+
+        if(syntaxHighlighter)
+            syntaxHighlighter->ensureMlangTokensLoaded();
+        if(mlangTokenCache && mlangTokenCache->builtinTypesLoaded &&
+           !mlangTokenCache->builtinTypes.empty())
+        {
+            std::string key = mlangTokenCache->caseInsensitive
+                                  ? ascii_lower(symbol)
+                                  : symbol;
+            auto it = mlangTokenCache->builtinTypes.find(key);
+            if(it != mlangTokenCache->builtinTypes.end())
+            {
+                pushJumpLocation();
+                openFile(it->second.path);
+                *cursorY = it->second.line;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang builtin) → " + it->second.path +
+                                 ":" + std::to_string(it->second.line + 1));
+                return;
+            }
         }
 
         setStatusMessage("gd (mlang): not found");
@@ -4268,6 +4324,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (formatOnInsertLeave ? "true" : "false"));
         return true;
     }
+    if(opt == "formatonsave?")
+    {
+        setStatusMessage(std::string("formatonsave=") +
+                         (formatOnSave ? "true" : "false"));
+        return true;
+    }
     if(opt == "gdcenter?")
     {
         setStatusMessage(std::string("gdcenter=") +
@@ -4475,6 +4537,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("formatoninsertleave=false");
         return true;
     }
+    if(opt == "formatonsave")
+    {
+        formatOnSave = true;
+        setStatusMessage("formatonsave=true");
+        return true;
+    }
+    if(opt == "noformatonsave")
+    {
+        formatOnSave = false;
+        setStatusMessage("formatonsave=false");
+        return true;
+    }
     if(opt.rfind("formatondoubleesctimeoutms=", 0) == 0)
     {
         std::string value =
@@ -4496,6 +4570,25 @@ bool Editor::handleSetCommand(std::string_view cmd)
         catch(...)
         {
             setStatusMessage("formatondoubleesctimeoutms: expected number");
+        }
+        return true;
+    }
+    if(opt.rfind("formatonsave=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("formatonsave=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            formatOnSave = true;
+            setStatusMessage("formatonsave=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            formatOnSave = false;
+            setStatusMessage("formatonsave=false");
+        }
+        else
+        {
+            setStatusMessage("formatonsave: expected true/false");
         }
         return true;
     }
@@ -8413,6 +8506,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set formatoninsertleave",
         "set noformatoninsertleave",
         "set formatoninsertleave?",
+        "set formatonsave",
+        "set noformatonsave",
+        "set formatonsave?",
+        "set formatonsave=",
         "set formatondoubleesctimeoutms?",
         "set formatondoubleesctimeoutms=",
         "set gitdefaultcolors?",

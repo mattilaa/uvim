@@ -1265,6 +1265,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     cache.available = false;
     cache.caseInsensitive = false;
     cache.tokenTypes.clear();
+    cache.builtinTypes.clear();
+    cache.builtinTypesLoaded = false;
     cache.root = rootStr;
     cache.configPath.clear();
     cache.lspPath = effectiveLspPath;
@@ -1354,7 +1356,32 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
+        if(root.contains("builtin_types"))
+        {
+            const auto& types = root["builtin_types"];
+            if(types.is_array())
+            {
+                for(const auto& entry : types)
+                {
+                    if(!entry.is_object())
+                        continue;
+                    std::string name = entry.value("name", std::string{});
+                    std::string path = entry.value("path", std::string{});
+                    int line = entry.value("line", 1);
+                    if(name.empty() || path.empty())
+                        continue;
+                    if(cache.caseInsensitive)
+                        name = ascii_lower(name);
+                    MlangTokenCache::BuiltinTypeDef def;
+                    def.path = path;
+                    def.line = line > 0 ? line - 1 : 0;
+                    cache.builtinTypes.emplace(std::move(name), std::move(def));
+                }
+            }
+        }
+
         cache.available = !cache.tokenTypes.empty();
+        cache.builtinTypesLoaded = !cache.builtinTypes.empty();
         return cache.available;
     };
 

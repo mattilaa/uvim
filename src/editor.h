@@ -10,6 +10,7 @@
 #include "token_type.h"
 #include <chrono>
 #include <ctime>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -35,6 +36,13 @@ struct MlangTokenCache
     bool available = false;
     bool caseInsensitive = false;
     std::unordered_map<std::string, TokenType> tokenTypes;
+    struct BuiltinTypeDef
+    {
+        std::string path;
+        int line = 0; // 0-based
+    };
+    bool builtinTypesLoaded = false;
+    std::unordered_map<std::string, BuiltinTypeDef> builtinTypes;
     std::string root;
     std::string configPath;
     std::string lspPath;
@@ -347,6 +355,7 @@ public:
     bool gitUseDefaultColors = true;
     bool commentTogglePartial = false;
     bool formatOnInsertLeave = true;
+    bool formatOnSave = true;
     bool formatOnDoubleEscPending = false;
     int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
     bool gdCenterScreen = true;
@@ -817,6 +826,12 @@ private:
     {
     };
     Editor(TestTag tag, int rows, int cols);
+#endif
+    bool formatBufferForSave();
+#ifdef UVIM_TESTING
+public:
+    std::function<bool()> formatOnSaveTestHook;
+private:
 #endif
     bool dispatchModeKey(int c);
     void syncModeFromStateMachine();

@@ -109,6 +109,7 @@ static std::string_view default_config_contents()
   autobracesinstrings: true
   autotags: true
   autocomplete: true
+  formatonsave: true
   gdcenter: true
   syntax:
     json: true
