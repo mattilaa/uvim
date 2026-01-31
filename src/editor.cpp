@@ -314,6 +314,60 @@ static bool find_mlang_builtin_macro(std::string_view symbol, std::string& path,
     return false;
 }
 
+static bool find_mlang_builtin_function(std::string_view symbol,
+                                        std::string& path, int& line)
+{
+    std::vector<std::filesystem::path> roots;
+    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
+        roots.emplace_back(env);
+    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
+        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
+    if(const char* home = std::getenv("HOME"))
+        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
+    roots.emplace_back("/usr/local/share/mlang/stdlib");
+    roots.emplace_back("/usr/share/mlang/stdlib");
+
+    std::string needle = std::string(symbol);
+    std::string needleLower = ascii_lower(symbol);
+
+    for(const auto& root : roots)
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "test.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        std::ifstream in(p);
+        if(!in)
+            continue;
+        std::string lineStr;
+        int lineNo = 0;
+        while(std::getline(in, lineStr))
+        {
+            ++lineNo;
+            const std::string marker = "// @builtin_fn ";
+            if(lineStr.rfind(marker, 0) != 0)
+                continue;
+            std::string name = lineStr.substr(marker.size());
+            if(name.empty())
+                continue;
+            std::string base = name;
+            auto sep = base.rfind("::");
+            if(sep != std::string::npos && sep + 2 < base.size())
+                base = base.substr(sep + 2);
+            if(name == needle || ascii_lower(name) == needleLower ||
+               base == needle || ascii_lower(base) == needleLower)
+            {
+                path = p.string();
+                line = lineNo - 1;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static std::vector<std::string> split_csv(std::string_view input)
 {
     std::vector<std::string> out;
@@ -3315,6 +3369,21 @@ void Editor::goToDefinition()
                                  ":" + std::to_string(mit->second.line + 1));
                 return;
             }
+
+            auto fit = mlangTokenCache->builtinFunctions.find(key);
+            if(fit != mlangTokenCache->builtinFunctions.end())
+            {
+                pushJumpLocation();
+                openFile(fit->second.path);
+                *cursorY = fit->second.line;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang fn) → " + fit->second.path + ":" +
+                                 std::to_string(fit->second.line + 1));
+                return;
+            }
         }
 
         {
@@ -3349,6 +3418,21 @@ void Editor::goToDefinition()
                 apply_gd_viewport();
                 setStatusMessage("gd (mlang macro) → " + macroPath + ":" +
                                  std::to_string(macroLine + 1));
+                return;
+            }
+            std::string fnPath;
+            int fnLine = 0;
+            if(find_mlang_builtin_function(symbol, fnPath, fnLine))
+            {
+                pushJumpLocation();
+                openFile(fnPath);
+                *cursorY = fnLine;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang fn) → " + fnPath + ":" +
+                                 std::to_string(fnLine + 1));
                 return;
             }
         }
