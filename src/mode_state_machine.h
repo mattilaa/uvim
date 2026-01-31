@@ -536,6 +536,9 @@ struct FileBrowserMode
     int browserCursor = 0;
     int browserOffset = 0;
     bool showHidden = false;
+    bool filterActive = false;
+    std::string filterQuery;
+    std::vector<int> filterMatches;
     CommandPrompt commandPrompt;
 
     FileBrowserMode() = default;
@@ -554,6 +557,9 @@ struct FileBrowserMode
 
 private:
     void loadDirectory(ModeContext& ctx, const std::string& pathStr);
+    void updateFilter(ModeContext& ctx);
+    int listSize() const;
+    const FileEntry* entryAt(int index) const;
     std::string formatFileSize(size_t size) const;
     std::string formatFileTime(time_t time) const;
     std::optional<ModeState> executeCommand(ModeContext& ctx,

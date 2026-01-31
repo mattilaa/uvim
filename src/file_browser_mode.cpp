@@ -4,6 +4,7 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -16,6 +17,7 @@
 
 void FileBrowserMode::on_enter(ModeContext& ctx)
 {
+    ctx.setStatusMessage("");
     if(previousFile.empty() && ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
         previousFile = std::string(ctx.currentFilename());
@@ -55,6 +57,16 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     if(c == Terminal::ESC || c == 'q')
     {
+        if(c == Terminal::ESC && filterActive)
+        {
+            filterActive = false;
+            filterQuery.clear();
+            filterMatches.clear();
+            browserCursor = 0;
+            browserOffset = 0;
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
         if(c == Terminal::ESC)
             ctx.editor->noteDoubleEscStatusClear();
         if(!previousFile.empty())
@@ -69,9 +81,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    if(c == 'j' || c == Terminal::ARROW_DOWN || c == Terminal::CTRL_J)
     {
-        if(browserCursor < (int)fileList.size() - 1)
+        int count = listSize();
+        if(browserCursor < count - 1)
         {
             browserCursor++;
             int visible = ctx.screenRows() - 4;
@@ -79,7 +92,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 browserOffset = browserCursor - visible + 1;
         }
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
+    else if(c == 'k' || c == Terminal::ARROW_UP || c == Terminal::CTRL_K)
     {
         if(browserCursor > 0)
         {
@@ -90,7 +103,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == 'G')
     {
-        browserCursor = fileList.size() - 1;
+        int count = listSize();
+        browserCursor = std::max(0, count - 1);
         int visible = ctx.screenRows() - 4;
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
@@ -108,8 +122,9 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         int half = (ctx.screenRows() - 4) / 2;
         browserCursor += half;
-        if(browserCursor >= (int)fileList.size())
-            browserCursor = fileList.size() - 1;
+        int count = listSize();
+        if(browserCursor >= count)
+            browserCursor = std::max(0, count - 1);
         int visible = ctx.screenRows() - 4;
         if(browserCursor >= browserOffset + visible)
             browserOffset = browserCursor - visible + 1;
@@ -130,9 +145,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     else if(c == Terminal::ENTER || c == 'l' || c == Terminal::ARROW_RIGHT)
     {
-        if(browserCursor >= 0 && browserCursor < (int)fileList.size())
+        if(browserCursor >= 0 && browserCursor < listSize())
         {
-            const FileEntry& entry = fileList[browserCursor];
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(!entryPtr)
+                return std::nullopt;
+            const FileEntry& entry = *entryPtr;
             if(entry.isDirectory ||
                file_utils::is_directory(std::filesystem::path(entry.path)))
             {
@@ -234,6 +252,36 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return GrepSearchMode{};
     }
 
+    if((c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H) &&
+       filterActive)
+    {
+        if(!filterQuery.empty())
+        {
+            filterQuery.pop_back();
+            if(filterQuery.empty())
+            {
+                filterActive = false;
+                filterMatches.clear();
+            }
+            updateFilter(ctx);
+        }
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
+    if(c >= 32 && c < 127)
+    {
+        if(std::isalnum(static_cast<unsigned char>(c)) || c == '_' ||
+           c == '-' || (filterActive && c == '.'))
+        {
+            filterActive = true;
+            filterQuery.push_back(static_cast<char>(c));
+            updateFilter(ctx);
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+    }
+
     ctx.requestFullRedraw();
     return std::nullopt;
 }
@@ -259,13 +307,16 @@ void FileBrowserMode::draw(Editor& editor) const
 
     int availableRows = editor.screenRows - 2;
 
-    for(int i = 0; i < availableRows && i + browserOffset < fileList.size();
-        i++)
+    int count = listSize();
+    for(int i = 0; i < availableRows && i + browserOffset < count; i++)
     {
         output += Terminal::NEWLINE_CLEAR;
 
         int index = i + browserOffset;
-        const FileEntry& entry = fileList[index];
+        const FileEntry* entryPtr = entryAt(index);
+        if(!entryPtr)
+            break;
+        const FileEntry& entry = *entryPtr;
 
         if(index == browserCursor)
         {
@@ -318,7 +369,7 @@ void FileBrowserMode::draw(Editor& editor) const
         output += editor.theme.reset();
     }
 
-    int fillerStart = std::max(0, (int)fileList.size() - browserOffset);
+    int fillerStart = std::max(0, count - browserOffset);
     for(int i = fillerStart; i < availableRows; i++)
     {
         output += Terminal::NEWLINE_CLEAR;
@@ -335,9 +386,12 @@ void FileBrowserMode::draw(Editor& editor) const
         status += " [gi]";
     if(showHidden)
         status += " [H]";
+    if(filterActive)
+        status += " [/]";
     status += " | " + currentDirectory;
-    std::string right = " " + std::to_string(browserCursor + 1) + "/" +
-                        std::to_string(fileList.size()) + " ";
+    std::string right =
+        " " + std::to_string(std::min(browserCursor + 1, count)) + "/" +
+        std::to_string(count) + " ";
 
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
@@ -354,6 +408,11 @@ void FileBrowserMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
         output += ":" + commandPrompt.getInput();
     }
+    else if(filterActive)
+    {
+        output += editor.theme.baseFg();
+        output += "/" + filterQuery;
+    }
     else if(!editor.statusMessage.empty())
     {
         output += editor.statusMessage.substr(
@@ -366,6 +425,55 @@ void FileBrowserMode::draw(Editor& editor) const
 
     Terminal::write(output);
     Terminal::flush();
+}
+
+static int fuzzyScore(std::string_view text, std::string_view pattern)
+{
+    if(pattern.empty())
+        return 0;
+
+    auto lower = [](unsigned char ch) -> unsigned char
+    {
+        if(ch >= 'A' && ch <= 'Z')
+            return (unsigned char)(ch - 'A' + 'a');
+        return ch;
+    };
+
+    int score = 0;
+    int ti = 0;
+    int consecutive = 0;
+    for(int pi = 0; pi < (int)pattern.size(); ++pi)
+    {
+        unsigned char pc = lower((unsigned char)pattern[pi]);
+        bool found = false;
+        while(ti < (int)text.size())
+        {
+            unsigned char tc = (unsigned char)text[ti];
+            unsigned char ltc = lower(tc);
+            if(ltc == pc)
+            {
+                score += 10 + consecutive * 5;
+                if(ti == 0)
+                    score += 8;
+                else
+                {
+                    char prev = (char)text[ti - 1];
+                    if(prev == '_' || prev == '-' || prev == ' ' ||
+                       prev == '\t' || prev == '.')
+                        score += 8;
+                }
+                ++consecutive;
+                ++ti;
+                found = true;
+                break;
+            }
+            consecutive = 0;
+            ++ti;
+        }
+        if(!found)
+            return -1;
+    }
+    return score;
 }
 
 void FileBrowserMode::loadDirectory(ModeContext& ctx,
@@ -500,24 +608,98 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     fileList.insert(fileList.end(), std::make_move_iterator(files.begin()),
                     std::make_move_iterator(files.end()));
 
-    if(fileList.empty())
+    updateFilter(ctx);
+}
+
+void FileBrowserMode::updateFilter(ModeContext& ctx)
+{
+    if(!filterActive || filterQuery.empty())
     {
-        browserCursor = 0;
-        browserOffset = 0;
+        filterActive = false;
+        filterMatches.clear();
+        if(fileList.empty())
+        {
+            browserCursor = 0;
+            browserOffset = 0;
+            return;
+        }
+
+        if(browserCursor >= (int)fileList.size())
+            browserCursor = (int)fileList.size() - 1;
+        if(browserCursor < 0)
+            browserCursor = 0;
+
+        int visible = std::max(1, ctx.screenRows() - 4);
+        if(browserOffset > browserCursor)
+            browserOffset = browserCursor;
+        int maxOffset = std::max(0, (int)fileList.size() - visible);
+        if(browserOffset > maxOffset)
+            browserOffset = maxOffset;
         return;
     }
 
-    if(browserCursor >= (int)fileList.size())
-        browserCursor = (int)fileList.size() - 1;
-    if(browserCursor < 0)
-        browserCursor = 0;
+    filterMatches.clear();
+    int parentIndex = -1;
+    std::vector<std::pair<int, int>> scored;
+    scored.reserve(fileList.size());
 
+    for(int i = 0; i < (int)fileList.size(); ++i)
+    {
+        const auto& entry = fileList[i];
+        if(entry.name == "..")
+        {
+            parentIndex = i;
+            continue;
+        }
+
+        int score = fuzzyScore(entry.name, filterQuery);
+        if(score >= 0)
+            scored.emplace_back(i, score);
+    }
+
+    std::stable_sort(scored.begin(), scored.end(),
+                     [&](const auto& a, const auto& b)
+                     {
+                         if(a.second != b.second)
+                             return a.second > b.second;
+                         return fileList[a.first].name <
+                                fileList[b.first].name;
+                     });
+
+    if(parentIndex >= 0)
+        filterMatches.push_back(parentIndex);
+    for(const auto& entry : scored)
+        filterMatches.push_back(entry.first);
+
+    int count = listSize();
+    browserCursor = std::min(browserCursor, std::max(0, count - 1));
+    browserOffset = std::min(browserOffset, std::max(0, count - 1));
     int visible = std::max(1, ctx.screenRows() - 4);
-    if(browserOffset > browserCursor)
+    if(browserCursor < browserOffset)
         browserOffset = browserCursor;
-    int maxOffset = std::max(0, (int)fileList.size() - visible);
-    if(browserOffset > maxOffset)
-        browserOffset = maxOffset;
+    if(browserCursor >= browserOffset + visible)
+        browserOffset = std::max(0, browserCursor - visible + 1);
+}
+
+int FileBrowserMode::listSize() const
+{
+    return filterActive ? (int)filterMatches.size() : (int)fileList.size();
+}
+
+const FileEntry* FileBrowserMode::entryAt(int index) const
+{
+    if(filterActive)
+    {
+        if(index < 0 || index >= (int)filterMatches.size())
+            return nullptr;
+        int mapped = filterMatches[index];
+        if(mapped < 0 || mapped >= (int)fileList.size())
+            return nullptr;
+        return &fileList[mapped];
+    }
+    if(index < 0 || index >= (int)fileList.size())
+        return nullptr;
+    return &fileList[index];
 }
 
 std::string FileBrowserMode::formatFileSize(size_t size) const
@@ -594,11 +776,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             }
 
             // Get current file entry if one is selected
-            const FileEntry* currentEntry = nullptr;
-            if(browserCursor >= 0 && browserCursor < (int)fileList.size())
-            {
-                currentEntry = &fileList[browserCursor];
-            }
+            const FileEntry* currentEntry = entryAt(browserCursor);
 
             // =================================================================
             // Delete command
