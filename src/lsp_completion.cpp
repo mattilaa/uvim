@@ -379,13 +379,8 @@ void Editor::requestCompletion()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     static constexpr std::string_view kMlangBuiltins[] = {
-        "println!",
-        "print!",
-        "eprintln!",
-        "eprint!",
-        "debug!",
-        "format!",
-        "assert_eq!",
+        "println!", "print!",  "eprintln!",  "eprint!",
+        "debug!",   "format!", "assert_eq!",
     };
     auto keywordFallback =
         [&](const std::vector<std::string_view>& words, std::string_view label)

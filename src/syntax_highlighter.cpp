@@ -97,31 +97,30 @@ std::optional<TokenType> parse_token_type(std::string_view value)
 bool is_mlang_keyword(std::string_view word)
 {
     static constexpr std::array<std::string_view, 18> kKeywords = {
-        "break", "continue", "else",  "enum",  "extern", "fn",
-        "for",   "if",       "impl",  "in",    "let",    "match",
-        "mod",   "pub",      "return","struct","use",    "var"};
-    return std::ranges::any_of(
-        kKeywords, [&](std::string_view kw) { return kw == word; });
+        "break", "continue", "else",   "enum",   "extern", "fn",
+        "for",   "if",       "impl",   "in",     "let",    "match",
+        "mod",   "pub",      "return", "struct", "use",    "var"};
+    return std::ranges::any_of(kKeywords,
+                               [&](std::string_view kw) { return kw == word; });
 }
 
 bool is_mlang_type(std::string_view word)
 {
     static constexpr std::array<std::string_view, 19> kTypes = {
-        "bool",  "double", "float", "i16",   "i32",   "i64",
-        "i8",    "int",    "list",  "map",   "str16", "str8",
-        "string","tuple",  "u16",   "u32",   "u64",   "u8",
-        "void"};
-    return std::ranges::any_of(
-        kTypes, [&](std::string_view ty) { return ty == word; });
+        "bool", "double", "float", "i16",   "i32",  "i64",    "i8",
+        "int",  "list",   "map",   "str16", "str8", "string", "tuple",
+        "u16",  "u32",    "u64",   "u8",    "void"};
+    return std::ranges::any_of(kTypes,
+                               [&](std::string_view ty) { return ty == word; });
 }
 
 bool is_mlang_builtin(std::string_view word)
 {
     static constexpr std::array<std::string_view, 7> kBuiltins = {
         "assert_eq", "debug", "eprint", "eprintln",
-        "format", "print", "println"};
-    return std::ranges::any_of(
-        kBuiltins, [&](std::string_view fn) { return fn == word; });
+        "format",    "print", "println"};
+    return std::ranges::any_of(kBuiltins,
+                               [&](std::string_view fn) { return fn == word; });
 }
 
 std::vector<std::string> split_command_line(std::string_view command)
