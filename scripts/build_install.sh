@@ -3,7 +3,10 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: build_install.sh [--install] [--no-install] [--debug] [--no-debug] [--prefix <path>] [--help]
+Usage: build_install.sh [--install] [--no-install] [--debug] [--no-debug]
+                        [--tests] [--unit-tests] [--robot-tests] [--no-tests]
+                        [--install-if-tests-pass]
+                        [--prefix <path>] [--help]
 
 Builds uvim with the standard Ninja Release config and optionally installs it.
 
@@ -12,6 +15,11 @@ Options:
   --no-install       Skip install step
   --debug            Enable UVIM_DEBUG_LSP and UVIM_DEBUG_LOGGING
   --no-debug         Disable debug logging (default)
+  --tests            Run unit + robot tests after build
+  --unit-tests       Run unit tests after build (ctest)
+  --robot-tests      Run robot tests after build
+  --no-tests         Skip all tests (default)
+  --install-if-tests-pass  Install only if requested tests pass
   --prefix <path>    Install prefix (default: $HOME/.local)
   --help             Show this help
 EOF
@@ -20,6 +28,9 @@ EOF
 install_after_build=true
 prefix="${HOME}/.local"
 debug=false
+run_unit_tests=false
+run_robot_tests=false
+install_if_tests_pass=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -51,6 +62,28 @@ while [[ $# -gt 0 ]]; do
       debug=false
       shift
       ;;
+    --tests)
+      run_unit_tests=true
+      run_robot_tests=true
+      shift
+      ;;
+    --unit-tests)
+      run_unit_tests=true
+      shift
+      ;;
+    --robot-tests)
+      run_robot_tests=true
+      shift
+      ;;
+    --no-tests)
+      run_unit_tests=false
+      run_robot_tests=false
+      shift
+      ;;
+    --install-if-tests-pass)
+      install_if_tests_pass=true
+      shift
+      ;;
     *)
       echo "error: unknown argument: $1" >&2
       usage
@@ -79,6 +112,18 @@ cmake "${cmake_args[@]}"
 
 cmake --build build
 
+if $run_unit_tests; then
+  ctest --test-dir build --output-on-failure
+fi
+
+if $run_robot_tests; then
+  ./tests/robot/run_robot.sh
+fi
+
 if $install_after_build; then
+  if $install_if_tests_pass && ! $run_unit_tests && ! $run_robot_tests; then
+    echo "error: --install-if-tests-pass requires --tests, --unit-tests, or --robot-tests" >&2
+    exit 1
+  fi
   cmake --install build --prefix "$prefix" --component uvim
 fi
