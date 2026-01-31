@@ -895,8 +895,10 @@ void Editor::acceptCompletion()
 
     if(!insert.empty() && std::isspace((unsigned char)insert.front()))
     {
-        if(start < (int)mutableLine.size() &&
-           !std::isspace((unsigned char)mutableLine[start]))
+        bool prevIsSpace =
+            start > 0 &&
+            std::isspace((unsigned char)mutableLine[start - 1]) != 0;
+        if(!prevIsSpace)
         {
             size_t first = insert.find_first_not_of(" \t");
             if(first != std::string::npos)

@@ -207,3 +207,26 @@ TEST(RealModeTransitionsTest, InsertModeAutoBracesInStringsDisabled)
     EXPECT_EQ(editor.currentBuffer->lines[0], "\"{\"");
     EXPECT_EQ(*editor.cursorX, 2);
 }
+
+TEST(RealModeTransitionsTest, CompletionTrimsLeadingSpaceAfterDot)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"ctx."};
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    CompletionEntry e;
+    e.label = " cancelCommandPopup()";
+    editor.completionAll = {e};
+    editor.completionFiltered = {0};
+    editor.completionSelected = 0;
+    editor.completionActive = true;
+    editor.completionAnchorX = 4;
+    editor.completionAnchorY = 0;
+
+    editor.acceptCompletion();
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "ctx.cancelCommandPopup();");
+    EXPECT_EQ(*editor.cursorX, 23);
+}
