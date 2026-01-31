@@ -140,11 +140,42 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(ctx.commandBuffer.find(' ') == std::string::npos ||
-                   selection->find(' ') != std::string::npos)
+                std::string_view query =
+                    std::string_view(ctx.commandBuffer).substr(1);
+                bool hasSpace = query.find(' ') != std::string::npos;
+                auto starts_with_ci = [&](std::string_view text,
+                                          std::string_view prefix) -> bool
                 {
-                    ctx.commandBuffer = ":" + *selection;
+                    if(prefix.size() > text.size())
+                        return false;
+                    for(size_t i = 0; i < prefix.size(); ++i)
+                    {
+                        unsigned char a =
+                            static_cast<unsigned char>(text[i]);
+                        unsigned char b =
+                            static_cast<unsigned char>(prefix[i]);
+                        if(a >= 'A' && a <= 'Z')
+                            a = (unsigned char)(a - 'A' + 'a');
+                        if(b >= 'A' && b <= 'Z')
+                            b = (unsigned char)(b - 'A' + 'a');
+                        if(a != b)
+                            return false;
+                    }
+                    return true;
+                };
+
+                bool shouldReplace = query.empty();
+                if(!hasSpace && !shouldReplace)
+                {
+                    shouldReplace = starts_with_ci(*selection, query);
                 }
+                else if(hasSpace && selection->find(' ') != std::string::npos)
+                {
+                    shouldReplace = true;
+                }
+
+                if(shouldReplace)
+                    ctx.commandBuffer = ":" + *selection;
             }
         }
 

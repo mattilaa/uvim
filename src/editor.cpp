@@ -5056,6 +5056,52 @@ void Editor::executeCommand(std::string_view cmd)
         commandRequestedMode = LSP_INFO;
         return;
     }
+    auto is_ex_command = [&](std::string_view command,
+                             std::string& outPath) -> bool
+    {
+        auto trim = [](std::string_view value) -> std::string_view
+        {
+            size_t start = 0;
+            while(start < value.size() &&
+                  (value[start] == ' ' || value[start] == '\t'))
+                ++start;
+            size_t end = value.size();
+            while(end > start &&
+                  (value[end - 1] == ' ' || value[end - 1] == '\t'))
+                --end;
+            return value.substr(start, end - start);
+        };
+
+        auto starts_with = [&](std::string_view prefix) -> bool
+        { return command.rfind(prefix, 0) == 0; };
+
+        if(command == "Ex" || command == "ex" || command == "E" ||
+           command == "Explore" || command == "explore")
+        {
+            outPath = ".";
+            return true;
+        }
+
+        if(starts_with("Ex ") || starts_with("ex ") || starts_with("E ") ||
+           starts_with("Explore ") || starts_with("explore "))
+        {
+            std::string_view rest = command.substr(command.find(' ') + 1);
+            rest = trim(rest);
+            outPath = rest.empty() ? "." : std::string(rest);
+            return true;
+        }
+
+        return false;
+    };
+
+    std::string exPath;
+    if(is_ex_command(cmd, exPath))
+    {
+        commandRequestedModeSet = true;
+        commandRequestedMode = FILE_BROWSER;
+        commandRequestedPath = exPath;
+        return;
+    }
     if(cmd == "format" || cmd == "fmt")
     {
         if(isFileType<FileType::Python>())
@@ -5150,14 +5196,6 @@ void Editor::executeCommand(std::string_view cmd)
             {
                 setStatusMessage("Cannot change to: " + path);
             }
-            return;
-        }
-        if(cmd == "Ex" || cmd == "ex" || cmd == "E" || cmd == "e ." ||
-           cmd == "Explore" || cmd == "explore")
-        {
-            commandRequestedModeSet = true;
-            commandRequestedMode = FILE_BROWSER;
-            commandRequestedPath = ".";
             return;
         }
         if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
@@ -5388,25 +5426,6 @@ void Editor::executeCommand(std::string_view cmd)
         exit(0);
     }
     // File browser commands
-    else if(cmd == "Ex" || cmd == "ex" || cmd == "E" || cmd == "e ." ||
-            cmd == "Explore" || cmd == "explore")
-    {
-        std::string dir = ".";
-        if(!filename->empty())
-        {
-            size_t lastSlash = filename->find_last_of("/");
-            if(lastSlash != std::string::npos)
-            {
-                dir = filename->substr(0, lastSlash);
-                if(dir.empty())
-                    dir = "/";
-            }
-        }
-        commandRequestedModeSet = true;
-        commandRequestedMode = FILE_BROWSER;
-        commandRequestedPath = dir;
-        return;
-    }
     else if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
             cmd == "Vexplore")
     {

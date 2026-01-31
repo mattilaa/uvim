@@ -274,3 +274,49 @@ TEST(RealModeTransitionsTest, FormatOnSaveSkipsFormatterHookWhenDisabled)
 
     EXPECT_FALSE(called);
 }
+
+TEST(RealModeTransitionsTest, ExCommandOpensFileBrowser)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+    sm.dispatch('E');
+    sm.dispatch('x');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, ExCommandWithPathOpensFileBrowser)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+    sm.dispatch('E');
+    sm.dispatch('x');
+    sm.dispatch(' ');
+    sm.dispatch('s');
+    sm.dispatch('r');
+    sm.dispatch('c');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, ExCommandFromCommandModeOpensFileBrowser)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+    sm.dispatch('E');
+    sm.dispatch('x');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
