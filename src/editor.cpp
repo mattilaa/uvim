@@ -216,6 +216,104 @@ static std::string ascii_lower(std::string_view value)
     return out;
 }
 
+static bool find_mlang_builtin_type(std::string_view symbol, std::string& path,
+                                    int& line)
+{
+    std::vector<std::filesystem::path> roots;
+    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
+        roots.emplace_back(env);
+    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
+        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
+    if(const char* home = std::getenv("HOME"))
+        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
+    roots.emplace_back("/usr/local/share/mlang/stdlib");
+    roots.emplace_back("/usr/share/mlang/stdlib");
+
+    std::string needle = std::string(symbol);
+    std::string needleLower = ascii_lower(symbol);
+
+    for(const auto& root : roots)
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "types.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        std::ifstream in(p);
+        if(!in)
+            continue;
+        std::string lineStr;
+        int lineNo = 0;
+        while(std::getline(in, lineStr))
+        {
+            ++lineNo;
+            const std::string marker = "// @builtin ";
+            if(lineStr.rfind(marker, 0) != 0)
+                continue;
+            std::string name = lineStr.substr(marker.size());
+            if(name.empty())
+                continue;
+            if(name == needle || ascii_lower(name) == needleLower)
+            {
+                path = p.string();
+                line = lineNo - 1;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool find_mlang_builtin_macro(std::string_view symbol, std::string& path,
+                                     int& line)
+{
+    std::vector<std::filesystem::path> roots;
+    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
+        roots.emplace_back(env);
+    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
+        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
+    if(const char* home = std::getenv("HOME"))
+        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
+    roots.emplace_back("/usr/local/share/mlang/stdlib");
+    roots.emplace_back("/usr/share/mlang/stdlib");
+
+    std::string needle = std::string(symbol);
+    std::string needleLower = ascii_lower(symbol);
+
+    for(const auto& root : roots)
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "macros.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        std::ifstream in(p);
+        if(!in)
+            continue;
+        std::string lineStr;
+        int lineNo = 0;
+        while(std::getline(in, lineStr))
+        {
+            ++lineNo;
+            const std::string marker = "// @builtin_macro ";
+            if(lineStr.rfind(marker, 0) != 0)
+                continue;
+            std::string name = lineStr.substr(marker.size());
+            if(name.empty())
+                continue;
+            if(name == needle || ascii_lower(name) == needleLower)
+            {
+                path = p.string();
+                line = lineNo - 1;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static std::vector<std::string> split_csv(std::string_view input)
 {
     std::vector<std::string> out;
@@ -3180,8 +3278,7 @@ void Editor::goToDefinition()
 
         if(syntaxHighlighter)
             syntaxHighlighter->ensureMlangTokensLoaded();
-        if(mlangTokenCache && mlangTokenCache->builtinTypesLoaded &&
-           !mlangTokenCache->builtinTypes.empty())
+        if(mlangTokenCache)
         {
             std::string key = mlangTokenCache->caseInsensitive
                                   ? ascii_lower(symbol)
@@ -3198,6 +3295,60 @@ void Editor::goToDefinition()
                 apply_gd_viewport();
                 setStatusMessage("gd (mlang builtin) → " + it->second.path +
                                  ":" + std::to_string(it->second.line + 1));
+                return;
+            }
+
+            std::string macroKey = key;
+            if(!macroKey.empty() && macroKey.back() == '!')
+                macroKey.pop_back();
+            auto mit = mlangTokenCache->builtinMacros.find(macroKey);
+            if(mit != mlangTokenCache->builtinMacros.end())
+            {
+                pushJumpLocation();
+                openFile(mit->second.path);
+                *cursorY = mit->second.line;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang macro) → " + mit->second.path +
+                                 ":" + std::to_string(mit->second.line + 1));
+                return;
+            }
+        }
+
+        {
+            std::string builtinPath;
+            int builtinLine = 0;
+            if(find_mlang_builtin_type(symbol, builtinPath, builtinLine))
+            {
+                pushJumpLocation();
+                openFile(builtinPath);
+                *cursorY = builtinLine;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang builtin) → " + builtinPath + ":" +
+                                 std::to_string(builtinLine + 1));
+                return;
+            }
+            std::string macroPath;
+            int macroLine = 0;
+            std::string macroSym = symbol;
+            if(!macroSym.empty() && macroSym.back() == '!')
+                macroSym.pop_back();
+            if(find_mlang_builtin_macro(macroSym, macroPath, macroLine))
+            {
+                pushJumpLocation();
+                openFile(macroPath);
+                *cursorY = macroLine;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang macro) → " + macroPath + ":" +
+                                 std::to_string(macroLine + 1));
                 return;
             }
         }

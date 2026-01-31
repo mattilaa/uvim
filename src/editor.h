@@ -43,6 +43,8 @@ struct MlangTokenCache
     };
     bool builtinTypesLoaded = false;
     std::unordered_map<std::string, BuiltinTypeDef> builtinTypes;
+    bool builtinMacrosLoaded = false;
+    std::unordered_map<std::string, BuiltinTypeDef> builtinMacros;
     std::string root;
     std::string configPath;
     std::string lspPath;

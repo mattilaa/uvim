@@ -107,6 +107,32 @@ void load_builtin_types_from_file(MlangTokenCache& cache,
     }
 }
 
+void load_builtin_macros_from_file(MlangTokenCache& cache,
+                                   const std::filesystem::path& path)
+{
+    std::ifstream in(path);
+    if(!in)
+        return;
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(in, line))
+    {
+        ++lineNo;
+        const std::string marker = "// @builtin_macro ";
+        if(line.rfind(marker, 0) != 0)
+            continue;
+        std::string name = line.substr(marker.size());
+        if(name.empty())
+            continue;
+        if(cache.caseInsensitive)
+            name = ascii_lower(name);
+        MlangTokenCache::BuiltinTypeDef def;
+        def.path = path.string();
+        def.line = lineNo - 1;
+        cache.builtinMacros.emplace(std::move(name), std::move(def));
+    }
+}
+
 void ensure_builtin_types_loaded(MlangTokenCache& cache)
 {
     if(cache.builtinTypesLoaded)
@@ -123,6 +149,27 @@ void ensure_builtin_types_loaded(MlangTokenCache& cache)
         if(!cache.builtinTypes.empty())
         {
             cache.builtinTypesLoaded = true;
+            return;
+        }
+    }
+}
+
+void ensure_builtin_macros_loaded(MlangTokenCache& cache)
+{
+    if(cache.builtinMacrosLoaded)
+        return;
+    for(const auto& root : default_mlang_stdlib_paths())
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "macros.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        load_builtin_macros_from_file(cache, p);
+        if(!cache.builtinMacros.empty())
+        {
+            cache.builtinMacrosLoaded = true;
             return;
         }
     }
@@ -1329,6 +1376,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     cache.tokenTypes.clear();
     cache.builtinTypes.clear();
     cache.builtinTypesLoaded = false;
+    cache.builtinMacros.clear();
+    cache.builtinMacrosLoaded = false;
     cache.root = rootStr;
     cache.configPath.clear();
     cache.lspPath = effectiveLspPath;
@@ -1442,6 +1491,30 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
+        if(root.contains("builtin_macros"))
+        {
+            const auto& macros = root["builtin_macros"];
+            if(macros.is_array())
+            {
+                for(const auto& entry : macros)
+                {
+                    if(!entry.is_object())
+                        continue;
+                    std::string name = entry.value("name", std::string{});
+                    std::string path = entry.value("path", std::string{});
+                    int line = entry.value("line", 1);
+                    if(name.empty() || path.empty())
+                        continue;
+                    if(cache.caseInsensitive)
+                        name = ascii_lower(name);
+                    MlangTokenCache::BuiltinTypeDef def;
+                    def.path = path;
+                    def.line = line > 0 ? line - 1 : 0;
+                    cache.builtinMacros.emplace(std::move(name), std::move(def));
+                }
+            }
+        }
+
         if(!cache.builtinTypes.empty())
         {
             for(const auto& kv : cache.builtinTypes)
@@ -1454,6 +1527,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         cache.builtinTypesLoaded = !cache.builtinTypes.empty();
         if(!cache.builtinTypesLoaded)
             ensure_builtin_types_loaded(cache);
+        if(!cache.builtinMacrosLoaded)
+            ensure_builtin_macros_loaded(cache);
         if(cache.builtinTypesLoaded)
         {
             for(const auto& kv : cache.builtinTypes)
@@ -1498,6 +1573,13 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     {
         for(const auto& kv : cache.builtinTypes)
             cache.tokenTypes.emplace(kv.first, TOKEN_TYPE);
+        cache.available = true;
+    }
+    ensure_builtin_macros_loaded(cache);
+    if(cache.builtinMacrosLoaded)
+    {
+        for(const auto& kv : cache.builtinMacros)
+            cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
         cache.available = true;
     }
 }
