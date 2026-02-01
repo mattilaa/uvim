@@ -35,7 +35,11 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
         }
     }
 
-    std::string rightBlock = searchInfo + rightStatus;
+    std::string lspInfo;
+    if(!view.lspLabel.empty())
+        lspInfo = " [" + std::string(view.lspLabel) + "]";
+
+    std::string rightBlock = searchInfo + lspInfo + rightStatus;
 
     int rightLen = rightBlock.length();
     int availableForFile = view.screenCols - status.length() - rightLen - 1;

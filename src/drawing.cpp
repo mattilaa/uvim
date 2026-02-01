@@ -270,6 +270,37 @@ void Editor::drawStatusBar()
     std::string output;
     output += Terminal::NEWLINE_CLEAR;
 
+    auto lspLabel = [&](const std::string& path,
+                        std::string_view fallback) -> std::string
+    {
+        if(path.empty())
+            return std::string(fallback);
+        size_t slash = path.find_last_of("/\\");
+        if(slash == std::string::npos)
+            return path;
+        if(slash + 1 >= path.size())
+            return std::string(fallback);
+        return path.substr(slash + 1);
+    };
+
+    std::string lspInfo;
+    if(isFileType(FileType::Cpp) && clangdLspEnabled)
+    {
+        lspInfo = lspLabel(clangdLspPath, "clangd");
+    }
+    else if(isFileType(FileType::Python) && pythonLspEnabled)
+    {
+        lspInfo = lspLabel(pythonLspPath, "python");
+    }
+    else if(isFileType(FileType::Robot) && robotLspEnabled)
+    {
+        lspInfo = lspLabel(robotLspPath, "robot");
+    }
+    else if(isFileType(FileType::Mla) && mlangLspEnabled)
+    {
+        lspInfo = lspLabel(mlangLspPath, "mlang");
+    }
+
     std::string displayName =
         (filename && !filename->empty()) ? *filename : "[No Name]";
     bool isDirty = (dirty && *dirty);
@@ -287,6 +318,7 @@ void Editor::drawStatusBar()
         .searchQuery = searchQuery,
         .searchMatchIndex = currentMatchIndex,
         .searchMatchCount = (int)searchMatches.size(),
+        .lspLabel = lspInfo,
     };
     widgets::appendStatusBar(output, view);
     Terminal::write(output);
@@ -731,6 +763,37 @@ void Editor::drawStatusBarQuick()
     output += Terminal::cursorPos(screenRows + 1, 1);
 
     output += Terminal::ESC_CLEAR_LINE;
+    auto lspLabel = [&](const std::string& path,
+                        std::string_view fallback) -> std::string
+    {
+        if(path.empty())
+            return std::string(fallback);
+        size_t slash = path.find_last_of("/\\");
+        if(slash == std::string::npos)
+            return path;
+        if(slash + 1 >= path.size())
+            return std::string(fallback);
+        return path.substr(slash + 1);
+    };
+
+    std::string lspInfo;
+    if(isFileType(FileType::Cpp) && clangdLspEnabled)
+    {
+        lspInfo = lspLabel(clangdLspPath, "clangd");
+    }
+    else if(isFileType(FileType::Python) && pythonLspEnabled)
+    {
+        lspInfo = lspLabel(pythonLspPath, "python");
+    }
+    else if(isFileType(FileType::Robot) && robotLspEnabled)
+    {
+        lspInfo = lspLabel(robotLspPath, "robot");
+    }
+    else if(isFileType(FileType::Mla) && mlangLspEnabled)
+    {
+        lspInfo = lspLabel(mlangLspPath, "mlang");
+    }
+
     std::string displayName =
         (filename && !filename->empty()) ? *filename : "[No Name]";
     bool isDirty = (dirty && *dirty);
@@ -748,6 +811,7 @@ void Editor::drawStatusBarQuick()
         .searchQuery = searchQuery,
         .searchMatchIndex = currentMatchIndex,
         .searchMatchCount = (int)searchMatches.size(),
+        .lspLabel = lspInfo,
     };
     widgets::appendStatusBar(output, view);
 
@@ -1063,7 +1127,38 @@ void Editor::drawFullScreenSingle()
         }
     }
 
-    std::string rightBlock = searchInfo + rightStatus;
+    auto lspLabel = [&](const std::string& path,
+                        std::string_view fallback) -> std::string
+    {
+        if(path.empty())
+            return std::string(fallback);
+        size_t slash = path.find_last_of("/\\");
+        if(slash == std::string::npos)
+            return path;
+        if(slash + 1 >= path.size())
+            return std::string(fallback);
+        return path.substr(slash + 1);
+    };
+
+    std::string lspInfo;
+    if(isFileType(FileType::Cpp) && clangdLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(clangdLspPath, "clangd") + "]";
+    }
+    else if(isFileType(FileType::Python) && pythonLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(pythonLspPath, "python") + "]";
+    }
+    else if(isFileType(FileType::Robot) && robotLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(robotLspPath, "robot") + "]";
+    }
+    else if(isFileType(FileType::Mla) && mlangLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(mlangLspPath, "mlang") + "]";
+    }
+
+    std::string rightBlock = searchInfo + lspInfo + rightStatus;
 
     // Calculate available space for filename
     int rightLen = rightBlock.length();
@@ -1536,7 +1631,38 @@ void Editor::drawSplitFullScreen()
         }
     }
 
-    std::string rightBlock = searchInfo + rightStatus;
+    auto lspLabel = [&](const std::string& path,
+                        std::string_view fallback) -> std::string
+    {
+        if(path.empty())
+            return std::string(fallback);
+        size_t slash = path.find_last_of("/\\");
+        if(slash == std::string::npos)
+            return path;
+        if(slash + 1 >= path.size())
+            return std::string(fallback);
+        return path.substr(slash + 1);
+    };
+
+    std::string lspInfo;
+    if(isFileType(FileType::Cpp) && clangdLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(clangdLspPath, "clangd") + "]";
+    }
+    else if(isFileType(FileType::Python) && pythonLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(pythonLspPath, "python") + "]";
+    }
+    else if(isFileType(FileType::Robot) && robotLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(robotLspPath, "robot") + "]";
+    }
+    else if(isFileType(FileType::Mla) && mlangLspEnabled)
+    {
+        lspInfo = " [" + lspLabel(mlangLspPath, "mlang") + "]";
+    }
+
+    std::string rightBlock = searchInfo + lspInfo + rightStatus;
 
     int rightLen = rightBlock.length();
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
