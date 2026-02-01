@@ -268,10 +268,11 @@ bool is_mlang_keyword(std::string_view word)
 
 bool is_mlang_type(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 21> kTypes = {
+    static constexpr std::array<std::string_view, 22> kTypes = {
         "bool", "double", "float",  "i16",  "i32",   "i64",   "i8",
-        "int",  "list",   "map",    "str16","str8",  "string","tuple",
-        "u16",  "u32",    "u64",    "u8",   "void",  "Result","Option"};
+        "int",  "list",   "map",    "ptr",  "str16", "str8",  "string",
+        "tuple","u16",    "u32",    "u64",  "u8",   "void",  "Result",
+        "Option"};
     return std::ranges::any_of(kTypes,
                                [&](std::string_view ty) { return ty == word; });
 }
@@ -2953,6 +2954,64 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 if(auto mapped = lookupMlangTokenType(word))
                 {
                     push_token(*mapped, start, i - start);
+                    if(*mapped == TOKEN_TYPE)
+                    {
+                        int j = i;
+                        while(j < len && text_utils::is_space(sv[j]))
+                            ++j;
+                        if(j < len && sv[j] == '<')
+                        {
+                            int depth = 0;
+                            for(int k = j; k < len; ++k)
+                            {
+                                char ch = sv[k];
+                                if(ch == '<')
+                                {
+                                    ++depth;
+                                    continue;
+                                }
+                                if(ch == '>')
+                                {
+                                    --depth;
+                                    if(depth <= 0)
+                                        break;
+                                    continue;
+                                }
+                                if(ch == '"' || ch == '\'')
+                                {
+                                    char quote = ch;
+                                    ++k;
+                                    while(k < len)
+                                    {
+                                        if(sv[k] == '\\' && k + 1 < len)
+                                        {
+                                            k += 2;
+                                            continue;
+                                        }
+                                        if(sv[k] == quote)
+                                            break;
+                                        ++k;
+                                    }
+                                    continue;
+                                }
+                                if(text_utils::is_alpha(ch) || ch == '_')
+                                {
+                                    int nameStart = k++;
+                                    while(k < len &&
+                                          (text_utils::is_alpha(sv[k]) ||
+                                           text_utils::is_digit(sv[k]) ||
+                                           sv[k] == '_'))
+                                    {
+                                        ++k;
+                                    }
+                                    extraTypeTokens.push_back(
+                                        {TOKEN_TYPE, nameStart,
+                                         k - nameStart});
+                                    --k;
+                                }
+                            }
+                        }
+                    }
                     continue;
                 }
                 if(is_mlang_keyword(word))
@@ -2963,6 +3022,60 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 if(is_mlang_type(word))
                 {
                     push_token(TOKEN_TYPE, start, i - start);
+                    int j = i;
+                    while(j < len && text_utils::is_space(sv[j]))
+                        ++j;
+                    if(j < len && sv[j] == '<')
+                    {
+                        int depth = 0;
+                        for(int k = j; k < len; ++k)
+                        {
+                            char ch = sv[k];
+                            if(ch == '<')
+                            {
+                                ++depth;
+                                continue;
+                            }
+                            if(ch == '>')
+                            {
+                                --depth;
+                                if(depth <= 0)
+                                    break;
+                                continue;
+                            }
+                            if(ch == '"' || ch == '\'')
+                            {
+                                char quote = ch;
+                                ++k;
+                                while(k < len)
+                                {
+                                    if(sv[k] == '\\' && k + 1 < len)
+                                    {
+                                        k += 2;
+                                        continue;
+                                    }
+                                    if(sv[k] == quote)
+                                        break;
+                                    ++k;
+                                }
+                                continue;
+                            }
+                            if(text_utils::is_alpha(ch) || ch == '_')
+                            {
+                                int nameStart = k++;
+                                while(k < len &&
+                                      (text_utils::is_alpha(sv[k]) ||
+                                       text_utils::is_digit(sv[k]) ||
+                                       sv[k] == '_'))
+                                {
+                                    ++k;
+                                }
+                                extraTypeTokens.push_back(
+                                    {TOKEN_TYPE, nameStart, k - nameStart});
+                                --k;
+                            }
+                        }
+                    }
                     continue;
                 }
                 if(is_mlang_builtin(word))
@@ -2973,6 +3086,16 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     if(j < len && sv[j] == '!')
                     {
                         push_token(TOKEN_FUNCTION, start, i - start);
+                        continue;
+                    }
+                }
+                {
+                    int p = start - 1;
+                    while(p >= 0 && text_utils::is_space(sv[p]))
+                        --p;
+                    if(p >= 0 && sv[p] == '.')
+                    {
+                        push_token(TOKEN_MEMBER, start, i - start);
                         continue;
                     }
                 }
