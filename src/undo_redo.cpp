@@ -34,6 +34,17 @@ void Editor::saveState()
             currentBuffer->undoStack[currentBuffer->undoIndex];
         if(last.lines == state.lines)
         {
+            bool isSaved = false;
+            if(currentBuffer->savedUndoIndex >= 0 &&
+               currentBuffer->savedUndoIndex <
+                   (int)currentBuffer->undoStack.size())
+            {
+                const auto& saved =
+                    currentBuffer->undoStack[currentBuffer->savedUndoIndex];
+                isSaved = (saved.lines == state.lines);
+            }
+            if(dirty)
+                *dirty = !isSaved;
             return; // Avoid duplicate undo steps with identical content.
         }
     }
@@ -93,14 +104,16 @@ void Editor::undo()
 
         adjustViewport();
 
-        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
+        bool isSaved = false;
+        if(currentBuffer->savedUndoIndex >= 0 &&
+           currentBuffer->savedUndoIndex <
+               (int)currentBuffer->undoStack.size())
         {
-            *dirty = false;
+            const auto& saved =
+                currentBuffer->undoStack[currentBuffer->savedUndoIndex];
+            isSaved = (saved.lines == *lines);
         }
-        else
-        {
-            *dirty = true;
-        }
+        *dirty = !isSaved;
         currentBuffer->lspSyncNeeded = true;
 
         needsFullRedraw = true;
@@ -145,14 +158,16 @@ void Editor::redo()
 
         adjustViewport();
 
-        if(currentBuffer->undoIndex == currentBuffer->savedUndoIndex)
+        bool isSaved = false;
+        if(currentBuffer->savedUndoIndex >= 0 &&
+           currentBuffer->savedUndoIndex <
+               (int)currentBuffer->undoStack.size())
         {
-            *dirty = false;
+            const auto& saved =
+                currentBuffer->undoStack[currentBuffer->savedUndoIndex];
+            isSaved = (saved.lines == *lines);
         }
-        else
-        {
-            *dirty = true;
-        }
+        *dirty = !isSaved;
         currentBuffer->lspSyncNeeded = true;
 
         needsFullRedraw = true;

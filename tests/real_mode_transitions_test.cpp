@@ -335,3 +335,24 @@ TEST(RealModeTransitionsTest, FileBrowserFuzzyDisabledIgnoresTyping)
     EXPECT_TRUE(state->filterQuery.empty());
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
+
+TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+    editor.saveState();
+    editor.currentBuffer->savedUndoIndex = editor.currentBuffer->undoIndex;
+    *editor.dirty = false;
+
+    editor.currentBuffer->lines[0] = "two";
+    *editor.dirty = true;
+    editor.saveState();
+
+    editor.undo();
+
+    EXPECT_FALSE(*editor.dirty);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "one");
+}
