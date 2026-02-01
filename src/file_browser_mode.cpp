@@ -18,6 +18,12 @@
 void FileBrowserMode::on_enter(ModeContext& ctx)
 {
     ctx.setStatusMessage("");
+    if(!ctx.editor->fileBrowserFuzzy && filterActive)
+    {
+        filterActive = false;
+        filterQuery.clear();
+        filterMatches.clear();
+    }
     if(previousFile.empty() && ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
         previousFile = std::string(ctx.currentFilename());
@@ -49,6 +55,13 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
            { return executeCommand(ctx, commandLine); }, nextState))
     {
         return nextState;
+    }
+
+    if(!ctx.editor->fileBrowserFuzzy && filterActive)
+    {
+        filterActive = false;
+        filterQuery.clear();
+        filterMatches.clear();
     }
 
     // ========================================================================
@@ -253,7 +266,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
 
     if((c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H) &&
-       filterActive)
+       filterActive && ctx.editor->fileBrowserFuzzy)
     {
         if(!filterQuery.empty())
         {
@@ -269,7 +282,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c >= 32 && c < 127)
+    if(c >= 32 && c < 127 && ctx.editor->fileBrowserFuzzy)
     {
         if(std::isalnum(static_cast<unsigned char>(c)) || c == '_' ||
            c == '-' || (filterActive && c == '.'))

@@ -109,6 +109,8 @@ static std::string_view default_config_contents()
   autobracesinstrings: true
   autotags: true
   autocomplete: true
+  filebrowser:
+    fuzzy: false
   autodetectlsps: true
   formatonsave: true
   gdcenter: true

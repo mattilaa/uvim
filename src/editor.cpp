@@ -976,6 +976,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     formatOnInsertLeave = false;
             }
+            auto itfbf = values.find("editor.filebrowser.fuzzy");
+            if(itfbf == values.end())
+                itfbf = values.find("settings.filebrowser.fuzzy");
+            if(itfbf == values.end())
+                itfbf = values.find("filebrowser.fuzzy");
+            if(itfbf != values.end())
+            {
+                std::string v = itfbf->second;
+                if(v == "true" || v == "1" || v == "on")
+                    fileBrowserFuzzy = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    fileBrowserFuzzy = false;
+            }
             auto itadl = values.find("editor.autodetectlsps");
             if(itadl == values.end())
                 itadl = values.find("settings.autodetectlsps");
@@ -4597,6 +4610,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (autoDetectLsps ? "true" : "false"));
         return true;
     }
+    if(opt == "filebrowser.fuzzy?")
+    {
+        setStatusMessage(std::string("filebrowser.fuzzy=") +
+                         (fileBrowserFuzzy ? "true" : "false"));
+        return true;
+    }
     if(opt == "formatonsave?")
     {
         setStatusMessage(std::string("formatonsave=") +
@@ -4859,6 +4878,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("autodetectlsps=false");
         return true;
     }
+    if(opt == "filebrowser.fuzzy")
+    {
+        fileBrowserFuzzy = true;
+        setStatusMessage("filebrowser.fuzzy=true");
+        return true;
+    }
+    if(opt == "nofilebrowser.fuzzy")
+    {
+        fileBrowserFuzzy = false;
+        setStatusMessage("filebrowser.fuzzy=false");
+        return true;
+    }
     if(opt == "formatonsave")
     {
         formatOnSave = true;
@@ -4931,6 +4962,26 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("autodetectlsps: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("filebrowser.fuzzy=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("filebrowser.fuzzy=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            fileBrowserFuzzy = true;
+            setStatusMessage("filebrowser.fuzzy=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            fileBrowserFuzzy = false;
+            setStatusMessage("filebrowser.fuzzy=false");
+        }
+        else
+        {
+            setStatusMessage("filebrowser.fuzzy: expected true/false");
         }
         return true;
     }
@@ -8875,6 +8926,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set noautodetectlsps",
         "set autodetectlsps?",
         "set autodetectlsps=",
+        "set filebrowser.fuzzy",
+        "set nofilebrowser.fuzzy",
+        "set filebrowser.fuzzy?",
+        "set filebrowser.fuzzy=",
         "set formatondoubleesctimeoutms?",
         "set formatondoubleesctimeoutms=",
         "set gitdefaultcolors?",

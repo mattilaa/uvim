@@ -320,3 +320,18 @@ TEST(RealModeTransitionsTest, ExCommandFromCommandModeOpensFileBrowser)
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
+
+TEST(RealModeTransitionsTest, FileBrowserFuzzyDisabledIgnoresTyping)
+{
+    Editor editor = Editor::createForTests();
+    editor.fileBrowserFuzzy = false;
+    auto sm = makeMachine(editor, FileBrowserMode{std::string(".")});
+
+    sm.dispatch('a');
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_FALSE(state->filterActive);
+    EXPECT_TRUE(state->filterQuery.empty());
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}

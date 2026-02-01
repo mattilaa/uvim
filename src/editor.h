@@ -361,6 +361,7 @@ public:
     bool formatOnInsertLeave = true;
     bool formatOnSave = true;
     bool autoDetectLsps = true;
+    bool fileBrowserFuzzy = false;
     bool formatOnDoubleEscPending = false;
     int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
     bool gdCenterScreen = true;
