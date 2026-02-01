@@ -61,6 +61,8 @@ static constexpr auto CPP_TYPES = sort_array(std::to_array<sv>(
      "uint8_t", "uint16_t", "uint32_t", "uint64_t", "intptr_t", "uintptr_t",
      "intmax_t", "uintmax_t", "std::vector", "std::list", "std::deque",
      "std::array", "std::string", "std::string_view",
+     "unordered_map", "unordered_set", "unordered_multimap",
+     "unordered_multiset",
      // ... etc ... (paste the entire list)
      "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "print", "println",
      "eprint", "eprintln", "string", "str8", "str16", "list", "map", "tuple"}));

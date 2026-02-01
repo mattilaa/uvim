@@ -2853,6 +2853,64 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 if(cpp_constants::is_type(word))
                 {
                     push_token(TOKEN_TYPE, start, i - start);
+                    if(syntaxCppHighlightTypeNames)
+                    {
+                        int j = i;
+                        while(j < len && text_utils::is_space(sv[j]))
+                            ++j;
+                        if(j < len && sv[j] == '<')
+                        {
+                            int depth = 0;
+                            for(int k = j; k < len; ++k)
+                            {
+                                char ch = sv[k];
+                                if(ch == '<')
+                                {
+                                    ++depth;
+                                    continue;
+                                }
+                                if(ch == '>')
+                                {
+                                    --depth;
+                                    if(depth <= 0)
+                                        break;
+                                    continue;
+                                }
+                                if(ch == '"' || ch == '\'')
+                                {
+                                    char quote = ch;
+                                    ++k;
+                                    while(k < len)
+                                    {
+                                        if(sv[k] == '\\' && k + 1 < len)
+                                        {
+                                            k += 2;
+                                            continue;
+                                        }
+                                        if(sv[k] == quote)
+                                            break;
+                                        ++k;
+                                    }
+                                    continue;
+                                }
+                                if(text_utils::is_alpha(ch) || ch == '_')
+                                {
+                                    int nameStart = k++;
+                                    while(k < len &&
+                                          (text_utils::is_alpha(sv[k]) ||
+                                           text_utils::is_digit(sv[k]) ||
+                                           sv[k] == '_'))
+                                    {
+                                        ++k;
+                                    }
+                                    extraTypeTokens.push_back(
+                                        {TOKEN_TYPE, nameStart,
+                                         k - nameStart});
+                                    --k;
+                                }
+                            }
+                        }
+                    }
                     if(syntaxCppHighlightMembers)
                     {
                         int j = i;
@@ -2942,6 +3000,57 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     int j = i;
                     while(j < len && text_utils::is_space(sv[j]))
                         ++j;
+                    if(j < len && sv[j] == '<')
+                    {
+                        int depth = 0;
+                        for(int k = j; k < len; ++k)
+                        {
+                            char ch = sv[k];
+                            if(ch == '<')
+                            {
+                                ++depth;
+                                continue;
+                            }
+                            if(ch == '>')
+                            {
+                                --depth;
+                                if(depth <= 0)
+                                    break;
+                                continue;
+                            }
+                            if(ch == '"' || ch == '\'')
+                            {
+                                char quote = ch;
+                                ++k;
+                                while(k < len)
+                                {
+                                    if(sv[k] == '\\' && k + 1 < len)
+                                    {
+                                        k += 2;
+                                        continue;
+                                    }
+                                    if(sv[k] == quote)
+                                        break;
+                                    ++k;
+                                }
+                                continue;
+                            }
+                            if(text_utils::is_alpha(ch) || ch == '_')
+                            {
+                                int nameStart = k++;
+                                while(k < len &&
+                                      (text_utils::is_alpha(sv[k]) ||
+                                       text_utils::is_digit(sv[k]) ||
+                                       sv[k] == '_'))
+                                {
+                                    ++k;
+                                }
+                                extraTypeTokens.push_back(
+                                    {TOKEN_TYPE, nameStart, k - nameStart});
+                                --k;
+                            }
+                        }
+                    }
                     while(j < len && (sv[j] == '*' || sv[j] == '&'))
                         ++j;
                     while(j < len && text_utils::is_space(sv[j]))
