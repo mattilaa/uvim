@@ -658,6 +658,26 @@ TEST(SyntaxHighlighterTest, HighlightsPythonEnumValue)
     EXPECT_TRUE(hasTokenAt(tokens, redPos, 3, TOKEN_MEMBER));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "foo.value";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int valuePos = (int)line.find("value");
+    ASSERT_NE(valuePos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, valuePos, 5, TOKEN_MEMBER));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
 {
     Editor editor = Editor::createForTests();
