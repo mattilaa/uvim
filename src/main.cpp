@@ -109,6 +109,7 @@ static std::string_view default_config_contents()
   autobracesinstrings: true
   autotags: true
   autocomplete: true
+  autodetectlsps: true
   formatonsave: true
   gdcenter: true
   syntax:
@@ -551,12 +552,39 @@ struct EditorSettings
 
     void apply(Editor& editor) const
     {
-        if(useClangd)
+        const bool autoDetect = editor.autoDetectLsps;
+        auto binary_exists = [&](const std::string& path) -> bool
         {
-            editor.enableClangdLsp(true, ccdir, clangdPath, queryDriver);
+            if(path.empty())
+                return false;
+            if(path.find('/') != std::string::npos)
+            {
+                std::error_code ec;
+                return fs::exists(path, ec) && fs::is_regular_file(path, ec);
+            }
+            return !find_in_path(path).empty();
+        };
+
+        if(useClangd || autoDetect)
+        {
+            std::string resolved = clangdPath;
+            if(resolved == "clangd")
+            {
+                std::string found = find_in_path("clangd");
+                if(!found.empty())
+                    resolved = found;
+            }
+            if(useClangd || binary_exists(resolved))
+            {
+                editor.enableClangdLsp(true, ccdir, resolved, queryDriver);
+            }
+            else if(autoDetect && !useClangd)
+            {
+                editor.setStatusMessage("clangd: not found");
+            }
         }
 
-        if(useRobotLsp)
+        if(useRobotLsp || autoDetect)
         {
             std::vector<std::string> args;
             if(!robotLspArgs.empty())
@@ -605,10 +633,17 @@ struct EditorSettings
             }
             if(args.empty())
                 args.push_back("--stdio");
-            editor.enableRobotLsp(true, robotPath, args);
+            if(useRobotLsp || binary_exists(robotPath))
+            {
+                editor.enableRobotLsp(true, robotPath, args);
+            }
+            else if(autoDetect && !useRobotLsp)
+            {
+                editor.setStatusMessage("robot LSP: not found");
+            }
         }
 
-        if(usePythonLsp)
+        if(usePythonLsp || autoDetect)
         {
             std::string pyPath = pythonLspPath;
             std::vector<std::string> args;
@@ -724,10 +759,17 @@ struct EditorSettings
                 if(!hasStdio)
                     args.push_back("--stdio");
             }
-            editor.enablePythonLsp(true, pyPath, args);
+            if(usePythonLsp || binary_exists(pyPath))
+            {
+                editor.enablePythonLsp(true, pyPath, args);
+            }
+            else if(autoDetect && !usePythonLsp)
+            {
+                editor.setStatusMessage("python LSP: not found");
+            }
         }
 
-        if(useMlangLsp)
+        if(useMlangLsp || autoDetect)
         {
             std::string mlangPath = mlangLspPath;
             std::vector<std::string> args;
@@ -790,7 +832,14 @@ struct EditorSettings
                 }
                 args.push_back("--stdio");
             }
-            editor.enableMlangLsp(true, mlangPath, args);
+            if(useMlangLsp || binary_exists(mlangPath))
+            {
+                editor.enableMlangLsp(true, mlangPath, args);
+            }
+            else if(autoDetect && !useMlangLsp)
+            {
+                editor.setStatusMessage("mlang LSP: not found");
+            }
         }
     }
 };

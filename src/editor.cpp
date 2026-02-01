@@ -976,6 +976,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     formatOnInsertLeave = false;
             }
+            auto itadl = values.find("editor.autodetectlsps");
+            if(itadl == values.end())
+                itadl = values.find("settings.autodetectlsps");
+            if(itadl == values.end())
+                itadl = values.find("autodetectlsps");
+            if(itadl != values.end())
+            {
+                std::string v = itadl->second;
+                if(v == "true" || v == "1" || v == "on")
+                    autoDetectLsps = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    autoDetectLsps = false;
+            }
             auto itfs = values.find("editor.formatonsave");
             if(itfs == values.end())
                 itfs = values.find("settings.formatonsave");
@@ -4559,6 +4572,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (formatOnInsertLeave ? "true" : "false"));
         return true;
     }
+    if(opt == "autodetectlsps?")
+    {
+        setStatusMessage(std::string("autodetectlsps=") +
+                         (autoDetectLsps ? "true" : "false"));
+        return true;
+    }
     if(opt == "formatonsave?")
     {
         setStatusMessage(std::string("formatonsave=") +
@@ -4772,6 +4791,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("formatoninsertleave=false");
         return true;
     }
+    if(opt == "autodetectlsps")
+    {
+        autoDetectLsps = true;
+        setStatusMessage("autodetectlsps=true");
+        return true;
+    }
+    if(opt == "noautodetectlsps")
+    {
+        autoDetectLsps = false;
+        setStatusMessage("autodetectlsps=false");
+        return true;
+    }
     if(opt == "formatonsave")
     {
         formatOnSave = true;
@@ -4824,6 +4855,26 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("formatonsave: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("autodetectlsps=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("autodetectlsps=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            autoDetectLsps = true;
+            setStatusMessage("autodetectlsps=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            autoDetectLsps = false;
+            setStatusMessage("autodetectlsps=false");
+        }
+        else
+        {
+            setStatusMessage("autodetectlsps: expected true/false");
         }
         return true;
     }
@@ -8764,6 +8815,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set noformatonsave",
         "set formatonsave?",
         "set formatonsave=",
+        "set autodetectlsps",
+        "set noautodetectlsps",
+        "set autodetectlsps?",
+        "set autodetectlsps=",
         "set formatondoubleesctimeoutms?",
         "set formatondoubleesctimeoutms=",
         "set gitdefaultcolors?",
