@@ -1,6 +1,7 @@
 #include "widgets/status_bar.h"
 
 #include "theme.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cstdio>
 
@@ -17,9 +18,16 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
                   std::to_string(view.bufferCount) + "] ";
     }
 
-    char rightStatus[32];
-    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", view.cursorY + 1,
+    char rightStatusBuf[32];
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ", view.cursorY + 1,
              view.cursorX + 1);
+    std::string rightStatus = rightStatusBuf;
+    const int rightFieldWidth = 12;
+    int rightStatusWidth = text_utils::displayWidth(rightStatus);
+    if(rightStatusWidth < rightFieldWidth)
+    {
+        rightStatus.insert(0, rightFieldWidth - rightStatusWidth, ' ');
+    }
 
     std::string searchInfo;
     if(!view.searchQuery.empty())
@@ -37,11 +45,18 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
 
     std::string lspInfo;
     if(!view.lspLabel.empty())
-        lspInfo = " [" + std::string(view.lspLabel) + "]";
+    {
+        lspInfo = " " + view.theme.uiInfo() + "[" +
+                  std::string(view.lspLabel) + "]" +
+                  view.theme.statusBar();
+    }
 
-    std::string rightBlock = searchInfo + lspInfo + rightStatus;
+    std::string rightBlock = searchInfo + lspInfo;
+    if(!lspInfo.empty())
+        rightBlock.append(std::max(0, view.lspGap), ' ');
+    rightBlock += rightStatus;
 
-    int rightLen = rightBlock.length();
+    int rightLen = text_utils::displayWidth(rightBlock);
     int availableForFile = view.screenCols - status.length() - rightLen - 1;
 
     std::string displayName =

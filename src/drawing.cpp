@@ -319,6 +319,7 @@ void Editor::drawStatusBar()
         .searchMatchIndex = currentMatchIndex,
         .searchMatchCount = (int)searchMatches.size(),
         .lspLabel = lspInfo,
+        .lspGap = lspStatusGap,
     };
     widgets::appendStatusBar(output, view);
     Terminal::write(output);
@@ -812,6 +813,7 @@ void Editor::drawStatusBarQuick()
         .searchMatchIndex = currentMatchIndex,
         .searchMatchCount = (int)searchMatches.size(),
         .lspLabel = lspInfo,
+        .lspGap = lspStatusGap,
     };
     widgets::appendStatusBar(output, view);
 
@@ -1109,9 +1111,16 @@ void Editor::drawFullScreenSingle()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    char rightStatus[32];
-    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
+    char rightStatusBuf[32];
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
+    std::string rightStatus = rightStatusBuf;
+    const int rightFieldWidth = 12;
+    int rightStatusWidth = text_utils::displayWidth(rightStatus);
+    if(rightStatusWidth < rightFieldWidth)
+    {
+        rightStatus.insert(0, rightFieldWidth - rightStatusWidth, ' ');
+    }
 
     std::string searchInfo;
     if(!searchQuery.empty())
@@ -1143,25 +1152,37 @@ void Editor::drawFullScreenSingle()
     std::string lspInfo;
     if(isFileType(FileType::Cpp) && clangdLspEnabled)
     {
-        lspInfo = " [" + lspLabel(clangdLspPath, "clangd") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(clangdLspPath, "clangd") + "]" +
+                  theme.statusBar();
     }
     else if(isFileType(FileType::Python) && pythonLspEnabled)
     {
-        lspInfo = " [" + lspLabel(pythonLspPath, "python") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(pythonLspPath, "python") + "]" +
+                  theme.statusBar();
     }
     else if(isFileType(FileType::Robot) && robotLspEnabled)
     {
-        lspInfo = " [" + lspLabel(robotLspPath, "robot") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(robotLspPath, "robot") + "]" +
+                  theme.statusBar();
     }
     else if(isFileType(FileType::Mla) && mlangLspEnabled)
     {
-        lspInfo = " [" + lspLabel(mlangLspPath, "mlang") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(mlangLspPath, "mlang") + "]" +
+                  theme.statusBar();
     }
 
-    std::string rightBlock = searchInfo + lspInfo + rightStatus;
+    std::string rightBlock = searchInfo;
+    rightBlock += lspInfo;
+    if(!lspInfo.empty())
+        rightBlock.append(std::max(0, lspStatusGap), ' ');
+    rightBlock += rightStatus;
 
     // Calculate available space for filename
-    int rightLen = rightBlock.length();
+    int rightLen = text_utils::displayWidth(rightBlock);
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
 
     std::string displayName = filename->empty() ? "[No Name]" : *filename;
@@ -1613,9 +1634,16 @@ void Editor::drawSplitFullScreen()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    char rightStatus[32];
-    snprintf(rightStatus, sizeof(rightStatus), " %d:%d ", *cursorY + 1,
+    char rightStatusBuf[32];
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ", *cursorY + 1,
              *cursorX + 1);
+    std::string rightStatus = rightStatusBuf;
+    const int rightFieldWidth = 12;
+    int rightStatusWidth = text_utils::displayWidth(rightStatus);
+    if(rightStatusWidth < rightFieldWidth)
+    {
+        rightStatus.insert(0, rightFieldWidth - rightStatusWidth, ' ');
+    }
 
     std::string searchInfo;
     if(!searchQuery.empty())
@@ -1647,24 +1675,36 @@ void Editor::drawSplitFullScreen()
     std::string lspInfo;
     if(isFileType(FileType::Cpp) && clangdLspEnabled)
     {
-        lspInfo = " [" + lspLabel(clangdLspPath, "clangd") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(clangdLspPath, "clangd") + "]" +
+                  theme.statusBar();
     }
     else if(isFileType(FileType::Python) && pythonLspEnabled)
     {
-        lspInfo = " [" + lspLabel(pythonLspPath, "python") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(pythonLspPath, "python") + "]" +
+                  theme.statusBar();
     }
     else if(isFileType(FileType::Robot) && robotLspEnabled)
     {
-        lspInfo = " [" + lspLabel(robotLspPath, "robot") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(robotLspPath, "robot") + "]" +
+                  theme.statusBar();
     }
     else if(isFileType(FileType::Mla) && mlangLspEnabled)
     {
-        lspInfo = " [" + lspLabel(mlangLspPath, "mlang") + "]";
+        lspInfo = " " + theme.uiInfo() + "[" +
+                  lspLabel(mlangLspPath, "mlang") + "]" +
+                  theme.statusBar();
     }
 
-    std::string rightBlock = searchInfo + lspInfo + rightStatus;
+    std::string rightBlock = searchInfo;
+    rightBlock += lspInfo;
+    if(!lspInfo.empty())
+        rightBlock.append(5, ' ');
+    rightBlock += rightStatus;
 
-    int rightLen = rightBlock.length();
+    int rightLen = text_utils::displayWidth(rightBlock);
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
 
     std::string displayName = filename->empty() ? "[No Name]" : *filename;

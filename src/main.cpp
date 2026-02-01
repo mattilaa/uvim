@@ -113,6 +113,8 @@ static std::string_view default_config_contents()
     fuzzy: false
   autodetectlsps: true
   formatonsave: true
+  status:
+    lspgap: 7
   gdcenter: true
   syntax:
     json: true

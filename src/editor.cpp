@@ -989,6 +989,24 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 else if(v == "false" || v == "0" || v == "off")
                     fileBrowserFuzzy = false;
             }
+            auto itlspg = values.find("editor.status.lspgap");
+            if(itlspg == values.end())
+                itlspg = values.find("settings.status.lspgap");
+            if(itlspg == values.end())
+                itlspg = values.find("status.lspgap");
+            if(itlspg != values.end())
+            {
+                std::string v = itlspg->second;
+                try
+                {
+                    int gap = std::stoi(v);
+                    if(gap >= 0 && gap <= 20)
+                        lspStatusGap = gap;
+                }
+                catch(...)
+                {
+                }
+            }
             auto itadl = values.find("editor.autodetectlsps");
             if(itadl == values.end())
                 itadl = values.find("settings.autodetectlsps");
@@ -4616,6 +4634,11 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (fileBrowserFuzzy ? "true" : "false"));
         return true;
     }
+    if(opt == "status.lspgap?")
+    {
+        setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
+        return true;
+    }
     if(opt == "formatonsave?")
     {
         setStatusMessage(std::string("formatonsave=") +
@@ -4982,6 +5005,29 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("filebrowser.fuzzy: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("status.lspgap=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("status.lspgap=").length());
+        try
+        {
+            int gap = std::stoi(value);
+            if(gap >= 0 && gap <= 20)
+            {
+                lspStatusGap = gap;
+                setStatusMessage("status.lspgap=" +
+                                 std::to_string(lspStatusGap));
+            }
+            else
+            {
+                setStatusMessage("status.lspgap: expected 0-20");
+            }
+        }
+        catch(...)
+        {
+            setStatusMessage("status.lspgap: expected number");
         }
         return true;
     }
@@ -8930,6 +8976,9 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set nofilebrowser.fuzzy",
         "set filebrowser.fuzzy?",
         "set filebrowser.fuzzy=",
+        "set status.lspgap",
+        "set status.lspgap?",
+        "set status.lspgap=",
         "set formatondoubleesctimeoutms?",
         "set formatondoubleesctimeoutms=",
         "set gitdefaultcolors?",

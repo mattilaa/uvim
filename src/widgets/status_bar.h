@@ -23,6 +23,7 @@ struct StatusBarView
     int searchMatchIndex = 0;
     int searchMatchCount = 0;
     std::string_view lspLabel;
+    int lspGap = 7;
 };
 
 struct MessageBarView

@@ -362,6 +362,7 @@ public:
     bool formatOnSave = true;
     bool autoDetectLsps = true;
     bool fileBrowserFuzzy = false;
+    int lspStatusGap = 7;
     bool formatOnDoubleEscPending = false;
     int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
     bool gdCenterScreen = true;
