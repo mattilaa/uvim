@@ -1743,6 +1743,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         editor->syntaxCppHighlightTypeNames;
     const bool syntaxCppHighlightImplicitMembers =
         editor->syntaxCppHighlightImplicitMembers;
+    const bool syntaxMlangHighlightTypes = editor->syntaxMlangHighlightTypes;
+    const bool syntaxMlangHighlightBuiltinDocs =
+        editor->syntaxMlangHighlightBuiltinDocs;
     const bool syntaxCppHighlightParamTypes =
         editor->syntaxCppHighlightParamTypes;
     const bool syntaxCppHighlightSystemIncludes =
@@ -2602,6 +2605,51 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         return tokens;
     }
 
+    if(isFileType<FileType::Mla>() && syntaxMlangHighlightBuiltinDocs)
+    {
+        auto match_builtin = [&](std::string_view marker, TokenType nameType)
+        {
+            if(!sv.starts_with(marker))
+                return false;
+            push_token(TOKEN_COMMENT, 0, len);
+            size_t atPos = sv.find('@');
+            if(atPos != std::string_view::npos)
+            {
+                size_t spacePos = sv.find(' ', atPos);
+                size_t keywordLen = spacePos == std::string_view::npos
+                                        ? marker.size() - atPos
+                                        : spacePos - atPos;
+                if(keywordLen > 0)
+                    push_token(TOKEN_KEYWORD, (int)atPos,
+                               (int)keywordLen);
+            }
+
+            size_t nameStart = marker.size();
+            while(nameStart < sv.size() && text_utils::is_space(sv[nameStart]))
+                ++nameStart;
+            size_t nameEnd = nameStart;
+            while(nameEnd < sv.size() &&
+                  (text_utils::is_alpha(sv[nameEnd]) ||
+                   text_utils::is_digit(sv[nameEnd]) || sv[nameEnd] == '_' ||
+                   sv[nameEnd] == ':' || sv[nameEnd] == '<' ||
+                   sv[nameEnd] == '>'))
+            {
+                ++nameEnd;
+            }
+            if(nameEnd > nameStart)
+                push_token(nameType, (int)nameStart,
+                           (int)(nameEnd - nameStart));
+            return true;
+        };
+
+        if(match_builtin("// @builtin ", TOKEN_TYPE) ||
+           match_builtin("// @builtin_macro ", TOKEN_FUNCTION) ||
+           match_builtin("// @builtin_fn ", TOKEN_FUNCTION))
+        {
+            return tokens;
+        }
+    }
+
     while(i < len)
     {
         char c = sv[i];
@@ -2951,75 +2999,78 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             }
             else if(isFileType<FileType::Mla>())
             {
-                if(auto mapped = lookupMlangTokenType(word))
+                if(syntaxMlangHighlightTypes)
                 {
-                    push_token(*mapped, start, i - start);
-                    if(*mapped == TOKEN_TYPE)
+                    if(auto mapped = lookupMlangTokenType(word))
                     {
-                        int j = i;
-                        while(j < len && text_utils::is_space(sv[j]))
-                            ++j;
-                        if(j < len && sv[j] == '<')
+                        push_token(*mapped, start, i - start);
+                        if(*mapped == TOKEN_TYPE)
                         {
-                            int depth = 0;
-                            for(int k = j; k < len; ++k)
+                            int j = i;
+                            while(j < len && text_utils::is_space(sv[j]))
+                                ++j;
+                            if(j < len && sv[j] == '<')
                             {
-                                char ch = sv[k];
-                                if(ch == '<')
+                                int depth = 0;
+                                for(int k = j; k < len; ++k)
                                 {
-                                    ++depth;
-                                    continue;
-                                }
-                                if(ch == '>')
-                                {
-                                    --depth;
-                                    if(depth <= 0)
-                                        break;
-                                    continue;
-                                }
-                                if(ch == '"' || ch == '\'')
-                                {
-                                    char quote = ch;
-                                    ++k;
-                                    while(k < len)
+                                    char ch = sv[k];
+                                    if(ch == '<')
                                     {
-                                        if(sv[k] == '\\' && k + 1 < len)
-                                        {
-                                            k += 2;
-                                            continue;
-                                        }
-                                        if(sv[k] == quote)
+                                        ++depth;
+                                        continue;
+                                    }
+                                    if(ch == '>')
+                                    {
+                                        --depth;
+                                        if(depth <= 0)
                                             break;
-                                        ++k;
+                                        continue;
                                     }
-                                    continue;
-                                }
-                                if(text_utils::is_alpha(ch) || ch == '_')
-                                {
-                                    int nameStart = k++;
-                                    while(k < len &&
-                                          (text_utils::is_alpha(sv[k]) ||
-                                           text_utils::is_digit(sv[k]) ||
-                                           sv[k] == '_'))
+                                    if(ch == '"' || ch == '\'')
                                     {
+                                        char quote = ch;
                                         ++k;
+                                        while(k < len)
+                                        {
+                                            if(sv[k] == '\\' && k + 1 < len)
+                                            {
+                                                k += 2;
+                                                continue;
+                                            }
+                                            if(sv[k] == quote)
+                                                break;
+                                            ++k;
+                                        }
+                                        continue;
                                     }
-                                    extraTypeTokens.push_back(
-                                        {TOKEN_TYPE, nameStart,
-                                         k - nameStart});
-                                    --k;
+                                    if(text_utils::is_alpha(ch) || ch == '_')
+                                    {
+                                        int nameStart = k++;
+                                        while(k < len &&
+                                              (text_utils::is_alpha(sv[k]) ||
+                                               text_utils::is_digit(sv[k]) ||
+                                               sv[k] == '_'))
+                                        {
+                                            ++k;
+                                        }
+                                        extraTypeTokens.push_back(
+                                            {TOKEN_TYPE, nameStart,
+                                             k - nameStart});
+                                        --k;
+                                    }
                                 }
                             }
                         }
+                        continue;
                     }
-                    continue;
                 }
                 if(is_mlang_keyword(word))
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
                     continue;
                 }
-                if(is_mlang_type(word))
+                if(syntaxMlangHighlightTypes && is_mlang_type(word))
                 {
                     push_token(TOKEN_TYPE, start, i - start);
                     int j = i;

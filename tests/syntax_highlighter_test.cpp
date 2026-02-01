@@ -678,6 +678,76 @@ TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
     EXPECT_TRUE(hasTokenAt(tokens, valuePos, 5, TOKEN_MEMBER));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangBuiltinDocTypes)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/types.mla";
+    editor.syntaxMlangHighlightBuiltinDocs = true;
+
+    const std::string line = "// @builtin Foo";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int fooPos = (int)line.find("Foo");
+    ASSERT_NE(fooPos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, DisablesMlangBuiltinDocHighlighting)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/types.mla";
+    editor.syntaxMlangHighlightBuiltinDocs = false;
+
+    const std::string line = "// @builtin Foo";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int fooPos = (int)line.find("Foo");
+    ASSERT_NE(fooPos, (int)std::string::npos);
+    EXPECT_FALSE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, TogglesMlangTypeHighlighting)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "int value";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+
+    editor.syntaxMlangHighlightTypes = true;
+    auto tokensOn = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                        tomlQuote, inMarkupFence,
+                                        markupFenceChar);
+    int typePos = (int)line.find("int");
+    ASSERT_NE(typePos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokensOn, typePos, 3, TOKEN_TYPE));
+
+    editor.syntaxMlangHighlightTypes = false;
+    auto tokensOff = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                         tomlQuote, inMarkupFence,
+                                         markupFenceChar);
+    EXPECT_FALSE(hasTokenAt(tokensOff, typePos, 3, TOKEN_TYPE));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
 {
     Editor editor = Editor::createForTests();

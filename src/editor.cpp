@@ -1139,6 +1139,25 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
                 syntaxCppHighlightSystemIncludes =
                     !(v == "false" || v == "0" || v == "off");
             }
+            auto itmt = values.find("editor.syntax.mlang.highlight_types");
+            if(itmt == values.end())
+                itmt = values.find("syntax.mlang.highlight_types");
+            if(itmt != values.end())
+            {
+                std::string v = ascii_lower(itmt->second);
+                syntaxMlangHighlightTypes =
+                    !(v == "false" || v == "0" || v == "off");
+            }
+            auto itmd =
+                values.find("editor.syntax.mlang.highlight_builtin_docs");
+            if(itmd == values.end())
+                itmd = values.find("syntax.mlang.highlight_builtin_docs");
+            if(itmd != values.end())
+            {
+                std::string v = ascii_lower(itmd->second);
+                syntaxMlangHighlightBuiltinDocs =
+                    !(v == "false" || v == "0" || v == "off");
+            }
             auto itrc = values.find("editor.syntax.robot.custom_keywords");
             if(itrc == values.end())
                 itrc = values.find("syntax.robot.custom_keywords");
@@ -4618,6 +4637,19 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (syntaxCppHighlightParamTypes ? "true" : "false"));
         return true;
     }
+    if(opt == "syntax.mlang.highlight_types?")
+    {
+        setStatusMessage(std::string("syntax.mlang.highlight_types=") +
+                         (syntaxMlangHighlightTypes ? "true" : "false"));
+        return true;
+    }
+    if(opt == "syntax.mlang.highlight_builtin_docs?")
+    {
+        setStatusMessage(
+            std::string("syntax.mlang.highlight_builtin_docs=") +
+            (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
+        return true;
+    }
 
     auto set_flag = [&](bool value)
     {
@@ -4706,6 +4738,30 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         syntaxCppHighlightParamTypes = false;
         setStatusMessage("syntax.cpp.highlight_param_types=false");
+        return true;
+    }
+    if(opt == "syntax.mlang.highlight_types")
+    {
+        syntaxMlangHighlightTypes = true;
+        setStatusMessage("syntax.mlang.highlight_types=true");
+        return true;
+    }
+    if(opt == "nosyntax.mlang.highlight_types")
+    {
+        syntaxMlangHighlightTypes = false;
+        setStatusMessage("syntax.mlang.highlight_types=false");
+        return true;
+    }
+    if(opt == "syntax.mlang.highlight_builtin_docs")
+    {
+        syntaxMlangHighlightBuiltinDocs = true;
+        setStatusMessage("syntax.mlang.highlight_builtin_docs=true");
+        return true;
+    }
+    if(opt == "nosyntax.mlang.highlight_builtin_docs")
+    {
+        syntaxMlangHighlightBuiltinDocs = false;
+        setStatusMessage("syntax.mlang.highlight_builtin_docs=false");
         return true;
     }
     if(opt.rfind("python.formatter=", 0) == 0 || opt.rfind("pyfmt=", 0) == 0)
@@ -8833,6 +8889,12 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set syntax.cpp.highlight_param_types",
         "set nosyntax.cpp.highlight_param_types",
         "set syntax.cpp.highlight_param_types?",
+        "set syntax.mlang.highlight_types",
+        "set nosyntax.mlang.highlight_types",
+        "set syntax.mlang.highlight_types?",
+        "set syntax.mlang.highlight_builtin_docs",
+        "set nosyntax.mlang.highlight_builtin_docs",
+        "set syntax.mlang.highlight_builtin_docs?",
         "set python.formatter?",
         "set python.formatter=ruff",
         "set python.formatter=black",

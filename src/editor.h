@@ -382,6 +382,8 @@ public:
     bool syntaxCppHighlightImplicitMembers = true;
     bool syntaxCppHighlightParamTypes = true;
     bool syntaxCppHighlightSystemIncludes = true;
+    bool syntaxMlangHighlightTypes = true;
+    bool syntaxMlangHighlightBuiltinDocs = true;
     std::unordered_set<std::string> robotKeywordSet;
     std::unordered_set<std::string> robotCustomKeywordSet;
     std::string pythonFormatter = "ruff";
