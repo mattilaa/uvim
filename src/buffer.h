@@ -1,6 +1,7 @@
 #pragma once
 
 #include "syntax_state.h"
+#include "token_type.h"
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -96,6 +97,18 @@ struct Buffer
 
     std::vector<SyntaxCacheLine> syntaxCache;
     int syntaxCacheComputedUpTo = -1;
+
+    struct SemanticTokenRange
+    {
+        int start = 0;
+        int length = 0;
+        TokenType type = TOKEN_NORMAL;
+    };
+
+    std::vector<std::vector<SemanticTokenRange>> lspSemanticTokens;
+    bool lspSemanticTokensValid = false;
+    size_t lspSemanticTokensHash = 0;
+    size_t lspSemanticTokensRevision = 0;
 
     Buffer()
     {

@@ -384,6 +384,7 @@ public:
     bool syntaxCppHighlightImplicitMembers = true;
     bool syntaxCppHighlightParamTypes = true;
     bool syntaxCppHighlightSystemIncludes = true;
+    bool syntaxCppSemanticTokens = true;
     bool syntaxMlangHighlightTypes = true;
     bool syntaxMlangHighlightBuiltinDocs = true;
     std::unordered_set<std::string> robotKeywordSet;

@@ -47,6 +47,15 @@ public:
         std::vector<std::string> commandArgsJson;
     };
 
+    struct SemanticToken
+    {
+        int line = 0;
+        int character = 0; // UTF-16 code units
+        int length = 0;    // UTF-16 code units
+        std::string tokenType;
+        int modifiers = 0;
+    };
+
     LspClient();
     ~LspClient();
 
@@ -113,6 +122,13 @@ public:
     // Document formatting (textDocument/formatting)
     std::vector<TextEdit> formatting(const std::string& filePath,
                                      int tabSize = 4, bool insertSpaces = true);
+
+    // Semantic tokens (textDocument/semanticTokens/full)
+    bool requestSemanticTokens(const std::string& filePath);
+    std::vector<SemanticToken>
+    semanticTokens(const std::string& filePath) const;
+    size_t semanticTokensRevision(const std::string& filePath) const;
+    void clearSemanticTokens(const std::string& filePath);
 
 private:
     struct Impl;

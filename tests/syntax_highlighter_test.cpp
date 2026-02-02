@@ -215,6 +215,60 @@ TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
     EXPECT_TRUE(hasTokenAt(tokens, vecPos, 6, TOKEN_TYPE));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppHighlightTypeNames = true;
+
+    const std::string line = "std::optional<LspDiagnosticSummary> diag;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int optionalPos = (int)line.find("optional");
+    int summaryPos = (int)line.find("LspDiagnosticSummary");
+    ASSERT_NE(optionalPos, (int)std::string::npos);
+    ASSERT_NE(summaryPos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, optionalPos, 8, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(tokens, summaryPos, 20, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppTypes)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+
+    const std::string line =
+        "std::unique_ptr<SyntaxHighlighter> syntaxHighlighter;";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+
+    int uniquePos = (int)line.find("unique_ptr");
+    int typePos = (int)line.find("SyntaxHighlighter");
+    ASSERT_NE(uniquePos, (int)std::string::npos);
+    ASSERT_NE(typePos, (int)std::string::npos);
+
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {uniquePos, 10, TOKEN_TYPE});
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {typePos, 17, TOKEN_TYPE});
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
+    EXPECT_NE(output.find(typeColor), std::string::npos);
+}
+
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
 {
     Editor editor = Editor::createForTests();

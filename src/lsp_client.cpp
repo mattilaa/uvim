@@ -47,6 +47,24 @@ static std::string readFileAll(const std::string& path)
     return s;
 }
 
+static std::vector<std::string> defaultSemanticTokenTypes()
+{
+    return {
+        "namespace",   "type",       "class",      "enum",
+        "interface",   "struct",     "typeParameter",
+        "parameter",   "variable",   "property",   "enumMember",
+        "event",       "function",   "method",     "macro",
+        "keyword",     "modifier",   "comment",    "string",
+        "number",      "regexp",     "operator",   "decorator"};
+}
+
+static std::vector<std::string> defaultSemanticTokenModifiers()
+{
+    return {"declaration", "definition", "readonly",  "static",
+            "deprecated",  "abstract",   "async",     "modification",
+            "documentation", "defaultLibrary"};
+}
+
 static std::string absPath(const std::string& p)
 {
     char buf[PATH_MAX];
@@ -138,6 +156,11 @@ struct LspClient::Impl
     std::unordered_map<std::string, std::vector<LspClient::Diagnostic>>
         diagnosticsByFile;
     std::unordered_map<std::string, size_t> diagnosticsRevision;
+    mutable std::mutex semanticMutex;
+    std::unordered_map<std::string, std::vector<LspClient::SemanticToken>>
+        semanticTokensByFile;
+    std::unordered_map<std::string, size_t> semanticTokensRevision;
+    std::vector<std::string> semanticTokenTypes;
     std::mutex applyMutex;
     std::vector<json> pendingApplyEdits;
 
@@ -441,12 +464,41 @@ struct LspClient::Impl
         params["workspaceFolders"] = json::array({json{
             {"uri", pathToFileUri(rootDir)},
             {"name", std::filesystem::path(rootDir).filename().string()}}});
-        params["capabilities"] = json::object(); // minimal
+        if(semanticTokenTypes.empty())
+            semanticTokenTypes = defaultSemanticTokenTypes();
+        json semCaps;
+        semCaps["dynamicRegistration"] = false;
+        semCaps["requests"] = {{"range", false}, {"full", true}};
+        semCaps["tokenTypes"] = semanticTokenTypes;
+        semCaps["tokenModifiers"] = defaultSemanticTokenModifiers();
+        semCaps["formats"] = json::array({"relative"});
+
+        params["capabilities"] = {
+            {"textDocument", {{"semanticTokens", semCaps}}}};
 
         int id = sendRequest("initialize", params);
         auto resp = waitResponse(id, 5000);
         if(!resp)
             return false;
+        if(resp->is_object())
+        {
+            json result = resp->value("result", json::object());
+            json caps = result.value("capabilities", json::object());
+            json sem = caps.value("semanticTokensProvider", json::object());
+            json legend = sem.value("legend", json::object());
+            if(legend.contains("tokenTypes") &&
+               legend["tokenTypes"].is_array())
+            {
+                std::vector<std::string> types;
+                for(const auto& item : legend["tokenTypes"])
+                {
+                    if(item.is_string())
+                        types.push_back(item.get<std::string>());
+                }
+                if(!types.empty())
+                    semanticTokenTypes = std::move(types);
+            }
+        }
 
         // Send initialized notification
         sendNotification("initialized", json::object());
@@ -1303,6 +1355,105 @@ LspClient::executeCommand(const std::string& command,
     return out;
 }
 
+bool LspClient::requestSemanticTokens(const std::string& filePath)
+{
+    if(!running())
+        return false;
+
+    std::string abs = absPath(filePath);
+    json params;
+    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+
+    int id = impl->sendRequest("textDocument/semanticTokens/full", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->is_object() || resp->contains("error"))
+    {
+        clearSemanticTokens(abs);
+        return false;
+    }
+
+    json result = resp->value("result", json::object());
+    if(!result.is_object())
+    {
+        clearSemanticTokens(abs);
+        return false;
+    }
+
+    std::vector<LspClient::SemanticToken> tokens;
+    if(result.contains("data") && result["data"].is_array())
+    {
+        const json& data = result["data"];
+        int line = 0;
+        int start = 0;
+        for(size_t i = 0; i + 4 < data.size(); i += 5)
+        {
+            int deltaLine = data[i].get<int>();
+            int deltaStart = data[i + 1].get<int>();
+            int length = data[i + 2].get<int>();
+            int tokenType = data[i + 3].get<int>();
+            int tokenMods = data[i + 4].get<int>();
+
+            line += deltaLine;
+            if(deltaLine == 0)
+                start += deltaStart;
+            else
+                start = deltaStart;
+
+            if(tokenType < 0 ||
+               tokenType >= (int)impl->semanticTokenTypes.size())
+                continue;
+
+            LspClient::SemanticToken token;
+            token.line = line;
+            token.character = start;
+            token.length = length;
+            token.tokenType = impl->semanticTokenTypes[tokenType];
+            token.modifiers = tokenMods;
+            tokens.push_back(std::move(token));
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lk(impl->semanticMutex);
+        impl->semanticTokensByFile[abs] = std::move(tokens);
+        impl->semanticTokensRevision[abs]++;
+    }
+    return true;
+}
+
+std::vector<LspClient::SemanticToken>
+LspClient::semanticTokens(const std::string& filePath) const
+{
+    if(!running())
+        return {};
+    std::string abs = absPath(filePath);
+    std::lock_guard<std::mutex> lk(impl->semanticMutex);
+    auto it = impl->semanticTokensByFile.find(abs);
+    if(it == impl->semanticTokensByFile.end())
+        return {};
+    return it->second;
+}
+
+size_t LspClient::semanticTokensRevision(const std::string& filePath) const
+{
+    if(!running())
+        return 0;
+    std::string abs = absPath(filePath);
+    std::lock_guard<std::mutex> lk(impl->semanticMutex);
+    auto it = impl->semanticTokensRevision.find(abs);
+    if(it == impl->semanticTokensRevision.end())
+        return 0;
+    return it->second;
+}
+
+void LspClient::clearSemanticTokens(const std::string& filePath)
+{
+    std::string abs = absPath(filePath);
+    std::lock_guard<std::mutex> lk(impl->semanticMutex);
+    impl->semanticTokensByFile.erase(abs);
+    impl->semanticTokensRevision.erase(abs);
+}
+
 #else
 
 // If UVIM_ENABLE_CLANGD_LSP is not set, compile a stub that always disables.
@@ -1403,5 +1554,19 @@ LspClient::executeCommand(const std::string&, const std::vector<std::string>&,
 {
     return {};
 }
+bool LspClient::requestSemanticTokens(const std::string&)
+{
+    return false;
+}
+std::vector<LspClient::SemanticToken>
+LspClient::semanticTokens(const std::string&) const
+{
+    return {};
+}
+size_t LspClient::semanticTokensRevision(const std::string&) const
+{
+    return 0;
+}
+void LspClient::clearSemanticTokens(const std::string&) {}
 
 #endif

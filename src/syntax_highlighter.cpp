@@ -3773,6 +3773,27 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         }
     }
 
+    if(isFileType<FileType::Cpp>() && editor && editor->syntaxCppSemanticTokens)
+    {
+        Buffer* buffer = editor->currentBuffer;
+        if(buffer && buffer->lspSemanticTokensValid && fileRow >= 0 &&
+           fileRow < (int)buffer->lspSemanticTokens.size())
+        {
+            const auto& semTokens = buffer->lspSemanticTokens[fileRow];
+            for(const auto& token : semTokens)
+            {
+                int tokenStart = token.start;
+                int tokenEnd = token.start + token.length;
+                for(int pos = tokenStart; pos < tokenEnd; pos++)
+                {
+                    int visiblePos = pos - start;
+                    if(visiblePos >= 0 && visiblePos < len)
+                        charColors[visiblePos] = token.type;
+                }
+            }
+        }
+    }
+
     TokenType currentColor = TOKEN_NORMAL;
     for(int x = 0; x < len; x++)
     {
