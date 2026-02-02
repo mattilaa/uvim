@@ -1,7 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-#include <algorithm>
 
 // ============================================================================
 // CommandMode Implementation
@@ -150,10 +149,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                         return false;
                     for(size_t i = 0; i < prefix.size(); ++i)
                     {
-                        unsigned char a =
-                            static_cast<unsigned char>(text[i]);
-                        unsigned char b =
-                            static_cast<unsigned char>(prefix[i]);
+                        unsigned char a = static_cast<unsigned char>(text[i]);
+                        unsigned char b = static_cast<unsigned char>(prefix[i]);
                         if(a >= 'A' && a <= 'Z')
                             a = (unsigned char)(a - 'A' + 'a');
                         if(b >= 'A' && b <= 'Z')

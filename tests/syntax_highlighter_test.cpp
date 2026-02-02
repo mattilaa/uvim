@@ -1,4 +1,6 @@
 #include "editor.h"
+#include "widgets/completion_popup.h"
+#include "text_utils.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -370,6 +372,22 @@ TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
     const std::string funcColor = editor.theme.syntax(TOKEN_FUNCTION);
     EXPECT_NE(output.find(memberColor + "commandBuffer"), std::string::npos);
     EXPECT_NE(output.find(funcColor + "startCommandPopup"), std::string::npos);
+}
+
+TEST(SyntaxHighlighterTest, CompletionRowBuildsAndTruncates)
+{
+    CompletionEntry entry;
+    entry.label = "printf";
+    entry.labelDetail = "(const char* fmt, ...)";
+    entry.labelDescription = "int";
+
+    std::string full = widgets::buildCompletionRowForTest(entry, 200);
+    EXPECT_NE(full.find("printf"), std::string::npos);
+    EXPECT_NE(full.find("fmt"), std::string::npos);
+    EXPECT_NE(full.find("int"), std::string::npos);
+
+    std::string truncated = widgets::buildCompletionRowForTest(entry, 8);
+    EXPECT_LE(text_utils::displayWidth(truncated), 8);
 }
 
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)

@@ -45,6 +45,26 @@ static std::string firstLine(std::string text)
     return text;
 }
 
+std::string widgets::buildCompletionRowForTest(const CompletionEntry& entry,
+                                               int width)
+{
+    std::string label = entry.label;
+    std::string extra = buildCompletionExtras(entry);
+    int labelW = text_utils::displayWidth(label);
+    if(labelW >= width)
+    {
+        label = truncateToWidth(label, width);
+        extra.clear();
+    }
+    else
+    {
+        int avail = width - labelW;
+        if(!extra.empty())
+            extra = truncateToWidth(extra, avail);
+    }
+    return label + extra;
+}
+
 void drawCompletionPopup(std::string& output, const Editor& editor)
 {
     if(!editor.completionActive || editor.completionFiltered.empty())
