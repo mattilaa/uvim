@@ -46,6 +46,9 @@ static void enable_vt_and_raw_console()
     {
         g_origInMode = inMode;
         inMode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+        inMode &= ~(ENABLE_MOUSE_INPUT);
+        inMode |= ENABLE_EXTENDED_FLAGS;
+        inMode &= ~(ENABLE_QUICK_EDIT_MODE);
         inMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
         SetConsoleMode(hIn(), inMode);
     }
@@ -188,6 +191,11 @@ void Terminal::enableRawMode()
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     rawModeEnabled = true;
+
+    // Disable mouse reporting and use alternate screen to avoid scrollback.
+    write("\x1b[?1049h");
+    write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
+    write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
 #endif
 }
 
@@ -202,14 +210,17 @@ void Terminal::disableRawMode()
 #else
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTermios);
     rawModeEnabled = false;
+
+    // Restore normal screen and ensure mouse reporting stays disabled.
+    write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
+    write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
+    write("\x1b[?1049l");
 #endif
 }
 
 void Terminal::restoreTerminal()
 {
     disableRawMode();
-    clearScreen();
-    moveCursor(1, 1);
 }
 
 void Terminal::clearScreen()
