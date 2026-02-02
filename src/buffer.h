@@ -102,7 +102,9 @@ struct Buffer
     {
         int start = 0;
         int length = 0;
-        TokenType type = TOKEN_NORMAL;
+        std::string tokenType;
+        bool isDeclaration = false;
+        bool isDefinition = false;
     };
 
     std::vector<std::vector<SemanticTokenRange>> lspSemanticTokens;

@@ -121,6 +121,8 @@ static std::string_view default_config_contents()
     yaml: true
     cpp:
       semantic_tokens: true
+      locals_color: "normal"
+      member_color: "member"
     robot:
       keywords: "if, else, end, for, while, try, except, finally, return, break, continue, skip, fail, run, keyword, library, resource, variables, documentation, tags, metadata, setup, teardown, suite, test, task, template, timeout, default, force"
       highlight_titles: true
@@ -169,7 +171,8 @@ theme:
     preprocessor: "#f6c177"
     number: "#eb6f92"
     operator: "#f6c177"
-    function: "#7aa2f7"
+    function: "#6b86c9"
+    member: "#89dceb"
 )";
     return std::string_view{kDefaultConfig, sizeof(kDefaultConfig) - 1};
 }

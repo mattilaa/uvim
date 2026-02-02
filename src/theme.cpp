@@ -160,8 +160,8 @@ Theme Theme::defaults()
     t.syntax_[TOKEN_PREPROCESSOR] = {0xF6, 0xC1, 0x77, true};
     t.syntax_[TOKEN_NUMBER] = {0xEB, 0x6F, 0x92, true};
     t.syntax_[TOKEN_OPERATOR] = {0xF6, 0xC1, 0x77, true};
-    t.syntax_[TOKEN_FUNCTION] = {0x7A, 0xA2, 0xF7, true};
-    t.syntax_[TOKEN_MEMBER] = t.syntax_[TOKEN_FUNCTION];
+    t.syntax_[TOKEN_FUNCTION] = {0x6B, 0x86, 0xC9, true};
+    t.syntax_[TOKEN_MEMBER] = {0x89, 0xDC, 0xEB, true};
 
     t.rebuildSequences();
     return t;

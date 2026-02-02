@@ -258,15 +258,118 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppTypes)
     ASSERT_NE(typePos, (int)std::string::npos);
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
-        {uniquePos, 10, TOKEN_TYPE});
+        {uniquePos, 10, "type", false, false});
     editor.currentBuffer->lspSemanticTokens[0].push_back(
-        {typePos, 17, TOKEN_TYPE});
+        {typePos, 17, "class", false, false});
 
     std::string output;
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
     EXPECT_NE(output.find(typeColor), std::string::npos);
+}
+
+TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+    editor.syntaxCppMemberToken = TOKEN_MEMBER;
+
+    const std::string line =
+        "std::vector<int> completions; completions.push_back(1);";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+
+    int declPos = (int)line.find("completions");
+    int usePos = (int)line.find("completions", declPos + 1);
+    ASSERT_NE(declPos, (int)std::string::npos);
+    ASSERT_NE(usePos, (int)std::string::npos);
+
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {declPos, 11, "variable", true, false});
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {usePos, 11, "variable", false, false});
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
+    EXPECT_NE(output.find(memberColor + "completions"), std::string::npos);
+}
+
+TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+    editor.syntaxCppLocalToken = TOKEN_NORMAL;
+    editor.syntaxCppMemberToken = TOKEN_TYPE;
+
+    const std::string line =
+        "Foo member; void f(Foo param){ Foo local; member=local; this->member=local; local.member=1; }";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+
+    auto addToken = [&](std::string_view text, std::string_view tokenType,
+                        bool isDecl, bool isDef)
+    {
+        int pos = (int)line.find(std::string(text));
+        ASSERT_NE(pos, (int)std::string::npos);
+        editor.currentBuffer->lspSemanticTokens[0].push_back(
+            {pos, (int)text.size(), std::string(tokenType), isDecl, isDef});
+    };
+
+    addToken("member", "variable", true, false);   // class-scope field
+    addToken("param", "parameter", true, false);   // parameter
+    addToken("local", "variable", true, false);    // local decl
+    addToken("member", "variable", false, false);  // use: member=local
+    addToken("member", "member", false, false);    // this->member
+    addToken("member", "member", false, false);    // local.member
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
+    const std::string normalColor = editor.theme.syntax(TOKEN_NORMAL);
+    EXPECT_NE(output.find(typeColor + "member"), std::string::npos);
+    EXPECT_NE(output.find(normalColor + "local"), std::string::npos);
+}
+
+TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+    editor.syntaxCppMemberToken = TOKEN_MEMBER;
+
+    const std::string line = "ctx.commandBuffer; ctx.startCommandPopup();";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+
+    int fieldPos = (int)line.find("commandBuffer");
+    int methodPos = (int)line.find("startCommandPopup");
+    ASSERT_NE(fieldPos, (int)std::string::npos);
+    ASSERT_NE(methodPos, (int)std::string::npos);
+
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {fieldPos, 13, "field", false, false});
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {methodPos, 17, "method", false, false});
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
+    const std::string funcColor = editor.theme.syntax(TOKEN_FUNCTION);
+    EXPECT_NE(output.find(memberColor + "commandBuffer"), std::string::npos);
+    EXPECT_NE(output.find(funcColor + "startCommandPopup"), std::string::npos);
 }
 
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
@@ -457,14 +560,17 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableName)
     }
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "foo.cpp").string();
-    editor.currentBuffer->lines = {"void Foo::bar() {", "    int key = 0;", "}"};
+    const std::string line = "    int key = 0;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar,
+                                      true, true, false);
 
-    std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
-                                (int)editor.currentBuffer->lines[1].size(), 1);
-
-    const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_EQ(output.find(memberColor), std::string::npos);
+    EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
 
 TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInFreeFunction)
@@ -472,14 +578,17 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInFreeFunction)
     Editor editor = Editor::createForTests();
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/example.cpp";
-    editor.currentBuffer->lines = {"int foo() {", "    int value = 0;", "}"};
+    const std::string line = "    int value = 0;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar,
+                                      false, true, false);
 
-    std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
-                                (int)editor.currentBuffer->lines[1].size(), 1);
-
-    const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_EQ(output.find(memberColor), std::string::npos);
+    EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
 
 TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInMethod)
@@ -494,16 +603,17 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInMethod)
     }
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "foo.cpp").string();
-    editor.currentBuffer->lines = {"void Foo::bar() {",
-                                   "    std::string rest = \"\";",
-                                   "}"};
+    const std::string line = "    std::string rest = \"\";";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar,
+                                      true, true, false);
 
-    std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
-                                (int)editor.currentBuffer->lines[1].size(), 1);
-
-    const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_EQ(output.find(memberColor), std::string::npos);
+    EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsUserTypePointerInParams)
@@ -550,16 +660,17 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableMatchingMember)
     }
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "foo.cpp").string();
-    editor.currentBuffer->lines = {"void Foo::bar() {",
-                                   "    std::string cmd = \"\";",
-                                   "}"};
+    const std::string line = "    std::string cmd = \"\";";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar,
+                                      true, true, false);
 
-    std::string output;
-    editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
-                                (int)editor.currentBuffer->lines[1].size(), 1);
-
-    const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_EQ(output.find(memberColor), std::string::npos);
+    EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
 
 TEST(SyntaxHighlighterTest, DoesNotHighlightParamNameMatchingMember)

@@ -3762,13 +3762,19 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
 
     for(const auto& token : tokens)
     {
+        TokenType effectiveType = token.type;
+        if(isFileType<FileType::Cpp>() && editor)
+        {
+            if(token.type == TOKEN_MEMBER)
+                effectiveType = editor->syntaxCppMemberToken;
+        }
         int tokenEnd = token.start + token.length;
         for(int pos = token.start; pos < tokenEnd; pos++)
         {
             int visiblePos = pos - start;
             if(visiblePos >= 0 && visiblePos < len)
             {
-                charColors[visiblePos] = token.type;
+                charColors[visiblePos] = effectiveType;
             }
         }
     }
@@ -3780,15 +3786,93 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
            fileRow < (int)buffer->lspSemanticTokens.size())
         {
             const auto& semTokens = buffer->lspSemanticTokens[fileRow];
+            bool inFunctionContext = false;
+            if(fileRow >= 0 && fileRow < (int)buffer->syntaxCache.size())
+            {
+                const auto& state = buffer->syntaxCache[fileRow];
+                if(state.valid)
+                {
+                    inFunctionContext = state.inCppFunctionContext ||
+                                        state.inCppMethodContext;
+                }
+            }
             for(const auto& token : semTokens)
             {
+                std::optional<TokenType> mapped;
+                std::string_view type = token.tokenType;
+                if(type == "type" || type == "class" || type == "struct" ||
+                   type == "enum" || type == "interface" ||
+                   type == "typeParameter")
+                {
+                    mapped = TOKEN_TYPE;
+                }
+                else if(type == "function" || type == "method")
+                {
+                    mapped = TOKEN_FUNCTION;
+                }
+                else if(type == "parameter")
+                {
+                    mapped = editor->syntaxCppLocalToken;
+                }
+                else if(type == "variable")
+                {
+                    bool isObjectReference = false;
+                    const std::string& lineRef = line;
+                    int tokenStart = token.start;
+                    int tokenEnd = token.start + token.length;
+                    if(tokenEnd > tokenStart)
+                    {
+                        int p = tokenStart - 1;
+                        while(p >= 0 && text_utils::is_space(lineRef[p]))
+                            --p;
+                        if(p >= 0 && lineRef[p] == '.')
+                            isObjectReference = true;
+                        if(p >= 1 && lineRef[p] == '>' &&
+                           lineRef[p - 1] == '-')
+                            isObjectReference = true;
+                        if(!isObjectReference)
+                        {
+                            int q = tokenEnd;
+                            while(q < (int)lineRef.size() &&
+                                  text_utils::is_space(lineRef[q]))
+                                ++q;
+                            if(q < (int)lineRef.size() &&
+                               (lineRef[q] == '.' ||
+                                (lineRef[q] == '-' &&
+                                 q + 1 < (int)lineRef.size() &&
+                                 lineRef[q + 1] == '>')))
+                            {
+                                isObjectReference = true;
+                            }
+                        }
+                    }
+                    if(!inFunctionContext && (token.isDeclaration ||
+                                              token.isDefinition))
+                    {
+                        mapped = editor->syntaxCppMemberToken;
+                    }
+                    else
+                    {
+                        mapped = isObjectReference
+                                     ? editor->syntaxCppMemberToken
+                                     : editor->syntaxCppLocalToken;
+                    }
+                }
+                else if(type == "property" || type == "enumMember" ||
+                        type == "member" || type == "field")
+                {
+                    mapped = editor->syntaxCppMemberToken;
+                }
+                if(!mapped)
+                    continue;
+                TokenType effectiveType = *mapped;
                 int tokenStart = token.start;
                 int tokenEnd = token.start + token.length;
                 for(int pos = tokenStart; pos < tokenEnd; pos++)
                 {
                     int visiblePos = pos - start;
                     if(visiblePos >= 0 && visiblePos < len)
-                        charColors[visiblePos] = token.type;
+                        charColors[visiblePos] = effectiveType;
                 }
             }
         }

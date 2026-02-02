@@ -128,6 +128,7 @@ public:
     std::vector<SemanticToken>
     semanticTokens(const std::string& filePath) const;
     size_t semanticTokensRevision(const std::string& filePath) const;
+    bool semanticTokenHasModifier(int modifiers, std::string_view name) const;
     void clearSemanticTokens(const std::string& filePath);
 
 private:

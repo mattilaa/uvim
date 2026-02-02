@@ -104,7 +104,8 @@ theme:
     info: "#9ccfd8"
   syntax:
     type: "#9ccfd8"
-    function: "#7aa2f7"
+    function: "#6b86c9"
+    member: "#89dceb"
 \endcode
 
 \section config_editor Editor settings
@@ -210,6 +211,16 @@ Boolean. Default: true. Highlight system include headers.
 
 \par editor.syntax.cpp.semantic_tokens
 Boolean. Default: true. Use clangd semantic tokens for C++ types.
+
+\par editor.syntax.cpp.locals_color
+Token name. Default: `normal`. Color used for local variables and parameters.
+Valid values: `normal`, `keyword`, `type`, `string`, `char`, `comment`,
+`preprocessor`, `number`, `operator`, `function`, `member`.
+
+\par editor.syntax.cpp.member_color
+Token name. Default: `member`. Color used for C++ members (fields/accesses).
+Valid values: `normal`, `keyword`, `type`, `string`, `char`, `comment`,
+`preprocessor`, `number`, `operator`, `function`, `member`.
 
 \par editor.syntax.mlang.highlight_types
 Boolean. Default: true. Highlight Mlang types.
@@ -329,9 +340,10 @@ Default: `#eb6f92`.
 Default: `#f6c177`.
 
 \par theme.syntax.function
-Default: `#7aa2f7`.
+Default: `#6b86c9`.
 
 \par theme.syntax.member
-Default: `#7aa2f7`.
+Default: `#89dceb`.
+Configure this separately to make members lighter/darker than functions.
 
 */

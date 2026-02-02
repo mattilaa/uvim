@@ -161,6 +161,7 @@ struct LspClient::Impl
         semanticTokensByFile;
     std::unordered_map<std::string, size_t> semanticTokensRevision;
     std::vector<std::string> semanticTokenTypes;
+    std::vector<std::string> semanticTokenModifiers;
     std::mutex applyMutex;
     std::vector<json> pendingApplyEdits;
 
@@ -466,11 +467,13 @@ struct LspClient::Impl
             {"name", std::filesystem::path(rootDir).filename().string()}}});
         if(semanticTokenTypes.empty())
             semanticTokenTypes = defaultSemanticTokenTypes();
+        if(semanticTokenModifiers.empty())
+            semanticTokenModifiers = defaultSemanticTokenModifiers();
         json semCaps;
         semCaps["dynamicRegistration"] = false;
         semCaps["requests"] = {{"range", false}, {"full", true}};
         semCaps["tokenTypes"] = semanticTokenTypes;
-        semCaps["tokenModifiers"] = defaultSemanticTokenModifiers();
+        semCaps["tokenModifiers"] = semanticTokenModifiers;
         semCaps["formats"] = json::array({"relative"});
 
         params["capabilities"] = {
@@ -497,6 +500,18 @@ struct LspClient::Impl
                 }
                 if(!types.empty())
                     semanticTokenTypes = std::move(types);
+            }
+            if(legend.contains("tokenModifiers") &&
+               legend["tokenModifiers"].is_array())
+            {
+                std::vector<std::string> mods;
+                for(const auto& item : legend["tokenModifiers"])
+                {
+                    if(item.is_string())
+                        mods.push_back(item.get<std::string>());
+                }
+                if(!mods.empty())
+                    semanticTokenModifiers = std::move(mods);
             }
         }
 
@@ -1446,6 +1461,19 @@ size_t LspClient::semanticTokensRevision(const std::string& filePath) const
     return it->second;
 }
 
+bool LspClient::semanticTokenHasModifier(int modifiers,
+                                         std::string_view name) const
+{
+    if(!impl)
+        return false;
+    for(size_t i = 0; i < impl->semanticTokenModifiers.size(); ++i)
+    {
+        if(impl->semanticTokenModifiers[i] == name)
+            return (modifiers & (1 << i)) != 0;
+    }
+    return false;
+}
+
 void LspClient::clearSemanticTokens(const std::string& filePath)
 {
     std::string abs = absPath(filePath);
@@ -1566,6 +1594,10 @@ LspClient::semanticTokens(const std::string&) const
 size_t LspClient::semanticTokensRevision(const std::string&) const
 {
     return 0;
+}
+bool LspClient::semanticTokenHasModifier(int, std::string_view) const
+{
+    return false;
 }
 void LspClient::clearSemanticTokens(const std::string&) {}
 

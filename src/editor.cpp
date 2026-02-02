@@ -82,7 +82,39 @@ static TokenType parse_token_type(std::string_view value, TokenType fallback)
         return TOKEN_OPERATOR;
     if(v == "function")
         return TOKEN_FUNCTION;
+    if(v == "member")
+        return TOKEN_MEMBER;
     return fallback;
+}
+
+static std::string_view token_type_name(TokenType value)
+{
+    switch(value)
+    {
+    case TOKEN_NORMAL:
+        return "normal";
+    case TOKEN_KEYWORD:
+        return "keyword";
+    case TOKEN_TYPE:
+        return "type";
+    case TOKEN_STRING:
+        return "string";
+    case TOKEN_CHAR:
+        return "char";
+    case TOKEN_COMMENT:
+        return "comment";
+    case TOKEN_PREPROCESSOR:
+        return "preprocessor";
+    case TOKEN_NUMBER:
+        return "number";
+    case TOKEN_OPERATOR:
+        return "operator";
+    case TOKEN_FUNCTION:
+        return "function";
+    case TOKEN_MEMBER:
+        return "member";
+    }
+    return "normal";
 }
 
 static std::unordered_map<std::string, std::string>
@@ -1275,6 +1307,11 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
             set_token("editor.syntax.markup.rdoc_topic_token",
                       markupRdocTopicToken);
             set_token("syntax.markup.rdoc_topic_token", markupRdocTopicToken);
+
+            set_token("editor.syntax.cpp.locals_color", syntaxCppLocalToken);
+            set_token("syntax.cpp.locals_color", syntaxCppLocalToken);
+            set_token("editor.syntax.cpp.member_color", syntaxCppMemberToken);
+            set_token("syntax.cpp.member_color", syntaxCppMemberToken);
         }
     }
 
@@ -2218,6 +2255,10 @@ void Editor::openFile(std::string_view fname)
     currentBuffer->lspHashValid = false;
     currentBuffer->lspDiagnosticsSeenValid = false;
     currentBuffer->lspDiagnosticsSeenRevision = 0;
+    currentBuffer->lspSemanticTokensValid = false;
+    currentBuffer->lspSemanticTokensRevision = 0;
+    currentBuffer->lspSemanticTokensHash = 0;
+    currentBuffer->lspSemanticTokens.clear();
     currentBuffer->clangIndentWidthValid = false;
     currentBuffer->clangIndentWidth = -1;
     currentBuffer->clangBraceStyleValid = false;
@@ -2256,6 +2297,8 @@ void Editor::openFile(std::string_view fname)
         // didChange will call didOpen if needed
         lspClient->didChange(path, text, "cpp");
         currentBuffer->lspSyncNeeded = false;
+        if(syntaxCppSemanticTokens)
+            lspClient->requestSemanticTokens(path);
     }
     if(isRobotLspEnabled() && isFileType<FileType::Robot>() && robotLspClient)
     {
@@ -4489,19 +4532,6 @@ void Editor::commentLines(int startY, int endY)
     needsFullRedraw = true;
 }
 
-#ifdef UVIM_ENABLE_CLANGD_LSP
-static std::optional<TokenType>
-map_semantic_token_type(std::string_view type)
-{
-    if(type == "type" || type == "class" || type == "struct" || type == "enum" ||
-       type == "interface" || type == "typeParameter")
-    {
-        return TOKEN_TYPE;
-    }
-    return std::nullopt;
-}
-#endif
-
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -4509,8 +4539,10 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
        !isFileType<FileType::Cpp>() || !lspClient)
         return;
 
+    bool wantSemantic =
+        syntaxCppSemanticTokens && !currentBuffer->lspSemanticTokensValid;
     bool shouldCheck = force || currentBuffer->lspSyncNeeded || *dirty;
-    if(!shouldCheck)
+    if(!shouldCheck && !wantSemantic)
         return;
 
     auto hashBuffer = [](const std::vector<std::string>& src) -> size_t
@@ -4529,9 +4561,13 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
         return h;
     };
 
-    size_t newHash = hashBuffer(*lines);
-    if(force || !currentBuffer->lspHashValid ||
-       newHash != currentBuffer->lspContentHash)
+    size_t newHash = 0;
+    if(shouldCheck || wantSemantic)
+    {
+        newHash = hashBuffer(*lines);
+    }
+    if(shouldCheck && (force || !currentBuffer->lspHashValid ||
+                       newHash != currentBuffer->lspContentHash))
     {
         std::string text;
         text.reserve(lines->size() * 80);
@@ -4546,11 +4582,12 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
         currentBuffer->lspHashValid = true;
     }
 
-    if(syntaxCppSemanticTokens)
+    if(syntaxCppSemanticTokens && (wantSemantic || shouldCheck))
     {
         bool refreshSemantic =
             force || !currentBuffer->lspSemanticTokensValid ||
-            newHash != currentBuffer->lspSemanticTokensHash;
+            (newHash != 0 &&
+             newHash != currentBuffer->lspSemanticTokensHash);
         if(refreshSemantic)
             lspClient->requestSemanticTokens(currentBuffer->filename);
 
@@ -4565,9 +4602,6 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
 
             for(const auto& token : tokens)
             {
-                auto mapped = map_semantic_token_type(token.tokenType);
-                if(!mapped)
-                    continue;
                 if(token.line < 0 || token.line >= (int)lines->size())
                     continue;
                 const std::string& line = (*lines)[token.line];
@@ -4584,12 +4618,19 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
                 int length = endByte - startByte;
                 if(length <= 0)
                     continue;
+                bool isDecl =
+                    lspClient->semanticTokenHasModifier(token.modifiers,
+                                                        "declaration");
+                bool isDef =
+                    lspClient->semanticTokenHasModifier(token.modifiers,
+                                                        "definition");
                 currentBuffer->lspSemanticTokens[token.line].push_back(
-                    {startByte, length, *mapped});
+                    {startByte, length, token.tokenType, isDecl, isDef});
             }
             currentBuffer->lspSemanticTokensRevision = semRev;
             currentBuffer->lspSemanticTokensValid = true;
-            currentBuffer->lspSemanticTokensHash = newHash;
+            if(newHash != 0)
+                currentBuffer->lspSemanticTokensHash = newHash;
             needsFullRedraw = true;
         }
     }
@@ -4759,6 +4800,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (syntaxCppSemanticTokens ? "true" : "false"));
         return true;
     }
+    if(opt == "syntax.cpp.locals_color?")
+    {
+        setStatusMessage("syntax.cpp.locals_color=" +
+                         std::string(token_type_name(syntaxCppLocalToken)));
+        return true;
+    }
+    if(opt == "syntax.cpp.member_color?")
+    {
+        setStatusMessage("syntax.cpp.member_color=" +
+                         std::string(token_type_name(syntaxCppMemberToken)));
+        return true;
+    }
     if(opt == "syntax.mlang.highlight_types?")
     {
         setStatusMessage(std::string("syntax.mlang.highlight_types=") +
@@ -4878,6 +4931,28 @@ bool Editor::handleSetCommand(std::string_view cmd)
             currentBuffer->lspSemanticTokensValid = false;
         needsFullRedraw = true;
         setStatusMessage("syntax.cpp.semantic_tokens=false");
+        return true;
+    }
+    if(opt.rfind("syntax.cpp.locals_color=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("syntax.cpp.locals_color=").length());
+        syntaxCppLocalToken =
+            parse_token_type(value, syntaxCppLocalToken);
+        setStatusMessage("syntax.cpp.locals_color=" +
+                         std::string(token_type_name(syntaxCppLocalToken)));
+        needsFullRedraw = true;
+        return true;
+    }
+    if(opt.rfind("syntax.cpp.member_color=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("syntax.cpp.member_color=").length());
+        syntaxCppMemberToken =
+            parse_token_type(value, syntaxCppMemberToken);
+        setStatusMessage("syntax.cpp.member_color=" +
+                         std::string(token_type_name(syntaxCppMemberToken)));
+        needsFullRedraw = true;
         return true;
     }
     if(opt == "syntax.mlang.highlight_types")
@@ -9091,6 +9166,32 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set syntax.cpp.highlight_param_types",
         "set nosyntax.cpp.highlight_param_types",
         "set syntax.cpp.highlight_param_types?",
+        "set syntax.cpp.locals_color",
+        "set syntax.cpp.locals_color?",
+        "set syntax.cpp.locals_color=normal",
+        "set syntax.cpp.locals_color=keyword",
+        "set syntax.cpp.locals_color=type",
+        "set syntax.cpp.locals_color=string",
+        "set syntax.cpp.locals_color=char",
+        "set syntax.cpp.locals_color=comment",
+        "set syntax.cpp.locals_color=preprocessor",
+        "set syntax.cpp.locals_color=number",
+        "set syntax.cpp.locals_color=operator",
+        "set syntax.cpp.locals_color=function",
+        "set syntax.cpp.locals_color=member",
+        "set syntax.cpp.member_color",
+        "set syntax.cpp.member_color?",
+        "set syntax.cpp.member_color=normal",
+        "set syntax.cpp.member_color=keyword",
+        "set syntax.cpp.member_color=type",
+        "set syntax.cpp.member_color=string",
+        "set syntax.cpp.member_color=char",
+        "set syntax.cpp.member_color=comment",
+        "set syntax.cpp.member_color=preprocessor",
+        "set syntax.cpp.member_color=number",
+        "set syntax.cpp.member_color=operator",
+        "set syntax.cpp.member_color=function",
+        "set syntax.cpp.member_color=member",
         "set syntax.cpp.semantic_tokens",
         "set nosyntax.cpp.semantic_tokens",
         "set syntax.cpp.semantic_tokens?",
