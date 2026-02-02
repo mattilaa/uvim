@@ -48,6 +48,8 @@ struct Buffer
     std::vector<EditState> undoStack;
     int undoIndex = -1;
     int savedUndoIndex = -1; // Track which undo state was last saved
+    size_t savedContentHash = 0;
+    bool savedContentHashValid = false;
 
     // Search state per buffer
     std::string lastSearchQuery;

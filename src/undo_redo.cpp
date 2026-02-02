@@ -1,6 +1,22 @@
 #include "editor.h"
 #include <algorithm>
 
+static size_t hash_lines(const std::vector<std::string>& src)
+{
+    size_t h = 1469598103934665603ull;
+    for(const auto& line : src)
+    {
+        for(unsigned char c : line)
+        {
+            h ^= c;
+            h *= 1099511628211ull;
+        }
+        h ^= '\n';
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
 void Editor::saveState()
 {
     if(!currentBuffer)
@@ -44,7 +60,15 @@ void Editor::saveState()
                 isSaved = (saved.lines == state.lines);
             }
             if(dirty)
-                *dirty = !isSaved;
+            {
+                bool hashSaved = false;
+                if(currentBuffer->savedContentHashValid)
+                {
+                    hashSaved = (hash_lines(state.lines) ==
+                                 currentBuffer->savedContentHash);
+                }
+                *dirty = !(isSaved || hashSaved);
+            }
             return; // Avoid duplicate undo steps with identical content.
         }
     }
@@ -113,7 +137,13 @@ void Editor::undo()
                 currentBuffer->undoStack[currentBuffer->savedUndoIndex];
             isSaved = (saved.lines == *lines);
         }
-        *dirty = !isSaved;
+        bool hashSaved = false;
+        if(currentBuffer->savedContentHashValid)
+        {
+            hashSaved = (hash_lines(*lines) ==
+                         currentBuffer->savedContentHash);
+        }
+        *dirty = !(isSaved || hashSaved);
         currentBuffer->lspSyncNeeded = true;
 
         needsFullRedraw = true;
@@ -167,7 +197,13 @@ void Editor::redo()
                 currentBuffer->undoStack[currentBuffer->savedUndoIndex];
             isSaved = (saved.lines == *lines);
         }
-        *dirty = !isSaved;
+        bool hashSaved = false;
+        if(currentBuffer->savedContentHashValid)
+        {
+            hashSaved = (hash_lines(*lines) ==
+                         currentBuffer->savedContentHash);
+        }
+        *dirty = !(isSaved || hashSaved);
         currentBuffer->lspSyncNeeded = true;
 
         needsFullRedraw = true;

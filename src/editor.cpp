@@ -87,6 +87,22 @@ static TokenType parse_token_type(std::string_view value, TokenType fallback)
     return fallback;
 }
 
+static size_t hash_lines(const std::vector<std::string>& src)
+{
+    size_t h = 1469598103934665603ull;
+    for(const auto& line : src)
+    {
+        for(unsigned char c : line)
+        {
+            h ^= c;
+            h *= 1099511628211ull;
+        }
+        h ^= '\n';
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
 static std::string_view token_type_name(TokenType value)
 {
     switch(value)
@@ -2263,6 +2279,8 @@ void Editor::openFile(std::string_view fname)
     currentBuffer->clangIndentWidth = -1;
     currentBuffer->clangBraceStyleValid = false;
     currentBuffer->clangBraceNewLine = false;
+    currentBuffer->savedContentHash = hash_lines(*lines);
+    currentBuffer->savedContentHashValid = true;
 
     // Record file modification time for external change detection
     std::error_code ec;
@@ -2456,6 +2474,8 @@ void Editor::saveFile()
         *dirty = false;
         currentBuffer->savedUndoIndex =
             currentBuffer->undoIndex; // Mark this state as saved
+        currentBuffer->savedContentHash = hash_lines(*lines);
+        currentBuffer->savedContentHashValid = true;
 
         // Update file modification time after saving
         std::error_code ec;
@@ -2553,6 +2573,8 @@ void Editor::reloadCurrentFile()
         std::min(savedOffsetY, std::max(0, (int)lines->size() - screenRows));
 
     *dirty = false;
+    currentBuffer->savedContentHash = hash_lines(*lines);
+    currentBuffer->savedContentHashValid = true;
     needsFullRedraw = true;
 
     setStatusMessage("File reloaded from disk");
@@ -4545,26 +4567,10 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
     if(!shouldCheck && !wantSemantic)
         return;
 
-    auto hashBuffer = [](const std::vector<std::string>& src) -> size_t
-    {
-        size_t h = 1469598103934665603ull;
-        for(const auto& line : src)
-        {
-            for(unsigned char c : line)
-            {
-                h ^= c;
-                h *= 1099511628211ull;
-            }
-            h ^= '\n';
-            h *= 1099511628211ull;
-        }
-        return h;
-    };
-
     size_t newHash = 0;
     if(shouldCheck || wantSemantic)
     {
-        newHash = hashBuffer(*lines);
+        newHash = hash_lines(*lines);
     }
     if(shouldCheck && (force || !currentBuffer->lspHashValid ||
                        newHash != currentBuffer->lspContentHash))

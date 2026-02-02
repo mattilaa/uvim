@@ -356,3 +356,42 @@ TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
     EXPECT_FALSE(*editor.dirty);
     EXPECT_EQ(editor.currentBuffer->lines[0], "one");
 }
+
+TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirtyWithHash)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+    editor.saveState();
+    editor.currentBuffer->savedUndoIndex = -1;
+    auto hash_lines = [](const std::vector<std::string>& src) -> size_t
+    {
+        size_t h = 1469598103934665603ull;
+        for(const auto& line : src)
+        {
+            for(unsigned char c : line)
+            {
+                h ^= c;
+                h *= 1099511628211ull;
+            }
+            h ^= '\n';
+            h *= 1099511628211ull;
+        }
+        return h;
+    };
+    editor.currentBuffer->savedContentHashValid = true;
+    editor.currentBuffer->savedContentHash =
+        hash_lines(editor.currentBuffer->lines);
+    *editor.dirty = false;
+
+    editor.currentBuffer->lines[0] = "two";
+    *editor.dirty = true;
+    editor.saveState();
+
+    editor.undo();
+
+    EXPECT_FALSE(*editor.dirty);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "one");
+}
