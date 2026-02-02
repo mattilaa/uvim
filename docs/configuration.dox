@@ -1,0 +1,337 @@
+/**
+\page configuration Configuration
+
+This page documents all configuration parameters that can be set in
+`config.yaml` (see `uvim --init-config`).
+
+\section config_layout Layout
+
+Configuration is a YAML map. Most editor settings use the canonical
+`editor.*` keys, but for many options the parser also accepts
+`settings.*` and a bare key without a prefix.
+
+Boolean values accept: `true/false`, `1/0`, or `on/off`.
+
+Example:
+\code{.yaml}
+editor:
+  tabspaces: 4
+  autobraces: true
+  status:
+    lspgap: 7
+  syntax:
+    cpp:
+      semantic_tokens: true
+  filebrowser:
+    fuzzy: false
+
+theme:
+  base:
+    fg: "#e0def4"
+    bg: "#1f1d2e"
+  syntax:
+    type: "#9ccfd8"
+\endcode
+
+\section config_examples Examples
+
+\subsection config_examples_editor Editor example
+\code{.yaml}
+editor:
+  tabspaces: 2
+  autobraces: true
+  autoquotes: true
+  autobracesinstrings: true
+  autotags: true
+  autocomplete: true
+  completionautoparens: true
+  usesystemclipboard: true
+  utf8: true
+  showtabs: false
+  relativenumber: true
+  gitdefaultcolors: true
+  commenttogglepartial: false
+  formatoninsertleave: true
+  formatonsave: true
+  formatondoubleesctimeoutms: 300
+  gdcenter: true
+  autodetectlsps: true
+  filebrowser:
+    fuzzy: false
+  status:
+    lspgap: 7
+\endcode
+
+\subsection config_examples_syntax Syntax example
+\code{.yaml}
+editor:
+  syntax:
+    json: true
+    yaml: true
+    robot:
+      keywords: "if, else, end"
+      highlight_titles: true
+      highlight_calls: true
+      custom_keywords: "My Keyword, Another One"
+      settings: "library, resource"
+    cpp:
+      highlight_members: true
+      highlight_type_names: true
+      highlight_implicit_members: true
+      highlight_param_types: true
+      highlight_system_includes: true
+      semantic_tokens: true
+    mlang:
+      highlight_types: true
+      highlight_builtin_docs: true
+\endcode
+
+\subsection config_examples_python Python formatting example
+\code{.yaml}
+editor:
+  python:
+    formatter: "ruff"
+\endcode
+
+\subsection config_examples_theme Theme example
+\code{.yaml}
+theme:
+  base:
+    fg: "#e0def4"
+    bg: "#1f1d2e"
+  ui:
+    accent: "#c4a7e7"
+    info: "#9ccfd8"
+  syntax:
+    type: "#9ccfd8"
+    function: "#7aa2f7"
+\endcode
+
+\section config_editor Editor settings
+
+\par editor.tabspaces
+Integer. Default: 4. Tab width used by indent and display.
+
+\par editor.autobraces
+Boolean. Default: true. Auto-insert closing brace on `{([`.
+
+\par editor.autoquotes
+Boolean. Default: true. Auto-insert closing quote on `"`/`'`/`` ` ``.
+
+\par editor.autobracesinstrings
+Boolean. Default: true. Auto-insert braces inside strings.
+
+\par editor.autotags
+Boolean. Default: true. Auto-insert closing tags in markup.
+
+\par editor.autocomplete
+Boolean. Default: true. Enable auto-completion in insert mode.
+
+\par editor.completionautoparens
+Boolean. Default: true. Auto-insert parentheses after function completion.
+
+\par editor.usesystemclipboard
+Boolean. Default: true. Use the system clipboard for copy/paste.
+
+\par editor.utf8
+Boolean. Default: true. Enable UTF-8 handling.
+
+\par editor.showtabs
+Boolean. Default: true. Visualize tab characters.
+
+\par editor.relativenumber
+Boolean. Default: true. Show relative line numbers.
+
+\par editor.gitdefaultcolors
+Boolean. Default: true. Use default git blame colors.
+
+\par editor.commenttogglepartial
+Boolean. Default: false. Allow partial-line comment toggle.
+
+\par editor.formatoninsertleave
+Boolean. Default: true. Format buffer on insert-mode exit.
+
+\par editor.formatonsave
+Boolean. Default: true. Format buffer on save.
+
+\par editor.formatondoubleesctimeoutms
+Integer. Default: 300. Range: 1-5000. Timeout (ms) for double-ESC format.
+
+\par editor.gdcenter
+Boolean. Default: true. Center screen on `gd` navigation.
+
+\par editor.autodetectlsps
+Boolean. Default: true. Auto-detect available LSP servers.
+
+\par editor.filebrowser.fuzzy
+Boolean. Default: false. Enable fuzzy search in file browser.
+
+\par editor.status.lspgap
+Integer. Default: 7. Range: 0-20. Padding between LSP label and line/column.
+
+\section config_syntax Syntax highlighting
+
+\par editor.syntax.json
+Boolean. Default: true. Enable JSON highlighting.
+
+\par editor.syntax.yaml
+Boolean. Default: true. Enable YAML highlighting.
+
+\par editor.syntax.robot.keywords
+String (CSV). Default: list from default config. Set to `none` or `false`
+to disable.
+
+\par editor.syntax.robot.highlight_titles
+Boolean. Default: true. Highlight Robot section headers.
+
+\par editor.syntax.robot.highlight_calls
+Boolean. Default: true. Highlight Robot keyword calls.
+
+\par editor.syntax.robot.custom_keywords
+String (CSV). Default: empty. Custom Robot keywords to highlight.
+
+\par editor.syntax.robot.settings
+String (CSV). Default: list from default config. Robot settings to highlight.
+
+\par editor.syntax.cpp.highlight_members
+Boolean. Default: true. Highlight member accesses.
+
+\par editor.syntax.cpp.highlight_type_names
+Boolean. Default: true. Highlight type names.
+
+\par editor.syntax.cpp.highlight_implicit_members
+Boolean. Default: true. Highlight implicit member references.
+
+\par editor.syntax.cpp.highlight_param_types
+Boolean. Default: true. Highlight parameter types in signatures.
+
+\par editor.syntax.cpp.highlight_system_includes
+Boolean. Default: true. Highlight system include headers.
+
+\par editor.syntax.cpp.semantic_tokens
+Boolean. Default: true. Use clangd semantic tokens for C++ types.
+
+\par editor.syntax.mlang.highlight_types
+Boolean. Default: true. Highlight Mlang types.
+
+\par editor.syntax.mlang.highlight_builtin_docs
+Boolean. Default: true. Highlight Mlang builtin docs.
+
+\section config_python Python formatting
+
+\par editor.python.formatter
+String. Default: `ruff`. Supported values: `ruff`, `black`.
+
+\section config_theme Theme
+
+Theme colors accept hex RGB strings like `"#RRGGBB"`.
+
+\par theme.base.fg
+Default: `#e0def4`. Base foreground.
+
+\par theme.base.bg
+Default: `#1f1d2e`. Base background.
+
+\par theme.base.foreground
+Alias for `theme.base.fg`.
+
+\par theme.base.background
+Alias for `theme.base.bg`.
+
+\par theme.ui.dim
+Default: `#6e6a86`.
+
+\par theme.ui.accent
+Default: `#c4a7e7`.
+
+\par theme.ui.info
+Default: `#9ccfd8`.
+
+\par theme.ui.warning
+Default: `#f6c177`.
+
+\par theme.ui.success
+Default: `#9ece6a`.
+
+\par theme.ui.error
+Default: `#eb6f92`.
+
+\par theme.ui.directory
+Default: `#3e8fb0`.
+
+\par theme.ui.gutter
+Default: `#3e8fb0`.
+
+\par theme.ui.prompt
+Default: `#9ece6a`.
+
+\par theme.statusline.fg
+Default: `#e0def4`.
+
+\par theme.statusline.bg
+Default: `#26233a`.
+
+\par theme.tabbar.fg
+Default: `#e0def4`.
+
+\par theme.tabbar.bg
+Default: `#2a273f`.
+
+\par theme.selection.fg
+Default: `#e0def4`.
+
+\par theme.selection.bg
+Default: `#403d52`.
+
+\par theme.cursor.fg
+Default: `#1f1d2e`.
+
+\par theme.cursor.bg
+Default: `#f6c177`.
+
+\par theme.search.fg
+Default: `#1f1d2e`.
+
+\par theme.search.bg
+Default: `#ebbcba`.
+
+\par theme.panel.fg
+Default: `#e0def4`.
+
+\par theme.panel.bg
+Default: `#2a283e`.
+
+\par theme.syntax.normal
+Default: `#e0def4`.
+
+\par theme.syntax.keyword
+Default: `#c4a7e7`.
+
+\par theme.syntax.type
+Default: `#9ccfd8`.
+
+\par theme.syntax.string
+Default: `#9ece6a`.
+
+\par theme.syntax.char
+Default: `#9ece6a`.
+
+\par theme.syntax.comment
+Default: `#6e6a86`.
+
+\par theme.syntax.preprocessor
+Default: `#f6c177`.
+
+\par theme.syntax.number
+Default: `#eb6f92`.
+
+\par theme.syntax.operator
+Default: `#f6c177`.
+
+\par theme.syntax.function
+Default: `#7aa2f7`.
+
+\par theme.syntax.member
+Default: `#7aa2f7`.
+
+*/

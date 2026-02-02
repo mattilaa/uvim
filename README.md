@@ -26,6 +26,20 @@ if `XDG_CONFIG_HOME` is set). You can also provide a custom path:
 uvim --init-config /path/to/uvim.yaml
 ```
 
+## Documentation (Doxygen)
+
+Generate the configuration reference:
+
+```sh
+./scripts/build_docs.sh
+```
+
+The HTML output is written to `docs/doxygen/html/index.html`.
+
+Install doxygen with your system package manager (e.g., `brew install doxygen`
+on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
+on Fedora).
+
 ## LSP flags
 
 - `--clangd` enable clangd LSP

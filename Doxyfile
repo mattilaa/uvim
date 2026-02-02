@@ -1,0 +1,10 @@
+# Minimal Doxygen config for uvim configuration docs
+PROJECT_NAME           = "uvim"
+OUTPUT_DIRECTORY       = docs/doxygen
+INPUT                  = docs
+FILE_PATTERNS          = *.dox
+RECURSIVE              = NO
+EXTRACT_ALL            = NO
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+QUIET                  = YES

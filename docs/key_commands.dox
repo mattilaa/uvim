@@ -1,0 +1,114 @@
+/**
+\page key_commands Key Commands
+
+This page lists key commands supported by uvim. It mirrors `:help` and
+includes common Normal/Insert/Visual/Command mode bindings.
+
+\section keys_normal Normal mode
+
+\subsection keys_normal_move Movement
+- `h j k l` : left/down/up/right
+- `w b e` : next word / previous word / end of word
+- `0 ^ $` : start of line / first non-blank / end of line
+- `gg` / `G` / `<n>G` : top / bottom / go to line n
+- `Ctrl-f` / `Ctrl-b` : page down / page up
+- `Ctrl-d` / `Ctrl-u` : half page down / up
+- `zz` / `zt` / `zb` : center / top / bottom screen
+- `%` : jump to matching bracket
+
+\subsection keys_normal_edit Editing
+- `i I a A` : insert/append
+- `o O` : new line below/above
+- `x` / `X` : delete char at cursor / before cursor
+- `s` / `S` : substitute char / line (enter insert)
+- `C` / `D` : change / delete to end of line
+- `J` : join lines
+- `r` / `R` : replace char / replace mode
+- `~` : toggle case
+- `p` / `P` : paste after / before
+- `Y` : yank line
+- `u` / `Ctrl-r` : undo / redo
+- `.` : repeat last change
+
+\subsection keys_normal_search Search
+- `/` : project grep search
+- `n` / `N` : next / previous match
+- `*` / `#` : search word under cursor forward / backward
+- `Space-n` : clear search highlights
+- `:/...` / `:? ...` : regex search forward / backward (command mode)
+
+\subsection keys_normal_marks Marks and jumps
+- `m{a-z}` : set mark
+- ``'{a-z}`` / `` `{a-z}`` : jump to mark
+- `Ctrl-o` / `Ctrl-i` : jump back / forward
+- `Ctrl-^` : alternate buffer
+- `Ctrl-g` : show file info
+- `Ctrl-l` : redraw
+
+\subsection keys_normal_g g-commands
+- `gd` : go to definition
+- `gr` : find references
+- `gf` : go to file under cursor
+- `gb` : toggle git blame
+- `gbv` : show commit diff for line under cursor
+- `gl` / `glf` : git log (repo / current file)
+
+\subsection keys_normal_leader Leader (Space)
+- `Space-e` : file browser
+- `Space-b` : buffer browser
+- `Space-s` : grep search
+- `Space-h` : alternate file (header/source)
+- `Space-d` : go to definition
+- `Space-g d` : go to definition
+- `Space-g r` : find references
+- `Space-r r` : find references (LSP)
+- `Space-l i` : LSP info
+- `Space-y` / `Space-p` : yank/paste system clipboard
+- `Space-w` : save file
+- `Space-q` : force quit
+- `Space-x` : file browser
+- `Space-e m` : emoji picker
+
+\section keys_insert Insert mode
+- Type text to insert
+- `Esc` : return to normal mode
+- Autocomplete appears as you type (if enabled)
+
+\section keys_visual Visual mode
+- `v` / `V` / `Ctrl-v` : character / line / block selection
+- `y` : yank selection
+- `d` : delete selection
+- `c` : change selection
+
+\section keys_command Command mode
+- `:` : enter command mode
+- `Ctrl-k` / `Ctrl-j` : previous / next command in history
+- `Ctrl-f` : fuzzy history search
+
+\section keys_file_browser File browser
+- `j/k` or arrows : move
+- `Enter` : open file/directory
+- `h` or `-` : parent directory
+- `.` : toggle hidden files
+- `i` : toggle gitignore
+- `:` : command mode in browser
+- `q` : quit browser
+
+\section keys_grep Grep search mode
+- Type to search
+- `Enter` : open selected match
+- `Ctrl-j` / `Ctrl-k` : move results
+- `Ctrl-d` / `Ctrl-u` : half page down/up
+- `Esc` : exit
+
+\section keys_buffer_browser Buffer browser
+- `j/k` : navigate
+- `Enter` : open
+- `q` : quit
+
+\section keys_misc Misc
+- `Ctrl-e` then `Enter` : emoji picker
+- `Space-e` then `m` : emoji picker
+- Diagnostics popup: `Ctrl-j/k` to navigate fixes, `Enter` to apply, `q` to close
+
+*/
