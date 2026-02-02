@@ -703,6 +703,11 @@ void Editor::requestCompletion()
         e.label = ci.label;
         e.insertText = ci.insertText;
         e.isSnippet = ci.isSnippet;
+        e.kind = ci.kind;
+        e.detail = ci.detail;
+        e.labelDetail = ci.labelDetail;
+        e.labelDescription = ci.labelDescription;
+        e.documentation = ci.documentation;
         completionAll.push_back(std::move(e));
     }
 

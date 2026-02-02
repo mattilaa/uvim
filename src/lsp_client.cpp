@@ -889,6 +889,29 @@ LspClient::completion(const std::string& filePath, int line,
         ci.insertText = it.value("insertText", std::string{});
         int fmt = it.value("insertTextFormat", 1);
         ci.isSnippet = (fmt == 2);
+        ci.kind = it.value("kind", 0);
+        ci.detail = it.value("detail", std::string{});
+        if(it.contains("labelDetails") && it["labelDetails"].is_object())
+        {
+            const json& ld = it["labelDetails"];
+            if(ld.contains("detail") && ld["detail"].is_string())
+                ci.labelDetail = ld["detail"].get<std::string>();
+            if(ld.contains("description") && ld["description"].is_string())
+                ci.labelDescription = ld["description"].get<std::string>();
+        }
+        if(it.contains("documentation"))
+        {
+            const json& doc = it["documentation"];
+            if(doc.is_string())
+            {
+                ci.documentation = doc.get<std::string>();
+            }
+            else if(doc.is_object())
+            {
+                if(doc.contains("value") && doc["value"].is_string())
+                    ci.documentation = doc["value"].get<std::string>();
+            }
+        }
 
         // Prefer textEdit.newText when present.
         if(it.contains("textEdit") && it["textEdit"].is_object())

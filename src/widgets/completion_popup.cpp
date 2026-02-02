@@ -10,6 +10,41 @@
 
 namespace widgets
 {
+static std::string buildCompletionExtras(const CompletionEntry& entry)
+{
+    std::string extra;
+    if(!entry.labelDetail.empty())
+    {
+        bool needsSpace =
+            entry.labelDetail[0] != '(' &&
+            !text_utils::is_space(entry.labelDetail[0]);
+        if(needsSpace)
+            extra.push_back(' ');
+        extra += entry.labelDetail;
+    }
+    if(!entry.labelDescription.empty())
+    {
+        extra.push_back(' ');
+        extra += entry.labelDescription;
+    }
+    return extra;
+}
+
+static std::string truncateToWidth(std::string text, int width)
+{
+    while(text_utils::displayWidth(text) > width)
+        text.pop_back();
+    return text;
+}
+
+static std::string firstLine(std::string text)
+{
+    auto pos = text.find('\n');
+    if(pos != std::string::npos)
+        text.resize(pos);
+    return text;
+}
+
 void drawCompletionPopup(std::string& output, const Editor& editor)
 {
     if(!editor.completionActive || editor.completionFiltered.empty())
@@ -32,7 +67,9 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     for(int i = 0; i < cap; ++i)
     {
         const auto& e = editor.completionAll[editor.completionFiltered[i]];
-        maxW = std::max(maxW, text_utils::displayWidth(e.label));
+        maxW = std::max(
+            maxW, text_utils::displayWidth(e.label) +
+                      text_utils::displayWidth(buildCompletionExtras(e)));
     }
     int innerW = std::max(12, maxW);
     int totalW = innerW + 4;
@@ -42,7 +79,27 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         innerW = std::max(4, totalW - 4);
     }
 
-    int totalH = maxRows + 2;
+    int docRows = 0;
+    std::string docLine;
+    {
+        int sel =
+            editor.completionSelected < (int)editor.completionFiltered.size()
+                ? editor.completionSelected
+                : 0;
+        if(!editor.completionFiltered.empty())
+        {
+            const auto& selEntry =
+                editor.completionAll[editor.completionFiltered[sel]];
+            if(!selEntry.documentation.empty())
+            {
+                docLine = firstLine(selEntry.documentation);
+                if(!docLine.empty())
+                    docRows = 1;
+            }
+        }
+    }
+
+    int totalH = maxRows + 2 + docRows;
     int top = cy + 1;
     if(top + totalH - 1 > editor.screenRows)
         top = cy - totalH + 1;
@@ -100,14 +157,21 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         }
     };
 
-    auto appendSyntaxRow = [&](const std::string& text, bool selected, int kind)
+    auto appendSyntaxRow = [&](const std::string& label,
+                               const std::string& extra, bool selected,
+                               int kind)
     {
         if(!editor.isFileType<FileType::Cpp>())
         {
             if(selected)
                 output += editor.theme.selection();
             output += kindColor(kind);
-            output += text;
+            output += label;
+            if(!extra.empty())
+            {
+                output += editor.theme.uiDim();
+                output += extra;
+            }
             output += editor.theme.reset();
             return;
         }
@@ -118,9 +182,9 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         bool inMarkupFence = false;
         char markupFenceChar = 0;
         std::vector<Token> tokens =
-            editor.tokenizeLine(text, inBlockComment, inTomlMultiline,
+            editor.tokenizeLine(label, inBlockComment, inTomlMultiline,
                                 tomlQuote, inMarkupFence, markupFenceChar);
-        std::vector<TokenType> colors(text.size(), TOKEN_NORMAL);
+        std::vector<TokenType> colors(label.size(), TOKEN_NORMAL);
         bool hasColor = false;
 
         for(const auto& token : tokens)
@@ -128,7 +192,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             if(token.type != TOKEN_NORMAL)
                 hasColor = true;
             int tokenEnd = token.start + token.length;
-            for(int pos = token.start; pos < tokenEnd && pos < (int)text.size();
+            for(int pos = token.start; pos < tokenEnd &&
+                                     pos < (int)label.size();
                 pos++)
             {
                 colors[pos] = token.type;
@@ -141,24 +206,51 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         if(!hasColor)
         {
             output += kindColor(kind);
-            output += text;
+            output += label;
+            if(!extra.empty())
+            {
+                output += editor.theme.uiDim();
+                output += extra;
+            }
             output += editor.theme.reset();
             return;
         }
 
         TokenType current = TOKEN_NORMAL;
-        for(size_t i = 0; i < text.size(); ++i)
+        for(size_t i = 0; i < label.size(); ++i)
         {
             if(colors[i] != current)
             {
                 current = colors[i];
                 output += editor.getColorCode(current);
             }
-            output += text[i];
+            output += label[i];
+        }
+
+        if(!extra.empty())
+        {
+            output += editor.theme.uiDim();
+            output += extra;
         }
 
         output += editor.theme.reset();
     };
+
+    if(docRows == 1)
+    {
+        moveTo(top + 1, left);
+        text_utils::appendU8(output, u8"│");
+        output += " ";
+        std::string doc = truncateToWidth(docLine, innerW);
+        output += editor.theme.uiDim();
+        output += doc;
+        output += editor.theme.reset();
+        int pad = innerW - text_utils::displayWidth(doc);
+        if(pad > 0)
+            output.append(pad, ' ');
+        output += " ";
+        text_utils::appendU8(output, u8"│");
+    }
 
     for(int i = 0; i < maxRows; ++i)
     {
@@ -167,18 +259,31 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             break;
         const auto& e = editor.completionAll[editor.completionFiltered[fidx]];
 
-        moveTo(top + 1 + i, left);
+        moveTo(top + 1 + docRows + i, left);
         text_utils::appendU8(output, u8"│");
         output += " ";
 
         bool sel = (fidx == editor.completionSelected);
 
-        std::string row = e.label;
-        while(text_utils::displayWidth(row) > innerW)
-            row.pop_back();
-        appendSyntaxRow(row, sel, e.kind);
+        std::string label = e.label;
+        std::string extra = buildCompletionExtras(e);
+        int labelW = text_utils::displayWidth(label);
+        if(labelW >= innerW)
+        {
+            label = truncateToWidth(label, innerW);
+            extra.clear();
+        }
+        else
+        {
+            int avail = innerW - labelW;
+            if(!extra.empty())
+                extra = truncateToWidth(extra, avail);
+        }
 
-        int pad = innerW - text_utils::displayWidth(row);
+        appendSyntaxRow(label, extra, sel, e.kind);
+
+        int pad = innerW - (text_utils::displayWidth(label) +
+                            text_utils::displayWidth(extra));
         if(pad > 0)
             output.append(pad, ' ');
 
@@ -189,7 +294,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         text_utils::appendU8(output, u8"│");
     }
 
-    moveTo(top + 1 + maxRows, left);
+    moveTo(top + 1 + docRows + maxRows, left);
     text_utils::appendU8(output, u8"└");
     text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
     text_utils::appendU8(output, u8"┘");

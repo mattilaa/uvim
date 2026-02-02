@@ -19,4 +19,5 @@ struct CompletionEntry
     std::string
         labelDescription;   // labelDetails.description (often return/type)
     std::string filterText; // optional hint for filtering
+    std::string documentation;
 };

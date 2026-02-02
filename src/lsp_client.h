@@ -96,6 +96,11 @@ public:
         std::string label;
         std::string insertText; // may contain snippet syntax
         bool isSnippet = false; // insertTextFormat == 2
+        int kind = 0;
+        std::string detail;
+        std::string labelDetail;
+        std::string labelDescription;
+        std::string documentation;
     };
 
     // Completion items at a given cursor position.
