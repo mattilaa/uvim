@@ -5570,6 +5570,46 @@ void Editor::executeCommand(std::string_view cmd)
     if(handleSetCommand(cmd))
         return;
 
+    auto is_edit_percent = [&](std::string_view command, bool& force) -> bool
+    {
+        std::string_view trimmed = trim_view(command);
+        auto check = [&](std::string_view prefix) -> bool
+        {
+            if(trimmed.rfind(prefix, 0) != 0)
+                return false;
+            std::string_view rest = trim_view(trimmed.substr(prefix.size()));
+            if(!rest.empty() && rest.front() == '!')
+            {
+                force = true;
+                rest = trim_view(rest.substr(1));
+            }
+            return rest == "%";
+        };
+        if(check("e"))
+            return true;
+        if(check("edit"))
+            return true;
+        return false;
+    };
+
+    bool editForce = false;
+    if(is_edit_percent(cmd, editForce))
+    {
+        if(!hasBuffer() || !filename || filename->empty())
+        {
+            setStatusMessage("No file to reload");
+            return;
+        }
+        if(*dirty && !editForce)
+        {
+            setStatusMessage(
+                "No write since last change (use :e!% to discard)");
+            return;
+        }
+        reloadCurrentFile();
+        return;
+    }
+
     if(cmd == "lspinfo")
     {
         showLspInfo();
@@ -9109,12 +9149,12 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "w",       "write",    "q",       "quit",   "q!",    "qa",
         "qall",    "qa!",      "qall!",   "wq",     "x",     "qw",
         "qw!",     "wa",       "wall",    "wa!",    "wqa",   "wqall",
-        "wqa!",    "wqall!",   "xa",      "e",      "edit",  "new",
-        "vnew",    "bn",       "bnext",   "bp",     "bprev", "bd",
-        "bdelete", "ls",       "buffers", "sp",     "split", "vs",
-        "vsplit",  "vh",       "hs",      "hsplit", "only",  "tabnew",
-        "tabc",    "tabclose", "set",     "syntax", "noh",   "nohlsearch",
-        "lspinfo", "emoji",    "em",      "help",   "h"};
+        "wqa!",    "wqall!",   "xa",      "e",      "edit",  "e%",
+        "edit%",   "new",      "vnew",    "bn",     "bnext", "bp",
+        "bprev",   "bd",       "bdelete", "ls",     "buffers", "sp",
+        "split",   "vs",       "vsplit",  "vh",     "hs",    "hsplit",
+        "only",    "tabnew",   "tabc",    "tabclose", "set", "syntax",
+        "noh",     "nohlsearch", "lspinfo", "emoji", "em",   "help", "h"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
@@ -9302,7 +9342,10 @@ void Editor::renameFilePrompt()
 
 void Editor::createNewFilePrompt()
 {
-    setStatusMessage("New file creation not yet implemented");
+    setMode(COMMAND);
+    commandBuffer = ":e ";
+    cancelCommandPopup();
+    needsFullRedraw = true;
 }
 
 void Editor::createNewDirectoryPrompt()
