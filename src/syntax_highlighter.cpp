@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "cpp_constants.h"
 #include "editor.h"
+#include "json_utils.h"
 #include "syntax_state.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -10,7 +11,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <sstream>
 #include <unordered_set>
 
@@ -746,14 +746,15 @@ MlangConfig parse_mlangd(const std::filesystem::path& path)
     // JSON format
     if(!contents.empty() && contents.find('{') != std::string::npos)
     {
-        nlohmann::json root = nlohmann::json::parse(contents, nullptr, false);
-        if(!root.is_discarded() && root.is_object())
+        json_utils::Document root;
+        if(json_utils::parse(root, contents) && root.IsObject())
         {
-            cfg.commandsJson = root.value("commands_json", std::string{});
-            cfg.buildDir = root.value("build_dir", std::string{});
-            if(root.contains("case_insensitive"))
+            cfg.commandsJson = json_utils::get_string(root, "commands_json");
+            cfg.buildDir = json_utils::get_string(root, "build_dir");
+            if(json_utils::has(root, "case_insensitive"))
             {
-                cfg.caseInsensitive = root.value("case_insensitive", false);
+                cfg.caseInsensitive =
+                    json_utils::get_bool(root, "case_insensitive", false);
                 cfg.caseInsensitiveSet = true;
             }
         }
@@ -1085,29 +1086,39 @@ void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
     if(!in)
         return;
 
-    nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
-    if(!root.is_array())
+    json_utils::Document root;
+    if(!json_utils::parse(root, in) || !root.IsArray())
         return;
 
     std::unordered_set<std::string> seen;
 
-    for(const auto& item : root)
+    for(const auto& item : root.GetArray())
     {
-        if(!item.is_object())
+        if(!item.IsObject())
             continue;
-        std::string directory = item.value("directory", baseDir.string());
+        std::string directory =
+            json_utils::get_string(item, "directory", baseDir.string());
         std::vector<std::string> args;
-        if(item.contains("arguments") && item["arguments"].is_array())
+        const json_utils::Value* arguments =
+            json_utils::find(item, "arguments");
+        if(arguments && arguments->IsArray())
         {
-            for(const auto& arg : item["arguments"])
+            for(const auto& arg : arguments->GetArray())
             {
-                if(arg.is_string())
-                    args.push_back(arg.get<std::string>());
+                if(arg.IsString())
+                    args.emplace_back(arg.GetString(), arg.GetStringLength());
             }
         }
-        else if(item.contains("command") && item["command"].is_string())
+        else
         {
-            args = split_command_line(item["command"].get<std::string>());
+            const json_utils::Value* command =
+                json_utils::find(item, "command");
+            if(command && command->IsString())
+            {
+                args = split_command_line(
+                    std::string(command->GetString(),
+                                command->GetStringLength()));
+            }
         }
         if(args.empty())
             continue;
@@ -1474,67 +1485,76 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         if(!in)
             return false;
 
-        nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
-        if(root.is_discarded())
+        json_utils::Document root;
+        if(!json_utils::parse(root, in) || !root.IsObject())
             return false;
 
         if(allowJsonCase)
+        {
             cache.caseInsensitive =
-                root.value("case_insensitive", cache.caseInsensitive);
+                json_utils::get_bool(root, "case_insensitive",
+                                     cache.caseInsensitive);
+        }
 
         auto add_tokens =
-            [&](std::string_view typeName, const nlohmann::json& items)
+            [&](std::string_view typeName, const json_utils::Value& items)
         {
             auto tokenType = parse_token_type(typeName);
-            if(!tokenType || !items.is_array())
+            if(!tokenType || !items.IsArray())
                 return;
 
-            for(const auto& item : items)
+            for(const auto& item : items.GetArray())
             {
-                if(!item.is_string())
+                if(!item.IsString())
                     continue;
-                std::string key = item.get<std::string>();
+                std::string key(item.GetString(), item.GetStringLength());
                 if(cache.caseInsensitive)
                     key = ascii_lower(key);
                 cache.tokenTypes[key] = *tokenType;
             }
         };
 
-        if(root.contains("tokens"))
+        if(json_utils::has(root, "tokens"))
         {
-            const auto& tokens = root["tokens"];
-            if(tokens.is_array())
+            const auto* tokens = json_utils::find(root, "tokens");
+            if(tokens && tokens->IsArray())
             {
-                for(const auto& entry : tokens)
+                for(const auto& entry : tokens->GetArray())
                 {
-                    if(!entry.is_object())
+                    if(!entry.IsObject())
                         continue;
-                    std::string type = entry.value("type", std::string{});
-                    add_tokens(type,
-                               entry.value("items", nlohmann::json::array()));
+                    std::string type =
+                        json_utils::get_string(entry, "type");
+                    if(const auto* items = json_utils::find(entry, "items"))
+                        add_tokens(type, *items);
                 }
             }
-            else if(tokens.is_object())
+            else if(tokens && tokens->IsObject())
             {
-                for(auto it = tokens.begin(); it != tokens.end(); ++it)
+                for(auto it = tokens->MemberBegin();
+                    it != tokens->MemberEnd(); ++it)
                 {
-                    add_tokens(it.key(), it.value());
+                    std::string_view typeName(it->name.GetString(),
+                                              it->name.GetStringLength());
+                    add_tokens(typeName, it->value);
                 }
             }
         }
 
-        if(root.contains("builtin_types"))
+        if(json_utils::has(root, "builtin_types"))
         {
-            const auto& types = root["builtin_types"];
-            if(types.is_array())
+            const auto* types = json_utils::find(root, "builtin_types");
+            if(types && types->IsArray())
             {
-                for(const auto& entry : types)
+                for(const auto& entry : types->GetArray())
                 {
-                    if(!entry.is_object())
+                    if(!entry.IsObject())
                         continue;
-                    std::string name = entry.value("name", std::string{});
-                    std::string path = entry.value("path", std::string{});
-                    int line = entry.value("line", 1);
+                    std::string name =
+                        json_utils::get_string(entry, "name");
+                    std::string path =
+                        json_utils::get_string(entry, "path");
+                    int line = json_utils::get_int(entry, "line", 1);
                     if(name.empty() || path.empty())
                         continue;
                     if(cache.caseInsensitive)
@@ -1547,18 +1567,20 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
-        if(root.contains("builtin_macros"))
+        if(json_utils::has(root, "builtin_macros"))
         {
-            const auto& macros = root["builtin_macros"];
-            if(macros.is_array())
+            const auto* macros = json_utils::find(root, "builtin_macros");
+            if(macros && macros->IsArray())
             {
-                for(const auto& entry : macros)
+                for(const auto& entry : macros->GetArray())
                 {
-                    if(!entry.is_object())
+                    if(!entry.IsObject())
                         continue;
-                    std::string name = entry.value("name", std::string{});
-                    std::string path = entry.value("path", std::string{});
-                    int line = entry.value("line", 1);
+                    std::string name =
+                        json_utils::get_string(entry, "name");
+                    std::string path =
+                        json_utils::get_string(entry, "path");
+                    int line = json_utils::get_int(entry, "line", 1);
                     if(name.empty() || path.empty())
                         continue;
                     if(cache.caseInsensitive)
@@ -1571,18 +1593,20 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
-        if(root.contains("builtin_functions"))
+        if(json_utils::has(root, "builtin_functions"))
         {
-            const auto& fns = root["builtin_functions"];
-            if(fns.is_array())
+            const auto* fns = json_utils::find(root, "builtin_functions");
+            if(fns && fns->IsArray())
             {
-                for(const auto& entry : fns)
+                for(const auto& entry : fns->GetArray())
                 {
-                    if(!entry.is_object())
+                    if(!entry.IsObject())
                         continue;
-                    std::string name = entry.value("name", std::string{});
-                    std::string path = entry.value("path", std::string{});
-                    int line = entry.value("line", 1);
+                    std::string name =
+                        json_utils::get_string(entry, "name");
+                    std::string path =
+                        json_utils::get_string(entry, "path");
+                    int line = json_utils::get_int(entry, "line", 1);
                     if(name.empty() || path.empty())
                         continue;
                     if(cache.caseInsensitive)

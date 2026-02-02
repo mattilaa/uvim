@@ -18,14 +18,13 @@
 #include <unordered_map>
 #include <vector>
 
-#include <nlohmann/json.hpp>
-
+#include "json_utils.h"
 #include "text_utils.h"
 
-using nlohmann::json;
+namespace ju = json_utils;
 
 #ifdef UVIM_DEBUG_LSP
-static void logLspDebug(const std::string& tag, const json& payload)
+static void logLspDebug(const std::string& tag, const ju::Value& payload)
 {
     static std::mutex logMutex;
     std::lock_guard<std::mutex> lk(logMutex);
@@ -33,7 +32,7 @@ static void logLspDebug(const std::string& tag, const json& payload)
     if(!out.is_open())
         return;
     out << "=== " << tag << " ===\n";
-    out << payload.dump(2) << "\n";
+    out << ju::stringify_pretty(payload) << "\n";
 }
 #endif
 
@@ -135,6 +134,28 @@ static std::string uriToPath(const std::string& uri)
     return uri;
 }
 
+static const ju::Value* member_ptr(const ju::Value* obj, const char* key)
+{
+    if(!obj || !obj->IsObject())
+        return nullptr;
+    return ju::find(*obj, key);
+}
+
+static int get_int_member(const ju::Value* obj, const char* key, int def = 0)
+{
+    if(!obj || !obj->IsObject())
+        return def;
+    return ju::get_int(*obj, key, def);
+}
+
+static std::string get_string_member(const ju::Value* obj, const char* key,
+                                     std::string_view def = {})
+{
+    if(!obj || !obj->IsObject())
+        return std::string(def);
+    return ju::get_string(*obj, key, def);
+}
+
 struct LspClient::Impl
 {
     int inFd = -1;  // write to clangd stdin
@@ -148,7 +169,7 @@ struct LspClient::Impl
     std::condition_variable cv;
 
     int nextId = 1;
-    std::unordered_map<int, json> responses;
+    std::unordered_map<int, ju::Document> responses;
 
     std::string rootDir;
     std::unordered_map<std::string, int> docVersion;
@@ -163,7 +184,7 @@ struct LspClient::Impl
     std::vector<std::string> semanticTokenTypes;
     std::vector<std::string> semanticTokenModifiers;
     std::mutex applyMutex;
-    std::vector<json> pendingApplyEdits;
+    std::vector<ju::Document> pendingApplyEdits;
 
     bool sendRaw(const std::string& payload)
     {
@@ -190,7 +211,7 @@ struct LspClient::Impl
         return true;
     }
 
-    int sendRequest(const std::string& method, const json& params)
+    int sendRequest(const std::string& method, const ju::Document& params)
     {
         int id;
         {
@@ -198,26 +219,33 @@ struct LspClient::Impl
             id = nextId++;
         }
 
-        json req;
-        req["jsonrpc"] = "2.0";
-        req["id"] = id;
-        req["method"] = method;
-        req["params"] = params;
+        ju::Document req(rapidjson::kObjectType);
+        auto& alloc = req.GetAllocator();
+        req.AddMember("jsonrpc", "2.0", alloc);
+        req.AddMember("id", id, alloc);
+        req.AddMember("method", ju::make_string(method, alloc), alloc);
+        ju::Value paramsCopy;
+        paramsCopy.CopyFrom(params, alloc);
+        req.AddMember("params", paramsCopy, alloc);
 
-        sendRaw(req.dump());
+        sendRaw(ju::stringify(req));
         return id;
     }
 
-    void sendNotification(const std::string& method, const json& params)
+    void sendNotification(const std::string& method,
+                          const ju::Document& params)
     {
-        json n;
-        n["jsonrpc"] = "2.0";
-        n["method"] = method;
-        n["params"] = params;
-        sendRaw(n.dump());
+        ju::Document n(rapidjson::kObjectType);
+        auto& alloc = n.GetAllocator();
+        n.AddMember("jsonrpc", "2.0", alloc);
+        n.AddMember("method", ju::make_string(method, alloc), alloc);
+        ju::Value paramsCopy;
+        paramsCopy.CopyFrom(params, alloc);
+        n.AddMember("params", paramsCopy, alloc);
+        sendRaw(ju::stringify(n));
     }
 
-    std::optional<json> waitResponse(int id, int timeoutMs = 3000)
+    std::optional<ju::Document> waitResponse(int id, int timeoutMs = 3000)
     {
         std::unique_lock<std::mutex> lk(m);
         if(!cv.wait_for(lk, std::chrono::milliseconds(timeoutMs),
@@ -232,7 +260,7 @@ struct LspClient::Impl
         auto it = responses.find(id);
         if(it == responses.end())
             return std::nullopt;
-        json resp = it->second;
+        ju::Document resp = std::move(it->second);
         responses.erase(it);
         return resp;
     }
@@ -288,91 +316,75 @@ struct LspClient::Impl
                 std::string payload = buf.substr(payloadStart, contentLen);
                 buf.erase(0, payloadStart + contentLen);
 
-                json msg;
-                try
-                {
-                    msg = json::parse(payload);
-                }
-                catch(...)
-                {
+                ju::Document msg;
+                if(!ju::parse(msg, payload))
                     continue;
-                }
 
-                if(msg.contains("id"))
+                if(const ju::Value* idVal = ju::find(msg, "id"))
                 {
                     int id = -1;
-                    try
-                    {
-                        id = msg["id"].get<int>();
-                    }
-                    catch(...)
-                    {
-                        // ignore
-                    }
+                    if(idVal->IsInt())
+                        id = idVal->GetInt();
                     if(id != -1)
                     {
                         std::lock_guard<std::mutex> lk(m);
-                        responses[id] = msg;
+                        responses[id] = std::move(msg);
                         cv.notify_all();
                     }
                 }
-                else if(msg.contains("method") && msg["method"].is_string())
+                else if(const ju::Value* methodVal = ju::find(msg, "method");
+                        methodVal && methodVal->IsString())
                 {
-                    std::string method = msg["method"].get<std::string>();
+                    std::string method(methodVal->GetString(),
+                                       methodVal->GetStringLength());
                     if(method == "textDocument/publishDiagnostics")
                     {
-                        json params = msg.value("params", json::object());
-                        std::string uri = params.value("uri", "");
+                        const ju::Value* params = ju::find(msg, "params");
+                        std::string uri = get_string_member(params, "uri");
                         if(!uri.empty())
                         {
                             std::string path = absPath(uriToPath(uri));
                             std::vector<LspClient::Diagnostic> diags;
-                            if(params.contains("diagnostics") &&
-                               params["diagnostics"].is_array())
+                            const ju::Value* diagnostics =
+                                member_ptr(params, "diagnostics");
+                            if(diagnostics && diagnostics->IsArray())
                             {
-                                const json& entries = params["diagnostics"];
-                                diags.reserve(entries.size());
-                                for(const auto& item : entries)
+                                diags.reserve(diagnostics->Size());
+                                for(const auto& item :
+                                    diagnostics->GetArray())
                                 {
-                                    if(!item.is_object())
+                                    if(!item.IsObject())
                                         continue;
-                                    json range =
-                                        item.value("range", json::object());
-                                    json start =
-                                        range.value("start", json::object());
-                                    json end =
-                                        range.value("end", json::object());
+                                    const ju::Value* range =
+                                        ju::find(item, "range");
+                                    const ju::Value* start =
+                                        member_ptr(range, "start");
+                                    const ju::Value* end =
+                                        member_ptr(range, "end");
                                     LspClient::Diagnostic diag;
-                                    diag.line = start.value("line", 0);
-                                    diag.character =
-                                        start.value("character", 0);
-                                    diag.endLine = end.value("line", diag.line);
-                                    diag.endCharacter =
-                                        end.value("character", diag.character);
-                                    diag.severity = item.value("severity", 0);
-                                    diag.message =
-                                        item.value("message", std::string{});
-                                    diag.source =
-                                        item.value("source", std::string{});
-                                    if(item.contains("code"))
+                                    diag.line =
+                                        get_int_member(start, "line", 0);
+                                    diag.character = get_int_member(
+                                        start, "character", 0);
+                                    diag.endLine = get_int_member(
+                                        end, "line", diag.line);
+                                    diag.endCharacter = get_int_member(
+                                        end, "character", diag.character);
+                                    diag.severity =
+                                        get_int_member(&item, "severity", 0);
+                                    diag.message = get_string_member(
+                                        &item, "message");
+                                    diag.source = get_string_member(
+                                        &item, "source");
+                                    if(const ju::Value* code =
+                                           ju::find(item, "code"))
                                     {
-                                        try
-                                        {
-                                            diag.codeJson = item["code"].dump();
-                                        }
-                                        catch(...)
-                                        {
-                                        }
+                                        diag.codeJson = ju::stringify(*code);
                                     }
-                                    if(item.contains("data"))
+                                    if(const ju::Value* data =
+                                           ju::find(item, "data"))
                                     {
-                                        try
-                                        {
-                                            diag.dataJson = item["data"].dump();
-                                        }
-                                        catch(...)
-                                        {
-                                        }
+                                        diag.dataJson = ju::stringify(*data);
                                     }
                                     diags.push_back(std::move(diag));
                                 }
@@ -386,20 +398,27 @@ struct LspClient::Impl
                     }
                     else if(method == "workspace/applyEdit")
                     {
-                        json params = msg.value("params", json::object());
-                        if(params.contains("edit"))
+                        const ju::Value* params = ju::find(msg, "params");
+                        const ju::Value* edit = member_ptr(params, "edit");
+                        if(edit)
                         {
                             std::lock_guard<std::mutex> lk(applyMutex);
-                            pendingApplyEdits.push_back(
-                                params.value("edit", json::object()));
+                            ju::Document editDoc;
+                            editDoc.CopyFrom(*edit, editDoc.GetAllocator());
+                            pendingApplyEdits.push_back(std::move(editDoc));
                         }
-                        if(msg.contains("id"))
+                        if(const ju::Value* reqId = ju::find(msg, "id"))
                         {
-                            json resp;
-                            resp["jsonrpc"] = "2.0";
-                            resp["id"] = msg["id"];
-                            resp["result"] = {{"applied", true}};
-                            sendRaw(resp.dump());
+                            ju::Document resp(rapidjson::kObjectType);
+                            auto& alloc = resp.GetAllocator();
+                            resp.AddMember("jsonrpc", "2.0", alloc);
+                            ju::Value idCopy;
+                            idCopy.CopyFrom(*reqId, alloc);
+                            resp.AddMember("id", idCopy, alloc);
+                            ju::Value result(rapidjson::kObjectType);
+                            result.AddMember("applied", true, alloc);
+                            resp.AddMember("result", result, alloc);
+                            sendRaw(ju::stringify(resp));
                         }
                     }
                 }
@@ -458,57 +477,91 @@ struct LspClient::Impl
 
     bool initialize(const std::string& rootDir)
     {
-        json params;
-        params["processId"] = (int)getpid();
-        params["rootUri"] = pathToFileUri(rootDir);
-        params["rootPath"] = absPath(rootDir);
-        params["workspaceFolders"] = json::array({json{
-            {"uri", pathToFileUri(rootDir)},
-            {"name", std::filesystem::path(rootDir).filename().string()}}});
+        ju::Document params(rapidjson::kObjectType);
+        auto& alloc = params.GetAllocator();
+        params.AddMember("processId", (int)getpid(), alloc);
+        params.AddMember("rootUri", ju::make_string(pathToFileUri(rootDir), alloc),
+                         alloc);
+        params.AddMember("rootPath", ju::make_string(absPath(rootDir), alloc),
+                         alloc);
+        ju::Value workspaceFolders(rapidjson::kArrayType);
+        ju::Value workspaceFolder(rapidjson::kObjectType);
+        workspaceFolder.AddMember("uri",
+                                  ju::make_string(pathToFileUri(rootDir),
+                                                  alloc),
+                                  alloc);
+        workspaceFolder.AddMember(
+            "name",
+            ju::make_string(
+                std::filesystem::path(rootDir).filename().string(), alloc),
+            alloc);
+        workspaceFolders.PushBack(workspaceFolder, alloc);
+        params.AddMember("workspaceFolders", workspaceFolders, alloc);
         if(semanticTokenTypes.empty())
             semanticTokenTypes = defaultSemanticTokenTypes();
         if(semanticTokenModifiers.empty())
             semanticTokenModifiers = defaultSemanticTokenModifiers();
-        json semCaps;
-        semCaps["dynamicRegistration"] = false;
-        semCaps["requests"] = {{"range", false}, {"full", true}};
-        semCaps["tokenTypes"] = semanticTokenTypes;
-        semCaps["tokenModifiers"] = semanticTokenModifiers;
-        semCaps["formats"] = json::array({"relative"});
+        ju::Value semCaps(rapidjson::kObjectType);
+        semCaps.AddMember("dynamicRegistration", false, alloc);
+        ju::Value requests(rapidjson::kObjectType);
+        requests.AddMember("range", false, alloc);
+        requests.AddMember("full", true, alloc);
+        semCaps.AddMember("requests", requests, alloc);
+        ju::Value tokenTypes(rapidjson::kArrayType);
+        for(const auto& t : semanticTokenTypes)
+            tokenTypes.PushBack(ju::make_string(t, alloc), alloc);
+        semCaps.AddMember("tokenTypes", tokenTypes, alloc);
+        ju::Value tokenModifiers(rapidjson::kArrayType);
+        for(const auto& m : semanticTokenModifiers)
+            tokenModifiers.PushBack(ju::make_string(m, alloc), alloc);
+        semCaps.AddMember("tokenModifiers", tokenModifiers, alloc);
+        ju::Value formats(rapidjson::kArrayType);
+        formats.PushBack("relative", alloc);
+        semCaps.AddMember("formats", formats, alloc);
 
-        params["capabilities"] = {
-            {"textDocument", {{"semanticTokens", semCaps}}}};
+        ju::Value textDocument(rapidjson::kObjectType);
+        textDocument.AddMember("semanticTokens", semCaps, alloc);
+        ju::Value capabilities(rapidjson::kObjectType);
+        capabilities.AddMember("textDocument", textDocument, alloc);
+        params.AddMember("capabilities", capabilities, alloc);
 
         int id = sendRequest("initialize", params);
         auto resp = waitResponse(id, 5000);
         if(!resp)
             return false;
-        if(resp->is_object())
+        if(resp->IsObject())
         {
-            json result = resp->value("result", json::object());
-            json caps = result.value("capabilities", json::object());
-            json sem = caps.value("semanticTokensProvider", json::object());
-            json legend = sem.value("legend", json::object());
-            if(legend.contains("tokenTypes") &&
-               legend["tokenTypes"].is_array())
+            const ju::Value* result = ju::find(*resp, "result");
+            const ju::Value* caps =
+                result ? ju::find(*result, "capabilities") : nullptr;
+            const ju::Value* sem =
+                caps ? ju::find(*caps, "semanticTokensProvider") : nullptr;
+            const ju::Value* legend =
+                sem ? ju::find(*sem, "legend") : nullptr;
+            const ju::Value* tokenTypesVal =
+                legend ? ju::find(*legend, "tokenTypes") : nullptr;
+            if(tokenTypesVal && tokenTypesVal->IsArray())
             {
                 std::vector<std::string> types;
-                for(const auto& item : legend["tokenTypes"])
+                for(const auto& item : tokenTypesVal->GetArray())
                 {
-                    if(item.is_string())
-                        types.push_back(item.get<std::string>());
+                    if(item.IsString())
+                        types.emplace_back(item.GetString(),
+                                           item.GetStringLength());
                 }
                 if(!types.empty())
                     semanticTokenTypes = std::move(types);
             }
-            if(legend.contains("tokenModifiers") &&
-               legend["tokenModifiers"].is_array())
+            const ju::Value* tokenModsVal =
+                legend ? ju::find(*legend, "tokenModifiers") : nullptr;
+            if(tokenModsVal && tokenModsVal->IsArray())
             {
                 std::vector<std::string> mods;
-                for(const auto& item : legend["tokenModifiers"])
+                for(const auto& item : tokenModsVal->GetArray())
                 {
-                    if(item.is_string())
-                        mods.push_back(item.get<std::string>());
+                    if(item.IsString())
+                        mods.emplace_back(item.GetString(),
+                                          item.GetStringLength());
                 }
                 if(!mods.empty())
                     semanticTokenModifiers = std::move(mods);
@@ -516,7 +569,8 @@ struct LspClient::Impl
         }
 
         // Send initialized notification
-        sendNotification("initialized", json::object());
+        ju::Document initParams(rapidjson::kObjectType);
+        sendNotification("initialized", initParams);
         return true;
     }
 };
@@ -594,9 +648,11 @@ void LspClient::stop()
         // best-effort shutdown
         try
         {
-            int id = impl->sendRequest("shutdown", json::object());
+            ju::Document params(rapidjson::kObjectType);
+            int id = impl->sendRequest("shutdown", params);
             (void)impl->waitResponse(id, 1000);
-            impl->sendNotification("exit", json::object());
+            ju::Document exitParams(rapidjson::kObjectType);
+            impl->sendNotification("exit", exitParams);
         }
         catch(...)
         {
@@ -640,13 +696,14 @@ void LspClient::didOpen(const std::string& filePath,
     int ver = 1;
     impl->docVersion[abs] = ver;
 
-    json params;
-    params["textDocument"] = {
-        {"uri", pathToFileUri(abs)},
-        {"languageId", languageId},
-        {"version", ver},
-        {"text", text},
-    };
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    textDoc.AddMember("languageId", ju::make_string(languageId, alloc), alloc);
+    textDoc.AddMember("version", ver, alloc);
+    textDoc.AddMember("text", ju::make_string(text, alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
     impl->sendNotification("textDocument/didOpen", params);
 }
 
@@ -673,10 +730,18 @@ void LspClient::didChange(const std::string& filePath, const std::string& text,
 
     int ver = ++it0->second;
 
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}, {"version", ver}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    textDoc.AddMember("version", ver, alloc);
+    params.AddMember("textDocument", textDoc, alloc);
     // Full-text sync
-    params["contentChanges"] = json::array({json{{"text", text}}});
+    ju::Value changes(rapidjson::kArrayType);
+    ju::Value change(rapidjson::kObjectType);
+    change.AddMember("text", ju::make_string(text, alloc), alloc);
+    changes.PushBack(change, alloc);
+    params.AddMember("contentChanges", changes, alloc);
     impl->sendNotification("textDocument/didChange", params);
 }
 
@@ -686,49 +751,55 @@ void LspClient::didSave(const std::string& filePath)
         return;
 
     std::string abs = absPath(filePath);
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
     impl->sendNotification("textDocument/didSave", params);
 }
 
 static std::optional<LspClient::Location>
-parseDefinitionResult(const json& result)
+parseDefinitionResult(const ju::Value* result)
 {
     // clangd may return Location | Location[] | LocationLink[]
-    if(result.is_null())
+    if(!result || result->IsNull())
         return std::nullopt;
 
     auto parseLocationObj =
-        [](const json& loc) -> std::optional<LspClient::Location>
+        [](const ju::Value& loc) -> std::optional<LspClient::Location>
     {
-        if(!loc.is_object())
+        if(!loc.IsObject())
             return std::nullopt;
 
         std::string uri;
-        json range;
+        const ju::Value* range = nullptr;
 
-        if(loc.contains("uri"))
+        if(const ju::Value* uriVal = ju::find(loc, "uri"))
         {
-            uri = loc.value("uri", "");
-            range = loc.value("range", json::object());
+            if(uriVal->IsString())
+                uri.assign(uriVal->GetString(), uriVal->GetStringLength());
+            range = ju::find(loc, "range");
         }
-        else if(loc.contains("targetUri"))
+        else if(const ju::Value* targetUriVal = ju::find(loc, "targetUri"))
         {
             // LocationLink
-            uri = loc.value("targetUri", "");
-            range = loc.value("targetRange", json::object());
+            if(targetUriVal->IsString())
+                uri.assign(targetUriVal->GetString(),
+                           targetUriVal->GetStringLength());
+            range = ju::find(loc, "targetRange");
         }
         else
         {
             return std::nullopt;
         }
 
-        if(uri.empty() || !range.is_object())
+        if(uri.empty() || !range || !range->IsObject())
             return std::nullopt;
 
-        json start = range.value("start", json::object());
-        int line = start.value("line", 0);
-        int ch = start.value("character", 0);
+        const ju::Value* start = ju::find(*range, "start");
+        int line = get_int_member(start, "line", 0);
+        int ch = get_int_member(start, "character", 0);
 
         LspClient::Location out;
         out.path = uriToPath(uri);
@@ -737,10 +808,10 @@ parseDefinitionResult(const json& result)
         return out;
     };
 
-    if(result.is_array() && !result.empty())
-        return parseLocationObj(result[0]);
-    if(result.is_object())
-        return parseLocationObj(result);
+    if(result->IsArray() && result->Size() > 0)
+        return parseLocationObj((*result)[0]);
+    if(result->IsObject())
+        return parseLocationObj(*result);
     return std::nullopt;
 }
 
@@ -782,19 +853,25 @@ LspClient::definition(const std::string& filePath, int line,
         }
     }
 
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["position"] = {{"line", line}, {"character", utf16ch}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value pos(rapidjson::kObjectType);
+    pos.AddMember("line", line, alloc);
+    pos.AddMember("character", utf16ch, alloc);
+    params.AddMember("position", pos, alloc);
 
     int id = impl->sendRequest("textDocument/definition", params);
     auto resp = impl->waitResponse(id, 5000);
-    if(!resp || !resp->is_object())
+    if(!resp || !resp->IsObject())
         return std::nullopt;
 
-    if(resp->contains("error"))
+    if(ju::has(*resp, "error"))
         return std::nullopt;
 
-    json result = resp->value("result", json());
+    const ju::Value* result = ju::find(*resp, "result");
     return parseDefinitionResult(result);
 }
 
@@ -841,85 +918,105 @@ LspClient::completion(const std::string& filePath, int line,
         }
     }
 
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["position"] = {{"line", line}, {"character", utf16ch}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value pos(rapidjson::kObjectType);
+    pos.AddMember("line", line, alloc);
+    pos.AddMember("character", utf16ch, alloc);
+    params.AddMember("position", pos, alloc);
     // Minimal context; clangd is fine without it, but it helps some servers.
-    params["context"] = {{"triggerKind", triggerKind}};
+    ju::Value ctx(rapidjson::kObjectType);
+    ctx.AddMember("triggerKind", triggerKind, alloc);
     if(triggerCharacter != '\0')
     {
         std::string tc(1, triggerCharacter);
-        params["context"]["triggerCharacter"] = tc;
+        ctx.AddMember("triggerCharacter", ju::make_string(tc, alloc), alloc);
     }
+    params.AddMember("context", ctx, alloc);
 
     int id = impl->sendRequest("textDocument/completion", params);
     auto resp = impl->waitResponse(id, 5000);
-    if(!resp || !resp->is_object())
+    if(!resp || !resp->IsObject())
         return out;
-    if(resp->contains("error"))
+    if(ju::has(*resp, "error"))
         return out;
 
-    json result = resp->value("result", json());
-    json items;
-
-    if(result.is_array())
+    const ju::Value* result = ju::find(*resp, "result");
+    const ju::Value* items = nullptr;
+    if(result)
     {
-        items = result;
+        if(result->IsArray())
+        {
+            items = result;
+        }
+        else if(result->IsObject())
+        {
+            const ju::Value* itemsVal = ju::find(*result, "items");
+            if(itemsVal)
+                items = itemsVal;
+            else
+                items = ju::find(*result, "result");
+        }
     }
-    else if(result.is_object())
-    {
-        if(result.contains("items"))
-            items = result["items"];
-        else if(result.contains("result"))
-            items = result["result"];
-    }
 
-    if(!items.is_array())
+    if(!items || !items->IsArray())
         return out;
 
-    out.reserve(std::min<size_t>(items.size(), 64));
-    for(size_t i = 0; i < items.size() && out.size() < 64; ++i)
+    out.reserve(std::min<size_t>(items->Size(), 64));
+    for(size_t i = 0; i < items->Size() && out.size() < 64; ++i)
     {
-        const json& it = items[i];
-        if(!it.is_object())
+        const ju::Value& it = (*items)[i];
+        if(!it.IsObject())
             continue;
 
         CompletionItem ci;
-        ci.label = it.value("label", std::string{});
-        ci.insertText = it.value("insertText", std::string{});
-        int fmt = it.value("insertTextFormat", 1);
+        ci.label = get_string_member(&it, "label");
+        ci.insertText = get_string_member(&it, "insertText");
+        int fmt = get_int_member(&it, "insertTextFormat", 1);
         ci.isSnippet = (fmt == 2);
-        ci.kind = it.value("kind", 0);
-        ci.detail = it.value("detail", std::string{});
-        if(it.contains("labelDetails") && it["labelDetails"].is_object())
+        ci.kind = get_int_member(&it, "kind", 0);
+        ci.detail = get_string_member(&it, "detail");
+        const ju::Value* labelDetails = ju::find(it, "labelDetails");
+        if(labelDetails && labelDetails->IsObject())
         {
-            const json& ld = it["labelDetails"];
-            if(ld.contains("detail") && ld["detail"].is_string())
-                ci.labelDetail = ld["detail"].get<std::string>();
-            if(ld.contains("description") && ld["description"].is_string())
-                ci.labelDescription = ld["description"].get<std::string>();
+            const ju::Value* detail = ju::find(*labelDetails, "detail");
+            if(detail && detail->IsString())
+                ci.labelDetail.assign(detail->GetString(),
+                                      detail->GetStringLength());
+            const ju::Value* desc = ju::find(*labelDetails, "description");
+            if(desc && desc->IsString())
+                ci.labelDescription.assign(desc->GetString(),
+                                           desc->GetStringLength());
         }
-        if(it.contains("documentation"))
+        const ju::Value* docVal = ju::find(it, "documentation");
+        if(docVal)
         {
-            const json& doc = it["documentation"];
-            if(doc.is_string())
+            if(docVal->IsString())
             {
-                ci.documentation = doc.get<std::string>();
+                ci.documentation.assign(docVal->GetString(),
+                                        docVal->GetStringLength());
             }
-            else if(doc.is_object())
+            else if(docVal->IsObject())
             {
-                if(doc.contains("value") && doc["value"].is_string())
-                    ci.documentation = doc["value"].get<std::string>();
+                const ju::Value* value = ju::find(*docVal, "value");
+                if(value && value->IsString())
+                    ci.documentation.assign(value->GetString(),
+                                            value->GetStringLength());
             }
         }
 
         // Prefer textEdit.newText when present.
-        if(it.contains("textEdit") && it["textEdit"].is_object())
+        const ju::Value* textEdit = ju::find(it, "textEdit");
+        if(textEdit && textEdit->IsObject())
         {
-            const json& te = it["textEdit"];
-            if(te.contains("newText") && te["newText"].is_string())
+            const ju::Value* newText = ju::find(*textEdit, "newText");
+            if(newText && newText->IsString())
             {
-                ci.insertText = te["newText"].get<std::string>();
+                ci.insertText.assign(newText->GetString(),
+                                     newText->GetStringLength());
             }
         }
 
@@ -967,40 +1064,48 @@ LspClient::references(const std::string& filePath, int line,
         }
     }
 
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["position"] = {{"line", line}, {"character", utf16ch}};
-    params["context"] = {{"includeDeclaration", includeDeclaration}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value pos(rapidjson::kObjectType);
+    pos.AddMember("line", line, alloc);
+    pos.AddMember("character", utf16ch, alloc);
+    params.AddMember("position", pos, alloc);
+    ju::Value ctx(rapidjson::kObjectType);
+    ctx.AddMember("includeDeclaration", includeDeclaration, alloc);
+    params.AddMember("context", ctx, alloc);
 
     int id = impl->sendRequest("textDocument/references", params);
     auto resp = impl->waitResponse(id, 10000); // 10s timeout for references
-    if(!resp || !resp->is_object())
+    if(!resp || !resp->IsObject())
         return out;
 
-    if(resp->contains("error"))
+    if(ju::has(*resp, "error"))
         return out;
 
-    json result = resp->value("result", json());
-    if(!result.is_array())
+    const ju::Value* result = ju::find(*resp, "result");
+    if(!result || !result->IsArray())
         return out;
 
-    out.reserve(result.size());
-    for(const auto& loc : result)
+    out.reserve(result->Size());
+    for(const auto& loc : result->GetArray())
     {
-        if(!loc.is_object())
+        if(!loc.IsObject())
             continue;
 
-        std::string uri = loc.value("uri", "");
+        std::string uri = get_string_member(&loc, "uri");
         if(uri.empty())
             continue;
 
-        json range = loc.value("range", json::object());
-        if(!range.is_object())
+        const ju::Value* range = ju::find(loc, "range");
+        if(!range || !range->IsObject())
             continue;
 
-        json startPos = range.value("start", json::object());
-        int locLine = startPos.value("line", 0);
-        int locChar = startPos.value("character", 0);
+        const ju::Value* startPos = ju::find(*range, "start");
+        int locLine = get_int_member(startPos, "line", 0);
+        int locChar = get_int_member(startPos, "character", 0);
 
         Location l;
         l.path = uriToPath(uri);
@@ -1047,147 +1152,137 @@ size_t LspClient::diagnosticsRevision(const std::string& filePath) const
 }
 
 static std::vector<LspClient::TextEdit>
-parseTextEditsForUri(const json& edits, const std::string& targetPath)
+parseTextEditsForUri(const ju::Value* edits, const std::string& targetPath)
 {
     std::vector<LspClient::TextEdit> out;
-    if(!edits.is_array())
+    if(!edits || !edits->IsArray())
         return out;
 
-    for(const auto& edit : edits)
+    for(const auto& edit : edits->GetArray())
     {
-        if(!edit.is_object())
+        if(!edit.IsObject())
             continue;
-        json range = edit.value("range", json::object());
-        json start = range.value("start", json::object());
-        json end = range.value("end", json::object());
+        const ju::Value* range = ju::find(edit, "range");
+        const ju::Value* start = member_ptr(range, "start");
+        const ju::Value* end = member_ptr(range, "end");
         LspClient::TextEdit te;
-        te.startLine = start.value("line", 0);
-        te.startCharacter = start.value("character", 0);
-        te.endLine = end.value("line", te.startLine);
-        te.endCharacter = end.value("character", te.startCharacter);
-        te.newText = edit.value("newText", std::string{});
+        te.startLine = get_int_member(start, "line", 0);
+        te.startCharacter = get_int_member(start, "character", 0);
+        te.endLine = get_int_member(end, "line", te.startLine);
+        te.endCharacter = get_int_member(end, "character", te.startCharacter);
+        te.newText = get_string_member(&edit, "newText");
         out.push_back(std::move(te));
     }
 
     return out;
 }
 
-static void parseWorkspaceEditInto(const json& editObj,
+static void parseWorkspaceEditInto(const ju::Value* editObj,
                                    const std::string& filePath,
                                    std::vector<LspClient::TextEdit>& out)
 {
-    if(!editObj.is_object())
+    if(!editObj || !editObj->IsObject())
         return;
-    if(editObj.contains("changes") && editObj["changes"].is_object())
+    const ju::Value* changes = ju::find(*editObj, "changes");
+    if(changes && changes->IsObject())
     {
-        const json& changes = editObj["changes"];
-        for(auto it = changes.begin(); it != changes.end(); ++it)
+        for(auto it = changes->MemberBegin(); it != changes->MemberEnd();
+            ++it)
         {
-            std::string path = uriToPath(it.key());
+            std::string path(it->name.GetString(),
+                             it->name.GetStringLength());
+            path = uriToPath(path);
             if(absPath(path) != absPath(filePath))
                 continue;
             std::vector<LspClient::TextEdit> edits =
-                parseTextEditsForUri(it.value(), path);
+                parseTextEditsForUri(&it->value, path);
             out.insert(out.end(), edits.begin(), edits.end());
         }
         return;
     }
-    if(editObj.contains("documentChanges") &&
-       editObj["documentChanges"].is_array())
+    const ju::Value* documentChanges =
+        ju::find(*editObj, "documentChanges");
+    if(documentChanges && documentChanges->IsArray())
     {
-        for(const auto& change : editObj["documentChanges"])
+        for(const auto& change : documentChanges->GetArray())
         {
-            if(!change.is_object())
+            if(!change.IsObject())
                 continue;
-            json textDoc = change.value("textDocument", json::object());
-            std::string uri = textDoc.value("uri", std::string{});
+            const ju::Value* textDoc = ju::find(change, "textDocument");
+            std::string uri = get_string_member(textDoc, "uri");
             if(uri.empty())
                 continue;
             std::string path = uriToPath(uri);
             if(absPath(path) != absPath(filePath))
                 continue;
             std::vector<LspClient::TextEdit> edits = parseTextEditsForUri(
-                change.value("edits", json::array()), path);
+                ju::find(change, "edits"), path);
             out.insert(out.end(), edits.begin(), edits.end());
         }
     }
 }
 
-static void fillCodeActionFromJson(const json& item,
+static void fillCodeActionFromJson(const ju::Value& item,
                                    const std::string& filePath,
                                    LspClient::CodeAction& action)
 {
-    if(!item.is_object())
+    if(!item.IsObject())
         return;
     if(action.title.empty())
-        action.title = item.value("title", std::string{});
+        action.title = get_string_member(&item, "title");
 
-    if(item.contains("edit"))
+    if(const ju::Value* edit = ju::find(item, "edit"))
     {
-        parseWorkspaceEditInto(item.value("edit", json::object()), filePath,
-                               action.edits);
+        parseWorkspaceEditInto(edit, filePath, action.edits);
     }
 
-    if(item.contains("command") && item["command"].is_string())
+    const ju::Value* command = ju::find(item, "command");
+    if(command && command->IsString())
     {
         if(action.command.empty())
-            action.command = item.value("command", std::string{});
-        json args = item.value("arguments", json::array());
-        if(args.is_array())
+            action.command =
+                std::string(command->GetString(), command->GetStringLength());
+        const ju::Value* args = ju::find(item, "arguments");
+        if(args && args->IsArray())
         {
-            for(const auto& arg : args)
+            for(const auto& arg : args->GetArray())
             {
-                try
-                {
-                    action.commandArgsJson.push_back(arg.dump());
-                }
-                catch(...)
-                {
-                }
-                if(!arg.is_object())
+                action.commandArgsJson.push_back(ju::stringify(arg));
+                if(!arg.IsObject())
                     continue;
-                if(arg.contains("workspaceEdit"))
+                if(const ju::Value* wsEdit = ju::find(arg, "workspaceEdit"))
                 {
                     parseWorkspaceEditInto(
-                        arg.value("workspaceEdit", json::object()), filePath,
-                        action.edits);
+                        wsEdit, filePath, action.edits);
                 }
                 else
                 {
-                    parseWorkspaceEditInto(arg, filePath, action.edits);
+                    parseWorkspaceEditInto(&arg, filePath, action.edits);
                 }
             }
         }
     }
 
-    if(item.contains("command") && item["command"].is_object())
+    if(command && command->IsObject())
     {
-        json cmd = item["command"];
         if(action.command.empty())
-            action.command = cmd.value("command", std::string{});
-        json args = cmd.value("arguments", json::array());
-        if(args.is_array())
+            action.command = get_string_member(command, "command");
+        const ju::Value* args = ju::find(*command, "arguments");
+        if(args && args->IsArray())
         {
-            for(const auto& arg : args)
+            for(const auto& arg : args->GetArray())
             {
-                try
-                {
-                    action.commandArgsJson.push_back(arg.dump());
-                }
-                catch(...)
-                {
-                }
-                if(!arg.is_object())
+                action.commandArgsJson.push_back(ju::stringify(arg));
+                if(!arg.IsObject())
                     continue;
-                if(arg.contains("workspaceEdit"))
+                if(const ju::Value* wsEdit = ju::find(arg, "workspaceEdit"))
                 {
                     parseWorkspaceEditInto(
-                        arg.value("workspaceEdit", json::object()), filePath,
-                        action.edits);
+                        wsEdit, filePath, action.edits);
                 }
                 else
                 {
-                    parseWorkspaceEditInto(arg, filePath, action.edits);
+                    parseWorkspaceEditInto(&arg, filePath, action.edits);
                 }
             }
         }
@@ -1208,96 +1303,129 @@ LspClient::codeActions(const std::string& filePath, int line,
     int endCharUtf16 = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
                                                          (int)lineText.size());
 
-    json diagArray = json::array();
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value diagArray(rapidjson::kArrayType);
     for(const auto& d : diagnostics)
     {
-        json range;
-        range["start"] = {{"line", d.line}, {"character", d.character}};
-        range["end"] = {{"line", d.endLine}, {"character", d.endCharacter}};
-        json jd;
-        jd["range"] = range;
+        ju::Value range(rapidjson::kObjectType);
+        ju::Value start(rapidjson::kObjectType);
+        start.AddMember("line", d.line, alloc);
+        start.AddMember("character", d.character, alloc);
+        ju::Value end(rapidjson::kObjectType);
+        end.AddMember("line", d.endLine, alloc);
+        end.AddMember("character", d.endCharacter, alloc);
+        range.AddMember("start", start, alloc);
+        range.AddMember("end", end, alloc);
+        ju::Value jd(rapidjson::kObjectType);
+        jd.AddMember("range", range, alloc);
         if(d.severity > 0)
-            jd["severity"] = d.severity;
+            jd.AddMember("severity", d.severity, alloc);
         if(!d.message.empty())
-            jd["message"] = d.message;
+            jd.AddMember("message", ju::make_string(d.message, alloc), alloc);
         if(!d.source.empty())
-            jd["source"] = d.source;
+            jd.AddMember("source", ju::make_string(d.source, alloc), alloc);
         if(!d.codeJson.empty())
         {
-            try
+            ju::Document codeDoc;
+            if(ju::parse(codeDoc, d.codeJson))
             {
-                jd["code"] = json::parse(d.codeJson);
-            }
-            catch(...)
-            {
+                ju::Value codeValue;
+                codeValue.CopyFrom(codeDoc, alloc);
+                jd.AddMember("code", codeValue, alloc);
             }
         }
         if(!d.dataJson.empty())
         {
-            try
+            ju::Document dataDoc;
+            if(ju::parse(dataDoc, d.dataJson))
             {
-                jd["data"] = json::parse(d.dataJson);
-            }
-            catch(...)
-            {
+                ju::Value dataValue;
+                dataValue.CopyFrom(dataDoc, alloc);
+                jd.AddMember("data", dataValue, alloc);
             }
         }
-        diagArray.push_back(jd);
+        diagArray.PushBack(jd, alloc);
     }
 
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["range"] = {{"start", {{"line", line}, {"character", 0}}},
-                       {"end", {{"line", line}, {"character", endCharUtf16}}}};
-    params["context"] = {{"diagnostics", diagArray}};
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value range(rapidjson::kObjectType);
+    ju::Value rangeStart(rapidjson::kObjectType);
+    rangeStart.AddMember("line", line, alloc);
+    rangeStart.AddMember("character", 0, alloc);
+    ju::Value rangeEnd(rapidjson::kObjectType);
+    rangeEnd.AddMember("line", line, alloc);
+    rangeEnd.AddMember("character", endCharUtf16, alloc);
+    range.AddMember("start", rangeStart, alloc);
+    range.AddMember("end", rangeEnd, alloc);
+    params.AddMember("range", range, alloc);
+    ju::Value ctx(rapidjson::kObjectType);
+    ctx.AddMember("diagnostics", diagArray, alloc);
+    params.AddMember("context", ctx, alloc);
 
     int id = impl->sendRequest("textDocument/codeAction", params);
     auto resp = impl->waitResponse(id, 5000);
 #ifdef UVIM_DEBUG_LSP
-    if(resp && resp->is_object())
+    if(resp && resp->IsObject())
     {
-        json logPayload = json::object();
-        logPayload["request"] = params;
-        logPayload["response"] = *resp;
+        ju::Document logPayload(rapidjson::kObjectType);
+        auto& logAlloc = logPayload.GetAllocator();
+        ju::Value reqCopy;
+        reqCopy.CopyFrom(params, logAlloc);
+        logPayload.AddMember("request", reqCopy, logAlloc);
+        ju::Value respCopy;
+        respCopy.CopyFrom(*resp, logAlloc);
+        logPayload.AddMember("response", respCopy, logAlloc);
         logLspDebug("codeAction", logPayload);
     }
 #endif
-    if(!resp || !resp->is_object())
+    if(!resp || !resp->IsObject())
         return out;
-    if(resp->contains("error"))
-        return out;
-
-    json result = resp->value("result", json());
-    if(!result.is_array())
+    if(ju::has(*resp, "error"))
         return out;
 
-    for(const auto& item : result)
+    const ju::Value* result = ju::find(*resp, "result");
+    if(!result || !result->IsArray())
+        return out;
+
+    for(const auto& item : result->GetArray())
     {
-        if(!item.is_object())
+        if(!item.IsObject())
             continue;
 
         CodeAction action;
         fillCodeActionFromJson(item, filePath, action);
 
         if(action.edits.empty() && action.command.empty() &&
-           item.contains("data"))
+           ju::has(item, "data"))
         {
-            int rid = impl->sendRequest("codeAction/resolve", item);
+            ju::Document resolveParams;
+            resolveParams.CopyFrom(item, resolveParams.GetAllocator());
+            int rid = impl->sendRequest("codeAction/resolve", resolveParams);
             auto resolved = impl->waitResponse(rid, 5000);
 #ifdef UVIM_DEBUG_LSP
-            if(resolved && resolved->is_object())
+            if(resolved && resolved->IsObject())
             {
-                json logPayload = json::object();
-                logPayload["request"] = item;
-                logPayload["response"] = *resolved;
+                ju::Document logPayload(rapidjson::kObjectType);
+                auto& logAlloc = logPayload.GetAllocator();
+                ju::Value reqCopy;
+                reqCopy.CopyFrom(item, logAlloc);
+                logPayload.AddMember("request", reqCopy, logAlloc);
+                ju::Value respCopy;
+                respCopy.CopyFrom(*resolved, logAlloc);
+                logPayload.AddMember("response", respCopy, logAlloc);
                 logLspDebug("codeActionResolve", logPayload);
             }
 #endif
-            if(resolved && resolved->is_object() &&
-               !resolved->contains("error"))
+            if(resolved && resolved->IsObject() &&
+               !ju::has(*resolved, "error"))
             {
-                json resolvedAction = resolved->value("result", json::object());
-                fillCodeActionFromJson(resolvedAction, filePath, action);
+                const ju::Value* resolvedAction =
+                    ju::find(*resolved, "result");
+                if(resolvedAction && resolvedAction->IsObject())
+                    fillCodeActionFromJson(*resolvedAction, filePath, action);
             }
         }
 
@@ -1320,18 +1448,24 @@ LspClient::formatting(const std::string& filePath, int tabSize,
         return out;
 
     std::string abs = absPath(filePath);
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["options"] = {{"tabSize", tabSize}, {"insertSpaces", insertSpaces}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value options(rapidjson::kObjectType);
+    options.AddMember("tabSize", tabSize, alloc);
+    options.AddMember("insertSpaces", insertSpaces, alloc);
+    params.AddMember("options", options, alloc);
 
     int id = impl->sendRequest("textDocument/formatting", params);
     auto resp = impl->waitResponse(id, 5000);
-    if(!resp || !resp->is_object())
+    if(!resp || !resp->IsObject())
         return out;
-    if(resp->contains("error"))
+    if(ju::has(*resp, "error"))
         return out;
 
-    json result = resp->value("result", json());
+    const ju::Value* result = ju::find(*resp, "result");
     return parseTextEditsForUri(result, abs);
 }
 
@@ -1344,34 +1478,33 @@ LspClient::executeCommand(const std::string& command,
     if(!running())
         return out;
 
-    json args = json::array();
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    params.AddMember("command", ju::make_string(command, alloc), alloc);
+    ju::Value args(rapidjson::kArrayType);
     for(const auto& arg : argumentsJson)
     {
-        try
+        ju::Document argDoc;
+        if(ju::parse(argDoc, arg))
         {
-            args.push_back(json::parse(arg));
-        }
-        catch(...)
-        {
+            ju::Value argValue;
+            argValue.CopyFrom(argDoc, alloc);
+            args.PushBack(argValue, alloc);
         }
     }
-
-    json params;
-    params["command"] = command;
-    if(!args.empty())
-        params["arguments"] = args;
+    if(!args.Empty())
+        params.AddMember("arguments", args, alloc);
 
     int id = impl->sendRequest("workspace/executeCommand", params);
     auto resp = impl->waitResponse(id, 5000);
-    if(resp && resp->is_object() && !resp->contains("error"))
+    if(resp && resp->IsObject() && !ju::has(*resp, "error"))
     {
-        json result = resp->value("result", json());
-        if(result.is_object())
+        const ju::Value* result = ju::find(*resp, "result");
+        if(result && result->IsObject())
         {
-            if(result.contains("edit"))
+            if(const ju::Value* edit = ju::find(*result, "edit"))
             {
-                parseWorkspaceEditInto(result.value("edit", json::object()),
-                                       filePath, out);
+                parseWorkspaceEditInto(edit, filePath, out);
             }
             else
             {
@@ -1380,14 +1513,14 @@ LspClient::executeCommand(const std::string& command,
         }
     }
 
-    std::vector<json> applyEdits;
+    std::vector<ju::Document> applyEdits;
     {
         std::lock_guard<std::mutex> lk(impl->applyMutex);
         applyEdits.swap(impl->pendingApplyEdits);
     }
     for(const auto& edit : applyEdits)
     {
-        parseWorkspaceEditInto(edit, filePath, out);
+        parseWorkspaceEditInto(&edit, filePath, out);
     }
 
     return out;
@@ -1399,37 +1532,54 @@ bool LspClient::requestSemanticTokens(const std::string& filePath)
         return false;
 
     std::string abs = absPath(filePath);
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
 
     int id = impl->sendRequest("textDocument/semanticTokens/full", params);
     auto resp = impl->waitResponse(id, 5000);
-    if(!resp || !resp->is_object() || resp->contains("error"))
+    if(!resp || !resp->IsObject() || ju::has(*resp, "error"))
     {
         clearSemanticTokens(abs);
         return false;
     }
 
-    json result = resp->value("result", json::object());
-    if(!result.is_object())
+    const ju::Value* result = ju::find(*resp, "result");
+    if(!result || !result->IsObject())
     {
         clearSemanticTokens(abs);
         return false;
     }
 
     std::vector<LspClient::SemanticToken> tokens;
-    if(result.contains("data") && result["data"].is_array())
+    const ju::Value* data = ju::find(*result, "data");
+    if(data && data->IsArray())
     {
-        const json& data = result["data"];
         int line = 0;
         int start = 0;
-        for(size_t i = 0; i + 4 < data.size(); i += 5)
+        auto get_int = [](const ju::Value& v) -> int
         {
-            int deltaLine = data[i].get<int>();
-            int deltaStart = data[i + 1].get<int>();
-            int length = data[i + 2].get<int>();
-            int tokenType = data[i + 3].get<int>();
-            int tokenMods = data[i + 4].get<int>();
+            if(v.IsInt())
+                return v.GetInt();
+            if(v.IsUint())
+                return static_cast<int>(v.GetUint());
+            if(v.IsInt64())
+                return static_cast<int>(v.GetInt64());
+            if(v.IsUint64())
+                return static_cast<int>(v.GetUint64());
+            if(v.IsDouble())
+                return static_cast<int>(v.GetDouble());
+            return 0;
+        };
+        for(size_t i = 0; i + 4 < data->Size(); i += 5)
+        {
+            int deltaLine = get_int((*data)[i]);
+            int deltaStart = get_int((*data)[i + 1]);
+            int length = get_int((*data)[i + 2]);
+            int tokenType = get_int((*data)[i + 3]);
+            int tokenMods = get_int((*data)[i + 4]);
 
             line += deltaLine;
             if(deltaLine == 0)
@@ -1579,24 +1729,10 @@ std::vector<LspClient::TextEdit>
 LspClient::formatting(const std::string& filePath, int tabSize,
                       bool insertSpaces)
 {
-    std::vector<TextEdit> out;
-    if(!running())
-        return out;
-
-    std::string abs = absPath(filePath);
-    json params;
-    params["textDocument"] = {{"uri", pathToFileUri(abs)}};
-    params["options"] = {{"tabSize", tabSize}, {"insertSpaces", insertSpaces}};
-
-    int id = impl->sendRequest("textDocument/formatting", params);
-    auto resp = impl->waitResponse(id, 5000);
-    if(!resp || !resp->is_object())
-        return out;
-    if(resp->contains("error"))
-        return out;
-
-    json result = resp->value("result", json());
-    return parseTextEditsForUri(result, abs);
+    (void)filePath;
+    (void)tabSize;
+    (void)insertSpaces;
+    return {};
 }
 
 std::vector<LspClient::TextEdit>

@@ -178,27 +178,30 @@ if(ipo_supported)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
+# rapidjson (JSON parsing) - header-only, avoid subproject CMake
+include(FetchContent)
+FetchContent_Declare(
+  rapidjson
+  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+  GIT_TAG v1.1.0
+  GIT_PROGRESS TRUE
+)
+FetchContent_GetProperties(rapidjson)
+if(rapidjson_POPULATED)
+    message(STATUS "Using cached RapidJSON at: ${rapidjson_SOURCE_DIR}")
+else()
+    message(STATUS "Fetching RapidJSON (v1.1.0) ...")
+    FetchContent_Populate(rapidjson)
+endif()
+set(RAPIDJSON_INCLUDE_DIR ${rapidjson_SOURCE_DIR}/include)
+target_include_directories(uvim PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+
 # clangd LSP dependencies
 if(UVIM_ENABLE_CLANGD_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
 
-    include(FetchContent)
-    FetchContent_GetProperties(nlohmann_json)
-    if(nlohmann_json_POPULATED)
-        message(STATUS "Using cached nlohmann/json at: ${nlohmann_json_SOURCE_DIR}")
-    else()
-        message(STATUS "Fetching nlohmann/json (v3.11.3) ...")
-    endif()
-    FetchContent_Declare(
-      nlohmann_json
-      GIT_REPOSITORY https://github.com/nlohmann/json.git
-      GIT_TAG v3.11.3
-      GIT_PROGRESS TRUE
-    )
-    FetchContent_MakeAvailable(nlohmann_json)
-
     find_package(Threads REQUIRED)
-    target_link_libraries(uvim PRIVATE nlohmann_json::nlohmann_json Threads::Threads)
+    target_link_libraries(uvim PRIVATE Threads::Threads)
 endif()
 
 # Debug logging
@@ -242,6 +245,7 @@ if(UVIM_BUILD_TESTS)
         GTest::gmock
     )
     target_include_directories(state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(state_machine_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
 
     add_executable(mode_state_machine_tests
         tests/mode_state_machine_test.cpp
@@ -252,6 +256,7 @@ if(UVIM_BUILD_TESTS)
         GTest::gmock
     )
     target_include_directories(mode_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(mode_state_machine_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
 
     add_executable(constants_tests
         tests/constants_test.cpp
@@ -262,6 +267,7 @@ if(UVIM_BUILD_TESTS)
         GTest::gmock
     )
     target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(constants_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
 
     set(UVIM_TEST_SOURCES
         ${UVIM_CORE_SOURCES}
@@ -284,6 +290,7 @@ if(UVIM_BUILD_TESTS)
         GTest::gmock
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(real_mode_transitions_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
     if(_backend STREQUAL "WIN32")
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TERMINAL_WIN32=1)
@@ -293,7 +300,6 @@ if(UVIM_BUILD_TESTS)
     if(UVIM_ENABLE_CLANGD_LSP)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
         target_link_libraries(real_mode_transitions_tests PRIVATE
-            nlohmann_json::nlohmann_json
             Threads::Threads
         )
     endif()
