@@ -2,7 +2,8 @@
 \page configuration Configuration
 
 This page documents all configuration parameters that can be set in
-`config.yaml` (see `uvim --init-config`).
+`config.yaml` (see `uvim --init-config`). The init command also copies
+bundled themes into `~/.config/uvim/themes/`.
 
 \section config_layout Layout
 
@@ -236,6 +237,17 @@ String. Default: `ruff`. Supported values: `ruff`, `black`.
 \section config_theme Theme
 
 Theme colors accept hex RGB strings like `"#RRGGBB"`.
+
+\par theme.name
+String. When set, load a theme from `~/.config/uvim/themes/<name>.yaml`
+(`$XDG_CONFIG_HOME/uvim/themes/` if set). If the name has no extension,
+`.yaml` is appended.
+
+\par theme.file
+String. Absolute or relative path to a theme YAML file to load.
+
+\par theme.path
+Alias for `theme.file`.
 
 \par theme.base.fg
 Default: `#e0def4`. Base foreground.

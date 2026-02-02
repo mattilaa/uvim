@@ -822,14 +822,28 @@ static bool isSourceFile(const std::string& path)
     return path == ".c" || path == ".cpp" || path == ".cc";
 }
 
-Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
+static std::string default_theme_dir()
+{
+    const char* xdg = std::getenv("XDG_CONFIG_HOME");
+    const char* home = std::getenv("HOME");
+    std::string base;
+    if(xdg && *xdg)
+        base = xdg;
+    else if(home && *home)
+        base = std::string(home) + "/.config";
+    else
+        return "";
+    return base + "/uvim/themes";
+}
+
+Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
+               const std::string& themePath)
 {
     Terminal::enableRawMode();
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
     theme = Theme::defaults();
     this->configPath = configPath;
-    theme.loadFromFile(configPath);
     robotKeywordSet = default_robot_keywords();
     robotCustomKeywordSet = default_robot_custom_keywords();
     robotSettingSet = default_robot_settings();
@@ -842,6 +856,41 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
             std::ostringstream buf;
             buf << in.rdbuf();
             auto values = parseYamlMap(buf.str());
+            std::string resolvedThemePath = themePath;
+            if(resolvedThemePath.empty())
+            {
+            auto itThemeFile = values.find("theme.file");
+            if(itThemeFile == values.end())
+                itThemeFile = values.find("theme.path");
+            if(itThemeFile != values.end())
+                resolvedThemePath = itThemeFile->second;
+                auto itThemeName = values.find("theme.name");
+                if(resolvedThemePath.empty() && itThemeName != values.end())
+                {
+                    std::string name = itThemeName->second;
+                    if(!name.empty())
+                    {
+                        bool hasExt =
+                            name.size() >= 5 &&
+                            (name.rfind(".yaml") == name.size() - 5 ||
+                             name.rfind(".yml") == name.size() - 4);
+                        if(!hasExt)
+                            name += ".yaml";
+                        std::string dir = default_theme_dir();
+                        if(!dir.empty())
+                            resolvedThemePath = dir + "/" + name;
+                    }
+                }
+            }
+            if(!resolvedThemePath.empty())
+            {
+                if(!theme.loadFromFile(resolvedThemePath))
+                {
+                    std::cerr << "theme: failed to load "
+                              << resolvedThemePath << "\n";
+                }
+            }
+            theme.loadFromFile(configPath);
             auto it = values.find("editor.tabspaces");
             if(it == values.end())
                 it = values.find("settings.tabspaces");
@@ -1329,6 +1378,11 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath)
             set_token("editor.syntax.cpp.member_color", syntaxCppMemberToken);
             set_token("syntax.cpp.member_color", syntaxCppMemberToken);
         }
+    }
+    if(!themePath.empty())
+    {
+        if(!theme.loadFromFile(themePath))
+            std::cerr << "theme: failed to load " << themePath << "\n";
     }
 
     // No buffers on start unless files are explicitly opened.

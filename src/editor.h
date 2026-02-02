@@ -58,7 +58,8 @@ public:
     // Mode enum is now in mode.h
     // JumpLocation struct is now in jump_location.h
 
-    Editor(bool skipInitialBuffer = false, const std::string& configPath = "");
+    Editor(bool skipInitialBuffer = false, const std::string& configPath = "",
+           const std::string& themePath = "");
     ~Editor();
 #ifdef UVIM_TESTING
     static Editor createForTests(int rows = 24, int cols = 80);

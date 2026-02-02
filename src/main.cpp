@@ -298,6 +298,7 @@ constexpr std::string_view kPythonLspArgs = "--python-lsp-args";
 constexpr std::string_view kMlangLsp = "--mlang-lsp";
 constexpr std::string_view kMlangLspPath = "--mlang-lsp-path";
 constexpr std::string_view kMlangLspArgs = "--mlang-lsp-args";
+constexpr std::string_view kTheme = "--theme";
 constexpr std::string_view kLogFile = "--log-file";
 constexpr std::string_view kLogColors = "--log-colors";
 
@@ -307,7 +308,7 @@ struct HelpRow
     std::string_view description;
 };
 
-constexpr std::array<HelpRow, 19> kHelpRows = {{
+constexpr std::array<HelpRow, 20> kHelpRows = {{
     {kHelp, "Show this help and exit"},
     {kVersion, "Show version and exit"},
     {"--config <path>", "Use custom config path"},
@@ -327,6 +328,7 @@ constexpr std::array<HelpRow, 19> kHelpRows = {{
     {kMlangLsp, "Enable Mlang LSP"},
     {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
     {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
+    {"--theme <path>", "Load theme YAML from path"},
     {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
     {kLogColors, "Enable colored log output"},
 }};
@@ -354,6 +356,7 @@ struct Options
     std::string logFile;
     std::string customConfig;
     std::string initConfigPath;
+    std::string themePath;
     std::vector<std::string> args;
 };
 
@@ -383,6 +386,7 @@ public:
     {
         Options opts;
         bool parse_options = true;
+        bool sawOptionValue = false;
 
         for(int i = 1; i < argc; ++i)
         {
@@ -419,16 +423,19 @@ public:
                 {
                     opts.ccdir =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kClangdPath)
                 {
                     opts.clangdPath =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kQueryDriver)
                 {
                     opts.queryDriver =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kRobotLsp)
                 {
@@ -438,11 +445,13 @@ public:
                 {
                     opts.robotLspPath =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kRobotLspArgs)
                 {
                     opts.robotLspArgs =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kPythonLsp)
                 {
@@ -452,11 +461,13 @@ public:
                 {
                     opts.pythonLspPath =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kPythonLspArgs)
                 {
                     opts.pythonLspArgs =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kMlangLsp)
                 {
@@ -466,16 +477,25 @@ public:
                 {
                     opts.mlangLspPath =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kMlangLspArgs)
                 {
                     opts.mlangLspArgs =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kTheme)
+                {
+                    opts.themePath =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kLogFile)
                 {
                     opts.logFile =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kLogColors)
                 {
@@ -485,6 +505,7 @@ public:
                 {
                     opts.customConfig =
                         std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
                 }
                 else if(key == kInitConfig)
                 {
@@ -492,10 +513,12 @@ public:
                     if(!val.empty())
                     {
                         opts.initConfigPath = std::string(val);
+                        sawOptionValue = true;
                     }
                     else if(i + 1 < argc && argv[i + 1][0] != '-')
                     {
                         opts.initConfigPath = std::string(argv[++i]);
+                        sawOptionValue = true;
                     }
                 }
                 else
@@ -509,7 +532,7 @@ public:
             }
         }
 
-        if(opts.args.empty() && argc > 1)
+        if(opts.args.empty() && argc > 1 && !sawOptionValue)
         {
             std::string_view fallback{argv[argc - 1]};
             if(!fallback.empty() && fallback[0] != '-')
@@ -890,6 +913,44 @@ int main(int argc, char* argv[])
         out << default_config_contents();
         out.close();
         std::cout << "Wrote default config to " << outPath.string() << "\n";
+
+        fs::path themesDir = outPath.parent_path() / "themes";
+        fs::create_directories(themesDir, ec);
+        if(ec)
+            die("cannot create themes dir", themesDir.string());
+
+        fs::path exePath = fs::absolute(argv[0], ec);
+        fs::path repoRoot = exePath.parent_path();
+        fs::path bundledThemes = repoRoot / "themes";
+        if(fs::exists(bundledThemes, ec) && fs::is_directory(bundledThemes, ec))
+        {
+            for(const auto& entry : fs::directory_iterator(bundledThemes, ec))
+            {
+                if(ec)
+                    break;
+                if(!entry.is_regular_file(ec))
+                    continue;
+                auto ext = entry.path().extension().string();
+                if(ext != ".yaml" && ext != ".yml")
+                    continue;
+                fs::path dest = themesDir / entry.path().filename();
+                if(fs::exists(dest, ec))
+                    continue;
+                fs::copy_file(entry.path(), dest, ec);
+                if(ec)
+                {
+                    std::cerr << "theme copy failed: " << entry.path().string()
+                              << " -> " << dest.string() << "\n";
+                    ec.clear();
+                }
+            }
+        }
+        else
+        {
+            std::cerr << "warning: bundled themes not found at "
+                      << bundledThemes.string() << "\n";
+        }
+
         return 0;
     }
     // Set custom log file path if provided
@@ -916,7 +977,7 @@ int main(int argc, char* argv[])
     std::string configPath = std::string(configView);
 
     // Create editor with flag indicating whether we have files to open
-    Editor editor(!opts.args.empty(), configPath);
+    Editor editor(!opts.args.empty(), configPath, opts.themePath);
     fs::path workspaceRoot = find_workspace_root(opts.args);
     editor.setProjectRoot(workspaceRoot.string());
     EditorSettings::fromOptions(opts).apply(editor);
