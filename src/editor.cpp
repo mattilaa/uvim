@@ -3,6 +3,7 @@
 #include "enablelog.h"
 #include "formatter.h"
 #include "git_handler.h"
+#include "json_utils.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
 #include "syntax_highlighter.h"
@@ -49,6 +50,46 @@ static bool robot_keyword_section(std::string_view line);
 static bool robot_section_header(std::string_view line);
 static bool robot_is_keyword_def(std::string_view line);
 static bool python_def_line(std::string_view line, std::string_view symbol);
+static int find_word_pos(std::string_view line, std::string_view word);
+static bool js_ts_decl_line(std::string_view line, std::string_view symbol,
+                            int& outX);
+static bool find_js_ts_def_in_file(const std::string& path,
+                                   std::string_view symbol, int& outY,
+                                   int& outX);
+static bool load_json_file(const std::filesystem::path& path,
+                           json_utils::Document& doc);
+struct TsConfigPaths
+{
+    std::filesystem::path dir;
+    std::filesystem::path baseUrl;
+    std::vector<std::pair<std::string, std::vector<std::string>>> paths;
+};
+static bool load_tsconfig_paths(const std::filesystem::path& startDir,
+                                TsConfigPaths& out);
+static std::vector<std::string> expand_tsconfig_paths(
+    const TsConfigPaths& cfg, std::string_view module);
+static bool extract_js_ts_module_specifier(std::string_view line,
+                                           std::string_view& outSpec);
+static void collect_js_ts_imports(
+    const std::vector<std::string>& lines,
+    std::unordered_map<std::string, std::string>& symbolToModule);
+static std::string resolve_js_ts_from_dir(const std::filesystem::path& baseDir,
+                                          std::string_view module);
+static std::string resolve_node_module(const std::string& fromFile,
+                                       std::string_view module);
+static std::string resolve_js_ts_module(const std::string& fromFile,
+                                        std::string_view module);
+static std::string resolve_js_ts_module_path(const std::string& fromFile,
+                                             std::string_view module);
+static bool html_path_under_cursor(std::string_view line, int cursorX,
+                                   std::string_view& outPath);
+static std::vector<std::string> extract_html_stylesheets(
+    const std::vector<std::string>& lines);
+static bool find_css_selector_in_file(const std::string& path,
+                                      std::string_view selector, int& outY,
+                                      int& outX);
+static bool css_import_path_under_cursor(std::string_view line, int cursorX,
+                                         std::string_view& outPath);
 static bool find_robot_keyword_in_file(const std::string& path,
                                        std::string_view keyword, int& outY,
                                        int& outX);
@@ -576,6 +617,771 @@ static bool python_def_line(std::string_view line, std::string_view symbol)
         return false;
     std::string_view name = line.substr(0, i);
     return text_utils::iequals_ascii(name, symbol);
+}
+
+static int find_word_pos(std::string_view line, std::string_view word)
+{
+    size_t pos = 0;
+    while((pos = line.find(word, pos)) != std::string_view::npos)
+    {
+        bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
+        size_t end = pos + word.size();
+        bool rightOk = (end >= line.size()) || !isIdent(line[end]);
+        if(leftOk && rightOk)
+            return static_cast<int>(pos);
+        pos = end;
+    }
+    return -1;
+}
+
+static bool js_ts_decl_line(std::string_view line, std::string_view symbol,
+                            int& outX)
+{
+    std::string_view trimmed = trim_view(line);
+    if(trimmed.empty())
+        return false;
+    if(trimmed.starts_with("//"))
+        return false;
+
+    if(trimmed.starts_with("export "))
+        trimmed = trim_view(trimmed.substr(7));
+    if(trimmed.starts_with("default "))
+        trimmed = trim_view(trimmed.substr(8));
+    if(trimmed.starts_with("async "))
+        trimmed = trim_view(trimmed.substr(6));
+
+    static constexpr std::string_view kDecls[] = {
+        "function", "class", "interface", "type", "enum", "const", "let", "var",
+    };
+    for(auto kw : kDecls)
+    {
+        if(trimmed.starts_with(kw))
+        {
+            size_t end = kw.size();
+            if(end < trimmed.size())
+            {
+                if(kw == "function" && trimmed[end] == '*')
+                {
+                    end++;
+                }
+                else if(!text_utils::is_space(trimmed[end]))
+                {
+                    continue;
+                }
+            }
+            trimmed = trim_view(trimmed.substr(end));
+            if(trimmed.empty())
+                return false;
+            size_t i = 0;
+            while(i < trimmed.size() && isIdent(trimmed[i]))
+                ++i;
+            if(i == 0)
+                return false;
+            std::string_view name = trimmed.substr(0, i);
+            if(text_utils::iequals_ascii(name, symbol))
+            {
+                int pos = find_word_pos(line, name);
+                if(pos >= 0)
+                    outX = pos;
+                else
+                    outX = 0;
+                return true;
+            }
+            return false;
+        }
+    }
+
+    return false;
+}
+
+static bool find_js_ts_def_in_file(const std::string& path,
+                                   std::string_view symbol, int& outY,
+                                   int& outX)
+{
+    std::ifstream file(path);
+    if(!file.is_open())
+        return false;
+
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(file, line))
+    {
+        if(js_ts_decl_line(line, symbol, outX))
+        {
+            outY = lineNo;
+            return true;
+        }
+        lineNo++;
+    }
+    return false;
+}
+
+static bool load_json_file(const std::filesystem::path& path,
+                           json_utils::Document& doc)
+{
+    std::ifstream input(path);
+    if(!input.is_open())
+        return false;
+    return json_utils::parse(doc, input);
+}
+
+static bool load_tsconfig_paths(const std::filesystem::path& startDir,
+                                TsConfigPaths& out)
+{
+    std::error_code ec;
+    std::filesystem::path dir = startDir;
+    std::filesystem::path root = dir.root_path();
+    while(true)
+    {
+        std::filesystem::path tsconfig = dir / "tsconfig.json";
+        if(std::filesystem::exists(tsconfig, ec) && !ec)
+        {
+            json_utils::Document doc;
+            if(load_json_file(tsconfig, doc) && doc.IsObject())
+            {
+                out.dir = dir;
+                out.baseUrl.clear();
+                out.paths.clear();
+                const auto* compilerOptions =
+                    json_utils::find(doc, "compilerOptions");
+                if(compilerOptions && compilerOptions->IsObject())
+                {
+                    std::string baseUrlStr =
+                        json_utils::get_string(*compilerOptions, "baseUrl", "");
+                    if(!baseUrlStr.empty())
+                        out.baseUrl = baseUrlStr;
+                    const auto* paths =
+                        json_utils::find(*compilerOptions, "paths");
+                    if(paths && paths->IsObject())
+                    {
+                        for(auto it = paths->MemberBegin();
+                            it != paths->MemberEnd(); ++it)
+                        {
+                            if(!it->name.IsString() || !it->value.IsArray())
+                                continue;
+                            std::string key(it->name.GetString(),
+                                            it->name.GetStringLength());
+                            std::vector<std::string> vals;
+                            for(const auto& v : it->value.GetArray())
+                            {
+                                if(v.IsString())
+                                {
+                                    vals.emplace_back(
+                                        v.GetString(),
+                                        v.GetStringLength());
+                                }
+                            }
+                            if(!key.empty() && !vals.empty())
+                                out.paths.emplace_back(std::move(key),
+                                                       std::move(vals));
+                        }
+                    }
+                }
+                return !out.baseUrl.empty() || !out.paths.empty();
+            }
+        }
+
+        std::filesystem::path jsconfig = dir / "jsconfig.json";
+        if(std::filesystem::exists(jsconfig, ec) && !ec)
+        {
+            json_utils::Document doc;
+            if(load_json_file(jsconfig, doc) && doc.IsObject())
+            {
+                out.dir = dir;
+                out.baseUrl.clear();
+                out.paths.clear();
+                const auto* compilerOptions =
+                    json_utils::find(doc, "compilerOptions");
+                if(compilerOptions && compilerOptions->IsObject())
+                {
+                    std::string baseUrlStr =
+                        json_utils::get_string(*compilerOptions, "baseUrl", "");
+                    if(!baseUrlStr.empty())
+                        out.baseUrl = baseUrlStr;
+                    const auto* paths =
+                        json_utils::find(*compilerOptions, "paths");
+                    if(paths && paths->IsObject())
+                    {
+                        for(auto it = paths->MemberBegin();
+                            it != paths->MemberEnd(); ++it)
+                        {
+                            if(!it->name.IsString() || !it->value.IsArray())
+                                continue;
+                            std::string key(it->name.GetString(),
+                                            it->name.GetStringLength());
+                            std::vector<std::string> vals;
+                            for(const auto& v : it->value.GetArray())
+                            {
+                                if(v.IsString())
+                                {
+                                    vals.emplace_back(
+                                        v.GetString(),
+                                        v.GetStringLength());
+                                }
+                            }
+                            if(!key.empty() && !vals.empty())
+                                out.paths.emplace_back(std::move(key),
+                                                       std::move(vals));
+                        }
+                    }
+                }
+                return !out.baseUrl.empty() || !out.paths.empty();
+            }
+        }
+
+        if(dir == root || !dir.has_parent_path())
+            break;
+        dir = dir.parent_path();
+    }
+    return false;
+}
+
+static std::vector<std::string> expand_tsconfig_paths(
+    const TsConfigPaths& cfg, std::string_view module)
+{
+    std::vector<std::string> out;
+    for(const auto& entry : cfg.paths)
+    {
+        const std::string& pattern = entry.first;
+        size_t star = pattern.find('*');
+        if(star == std::string::npos)
+        {
+            if(pattern == module)
+            {
+                for(const auto& target : entry.second)
+                    out.push_back(target);
+            }
+            continue;
+        }
+        std::string_view prefix(pattern.data(), star);
+        std::string_view suffix(pattern.data() + star + 1,
+                                pattern.size() - star - 1);
+        if(module.size() < prefix.size() + suffix.size())
+            continue;
+        if(!module.starts_with(prefix) || !module.ends_with(suffix))
+            continue;
+        std::string_view captured = module.substr(
+            prefix.size(),
+            module.size() - prefix.size() - suffix.size());
+        for(const auto& target : entry.second)
+        {
+            size_t tgtStar = target.find('*');
+            if(tgtStar == std::string::npos)
+            {
+                out.push_back(target);
+            }
+            else
+            {
+                std::string resolved = target;
+                resolved.replace(tgtStar, 1, captured);
+                out.push_back(std::move(resolved));
+            }
+        }
+    }
+    return out;
+}
+
+static bool extract_js_ts_module_specifier(std::string_view line,
+                                           std::string_view& outSpec)
+{
+    std::string_view trimmed = trim_view(line);
+    if(!(trimmed.starts_with("import ") || trimmed.starts_with("export ")))
+        return false;
+
+    size_t fromPos = trimmed.find(" from ");
+    size_t start = std::string_view::npos;
+    size_t end = std::string_view::npos;
+    char quote = 0;
+
+    if(fromPos != std::string_view::npos)
+    {
+        size_t q = trimmed.find_first_of("\"'", fromPos);
+        if(q == std::string_view::npos)
+            return false;
+        quote = trimmed[q];
+        start = q + 1;
+        end = trimmed.find(quote, start);
+    }
+    else if(trimmed.starts_with("import "))
+    {
+        size_t q = trimmed.find_first_of("\"'", 6);
+        if(q == std::string_view::npos)
+            return false;
+        quote = trimmed[q];
+        start = q + 1;
+        end = trimmed.find(quote, start);
+    }
+
+    if(start == std::string_view::npos || end == std::string_view::npos ||
+       end <= start)
+    {
+        return false;
+    }
+
+    outSpec = trimmed.substr(start, end - start);
+    return true;
+}
+
+static void parse_js_ts_named_imports(
+    std::string_view list, const std::string& module,
+    std::unordered_map<std::string, std::string>& out)
+{
+    size_t start = 0;
+    while(start < list.size())
+    {
+        size_t comma = list.find(',', start);
+        if(comma == std::string_view::npos)
+            comma = list.size();
+        std::string_view item = trim_view(list.substr(start, comma - start));
+        if(!item.empty())
+        {
+            size_t asPos = item.find(" as ");
+            std::string_view name =
+                (asPos == std::string_view::npos)
+                    ? item
+                    : trim_view(item.substr(asPos + 4));
+            if(!name.empty())
+                out.emplace(std::string(name), module);
+        }
+        start = comma + 1;
+    }
+}
+
+static void collect_js_ts_imports(
+    const std::vector<std::string>& lines,
+    std::unordered_map<std::string, std::string>& symbolToModule)
+{
+    for(const auto& line : lines)
+    {
+        std::string_view trimmed = trim_view(line);
+        if(!(trimmed.starts_with("import ") || trimmed.starts_with("export ")))
+            continue;
+
+        std::string_view module;
+        if(!extract_js_ts_module_specifier(trimmed, module))
+            continue;
+
+        std::string moduleStr(module);
+        if(trimmed.starts_with("import "))
+        {
+            size_t fromPos = trimmed.find(" from ");
+            std::string_view head =
+                (fromPos == std::string_view::npos)
+                    ? trim_view(trimmed.substr(6))
+                    : trim_view(trimmed.substr(6, fromPos - 6));
+
+            if(head.starts_with("{"))
+            {
+                size_t end = head.find('}');
+                if(end != std::string_view::npos)
+                {
+                    parse_js_ts_named_imports(
+                        head.substr(1, end - 1), moduleStr, symbolToModule);
+                }
+            }
+            else if(head.starts_with("*"))
+            {
+                size_t asPos = head.find(" as ");
+                if(asPos != std::string_view::npos)
+                {
+                    std::string_view name =
+                        trim_view(head.substr(asPos + 4));
+                    if(!name.empty())
+                        symbolToModule.emplace(std::string(name), moduleStr);
+                }
+            }
+            else if(!head.empty())
+            {
+                size_t comma = head.find(',');
+                std::string_view defaultName =
+                    trim_view(head.substr(0, comma));
+                if(!defaultName.empty())
+                    symbolToModule.emplace(std::string(defaultName), moduleStr);
+                if(comma != std::string_view::npos)
+                {
+                    std::string_view rest = trim_view(head.substr(comma + 1));
+                    if(rest.starts_with("{"))
+                    {
+                        size_t end = rest.find('}');
+                        if(end != std::string_view::npos)
+                        {
+                            parse_js_ts_named_imports(
+                                rest.substr(1, end - 1), moduleStr,
+                                symbolToModule);
+                        }
+                    }
+                    else if(rest.starts_with("*"))
+                    {
+                        size_t asPos = rest.find(" as ");
+                        if(asPos != std::string_view::npos)
+                        {
+                            std::string_view name =
+                                trim_view(rest.substr(asPos + 4));
+                            if(!name.empty())
+                                symbolToModule.emplace(std::string(name),
+                                                       moduleStr);
+                        }
+                    }
+                }
+            }
+        }
+        else if(trimmed.starts_with("export "))
+        {
+            size_t fromPos = trimmed.find(" from ");
+            if(fromPos == std::string_view::npos)
+                continue;
+            std::string_view head = trim_view(trimmed.substr(6, fromPos - 6));
+            if(head.starts_with("{"))
+            {
+                size_t end = head.find('}');
+                if(end != std::string_view::npos)
+                {
+                    parse_js_ts_named_imports(
+                        head.substr(1, end - 1), moduleStr, symbolToModule);
+                }
+            }
+        }
+    }
+}
+
+static std::string resolve_js_ts_from_dir(const std::filesystem::path& baseDir,
+                                          std::string_view module)
+{
+    std::string spec(module);
+    if(!spec.empty() && spec.front() != '.' && spec.front() != '/')
+        spec = "./" + spec;
+    std::filesystem::path dummy = baseDir / "__uvim__";
+    return resolve_js_ts_module_path(dummy.string(), spec);
+}
+
+static std::string resolve_node_module(const std::string& fromFile,
+                                       std::string_view module)
+{
+    std::string moduleStr(module);
+    if(moduleStr.empty())
+        return {};
+    if(moduleStr.front() == '.' || moduleStr.front() == '/')
+        return {};
+
+    std::string pkg;
+    std::string subpath;
+    if(moduleStr.starts_with("@"))
+    {
+        size_t first = moduleStr.find('/');
+        if(first == std::string::npos)
+            return {};
+        size_t second = moduleStr.find('/', first + 1);
+        if(second == std::string::npos)
+        {
+            pkg = moduleStr;
+        }
+        else
+        {
+            pkg = moduleStr.substr(0, second);
+            subpath = moduleStr.substr(second + 1);
+        }
+    }
+    else
+    {
+        size_t slash = moduleStr.find('/');
+        if(slash == std::string::npos)
+        {
+            pkg = moduleStr;
+        }
+        else
+        {
+            pkg = moduleStr.substr(0, slash);
+            subpath = moduleStr.substr(slash + 1);
+        }
+    }
+
+    std::filesystem::path dir = std::filesystem::path(fromFile).parent_path();
+    std::filesystem::path root = dir.root_path();
+    std::error_code ec;
+    while(true)
+    {
+        std::filesystem::path base = dir / "node_modules" / pkg;
+        std::filesystem::path candidate = base;
+        if(!subpath.empty())
+            candidate /= subpath;
+
+        if(std::filesystem::exists(candidate, ec) && !ec)
+        {
+            if(std::filesystem::is_regular_file(candidate, ec))
+                return candidate.string();
+            if(std::filesystem::is_directory(candidate, ec))
+            {
+                std::string attempt =
+                    resolve_js_ts_from_dir(candidate, "./index");
+                if(!attempt.empty())
+                    return attempt;
+            }
+        }
+        if(!subpath.empty())
+        {
+            std::string attempt =
+                resolve_js_ts_from_dir(base, "./" + subpath);
+            if(!attempt.empty())
+                return attempt;
+        }
+
+        if(std::filesystem::exists(base, ec) && !ec &&
+           std::filesystem::is_directory(base, ec) && subpath.empty())
+        {
+            std::filesystem::path pkgJson = base / "package.json";
+            if(std::filesystem::exists(pkgJson, ec) && !ec)
+            {
+                json_utils::Document doc;
+                if(load_json_file(pkgJson, doc) && doc.IsObject())
+                {
+                    std::string entry =
+                        json_utils::get_string(doc, "types", "");
+                    if(entry.empty())
+                        entry = json_utils::get_string(doc, "typings", "");
+                    if(entry.empty())
+                        entry = json_utils::get_string(doc, "module", "");
+                    if(entry.empty())
+                        entry = json_utils::get_string(doc, "main", "");
+                    if(!entry.empty())
+                    {
+                        std::string resolved =
+                            resolve_js_ts_from_dir(base, entry);
+                        if(!resolved.empty())
+                            return resolved;
+                    }
+                }
+            }
+            std::string fallback = resolve_js_ts_from_dir(base, "./index");
+            if(!fallback.empty())
+                return fallback;
+        }
+
+        if(dir == root || !dir.has_parent_path())
+            break;
+        dir = dir.parent_path();
+    }
+
+    return {};
+}
+
+static std::string resolve_js_ts_module(const std::string& fromFile,
+                                        std::string_view module)
+{
+    if(module.empty())
+        return {};
+    if(module.front() == '.' || module.front() == '/')
+        return resolve_js_ts_module_path(fromFile, module);
+
+    TsConfigPaths cfg;
+    std::filesystem::path startDir =
+        std::filesystem::path(fromFile).parent_path();
+    if(load_tsconfig_paths(startDir, cfg))
+    {
+        auto candidates = expand_tsconfig_paths(cfg, module);
+        if(!candidates.empty())
+        {
+            std::filesystem::path baseDir = cfg.dir;
+            if(!cfg.baseUrl.empty())
+                baseDir /= cfg.baseUrl;
+            for(const auto& candidate : candidates)
+            {
+                std::string resolved =
+                    resolve_js_ts_from_dir(baseDir, candidate);
+                if(!resolved.empty())
+                    return resolved;
+            }
+        }
+        if(!cfg.baseUrl.empty())
+        {
+            std::filesystem::path baseDir = cfg.dir / cfg.baseUrl;
+            std::string resolved = resolve_js_ts_from_dir(baseDir, module);
+            if(!resolved.empty())
+                return resolved;
+        }
+    }
+
+    return resolve_node_module(fromFile, module);
+}
+
+static std::string resolve_js_ts_module_path(const std::string& fromFile,
+                                             std::string_view module)
+{
+    if(module.empty())
+        return {};
+    if(module.front() != '.' && module.front() != '/')
+        return {};
+
+    fs::path base = fs::path(fromFile).parent_path();
+    fs::path candidate =
+        (module.front() == '/') ? fs::path(module) : base / module;
+
+    std::error_code ec;
+    auto try_file = [&](const fs::path& path) -> std::string
+    {
+        if(fs::exists(path, ec) && !ec && fs::is_regular_file(path, ec))
+            return path.string();
+        return {};
+    };
+
+    std::string found = try_file(candidate);
+    if(!found.empty())
+        return found;
+
+    static constexpr std::string_view kExts[] = {
+        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts", ".json",
+    };
+
+    if(!candidate.has_extension())
+    {
+        for(auto ext : kExts)
+        {
+            std::string attempt = try_file(candidate.string() + std::string(ext));
+            if(!attempt.empty())
+                return attempt;
+        }
+    }
+    else
+    {
+        fs::path stemPath = candidate;
+        stemPath.replace_extension();
+        std::string stem = stemPath.string();
+        for(auto ext : kExts)
+        {
+            std::string attempt = try_file(stem + std::string(ext));
+            if(!attempt.empty())
+                return attempt;
+        }
+    }
+
+    if(fs::exists(candidate, ec) && !ec && fs::is_directory(candidate, ec))
+    {
+        for(auto ext : kExts)
+        {
+            std::string attempt =
+                try_file(candidate / ("index" + std::string(ext)));
+            if(!attempt.empty())
+                return attempt;
+        }
+    }
+
+    return {};
+}
+
+static bool html_path_under_cursor(std::string_view line, int cursorX,
+                                   std::string_view& outPath)
+{
+    std::string_view trimmed = trim_view(line);
+    if(trimmed.empty() || trimmed[0] != '<')
+        return false;
+
+    auto check_attr = [&](std::string_view attr) -> bool
+    {
+        size_t pos = trimmed.find(attr);
+        if(pos == std::string_view::npos)
+            return false;
+        size_t eq = trimmed.find('=', pos + attr.size());
+        if(eq == std::string_view::npos)
+            return false;
+        size_t q = trimmed.find_first_of("\"'", eq + 1);
+        if(q == std::string_view::npos)
+            return false;
+        char quote = trimmed[q];
+        size_t end = trimmed.find(quote, q + 1);
+        if(end == std::string_view::npos || end <= q + 1)
+            return false;
+        int startX = static_cast<int>(q + 1 + (trimmed.data() - line.data()));
+        int endX = static_cast<int>(end + (trimmed.data() - line.data()));
+        if(cursorX >= startX && cursorX <= endX)
+        {
+            outPath = trimmed.substr(q + 1, end - q - 1);
+            return true;
+        }
+        return false;
+    };
+
+    if(check_attr("href"))
+        return true;
+    if(check_attr("src"))
+        return true;
+    return false;
+}
+
+static std::vector<std::string> extract_html_stylesheets(
+    const std::vector<std::string>& lines)
+{
+    std::vector<std::string> out;
+    for(const auto& line : lines)
+    {
+        std::string lower = ascii_lower(line);
+        if(lower.find("<link") == std::string::npos)
+            continue;
+        if(lower.find("stylesheet") == std::string::npos)
+            continue;
+        size_t hrefPos = lower.find("href");
+        if(hrefPos == std::string::npos)
+            continue;
+        size_t eq = line.find('=', hrefPos);
+        if(eq == std::string::npos)
+            continue;
+        size_t q = line.find_first_of("\"'", eq + 1);
+        if(q == std::string::npos)
+            continue;
+        char quote = line[q];
+        size_t end = line.find(quote, q + 1);
+        if(end == std::string::npos || end <= q + 1)
+            continue;
+        std::string path = line.substr(q + 1, end - q - 1);
+        if(!path.empty())
+            out.push_back(path);
+    }
+    return out;
+}
+
+static bool find_css_selector_in_file(const std::string& path,
+                                      std::string_view selector, int& outY,
+                                      int& outX)
+{
+    std::ifstream file(path);
+    if(!file.is_open())
+        return false;
+
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(file, line))
+    {
+        int pos = find_word_pos(line, selector);
+        if(pos >= 0)
+        {
+            outY = lineNo;
+            outX = pos;
+            return true;
+        }
+        lineNo++;
+    }
+    return false;
+}
+
+static bool css_import_path_under_cursor(std::string_view line, int cursorX,
+                                         std::string_view& outPath)
+{
+    std::string_view trimmed = trim_view(line);
+    if(!trimmed.starts_with("@import"))
+        return false;
+    size_t q = trimmed.find_first_of("\"'");
+    if(q == std::string_view::npos)
+        return false;
+    char quote = trimmed[q];
+    size_t end = trimmed.find(quote, q + 1);
+    if(end == std::string_view::npos || end <= q + 1)
+        return false;
+    int startX = static_cast<int>(q + 1 + (trimmed.data() - line.data()));
+    int endX = static_cast<int>(end + (trimmed.data() - line.data()));
+    if(cursorX >= startX && cursorX <= endX)
+    {
+        outPath = trimmed.substr(q + 1, end - q - 1);
+        return true;
+    }
+    return false;
 }
 
 // Check if a line is likely a variable/parameter declaration for the symbol
@@ -3852,6 +4658,198 @@ void Editor::goToDefinition()
             isFileType<FileType::TypeScript>() ? "typescript" : "javascript";
         if(lsp_gd(tsLspClient.get(), lang, "ts"))
             return;
+    }
+
+    if(isFileType<FileType::JavaScript>() || isFileType<FileType::TypeScript>())
+    {
+        std::string_view lineView;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+            lineView = (*lines)[*cursorY];
+
+        std::string_view module;
+        if(!lineView.empty() &&
+           extract_js_ts_module_specifier(lineView, module))
+        {
+            int x = *cursorX;
+            size_t q = lineView.find_first_of("\"'");
+            if(q != std::string_view::npos)
+            {
+                char quote = lineView[q];
+                size_t end = lineView.find(quote, q + 1);
+                if(end != std::string_view::npos && x >= (int)q + 1 &&
+                   x <= (int)end)
+                {
+                    std::string resolved =
+                        resolve_js_ts_module(currentBuffer->filename, module);
+                    if(!resolved.empty())
+                    {
+                        pushJumpLocation();
+                        openFile(resolved);
+                        apply_gd_viewport();
+                        setStatusMessage("gd (js/ts import) → " + resolved);
+                        return;
+                    }
+                }
+            }
+        }
+
+        int defY = -1;
+        int defX = 0;
+        if(find_js_ts_def_in_file(currentBuffer->filename, symbol, defY, defX))
+        {
+            *cursorY = defY;
+            *cursorX = defX;
+            apply_gd_viewport();
+            setStatusMessage("gd (js/ts) → " + *filename + ":" +
+                             std::to_string(defY + 1));
+            return;
+        }
+
+        std::unordered_map<std::string, std::string> imports;
+        collect_js_ts_imports(*lines, imports);
+        auto it = imports.find(symbol);
+        if(it != imports.end())
+        {
+            std::string resolved =
+                resolve_js_ts_module(currentBuffer->filename, it->second);
+            if(!resolved.empty())
+            {
+                int defFileY = -1;
+                int defFileX = 0;
+                bool found = find_js_ts_def_in_file(resolved, symbol, defFileY,
+                                                    defFileX);
+                pushJumpLocation();
+                openFile(resolved);
+                if(found)
+                {
+                    *cursorY = defFileY;
+                    *cursorX = defFileX;
+                    apply_gd_viewport();
+                    setStatusMessage("gd (js/ts) → " + resolved + ":" +
+                                     std::to_string(defFileY + 1));
+                }
+                else
+                {
+                    apply_gd_viewport();
+                    setStatusMessage("gd (js/ts import) → " + resolved);
+                }
+                return;
+            }
+        }
+    }
+
+    if(isFileType<FileType::Html>())
+    {
+        std::string_view lineView;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+            lineView = (*lines)[*cursorY];
+
+        std::string_view htmlPath;
+        if(!lineView.empty() &&
+           html_path_under_cursor(lineView, *cursorX, htmlPath))
+        {
+            std::string htmlPathStr(htmlPath);
+            if(!htmlPathStr.empty() && htmlPathStr.front() != '.' &&
+               htmlPathStr.front() != '/')
+            {
+                htmlPathStr = "./" + htmlPathStr;
+            }
+            std::string resolved =
+                resolve_js_ts_module_path(currentBuffer->filename, htmlPathStr);
+            if(!resolved.empty())
+            {
+                pushJumpLocation();
+                openFile(resolved);
+                apply_gd_viewport();
+                setStatusMessage("gd (html link) → " + resolved);
+                return;
+            }
+        }
+
+        bool inClass = false;
+        bool inId = false;
+        if(!lineView.empty())
+        {
+            std::string_view trimmed = trim_view(lineView);
+            auto check_attr = [&](std::string_view attr) -> bool
+            {
+                size_t pos = trimmed.find(attr);
+                if(pos == std::string_view::npos)
+                    return false;
+                size_t eq = trimmed.find('=', pos + attr.size());
+                if(eq == std::string_view::npos)
+                    return false;
+                size_t q = trimmed.find_first_of("\"'", eq + 1);
+                if(q == std::string_view::npos)
+                    return false;
+                char quote = trimmed[q];
+                size_t end = trimmed.find(quote, q + 1);
+                if(end == std::string_view::npos || end <= q + 1)
+                    return false;
+                int startX =
+                    static_cast<int>(q + 1 + (trimmed.data() - lineView.data()));
+                int endX = static_cast<int>(end + (trimmed.data() -
+                                                   lineView.data()));
+                return *cursorX >= startX && *cursorX <= endX;
+            };
+            inClass = check_attr("class");
+            inId = check_attr("id");
+        }
+
+        if(!symbol.empty() && (inClass || inId))
+        {
+            auto sheets = extract_html_stylesheets(*lines);
+            for(const auto& sheet : sheets)
+            {
+                std::string resolved =
+                    resolve_js_ts_module_path(currentBuffer->filename, sheet);
+                if(resolved.empty())
+                    continue;
+                std::string selector = inId ? "#" + symbol : "." + symbol;
+                int defY = -1;
+                int defX = 0;
+                if(find_css_selector_in_file(resolved, selector, defY, defX))
+                {
+                    pushJumpLocation();
+                    openFile(resolved);
+                    *cursorY = defY;
+                    *cursorX = defX;
+                    apply_gd_viewport();
+                    setStatusMessage("gd (html css) → " + resolved + ":" +
+                                     std::to_string(defY + 1));
+                    return;
+                }
+            }
+        }
+    }
+
+    if(isFileType<FileType::Css>())
+    {
+        std::string_view lineView;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+            lineView = (*lines)[*cursorY];
+
+        std::string_view cssPath;
+        if(!lineView.empty() &&
+           css_import_path_under_cursor(lineView, *cursorX, cssPath))
+        {
+            std::string cssPathStr(cssPath);
+            if(!cssPathStr.empty() && cssPathStr.front() != '.' &&
+               cssPathStr.front() != '/')
+            {
+                cssPathStr = "./" + cssPathStr;
+            }
+            std::string resolved =
+                resolve_js_ts_module_path(currentBuffer->filename, cssPathStr);
+            if(!resolved.empty())
+            {
+                pushJumpLocation();
+                openFile(resolved);
+                apply_gd_viewport();
+                setStatusMessage("gd (css import) → " + resolved);
+                return;
+            }
+        }
     }
 
     if(isMlangLspEnabled() && isFileType<FileType::Mla>())

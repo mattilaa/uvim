@@ -1,18 +1,11 @@
-type User = {
-  id: number;
-  name: string;
-};
+import { type User, findUserById, formatUserLabel } from "./models.ts";
 
 const users: User[] = [
-  { id: 1, name: "Ada" },
-  { id: 2, name: "Linus" },
+  { id: 1, name: "Ada", title: "Engineer" },
+  { id: 2, name: "Linus", title: "Architect" },
 ];
 
-function findUser(id: number): User | undefined {
-  return users.find((u) => u.id === id);
-}
-
-const first = findUser(1);
+const first = findUserById(users, 1);
 if (first) {
-  console.log(first.name);
+  console.log(formatUserLabel(first));
 }

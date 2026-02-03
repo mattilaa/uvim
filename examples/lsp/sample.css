@@ -17,6 +17,12 @@ body {
   color: #8fd0dd;
 }
 
+.status {
+  margin: 8px 0 16px;
+  font-weight: 600;
+  color: #f3f1d5;
+}
+
 button {
   background: #f7c948;
   border: none;
