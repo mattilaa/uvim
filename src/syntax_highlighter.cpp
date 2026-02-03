@@ -269,10 +269,9 @@ bool is_mlang_keyword(std::string_view word)
 bool is_mlang_type(std::string_view word)
 {
     static constexpr std::array<std::string_view, 22> kTypes = {
-        "bool", "double", "float",  "i16",  "i32",   "i64",   "i8",
-        "int",  "list",   "map",    "ptr",  "str16", "str8",  "string",
-        "tuple","u16",    "u32",    "u64",  "u8",   "void",  "Result",
-        "Option"};
+        "bool", "double", "float", "i16",   "i32",    "i64",    "i8",    "int",
+        "list", "map",    "ptr",   "str16", "str8",   "string", "tuple", "u16",
+        "u32",  "u64",    "u8",    "void",  "Result", "Option"};
     return std::ranges::any_of(kTypes,
                                [&](std::string_view ty) { return ty == word; });
 }
@@ -1115,9 +1114,8 @@ void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
                 json_utils::find(item, "command");
             if(command && command->IsString())
             {
-                args = split_command_line(
-                    std::string(command->GetString(),
-                                command->GetStringLength()));
+                args = split_command_line(std::string(
+                    command->GetString(), command->GetStringLength()));
             }
         }
         if(args.empty())
@@ -1491,9 +1489,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
 
         if(allowJsonCase)
         {
-            cache.caseInsensitive =
-                json_utils::get_bool(root, "case_insensitive",
-                                     cache.caseInsensitive);
+            cache.caseInsensitive = json_utils::get_bool(
+                root, "case_insensitive", cache.caseInsensitive);
         }
 
         auto add_tokens =
@@ -1523,16 +1520,15 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                 {
                     if(!entry.IsObject())
                         continue;
-                    std::string type =
-                        json_utils::get_string(entry, "type");
+                    std::string type = json_utils::get_string(entry, "type");
                     if(const auto* items = json_utils::find(entry, "items"))
                         add_tokens(type, *items);
                 }
             }
             else if(tokens && tokens->IsObject())
             {
-                for(auto it = tokens->MemberBegin();
-                    it != tokens->MemberEnd(); ++it)
+                for(auto it = tokens->MemberBegin(); it != tokens->MemberEnd();
+                    ++it)
                 {
                     std::string_view typeName(it->name.GetString(),
                                               it->name.GetStringLength());
@@ -1550,10 +1546,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                 {
                     if(!entry.IsObject())
                         continue;
-                    std::string name =
-                        json_utils::get_string(entry, "name");
-                    std::string path =
-                        json_utils::get_string(entry, "path");
+                    std::string name = json_utils::get_string(entry, "name");
+                    std::string path = json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
                     if(name.empty() || path.empty())
                         continue;
@@ -1576,10 +1570,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                 {
                     if(!entry.IsObject())
                         continue;
-                    std::string name =
-                        json_utils::get_string(entry, "name");
-                    std::string path =
-                        json_utils::get_string(entry, "path");
+                    std::string name = json_utils::get_string(entry, "name");
+                    std::string path = json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
                     if(name.empty() || path.empty())
                         continue;
@@ -1588,7 +1580,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     MlangTokenCache::BuiltinTypeDef def;
                     def.path = path;
                     def.line = line > 0 ? line - 1 : 0;
-                    cache.builtinMacros.emplace(std::move(name), std::move(def));
+                    cache.builtinMacros.emplace(std::move(name),
+                                                std::move(def));
                 }
             }
         }
@@ -1602,10 +1595,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                 {
                     if(!entry.IsObject())
                         continue;
-                    std::string name =
-                        json_utils::get_string(entry, "name");
-                    std::string path =
-                        json_utils::get_string(entry, "path");
+                    std::string name = json_utils::get_string(entry, "name");
+                    std::string path = json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
                     if(name.empty() || path.empty())
                         continue;
@@ -2038,6 +2029,83 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
 
         if(!isContinuation)
         {
+            struct CellRange
+            {
+                int start = 0;
+                int end = 0;
+            };
+            auto parse_cells = [&](int start) -> std::vector<CellRange>
+            {
+                std::vector<CellRange> cells;
+                int idx = start;
+                while(idx < len)
+                {
+                    while(idx < len && text_utils::is_space(sv[idx]))
+                        ++idx;
+                    if(idx >= len)
+                        break;
+                    int cellStart = idx;
+                    int spaceRun = 0;
+                    for(; idx < len; ++idx)
+                    {
+                        if(sv[idx] == '\t')
+                            break;
+                        if(sv[idx] == ' ')
+                        {
+                            ++spaceRun;
+                            if(spaceRun >= 2)
+                                break;
+                        }
+                        else
+                        {
+                            spaceRun = 0;
+                        }
+                    }
+                    int cellEnd = idx;
+                    if(cellEnd > cellStart && sv[cellEnd - 1] == ' ')
+                        --cellEnd;
+                    if(cellEnd < cellStart)
+                        cellEnd = cellStart;
+                    cells.push_back({cellStart, cellEnd});
+                    while(idx < len && text_utils::is_space(sv[idx]))
+                        ++idx;
+                }
+                return cells;
+            };
+
+            auto trim_cell = [&](std::string_view value) -> std::string_view
+            {
+                while(!value.empty() && text_utils::is_space(value.front()))
+                    value.remove_prefix(1);
+                while(!value.empty() && text_utils::is_space(value.back()))
+                    value.remove_suffix(1);
+                return value;
+            };
+
+            auto is_assignment_cell = [&](std::string_view cell) -> bool
+            {
+                cell = trim_cell(cell);
+                if(cell.empty())
+                    return false;
+                if(cell == "=")
+                    return true;
+                return cell.back() == '=';
+            };
+
+            auto cells = parse_cells(first);
+            int keywordCellIndex = 0;
+            for(size_t c = 0; c < cells.size(); ++c)
+            {
+                std::string_view cell = sv.substr(
+                    cells[c].start,
+                    static_cast<size_t>(cells[c].end - cells[c].start));
+                if(is_assignment_cell(cell))
+                {
+                    keywordCellIndex = (int)c + 1;
+                    break;
+                }
+            }
+
             auto [cellStart, cellEnd] = parse_first_cell(first);
             if(cellEnd > cellStart)
             {
@@ -2060,15 +2128,46 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 if(!highlightedCell && syntaxRobotHighlightTitles &&
                    first == 0 && !isSettingCell)
                 {
-                    tokens.push_back(
-                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
-                    highlightedCell = true;
+                    if(keywordCellIndex == 0)
+                    {
+                        tokens.push_back(
+                            {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                        highlightedCell = true;
+                    }
                 }
                 if(!highlightedCell && syntaxRobotHighlightCalls &&
                    !isSettingCell)
                 {
-                    tokens.push_back(
-                        {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                    if(keywordCellIndex == 0)
+                    {
+                        tokens.push_back(
+                            {TOKEN_FUNCTION, cellStart, cellEnd - cellStart});
+                    }
+                }
+            }
+
+            if(keywordCellIndex > 0 && keywordCellIndex < (int)cells.size())
+            {
+                const auto& range = cells[keywordCellIndex];
+                if(range.end > range.start)
+                {
+                    std::string_view cell =
+                        sv.substr(range.start,
+                                  static_cast<size_t>(range.end - range.start));
+                    bool isSettingCell = cell.starts_with('[');
+                    if(!isSettingCell)
+                    {
+                        bool shouldHighlight = false;
+                        if(isRobotCustomKeyword(cell) || isRobotKeyword(cell))
+                            shouldHighlight = true;
+                        else if(syntaxRobotHighlightCalls)
+                            shouldHighlight = true;
+                        if(shouldHighlight)
+                        {
+                            tokens.push_back({TOKEN_FUNCTION, range.start,
+                                              range.end - range.start});
+                        }
+                    }
                 }
             }
         }
@@ -2644,8 +2743,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                         ? marker.size() - atPos
                                         : spacePos - atPos;
                 if(keywordLen > 0)
-                    push_token(TOKEN_KEYWORD, (int)atPos,
-                               (int)keywordLen);
+                    push_token(TOKEN_KEYWORD, (int)atPos, (int)keywordLen);
             }
 
             size_t nameStart = marker.size();
@@ -2928,8 +3026,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                         ++k;
                                     }
                                     extraTypeTokens.push_back(
-                                        {TOKEN_TYPE, nameStart,
-                                         k - nameStart});
+                                        {TOKEN_TYPE, nameStart, k - nameStart});
                                     --k;
                                 }
                             }
@@ -3062,10 +3159,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                             if(text_utils::is_alpha(ch) || ch == '_')
                             {
                                 int nameStart = k++;
-                                while(k < len &&
-                                      (text_utils::is_alpha(sv[k]) ||
-                                       text_utils::is_digit(sv[k]) ||
-                                       sv[k] == '_'))
+                                while(k < len && (text_utils::is_alpha(sv[k]) ||
+                                                  text_utils::is_digit(sv[k]) ||
+                                                  sv[k] == '_'))
                                 {
                                     ++k;
                                 }
@@ -3247,10 +3343,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                             if(text_utils::is_alpha(ch) || ch == '_')
                             {
                                 int nameStart = k++;
-                                while(k < len &&
-                                      (text_utils::is_alpha(sv[k]) ||
-                                       text_utils::is_digit(sv[k]) ||
-                                       sv[k] == '_'))
+                                while(k < len && (text_utils::is_alpha(sv[k]) ||
+                                                  text_utils::is_digit(sv[k]) ||
+                                                  sv[k] == '_'))
                                 {
                                     ++k;
                                 }
@@ -3816,8 +3911,8 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                 const auto& state = buffer->syntaxCache[fileRow];
                 if(state.valid)
                 {
-                    inFunctionContext = state.inCppFunctionContext ||
-                                        state.inCppMethodContext;
+                    inFunctionContext =
+                        state.inCppFunctionContext || state.inCppMethodContext;
                 }
             }
             for(const auto& token : semTokens)
@@ -3851,8 +3946,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                             --p;
                         if(p >= 0 && lineRef[p] == '.')
                             isObjectReference = true;
-                        if(p >= 1 && lineRef[p] == '>' &&
-                           lineRef[p - 1] == '-')
+                        if(p >= 1 && lineRef[p] == '>' && lineRef[p - 1] == '-')
                             isObjectReference = true;
                         if(!isObjectReference)
                         {
@@ -3870,8 +3964,8 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                             }
                         }
                     }
-                    if(!inFunctionContext && (token.isDeclaration ||
-                                              token.isDefinition))
+                    if(!inFunctionContext &&
+                       (token.isDeclaration || token.isDefinition))
                     {
                         mapped = editor->syntaxCppMemberToken;
                     }
