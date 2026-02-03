@@ -298,6 +298,18 @@ constexpr std::string_view kPythonLspArgs = "--python-lsp-args";
 constexpr std::string_view kMlangLsp = "--mlang-lsp";
 constexpr std::string_view kMlangLspPath = "--mlang-lsp-path";
 constexpr std::string_view kMlangLspArgs = "--mlang-lsp-args";
+constexpr std::string_view kHtmlLsp = "--html-lsp";
+constexpr std::string_view kHtmlLspPath = "--html-lsp-path";
+constexpr std::string_view kHtmlLspArgs = "--html-lsp-args";
+constexpr std::string_view kCssLsp = "--css-lsp";
+constexpr std::string_view kCssLspPath = "--css-lsp-path";
+constexpr std::string_view kCssLspArgs = "--css-lsp-args";
+constexpr std::string_view kJsonLsp = "--json-lsp";
+constexpr std::string_view kJsonLspPath = "--json-lsp-path";
+constexpr std::string_view kJsonLspArgs = "--json-lsp-args";
+constexpr std::string_view kTsLsp = "--ts-lsp";
+constexpr std::string_view kTsLspPath = "--ts-lsp-path";
+constexpr std::string_view kTsLspArgs = "--ts-lsp-args";
 constexpr std::string_view kTheme = "--theme";
 constexpr std::string_view kLogFile = "--log-file";
 constexpr std::string_view kLogColors = "--log-colors";
@@ -308,7 +320,7 @@ struct HelpRow
     std::string_view description;
 };
 
-constexpr std::array<HelpRow, 20> kHelpRows = {{
+constexpr std::array<HelpRow, 32> kHelpRows = {{
     {kHelp, "Show this help and exit"},
     {kVersion, "Show version and exit"},
     {"--config <path>", "Use custom config path"},
@@ -328,6 +340,19 @@ constexpr std::array<HelpRow, 20> kHelpRows = {{
     {kMlangLsp, "Enable Mlang LSP"},
     {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
     {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
+    {kHtmlLsp, "Enable HTML LSP"},
+    {"--html-lsp-path <path>", "Path to HTML LSP server"},
+    {"--html-lsp-args <args>", "Extra args for HTML LSP (space-separated)"},
+    {kCssLsp, "Enable CSS LSP"},
+    {"--css-lsp-path <path>", "Path to CSS LSP server"},
+    {"--css-lsp-args <args>", "Extra args for CSS LSP (space-separated)"},
+    {kJsonLsp, "Enable JSON LSP"},
+    {"--json-lsp-path <path>", "Path to JSON LSP server"},
+    {"--json-lsp-args <args>", "Extra args for JSON LSP (space-separated)"},
+    {kTsLsp, "Enable TypeScript/JavaScript LSP"},
+    {"--ts-lsp-path <path>", "Path to TS/JS LSP server"},
+    {"--ts-lsp-args <args>",
+     "Extra args for TS/JS LSP (space-separated)"},
     {"--theme <path>", "Load theme YAML from path"},
     {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
     {kLogColors, "Enable colored log output"},
@@ -343,6 +368,10 @@ struct Options
     bool useRobotLsp = false;
     bool usePythonLsp = false;
     bool useMlangLsp = false;
+    bool useHtmlLsp = false;
+    bool useCssLsp = false;
+    bool useJsonLsp = false;
+    bool useTsLsp = false;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -353,6 +382,14 @@ struct Options
     std::string pythonLspArgs;
     std::string mlangLspPath = "mlangd";
     std::string mlangLspArgs;
+    std::string htmlLspPath = "vscode-html-language-server";
+    std::string htmlLspArgs;
+    std::string cssLspPath = "vscode-css-language-server";
+    std::string cssLspArgs;
+    std::string jsonLspPath = "vscode-json-language-server";
+    std::string jsonLspArgs;
+    std::string tsLspPath = "typescript-language-server";
+    std::string tsLspArgs;
     std::string logFile;
     std::string customConfig;
     std::string initConfigPath;
@@ -485,6 +522,70 @@ public:
                         std::string(require_value(key, i, argc, argv, val));
                     sawOptionValue = true;
                 }
+                else if(key == kHtmlLsp)
+                {
+                    opts.useHtmlLsp = true;
+                }
+                else if(key == kHtmlLspPath)
+                {
+                    opts.htmlLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kHtmlLspArgs)
+                {
+                    opts.htmlLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kCssLsp)
+                {
+                    opts.useCssLsp = true;
+                }
+                else if(key == kCssLspPath)
+                {
+                    opts.cssLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kCssLspArgs)
+                {
+                    opts.cssLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kJsonLsp)
+                {
+                    opts.useJsonLsp = true;
+                }
+                else if(key == kJsonLspPath)
+                {
+                    opts.jsonLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kJsonLspArgs)
+                {
+                    opts.jsonLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kTsLsp)
+                {
+                    opts.useTsLsp = true;
+                }
+                else if(key == kTsLspPath)
+                {
+                    opts.tsLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kTsLspArgs)
+                {
+                    opts.tsLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
                 else if(key == kTheme)
                 {
                     opts.themePath =
@@ -552,6 +653,10 @@ struct EditorSettings
     bool useRobotLsp = false;
     bool usePythonLsp = false;
     bool useMlangLsp = false;
+    bool useHtmlLsp = false;
+    bool useCssLsp = false;
+    bool useJsonLsp = false;
+    bool useTsLsp = false;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -562,6 +667,14 @@ struct EditorSettings
     std::string pythonLspArgs;
     std::string mlangLspPath = "mlangd";
     std::string mlangLspArgs;
+    std::string htmlLspPath = "vscode-html-language-server";
+    std::string htmlLspArgs;
+    std::string cssLspPath = "vscode-css-language-server";
+    std::string cssLspArgs;
+    std::string jsonLspPath = "vscode-json-language-server";
+    std::string jsonLspArgs;
+    std::string tsLspPath = "typescript-language-server";
+    std::string tsLspArgs;
 
     static EditorSettings fromOptions(const cli::Options& opts)
     {
@@ -570,6 +683,10 @@ struct EditorSettings
         out.useRobotLsp = opts.useRobotLsp;
         out.usePythonLsp = opts.usePythonLsp;
         out.useMlangLsp = opts.useMlangLsp;
+        out.useHtmlLsp = opts.useHtmlLsp;
+        out.useCssLsp = opts.useCssLsp;
+        out.useJsonLsp = opts.useJsonLsp;
+        out.useTsLsp = opts.useTsLsp;
         out.ccdir = opts.ccdir;
         out.clangdPath = opts.clangdPath.empty() ? "clangd" : opts.clangdPath;
         out.queryDriver = opts.queryDriver;
@@ -579,6 +696,14 @@ struct EditorSettings
         out.pythonLspArgs = opts.pythonLspArgs;
         out.mlangLspPath = opts.mlangLspPath;
         out.mlangLspArgs = opts.mlangLspArgs;
+        out.htmlLspPath = opts.htmlLspPath;
+        out.htmlLspArgs = opts.htmlLspArgs;
+        out.cssLspPath = opts.cssLspPath;
+        out.cssLspArgs = opts.cssLspArgs;
+        out.jsonLspPath = opts.jsonLspPath;
+        out.jsonLspArgs = opts.jsonLspArgs;
+        out.tsLspPath = opts.tsLspPath;
+        out.tsLspArgs = opts.tsLspArgs;
         return out;
     }
 
@@ -871,6 +996,82 @@ struct EditorSettings
             else if(autoDetect && !useMlangLsp)
             {
                 editor.setStatusMessage("mlang LSP: not found");
+            }
+        }
+
+        if(useHtmlLsp || autoDetect)
+        {
+            std::string htmlPath = htmlLspPath;
+            std::vector<std::string> args;
+            if(!htmlLspArgs.empty())
+                args = split_args(htmlLspArgs);
+            if(args.empty())
+                args.push_back("--stdio");
+
+            if(useHtmlLsp || binary_exists(htmlPath))
+            {
+                editor.enableHtmlLsp(true, htmlPath, args);
+            }
+            else if(autoDetect && !useHtmlLsp)
+            {
+                editor.setStatusMessage("html LSP: not found");
+            }
+        }
+
+        if(useCssLsp || autoDetect)
+        {
+            std::string cssPath = cssLspPath;
+            std::vector<std::string> args;
+            if(!cssLspArgs.empty())
+                args = split_args(cssLspArgs);
+            if(args.empty())
+                args.push_back("--stdio");
+
+            if(useCssLsp || binary_exists(cssPath))
+            {
+                editor.enableCssLsp(true, cssPath, args);
+            }
+            else if(autoDetect && !useCssLsp)
+            {
+                editor.setStatusMessage("css LSP: not found");
+            }
+        }
+
+        if(useJsonLsp || autoDetect)
+        {
+            std::string jsonPath = jsonLspPath;
+            std::vector<std::string> args;
+            if(!jsonLspArgs.empty())
+                args = split_args(jsonLspArgs);
+            if(args.empty())
+                args.push_back("--stdio");
+
+            if(useJsonLsp || binary_exists(jsonPath))
+            {
+                editor.enableJsonLsp(true, jsonPath, args);
+            }
+            else if(autoDetect && !useJsonLsp)
+            {
+                editor.setStatusMessage("json LSP: not found");
+            }
+        }
+
+        if(useTsLsp || autoDetect)
+        {
+            std::string tsPath = tsLspPath;
+            std::vector<std::string> args;
+            if(!tsLspArgs.empty())
+                args = split_args(tsLspArgs);
+            if(args.empty())
+                args.push_back("--stdio");
+
+            if(useTsLsp || binary_exists(tsPath))
+            {
+                editor.enableTsLsp(true, tsPath, args);
+            }
+            else if(autoDetect && !useTsLsp)
+            {
+                editor.setStatusMessage("ts LSP: not found");
             }
         }
     }

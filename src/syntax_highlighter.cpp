@@ -1247,6 +1247,21 @@ bool SyntaxHighlighter::isFileType(FileType type) const
         return constants::is_filetype<constants::no_pattern,
                                       constants::html_suffixes>(pathSv);
     }
+    case FileType::Css:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::css_suffixes>(pathSv);
+    }
+    case FileType::JavaScript:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::js_suffixes>(pathSv);
+    }
+    case FileType::TypeScript:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::ts_suffixes>(pathSv);
+    }
     case FileType::Xml:
     {
         return constants::is_filetype<constants::no_pattern,

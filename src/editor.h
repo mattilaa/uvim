@@ -85,6 +85,26 @@ public:
                         const std::string& mlangLspPath = "python3",
                         const std::vector<std::string>& mlangLspArgs = {});
     bool isMlangLspEnabled() const;
+    void enableHtmlLsp(bool enable,
+                       const std::string& htmlLspPath =
+                           "vscode-html-language-server",
+                       const std::vector<std::string>& htmlLspArgs = {});
+    bool isHtmlLspEnabled() const;
+    void enableCssLsp(bool enable,
+                      const std::string& cssLspPath =
+                          "vscode-css-language-server",
+                      const std::vector<std::string>& cssLspArgs = {});
+    bool isCssLspEnabled() const;
+    void enableJsonLsp(bool enable,
+                       const std::string& jsonLspPath =
+                           "vscode-json-language-server",
+                       const std::vector<std::string>& jsonLspArgs = {});
+    bool isJsonLspEnabled() const;
+    void enableTsLsp(bool enable,
+                     const std::string& tsLspPath =
+                         "typescript-language-server",
+                     const std::vector<std::string>& tsLspArgs = {});
+    bool isTsLspEnabled() const;
 
     void run();
     void openFile(std::string_view filename);
@@ -175,12 +195,28 @@ public:
     bool mlangLspEnabled = false;
     std::string mlangLspPath = "python3";
     std::vector<std::string> mlangLspArgs;
+    bool htmlLspEnabled = false;
+    std::string htmlLspPath = "vscode-html-language-server";
+    std::vector<std::string> htmlLspArgs;
+    bool cssLspEnabled = false;
+    std::string cssLspPath = "vscode-css-language-server";
+    std::vector<std::string> cssLspArgs;
+    bool jsonLspEnabled = false;
+    std::string jsonLspPath = "vscode-json-language-server";
+    std::vector<std::string> jsonLspArgs;
+    bool tsLspEnabled = false;
+    std::string tsLspPath = "typescript-language-server";
+    std::vector<std::string> tsLspArgs;
     std::shared_ptr<MlangTokenCache> mlangTokenCache;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
     std::unique_ptr<LspClient> robotLspClient;
     std::unique_ptr<LspClient> pythonLspClient;
     std::unique_ptr<LspClient> mlangLspClient;
+    std::unique_ptr<LspClient> htmlLspClient;
+    std::unique_ptr<LspClient> cssLspClient;
+    std::unique_ptr<LspClient> jsonLspClient;
+    std::unique_ptr<LspClient> tsLspClient;
 #endif
 
     Theme theme;
