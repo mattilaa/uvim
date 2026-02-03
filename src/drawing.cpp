@@ -475,6 +475,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
                        isFileType<FileType::CMake>() ||
                        isFileType<FileType::Shell>() ||
                        isFileType<FileType::Html>() ||
+                       isFileType<FileType::Css>() ||
+                       isFileType<FileType::JavaScript>() ||
+                       isFileType<FileType::TypeScript>() ||
                        isFileType<FileType::Xml>() ||
                        isFileType<FileType::MarkupText>() ||
                        isFileType<FileType::Rdoc>() ||
@@ -1025,6 +1028,9 @@ void Editor::drawFullScreenSingle()
                    isFileType<FileType::CMake>() ||
                    isFileType<FileType::Shell>() ||
                    isFileType<FileType::Html>() ||
+                   isFileType<FileType::Css>() ||
+                   isFileType<FileType::JavaScript>() ||
+                   isFileType<FileType::TypeScript>() ||
                    isFileType<FileType::Xml>() ||
                    isFileType<FileType::MarkupText>() ||
                    isFileType<FileType::Rdoc>() ||
@@ -1495,7 +1501,10 @@ void Editor::drawSplitFullScreen()
                isFileType<FileType::Robot>() ||
                isFileType<FileType::Python>() ||
                isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
-               isFileType<FileType::Html>() || isFileType<FileType::Xml>() ||
+               isFileType<FileType::Html>() || isFileType<FileType::Css>() ||
+               isFileType<FileType::JavaScript>() ||
+               isFileType<FileType::TypeScript>() ||
+               isFileType<FileType::Xml>() ||
                isFileType<FileType::MarkupText>() ||
                isFileType<FileType::Rdoc>() ||
                (isFileType<FileType::Json>() && syntaxJson) ||

@@ -1,0 +1,30 @@
+:root {
+  color-scheme: light;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  margin: 24px;
+  background: #0e2731;
+  color: #eaf5f7;
+}
+
+#app {
+  max-width: 640px;
+}
+
+.lead {
+  color: #8fd0dd;
+}
+
+button {
+  background: #f7c948;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.95);
+}

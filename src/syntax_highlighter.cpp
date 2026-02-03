@@ -1247,6 +1247,21 @@ bool SyntaxHighlighter::isFileType(FileType type) const
         return constants::is_filetype<constants::no_pattern,
                                       constants::html_suffixes>(pathSv);
     }
+    case FileType::Css:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::css_suffixes>(pathSv);
+    }
+    case FileType::JavaScript:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::javascript_suffixes>(pathSv);
+    }
+    case FileType::TypeScript:
+    {
+        return constants::is_filetype<constants::no_pattern,
+                                      constants::typescript_suffixes>(pathSv);
+    }
     case FileType::Xml:
     {
         return constants::is_filetype<constants::no_pattern,
@@ -1765,6 +1780,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         editor->syntaxCppHighlightParamTypes;
     const bool syntaxCppHighlightSystemIncludes =
         editor->syntaxCppHighlightSystemIncludes;
+    const bool isJs =
+        isFileType<FileType::JavaScript>() || isFileType<FileType::TypeScript>();
+    const bool isCss = isFileType<FileType::Css>();
 
     if(isFileType<FileType::Cpp>() && syntaxCppHighlightTypeNames)
         ensureCppMemberIndex();
@@ -2229,6 +2247,221 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             }
         }
 
+        return tokens;
+    }
+
+    if(isFileType<FileType::Html>() || isFileType<FileType::Xml>())
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        auto is_name_char = [](char c) -> bool
+        {
+            return text_utils::is_alpha(c) || text_utils::is_digit(c) ||
+                   c == '-' || c == '_' || c == ':';
+        };
+
+        while(i < len)
+        {
+            if(i + 3 < len && sv.compare((size_t)i, 4, "<!--") == 0)
+            {
+                int start = i;
+                int endPos = -1;
+                for(int j = i + 4; j + 2 < len; ++j)
+                {
+                    if(sv[j] == '-' && sv[j + 1] == '-' && sv[j + 2] == '>')
+                    {
+                        endPos = j + 3;
+                        break;
+                    }
+                }
+                if(endPos < 0)
+                {
+                    tokens.push_back({TOKEN_COMMENT, start, len - start});
+                    break;
+                }
+                tokens.push_back({TOKEN_COMMENT, start, endPos - start});
+                i = endPos;
+                continue;
+            }
+
+            if(sv[i] == '<')
+            {
+                int tagStart = i;
+                ++i;
+                if(i < len && (sv[i] == '/' || sv[i] == '!' || sv[i] == '?'))
+                    ++i;
+
+                int nameStart = i;
+                while(i < len && is_name_char(sv[i]))
+                    ++i;
+                if(i > nameStart)
+                {
+                    tokens.push_back(
+                        {TOKEN_KEYWORD, nameStart, i - nameStart});
+                }
+
+                while(i < len && sv[i] != '>')
+                {
+                    if(text_utils::is_space(sv[i]) || sv[i] == '/' ||
+                       sv[i] == '=')
+                    {
+                        ++i;
+                        continue;
+                    }
+                    if(sv[i] == '"' || sv[i] == '\'')
+                    {
+                        char quote = sv[i];
+                        int start = i++;
+                        while(i < len && sv[i] != quote)
+                        {
+                            if(sv[i] == '\\' && i + 1 < len)
+                                i += 2;
+                            else
+                                ++i;
+                        }
+                        if(i < len)
+                            ++i;
+                        tokens.push_back({TOKEN_STRING, start, i - start});
+                        continue;
+                    }
+                    int attrStart = i;
+                    while(i < len && is_name_char(sv[i]))
+                        ++i;
+                    if(i > attrStart)
+                    {
+                        tokens.push_back(
+                            {TOKEN_TYPE, attrStart, i - attrStart});
+                        continue;
+                    }
+                    ++i;
+                }
+
+                if(i < len && sv[i] == '>')
+                {
+                    tokens.push_back({TOKEN_OPERATOR, tagStart, 1});
+                    tokens.push_back({TOKEN_OPERATOR, i, 1});
+                    ++i;
+                }
+                continue;
+            }
+
+            ++i;
+        }
+
+        return tokens;
+    }
+
+    if(isCss)
+    {
+        std::vector<Token> tokens;
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        auto is_ident_char = [](char c) -> bool
+        {
+            return text_utils::is_alpha(c) || text_utils::is_digit(c) ||
+                   c == '-' || c == '_';
+        };
+
+        while(i < len)
+        {
+            if(inBlockComment)
+            {
+                size_t end = sv.find("*/", (size_t)i);
+                if(end == std::string_view::npos)
+                {
+                    tokens.push_back({TOKEN_COMMENT, i, len - i});
+                    return tokens;
+                }
+                int start = i;
+                i = (int)end + 2;
+                tokens.push_back({TOKEN_COMMENT, start, i - start});
+                inBlockComment = false;
+                continue;
+            }
+
+            if(i + 1 < len && sv[i] == '/' && sv[i + 1] == '*')
+            {
+                int start = i;
+                size_t end = sv.find("*/", (size_t)i + 2);
+                if(end == std::string_view::npos)
+                {
+                    tokens.push_back({TOKEN_COMMENT, start, len - start});
+                    inBlockComment = true;
+                    return tokens;
+                }
+                i = (int)end + 2;
+                tokens.push_back({TOKEN_COMMENT, start, i - start});
+                continue;
+            }
+
+            char c = sv[i];
+            if(text_utils::is_space(c))
+            {
+                ++i;
+                continue;
+            }
+            if(c == '"' || c == '\'')
+            {
+                char quote = c;
+                int start = i++;
+                while(i < len && sv[i] != quote)
+                {
+                    if(sv[i] == '\\' && i + 1 < len)
+                        i += 2;
+                    else
+                        ++i;
+                }
+                if(i < len)
+                    ++i;
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+            if(c == '@')
+            {
+                int start = i++;
+                while(i < len && is_ident_char(sv[i]))
+                    ++i;
+                tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                continue;
+            }
+            if((c >= '0' && c <= '9'))
+            {
+                int start = i++;
+                while(i < len && (text_utils::is_digit(sv[i]) || sv[i] == '.' ||
+                                  sv[i] == '%'))
+                {
+                    ++i;
+                }
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+            if(is_ident_char(c))
+            {
+                int start = i++;
+                while(i < len && is_ident_char(sv[i]))
+                    ++i;
+                int look = i;
+                while(look < len && text_utils::is_space(sv[look]))
+                    ++look;
+                if(look < len && sv[look] == ':')
+                    tokens.push_back({TOKEN_TYPE, start, i - start});
+                continue;
+            }
+
+            if(std::ispunct(static_cast<unsigned char>(c)))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+
+            ++i;
+        }
         return tokens;
     }
 
@@ -2877,6 +3110,53 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                                                   : true))
                 {
                     inParamList = true;
+                }
+            }
+            if(isJs)
+            {
+                static constexpr std::string_view kJsKeywords[] = {
+                    "break",   "case",    "catch",   "class",  "const",
+                    "continue", "debugger", "default", "delete", "do",
+                    "else",    "export",  "extends", "finally", "for",
+                    "function", "if",     "import",  "in",     "instanceof",
+                    "let",     "new",     "return",  "super",  "switch",
+                    "this",    "throw",   "try",     "typeof", "var",
+                    "void",    "while",   "with",    "yield",  "await",
+                    "async",   "static",  "get",     "set",    "of",
+                };
+                static constexpr std::string_view kJsTypes[] = {
+                    "string", "number",  "boolean", "any",  "unknown",
+                    "never",  "void",    "null",    "undefined",
+                    "bigint", "symbol",  "object",
+                };
+                auto is_js_keyword = [&](std::string_view w) -> bool
+                {
+                    for(auto kw : kJsKeywords)
+                    {
+                        if(kw == w)
+                            return true;
+                    }
+                    return false;
+                };
+                auto is_js_type = [&](std::string_view w) -> bool
+                {
+                    for(auto ty : kJsTypes)
+                    {
+                        if(ty == w)
+                            return true;
+                    }
+                    return false;
+                };
+
+                if(is_js_keyword(word))
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    continue;
+                }
+                if(is_js_type(word))
+                {
+                    push_token(TOKEN_TYPE, start, i - start);
+                    continue;
                 }
             }
             if(isFileType<FileType::Cpp>())

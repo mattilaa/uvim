@@ -1845,6 +1845,254 @@ bool Editor::isMlangLspEnabled() const
 #endif
 }
 
+void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,
+                           const std::vector<std::string>& htmlLspArgs)
+{
+    htmlLspEnabled = false;
+    this->htmlLspPath = htmlLspPath;
+    this->htmlLspArgs = htmlLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(htmlLspClient)
+        {
+            htmlLspClient->stop();
+            htmlLspClient.reset();
+        }
+        return;
+    }
+
+    std::string rootDir = ".";
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
+
+    std::vector<std::string> args = this->htmlLspArgs;
+    if(args.empty())
+        args.push_back("--stdio");
+
+    htmlLspClient = std::make_unique<LspClient>();
+    if(!htmlLspClient->startServer(this->htmlLspPath, rootDir, args))
+    {
+        htmlLspClient.reset();
+        LOG_ERROR(LOG, "HTML LSP failed to start. LSP path: {}",
+                  this->htmlLspPath);
+        return;
+    }
+
+    htmlLspEnabled = true;
+    LOG_DEBUG(LOG, "HTML LSP enabled");
+#else
+    (void)enable;
+    (void)htmlLspPath;
+    (void)htmlLspArgs;
+    LOG_ERROR(LOG, "HTML LSP is not compiled");
+#endif
+}
+
+bool Editor::isHtmlLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return htmlLspEnabled && htmlLspClient && htmlLspClient->running();
+#else
+    return false;
+#endif
+}
+
+void Editor::enableCssLsp(bool enable, const std::string& cssLspPath,
+                          const std::vector<std::string>& cssLspArgs)
+{
+    cssLspEnabled = false;
+    this->cssLspPath = cssLspPath;
+    this->cssLspArgs = cssLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(cssLspClient)
+        {
+            cssLspClient->stop();
+            cssLspClient.reset();
+        }
+        return;
+    }
+
+    std::string rootDir = ".";
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
+
+    std::vector<std::string> args = this->cssLspArgs;
+    if(args.empty())
+        args.push_back("--stdio");
+
+    cssLspClient = std::make_unique<LspClient>();
+    if(!cssLspClient->startServer(this->cssLspPath, rootDir, args))
+    {
+        cssLspClient.reset();
+        LOG_ERROR(LOG, "CSS LSP failed to start. LSP path: {}",
+                  this->cssLspPath);
+        return;
+    }
+
+    cssLspEnabled = true;
+    LOG_DEBUG(LOG, "CSS LSP enabled");
+#else
+    (void)enable;
+    (void)cssLspPath;
+    (void)cssLspArgs;
+    LOG_ERROR(LOG, "CSS LSP is not compiled");
+#endif
+}
+
+bool Editor::isCssLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return cssLspEnabled && cssLspClient && cssLspClient->running();
+#else
+    return false;
+#endif
+}
+
+void Editor::enableJsonLsp(bool enable, const std::string& jsonLspPath,
+                           const std::vector<std::string>& jsonLspArgs)
+{
+    jsonLspEnabled = false;
+    this->jsonLspPath = jsonLspPath;
+    this->jsonLspArgs = jsonLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(jsonLspClient)
+        {
+            jsonLspClient->stop();
+            jsonLspClient.reset();
+        }
+        return;
+    }
+
+    std::string rootDir = ".";
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
+
+    std::vector<std::string> args = this->jsonLspArgs;
+    if(args.empty())
+        args.push_back("--stdio");
+
+    jsonLspClient = std::make_unique<LspClient>();
+    if(!jsonLspClient->startServer(this->jsonLspPath, rootDir, args))
+    {
+        jsonLspClient.reset();
+        LOG_ERROR(LOG, "JSON LSP failed to start. LSP path: {}",
+                  this->jsonLspPath);
+        return;
+    }
+
+    jsonLspEnabled = true;
+    LOG_DEBUG(LOG, "JSON LSP enabled");
+#else
+    (void)enable;
+    (void)jsonLspPath;
+    (void)jsonLspArgs;
+    LOG_ERROR(LOG, "JSON LSP is not compiled");
+#endif
+}
+
+bool Editor::isJsonLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return jsonLspEnabled && jsonLspClient && jsonLspClient->running();
+#else
+    return false;
+#endif
+}
+
+void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
+                         const std::vector<std::string>& tsLspArgs)
+{
+    tsLspEnabled = false;
+    this->tsLspPath = tsLspPath;
+    this->tsLspArgs = tsLspArgs;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!enable)
+    {
+        if(tsLspClient)
+        {
+            tsLspClient->stop();
+            tsLspClient.reset();
+        }
+        return;
+    }
+
+    std::string rootDir = ".";
+    if(!projectRoot.empty())
+    {
+        rootDir = projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            rootDir = std::string(cwd);
+    }
+
+    std::vector<std::string> args = this->tsLspArgs;
+    if(args.empty())
+        args.push_back("--stdio");
+
+    tsLspClient = std::make_unique<LspClient>();
+    if(!tsLspClient->startServer(this->tsLspPath, rootDir, args))
+    {
+        tsLspClient.reset();
+        LOG_ERROR(LOG, "TypeScript LSP failed to start. LSP path: {}",
+                  this->tsLspPath);
+        return;
+    }
+
+    tsLspEnabled = true;
+    LOG_DEBUG(LOG, "TypeScript LSP enabled");
+#else
+    (void)enable;
+    (void)tsLspPath;
+    (void)tsLspArgs;
+    LOG_ERROR(LOG, "TypeScript LSP is not compiled");
+#endif
+}
+
+bool Editor::isTsLspEnabled() const
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    return tsLspEnabled && tsLspClient && tsLspClient->running();
+#else
+    return false;
+#endif
+}
+
 void Editor::enterOperatorPending(char op)
 {
     pendingOperator = op;
@@ -2407,6 +2655,59 @@ void Editor::openFile(std::string_view fname)
                 text.push_back('\n');
         }
         mlangLspClient->didChange(path, text, "mlang");
+    }
+    if(isHtmlLspEnabled() && isFileType<FileType::Html>() && htmlLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        htmlLspClient->didChange(path, text, "html");
+    }
+    if(isCssLspEnabled() && isFileType<FileType::Css>() && cssLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        cssLspClient->didChange(path, text, "css");
+    }
+    if(isJsonLspEnabled() && isFileType<FileType::Json>() && jsonLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        jsonLspClient->didChange(path, text, "json");
+    }
+    if(isTsLspEnabled() &&
+       (isFileType<FileType::JavaScript>() ||
+        isFileType<FileType::TypeScript>()) &&
+       tsLspClient)
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        const char* lang =
+            isFileType<FileType::TypeScript>() ? "typescript" : "javascript";
+        tsLspClient->didChange(path, text, lang);
     }
 #endif
 
@@ -3490,6 +3791,67 @@ void Editor::goToDefinition()
 
         setStatusMessage("gd (python): not found");
         return;
+    }
+
+    auto lsp_gd = [&](LspClient* client, const char* languageId,
+                      std::string_view label) -> bool
+    {
+        if(!client)
+            return false;
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+
+        client->didChange(currentBuffer->filename, text, languageId);
+        auto loc = client->definition(currentBuffer->filename, *cursorY,
+                                      *cursorX);
+        if(!loc)
+            return false;
+
+        pushJumpLocation();
+        openFile(loc->path);
+        *cursorY = loc->line;
+        *cursorX = loc->character;
+
+        if(*cursorY >= (int)lines->size())
+            *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+        if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
+            *cursorX = (*lines)[*cursorY].length();
+
+        apply_gd_viewport();
+        setStatusMessage("gd (" + std::string(label) + ") → " + loc->path +
+                         ":" + std::to_string(loc->line + 1));
+        return true;
+    };
+
+    if(isHtmlLspEnabled() && isFileType<FileType::Html>())
+    {
+        if(lsp_gd(htmlLspClient.get(), "html", "html"))
+            return;
+    }
+    if(isCssLspEnabled() && isFileType<FileType::Css>())
+    {
+        if(lsp_gd(cssLspClient.get(), "css", "css"))
+            return;
+    }
+    if(isJsonLspEnabled() && isFileType<FileType::Json>())
+    {
+        if(lsp_gd(jsonLspClient.get(), "json", "json"))
+            return;
+    }
+    if(isTsLspEnabled() &&
+       (isFileType<FileType::JavaScript>() ||
+        isFileType<FileType::TypeScript>()))
+    {
+        const char* lang =
+            isFileType<FileType::TypeScript>() ? "typescript" : "javascript";
+        if(lsp_gd(tsLspClient.get(), lang, "ts"))
+            return;
     }
 
     if(isMlangLspEnabled() && isFileType<FileType::Mla>())

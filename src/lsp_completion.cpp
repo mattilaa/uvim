@@ -549,6 +549,68 @@ void Editor::requestCompletion()
         label = "mlang";
         languageId = "mlang";
     }
+    else if(isFileType<FileType::Html>())
+    {
+        if(!isHtmlLspEnabled())
+        {
+            setStatusMessage("html LSP: OFF");
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            bufferWordFallback("buffer");
+            return;
+        }
+        client = htmlLspClient.get();
+        label = "html";
+        languageId = "html";
+    }
+    else if(isFileType<FileType::Css>())
+    {
+        if(!isCssLspEnabled())
+        {
+            setStatusMessage("css LSP: OFF");
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            bufferWordFallback("buffer");
+            return;
+        }
+        client = cssLspClient.get();
+        label = "css";
+        languageId = "css";
+    }
+    else if(isFileType<FileType::Json>())
+    {
+        if(!isJsonLspEnabled())
+        {
+            setStatusMessage("json LSP: OFF");
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            bufferWordFallback("buffer");
+            return;
+        }
+        client = jsonLspClient.get();
+        label = "json";
+        languageId = "json";
+    }
+    else if(isFileType<FileType::JavaScript>() ||
+            isFileType<FileType::TypeScript>())
+    {
+        if(!isTsLspEnabled())
+        {
+            setStatusMessage("ts LSP: OFF");
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            bufferWordFallback("buffer");
+            return;
+        }
+        client = tsLspClient.get();
+        label = "ts";
+        languageId =
+            isFileType<FileType::TypeScript>() ? "typescript" : "javascript";
+    }
     else if(isFileType<FileType::Cpp>())
     {
         if(!isClangdLspEnabled())

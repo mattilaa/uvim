@@ -65,6 +65,88 @@ on Fedora).
 - `--robot-lsp` enable Robot Framework LSP
 - `--python-lsp` enable Python LSP
 - `--mlang-lsp` enable Mlang LSP (expects the Mlang repo `tools/mlang_lsp`)
+- `--html-lsp` enable HTML LSP
+- `--css-lsp` enable CSS LSP
+- `--json-lsp` enable JSON LSP
+- `--ts-lsp` enable TypeScript/JavaScript LSP
+
+## Dependencies (OS-specific)
+
+uvim LSP helpers need Node.js (npm), Python, git, and clangd. Yarn is optional
+if you prefer it over npm.
+
+### macOS (Homebrew)
+
+```sh
+brew install node python git llvm yarn
+```
+
+Notes:
+- clangd is included with `llvm` (add `/opt/homebrew/opt/llvm/bin` or
+  `/usr/local/opt/llvm/bin` to `PATH` if needed).
+
+### Debian/Ubuntu (apt)
+
+```sh
+sudo apt-get update
+sudo apt-get install -y nodejs npm python3 python3-pip git clangd yarn
+```
+
+### Arch/Manjaro (pacman)
+
+```sh
+sudo pacman -S --noconfirm nodejs npm python python-pip git clang yarn
+```
+
+### Windows (winget)
+
+```powershell
+winget install OpenJS.NodeJS
+winget install Python.Python.3
+winget install Git.Git
+winget install LLVM.LLVM
+winget install Yarn.Yarn
+```
+
+### Windows (Chocolatey)
+
+```powershell
+choco install -y nodejs python git llvm yarn
+```
+
+### VSCode language servers (HTML/CSS/JSON/TS)
+
+These LSPs are Node-based. You can install them globally:
+
+```sh
+npm install -g vscode-html-language-server vscode-css-language-server \
+  vscode-json-language-server typescript-language-server typescript
+```
+
+Then run uvim with autodetect (default) or explicit flags:
+
+```sh
+uvim --html-lsp --css-lsp --json-lsp --ts-lsp
+```
+
+### Install script
+
+Use the helper script to install one or more LSPs (uses git+https for Node packages):
+
+```sh
+./scripts/install_lsps.sh --html --css --json --ts
+./scripts/install_lsps.sh --robot --python
+./scripts/install_lsps.sh --all
+```
+
+### Sample files (LSP smoke tests)
+
+Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
+
+- `examples/lsp/sample.html`
+- `examples/lsp/sample.css`
+- `examples/lsp/sample.js`
+- `examples/lsp/sample.ts`
 
 ## Search examples
 
