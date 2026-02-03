@@ -859,21 +859,20 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
             std::string resolvedThemePath = themePath;
             if(resolvedThemePath.empty())
             {
-            auto itThemeFile = values.find("theme.file");
-            if(itThemeFile == values.end())
-                itThemeFile = values.find("theme.path");
-            if(itThemeFile != values.end())
-                resolvedThemePath = itThemeFile->second;
+                auto itThemeFile = values.find("theme.file");
+                if(itThemeFile == values.end())
+                    itThemeFile = values.find("theme.path");
+                if(itThemeFile != values.end())
+                    resolvedThemePath = itThemeFile->second;
                 auto itThemeName = values.find("theme.name");
                 if(resolvedThemePath.empty() && itThemeName != values.end())
                 {
                     std::string name = itThemeName->second;
                     if(!name.empty())
                     {
-                        bool hasExt =
-                            name.size() >= 5 &&
-                            (name.rfind(".yaml") == name.size() - 5 ||
-                             name.rfind(".yml") == name.size() - 4);
+                        bool hasExt = name.size() >= 5 &&
+                                      (name.rfind(".yaml") == name.size() - 5 ||
+                                       name.rfind(".yml") == name.size() - 4);
                         if(!hasExt)
                             name += ".yaml";
                         std::string dir = default_theme_dir();
@@ -886,8 +885,8 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
             {
                 if(!theme.loadFromFile(resolvedThemePath))
                 {
-                    std::cerr << "theme: failed to load "
-                              << resolvedThemePath << "\n";
+                    std::cerr << "theme: failed to load " << resolvedThemePath
+                              << "\n";
                 }
             }
             theme.loadFromFile(configPath);
@@ -3529,9 +3528,8 @@ void Editor::goToDefinition()
             syntaxHighlighter->ensureMlangTokensLoaded();
         if(mlangTokenCache)
         {
-            std::string key = mlangTokenCache->caseInsensitive
-                                  ? ascii_lower(symbol)
-                                  : symbol;
+            std::string key =
+                mlangTokenCache->caseInsensitive ? ascii_lower(symbol) : symbol;
             auto it = mlangTokenCache->builtinTypes.find(key);
             if(it != mlangTokenCache->builtinTypes.end())
             {
@@ -4646,8 +4644,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
     {
         bool refreshSemantic =
             force || !currentBuffer->lspSemanticTokensValid ||
-            (newHash != 0 &&
-             newHash != currentBuffer->lspSemanticTokensHash);
+            (newHash != 0 && newHash != currentBuffer->lspSemanticTokensHash);
         if(refreshSemantic)
             lspClient->requestSemanticTokens(currentBuffer->filename);
 
@@ -4665,10 +4662,9 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
                 if(token.line < 0 || token.line >= (int)lines->size())
                     continue;
                 const std::string& line = (*lines)[token.line];
-                int startByte =
-                    utf16ToUtf8ByteOffset(line, token.character);
-                int endByte = utf16ToUtf8ByteOffset(
-                    line, token.character + token.length);
+                int startByte = utf16ToUtf8ByteOffset(line, token.character);
+                int endByte =
+                    utf16ToUtf8ByteOffset(line, token.character + token.length);
                 if(endByte <= startByte)
                     continue;
                 if(startByte >= (int)line.size())
@@ -4678,12 +4674,10 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
                 int length = endByte - startByte;
                 if(length <= 0)
                     continue;
-                bool isDecl =
-                    lspClient->semanticTokenHasModifier(token.modifiers,
-                                                        "declaration");
-                bool isDef =
-                    lspClient->semanticTokenHasModifier(token.modifiers,
-                                                        "definition");
+                bool isDecl = lspClient->semanticTokenHasModifier(
+                    token.modifiers, "declaration");
+                bool isDef = lspClient->semanticTokenHasModifier(
+                    token.modifiers, "definition");
                 currentBuffer->lspSemanticTokens[token.line].push_back(
                     {startByte, length, token.tokenType, isDecl, isDef});
             }
@@ -4880,9 +4874,8 @@ bool Editor::handleSetCommand(std::string_view cmd)
     }
     if(opt == "syntax.mlang.highlight_builtin_docs?")
     {
-        setStatusMessage(
-            std::string("syntax.mlang.highlight_builtin_docs=") +
-            (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
+        setStatusMessage(std::string("syntax.mlang.highlight_builtin_docs=") +
+                         (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
         return true;
     }
 
@@ -4997,8 +4990,7 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         std::string value =
             opt.substr(std::string("syntax.cpp.locals_color=").length());
-        syntaxCppLocalToken =
-            parse_token_type(value, syntaxCppLocalToken);
+        syntaxCppLocalToken = parse_token_type(value, syntaxCppLocalToken);
         setStatusMessage("syntax.cpp.locals_color=" +
                          std::string(token_type_name(syntaxCppLocalToken)));
         needsFullRedraw = true;
@@ -5008,8 +5000,7 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         std::string value =
             opt.substr(std::string("syntax.cpp.member_color=").length());
-        syntaxCppMemberToken =
-            parse_token_type(value, syntaxCppMemberToken);
+        syntaxCppMemberToken = parse_token_type(value, syntaxCppMemberToken);
         setStatusMessage("syntax.cpp.member_color=" +
                          std::string(token_type_name(syntaxCppMemberToken)));
         needsFullRedraw = true;
@@ -5203,8 +5194,7 @@ bool Editor::handleSetCommand(std::string_view cmd)
     }
     if(opt.rfind("autodetectlsps=", 0) == 0)
     {
-        std::string value =
-            opt.substr(std::string("autodetectlsps=").length());
+        std::string value = opt.substr(std::string("autodetectlsps=").length());
         if(value == "true" || value == "1" || value == "on")
         {
             autoDetectLsps = true;
@@ -9146,15 +9136,16 @@ void Editor::drawCommandHistoryPopup(std::string& output) const
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
     std::vector<std::string> commands = {
-        "w",       "write",    "q",       "quit",   "q!",    "qa",
-        "qall",    "qa!",      "qall!",   "wq",     "x",     "qw",
-        "qw!",     "wa",       "wall",    "wa!",    "wqa",   "wqall",
-        "wqa!",    "wqall!",   "xa",      "e",      "edit",  "e%",
-        "edit%",   "new",      "vnew",    "bn",     "bnext", "bp",
-        "bprev",   "bd",       "bdelete", "ls",     "buffers", "sp",
-        "split",   "vs",       "vsplit",  "vh",     "hs",    "hsplit",
-        "only",    "tabnew",   "tabc",    "tabclose", "set", "syntax",
-        "noh",     "nohlsearch", "lspinfo", "emoji", "em",   "help", "h"};
+        "w",     "write",      "q",       "quit",     "q!",      "qa",
+        "qall",  "qa!",        "qall!",   "wq",       "x",       "qw",
+        "qw!",   "wa",         "wall",    "wa!",      "wqa",     "wqall",
+        "wqa!",  "wqall!",     "xa",      "e",        "edit",    "e%",
+        "edit%", "new",        "vnew",    "bn",       "bnext",   "bp",
+        "bprev", "bd",         "bdelete", "ls",       "buffers", "sp",
+        "split", "vs",         "vsplit",  "vh",       "hs",      "hsplit",
+        "only",  "tabnew",     "tabc",    "tabclose", "set",     "syntax",
+        "noh",   "nohlsearch", "lspinfo", "emoji",    "em",      "help",
+        "h"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

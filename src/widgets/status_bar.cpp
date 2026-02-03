@@ -1,7 +1,7 @@
 #include "widgets/status_bar.h"
 
-#include "theme.h"
 #include "text_utils.h"
+#include "theme.h"
 #include <algorithm>
 #include <cstdio>
 
@@ -19,8 +19,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     }
 
     char rightStatusBuf[32];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ", view.cursorY + 1,
-             view.cursorX + 1);
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ",
+             view.cursorY + 1, view.cursorX + 1);
     std::string rightStatus = rightStatusBuf;
     const int rightFieldWidth = 12;
     int rightStatusWidth = text_utils::displayWidth(rightStatus);
@@ -46,9 +46,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     std::string lspInfo;
     if(!view.lspLabel.empty())
     {
-        lspInfo = " " + view.theme.uiInfo() + "[" +
-                  std::string(view.lspLabel) + "]" +
-                  view.theme.statusBar();
+        lspInfo = " " + view.theme.uiInfo() + "[" + std::string(view.lspLabel) +
+                  "]" + view.theme.statusBar();
     }
 
     std::string rightBlock = searchInfo + lspInfo;

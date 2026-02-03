@@ -1153,26 +1153,22 @@ void Editor::drawFullScreenSingle()
     if(isFileType(FileType::Cpp) && clangdLspEnabled)
     {
         lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(clangdLspPath, "clangd") + "]" +
-                  theme.statusBar();
+                  lspLabel(clangdLspPath, "clangd") + "]" + theme.statusBar();
     }
     else if(isFileType(FileType::Python) && pythonLspEnabled)
     {
         lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(pythonLspPath, "python") + "]" +
-                  theme.statusBar();
+                  lspLabel(pythonLspPath, "python") + "]" + theme.statusBar();
     }
     else if(isFileType(FileType::Robot) && robotLspEnabled)
     {
-        lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(robotLspPath, "robot") + "]" +
-                  theme.statusBar();
+        lspInfo = " " + theme.uiInfo() + "[" + lspLabel(robotLspPath, "robot") +
+                  "]" + theme.statusBar();
     }
     else if(isFileType(FileType::Mla) && mlangLspEnabled)
     {
-        lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(mlangLspPath, "mlang") + "]" +
-                  theme.statusBar();
+        lspInfo = " " + theme.uiInfo() + "[" + lspLabel(mlangLspPath, "mlang") +
+                  "]" + theme.statusBar();
     }
 
     std::string rightBlock = searchInfo;
@@ -1676,26 +1672,22 @@ void Editor::drawSplitFullScreen()
     if(isFileType(FileType::Cpp) && clangdLspEnabled)
     {
         lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(clangdLspPath, "clangd") + "]" +
-                  theme.statusBar();
+                  lspLabel(clangdLspPath, "clangd") + "]" + theme.statusBar();
     }
     else if(isFileType(FileType::Python) && pythonLspEnabled)
     {
         lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(pythonLspPath, "python") + "]" +
-                  theme.statusBar();
+                  lspLabel(pythonLspPath, "python") + "]" + theme.statusBar();
     }
     else if(isFileType(FileType::Robot) && robotLspEnabled)
     {
-        lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(robotLspPath, "robot") + "]" +
-                  theme.statusBar();
+        lspInfo = " " + theme.uiInfo() + "[" + lspLabel(robotLspPath, "robot") +
+                  "]" + theme.statusBar();
     }
     else if(isFileType(FileType::Mla) && mlangLspEnabled)
     {
-        lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(mlangLspPath, "mlang") + "]" +
-                  theme.statusBar();
+        lspInfo = " " + theme.uiInfo() + "[" + lspLabel(mlangLspPath, "mlang") +
+                  "]" + theme.statusBar();
     }
 
     std::string rightBlock = searchInfo;
