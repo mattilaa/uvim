@@ -13,10 +13,24 @@ static std::string filetypeLabel(const Editor& ed)
         return "mlang";
     if(ed.isFileType<FileType::Robot>())
         return "robot";
+    if(ed.isFileType<FileType::JavaScript>())
+        return "javascript";
+    if(ed.isFileType<FileType::TypeScript>())
+        return "typescript";
+    if(ed.isFileType<FileType::Html>())
+        return "html";
+    if(ed.isFileType<FileType::Css>())
+        return "css";
     if(ed.isFileType<FileType::Json>())
         return "json";
     if(ed.isFileType<FileType::Yaml>())
         return "yaml";
+    if(ed.isFileType<FileType::Toml>())
+        return "toml";
+    if(ed.isFileType<FileType::Xml>())
+        return "xml";
+    if(ed.isFileType<FileType::MarkupText>())
+        return "text";
     return "text";
 }
 
@@ -52,11 +66,25 @@ void Editor::showLspInfo()
               robotLspPath);
     appendLsp("mlang", isMlangLspEnabled(), isFileType<FileType::Mla>(),
               mlangLspPath);
+    appendLsp("html", isHtmlLspEnabled(), isFileType<FileType::Html>(),
+              htmlLspPath);
+    appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(),
+              cssLspPath);
+    appendLsp("json", isJsonLspEnabled(), isFileType<FileType::Json>(),
+              jsonLspPath);
+    appendLsp("ts", isTsLspEnabled(),
+              (isFileType<FileType::JavaScript>() ||
+               isFileType<FileType::TypeScript>()),
+              tsLspPath);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");
     lspInfoLines.push_back("robot: not compiled");
     lspInfoLines.push_back("mlang: not compiled");
+    lspInfoLines.push_back("html: not compiled");
+    lspInfoLines.push_back("css: not compiled");
+    lspInfoLines.push_back("json: not compiled");
+    lspInfoLines.push_back("ts: not compiled");
 #endif
 }
 
@@ -114,7 +142,9 @@ void Editor::drawLspInfo()
         }
         else if(line.rfind("clangd:", 0) == 0 ||
                 line.rfind("python:", 0) == 0 || line.rfind("robot:", 0) == 0 ||
-                line.rfind("mlang:", 0) == 0)
+                line.rfind("mlang:", 0) == 0 || line.rfind("html:", 0) == 0 ||
+                line.rfind("css:", 0) == 0 || line.rfind("json:", 0) == 0 ||
+                line.rfind("ts:", 0) == 0)
         {
             size_t colon = line.find(':');
             std::string_view label = std::string_view(line).substr(0, colon);

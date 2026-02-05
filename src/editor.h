@@ -880,6 +880,23 @@ private:
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
+    static std::string
+    testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
+                                 std::string_view ident, int startY);
+    static std::string
+    testInferTsTypeFromArrayMethodLine(std::string_view line,
+                                       std::string_view param,
+                                       const std::vector<std::string>& lines,
+                                       int lineNo);
+    static bool testFindTsTypeDefinition(
+        const std::vector<std::string>& lines, std::string_view typeName,
+        int& outY, int& outX);
+    static bool testFindTsMemberInType(const std::vector<std::string>& lines,
+                                       int typeStartY,
+                                       std::string_view member, int& outY,
+                                       int& outX);
+    static std::string testResolveJsTsModule(const std::string& fromFile,
+                                             std::string_view module);
 private:
 #endif
     bool dispatchModeKey(int c);

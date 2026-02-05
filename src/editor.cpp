@@ -81,6 +81,18 @@ static std::string resolve_js_ts_module(const std::string& fromFile,
                                         std::string_view module);
 static std::string resolve_js_ts_module_path(const std::string& fromFile,
                                              std::string_view module);
+static std::string parse_ts_type_name(std::string_view text);
+static std::string find_ts_type_for_identifier(
+    const std::vector<std::string>& lines, std::string_view ident, int startY);
+static std::string infer_ts_type_from_array_method_line(
+    std::string_view line, std::string_view param,
+    const std::vector<std::string>& lines, int lineNo);
+static bool find_ts_type_definition(const std::vector<std::string>& lines,
+                                    std::string_view typeName, int& outY,
+                                    int& outX);
+static bool find_ts_member_in_type(const std::vector<std::string>& lines,
+                                   int typeStartY, std::string_view member,
+                                   int& outY, int& outX);
 static bool html_path_under_cursor(std::string_view line, int cursorX,
                                    std::string_view& outPath);
 static std::vector<std::string> extract_html_stylesheets(
@@ -97,6 +109,45 @@ static bool find_python_def_in_file(const std::string& path,
                                     std::string_view symbol, int& outY,
                                     int& outX);
 static bool is_skip_dir(const std::filesystem::path& path);
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+static std::string resolve_executable_path(const std::string& exe)
+{
+    if(exe.empty())
+        return {};
+    if(exe.find('/') != std::string::npos)
+    {
+        std::error_code ec;
+        if(fs::exists(exe, ec) && fs::is_regular_file(exe, ec))
+            return exe;
+        return {};
+    }
+
+    const char* path = std::getenv("PATH");
+    if(!path || !*path)
+        return {};
+
+    std::string_view pathView{path};
+    size_t start = 0;
+    while(start < pathView.size())
+    {
+        size_t end = pathView.find(':', start);
+        if(end == std::string_view::npos)
+            end = pathView.size();
+        if(end > start)
+        {
+            fs::path candidate =
+                fs::path(std::string(pathView.substr(start, end - start))) /
+                exe;
+            std::error_code ec;
+            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
+                return candidate.string();
+        }
+        start = end + 1;
+    }
+    return {};
+}
+#endif
 
 namespace
 {
@@ -926,6 +977,9 @@ static void parse_js_ts_named_imports(
     std::string_view list, const std::string& module,
     std::unordered_map<std::string, std::string>& out)
 {
+    list = trim_view(list);
+    if(list.starts_with("type "))
+        list = trim_view(list.substr(5));
     size_t start = 0;
     while(start < list.size())
     {
@@ -935,6 +989,8 @@ static void parse_js_ts_named_imports(
         std::string_view item = trim_view(list.substr(start, comma - start));
         if(!item.empty())
         {
+            if(item.starts_with("type "))
+                item = trim_view(item.substr(5));
             size_t asPos = item.find(" as ");
             std::string_view name =
                 (asPos == std::string_view::npos)
@@ -969,6 +1025,8 @@ static void collect_js_ts_imports(
                 (fromPos == std::string_view::npos)
                     ? trim_view(trimmed.substr(6))
                     : trim_view(trimmed.substr(6, fromPos - 6));
+            if(head.starts_with("type "))
+                head = trim_view(head.substr(5));
 
             if(head.starts_with("{"))
             {
@@ -1031,6 +1089,8 @@ static void collect_js_ts_imports(
             if(fromPos == std::string_view::npos)
                 continue;
             std::string_view head = trim_view(trimmed.substr(6, fromPos - 6));
+            if(head.starts_with("type "))
+                head = trim_view(head.substr(5));
             if(head.starts_with("{"))
             {
                 size_t end = head.find('}');
@@ -1265,6 +1325,244 @@ static std::string resolve_js_ts_module_path(const std::string& fromFile,
     }
 
     return {};
+}
+
+static std::string parse_ts_type_name(std::string_view text)
+{
+    text = trim_view(text);
+    if(text.empty())
+        return {};
+    if(text.front() == '{' || text.front() == '(')
+        return {};
+
+    size_t i = 0;
+    while(i < text.size() && (isIdent(text[i]) || text[i] == '.'))
+        ++i;
+    if(i == 0)
+        return {};
+
+    std::string_view head = text.substr(0, i);
+    if(head == "Array" || head == "ReadonlyArray")
+    {
+        size_t lt = text.find('<', i);
+        if(lt != std::string_view::npos)
+        {
+            std::string inner = parse_ts_type_name(text.substr(lt + 1));
+            if(!inner.empty())
+                return inner;
+        }
+    }
+    return std::string(head);
+}
+
+static std::string find_ts_type_for_identifier(
+    const std::vector<std::string>& lines, std::string_view ident, int startY)
+{
+    for(int y = startY; y >= 0; --y)
+    {
+        const std::string& line = lines[y];
+        size_t pos = 0;
+        while((pos = line.find(ident, pos)) != std::string::npos)
+        {
+            bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
+            size_t end = pos + ident.size();
+            bool rightOk = (end >= line.size()) || !isIdent(line[end]);
+            if(!leftOk || !rightOk)
+            {
+                pos = end;
+                continue;
+            }
+
+            size_t after = end;
+            if(after < line.size() && line[after] == '?')
+                ++after;
+            while(after < line.size() && text_utils::is_space(line[after]))
+                ++after;
+            if(after < line.size() && line[after] == ':')
+            {
+                ++after;
+                while(after < line.size() && text_utils::is_space(line[after]))
+                    ++after;
+                std::string type = parse_ts_type_name(
+                    std::string_view(line).substr(after));
+                if(!type.empty())
+                    return type;
+            }
+
+            pos = end;
+        }
+    }
+    return {};
+}
+
+static std::string infer_ts_type_from_array_method_line(
+    std::string_view line, std::string_view param,
+    const std::vector<std::string>& lines, int lineNo)
+{
+    static constexpr std::string_view kMethods[] = {
+        "find", "map", "filter", "some", "every", "reduce",
+    };
+
+    for(auto method : kMethods)
+    {
+        std::string needle = "." + std::string(method) + "(";
+        size_t pos = 0;
+        while((pos = line.find(needle, pos)) != std::string_view::npos)
+        {
+            int dotPos = (int)pos;
+            int nameEnd = dotPos - 1;
+            while(nameEnd >= 0 && text_utils::is_space(line[nameEnd]))
+                --nameEnd;
+            int nameStart = nameEnd;
+            while(nameStart >= 0 && isIdent(line[nameStart]))
+                --nameStart;
+            ++nameStart;
+            if(nameStart > nameEnd)
+            {
+                pos += needle.size();
+                continue;
+            }
+
+            std::string_view arrayName =
+                line.substr(nameStart, nameEnd - nameStart + 1);
+            size_t argsStart = pos + needle.size();
+            while(argsStart < line.size() && text_utils::is_space(line[argsStart]))
+                ++argsStart;
+
+            std::string_view paramName;
+            if(argsStart < line.size() && line[argsStart] == '(')
+            {
+                ++argsStart;
+                while(argsStart < line.size() &&
+                      text_utils::is_space(line[argsStart]))
+                    ++argsStart;
+                size_t i = argsStart;
+                while(i < line.size() && isIdent(line[i]))
+                    ++i;
+                if(i > argsStart)
+                    paramName = line.substr(argsStart, i - argsStart);
+            }
+            else
+            {
+                size_t i = argsStart;
+                while(i < line.size() && isIdent(line[i]))
+                    ++i;
+                if(i > argsStart)
+                    paramName = line.substr(argsStart, i - argsStart);
+            }
+
+            if(!paramName.empty() && paramName == param)
+            {
+                return find_ts_type_for_identifier(lines, arrayName, lineNo);
+            }
+
+            pos += needle.size();
+        }
+    }
+
+    return {};
+}
+
+static bool find_ts_type_definition(const std::vector<std::string>& lines,
+                                    std::string_view typeName, int& outY,
+                                    int& outX)
+{
+    static constexpr std::string_view kDecls[] = {"type", "interface", "class"};
+    for(size_t y = 0; y < lines.size(); ++y)
+    {
+        std::string_view line = lines[y];
+        for(auto kw : kDecls)
+        {
+            size_t pos = line.find(kw);
+            while(pos != std::string_view::npos)
+            {
+                bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
+                size_t end = pos + kw.size();
+                bool rightOk = (end >= line.size()) || !isIdent(line[end]);
+                if(leftOk && rightOk)
+                {
+                    size_t i = end;
+                    while(i < line.size() && text_utils::is_space(line[i]))
+                        ++i;
+                    size_t nameStart = i;
+                    while(i < line.size() &&
+                          (isIdent(line[i]) || line[i] == '.'))
+                        ++i;
+                    if(i > nameStart)
+                    {
+                        std::string_view name = line.substr(nameStart,
+                                                            i - nameStart);
+                        if(name == typeName)
+                        {
+                            outY = (int)y;
+                            outX = (int)nameStart;
+                            return true;
+                        }
+                    }
+                }
+                pos = line.find(kw, pos + 1);
+            }
+        }
+    }
+    return false;
+}
+
+static bool find_ts_member_in_type(const std::vector<std::string>& lines,
+                                   int typeStartY, std::string_view member,
+                                   int& outY, int& outX)
+{
+    int depth = 0;
+    bool sawOpen = false;
+    for(size_t y = typeStartY; y < lines.size(); ++y)
+    {
+        const std::string& line = lines[y];
+        for(char c : line)
+        {
+            if(c == '{')
+            {
+                depth++;
+                sawOpen = true;
+            }
+            else if(c == '}' && depth > 0)
+            {
+                depth--;
+                if(sawOpen && depth == 0)
+                    return false;
+            }
+        }
+
+        if(!sawOpen)
+            continue;
+
+        size_t pos = 0;
+        while((pos = line.find(member, pos)) != std::string::npos)
+        {
+            bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
+            size_t end = pos + member.size();
+            bool rightOk = (end >= line.size()) || !isIdent(line[end]);
+            if(!leftOk || !rightOk)
+            {
+                pos = end;
+                continue;
+            }
+
+            size_t after = end;
+            if(after < line.size() && line[after] == '?')
+                ++after;
+            while(after < line.size() && text_utils::is_space(line[after]))
+                ++after;
+            if(after < line.size() &&
+               (line[after] == ':' || line[after] == '('))
+            {
+                outY = (int)y;
+                outX = (int)pos;
+                return true;
+            }
+
+            pos = end;
+        }
+    }
+    return false;
 }
 
 static bool html_path_under_cursor(std::string_view line, int cursorX,
@@ -2223,6 +2521,39 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
 Editor Editor::createForTests(int rows, int cols)
 {
     return Editor(TestTag{}, rows, cols);
+}
+
+std::string Editor::testInferTsTypeForIdentifier(
+    const std::vector<std::string>& lines, std::string_view ident, int startY)
+{
+    return find_ts_type_for_identifier(lines, ident, startY);
+}
+
+std::string Editor::testInferTsTypeFromArrayMethodLine(
+    std::string_view line, std::string_view param,
+    const std::vector<std::string>& lines, int lineNo)
+{
+    return infer_ts_type_from_array_method_line(line, param, lines, lineNo);
+}
+
+bool Editor::testFindTsTypeDefinition(const std::vector<std::string>& lines,
+                                      std::string_view typeName, int& outY,
+                                      int& outX)
+{
+    return find_ts_type_definition(lines, typeName, outY, outX);
+}
+
+bool Editor::testFindTsMemberInType(const std::vector<std::string>& lines,
+                                    int typeStartY, std::string_view member,
+                                    int& outY, int& outX)
+{
+    return find_ts_member_in_type(lines, typeStartY, member, outY, outX);
+}
+
+std::string Editor::testResolveJsTsModule(const std::string& fromFile,
+                                          std::string_view module)
+{
+    return resolve_js_ts_module(fromFile, module);
 }
 #endif
 
@@ -3388,6 +3719,41 @@ void Editor::openFile(std::string_view fname)
     currentBuffer->clangBraceNewLine = false;
     currentBuffer->savedContentHash = hash_lines(*lines);
     currentBuffer->savedContentHashValid = true;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    auto ensure_lsp = [&](bool enabled, const std::string& path,
+                          const std::vector<std::string>& args,
+                          auto enableFn)
+    {
+        if(enabled)
+            return;
+        std::string resolved = resolve_executable_path(path);
+        if(resolved.empty())
+            return;
+        enableFn(true, resolved, args);
+    };
+
+    if(isFileType<FileType::Html>())
+        ensure_lsp(isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
+                   [&](bool on, const std::string& p,
+                       const std::vector<std::string>& a)
+                   { enableHtmlLsp(on, p, a); });
+    if(isFileType<FileType::Css>())
+        ensure_lsp(isCssLspEnabled(), cssLspPath, cssLspArgs,
+                   [&](bool on, const std::string& p,
+                       const std::vector<std::string>& a)
+                   { enableCssLsp(on, p, a); });
+    if(isFileType<FileType::Json>())
+        ensure_lsp(isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
+                   [&](bool on, const std::string& p,
+                       const std::vector<std::string>& a)
+                   { enableJsonLsp(on, p, a); });
+    if(isFileType<FileType::JavaScript>() || isFileType<FileType::TypeScript>())
+        ensure_lsp(isTsLspEnabled(), tsLspPath, tsLspArgs,
+                   [&](bool on, const std::string& p,
+                       const std::vector<std::string>& a)
+                   { enableTsLsp(on, p, a); });
+#endif
 
     // Record file modification time for external change detection
     std::error_code ec;
@@ -4665,6 +5031,128 @@ void Editor::goToDefinition()
         std::string_view lineView;
         if(*cursorY >= 0 && *cursorY < (int)lines->size())
             lineView = (*lines)[*cursorY];
+
+        if(!lineView.empty() && *cursorX >= 0 && !symbol.empty())
+        {
+            int pos = *cursorX;
+            if(pos >= (int)lineView.size())
+                pos = (int)lineView.size() - 1;
+            if(pos >= 0 && !isIdent(lineView[pos]) && pos > 0 &&
+                isIdent(lineView[pos - 1]))
+            {
+                pos--;
+            }
+            if(pos >= 0 && isIdent(lineView[pos]))
+            {
+                int symStart = pos;
+                int symEnd = pos;
+                while(symStart > 0 && isIdent(lineView[symStart - 1]))
+                    --symStart;
+                while(symEnd + 1 < (int)lineView.size() &&
+                      isIdent(lineView[symEnd + 1]))
+                    ++symEnd;
+
+                int before = symStart - 1;
+                while(before >= 0 && text_utils::is_space(lineView[before]))
+                    --before;
+                if(before >= 0 && lineView[before] == '.')
+                {
+                    std::string_view member =
+                        lineView.substr(symStart, symEnd - symStart + 1);
+                    int baseEnd = before - 1;
+                    while(baseEnd >= 0 &&
+                          text_utils::is_space(lineView[baseEnd]))
+                        --baseEnd;
+                    int baseStart = baseEnd;
+                    while(baseStart >= 0 && isIdent(lineView[baseStart]))
+                        --baseStart;
+                    ++baseStart;
+                    if(baseStart <= baseEnd)
+                    {
+                        std::string_view base = lineView.substr(
+                            baseStart, baseEnd - baseStart + 1);
+                        std::string typeName =
+                            find_ts_type_for_identifier(*lines, base, *cursorY);
+                        if(typeName.empty())
+                        {
+                            typeName = infer_ts_type_from_array_method_line(
+                                lineView, base, *lines, *cursorY);
+                        }
+                        if(!typeName.empty())
+                        {
+                            int typeY = -1;
+                            int typeX = 0;
+                            if(find_ts_type_definition(*lines, typeName, typeY,
+                                                       typeX))
+                            {
+                                int memberY = -1;
+                                int memberX = 0;
+                                if(find_ts_member_in_type(*lines, typeY,
+                                                          member,
+                                                          memberY, memberX))
+                                {
+                                    pushJumpLocation();
+                                    *cursorY = memberY;
+                                    *cursorX = memberX;
+                                    apply_gd_viewport();
+                                    setStatusMessage(
+                                        "gd (ts member) → " + *filename + ":" +
+                                        std::to_string(memberY + 1));
+                                    return;
+                                }
+                            }
+                            std::unordered_map<std::string, std::string> imports;
+                            collect_js_ts_imports(*lines, imports);
+                            auto itType = imports.find(typeName);
+                            if(itType != imports.end())
+                            {
+                                std::string resolved = resolve_js_ts_module(
+                                    currentBuffer->filename, itType->second);
+                                if(!resolved.empty())
+                                {
+                                    std::ifstream in(resolved);
+                                    if(in.is_open())
+                                    {
+                                        std::vector<std::string> fileLines;
+                                        std::string fileLine;
+                                        while(std::getline(in, fileLine))
+                                        {
+                                            if(!fileLine.empty() &&
+                                               fileLine.back() == '\r')
+                                                fileLine.pop_back();
+                                            fileLines.push_back(fileLine);
+                                        }
+                                        int defY = -1;
+                                        int defX = 0;
+                                        if(find_ts_type_definition(
+                                               fileLines, typeName, defY, defX))
+                                        {
+                                            int memberY = -1;
+                                            int memberX = 0;
+                                            if(find_ts_member_in_type(
+                                                   fileLines, defY, member,
+                                                   memberY, memberX))
+                                            {
+                                                pushJumpLocation();
+                                                openFile(resolved);
+                                                *cursorY = memberY;
+                                                *cursorX = memberX;
+                                                apply_gd_viewport();
+                                                setStatusMessage(
+                                                    "gd (ts member) → " +
+                                                    resolved + ":" +
+                                                    std::to_string(memberY + 1));
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         std::string_view module;
         if(!lineView.empty() &&
