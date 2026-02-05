@@ -12,6 +12,8 @@ void CommandMode::on_enter(ModeContext& ctx)
     completions.clear();
     completionIndex = -1;
     originalInput.clear();
+    locCompletion = false;
+    locCommand.clear();
     ctx.startCommandPopup();
     ctx.updateCommandPopup("");
 
@@ -23,6 +25,8 @@ void CommandMode::on_exit(ModeContext& ctx)
     ctx.commandBuffer.clear();
     completions.clear();
     completionIndex = -1;
+    locCompletion = false;
+    locCommand.clear();
     ctx.cancelCommandPopup();
     if(ctx.isCommandHistorySearchActive())
     {
@@ -203,6 +207,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 {
                     return LspInfoMode{};
                 }
+                if(mode == LOC_LIST)
+                {
+                    return LocListMode{};
+                }
                 if(mode == HELP)
                 {
                     std::string prev;
@@ -227,6 +235,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             // Reset completions when text changes
             completions.clear();
             completionIndex = -1;
+            locCompletion = false;
+            locCommand.clear();
             updatePopup();
         }
         else
@@ -251,12 +261,78 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         ctx.cancelCommandPopup();
         completions.clear();
         completionIndex = -1;
+        locCompletion = false;
+        locCommand.clear();
         return std::nullopt;
+    }
+
+    if(c == Terminal::CTRL_G)
+    {
+        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        {
+            std::string_view buf = ctx.commandBuffer;
+            size_t spacePos = buf.find(' ');
+            bool hasSpace = (spacePos != std::string_view::npos);
+            bool hasPath =
+                (hasSpace && spacePos + 1 < buf.size() &&
+                 buf.substr(spacePos + 1).find_first_not_of(' ') !=
+                     std::string_view::npos);
+            if(!hasSpace && !hasPath)
+            {
+                bool next = !ctx.respectGitignore();
+                ctx.setRespectGitignore(next);
+                ctx.setStatusMessage(std::string("loc: gitignore ") +
+                                     (next ? "on" : "off"));
+                completions.clear();
+                completionIndex = -1;
+                locCompletion = false;
+                locCommand.clear();
+                updatePopup();
+                return std::nullopt;
+            }
+        }
     }
 
     // Tab completion
     if(c == Terminal::TAB)
     {
+        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        {
+            std::string input = ctx.commandBuffer.substr(1);
+            size_t spacePos = ctx.commandBuffer.find(' ');
+            std::string_view pathPart;
+            if(spacePos != std::string::npos)
+                pathPart =
+                    std::string_view(ctx.commandBuffer).substr(spacePos + 1);
+            while(!pathPart.empty() &&
+                  (pathPart.front() == ' ' || pathPart.front() == '\t'))
+            {
+                pathPart.remove_prefix(1);
+            }
+
+            if(completions.empty() || originalInput != input)
+            {
+                completions = ctx.getLocPathCompletions(pathPart);
+                if(completions.empty())
+                    completions = ctx.getPathCompletionsRecursive(pathPart);
+                completionIndex = -1;
+                originalInput = input;
+            }
+
+            if(!completions.empty())
+            {
+                completionIndex++;
+                if(completionIndex >= (int)completions.size())
+                    completionIndex = 0;
+                locCommand =
+                    ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
+                ctx.commandBuffer =
+                    ":" + locCommand + " " + completions[completionIndex];
+            }
+            updatePopup();
+            return std::nullopt;
+        }
+
         handleTabCompletion(ctx);
         updatePopup();
         return std::nullopt;
@@ -265,6 +341,43 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Shift+Tab (reverse completion)
     if(c == Terminal::SHIFT_TAB)
     {
+        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        {
+            std::string input = ctx.commandBuffer.substr(1);
+            size_t spacePos = ctx.commandBuffer.find(' ');
+            std::string_view pathPart;
+            if(spacePos != std::string::npos)
+                pathPart =
+                    std::string_view(ctx.commandBuffer).substr(spacePos + 1);
+            while(!pathPart.empty() &&
+                  (pathPart.front() == ' ' || pathPart.front() == '\t'))
+            {
+                pathPart.remove_prefix(1);
+            }
+
+            if(completions.empty() || originalInput != input)
+            {
+                completions = ctx.getLocPathCompletions(pathPart);
+                if(completions.empty())
+                    completions = ctx.getPathCompletionsRecursive(pathPart);
+                completionIndex = -1;
+                originalInput = input;
+            }
+
+            if(!completions.empty())
+            {
+                completionIndex--;
+                if(completionIndex < 0)
+                    completionIndex = (int)completions.size() - 1;
+                locCommand =
+                    ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
+                ctx.commandBuffer =
+                    ":" + locCommand + " " + completions[completionIndex];
+            }
+            updatePopup();
+            return std::nullopt;
+        }
+
         handleReverseTabCompletion(ctx);
         updatePopup();
         return std::nullopt;
@@ -274,6 +387,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     if(c == Terminal::CTRL_W)
     {
         deleteWordBackward(ctx);
+        completions.clear();
+        completionIndex = -1;
+        locCompletion = false;
+        locCommand.clear();
         updatePopup();
         return std::nullopt;
     }
@@ -284,6 +401,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         ctx.commandBuffer = ":";
         completions.clear();
         completionIndex = -1;
+        locCompletion = false;
+        locCommand.clear();
         updatePopup();
         return std::nullopt;
     }
@@ -330,6 +449,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.commandBuffer = ":" + *cmd;
             completions.clear();
             completionIndex = -1;
+            locCompletion = false;
+            locCommand.clear();
             updatePopup();
         }
         return std::nullopt;
@@ -341,6 +462,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.commandBuffer = ":" + *cmd;
             completions.clear();
             completionIndex = -1;
+            locCompletion = false;
+            locCommand.clear();
             updatePopup();
         }
         return std::nullopt;
@@ -353,6 +476,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         // Reset completions when text changes
         completions.clear();
         completionIndex = -1;
+        locCompletion = false;
+        locCommand.clear();
         updatePopup();
     }
 
@@ -410,13 +535,34 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
     std::string input = ctx.commandBuffer.substr(1); // Remove ':'
     bool wholeCompletion = false;
     bool helpCompletion = false;
+    bool locCompletionLocal = false;
+    std::string locCommandLocal;
 
     // If we don't have completions yet, generate them
     if(completions.empty())
     {
         originalInput = input;
 
-        if(input.rfind("set", 0) == 0)
+        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        {
+            locCompletionLocal = true;
+            locCommandLocal =
+                ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
+            size_t spacePos = ctx.commandBuffer.find(' ');
+            std::string_view pathPart;
+            if(spacePos != std::string::npos)
+                pathPart = std::string_view(ctx.commandBuffer).substr(
+                    spacePos + 1);
+            while(!pathPart.empty() &&
+                  (pathPart.front() == ' ' || pathPart.front() == '\t'))
+            {
+                pathPart.remove_prefix(1);
+            }
+            completions = ctx.getLocPathCompletions(pathPart);
+            if(completions.empty())
+                completions = ctx.getPathCompletionsRecursive(pathPart);
+        }
+        else if(input.rfind("set", 0) == 0)
         {
             completions = ctx.getSetCompletions(input);
             wholeCompletion = true;
@@ -430,16 +576,33 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                 std::string cmd = input.substr(0, spacePos);
                 std::string_view pathPart =
                     std::string_view(input).substr(spacePos + 1);
+                while(!pathPart.empty() &&
+                      (pathPart.front() == ' ' || pathPart.front() == '\t'))
+                {
+                    pathPart.remove_prefix(1);
+                }
 
                 if(cmd == "help" || cmd == "h")
                 {
                     completions = ctx.getHelpCompletions(pathPart);
                     helpCompletion = true;
                 }
-                else if(cmd == "e" || cmd == "edit" || cmd == "w" ||
-                        cmd == "tabe" || cmd == "tabnew" || cmd == "cd")
+                else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
+                        cmd == "tabnew")
                 {
-                    completions = ctx.getPathCompletions(pathPart);
+                    completions = ctx.getPathCompletionsRecursive(pathPart);
+                }
+                else if(cmd == "w" || cmd == "cd")
+                {
+                    completions = ctx.getPathCompletionsRecursive(pathPart);
+                }
+                else if(cmd == "loc" || cmd == "loc!")
+                {
+                    completions = ctx.getLocPathCompletions(pathPart);
+                    if(completions.empty())
+                        completions = ctx.getPathCompletionsRecursive(pathPart);
+                    locCompletionLocal = true;
+                    locCommandLocal = cmd;
                 }
             }
             else
@@ -448,6 +611,19 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                 {
                     completions = ctx.getHelpCompletions("");
                     helpCompletion = true;
+                }
+                else if(input == "loc" || input == "loc!")
+                {
+                    completions = ctx.getLocPathCompletions("");
+                    if(completions.empty())
+                        completions = ctx.getPathCompletionsRecursive("");
+                    locCompletionLocal = true;
+                    locCommandLocal = input;
+                }
+                else if(input == "e" || input == "edit" || input == "tabe" ||
+                        input == "tabnew")
+                {
+                    completions = ctx.getPathCompletionsRecursive("");
                 }
                 else
                 {
@@ -459,8 +635,18 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
 
         if(completions.empty())
         {
+            if(locCompletionLocal)
+            {
+                ctx.setStatusMessage("loc completions: 0");
+            }
             return;
         }
+    }
+
+    if(locCompletionLocal)
+    {
+        locCompletion = true;
+        locCommand = locCommandLocal;
     }
 
     // Cycle through completions
@@ -489,6 +675,13 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
     }
 
     size_t spacePos = originalInput.find(' ');
+    if(locCompletion)
+    {
+        ctx.commandBuffer = ":" + locCommand + " " +
+                            completions[completionIndex];
+        return;
+    }
+
     if(spacePos != std::string::npos)
     {
         std::string cmd = originalInput.substr(0, spacePos);
@@ -514,6 +707,13 @@ void CommandMode::handleReverseTabCompletion(ModeContext& ctx)
     }
 
     size_t spacePos = originalInput.find(' ');
+    if(locCompletion)
+    {
+        ctx.commandBuffer = ":" + locCommand + " " +
+                            completions[completionIndex];
+        return;
+    }
+
     if(spacePos != std::string::npos)
     {
         std::string cmd = originalInput.substr(0, spacePos);

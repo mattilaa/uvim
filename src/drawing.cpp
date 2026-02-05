@@ -344,6 +344,7 @@ void Editor::drawMessageBar()
         .showGitBlame = showGitBlame,
         .showGitBlameInfo = showGitBlameInfo,
         .blameLine = blame,
+        .locMessage = locMessage,
         .statusMessage = statusMessage,
     };
     widgets::appendMessageBar(output, view);
@@ -844,6 +845,7 @@ void Editor::drawMessageBarQuick()
         .showGitBlame = showGitBlame,
         .showGitBlameInfo = showGitBlameInfo,
         .blameLine = blame,
+        .locMessage = locMessage,
         .statusMessage = statusMessage,
     };
     widgets::appendMessageBar(output, view);

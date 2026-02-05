@@ -432,6 +432,11 @@ void FileBrowserMode::draw(Editor& editor) const
             0,
             std::min((size_t)editor.screenCols, editor.statusMessage.length()));
     }
+    else if(!editor.locMessage.empty())
+    {
+        output += editor.locMessage.substr(
+            0, std::min((size_t)editor.screenCols, editor.locMessage.length()));
+    }
 
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);

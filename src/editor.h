@@ -150,6 +150,18 @@ public:
     int referencesOffset = 0;
     bool referencesPreview = true;
 
+    // LOC results
+    struct LocEntry
+    {
+        std::string path;        // Full file path
+        std::string displayPath; // Relative/shortened path for display
+        int loc = 0;             // Lines of code (non-empty, non-comment)
+    };
+    std::vector<LocEntry> locList;
+    int locListTotal = 0;
+    std::string locListRoot;
+    std::string locMessage;
+
     // LSP info panel
     std::vector<std::string> lspInfoLines;
 
@@ -813,6 +825,8 @@ public:
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
     std::vector<std::string> getHelpCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
+    std::vector<std::string> getPathCompletionsRecursive(std::string_view path);
+    std::vector<std::string> getLocPathCompletions(std::string_view path);
 
     // Syntax highlighting (TokenType enum and Token struct are now in
     // token_type.h)

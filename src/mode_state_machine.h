@@ -108,6 +108,8 @@ struct ModeContext
     std::string_view commandHistorySearchQuery() const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
+    std::vector<std::string> getPathCompletionsRecursive(std::string_view path);
+    std::vector<std::string> getLocPathCompletions(std::string_view path);
 
     // Buffer/file helpers
     void openFile(std::string_view path);
@@ -301,6 +303,7 @@ struct GrepSearchMode;
 struct OperatorPendingMode;
 struct ReferencesMode;
 struct LspInfoMode;
+struct LocListMode;
 struct HelpMode;
 struct GitShowCommitMode;
 struct GitLogMode;
@@ -311,8 +314,8 @@ using ModeState =
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 OperatorPendingMode, ReferencesMode, LspInfoMode, HelpMode,
-                 GitShowCommitMode, GitLogMode>;
+                 OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
+                 HelpMode, GitShowCommitMode, GitLogMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -478,6 +481,8 @@ struct CommandMode
     std::vector<std::string> completions;
     int completionIndex = -1;
     std::string originalInput;
+    bool locCompletion = false;
+    std::string locCommand;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -713,6 +718,35 @@ struct LspInfoMode
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+};
+
+struct LocListMode
+{
+    static constexpr const char* name()
+    {
+        return "LOC";
+    }
+
+    enum class SortMode
+    {
+        Normal,
+        Desc,
+        Asc,
+    };
+
+    int cursor = 0;
+    int offset = 0;
+    int countWidth = 1;
+    SortMode sortMode = SortMode::Normal;
+
+    LocListMode() = default;
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
 };
 
 struct HelpMode

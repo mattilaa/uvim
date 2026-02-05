@@ -267,6 +267,18 @@ std::vector<std::string> ModeContext::getPathCompletions(std::string_view path)
     return editor->getPathCompletions(path);
 }
 
+std::vector<std::string>
+ModeContext::getPathCompletionsRecursive(std::string_view path)
+{
+    return editor->getPathCompletionsRecursive(path);
+}
+
+std::vector<std::string>
+ModeContext::getLocPathCompletions(std::string_view path)
+{
+    return editor->getLocPathCompletions(path);
+}
+
 void ModeContext::openFile(std::string_view path)
 {
     editor->openFile(path);
@@ -1073,6 +1085,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         {
             return LspInfoMode{};
         }
+        if(mode == LOC_LIST)
+        {
+            return LocListMode{};
+        }
         if(mode == HELP)
         {
             return HelpMode{path, std::string(previousFile)};
@@ -1115,10 +1131,14 @@ bool CommandPrompt::handle(
         std::string inputText = input;
         bool wholeCompletion = false;
         bool helpCompletion = false;
+        bool locCompletion = false;
+        std::string locCommand;
 
         if(completions.empty())
         {
             originalInput = inputText;
+            locCompletion = false;
+            locCommand.clear();
 
             if(inputText.rfind("set", 0) == 0)
             {
@@ -1133,16 +1153,31 @@ bool CommandPrompt::handle(
                     std::string cmd = inputText.substr(0, spacePos);
                     std::string_view pathPart =
                         std::string_view(inputText).substr(spacePos + 1);
+                    while(!pathPart.empty() &&
+                          (pathPart.front() == ' ' ||
+                           pathPart.front() == '\t'))
+                    {
+                        pathPart.remove_prefix(1);
+                    }
 
                     if(cmd == "help" || cmd == "h")
                     {
                         completions = ctx.getHelpCompletions(pathPart);
                         helpCompletion = true;
                     }
-                    else if(cmd == "e" || cmd == "edit" || cmd == "w" ||
-                            cmd == "tabe" || cmd == "tabnew" || cmd == "cd")
+                    else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
+                            cmd == "tabnew" || cmd == "w" || cmd == "cd")
                     {
-                        completions = ctx.getPathCompletions(pathPart);
+                        completions = ctx.getPathCompletionsRecursive(pathPart);
+                    }
+                    else if(cmd == "loc" || cmd == "loc!")
+                    {
+                        completions = ctx.getLocPathCompletions(pathPart);
+                        if(completions.empty())
+                            completions =
+                                ctx.getPathCompletionsRecursive(pathPart);
+                        locCompletion = true;
+                        locCommand = cmd;
                     }
                 }
                 else
@@ -1152,6 +1187,21 @@ bool CommandPrompt::handle(
                         completions = ctx.getHelpCompletions("");
                         helpCompletion = true;
                     }
+                    else if(inputText == "loc" || inputText == "loc!")
+                    {
+                        completions = ctx.getLocPathCompletions("");
+                        if(completions.empty())
+                            completions =
+                                ctx.getPathCompletionsRecursive("");
+                        locCompletion = true;
+                        locCommand = inputText;
+                    }
+                    else if(inputText == "e" || inputText == "edit" ||
+                            inputText == "tabe" || inputText == "tabnew" ||
+                            inputText == "w" || inputText == "cd")
+                    {
+                        completions = ctx.getPathCompletionsRecursive("");
+                    }
                     else
                     {
                         completions = ctx.getCommandCompletions(inputText);
@@ -1159,8 +1209,9 @@ bool CommandPrompt::handle(
                 }
             }
 
-            if(completions.empty())
-                return;
+        if(completions.empty())
+            return;
+
         }
 
         if(reverse)
@@ -1194,6 +1245,11 @@ bool CommandPrompt::handle(
         }
 
         size_t spacePos = originalInput.find(' ');
+        if(locCompletion)
+        {
+            input = locCommand + " " + completions[completionIndex];
+            return;
+        }
         if(spacePos != std::string::npos)
         {
             std::string cmd = originalInput.substr(0, spacePos);
@@ -1395,14 +1451,14 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::TAB)
-    {
-        handleTabCompletion(false);
-        updatePopup();
-        ed->needsFullRedraw = true;
-        nextState.reset();
-        return true;
-    }
+        if(key == Terminal::TAB)
+        {
+            handleTabCompletion(false);
+            updatePopup();
+            ed->needsFullRedraw = true;
+            nextState.reset();
+            return true;
+        }
 
     if(key == Terminal::SHIFT_TAB)
     {

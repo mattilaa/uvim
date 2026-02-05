@@ -3,6 +3,7 @@
 #include "enablelog.h"
 #include "formatter.h"
 #include "git_handler.h"
+#include "gitignore.h"
 #include "json_utils.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
@@ -3580,6 +3581,9 @@ void Editor::setMode(Mode mode)
     case LSP_INFO:
         modeStateMachine->transitionTo(LspInfoMode{});
         break;
+    case LOC_LIST:
+        modeStateMachine->transitionTo(LocListMode{});
+        break;
     case HELP:
         modeStateMachine->transitionTo(HelpMode{});
         break;
@@ -3630,6 +3634,8 @@ std::string Editor::getModeString() const
         return "LSP INFO";
     case REFERENCES:
         return "REFERENCES";
+    case LOC_LIST:
+        return "LOC";
     case OP_PENDING:
         return "OP_PENDING";
     case HELP:
@@ -3644,6 +3650,7 @@ std::string Editor::getModeString() const
 
 void Editor::openFile(std::string_view fname)
 {
+    locMessage.clear();
     // Normalize path (CRITICAL for buffer matching)
     std::string path(fname);
     try
@@ -5721,6 +5728,19 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == LOC_LIST)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<LocListMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
     if(currentMode == REFERENCES)
     {
         drawReferences();
@@ -7377,6 +7397,320 @@ void Editor::handleResize()
 #endif
 }
 
+namespace
+{
+struct LocCommentRules
+{
+    std::string_view line;
+    std::string_view blockStart;
+    std::string_view blockEnd;
+    bool hasLine = false;
+    bool hasBlock = false;
+};
+
+bool locIsBinaryFile(const std::string& filepath)
+{
+    std::ifstream file(filepath, std::ios::binary);
+    if(!file)
+        return true;
+
+    char buffer[512];
+    file.read(buffer, sizeof(buffer));
+    std::streamsize bytesRead = file.gcount();
+
+    int nullCount = 0;
+    int nonPrintable = 0;
+
+    for(std::streamsize i = 0; i < bytesRead; i++)
+    {
+        unsigned char c = static_cast<unsigned char>(buffer[i]);
+
+        if(c == 0)
+        {
+            nullCount++;
+            if(nullCount > 1)
+                return true;
+        }
+
+        if(c < 7 || (c > 14 && c < 32))
+        {
+            nonPrintable++;
+            if(nonPrintable > bytesRead / 10)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+bool locIsTextFile(const std::string& filepath)
+{
+    std::string ext;
+    size_t dotPos = filepath.find_last_of('.');
+    if(dotPos != std::string::npos)
+    {
+        ext = filepath.substr(dotPos);
+        bool isPythonExt =
+            constants::is_filetype<constants::no_pattern,
+                                   constants::python_suffixes>(filepath);
+        bool isMlaExt =
+            constants::is_filetype<constants::no_pattern,
+                                   constants::mla_suffixes>(filepath);
+
+        if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
+           ext == ".hpp" || isPythonExt || ext == ".js" || ext == ".ts" ||
+           ext == ".jsx" || ext == ".tsx" || ext == ".java" || ext == ".rs" ||
+           ext == ".go" || ext == ".rb" || ext == ".php" || ext == ".sh" ||
+           ext == ".bash" || ext == ".zsh" || ext == ".vim" || ext == ".lua" ||
+           ext == ".md" || ext == ".markdown" || ext == ".rst" ||
+           ext == ".tex" || ext == ".css" || ext == ".scss" || ext == ".html" ||
+           ext == ".xml" || ext == ".json" || ext == ".yaml" || ext == ".yml" ||
+           ext == ".toml" || ext == ".ini" || ext == ".conf" ||
+           ext == ".config" || ext == ".log" || ext == ".cmake" ||
+           ext == ".make" || ext == ".mk" || ext == ".am" || isMlaExt)
+        {
+            return true;
+        }
+
+        if(ext == ".exe" || ext == ".o" || ext == ".so" || ext == ".a" ||
+           ext == ".dll" || ext == ".dylib" || ext == ".bin" || ext == ".dat" ||
+           ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" ||
+           ext == ".bmp" || ext == ".ico" || ext == ".pdf" || ext == ".doc" ||
+           ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".ppt" ||
+           ext == ".pptx" || ext == ".zip" || ext == ".tar" || ext == ".gz" ||
+           ext == ".bz2" || ext == ".7z" || ext == ".rar" || ext == ".mp3" ||
+           ext == ".mp4" || ext == ".avi" || ext == ".mov" || ext == ".wav" ||
+           ext == ".flac" || ext == ".ogg" || ext == ".ttf" || ext == ".otf" ||
+           ext == ".woff" || ext == ".woff2" || ext == ".eot")
+        {
+            return false;
+        }
+    }
+
+    return !locIsBinaryFile(filepath);
+}
+
+LocCommentRules locCommentRulesForPath(std::string_view path)
+{
+    LocCommentRules rules;
+    bool isCpp =
+        constants::is_filetype<constants::no_pattern, constants::cpp_suffixes>(
+            path);
+    bool isMla =
+        constants::is_filetype<constants::no_pattern, constants::mla_suffixes>(
+            path);
+    bool isRust =
+        constants::is_filetype<constants::no_pattern, constants::rust_suffixes>(
+            path);
+    bool isGo =
+        constants::is_filetype<constants::no_pattern, constants::go_suffixes>(
+            path);
+    bool isJs =
+        constants::is_filetype<constants::no_pattern,
+                               constants::javascript_suffixes>(path);
+    bool isTs =
+        constants::is_filetype<constants::no_pattern,
+                               constants::typescript_suffixes>(path);
+    bool isCss =
+        constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
+            path);
+    bool isHtml =
+        constants::is_filetype<constants::no_pattern, constants::html_suffixes>(
+            path);
+    bool isXml =
+        constants::is_filetype<constants::no_pattern, constants::xml_suffixes>(
+            path);
+    bool isPython =
+        constants::is_filetype<constants::no_pattern,
+                               constants::python_suffixes>(path);
+    bool isRobot =
+        constants::is_filetype<constants::no_pattern, constants::robot_suffixes>(
+            path);
+    bool isYaml =
+        constants::is_filetype<constants::no_pattern, constants::yaml_suffixes>(
+            path);
+    bool isToml =
+        constants::is_filetype<constants::no_pattern, constants::toml_suffixes>(
+            path);
+    bool isCMake =
+        constants::is_filetype<constants::cmake_prefixes,
+                               constants::cmake_suffixes>(path);
+    bool isShell =
+        constants::is_filetype<constants::no_pattern, constants::shell_suffixes>(
+            path);
+    bool isMarkup =
+        constants::is_filetype<constants::no_pattern,
+                               constants::markup_text_suffixes>(path);
+
+    if(isCpp || isMla || isRust || isGo || isJs || isTs)
+    {
+        rules.line = "//";
+        rules.blockStart = "/*";
+        rules.blockEnd = "*/";
+        rules.hasLine = true;
+        rules.hasBlock = true;
+        return rules;
+    }
+
+    if(isCss)
+    {
+        rules.blockStart = "/*";
+        rules.blockEnd = "*/";
+        rules.hasBlock = true;
+        return rules;
+    }
+
+    if(isHtml || isXml || isMarkup)
+    {
+        rules.blockStart = "<!--";
+        rules.blockEnd = "-->";
+        rules.hasBlock = true;
+        return rules;
+    }
+
+    if(isPython || isRobot || isYaml || isToml || isCMake || isShell)
+    {
+        rules.line = "#";
+        rules.hasLine = true;
+        return rules;
+    }
+
+    return rules;
+}
+
+int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
+{
+    std::ifstream file(filepath);
+    if(!file)
+        return 0;
+
+    std::string line;
+    int count = 0;
+    bool inBlock = false;
+
+    while(std::getline(file, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        std::string_view view = line;
+        size_t pos = 0;
+        bool counted = false;
+
+        while(true)
+        {
+            while(pos < view.size() &&
+                  std::isspace(static_cast<unsigned char>(view[pos])))
+            {
+                ++pos;
+            }
+
+            if(pos >= view.size())
+                break;
+
+            if(inBlock)
+            {
+                if(!rules.hasBlock)
+                    break;
+                size_t end = view.find(rules.blockEnd, pos);
+                if(end == std::string_view::npos)
+                {
+                    pos = view.size();
+                    break;
+                }
+                pos = end + rules.blockEnd.size();
+                inBlock = false;
+                continue;
+            }
+
+            if(rules.hasLine &&
+               view.compare(pos, rules.line.size(), rules.line) == 0)
+            {
+                pos = view.size();
+                break;
+            }
+
+            if(rules.hasBlock &&
+               view.compare(pos, rules.blockStart.size(), rules.blockStart) == 0)
+            {
+                size_t end =
+                    view.find(rules.blockEnd, pos + rules.blockStart.size());
+                if(end == std::string_view::npos)
+                {
+                    inBlock = true;
+                    pos = view.size();
+                    break;
+                }
+                pos = end + rules.blockEnd.size();
+                continue;
+            }
+
+            counted = true;
+            break;
+        }
+
+        if(counted)
+            count++;
+    }
+
+    return count;
+}
+
+void collectLocFiles(const std::string& dir, int depth,
+                     const GitIgnore& gitignore,
+                     std::vector<std::string>& out)
+{
+    if(depth > 10)
+        return;
+
+    DIR* d = opendir(dir.c_str());
+    if(!d)
+        return;
+
+    struct dirent* entry;
+    while((entry = readdir(d)))
+    {
+        std::string name = entry->d_name;
+        if(name == "." || name == "..")
+            continue;
+        if(!name.empty() && name[0] == '.')
+            continue;
+
+        std::string fullPath = dir + "/" + name;
+
+        struct stat st;
+        if(stat(fullPath.c_str(), &st) != 0)
+            continue;
+
+        bool isDir = S_ISDIR(st.st_mode);
+        if(gitignore.isIgnored(fullPath, isDir))
+            continue;
+
+        if(isDir)
+        {
+            collectLocFiles(fullPath, depth + 1, gitignore, out);
+        }
+        else
+        {
+            out.push_back(fullPath);
+        }
+    }
+
+    closedir(d);
+}
+
+std::string expandTildePath(std::string path)
+{
+    if(!path.empty() && path[0] == '~')
+    {
+        const char* home = getenv("HOME");
+        if(home)
+            path = std::string(home) + path.substr(1);
+    }
+    return path;
+}
+} // namespace
+
 // Command execution
 void Editor::executeCommand(std::string_view cmd)
 {
@@ -7547,6 +7881,137 @@ void Editor::executeCommand(std::string_view cmd)
         commandRequestedModeSet = true;
         commandRequestedMode = HELP;
         commandRequestedPath = topic; // Reuse path field for topic
+        return;
+    }
+
+    auto parse_loc_command =
+        [&](std::string_view command, bool& listView,
+            std::string& outPath) -> bool
+    {
+        std::string_view trimmed = trim_view(command);
+        if(trimmed.rfind("loc", 0) != 0)
+            return false;
+
+        std::string_view rest = trim_view(trimmed.substr(3));
+        listView = false;
+
+        if(!rest.empty() && rest.front() == '!')
+        {
+            listView = true;
+            rest = trim_view(rest.substr(1));
+        }
+
+        if(rest.rfind("-l", 0) == 0)
+        {
+            listView = true;
+            rest = trim_view(rest.substr(2));
+        }
+        else if(rest.rfind("--list", 0) == 0)
+        {
+            listView = true;
+            rest = trim_view(rest.substr(6));
+        }
+        else if(rest.rfind("list", 0) == 0)
+        {
+            listView = true;
+            rest = trim_view(rest.substr(4));
+        }
+
+        outPath = rest.empty() ? "" : std::string(rest);
+        return true;
+    };
+
+    bool locListView = false;
+    std::string locPath;
+    if(parse_loc_command(cmd, locListView, locPath))
+    {
+        if(locPath.empty())
+        {
+            if(hasBuffer() && filename && !filename->empty())
+                locPath = *filename;
+            else
+                locPath = ".";
+        }
+
+        locPath = expandTildePath(locPath);
+
+        std::error_code ec;
+        std::filesystem::path targetPath = std::filesystem::absolute(locPath, ec);
+        if(ec)
+            targetPath = std::filesystem::path(locPath);
+
+        if(!std::filesystem::exists(targetPath, ec))
+        {
+            setStatusMessage("loc: path not found: " + locPath);
+            return;
+        }
+
+        std::vector<std::string> files;
+        std::filesystem::path rootPath;
+        std::string rootDisplay = locPath;
+
+        if(std::filesystem::is_directory(targetPath, ec))
+        {
+            locListView = true;
+            rootPath = targetPath;
+            GitIgnore gitignore;
+            if(respectGitignore)
+                gitignore.loadRecursive(rootPath.string());
+            collectLocFiles(rootPath.string(), 0, gitignore, files);
+        }
+        else
+        {
+            rootPath = targetPath.parent_path();
+            files.push_back(targetPath.string());
+        }
+
+        std::vector<LocEntry> entries;
+        int totalLoc = 0;
+
+        for(const auto& file : files)
+        {
+            if(!locIsTextFile(file))
+                continue;
+
+            LocCommentRules rules = locCommentRulesForPath(file);
+            int loc = locCountInFile(file, rules);
+            totalLoc += loc;
+
+            if(locListView)
+            {
+                LocEntry entry;
+                entry.path = file;
+
+                std::string displayPath = file;
+                if(!rootPath.empty())
+                {
+                    std::error_code relErr;
+                    std::filesystem::path rel =
+                        std::filesystem::relative(file, rootPath, relErr);
+                    if(!relErr)
+                        displayPath = rel.string();
+                }
+                entry.displayPath = displayPath;
+                entry.loc = loc;
+                entries.push_back(std::move(entry));
+            }
+        }
+
+        if(locListView)
+        {
+            std::sort(entries.begin(), entries.end(),
+                      [](const LocEntry& a, const LocEntry& b)
+                      { return a.displayPath < b.displayPath; });
+            locList = std::move(entries);
+            locListTotal = totalLoc;
+            locListRoot = rootDisplay;
+            commandRequestedModeSet = true;
+            commandRequestedMode = LOC_LIST;
+            commandRequestedPath.clear();
+        }
+
+        locMessage = "LOC " + std::to_string(totalLoc);
+        needsFullRedraw = true;
         return;
     }
 
@@ -8309,6 +8774,245 @@ static std::vector<std::string> getPathCompletions(std::string_view partial)
     return completions;
 }
 
+static bool completionSubsequenceMatch(std::string_view text,
+                                       std::string_view pattern)
+{
+    if(pattern.empty())
+        return true;
+    size_t i = 0;
+    for(char ch : text)
+    {
+        if(ch == pattern[i])
+        {
+            ++i;
+            if(i >= pattern.size())
+                return true;
+        }
+    }
+    return false;
+}
+
+static void collectRecursiveCompletion(const std::string& dir,
+                                       const std::string& relBase,
+                                       std::string_view prefix,
+                                       std::vector<std::string>& relMatches,
+                                       int depth,
+                                       int& budget,
+                                       const GitIgnore* gitignore)
+{
+    if(depth > 8 || budget <= 0)
+        return;
+
+    DIR* d = opendir(dir.c_str());
+    if(!d)
+        return;
+
+    struct dirent* entry;
+    while((entry = readdir(d)) != nullptr)
+    {
+        std::string name = entry->d_name;
+        if(name == "." || name == "..")
+            continue;
+        if(!name.empty() && name[0] == '.')
+            continue;
+
+        std::string fullPath = dir + "/" + name;
+        struct stat st;
+        if(stat(fullPath.c_str(), &st) != 0)
+            continue;
+
+        bool isDir = S_ISDIR(st.st_mode);
+        if(gitignore && gitignore->isIgnored(fullPath, isDir))
+            continue;
+        std::string rel = relBase.empty() ? name : (relBase + "/" + name);
+        bool match = false;
+        if(prefix.empty())
+        {
+            match = true;
+        }
+        else if(prefix.find('/') != std::string_view::npos)
+        {
+            match = text_utils::contains(rel, prefix) ||
+                    completionSubsequenceMatch(rel, prefix);
+        }
+        else
+        {
+            match = text_utils::contains(name, prefix) ||
+                    completionSubsequenceMatch(name, prefix);
+        }
+
+        if(match)
+        {
+            if(isDir)
+                rel += "/";
+            relMatches.push_back(rel);
+            if(--budget <= 0)
+                break;
+        }
+
+        if(isDir)
+        {
+            collectRecursiveCompletion(
+                fullPath,
+                relBase.empty() ? name : relBase + "/" + name, prefix,
+                relMatches, depth + 1, budget, gitignore);
+            if(budget <= 0)
+                break;
+        }
+    }
+
+    closedir(d);
+}
+
+static std::vector<std::string>
+getRecursivePathCompletions(std::string_view partial, bool respectGitignore)
+{
+    if(partial.empty())
+        return getPathCompletions(partial);
+
+    std::vector<std::string> completions = getPathCompletions(partial);
+
+    std::string expandedPartial(partial);
+    if(!expandedPartial.empty() && expandedPartial[0] == '~')
+    {
+        const char* home = getenv("HOME");
+        if(home)
+            expandedPartial = std::string(home) + expandedPartial.substr(1);
+    }
+
+    std::string dirPath;
+    std::string prefix;
+    size_t lastSlash = expandedPartial.find_last_of('/');
+    if(lastSlash != std::string::npos)
+    {
+        dirPath = expandedPartial.substr(0, lastSlash);
+        if(dirPath.empty())
+            dirPath = "/";
+        prefix = expandedPartial.substr(lastSlash + 1);
+    }
+    else
+    {
+        dirPath = ".";
+        prefix = expandedPartial;
+    }
+
+    GitIgnore gitignore;
+    if(respectGitignore)
+        gitignore.loadRecursive(dirPath);
+
+    if(prefix.empty())
+    {
+        if(respectGitignore)
+        {
+            std::vector<std::string> filtered;
+            filtered.reserve(completions.size());
+            for(const auto& item : completions)
+            {
+                std::string path = item;
+                if(!path.empty() && path.back() == '/')
+                    path.pop_back();
+                if(!path.empty() && path[0] == '~')
+                {
+                    const char* home = getenv("HOME");
+                    if(home)
+                        path = std::string(home) + path.substr(1);
+                }
+                std::string fullPath =
+                    (lastSlash != std::string::npos) ? path : (dirPath + "/" + path);
+                struct stat st;
+                bool isDir = false;
+                if(stat(fullPath.c_str(), &st) == 0)
+                    isDir = S_ISDIR(st.st_mode);
+                if(!gitignore.isIgnored(fullPath, isDir))
+                    filtered.push_back(item);
+            }
+            completions.swap(filtered);
+        }
+        std::sort(completions.begin(), completions.end());
+        completions.erase(std::unique(completions.begin(), completions.end()),
+                          completions.end());
+        return completions;
+    }
+
+    std::vector<std::string> relMatches;
+    int budget = 1000;
+    collectRecursiveCompletion(dirPath, "", prefix, relMatches, 0, budget,
+                               respectGitignore ? &gitignore : nullptr);
+
+    if(!relMatches.empty())
+    {
+        std::string basePrefix;
+        if(lastSlash != std::string::npos)
+        {
+            if(!partial.empty() && partial[0] == '~')
+            {
+                size_t origSlash = partial.find_last_of('/');
+                basePrefix = std::string(partial.substr(0, origSlash + 1));
+            }
+            else
+            {
+                if(dirPath == ".")
+                    basePrefix.clear();
+                else
+                    basePrefix = dirPath + "/";
+            }
+        }
+
+        for(const auto& rel : relMatches)
+        {
+            std::string fullPath = basePrefix.empty() ? rel : basePrefix + rel;
+            completions.push_back(fullPath);
+        }
+    }
+
+    auto scorePath = [&](std::string_view path) -> int
+    {
+        if(prefix.empty())
+            return 0;
+
+        std::string_view candidate = path;
+        if(!candidate.empty() && candidate.back() == '/')
+            candidate = candidate.substr(0, candidate.size() - 1);
+
+        std::string_view name = candidate;
+        size_t slashPos = candidate.find_last_of('/');
+        if(slashPos != std::string_view::npos)
+            name = candidate.substr(slashPos + 1);
+
+        bool hasSlash = prefix.find('/') != std::string_view::npos;
+        std::string_view hay = hasSlash ? candidate : name;
+
+        if(hay.rfind(prefix, 0) == 0)
+            return 1000 - (int)candidate.size();
+        if(text_utils::contains(hay, prefix))
+            return 600 - (int)candidate.size();
+        if(completionSubsequenceMatch(hay, prefix))
+            return 300 - (int)candidate.size();
+        return 0;
+    };
+
+    std::sort(completions.begin(), completions.end(),
+              [&](const std::string& a, const std::string& b)
+              {
+                  int sa = scorePath(a);
+                  int sb = scorePath(b);
+                  if(sa != sb)
+                      return sa > sb;
+                  if(a.size() != b.size())
+                      return a.size() < b.size();
+                  return a < b;
+              });
+    completions.erase(std::unique(completions.begin(), completions.end()),
+                      completions.end());
+    return completions;
+}
+
+static std::vector<std::string> getLocPathCompletions(std::string_view partial,
+                                                      bool respectGitignore)
+{
+    return getRecursivePathCompletions(partial, respectGitignore);
+}
+
 // Find longest common prefix among completions
 static std::string longestCommonPrefix(const std::vector<std::string>& strings)
 {
@@ -8425,6 +9129,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = LSP_INFO;
     }
+    else if(std::holds_alternative<LocListMode>(state))
+    {
+        currentMode = LOC_LIST;
+    }
     else if(std::holds_alternative<HelpMode>(state))
     {
         currentMode = HELP;
@@ -8446,6 +9154,8 @@ void Editor::handleKeypress(int c)
 {
     if(c < 0)
         return;
+    if(!locMessage.empty())
+        locMessage.clear();
     LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
               static_cast<int>(currentMode));
 
@@ -8647,6 +9357,7 @@ void Editor::ensureBufferForMode(Mode mode)
     case GREP_SEARCH:
     case REFERENCES:
     case LSP_INFO:
+    case LOC_LIST:
         return;
     default:
         break;
@@ -8665,6 +9376,7 @@ void Editor::switchToBuffer(int index)
 {
     if(index >= 0 && index < buffers.size())
     {
+        locMessage.clear();
         if(splitActive)
         {
             switchToBufferInActivePane(index);
@@ -10993,7 +11705,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "split", "vs",         "vsplit",  "vh",       "hs",      "hsplit",
         "only",  "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",   "nohlsearch", "lspinfo", "emoji",    "em",      "help",
-        "h"};
+        "h",     "loc",        "loc!"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
@@ -11167,6 +11879,17 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
 std::vector<std::string> Editor::getPathCompletions(std::string_view path)
 {
     return ::getPathCompletions(path);
+}
+
+std::vector<std::string>
+Editor::getPathCompletionsRecursive(std::string_view path)
+{
+    return ::getRecursivePathCompletions(path, false);
+}
+
+std::vector<std::string> Editor::getLocPathCompletions(std::string_view path)
+{
+    return ::getLocPathCompletions(path, respectGitignore);
 }
 
 void Editor::deleteFilePrompt()
