@@ -911,6 +911,7 @@ public:
                                        int& outX);
     static std::string testResolveJsTsModule(const std::string& fromFile,
                                              std::string_view module);
+    static int testCountLocForFile(const std::string& filepath);
 private:
 #endif
     bool dispatchModeKey(int c);

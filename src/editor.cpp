@@ -111,6 +111,13 @@ static bool find_python_def_in_file(const std::string& path,
                                     int& outX);
 static bool is_skip_dir(const std::filesystem::path& path);
 
+namespace
+{
+struct LocCommentRules;
+LocCommentRules locCommentRulesForPath(std::string_view path);
+int locCountInFile(const std::string& filepath, const LocCommentRules& rules);
+} // namespace
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
 static std::string resolve_executable_path(const std::string& exe)
 {
@@ -2556,6 +2563,7 @@ std::string Editor::testResolveJsTsModule(const std::string& fromFile,
 {
     return resolve_js_ts_module(fromFile, module);
 }
+
 #endif
 
 bool Editor::isFileType(FileType type) const
@@ -7493,6 +7501,35 @@ bool locIsTextFile(const std::string& filepath)
 LocCommentRules locCommentRulesForPath(std::string_view path)
 {
     LocCommentRules rules;
+    auto basenameView = [&]() -> std::string_view {
+        size_t slash = path.find_last_of("/\\");
+        if(slash == std::string_view::npos)
+            return path;
+        return path.substr(slash + 1);
+    };
+    auto lower_ascii = [](std::string_view text) {
+        std::string out;
+        out.reserve(text.size());
+        for(char c : text)
+            out.push_back(static_cast<char>(
+                std::tolower(static_cast<unsigned char>(c))));
+        return out;
+    };
+    std::string baseLower = lower_ascii(basenameView());
+    std::string extLower;
+    size_t dotPos = baseLower.find_last_of('.');
+    if(dotPos != std::string::npos)
+        extLower = baseLower.substr(dotPos);
+
+    if(baseLower.rfind("cmakelists", 0) == 0 ||
+       baseLower.rfind("cmakecache", 0) == 0 ||
+       baseLower.rfind("cmakefiles", 0) == 0 || (extLower == ".cmake"))
+    {
+        rules.line = "#";
+        rules.hasLine = true;
+        return rules;
+    }
+
     bool isCpp =
         constants::is_filetype<constants::no_pattern, constants::cpp_suffixes>(
             path);
@@ -7541,6 +7578,8 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
     bool isMarkup =
         constants::is_filetype<constants::no_pattern,
                                constants::markup_text_suffixes>(path);
+    bool isIni = (extLower == ".ini" || extLower == ".conf" ||
+                  extLower == ".config" || extLower == ".cfg");
 
     if(isCpp || isMla || isRust || isGo || isJs || isTs)
     {
@@ -7568,7 +7607,7 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
         return rules;
     }
 
-    if(isPython || isRobot || isYaml || isToml || isCMake || isShell)
+    if(isPython || isRobot || isYaml || isToml || isCMake || isShell || isIni)
     {
         rules.line = "#";
         rules.hasLine = true;
@@ -7655,7 +7694,6 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
 
     return count;
 }
-
 void collectLocFiles(const std::string& dir, int depth,
                      const GitIgnore& gitignore,
                      std::vector<std::string>& out)
@@ -7710,6 +7748,14 @@ std::string expandTildePath(std::string path)
     return path;
 }
 } // namespace
+
+#ifdef UVIM_TESTING
+int Editor::testCountLocForFile(const std::string& filepath)
+{
+    LocCommentRules rules = locCommentRulesForPath(filepath);
+    return locCountInFile(filepath, rules);
+}
+#endif
 
 // Command execution
 void Editor::executeCommand(std::string_view cmd)

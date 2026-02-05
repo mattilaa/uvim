@@ -287,6 +287,7 @@ if(UVIM_BUILD_TESTS)
         tests/editor_filetype_test.cpp
         tests/syntax_highlighter_test.cpp
         tests/js_ts_resolution_test.cpp
+        tests/loc_count_test.cpp
         ${UVIM_TEST_SOURCES}
     )
     uvim_enable_sanitizers(real_mode_transitions_tests)
