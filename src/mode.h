@@ -21,6 +21,7 @@ enum Mode
     OP_PENDING,
     REFERENCES,
     LSP_INFO,
+    LOC_LIST,
     HELP,
     GIT_SHOW,
     GIT_LOG,

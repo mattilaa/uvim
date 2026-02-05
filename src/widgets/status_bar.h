@@ -37,6 +37,7 @@ struct MessageBarView
     bool showGitBlame = false;
     bool showGitBlameInfo = false;
     std::string_view blameLine;
+    std::string_view locMessage;
     std::string_view statusMessage;
 };
 

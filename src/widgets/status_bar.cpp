@@ -112,6 +112,14 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
         int msglen =
             std::min((int)view.statusMessage.length(), view.screenCols);
         output.append(view.statusMessage, 0, msglen);
+        return;
+    }
+
+    if(!view.locMessage.empty())
+    {
+        int msglen =
+            std::min((int)view.locMessage.length(), view.screenCols);
+        output.append(view.locMessage, 0, msglen);
     }
 }
 } // namespace widgets

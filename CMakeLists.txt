@@ -68,6 +68,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/operator_pending_mode.cpp
     src/references_mode.cpp
     src/lsp_info_mode.cpp
+    src/loc_mode.cpp
     src/help_mode.cpp
     src/git_show_mode.cpp
     src/git_log_mode.cpp
