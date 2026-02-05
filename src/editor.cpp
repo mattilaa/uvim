@@ -8042,6 +8042,16 @@ void Editor::executeCommand(std::string_view cmd)
             else
                 locPath = ".";
         }
+        else if(locPath == "%")
+        {
+            if(hasBuffer() && filename && !filename->empty())
+                locPath = *filename;
+            else
+            {
+                setStatusMessage("loc: no current buffer");
+                return;
+            }
+        }
 
         locPath = expandTildePath(locPath);
 

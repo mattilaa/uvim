@@ -261,6 +261,18 @@ void HelpMode::draw(Editor& editor) const
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
+    if(commandPrompt.isActive())
+    {
+        output += Terminal::ESC_SHOW_CURSOR;
+        int row = editor.screenRows + 2;
+        int col = 2 + (int)commandPrompt.getInput().size();
+        output += Terminal::cursorPos(row, col);
+    }
+    else
+    {
+        output += Terminal::ESC_HIDE_CURSOR;
+    }
+
     Terminal::write(output);
     Terminal::flush();
 }
@@ -347,6 +359,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "LOC:",
             "  `:loc <path>`         - Count LOC (non-empty, non-comment)",
             "  `:loc! <path>`        - Show LOC list view",
+            "  `:loc%`               - Count LOC in current buffer",
             "  `:loctotal <path>`    - Count total LOC (respects .gitignore)",
             "  In LOC view: `s` sort asc/desc, `Esc` reset sort",
             "",
