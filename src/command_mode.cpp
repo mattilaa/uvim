@@ -268,7 +268,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
 
     if(c == Terminal::CTRL_G)
     {
-        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        bool isLocTotal = ctx.commandBuffer.rfind(":loctotal", 0) == 0;
+        bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
+        if(isLocTotal || isLoc)
         {
             std::string_view buf = ctx.commandBuffer;
             size_t spacePos = buf.find(' ');
@@ -296,7 +298,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Tab completion
     if(c == Terminal::TAB)
     {
-        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        bool isLocTotal = ctx.commandBuffer.rfind(":loctotal", 0) == 0;
+        bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
+        if(isLocTotal || isLoc)
         {
             std::string input = ctx.commandBuffer.substr(1);
             size_t spacePos = ctx.commandBuffer.find(' ');
@@ -324,8 +328,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 completionIndex++;
                 if(completionIndex >= (int)completions.size())
                     completionIndex = 0;
-                locCommand =
-                    ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
+                if(isLocTotal)
+                    locCommand = "loctotal";
+                else
+                    locCommand =
+                        ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!"
+                                                                 : "loc";
                 ctx.commandBuffer =
                     ":" + locCommand + " " + completions[completionIndex];
             }
@@ -341,7 +349,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Shift+Tab (reverse completion)
     if(c == Terminal::SHIFT_TAB)
     {
-        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        bool isLocTotal = ctx.commandBuffer.rfind(":loctotal", 0) == 0;
+        bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
+        if(isLocTotal || isLoc)
         {
             std::string input = ctx.commandBuffer.substr(1);
             size_t spacePos = ctx.commandBuffer.find(' ');
@@ -369,8 +379,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 completionIndex--;
                 if(completionIndex < 0)
                     completionIndex = (int)completions.size() - 1;
-                locCommand =
-                    ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
+                if(isLocTotal)
+                    locCommand = "loctotal";
+                else
+                    locCommand =
+                        ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!"
+                                                                 : "loc";
                 ctx.commandBuffer =
                     ":" + locCommand + " " + completions[completionIndex];
             }
@@ -543,11 +557,16 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
     {
         originalInput = input;
 
-        if(ctx.commandBuffer.rfind(":loc", 0) == 0)
+        bool isLocTotal = ctx.commandBuffer.rfind(":loctotal", 0) == 0;
+        bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
+        if(isLocTotal || isLoc)
         {
             locCompletionLocal = true;
-            locCommandLocal =
-                ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
+            if(isLocTotal)
+                locCommandLocal = "loctotal";
+            else
+                locCommandLocal =
+                    ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
             size_t spacePos = ctx.commandBuffer.find(' ');
             std::string_view pathPart;
             if(spacePos != std::string::npos)
@@ -596,7 +615,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                 {
                     completions = ctx.getPathCompletionsRecursive(pathPart);
                 }
-                else if(cmd == "loc" || cmd == "loc!")
+                else if(cmd == "loc" || cmd == "loc!" || cmd == "loctotal")
                 {
                     completions = ctx.getLocPathCompletions(pathPart);
                     if(completions.empty())
@@ -612,7 +631,8 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     completions = ctx.getHelpCompletions("");
                     helpCompletion = true;
                 }
-                else if(input == "loc" || input == "loc!")
+                else if(input == "loc" || input == "loc!" ||
+                        input == "loctotal")
                 {
                     completions = ctx.getLocPathCompletions("");
                     if(completions.empty())

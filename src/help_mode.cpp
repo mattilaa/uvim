@@ -347,6 +347,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "LOC:",
             "  `:loc <path>`         - Count LOC (non-empty, non-comment)",
             "  `:loc! <path>`        - Show LOC list view",
+            "  `:loctotal <path>`    - Count total LOC (respects .gitignore)",
             "  In LOC view: `s` sort asc/desc, `Esc` reset sort",
             "",
             "FILE BROWSER COMMANDS:",

@@ -7930,12 +7930,24 @@ void Editor::executeCommand(std::string_view cmd)
         return;
     }
 
+    auto parse_loctotal_command =
+        [&](std::string_view command, std::string& outPath) -> bool
+    {
+        std::string_view trimmed = trim_view(command);
+        if(trimmed.rfind("loctotal", 0) != 0)
+            return false;
+
+        std::string_view rest = trim_view(trimmed.substr(8));
+        outPath = rest.empty() ? "" : std::string(rest);
+        return true;
+    };
+
     auto parse_loc_command =
         [&](std::string_view command, bool& listView,
             std::string& outPath) -> bool
     {
         std::string_view trimmed = trim_view(command);
-        if(trimmed.rfind("loc", 0) != 0)
+        if(trimmed.rfind("loc", 0) != 0 || trimmed.rfind("loctotal", 0) == 0)
             return false;
 
         std::string_view rest = trim_view(trimmed.substr(3));
@@ -7966,6 +7978,58 @@ void Editor::executeCommand(std::string_view cmd)
         outPath = rest.empty() ? "" : std::string(rest);
         return true;
     };
+
+    std::string locTotalPath;
+    if(parse_loctotal_command(cmd, locTotalPath))
+    {
+        if(locTotalPath.empty())
+        {
+            if(!projectRoot.empty())
+                locTotalPath = projectRoot;
+            else
+                locTotalPath = ".";
+        }
+
+        locTotalPath = expandTildePath(locTotalPath);
+
+        std::error_code ec;
+        std::filesystem::path targetPath =
+            std::filesystem::absolute(locTotalPath, ec);
+        if(ec)
+            targetPath = std::filesystem::path(locTotalPath);
+
+        if(!std::filesystem::exists(targetPath, ec))
+        {
+            setStatusMessage("loctotal: path not found: " + locTotalPath);
+            return;
+        }
+
+        std::vector<std::string> files;
+        if(std::filesystem::is_directory(targetPath, ec))
+        {
+            GitIgnore gitignore;
+            if(respectGitignore)
+                gitignore.loadRecursive(targetPath.string());
+            collectLocFiles(targetPath.string(), 0, gitignore, files);
+        }
+        else
+        {
+            files.push_back(targetPath.string());
+        }
+
+        int totalLoc = 0;
+        for(const auto& file : files)
+        {
+            if(!locIsTextFile(file))
+                continue;
+            LocCommentRules rules = locCommentRulesForPath(file);
+            totalLoc += locCountInFile(file, rules);
+        }
+
+        locMessage = "LOC total " + std::to_string(totalLoc);
+        needsFullRedraw = true;
+        return;
+    }
 
     bool locListView = false;
     std::string locPath;
@@ -11751,7 +11815,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "split", "vs",         "vsplit",  "vh",       "hs",      "hsplit",
         "only",  "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",   "nohlsearch", "lspinfo", "emoji",    "em",      "help",
-        "h",     "loc",        "loc!"};
+        "h",     "loc",        "loc!",    "loctotal"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

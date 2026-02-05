@@ -1170,7 +1170,7 @@ bool CommandPrompt::handle(
                     {
                         completions = ctx.getPathCompletionsRecursive(pathPart);
                     }
-                    else if(cmd == "loc" || cmd == "loc!")
+                    else if(cmd == "loc" || cmd == "loc!" || cmd == "loctotal")
                     {
                         completions = ctx.getLocPathCompletions(pathPart);
                         if(completions.empty())
@@ -1187,7 +1187,8 @@ bool CommandPrompt::handle(
                         completions = ctx.getHelpCompletions("");
                         helpCompletion = true;
                     }
-                    else if(inputText == "loc" || inputText == "loc!")
+                    else if(inputText == "loc" || inputText == "loc!" ||
+                            inputText == "loctotal")
                     {
                         completions = ctx.getLocPathCompletions("");
                         if(completions.empty())
