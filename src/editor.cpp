@@ -7694,6 +7694,78 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
 
     return count;
 }
+
+int locCountInLines(const std::vector<std::string>& lines,
+                    const LocCommentRules& rules)
+{
+    int count = 0;
+    bool inBlock = false;
+
+    for(const auto& lineRef : lines)
+    {
+        std::string_view view = lineRef;
+        size_t pos = 0;
+        bool counted = false;
+
+        while(true)
+        {
+            while(pos < view.size() &&
+                  std::isspace(static_cast<unsigned char>(view[pos])))
+            {
+                ++pos;
+            }
+
+            if(pos >= view.size())
+                break;
+
+            if(inBlock)
+            {
+                if(!rules.hasBlock)
+                    break;
+                size_t end = view.find(rules.blockEnd, pos);
+                if(end == std::string_view::npos)
+                {
+                    pos = view.size();
+                    break;
+                }
+                pos = end + rules.blockEnd.size();
+                inBlock = false;
+                continue;
+            }
+
+            if(rules.hasLine &&
+               view.compare(pos, rules.line.size(), rules.line) == 0)
+            {
+                pos = view.size();
+                break;
+            }
+
+            if(rules.hasBlock &&
+               view.compare(pos, rules.blockStart.size(), rules.blockStart) ==
+                   0)
+            {
+                size_t end =
+                    view.find(rules.blockEnd, pos + rules.blockStart.size());
+                if(end == std::string_view::npos)
+                {
+                    inBlock = true;
+                    pos = view.size();
+                    break;
+                }
+                pos = end + rules.blockEnd.size();
+                continue;
+            }
+
+            counted = true;
+            break;
+        }
+
+        if(counted)
+            count++;
+    }
+
+    return count;
+}
 void collectLocFiles(const std::string& dir, int depth,
                      const GitIgnore& gitignore,
                      std::vector<std::string>& out)
@@ -8026,6 +8098,7 @@ void Editor::executeCommand(std::string_view cmd)
             totalLoc += locCountInFile(file, rules);
         }
 
+        statusMessage.clear();
         locMessage = "LOC total " + std::to_string(totalLoc);
         needsFullRedraw = true;
         return;
@@ -8035,17 +8108,26 @@ void Editor::executeCommand(std::string_view cmd)
     std::string locPath;
     if(parse_loc_command(cmd, locListView, locPath))
     {
+        bool locExplicitBuffer = false;
         if(locPath.empty())
         {
             if(hasBuffer() && filename && !filename->empty())
+            {
                 locPath = *filename;
+                locExplicitBuffer = true;
+            }
             else
+            {
                 locPath = ".";
+            }
         }
         else if(locPath == "%")
         {
             if(hasBuffer() && filename && !filename->empty())
+            {
                 locPath = *filename;
+                locExplicitBuffer = true;
+            }
             else
             {
                 setStatusMessage("loc: no current buffer");
@@ -8069,6 +8151,20 @@ void Editor::executeCommand(std::string_view cmd)
         std::vector<std::string> files;
         std::filesystem::path rootPath;
         std::string rootDisplay = locPath;
+        bool useBufferForSingle = false;
+        if(hasBuffer() && filename && !filename->empty())
+        {
+            std::error_code currErr;
+            std::filesystem::path currentPath =
+                std::filesystem::absolute(*filename, currErr);
+            if(currErr)
+                currentPath = std::filesystem::path(*filename);
+            std::error_code eqErr;
+            if(std::filesystem::equivalent(targetPath, currentPath, eqErr))
+                useBufferForSingle = true;
+        }
+        if(locExplicitBuffer)
+            useBufferForSingle = true;
 
         if(std::filesystem::is_directory(targetPath, ec))
         {
@@ -8094,7 +8190,11 @@ void Editor::executeCommand(std::string_view cmd)
                 continue;
 
             LocCommentRules rules = locCommentRulesForPath(file);
-            int loc = locCountInFile(file, rules);
+            int loc = 0;
+            if(!locListView && useBufferForSingle)
+                loc = locCountInLines(*lines, rules);
+            else
+                loc = locCountInFile(file, rules);
             totalLoc += loc;
 
             if(locListView)
@@ -8130,6 +8230,7 @@ void Editor::executeCommand(std::string_view cmd)
             commandRequestedPath.clear();
         }
 
+        statusMessage.clear();
         locMessage = "LOC " + std::to_string(totalLoc);
         needsFullRedraw = true;
         return;
@@ -11825,7 +11926,8 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "split", "vs",         "vsplit",  "vh",       "hs",      "hsplit",
         "only",  "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",   "nohlsearch", "lspinfo", "emoji",    "em",      "help",
-        "h",     "loc",        "loc!",    "loctotal"};
+        "h",     "cd",         "loc",     "loc!",    "loc%",
+        "loctotal"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
