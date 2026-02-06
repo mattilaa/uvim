@@ -5,6 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: build_install.sh [--install] [--no-install] [--debug] [--no-debug]
                         [--tests] [--unit-tests] [--robot-tests] [--no-tests]
+                        [--doxygen]
                         [--install-if-tests-pass]
                         [--prefix <path>] [--help]
 
@@ -19,6 +20,7 @@ Options:
   --unit-tests       Run unit tests after build (ctest, installs only if tests pass)
   --robot-tests      Run robot tests after build (installs only if tests pass)
   --no-tests         Skip all tests (default)
+  --doxygen          Build Doxygen docs after build
   --install-if-tests-pass  Install only if requested tests pass
   --prefix <path>    Install prefix (default: $HOME/.local)
   --help             Show this help
@@ -37,6 +39,7 @@ debug=false
 run_unit_tests=false
 run_robot_tests=false
 install_if_tests_pass=false
+build_doxygen=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -95,6 +98,10 @@ while [[ $# -gt 0 ]]; do
       install_if_tests_pass=true
       shift
       ;;
+    --doxygen)
+      build_doxygen=true
+      shift
+      ;;
     *)
       echo "error: unknown argument: $1" >&2
       usage
@@ -129,6 +136,10 @@ fi
 
 if $run_robot_tests; then
   ./tests/robot/run_robot.sh
+fi
+
+if $build_doxygen; then
+  ./scripts/build_docs.sh
 fi
 
 if $install_after_build; then
