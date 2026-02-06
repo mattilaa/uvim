@@ -1508,6 +1508,25 @@ bool CommandPrompt::handle(
 
     if(key >= 32 && key < 127)
     {
+        if(key == '/')
+        {
+            auto isPathCmd = [&]() -> bool
+            {
+                return input.rfind("e", 0) == 0 ||
+                       input.rfind("edit", 0) == 0 ||
+                       input.rfind("tabe", 0) == 0 ||
+                       input.rfind("tabnew", 0) == 0 ||
+                       input.rfind("w", 0) == 0 ||
+                       input.rfind("cd", 0) == 0 ||
+                       input.rfind("loc", 0) == 0 ||
+                       input.rfind("loctotal", 0) == 0;
+            };
+            if(isPathCmd() && !input.empty() && input.back() == '/')
+            {
+                nextState.reset();
+                return true;
+            }
+        }
         input += static_cast<char>(key);
         clearCompletions();
         updatePopup();

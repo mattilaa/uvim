@@ -486,6 +486,25 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Regular character input
     if(c >= 32 && c < 127)
     {
+        if(c == '/')
+        {
+            auto isPathCmd = [&]() -> bool
+            {
+                return ctx.commandBuffer.rfind(":e", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":edit", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":tabe", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":tabnew", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":w", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":cd", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":loc", 0) == 0 ||
+                       ctx.commandBuffer.rfind(":loctotal", 0) == 0;
+            };
+            if(isPathCmd() && !ctx.commandBuffer.empty() &&
+               ctx.commandBuffer.back() == '/')
+            {
+                return std::nullopt;
+            }
+        }
         ctx.commandBuffer += static_cast<char>(c);
         // Reset completions when text changes
         completions.clear();
