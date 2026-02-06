@@ -738,8 +738,21 @@ struct LocListMode
     int offset = 0;
     int countWidth = 1;
     SortMode sortMode = SortMode::Normal;
+    std::optional<Mode> returnMode;
+    int returnBrowseCursor = 0;
+    int returnBrowseOffset = 0;
+    std::string returnBrowseDirectory;
 
     LocListMode() = default;
+    explicit LocListMode(std::optional<Mode> returnMode,
+                         int browseCursor = 0, int browseOffset = 0,
+                         std::string browseDirectory = {})
+        : returnMode(returnMode),
+          returnBrowseCursor(browseCursor),
+          returnBrowseOffset(browseOffset),
+          returnBrowseDirectory(std::move(browseDirectory))
+    {
+    }
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

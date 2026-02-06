@@ -3,6 +3,9 @@
 #include "terminal.h"
 #include <gtest/gtest.h>
 #include <utility>
+#include <filesystem>
+#include <fstream>
+#include <chrono>
 
 namespace
 {
@@ -11,6 +14,23 @@ ModeStateMachine makeMachine(Editor& editor, InitialState&& initial)
 {
     return ModeStateMachine(createModeContext(&editor),
                             std::forward<InitialState>(initial));
+}
+
+std::filesystem::path make_temp_dir(const std::string& prefix)
+{
+    auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::filesystem::path base =
+        std::filesystem::temp_directory_path() /
+        (prefix + std::to_string(now));
+    std::filesystem::create_directories(base);
+    return base;
+}
+
+void write_file(const std::filesystem::path& path, std::string_view content)
+{
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream out(path);
+    out << content;
 }
 } // namespace
 
@@ -206,6 +226,42 @@ TEST(RealModeTransitionsTest, InsertModeAutoBracesInStringsDisabled)
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "\"{\"");
     EXPECT_EQ(*editor.cursorX, 2);
+}
+
+TEST(RealModeTransitionsTest, LocListReturnsToFileBrowserWithCursorState)
+{
+    auto root = make_temp_dir("uvim_loc_return_");
+    write_file(root / "a.cpp", "int main() { return 0; }\n");
+    write_file(root / "b.cpp", "int add(int a,int b){return a+b;}\n");
+
+    std::error_code ec;
+    std::filesystem::current_path(root, ec);
+
+    Editor editor = Editor::createForTests();
+    FileBrowserMode browse{root.string()};
+    browse.browserCursor = 1;
+    browse.browserOffset = 0;
+
+    auto sm = makeMachine(editor, browse);
+
+    sm.dispatch(':');
+    sm.dispatch('l');
+    sm.dispatch('o');
+    sm.dispatch('c');
+    sm.dispatch(' ');
+    sm.dispatch('.');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "LOC");
+
+    sm.dispatch('q');
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    auto* fb = sm.getState<FileBrowserMode>();
+    ASSERT_NE(fb, nullptr);
+    EXPECT_EQ(fb->currentDirectory, root.string());
+    EXPECT_EQ(fb->browserCursor, 1);
+    EXPECT_EQ(fb->browserOffset, 0);
 }
 
 TEST(RealModeTransitionsTest, CompletionTrimsLeadingSpaceAfterDot)

@@ -38,6 +38,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <optional>
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset);
@@ -8228,6 +8229,10 @@ void Editor::executeCommand(std::string_view cmd)
             commandRequestedModeSet = true;
             commandRequestedMode = LOC_LIST;
             commandRequestedPath.clear();
+            commandRequestedReturnMode.reset();
+            commandRequestedBrowseCursor = 0;
+            commandRequestedBrowseOffset = 0;
+            commandRequestedBrowseDirectory.clear();
         }
 
         statusMessage.clear();

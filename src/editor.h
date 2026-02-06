@@ -191,6 +191,10 @@ public:
     bool commandRequestedModeSet = false;
     Mode commandRequestedMode = NORMAL;
     std::string commandRequestedPath;
+    std::optional<Mode> commandRequestedReturnMode;
+    int commandRequestedBrowseCursor = 0;
+    int commandRequestedBrowseOffset = 0;
+    std::string commandRequestedBrowseDirectory;
     std::string symbolPrefix;
 
     // clangd LSP (optional, runtime-enabled)

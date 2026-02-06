@@ -125,6 +125,13 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
             }
             ed->noteDoubleEscStatusClear();
         }
+        if(returnMode.has_value() && returnMode.value() == FILE_BROWSER)
+        {
+            FileBrowserMode fb{returnBrowseDirectory};
+            fb.browserCursor = returnBrowseCursor;
+            fb.browserOffset = returnBrowseOffset;
+            return fb;
+        }
         return defaultExitMode(ed);
     }
 

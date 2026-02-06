@@ -1014,6 +1014,19 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
 
             return false;
         },
-        [&](ModeContext& ctx, std::string_view line)
-        { return dispatchEditorCommand(ctx, line, previousFile, false); });
+        [&](ModeContext& ctx,
+            std::string_view line) -> std::optional<ModeState>
+        {
+            auto next = dispatchEditorCommand(ctx, line, previousFile, false);
+            if(next && std::holds_alternative<LocListMode>(*next))
+            {
+                LocListMode loc = std::get<LocListMode>(*next);
+                loc.returnMode = FILE_BROWSER;
+                loc.returnBrowseCursor = browserCursor;
+                loc.returnBrowseOffset = browserOffset;
+                loc.returnBrowseDirectory = currentDirectory;
+                return std::optional<ModeState>(ModeState{loc});
+            }
+            return next;
+        });
 }
