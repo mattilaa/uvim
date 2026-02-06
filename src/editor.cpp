@@ -8258,6 +8258,25 @@ void Editor::executeCommand(std::string_view cmd)
                 setStatusMessage("Error getting current directory");
             return;
         }
+        if(cmd == "cdr")
+        {
+            if(projectRoot.empty())
+            {
+                setStatusMessage("Project root not set");
+                return;
+            }
+            if(chdir(projectRoot.c_str()) == 0)
+            {
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                    setStatusMessage(std::string(cwd));
+            }
+            else
+            {
+                setStatusMessage("Cannot change to: " + projectRoot);
+            }
+            return;
+        }
         if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
         {
             std::string path =
@@ -8660,6 +8679,24 @@ void Editor::executeCommand(std::string_view cmd)
         else
         {
             setStatusMessage("Error getting current directory");
+        }
+    }
+    else if(cmd == "cdr")
+    {
+        if(projectRoot.empty())
+        {
+            setStatusMessage("Project root not set");
+            return;
+        }
+        if(chdir(projectRoot.c_str()) == 0)
+        {
+            char cwd[PATH_MAX];
+            if(getcwd(cwd, sizeof(cwd)))
+                setStatusMessage(std::string(cwd));
+        }
+        else
+        {
+            setStatusMessage("Cannot change to: " + projectRoot);
         }
     }
     else if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
@@ -11931,7 +11968,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "split", "vs",         "vsplit",  "vh",       "hs",      "hsplit",
         "only",  "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",   "nohlsearch", "lspinfo", "emoji",    "em",      "help",
-        "h",     "cd",         "loc",     "loc!",    "loc%",
+        "h",     "cd",         "cdr",     "loc",     "loc!",    "loc%",
         "loctotal"};
 
     std::vector<std::string> matches;

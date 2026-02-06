@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <ctime>
+#include <unistd.h>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -986,11 +987,38 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                             ctx, file_utils::path_to_utf8_string(targetPath));
                         browserCursor = 0;
                         browserOffset = 0;
+                        std::string pathStr =
+                            file_utils::path_to_utf8_string(targetPath);
+                        if(chdir(pathStr.c_str()) == 0)
+                        {
+                            char cwd[PATH_MAX];
+                            if(getcwd(cwd, sizeof(cwd)))
+                                ctx.setStatusMessage(std::string(cwd));
+                        }
                     }
                     else
                     {
                         ctx.setStatusMessage("Not a directory: " + args);
                     }
+                }
+                return true;
+            }
+            if(cmd == "cdr")
+            {
+                const std::string& root = ctx.editor->getProjectRoot();
+                if(root.empty())
+                {
+                    ctx.setStatusMessage("Project root not set");
+                    return true;
+                }
+                loadDirectory(ctx, root);
+                browserCursor = 0;
+                browserOffset = 0;
+                if(chdir(root.c_str()) == 0)
+                {
+                    char cwd[PATH_MAX];
+                    if(getcwd(cwd, sizeof(cwd)))
+                        ctx.setStatusMessage(std::string(cwd));
                 }
                 return true;
             }
@@ -1007,7 +1035,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             {
                 ctx.setStatusMessage(
                     ":q :help <topic> :d[elete] :r[ename] <name> "
-                    ":mkdir <name> :touch <name> :cd "
+                    ":mkdir <name> :touch <name> :cd :cdr "
                     "<path>");
                 return true;
             }
