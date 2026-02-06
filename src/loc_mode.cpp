@@ -326,8 +326,6 @@ void LocListMode::draw(Editor& editor) const
     if(!editor.statusMessage.empty())
         output += editor.statusMessage;
 
-    output += Terminal::ESC_SHOW_CURSOR;
-
     Terminal::write(output);
     Terminal::flush();
 }

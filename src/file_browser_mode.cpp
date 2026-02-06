@@ -441,6 +441,25 @@ void FileBrowserMode::draw(Editor& editor) const
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
+    if(commandPrompt.isActive())
+    {
+        output += Terminal::ESC_SHOW_CURSOR;
+        int row = editor.screenRows + 2;
+        int col = 2 + (int)commandPrompt.getInput().size();
+        output += Terminal::cursorPos(row, col);
+    }
+    else if(filterActive)
+    {
+        output += Terminal::ESC_SHOW_CURSOR;
+        int row = editor.screenRows + 2;
+        int col = 2 + (int)filterQuery.size();
+        output += Terminal::cursorPos(row, col);
+    }
+    else
+    {
+        output += Terminal::ESC_HIDE_CURSOR;
+    }
+
     Terminal::write(output);
     Terminal::flush();
 }
