@@ -1210,6 +1210,9 @@ bool CommandPrompt::handle(
                         if(pathPart.empty() ||
                            std::string_view("stash").rfind(pathPart, 0) == 0)
                             completions.push_back("stash");
+                        if(pathPart.empty() ||
+                           std::string_view("stash pop").rfind(pathPart, 0) == 0)
+                            completions.push_back("stash pop");
                     }
                 }
                 else

@@ -20,6 +20,7 @@ public:
     void openGitLogModeForFile();
     void openGitStageMode();
     bool runGitStash(std::string& outMessage);
+    bool runGitStashPop(std::string& outMessage);
 
 private:
     Editor* editor;

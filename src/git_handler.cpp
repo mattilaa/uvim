@@ -625,3 +625,40 @@ bool GitHandler::runGitStash(std::string& outMessage)
         outMessage = output;
     return true;
 }
+
+bool GitHandler::runGitStashPop(std::string& outMessage)
+{
+    if(!ensureGitAvailable())
+    {
+        outMessage = "git not installed";
+        return false;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        outMessage = "git stash pop: not a repo";
+        return false;
+    }
+
+    std::string cmd =
+        "git -C \"" + repoRoot + "\" stash pop 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        outMessage = "git stash pop: failed";
+        return false;
+    }
+    char buffer[512];
+    std::string output;
+    if(fgets(buffer, sizeof(buffer), pipe))
+        output = trim_newline(buffer);
+    pclose(pipe);
+
+    if(output.empty())
+        outMessage = "git stash pop: done";
+    else
+        outMessage = output;
+    return true;
+}

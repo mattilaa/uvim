@@ -6300,6 +6300,22 @@ void Editor::executeCommand(std::string_view cmd)
         }
         return;
     }
+    if(trimmedCmd == "git stash pop")
+    {
+        if(gitHandler)
+        {
+            std::string msg;
+            if(gitHandler->runGitStashPop(msg))
+                setStatusMessage(msg);
+            else
+                setStatusMessage(msg);
+        }
+        else
+        {
+            setStatusMessage("git stash pop: unavailable");
+        }
+        return;
+    }
 
     auto parse_loctotal_command = [&](std::string_view command,
                                       std::string& outPath) -> bool
@@ -9780,7 +9796,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "only",    "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",     "nohlsearch", "lspinfo", "emoji",    "em",      "help",
         "h",       "cd",         "cdr",     "loc",      "loc!",    "loc%",
-        "loctotal", "git stage", "git log", "git stash"};
+        "loctotal", "git stage", "git log", "git stash", "git stash pop"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)
