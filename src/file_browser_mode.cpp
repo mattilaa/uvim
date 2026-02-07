@@ -87,8 +87,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         {
             ctx.openFile(std::string_view(previousFile));
         }
-        return ctx.hasBuffer() ? ModeState{NormalMode{}}
-                               : ModeState{WelcomeMode{}};
+        if(ctx.hasBuffer())
+            return ModeState{NormalMode{}};
+        ctx.forceQuit();
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -794,8 +796,15 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 {
                     ctx.openFile(std::string_view(previousFile));
                 }
-                nextState = ctx.hasBuffer() ? ModeState{NormalMode{}}
-                                            : ModeState{WelcomeMode{}};
+                if(ctx.hasBuffer())
+                {
+                    nextState = ModeState{NormalMode{}};
+                }
+                else
+                {
+                    ctx.forceQuit();
+                    nextState.reset();
+                }
                 return true;
             }
 
