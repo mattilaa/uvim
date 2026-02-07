@@ -2256,6 +2256,9 @@ void Editor::setMode(Mode mode)
     case GIT_LOG:
         modeStateMachine->transitionTo(GitLogMode{});
         break;
+    case GIT_STAGE:
+        modeStateMachine->transitionTo(GitStageMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -2307,6 +2310,8 @@ std::string Editor::getModeString() const
         return "GITSHOW";
     case GIT_LOG:
         return "GITLOG";
+    case GIT_STAGE:
+        return "GIT STAGE";
     }
     return "";
 }
@@ -4453,6 +4458,19 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == GIT_STAGE)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GitStageMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {
@@ -6240,6 +6258,49 @@ void Editor::executeCommand(std::string_view cmd)
         return;
     }
 
+    std::string_view trimmedCmd = trim_view(cmd);
+    if(trimmedCmd == "git stage")
+    {
+        commandRequestedModeSet = true;
+        commandRequestedMode = GIT_STAGE;
+        commandRequestedPath.clear();
+        commandRequestedReturnMode = currentMode;
+        if(modeStateMachine && currentMode == FILE_BROWSER)
+        {
+            if(auto* fb = modeStateMachine->getState<FileBrowserMode>())
+            {
+                commandRequestedBrowseCursor = fb->browserCursor;
+                commandRequestedBrowseOffset = fb->browserOffset;
+                commandRequestedBrowseDirectory = fb->currentDirectory;
+            }
+        }
+        return;
+    }
+    if(trimmedCmd == "git log")
+    {
+        if(gitHandler)
+            gitHandler->openGitLogMode();
+        else
+            setStatusMessage("git log: unavailable");
+        return;
+    }
+    if(trimmedCmd == "git stash")
+    {
+        if(gitHandler)
+        {
+            std::string msg;
+            if(gitHandler->runGitStash(msg))
+                setStatusMessage(msg);
+            else
+                setStatusMessage(msg);
+        }
+        else
+        {
+            setStatusMessage("git stash: unavailable");
+        }
+        return;
+    }
+
     auto parse_loctotal_command = [&](std::string_view command,
                                       std::string& outPath) -> bool
     {
@@ -7230,6 +7291,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = GIT_LOG;
     }
+    else if(std::holds_alternative<GitStageMode>(state))
+    {
+        currentMode = GIT_STAGE;
+    }
 
     if(currentMode != prevMode)
         needsFullRedraw = true;
@@ -7377,6 +7442,7 @@ void Editor::ensureBufferForMode(Mode mode)
     case REFERENCES:
     case LSP_INFO:
     case LOC_LIST:
+    case GIT_STAGE:
         return;
     default:
         break;
@@ -9714,7 +9780,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "only",    "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",     "nohlsearch", "lspinfo", "emoji",    "em",      "help",
         "h",       "cd",         "cdr",     "loc",      "loc!",    "loc%",
-        "loctotal"};
+        "loctotal", "git stage", "git log", "git stash"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

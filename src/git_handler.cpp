@@ -8,6 +8,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <limits.h>
 #include <string>
 #include <unistd.h>
 
@@ -50,6 +51,43 @@ bool is_inside_git_repo(const std::string& filePath)
         out = trim_newline(buffer);
     pclose(pipe);
     return out == "true";
+}
+
+std::string git_root_for_dir(const std::string& dir)
+{
+    std::string cmd =
+        "git -C \"" + dir + "\" rev-parse --show-toplevel 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return "";
+    char buffer[512];
+    std::string out;
+    if(fgets(buffer, sizeof(buffer), pipe))
+        out = trim_newline(buffer);
+    pclose(pipe);
+    return out;
+}
+
+std::string base_dir_for_editor(const Editor* editor)
+{
+    std::string baseDir = ".";
+    if(editor->currentBuffer && !editor->currentBuffer->filename.empty())
+    {
+        fs::path path(editor->currentBuffer->filename);
+        baseDir = path.has_parent_path() ? path.parent_path().string()
+                                         : std::string(".");
+    }
+    else if(!editor->projectRoot.empty())
+    {
+        baseDir = editor->projectRoot;
+    }
+    else
+    {
+        char cwd[PATH_MAX];
+        if(getcwd(cwd, sizeof(cwd)))
+            baseDir = cwd;
+    }
+    return baseDir;
 }
 
 std::string format_git_date(const std::string& secondsText)
@@ -410,22 +448,16 @@ void GitHandler::openGitLogMode()
         editor->setStatusMessage("git not installed");
         return;
     }
-    if(!editor->currentBuffer || editor->currentBuffer->filename.empty())
-    {
-        editor->setStatusMessage("git log: no file");
-        return;
-    }
-    if(!is_inside_git_repo(editor->currentBuffer->filename))
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
     {
         editor->setStatusMessage("git log: not a repo");
         return;
     }
 
-    fs::path path(editor->currentBuffer->filename);
-    std::string dir =
-        path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string cmd =
-        "git -C \"" + dir +
+        "git -C \"" + repoRoot +
         "\" --no-pager log --no-color --pretty=format:%h\\\t%s 2>/dev/null";
 
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -530,4 +562,66 @@ void GitHandler::openGitLogModeForFile()
         editor->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
+}
+
+void GitHandler::openGitStageMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git stage: not a repo");
+        return;
+    }
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(
+            GitStageMode{{}, repoRoot, repoRoot});
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
+bool GitHandler::runGitStash(std::string& outMessage)
+{
+    if(!ensureGitAvailable())
+    {
+        outMessage = "git not installed";
+        return false;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        outMessage = "git stash: not a repo";
+        return false;
+    }
+
+    std::string cmd =
+        "git -C \"" + repoRoot + "\" stash 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        outMessage = "git stash: failed";
+        return false;
+    }
+    char buffer[512];
+    std::string output;
+    if(fgets(buffer, sizeof(buffer), pipe))
+        output = trim_newline(buffer);
+    pclose(pipe);
+
+    if(output.empty())
+        outMessage = "git stash: done";
+    else
+        outMessage = output;
+    return true;
 }

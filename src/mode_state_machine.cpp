@@ -1093,6 +1093,26 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         {
             return HelpMode{path, std::string(previousFile)};
         }
+        if(mode == GIT_STAGE)
+        {
+            GitStageMode stage;
+            stage.returnMode = ctx.editor->commandRequestedReturnMode;
+            if(stage.returnMode.has_value() &&
+               stage.returnMode.value() == FILE_BROWSER)
+            {
+                stage.returnBrowseCursor =
+                    ctx.editor->commandRequestedBrowseCursor;
+                stage.returnBrowseOffset =
+                    ctx.editor->commandRequestedBrowseOffset;
+                stage.returnBrowseDirectory =
+                    ctx.editor->commandRequestedBrowseDirectory;
+            }
+            ctx.editor->commandRequestedReturnMode.reset();
+            ctx.editor->commandRequestedBrowseCursor = 0;
+            ctx.editor->commandRequestedBrowseOffset = 0;
+            ctx.editor->commandRequestedBrowseDirectory.clear();
+            return stage;
+        }
     }
 
     if(returnToNormalIfBuffer && ctx.hasBuffer())
@@ -1178,6 +1198,18 @@ bool CommandPrompt::handle(
                                 ctx.getPathCompletionsRecursive(pathPart);
                         locCompletion = true;
                         locCommand = cmd;
+                    }
+                    else if(cmd == "git")
+                    {
+                        if(pathPart.empty() ||
+                           std::string_view("stage").rfind(pathPart, 0) == 0)
+                            completions.push_back("stage");
+                        if(pathPart.empty() ||
+                           std::string_view("log").rfind(pathPart, 0) == 0)
+                            completions.push_back("log");
+                        if(pathPart.empty() ||
+                           std::string_view("stash").rfind(pathPart, 0) == 0)
+                            completions.push_back("stash");
                     }
                 }
                 else
@@ -1275,7 +1307,9 @@ bool CommandPrompt::handle(
         bool isHelpQuery = input == "help" || input == "h" ||
                            input.rfind("help ", 0) == 0 ||
                            input.rfind("h ", 0) == 0;
-        if(input.find(' ') != std::string::npos && !isSetQuery && !isHelpQuery)
+        bool isGitQuery = input == "git" || input.rfind("git ", 0) == 0;
+        if(input.find(' ') != std::string::npos && !isSetQuery &&
+           !isHelpQuery && !isGitQuery)
         {
             ctx.cancelCommandPopup();
             return;

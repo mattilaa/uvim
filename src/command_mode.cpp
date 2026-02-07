@@ -53,7 +53,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         bool isHelpQuery = query == "help" || query == "h" ||
                            query.rfind("help ", 0) == 0 ||
                            query.rfind("h ", 0) == 0;
-        if(query.find(' ') != std::string::npos && !isSetQuery && !isHelpQuery)
+        bool isGitQuery =
+            query == "git" || query.rfind("git ", 0) == 0;
+        if(query.find(' ') != std::string::npos && !isSetQuery &&
+           !isHelpQuery && !isGitQuery)
         {
             ctx.cancelCommandPopup();
             return;
@@ -219,6 +222,26 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                         prev = std::string(ctx.currentFilename());
                     }
                     return HelpMode{path, prev}; // path contains the topic
+                }
+                if(mode == GIT_STAGE)
+                {
+                    GitStageMode stage;
+                    stage.returnMode = ctx.editor->commandRequestedReturnMode;
+                    if(stage.returnMode.has_value() &&
+                       stage.returnMode.value() == FILE_BROWSER)
+                    {
+                        stage.returnBrowseCursor =
+                            ctx.editor->commandRequestedBrowseCursor;
+                        stage.returnBrowseOffset =
+                            ctx.editor->commandRequestedBrowseOffset;
+                        stage.returnBrowseDirectory =
+                            ctx.editor->commandRequestedBrowseDirectory;
+                    }
+                    ctx.editor->commandRequestedReturnMode.reset();
+                    ctx.editor->commandRequestedBrowseCursor = 0;
+                    ctx.editor->commandRequestedBrowseOffset = 0;
+                    ctx.editor->commandRequestedBrowseDirectory.clear();
+                    return stage;
                 }
             }
         }
@@ -641,6 +664,18 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                         completions = ctx.getPathCompletionsRecursive(pathPart);
                     locCompletionLocal = true;
                     locCommandLocal = cmd;
+                }
+                else if(cmd == "git")
+                {
+                    if(pathPart.empty() ||
+                       std::string_view("stage").rfind(pathPart, 0) == 0)
+                        completions.push_back("stage");
+                    if(pathPart.empty() ||
+                       std::string_view("log").rfind(pathPart, 0) == 0)
+                        completions.push_back("log");
+                    if(pathPart.empty() ||
+                       std::string_view("stash").rfind(pathPart, 0) == 0)
+                        completions.push_back("stash");
                 }
             }
             else

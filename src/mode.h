@@ -25,4 +25,5 @@ enum Mode
     HELP,
     GIT_SHOW,
     GIT_LOG,
+    GIT_STAGE,
 };

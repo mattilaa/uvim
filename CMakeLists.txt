@@ -73,6 +73,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/help_mode.cpp
     src/git_show_mode.cpp
     src/git_log_mode.cpp
+    src/git_stage_mode.cpp
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp

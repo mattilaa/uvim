@@ -307,6 +307,7 @@ struct LocListMode;
 struct HelpMode;
 struct GitShowCommitMode;
 struct GitLogMode;
+struct GitStageMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -315,7 +316,7 @@ using ModeState =
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
                  OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
-                 HelpMode, GitShowCommitMode, GitLogMode>;
+                 HelpMode, GitShowCommitMode, GitLogMode, GitStageMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -867,6 +868,52 @@ struct GitShowCommitMode
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
     void draw(Editor& editor) const;
+};
+
+struct GitStageMode
+{
+    static constexpr const char* name()
+    {
+        return "GITSTAGE";
+    }
+
+    struct Entry
+    {
+        std::string path;
+        std::string displayPath;
+        char indexStatus = ' ';
+        char worktreeStatus = ' ';
+    };
+
+    std::vector<Entry> entries;
+    std::vector<std::string> diffLines;
+    std::string repoRoot;
+    std::string repoDir;
+    std::string diffPath;
+    bool diffStaged = false;
+    bool diffDirty = true;
+    int cursor = 0;
+    int offset = 0;
+    int diffOffset = 0;
+    std::optional<Mode> returnMode;
+    int returnBrowseCursor = 0;
+    int returnBrowseOffset = 0;
+    std::string returnBrowseDirectory;
+
+    GitStageMode() = default;
+    GitStageMode(std::vector<Entry> items, std::string root,
+                 std::string dir);
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+
+private:
+    void refreshDiff(Editor& editor);
+    bool refreshStatus(Editor& editor);
 };
 
 // ============================================================================

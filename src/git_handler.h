@@ -18,6 +18,8 @@ public:
     std::vector<std::string> loadGitShowLines(const std::string& hash);
     void openGitLogMode();
     void openGitLogModeForFile();
+    void openGitStageMode();
+    bool runGitStash(std::string& outMessage);
 
 private:
     Editor* editor;
