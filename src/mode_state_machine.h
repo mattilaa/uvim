@@ -877,21 +877,40 @@ struct GitStageMode
         return "GITSTAGE";
     }
 
-    struct Entry
+    struct Node
     {
-        std::string path;
-        std::string displayPath;
+        std::string name;
+        std::string repoPath;
+        bool isDir = false;
+        bool expanded = true;
         char indexStatus = ' ';
         char worktreeStatus = ' ';
+        std::vector<int> children;
     };
 
-    std::vector<Entry> entries;
+    struct VisibleEntry
+    {
+        int node = -1;
+        int depth = 0;
+    };
+
+    std::vector<Node> nodes;
+    std::vector<VisibleEntry> visible;
     std::vector<std::string> diffLines;
     std::string repoRoot;
     std::string repoDir;
+    std::string viewRoot;
     std::string diffPath;
     bool diffStaged = false;
     bool diffDirty = true;
+    enum class UntrackedMode
+    {
+        TrackedOnly,
+        UntrackedOnly,
+        Both
+    };
+    UntrackedMode untrackedMode = UntrackedMode::TrackedOnly;
+    bool showChangedOnly = false;
     int cursor = 0;
     int offset = 0;
     int diffOffset = 0;
@@ -901,7 +920,7 @@ struct GitStageMode
     std::string returnBrowseDirectory;
 
     GitStageMode() = default;
-    GitStageMode(std::vector<Entry> items, std::string root,
+    GitStageMode(std::vector<Node> items, std::string root,
                  std::string dir);
 
     void on_enter(ModeContext& ctx);
@@ -914,6 +933,8 @@ struct GitStageMode
 private:
     void refreshDiff(Editor& editor);
     bool refreshStatus(Editor& editor);
+    void rebuildVisible();
+    int visibleIndexForNode(int nodeId) const;
 };
 
 // ============================================================================
