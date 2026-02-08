@@ -886,6 +886,15 @@ public:
         return projectRoot;
     }
 
+    ModeStateMachine* getModeStateMachine()
+    {
+        return modeStateMachine.get();
+    }
+    const ModeStateMachine* getModeStateMachine() const
+    {
+        return modeStateMachine.get();
+    }
+
 private:
     friend class GitHandler;
 #ifdef UVIM_TESTING
@@ -898,6 +907,7 @@ private:
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
+    void setModeStateMachineForTests(std::unique_ptr<ModeStateMachine> sm);
     static std::string
     testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
                                  std::string_view ident, int startY);

@@ -552,6 +552,21 @@ bool GitStageMode::refreshStatus(Editor& editor)
     }
 
     rebuildVisible();
+    {
+        std::unordered_set<std::string> valid;
+        for(const auto& node : nodes)
+        {
+            if(!node.isDir && !node.repoPath.empty())
+                valid.insert(node.repoPath);
+        }
+        for(auto it = fixupMarked.begin(); it != fixupMarked.end();)
+        {
+            if(valid.find(*it) == valid.end())
+                it = fixupMarked.erase(it);
+            else
+                ++it;
+        }
+    }
     cursor = std::clamp(cursor, 0, std::max(0, (int)visible.size() - 1));
     int visibleRows = editor.screenRows - 3;
     offset = std::clamp(offset, 0,
@@ -648,6 +663,24 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         refreshStatus(*ed);
         refreshDiff(*ed);
         ed->needsFullRedraw = true;
+        return std::nullopt;
+    }
+
+    if(c == 'm')
+    {
+        if(cursor >= 0 && cursor < (int)visible.size())
+        {
+            int nodeId = visible[cursor].node;
+            const Node& node = nodes[nodeId];
+            if(!node.isDir)
+            {
+                if(fixupMarked.find(node.repoPath) == fixupMarked.end())
+                    fixupMarked.insert(node.repoPath);
+                else
+                    fixupMarked.erase(node.repoPath);
+                ed->needsFullRedraw = true;
+            }
+        }
         return std::nullopt;
     }
 
@@ -838,6 +871,20 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             offset = 0;
             diffDirty = true;
         }
+        else if(nextChar == 'f')
+        {
+            std::vector<std::string> files;
+            files.reserve(fixupMarked.size());
+            for(const auto& path : fixupMarked)
+                files.push_back(path);
+            if(files.empty())
+            {
+                ed->setStatusMessage("fixup: no files marked");
+                return std::nullopt;
+            }
+            GitFixupMode fixup{{}, repoRoot, repoDir, std::move(files), *this};
+            return fixup;
+        }
     }
     else if(c == 'G')
     {
@@ -873,8 +920,9 @@ void GitStageMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [space: toggle/stage] [u: untracked] [b: both] [c: changed] "
-              "[h/l: fold] [enter: open] [r: refresh] [q/esc: close]";
+    output += "  [space: toggle/stage] [m: mark fixup] [g f: fixup] "
+              "[u: untracked] [b: both] [c: changed] [h/l: fold] "
+              "[enter: open] [r: refresh] [q/esc: close]";
     output += editor.theme.baseFg();
 
     int contentRows = editor.screenRows - 4;
@@ -905,6 +953,11 @@ void GitStageMode::draw(Editor& editor) const
                 status[0] = entry.indexStatus;
                 status[1] = entry.worktreeStatus;
             }
+
+            std::string mark = " ";
+            if(!node.isDir &&
+               fixupMarked.find(node.repoPath) != fixupMarked.end())
+                mark = "*";
 
             std::string name = node.name;
             if(node.isDir && name != "..")
@@ -940,6 +993,7 @@ void GitStageMode::draw(Editor& editor) const
                     output += editor.theme.baseFg();
             }
             output += status;
+            output += mark;
             if(node.isDir)
             {
                 output += editor.theme.uiDirectory();
@@ -954,7 +1008,7 @@ void GitStageMode::draw(Editor& editor) const
             }
             output += " ";
             output += path;
-            int used = 1 + 2 + 1 + (int)path.size();
+            int used = 1 + 2 + 1 + 1 + (int)path.size();
             if(used < listWidth)
                 output.append(listWidth - used, ' ');
             output += editor.theme.reset();

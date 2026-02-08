@@ -1072,6 +1072,21 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     {
         return LspInfoMode{};
     }
+    if(ctx.editor && ctx.editor->getModeStateMachine())
+    {
+        const ModeState& state =
+            ctx.editor->getModeStateMachine()->state();
+        if(std::holds_alternative<GitLogMode>(state))
+            return std::get<GitLogMode>(state);
+        if(std::holds_alternative<GitShowCommitMode>(state))
+            return std::get<GitShowCommitMode>(state);
+        if(std::holds_alternative<GitStageMode>(state))
+            return std::get<GitStageMode>(state);
+        if(std::holds_alternative<GitFixupMode>(state))
+            return std::get<GitFixupMode>(state);
+        if(std::holds_alternative<GitPatchMode>(state))
+            return std::get<GitPatchMode>(state);
+    }
 
     Mode mode = NORMAL;
     std::string path;

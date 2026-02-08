@@ -7,6 +7,7 @@
 #include <chrono>
 #include <ctime>
 #include <functional>
+#include <unordered_set>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -14,6 +15,7 @@
 
 // Forward declarations
 class Editor;
+class Theme;
 
 // ============================================================================
 // Editor Context - Shared state accessible by all mode handlers
@@ -308,6 +310,8 @@ struct HelpMode;
 struct GitShowCommitMode;
 struct GitLogMode;
 struct GitStageMode;
+struct GitFixupMode;
+struct GitPatchMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -316,7 +320,8 @@ using ModeState =
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
                  OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
-                 HelpMode, GitShowCommitMode, GitLogMode, GitStageMode>;
+                 HelpMode, GitShowCommitMode, GitLogMode, GitStageMode,
+                 GitFixupMode, GitPatchMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -834,6 +839,11 @@ struct GitLogMode
     void draw(Editor& editor) const;
 
     void rebuildFilter(Editor& editor);
+#ifdef UVIM_TESTING
+    static std::string testRenderLine(const Theme& theme, const Entry& entry,
+                                      std::string_view query, bool selected,
+                                      int screenCols);
+#endif
 };
 
 struct GitShowCommitMode
@@ -868,6 +878,12 @@ struct GitShowCommitMode
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
     void draw(Editor& editor) const;
+#ifdef UVIM_TESTING
+    static std::string testRenderLine(const Theme& theme,
+                                      std::string_view line,
+                                      std::string_view query,
+                                      bool useDefaultColors);
+#endif
 };
 
 struct GitStageMode
@@ -911,6 +927,8 @@ struct GitStageMode
     };
     UntrackedMode untrackedMode = UntrackedMode::TrackedOnly;
     bool showChangedOnly = false;
+    std::unordered_set<std::string> fixupMarked;
+    int pendingG = 0;
     int cursor = 0;
     int offset = 0;
     int diffOffset = 0;
@@ -935,6 +953,89 @@ private:
     bool refreshStatus(Editor& editor);
     void rebuildVisible();
     int visibleIndexForNode(int nodeId) const;
+};
+
+struct GitFixupMode
+{
+    static constexpr const char* name()
+    {
+        return "GITFIXUP";
+    }
+
+    struct Entry
+    {
+        std::string hash;
+        std::string subject;
+    };
+
+    std::vector<Entry> entries;
+    int cursor = 0;
+    int offset = 0;
+    bool confirmActive = false;
+    std::string confirmHash;
+    std::string repoRoot;
+    std::string repoDir;
+    std::vector<std::string> fixupFiles;
+    GitStageMode returnStage;
+
+    GitFixupMode() = default;
+    GitFixupMode(std::vector<Entry> items, std::string root,
+                 std::string dir, std::vector<std::string> files,
+                 GitStageMode stage)
+        : entries(std::move(items)), repoRoot(std::move(root)),
+          repoDir(std::move(dir)), fixupFiles(std::move(files)),
+          returnStage(std::move(stage))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
+};
+
+struct GitPatchMode
+{
+    static constexpr const char* name()
+    {
+        return "GITPATCH";
+    }
+
+    struct Hunk
+    {
+        std::string file;
+        std::vector<std::string> lines;
+        std::string patch;
+    };
+
+    std::vector<Hunk> hunks;
+    int hunkIndex = 0;
+    int scrollOffset = 0;
+    bool finished = false;
+    std::string repoRoot;
+    std::string repoDir;
+    std::string targetHash;
+    std::vector<std::string> fixupFiles;
+    GitStageMode returnStage;
+
+    GitPatchMode() = default;
+    GitPatchMode(std::vector<Hunk> items, std::string root, std::string dir,
+                 std::string hash, std::vector<std::string> files,
+                 GitStageMode stage)
+        : hunks(std::move(items)), repoRoot(std::move(root)),
+          repoDir(std::move(dir)), targetHash(std::move(hash)),
+          fixupFiles(std::move(files)), returnStage(std::move(stage))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+
+    void draw(Editor& editor) const;
 };
 
 // ============================================================================
