@@ -1,12 +1,48 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include <string_view>
 #include <algorithm>
 #include <chrono>
 
 // ============================================================================
 // GitShowCommitMode Implementation
 // ============================================================================
+
+namespace
+{
+void append_highlighted(std::string& out, std::string_view text,
+                        std::string_view query, const std::string& normalSeq,
+                        const std::string& matchSeq)
+{
+    if(query.empty())
+    {
+        out += normalSeq;
+        out.append(text.data(), text.size());
+        return;
+    }
+
+    size_t pos = 0;
+    while(pos < text.size())
+    {
+        size_t found = text.find(query, pos);
+        if(found == std::string_view::npos)
+        {
+            out += normalSeq;
+            out.append(text.data() + pos, text.size() - pos);
+            break;
+        }
+        if(found > pos)
+        {
+            out += normalSeq;
+            out.append(text.data() + pos, found - pos);
+        }
+        out += matchSeq;
+        out.append(text.data() + found, query.size());
+        pos = found + query.size();
+    }
+}
+} // namespace
 
 void GitShowCommitMode::on_enter(ModeContext& ctx)
 {
@@ -288,38 +324,26 @@ void GitShowCommitMode::draw(Editor& editor) const
             else
             {
                 const std::string& line = lines[idx];
+                const std::string* lineSeq = &editor.theme.baseFg();
                 if(line.rfind("diff --git", 0) == 0 ||
                    line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0)
-                {
-                    output += editor.theme.uiAccent();
-                }
+                    lineSeq = &editor.theme.uiAccent();
                 else if(line.rfind("index ", 0) == 0 ||
                         line.rfind("commit ", 0) == 0)
-                {
-                    output += editor.theme.uiDim();
-                }
+                    lineSeq = &editor.theme.uiDim();
                 else if(line.rfind("@@ ", 0) == 0)
-                {
-                    output += editor.theme.uiInfo();
-                }
+                    lineSeq = &editor.theme.uiInfo();
                 else if(line.rfind("Author:", 0) == 0 ||
                         line.rfind("Date:", 0) == 0)
-                {
-                    output += editor.theme.uiDim();
-                }
+                    lineSeq = &editor.theme.uiDim();
                 else if(!line.empty() && line[0] == '+')
-                {
-                    output += editor.theme.uiSuccess();
-                }
+                    lineSeq = &editor.theme.uiSuccess();
                 else if(!line.empty() && line[0] == '-')
-                {
-                    output += editor.theme.uiError();
-                }
-                else
-                {
-                    output += editor.theme.baseFg();
-                }
-                output += line;
+                    lineSeq = &editor.theme.uiError();
+
+                std::string normalSeq = editor.theme.reset() + *lineSeq;
+                append_highlighted(output, line, searchQuery, normalSeq,
+                                   editor.theme.searchMatch());
                 output += editor.theme.reset();
             }
         }
@@ -365,3 +389,36 @@ void GitShowCommitMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+
+#ifdef UVIM_TESTING
+std::string GitShowCommitMode::testRenderLine(const Theme& theme,
+                                              std::string_view line,
+                                              std::string_view query,
+                                              bool useDefaultColors)
+{
+    if(useDefaultColors)
+        return std::string(line);
+
+    const std::string* lineSeq = &theme.baseFg();
+    if(line.rfind("diff --git", 0) == 0 || line.rfind("--- ", 0) == 0 ||
+       line.rfind("+++ ", 0) == 0)
+        lineSeq = &theme.uiAccent();
+    else if(line.rfind("index ", 0) == 0 || line.rfind("commit ", 0) == 0)
+        lineSeq = &theme.uiDim();
+    else if(line.rfind("@@ ", 0) == 0)
+        lineSeq = &theme.uiInfo();
+    else if(line.rfind("Author:", 0) == 0 || line.rfind("Date:", 0) == 0)
+        lineSeq = &theme.uiDim();
+    else if(!line.empty() && line[0] == '+')
+        lineSeq = &theme.uiSuccess();
+    else if(!line.empty() && line[0] == '-')
+        lineSeq = &theme.uiError();
+
+    std::string normalSeq = theme.reset() + *lineSeq;
+    std::string output;
+    output.reserve(line.size() + 32);
+    append_highlighted(output, line, query, normalSeq, theme.searchMatch());
+    output += theme.reset();
+    return output;
+}
+#endif

@@ -8,6 +8,7 @@
 
 void CommandMode::on_enter(ModeContext& ctx)
 {
+    int a = 10;
     ctx.commandBuffer = ":";
     completions.clear();
     completionIndex = -1;
@@ -53,8 +54,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         bool isHelpQuery = query == "help" || query == "h" ||
                            query.rfind("help ", 0) == 0 ||
                            query.rfind("h ", 0) == 0;
-        bool isGitQuery =
-            query == "git" || query.rfind("git ", 0) == 0;
+        bool isGitQuery = query == "git" || query.rfind("git ", 0) == 0;
         if(query.find(' ') != std::string::npos && !isSetQuery &&
            !isHelpQuery && !isGitQuery)
         {
@@ -193,6 +193,21 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
                 return LspInfoMode{};
             }
+            if(ctx.editor && ctx.editor->getModeStateMachine())
+            {
+                const ModeState& state =
+                    ctx.editor->getModeStateMachine()->state();
+                if(std::holds_alternative<GitLogMode>(state))
+                    return std::get<GitLogMode>(state);
+                if(std::holds_alternative<GitShowCommitMode>(state))
+                    return std::get<GitShowCommitMode>(state);
+                if(std::holds_alternative<GitStageMode>(state))
+                    return std::get<GitStageMode>(state);
+                if(std::holds_alternative<GitFixupMode>(state))
+                    return std::get<GitFixupMode>(state);
+                if(std::holds_alternative<GitPatchMode>(state))
+                    return std::get<GitPatchMode>(state);
+            }
             Mode mode = NORMAL;
             std::string path;
             if(ctx.takeCommandRequest(mode, path))
@@ -298,10 +313,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string_view buf = ctx.commandBuffer;
             size_t spacePos = buf.find(' ');
             bool hasSpace = (spacePos != std::string_view::npos);
-            bool hasPath =
-                (hasSpace && spacePos + 1 < buf.size() &&
-                 buf.substr(spacePos + 1).find_first_not_of(' ') !=
-                     std::string_view::npos);
+            bool hasPath = (hasSpace && spacePos + 1 < buf.size() &&
+                            buf.substr(spacePos + 1).find_first_not_of(' ') !=
+                                std::string_view::npos);
             if(!hasSpace && !hasPath)
             {
                 bool next = !ctx.respectGitignore();
@@ -354,9 +368,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(isLocTotal)
                     locCommand = "loctotal";
                 else
-                    locCommand =
-                        ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!"
-                                                                 : "loc";
+                    locCommand = ctx.commandBuffer.rfind(":loc!", 0) == 0
+                                     ? "loc!"
+                                     : "loc";
                 ctx.commandBuffer =
                     ":" + locCommand + " " + completions[completionIndex];
             }
@@ -405,9 +419,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(isLocTotal)
                     locCommand = "loctotal";
                 else
-                    locCommand =
-                        ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!"
-                                                                 : "loc";
+                    locCommand = ctx.commandBuffer.rfind(":loc!", 0) == 0
+                                     ? "loc!"
+                                     : "loc";
                 ctx.commandBuffer =
                     ":" + locCommand + " " + completions[completionIndex];
             }
@@ -612,8 +626,8 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
             size_t spacePos = ctx.commandBuffer.find(' ');
             std::string_view pathPart;
             if(spacePos != std::string::npos)
-                pathPart = std::string_view(ctx.commandBuffer).substr(
-                    spacePos + 1);
+                pathPart =
+                    std::string_view(ctx.commandBuffer).substr(spacePos + 1);
             while(!pathPart.empty() &&
                   (pathPart.front() == ' ' || pathPart.front() == '\t'))
             {
@@ -754,8 +768,8 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
     size_t spacePos = originalInput.find(' ');
     if(locCompletion)
     {
-        ctx.commandBuffer = ":" + locCommand + " " +
-                            completions[completionIndex];
+        ctx.commandBuffer =
+            ":" + locCommand + " " + completions[completionIndex];
         return;
     }
 
@@ -786,8 +800,8 @@ void CommandMode::handleReverseTabCompletion(ModeContext& ctx)
     size_t spacePos = originalInput.find(' ');
     if(locCompletion)
     {
-        ctx.commandBuffer = ":" + locCommand + " " +
-                            completions[completionIndex];
+        ctx.commandBuffer =
+            ":" + locCommand + " " + completions[completionIndex];
         return;
     }
 

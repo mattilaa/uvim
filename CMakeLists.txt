@@ -74,6 +74,8 @@ set(MODE_STATE_MACHINE_SOURCES
     src/git_show_mode.cpp
     src/git_log_mode.cpp
     src/git_stage_mode.cpp
+    src/git_fixup_mode.cpp
+    src/git_patch_mode.cpp
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp
@@ -286,6 +288,7 @@ if(UVIM_BUILD_TESTS)
 
     add_executable(real_mode_transitions_tests
         tests/real_mode_transitions_test.cpp
+        tests/git_log_view_test.cpp
         tests/editor_filetype_test.cpp
         tests/syntax_highlighter_test.cpp
         tests/js_ts_resolution_test.cpp

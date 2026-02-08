@@ -3,10 +3,46 @@
 #include "terminal.h"
 #include <algorithm>
 #include <chrono>
+#include <string_view>
 
 // ============================================================================
 // GitLogMode Implementation
 // ============================================================================
+
+namespace
+{
+void append_highlighted(std::string& out, std::string_view text,
+                        std::string_view query, const std::string& normalSeq,
+                        const std::string& matchSeq)
+{
+    if(query.empty())
+    {
+        out += normalSeq;
+        out.append(text.data(), text.size());
+        return;
+    }
+
+    size_t pos = 0;
+    while(pos < text.size())
+    {
+        size_t found = text.find(query, pos);
+        if(found == std::string_view::npos)
+        {
+            out += normalSeq;
+            out.append(text.data() + pos, text.size() - pos);
+            break;
+        }
+        if(found > pos)
+        {
+            out += normalSeq;
+            out.append(text.data() + pos, found - pos);
+        }
+        out += matchSeq;
+        out.append(text.data() + found, query.size());
+        pos = found + query.size();
+    }
+}
+} // namespace
 
 void GitLogMode::rebuildFilter(Editor& editor)
 {
@@ -393,16 +429,29 @@ void GitLogMode::draw(Editor& editor) const
         {
             int entryIndex = filtered[idx];
             const auto& entry = entries[entryIndex];
-            std::string line = entry.hash + " " + entry.subject;
-            if((int)line.size() > editor.screenCols - 4)
-                line.resize(editor.screenCols - 4);
             output += "  ";
-            if(idx == cursor)
-                output += editor.theme.selection();
-            output += editor.theme.uiAccent();
-            output += entry.hash;
-            output += editor.theme.baseFg();
-            output += " " + entry.subject;
+            bool selected = (idx == cursor);
+            std::string normalHash = selected
+                                         ? editor.theme.selection()
+                                         : (editor.theme.reset() +
+                                            editor.theme.uiAccent());
+            std::string normalText = selected
+                                         ? editor.theme.selection()
+                                         : (editor.theme.reset() +
+                                            editor.theme.baseFg());
+            const std::string& matchSeq = editor.theme.searchMatch();
+            int maxLine = std::max(0, editor.screenCols - 4);
+            std::string hash = entry.hash;
+            std::string subject = entry.subject;
+            int keep = maxLine - (int)hash.size() - 1;
+            if(keep < 0)
+                keep = 0;
+            if((int)subject.size() > keep)
+                subject.resize(keep);
+            append_highlighted(output, hash, searchQuery, normalHash, matchSeq);
+            append_highlighted(output, " ", searchQuery, normalText, matchSeq);
+            append_highlighted(output, subject, searchQuery, normalText,
+                               matchSeq);
             output += editor.theme.reset();
         }
         else
@@ -437,3 +486,31 @@ void GitLogMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+
+#ifdef UVIM_TESTING
+std::string GitLogMode::testRenderLine(const Theme& theme, const Entry& entry,
+                                       std::string_view query, bool selected,
+                                       int screenCols)
+{
+    std::string output;
+    output.reserve(256);
+    std::string normalHash =
+        selected ? theme.selection() : (theme.reset() + theme.uiAccent());
+    std::string normalText =
+        selected ? theme.selection() : (theme.reset() + theme.baseFg());
+    const std::string& matchSeq = theme.searchMatch();
+    int maxLine = std::max(0, screenCols - 4);
+    std::string hash = entry.hash;
+    std::string subject = entry.subject;
+    int keep = maxLine - (int)hash.size() - 1;
+    if(keep < 0)
+        keep = 0;
+    if((int)subject.size() > keep)
+        subject.resize(keep);
+    append_highlighted(output, hash, query, normalHash, matchSeq);
+    append_highlighted(output, " ", query, normalText, matchSeq);
+    append_highlighted(output, subject, query, normalText, matchSeq);
+    output += theme.reset();
+    return output;
+}
+#endif

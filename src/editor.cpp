@@ -1185,6 +1185,12 @@ Editor Editor::createForTests(int rows, int cols)
     return Editor(TestTag{}, rows, cols);
 }
 
+void Editor::setModeStateMachineForTests(
+    std::unique_ptr<ModeStateMachine> sm)
+{
+    modeStateMachine = std::move(sm);
+}
+
 std::string
 Editor::testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
                                      std::string_view ident, int startY)
@@ -2259,6 +2265,12 @@ void Editor::setMode(Mode mode)
     case GIT_STAGE:
         modeStateMachine->transitionTo(GitStageMode{});
         break;
+    case GIT_FIXUP:
+        modeStateMachine->transitionTo(GitFixupMode{});
+        break;
+    case GIT_PATCH:
+        modeStateMachine->transitionTo(GitPatchMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -2312,6 +2324,10 @@ std::string Editor::getModeString() const
         return "GITLOG";
     case GIT_STAGE:
         return "GIT STAGE";
+    case GIT_FIXUP:
+        return "GIT FIXUP";
+    case GIT_PATCH:
+        return "GIT PATCH";
     }
     return "";
 }
@@ -4463,6 +4479,32 @@ void Editor::refreshScreen()
         if(modeStateMachine)
         {
             if(auto* state = modeStateMachine->getState<GitStageMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
+    if(currentMode == GIT_FIXUP)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GitFixupMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
+    if(currentMode == GIT_PATCH)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GitPatchMode>())
             {
                 state->draw(*this);
                 return;
@@ -7311,6 +7353,14 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = GIT_STAGE;
     }
+    else if(std::holds_alternative<GitFixupMode>(state))
+    {
+        currentMode = GIT_FIXUP;
+    }
+    else if(std::holds_alternative<GitPatchMode>(state))
+    {
+        currentMode = GIT_PATCH;
+    }
 
     if(currentMode != prevMode)
         needsFullRedraw = true;
@@ -7459,6 +7509,8 @@ void Editor::ensureBufferForMode(Mode mode)
     case LSP_INFO:
     case LOC_LIST:
     case GIT_STAGE:
+    case GIT_FIXUP:
+    case GIT_PATCH:
         return;
     default:
         break;

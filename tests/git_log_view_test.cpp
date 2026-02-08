@@ -1,0 +1,106 @@
+#include "editor.h"
+#include "mode_state_machine.h"
+#include "terminal.h"
+#include <gtest/gtest.h>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+namespace
+{
+std::filesystem::path make_temp_dir(const std::string& prefix)
+{
+    auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::filesystem::path base =
+        std::filesystem::temp_directory_path() /
+        (prefix + std::to_string(now));
+    std::filesystem::create_directories(base);
+    return base;
+}
+
+void write_file(const std::filesystem::path& path, std::string_view content)
+{
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream out(path);
+    out << content;
+}
+
+int run_cmd(const std::string& cmd)
+{
+    return std::system(cmd.c_str());
+}
+
+void dispatch_string(ModeStateMachine& sm, const std::string& text)
+{
+    for(char c : text)
+        sm.dispatch(static_cast<int>(c));
+}
+} // namespace
+
+TEST(GitSearchHighlightTest, GitLogHighlightsOnlyMatches)
+{
+    Editor editor = Editor::createForTests();
+    GitLogMode::Entry entry{"abc123", "fix abc now"};
+
+    std::string out =
+        GitLogMode::testRenderLine(editor.theme, entry, "abc", false, 80);
+
+    std::string matchSeq = editor.theme.searchMatch();
+    std::string normalHash = editor.theme.reset() + editor.theme.uiAccent();
+    std::string normalText = editor.theme.reset() + editor.theme.baseFg();
+
+    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalHash),
+              std::string::npos);
+    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalText),
+              std::string::npos);
+}
+
+TEST(GitSearchHighlightTest, GitShowHighlightsOnlyMatches)
+{
+    Editor editor = Editor::createForTests();
+    std::string line = "commit abc123";
+
+    std::string out = GitShowCommitMode::testRenderLine(
+        editor.theme, line, "abc", false);
+
+    std::string matchSeq = editor.theme.searchMatch();
+    std::string normalSeq = editor.theme.reset() + editor.theme.uiDim();
+
+    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalSeq),
+              std::string::npos);
+}
+
+TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
+{
+    auto repo = make_temp_dir("uvim_gitlog_");
+    std::string repoStr = repo.string();
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.email \"test@example.com\""),
+              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.name \"Test\""),
+              0);
+
+    auto file = repo / "README.md";
+    write_file(file, "hello\n");
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add README.md"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
+              0);
+
+    Editor editor = Editor::createForTests();
+    editor.setProjectRoot(repoStr);
+
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{repoStr});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* smPtr = editor.getModeStateMachine();
+    ASSERT_NE(smPtr, nullptr);
+
+    smPtr->dispatch(':');
+    dispatch_string(*smPtr, "git log");
+    smPtr->dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(smPtr->currentStateName(), "GITLOG");
+}
