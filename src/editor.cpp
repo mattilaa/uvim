@@ -5375,6 +5375,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (commentTogglePartial ? "true" : "false"));
         return true;
     }
+    if(opt == "gitignore?")
+    {
+        setStatusMessage(std::string("gitignore=") +
+                         (respectGitignore ? "true" : "false"));
+        return true;
+    }
     if(opt == "formatoninsertleave?")
     {
         setStatusMessage(std::string("formatoninsertleave=") +
@@ -5679,6 +5685,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
     {
         commentTogglePartial = false;
         setStatusMessage("commenttogglepartial=false");
+        return true;
+    }
+    if(opt == "gitignore")
+    {
+        respectGitignore = true;
+        setStatusMessage("gitignore=true");
+        return true;
+    }
+    if(opt == "nogitignore")
+    {
+        respectGitignore = false;
+        setStatusMessage("gitignore=false");
         return true;
     }
     if(opt == "formatoninsertleave")
@@ -6050,6 +6068,25 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("showtabs: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("gitignore=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("gitignore=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            respectGitignore = true;
+            setStatusMessage("gitignore=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            respectGitignore = false;
+            setStatusMessage("gitignore=false");
+        }
+        else
+        {
+            setStatusMessage("gitignore: expected true/false");
         }
         return true;
     }
@@ -9951,9 +9988,13 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set gitdefaultcolors?",
         "set enablegitdefaultcolors",
         "set disablegitdefaultcolors",
+        "set gitignore?",
+        "set gitignore",
+        "set nogitignore",
         "set gitblameinfo?",
         "set gitblameinfo",
         "set nogitblameinfo",
+        "set gitignore=",
         "set syntax.cpp.highlight_system_includes",
         "set nosyntax.cpp.highlight_system_includes",
         "set syntax.cpp.highlight_system_includes?",
@@ -10027,7 +10068,7 @@ std::vector<std::string> Editor::getPathCompletions(std::string_view path)
 std::vector<std::string>
 Editor::getPathCompletionsRecursive(std::string_view path)
 {
-    return editor::helper::getRecursivePathCompletions(path, false);
+    return editor::helper::getRecursivePathCompletions(path, respectGitignore);
 }
 
 std::vector<std::string> Editor::getLocPathCompletions(std::string_view path)

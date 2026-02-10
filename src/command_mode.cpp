@@ -304,34 +304,6 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::CTRL_G)
-    {
-        bool isLocTotal = ctx.commandBuffer.rfind(":loctotal", 0) == 0;
-        bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
-        if(isLocTotal || isLoc)
-        {
-            std::string_view buf = ctx.commandBuffer;
-            size_t spacePos = buf.find(' ');
-            bool hasSpace = (spacePos != std::string_view::npos);
-            bool hasPath = (hasSpace && spacePos + 1 < buf.size() &&
-                            buf.substr(spacePos + 1).find_first_not_of(' ') !=
-                                std::string_view::npos);
-            if(!hasSpace && !hasPath)
-            {
-                bool next = !ctx.respectGitignore();
-                ctx.setRespectGitignore(next);
-                ctx.setStatusMessage(std::string("loc: gitignore ") +
-                                     (next ? "on" : "off"));
-                completions.clear();
-                completionIndex = -1;
-                locCompletion = false;
-                locCommand.clear();
-                updatePopup();
-                return std::nullopt;
-            }
-        }
-    }
-
     // Tab completion
     if(c == Terminal::TAB)
     {

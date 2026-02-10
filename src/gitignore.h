@@ -17,6 +17,7 @@ public:
         bool directoryOnly; // Pattern ends with /
         bool anchored;      // Pattern contains / (except trailing)
         std::regex regex;
+        fs::path baseDir;
     };
 
     GitIgnore() = default;
@@ -25,7 +26,6 @@ public:
     bool load(const fs::path& directory)
     {
         patterns.clear();
-        baseDir = directory;
 
         fs::path gitignorePath = directory / ".gitignore";
         std::ifstream file(gitignorePath);
@@ -35,7 +35,7 @@ public:
         std::string line;
         while(std::getline(file, line))
         {
-            addPattern(line);
+            addPattern(line, directory);
         }
 
         return true;
@@ -45,10 +45,9 @@ public:
     void loadRecursive(const fs::path& directory)
     {
         patterns.clear();
-        baseDir = directory;
 
         // Always ignore .git directory
-        addPattern(".git/");
+        addPattern(".git/", directory);
 
         fs::path current = directory;
         std::vector<fs::path> gitignoreFiles;
@@ -80,7 +79,7 @@ public:
                 std::string line;
                 while(std::getline(file, line))
                 {
-                    addPattern(line);
+                    addPattern(line, it->parent_path());
                 }
             }
         }
@@ -92,24 +91,29 @@ public:
         if(patterns.empty())
             return false;
 
-        // Get relative path from base directory
-        std::error_code ec;
-        fs::path relativePath = fs::relative(path, baseDir, ec);
-        if(ec)
-            relativePath = path;
-
-        std::string pathStr = relativePath.generic_string();
-        if(isDirectory && !pathStr.empty() && pathStr.back() != '/')
-        {
-            pathStr += '/';
-        }
-
         bool ignored = false;
+
+        for(const auto& part : path)
+        {
+            if(part == ".git")
+                return true;
+        }
 
         for(const auto& pattern : patterns)
         {
             if(pattern.directoryOnly && !isDirectory)
                 continue;
+
+            std::error_code ec;
+            fs::path relativePath = fs::relative(path, pattern.baseDir, ec);
+            if(ec)
+                relativePath = path;
+
+            std::string pathStr = relativePath.generic_string();
+            if(isDirectory && !pathStr.empty() && pathStr.back() != '/')
+            {
+                pathStr += '/';
+            }
 
             if(matchPattern(pattern, pathStr, relativePath.filename().string()))
             {
@@ -127,9 +131,8 @@ public:
 
 private:
     std::vector<Pattern> patterns;
-    fs::path baseDir;
 
-    void addPattern(const std::string& line)
+    void addPattern(const std::string& line, const fs::path& dir)
     {
         std::string trimmed = trim(line);
 
@@ -170,6 +173,7 @@ private:
 
         p.pattern = pat;
         p.regex = globToRegex(pat, p.anchored);
+        p.baseDir = dir;
 
         patterns.push_back(std::move(p));
     }
