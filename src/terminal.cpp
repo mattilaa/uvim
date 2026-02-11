@@ -212,6 +212,8 @@ void Terminal::disableRawMode()
     rawModeEnabled = false;
 
     // Restore normal screen and ensure mouse reporting stays disabled.
+    write("\x1b[?25h");  // Show cursor
+    write("\x1b[0 q");   // Reset cursor style to default
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
     write("\x1b[?1049l");
