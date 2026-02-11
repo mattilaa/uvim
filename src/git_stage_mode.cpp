@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -236,6 +237,44 @@ std::vector<std::string> split_path(const std::string& path)
         pos = next + 1;
     }
     return parts;
+}
+
+std::string utf8PrefixByWidth(std::string_view text, int maxWidth)
+{
+    if(maxWidth <= 0)
+        return "";
+    int width = 0;
+    int pos = 0;
+    while(pos < (int)text.size())
+    {
+        int next = text_utils::nextUtf8CharStart(text, pos);
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(width + charWidth > maxWidth)
+            break;
+        width += charWidth;
+        pos = next;
+    }
+    return std::string(text.substr(0, pos));
+}
+
+std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
+{
+    if(maxWidth <= 0)
+        return "";
+    int width = 0;
+    int pos = (int)text.size();
+    while(pos > 0)
+    {
+        int prev = text_utils::prevUtf8CharStart(text, pos);
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(prev, pos - prev));
+        if(width + charWidth > maxWidth)
+            break;
+        width += charWidth;
+        pos = prev;
+    }
+    return std::string(text.substr(pos));
 }
 } // namespace
 
@@ -907,6 +946,69 @@ void GitStageMode::draw(Editor& editor) const
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
+    auto wrap_help = [&](std::string_view text) -> std::vector<std::string>
+    {
+        std::vector<std::string> tokens;
+        size_t i = 0;
+        while(i < text.size())
+        {
+            while(i < text.size() && text_utils::is_space(text[i]))
+                ++i;
+            if(i >= text.size())
+                break;
+
+            if(text[i] == '[')
+            {
+                size_t start = i;
+                size_t end = text.find(']', i);
+                if(end == std::string::npos)
+                {
+                    tokens.emplace_back(text.substr(start));
+                    break;
+                }
+                tokens.emplace_back(text.substr(start, end - start + 1));
+                i = end + 1;
+                continue;
+            }
+
+            size_t start = i;
+            while(i < text.size() && !text_utils::is_space(text[i]) &&
+                  text[i] != '[')
+                ++i;
+            tokens.emplace_back(text.substr(start, i - start));
+        }
+
+        std::vector<std::string> lines;
+        std::string current;
+        int currentW = 0;
+        for(const auto& tok : tokens)
+        {
+            int tokW = text_utils::utf8DisplayWidth(tok);
+            int spaceW = current.empty() ? 0 : 1;
+            if(currentW + spaceW + tokW > editor.screenCols)
+            {
+                if(!current.empty())
+                {
+                    lines.push_back(current);
+                    current.clear();
+                    currentW = 0;
+                    spaceW = 0;
+                }
+            }
+
+            if(spaceW)
+            {
+                current.push_back(' ');
+                currentW += 1;
+            }
+            current.append(tok);
+            currentW += tokW;
+        }
+        if(!current.empty())
+            lines.push_back(current);
+        return lines;
+    };
+
     output += Terminal::ESC_HIDE_CURSOR;
     output += Terminal::cursorPos(1, 1);
     output += editor.theme.reset();
@@ -920,12 +1022,24 @@ void GitStageMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [space: toggle/stage] [m: mark fixup] [g f: fixup] "
-              "[u: untracked] [b: both] [c: changed] [h/l: fold] "
-              "[enter: open] [r: refresh] [q/esc: close]";
-    output += editor.theme.baseFg();
+    std::string help =
+        "  [space: toggle/stage] [m: mark fixup] [g f: fixup] "
+        "[u: untracked] [b: both] [c: changed] [h/l: fold] "
+        "[enter: open] [r: refresh] [q/esc: close]";
 
-    int contentRows = editor.screenRows - 4;
+    auto helpLines = wrap_help(help);
+    if(helpLines.empty())
+        helpLines.push_back("");
+    for(size_t i = 0; i < helpLines.size(); ++i)
+    {
+        output += helpLines[i];
+        if(i + 1 < helpLines.size())
+            output += Terminal::NEWLINE_CLEAR;
+    }
+    output += editor.theme.baseFg();
+    output += Terminal::NEWLINE_CLEAR;
+
+    int contentRows = editor.screenRows - (int)helpLines.size() - 4;
     int listWidth = std::max(24, editor.screenCols / 3);
     int diffWidth = editor.screenCols - listWidth - 1;
     if(diffWidth < 10)
@@ -971,13 +1085,20 @@ void GitStageMode::draw(Editor& editor) const
             std::string icon = node.isDir ? "📁 " : "📄 ";
 
             std::string path = indent + marker + icon + name;
-            int maxPathLen = std::max(0, listWidth - 4);
-            if((int)path.size() > maxPathLen)
+            const int nonPathWidth = 1 + 2 + 1 + 1;
+            int maxPathWidth = std::max(0, listWidth - nonPathWidth);
+            int pathWidth = text_utils::utf8DisplayWidth(path);
+            if(pathWidth > maxPathWidth)
             {
-                if(maxPathLen > 3)
-                    path = "..." + path.substr(path.size() - maxPathLen + 3);
+                if(maxPathWidth > 3)
+                {
+                    std::string tail = utf8SuffixByWidth(path, maxPathWidth - 3);
+                    path = "..." + tail;
+                }
                 else
-                    path = path.substr(0, maxPathLen);
+                {
+                    path = utf8PrefixByWidth(path, maxPathWidth);
+                }
             }
 
             output += " ";
@@ -1008,7 +1129,7 @@ void GitStageMode::draw(Editor& editor) const
             }
             output += " ";
             output += path;
-            int used = 1 + 2 + 1 + 1 + (int)path.size();
+            int used = nonPathWidth + text_utils::utf8DisplayWidth(path);
             if(used < listWidth)
                 output.append(listWidth - used, ' ');
             output += editor.theme.reset();
