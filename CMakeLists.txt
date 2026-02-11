@@ -97,6 +97,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/git_show_mode.cpp
     src/git_log_mode.cpp
     src/git_stage_mode.cpp
+    src/git_commit_mode.cpp
     src/git_fixup_mode.cpp
     src/git_patch_mode.cpp
     src/buffer_browser_mode.cpp

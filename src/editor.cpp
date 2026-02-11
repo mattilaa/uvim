@@ -2381,6 +2381,9 @@ void Editor::setMode(Mode mode)
     case GIT_STAGE:
         modeStateMachine->transitionTo(GitStageMode{});
         break;
+    case GIT_COMMIT:
+        modeStateMachine->transitionTo(GitCommitMode{});
+        break;
     case GIT_FIXUP:
         modeStateMachine->transitionTo(GitFixupMode{});
         break;
@@ -2440,6 +2443,8 @@ std::string Editor::getModeString() const
         return "GITLOG";
     case GIT_STAGE:
         return "GIT STAGE";
+    case GIT_COMMIT:
+        return "GIT COMMIT";
     case GIT_FIXUP:
         return "GIT FIXUP";
     case GIT_PATCH:
@@ -4735,6 +4740,19 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == GIT_COMMIT)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<GitCommitMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
     if(currentMode == GIT_FIXUP)
     {
         if(modeStateMachine)
@@ -6698,6 +6716,14 @@ void Editor::executeCommand(std::string_view cmd)
             setStatusMessage("git diff: unavailable");
         return;
     }
+    if(trimmedCmd == "git commit")
+    {
+        if(gitHandler)
+            gitHandler->openGitCommitMode();
+        else
+            setStatusMessage("git commit: unavailable");
+        return;
+    }
     if(trimmedCmd == "git stash")
     {
         if(gitHandler)
@@ -7725,6 +7751,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = GIT_STAGE;
     }
+    else if(std::holds_alternative<GitCommitMode>(state))
+    {
+        currentMode = GIT_COMMIT;
+    }
     else if(std::holds_alternative<GitFixupMode>(state))
     {
         currentMode = GIT_FIXUP;
@@ -7881,6 +7911,7 @@ void Editor::ensureBufferForMode(Mode mode)
     case LSP_INFO:
     case LOC_LIST:
     case GIT_STAGE:
+    case GIT_COMMIT:
     case GIT_FIXUP:
     case GIT_PATCH:
         return;
@@ -10220,29 +10251,73 @@ void Editor::drawCommandHistoryPopup(std::string& output) const
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
-    std::vector<std::string> commands = {
-        "w",        "write",      "q",
-        "quit",     "q!",         "qa",
-        "qall",     "qa!",        "qall!",
-        "wq",       "x",          "qw",
-        "qw!",      "wa",         "wall",
-        "wa!",      "wqa",        "wqall",
-        "wqa!",     "wqall!",     "xa",
-        "e",        "edit",       "e%",
-        "edit%",    "new",        "vnew",
-        "bn",       "bnext",      "bp",
-        "bprev",    "bd",         "bdelete",
-        "ls",       "buffers",    "sp",
-        "split",    "vs",         "vsplit",
-        "vh",       "hs",         "hsplit",
-        "only",     "tabnew",     "tabc",
-        "tabclose", "set",        "syntax",
-        "noh",      "nohlsearch", "lspinfo",
-        "emoji",    "em",         "help",
-        "h",        "cd",         "cdr",
-        "loc",      "loc!",       "loc%",
-        "loctotal", "git stage",  "git log",
-        "git diff", "git stash",  "git stash pop"};
+    std::vector<std::string> commands = {"w",
+                                         "write",
+                                         "q",
+                                         "quit",
+                                         "q!",
+                                         "qa",
+                                         "qall",
+                                         "qa!",
+                                         "qall!",
+                                         "wq",
+                                         "x",
+                                         "qw",
+                                         "qw!",
+                                         "wa",
+                                         "wall",
+                                         "wa!",
+                                         "wqa",
+                                         "wqall",
+                                         "wqa!",
+                                         "wqall!",
+                                         "xa",
+                                         "e",
+                                         "edit",
+                                         "e%",
+                                         "edit%",
+                                         "new",
+                                         "vnew",
+                                         "bn",
+                                         "bnext",
+                                         "bp",
+                                         "bprev",
+                                         "bd",
+                                         "bdelete",
+                                         "ls",
+                                         "buffers",
+                                         "sp",
+                                         "split",
+                                         "vs",
+                                         "vsplit",
+                                         "vh",
+                                         "hs",
+                                         "hsplit",
+                                         "only",
+                                         "tabnew",
+                                         "tabc",
+                                         "tabclose",
+                                         "set",
+                                         "syntax",
+                                         "noh",
+                                         "nohlsearch",
+                                         "lspinfo",
+                                         "emoji",
+                                         "em",
+                                         "help",
+                                         "h",
+                                         "cd",
+                                         "cdr",
+                                         "loc",
+                                         "loc!",
+                                         "loc%",
+                                         "loctotal",
+                                         "git stage",
+                                         "git log",
+                                         "git diff",
+                                         "git commit",
+                                         "git stash",
+                                         "git stash pop"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

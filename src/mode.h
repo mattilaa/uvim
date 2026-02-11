@@ -26,6 +26,7 @@ enum Mode
     GIT_SHOW,
     GIT_LOG,
     GIT_STAGE,
+    GIT_COMMIT,
     GIT_FIXUP,
     GIT_PATCH,
 };

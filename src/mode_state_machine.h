@@ -310,6 +310,7 @@ struct HelpMode;
 struct GitShowCommitMode;
 struct GitLogMode;
 struct GitStageMode;
+struct GitCommitMode;
 struct GitFixupMode;
 struct GitPatchMode;
 
@@ -321,6 +322,7 @@ using ModeState =
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
                  OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
                  HelpMode, GitShowCommitMode, GitLogMode, GitStageMode,
+                 GitCommitMode,
                  GitFixupMode, GitPatchMode>;
 
 ModeState defaultExitMode(const Editor* editor);
@@ -1007,6 +1009,42 @@ struct GitFixupMode
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
     void draw(Editor& editor) const;
+};
+
+struct GitCommitMode
+{
+    static constexpr const char* name()
+    {
+        return "GITCOMMIT";
+    }
+
+    std::string repoRoot;
+    std::string repoDir;
+    std::vector<std::string> messageLines = {""};
+    int messageCursorRow = 0;
+    int messageCursorCol = 0;
+    int messageTopRow = 0;
+    bool insertMode = false;
+    bool commandActive = false;
+    std::string commandLine;
+    std::vector<std::string> stagedLines;
+    std::string currentBranch;
+    bool hasStagedFiles = false;
+    bool stagedDirty = true;
+
+    GitCommitMode() = default;
+    GitCommitMode(std::string root, std::string dir)
+        : repoRoot(std::move(root)), repoDir(std::move(dir))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    void draw(Editor& editor) const;
+
+private:
+    void refreshStaged();
 };
 
 struct GitPatchMode

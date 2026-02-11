@@ -471,6 +471,31 @@ void GitHandler::openGitDiffMode()
     }
 }
 
+void GitHandler::openGitCommitMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git commit: not a repo");
+        return;
+    }
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(
+            GitCommitMode{repoRoot, repoRoot});
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
 std::vector<std::string> GitHandler::loadGitShowLines(const std::string& hash)
 {
     std::string dir = base_dir_for_editor(editor);

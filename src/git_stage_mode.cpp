@@ -1022,10 +1022,12 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             {
                 StatusEntry status{node.indexStatus, node.worktreeStatus};
                 std::string cmd;
+                bool stagedUntracked = false;
                 if(has_unstaged(status) || is_untracked(status))
                 {
                     cmd = "git -C \"" + repoDir + "\" add -- \"" +
                           node.repoPath + "\" 2>/dev/null";
+                    stagedUntracked = is_untracked(status);
                 }
                 else if(has_staged(status))
                 {
@@ -1035,6 +1037,11 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
                 if(!cmd.empty())
                 {
                     std::system(cmd.c_str());
+                    if(stagedUntracked &&
+                       untrackedMode == UntrackedMode::UntrackedOnly)
+                    {
+                        untrackedMode = UntrackedMode::TrackedOnly;
+                    }
                     refreshStatus(*ed);
                     int newIndex = visibleIndexForNode(nodeId);
                     if(newIndex >= 0)

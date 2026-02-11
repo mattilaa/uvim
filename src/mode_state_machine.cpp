@@ -1082,6 +1082,8 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
             return std::get<GitShowCommitMode>(state);
         if(std::holds_alternative<GitStageMode>(state))
             return std::get<GitStageMode>(state);
+        if(std::holds_alternative<GitCommitMode>(state))
+            return std::get<GitCommitMode>(state);
         if(std::holds_alternative<GitFixupMode>(state))
             return std::get<GitFixupMode>(state);
         if(std::holds_alternative<GitPatchMode>(state))
@@ -1127,6 +1129,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
             ctx.editor->commandRequestedBrowseOffset = 0;
             ctx.editor->commandRequestedBrowseDirectory.clear();
             return stage;
+        }
+        if(mode == GIT_COMMIT)
+        {
+            return GitCommitMode{};
         }
     }
 
