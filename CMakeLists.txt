@@ -289,6 +289,7 @@ if(UVIM_BUILD_TESTS)
     add_executable(real_mode_transitions_tests
         tests/real_mode_transitions_test.cpp
         tests/git_log_view_test.cpp
+        tests/git_stage_layout_test.cpp
         tests/editor_filetype_test.cpp
         tests/syntax_highlighter_test.cpp
         tests/js_ts_resolution_test.cpp

@@ -949,6 +949,9 @@ struct GitStageMode
     std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
 
     void draw(Editor& editor) const;
+#ifdef UVIM_TESTING
+    static int testContentRows(int screenRows, int screenCols);
+#endif
 
 private:
     void refreshDiff(Editor& editor);

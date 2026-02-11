@@ -1334,3 +1334,10 @@ void GitStageMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+
+#ifdef UVIM_TESTING
+int GitStageMode::testContentRows(int screenRows, int screenCols)
+{
+    return git_stage_content_rows(screenRows, screenCols);
+}
+#endif
