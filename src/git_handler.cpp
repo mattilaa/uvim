@@ -398,6 +398,70 @@ void GitHandler::openGitShowCommitMode()
     }
 }
 
+void GitHandler::openGitDiffMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git diff: not a repo");
+        return;
+    }
+
+    std::string cmd =
+        "git -C \"" + repoRoot + "\" --no-pager diff " +
+        std::string(editor->gitUseDefaultColors ? "--color=always "
+                                                : "--no-color ") +
+        "2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        editor->setStatusMessage("git diff: failed");
+        return;
+    }
+
+    std::string output;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe))
+        output += buffer;
+    pclose(pipe);
+
+    if(output.empty())
+    {
+        editor->setStatusMessage("git diff: no output");
+        return;
+    }
+
+    std::vector<std::string> linesOut;
+    size_t pos = 0;
+    while(pos <= output.size())
+    {
+        size_t next = output.find('\n', pos);
+        if(next == std::string::npos)
+        {
+            linesOut.push_back(output.substr(pos));
+            break;
+        }
+        linesOut.push_back(output.substr(pos, next - pos));
+        pos = next + 1;
+    }
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(
+            GitShowCommitMode{"DIFF", std::move(linesOut)});
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
 std::vector<std::string> GitHandler::loadGitShowLines(const std::string& hash)
 {
     if(!editor->currentBuffer || editor->currentBuffer->filename.empty())

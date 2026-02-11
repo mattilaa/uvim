@@ -856,6 +856,7 @@ struct GitShowCommitMode
     std::string commitHash;
     std::vector<std::string> lines;
     int scrollOffset = 0;
+    int horizontalOffset = 0;
     std::optional<GitLogMode> returnLog;
     bool searchActive = false;
     bool searchForward = true;
@@ -932,6 +933,7 @@ struct GitStageMode
     int cursor = 0;
     int offset = 0;
     int diffOffset = 0;
+    int diffHorizontalOffset = 0;
     std::optional<Mode> returnMode;
     int returnBrowseCursor = 0;
     int returnBrowseOffset = 0;

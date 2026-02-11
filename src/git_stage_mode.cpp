@@ -7,9 +7,9 @@
 #include <filesystem>
 #include <limits.h>
 #include <string>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
-#include <unistd.h>
 
 namespace
 {
@@ -276,6 +276,186 @@ std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
     }
     return std::string(text.substr(pos));
 }
+
+std::string git_stage_help_text()
+{
+    return "  [space: toggle/stage] [m: mark fixup] [g f: fixup] "
+           "[u: untracked] [b: both] [c: changed] [h/l: fold] "
+           "[enter: open] [r: refresh] [q/esc: close] [ctrl-h/l: pan]";
+}
+
+std::vector<std::string> wrap_help(std::string_view text, int screenCols)
+{
+    std::vector<std::string> tokens;
+    size_t i = 0;
+    while(i < text.size())
+    {
+        while(i < text.size() && text_utils::is_space(text[i]))
+            ++i;
+        if(i >= text.size())
+            break;
+
+        if(text[i] == '[')
+        {
+            size_t start = i;
+            size_t end = text.find(']', i);
+            if(end == std::string::npos)
+            {
+                tokens.emplace_back(text.substr(start));
+                break;
+            }
+            tokens.emplace_back(text.substr(start, end - start + 1));
+            i = end + 1;
+            continue;
+        }
+
+        size_t start = i;
+        while(i < text.size() && !text_utils::is_space(text[i]) &&
+              text[i] != '[')
+            ++i;
+        tokens.emplace_back(text.substr(start, i - start));
+    }
+
+    std::vector<std::string> lines;
+    std::string current;
+    int currentW = 0;
+    for(const auto& tok : tokens)
+    {
+        int tokW = text_utils::utf8DisplayWidth(tok);
+        int spaceW = current.empty() ? 0 : 1;
+        if(currentW + spaceW + tokW > screenCols)
+        {
+            if(!current.empty())
+            {
+                lines.push_back(current);
+                current.clear();
+                currentW = 0;
+                spaceW = 0;
+            }
+        }
+
+        if(spaceW)
+        {
+            current.push_back(' ');
+            currentW += 1;
+        }
+        current.append(tok);
+        currentW += tokW;
+    }
+    if(!current.empty())
+        lines.push_back(current);
+    return lines;
+}
+
+int git_stage_content_rows(int screenRows, int screenCols)
+{
+    const int headerRows = 1;
+    const int statusRows = 1;
+    const int messageRows = 1;
+    // Keep stage layout aligned with other modes; stage view starts lower.
+    const int stageViewportCompensation = 2;
+    int helpRows = (int)wrap_help(git_stage_help_text(), screenCols).size();
+    return std::max(0, screenRows - headerRows - helpRows - statusRows -
+                           messageRows + stageViewportCompensation);
+}
+
+bool is_ansi_start(std::string_view text, size_t i)
+{
+    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == '[';
+}
+
+size_t skip_ansi(std::string_view text, size_t i)
+{
+    i += 2;
+    while(i < text.size())
+    {
+        char c = text[i++];
+        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+            break;
+    }
+    return i;
+}
+
+int max_diff_width(const std::vector<std::string>& lines, bool useDefaultColors)
+{
+    int maxW = 0;
+    for(const auto& line : lines)
+    {
+        int w = useDefaultColors ? text_utils::displayWidth(line)
+                                 : text_utils::utf8DisplayWidth(line);
+        if(w > maxW)
+            maxW = w;
+    }
+    return maxW;
+}
+
+std::string slice_plain(std::string_view text, int startCol, int width)
+{
+    if(width <= 0 || text.empty())
+        return "";
+    if(startCol < 0)
+        startCol = 0;
+
+    std::string out;
+    int col = 0;
+    int pos = 0;
+    while(pos < (int)text.size())
+    {
+        int next = text_utils::nextUtf8CharStart(text, pos);
+        int w = text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(col + w <= startCol)
+        {
+            col += w;
+            pos = next;
+            continue;
+        }
+        if(col >= startCol + width)
+            break;
+        if(col >= startCol && col + w <= startCol + width)
+            out.append(text.substr(pos, next - pos));
+        col += w;
+        pos = next;
+    }
+    return out;
+}
+
+std::string slice_with_ansi(std::string_view text, int startCol, int width)
+{
+    if(width <= 0 || text.empty())
+        return "";
+    if(startCol < 0)
+        startCol = 0;
+
+    std::string out;
+    int col = 0;
+    size_t i = 0;
+    while(i < text.size())
+    {
+        if(is_ansi_start(text, i))
+        {
+            size_t end = skip_ansi(text, i);
+            out.append(text.substr(i, end - i));
+            i = end;
+            continue;
+        }
+
+        int next = text_utils::nextUtf8CharStart(text, (int)i);
+        int w = text_utils::utf8DisplayWidth(text.substr(i, next - (int)i));
+        if(col + w <= startCol)
+        {
+            col += w;
+            i = next;
+            continue;
+        }
+        if(col >= startCol + width)
+            break;
+        if(col >= startCol && col + w <= startCol + width)
+            out.append(text.substr(i, next - (int)i));
+        col += w;
+        i = next;
+    }
+    return out;
+}
 } // namespace
 
 GitStageMode::GitStageMode(std::vector<Node> items, std::string root,
@@ -325,6 +505,7 @@ void GitStageMode::on_enter(ModeContext& ctx)
     cursor = std::clamp(cursor, 0, (int)visible.size());
     offset = 0;
     diffOffset = 0;
+    diffHorizontalOffset = 0;
     diffDirty = true;
 
     char cwd[PATH_MAX];
@@ -423,9 +604,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
     std::vector<std::string> untracked;
     if(untrackedMode != UntrackedMode::TrackedOnly)
     {
-        std::string untrackedCmd =
-            "git -C \"" + repoDir +
-            "\" ls-files -z --others --exclude-standard";
+        std::string untrackedCmd = "git -C \"" + repoDir +
+                                   "\" ls-files -z --others --exclude-standard";
         if(!relViewStr.empty())
             untrackedCmd += " -- \"" + relViewStr + "\"";
         untrackedCmd += " 2>/dev/null";
@@ -486,9 +666,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
             {
                 Node node;
                 node.name = parts[i];
-                node.repoPath = relViewStr.empty()
-                                    ? dirKey
-                                    : relViewStr + "/" + dirKey;
+                node.repoPath =
+                    relViewStr.empty() ? dirKey : relViewStr + "/" + dirKey;
                 node.isDir = true;
                 node.expanded = false;
                 auto prev = prevExpanded.find(node.repoPath);
@@ -525,8 +704,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
     {
         for(const auto& kv : statusMap)
         {
-            bool isUntracked = kv.second.indexStatus == '?' &&
-                               kv.second.worktreeStatus == '?';
+            bool isUntracked =
+                kv.second.indexStatus == '?' && kv.second.worktreeStatus == '?';
             if(untrackedMode == UntrackedMode::TrackedOnly && isUntracked)
                 continue;
             if(untrackedMode == UntrackedMode::UntrackedOnly && !isUntracked)
@@ -580,8 +759,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
 
         for(const auto& kv : statusMap)
         {
-            bool isUntracked = kv.second.indexStatus == '?' &&
-                               kv.second.worktreeStatus == '?';
+            bool isUntracked =
+                kv.second.indexStatus == '?' && kv.second.worktreeStatus == '?';
             if(untrackedMode == UntrackedMode::TrackedOnly && isUntracked)
                 continue;
             if(untrackedMode == UntrackedMode::UntrackedOnly && !isUntracked)
@@ -607,9 +786,10 @@ bool GitStageMode::refreshStatus(Editor& editor)
         }
     }
     cursor = std::clamp(cursor, 0, std::max(0, (int)visible.size() - 1));
-    int visibleRows = editor.screenRows - 3;
-    offset = std::clamp(offset, 0,
-                        std::max(0, (int)visible.size() - visibleRows));
+    int visibleRows =
+        git_stage_content_rows(editor.screenRows, editor.screenCols);
+    offset =
+        std::clamp(offset, 0, std::max(0, (int)visible.size() - visibleRows));
     diffDirty = true;
     return true;
 }
@@ -621,6 +801,7 @@ void GitStageMode::refreshDiff(Editor& editor)
 
     diffLines.clear();
     diffOffset = 0;
+    diffHorizontalOffset = 0;
     diffPath.clear();
     diffStaged = false;
 
@@ -659,7 +840,7 @@ void GitStageMode::refreshDiff(Editor& editor)
     if(useStaged)
         cmd += "--cached ";
     cmd += std::string(editor.gitUseDefaultColors ? "--color=always "
-                                                   : "--no-color ");
+                                                  : "--no-color ");
     cmd += "-- \"" + node.repoPath + "\" 2>/dev/null";
 
     std::string raw = run_git_raw(cmd);
@@ -785,8 +966,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
                 int depth = visible[cursor].depth;
                 for(int i = cursor - 1; i >= 0; --i)
                 {
-                    if(visible[i].depth < depth &&
-                       nodes[visible[i].node].isDir)
+                    if(visible[i].depth < depth && nodes[visible[i].node].isDir)
                     {
                         nodes[visible[i].node].expanded = false;
                         rebuildVisible();
@@ -849,9 +1029,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
                 }
                 else if(has_staged(status))
                 {
-                    cmd = "git -C \"" + repoDir +
-                          "\" restore --staged -- \"" + node.repoPath +
-                          "\" 2>/dev/null";
+                    cmd = "git -C \"" + repoDir + "\" restore --staged -- \"" +
+                          node.repoPath + "\" 2>/dev/null";
                 }
                 if(!cmd.empty())
                 {
@@ -873,7 +1052,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         if(cursor < (int)visible.size() - 1)
         {
             cursor++;
-            int visibleRows = ed->screenRows - 3;
+            int visibleRows =
+                git_stage_content_rows(ed->screenRows, ed->screenCols);
             if(cursor >= offset + visibleRows)
                 offset = cursor - visibleRows + 1;
             diffDirty = true;
@@ -891,8 +1071,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
     }
     else if(c == Terminal::CTRL_J)
     {
-        int maxScroll =
-            std::max(0, (int)diffLines.size() - (ed->screenRows - 3));
+        int maxScroll = std::max(
+            0, (int)diffLines.size() -
+                   git_stage_content_rows(ed->screenRows, ed->screenCols));
         if(diffOffset < maxScroll)
             diffOffset++;
     }
@@ -900,6 +1081,21 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
     {
         if(diffOffset > 0)
             diffOffset--;
+    }
+    else if(c == Terminal::CTRL_H || c == Terminal::CTRL_L)
+    {
+        int listWidth = std::max(24, ed->screenCols / 3);
+        int diffWidth = ed->screenCols - listWidth - 1;
+        if(diffWidth < 10)
+            diffWidth = 0;
+        int viewWidth = std::max(0, diffWidth - 1);
+        int maxW = max_diff_width(diffLines, ed->gitUseDefaultColors);
+        int maxOffset = std::max(0, maxW - viewWidth);
+        if(c == Terminal::CTRL_H)
+            diffHorizontalOffset = std::max(0, diffHorizontalOffset - 1);
+        else
+            diffHorizontalOffset =
+                std::min(maxOffset, diffHorizontalOffset + 1);
     }
     else if(c == 'g')
     {
@@ -930,7 +1126,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         if(!visible.empty())
         {
             cursor = std::max(0, (int)visible.size() - 1);
-            int visibleRows = ed->screenRows - 3;
+            int visibleRows =
+                git_stage_content_rows(ed->screenRows, ed->screenCols);
             offset = std::max(0, cursor - visibleRows + 1);
             diffDirty = true;
         }
@@ -946,70 +1143,11 @@ void GitStageMode::draw(Editor& editor) const
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
-    auto wrap_help = [&](std::string_view text) -> std::vector<std::string>
-    {
-        std::vector<std::string> tokens;
-        size_t i = 0;
-        while(i < text.size())
-        {
-            while(i < text.size() && text_utils::is_space(text[i]))
-                ++i;
-            if(i >= text.size())
-                break;
-
-            if(text[i] == '[')
-            {
-                size_t start = i;
-                size_t end = text.find(']', i);
-                if(end == std::string::npos)
-                {
-                    tokens.emplace_back(text.substr(start));
-                    break;
-                }
-                tokens.emplace_back(text.substr(start, end - start + 1));
-                i = end + 1;
-                continue;
-            }
-
-            size_t start = i;
-            while(i < text.size() && !text_utils::is_space(text[i]) &&
-                  text[i] != '[')
-                ++i;
-            tokens.emplace_back(text.substr(start, i - start));
-        }
-
-        std::vector<std::string> lines;
-        std::string current;
-        int currentW = 0;
-        for(const auto& tok : tokens)
-        {
-            int tokW = text_utils::utf8DisplayWidth(tok);
-            int spaceW = current.empty() ? 0 : 1;
-            if(currentW + spaceW + tokW > editor.screenCols)
-            {
-                if(!current.empty())
-                {
-                    lines.push_back(current);
-                    current.clear();
-                    currentW = 0;
-                    spaceW = 0;
-                }
-            }
-
-            if(spaceW)
-            {
-                current.push_back(' ');
-                currentW += 1;
-            }
-            current.append(tok);
-            currentW += tokW;
-        }
-        if(!current.empty())
-            lines.push_back(current);
-        return lines;
-    };
+    std::string help = git_stage_help_text();
+    auto helpLines = wrap_help(help, editor.screenCols);
 
     output += Terminal::ESC_HIDE_CURSOR;
+    output += Terminal::ESC_CLEAR_SCREEN;
     output += Terminal::cursorPos(1, 1);
     output += editor.theme.reset();
 
@@ -1022,12 +1160,6 @@ void GitStageMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    std::string help =
-        "  [space: toggle/stage] [m: mark fixup] [g f: fixup] "
-        "[u: untracked] [b: both] [c: changed] [h/l: fold] "
-        "[enter: open] [r: refresh] [q/esc: close]";
-
-    auto helpLines = wrap_help(help);
     if(helpLines.empty())
         helpLines.push_back("");
     for(size_t i = 0; i < helpLines.size(); ++i)
@@ -1037,9 +1169,9 @@ void GitStageMode::draw(Editor& editor) const
             output += Terminal::NEWLINE_CLEAR;
     }
     output += editor.theme.baseFg();
-    output += Terminal::NEWLINE_CLEAR;
 
-    int contentRows = editor.screenRows - (int)helpLines.size() - 4;
+    int contentRows =
+        git_stage_content_rows(editor.screenRows, editor.screenCols);
     int listWidth = std::max(24, editor.screenCols / 3);
     int diffWidth = editor.screenCols - listWidth - 1;
     if(diffWidth < 10)
@@ -1047,10 +1179,14 @@ void GitStageMode::draw(Editor& editor) const
         listWidth = editor.screenCols;
         diffWidth = 0;
     }
+    int diffViewWidth = std::max(0, diffWidth - 1);
+    int maxDiffW = max_diff_width(diffLines, editor.gitUseDefaultColors);
+    int maxDiffOffset = std::max(0, maxDiffW - diffViewWidth);
+    int hOff = std::min(diffHorizontalOffset, maxDiffOffset);
 
     for(int row = 0; row < contentRows; ++row)
     {
-        output += Terminal::ESC_CLEAR_LINE;
+        output += Terminal::NEWLINE_CLEAR;
         int idx = offset + row;
         if(idx >= 0 && idx < (int)visible.size())
         {
@@ -1080,8 +1216,8 @@ void GitStageMode::draw(Editor& editor) const
             std::string indent;
             for(int i = 0; i < vis.depth; ++i)
                 indent += "  ";
-            std::string marker = node.isDir ? (node.expanded ? "▾ " : "▸ ")
-                                            : "  ";
+            std::string marker =
+                node.isDir ? (node.expanded ? "▾ " : "▸ ") : "  ";
             std::string icon = node.isDir ? "📁 " : "📄 ";
 
             std::string path = indent + marker + icon + name;
@@ -1092,7 +1228,8 @@ void GitStageMode::draw(Editor& editor) const
             {
                 if(maxPathWidth > 3)
                 {
-                    std::string tail = utf8SuffixByWidth(path, maxPathWidth - 3);
+                    std::string tail =
+                        utf8SuffixByWidth(path, maxPathWidth - 3);
                     path = "..." + tail;
                 }
                 else
@@ -1152,7 +1289,18 @@ void GitStageMode::draw(Editor& editor) const
             if(diffIdx >= 0 && diffIdx < (int)diffLines.size())
             {
                 output += " ";
-                append_diff_line(output, editor, diffLines[diffIdx]);
+                if(editor.gitUseDefaultColors)
+                {
+                    output += slice_with_ansi(diffLines[diffIdx], hOff,
+                                              diffViewWidth);
+                    output += editor.theme.reset();
+                }
+                else
+                {
+                    std::string sliced =
+                        slice_plain(diffLines[diffIdx], hOff, diffViewWidth);
+                    append_diff_line(output, editor, sliced);
+                }
             }
             else
             {
@@ -1162,7 +1310,7 @@ void GitStageMode::draw(Editor& editor) const
             }
         }
 
-        output += "\r\n";
+        // NEWLINE_CLEAR already emitted at row start.
     }
 
     output += Terminal::NEWLINE_CLEAR;
@@ -1170,9 +1318,8 @@ void GitStageMode::draw(Editor& editor) const
     std::string status = " GIT STAGE";
     if(!viewRoot.empty())
         status += " | " + viewRoot;
-    std::string right =
-        " " + std::to_string(visible.empty() ? 0 : cursor + 1) + "/" +
-        std::to_string(visible.size()) + " ";
+    std::string right = " " + std::to_string(visible.empty() ? 0 : cursor + 1) +
+                        "/" + std::to_string(visible.size()) + " ";
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)

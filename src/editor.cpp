@@ -6363,6 +6363,14 @@ void Editor::executeCommand(std::string_view cmd)
             setStatusMessage("git log: unavailable");
         return;
     }
+    if(trimmedCmd == "git diff")
+    {
+        if(gitHandler)
+            gitHandler->openGitDiffMode();
+        else
+            setStatusMessage("git diff: unavailable");
+        return;
+    }
     if(trimmedCmd == "git stash")
     {
         if(gitHandler)
@@ -9885,7 +9893,8 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
         "only",    "tabnew",     "tabc",    "tabclose", "set",     "syntax",
         "noh",     "nohlsearch", "lspinfo", "emoji",    "em",      "help",
         "h",       "cd",         "cdr",     "loc",      "loc!",    "loc%",
-        "loctotal", "git stage", "git log", "git stash", "git stash pop"};
+        "loctotal", "git stage", "git log", "git diff", "git stash",
+        "git stash pop"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

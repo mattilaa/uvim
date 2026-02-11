@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <string_view>
 #include <algorithm>
 #include <chrono>
@@ -11,6 +12,115 @@
 
 namespace
 {
+bool is_ansi_start(std::string_view text, size_t i)
+{
+    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == '[';
+}
+
+size_t skip_ansi(std::string_view text, size_t i)
+{
+    i += 2;
+    while(i < text.size())
+    {
+        char c = text[i++];
+        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+            break;
+    }
+    return i;
+}
+
+int display_width_plain(std::string_view text)
+{
+    return text_utils::utf8DisplayWidth(text);
+}
+
+int display_width_with_ansi(std::string_view text)
+{
+    return text_utils::displayWidth(text);
+}
+
+int max_line_width(const std::vector<std::string>& lines,
+                   bool useDefaultColors)
+{
+    int maxW = 0;
+    for(const auto& line : lines)
+    {
+        int w = useDefaultColors ? display_width_with_ansi(line)
+                                 : display_width_plain(line);
+        if(w > maxW)
+            maxW = w;
+    }
+    return maxW;
+}
+
+std::string slice_plain(std::string_view text, int startCol, int width)
+{
+    if(width <= 0 || text.empty())
+        return "";
+    if(startCol < 0)
+        startCol = 0;
+
+    std::string out;
+    int col = 0;
+    int pos = 0;
+    while(pos < (int)text.size())
+    {
+        int next = text_utils::nextUtf8CharStart(text, pos);
+        int w = text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(col + w <= startCol)
+        {
+            col += w;
+            pos = next;
+            continue;
+        }
+        if(col >= startCol + width)
+            break;
+        if(col >= startCol && col + w <= startCol + width)
+            out.append(text.substr(pos, next - pos));
+        col += w;
+        pos = next;
+    }
+    return out;
+}
+
+std::string slice_with_ansi(std::string_view text, int startCol, int width)
+{
+    if(width <= 0 || text.empty())
+        return "";
+    if(startCol < 0)
+        startCol = 0;
+
+    std::string out;
+    int col = 0;
+    size_t i = 0;
+    while(i < text.size())
+    {
+        if(is_ansi_start(text, i))
+        {
+            size_t end = skip_ansi(text, i);
+            out.append(text.substr(i, end - i));
+            i = end;
+            continue;
+        }
+
+        int next = text_utils::nextUtf8CharStart(text, (int)i);
+        int w = text_utils::utf8DisplayWidth(text.substr(i, next - (int)i));
+        if(col + w <= startCol)
+        {
+            col += w;
+            i = next;
+            continue;
+        }
+        if(col >= startCol + width)
+            break;
+        if(col >= startCol && col + w <= startCol + width)
+            out.append(text.substr(i, next - (int)i));
+        col += w;
+        i = next;
+    }
+    return out;
+}
+
 void append_highlighted(std::string& out, std::string_view text,
                         std::string_view query, const std::string& normalSeq,
                         const std::string& matchSeq)
@@ -277,6 +387,16 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         searchPrevScroll = scrollOffset;
         ctx.lastEscTime() = std::chrono::steady_clock::time_point();
     }
+    else if(c == Terminal::CTRL_H || c == Terminal::CTRL_L)
+    {
+        int viewWidth = std::max(0, ctx.screenCols() - 2);
+        int maxW = max_line_width(lines, ctx.editor->gitUseDefaultColors);
+        int maxOffset = std::max(0, maxW - viewWidth);
+        if(c == Terminal::CTRL_H)
+            horizontalOffset = std::max(0, horizontalOffset - 1);
+        else
+            horizontalOffset = std::min(maxOffset, horizontalOffset + 1);
+    }
     else if((c == 'n' || c == 'N') && !searchQuery.empty())
     {
         bool forward = (c == 'n') ? searchForward : !searchForward;
@@ -305,10 +425,14 @@ void GitShowCommitMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [q: quit] [j/k: scroll] [gg/G: top/bottom]";
+    output += "  [q: quit] [j/k: scroll] [gg/G: top/bottom] [ctrl-h/l: pan]";
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 2;
+    int viewWidth = std::max(0, editor.screenCols - 2);
+    int maxW = max_line_width(lines, editor.gitUseDefaultColors);
+    int maxOffset = std::max(0, maxW - viewWidth);
+    int hOff = std::min(horizontalOffset, maxOffset);
     for(int i = 0; i < availableRows; ++i)
     {
         output += Terminal::NEWLINE_CLEAR;
@@ -318,7 +442,7 @@ void GitShowCommitMode::draw(Editor& editor) const
             output += "  ";
             if(editor.gitUseDefaultColors)
             {
-                output += lines[idx];
+                output += slice_with_ansi(lines[idx], hOff, viewWidth);
                 output += editor.theme.reset();
             }
             else
@@ -342,7 +466,8 @@ void GitShowCommitMode::draw(Editor& editor) const
                     lineSeq = &editor.theme.uiError();
 
                 std::string normalSeq = editor.theme.reset() + *lineSeq;
-                append_highlighted(output, line, searchQuery, normalSeq,
+                std::string sliced = slice_plain(line, hOff, viewWidth);
+                append_highlighted(output, sliced, searchQuery, normalSeq,
                                    editor.theme.searchMatch());
                 output += editor.theme.reset();
             }

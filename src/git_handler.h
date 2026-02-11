@@ -15,6 +15,7 @@ public:
     std::string blameDisplayForLine(int row) const;
     std::string blameFullForLine(int row) const;
     void openGitShowCommitMode();
+    void openGitDiffMode();
     std::vector<std::string> loadGitShowLines(const std::string& hash);
     void openGitLogMode();
     void openGitLogModeForFile();
