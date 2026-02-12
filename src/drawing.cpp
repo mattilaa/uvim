@@ -341,6 +341,7 @@ void Editor::drawMessageBar()
         .searchQuery = searchQuery,
         .searchMatchIndex = currentMatchIndex,
         .searchMatchCount = (int)searchMatches.size(),
+        .commandLineMessagePrefix = commandLineMessagePrefix,
         .showGitBlame = showGitBlame,
         .showGitBlameInfo = showGitBlameInfo,
         .blameLine = blame,
@@ -730,7 +731,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
        currentMode == SEARCH_BACKWARD)
     {
         cursorRow = screenRows + 2;
-        cursorCol = commandBuffer.length() + 1;
+        int promptLen = (commandBuffer.empty() || commandBuffer[0] != ':')
+                            ? (int)commandBuffer.length() + 1
+                            : (int)commandBuffer.length();
+        cursorCol = promptLen + 1;
     }
     else
     {
@@ -842,6 +846,7 @@ void Editor::drawMessageBarQuick()
         .searchQuery = searchQuery,
         .searchMatchIndex = currentMatchIndex,
         .searchMatchCount = (int)searchMatches.size(),
+        .commandLineMessagePrefix = commandLineMessagePrefix,
         .showGitBlame = showGitBlame,
         .showGitBlameInfo = showGitBlameInfo,
         .blameLine = blame,
@@ -1216,30 +1221,45 @@ void Editor::drawFullScreenSingle()
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
     {
-        output += commandBuffer;
-        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
-        {
-            if(!searchMatches.empty())
-            {
-                output += " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                          std::to_string(searchMatches.size()) + "]";
-            }
-            else if(!searchQuery.empty())
-            {
-                output += " [No matches]";
-            }
-        }
+        if(commandBuffer.empty())
+            output += ":";
+        else if(commandBuffer.front() == ':')
+            output += commandBuffer;
+        else
+            output += ":" + commandBuffer;
     }
     else if(showGitBlame && showGitBlameInfo)
     {
         std::string blame = blameFullForLine(*cursorY);
         if(!blame.empty())
+        {
+            if(commandLineMessagePrefix)
+                output += ": ";
             output += "blame: " + blame;
+        }
     }
     else if(!statusMessage.empty())
     {
-        int msglen = std::min((int)statusMessage.length(), screenCols);
+        if(commandLineMessagePrefix)
+            output += ": ";
+        int msglen =
+            std::min((int)statusMessage.length(),
+                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(statusMessage, 0, msglen);
+    }
+    else if(!locMessage.empty())
+    {
+        if(commandLineMessagePrefix)
+            output += ": ";
+        int msglen =
+            std::min((int)locMessage.length(),
+                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        output.append(locMessage, 0, msglen);
+    }
+    else
+    {
+        if(commandLineMessagePrefix)
+            output += ":";
     }
 
     // Completion popup (clangd)
@@ -1736,30 +1756,45 @@ void Editor::drawSplitFullScreen()
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
     {
-        output += commandBuffer;
-        if(currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD)
-        {
-            if(!searchMatches.empty())
-            {
-                output += " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                          std::to_string(searchMatches.size()) + "]";
-            }
-            else if(!searchQuery.empty())
-            {
-                output += " [No matches]";
-            }
-        }
+        if(commandBuffer.empty())
+            output += ":";
+        else if(commandBuffer.front() == ':')
+            output += commandBuffer;
+        else
+            output += ":" + commandBuffer;
     }
     else if(showGitBlame && showGitBlameInfo)
     {
         std::string blame = blameFullForLine(*cursorY);
         if(!blame.empty())
+        {
+            if(commandLineMessagePrefix)
+                output += ": ";
             output += "blame: " + blame;
+        }
     }
     else if(!statusMessage.empty())
     {
-        int msglen = std::min((int)statusMessage.length(), screenCols);
+        if(commandLineMessagePrefix)
+            output += ": ";
+        int msglen =
+            std::min((int)statusMessage.length(),
+                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(statusMessage, 0, msglen);
+    }
+    else if(!locMessage.empty())
+    {
+        if(commandLineMessagePrefix)
+            output += ": ";
+        int msglen =
+            std::min((int)locMessage.length(),
+                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        output.append(locMessage, 0, msglen);
+    }
+    else
+    {
+        if(commandLineMessagePrefix)
+            output += ":";
     }
 
     drawCompletionPopup(output);

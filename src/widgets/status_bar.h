@@ -34,6 +34,7 @@ struct MessageBarView
     std::string_view searchQuery;
     int searchMatchIndex = 0;
     int searchMatchCount = 0;
+    bool commandLineMessagePrefix = false;
     bool showGitBlame = false;
     bool showGitBlameInfo = false;
     std::string_view blameLine;

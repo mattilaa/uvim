@@ -59,6 +59,8 @@ editor:
   autodetectlsps: true
   filebrowser:
     fuzzy: false
+  commandline:
+    messageprefix: false
   status:
     lspgap: 7
 \endcode
@@ -170,6 +172,9 @@ Boolean. Default: false. Enable fuzzy search in file browser.
 
 \par editor.status.lspgap
 Integer. Default: 7. Range: 0-20. Padding between LSP label and line/column.
+
+\par editor.commandline.messageprefix
+Boolean. Default: false. Show `: ` prefix before status/loc/blame messages.
 
 \section config_syntax Syntax highlighting
 

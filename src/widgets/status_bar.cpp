@@ -84,42 +84,48 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
     if(view.currentMode == COMMAND || view.currentMode == SEARCH_FORWARD ||
        view.currentMode == SEARCH_BACKWARD)
     {
-        output += view.commandBuffer;
-        if(view.currentMode == SEARCH_FORWARD ||
-           view.currentMode == SEARCH_BACKWARD)
-        {
-            if(view.searchMatchCount > 0)
-            {
-                output += " [" + std::to_string(view.searchMatchIndex + 1) +
-                          "/" + std::to_string(view.searchMatchCount) + "]";
-            }
-            else if(!view.searchQuery.empty())
-            {
-                output += " [No matches]";
-            }
-        }
+        std::string prompt = std::string(view.commandBuffer);
+        if(prompt.empty())
+            prompt = ":";
+        else if(prompt.front() != ':')
+            prompt.insert(prompt.begin(), ':');
+        output += prompt;
         return;
     }
 
     if(view.showGitBlame && view.showGitBlameInfo && !view.blameLine.empty())
     {
+        if(view.commandLineMessagePrefix)
+            output += ": ";
         output += "blame: " + std::string(view.blameLine);
         return;
     }
 
     if(!view.statusMessage.empty())
     {
+        if(view.commandLineMessagePrefix)
+            output += ": ";
         int msglen =
-            std::min((int)view.statusMessage.length(), view.screenCols);
+            std::min((int)view.statusMessage.length(),
+                     std::max(0, view.screenCols -
+                                      (view.commandLineMessagePrefix ? 2 : 0)));
         output.append(view.statusMessage, 0, msglen);
         return;
     }
 
     if(!view.locMessage.empty())
     {
+        if(view.commandLineMessagePrefix)
+            output += ": ";
         int msglen =
-            std::min((int)view.locMessage.length(), view.screenCols);
+            std::min((int)view.locMessage.length(),
+                     std::max(0, view.screenCols -
+                                      (view.commandLineMessagePrefix ? 2 : 0)));
         output.append(view.locMessage, 0, msglen);
+        return;
     }
+
+    if(view.commandLineMessagePrefix)
+        output += ":";
 }
 } // namespace widgets

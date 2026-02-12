@@ -393,6 +393,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set smartcase` or `:set scs` - Smart case search",
             "  `:set gdcenter`               - Center view after gd",
             "  `:set nogdcenter`             - Keep view steady after gd",
+            "  `:set nocommandline.messageprefix` - Hide ':' prefix for messages",
             "",
             "HELP:",
             "  `:help`           - Show this help",

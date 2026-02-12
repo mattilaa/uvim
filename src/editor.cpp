@@ -873,6 +873,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 {
                 }
             }
+            auto itcmp = values.find("editor.commandline.messageprefix");
+            if(itcmp == values.end())
+                itcmp = values.find("settings.commandline.messageprefix");
+            if(itcmp == values.end())
+                itcmp = values.find("commandline.messageprefix");
+            if(itcmp != values.end())
+            {
+                std::string v = itcmp->second;
+                if(v == "true" || v == "1" || v == "on")
+                    commandLineMessagePrefix = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    commandLineMessagePrefix = false;
+            }
             auto itadl = values.find("editor.autodetectlsps");
             if(itadl == values.end())
                 itadl = values.find("settings.autodetectlsps");
@@ -4619,7 +4632,10 @@ void Editor::updateCursorPosition()
        currentMode == SEARCH_BACKWARD)
     {
         cursorRow = screenRows + 2;
-        cursorCol = commandBuffer.length() + 1;
+        int promptLen = (commandBuffer.empty() || commandBuffer[0] != ':')
+                            ? (int)commandBuffer.length() + 1
+                            : (int)commandBuffer.length();
+        cursorCol = promptLen + 1;
     }
     else
     {
@@ -5403,6 +5419,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
         return true;
     }
+    if(opt == "commandline.messageprefix?")
+    {
+        setStatusMessage(std::string("commandline.messageprefix=") +
+                         (commandLineMessagePrefix ? "true" : "false"));
+        return true;
+    }
     if(opt == "formatonsave?")
     {
         setStatusMessage(std::string("formatonsave=") +
@@ -5744,6 +5766,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("filebrowser.fuzzy=false");
         return true;
     }
+    if(opt == "commandline.messageprefix")
+    {
+        commandLineMessagePrefix = true;
+        setStatusMessage("commandline.messageprefix=true");
+        return true;
+    }
+    if(opt == "nocommandline.messageprefix")
+    {
+        commandLineMessagePrefix = false;
+        setStatusMessage("commandline.messageprefix=false");
+        return true;
+    }
     if(opt == "formatonsave")
     {
         formatOnSave = true;
@@ -5858,6 +5892,26 @@ bool Editor::handleSetCommand(std::string_view cmd)
         catch(...)
         {
             setStatusMessage("status.lspgap: expected number");
+        }
+        return true;
+    }
+    if(opt.rfind("commandline.messageprefix=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("commandline.messageprefix=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            commandLineMessagePrefix = true;
+            setStatusMessage("commandline.messageprefix=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            commandLineMessagePrefix = false;
+            setStatusMessage("commandline.messageprefix=false");
+        }
+        else
+        {
+            setStatusMessage("commandline.messageprefix: expected true/false");
         }
         return true;
     }
@@ -10001,6 +10055,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set status.lspgap",
         "set status.lspgap?",
         "set status.lspgap=",
+        "set commandline.messageprefix",
+        "set nocommandline.messageprefix",
+        "set commandline.messageprefix?",
+        "set commandline.messageprefix=",
         "set formatondoubleesctimeoutms?",
         "set formatondoubleesctimeoutms=",
         "set gitdefaultcolors?",
