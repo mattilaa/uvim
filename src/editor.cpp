@@ -1,6 +1,6 @@
 #include "editor.h"
 #include "constants.h"
-#include "editor_helpers.h"
+#include "editor_utils.h"
 #include "enablelog.h"
 #include "formatter.h"
 #include "git_handler.h"
@@ -1185,8 +1185,7 @@ Editor Editor::createForTests(int rows, int cols)
     return Editor(TestTag{}, rows, cols);
 }
 
-void Editor::setModeStateMachineForTests(
-    std::unique_ptr<ModeStateMachine> sm)
+void Editor::setModeStateMachineForTests(std::unique_ptr<ModeStateMachine> sm)
 {
     modeStateMachine = std::move(sm);
 }
@@ -9883,18 +9882,28 @@ void Editor::drawCommandHistoryPopup(std::string& output) const
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
     std::vector<std::string> commands = {
-        "w",       "write",      "q",       "quit",     "q!",      "qa",
-        "qall",    "qa!",        "qall!",   "wq",       "x",       "qw",
-        "qw!",     "wa",         "wall",    "wa!",      "wqa",     "wqall",
-        "wqa!",    "wqall!",     "xa",      "e",        "edit",    "e%",
-        "edit%",   "new",        "vnew",    "bn",       "bnext",   "bp",
-        "bprev",   "bd",         "bdelete", "ls",       "buffers", "sp",
-        "split",   "vs",         "vsplit",  "vh",       "hs",      "hsplit",
-        "only",    "tabnew",     "tabc",    "tabclose", "set",     "syntax",
-        "noh",     "nohlsearch", "lspinfo", "emoji",    "em",      "help",
-        "h",       "cd",         "cdr",     "loc",      "loc!",    "loc%",
-        "loctotal", "git stage", "git log", "git diff", "git stash",
-        "git stash pop"};
+        "w",        "write",      "q",
+        "quit",     "q!",         "qa",
+        "qall",     "qa!",        "qall!",
+        "wq",       "x",          "qw",
+        "qw!",      "wa",         "wall",
+        "wa!",      "wqa",        "wqall",
+        "wqa!",     "wqall!",     "xa",
+        "e",        "edit",       "e%",
+        "edit%",    "new",        "vnew",
+        "bn",       "bnext",      "bp",
+        "bprev",    "bd",         "bdelete",
+        "ls",       "buffers",    "sp",
+        "split",    "vs",         "vsplit",
+        "vh",       "hs",         "hsplit",
+        "only",     "tabnew",     "tabc",
+        "tabclose", "set",        "syntax",
+        "noh",      "nohlsearch", "lspinfo",
+        "emoji",    "em",         "help",
+        "h",        "cd",         "cdr",
+        "loc",      "loc!",       "loc%",
+        "loctotal", "git stage",  "git log",
+        "git diff", "git stash",  "git stash pop"};
 
     std::vector<std::string> matches;
     for(const auto& cmd : commands)

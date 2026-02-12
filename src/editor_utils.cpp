@@ -1,4 +1,4 @@
-#include "editor_helpers.h"
+#include "editor_utils.h"
 
 #include "constants.h"
 #include "gitignore.h"
@@ -17,6 +17,7 @@
 
 namespace editor::helper
 {
+
 TokenType parse_token_type(std::string_view value, TokenType fallback)
 {
     std::string v = text_utils::ascii_lower(value);
@@ -340,11 +341,9 @@ int find_word_pos(std::string_view line, std::string_view word)
     size_t pos = line.find(word);
     while(pos != std::string_view::npos)
     {
-        bool leftOk = (pos == 0 ||
-                       !std::isalnum((unsigned char)line[pos - 1]));
-        bool rightOk =
-            (pos + word.size() >= line.size() ||
-             !std::isalnum((unsigned char)line[pos + word.size()]));
+        bool leftOk = (pos == 0 || !std::isalnum((unsigned char)line[pos - 1]));
+        bool rightOk = (pos + word.size() >= line.size() ||
+                        !std::isalnum((unsigned char)line[pos + word.size()]));
         if(leftOk && rightOk)
             return (int)pos;
         pos = line.find(word, pos + word.size());
@@ -390,8 +389,9 @@ bool js_ts_decl_line(std::string_view line, std::string_view symbol, int& outX)
             if(trimmed.empty())
                 return false;
             size_t i = 0;
-            while(i < trimmed.size() &&
-                  (std::isalnum((unsigned char)trimmed[i]) || trimmed[i] == '_'))
+            while(
+                i < trimmed.size() &&
+                (std::isalnum((unsigned char)trimmed[i]) || trimmed[i] == '_'))
                 ++i;
             if(i == 0)
                 return false;
@@ -485,9 +485,8 @@ bool load_tsconfig_paths(const std::filesystem::path& startDir,
                             {
                                 if(v.IsString())
                                 {
-                                    vals.emplace_back(
-                                        v.GetString(),
-                                        v.GetStringLength());
+                                    vals.emplace_back(v.GetString(),
+                                                      v.GetStringLength());
                                 }
                             }
                             if(!key.empty() && !vals.empty())
@@ -533,9 +532,8 @@ bool load_tsconfig_paths(const std::filesystem::path& startDir,
                             {
                                 if(v.IsString())
                                 {
-                                    vals.emplace_back(
-                                        v.GetString(),
-                                        v.GetStringLength());
+                                    vals.emplace_back(v.GetString(),
+                                                      v.GetStringLength());
                                 }
                             }
                             if(!key.empty() && !vals.empty())
@@ -555,8 +553,8 @@ bool load_tsconfig_paths(const std::filesystem::path& startDir,
     return false;
 }
 
-std::vector<std::string> expand_tsconfig_paths(
-    const TsConfigPaths& cfg, std::string_view module)
+std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
+                                               std::string_view module)
 {
     std::vector<std::string> out;
     for(const auto& entry : cfg.paths)
@@ -580,8 +578,7 @@ std::vector<std::string> expand_tsconfig_paths(
         if(!module.starts_with(prefix) || !module.ends_with(suffix))
             continue;
         std::string_view captured = module.substr(
-            prefix.size(),
-            module.size() - prefix.size() - suffix.size());
+            prefix.size(), module.size() - prefix.size() - suffix.size());
         for(const auto& target : entry.second)
         {
             size_t tgtStar = target.find('*');
@@ -641,9 +638,9 @@ bool extract_js_ts_module_specifier(std::string_view line,
     return true;
 }
 
-static void parse_js_ts_named_imports(
-    std::string_view list, const std::string& module,
-    std::unordered_map<std::string, std::string>& out)
+static void
+parse_js_ts_named_imports(std::string_view list, const std::string& module,
+                          std::unordered_map<std::string, std::string>& out)
 {
     list = trim_view(list);
     if(list.starts_with("type "))
@@ -660,10 +657,9 @@ static void parse_js_ts_named_imports(
             if(item.starts_with("type "))
                 item = trim_view(item.substr(5));
             size_t asPos = item.find(" as ");
-            std::string_view name =
-                (asPos == std::string_view::npos)
-                    ? item
-                    : trim_view(item.substr(asPos + 4));
+            std::string_view name = (asPos == std::string_view::npos)
+                                        ? item
+                                        : trim_view(item.substr(asPos + 4));
             if(!name.empty())
                 out.emplace(std::string(name), module);
         }
@@ -701,8 +697,8 @@ void collect_js_ts_imports(
                 size_t end = head.find('}');
                 if(end != std::string_view::npos)
                 {
-                    parse_js_ts_named_imports(
-                        head.substr(1, end - 1), moduleStr, symbolToModule);
+                    parse_js_ts_named_imports(head.substr(1, end - 1),
+                                              moduleStr, symbolToModule);
                 }
             }
             else if(head.starts_with("*"))
@@ -710,8 +706,7 @@ void collect_js_ts_imports(
                 size_t asPos = head.find(" as ");
                 if(asPos != std::string_view::npos)
                 {
-                    std::string_view name =
-                        trim_view(head.substr(asPos + 4));
+                    std::string_view name = trim_view(head.substr(asPos + 4));
                     if(!name.empty())
                         symbolToModule.emplace(std::string(name), moduleStr);
                 }
@@ -719,8 +714,7 @@ void collect_js_ts_imports(
             else if(!head.empty())
             {
                 size_t comma = head.find(',');
-                std::string_view defaultName =
-                    trim_view(head.substr(0, comma));
+                std::string_view defaultName = trim_view(head.substr(0, comma));
                 if(!defaultName.empty())
                     symbolToModule.emplace(std::string(defaultName), moduleStr);
                 if(comma != std::string_view::npos)
@@ -731,9 +725,9 @@ void collect_js_ts_imports(
                         size_t end = rest.find('}');
                         if(end != std::string_view::npos)
                         {
-                            parse_js_ts_named_imports(
-                                rest.substr(1, end - 1), moduleStr,
-                                symbolToModule);
+                            parse_js_ts_named_imports(rest.substr(1, end - 1),
+                                                      moduleStr,
+                                                      symbolToModule);
                         }
                     }
                     else if(rest.starts_with("*"))
@@ -764,8 +758,8 @@ void collect_js_ts_imports(
                 size_t end = head.find('}');
                 if(end != std::string_view::npos)
                 {
-                    parse_js_ts_named_imports(
-                        head.substr(1, end - 1), moduleStr, symbolToModule);
+                    parse_js_ts_named_imports(head.substr(1, end - 1),
+                                              moduleStr, symbolToModule);
                 }
             }
         }
@@ -847,8 +841,7 @@ std::string resolve_node_module(const std::string& fromFile,
         }
         if(!subpath.empty())
         {
-            std::string attempt =
-                resolve_js_ts_from_dir(base, "./" + subpath);
+            std::string attempt = resolve_js_ts_from_dir(base, "./" + subpath);
             if(!attempt.empty())
                 return attempt;
         }
@@ -941,8 +934,7 @@ std::string resolve_js_ts_module_path(const std::string& fromFile,
 
     std::filesystem::path base = std::filesystem::path(fromFile).parent_path();
     std::filesystem::path candidate =
-        (module.front() == '/') ? std::filesystem::path(module)
-                                : base / module;
+        (module.front() == '/') ? std::filesystem::path(module) : base / module;
 
     std::error_code ec;
     auto try_file = [&](const std::filesystem::path& path) -> std::string
@@ -965,7 +957,8 @@ std::string resolve_js_ts_module_path(const std::string& fromFile,
     {
         for(auto ext : kExts)
         {
-            std::string attempt = try_file(candidate.string() + std::string(ext));
+            std::string attempt =
+                try_file(candidate.string() + std::string(ext));
             if(!attempt.empty())
                 return attempt;
         }
@@ -1031,8 +1024,8 @@ std::string parse_ts_type_name(std::string_view text)
     return std::string(head);
 }
 
-std::string find_ts_type_for_identifier(
-    const std::vector<std::string>& lines, std::string_view ident, int startY)
+std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
+                                        std::string_view ident, int startY)
 {
     for(int y = startY; y >= 0; --y)
     {
@@ -1059,8 +1052,8 @@ std::string find_ts_type_for_identifier(
                 ++after;
                 while(after < line.size() && text_utils::is_space(line[after]))
                     ++after;
-                std::string type = parse_ts_type_name(
-                    std::string_view(line).substr(after));
+                std::string type =
+                    parse_ts_type_name(std::string_view(line).substr(after));
                 if(!type.empty())
                     return type;
             }
@@ -1102,7 +1095,8 @@ std::string infer_ts_type_from_array_method_line(
             std::string_view arrayName =
                 line.substr(nameStart, nameEnd - nameStart + 1);
             size_t argsStart = pos + needle.size();
-            while(argsStart < line.size() && text_utils::is_space(line[argsStart]))
+            while(argsStart < line.size() &&
+                  text_utils::is_space(line[argsStart]))
                 ++argsStart;
 
             std::string_view paramName;
@@ -1165,8 +1159,8 @@ bool find_ts_type_definition(const std::vector<std::string>& lines,
                         ++i;
                     if(i > nameStart)
                     {
-                        std::string_view name = line.substr(nameStart,
-                                                            i - nameStart);
+                        std::string_view name =
+                            line.substr(nameStart, i - nameStart);
                         if(name == typeName)
                         {
                             outY = (int)y;
@@ -1183,8 +1177,8 @@ bool find_ts_type_definition(const std::vector<std::string>& lines,
 }
 
 bool find_ts_member_in_type(const std::vector<std::string>& lines,
-                            int typeStartY, std::string_view member,
-                            int& outY, int& outX)
+                            int typeStartY, std::string_view member, int& outY,
+                            int& outX)
 {
     int depth = 0;
     bool sawOpen = false;
@@ -1279,8 +1273,8 @@ bool html_path_under_cursor(std::string_view line, int cursorX,
     return false;
 }
 
-std::vector<std::string> extract_html_stylesheets(
-    const std::vector<std::string>& lines)
+std::vector<std::string>
+extract_html_stylesheets(const std::vector<std::string>& lines)
 {
     std::vector<std::string> out;
     for(const auto& line : lines)
@@ -1311,8 +1305,7 @@ std::vector<std::string> extract_html_stylesheets(
 }
 
 bool find_css_selector_in_file(const std::string& path,
-                               std::string_view selector, int& outY,
-                               int& outX)
+                               std::string_view selector, int& outY, int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -1358,8 +1351,7 @@ bool css_import_path_under_cursor(std::string_view line, int cursorX,
 }
 
 bool find_robot_keyword_in_file(const std::string& path,
-                                std::string_view keyword, int& outY,
-                                int& outX)
+                                std::string_view keyword, int& outY, int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -1392,8 +1384,8 @@ bool find_robot_keyword_in_file(const std::string& path,
     return false;
 }
 
-bool find_python_def_in_file(const std::string& path,
-                             std::string_view symbol, int& outY, int& outX)
+bool find_python_def_in_file(const std::string& path, std::string_view symbol,
+                             int& outY, int& outX)
 {
     std::ifstream file(path);
     if(!file.is_open())
@@ -1421,7 +1413,6 @@ bool is_skip_dir(const std::filesystem::path& path)
     return name == ".git" || name == ".venv" || name == "build" ||
            name == "node_modules" || name == "dist" || name == "out";
 }
-
 
 bool locIsBinaryFile(const std::string& filepath)
 {
@@ -1508,18 +1499,20 @@ bool locIsTextFile(const std::string& filepath)
 LocCommentRules locCommentRulesForPath(std::string_view path)
 {
     LocCommentRules rules;
-    auto basenameView = [&]() -> std::string_view {
+    auto basenameView = [&]() -> std::string_view
+    {
         size_t slash = path.find_last_of("/\\");
         if(slash == std::string_view::npos)
             return path;
         return path.substr(slash + 1);
     };
-    auto lower_ascii = [](std::string_view text) {
+    auto lower_ascii = [](std::string_view text)
+    {
         std::string out;
         out.reserve(text.size());
         for(char c : text)
-            out.push_back(static_cast<char>(
-                std::tolower(static_cast<unsigned char>(c))));
+            out.push_back(
+                static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
         return out;
     };
     std::string baseLower = lower_ascii(basenameView());
@@ -1549,12 +1542,10 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
     bool isGo =
         constants::is_filetype<constants::no_pattern, constants::go_suffixes>(
             path);
-    bool isJs =
-        constants::is_filetype<constants::no_pattern,
-                               constants::javascript_suffixes>(path);
-    bool isTs =
-        constants::is_filetype<constants::no_pattern,
-                               constants::typescript_suffixes>(path);
+    bool isJs = constants::is_filetype<constants::no_pattern,
+                                       constants::javascript_suffixes>(path);
+    bool isTs = constants::is_filetype<constants::no_pattern,
+                                       constants::typescript_suffixes>(path);
     bool isCss =
         constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
             path);
@@ -1564,24 +1555,20 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
     bool isXml =
         constants::is_filetype<constants::no_pattern, constants::xml_suffixes>(
             path);
-    bool isPython =
-        constants::is_filetype<constants::no_pattern,
-                               constants::python_suffixes>(path);
-    bool isRobot =
-        constants::is_filetype<constants::no_pattern, constants::robot_suffixes>(
-            path);
+    bool isPython = constants::is_filetype<constants::no_pattern,
+                                           constants::python_suffixes>(path);
+    bool isRobot = constants::is_filetype<constants::no_pattern,
+                                          constants::robot_suffixes>(path);
     bool isYaml =
         constants::is_filetype<constants::no_pattern, constants::yaml_suffixes>(
             path);
     bool isToml =
         constants::is_filetype<constants::no_pattern, constants::toml_suffixes>(
             path);
-    bool isCMake =
-        constants::is_filetype<constants::cmake_prefixes,
-                               constants::cmake_suffixes>(path);
-    bool isShell =
-        constants::is_filetype<constants::no_pattern, constants::shell_suffixes>(
-            path);
+    bool isCMake = constants::is_filetype<constants::cmake_prefixes,
+                                          constants::cmake_suffixes>(path);
+    bool isShell = constants::is_filetype<constants::no_pattern,
+                                          constants::shell_suffixes>(path);
     bool isMarkup =
         constants::is_filetype<constants::no_pattern,
                                constants::markup_text_suffixes>(path);
@@ -1676,8 +1663,8 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
                 break;
             }
 
-            if(rules.hasBlock &&
-               view.compare(pos, rules.blockStart.size(), rules.blockStart) == 0)
+            if(rules.hasBlock && view.compare(pos, rules.blockStart.size(),
+                                              rules.blockStart) == 0)
             {
                 size_t end =
                     view.find(rules.blockEnd, pos + rules.blockStart.size());
@@ -1747,9 +1734,8 @@ int locCountInLines(const std::vector<std::string>& lines,
                 break;
             }
 
-            if(rules.hasBlock &&
-               view.compare(pos, rules.blockStart.size(), rules.blockStart) ==
-                   0)
+            if(rules.hasBlock && view.compare(pos, rules.blockStart.size(),
+                                              rules.blockStart) == 0)
             {
                 size_t end =
                     view.find(rules.blockEnd, pos + rules.blockStart.size());
@@ -1775,8 +1761,7 @@ int locCountInLines(const std::vector<std::string>& lines,
 }
 
 void collectLocFiles(const std::string& dir, int depth,
-                     const GitIgnore& gitignore,
-                     std::vector<std::string>& out)
+                     const GitIgnore& gitignore, std::vector<std::string>& out)
 {
     if(depth > 10)
         return;
@@ -1991,8 +1976,7 @@ static void collectRecursiveCompletion(const std::string& dir,
                                        const std::string& relBase,
                                        std::string_view prefix,
                                        std::vector<std::string>& relMatches,
-                                       int depth,
-                                       int& budget,
+                                       int depth, int& budget,
                                        const GitIgnore* gitignore)
 {
     if(depth > 8 || budget <= 0)
@@ -2048,8 +2032,7 @@ static void collectRecursiveCompletion(const std::string& dir,
         if(isDir)
         {
             collectRecursiveCompletion(
-                fullPath,
-                relBase.empty() ? name : relBase + "/" + name, prefix,
+                fullPath, relBase.empty() ? name : relBase + "/" + name, prefix,
                 relMatches, depth + 1, budget, gitignore);
             if(budget <= 0)
                 break;
@@ -2059,8 +2042,8 @@ static void collectRecursiveCompletion(const std::string& dir,
     closedir(d);
 }
 
-std::vector<std::string>
-getRecursivePathCompletions(std::string_view partial, bool respectGitignore)
+std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
+                                                     bool respectGitignore)
 {
     if(partial.empty())
         return getPathCompletions(partial);
@@ -2112,8 +2095,9 @@ getRecursivePathCompletions(std::string_view partial, bool respectGitignore)
                     if(home)
                         path = std::string(home) + path.substr(1);
                 }
-                std::string fullPath =
-                    (lastSlash != std::string::npos) ? path : (dirPath + "/" + path);
+                std::string fullPath = (lastSlash != std::string::npos)
+                                           ? path
+                                           : (dirPath + "/" + path);
                 struct stat st;
                 bool isDir = false;
                 if(stat(fullPath.c_str(), &st) == 0)
@@ -2230,4 +2214,5 @@ std::string longestCommonPrefix(const std::vector<std::string>& strings)
     }
     return prefix;
 }
+
 } // namespace editor::helper
