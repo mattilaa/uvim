@@ -1568,10 +1568,6 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     }
 
     std::vector<std::string> args = this->pythonLspArgs;
-    if(args.empty())
-    {
-        args.push_back("--stdio");
-    }
 
     pythonLspClient = std::make_unique<LspClient>();
     if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
@@ -3592,8 +3588,59 @@ void Editor::goToDefinition()
         }
 
         pythonLspClient->didChange(currentBuffer->filename, text, "python");
+        int lspX = *cursorX;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            auto is_sym = [](char ch) -> bool
+            {
+                unsigned char u = static_cast<unsigned char>(ch);
+                return std::isalnum(u) || ch == '_';
+            };
+
+            if(!line.empty())
+            {
+                if(lspX >= (int)line.size())
+                    lspX = (int)line.size() - 1;
+                if(lspX < 0)
+                    lspX = 0;
+
+                if(line[lspX] == '.' && lspX + 1 < (int)line.size() &&
+                   is_sym(line[lspX + 1]))
+                {
+                    lspX = lspX + 1;
+                }
+                else if(!is_sym(line[lspX]))
+                {
+                    if(lspX > 0 && is_sym(line[lspX - 1]))
+                        lspX = lspX - 1;
+                    else if(lspX + 1 < (int)line.size() &&
+                            is_sym(line[lspX + 1]))
+                        lspX = lspX + 1;
+                }
+            }
+        }
+
+        std::string_view lineForLsp;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+            lineForLsp = (*lines)[*cursorY];
+
         auto loc = pythonLspClient->definition(currentBuffer->filename,
-                                               *cursorY, *cursorX);
+                                               *cursorY, lspX, lineForLsp);
+        if(!loc)
+        {
+            // Some Python servers expose stdlib/type-stub targets via
+            // declaration when definition is unavailable.
+            loc =
+                pythonLspClient->declaration(currentBuffer->filename, *cursorY,
+                                             lspX, lineForLsp);
+        }
+        if(!loc)
+        {
+            // Additional fallback for servers that only provide type targets.
+            loc = pythonLspClient->typeDefinition(currentBuffer->filename,
+                                                  *cursorY, lspX, lineForLsp);
+        }
         if(loc)
         {
             pushJumpLocation();

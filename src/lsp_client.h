@@ -83,7 +83,14 @@ public:
 
     // Queries
     std::optional<Location> definition(const std::string& filePath, int line,
-                                       int characterUtf8ByteOffset);
+                                       int characterUtf8ByteOffset,
+                                       std::string_view lineText = {});
+    std::optional<Location> declaration(const std::string& filePath, int line,
+                                        int characterUtf8ByteOffset,
+                                        std::string_view lineText = {});
+    std::optional<Location> typeDefinition(const std::string& filePath, int line,
+                                           int characterUtf8ByteOffset,
+                                           std::string_view lineText = {});
 
     // Find all references to symbol at position
     // Returns list of locations where the symbol is used

@@ -900,8 +900,6 @@ struct EditorSettings
                 }
             }
 
-            if(args.empty())
-                args.push_back("--stdio");
             if(pyPath.find("pyright-langserver") != std::string::npos)
             {
                 bool hasStdio = false;

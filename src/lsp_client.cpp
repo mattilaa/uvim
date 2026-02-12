@@ -817,7 +817,7 @@ parseDefinitionResult(const ju::Value* result)
 
 std::optional<LspClient::Location>
 LspClient::definition(const std::string& filePath, int line,
-                      int characterUtf8ByteOffset)
+                      int characterUtf8ByteOffset, std::string_view lineText)
 {
     if(!running())
         return std::nullopt;
@@ -826,29 +826,34 @@ LspClient::definition(const std::string& filePath, int line,
 
     // LSP wants UTF-16 character offset; we only have a byte offset.
     // The caller should pass the byte index within the line.
-    std::string text = readFileAll(abs);
-    // If file isn't on disk (unsaved buffer), the caller should have sent
-    // didChange with the buffer text. For safety, use the current on-disk line
-    // to convert.
     int utf16ch = characterUtf8ByteOffset;
-    if(!text.empty())
+    if(!lineText.empty())
     {
-        // get the relevant line
-        int curLine = 0;
-        size_t start = 0;
-        for(size_t i = 0; i <= text.size(); ++i)
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                                    characterUtf8ByteOffset);
+    }
+    else
+    {
+        std::string text = readFileAll(abs);
+        // If file isn't on disk (unsaved buffer), caller should pass lineText.
+        if(!text.empty())
         {
-            if(i == text.size() || text[i] == '\n')
+            int curLine = 0;
+            size_t start = 0;
+            for(size_t i = 0; i <= text.size(); ++i)
             {
-                if(curLine == line)
+                if(i == text.size() || text[i] == '\n')
                 {
-                    std::string ln = text.substr(start, i - start);
-                    utf16ch = text_utils::utf8ByteOffsetToUtf16(
-                        ln, characterUtf8ByteOffset);
-                    break;
+                    if(curLine == line)
+                    {
+                        std::string ln = text.substr(start, i - start);
+                        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                            ln, characterUtf8ByteOffset);
+                        break;
+                    }
+                    curLine++;
+                    start = i + 1;
                 }
-                curLine++;
-                start = i + 1;
             }
         }
     }
@@ -868,6 +873,128 @@ LspClient::definition(const std::string& filePath, int line,
     if(!resp || !resp->IsObject())
         return std::nullopt;
 
+    if(ju::has(*resp, "error"))
+        return std::nullopt;
+
+    const ju::Value* result = ju::find(*resp, "result");
+    return parseDefinitionResult(result);
+}
+
+std::optional<LspClient::Location>
+LspClient::declaration(const std::string& filePath, int line,
+                       int characterUtf8ByteOffset, std::string_view lineText)
+{
+    if(!running())
+        return std::nullopt;
+
+    std::string abs = absPath(filePath);
+
+    int utf16ch = characterUtf8ByteOffset;
+    if(!lineText.empty())
+    {
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                                    characterUtf8ByteOffset);
+    }
+    else
+    {
+        std::string text = readFileAll(abs);
+        if(!text.empty())
+        {
+            int curLine = 0;
+            size_t start = 0;
+            for(size_t i = 0; i <= text.size(); ++i)
+            {
+                if(i == text.size() || text[i] == '\n')
+                {
+                    if(curLine == line)
+                    {
+                        std::string ln = text.substr(start, i - start);
+                        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                            ln, characterUtf8ByteOffset);
+                        break;
+                    }
+                    curLine++;
+                    start = i + 1;
+                }
+            }
+        }
+    }
+
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value pos(rapidjson::kObjectType);
+    pos.AddMember("line", line, alloc);
+    pos.AddMember("character", utf16ch, alloc);
+    params.AddMember("position", pos, alloc);
+
+    int id = impl->sendRequest("textDocument/declaration", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->IsObject())
+        return std::nullopt;
+    if(ju::has(*resp, "error"))
+        return std::nullopt;
+
+    const ju::Value* result = ju::find(*resp, "result");
+    return parseDefinitionResult(result);
+}
+
+std::optional<LspClient::Location>
+LspClient::typeDefinition(const std::string& filePath, int line,
+                          int characterUtf8ByteOffset, std::string_view lineText)
+{
+    if(!running())
+        return std::nullopt;
+
+    std::string abs = absPath(filePath);
+
+    int utf16ch = characterUtf8ByteOffset;
+    if(!lineText.empty())
+    {
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                                    characterUtf8ByteOffset);
+    }
+    else
+    {
+        std::string text = readFileAll(abs);
+        if(!text.empty())
+        {
+            int curLine = 0;
+            size_t start = 0;
+            for(size_t i = 0; i <= text.size(); ++i)
+            {
+                if(i == text.size() || text[i] == '\n')
+                {
+                    if(curLine == line)
+                    {
+                        std::string ln = text.substr(start, i - start);
+                        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                            ln, characterUtf8ByteOffset);
+                        break;
+                    }
+                    curLine++;
+                    start = i + 1;
+                }
+            }
+        }
+    }
+
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value pos(rapidjson::kObjectType);
+    pos.AddMember("line", line, alloc);
+    pos.AddMember("character", utf16ch, alloc);
+    params.AddMember("position", pos, alloc);
+
+    int id = impl->sendRequest("textDocument/typeDefinition", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->IsObject())
+        return std::nullopt;
     if(ju::has(*resp, "error"))
         return std::nullopt;
 
@@ -1688,7 +1815,19 @@ void LspClient::didChange(const std::string&, const std::string&,
 }
 void LspClient::didSave(const std::string&) {}
 std::optional<LspClient::Location> LspClient::definition(const std::string&,
-                                                         int, int)
+                                                         int, int, std::string_view)
+{
+    return std::nullopt;
+}
+
+std::optional<LspClient::Location> LspClient::declaration(const std::string&,
+                                                          int, int, std::string_view)
+{
+    return std::nullopt;
+}
+
+std::optional<LspClient::Location>
+LspClient::typeDefinition(const std::string&, int, int, std::string_view)
 {
     return std::nullopt;
 }
