@@ -819,8 +819,18 @@ void FileBrowserMode::draw(Editor& editor) const
         output += ":";
     }
 
-    editor.drawCommandHistoryPopup(output);
-    editor.drawCommandPopup(output);
+    bool suppressCommandPopups = false;
+    if(commandPrompt.isActive())
+    {
+        const std::string& input = commandPrompt.getInput();
+        suppressCommandPopups =
+            !input.empty() && (input[0] == '/' || input[0] == '?');
+    }
+    if(!suppressCommandPopups)
+    {
+        editor.drawCommandHistoryPopup(output);
+        editor.drawCommandPopup(output);
+    }
 
     if(commandPrompt.isActive())
     {
