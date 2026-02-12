@@ -49,18 +49,25 @@ public:
         // Always ignore .git directory
         addPattern(".git/", directory);
 
-        fs::path current = directory;
+        std::error_code ec;
+        fs::path current = fs::absolute(directory, ec);
+        if(ec || current.empty())
+        {
+            ec.clear();
+            current = directory;
+        }
+        current = current.lexically_normal();
         std::vector<fs::path> gitignoreFiles;
 
-        // Collect .gitignore files from current to root
-        while(!current.empty() && current.has_parent_path())
+        // Collect .gitignore files from current to root (inclusive).
+        while(!current.empty())
         {
             fs::path gitignorePath = current / ".gitignore";
-            std::error_code ec;
             if(fs::exists(gitignorePath, ec))
             {
                 gitignoreFiles.push_back(gitignorePath);
             }
+            ec.clear();
 
             fs::path parent = current.parent_path();
             if(parent == current)

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "gitignore.h"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <filesystem>
@@ -229,4 +230,27 @@ TEST(LocCountTest, CountsMarkdownLoc)
                "\n"
                "Some text.\n");
     EXPECT_EQ(Editor::testCountLocForFile(path.string()), 2);
+}
+
+TEST(LocCountTest, GitIgnoreLoadRecursiveWorksFromDotPath)
+{
+    auto root = make_temp_dir("uvim_gitignore_dot_");
+    write_file(root / ".gitignore", "ignored.txt\nbuild/\n");
+    write_file(root / "ignored.txt", "x\n");
+    write_file(root / "build" / "out.txt", "x\n");
+
+    std::error_code ec;
+    auto oldCwd = std::filesystem::current_path(ec);
+    ASSERT_FALSE(ec);
+    std::filesystem::current_path(root, ec);
+    ASSERT_FALSE(ec);
+
+    GitIgnore gitignore;
+    gitignore.loadRecursive(".");
+
+    EXPECT_TRUE(gitignore.isIgnored("ignored.txt", false));
+    EXPECT_TRUE(gitignore.isIgnored("build", true));
+
+    std::filesystem::current_path(oldCwd, ec);
+    ASSERT_FALSE(ec);
 }
