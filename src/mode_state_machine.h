@@ -354,6 +354,7 @@ struct CommandPrompt
 {
     bool isActive() const;
     const std::string& getInput() const;
+    void setInput(std::string value);
     bool handle(ModeContext& ctx, int key,
                 const std::function<std::optional<ModeState>(std::string_view)>&
                     execute,
@@ -550,6 +551,13 @@ struct FileBrowserMode
     bool filterActive = false;
     std::string filterQuery;
     std::vector<int> filterMatches;
+    std::vector<int> searchMatches;
+    std::string lastSearchPattern;
+    char lastSearchPrefix = 0;
+    int currentSearchMatch = -1;
+    std::vector<std::string> searchTabCandidates;
+    std::string searchTabSeed;
+    int searchTabIndex = -1;
     CommandPrompt commandPrompt;
 
     FileBrowserMode() = default;

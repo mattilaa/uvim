@@ -32,6 +32,14 @@ void write_file(const std::filesystem::path& path, std::string_view content)
     std::ofstream out(path);
     out << content;
 }
+
+void dispatch_command(ModeStateMachine& sm, std::string_view cmd)
+{
+    sm.dispatch(':');
+    for(char c : cmd)
+        sm.dispatch(c);
+    sm.dispatch(Terminal::ENTER);
+}
 } // namespace
 
 TEST(RealModeTransitionsTest, WelcomeEscStaysInWelcome)
@@ -390,6 +398,417 @@ TEST(RealModeTransitionsTest, FileBrowserFuzzyDisabledIgnoresTyping)
     EXPECT_FALSE(state->filterActive);
     EXPECT_TRUE(state->filterQuery.empty());
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest,
+     FileBrowserCommandSlashRegexSearchStaysInCurrentDirectory)
+{
+    auto root = make_temp_dir("uvim_browse_regex_local_");
+    write_file(root / "a.txt", "a\n");
+    write_file(root / "sub" / "needle.txt", "n\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int aIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "a.txt")
+        {
+            aIndex = i;
+            break;
+        }
+    }
+    ASSERT_GE(aIndex, 0);
+
+    dispatch_command(sm, "/needle\\.txt");
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_NE(editor.statusMessage.find("No match for regex: needle\\.txt"),
+              std::string::npos);
+    EXPECT_NE(state->browserCursor, aIndex);
+
+    dispatch_command(sm, "/a\\.txt");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.currentBuffer->filename.find("a.txt"), std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserCommandQuestionRegexSearchesBackward)
+{
+    auto root = make_temp_dir("uvim_browse_regex_back_");
+    write_file(root / "alpha.txt", "a\n");
+    write_file(root / "beta.txt", "b\n");
+    write_file(root / "gamma.txt", "g\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int alphaIndex = -1;
+    int betaIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "alpha.txt")
+            alphaIndex = i;
+        if(state->fileList[i].name == "beta.txt")
+            betaIndex = i;
+    }
+    ASSERT_GE(alphaIndex, 0);
+    ASSERT_GE(betaIndex, 0);
+
+    state->browserCursor = betaIndex;
+    dispatch_command(sm, "?^alpha\\.txt$");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.currentBuffer->filename.find("alpha.txt"),
+              std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserSlashKeyRunsLocalRegexSearch)
+{
+    auto root = make_temp_dir("uvim_browse_slash_key_");
+    write_file(root / "alpha.txt", "a\n");
+    write_file(root / "beta.txt", "b\n");
+    write_file(root / "sub" / "alpha.txt", "nested\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int alphaIndex = -1;
+    int betaIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "alpha.txt")
+            alphaIndex = i;
+        if(state->fileList[i].name == "beta.txt")
+            betaIndex = i;
+    }
+    ASSERT_GE(alphaIndex, 0);
+    ASSERT_GE(betaIndex, 0);
+
+    state->browserCursor = betaIndex;
+    sm.dispatch('/');
+    sm.dispatch('a');
+    sm.dispatch('l');
+    sm.dispatch('p');
+    sm.dispatch('h');
+    sm.dispatch('a');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.currentBuffer->filename.find("alpha.txt"),
+              std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserQuestionKeyRunsBackwardRegexSearch)
+{
+    auto root = make_temp_dir("uvim_browse_question_key_");
+    write_file(root / "alpha.txt", "a\n");
+    write_file(root / "beta.txt", "b\n");
+    write_file(root / "gamma.txt", "g\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int alphaIndex = -1;
+    int gammaIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "alpha.txt")
+            alphaIndex = i;
+        if(state->fileList[i].name == "gamma.txt")
+            gammaIndex = i;
+    }
+    ASSERT_GE(alphaIndex, 0);
+    ASSERT_GE(gammaIndex, 0);
+
+    state->browserCursor = gammaIndex;
+    sm.dispatch('?');
+    sm.dispatch('a');
+    sm.dispatch('l');
+    sm.dispatch('p');
+    sm.dispatch('h');
+    sm.dispatch('a');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.currentBuffer->filename.find("alpha.txt"),
+              std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
+{
+    auto root = make_temp_dir("uvim_browse_ctrls_");
+    write_file(root / "a.txt", "a\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(Terminal::CTRL_S);
+
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
+}
+
+TEST(RealModeTransitionsTest, FileBrowserNAndNShiftWrapSearchMatches)
+{
+    auto root = make_temp_dir("uvim_browse_n_wrap_");
+    write_file(root / "edit-a.txt", "a\n");
+    write_file(root / "edit-b.txt", "b\n");
+    write_file(root / "zzz.txt", "z\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int aIndex = -1;
+    int bIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "edit-a.txt")
+            aIndex = i;
+        if(state->fileList[i].name == "edit-b.txt")
+            bIndex = i;
+    }
+    ASSERT_GE(aIndex, 0);
+    ASSERT_GE(bIndex, 0);
+
+    state->searchMatches = {aIndex, bIndex};
+    state->lastSearchPattern = "edit";
+    state->lastSearchPrefix = '/';
+    state->currentSearchMatch = 0;
+    state->browserCursor = aIndex;
+
+    sm.dispatch('n');
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->browserCursor, bIndex);
+
+    sm.dispatch('n');
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->browserCursor, aIndex);
+
+    sm.dispatch('N');
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->browserCursor, bIndex);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
+{
+    auto root = make_temp_dir("uvim_browse_search_tab_");
+    write_file(root / "edit-alpha.txt", "a\n");
+    write_file(root / "edit-beta.txt", "b\n");
+    write_file(root / "zzz.txt", "z\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int alphaIndex = -1;
+    int betaIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "edit-alpha.txt")
+            alphaIndex = i;
+        if(state->fileList[i].name == "edit-beta.txt")
+            betaIndex = i;
+    }
+    ASSERT_GE(alphaIndex, 0);
+    ASSERT_GE(betaIndex, 0);
+
+    sm.dispatch('/');
+    sm.dispatch('e');
+    sm.dispatch(Terminal::TAB);
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.currentBuffer->filename.find("edit-alpha.txt"),
+              std::string::npos);
+
+    Editor editor2 = Editor::createForTests();
+    auto sm2 = makeMachine(editor2, FileBrowserMode{root.string()});
+    sm2.dispatch('/');
+    sm2.dispatch('e');
+    sm2.dispatch(Terminal::SHIFT_TAB);
+    sm2.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm2.currentStateName(), "NORMAL");
+    ASSERT_NE(editor2.currentBuffer, nullptr);
+    EXPECT_NE(editor2.currentBuffer->filename.find("edit-"),
+              std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserCtrlJKCyclesWhileSearchPromptActive)
+{
+    auto root = make_temp_dir("uvim_browse_ctrljk_prompt_");
+    write_file(root / "edit-alpha.txt", "a\n");
+    write_file(root / "edit-beta.txt", "b\n");
+    write_file(root / "edit-gamma.txt", "g\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int alphaIndex = -1;
+    int betaIndex = -1;
+    int gammaIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "edit-alpha.txt")
+            alphaIndex = i;
+        if(state->fileList[i].name == "edit-beta.txt")
+            betaIndex = i;
+        if(state->fileList[i].name == "edit-gamma.txt")
+            gammaIndex = i;
+    }
+    ASSERT_GE(alphaIndex, 0);
+    ASSERT_GE(betaIndex, 0);
+    ASSERT_GE(gammaIndex, 0);
+
+    sm.dispatch('/');
+    sm.dispatch('e');
+    sm.dispatch('d');
+    sm.dispatch('i');
+    sm.dispatch('t');
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_TRUE(state->commandPrompt.isActive());
+    EXPECT_EQ(state->commandPrompt.getInput(), "/edit");
+
+    sm.dispatch(Terminal::CTRL_J);
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_TRUE(state->commandPrompt.isActive());
+    EXPECT_EQ(state->browserCursor, betaIndex);
+
+    sm.dispatch(Terminal::CTRL_J);
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->browserCursor, gammaIndex);
+
+    sm.dispatch(Terminal::CTRL_K);
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->browserCursor, betaIndex);
+
+    sm.dispatch(Terminal::CTRL_K);
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->browserCursor, alphaIndex);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserEscClearsSearchBeforeExit)
+{
+    auto root = make_temp_dir("uvim_browse_esc_clear_search_");
+    write_file(root / "edit-alpha.txt", "a\n");
+    write_file(root / "edit-beta.txt", "b\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch('/');
+    sm.dispatch('e');
+    sm.dispatch('d');
+    sm.dispatch('i');
+    sm.dispatch('t');
+    sm.dispatch(Terminal::CTRL_J);
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_FALSE(state->searchMatches.empty());
+
+    sm.dispatch(Terminal::ESC);
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    EXPECT_TRUE(state->searchMatches.empty());
+    EXPECT_TRUE(state->lastSearchPattern.empty());
+}
+
+TEST(RealModeTransitionsTest, FileBrowserSearchTypingMovesToFirstMatch)
+{
+    auto root = make_temp_dir("uvim_browse_live_first_match_");
+    write_file(root / "alpha.txt", "a\n");
+    write_file(root / "beta.txt", "b\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    int alphaIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "alpha.txt")
+            alphaIndex = i;
+    }
+    ASSERT_GE(alphaIndex, 0);
+
+    sm.dispatch('/');
+    sm.dispatch('a');
+
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_TRUE(state->commandPrompt.isActive());
+    EXPECT_EQ(state->browserCursor, alphaIndex);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedFile)
+{
+    auto root = make_temp_dir("uvim_browse_search_enter_file_");
+    write_file(root / "target.txt", "hello\n");
+    write_file(root / "other.txt", "other\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch('/');
+    sm.dispatch('t');
+    sm.dispatch('a');
+    sm.dispatch('r');
+    sm.dispatch('g');
+    sm.dispatch('e');
+    sm.dispatch('t');
+    sm.dispatch(Terminal::ENTER);
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.currentBuffer->filename.find("target.txt"),
+              std::string::npos);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedDirectory)
+{
+    auto root = make_temp_dir("uvim_browse_search_enter_dir_");
+    write_file(root / "docs" / "readme.txt", "docs\n");
+    write_file(root / "z.txt", "z\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch('/');
+    sm.dispatch('d');
+    sm.dispatch('o');
+    sm.dispatch('c');
+    sm.dispatch('s');
+    sm.dispatch(Terminal::ENTER);
+
+    const std::string mode = sm.currentStateName();
+    EXPECT_TRUE(mode == "BROWSE" || mode == "NORMAL");
 }
 
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)

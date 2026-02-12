@@ -7,10 +7,12 @@
 #include <cctype>
 #include <cstdlib>
 #include <ctime>
-#include <unistd.h>
 #include <fstream>
 #include <iomanip>
+#include <regex>
 #include <sstream>
+#include <unistd.h>
+#include <vector>
 
 // ============================================================================
 // FileBrowserMode Implementation
@@ -50,12 +52,271 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 {
     int c = event.key;
 
+    auto clearSearchState = [&]()
+    {
+        searchMatches.clear();
+        lastSearchPattern.clear();
+        lastSearchPrefix = 0;
+        currentSearchMatch = -1;
+        ctx.setStatusMessage("");
+    };
+
+    const auto moveToVisibleCursor = [&]()
+    {
+        int visible = std::max(1, ctx.screenRows() - 4);
+        if(browserCursor < browserOffset)
+            browserOffset = browserCursor;
+        if(browserCursor >= browserOffset + visible)
+            browserOffset = browserCursor - visible + 1;
+    };
+
+    const auto collectRegexMatches =
+        [&](char prefix, const std::string& pattern) -> std::vector<int>
+    {
+        (void)prefix;
+        std::vector<int> matches;
+        std::regex re(pattern);
+        for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+        {
+            const auto& entry = fileList[i];
+            if(entry.name == "..")
+                continue;
+            if(std::regex_search(entry.name, re))
+                matches.push_back(i);
+        }
+        return matches;
+    };
+
+    auto resetSearchTabCompletion = [&]()
+    {
+        searchTabCandidates.clear();
+        searchTabSeed.clear();
+        searchTabIndex = -1;
+    };
+
+    auto searchTabComplete = [&](bool reverse) -> bool
+    {
+        if(!commandPrompt.isActive())
+            return false;
+        const std::string& input = commandPrompt.getInput();
+        if(input.empty() || (input[0] != '/' && input[0] != '?'))
+            return false;
+
+        const char prefix = input[0];
+        std::string currentPattern = input.substr(1);
+        std::string expectedInput;
+        if(searchTabIndex >= 0 &&
+           searchTabIndex < static_cast<int>(searchTabCandidates.size()))
+        {
+            expectedInput =
+                std::string(1, prefix) + searchTabCandidates[searchTabIndex];
+        }
+
+        bool needRebuild = searchTabCandidates.empty() ||
+                           expectedInput.empty() || input != expectedInput;
+        if(needRebuild)
+        {
+            searchTabSeed = currentPattern;
+            searchTabCandidates.clear();
+            searchTabIndex = -1;
+
+            auto lower = [](char ch) -> char
+            { return static_cast<char>(std::tolower((unsigned char)ch)); };
+            std::string needle = searchTabSeed;
+            std::transform(needle.begin(), needle.end(), needle.begin(), lower);
+
+            for(const auto& entry : fileList)
+            {
+                if(entry.name == "..")
+                    continue;
+                std::string name = entry.name;
+                std::string folded = name;
+                std::transform(folded.begin(), folded.end(), folded.begin(),
+                               lower);
+                if(needle.empty() || folded.find(needle) != std::string::npos)
+                {
+                    searchTabCandidates.push_back(std::move(name));
+                }
+            }
+            std::sort(searchTabCandidates.begin(), searchTabCandidates.end());
+            searchTabCandidates.erase(std::unique(searchTabCandidates.begin(),
+                                                  searchTabCandidates.end()),
+                                      searchTabCandidates.end());
+        }
+
+        if(searchTabCandidates.empty())
+            return true;
+
+        int count = static_cast<int>(searchTabCandidates.size());
+        if(searchTabIndex < 0 || searchTabIndex >= count)
+        {
+            searchTabIndex = reverse ? count - 1 : 0;
+        }
+        else
+        {
+            searchTabIndex = reverse ? (searchTabIndex - 1 + count) % count
+                                     : (searchTabIndex + 1) % count;
+        }
+
+        commandPrompt.setInput(std::string(1, prefix) +
+                               searchTabCandidates[searchTabIndex]);
+        ctx.requestFullRedraw();
+        return true;
+    };
+
+    if(commandPrompt.isActive())
+    {
+        const std::string& input = commandPrompt.getInput();
+        bool promptSearch =
+            !input.empty() && (input[0] == '/' || input[0] == '?');
+
+        if(promptSearch &&
+           (c == Terminal::CTRL_J || c == Terminal::CTRL_K ||
+            c == Terminal::ARROW_DOWN || c == Terminal::ARROW_UP))
+        {
+            char prefix = input[0];
+            std::string pattern = input.substr(1);
+            if(pattern.empty())
+            {
+                ctx.setStatusMessage("Usage: :/ <regex>");
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+
+            std::vector<int> matches;
+            try
+            {
+                matches = collectRegexMatches(prefix, pattern);
+            }
+            catch(const std::regex_error&)
+            {
+                ctx.setStatusMessage("Invalid regex: " + pattern);
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+
+            if(matches.empty())
+            {
+                ctx.setStatusMessage("No match for regex: " + pattern);
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+
+            bool sameSearch =
+                (lastSearchPattern == pattern && lastSearchPrefix == prefix &&
+                 !searchMatches.empty());
+            searchMatches = std::move(matches);
+            lastSearchPattern = pattern;
+            lastSearchPrefix = prefix;
+
+            if(!sameSearch || currentSearchMatch < 0 ||
+               currentSearchMatch >= static_cast<int>(searchMatches.size()))
+            {
+                currentSearchMatch = 0;
+            }
+            else
+            {
+                int count = static_cast<int>(searchMatches.size());
+                bool down =
+                    (c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN);
+                currentSearchMatch =
+                    down ? (currentSearchMatch + 1) % count
+                         : (currentSearchMatch - 1 + count) % count;
+            }
+
+            browserCursor = searchMatches[currentSearchMatch];
+            moveToVisibleCursor();
+            ctx.setStatusMessage("");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+
+        if(promptSearch && c == Terminal::ESC)
+        {
+            std::optional<ModeState> nextState;
+            (void)commandPrompt.handle(
+                ctx, c, [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); }, nextState);
+            clearSearchState();
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+    }
+
+    if(commandPrompt.isActive() && c != Terminal::TAB &&
+       c != Terminal::SHIFT_TAB)
+    {
+        resetSearchTabCompletion();
+    }
+    if(c == Terminal::TAB && searchTabComplete(false))
+        return std::nullopt;
+    if(c == Terminal::SHIFT_TAB && searchTabComplete(true))
+        return std::nullopt;
+
+    const auto syncPromptSearchToFirstMatch = [&]()
+    {
+        if(!commandPrompt.isActive())
+            return;
+        const std::string& input = commandPrompt.getInput();
+        if(input.empty() || (input[0] != '/' && input[0] != '?'))
+            return;
+
+        const char prefix = input[0];
+        const std::string pattern = input.substr(1);
+        if(pattern.empty())
+        {
+            clearSearchState();
+            return;
+        }
+
+        std::vector<int> matches;
+        try
+        {
+            matches = collectRegexMatches(prefix, pattern);
+        }
+        catch(const std::regex_error&)
+        {
+            clearSearchState();
+            return;
+        }
+        if(matches.empty())
+        {
+            clearSearchState();
+            return;
+        }
+
+        searchMatches = std::move(matches);
+        lastSearchPattern = pattern;
+        lastSearchPrefix = prefix;
+        currentSearchMatch = 0;
+        browserCursor = searchMatches[currentSearchMatch];
+        moveToVisibleCursor();
+    };
+
     std::optional<ModeState> nextState;
     if(commandPrompt.handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
+        syncPromptSearchToFirstMatch();
         return nextState;
+    }
+
+    // Shortcut: start command prompt prefilled with local regex search.
+    if(!commandPrompt.isActive() && (c == '/' || c == '?'))
+    {
+        if(commandPrompt.handle(
+               ctx, ':', [&](std::string_view commandLine)
+               { return executeCommand(ctx, commandLine); }, nextState))
+        {
+            if(commandPrompt.handle(
+                   ctx, c, [&](std::string_view commandLine)
+                   { return executeCommand(ctx, commandLine); }, nextState))
+            {
+                return nextState;
+            }
+        }
+        return std::nullopt;
     }
 
     if(!ctx.editor->fileBrowserFuzzy && filterActive)
@@ -63,6 +324,44 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         filterActive = false;
         filterQuery.clear();
         filterMatches.clear();
+    }
+
+    if(c == Terminal::ESC && !searchMatches.empty())
+    {
+        clearSearchState();
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
+    if(c == 'n' || c == 'N')
+    {
+        if(searchMatches.empty())
+        {
+            ctx.setStatusMessage("No active search");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+
+        bool forward = (c == 'n');
+        if(currentSearchMatch < 0 ||
+           currentSearchMatch >= static_cast<int>(searchMatches.size()))
+        {
+            currentSearchMatch = 0;
+        }
+        else
+        {
+            int count = static_cast<int>(searchMatches.size());
+            if(forward)
+                currentSearchMatch = (currentSearchMatch + 1) % count;
+            else
+                currentSearchMatch = (currentSearchMatch - 1 + count) % count;
+        }
+
+        browserCursor = searchMatches[currentSearchMatch];
+        moveToVisibleCursor();
+
+        ctx.requestFullRedraw();
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -263,7 +562,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         return BufferBrowserMode{};
     }
-    else if(c == Terminal::CTRL_S || c == '/')
+    else if(c == Terminal::CTRL_S)
     {
         return GrepSearchMode{};
     }
@@ -321,6 +620,43 @@ void FileBrowserMode::draw(Editor& editor) const
         "[:cmd]";
     output += editor.theme.baseFg();
 
+    std::vector<char> searchHit(fileList.size(), 0);
+    bool hasLiveSearch = false;
+    bool hasCommittedSearch =
+        !searchMatches.empty() && !lastSearchPattern.empty();
+    if(commandPrompt.isActive())
+    {
+        const std::string& input = commandPrompt.getInput();
+        if(input.size() > 1 && (input[0] == '/' || input[0] == '?'))
+        {
+            try
+            {
+                std::regex re(input.substr(1));
+                hasLiveSearch = true;
+                for(size_t i = 0; i < fileList.size(); ++i)
+                {
+                    const auto& entry = fileList[i];
+                    if(entry.name == "..")
+                        continue;
+                    if(std::regex_search(entry.name, re))
+                        searchHit[i] = 1;
+                }
+            }
+            catch(const std::regex_error&)
+            {
+            }
+        }
+    }
+    if(!hasLiveSearch && hasCommittedSearch)
+    {
+        for(int idx : searchMatches)
+        {
+            if(idx >= 0 && idx < static_cast<int>(searchHit.size()))
+                searchHit[idx] = 1;
+        }
+    }
+    bool searchVisualActive = hasLiveSearch || hasCommittedSearch;
+
     int availableRows = editor.screenRows - 2;
 
     int count = listSize();
@@ -336,7 +672,30 @@ void FileBrowserMode::draw(Editor& editor) const
 
         if(index == browserCursor)
         {
-            output += editor.theme.selection();
+            output += std::string(Terminal::ESC_DIM) +
+                      (searchVisualActive ? editor.theme.searchMatch()
+                                          : editor.theme.selection());
+        }
+        else if(searchVisualActive)
+        {
+            int mappedIndex = index;
+            if(filterActive)
+            {
+                if(index < 0 || index >= static_cast<int>(filterMatches.size()))
+                    mappedIndex = -1;
+                else
+                    mappedIndex = filterMatches[index];
+            }
+            if(mappedIndex >= 0 &&
+               mappedIndex < static_cast<int>(searchHit.size()) &&
+               searchHit[mappedIndex])
+            {
+                if(searchVisualActive)
+                    output += std::string(Terminal::ESC_DIM) +
+                              editor.theme.selection();
+                else
+                    output += editor.theme.baseFg();
+            }
         }
 
         output += "  ";
@@ -404,10 +763,17 @@ void FileBrowserMode::draw(Editor& editor) const
         status += " [H]";
     if(filterActive)
         status += " [/]";
+    if(!lastSearchPattern.empty() && !searchMatches.empty() &&
+       currentSearchMatch >= 0 &&
+       currentSearchMatch < static_cast<int>(searchMatches.size()))
+    {
+        status += " [" + std::to_string(currentSearchMatch + 1) + "/" +
+                  std::to_string(searchMatches.size()) + "]";
+    }
     status += " | " + currentDirectory;
-    std::string right =
-        " " + std::to_string(std::min(browserCursor + 1, count)) + "/" +
-        std::to_string(count) + " ";
+    std::string right = " " +
+                        std::to_string(std::min(browserCursor + 1, count)) +
+                        "/" + std::to_string(count) + " ";
 
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
@@ -431,14 +797,26 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     else if(!editor.statusMessage.empty())
     {
+        output += editor.theme.baseFg();
+        output += ": ";
+        size_t maxLen =
+            editor.screenCols > 2 ? (size_t)editor.screenCols - 2 : 0;
         output += editor.statusMessage.substr(
-            0,
-            std::min((size_t)editor.screenCols, editor.statusMessage.length()));
+            0, std::min(maxLen, editor.statusMessage.length()));
     }
     else if(!editor.locMessage.empty())
     {
+        output += editor.theme.baseFg();
+        output += ": ";
+        size_t maxLen =
+            editor.screenCols > 2 ? (size_t)editor.screenCols - 2 : 0;
         output += editor.locMessage.substr(
-            0, std::min((size_t)editor.screenCols, editor.locMessage.length()));
+            0, std::min(maxLen, editor.locMessage.length()));
+    }
+    else
+    {
+        output += editor.theme.baseFg();
+        output += ":";
     }
 
     editor.drawCommandHistoryPopup(output);
@@ -520,6 +898,13 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
                                     const std::string& pathStr)
 {
     fileList.clear();
+    searchMatches.clear();
+    lastSearchPattern.clear();
+    lastSearchPrefix = 0;
+    currentSearchMatch = -1;
+    searchTabCandidates.clear();
+    searchTabSeed.clear();
+    searchTabIndex = -1;
 
     std::filesystem::path dirPath = pathStr.empty()
                                         ? std::filesystem::path{"."}
@@ -702,8 +1087,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
                      {
                          if(a.second != b.second)
                              return a.second > b.second;
-                         return fileList[a.first].name <
-                                fileList[b.first].name;
+                         return fileList[a.first].name < fileList[b.first].name;
                      });
 
     if(parentIndex >= 0)
@@ -786,6 +1170,146 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         {
             const std::string& cmd = command.cmd;
             const std::string& args = command.args;
+
+            const auto runRegexSearch = [&](char prefix, bool backward) -> bool
+            {
+                if(cmd.empty() || cmd[0] != prefix)
+                    return false;
+
+                std::string pattern = cmd.substr(1);
+                if(!args.empty())
+                {
+                    if(!pattern.empty())
+                        pattern.push_back(' ');
+                    pattern += args;
+                }
+                if(pattern.empty())
+                {
+                    ctx.setStatusMessage(prefix == '/' ? "Usage: :/ <regex>"
+                                                       : "Usage: :? <regex>");
+                    return true;
+                }
+
+                std::regex re;
+                try
+                {
+                    re = std::regex(pattern);
+                }
+                catch(const std::regex_error&)
+                {
+                    ctx.setStatusMessage("Invalid regex: " + pattern);
+                    return true;
+                }
+
+                if(fileList.empty())
+                {
+                    ctx.setStatusMessage("No entries to search");
+                    return true;
+                }
+
+                int startIndex = browserCursor;
+                if(filterActive)
+                {
+                    if(browserCursor >= 0 &&
+                       browserCursor < static_cast<int>(filterMatches.size()))
+                    {
+                        startIndex = filterMatches[browserCursor];
+                    }
+                    filterActive = false;
+                    filterQuery.clear();
+                    filterMatches.clear();
+                }
+                startIndex = std::max(
+                    0, std::min(startIndex,
+                                static_cast<int>(fileList.size()) - 1));
+
+                const int count = static_cast<int>(fileList.size());
+                std::vector<int> matches;
+                matches.reserve(count);
+                for(int i = 0; i < count; ++i)
+                {
+                    const auto& entry = fileList[i];
+                    if(entry.name == "..")
+                        continue;
+                    if(std::regex_search(entry.name, re))
+                    {
+                        matches.push_back(i);
+                    }
+                }
+
+                if(matches.empty())
+                {
+                    searchMatches.clear();
+                    lastSearchPattern.clear();
+                    lastSearchPrefix = 0;
+                    currentSearchMatch = -1;
+                    ctx.setStatusMessage("No match for regex: " + pattern);
+                    return true;
+                }
+
+                int matchPos = -1;
+                if(backward)
+                {
+                    for(int i = static_cast<int>(matches.size()) - 1; i >= 0;
+                        --i)
+                    {
+                        if(matches[i] <= startIndex)
+                        {
+                            matchPos = i;
+                            break;
+                        }
+                    }
+                    if(matchPos < 0)
+                        matchPos = static_cast<int>(matches.size()) - 1;
+                }
+                else
+                {
+                    for(int i = 0; i < static_cast<int>(matches.size()); ++i)
+                    {
+                        if(matches[i] >= startIndex)
+                        {
+                            matchPos = i;
+                            break;
+                        }
+                    }
+                    if(matchPos < 0)
+                        matchPos = 0;
+                }
+
+                searchMatches = std::move(matches);
+                lastSearchPattern = pattern;
+                lastSearchPrefix = prefix;
+                currentSearchMatch = matchPos;
+                browserCursor = searchMatches[currentSearchMatch];
+                int visible = std::max(1, ctx.screenRows() - 4);
+                if(browserCursor < browserOffset)
+                    browserOffset = browserCursor;
+                if(browserCursor >= browserOffset + visible)
+                    browserOffset = browserCursor - visible + 1;
+
+                const FileEntry* currentEntry = entryAt(browserCursor);
+                if(!currentEntry)
+                    return true;
+                if(currentEntry->isDirectory)
+                {
+                    loadDirectory(ctx, currentEntry->path);
+                    browserCursor = 0;
+                    browserOffset = 0;
+                    return true;
+                }
+                ctx.openFile(std::string_view(currentEntry->path));
+                nextState = ctx.hasBuffer() ? std::optional<ModeState>(
+                                                  ModeState{NormalMode{}})
+                                            : std::optional<ModeState>(
+                                                  ModeState{WelcomeMode{}});
+
+                return true;
+            };
+
+            if(runRegexSearch('/', false))
+                return true;
+            if(runRegexSearch('?', true))
+                return true;
 
             // =================================================================
             // Quit commands - exit file browser mode
@@ -1044,15 +1568,14 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             {
                 ctx.setStatusMessage(
                     ":q :help <topic> :d[elete] :r[ename] <name> "
-                    ":mkdir <name> :touch <name> :cd :cdr "
+                    ":mkdir <name> :touch <name> :cd :cdr :/re :?re "
                     "<path>");
                 return true;
             }
 
             return false;
         },
-        [&](ModeContext& ctx,
-            std::string_view line) -> std::optional<ModeState>
+        [&](ModeContext& ctx, std::string_view line) -> std::optional<ModeState>
         {
             auto next = dispatchEditorCommand(ctx, line, previousFile, false);
             if(next && std::holds_alternative<LocListMode>(*next))

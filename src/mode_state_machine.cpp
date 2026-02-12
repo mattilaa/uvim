@@ -1148,6 +1148,14 @@ const std::string& CommandPrompt::getInput() const
     return input;
 }
 
+void CommandPrompt::setInput(std::string value)
+{
+    input = std::move(value);
+    completions.clear();
+    completionIndex = -1;
+    originalInput.clear();
+}
+
 bool CommandPrompt::handle(
     ModeContext& ctx, int key,
     const std::function<std::optional<ModeState>(std::string_view)>& execute,
