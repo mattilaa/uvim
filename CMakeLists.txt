@@ -1,7 +1,30 @@
 cmake_minimum_required(VERSION 3.14)
 set(UVIM_VERSION_MAJOR 0)
 set(UVIM_VERSION_MINOR 1)
+option(UVIM_AUTO_INCREMENT_BUILD "Auto-increment build number on each CMake configure" ON)
 set(UVIM_VERSION_BUILD 0 CACHE STRING "Build number")
+set(UVIM_BUILD_NUMBER_FILE "${CMAKE_BINARY_DIR}/.uvim_build_number" CACHE FILEPATH
+    "Path to persisted auto-increment build number")
+
+if(UVIM_AUTO_INCREMENT_BUILD)
+    set(_uvim_seed "${UVIM_VERSION_BUILD}")
+    if(EXISTS "${UVIM_BUILD_NUMBER_FILE}")
+        file(READ "${UVIM_BUILD_NUMBER_FILE}" _uvim_build_raw)
+        string(STRIP "${_uvim_build_raw}" _uvim_build_raw)
+        if(_uvim_build_raw MATCHES "^[0-9]+$")
+            set(_uvim_seed "${_uvim_build_raw}")
+        endif()
+    endif()
+
+    if(NOT _uvim_seed MATCHES "^[0-9]+$")
+        set(_uvim_seed 0)
+    endif()
+
+    math(EXPR UVIM_VERSION_BUILD "${_uvim_seed} + 1")
+    set(UVIM_VERSION_BUILD "${UVIM_VERSION_BUILD}" CACHE STRING "Build number" FORCE)
+    file(WRITE "${UVIM_BUILD_NUMBER_FILE}" "${UVIM_VERSION_BUILD}\n")
+endif()
+
 project(uvim VERSION ${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}.${UVIM_VERSION_BUILD})
 
 set(CMAKE_CXX_STANDARD 20)
