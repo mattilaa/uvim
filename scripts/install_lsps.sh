@@ -8,7 +8,7 @@ Usage: ./scripts/install_lsps.sh [options]
 Install language servers used by uvim.
 
 Options:
-  --all            Install all supported LSPs (git+https + pip)
+  --all            Install all supported LSPs (npm + pip + clangd)
   --clangd         Install clangd (brew/apt/pacman)
   --html           Install vscode-html-language-server (npm)
   --css            Install vscode-css-language-server (npm)
@@ -78,11 +78,11 @@ npm_pkgs=()
 pip_pkgs=()
 
 if $want_html || $want_css || $want_json; then
-  npm_pkgs+=("git+https://github.com/hrsh7th/vscode-langservers-extracted.git")
+  npm_pkgs+=("vscode-langservers-extracted")
 fi
 if $want_ts; then
-  npm_pkgs+=("git+https://github.com/typescript-language-server/typescript-language-server.git")
-  npm_pkgs+=("git+https://github.com/microsoft/TypeScript.git")
+  npm_pkgs+=("typescript-language-server")
+  npm_pkgs+=("typescript")
 fi
 
 if $want_robot; then
