@@ -473,13 +473,20 @@ void GitHandler::openGitDiffMode()
 
 std::vector<std::string> GitHandler::loadGitShowLines(const std::string& hash)
 {
-    if(!editor->currentBuffer || editor->currentBuffer->filename.empty())
-        return {};
-    fs::path path(editor->currentBuffer->filename);
-    std::string dir =
-        path.has_parent_path() ? path.parent_path().string() : std::string(".");
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        // Fallback to current buffer directory for non-standard layouts.
+        if(!editor->currentBuffer || editor->currentBuffer->filename.empty())
+            return {};
+        fs::path path(editor->currentBuffer->filename);
+        repoRoot = path.has_parent_path() ? path.parent_path().string()
+                                          : std::string(".");
+    }
+
     std::string cmd =
-        "git -C \"" + dir + "\" --no-pager show " +
+        "git -C \"" + repoRoot + "\" --no-pager show " +
         std::string(editor->gitUseDefaultColors ? "--color=always "
                                                 : "--no-color ") +
         hash + " 2>/dev/null";
