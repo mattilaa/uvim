@@ -26,6 +26,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
                                           const KeyEvent& event)
 {
     int c = event.key;
+    bool needsRedraw = false;
 
     std::optional<ModeState> nextState;
     if(commandPrompt.handle(
@@ -61,6 +62,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         if(scrollOffset < maxScroll)
         {
             scrollOffset++;
+            needsRedraw = true;
         }
     }
     else if(c == 'k' || c == Terminal::ARROW_UP)
@@ -68,42 +70,64 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         if(scrollOffset > 0)
         {
             scrollOffset--;
+            needsRedraw = true;
         }
     }
     else if(c == 'G')
     {
-        scrollOffset = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+        int newOffset =
+            std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+        if(newOffset != scrollOffset)
+        {
+            scrollOffset = newOffset;
+            needsRedraw = true;
+        }
     }
     else if(c == 'g')
     {
         int nextChar = Terminal::readKey();
         if(nextChar == 'g')
         {
-            scrollOffset = 0;
+            if(scrollOffset != 0)
+            {
+                scrollOffset = 0;
+                needsRedraw = true;
+            }
         }
     }
     else if(c == Terminal::CTRL_D)
     {
         int half = (ctx.screenRows() - 3) / 2;
+        int oldOffset = scrollOffset;
         scrollOffset += half;
         int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
         if(scrollOffset > maxScroll)
             scrollOffset = maxScroll;
+        if(scrollOffset != oldOffset)
+            needsRedraw = true;
     }
     else if(c == Terminal::CTRL_U)
     {
         int half = (ctx.screenRows() - 3) / 2;
+        int oldOffset = scrollOffset;
         scrollOffset -= half;
         if(scrollOffset < 0)
             scrollOffset = 0;
+        if(scrollOffset != oldOffset)
+            needsRedraw = true;
     }
 
-    ctx.requestFullRedraw();
+    if(needsRedraw)
+        ctx.requestFullRedraw();
     return std::nullopt;
 }
 
 void HelpMode::draw(Editor& editor) const
 {
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
@@ -274,6 +298,8 @@ void HelpMode::draw(Editor& editor) const
     }
 
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 

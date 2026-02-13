@@ -12,38 +12,25 @@ void drawCommandHistoryPopup(std::string& output,
 {
     output += view.theme.baseFg();
 
-    int rows = 0;
-    if(view.matches.empty())
-    {
-        rows = 1;
-    }
-    else
-    {
-        rows = std::min(8, (int)view.matches.size());
-    }
-
+    int rows = std::min(8, std::max(1, view.screenRows - 2));
     if(rows <= 0)
         return;
 
     int maxContent = 0;
-    if(view.matches.empty())
+    if(!view.history.empty())
     {
-        maxContent = text_utils::displayWidth("No matches");
+        for(const auto& entry : view.history)
+            maxContent = std::max(maxContent, text_utils::displayWidth(entry));
     }
     else
     {
-        for(int i = 0; i < rows; ++i)
-        {
-            int idx = view.matches[i + view.offset];
-            if(idx >= 0 && idx < (int)view.history.size())
-            {
-                maxContent = std::max(
-                    maxContent, text_utils::displayWidth(view.history[idx]));
-            }
-        }
+        maxContent = text_utils::displayWidth("No matches");
     }
 
-    int innerW = std::max(12, maxContent);
+    if(maxContent <= 0)
+        maxContent = text_utils::displayWidth("No matches");
+
+    int innerW = std::max(24, maxContent);
     int totalW = innerW + 4;
     if(totalW > view.screenCols)
     {
@@ -72,21 +59,27 @@ void drawCommandHistoryPopup(std::string& output,
         output += "| ";
 
         std::string line;
-        if(view.matches.empty())
+        if(view.matches.empty() && i == 0)
         {
             line = "No matches";
         }
-        else
+        else if(!view.matches.empty())
         {
-            int idx = view.matches[i + view.offset];
-            if(idx >= 0 && idx < (int)view.history.size())
-                line = view.history[idx];
+            int visibleIndex = i + view.offset;
+            if(visibleIndex >= 0 && visibleIndex < (int)view.matches.size())
+            {
+                int idx = view.matches[visibleIndex];
+                if(idx >= 0 && idx < (int)view.history.size())
+                    line = view.history[idx];
+            }
         }
 
         if((int)line.length() > innerW)
             line = line.substr(0, innerW - 3) + "...";
 
-        if(!view.matches.empty() && (i + view.offset) == view.cursor)
+        if(!view.matches.empty() &&
+           (i + view.offset) < (int)view.matches.size() &&
+           (i + view.offset) == view.cursor)
         {
             output += view.theme.selection();
             output.append(line);

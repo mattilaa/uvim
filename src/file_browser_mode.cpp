@@ -851,7 +851,12 @@ void FileBrowserMode::draw(Editor& editor) const
         output += Terminal::ESC_HIDE_CURSOR;
     }
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 

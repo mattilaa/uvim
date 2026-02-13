@@ -12,33 +12,24 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 {
     output += view.theme.baseFg();
 
-    int rows = 0;
-    if(view.filtered.empty())
-        rows = 1;
-    else
-        rows = std::min(8, (int)view.filtered.size());
+    int rows = std::min(8, std::max(1, view.screenRows - 2));
     if(rows <= 0)
         return;
 
     int maxContent = 0;
-    if(view.filtered.empty())
+    if(!view.entries.empty())
     {
-        maxContent = text_utils::displayWidth("No matches");
+        for(const auto& entry : view.entries)
+            maxContent = std::max(maxContent, text_utils::displayWidth(entry));
     }
     else
     {
-        for(int i = 0; i < rows; ++i)
-        {
-            int idx = view.filtered[i + view.offset];
-            if(idx >= 0 && idx < (int)view.entries.size())
-            {
-                maxContent = std::max(
-                    maxContent, text_utils::displayWidth(view.entries[idx]));
-            }
-        }
+        maxContent = text_utils::displayWidth("No matches");
     }
+    if(maxContent <= 0)
+        maxContent = text_utils::displayWidth("No matches");
 
-    int innerW = std::max(10, maxContent);
+    int innerW = std::max(24, maxContent);
     int totalW = innerW + 4;
     if(totalW > view.screenCols)
     {
@@ -67,21 +58,27 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         text_utils::appendU8(output, u8"│ ");
 
         std::string line;
-        if(view.filtered.empty())
+        if(view.filtered.empty() && i == 0)
         {
             line = "No matches";
         }
-        else
+        else if(!view.filtered.empty())
         {
-            int idx = view.filtered[i + view.offset];
-            if(idx >= 0 && idx < (int)view.entries.size())
-                line = view.entries[idx];
+            int visibleIndex = i + view.offset;
+            if(visibleIndex >= 0 && visibleIndex < (int)view.filtered.size())
+            {
+                int idx = view.filtered[visibleIndex];
+                if(idx >= 0 && idx < (int)view.entries.size())
+                    line = view.entries[idx];
+            }
         }
 
         if((int)line.length() > innerW)
             line = line.substr(0, innerW - 3) + "...";
 
-        if(!view.filtered.empty() && (i + view.offset) == view.cursor)
+        if(!view.filtered.empty() &&
+           (i + view.offset) < (int)view.filtered.size() &&
+           (i + view.offset) == view.cursor)
         {
             output += view.theme.selection();
             output.append(line);

@@ -4496,6 +4496,8 @@ void Editor::refreshScreen()
 
     if(currentMode == HELP)
     {
+        if(!needsFullRedraw)
+            return;
         if(modeStateMachine)
         {
             if(auto* state = modeStateMachine->getState<HelpMode>())
@@ -4637,28 +4639,58 @@ void Editor::refreshScreen()
         lastVisualEndY = -1;
     }
 
-    bool isEditingMode =
-        (currentMode == INSERT || currentMode == REPLACE ||
-         currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+    bool isBufferEditingMode =
+        (currentMode == INSERT || currentMode == REPLACE);
+    bool isCommandLikeMode =
+        (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
          currentMode == SEARCH_BACKWARD);
+    bool commandOverlayStable =
+        isCommandLikeMode && !modeChanged && scrollDelta == 0 &&
+        *offsetX == lastOffsetX && !visualChanged;
 
-    if(modeChanged || needsFullRedraw || *offsetX != lastOffsetX ||
+    if(modeChanged || (needsFullRedraw && !commandOverlayStable) ||
+       *offsetX != lastOffsetX ||
        abs(scrollDelta) > screenRows / 2 || visualChanged ||
        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
         currentMode == VISUAL_BLOCK) ||
-       isEditingMode || (showRelativeLineNumbers && cursorMoved))
+       isBufferEditingMode)
     {
         drawFullScreen();
     }
-    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 && currentMode == NORMAL)
+    else if(scrollDelta == 0 && isCommandLikeMode)
+    {
+        // Command/search editing only affects overlays (message line, popups,
+        // cursor). Keep buffer rows stable to avoid tmux flicker.
+        const bool syncOutput = Terminal::useSynchronizedOutput();
+        if(syncOutput)
+            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
+        Terminal::write(Terminal::ESC_HIDE_CURSOR);
+        drawStatusBarQuick();
+        drawMessageBarQuick();
+        updateCursorPosition(false);
+        if(syncOutput)
+            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
+        Terminal::flush();
+    }
+    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 && currentMode == NORMAL &&
+            !Terminal::isTmux())
     {
         drawScrollUpdate(scrollDelta);
     }
     else if(scrollDelta == 0 && currentMode == NORMAL)
     {
+        const bool syncOutput = Terminal::useSynchronizedOutput();
+        if(syncOutput)
+            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
+        Terminal::write(Terminal::ESC_HIDE_CURSOR);
+        if(cursorMoved && lineNumberWidth() > 0)
+            drawGutterQuick();
         drawStatusBarQuick();
         drawMessageBarQuick(); // Add this
-        updateCursorPosition();
+        updateCursorPosition(false);
+        if(syncOutput)
+            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
+        Terminal::flush();
     }
     else
     {
@@ -4671,7 +4703,7 @@ void Editor::refreshScreen()
     lastCursorY = *cursorY;
     needsFullRedraw = false;
 }
-void Editor::updateCursorPosition()
+void Editor::updateCursorPosition(bool flushNow)
 {
     int cursorRow, cursorCol;
 
@@ -4706,7 +4738,12 @@ void Editor::updateCursorPosition()
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
-    Terminal::flush();
+    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
+                       currentMode == VISUAL_BLOCK);
+    Terminal::write(hideCursor ? Terminal::ESC_HIDE_CURSOR
+                               : Terminal::ESC_SHOW_CURSOR);
+    if(flushNow)
+        Terminal::flush();
 
     lastCursorScreenY = cursorRow;
     lastCursorScreenX = cursorCol;
@@ -4715,6 +4752,9 @@ void Editor::updateCursorPosition()
 void Editor::draw()
 {
     refreshScreen();
+    // Some mode-specific draw paths return early from refreshScreen() and
+    // don't clear this flag. Clear it here after a completed frame.
+    needsFullRedraw = false;
 }
 
 void Editor::setStatusMessage(const std::string& msg)
@@ -8372,19 +8412,30 @@ void Editor::closeSymbolPopup()
 void Editor::run()
 {
     //    setStatusMessage("Welcome to uVim!");
+    draw();
 
     while(true)
     {
         handleResize();
-        draw();
         int c = Terminal::readKeyTimeout(50);
         if(c < 0)
         {
             // No key pressed, check if file has changed externally
             checkFileChanges();
+            if(needsFullRedraw)
+                draw();
             continue;
         }
+        // Apply a burst of ready keys first, then render once.
         handleKeypress(c);
+        while(true)
+        {
+            int next = Terminal::readKeyTimeout(0);
+            if(next < 0)
+                break;
+            handleKeypress(next);
+        }
+        draw();
     }
 }
 void Editor::insertTab()

@@ -331,8 +331,25 @@ void Terminal::flush()
     std::fflush(stdout);
 #if defined(UVIM_TERMINAL_WIN32)
     FlushFileBuffers(GetStdHandle(STD_OUTPUT_HANDLE));
+#endif
+}
+
+bool Terminal::isTmux()
+{
+    const char* tmux = std::getenv("TMUX");
+    return tmux && *tmux;
+}
+
+bool Terminal::useSynchronizedOutput()
+{
+#if defined(UVIM_TERMINAL_WIN32)
+    return false;
 #else
-    fsync(STDOUT_FILENO);
+    // Allow explicit opt-out while keeping tmux flicker fix on by default.
+    const char* disabled = std::getenv("UVIM_DISABLE_SYNC_OUTPUT");
+    if(disabled && *disabled && std::string(disabled) != "0")
+        return false;
+    return isTmux();
 #endif
 }
 

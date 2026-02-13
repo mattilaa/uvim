@@ -1147,8 +1147,9 @@ void GitStageMode::draw(Editor& editor) const
     auto helpLines = wrap_help(help, editor.screenCols);
 
     output += Terminal::ESC_HIDE_CURSOR;
-    output += Terminal::ESC_CLEAR_SCREEN;
     output += Terminal::cursorPos(1, 1);
+    if(!Terminal::isTmux())
+        output += Terminal::ESC_CLEAR_SCREEN;
     output += editor.theme.reset();
 
     output += Terminal::ESC_CLEAR_LINE;
@@ -1331,7 +1332,12 @@ void GitStageMode::draw(Editor& editor) const
     if(!editor.statusMessage.empty())
         output += editor.statusMessage;
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 

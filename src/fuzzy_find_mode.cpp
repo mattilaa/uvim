@@ -138,6 +138,7 @@ void FuzzyFindMode::draw(Editor& editor) const
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
+    output += Terminal::ESC_HIDE_CURSOR;
     output += Terminal::ESC_CURSOR_HOME;
     output += editor.theme.reset();
     output += Terminal::ESC_CLEAR_LINE;
@@ -268,7 +269,12 @@ void FuzzyFindMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
     }
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 

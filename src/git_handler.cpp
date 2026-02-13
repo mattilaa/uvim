@@ -217,6 +217,11 @@ void GitHandler::updateGitBlameForVisibleRange()
         editor->setStatusMessage("git blame: failed to run");
         if(!tempPath.empty())
             unlink(tempPath.c_str());
+        editor->currentBuffer->blameEntries.clear();
+        editor->currentBuffer->blameStart = -1;
+        editor->currentBuffer->blameEnd = -1;
+        // Avoid retrying every frame on persistent failures.
+        editor->currentBuffer->blameValid = true;
         return;
     }
 
@@ -269,7 +274,11 @@ void GitHandler::updateGitBlameForVisibleRange()
     if((int)entries.size() != (int)editor->lines->size())
     {
         editor->setStatusMessage("git blame: failed");
-        editor->currentBuffer->blameValid = false;
+        editor->currentBuffer->blameEntries.clear();
+        editor->currentBuffer->blameStart = -1;
+        editor->currentBuffer->blameEnd = -1;
+        // Avoid retrying every frame on persistent failures.
+        editor->currentBuffer->blameValid = true;
         return;
     }
 

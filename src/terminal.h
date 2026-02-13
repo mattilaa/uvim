@@ -90,6 +90,8 @@ public:
     static constexpr const char* ESC_DELETE_LINE = "\x1b[M";
     static constexpr const char* ESC_INSERT_LINE = "\x1b[L";
     static constexpr const char* ESC_RESET_SCROLL_REGION = "\x1b[r";
+    static constexpr const char* ESC_SYNC_UPDATE_BEGIN = "\x1b[?2026h";
+    static constexpr const char* ESC_SYNC_UPDATE_END = "\x1b[?2026l";
 
     static std::string cursorPos(int row, int col);
     static std::string scrollRegion(int top, int bottom);
@@ -159,6 +161,8 @@ public:
     static void write(const std::string& str);
     static void write(char c);
     static void flush();
+    static bool isTmux();
+    static bool useSynchronizedOutput();
 
     static void unreadKey(int key);
     static bool hasBufferedKeys();

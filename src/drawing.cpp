@@ -375,9 +375,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
     std::string output;
     output.reserve(screenRows * screenCols * 2);
+    const bool syncOutput = Terminal::useSynchronizedOutput();
 
     bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
                        currentMode == VISUAL_BLOCK);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     output += Terminal::ESC_HIDE_CURSOR;
 
     auto appendGutter = [&](int row)
@@ -763,7 +766,83 @@ void Editor::drawScrollUpdate(int scrollDelta)
     lastCursorScreenX = cursorCol;
 
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
+}
+
+void Editor::drawGutterQuick()
+{
+    int numberWidth = lineNumberWidth();
+    if(numberWidth <= 0)
+        return;
+
+    int tabRows = tabBarRows();
+    int rows = contentRows();
+    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
+        getClangdDiagnosticsByLine();
+
+    std::string output;
+    output.reserve(rows * std::max(16, gutterWidth() + 8));
+
+    auto appendGutter = [&](int row)
+    {
+        if(showGitBlame)
+        {
+            std::string blame = blameDisplayForLine(row);
+            output += theme.uiDim();
+            output += blame;
+            if((int)blame.size() < kGitBlameWidth)
+                output.append(kGitBlameWidth - blame.size(), ' ');
+        }
+        else
+        {
+            auto diagIt = diagnosticsByLine.find(row);
+            if(diagIt != diagnosticsByLine.end())
+            {
+                output += (diagIt->second.severity == 1) ? theme.uiError()
+                                                         : theme.uiWarning();
+                output += (diagIt->second.severity == 1) ? 'E' : 'W';
+            }
+            else
+            {
+                output += theme.uiGutter();
+                output += ' ';
+            }
+        }
+
+        std::string num;
+        bool isCurrent = false;
+        if(row >= 0 && row < (int)lines->size())
+        {
+            if(row == *cursorY)
+            {
+                isCurrent = true;
+                num = std::to_string(row + 1);
+            }
+            else
+            {
+                int rel = std::abs(row - *cursorY);
+                num = std::to_string(rel);
+            }
+        }
+        output += isCurrent ? theme.uiInfo() : theme.uiDim();
+        if((int)num.size() < numberWidth)
+            output.append(numberWidth - num.size(), ' ');
+        output += num;
+        output += ' ';
+        output += theme.baseFg();
+    };
+
+    for(int y = 0; y < rows; ++y)
+    {
+        int fileRow = y + *offsetY;
+        output += Terminal::cursorPos(y + 1 + tabRows, 1);
+        output += theme.reset();
+        appendGutter(fileRow);
+    }
+
+    Terminal::write(output);
 }
 
 void Editor::drawStatusBarQuick()
@@ -889,17 +968,13 @@ void Editor::drawFullScreenSingle()
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
         getClangdDiagnosticsByLine();
 
-    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                       currentMode == VISUAL_BLOCK);
-
-    if(hideCursor)
-        output += Terminal::ESC_HIDE_CURSOR;
-    else
-        output += Terminal::ESC_SHOW_CURSOR;
+    output += Terminal::ESC_HIDE_CURSOR;
 
     output += theme.reset();
-    output += Terminal::ESC_CLEAR_SCREEN;
+    // Full-screen clear causes visible flashing in tmux. Repaint in-place.
     output += Terminal::ESC_CURSOR_HOME;
+    if(!Terminal::isTmux())
+        output += Terminal::ESC_CLEAR_SCREEN;
 
     int tabRows = tabBarRows();
     int rows = contentRows();
@@ -1270,8 +1345,13 @@ void Editor::drawFullScreenSingle()
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
-    updateCursorPosition();
+    updateCursorPosition(false);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 
@@ -1603,16 +1683,13 @@ void Editor::drawSplitFullScreen()
     std::string output;
     output.reserve((screenRows + 3) * screenCols * 3);
 
-    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                       currentMode == VISUAL_BLOCK);
-    if(hideCursor)
-        output += Terminal::ESC_HIDE_CURSOR;
-    else
-        output += Terminal::ESC_SHOW_CURSOR;
+    output += Terminal::ESC_HIDE_CURSOR;
 
     output += theme.reset();
-    output += Terminal::ESC_CLEAR_SCREEN;
+    // Full-screen clear causes visible flashing in tmux. Repaint in-place.
     output += Terminal::ESC_CURSOR_HOME;
+    if(!Terminal::isTmux())
+        output += Terminal::ESC_CLEAR_SCREEN;
 
     if(splitVertical)
     {
@@ -1804,7 +1881,12 @@ void Editor::drawSplitFullScreen()
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
-    updateCursorPosition();
+    updateCursorPosition(false);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }

@@ -468,11 +468,12 @@ public:
     void drawFullScreen();
     void drawSplitFullScreen();
     void drawFullScreenSingle();
-    void updateCursorPosition();
+    void updateCursorPosition(bool flushNow = true);
     std::string buildTabBarLine(int width);
 
     // Drawing - NEW OPTIMIZATION FUNCTIONS
     void drawScrollUpdate(int scrollDelta);
+    void drawGutterQuick();
     void drawStatusBarQuick();
     void drawMessageBarQuick(); // Add this to redraw message bar
     bool handleSetCommand(std::string_view cmd);
