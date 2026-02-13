@@ -237,6 +237,55 @@ static bool find_mlang_builtin_macro(std::string_view symbol, std::string& path,
     return false;
 }
 
+static bool find_mlang_builtin_attribute(std::string_view symbol,
+                                         std::string& path, int& line)
+{
+    std::vector<std::filesystem::path> roots;
+    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
+        roots.emplace_back(env);
+    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
+        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
+    if(const char* home = std::getenv("HOME"))
+        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
+    roots.emplace_back("/usr/local/share/mlang/stdlib");
+    roots.emplace_back("/usr/share/mlang/stdlib");
+
+    std::string needle = std::string(symbol);
+    std::string needleLower = ascii_lower(symbol);
+
+    for(const auto& root : roots)
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "attributes.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        std::ifstream in(p);
+        if(!in)
+            continue;
+        std::string lineStr;
+        int lineNo = 0;
+        while(std::getline(in, lineStr))
+        {
+            ++lineNo;
+            const std::string marker = "// @builtin_attribute ";
+            if(lineStr.rfind(marker, 0) != 0)
+                continue;
+            std::string name = lineStr.substr(marker.size());
+            if(name.empty())
+                continue;
+            if(name == needle || ascii_lower(name) == needleLower)
+            {
+                path = p.string();
+                line = lineNo - 1;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static bool find_mlang_builtin_function(std::string_view symbol,
                                         std::string& path, int& line)
 {
@@ -288,6 +337,66 @@ static bool find_mlang_builtin_function(std::string_view symbol,
             }
         }
     }
+    return false;
+}
+
+static bool find_mlang_top_level_def_in_lines(
+    const std::vector<std::string>& lines, std::string_view symbol, int& outY,
+    int& outX)
+{
+    auto is_ident_char = [](char c) -> bool
+    {
+        unsigned char u = static_cast<unsigned char>(c);
+        return std::isalnum(u) || c == '_';
+    };
+
+    auto parse_ident_after = [&](const std::string& line, size_t start,
+                                 std::string_view kw) -> std::optional<int>
+    {
+        if(start + kw.size() > line.size())
+            return std::nullopt;
+        if(line.compare(start, kw.size(), kw) != 0)
+            return std::nullopt;
+        size_t i = start + kw.size();
+        while(i < line.size() && text_utils::is_space(line[i]))
+            ++i;
+        if(i >= line.size() || !is_ident_char(line[i]))
+            return std::nullopt;
+        size_t nameStart = i;
+        while(i < line.size() && is_ident_char(line[i]))
+            ++i;
+        std::string_view name(line.data() + nameStart, i - nameStart);
+        if(name == symbol)
+            return static_cast<int>(nameStart);
+        return std::nullopt;
+    };
+
+    for(int y = 0; y < (int)lines.size(); ++y)
+    {
+        const std::string& line = lines[(size_t)y];
+        size_t i = 0;
+        while(i < line.size() && text_utils::is_space(line[i]))
+            ++i;
+
+        std::optional<int> x = parse_ident_after(line, i, "pub struct ");
+        if(!x)
+            x = parse_ident_after(line, i, "struct ");
+        if(!x)
+            x = parse_ident_after(line, i, "pub enum ");
+        if(!x)
+            x = parse_ident_after(line, i, "enum ");
+        if(!x)
+            x = parse_ident_after(line, i, "pub fn ");
+        if(!x)
+            x = parse_ident_after(line, i, "fn ");
+        if(x)
+        {
+            outY = y;
+            outX = *x;
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -4091,6 +4200,41 @@ void Editor::goToDefinition()
 
     if(isMlangLspEnabled() && isFileType<FileType::Mla>())
     {
+        int lspX = *cursorX;
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            auto is_sym = [](char ch) -> bool
+            {
+                unsigned char u = static_cast<unsigned char>(ch);
+                return std::isalnum(u) || ch == '_';
+            };
+
+            if(!line.empty())
+            {
+                if(lspX >= (int)line.size())
+                    lspX = (int)line.size() - 1;
+                if(lspX < 0)
+                    lspX = 0;
+
+                // If cursor is on punctuation/space around a symbol, shift to
+                // nearest identifier character so LSP definition works.
+                if(!is_sym(line[lspX]))
+                {
+                    int left = lspX - 1;
+                    while(left >= 0 && !is_sym(line[left]))
+                        --left;
+                    int right = lspX + 1;
+                    while(right < (int)line.size() && !is_sym(line[right]))
+                        ++right;
+                    if(left >= 0 && is_sym(line[left]))
+                        lspX = left;
+                    else if(right < (int)line.size() && is_sym(line[right]))
+                        lspX = right;
+                }
+            }
+        }
+
         std::string text;
         text.reserve(lines->size() * 80);
         for(size_t i = 0; i < lines->size(); ++i)
@@ -4102,7 +4246,7 @@ void Editor::goToDefinition()
 
         mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
         auto loc = mlangLspClient->definition(currentBuffer->filename, *cursorY,
-                                              *cursorX);
+                                              lspX);
         if(loc)
         {
             pushJumpLocation();
@@ -4160,6 +4304,21 @@ void Editor::goToDefinition()
                 return;
             }
 
+            auto ait = mlangTokenCache->builtinAttributes.find(key);
+            if(ait != mlangTokenCache->builtinAttributes.end())
+            {
+                pushJumpLocation();
+                openFile(ait->second.path);
+                *cursorY = ait->second.line;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang attribute) → " + ait->second.path +
+                                 ":" + std::to_string(ait->second.line + 1));
+                return;
+            }
+
             auto fit = mlangTokenCache->builtinFunctions.find(key);
             if(fit != mlangTokenCache->builtinFunctions.end())
             {
@@ -4210,6 +4369,21 @@ void Editor::goToDefinition()
                                  std::to_string(macroLine + 1));
                 return;
             }
+            std::string attrPath;
+            int attrLine = 0;
+            if(find_mlang_builtin_attribute(symbol, attrPath, attrLine))
+            {
+                pushJumpLocation();
+                openFile(attrPath);
+                *cursorY = attrLine;
+                *cursorX = 0;
+                if(*cursorY >= (int)lines->size())
+                    *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang attribute) → " + attrPath + ":" +
+                                 std::to_string(attrLine + 1));
+                return;
+            }
             std::string fnPath;
             int fnLine = 0;
             if(find_mlang_builtin_function(symbol, fnPath, fnLine))
@@ -4223,6 +4397,20 @@ void Editor::goToDefinition()
                 apply_gd_viewport();
                 setStatusMessage("gd (mlang fn) → " + fnPath + ":" +
                                  std::to_string(fnLine + 1));
+                return;
+            }
+        }
+
+        {
+            int defY = -1;
+            int defX = 0;
+            if(find_mlang_top_level_def_in_lines(*lines, symbol, defY, defX))
+            {
+                *cursorY = defY;
+                *cursorX = defX;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang local) → " + *filename + ":" +
+                                 std::to_string(defY + 1));
                 return;
             }
         }

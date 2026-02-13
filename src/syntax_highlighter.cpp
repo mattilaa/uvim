@@ -133,6 +133,32 @@ void load_builtin_macros_from_file(MlangTokenCache& cache,
     }
 }
 
+void load_builtin_attributes_from_file(MlangTokenCache& cache,
+                                       const std::filesystem::path& path)
+{
+    std::ifstream in(path);
+    if(!in)
+        return;
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(in, line))
+    {
+        ++lineNo;
+        const std::string marker = "// @builtin_attribute ";
+        if(line.rfind(marker, 0) != 0)
+            continue;
+        std::string name = line.substr(marker.size());
+        if(name.empty())
+            continue;
+        if(cache.caseInsensitive)
+            name = ascii_lower(name);
+        MlangTokenCache::BuiltinTypeDef def;
+        def.path = path.string();
+        def.line = lineNo - 1;
+        cache.builtinAttributes.emplace(std::move(name), std::move(def));
+    }
+}
+
 void load_builtin_functions_from_file(MlangTokenCache& cache,
                                       const std::filesystem::path& path)
 {
@@ -202,6 +228,27 @@ void ensure_builtin_macros_loaded(MlangTokenCache& cache)
         if(!cache.builtinMacros.empty())
         {
             cache.builtinMacrosLoaded = true;
+            return;
+        }
+    }
+}
+
+void ensure_builtin_attributes_loaded(MlangTokenCache& cache)
+{
+    if(cache.builtinAttributesLoaded)
+        return;
+    for(const auto& root : default_mlang_stdlib_paths())
+    {
+        if(root.empty())
+            continue;
+        std::filesystem::path p = root / "attributes.mla";
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec))
+            continue;
+        load_builtin_attributes_from_file(cache, p);
+        if(!cache.builtinAttributes.empty())
+        {
+            cache.builtinAttributesLoaded = true;
             return;
         }
     }
@@ -1456,6 +1503,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     cache.builtinTypesLoaded = false;
     cache.builtinMacros.clear();
     cache.builtinMacrosLoaded = false;
+    cache.builtinAttributes.clear();
+    cache.builtinAttributesLoaded = false;
     cache.builtinFunctions.clear();
     cache.builtinFunctionsLoaded = false;
     cache.root = rootStr;
@@ -1601,6 +1650,31 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             }
         }
 
+        if(json_utils::has(root, "builtin_attributes"))
+        {
+            const auto* attrs = json_utils::find(root, "builtin_attributes");
+            if(attrs && attrs->IsArray())
+            {
+                for(const auto& entry : attrs->GetArray())
+                {
+                    if(!entry.IsObject())
+                        continue;
+                    std::string name = json_utils::get_string(entry, "name");
+                    std::string path = json_utils::get_string(entry, "path");
+                    int line = json_utils::get_int(entry, "line", 1);
+                    if(name.empty() || path.empty())
+                        continue;
+                    if(cache.caseInsensitive)
+                        name = ascii_lower(name);
+                    MlangTokenCache::BuiltinTypeDef def;
+                    def.path = path;
+                    def.line = line > 0 ? line - 1 : 0;
+                    cache.builtinAttributes.emplace(std::move(name),
+                                                    std::move(def));
+                }
+            }
+        }
+
         if(json_utils::has(root, "builtin_functions"))
         {
             const auto* fns = json_utils::find(root, "builtin_functions");
@@ -1645,6 +1719,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
             ensure_builtin_types_loaded(cache);
         if(!cache.builtinMacrosLoaded)
             ensure_builtin_macros_loaded(cache);
+        if(!cache.builtinAttributesLoaded)
+            ensure_builtin_attributes_loaded(cache);
         if(!cache.builtinFunctionsLoaded)
             ensure_builtin_functions_loaded(cache);
         if(cache.builtinTypesLoaded)
@@ -1657,6 +1733,12 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
         {
             for(const auto& kv : cache.builtinMacros)
                 cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
+            cache.available = true;
+        }
+        if(cache.builtinAttributesLoaded)
+        {
+            for(const auto& kv : cache.builtinAttributes)
+                cache.tokenTypes.emplace(kv.first, TOKEN_KEYWORD);
             cache.available = true;
         }
         if(cache.builtinFunctionsLoaded)
@@ -1710,6 +1792,13 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     {
         for(const auto& kv : cache.builtinMacros)
             cache.tokenTypes.emplace(kv.first, TOKEN_FUNCTION);
+        cache.available = true;
+    }
+    ensure_builtin_attributes_loaded(cache);
+    if(cache.builtinAttributesLoaded)
+    {
+        for(const auto& kv : cache.builtinAttributes)
+            cache.tokenTypes.emplace(kv.first, TOKEN_KEYWORD);
         cache.available = true;
     }
     ensure_builtin_functions_loaded(cache);
@@ -2999,6 +3088,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
 
         if(match_builtin("// @builtin ", TOKEN_TYPE) ||
            match_builtin("// @builtin_macro ", TOKEN_FUNCTION) ||
+           match_builtin("// @builtin_attribute ", TOKEN_KEYWORD) ||
            match_builtin("// @builtin_fn ", TOKEN_FUNCTION))
         {
             return tokens;
