@@ -4644,13 +4644,13 @@ void Editor::refreshScreen()
     bool isCommandLikeMode =
         (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
          currentMode == SEARCH_BACKWARD);
-    bool commandOverlayStable =
-        isCommandLikeMode && !modeChanged && scrollDelta == 0 &&
-        *offsetX == lastOffsetX && !visualChanged;
+    bool commandOverlayStable = isCommandLikeMode && !modeChanged &&
+                                scrollDelta == 0 && *offsetX == lastOffsetX &&
+                                !visualChanged;
 
     if(modeChanged || (needsFullRedraw && !commandOverlayStable) ||
-       *offsetX != lastOffsetX ||
-       abs(scrollDelta) > screenRows / 2 || visualChanged ||
+       *offsetX != lastOffsetX || abs(scrollDelta) > screenRows / 2 ||
+       visualChanged ||
        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
         currentMode == VISUAL_BLOCK) ||
        isBufferEditingMode)
@@ -4672,8 +4672,8 @@ void Editor::refreshScreen()
             Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
         Terminal::flush();
     }
-    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 && currentMode == NORMAL &&
-            !Terminal::isTmux())
+    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 &&
+            currentMode == NORMAL && !Terminal::isTmux())
     {
         drawScrollUpdate(scrollDelta);
     }

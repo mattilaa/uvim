@@ -937,19 +937,22 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
         }
     }
 
-    std::filesystem::path resolvedDir = std::filesystem::absolute(dirPath, ec);
-    if(ec || resolvedDir.empty())
+    std::filesystem::path resolvedDir;
+    if(dirPath.is_absolute())
     {
-        ec.clear();
-        resolvedDir = dirPath;
+        // Preserve absolute input path spelling (e.g. /var vs /private/var).
+        resolvedDir = dirPath.lexically_normal();
     }
-    std::filesystem::path canonicalDir =
-        std::filesystem::weakly_canonical(resolvedDir, ec);
-    if(!ec && !canonicalDir.empty())
+    else
     {
-        resolvedDir = canonicalDir;
+        resolvedDir = std::filesystem::absolute(dirPath, ec);
+        if(ec || resolvedDir.empty())
+        {
+            ec.clear();
+            resolvedDir = dirPath;
+        }
+        resolvedDir = resolvedDir.lexically_normal();
     }
-    ec.clear();
 
     currentDirectory = file_utils::path_to_utf8_string(resolvedDir);
 
