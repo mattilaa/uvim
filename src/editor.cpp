@@ -4406,6 +4406,7 @@ void Editor::goToDefinition()
             int defX = 0;
             if(find_mlang_top_level_def_in_lines(*lines, symbol, defY, defX))
             {
+                pushJumpLocation();
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
