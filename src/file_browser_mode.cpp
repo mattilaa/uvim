@@ -930,17 +930,28 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
             ctx.setStatusMessage("Cannot open any directory!");
             return;
         }
-        currentDirectory = ".";
     }
-    else
+
+    std::filesystem::path resolvedDir = std::filesystem::absolute(dirPath, ec);
+    if(ec || resolvedDir.empty())
     {
-        currentDirectory = file_utils::path_to_utf8_string(dirPath);
+        ec.clear();
+        resolvedDir = dirPath;
     }
+    std::filesystem::path canonicalDir =
+        std::filesystem::weakly_canonical(resolvedDir, ec);
+    if(!ec && !canonicalDir.empty())
+    {
+        resolvedDir = canonicalDir;
+    }
+    ec.clear();
+
+    currentDirectory = file_utils::path_to_utf8_string(resolvedDir);
 
     GitIgnore gitignore;
     if(ctx.respectGitignore())
     {
-        gitignore.loadRecursive(dirPath);
+        gitignore.loadRecursive(resolvedDir);
     }
 
     std::vector<FileEntry> dirs;
@@ -952,10 +963,10 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     {
         std::error_code parentEc;
         std::filesystem::path resolved =
-            std::filesystem::absolute(dirPath, parentEc);
+            std::filesystem::absolute(resolvedDir, parentEc);
         if(parentEc || resolved.empty())
         {
-            resolved = dirPath;
+            resolved = resolvedDir;
         }
 
         std::filesystem::path parentPath = resolved.parent_path();
@@ -975,7 +986,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
 
     auto opts = std::filesystem::directory_options::skip_permission_denied;
 
-    for(std::filesystem::directory_iterator it{dirPath, opts, ec}, end;
+    for(std::filesystem::directory_iterator it{resolvedDir, opts, ec}, end;
         it != end; it.increment(ec))
     {
         if(ec)
@@ -1007,7 +1018,13 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
 
         FileEntry fe;
         fe.name = std::move(name);
-        fe.path = file_utils::path_to_utf8_string(de.path());
+        std::filesystem::path entryPath = std::filesystem::absolute(de.path(), ec2);
+        if(ec2 || entryPath.empty())
+        {
+            ec2.clear();
+            entryPath = de.path();
+        }
+        fe.path = file_utils::path_to_utf8_string(entryPath);
         fe.isDirectory = isDir;
 
         if(std::filesystem::is_regular_file(st))

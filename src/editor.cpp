@@ -1243,6 +1243,7 @@ bool Editor::isFileType(FileType type) const
 {
     if(!syntaxHighlighter)
         return false;
+
     return syntaxHighlighter->isFileType(type);
 }
 
@@ -3631,9 +3632,8 @@ void Editor::goToDefinition()
         {
             // Some Python servers expose stdlib/type-stub targets via
             // declaration when definition is unavailable.
-            loc =
-                pythonLspClient->declaration(currentBuffer->filename, *cursorY,
-                                             lspX, lineForLsp);
+            loc = pythonLspClient->declaration(currentBuffer->filename,
+                                               *cursorY, lspX, lineForLsp);
         }
         if(!loc)
         {

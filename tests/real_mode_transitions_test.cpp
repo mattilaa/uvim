@@ -811,6 +811,43 @@ TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedDirectory)
     EXPECT_TRUE(mode == "BROWSE" || mode == "NORMAL");
 }
 
+TEST(RealModeTransitionsTest, FileBrowserParentThenEnterSiblingDirectoryStays)
+{
+    auto root = make_temp_dir("uvim_browse_parent_then_sibling_");
+    write_file(root / "from" / "a.txt", "from\n");
+    write_file(root / "to" / "b.txt", "to\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{(root / "from").string()});
+
+    // Enter parent via ".." (first entry).
+    sm.dispatch(Terminal::ENTER);
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+
+    int toIndex = -1;
+    for(int i = 0; i < static_cast<int>(state->fileList.size()); ++i)
+    {
+        if(state->fileList[i].name == "to")
+        {
+            toIndex = i;
+            break;
+        }
+    }
+    ASSERT_GE(toIndex, 0);
+
+    for(int i = 0; i < toIndex; ++i)
+        sm.dispatch('j');
+
+    sm.dispatch(Terminal::ENTER);
+
+    state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_NE(state->currentDirectory.find("/to"), std::string::npos);
+    EXPECT_EQ(state->currentDirectory.find("/from"), std::string::npos);
+}
+
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
 {
     Editor editor = Editor::createForTests();
