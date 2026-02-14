@@ -169,21 +169,117 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         return;
     }
 
-    if(line.rfind("commit ", 0) == 0 || line.rfind("Author:", 0) == 0 ||
-       line.rfind("Date:", 0) == 0 || line.rfind("diff --git", 0) == 0 ||
-       line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0)
-        output += editor.theme.uiAccent();
-    else if(line.rfind("@@ ", 0) == 0)
-        output += editor.theme.uiInfo();
-    else if(!line.empty() && line[0] == '+')
-        output += editor.theme.uiSuccess();
-    else if(!line.empty() && line[0] == '-')
-        output += editor.theme.uiError();
-    else
-        output += editor.theme.baseFg();
+    auto append_colored = [&](std::string_view txt, const std::string& color)
+    {
+        output += color;
+        output.append(txt.data(), txt.size());
+        output += editor.theme.reset();
+    };
 
-    output += line;
-    output += editor.theme.reset();
+    if(line.rfind("commit ", 0) == 0)
+    {
+        append_colored("commit ", editor.theme.uiAccent());
+        std::string hashAndRefs = line.substr(7);
+        size_t refsPos = hashAndRefs.find(" (");
+        if(refsPos == std::string::npos)
+        {
+            append_colored(hashAndRefs, editor.theme.uiWarning());
+        }
+        else
+        {
+            append_colored(hashAndRefs.substr(0, refsPos), editor.theme.uiWarning());
+            append_colored(hashAndRefs.substr(refsPos), editor.theme.uiError());
+        }
+        return;
+    }
+    if(line.rfind("Author:", 0) == 0 || line.rfind("Commit:", 0) == 0 ||
+       line.rfind("AuthorDate:", 0) == 0 || line.rfind("CommitDate:", 0) == 0 ||
+       line.rfind("Date:", 0) == 0)
+    {
+        size_t colon = line.find(':');
+        if(colon == std::string::npos)
+        {
+            append_colored(line, editor.theme.uiAccent());
+            return;
+        }
+        append_colored(std::string_view(line.data(), colon + 1), editor.theme.uiAccent());
+        if(colon + 1 < line.size())
+            append_colored(std::string_view(line.data() + colon + 1, line.size() - colon - 1),
+                           editor.theme.uiSuccess());
+        return;
+    }
+    if(line.rfind("diff --git ", 0) == 0)
+    {
+        std::string_view prefix("diff --git ");
+        append_colored(prefix, editor.theme.uiAccent());
+        std::string rest = line.substr(prefix.size());
+        size_t split = rest.find(' ');
+        if(split == std::string::npos)
+        {
+            append_colored(rest, editor.theme.uiInfo());
+            return;
+        }
+        append_colored(rest.substr(0, split), editor.theme.uiInfo());
+        append_colored(" ", editor.theme.baseFg());
+        append_colored(rest.substr(split + 1), editor.theme.uiInfo());
+        return;
+    }
+    if(line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0 ||
+       line.rfind("rename from ", 0) == 0 || line.rfind("rename to ", 0) == 0 ||
+       line.rfind("Binary files ", 0) == 0)
+    {
+        size_t space = line.find(' ');
+        if(space == std::string::npos)
+        {
+            append_colored(line, editor.theme.uiAccent());
+            return;
+        }
+        append_colored(std::string_view(line.data(), space + 1), editor.theme.uiAccent());
+        if(space + 1 < line.size())
+            append_colored(std::string_view(line.data() + space + 1, line.size() - space - 1),
+                           editor.theme.uiInfo());
+        return;
+    }
+    if(line.rfind("index ", 0) == 0 || line.rfind("new file mode ", 0) == 0 ||
+       line.rfind("deleted file mode ", 0) == 0 ||
+       line.rfind("similarity index ", 0) == 0)
+    {
+        append_colored(line, editor.theme.uiDim());
+        return;
+    }
+    if(line.find(" | ") != std::string::npos)
+    {
+        append_colored(line, editor.theme.uiInfo());
+        return;
+    }
+    if(line.find(" changed, ") != std::string::npos ||
+       line.find(" insertion") != std::string::npos ||
+       line.find(" deletion") != std::string::npos)
+    {
+        append_colored(line, editor.theme.uiWarning());
+        return;
+    }
+    if(line.rfind("@@ ", 0) == 0)
+    {
+        append_colored(line, editor.theme.uiInfo());
+        return;
+    }
+    if(!line.empty() && line[0] == '+')
+    {
+        append_colored(line, editor.theme.uiSuccess());
+        return;
+    }
+    if(!line.empty() && line[0] == '-')
+    {
+        append_colored(line, editor.theme.uiError());
+        return;
+    }
+    if(!line.empty())
+    {
+        append_colored(line, editor.theme.uiDim());
+        return;
+    }
+    append_colored(line, editor.theme.baseFg());
 }
 } // namespace
 
@@ -251,6 +347,8 @@ void GitLogMode::ensurePrettyPreview(Editor& editor)
         return;
     }
 
+    cursor = std::clamp(cursor, 0, (int)filtered.size() - 1);
+
     int idx = filtered[cursor];
     if(idx < 0 || idx >= (int)entries.size())
     {
@@ -285,6 +383,21 @@ void GitLogMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
     rebuildFilter(*ed);
+    if(filtered.empty())
+    {
+        cursor = 0;
+        scrollOffset = 0;
+        rangeSelectActive = false;
+        rangeSelectBase.clear();
+    }
+    else
+    {
+        cursor = std::clamp(cursor, 0, (int)filtered.size() - 1);
+        scrollOffset = std::clamp(scrollOffset, 0, std::max(0, cursor));
+        if(rangeSelectActive)
+            rangeSelectAnchor = std::clamp(rangeSelectAnchor, 0,
+                                           (int)filtered.size() - 1);
+    }
     ensurePrettyPreview(*ed);
     ctx.requestFullRedraw();
 }
@@ -298,8 +411,42 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                                             const KeyEvent& event)
 {
     Editor* ed = ctx.editor;
+    if(filtered.empty())
+    {
+        cursor = 0;
+        scrollOffset = 0;
+        rangeSelectActive = false;
+        rangeSelectBase.clear();
+    }
+    else
+    {
+        cursor = std::clamp(cursor, 0, (int)filtered.size() - 1);
+        int window = std::max(1, ed->screenRows - 2);
+        int maxScroll = std::max(0, (int)filtered.size() - window);
+        scrollOffset = std::clamp(scrollOffset, 0, maxScroll);
+        if(rangeSelectActive)
+            rangeSelectAnchor = std::clamp(rangeSelectAnchor, 0,
+                                           (int)filtered.size() - 1);
+    }
+
     int c = event.key;
     int prevCursor = cursor;
+    auto apply_range_selection = [&]()
+    {
+        if(!rangeSelectActive || filtered.empty())
+            return;
+        rangeSelectAnchor = std::clamp(rangeSelectAnchor, 0,
+                                       (int)filtered.size() - 1);
+        selectedHashes = rangeSelectBase;
+        int lo = std::min(rangeSelectAnchor, cursor);
+        int hi = std::max(rangeSelectAnchor, cursor);
+        for(int i = lo; i <= hi; ++i)
+        {
+            int idx = filtered[i];
+            if(idx >= 0 && idx < (int)entries.size())
+                selectedHashes.insert(entries[idx].hash);
+        }
+    };
 
     auto findNextMatch = [&](bool forward)
     {
@@ -503,6 +650,14 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == Terminal::ESC && rangeSelectActive)
+    {
+        rangeSelectActive = false;
+        rangeSelectBase.clear();
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
     if(c == Terminal::ESC || c == 'q')
     {
         if(c == Terminal::ESC)
@@ -610,6 +765,95 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             revertMode.stagedDirty = true;
             return revertMode;
         }
+        else if(nextChar == 'f')
+        {
+            std::vector<GitLogMode::Entry> picked;
+            if(!selectedHashes.empty())
+            {
+                picked.reserve(entries.size());
+                for(const auto& entry : entries)
+                {
+                    if(selectedHashes.count(entry.hash) != 0)
+                        picked.push_back(entry);
+                }
+            }
+            else
+            {
+                if(filtered.empty())
+                    return std::nullopt;
+                int idx = filtered[cursor];
+                if(idx < 0 || idx >= (int)entries.size())
+                    return std::nullopt;
+                picked.assign(entries.begin(), entries.begin() + idx + 1);
+            }
+
+            if(picked.empty())
+            {
+                ed->setStatusMessage("git rebase: no commits selected");
+                return std::nullopt;
+            }
+
+            GitCommitMode rebaseMode{repoRoot, repoDir};
+            rebaseMode.action = GitCommitMode::Action::RebaseTodo;
+            rebaseMode.returnLog = *this;
+            rebaseMode.rebaseHeadHash = picked.front().hash;
+            rebaseMode.rebaseBaseHash = picked.back().hash;
+            rebaseMode.rebaseCommandCount = (int)picked.size();
+            rebaseMode.messageLines.clear();
+            for(auto it = picked.rbegin(); it != picked.rend(); ++it)
+            {
+                const auto& entry = *it;
+                std::string verb = "pick";
+                if(entry.subject.rfind("fixup!", 0) == 0)
+                    verb = "fixup";
+                else if(entry.subject.rfind("squash!", 0) == 0)
+                    verb = "squash";
+                rebaseMode.messageLines.push_back(verb + " " + entry.hash +
+                                                  " " + entry.subject);
+            }
+            if(rebaseMode.messageLines.empty())
+                rebaseMode.messageLines.push_back("");
+            rebaseMode.messageCursorRow = 0;
+            rebaseMode.messageCursorCol = 0;
+            rebaseMode.insertMode = false;
+            rebaseMode.stagedDirty = false;
+            return rebaseMode;
+        }
+    }
+    else if(c == 'v')
+    {
+        if(filtered.empty())
+            return std::nullopt;
+        if(rangeSelectActive)
+        {
+            rangeSelectActive = false;
+            rangeSelectBase.clear();
+        }
+        else
+        {
+            rangeSelectActive = true;
+            rangeSelectAnchor = cursor;
+            rangeSelectBase = selectedHashes;
+            apply_range_selection();
+        }
+    }
+    else if(c == ' ')
+    {
+        if(rangeSelectActive)
+        {
+            rangeSelectActive = false;
+            rangeSelectBase.clear();
+        }
+        if(filtered.empty())
+            return std::nullopt;
+        int idx = filtered[cursor];
+        if(idx < 0 || idx >= (int)entries.size())
+            return std::nullopt;
+        const std::string& hash = entries[idx].hash;
+        if(selectedHashes.count(hash) != 0)
+            selectedHashes.erase(hash);
+        else
+            selectedHashes.insert(hash);
     }
     else if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
     {
@@ -617,6 +861,8 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         {
             query.pop_back();
             rebuildFilter(*ed);
+            if(rangeSelectActive)
+                apply_range_selection();
         }
     }
     else if(c == Terminal::CTRL_U)
@@ -625,6 +871,8 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         {
             query.clear();
             rebuildFilter(*ed);
+            if(rangeSelectActive)
+                apply_range_selection();
         }
     }
     else if(c == '/' || c == '?')
@@ -646,7 +894,12 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
     {
         query += static_cast<char>(c);
         rebuildFilter(*ed);
+        if(rangeSelectActive)
+            apply_range_selection();
     }
+
+    if(rangeSelectActive && cursor != prevCursor)
+        apply_range_selection();
 
     if(prettyView && cursor != prevCursor)
     {
@@ -664,6 +917,27 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
 
 void GitLogMode::draw(Editor& editor) const
 {
+    auto* self = const_cast<GitLogMode*>(this);
+    if(self->filtered.empty())
+    {
+        self->cursor = 0;
+        self->scrollOffset = 0;
+        self->rangeSelectActive = false;
+        self->rangeSelectBase.clear();
+    }
+    else
+    {
+        self->cursor = std::clamp(self->cursor, 0,
+                                  (int)self->filtered.size() - 1);
+        int window = std::max(1, editor.screenRows - 2);
+        int maxScroll = std::max(0, (int)self->filtered.size() - window);
+        self->scrollOffset = std::clamp(self->scrollOffset, 0, maxScroll);
+        if(self->rangeSelectActive)
+            self->rangeSelectAnchor =
+                std::clamp(self->rangeSelectAnchor, 0,
+                           (int)self->filtered.size() - 1);
+    }
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
@@ -682,13 +956,14 @@ void GitLogMode::draw(Editor& editor) const
     output += editor.theme.uiDim();
     if(prettyView)
     {
-        output += "  [q: quit] [j/k: commit] [ctrl-j/k: diff scroll] "
-                  "[enter: show] [gr: revert] [type: filter]";
+        output += "  [v: range] [space: select] [q: quit] [j/k: commit] "
+                  "[ctrl-j/k: diff scroll] [gf: rebase] [enter: show] "
+                  "[gr: revert]";
     }
     else
     {
-        output +=
-            "  [q: quit] [ctrl-j/k: move] [enter: show] [gr: revert] [type: filter]";
+        output += "  [v: range] [space: select] [q: quit] [ctrl-j/k: move] "
+                  "[gf: rebase] [enter: show] [gr: revert] [type: filter]";
     }
     output += editor.theme.baseFg();
 
@@ -705,36 +980,82 @@ void GitLogMode::draw(Editor& editor) const
 
             int idx = scrollOffset + i;
             bool selected = (idx == cursor);
-            std::string leftText;
             if(idx >= 0 && idx < (int)filtered.size())
             {
                 int entryIndex = filtered[idx];
                 const auto& entry = entries[entryIndex];
-                std::string hash = entry.hash;
-                if(hash.size() > 12)
-                    hash.resize(12);
-                leftText = hash + " " + entry.subject;
+                bool marked = selectedHashes.count(entry.hash) != 0;
+                bool inRange = false;
+                if(rangeSelectActive && !filtered.empty())
+                {
+                    int lo = std::min(rangeSelectAnchor, cursor);
+                    int hi = std::max(rangeSelectAnchor, cursor);
+                    inRange = (idx >= lo && idx <= hi);
+                }
+                int leftContentWidth = std::max(1, leftWidth - 2);
+                if(selected)
+                {
+                    std::string leftText = entry.subject;
+                    if(!entry.author.empty() || !entry.date.empty())
+                    {
+                        leftText.clear();
+                        if(!entry.date.empty())
+                            leftText += entry.date + " ";
+                        if(!entry.author.empty())
+                            leftText += entry.author + " ";
+                        leftText += entry.subject;
+                    }
+                    std::string leftTrim = slice_plain(leftText, 0, leftContentWidth);
+                    int leftDisplay = text_utils::utf8DisplayWidth(leftTrim);
+                    if(leftDisplay < leftContentWidth)
+                        leftTrim.append(leftContentWidth - leftDisplay, ' ');
+                    output += editor.theme.selection();
+                    output += marked ? "*" : (inRange ? "+" : " ");
+                    output += leftTrim;
+                    output += editor.theme.reset();
+                }
+                else
+                {
+                    output += editor.theme.baseFg();
+                    output += marked ? "*" : (inRange ? "+" : " ");
+
+                    int usedWidth = 0;
+                    auto append_part = [&](const std::string& text,
+                                           const std::string& color)
+                    {
+                        if(text.empty() || usedWidth >= leftContentWidth)
+                            return;
+                        int remain = leftContentWidth - usedWidth;
+                        std::string clipped = slice_plain(text, 0, remain);
+                        int w = text_utils::utf8DisplayWidth(clipped);
+                        if(w <= 0)
+                            return;
+                        output += color;
+                        output += clipped;
+                        output += editor.theme.baseFg();
+                        usedWidth += w;
+                    };
+
+                    if(!entry.date.empty())
+                        append_part(entry.date + " ", editor.theme.uiInfo());
+                    if(!entry.author.empty())
+                        append_part(entry.author + " ", editor.theme.uiAccent());
+                    append_part(entry.subject, editor.theme.baseFg());
+
+                    if(usedWidth < leftContentWidth)
+                        output.append(leftContentWidth - usedWidth, ' ');
+                    output += editor.theme.reset();
+                }
             }
             else
             {
-                leftText = "~";
-            }
-
-            int leftContentWidth = std::max(1, leftWidth - 2);
-            std::string leftTrim = slice_plain(leftText, 0, leftContentWidth);
-            int leftDisplay = text_utils::utf8DisplayWidth(leftTrim);
-            if(leftDisplay < leftContentWidth)
-                leftTrim.append(leftContentWidth - leftDisplay, ' ');
-
-            if(selected && idx >= 0 && idx < (int)filtered.size())
-                output += editor.theme.selection();
-            else if(idx >= 0 && idx < (int)filtered.size())
-                output += editor.theme.baseFg();
-            else
+                int leftContentWidth = std::max(1, leftWidth - 2);
                 output += editor.theme.uiGutter();
-            output += " ";
-            output += leftTrim;
-            output += editor.theme.reset();
+                output += " ~";
+                if(leftContentWidth > 1)
+                    output.append(leftContentWidth - 1, ' ');
+                output += editor.theme.reset();
+            }
 
             output += editor.theme.uiGutter();
             output += "|";
@@ -778,6 +1099,14 @@ void GitLogMode::draw(Editor& editor) const
                 const auto& entry = entries[entryIndex];
                 output += "  ";
                 bool selected = (idx == cursor);
+                bool marked = selectedHashes.count(entry.hash) != 0;
+                bool inRange = false;
+                if(rangeSelectActive && !filtered.empty())
+                {
+                    int lo = std::min(rangeSelectAnchor, cursor);
+                    int hi = std::max(rangeSelectAnchor, cursor);
+                    inRange = (idx >= lo && idx <= hi);
+                }
                 std::string normalHash = selected
                                              ? editor.theme.selection()
                                              : (editor.theme.reset() +
@@ -787,16 +1116,19 @@ void GitLogMode::draw(Editor& editor) const
                                              : (editor.theme.reset() +
                                                 editor.theme.baseFg());
                 const std::string& matchSeq = editor.theme.searchMatch();
-                int maxLine = std::max(0, editor.screenCols - 4);
+                int maxLine = std::max(0, editor.screenCols - 6);
                 std::string hash = entry.hash;
                 if(hash.size() > 12)
                     hash.resize(12);
                 std::string subject = entry.subject;
-                int keep = maxLine - (int)hash.size() - 1;
+                int keep = maxLine - (int)hash.size() - 3;
                 if(keep < 0)
                     keep = 0;
                 if((int)subject.size() > keep)
                     subject.resize(keep);
+                append_highlighted(output, marked ? "*" : (inRange ? "+" : " "),
+                                   searchQuery,
+                                   normalText, matchSeq);
                 append_highlighted(output, hash, searchQuery, normalHash, matchSeq);
                 append_highlighted(output, " ", searchQuery, normalText, matchSeq);
                 append_highlighted(output, subject, searchQuery, normalText,
@@ -816,8 +1148,11 @@ void GitLogMode::draw(Editor& editor) const
     output += editor.theme.statusBar();
 
     std::string status = prettyView ? " GIT PRETTYLOG" : " GITLOG";
+    if(rangeSelectActive)
+        status += " [VISUAL]";
     std::string right = " " + std::to_string(filtered.empty() ? 0 : cursor + 1) +
                         "/" + std::to_string(filtered.size());
+    right += " | sel " + std::to_string(selectedHashes.size());
     if(prettyView)
     {
         int maxDiffScroll =
@@ -835,7 +1170,14 @@ void GitLogMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
-    if(searchActive)
+    if(prettyView && !searchActive && query.empty() && !filtered.empty())
+    {
+        int idx = std::clamp(cursor, 0, (int)filtered.size() - 1);
+        const auto& hash = entries[filtered[idx]].hash;
+        std::string shortHash = hash.substr(0, std::min<size_t>(12, hash.size()));
+        output += "commit: " + shortHash;
+    }
+    else if(searchActive)
         output += (searchForward ? "/" : "?") + searchQuery;
     else if(!query.empty())
         output += "filter: " + query;

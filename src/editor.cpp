@@ -10328,6 +10328,7 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
                                          "loctotal",
                                          "git stage",
                                          "git log",
+                                         "git prettylog",
                                          "git diff",
                                          "git commit",
                                          "git stash",

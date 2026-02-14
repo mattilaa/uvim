@@ -563,7 +563,8 @@ void GitHandler::openGitLogMode()
 
     std::string cmd =
         "git -C \"" + repoRoot +
-        "\" --no-pager log --no-color --pretty=format:%H\\\t%s 2>/dev/null";
+        "\" --no-pager log --no-color --date=format:%Y-%m-%d\\ %H:%M\\ %z "
+        "--pretty=format:%H%x1f%ad%x1f%an%x1f%s 2>/dev/null";
 
     FILE* pipe = popen(cmd.c_str(), "r");
     if(!pipe)
@@ -579,12 +580,26 @@ void GitHandler::openGitLogMode()
         std::string line = trim_newline(buffer);
         if(line.empty())
             continue;
-        size_t tab = line.find('\t');
+        constexpr char sep = '\x1f';
+        size_t tab = line.find(sep);
         if(tab == std::string::npos)
             continue;
         GitLogMode::Entry entry;
+        size_t tab2 = line.find(sep, tab + 1);
+        size_t tab3 = (tab2 == std::string::npos)
+                          ? std::string::npos
+                          : line.find(sep, tab2 + 1);
         entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
+        if(tab2 != std::string::npos)
+            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
+        if(tab2 != std::string::npos && tab3 != std::string::npos)
+            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
+        if(tab3 != std::string::npos)
+            entry.subject = line.substr(tab3 + 1);
+        else if(tab2 != std::string::npos)
+            entry.subject = line.substr(tab2 + 1);
+        else
+            entry.subject = line.substr(tab + 1);
         entries.push_back(std::move(entry));
     }
     pclose(pipe);
@@ -621,7 +636,8 @@ void GitHandler::openGitPrettyLogMode()
 
     std::string cmd =
         "git -C \"" + repoRoot +
-        "\" --no-pager log --no-color --pretty=format:%H\\\t%s 2>/dev/null";
+        "\" --no-pager log --no-color --date=format:%Y-%m-%d\\ %H:%M\\ %z "
+        "--pretty=format:%H%x1f%ad%x1f%an%x1f%s 2>/dev/null";
 
     FILE* pipe = popen(cmd.c_str(), "r");
     if(!pipe)
@@ -637,12 +653,26 @@ void GitHandler::openGitPrettyLogMode()
         std::string line = trim_newline(buffer);
         if(line.empty())
             continue;
-        size_t tab = line.find('\t');
+        constexpr char sep = '\x1f';
+        size_t tab = line.find(sep);
         if(tab == std::string::npos)
             continue;
         GitLogMode::Entry entry;
+        size_t tab2 = line.find(sep, tab + 1);
+        size_t tab3 = (tab2 == std::string::npos)
+                          ? std::string::npos
+                          : line.find(sep, tab2 + 1);
         entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
+        if(tab2 != std::string::npos)
+            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
+        if(tab2 != std::string::npos && tab3 != std::string::npos)
+            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
+        if(tab3 != std::string::npos)
+            entry.subject = line.substr(tab3 + 1);
+        else if(tab2 != std::string::npos)
+            entry.subject = line.substr(tab2 + 1);
+        else
+            entry.subject = line.substr(tab + 1);
         entries.push_back(std::move(entry));
     }
     pclose(pipe);

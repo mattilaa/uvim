@@ -4,7 +4,10 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
+#include <sys/stat.h>
 #include <string>
+#include <unistd.h>
 
 namespace
 {
@@ -53,7 +56,16 @@ bool reload_git_log_mode(GitLogMode& mode)
         return false;
 
     std::string cmd = "git -C \"" + repoDir +
-                      "\" --no-pager log --no-color --pretty=format:%H\\\t%s";
+                      "\" --no-pager log --no-color ";
+    if(mode.prettyView)
+    {
+        cmd += "--date=format:%Y-%m-%d\\ %H:%M\\ %z "
+               "--pretty=format:%H%x1f%ad%x1f%an%x1f%s";
+    }
+    else
+    {
+        cmd += "--pretty=format:%H%x1f%s";
+    }
     if(mode.fileOnly && !mode.filePath.empty())
         cmd += " -- \"" + mode.filePath + "\"";
     cmd += " 2>/dev/null";
@@ -66,12 +78,33 @@ bool reload_git_log_mode(GitLogMode& mode)
         std::string line = trim_newline(raw);
         if(line.empty())
             continue;
-        size_t tab = line.find('\t');
+        constexpr char sep = '\x1f';
+        size_t tab = line.find(sep);
         if(tab == std::string::npos)
             continue;
         GitLogMode::Entry entry;
         entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
+        if(mode.prettyView)
+        {
+            size_t tab2 = line.find(sep, tab + 1);
+            size_t tab3 = (tab2 == std::string::npos)
+                              ? std::string::npos
+                              : line.find(sep, tab2 + 1);
+            if(tab2 != std::string::npos)
+                entry.date = line.substr(tab + 1, tab2 - (tab + 1));
+            if(tab2 != std::string::npos && tab3 != std::string::npos)
+                entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
+            if(tab3 != std::string::npos)
+                entry.subject = line.substr(tab3 + 1);
+            else if(tab2 != std::string::npos)
+                entry.subject = line.substr(tab2 + 1);
+            else
+                entry.subject = line.substr(tab + 1);
+        }
+        else
+        {
+            entry.subject = line.substr(tab + 1);
+        }
         entries.push_back(std::move(entry));
     }
     if(entries.empty())
@@ -79,6 +112,10 @@ bool reload_git_log_mode(GitLogMode& mode)
 
     mode.entries = std::move(entries);
     mode.filtered.clear();
+    mode.selectedHashes.clear();
+    mode.rangeSelectActive = false;
+    mode.rangeSelectAnchor = 0;
+    mode.rangeSelectBase.clear();
     mode.cursor = 0;
     mode.scrollOffset = 0;
     mode.diffOffset = 0;
@@ -120,12 +157,74 @@ bool is_blank_line(const std::string& line)
     return true;
 }
 
+std::string shell_escape_single(std::string_view text)
+{
+    std::string out;
+    out.reserve(text.size() + 8);
+    out += '\'';
+    for(char ch : text)
+    {
+        if(ch == '\'')
+            out += "'\\''";
+        else
+            out += ch;
+    }
+    out += '\'';
+    return out;
+}
+
+std::string normalize_todo_action(std::string action)
+{
+    for(char& ch : action)
+        ch = (char)std::tolower((unsigned char)ch);
+    if(action == "p")
+        return "pick";
+    if(action == "r")
+        return "reword";
+    if(action == "e")
+        return "edit";
+    if(action == "s")
+        return "squash";
+    if(action == "f")
+        return "fixup";
+    if(action == "d")
+        return "drop";
+    if(action == "pick" || action == "reword" || action == "edit" ||
+       action == "squash" || action == "fixup" || action == "drop")
+        return action;
+    return {};
+}
+
 std::vector<std::string> build_comment_lines(
     const std::vector<std::string>& stagedLines, bool hasStagedFiles,
     const std::string& branch, GitCommitMode::Action action,
-    const std::string& revertHash, const std::string& revertSubject)
+    const std::string& revertHash, const std::string& revertSubject,
+    const std::string& rebaseBaseHash, const std::string& rebaseHeadHash,
+    int rebaseCommandCount)
 {
     std::vector<std::string> out;
+    if(action == GitCommitMode::Action::RebaseTodo)
+    {
+        out.push_back("# Rebase " + rebaseBaseHash + ".." + rebaseHeadHash +
+                      " (" + std::to_string(rebaseCommandCount) +
+                      " commands)");
+        out.push_back("#");
+        out.push_back("# Commands:");
+        out.push_back("# p, pick <commit> = use commit");
+        out.push_back("# r, reword <commit> = use commit, edit message");
+        out.push_back("# e, edit <commit> = use commit, stop for amending");
+        out.push_back("# s, squash <commit> = meld into previous commit");
+        out.push_back("# f, fixup <commit> = like squash, discard this message");
+        out.push_back("# d, drop <commit> = remove commit");
+        out.push_back("#");
+        out.push_back("# Reorder lines to move commits.");
+        out.push_back("# Lines starting with '#' will be ignored.");
+        out.push_back("# Remove a line here to drop that commit.");
+        out.push_back("#");
+        out.push_back("# :wq to run rebase, :q to cancel.");
+        return out;
+    }
+
     out.push_back(
         "# Please enter the commit message for your changes. Lines starting");
     out.push_back(
@@ -227,8 +326,13 @@ void GitCommitMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
     if(ed)
         ed->cancelCommandPopup();
-    if(stagedDirty)
+    if(action != Action::RebaseTodo && stagedDirty)
         refreshStaged();
+    if(action == Action::RebaseTodo)
+    {
+        stagedLines.clear();
+        hasStagedFiles = false;
+    }
     if(action == Action::RevertCommit &&
        (messageLines.empty() ||
         (messageLines.size() == 1 && messageLines[0].empty())))
@@ -276,7 +380,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
     auto commit_now = [&]() -> bool
     {
-        if(stagedDirty)
+        if(action != Action::RebaseTodo && stagedDirty)
             refreshStaged();
         if(action == Action::CommitStaged && !hasStagedFiles)
         {
@@ -293,6 +397,152 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         }
         while(!commitLines.empty() && is_blank_line(commitLines.back()))
             commitLines.pop_back();
+
+        if(action == Action::RebaseTodo)
+        {
+            struct TodoLine
+            {
+                std::string action;
+                std::string hash;
+                std::string subject;
+            };
+            std::vector<TodoLine> todo;
+            todo.reserve(commitLines.size());
+
+            for(const std::string& raw : commitLines)
+            {
+                size_t start = 0;
+                while(start < raw.size() &&
+                      std::isspace((unsigned char)raw[start]))
+                    ++start;
+                if(start >= raw.size())
+                    continue;
+                std::string line = raw.substr(start);
+                size_t sp1 = line.find(' ');
+                std::string actionToken =
+                    (sp1 == std::string::npos) ? line : line.substr(0, sp1);
+                std::string actionNorm = normalize_todo_action(actionToken);
+                if(actionNorm.empty())
+                {
+                    ed->setStatusMessage("git rebase: invalid action '" +
+                                         actionToken + "'");
+                    return false;
+                }
+
+                size_t pos = (sp1 == std::string::npos) ? line.size() : sp1;
+                while(pos < line.size() && line[pos] == ' ')
+                    ++pos;
+                if(pos >= line.size())
+                {
+                    ed->setStatusMessage("git rebase: missing commit hash");
+                    return false;
+                }
+
+                size_t sp2 = line.find(' ', pos);
+                std::string hash =
+                    (sp2 == std::string::npos) ? line.substr(pos)
+                                               : line.substr(pos, sp2 - pos);
+                std::string subject =
+                    (sp2 == std::string::npos) ? std::string{}
+                                               : line.substr(sp2 + 1);
+                if(hash.empty())
+                {
+                    ed->setStatusMessage("git rebase: missing commit hash");
+                    return false;
+                }
+                todo.push_back(TodoLine{std::move(actionNorm), std::move(hash),
+                                        std::move(subject)});
+            }
+
+            if(todo.empty())
+            {
+                ed->setStatusMessage("git rebase: todo is empty");
+                return false;
+            }
+            const std::string oldestHash =
+                rebaseBaseHash.empty() ? todo.front().hash : rebaseBaseHash;
+            std::string baseCmd = "git -C \"" + repoDir + "\" rev-parse \"" +
+                                  oldestHash + "^\" 2>/dev/null";
+            auto baseLines = run_git_lines(baseCmd);
+            std::string base;
+            if(!baseLines.empty())
+                base = trim_newline(baseLines.front());
+
+            std::string todoText;
+            for(const auto& item : todo)
+            {
+                todoText += item.action + " " + item.hash;
+                if(!item.subject.empty())
+                    todoText += " " + item.subject;
+                todoText += "\n";
+            }
+
+            char todoTemplate[] = "/tmp/uvim_rebase_todoXXXXXX";
+            int todoFd = mkstemp(todoTemplate);
+            if(todoFd < 0)
+            {
+                ed->setStatusMessage("git rebase: failed");
+                return false;
+            }
+            std::string todoPath = todoTemplate;
+            FILE* todoFile = fdopen(todoFd, "w");
+            if(!todoFile)
+            {
+                close(todoFd);
+                unlink(todoPath.c_str());
+                ed->setStatusMessage("git rebase: failed");
+                return false;
+            }
+            fwrite(todoText.data(), 1, todoText.size(), todoFile);
+            fclose(todoFile);
+
+            char scriptTemplate[] = "/tmp/uvim_rebase_editorXXXXXX";
+            int scriptFd = mkstemp(scriptTemplate);
+            if(scriptFd < 0)
+            {
+                unlink(todoPath.c_str());
+                ed->setStatusMessage("git rebase: failed");
+                return false;
+            }
+            std::string scriptPath = scriptTemplate;
+            FILE* scriptFile = fdopen(scriptFd, "w");
+            if(!scriptFile)
+            {
+                close(scriptFd);
+                unlink(scriptPath.c_str());
+                unlink(todoPath.c_str());
+                ed->setStatusMessage("git rebase: failed");
+                return false;
+            }
+
+            std::string script = "#!/bin/sh\ncat " +
+                                 shell_escape_single(todoPath) + " > \"$1\"\n";
+            fwrite(script.data(), 1, script.size(), scriptFile);
+            fclose(scriptFile);
+            chmod(scriptPath.c_str(), 0700);
+
+            std::string cmd = "GIT_SEQUENCE_EDITOR=" +
+                              shell_escape_single(scriptPath) +
+                              " git -C \"" + repoDir +
+                              "\" rebase -i --autosquash ";
+            if(base.empty())
+                cmd += "--root";
+            else
+                cmd += shell_escape_single(base);
+            cmd += " 2>/dev/null";
+
+            int status = std::system(cmd.c_str());
+            unlink(scriptPath.c_str());
+            unlink(todoPath.c_str());
+            if(status != 0)
+            {
+                ed->setStatusMessage("git rebase: failed");
+                return false;
+            }
+
+            ed->setStatusMessage("git rebase: done");
+            return true;
+        }
 
         std::string msg = join_lines(commitLines);
         if(msg.empty())
@@ -407,7 +657,10 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             else
             {
-                ed->setStatusMessage("git commit: unknown command");
+                if(action == Action::RebaseTodo)
+                    ed->setStatusMessage("git rebase: unknown command");
+                else
+                    ed->setStatusMessage("git commit: unknown command");
             }
             ed->needsFullRedraw = true;
             return std::nullopt;
@@ -436,6 +689,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
     }
     if(c == Terminal::CTRL_R)
     {
+        if(action == Action::RebaseTodo)
+            return std::nullopt;
         stagedDirty = true;
         refreshStaged();
         ed->needsFullRedraw = true;
@@ -496,6 +751,25 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
+        if(action == Action::RebaseTodo && (c == 'J' || c == 'K'))
+        {
+            if(c == 'J' && messageCursorRow + 1 < (int)messageLines.size())
+            {
+                std::swap(messageLines[messageCursorRow],
+                          messageLines[messageCursorRow + 1]);
+                messageCursorRow++;
+                clamp_cursor();
+            }
+            else if(c == 'K' && messageCursorRow > 0)
+            {
+                std::swap(messageLines[messageCursorRow],
+                          messageLines[messageCursorRow - 1]);
+                messageCursorRow--;
+                clamp_cursor();
+            }
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
         if(c == 'g')
         {
             int next = Terminal::readKey();
@@ -525,6 +799,29 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 line.erase(messageCursorCol, 1);
             messageCursorCol = std::min(messageCursorCol, (int)line.size());
             ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(action == Action::RebaseTodo &&
+           (c == 'p' || c == 'r' || c == 'e' || c == 's' || c == 'f' ||
+            c == 'd' || c == 'P' || c == 'R' || c == 'E' || c == 'S' ||
+            c == 'F' || c == 'D'))
+        {
+            char alias = (char)std::tolower((unsigned char)c);
+            std::string actionWord = normalize_todo_action(std::string(1, alias));
+            std::string& line = messageLines[messageCursorRow];
+            size_t start = 0;
+            while(start < line.size() &&
+                  std::isspace((unsigned char)line[start]))
+                ++start;
+            size_t wordEnd = start;
+            while(wordEnd < line.size() && line[wordEnd] != ' ')
+                ++wordEnd;
+            if(start < line.size())
+            {
+                line.replace(start, wordEnd - start, actionWord);
+                messageCursorCol = std::min(messageCursorCol, (int)line.size());
+                ed->needsFullRedraw = true;
+            }
             return std::nullopt;
         }
         if(c == 'O')
@@ -644,6 +941,42 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             return std::nullopt;
         }
+        if(c == 'c')
+        {
+            int next = Terminal::readKey();
+            if(next == 'w')
+            {
+                std::string& line = messageLines[messageCursorRow];
+                int n = (int)line.size();
+                int start = std::clamp(messageCursorCol, 0, n);
+                int end = start;
+                auto is_space = [](char ch)
+                { return ch == ' ' || ch == '\t'; };
+
+                if(end < n)
+                {
+                    if(is_space(line[end]))
+                    {
+                        while(end < n && is_space(line[end]))
+                            ++end;
+                    }
+                    else
+                    {
+                        bool inWord = is_word_char(line[end]);
+                        while(end < n && !is_space(line[end]) &&
+                              is_word_char(line[end]) == inWord)
+                            ++end;
+                    }
+                }
+                if(end > start)
+                    line.erase((size_t)start, (size_t)(end - start));
+                messageCursorCol = start;
+                insertMode = true;
+                clamp_cursor();
+                ed->needsFullRedraw = true;
+            }
+            return std::nullopt;
+        }
     }
 
     if(c == Terminal::ARROW_LEFT)
@@ -759,7 +1092,8 @@ void GitCommitMode::draw(Editor& editor) const
     int contentRows = std::max(1, editor.screenRows - 2);
     auto commentLines =
         build_comment_lines(stagedLines, hasStagedFiles, currentBranch, action,
-                            revertHash, revertSubject);
+                            revertHash, revertSubject, rebaseBaseHash,
+                            rebaseHeadHash, rebaseCommandCount);
     int totalVirtualRows = (int)messageLines.size() + (int)commentLines.size();
     int viewTop = std::clamp(messageTopRow, 0, std::max(0, totalVirtualRows - 1));
 
@@ -771,19 +1105,33 @@ void GitCommitMode::draw(Editor& editor) const
 
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
-    output += (action == Action::RevertCommit) ? "  GIT REVERT" : "  GIT COMMIT";
+    if(action == Action::RevertCommit)
+        output += "  GIT REVERT";
+    else if(action == Action::RebaseTodo)
+        output += "  GIT REBASE TODO";
+    else
+        output += "  GIT COMMIT";
     if(!repoRoot.empty())
         output += " - " + repoRoot;
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
-              "] [:wq " +
-              std::string(action == Action::RevertCommit ? "revert+close"
-                                                         : "commit+close") +
-              "] [:q close] [enter newline] "
-              "[ctrl-r refresh staged]";
+    if(action == Action::RebaseTodo)
+    {
+        output += std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
+                  "] [:wq rebase+close] [:q cancel] "
+                  "[p/r/e/s/f/d set action] [J/K move] [enter newline]";
+    }
+    else
+    {
+        output += std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
+                  "] [:wq " +
+                  std::string(action == Action::RevertCommit ? "revert+close"
+                                                             : "commit+close") +
+                  "] [:q close] [enter newline] "
+                  "[ctrl-r refresh staged]";
+    }
     output += editor.theme.baseFg();
 
     for(int row = 0; row < contentRows; ++row)
@@ -796,11 +1144,13 @@ void GitCommitMode::draw(Editor& editor) const
             output += "  ";
             const std::string& line = messageLines[lineIdx];
             int maxW = std::max(0, editor.screenCols - 2);
-            int normalLen = std::min((int)line.size(), std::min(COMMIT_SOFT_LIMIT, maxW));
+            int softLimit =
+                (action == Action::RebaseTodo) ? maxW : std::min(COMMIT_SOFT_LIMIT, maxW);
+            int normalLen = std::min((int)line.size(), softLimit);
             if(normalLen > 0)
                 output += line.substr(0, normalLen);
 
-            int overflowStart = std::min(COMMIT_SOFT_LIMIT, maxW);
+            int overflowStart = softLimit;
             if((int)line.size() > overflowStart && overflowStart < maxW)
             {
                 output += Terminal::BG_RED;
@@ -865,12 +1215,27 @@ void GitCommitMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
-    std::string status =
-        (action == Action::RevertCommit) ? " GIT REVERT" : " GIT COMMIT";
+    std::string status = " GIT COMMIT";
+    if(action == Action::RevertCommit)
+        status = " GIT REVERT";
+    else if(action == Action::RebaseTodo)
+        status = " GIT REBASE";
     if(!repoRoot.empty())
         status += " | " + repoRoot;
-    std::string right = " " + std::to_string(hasStagedFiles ? stagedLines.size() : 0) +
-                        " staged ";
+    std::string right;
+    if(action == Action::RebaseTodo)
+    {
+        int todoCount = 0;
+        for(const auto& line : messageLines)
+        {
+            if(!is_comment_line(line) && !is_blank_line(line))
+                ++todoCount;
+        }
+        right = " " + std::to_string(todoCount) + " commits ";
+    }
+    else
+        right = " " + std::to_string(hasStagedFiles ? stagedLines.size() : 0) +
+                " staged ";
     output += status;
     int padding = editor.screenCols - (int)status.size() - (int)right.size();
     if(padding > 0)

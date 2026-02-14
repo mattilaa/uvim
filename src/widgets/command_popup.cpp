@@ -79,6 +79,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Open interactive git stage";
     if(cmd == "git log")
         return "Browse commit log";
+    if(cmd == "git prettylog")
+        return "Browse tig-like split commit log";
     if(cmd == "git diff")
         return "Show repository diff";
     if(cmd == "git commit")

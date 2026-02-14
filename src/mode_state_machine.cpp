@@ -1237,6 +1237,9 @@ bool CommandPrompt::handle(
                            std::string_view("log").rfind(pathPart, 0) == 0)
                             completions.push_back("log");
                         if(pathPart.empty() ||
+                           std::string_view("prettylog").rfind(pathPart, 0) == 0)
+                            completions.push_back("prettylog");
+                        if(pathPart.empty() ||
                            std::string_view("stash").rfind(pathPart, 0) == 0)
                             completions.push_back("stash");
                         if(pathPart.empty() ||
@@ -1485,23 +1488,27 @@ bool CommandPrompt::handle(
 
     if(key == Terminal::ENTER)
     {
+        std::string commandToRun = input;
         if(ctx.isCommandPopupActive())
         {
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(input.find(' ') == std::string::npos ||
+                if(commandToRun.find(' ') == std::string::npos ||
                    selection->find(' ') != std::string::npos)
                 {
-                    input = *selection;
+                    commandToRun = *selection;
                 }
             }
         }
-        nextState = execute(input);
+
+        // Execute may transition modes immediately, invalidating this object.
+        // Clear prompt state first, then execute using a local command copy.
         active = false;
         input.clear();
         clearCompletions();
         ctx.cancelCommandPopup();
         ed->needsFullRedraw = true;
+        nextState = execute(commandToRun);
         return true;
     }
 

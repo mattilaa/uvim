@@ -820,11 +820,17 @@ struct GitLogMode
     struct Entry
     {
         std::string hash;
+        std::string date;
+        std::string author;
         std::string subject;
     };
 
     std::vector<Entry> entries;
     std::vector<int> filtered;
+    std::unordered_set<std::string> selectedHashes;
+    bool rangeSelectActive = false;
+    int rangeSelectAnchor = 0;
+    std::unordered_set<std::string> rangeSelectBase;
     std::string query;
     int scrollOffset = 0;
     int cursor = 0;
@@ -1048,11 +1054,15 @@ struct GitCommitMode
     enum class Action
     {
         CommitStaged,
-        RevertCommit
+        RevertCommit,
+        RebaseTodo
     };
     Action action = Action::CommitStaged;
     std::string revertHash;
     std::string revertSubject;
+    std::string rebaseBaseHash;
+    std::string rebaseHeadHash;
+    int rebaseCommandCount = 0;
     std::optional<GitLogMode> returnLog;
 
     GitCommitMode() = default;
