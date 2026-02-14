@@ -5,7 +5,6 @@
 #include "formatter.h"
 #include "git_handler.h"
 #include "gitignore.h"
-#include "json_utils.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
 #include "syntax_highlighter.h"
@@ -18,7 +17,6 @@
 #endif
 #include <algorithm>
 #include <cctype>
-#include <charconv>
 #include <chrono>
 #include <csignal>
 #include <cstdio>
@@ -340,9 +338,9 @@ static bool find_mlang_builtin_function(std::string_view symbol,
     return false;
 }
 
-static bool find_mlang_top_level_def_in_lines(
-    const std::vector<std::string>& lines, std::string_view symbol, int& outY,
-    int& outX)
+static bool
+find_mlang_top_level_def_in_lines(const std::vector<std::string>& lines,
+                                  std::string_view symbol, int& outY, int& outX)
 {
     auto is_ident_char = [](char c) -> bool
     {
@@ -4245,8 +4243,8 @@ void Editor::goToDefinition()
         }
 
         mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
-        auto loc = mlangLspClient->definition(currentBuffer->filename, *cursorY,
-                                              lspX);
+        auto loc =
+            mlangLspClient->definition(currentBuffer->filename, *cursorY, lspX);
         if(loc)
         {
             pushJumpLocation();
