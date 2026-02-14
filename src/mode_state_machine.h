@@ -837,14 +837,20 @@ struct GitLogMode
     std::string repoRoot;
     std::string repoDir;
     std::string filePath;
+    bool prettyView = false;
+    std::vector<std::string> previewLines;
+    std::string previewHash;
+    int diffOffset = 0;
+    int diffHorizontalOffset = 0;
+    bool diffDirty = true;
 
     GitLogMode() = default;
     GitLogMode(std::vector<Entry> items, bool fileOnlyLog,
                std::string root = {}, std::string dir = {},
-               std::string file = {})
+               std::string file = {}, bool pretty = false)
         : entries(std::move(items)), fileOnly(fileOnlyLog),
           repoRoot(std::move(root)), repoDir(std::move(dir)),
-          filePath(std::move(file))
+          filePath(std::move(file)), prettyView(pretty)
     {
     }
 
@@ -856,6 +862,7 @@ struct GitLogMode
     void draw(Editor& editor) const;
 
     void rebuildFilter(Editor& editor);
+    void ensurePrettyPreview(Editor& editor);
 #ifdef UVIM_TESTING
     static std::string testRenderLine(const Theme& theme, const Entry& entry,
                                       std::string_view query, bool selected,

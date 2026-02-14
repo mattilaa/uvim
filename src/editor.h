@@ -355,6 +355,7 @@ public:
     void openGitShowCommitMode();
     std::vector<std::string> loadGitShowLines(const std::string& hash);
     void openGitLogMode();
+    void openGitPrettyLogMode();
     void openGitLogModeForFile();
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;

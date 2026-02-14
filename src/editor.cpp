@@ -5236,6 +5236,12 @@ void Editor::openGitLogMode()
         gitHandler->openGitLogMode();
 }
 
+void Editor::openGitPrettyLogMode()
+{
+    if(gitHandler)
+        gitHandler->openGitPrettyLogMode();
+}
+
 void Editor::openGitLogModeForFile()
 {
     if(gitHandler)
@@ -6706,6 +6712,14 @@ void Editor::executeCommand(std::string_view cmd)
             gitHandler->openGitLogMode();
         else
             setStatusMessage("git log: unavailable");
+        return;
+    }
+    if(trimmedCmd == "git prettylog")
+    {
+        if(gitHandler)
+            gitHandler->openGitPrettyLogMode();
+        else
+            setStatusMessage("git prettylog: unavailable");
         return;
     }
     if(trimmedCmd == "git diff")

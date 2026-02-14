@@ -81,6 +81,11 @@ bool reload_git_log_mode(GitLogMode& mode)
     mode.filtered.clear();
     mode.cursor = 0;
     mode.scrollOffset = 0;
+    mode.diffOffset = 0;
+    mode.diffHorizontalOffset = 0;
+    mode.previewLines.clear();
+    mode.previewHash.clear();
+    mode.diffDirty = true;
     return true;
 }
 

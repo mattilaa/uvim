@@ -19,6 +19,7 @@ public:
     void openGitCommitMode();
     std::vector<std::string> loadGitShowLines(const std::string& hash);
     void openGitLogMode();
+    void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
     bool runGitStash(std::string& outMessage);

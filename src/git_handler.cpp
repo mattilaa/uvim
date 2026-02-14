@@ -604,6 +604,64 @@ void GitHandler::openGitLogMode()
     }
 }
 
+void GitHandler::openGitPrettyLogMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git prettylog: not a repo");
+        return;
+    }
+
+    std::string cmd =
+        "git -C \"" + repoRoot +
+        "\" --no-pager log --no-color --pretty=format:%H\\\t%s 2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+    {
+        editor->setStatusMessage("git prettylog: failed to run");
+        return;
+    }
+
+    std::vector<GitLogMode::Entry> entries;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe))
+    {
+        std::string line = trim_newline(buffer);
+        if(line.empty())
+            continue;
+        size_t tab = line.find('\t');
+        if(tab == std::string::npos)
+            continue;
+        GitLogMode::Entry entry;
+        entry.hash = line.substr(0, tab);
+        entry.subject = line.substr(tab + 1);
+        entries.push_back(std::move(entry));
+    }
+    pclose(pipe);
+
+    if(entries.empty())
+    {
+        editor->setStatusMessage("git prettylog: no output");
+        return;
+    }
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(
+            GitLogMode{std::move(entries), false, repoRoot, repoRoot, {}, true});
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
 void GitHandler::openGitLogModeForFile()
 {
     if(!ensureGitAvailable())
