@@ -834,10 +834,17 @@ struct GitLogMode
     std::string searchQuery;
     int searchPrevCursor = 0;
     int searchPrevScroll = 0;
+    std::string repoRoot;
+    std::string repoDir;
+    std::string filePath;
 
     GitLogMode() = default;
-    GitLogMode(std::vector<Entry> items, bool fileOnlyLog)
-        : entries(std::move(items)), fileOnly(fileOnlyLog)
+    GitLogMode(std::vector<Entry> items, bool fileOnlyLog,
+               std::string root = {}, std::string dir = {},
+               std::string file = {})
+        : entries(std::move(items)), fileOnly(fileOnlyLog),
+          repoRoot(std::move(root)), repoDir(std::move(dir)),
+          filePath(std::move(file))
     {
     }
 
@@ -1031,6 +1038,15 @@ struct GitCommitMode
     std::string currentBranch;
     bool hasStagedFiles = false;
     bool stagedDirty = true;
+    enum class Action
+    {
+        CommitStaged,
+        RevertCommit
+    };
+    Action action = Action::CommitStaged;
+    std::string revertHash;
+    std::string revertSubject;
+    std::optional<GitLogMode> returnLog;
 
     GitCommitMode() = default;
     GitCommitMode(std::string root, std::string dir)

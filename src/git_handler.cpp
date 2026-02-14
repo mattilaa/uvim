@@ -563,7 +563,7 @@ void GitHandler::openGitLogMode()
 
     std::string cmd =
         "git -C \"" + repoRoot +
-        "\" --no-pager log --no-color --pretty=format:%h\\\t%s 2>/dev/null";
+        "\" --no-pager log --no-color --pretty=format:%H\\\t%s 2>/dev/null";
 
     FILE* pipe = popen(cmd.c_str(), "r");
     if(!pipe)
@@ -598,7 +598,7 @@ void GitHandler::openGitLogMode()
     if(editor->modeStateMachine)
     {
         editor->modeStateMachine->transitionTo(
-            GitLogMode{std::move(entries), false});
+            GitLogMode{std::move(entries), false, repoRoot, repoRoot, {}});
         editor->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
@@ -625,9 +625,15 @@ void GitHandler::openGitLogModeForFile()
     fs::path path(editor->currentBuffer->filename);
     std::string dir =
         path.has_parent_path() ? path.parent_path().string() : std::string(".");
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git log: not a repo");
+        return;
+    }
     std::string cmd =
         "git -C \"" + dir +
-        "\" --no-pager log --no-color --pretty=format:%h\\\t%s -- \"" +
+        "\" --no-pager log --no-color --pretty=format:%H\\\t%s -- \"" +
         editor->currentBuffer->filename + "\" 2>/dev/null";
 
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -663,7 +669,8 @@ void GitHandler::openGitLogModeForFile()
     if(editor->modeStateMachine)
     {
         editor->modeStateMachine->transitionTo(
-            GitLogMode{std::move(entries), true});
+            GitLogMode{std::move(entries), true, repoRoot, repoRoot,
+                       editor->currentBuffer->filename});
         editor->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }

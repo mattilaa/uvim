@@ -46,6 +46,44 @@ std::vector<std::string> run_git_lines(const std::string& cmd)
     return out;
 }
 
+bool reload_git_log_mode(GitLogMode& mode)
+{
+    const std::string repoDir = !mode.repoDir.empty() ? mode.repoDir : mode.repoRoot;
+    if(repoDir.empty())
+        return false;
+
+    std::string cmd = "git -C \"" + repoDir +
+                      "\" --no-pager log --no-color --pretty=format:%H\\\t%s";
+    if(mode.fileOnly && !mode.filePath.empty())
+        cmd += " -- \"" + mode.filePath + "\"";
+    cmd += " 2>/dev/null";
+
+    auto lines = run_git_lines(cmd);
+    std::vector<GitLogMode::Entry> entries;
+    entries.reserve(lines.size());
+    for(const auto& raw : lines)
+    {
+        std::string line = trim_newline(raw);
+        if(line.empty())
+            continue;
+        size_t tab = line.find('\t');
+        if(tab == std::string::npos)
+            continue;
+        GitLogMode::Entry entry;
+        entry.hash = line.substr(0, tab);
+        entry.subject = line.substr(tab + 1);
+        entries.push_back(std::move(entry));
+    }
+    if(entries.empty())
+        return false;
+
+    mode.entries = std::move(entries);
+    mode.filtered.clear();
+    mode.cursor = 0;
+    mode.scrollOffset = 0;
+    return true;
+}
+
 std::string join_lines(const std::vector<std::string>& lines)
 {
     std::string out;
@@ -79,7 +117,8 @@ bool is_blank_line(const std::string& line)
 
 std::vector<std::string> build_comment_lines(
     const std::vector<std::string>& stagedLines, bool hasStagedFiles,
-    const std::string& branch)
+    const std::string& branch, GitCommitMode::Action action,
+    const std::string& revertHash, const std::string& revertSubject)
 {
     std::vector<std::string> out;
     out.push_back(
@@ -89,6 +128,14 @@ std::vector<std::string> build_comment_lines(
     out.push_back("#");
     out.push_back("# On branch " + (branch.empty() ? std::string("(unknown)") : branch));
     out.push_back("#");
+    if(action == GitCommitMode::Action::RevertCommit)
+    {
+        out.push_back("# You are currently reverting commit " + revertHash + ".");
+        out.push_back("#");
+        out.push_back("# Commit to revert:");
+        out.push_back("#   " + revertSubject);
+        out.push_back("#");
+    }
     out.push_back("# Changes to be committed:");
     if(!hasStagedFiles)
     {
@@ -177,6 +224,14 @@ void GitCommitMode::on_enter(ModeContext& ctx)
         ed->cancelCommandPopup();
     if(stagedDirty)
         refreshStaged();
+    if(action == Action::RevertCommit &&
+       (messageLines.empty() ||
+        (messageLines.size() == 1 && messageLines[0].empty())))
+    {
+        messageLines = {"Revert \"" + revertSubject + "\"",
+                        "",
+                        "This reverts commit " + revertHash + "."};
+    }
     if(messageLines.empty())
         messageLines.push_back("");
     messageCursorRow = std::clamp(messageCursorRow, 0,
@@ -218,7 +273,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
     {
         if(stagedDirty)
             refreshStaged();
-        if(!hasStagedFiles)
+        if(action == Action::CommitStaged && !hasStagedFiles)
         {
             ed->setStatusMessage("git commit: no staged files");
             return false;
@@ -241,24 +296,80 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             return false;
         }
 
-        std::string cmd = "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
-        FILE* pipe = popen(cmd.c_str(), "w");
-        if(!pipe)
+        if(action == Action::RevertCommit)
         {
-            ed->setStatusMessage("git commit: failed");
-            return false;
-        }
-        fwrite(msg.data(), 1, msg.size(), pipe);
-        fwrite("\n", 1, 1, pipe);
-        int status = pclose(pipe);
-        if(status != 0)
-        {
-            ed->setStatusMessage("git commit: failed");
-            return false;
-        }
+            if(revertHash.empty())
+            {
+                ed->setStatusMessage("git revert: missing target");
+                return false;
+            }
 
-        ed->setStatusMessage("git commit: done");
-        return true;
+            std::string revertCmd = "git -C \"" + repoDir +
+                                    "\" revert --no-commit \"" + revertHash +
+                                    "\" 2>/dev/null";
+            int revertStatus = system(revertCmd.c_str());
+            if(revertStatus != 0)
+            {
+                ed->setStatusMessage("git revert: failed");
+                return false;
+            }
+
+            std::string commitCmd =
+                "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
+            FILE* pipe = popen(commitCmd.c_str(), "w");
+            if(!pipe)
+            {
+                system(("git -C \"" + repoDir + "\" revert --abort 2>/dev/null")
+                           .c_str());
+                ed->setStatusMessage("git revert: failed");
+                return false;
+            }
+            fwrite(msg.data(), 1, msg.size(), pipe);
+            fwrite("\n", 1, 1, pipe);
+            int commitStatus = pclose(pipe);
+            if(commitStatus != 0)
+            {
+                system(("git -C \"" + repoDir + "\" revert --abort 2>/dev/null")
+                           .c_str());
+                ed->setStatusMessage("git revert: failed");
+                return false;
+            }
+
+            ed->setStatusMessage("git revert: done");
+            return true;
+        }
+        else
+        {
+            std::string cmd = "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "w");
+            if(!pipe)
+            {
+                ed->setStatusMessage("git commit: failed");
+                return false;
+            }
+            fwrite(msg.data(), 1, msg.size(), pipe);
+            fwrite("\n", 1, 1, pipe);
+            int status = pclose(pipe);
+            if(status != 0)
+            {
+                ed->setStatusMessage("git commit: failed");
+                return false;
+            }
+
+            ed->setStatusMessage("git commit: done");
+            return true;
+        }
+    };
+
+    auto return_after_done = [&](bool refreshLog) -> ModeState
+    {
+        if(returnLog.has_value())
+        {
+            if(refreshLog)
+                reload_git_log_mode(*returnLog);
+            return *returnLog;
+        }
+        return GitStageMode{{}, repoRoot, repoDir};
     };
 
     if(commandActive)
@@ -283,11 +394,11 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             commandActive = false;
             commandLine.clear();
             if(cmd == "q" || cmd == "q!")
-                return GitStageMode{{}, repoRoot, repoDir};
+                return return_after_done(false);
             if(cmd == "wq" || cmd == "x")
             {
                 if(commit_now())
-                    return GitStageMode{{}, repoRoot, repoDir};
+                    return return_after_done(true);
             }
             else
             {
@@ -329,7 +440,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
     if(!insertMode)
     {
         if(c == 'q')
-            return GitStageMode{{}, repoRoot, repoDir};
+            return return_after_done(false);
         if(c == 'h')
         {
             if(messageCursorCol > 0)
@@ -642,7 +753,8 @@ void GitCommitMode::draw(Editor& editor) const
     int messageStartRow = 3;
     int contentRows = std::max(1, editor.screenRows - 2);
     auto commentLines =
-        build_comment_lines(stagedLines, hasStagedFiles, currentBranch);
+        build_comment_lines(stagedLines, hasStagedFiles, currentBranch, action,
+                            revertHash, revertSubject);
     int totalVirtualRows = (int)messageLines.size() + (int)commentLines.size();
     int viewTop = std::clamp(messageTopRow, 0, std::max(0, totalVirtualRows - 1));
 
@@ -654,7 +766,7 @@ void GitCommitMode::draw(Editor& editor) const
 
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
-    output += "  GIT COMMIT";
+    output += (action == Action::RevertCommit) ? "  GIT REVERT" : "  GIT COMMIT";
     if(!repoRoot.empty())
         output += " - " + repoRoot;
     output += editor.theme.reset();
@@ -662,7 +774,10 @@ void GitCommitMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
     output += std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
-              "] [:wq commit+close] [:q close] [enter newline] "
+              "] [:wq " +
+              std::string(action == Action::RevertCommit ? "revert+close"
+                                                         : "commit+close") +
+              "] [:q close] [enter newline] "
               "[ctrl-r refresh staged]";
     output += editor.theme.baseFg();
 
@@ -745,7 +860,8 @@ void GitCommitMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
-    std::string status = " GIT COMMIT";
+    std::string status =
+        (action == Action::RevertCommit) ? " GIT REVERT" : " GIT COMMIT";
     if(!repoRoot.empty())
         status += " | " + repoRoot;
     std::string right = " " + std::to_string(hasStagedFiles ? stagedLines.size() : 0) +

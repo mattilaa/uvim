@@ -358,6 +358,30 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             cursor = 0;
             scrollOffset = 0;
         }
+        else if(nextChar == 'r')
+        {
+            if(filtered.empty())
+                return std::nullopt;
+            int idx = filtered[cursor];
+            if(idx < 0 || idx >= (int)entries.size())
+                return std::nullopt;
+
+            GitCommitMode revertMode{repoRoot, repoDir};
+            revertMode.action = GitCommitMode::Action::RevertCommit;
+            revertMode.returnLog = *this;
+            revertMode.revertHash = entries[idx].hash;
+            revertMode.revertSubject = entries[idx].subject;
+            revertMode.messageLines = {
+                "Revert \"" + entries[idx].subject + "\"",
+                "",
+                "This reverts commit " + entries[idx].hash + ".",
+            };
+            revertMode.messageCursorRow = 0;
+            revertMode.messageCursorCol = 0;
+            revertMode.insertMode = false;
+            revertMode.stagedDirty = true;
+            return revertMode;
+        }
     }
     else if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
     {
@@ -418,7 +442,8 @@ void GitLogMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [q: quit] [ctrl-j/k: move] [enter: show] [type: filter]";
+    output +=
+        "  [q: quit] [ctrl-j/k: move] [enter: show] [gr: revert] [type: filter]";
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 2;
