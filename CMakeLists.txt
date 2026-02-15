@@ -58,6 +58,8 @@ set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
     src/editor.cpp
+    src/editor_mode_dispatch.cpp
+    src/editor_view_refresh.cpp
     src/editor_utils.cpp
     src/editor_mode_handlers.cpp
     src/editor_lsp_info.cpp
