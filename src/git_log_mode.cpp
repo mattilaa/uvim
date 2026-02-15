@@ -360,6 +360,14 @@ void GitLogMode::ensurePrettyPreview(Editor& editor)
     const std::string& hash = entries[idx].hash;
     previewHash = hash;
 
+    auto cacheIt = previewCache.find(hash);
+    if(cacheIt != previewCache.end())
+    {
+        previewLines = cacheIt->second;
+        diffDirty = false;
+        return;
+    }
+
     const std::string repoDirUse = !repoDir.empty() ? repoDir : repoRoot;
     if(repoDirUse.empty())
     {
@@ -376,6 +384,16 @@ void GitLogMode::ensurePrettyPreview(Editor& editor)
     previewLines = run_git_lines(cmd);
     if(previewLines.empty())
         previewLines.push_back("(no diff output)");
+
+    previewCache.emplace(hash, previewLines);
+    previewCacheOrder.push_back(hash);
+    constexpr size_t kPreviewCacheMax = 48;
+    if(previewCacheOrder.size() > kPreviewCacheMax)
+    {
+        const std::string& oldest = previewCacheOrder.front();
+        previewCache.erase(oldest);
+        previewCacheOrder.erase(previewCacheOrder.begin());
+    }
     diffDirty = false;
 }
 
@@ -431,6 +449,14 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
 
     int c = event.key;
     int prevCursor = cursor;
+    auto mark_preview_dirty = [&]()
+    {
+        if(prettyView)
+        {
+            diffDirty = true;
+            lastCursorMove = std::chrono::steady_clock::now();
+        }
+    };
     auto apply_range_selection = [&]()
     {
         if(!rangeSelectActive || filtered.empty())
@@ -518,11 +544,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 scrollOffset = cursor;
             else if(cursor >= scrollOffset + window)
                 scrollOffset = cursor - window + 1;
-            if(prettyView)
-            {
-                diffDirty = true;
-                ensurePrettyPreview(*ed);
-            }
+            mark_preview_dirty();
             return true;
         }
         return false;
@@ -550,10 +572,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 ed->lastEscTime = now;
             }
             if(prettyView && cursor != prevCursor)
-            {
-                diffDirty = true;
-                ensurePrettyPreview(*ed);
-            }
+                mark_preview_dirty();
             searchActive = false;
             ctx.requestFullRedraw();
             return std::nullopt;
@@ -565,10 +584,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 cursor = searchPrevCursor;
                 scrollOffset = searchPrevScroll;
                 if(prettyView && cursor != prevCursor)
-                {
-                    diffDirty = true;
-                    ensurePrettyPreview(*ed);
-                }
+                    mark_preview_dirty();
                 searchActive = false;
                 ctx.requestFullRedraw();
                 return std::nullopt;
@@ -613,11 +629,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                         scrollOffset = cursor;
                     else if(cursor >= scrollOffset + window)
                         scrollOffset = cursor - window + 1;
-                    if(prettyView)
-                    {
-                        diffDirty = true;
-                        ensurePrettyPreview(*ed);
-                    }
+                    mark_preview_dirty();
                 }
                 else
                 {
@@ -902,14 +914,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         apply_range_selection();
 
     if(prettyView && cursor != prevCursor)
-    {
-        diffDirty = true;
-        ensurePrettyPreview(*ed);
-    }
-    else if(prettyView && diffDirty)
-    {
-        ensurePrettyPreview(*ed);
-    }
+        mark_preview_dirty();
 
     ctx.requestFullRedraw();
     return std::nullopt;
@@ -918,6 +923,16 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
 void GitLogMode::draw(Editor& editor) const
 {
     auto* self = const_cast<GitLogMode*>(this);
+    if(self->prettyView && self->diffDirty)
+    {
+        auto now = std::chrono::steady_clock::now();
+        auto sinceMove =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - self->lastCursorMove)
+                .count();
+        if(sinceMove > 75)
+            self->ensurePrettyPreview(editor);
+    }
     if(self->filtered.empty())
     {
         self->cursor = 0;

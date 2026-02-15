@@ -836,6 +836,16 @@ void GitStageMode::refreshDiff(Editor& editor)
     bool useStaged = !useUnstaged && has_staged(status);
     diffStaged = useStaged;
 
+    std::string cacheKey =
+        node.repoPath + (useStaged ? "|staged" : "|unstaged");
+    auto cacheIt = diffCache.find(cacheKey);
+    if(cacheIt != diffCache.end())
+    {
+        diffLines = cacheIt->second;
+        diffDirty = false;
+        return;
+    }
+
     std::string cmd = "git -C \"" + repoDir + "\" --no-pager diff ";
     if(useStaged)
         cmd += "--cached ";
@@ -847,6 +857,16 @@ void GitStageMode::refreshDiff(Editor& editor)
     diffLines = split_lines(raw);
     if(diffLines.empty())
         diffLines.push_back("(no diff)");
+
+    diffCache.emplace(cacheKey, diffLines);
+    diffCacheOrder.push_back(cacheKey);
+    constexpr size_t kDiffCacheMax = 64;
+    if(diffCacheOrder.size() > kDiffCacheMax)
+    {
+        const std::string& oldest = diffCacheOrder.front();
+        diffCache.erase(oldest);
+        diffCacheOrder.erase(diffCacheOrder.begin());
+    }
 
     diffDirty = false;
 }
@@ -1064,6 +1084,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             if(cursor >= offset + visibleRows)
                 offset = cursor - visibleRows + 1;
             diffDirty = true;
+            lastCursorMove = std::chrono::steady_clock::now();
         }
     }
     else if(c == 'k' || c == Terminal::ARROW_UP)
@@ -1074,6 +1095,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             if(cursor < offset)
                 offset = cursor;
             diffDirty = true;
+            lastCursorMove = std::chrono::steady_clock::now();
         }
     }
     else if(c == Terminal::CTRL_J)
@@ -1112,6 +1134,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             cursor = 0;
             offset = 0;
             diffDirty = true;
+            lastCursorMove = std::chrono::steady_clock::now();
         }
         else if(nextChar == 'f')
         {
@@ -1137,10 +1160,10 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
                 git_stage_content_rows(ed->screenRows, ed->screenCols);
             offset = std::max(0, cursor - visibleRows + 1);
             diffDirty = true;
+            lastCursorMove = std::chrono::steady_clock::now();
         }
     }
 
-    refreshDiff(*ed);
     ed->needsFullRedraw = true;
     return std::nullopt;
 }
@@ -1149,6 +1172,9 @@ void GitStageMode::draw(Editor& editor) const
 {
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
+    auto* self = const_cast<GitStageMode*>(this);
+    if(self->diffDirty && !Terminal::hasBufferedKeys())
+        self->refreshDiff(editor);
 
     std::string help = git_stage_help_text();
     auto helpLines = wrap_help(help, editor.screenCols);

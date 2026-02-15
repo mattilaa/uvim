@@ -8,6 +8,7 @@
 #include <ctime>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <optional>
 #include <string>
@@ -858,6 +859,9 @@ struct GitLogMode
     int diffOffset = 0;
     int diffHorizontalOffset = 0;
     bool diffDirty = true;
+    std::chrono::steady_clock::time_point lastCursorMove;
+    std::unordered_map<std::string, std::vector<std::string>> previewCache;
+    std::vector<std::string> previewCacheOrder;
 
     GitLogMode() = default;
     GitLogMode(std::vector<Entry> items, bool fileOnlyLog,
@@ -959,6 +963,9 @@ struct GitStageMode
     std::string diffPath;
     bool diffStaged = false;
     bool diffDirty = true;
+    std::chrono::steady_clock::time_point lastCursorMove;
+    std::unordered_map<std::string, std::vector<std::string>> diffCache;
+    std::vector<std::string> diffCacheOrder;
     enum class UntrackedMode
     {
         TrackedOnly,
