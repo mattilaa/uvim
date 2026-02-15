@@ -993,7 +993,7 @@ void GitLogMode::draw(Editor& editor) const
                     inRange = (idx >= lo && idx <= hi);
                 }
                 int leftContentWidth = std::max(1, leftWidth - 2);
-                if(selected)
+                if(selected || marked)
                 {
                     std::string leftText = entry.subject;
                     if(!entry.author.empty() || !entry.date.empty())
@@ -1009,7 +1009,11 @@ void GitLogMode::draw(Editor& editor) const
                     int leftDisplay = text_utils::utf8DisplayWidth(leftTrim);
                     if(leftDisplay < leftContentWidth)
                         leftTrim.append(leftContentWidth - leftDisplay, ' ');
-                    output += editor.theme.selection();
+                    if(selected)
+                        output += editor.theme.selection();
+                    else
+                        output += std::string(Terminal::ESC_DIM) +
+                                  editor.theme.selection();
                     output += marked ? "*" : (inRange ? "+" : " ");
                     output += leftTrim;
                     output += editor.theme.reset();
@@ -1115,6 +1119,13 @@ void GitLogMode::draw(Editor& editor) const
                                              ? editor.theme.selection()
                                              : (editor.theme.reset() +
                                                 editor.theme.baseFg());
+                if(!selected && marked)
+                {
+                    std::string markedStyle =
+                        std::string(Terminal::ESC_DIM) + editor.theme.selection();
+                    normalHash = markedStyle;
+                    normalText = markedStyle;
+                }
                 const std::string& matchSeq = editor.theme.searchMatch();
                 int maxLine = std::max(0, editor.screenCols - 6);
                 std::string hash = entry.hash;
