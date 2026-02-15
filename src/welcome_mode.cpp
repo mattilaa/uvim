@@ -11,6 +11,7 @@
 
 void WelcomeMode::on_enter(ModeContext& ctx)
 {
+    commandPrompt = ctx.commandPrompt();
     ctx.requestFullRedraw();
 }
 
@@ -22,7 +23,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     int c = event.key;
 
     std::optional<ModeState> nextState;
-    if(commandPrompt.handle(
+    if(commandPrompt && commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
@@ -248,12 +249,12 @@ void WelcomeMode::draw(Editor& editor) const
     output += Terminal::cursorPos(labelRow, 1);
     output += Terminal::ESC_CLEAR_LINE;
 
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::cursorPos(promptRow, 1);
         output += editor.theme.baseFg();
         output += ":";
-        output += commandPrompt.getInput();
+        output += commandPrompt->getInput();
 
         output += Terminal::cursorPos(labelRow, 1);
         output += Terminal::ESC_BOLD;
@@ -264,11 +265,11 @@ void WelcomeMode::draw(Editor& editor) const
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
         int row = editor.screenRows + 2;
-        int col = 2 + (int)commandPrompt.getInput().size();
+        int col = 2 + (int)commandPrompt->getInput().size();
         output += Terminal::cursorPos(row, col);
     }
     else

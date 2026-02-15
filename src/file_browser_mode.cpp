@@ -20,6 +20,7 @@
 
 void FileBrowserMode::on_enter(ModeContext& ctx)
 {
+    commandPrompt = ctx.commandPrompt();
     ctx.setStatusMessage("");
     if(!ctx.editor->fileBrowserFuzzy && filterActive)
     {
@@ -96,9 +97,9 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     auto searchTabComplete = [&](bool reverse) -> bool
     {
-        if(!commandPrompt.isActive())
+        if(!commandPrompt || !commandPrompt->isActive())
             return false;
-        const std::string& input = commandPrompt.getInput();
+        const std::string& input = commandPrompt->getInput();
         if(input.empty() || (input[0] != '/' && input[0] != '?'))
             return false;
 
@@ -158,15 +159,15 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                                      : (searchTabIndex + 1) % count;
         }
 
-        commandPrompt.setInput(std::string(1, prefix) +
-                               searchTabCandidates[searchTabIndex]);
+        commandPrompt->setInput(std::string(1, prefix) +
+                                searchTabCandidates[searchTabIndex]);
         ctx.requestFullRedraw();
         return true;
     };
 
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
-        const std::string& input = commandPrompt.getInput();
+        const std::string& input = commandPrompt->getInput();
         bool promptSearch =
             !input.empty() && (input[0] == '/' || input[0] == '?');
 
@@ -234,16 +235,19 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(promptSearch && c == Terminal::ESC)
         {
             std::optional<ModeState> nextState;
-            (void)commandPrompt.handle(
+            if(commandPrompt)
+            {
+                (void)commandPrompt->handle(
                 ctx, c, [&](std::string_view commandLine)
                 { return executeCommand(ctx, commandLine); }, nextState);
+            }
             clearSearchState();
             ctx.requestFullRedraw();
             return std::nullopt;
         }
     }
 
-    if(commandPrompt.isActive() && c != Terminal::TAB &&
+    if(commandPrompt && commandPrompt->isActive() && c != Terminal::TAB &&
        c != Terminal::SHIFT_TAB)
     {
         resetSearchTabCompletion();
@@ -255,9 +259,9 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     const auto syncPromptSearchToFirstMatch = [&]()
     {
-        if(!commandPrompt.isActive())
+        if(!commandPrompt || !commandPrompt->isActive())
             return;
-        const std::string& input = commandPrompt.getInput();
+        const std::string& input = commandPrompt->getInput();
         if(input.empty() || (input[0] != '/' && input[0] != '?'))
             return;
 
@@ -294,22 +298,30 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     };
 
     std::optional<ModeState> nextState;
-    if(commandPrompt.handle(
+    if(commandPrompt && commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
-        syncPromptSearchToFirstMatch();
+        bool stillBrowsing = true;
+        if(ctx.editor && ctx.editor->getModeStateMachine())
+        {
+            const ModeState& state = ctx.editor->getModeStateMachine()->state();
+            stillBrowsing = std::holds_alternative<FileBrowserMode>(state);
+        }
+        if(stillBrowsing)
+            syncPromptSearchToFirstMatch();
         return nextState;
     }
 
     // Shortcut: start command prompt prefilled with local regex search.
-    if(!commandPrompt.isActive() && (c == '/' || c == '?'))
+    if((!commandPrompt || !commandPrompt->isActive()) &&
+       (c == '/' || c == '?'))
     {
-        if(commandPrompt.handle(
+        if(commandPrompt && commandPrompt->handle(
                ctx, ':', [&](std::string_view commandLine)
                { return executeCommand(ctx, commandLine); }, nextState))
         {
-            if(commandPrompt.handle(
+            if(commandPrompt && commandPrompt->handle(
                    ctx, c, [&](std::string_view commandLine)
                    { return executeCommand(ctx, commandLine); }, nextState))
             {
@@ -624,9 +636,9 @@ void FileBrowserMode::draw(Editor& editor) const
     bool hasLiveSearch = false;
     bool hasCommittedSearch =
         !searchMatches.empty() && !lastSearchPattern.empty();
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
-        const std::string& input = commandPrompt.getInput();
+        const std::string& input = commandPrompt->getInput();
         if(input.size() > 1 && (input[0] == '/' || input[0] == '?'))
         {
             try
@@ -785,10 +797,10 @@ void FileBrowserMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
         output += editor.theme.baseFg();
-        output += ":" + commandPrompt.getInput();
+        output += ":" + commandPrompt->getInput();
     }
     else if(filterActive)
     {
@@ -820,9 +832,9 @@ void FileBrowserMode::draw(Editor& editor) const
     }
 
     bool suppressCommandPopups = false;
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
-        const std::string& input = commandPrompt.getInput();
+        const std::string& input = commandPrompt->getInput();
         suppressCommandPopups =
             !input.empty() && (input[0] == '/' || input[0] == '?');
     }
@@ -832,11 +844,11 @@ void FileBrowserMode::draw(Editor& editor) const
         editor.drawCommandPopup(output);
     }
 
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
         int row = editor.screenRows + 2;
-        int col = 2 + (int)commandPrompt.getInput().size();
+        int col = 2 + (int)commandPrompt->getInput().size();
         output += Terminal::cursorPos(row, col);
     }
     else if(filterActive)

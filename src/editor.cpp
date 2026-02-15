@@ -721,6 +721,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     robotCustomKeywordSet = default_robot_custom_keywords();
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
+    commandPrompt = std::make_shared<CommandPrompt>();
     if(!configPath.empty())
     {
         std::ifstream in(configPath);
@@ -1295,6 +1296,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     robotCustomKeywordSet = default_robot_custom_keywords();
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
+    commandPrompt = std::make_shared<CommandPrompt>();
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -10265,77 +10267,121 @@ void Editor::drawCommandHistoryPopup(std::string& output) const
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
-    std::vector<std::string> commands = {"w",
-                                         "write",
-                                         "q",
-                                         "quit",
-                                         "q!",
-                                         "qa",
-                                         "qall",
-                                         "qa!",
-                                         "qall!",
-                                         "wq",
-                                         "x",
-                                         "qw",
-                                         "qw!",
-                                         "wa",
-                                         "wall",
-                                         "wa!",
-                                         "wqa",
-                                         "wqall",
-                                         "wqa!",
-                                         "wqall!",
-                                         "xa",
-                                         "e",
-                                         "edit",
-                                         "e%",
-                                         "edit%",
-                                         "new",
-                                         "vnew",
-                                         "bn",
-                                         "bnext",
-                                         "bp",
-                                         "bprev",
-                                         "bd",
-                                         "bdelete",
-                                         "ls",
-                                         "buffers",
-                                         "sp",
-                                         "split",
-                                         "vs",
-                                         "vsplit",
-                                         "vh",
-                                         "hs",
-                                         "hsplit",
-                                         "only",
-                                         "tabnew",
-                                         "tabc",
-                                         "tabclose",
-                                         "set",
-                                         "syntax",
-                                         "noh",
-                                         "nohlsearch",
-                                         "lspinfo",
-                                         "emoji",
-                                         "em",
-                                         "help",
-                                         "h",
-                                         "cd",
-                                         "cdr",
-                                         "loc",
-                                         "loc!",
-                                         "loc%",
-                                         "loctotal",
-                                         "git stage",
-                                         "git log",
-                                         "git prettylog",
-                                         "git diff",
-                                         "git commit",
-                                         "git stash",
-                                         "git stash pop"};
+    return getCommandCompletions(prefix, currentMode);
+}
+
+std::vector<std::string>
+Editor::getCommandCompletions(std::string_view prefix, Mode mode)
+{
+    static const std::vector<std::string> baseCommands = {
+        "w",
+        "write",
+        "q",
+        "quit",
+        "q!",
+        "qa",
+        "qall",
+        "qa!",
+        "qall!",
+        "wq",
+        "x",
+        "qw",
+        "qw!",
+        "wa",
+        "wall",
+        "wa!",
+        "wqa",
+        "wqall",
+        "wqa!",
+        "wqall!",
+        "xa",
+        "e",
+        "edit",
+        "e%",
+        "edit%",
+        "new",
+        "vnew",
+        "bn",
+        "bnext",
+        "bp",
+        "bprev",
+        "bd",
+        "bdelete",
+        "ls",
+        "buffers",
+        "sp",
+        "split",
+        "vs",
+        "vsplit",
+        "vh",
+        "hs",
+        "hsplit",
+        "only",
+        "tabnew",
+        "tabc",
+        "tabclose",
+        "set",
+        "syntax",
+        "noh",
+        "nohlsearch",
+        "lspinfo",
+        "emoji",
+        "em",
+        "help",
+        "h",
+        "cd",
+        "cdr",
+        "loc",
+        "loc!",
+        "loc%",
+        "loctotal",
+        "git stage",
+        "git log",
+        "git prettylog",
+        "git diff",
+        "git commit",
+        "git stash",
+        "git stash pop",
+    };
+
+    auto hasCommand = [](const std::vector<std::string>& list,
+                         const std::string& value) -> bool
+    {
+        return std::find(list.begin(), list.end(), value) != list.end();
+    };
+
+    const std::vector<std::string>* activeList = &baseCommands;
+    std::vector<std::string> fileBrowserCommands;
+    if(mode == FILE_BROWSER)
+    {
+        fileBrowserCommands = baseCommands;
+        const std::vector<std::string> extras = {
+            "delete", "d",   "rm",   "rename", "r", "mv",
+            "mkdir",  "md",  "touch", "new",    "?", 
+        };
+        for(const auto& extra : extras)
+        {
+            if(!hasCommand(fileBrowserCommands, extra))
+                fileBrowserCommands.push_back(extra);
+        }
+
+        const std::vector<std::string> notApplicable = {"wq", "x"};
+        fileBrowserCommands.erase(
+            std::remove_if(fileBrowserCommands.begin(),
+                           fileBrowserCommands.end(),
+                           [&](const std::string& cmd)
+                           {
+                               return std::find(notApplicable.begin(),
+                                                notApplicable.end(),
+                                                cmd) != notApplicable.end();
+                           }),
+            fileBrowserCommands.end());
+
+        activeList = &fileBrowserCommands;
+    }
 
     std::vector<std::string> matches;
-    for(const auto& cmd : commands)
+    for(const auto& cmd : *activeList)
     {
         if(prefix.size() <= cmd.size() &&
            std::string_view(cmd).substr(0, prefix.size()) == prefix)

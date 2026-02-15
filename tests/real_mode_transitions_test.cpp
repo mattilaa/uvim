@@ -687,13 +687,15 @@ TEST(RealModeTransitionsTest, FileBrowserCtrlJKCyclesWhileSearchPromptActive)
     sm.dispatch('t');
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
-    EXPECT_TRUE(state->commandPrompt.isActive());
-    EXPECT_EQ(state->commandPrompt.getInput(), "/edit");
+    ASSERT_TRUE(state->commandPrompt);
+    EXPECT_TRUE(state->commandPrompt->isActive());
+    EXPECT_EQ(state->commandPrompt->getInput(), "/edit");
 
     sm.dispatch(Terminal::CTRL_J);
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
-    EXPECT_TRUE(state->commandPrompt.isActive());
+    ASSERT_TRUE(state->commandPrompt);
+    EXPECT_TRUE(state->commandPrompt->isActive());
     EXPECT_EQ(state->browserCursor, betaIndex);
 
     sm.dispatch(Terminal::CTRL_J);
@@ -763,7 +765,8 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTypingMovesToFirstMatch)
 
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
-    EXPECT_TRUE(state->commandPrompt.isActive());
+    ASSERT_TRUE(state->commandPrompt);
+    EXPECT_TRUE(state->commandPrompt->isActive());
     EXPECT_EQ(state->browserCursor, alphaIndex);
 }
 

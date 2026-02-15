@@ -7,6 +7,7 @@
 #include <chrono>
 #include <ctime>
 #include <functional>
+#include <memory>
 #include <unordered_set>
 #include <optional>
 #include <string>
@@ -16,6 +17,7 @@
 // Forward declarations
 class Editor;
 class Theme;
+struct CommandPrompt;
 
 // ============================================================================
 // Editor Context - Shared state accessible by all mode handlers
@@ -109,6 +111,7 @@ struct ModeContext
     bool isCommandHistorySearchActive() const;
     std::string_view commandHistorySearchQuery() const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
+    std::shared_ptr<CommandPrompt> commandPrompt() const;
     std::vector<std::string> getPathCompletions(std::string_view path);
     std::vector<std::string> getPathCompletionsRecursive(std::string_view path);
     std::vector<std::string> getLocPathCompletions(std::string_view path);
@@ -381,7 +384,7 @@ struct WelcomeMode
         return "WELCOME";
     }
 
-    CommandPrompt commandPrompt;
+    std::shared_ptr<CommandPrompt> commandPrompt;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -560,7 +563,7 @@ struct FileBrowserMode
     std::vector<std::string> searchTabCandidates;
     std::string searchTabSeed;
     int searchTabIndex = -1;
-    CommandPrompt commandPrompt;
+    std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
     explicit FileBrowserMode(std::string startDir, std::string prevFile = {})
@@ -789,7 +792,7 @@ struct HelpMode
     std::vector<std::string> lines;
     int scrollOffset = 0;
     std::string previousFile;
-    CommandPrompt commandPrompt;
+    std::shared_ptr<CommandPrompt> commandPrompt;
 
     HelpMode() = default;
     explicit HelpMode(std::string helpTopic, std::string prevFile = {})
@@ -823,6 +826,12 @@ struct GitLogMode
         std::string date;
         std::string author;
         std::string subject;
+
+        Entry() = default;
+        Entry(std::string hashValue, std::string subjectValue)
+            : hash(std::move(hashValue)), subject(std::move(subjectValue))
+        {
+        }
     };
 
     std::vector<Entry> entries;

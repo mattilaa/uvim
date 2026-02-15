@@ -29,6 +29,7 @@ class ModeStateMachine;
 class SyntaxHighlighter;
 class Formatter;
 class GitHandler;
+struct CommandPrompt;
 
 struct MlangTokenCache
 {
@@ -189,6 +190,7 @@ public:
     // Modes
     Mode currentMode = NORMAL;
     std::string commandBuffer;
+    std::shared_ptr<CommandPrompt> commandPrompt;
     std::string statusMessage;
     bool commandRequestedModeSet = false;
     Mode commandRequestedMode = NORMAL;
@@ -832,6 +834,8 @@ public:
     void drawCommandPopup(std::string& output) const;
     void drawCommandHistoryPopup(std::string& output) const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
+    std::vector<std::string> getCommandCompletions(std::string_view prefix,
+                                                   Mode mode);
     std::vector<std::string> getHelpCompletions(std::string_view prefix);
     std::vector<std::string> getPathCompletions(std::string_view path);
     std::vector<std::string> getPathCompletionsRecursive(std::string_view path);

@@ -11,6 +11,7 @@
 
 void HelpMode::on_enter(ModeContext& ctx)
 {
+    commandPrompt = ctx.commandPrompt();
     if(previousFile.empty() && ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
         previousFile = std::string(ctx.currentFilename());
@@ -29,7 +30,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     bool needsRedraw = false;
 
     std::optional<ModeState> nextState;
-    if(commandPrompt.handle(
+    if(commandPrompt && commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
@@ -270,10 +271,10 @@ void HelpMode::draw(Editor& editor) const
 
     // Message line
     output += Terminal::NEWLINE_CLEAR;
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
         output += ":";
-        output += commandPrompt.getInput();
+        output += commandPrompt->getInput();
     }
     else if(!editor.statusMessage.empty())
     {
@@ -285,11 +286,11 @@ void HelpMode::draw(Editor& editor) const
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
-    if(commandPrompt.isActive())
+    if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
         int row = editor.screenRows + 2;
-        int col = 2 + (int)commandPrompt.getInput().size();
+        int col = 2 + (int)commandPrompt->getInput().size();
         output += Terminal::cursorPos(row, col);
     }
     else
