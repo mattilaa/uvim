@@ -30,6 +30,7 @@ class SyntaxHighlighter;
 class Formatter;
 class GitHandler;
 struct CommandPrompt;
+class EditorView;
 
 struct MlangTokenCache
 {
@@ -191,6 +192,31 @@ public:
     Mode currentMode = NORMAL;
     std::string commandBuffer;
     std::shared_ptr<CommandPrompt> commandPrompt;
+    std::shared_ptr<EditorView> viewWelcome;
+    std::shared_ptr<EditorView> viewNormal;
+    std::shared_ptr<EditorView> viewInsert;
+    std::shared_ptr<EditorView> viewReplace;
+    std::shared_ptr<EditorView> viewVisual;
+    std::shared_ptr<EditorView> viewVisualLine;
+    std::shared_ptr<EditorView> viewVisualBlock;
+    std::shared_ptr<EditorView> viewCommand;
+    std::shared_ptr<EditorView> viewSearchForward;
+    std::shared_ptr<EditorView> viewSearchBackward;
+    std::shared_ptr<EditorView> viewFileBrowser;
+    std::shared_ptr<EditorView> viewFuzzyFind;
+    std::shared_ptr<EditorView> viewBufferBrowser;
+    std::shared_ptr<EditorView> viewGrepSearch;
+    std::shared_ptr<EditorView> viewOperatorPending;
+    std::shared_ptr<EditorView> viewReferences;
+    std::shared_ptr<EditorView> viewLspInfo;
+    std::shared_ptr<EditorView> viewLocList;
+    std::shared_ptr<EditorView> viewHelp;
+    std::shared_ptr<EditorView> viewGitShow;
+    std::shared_ptr<EditorView> viewGitLog;
+    std::shared_ptr<EditorView> viewGitStage;
+    std::shared_ptr<EditorView> viewGitCommit;
+    std::shared_ptr<EditorView> viewGitFixup;
+    std::shared_ptr<EditorView> viewGitPatch;
     std::string statusMessage;
     bool commandRequestedModeSet = false;
     Mode commandRequestedMode = NORMAL;
@@ -469,6 +495,7 @@ public:
     void drawStatusBar();
     void drawMessageBar();
     void refreshScreen();
+    void drawBufferView();
     void drawIncrementalUpdate();
     void drawFullScreen();
     void drawSplitFullScreen();

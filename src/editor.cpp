@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "editor_utils.h"
 #include "enablelog.h"
+#include "editor_view.h"
 #include "formatter.h"
 #include "git_handler.h"
 #include "gitignore.h"
@@ -12,6 +13,31 @@
 #include "text_utils.h"
 #include "widgets/command_history_popup.h"
 #include "widgets/command_popup.h"
+#include "editor_view_buffer_browser.h"
+#include "editor_view_command.h"
+#include "editor_view_file_browser.h"
+#include "editor_view_fuzzy_find.h"
+#include "editor_view_git_commit.h"
+#include "editor_view_git_fixup.h"
+#include "editor_view_git_log.h"
+#include "editor_view_git_patch.h"
+#include "editor_view_git_show.h"
+#include "editor_view_git_stage.h"
+#include "editor_view_grep_search.h"
+#include "editor_view_help.h"
+#include "editor_view_insert.h"
+#include "editor_view_loc_list.h"
+#include "editor_view_lsp_info.h"
+#include "editor_view_normal.h"
+#include "editor_view_operator_pending.h"
+#include "editor_view_replace.h"
+#include "editor_view_references.h"
+#include "editor_view_search_backward.h"
+#include "editor_view_search_forward.h"
+#include "editor_view_visual.h"
+#include "editor_view_visual_block.h"
+#include "editor_view_visual_line.h"
+#include "editor_view_welcome.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -722,6 +748,31 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
+    viewWelcome = std::make_shared<EditorViewWelcome>();
+    viewNormal = std::make_shared<EditorViewNormal>();
+    viewInsert = std::make_shared<EditorViewInsert>();
+    viewReplace = std::make_shared<EditorViewReplace>();
+    viewVisual = std::make_shared<EditorViewVisual>();
+    viewVisualLine = std::make_shared<EditorViewVisualLine>();
+    viewVisualBlock = std::make_shared<EditorViewVisualBlock>();
+    viewCommand = std::make_shared<EditorViewCommand>();
+    viewSearchForward = std::make_shared<EditorViewSearchForward>();
+    viewSearchBackward = std::make_shared<EditorViewSearchBackward>();
+    viewFileBrowser = std::make_shared<EditorViewFileBrowser>();
+    viewFuzzyFind = std::make_shared<EditorViewFuzzyFind>();
+    viewBufferBrowser = std::make_shared<EditorViewBufferBrowser>();
+    viewGrepSearch = std::make_shared<EditorViewGrepSearch>();
+    viewOperatorPending = std::make_shared<EditorViewOperatorPending>();
+    viewReferences = std::make_shared<EditorViewReferences>();
+    viewLspInfo = std::make_shared<EditorViewLspInfo>();
+    viewLocList = std::make_shared<EditorViewLocList>();
+    viewHelp = std::make_shared<EditorViewHelp>();
+    viewGitShow = std::make_shared<EditorViewGitShow>();
+    viewGitLog = std::make_shared<EditorViewGitLog>();
+    viewGitStage = std::make_shared<EditorViewGitStage>();
+    viewGitCommit = std::make_shared<EditorViewGitCommit>();
+    viewGitFixup = std::make_shared<EditorViewGitFixup>();
+    viewGitPatch = std::make_shared<EditorViewGitPatch>();
     if(!configPath.empty())
     {
         std::ifstream in(configPath);
@@ -1297,6 +1348,31 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
+    viewWelcome = std::make_shared<EditorViewWelcome>();
+    viewNormal = std::make_shared<EditorViewNormal>();
+    viewInsert = std::make_shared<EditorViewInsert>();
+    viewReplace = std::make_shared<EditorViewReplace>();
+    viewVisual = std::make_shared<EditorViewVisual>();
+    viewVisualLine = std::make_shared<EditorViewVisualLine>();
+    viewVisualBlock = std::make_shared<EditorViewVisualBlock>();
+    viewCommand = std::make_shared<EditorViewCommand>();
+    viewSearchForward = std::make_shared<EditorViewSearchForward>();
+    viewSearchBackward = std::make_shared<EditorViewSearchBackward>();
+    viewFileBrowser = std::make_shared<EditorViewFileBrowser>();
+    viewFuzzyFind = std::make_shared<EditorViewFuzzyFind>();
+    viewBufferBrowser = std::make_shared<EditorViewBufferBrowser>();
+    viewGrepSearch = std::make_shared<EditorViewGrepSearch>();
+    viewOperatorPending = std::make_shared<EditorViewOperatorPending>();
+    viewReferences = std::make_shared<EditorViewReferences>();
+    viewLspInfo = std::make_shared<EditorViewLspInfo>();
+    viewLocList = std::make_shared<EditorViewLocList>();
+    viewHelp = std::make_shared<EditorViewHelp>();
+    viewGitShow = std::make_shared<EditorViewGitShow>();
+    viewGitLog = std::make_shared<EditorViewGitLog>();
+    viewGitStage = std::make_shared<EditorViewGitStage>();
+    viewGitCommit = std::make_shared<EditorViewGitCommit>();
+    viewGitFixup = std::make_shared<EditorViewGitFixup>();
+    viewGitPatch = std::make_shared<EditorViewGitPatch>();
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);

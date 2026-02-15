@@ -1,10 +1,7 @@
 #include "editor.h"
-#include "mode_state_machine.h"
+#include "editor_view.h"
 #include "terminal.h"
 #include "text_utils.h"
-#ifdef UVIM_ENABLE_CLANGD_LSP
-#include "lsp_client.h"
-#endif
 
 void Editor::refreshScreen()
 {
@@ -21,316 +18,111 @@ void Editor::refreshScreen()
         closeSymbolPopup();
     }
 
-    if(currentMode == WELCOME)
+    switch(currentMode)
     {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<WelcomeMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == FILE_BROWSER)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<FileBrowserMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == FUZZY_FIND)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<FuzzyFindMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == BUFFER_BROWSER)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<BufferBrowserMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GREP_SEARCH)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GrepSearchMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == LOC_LIST)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<LocListMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == REFERENCES)
-    {
-        drawReferences();
-        return;
-    }
-    if(currentMode == LSP_INFO)
-    {
-        drawLspInfo();
-        return;
-    }
-
-    if(currentMode == HELP)
-    {
-        if(!needsFullRedraw)
+        case WELCOME:
+            if(viewWelcome)
+                viewWelcome->draw(*this);
             return;
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<HelpMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
+        case NORMAL:
+            if(viewNormal)
+                viewNormal->draw(*this);
+            return;
+        case INSERT:
+            if(viewInsert)
+                viewInsert->draw(*this);
+            return;
+        case REPLACE:
+            if(viewReplace)
+                viewReplace->draw(*this);
+            return;
+        case VISUAL:
+            if(viewVisual)
+                viewVisual->draw(*this);
+            return;
+        case VISUAL_LINE:
+            if(viewVisualLine)
+                viewVisualLine->draw(*this);
+            return;
+        case VISUAL_BLOCK:
+            if(viewVisualBlock)
+                viewVisualBlock->draw(*this);
+            return;
+        case COMMAND:
+            if(viewCommand)
+                viewCommand->draw(*this);
+            return;
+        case SEARCH_FORWARD:
+            if(viewSearchForward)
+                viewSearchForward->draw(*this);
+            return;
+        case SEARCH_BACKWARD:
+            if(viewSearchBackward)
+                viewSearchBackward->draw(*this);
+            return;
+        case FILE_BROWSER:
+            if(viewFileBrowser)
+                viewFileBrowser->draw(*this);
+            return;
+        case FUZZY_FIND:
+            if(viewFuzzyFind)
+                viewFuzzyFind->draw(*this);
+            return;
+        case BUFFER_BROWSER:
+            if(viewBufferBrowser)
+                viewBufferBrowser->draw(*this);
+            return;
+        case GREP_SEARCH:
+            if(viewGrepSearch)
+                viewGrepSearch->draw(*this);
+            return;
+        case OP_PENDING:
+            if(viewOperatorPending)
+                viewOperatorPending->draw(*this);
+            return;
+        case REFERENCES:
+            if(viewReferences)
+                viewReferences->draw(*this);
+            return;
+        case LSP_INFO:
+            if(viewLspInfo)
+                viewLspInfo->draw(*this);
+            return;
+        case LOC_LIST:
+            if(viewLocList)
+                viewLocList->draw(*this);
+            return;
+        case HELP:
+            if(viewHelp)
+                viewHelp->draw(*this);
+            return;
+        case GIT_SHOW:
+            if(viewGitShow)
+                viewGitShow->draw(*this);
+            return;
+        case GIT_LOG:
+            if(viewGitLog)
+                viewGitLog->draw(*this);
+            return;
+        case GIT_STAGE:
+            if(viewGitStage)
+                viewGitStage->draw(*this);
+            return;
+        case GIT_COMMIT:
+            if(viewGitCommit)
+                viewGitCommit->draw(*this);
+            return;
+        case GIT_FIXUP:
+            if(viewGitFixup)
+                viewGitFixup->draw(*this);
+            return;
+        case GIT_PATCH:
+            if(viewGitPatch)
+                viewGitPatch->draw(*this);
+            return;
+        default:
+            return;
     }
-
-    if(currentMode == GIT_SHOW)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitShowCommitMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_LOG)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitLogMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_STAGE)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitStageMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_COMMIT)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitCommitMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_FIXUP)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitFixupMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_PATCH)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitPatchMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(currentMode != INSERT && !showGitBlame)
-    {
-        if(currentBuffer && isClangdLspEnabled() &&
-           isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() &&
-           lspClient && !currentBuffer->filename.empty())
-        {
-            size_t revision =
-                lspClient->diagnosticsRevision(currentBuffer->filename);
-            if(!currentBuffer->lspDiagnosticsSeenValid ||
-               revision != currentBuffer->lspDiagnosticsSeenRevision)
-            {
-                currentBuffer->lspDiagnosticsSeenRevision = revision;
-                currentBuffer->lspDiagnosticsSeenValid = true;
-                needsFullRedraw = true;
-            }
-        }
-        syncClangdDiagnosticsIfNeeded(false);
-    }
-#endif
-
-    static int lastOffsetY = -1;
-    static int lastOffsetX = -1;
-    static Mode lastMode = NORMAL;
-    static int lastVisualStartY = -1;
-    static int lastVisualEndY = -1;
-    static int lastCursorY = -1;
-
-    int prevOffsetY = lastOffsetY;
-    adjustViewport();
-
-    if(splitActive)
-    {
-        drawFullScreen();
-        lastOffsetY = *offsetY;
-        lastOffsetX = *offsetX;
-        lastMode = currentMode;
-        lastCursorY = *cursorY;
-        needsFullRedraw = false;
-        return;
-    }
-
-    bool scrolled = (*offsetY != lastOffsetY || *offsetX != lastOffsetX);
-    bool modeChanged = (currentMode != lastMode);
-    int scrollDelta = *offsetY - lastOffsetY;
-    bool cursorMoved = (*cursorY != lastCursorY);
-
-    if(showGitBlame && currentBuffer && !currentBuffer->blameValid)
-        updateGitBlameForVisibleRange();
-
-    bool visualChanged = false;
-    if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
-       currentMode == VISUAL_BLOCK)
-    {
-        visualChanged = (currentBuffer->visualStartY != lastVisualStartY ||
-                         currentBuffer->visualEndY != lastVisualEndY);
-        lastVisualStartY = currentBuffer->visualStartY;
-        lastVisualEndY = currentBuffer->visualEndY;
-    }
-    else
-    {
-        lastVisualStartY = -1;
-        lastVisualEndY = -1;
-    }
-
-    bool isBufferEditingMode =
-        (currentMode == INSERT || currentMode == REPLACE);
-    bool isCommandLikeMode =
-        (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
-         currentMode == SEARCH_BACKWARD);
-    bool commandOverlayStable = isCommandLikeMode && !modeChanged &&
-                                scrollDelta == 0 && *offsetX == lastOffsetX &&
-                                !visualChanged;
-
-    if(modeChanged || (needsFullRedraw && !commandOverlayStable) ||
-       *offsetX != lastOffsetX || abs(scrollDelta) > screenRows / 2 ||
-       visualChanged ||
-       (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-        currentMode == VISUAL_BLOCK) ||
-       isBufferEditingMode)
-    {
-        drawFullScreen();
-    }
-    else if(scrollDelta == 0 && isCommandLikeMode)
-    {
-        // Command/search editing only affects overlays (message line, popups,
-        // cursor). Keep buffer rows stable to avoid tmux flicker.
-        const bool syncOutput = Terminal::useSynchronizedOutput();
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
-        Terminal::write(Terminal::ESC_HIDE_CURSOR);
-        drawStatusBarQuick();
-        drawMessageBarQuick();
-        updateCursorPosition(false);
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
-        Terminal::flush();
-    }
-    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 &&
-            currentMode == NORMAL && !Terminal::isTmux())
-    {
-        drawScrollUpdate(scrollDelta);
-    }
-    else if(scrollDelta == 0 && currentMode == NORMAL)
-    {
-        const bool syncOutput = Terminal::useSynchronizedOutput();
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
-        Terminal::write(Terminal::ESC_HIDE_CURSOR);
-        if(cursorMoved && lineNumberWidth() > 0)
-            drawGutterQuick();
-        drawStatusBarQuick();
-        drawMessageBarQuick(); // Add this
-        updateCursorPosition(false);
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
-        Terminal::flush();
-    }
-    else
-    {
-        drawFullScreen();
-    }
-
-    lastOffsetY = *offsetY;
-    lastOffsetX = *offsetX;
-    lastMode = currentMode;
-    lastCursorY = *cursorY;
-    needsFullRedraw = false;
 }
 
 void Editor::updateCursorPosition(bool flushNow)

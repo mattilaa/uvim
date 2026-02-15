@@ -1,0 +1,15 @@
+#include "editor_view_file_browser.h"
+#include "editor.h"
+#include "mode_state_machine.h"
+
+bool EditorViewFileBrowser::draw(Editor& editor)
+{
+    auto* stateMachine = editor.getModeStateMachine();
+    if(!stateMachine)
+        return true;
+    if(auto* state = stateMachine->getState<FileBrowserMode>())
+    {
+        state->draw(editor);
+    }
+    return true;
+}

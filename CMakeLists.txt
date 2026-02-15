@@ -59,6 +59,7 @@ set(UVIM_CORE_SOURCES
     src/terminal.cpp
     src/editor.cpp
     src/editor_mode_dispatch.cpp
+    src/editor_view_buffer_common.cpp
     src/editor_view_refresh.cpp
     src/editor_utils.cpp
     src/editor_mode_handlers.cpp
@@ -80,6 +81,31 @@ set(UVIM_CORE_SOURCES
     src/widgets/command_history_popup.cpp
     src/widgets/completion_popup.cpp
     src/widgets/status_bar.cpp
+    src/editor_view_buffer_browser.cpp
+    src/editor_view_command.cpp
+    src/editor_view_file_browser.cpp
+    src/editor_view_fuzzy_find.cpp
+    src/editor_view_git_commit.cpp
+    src/editor_view_git_fixup.cpp
+    src/editor_view_git_log.cpp
+    src/editor_view_git_patch.cpp
+    src/editor_view_git_show.cpp
+    src/editor_view_git_stage.cpp
+    src/editor_view_grep_search.cpp
+    src/editor_view_help.cpp
+    src/editor_view_insert.cpp
+    src/editor_view_loc_list.cpp
+    src/editor_view_lsp_info.cpp
+    src/editor_view_normal.cpp
+    src/editor_view_operator_pending.cpp
+    src/editor_view_replace.cpp
+    src/editor_view_references.cpp
+    src/editor_view_search_backward.cpp
+    src/editor_view_search_forward.cpp
+    src/editor_view_visual.cpp
+    src/editor_view_visual_block.cpp
+    src/editor_view_visual_line.cpp
+    src/editor_view_welcome.cpp
 )
 
 # Mode state machine sources (refactored)
