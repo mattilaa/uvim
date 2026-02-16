@@ -86,6 +86,45 @@ TEST(RealModeTransitionsTest, DoubleEscClearsStatusMessageInWelcome)
     EXPECT_TRUE(editor.statusMessage.empty());
 }
 
+TEST(RealModeTransitionsTest, FuzzyScoreAcceptsSmallTyposByDefault)
+{
+    Editor editor = Editor::createForTests();
+    std::vector<int> positions;
+
+    int score = editor.fuzzyScore("gti", "git_status.txt", positions);
+
+    EXPECT_GE(score, 0);
+}
+
+TEST(RealModeTransitionsTest, SetNoFuzzyTypoDisablesTypoTolerance)
+{
+    Editor editor = Editor::createForTests();
+    std::vector<int> positions;
+
+    EXPECT_TRUE(editor.handleSetCommand("set nofuzzy.typo"));
+    EXPECT_EQ(editor.statusMessage, "fuzzy.typo=false");
+
+    int typoScore = editor.fuzzyScore("gti", "git_status.txt", positions);
+    EXPECT_EQ(typoScore, -1);
+
+    int exactScore = editor.fuzzyScore("git", "git_status.txt", positions);
+    EXPECT_GE(exactScore, 0);
+}
+
+TEST(RealModeTransitionsTest, SetFuzzyTypoQueryReportsState)
+{
+    Editor editor = Editor::createForTests();
+
+    EXPECT_TRUE(editor.handleSetCommand("set fuzzy.typo?"));
+    EXPECT_EQ(editor.statusMessage, "fuzzy.typo=true");
+
+    EXPECT_TRUE(editor.handleSetCommand("set fuzzy.typo=false"));
+    EXPECT_EQ(editor.statusMessage, "fuzzy.typo=false");
+
+    EXPECT_TRUE(editor.handleSetCommand("set fuzzy.typo?"));
+    EXPECT_EQ(editor.statusMessage, "fuzzy.typo=false");
+}
+
 TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
 {
     Editor editor = Editor::createForTests();

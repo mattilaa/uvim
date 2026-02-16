@@ -527,82 +527,144 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
 int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
                        std::vector<int>& matchPositions)
 {
-    matchPositions.clear();
-
-    if(needle.empty())
-        return 0;
-    if(needle.length() > haystack.length())
-        return -1;
-
-    int score = 0;
-    int consecutiveBonus = 10;
-    int separatorBonus = 30;
-    int camelBonus = 30;
-    int firstLetterBonus = 15;
-
-    size_t needleIdx = 0;
-    int prevMatchIdx = -1;
-
-    for(size_t i = 0; i < haystack.length() && needleIdx < needle.length(); i++)
+    auto scoreExact = [&](const std::string& localNeedle,
+                          std::vector<int>& outPositions) -> int
     {
-        char needleChar = std::tolower(needle[needleIdx]);
-        char haystackChar = std::tolower(haystack[i]);
+        outPositions.clear();
 
-        if(needleChar == haystackChar)
+        if(localNeedle.empty())
+            return 0;
+        if(localNeedle.length() > haystack.length())
+            return -1;
+
+        int score = 0;
+        const int consecutiveBonus = 10;
+        const int separatorBonus = 30;
+        const int camelBonus = 30;
+        const int firstLetterBonus = 15;
+
+        size_t needleIdx = 0;
+        int prevMatchIdx = -1;
+
+        for(size_t i = 0; i < haystack.length() && needleIdx < localNeedle.length();
+            i++)
         {
-            matchPositions.push_back(i);
+            char needleChar =
+                static_cast<char>(std::tolower(localNeedle[needleIdx]));
+            char haystackChar = static_cast<char>(std::tolower(haystack[i]));
 
-            score += 100;
-
-            if(prevMatchIdx >= 0 && i == (size_t)prevMatchIdx + 1)
+            if(needleChar == haystackChar)
             {
-                score += consecutiveBonus;
-            }
+                outPositions.push_back(static_cast<int>(i));
+                score += 100;
 
-            if(i > 0)
-            {
-                char prevChar = haystack[i - 1];
-                if(prevChar == keyCode(command::CommandKey::KEY_SLASH) || prevChar == keyCode(command::CommandKey::KEY_MINUS) || prevChar == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
-                   prevChar == keyCode(command::CommandKey::KEY_DOT))
+                if(prevMatchIdx >= 0 && i == (size_t)prevMatchIdx + 1)
+                    score += consecutiveBonus;
+
+                if(i > 0)
                 {
-                    score += separatorBonus;
+                    char prevChar = haystack[i - 1];
+                    if(prevChar == keyCode(command::CommandKey::KEY_SLASH) ||
+                       prevChar == keyCode(command::CommandKey::KEY_MINUS) ||
+                       prevChar ==
+                           keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+                       prevChar == keyCode(command::CommandKey::KEY_DOT))
+                    {
+                        score += separatorBonus;
+                    }
                 }
-            }
 
-            if(i > 0 && std::islower(haystack[i - 1]) &&
-               std::isupper(haystack[i]))
-            {
-                score += camelBonus;
-            }
+                if(i > 0 && std::islower(haystack[i - 1]) &&
+                   std::isupper(haystack[i]))
+                {
+                    score += camelBonus;
+                }
 
-            if(i == 0)
-            {
-                score += firstLetterBonus;
-            }
+                if(i == 0)
+                    score += firstLetterBonus;
 
-            if(needle[needleIdx] == haystack[i])
-            {
-                score += 5;
-            }
+                if(localNeedle[needleIdx] == haystack[i])
+                    score += 5;
 
-            prevMatchIdx = static_cast<int>(i);
-            needleIdx++;
-        }
-        else
-        {
-            if(prevMatchIdx >= 0)
+                prevMatchIdx = static_cast<int>(i);
+                needleIdx++;
+            }
+            else if(prevMatchIdx >= 0)
             {
-                score -= (int)(i - static_cast<size_t>(prevMatchIdx));
+                score -= static_cast<int>(i - static_cast<size_t>(prevMatchIdx));
             }
         }
+
+        if(needleIdx != localNeedle.length())
+            return -1;
+
+        score -= static_cast<int>(haystack.length());
+        return score;
+    };
+
+    std::vector<int> exactPositions;
+    int exactScore = scoreExact(needle, exactPositions);
+    if(exactScore >= 0)
+    {
+        matchPositions = std::move(exactPositions);
+        return exactScore;
     }
 
-    if(needleIdx != needle.length())
+    if(!fuzzyTypoTolerance || needle.size() < 2)
     {
+        matchPositions.clear();
         return -1;
     }
 
-    score -= static_cast<int>(haystack.length());
+    int bestScore = -1;
+    std::vector<int> bestPositions;
 
-    return score;
+    // Single-character omission typo (extra typed character).
+    for(size_t removeIdx = 0; removeIdx < needle.size(); ++removeIdx)
+    {
+        std::string variant = needle;
+        variant.erase(removeIdx, 1);
+        if(variant.empty())
+            continue;
+
+        std::vector<int> variantPositions;
+        int variantScore = scoreExact(variant, variantPositions);
+        if(variantScore >= 0)
+        {
+            variantScore -= 90;
+            if(bestScore < 0 || variantScore > bestScore)
+            {
+                bestScore = variantScore;
+                bestPositions = std::move(variantPositions);
+            }
+        }
+    }
+
+    // Adjacent transposition typo (e.g. "gti" -> "git").
+    for(size_t i = 0; i + 1 < needle.size(); ++i)
+    {
+        std::string variant = needle;
+        std::swap(variant[i], variant[i + 1]);
+
+        std::vector<int> variantPositions;
+        int variantScore = scoreExact(variant, variantPositions);
+        if(variantScore >= 0)
+        {
+            variantScore -= 65;
+            if(bestScore < 0 || variantScore > bestScore)
+            {
+                bestScore = variantScore;
+                bestPositions = std::move(variantPositions);
+            }
+        }
+    }
+
+    if(bestScore >= 0)
+    {
+        matchPositions = std::move(bestPositions);
+        return bestScore;
+    }
+
+    matchPositions.clear();
+    return -1;
 }

@@ -201,6 +201,14 @@ bool CommandPrompt::handle(
                            input.rfind("help ", 0) == 0 ||
                            input.rfind("h ", 0) == 0;
         bool isGitQuery = input == "git" || input.rfind("git ", 0) == 0;
+        bool isRegexQuery =
+            !input.empty() && (input[0] == keyCode(command::CommandKey::KEY_SLASH) ||
+                               input[0] == keyCode(command::CommandKey::KEY_QUESTION));
+        if(isRegexQuery)
+        {
+            ctx.cancelCommandPopup();
+            return;
+        }
         if(input.find(' ') != std::string::npos && !isSetQuery &&
            !isHelpQuery && !isGitQuery)
         {

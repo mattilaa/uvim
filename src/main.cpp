@@ -111,6 +111,8 @@ static std::string_view default_config_contents()
   autocomplete: true
   filebrowser:
     fuzzy: false
+  fuzzy:
+    typo: true
   autodetectlsps: true
   formatonsave: true
   status:

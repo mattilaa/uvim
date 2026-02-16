@@ -963,6 +963,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     fileBrowserFuzzy = false;
             }
+            auto itft = values.find("editor.fuzzy.typo");
+            if(itft == values.end())
+                itft = values.find("settings.fuzzy.typo");
+            if(itft == values.end())
+                itft = values.find("fuzzy.typo");
+            if(itft != values.end())
+            {
+                std::string v = itft->second;
+                if(v == "true" || v == "1" || v == "on")
+                    fuzzyTypoTolerance = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    fuzzyTypoTolerance = false;
+            }
             auto itlspg = values.find("editor.status.lspgap");
             if(itlspg == values.end())
                 itlspg = values.find("settings.status.lspgap");
@@ -5722,6 +5735,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (fileBrowserFuzzy ? "true" : "false"));
         return true;
     }
+    if(opt == "fuzzy.typo?")
+    {
+        setStatusMessage(std::string("fuzzy.typo=") +
+                         (fuzzyTypoTolerance ? "true" : "false"));
+        return true;
+    }
     if(opt == "status.lspgap?")
     {
         setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
@@ -6074,6 +6093,18 @@ bool Editor::handleSetCommand(std::string_view cmd)
         setStatusMessage("filebrowser.fuzzy=false");
         return true;
     }
+    if(opt == "fuzzy.typo")
+    {
+        fuzzyTypoTolerance = true;
+        setStatusMessage("fuzzy.typo=true");
+        return true;
+    }
+    if(opt == "nofuzzy.typo")
+    {
+        fuzzyTypoTolerance = false;
+        setStatusMessage("fuzzy.typo=false");
+        return true;
+    }
     if(opt == "commandline.messageprefix")
     {
         commandLineMessagePrefix = true;
@@ -6177,6 +6208,25 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("filebrowser.fuzzy: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("fuzzy.typo=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("fuzzy.typo=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            fuzzyTypoTolerance = true;
+            setStatusMessage("fuzzy.typo=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            fuzzyTypoTolerance = false;
+            setStatusMessage("fuzzy.typo=false");
+        }
+        else
+        {
+            setStatusMessage("fuzzy.typo: expected true/false");
         }
         return true;
     }
@@ -10481,6 +10531,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set nofilebrowser.fuzzy",
         "set filebrowser.fuzzy?",
         "set filebrowser.fuzzy=",
+        "set fuzzy.typo",
+        "set nofuzzy.typo",
+        "set fuzzy.typo?",
+        "set fuzzy.typo=",
         "set status.lspgap",
         "set status.lspgap?",
         "set status.lspgap=",

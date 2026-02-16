@@ -420,6 +420,7 @@ public:
     bool formatOnSave = true;
     bool autoDetectLsps = true;
     bool fileBrowserFuzzy = false;
+    bool fuzzyTypoTolerance = true;
     bool commandLineMessagePrefix = false;
     int lspStatusGap = 7;
     bool formatOnDoubleEscPending = false;

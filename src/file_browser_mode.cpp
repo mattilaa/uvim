@@ -872,11 +872,9 @@ void FileBrowserMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
-static int fuzzyScore(std::string_view text, std::string_view pattern)
+static int fuzzyScore(std::string_view text, std::string_view pattern,
+                      bool typoTolerance)
 {
-    if(pattern.empty())
-        return 0;
-
     auto lower = [](unsigned char ch) -> unsigned char
     {
         if(ch >= keyCode(typed::TypedKey::KEY_CAP_A) && ch <= keyCode(typed::TypedKey::KEY_CAP_Z))
@@ -884,41 +882,89 @@ static int fuzzyScore(std::string_view text, std::string_view pattern)
         return ch;
     };
 
-    int score = 0;
-    int ti = 0;
-    int consecutive = 0;
-    for(int pi = 0; pi < (int)pattern.size(); ++pi)
+    auto scoreExact = [&](std::string_view localPattern) -> int
     {
-        unsigned char pc = lower((unsigned char)pattern[pi]);
-        bool found = false;
-        while(ti < (int)text.size())
+        if(localPattern.empty())
+            return 0;
+
+        int score = 0;
+        int ti = 0;
+        int consecutive = 0;
+        for(int pi = 0; pi < (int)localPattern.size(); ++pi)
         {
-            unsigned char tc = (unsigned char)text[ti];
-            unsigned char ltc = lower(tc);
-            if(ltc == pc)
+            unsigned char pc = lower((unsigned char)localPattern[pi]);
+            bool found = false;
+            while(ti < (int)text.size())
             {
-                score += 10 + consecutive * 5;
-                if(ti == 0)
-                    score += 8;
-                else
+                unsigned char tc = (unsigned char)text[ti];
+                unsigned char ltc = lower(tc);
+                if(ltc == pc)
                 {
-                    char prev = (char)text[ti - 1];
-                    if(prev == keyCode(command::CommandKey::KEY_UNDERSCORE) || prev == keyCode(command::CommandKey::KEY_MINUS) || prev == keyCode(control::ControlKey::SPACE) ||
-                       prev == '\t' || prev == keyCode(command::CommandKey::KEY_DOT))
+                    score += 10 + consecutive * 5;
+                    if(ti == 0)
                         score += 8;
+                    else
+                    {
+                        char prev = (char)text[ti - 1];
+                        if(prev ==
+                               keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+                           prev == keyCode(command::CommandKey::KEY_MINUS) ||
+                           prev == keyCode(control::ControlKey::SPACE) ||
+                           prev == '\t' ||
+                           prev == keyCode(command::CommandKey::KEY_DOT))
+                        {
+                            score += 8;
+                        }
+                    }
+                    ++consecutive;
+                    ++ti;
+                    found = true;
+                    break;
                 }
-                ++consecutive;
+                consecutive = 0;
                 ++ti;
-                found = true;
-                break;
             }
-            consecutive = 0;
-            ++ti;
+            if(!found)
+                return -1;
         }
-        if(!found)
-            return -1;
+        return score;
+    };
+
+    int score = scoreExact(pattern);
+    if(score >= 0 || !typoTolerance || pattern.size() < 2)
+        return score;
+
+    int bestScore = -1;
+
+    for(size_t removeIdx = 0; removeIdx < pattern.size(); ++removeIdx)
+    {
+        std::string variant(pattern);
+        variant.erase(removeIdx, 1);
+        if(variant.empty())
+            continue;
+        int variantScore = scoreExact(variant);
+        if(variantScore >= 0)
+        {
+            variantScore -= 18;
+            if(bestScore < 0 || variantScore > bestScore)
+                bestScore = variantScore;
+        }
     }
-    return score;
+
+    for(size_t i = 0; i + 1 < pattern.size(); ++i)
+    {
+        std::string variant(pattern);
+        std::swap(variant[i], variant[i + 1]);
+        int variantScore = scoreExact(variant);
+        if(variantScore >= 0)
+        {
+            variantScore -= 12;
+            if(bestScore < 0 || variantScore > bestScore)
+                bestScore = variantScore;
+        }
+    }
+
+    return bestScore;
 }
 
 void FileBrowserMode::loadDirectory(ModeContext& ctx,
@@ -1124,7 +1170,8 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
             continue;
         }
 
-        int score = fuzzyScore(entry.name, filterQuery);
+        int score = fuzzyScore(entry.name, filterQuery,
+                               ctx.editor->fuzzyTypoTolerance);
         if(score >= 0)
             scored.emplace_back(i, score);
     }
