@@ -468,6 +468,7 @@ public:
     void drawRows();
     void drawStatusBar();
     void drawMessageBar();
+    void drawBufferView();
     void refreshScreen();
     void drawIncrementalUpdate();
     void drawFullScreen();

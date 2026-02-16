@@ -2,6 +2,8 @@
 
 #include <deque>
 #include <string>
+#include "terminal_escapes.h"
+#include "key_enums.h"
 
 // Terminal backend selection
 // Prefer explicit build definitions from CMake:
@@ -30,122 +32,71 @@
 class Terminal
 {
 public:
-    // Escape sequence constants (for building output strings)
-    static constexpr const char* ESC_CURSOR_HOME = "\x1b[H";
-    static constexpr const char* ESC_CLEAR_LINE = "\x1b[K";
-    static constexpr const char* ESC_CLEAR_SCREEN = "\x1b[2J";
-    static constexpr const char* ESC_RESET_ALL = "\x1b[m";
-    static constexpr const char* ESC_RESET_ATTRS = "\x1b[0m";
-    static constexpr const char* ESC_BOLD = "\x1b[1m";
-    static constexpr const char* ESC_DIM = "\x1b[2m";
-    static constexpr const char* ESC_ITALIC = "\x1b[3m";
-    static constexpr const char* ESC_UNDERLINE = "\x1b[4m";
-    static constexpr const char* ESC_BLINK = "\x1b[5m";
-    static constexpr const char* ESC_BLINK_OFF = "\x1b[25m";
-    static constexpr const char* ESC_REVERSE = "\x1b[7m";
-    static constexpr const char* ESC_BOLD_OFF = "\x1b[22m";
-    static constexpr const char* ESC_HIDE_CURSOR = "\x1b[?25l";
-    static constexpr const char* ESC_SHOW_CURSOR = "\x1b[?25h";
+    // Escape constants are centralized in esc::* and re-exposed here.
+    static constexpr const char* ESC_CURSOR_HOME = esc::ESC_CURSOR_HOME;
+    static constexpr const char* ESC_CLEAR_LINE = esc::ESC_CLEAR_LINE;
+    static constexpr const char* ESC_CLEAR_SCREEN = esc::ESC_CLEAR_SCREEN;
+    static constexpr const char* ESC_RESET_ALL = esc::ESC_RESET_ALL;
+    static constexpr const char* ESC_RESET_ATTRS = esc::ESC_RESET_ATTRS;
+    static constexpr const char* ESC_BOLD = esc::ESC_BOLD;
+    static constexpr const char* ESC_DIM = esc::ESC_DIM;
+    static constexpr const char* ESC_ITALIC = esc::ESC_ITALIC;
+    static constexpr const char* ESC_UNDERLINE = esc::ESC_UNDERLINE;
+    static constexpr const char* ESC_BLINK = esc::ESC_BLINK;
+    static constexpr const char* ESC_BLINK_OFF = esc::ESC_BLINK_OFF;
+    static constexpr const char* ESC_REVERSE = esc::ESC_REVERSE;
+    static constexpr const char* ESC_BOLD_OFF = esc::ESC_BOLD_OFF;
+    static constexpr const char* ESC_HIDE_CURSOR = esc::ESC_HIDE_CURSOR;
+    static constexpr const char* ESC_SHOW_CURSOR = esc::ESC_SHOW_CURSOR;
 
-    // Foreground colors
-    static constexpr const char* FG_BLACK = "\x1b[30m";
-    static constexpr const char* FG_RED = "\x1b[31m";
-    static constexpr const char* FG_GREEN = "\x1b[32m";
-    static constexpr const char* FG_YELLOW = "\x1b[33m";
-    static constexpr const char* FG_BLUE = "\x1b[34m";
-    static constexpr const char* FG_MAGENTA = "\x1b[35m";
-    static constexpr const char* FG_CYAN = "\x1b[36m";
-    static constexpr const char* FG_WHITE = "\x1b[37m";
-    static constexpr const char* FG_DEFAULT = "\x1b[39m";
+    static constexpr const char* FG_BLACK = esc::FG_BLACK;
+    static constexpr const char* FG_RED = esc::FG_RED;
+    static constexpr const char* FG_GREEN = esc::FG_GREEN;
+    static constexpr const char* FG_YELLOW = esc::FG_YELLOW;
+    static constexpr const char* FG_BLUE = esc::FG_BLUE;
+    static constexpr const char* FG_MAGENTA = esc::FG_MAGENTA;
+    static constexpr const char* FG_CYAN = esc::FG_CYAN;
+    static constexpr const char* FG_WHITE = esc::FG_WHITE;
+    static constexpr const char* FG_DEFAULT = esc::FG_DEFAULT;
 
-    // Bright foreground colors
-    static constexpr const char* FG_BRIGHT_BLACK = "\x1b[90m"; // Gray
-    static constexpr const char* FG_BRIGHT_RED = "\x1b[91m";
-    static constexpr const char* FG_BRIGHT_GREEN = "\x1b[92m";
-    static constexpr const char* FG_BRIGHT_YELLOW = "\x1b[93m";
-    static constexpr const char* FG_BRIGHT_BLUE = "\x1b[94m";
-    static constexpr const char* FG_BRIGHT_MAGENTA = "\x1b[95m";
-    static constexpr const char* FG_BRIGHT_CYAN = "\x1b[96m";
-    static constexpr const char* FG_BRIGHT_WHITE = "\x1b[97m";
+    static constexpr const char* FG_BRIGHT_BLACK = esc::FG_BRIGHT_BLACK;
+    static constexpr const char* FG_BRIGHT_RED = esc::FG_BRIGHT_RED;
+    static constexpr const char* FG_BRIGHT_GREEN = esc::FG_BRIGHT_GREEN;
+    static constexpr const char* FG_BRIGHT_YELLOW = esc::FG_BRIGHT_YELLOW;
+    static constexpr const char* FG_BRIGHT_BLUE = esc::FG_BRIGHT_BLUE;
+    static constexpr const char* FG_BRIGHT_MAGENTA = esc::FG_BRIGHT_MAGENTA;
+    static constexpr const char* FG_BRIGHT_CYAN = esc::FG_BRIGHT_CYAN;
+    static constexpr const char* FG_BRIGHT_WHITE = esc::FG_BRIGHT_WHITE;
 
-    // Background colors
-    static constexpr const char* BG_BLACK = "\x1b[40m";
-    static constexpr const char* BG_RED = "\x1b[41m";
-    static constexpr const char* BG_GREEN = "\x1b[42m";
-    static constexpr const char* BG_YELLOW = "\x1b[43m";
-    static constexpr const char* BG_BLUE = "\x1b[44m";
-    static constexpr const char* BG_MAGENTA = "\x1b[45m";
-    static constexpr const char* BG_CYAN = "\x1b[46m";
-    static constexpr const char* BG_WHITE = "\x1b[47m";
-    static constexpr const char* BG_DEFAULT = "\x1b[49m";
+    static constexpr const char* BG_BLACK = esc::BG_BLACK;
+    static constexpr const char* BG_RED = esc::BG_RED;
+    static constexpr const char* BG_GREEN = esc::BG_GREEN;
+    static constexpr const char* BG_YELLOW = esc::BG_YELLOW;
+    static constexpr const char* BG_BLUE = esc::BG_BLUE;
+    static constexpr const char* BG_MAGENTA = esc::BG_MAGENTA;
+    static constexpr const char* BG_CYAN = esc::BG_CYAN;
+    static constexpr const char* BG_WHITE = esc::BG_WHITE;
+    static constexpr const char* BG_DEFAULT = esc::BG_DEFAULT;
 
-    // Combined styles for common use cases
-    static constexpr const char* STYLE_SEARCH_MATCH = "\x1b[43m\x1b[30m";
-    static constexpr const char* STYLE_SELECTION = "\x1b[7m";
-    static constexpr const char* STYLE_GREEN_BOLD = "\x1b[32;1m";
-    static constexpr const char* STYLE_RESET_GREEN_BOLD = "\x1b[39;22m";
-    static constexpr const char* STYLE_CURSOR = "\x1b[103m\x1b[30;1m";
+    static constexpr const char* STYLE_SEARCH_MATCH = esc::STYLE_SEARCH_MATCH;
+    static constexpr const char* STYLE_SELECTION = esc::STYLE_SELECTION;
+    static constexpr const char* STYLE_GREEN_BOLD = esc::STYLE_GREEN_BOLD;
+    static constexpr const char* STYLE_RESET_GREEN_BOLD =
+        esc::STYLE_RESET_GREEN_BOLD;
+    static constexpr const char* STYLE_CURSOR = esc::STYLE_CURSOR;
 
-    // Scroll region and line manipulation
-    static constexpr const char* ESC_DELETE_LINE = "\x1b[M";
-    static constexpr const char* ESC_INSERT_LINE = "\x1b[L";
-    static constexpr const char* ESC_RESET_SCROLL_REGION = "\x1b[r";
-    static constexpr const char* ESC_SYNC_UPDATE_BEGIN = "\x1b[?2026h";
-    static constexpr const char* ESC_SYNC_UPDATE_END = "\x1b[?2026l";
+    static constexpr const char* ESC_DELETE_LINE = esc::ESC_DELETE_LINE;
+    static constexpr const char* ESC_INSERT_LINE = esc::ESC_INSERT_LINE;
+    static constexpr const char* ESC_RESET_SCROLL_REGION =
+        esc::ESC_RESET_SCROLL_REGION;
+    static constexpr const char* ESC_SYNC_UPDATE_BEGIN =
+        esc::ESC_SYNC_UPDATE_BEGIN;
+    static constexpr const char* ESC_SYNC_UPDATE_END = esc::ESC_SYNC_UPDATE_END;
 
     static std::string cursorPos(int row, int col);
     static std::string scrollRegion(int top, int bottom);
 
-    static constexpr const char* NEWLINE_CLEAR = "\r\n\x1b[K";
-
-    enum Key : int
-    {
-        ARROW_UP = 1000,
-        ARROW_DOWN,
-        ARROW_LEFT,
-        ARROW_RIGHT,
-        PAGE_UP,
-        PAGE_DOWN,
-        HOME,
-        END,
-        DELETE_KEY,
-
-        BACKSPACE = 8,
-        DEL = 127,
-
-        ENTER = 13,
-        ESC = 27,
-        TAB = 9,
-
-        SHIFT_TAB = 1100,
-
-        CTRL_A = 1,
-        CTRL_B = 2,
-        CTRL_C = 3,
-        CTRL_D = 4,
-        CTRL_E = 5,
-        CTRL_F = 6,
-        CTRL_G = 7,
-        CTRL_H = 8,
-        CTRL_I = 9,
-        CTRL_J = 10,
-        CTRL_K = 11,
-        CTRL_L = 12,
-        CTRL_M = 13,
-        CTRL_N = 14,
-        CTRL_O = 15,
-        CTRL_P = 16,
-        CTRL_Q = 17,
-        CTRL_R = 18,
-        CTRL_S = 19,
-        CTRL_T = 20,
-        CTRL_U = 21,
-        CTRL_V = 22,
-        CTRL_W = 23,
-        CTRL_X = 24,
-        CTRL_Y = 25,
-        CTRL_Z = 26,
-    };
+    static constexpr const char* NEWLINE_CLEAR = esc::NEWLINE_CLEAR;
 
     static void enableRawMode();
     static void disableRawMode();

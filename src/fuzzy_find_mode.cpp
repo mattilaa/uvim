@@ -62,18 +62,18 @@ void FuzzyFindMode::on_exit(ModeContext& /* ctx */)
 }
 
 std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
-                                               const KeyEvent& event)
+                                               int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         ed->noteDoubleEscStatusClear();
         return defaultExitMode(ed);
     }
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(select(*ed))
         {
@@ -82,45 +82,45 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::CTRL_N || c == Terminal::CTRL_J ||
-       c == Terminal::ARROW_DOWN)
+    if(c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(control::ControlKey::CTRL_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         moveDown(*ed);
     }
-    else if(c == Terminal::CTRL_P || c == Terminal::CTRL_K ||
-            c == Terminal::ARROW_UP)
+    else if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         moveUp(*ed);
     }
-    else if(c == Terminal::CTRL_D || c == Terminal::PAGE_DOWN)
+    else if(c == keyCode(control::ControlKey::CTRL_D) || c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         halfPageDown(*ed);
     }
-    else if(c == Terminal::PAGE_UP)
+    else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         halfPageUp(*ed);
     }
-    else if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         backspace(*ed);
     }
-    else if(c == Terminal::CTRL_W)
+    else if(c == keyCode(control::ControlKey::CTRL_W))
     {
         deleteWord(*ed);
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         clearQuery(*ed);
     }
-    else if(c == Terminal::CTRL_I)
+    else if(c == keyCode(control::ControlKey::CTRL_I))
     {
         toggleGitignore(*ed);
     }
-    else if(c == Terminal::CTRL_B)
+    else if(c == keyCode(control::ControlKey::CTRL_B))
     {
         return BufferBrowserMode{};
     }
-    else if(c == Terminal::CTRL_S)
+    else if(c == keyCode(control::ControlKey::CTRL_S))
     {
         return GrepSearchMode{};
     }
@@ -251,7 +251,7 @@ void FuzzyFindMode::draw(Editor& editor) const
                           (int)sizeStr.length() - 2;
             if(padding > 0)
             {
-                output.append(padding, ' ');
+                output.append(padding, keyCode(control::ControlKey::SPACE));
             }
             output += editor.theme.uiDim();
             output += sizeStr;
@@ -433,9 +433,9 @@ void FuzzyFindMode::backspace(Editor& editor)
 
 void FuzzyFindMode::deleteWord(Editor& editor)
 {
-    while(!query.empty() && query.back() == ' ')
+    while(!query.empty() && query.back() == keyCode(control::ControlKey::SPACE))
         query.pop_back();
-    while(!query.empty() && query.back() != ' ')
+    while(!query.empty() && query.back() != keyCode(control::ControlKey::SPACE))
         query.pop_back();
     updateMatches(editor);
     cursor = 0;
@@ -503,7 +503,7 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
             continue;
 
         // Skip hidden files (starting with .)
-        if(name[0] == '.')
+        if(name[0] == keyCode(command::CommandKey::KEY_DOT))
             continue;
 
         FileEntry fileEntry;
@@ -562,8 +562,8 @@ int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
             if(i > 0)
             {
                 char prevChar = haystack[i - 1];
-                if(prevChar == '/' || prevChar == '-' || prevChar == '_' ||
-                   prevChar == '.')
+                if(prevChar == keyCode(command::CommandKey::KEY_SLASH) || prevChar == keyCode(command::CommandKey::KEY_MINUS) || prevChar == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+                   prevChar == keyCode(command::CommandKey::KEY_DOT))
                 {
                     score += separatorBonus;
                 }

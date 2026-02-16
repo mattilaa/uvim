@@ -26,20 +26,20 @@ void VisualMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
-                                            const KeyEvent& event)
+                                            int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     if(ed->diagnosticPopupActive)
     {
-        if(c == 'q')
+        if(c == keyCode(typed::TypedKey::KEY_Q))
         {
             ed->closeDiagnosticPopup();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN)
+        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -59,7 +59,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
+        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -78,7 +78,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             ed->applyDiagnosticFix(ed->diagnosticPopupFixIndex);
             ctx.repeatCount = 0;
@@ -90,14 +90,14 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     // Count Prefix Accumulation
     // ========================================================================
 
-    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    if(ctx.repeatCount == 0 && c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = c - '0';
+        ctx.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return std::nullopt;
     }
-    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    if(ctx.repeatCount > 0 && c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return std::nullopt;
     }
     int count = std::max(1, ctx.repeatCount);
@@ -108,7 +108,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
 
     if(ctx.commandBuffer == " ")
     {
-        if(c == 'f')
+        if(c == keyCode(typed::TypedKey::KEY_F))
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
@@ -138,7 +138,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             }
             return NormalMode{};
         }
-        if(c == 'p')
+        if(c == keyCode(typed::TypedKey::KEY_P))
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
@@ -153,7 +153,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             ed->pasteBefore();
             return NormalMode{};
         }
-        if(c == ' ')
+        if(c == keyCode(control::ControlKey::SPACE))
         {
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
@@ -167,7 +167,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
     }
 
-    if(c == ' ')
+    if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
         ctx.setStatusMessage("Leader");
@@ -179,9 +179,9 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     // Exit Visual Mode
     // ========================================================================
 
-    if(c == Terminal::ESC || c == 'v')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_V))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
@@ -190,7 +190,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     // Switch to Visual Line Mode
     // ========================================================================
 
-    if(c == 'V')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_V))
     {
         return VisualLineMode{};
     }
@@ -199,7 +199,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     // Switch to Visual Block Mode
     // ========================================================================
 
-    if(c == Terminal::CTRL_V)
+    if(c == keyCode(control::ControlKey::CTRL_V))
     {
         return VisualBlockMode{};
     }
@@ -211,94 +211,94 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     bool didMove = false;
     switch(c)
     {
-    case 'h':
-    case Terminal::ARROW_LEFT:
+    case keyCode(typed::TypedKey::KEY_H):
+    case keyCode(navigation::NavigationKey::ARROW_LEFT):
         ed->moveLeft(count);
         didMove = true;
         break;
-    case 'j':
-    case Terminal::ARROW_DOWN:
+    case keyCode(typed::TypedKey::KEY_J):
+    case keyCode(navigation::NavigationKey::ARROW_DOWN):
         ed->moveDown(count);
         didMove = true;
         break;
-    case 'k':
-    case Terminal::ARROW_UP:
+    case keyCode(typed::TypedKey::KEY_K):
+    case keyCode(navigation::NavigationKey::ARROW_UP):
         ed->moveUp(count);
         didMove = true;
         break;
-    case 'l':
-    case Terminal::ARROW_RIGHT:
+    case keyCode(typed::TypedKey::KEY_L):
+    case keyCode(navigation::NavigationKey::ARROW_RIGHT):
         ed->moveRight(count);
         didMove = true;
         break;
 
     // Word movements
-    case 'w':
+    case keyCode(typed::TypedKey::KEY_W):
         for(int i = 0; i < count; i++)
             ed->moveWordForward();
         didMove = true;
         break;
-    case 'W':
+    case keyCode(typed::TypedKey::KEY_CAP_W):
         for(int i = 0; i < count; i++)
             ed->moveWordForwardBig();
         didMove = true;
         break;
-    case 'b':
+    case keyCode(typed::TypedKey::KEY_B):
         for(int i = 0; i < count; i++)
             ed->moveWordBackward();
         didMove = true;
         break;
-    case 'B':
+    case keyCode(typed::TypedKey::KEY_CAP_B):
         for(int i = 0; i < count; i++)
             ed->moveWordBackwardBig();
         didMove = true;
         break;
-    case 'e':
+    case keyCode(typed::TypedKey::KEY_E):
         for(int i = 0; i < count; i++)
             ed->moveToEndOfWord();
         didMove = true;
         break;
-    case 'E':
+    case keyCode(typed::TypedKey::KEY_CAP_E):
         for(int i = 0; i < count; i++)
             ed->moveToEndOfWordBig();
         didMove = true;
         break;
 
     // Line movements
-    case '0':
+    case keyCode(typed::TypedKey::KEY_0):
         ed->moveToLineStart();
         didMove = true;
         break;
-    case '^':
+    case keyCode(command::CommandKey::KEY_CARET):
         ed->moveToFirstNonBlank();
         didMove = true;
         break;
-    case '$':
+    case keyCode(command::CommandKey::KEY_DOLLAR):
         ed->moveToLineEnd();
         didMove = true;
         break;
 
     // Paragraph movements
-    case '{':
+    case keyCode(command::CommandKey::KEY_LEFT_BRACE):
         for(int i = 0; i < count; i++)
             ed->moveParagraphBackward();
         didMove = true;
         break;
-    case '}':
+    case keyCode(command::CommandKey::KEY_RIGHT_BRACE):
         for(int i = 0; i < count; i++)
             ed->moveParagraphForward();
         didMove = true;
         break;
 
     // File movements
-    case 'G':
+    case keyCode(typed::TypedKey::KEY_CAP_G):
         ed->moveToLastLine();
         didMove = true;
         break;
-    case 'g':
+    case keyCode(typed::TypedKey::KEY_G):
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             ed->moveToFirstLine();
             didMove = true;
@@ -306,35 +306,35 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     }
     break;
     // Screen movements
-    case 'H':
+    case keyCode(typed::TypedKey::KEY_CAP_H):
         ed->moveToScreenTop();
         didMove = true;
         break;
-    case 'M':
+    case keyCode(typed::TypedKey::KEY_CAP_M):
         ed->moveToScreenMiddle();
         didMove = true;
         break;
-    case 'L':
+    case keyCode(typed::TypedKey::KEY_CAP_L):
         ed->moveToScreenBottom();
         didMove = true;
         break;
 
     // Scrolling
-    case Terminal::CTRL_D:
+    case keyCode(control::ControlKey::CTRL_D):
         ed->scrollHalfPageDown(false);
         didMove = true;
         break;
-    case Terminal::CTRL_U:
+    case keyCode(control::ControlKey::CTRL_U):
         ed->scrollHalfPageUp(false);
         didMove = true;
         break;
-    case Terminal::CTRL_F:
-    case Terminal::PAGE_DOWN:
+    case keyCode(control::ControlKey::CTRL_F):
+    case keyCode(navigation::NavigationKey::PAGE_DOWN):
         ed->scrollPageDown();
         didMove = true;
         break;
-    case Terminal::CTRL_B:
-    case Terminal::PAGE_UP:
+    case keyCode(control::ControlKey::CTRL_B):
+    case keyCode(navigation::NavigationKey::PAGE_UP):
         ed->scrollPageUp();
         didMove = true;
         break;
@@ -343,18 +343,18 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         // Operations on Selection
         // ========================================================================
 
-    case 'd':
-    case 'x':
+    case keyCode(typed::TypedKey::KEY_D):
+    case keyCode(typed::TypedKey::KEY_X):
         ed->yankSelection();
         ed->deleteSelection();
         ed->saveState();
         return NormalMode{};
 
-    case 'y':
+    case keyCode(typed::TypedKey::KEY_Y):
         ed->yankSelection();
         return NormalMode{};
 
-    case 'p':
+    case keyCode(typed::TypedKey::KEY_P):
     {
         std::string pasteBuffer = ed->yankBuffer;
         if(pasteBuffer.empty() && ed->useSystemClipboard)
@@ -369,10 +369,10 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    case 'c':
+    case keyCode(typed::TypedKey::KEY_C):
     {
         int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == 'i')
+        if(nextChar == keyCode(typed::TypedKey::KEY_I))
         {
             int startY = std::min(ed->currentBuffer->visualStartY,
                                   ed->currentBuffer->visualEndY);
@@ -387,32 +387,32 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         return InsertMode{};
     }
 
-    case '>':
+    case keyCode(command::CommandKey::KEY_GREATER):
         ed->indentSelection();
         ed->saveState();
         return NormalMode{};
 
-    case '<':
+    case keyCode(command::CommandKey::KEY_LESS):
         ed->dedentSelection();
         ed->saveState();
         return NormalMode{};
 
-    case '~':
+    case keyCode(command::CommandKey::KEY_TILDE):
         ed->toggleCaseSelection();
         ed->saveState();
         return NormalMode{};
 
-    case 'u':
+    case keyCode(typed::TypedKey::KEY_U):
         ed->lowercaseSelection();
         ed->saveState();
         return NormalMode{};
 
-    case 'U':
+    case keyCode(typed::TypedKey::KEY_CAP_U):
         ed->uppercaseSelection();
         ed->saveState();
         return NormalMode{};
 
-    case 'J':
+    case keyCode(typed::TypedKey::KEY_CAP_J):
     {
         // Join selected lines
         int startLine = std::min(ed->currentBuffer->visualStartY,
@@ -430,7 +430,7 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
     }
 
     // Swap selection ends
-    case 'o':
+    case keyCode(typed::TypedKey::KEY_O):
     {
         std::swap(ctx.cursorX(), ed->currentBuffer->visualStartX);
         std::swap(ctx.cursorY(), ed->currentBuffer->visualStartY);
@@ -471,23 +471,23 @@ void VisualLineMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
-                                                const KeyEvent& event)
+                                                int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // ========================================================================
     // Count Prefix Accumulation
     // ========================================================================
 
-    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    if(ctx.repeatCount == 0 && c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = c - '0';
+        ctx.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return std::nullopt;
     }
-    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    if(ctx.repeatCount > 0 && c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return std::nullopt;
     }
     int count = std::max(1, ctx.repeatCount);
@@ -498,7 +498,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
 
     if(ctx.commandBuffer == " ")
     {
-        if(c == 'f')
+        if(c == keyCode(typed::TypedKey::KEY_F))
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
@@ -528,7 +528,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             }
             return NormalMode{};
         }
-        if(c == 'p')
+        if(c == keyCode(typed::TypedKey::KEY_P))
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
@@ -543,7 +543,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
             ed->pasteBefore();
             return NormalMode{};
         }
-        if(c == ' ')
+        if(c == keyCode(control::ControlKey::SPACE))
         {
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
@@ -556,7 +556,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
     }
 
-    if(c == ' ')
+    if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
         ctx.setStatusMessage("Leader");
@@ -568,19 +568,19 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     // Exit / Switch Modes
     // ========================================================================
 
-    if(c == Terminal::ESC || c == 'V')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_CAP_V))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
 
-    if(c == 'v')
+    if(c == keyCode(typed::TypedKey::KEY_V))
     {
         return VisualMode{};
     }
 
-    if(c == Terminal::CTRL_V)
+    if(c == keyCode(control::ControlKey::CTRL_V))
     {
         return VisualBlockMode{};
     }
@@ -592,49 +592,49 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     bool didMove = false;
     switch(c)
     {
-    case 'j':
-    case Terminal::ARROW_DOWN:
+    case keyCode(typed::TypedKey::KEY_J):
+    case keyCode(navigation::NavigationKey::ARROW_DOWN):
         ed->moveDown(count);
         didMove = true;
         break;
-    case 'k':
-    case Terminal::ARROW_UP:
+    case keyCode(typed::TypedKey::KEY_K):
+    case keyCode(navigation::NavigationKey::ARROW_UP):
         ed->moveUp(count);
         didMove = true;
         break;
-    case 'G':
+    case keyCode(typed::TypedKey::KEY_CAP_G):
         ed->moveToLastLine();
         didMove = true;
         break;
-    case 'g':
+    case keyCode(typed::TypedKey::KEY_G):
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             ed->moveToFirstLine();
             didMove = true;
         }
     }
     break;
-    case '{':
+    case keyCode(command::CommandKey::KEY_LEFT_BRACE):
         for(int i = 0; i < count; i++)
             ed->moveParagraphBackward();
         didMove = true;
         break;
-    case '}':
+    case keyCode(command::CommandKey::KEY_RIGHT_BRACE):
         for(int i = 0; i < count; i++)
             ed->moveParagraphForward();
         didMove = true;
         break;
-    case Terminal::CTRL_D:
+    case keyCode(control::ControlKey::CTRL_D):
         ed->scrollHalfPageDown(false);
         didMove = true;
         break;
-    case Terminal::CTRL_U:
+    case keyCode(control::ControlKey::CTRL_U):
         ed->scrollHalfPageUp(false);
         didMove = true;
         break;
-    case '%':
+    case keyCode(command::CommandKey::KEY_PERCENT):
         ed->moveToMatchingBracket();
         didMove = true;
         break;
@@ -643,18 +643,18 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         // Line Operations
         // ========================================================================
 
-    case 'd':
-    case 'x':
+    case keyCode(typed::TypedKey::KEY_D):
+    case keyCode(typed::TypedKey::KEY_X):
         ed->yankLineSelection();
         ed->deleteLineSelection();
         ed->saveState();
         return NormalMode{};
 
-    case 'y':
+    case keyCode(typed::TypedKey::KEY_Y):
         ed->yankLineSelection();
         return NormalMode{};
 
-    case 'p':
+    case keyCode(typed::TypedKey::KEY_P):
     {
         std::string pasteBuffer = ed->yankBuffer;
         if(pasteBuffer.empty() && ed->useSystemClipboard)
@@ -669,10 +669,10 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    case 'c':
+    case keyCode(typed::TypedKey::KEY_C):
     {
         int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == 'i')
+        if(nextChar == keyCode(typed::TypedKey::KEY_I))
         {
             int startY = std::min(ed->currentBuffer->visualStartY,
                                   ed->currentBuffer->visualEndY);
@@ -687,22 +687,22 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         return InsertMode{};
     }
 
-    case '>':
+    case keyCode(command::CommandKey::KEY_GREATER):
         ed->indentLineSelection();
         ed->saveState();
         return NormalMode{};
 
-    case '<':
+    case keyCode(command::CommandKey::KEY_LESS):
         ed->dedentLineSelection();
         ed->saveState();
         return NormalMode{};
 
-    case '=':
+    case keyCode(command::CommandKey::KEY_EQUAL):
         ed->autoIndentLineSelection();
         ed->saveState();
         return NormalMode{};
 
-    case 'J':
+    case keyCode(typed::TypedKey::KEY_CAP_J):
     {
         int startLine = std::min(ed->currentBuffer->visualStartY,
                                  ed->currentBuffer->visualEndY);
@@ -719,7 +719,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
     }
 
     // Swap selection ends
-    case 'o':
+    case keyCode(typed::TypedKey::KEY_O):
         std::swap(ctx.cursorY(), ed->currentBuffer->visualStartY);
         didMove = true;
         break;
@@ -758,23 +758,23 @@ void VisualBlockMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
-                                                 const KeyEvent& event)
+                                                 int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // ========================================================================
     // Count Prefix Accumulation
     // ========================================================================
 
-    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    if(ctx.repeatCount == 0 && c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = c - '0';
+        ctx.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return std::nullopt;
     }
-    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    if(ctx.repeatCount > 0 && c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return std::nullopt;
     }
     int count = std::max(1, ctx.repeatCount);
@@ -783,9 +783,9 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == Terminal::ESC || c == Terminal::CTRL_V)
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_V))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
@@ -796,7 +796,7 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
 
     if(ctx.commandBuffer == " ")
     {
-        if(c == 'f')
+        if(c == keyCode(typed::TypedKey::KEY_F))
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
@@ -826,7 +826,7 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
             }
             return NormalMode{};
         }
-        if(c == ' ')
+        if(c == keyCode(control::ControlKey::SPACE))
         {
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
@@ -839,7 +839,7 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
     }
 
-    if(c == ' ')
+    if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
         ctx.setStatusMessage("Leader");
@@ -854,23 +854,23 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
     bool didMove = false;
     switch(c)
     {
-    case 'h':
-    case Terminal::ARROW_LEFT:
+    case keyCode(typed::TypedKey::KEY_H):
+    case keyCode(navigation::NavigationKey::ARROW_LEFT):
         ed->moveLeft(count);
         didMove = true;
         break;
-    case 'j':
-    case Terminal::ARROW_DOWN:
+    case keyCode(typed::TypedKey::KEY_J):
+    case keyCode(navigation::NavigationKey::ARROW_DOWN):
         ed->moveDown(count);
         didMove = true;
         break;
-    case 'k':
-    case Terminal::ARROW_UP:
+    case keyCode(typed::TypedKey::KEY_K):
+    case keyCode(navigation::NavigationKey::ARROW_UP):
         ed->moveUp(count);
         didMove = true;
         break;
-    case 'l':
-    case Terminal::ARROW_RIGHT:
+    case keyCode(typed::TypedKey::KEY_L):
+    case keyCode(navigation::NavigationKey::ARROW_RIGHT):
         ed->moveRight(count);
         didMove = true;
         break;
@@ -879,33 +879,33 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
         // Block Operations
         // ========================================================================
 
-    case 'd':
-    case 'x':
+    case keyCode(typed::TypedKey::KEY_D):
+    case keyCode(typed::TypedKey::KEY_X):
         ed->deleteVisualBlock();
         ed->saveState();
         return NormalMode{};
 
-    case 'y':
+    case keyCode(typed::TypedKey::KEY_Y):
         ed->yankVisualBlock();
         return NormalMode{};
 
-    case 'c':
+    case keyCode(typed::TypedKey::KEY_C):
         ed->changeVisualBlock();
         return InsertMode{};
 
     // Insert at block start
-    case 'I':
+    case keyCode(typed::TypedKey::KEY_CAP_I):
         ed->prepareBlockInsert(false);
         return InsertMode{};
 
     // Append at block end
-    case 'A':
+    case keyCode(typed::TypedKey::KEY_CAP_A):
         ed->prepareBlockInsert(true);
         return InsertMode{};
 
     // Swap corners
-    case 'o':
-    case 'O':
+    case keyCode(typed::TypedKey::KEY_O):
+    case keyCode(typed::TypedKey::KEY_CAP_O):
         ed->swapVisualBlockCorner();
         didMove = true;
         break;

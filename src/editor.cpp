@@ -2128,24 +2128,31 @@ bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
         return false;
     };
 
-    if(objChar == '(' || objChar == ')')
+    if(objChar == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
+       objChar == keyCode(command::CommandKey::KEY_RIGHT_PAREN))
     {
-        if(findEnclosing('(', ')'))
+        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_PAREN),
+                         keyCode(command::CommandKey::KEY_RIGHT_PAREN)))
             return true;
     }
-    if(objChar == '{' || objChar == '}')
+    if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACE) ||
+       objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
     {
-        if(findEnclosing('{', '}'))
+        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACE),
+                         keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
             return true;
     }
-    if(objChar == '[' || objChar == ']')
+    if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACKET) ||
+       objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACKET))
     {
-        if(findEnclosing('[', ']'))
+        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACKET),
+                         keyCode(command::CommandKey::KEY_RIGHT_BRACKET)))
             return true;
     }
 
     // Quotes: find nearest pair of quotes in current line (simple)
-    if(objChar == '"' || objChar == '\'')
+    if(objChar == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) ||
+       objChar == keyCode(command::CommandKey::KEY_APOSTROPHE))
     {
         const std::string& line = (*lines)[y];
         // search left for quote
@@ -2182,7 +2189,7 @@ bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
     }
 
     // Word objects: iw / aw
-    if(objChar == 'w')
+    if(objChar == keyCode(typed::TypedKey::KEY_W))
     {
         // For inner word -> find word boundaries around cursor on same line
         const std::string& line = (*lines)[y];
@@ -2216,7 +2223,7 @@ bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
     }
 
     // Paragraph 'p' (simple: blank-line separated)
-    if(objChar == 'p')
+    if(objChar == keyCode(typed::TypedKey::KEY_P))
     {
         int sy = y, ey = y;
         // find paragraph start
@@ -2250,18 +2257,19 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
     }
 
     // Yank if 'y' or for 'd' we fill yankBuffer
-    if(op == 'y' || op == 'd' || op == 'c')
+    if(op == keyCode(typed::TypedKey::KEY_Y) || op == keyCode(typed::TypedKey::KEY_D) ||
+       op == keyCode(typed::TypedKey::KEY_C))
     {
         yankRange(startY, startX, endY, endX);
     }
 
-    if(op == 'd' || op == 'c')
+    if(op == keyCode(typed::TypedKey::KEY_D) || op == keyCode(typed::TypedKey::KEY_C))
     {
         deleteRange(startY, startX, endY, endX);
         saveState();
     }
 
-    if(op == '=')
+    if(op == keyCode(command::CommandKey::KEY_EQUAL))
     {
         // For indent operator, we indent all lines in the range
         // For line-wise motions or when the range spans multiple lines
@@ -2273,7 +2281,7 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
         saveState();
     }
 
-    if(op == 'c')
+    if(op == keyCode(typed::TypedKey::KEY_C))
     {
         // After change, enter insert mode at start
         *cursorY = startY;
@@ -2282,7 +2290,7 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
     else
     {
         // Place cursor at start of affected range (or keep it for indent)
-        if(op != '=')
+        if(op != keyCode(command::CommandKey::KEY_EQUAL))
         {
             *cursorY = startY;
             *cursorX = startX;
@@ -9444,13 +9452,13 @@ void Editor::handleLinewiseOperator(char op, int count)
 {
     switch(op)
     {
-    case 'd':
+    case keyCode(typed::TypedKey::KEY_D):
         for(int i = 0; i < count && !lines->empty(); i++)
         {
             deleteCurrentLine();
         }
         break;
-    case 'y':
+    case keyCode(typed::TypedKey::KEY_Y):
     {
         LOG_DEBUG(LOG,
                   "handleLinewiseOperator: yy detected, count={}, cursorY={}",
@@ -9478,7 +9486,7 @@ void Editor::handleLinewiseOperator(char op, int count)
         setStatusMessage(msg);
     }
     break;
-    case '>':
+    case keyCode(command::CommandKey::KEY_GREATER):
         for(int i = 0; i < count && *cursorY + i < (int)lines->size(); i++)
         {
             (*lines)[*cursorY + i] = "    " + (*lines)[*cursorY + i];
@@ -9487,7 +9495,7 @@ void Editor::handleLinewiseOperator(char op, int count)
         saveState();
         needsFullRedraw = true;
         break;
-    case '<':
+    case keyCode(command::CommandKey::KEY_LESS):
         for(int i = 0; i < count && *cursorY + i < (int)lines->size(); i++)
         {
             std::string& line = (*lines)[*cursorY + i];
@@ -9504,7 +9512,7 @@ void Editor::handleLinewiseOperator(char op, int count)
         saveState();
         needsFullRedraw = true;
         break;
-    case '=':
+    case keyCode(command::CommandKey::KEY_EQUAL):
         for(int i = 0; i < count && *cursorY + i < (int)lines->size(); i++)
         {
             autoIndentLine(*cursorY + i);
@@ -9513,7 +9521,7 @@ void Editor::handleLinewiseOperator(char op, int count)
         saveState();
         needsFullRedraw = true;
         break;
-    case 'c':
+    case keyCode(typed::TypedKey::KEY_C):
         for(int i = 0; i < count && !lines->empty(); i++)
         {
             deleteCurrentLine();
@@ -9812,7 +9820,7 @@ void Editor::autoIndentLineSelection()
 
 void Editor::setMark(char mark)
 {
-    if(mark >= 'a' && mark <= 'z')
+    if(mark >= keyCode(typed::TypedKey::KEY_A) && mark <= keyCode(typed::TypedKey::KEY_Z))
     {
         MarkLocation loc;
         loc.filename = *filename;
@@ -9825,7 +9833,7 @@ void Editor::setMark(char mark)
 
 void Editor::jumpToMark(char mark)
 {
-    if(mark >= 'a' && mark <= 'z')
+    if(mark >= keyCode(typed::TypedKey::KEY_A) && mark <= keyCode(typed::TypedKey::KEY_Z))
     {
         auto it = marks.find(mark);
         if(it != marks.end())
@@ -9891,32 +9899,32 @@ void Editor::executeOneNormalCommand(int key)
 {
     switch(key)
     {
-    case 'w':
+    case keyCode(typed::TypedKey::KEY_W):
         moveWordForward();
         break;
-    case 'b':
+    case keyCode(typed::TypedKey::KEY_B):
         moveWordBackward();
         break;
-    case 'e':
+    case keyCode(typed::TypedKey::KEY_E):
         moveToEndOfWord();
         break;
-    case '0':
+    case keyCode(typed::TypedKey::KEY_0):
         moveToLineStart();
         break;
-    case '$':
+    case keyCode(command::CommandKey::KEY_DOLLAR):
         moveToLineEnd();
         break;
-    case 'h':
+    case keyCode(typed::TypedKey::KEY_H):
         moveLeft();
         break;
-    case 'l':
+    case keyCode(typed::TypedKey::KEY_L):
         moveRight();
         break;
-    case 'j':
+    case keyCode(typed::TypedKey::KEY_J):
         moveDown();
         adjustViewport();
         break;
-    case 'k':
+    case keyCode(typed::TypedKey::KEY_K):
         moveUp();
         adjustViewport();
         break;

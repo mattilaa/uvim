@@ -19,25 +19,25 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
 void BufferBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
 std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
-                                                   const KeyEvent& event)
+                                                   int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         ed->noteDoubleEscStatusClear();
         return defaultExitMode(ed);
     }
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         selectMatch(*ed);
         return defaultExitMode(ed);
     }
 
-    if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN ||
-       c == Terminal::CTRL_N)
+    if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
+       c == keyCode(control::ControlKey::CTRL_N))
     {
         if(bufferCursor < (int)bufferMatches.size() - 1)
         {
@@ -47,7 +47,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
                 bufferOffset = bufferCursor - visible + 1;
         }
     }
-    else if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
+    else if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(bufferCursor > 0)
         {
@@ -56,7 +56,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
                 bufferOffset = bufferCursor;
         }
     }
-    else if(c == Terminal::CTRL_D)
+    else if(c == keyCode(control::ControlKey::CTRL_D))
     {
         int half = (ed->screenRows - 4) / 2;
         bufferCursor += half;
@@ -66,7 +66,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         if(bufferCursor >= bufferOffset + visible)
             bufferOffset = bufferCursor - visible + 1;
     }
-    else if(c == Terminal::PAGE_UP)
+    else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         int half = (ed->screenRows - 4) / 2;
         bufferCursor -= half;
@@ -75,8 +75,8 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         if(bufferCursor < bufferOffset)
             bufferOffset = bufferCursor;
     }
-    else if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
-            c == Terminal::CTRL_H)
+    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == keyCode(control::ControlKey::DEL) ||
+            c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!bufferQuery.empty())
         {
@@ -86,18 +86,18 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
             bufferOffset = 0;
         }
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         bufferQuery.clear();
         updateMatches(*ed);
         bufferCursor = 0;
         bufferOffset = 0;
     }
-    else if(c == Terminal::CTRL_P)
+    else if(c == keyCode(control::ControlKey::CTRL_P))
     {
         return FuzzyFindMode{};
     }
-    else if(c == Terminal::CTRL_S || c == '/')
+    else if(c == keyCode(control::ControlKey::CTRL_S) || c == keyCode(command::CommandKey::KEY_SLASH))
     {
         return GrepSearchMode{};
     }

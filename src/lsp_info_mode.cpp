@@ -20,20 +20,20 @@ void LspInfoMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx,
-                                             const KeyEvent& event)
+                                             int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         return ctx.hasBuffer() ? ModeState{NormalMode{}}
                                : ModeState{WelcomeMode{}};
     }
 
-    if(c == 'r')
+    if(c == keyCode(typed::TypedKey::KEY_R))
     {
         ed->showLspInfo();
         return std::nullopt;

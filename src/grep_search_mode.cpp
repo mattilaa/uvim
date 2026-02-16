@@ -42,16 +42,16 @@ void GrepSearchMode::on_exit(ModeContext& /* ctx */)
 }
 
 std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
-                                                const KeyEvent& event)
+                                                int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // ========================================================================
     // Exit
     // ========================================================================
 
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         return defaultExitMode(ed);
     }
@@ -60,7 +60,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Selection
     // ========================================================================
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(selectMatch(*ed))
         {
@@ -73,21 +73,21 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Navigation through results
     // ========================================================================
 
-    if(c == Terminal::CTRL_N || c == Terminal::CTRL_J ||
-       c == Terminal::ARROW_DOWN)
+    if(c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(control::ControlKey::CTRL_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         resultDown(*ed);
     }
-    else if(c == Terminal::CTRL_P || c == Terminal::CTRL_K ||
-            c == Terminal::ARROW_UP)
+    else if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         resultUp(*ed);
     }
-    else if(c == Terminal::CTRL_D || c == Terminal::PAGE_DOWN)
+    else if(c == keyCode(control::ControlKey::CTRL_D) || c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         resultHalfPageDown(*ed);
     }
-    else if(c == Terminal::CTRL_U || c == Terminal::PAGE_UP)
+    else if(c == keyCode(control::ControlKey::CTRL_U) || c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         resultHalfPageUp(*ed);
     }
@@ -96,11 +96,11 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Input Editing
     // ========================================================================
 
-    else if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         searchBackspace(*ed);
     }
-    else if(c == Terminal::CTRL_W)
+    else if(c == keyCode(control::ControlKey::CTRL_W))
     {
         // Delete word backward
         searchDeleteWord(*ed);
@@ -109,11 +109,11 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Toggles
     // ========================================================================
 
-    else if(c == Terminal::CTRL_I)
+    else if(c == keyCode(control::ControlKey::CTRL_I))
     {
         toggleGitignore(*ed);
     }
-    else if(c == Terminal::TAB)
+    else if(c == keyCode(control::ControlKey::TAB))
     {
         togglePreview();
     }
@@ -122,7 +122,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Mode Switching
     // ========================================================================
 
-    else if(c == Terminal::CTRL_B)
+    else if(c == keyCode(control::ControlKey::CTRL_B))
     {
         return BufferBrowserMode{};
     }
@@ -390,7 +390,7 @@ void GrepSearchMode::searchInFile(const std::string& filepath,
 bool GrepSearchMode::isTextFile(const std::string& filepath) const
 {
     std::string ext;
-    size_t dotPos = filepath.find_last_of('.');
+    size_t dotPos = filepath.find_last_of(keyCode(command::CommandKey::KEY_DOT));
     if(dotPos != std::string::npos)
     {
         ext = filepath.substr(dotPos);
@@ -565,9 +565,9 @@ void GrepSearchMode::searchBackspace(Editor& editor)
 
 void GrepSearchMode::searchDeleteWord(Editor& editor)
 {
-    while(!query.empty() && query.back() == ' ')
+    while(!query.empty() && query.back() == keyCode(control::ControlKey::SPACE))
         query.pop_back();
-    while(!query.empty() && query.back() != ' ')
+    while(!query.empty() && query.back() != keyCode(control::ControlKey::SPACE))
         query.pop_back();
     performSearch(editor);
     cursor = 0;

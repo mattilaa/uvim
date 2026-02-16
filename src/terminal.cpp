@@ -103,34 +103,34 @@ static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
     const DWORD mods = k.dwControlKeyState;
 
     if(vk == VK_TAB && (mods & SHIFT_PRESSED))
-        return Terminal::SHIFT_TAB;
+        return keyCode(control::ControlKey::SHIFT_TAB);
 
     switch(vk)
     {
     case VK_UP:
-        return Terminal::ARROW_UP;
+        return keyCode(navigation::NavigationKey::ARROW_UP);
     case VK_DOWN:
-        return Terminal::ARROW_DOWN;
+        return keyCode(navigation::NavigationKey::ARROW_DOWN);
     case VK_LEFT:
-        return Terminal::ARROW_LEFT;
+        return keyCode(navigation::NavigationKey::ARROW_LEFT);
     case VK_RIGHT:
-        return Terminal::ARROW_RIGHT;
+        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
     case VK_HOME:
-        return Terminal::HOME;
+        return keyCode(navigation::NavigationKey::HOME);
     case VK_END:
-        return Terminal::END;
+        return keyCode(navigation::NavigationKey::END);
     case VK_PRIOR:
-        return Terminal::PAGE_UP;
+        return keyCode(navigation::NavigationKey::PAGE_UP);
     case VK_NEXT:
-        return Terminal::PAGE_DOWN;
+        return keyCode(navigation::NavigationKey::PAGE_DOWN);
     case VK_DELETE:
-        return Terminal::DELETE_KEY;
+        return keyCode(navigation::NavigationKey::DELETE_KEY);
     case VK_ESCAPE:
-        return Terminal::ESC;
+        return keyCode(control::ControlKey::ESC);
     case VK_RETURN:
-        return Terminal::ENTER;
+        return keyCode(control::ControlKey::ENTER);
     case VK_BACK:
-        return Terminal::BACKSPACE;
+        return keyCode(control::ControlKey::BACKSPACE);
     default:
         break;
     }
@@ -392,84 +392,84 @@ int Terminal::readKeyInternal(int timeoutMs)
     if(c == '\x1b')
     {
         if(!wait_stdin(milliseconds(50)))
-            return ESC;
+            return keyCode(control::ControlKey::ESC);
 
         std::array<char, 5> seq{};
         if(!read_byte(seq[0]))
-            return ESC;
+            return keyCode(control::ControlKey::ESC);
         if(!read_byte(seq[1]))
-            return ESC;
+            return keyCode(control::ControlKey::ESC);
 
         if(seq[0] == '[')
         {
             if(seq[1] >= '0' && seq[1] <= '9')
             {
                 if(!read_byte(seq[2]))
-                    return ESC;
+                    return keyCode(control::ControlKey::ESC);
 
                 if(seq[2] == '~')
                 {
                     switch(seq[1])
                     {
                     case '1':
-                        return HOME;
+                        return keyCode(navigation::NavigationKey::HOME);
                     case '3':
-                        return DELETE_KEY;
+                        return keyCode(navigation::NavigationKey::DELETE_KEY);
                     case '4':
-                        return END;
+                        return keyCode(navigation::NavigationKey::END);
                     case '5':
-                        return PAGE_UP;
+                        return keyCode(navigation::NavigationKey::PAGE_UP);
                     case '6':
-                        return PAGE_DOWN;
+                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
                     case '7':
-                        return HOME;
+                        return keyCode(navigation::NavigationKey::HOME);
                     case '8':
-                        return END;
+                        return keyCode(navigation::NavigationKey::END);
                     }
                 }
                 else if(seq[2] == ';')
                 {
                     if(!read_byte(seq[3]))
-                        return ESC;
+                        return keyCode(control::ControlKey::ESC);
                     if(!read_byte(seq[4]))
-                        return ESC;
+                        return keyCode(control::ControlKey::ESC);
 
                     if(seq[4] == 'Z')
-                        return SHIFT_TAB;
+                        return keyCode(control::ControlKey::SHIFT_TAB);
 
                     switch(seq[4])
                     {
                     case 'A':
-                        return ARROW_UP;
+                        return keyCode(navigation::NavigationKey::ARROW_UP);
                     case 'B':
-                        return ARROW_DOWN;
+                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
                     case 'C':
-                        return ARROW_RIGHT;
+                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
                     case 'D':
-                        return ARROW_LEFT;
+                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
                     }
                 }
             }
             else if(seq[1] == 'Z')
             {
-                return SHIFT_TAB;
+                return keyCode(control::ControlKey::SHIFT_TAB);
             }
             else
             {
                 switch(seq[1])
                 {
                 case 'A':
-                    return ARROW_UP;
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
                 case 'B':
-                    return ARROW_DOWN;
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
                 case 'C':
-                    return ARROW_RIGHT;
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
                 case 'D':
-                    return ARROW_LEFT;
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
                 case 'H':
-                    return HOME;
+                    return keyCode(navigation::NavigationKey::HOME);
                 case 'F':
-                    return END;
+                    return keyCode(navigation::NavigationKey::END);
                 }
             }
         }
@@ -478,13 +478,13 @@ int Terminal::readKeyInternal(int timeoutMs)
             switch(seq[1])
             {
             case 'H':
-                return HOME;
+                return keyCode(navigation::NavigationKey::HOME);
             case 'F':
-                return END;
+                return keyCode(navigation::NavigationKey::END);
             }
         }
 
-        return ESC;
+        return keyCode(control::ControlKey::ESC);
     }
 
     return static_cast<unsigned char>(c);

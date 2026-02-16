@@ -125,12 +125,12 @@ void GitPatchMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
-                                              const KeyEvent& event)
+                                              int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
         return returnStage;
     }
@@ -140,19 +140,19 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         return returnStage;
     }
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         int maxScroll = std::max(0, (int)hunks[hunkIndex].lines.size() -
                                       (ed->screenRows - 3));
         if(scrollOffset < maxScroll)
             scrollOffset++;
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
+    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
             scrollOffset--;
     }
-    else if(c == Terminal::CTRL_J)
+    else if(c == keyCode(control::ControlKey::CTRL_J))
     {
         if(hunkIndex < (int)hunks.size() - 1)
         {
@@ -160,7 +160,7 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
             scrollOffset = 0;
         }
     }
-    else if(c == Terminal::CTRL_K)
+    else if(c == keyCode(control::ControlKey::CTRL_K))
     {
         if(hunkIndex > 0)
         {
@@ -168,7 +168,7 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
             scrollOffset = 0;
         }
     }
-    else if(c == 'y')
+    else if(c == keyCode(typed::TypedKey::KEY_Y))
     {
         std::string cmd =
             "git -C \"" + repoDir + "\" apply --cached --unidiff-zero";
@@ -194,7 +194,7 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
             return returnStage;
         }
     }
-    else if(c == 'n')
+    else if(c == keyCode(typed::TypedKey::KEY_N))
     {
         if(hunkIndex < (int)hunks.size() - 1)
         {
@@ -265,9 +265,9 @@ void GitPatchMode::draw(Editor& editor) const
             {
                 const std::string& line = hunk.lines[lineIdx];
                 output += "  ";
-                if(!line.empty() && line[0] == '+')
+                if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
                     output += editor.theme.uiSuccess();
-                else if(!line.empty() && line[0] == '-')
+                else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
                     output += editor.theme.uiError();
                 else if(line.rfind("@@ ", 0) == 0)
                     output += editor.theme.uiInfo();
@@ -294,7 +294,7 @@ void GitPatchMode::draw(Editor& editor) const
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)
-        output.append(padding, ' ');
+        output.append(padding, keyCode(control::ControlKey::SPACE));
     output += right;
     output += editor.theme.reset();
 

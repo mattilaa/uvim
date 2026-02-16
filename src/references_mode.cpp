@@ -25,18 +25,18 @@ void ReferencesMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
-                                                const KeyEvent& event)
+                                                int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // ========================================================================
     // Exit
     // ========================================================================
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         ed->clearReferences();
         return NormalMode{};
@@ -46,7 +46,7 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Selection - Jump to reference
     // ========================================================================
 
-    if(c == Terminal::ENTER || c == 'l' || c == Terminal::ARROW_RIGHT)
+    if(c == keyCode(control::ControlKey::ENTER) || c == keyCode(typed::TypedKey::KEY_L) || c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         if(ed->selectReference())
         {
@@ -59,32 +59,32 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Navigation through results
     // ========================================================================
 
-    if(c == 'j' || c == Terminal::CTRL_N || c == Terminal::ARROW_DOWN)
+    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         ed->referencesDown();
     }
-    else if(c == 'k' || c == Terminal::CTRL_P || c == Terminal::ARROW_UP)
+    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         ed->referencesUp();
     }
-    else if(c == Terminal::CTRL_D)
+    else if(c == keyCode(control::ControlKey::CTRL_D))
     {
         ed->referencesHalfPageDown();
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         ed->referencesHalfPageUp();
     }
-    else if(c == 'g')
+    else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         // gg - go to first
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             ed->referencesFirst();
         }
     }
-    else if(c == 'G')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         // G - go to last
         ed->referencesLast();
@@ -94,7 +94,7 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Preview Toggle
     // ========================================================================
 
-    else if(c == Terminal::TAB || c == 'p')
+    else if(c == keyCode(control::ControlKey::TAB) || c == keyCode(typed::TypedKey::KEY_P))
     {
         ed->toggleReferencesPreview();
     }
@@ -103,7 +103,7 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Open in split (like quickfix)
     // ========================================================================
 
-    else if(c == 'o')
+    else if(c == keyCode(typed::TypedKey::KEY_O))
     {
         // Open reference but stay in references mode
         ed->openReferencePreview();

@@ -32,16 +32,16 @@ void SearchForwardMode::on_exit(ModeContext& /* ctx */)
 }
 
 std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
-                                                   const KeyEvent& event)
+                                                   int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // ========================================================================
     // Cancel Search
     // ========================================================================
 
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         // Restore cursor position
         ctx.cursorX() = ed->savedCursorX;
@@ -55,7 +55,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
     // Execute Search
     // ========================================================================
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(!ed->searchQuery.empty())
         {
@@ -70,7 +70,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
     // Backspace
     // ========================================================================
 
-    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!ed->searchQuery.empty())
         {
@@ -105,7 +105,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
     // History Navigation
     // ========================================================================
 
-    if(c == Terminal::ARROW_UP || c == Terminal::CTRL_P)
+    if(c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(control::ControlKey::CTRL_P))
     {
         std::string prevSearch = ed->getPreviousSearch();
         if(!prevSearch.empty())
@@ -121,7 +121,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ARROW_DOWN || c == Terminal::CTRL_N)
+    if(c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(control::ControlKey::CTRL_N))
     {
         std::string nextSearch = ed->getNextSearch();
         if(!nextSearch.empty())
@@ -141,7 +141,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
     // Ctrl+W - Delete Word Backward
     // ========================================================================
 
-    if(c == Terminal::CTRL_W)
+    if(c == keyCode(control::ControlKey::CTRL_W))
     {
         deleteWordBackward(ctx);
         return std::nullopt;
@@ -151,7 +151,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx,
     // Ctrl+U - Clear Search
     // ========================================================================
 
-    if(c == Terminal::CTRL_U)
+    if(c == keyCode(control::ControlKey::CTRL_U))
     {
         ed->searchQuery.clear();
         ctx.commandBuffer = "/";
@@ -186,11 +186,11 @@ void SearchForwardMode::deleteWordBackward(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    while(!ed->searchQuery.empty() && ed->searchQuery.back() == ' ')
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() == keyCode(control::ControlKey::SPACE))
     {
         ed->searchQuery.pop_back();
     }
-    while(!ed->searchQuery.empty() && ed->searchQuery.back() != ' ')
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() != keyCode(control::ControlKey::SPACE))
     {
         ed->searchQuery.pop_back();
     }
@@ -239,16 +239,16 @@ void SearchBackwardMode::on_exit(ModeContext& /* ctx */)
 }
 
 std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
-                                                    const KeyEvent& event)
+                                                    int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // ========================================================================
     // Cancel Search
     // ========================================================================
 
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         ctx.cursorX() = ed->savedCursorX;
         ctx.cursorY() = ed->savedCursorY;
@@ -261,7 +261,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
     // Execute Search
     // ========================================================================
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(!ed->searchQuery.empty())
         {
@@ -276,7 +276,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
     // Backspace
     // ========================================================================
 
-    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!ed->searchQuery.empty())
         {
@@ -322,7 +322,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
     // History Navigation
     // ========================================================================
 
-    if(c == Terminal::ARROW_UP || c == Terminal::CTRL_P)
+    if(c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(control::ControlKey::CTRL_P))
     {
         std::string prevSearch = ed->getPreviousSearch();
         if(!prevSearch.empty())
@@ -338,7 +338,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ARROW_DOWN || c == Terminal::CTRL_N)
+    if(c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(control::ControlKey::CTRL_N))
     {
         std::string nextSearch = ed->getNextSearch();
         if(!nextSearch.empty())
@@ -358,7 +358,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
     // Ctrl+W - Delete Word Backward
     // ========================================================================
 
-    if(c == Terminal::CTRL_W)
+    if(c == keyCode(control::ControlKey::CTRL_W))
     {
         deleteWordBackward(ctx);
         return std::nullopt;
@@ -368,7 +368,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx,
     // Ctrl+U - Clear Search
     // ========================================================================
 
-    if(c == Terminal::CTRL_U)
+    if(c == keyCode(control::ControlKey::CTRL_U))
     {
         ed->searchQuery.clear();
         ctx.commandBuffer = "?";
@@ -416,11 +416,11 @@ void SearchBackwardMode::deleteWordBackward(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    while(!ed->searchQuery.empty() && ed->searchQuery.back() == ' ')
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() == keyCode(control::ControlKey::SPACE))
     {
         ed->searchQuery.pop_back();
     }
-    while(!ed->searchQuery.empty() && ed->searchQuery.back() != ' ')
+    while(!ed->searchQuery.empty() && ed->searchQuery.back() != keyCode(control::ControlKey::SPACE))
     {
         ed->searchQuery.pop_back();
     }

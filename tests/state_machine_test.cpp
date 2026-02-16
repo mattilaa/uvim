@@ -554,8 +554,8 @@ TEST(NestedStateMachineTest, InnerMachineDestroyedOnExit)
 
 TEST(EventTypesTest, KeyEventHoldsKey)
 {
-    KeyEvent e(42);
-    EXPECT_EQ(e.key, 42);
+    int e = (42);
+    EXPECT_EQ(keyCode(e), 42);
 }
 
 TEST(EventTypesTest, CharEventHoldsChar)

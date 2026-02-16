@@ -49,9 +49,9 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
 void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
 std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
-                                                 const KeyEvent& event)
+                                                 int key)
 {
-    int c = event.key;
+    int c = keyCode(key);
 
     auto clearSearchState = [&]()
     {
@@ -100,7 +100,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(!commandPrompt || !commandPrompt->isActive())
             return false;
         const std::string& input = commandPrompt->getInput();
-        if(input.empty() || (input[0] != '/' && input[0] != '?'))
+        if(input.empty() || (input[0] != keyCode(command::CommandKey::KEY_SLASH) && input[0] != keyCode(command::CommandKey::KEY_QUESTION)))
             return false;
 
         const char prefix = input[0];
@@ -169,11 +169,11 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         const std::string& input = commandPrompt->getInput();
         bool promptSearch =
-            !input.empty() && (input[0] == '/' || input[0] == '?');
+            !input.empty() && (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION));
 
         if(promptSearch &&
-           (c == Terminal::CTRL_J || c == Terminal::CTRL_K ||
-            c == Terminal::ARROW_DOWN || c == Terminal::ARROW_UP))
+           (c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(control::ControlKey::CTRL_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(navigation::NavigationKey::ARROW_UP)))
         {
             char prefix = input[0];
             std::string pattern = input.substr(1);
@@ -219,7 +219,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             {
                 int count = static_cast<int>(searchMatches.size());
                 bool down =
-                    (c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN);
+                    (c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN));
                 currentSearchMatch =
                     down ? (currentSearchMatch + 1) % count
                          : (currentSearchMatch - 1 + count) % count;
@@ -232,7 +232,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        if(promptSearch && c == Terminal::ESC)
+        if(promptSearch && c == keyCode(control::ControlKey::ESC))
         {
             std::optional<ModeState> nextState;
             if(commandPrompt)
@@ -247,14 +247,14 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
     }
 
-    if(commandPrompt && commandPrompt->isActive() && c != Terminal::TAB &&
-       c != Terminal::SHIFT_TAB)
+    if(commandPrompt && commandPrompt->isActive() && c != keyCode(control::ControlKey::TAB) &&
+       c != keyCode(control::ControlKey::SHIFT_TAB))
     {
         resetSearchTabCompletion();
     }
-    if(c == Terminal::TAB && searchTabComplete(false))
+    if(c == keyCode(control::ControlKey::TAB) && searchTabComplete(false))
         return std::nullopt;
-    if(c == Terminal::SHIFT_TAB && searchTabComplete(true))
+    if(c == keyCode(control::ControlKey::SHIFT_TAB) && searchTabComplete(true))
         return std::nullopt;
 
     const auto syncPromptSearchToFirstMatch = [&]()
@@ -262,7 +262,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(!commandPrompt || !commandPrompt->isActive())
             return;
         const std::string& input = commandPrompt->getInput();
-        if(input.empty() || (input[0] != '/' && input[0] != '?'))
+        if(input.empty() || (input[0] != keyCode(command::CommandKey::KEY_SLASH) && input[0] != keyCode(command::CommandKey::KEY_QUESTION)))
             return;
 
         const char prefix = input[0];
@@ -315,10 +315,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     // Shortcut: start command prompt prefilled with local regex search.
     if((!commandPrompt || !commandPrompt->isActive()) &&
-       (c == '/' || c == '?'))
+       (c == keyCode(command::CommandKey::KEY_SLASH) || c == keyCode(command::CommandKey::KEY_QUESTION)))
     {
         if(commandPrompt && commandPrompt->handle(
-               ctx, ':', [&](std::string_view commandLine)
+               ctx, keyCode(command::CommandKey::KEY_COLON), [&](std::string_view commandLine)
                { return executeCommand(ctx, commandLine); }, nextState))
         {
             if(commandPrompt && commandPrompt->handle(
@@ -338,14 +338,14 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         filterMatches.clear();
     }
 
-    if(c == Terminal::ESC && !searchMatches.empty())
+    if(c == keyCode(control::ControlKey::ESC) && !searchMatches.empty())
     {
         clearSearchState();
         ctx.requestFullRedraw();
         return std::nullopt;
     }
 
-    if(c == 'n' || c == 'N')
+    if(c == keyCode(typed::TypedKey::KEY_N) || c == keyCode(typed::TypedKey::KEY_CAP_N))
     {
         if(searchMatches.empty())
         {
@@ -354,7 +354,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        bool forward = (c == 'n');
+        bool forward = (c == keyCode(typed::TypedKey::KEY_N));
         if(currentSearchMatch < 0 ||
            currentSearchMatch >= static_cast<int>(searchMatches.size()))
         {
@@ -380,9 +380,9 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == Terminal::ESC && filterActive)
+        if(c == keyCode(control::ControlKey::ESC) && filterActive)
         {
             filterActive = false;
             filterQuery.clear();
@@ -392,7 +392,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
         if(!previousFile.empty())
         {
@@ -408,7 +408,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN || c == Terminal::CTRL_J)
+    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(control::ControlKey::CTRL_J))
     {
         int count = listSize();
         if(browserCursor < count - 1)
@@ -419,7 +419,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 browserOffset = browserCursor - visible + 1;
         }
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP || c == Terminal::CTRL_K)
+    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(control::ControlKey::CTRL_K))
     {
         if(browserCursor > 0)
         {
@@ -428,7 +428,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 browserOffset = browserCursor;
         }
     }
-    else if(c == 'G')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         int count = listSize();
         browserCursor = std::max(0, count - 1);
@@ -436,16 +436,16 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
     }
-    else if(c == 'g')
+    else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             browserCursor = 0;
             browserOffset = 0;
         }
     }
-    else if(c == Terminal::CTRL_D)
+    else if(c == keyCode(control::ControlKey::CTRL_D))
     {
         int half = (ctx.screenRows() - 4) / 2;
         browserCursor += half;
@@ -456,7 +456,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor >= browserOffset + visible)
             browserOffset = browserCursor - visible + 1;
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         int half = (ctx.screenRows() - 4) / 2;
         browserCursor -= half;
@@ -470,7 +470,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Selection / Enter Directory
     // ========================================================================
 
-    else if(c == Terminal::ENTER || c == 'l' || c == Terminal::ARROW_RIGHT)
+    else if(c == keyCode(control::ControlKey::ENTER) || c == keyCode(typed::TypedKey::KEY_L) || c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         if(browserCursor >= 0 && browserCursor < listSize())
         {
@@ -499,9 +499,9 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Go Up Directory
     // ========================================================================
 
-    else if(c == 'h' || c == Terminal::ARROW_LEFT || c == '-')
+    else if(c == keyCode(typed::TypedKey::KEY_H) || c == keyCode(navigation::NavigationKey::ARROW_LEFT) || c == keyCode(command::CommandKey::KEY_MINUS))
     {
-        size_t lastSlash = currentDirectory.find_last_of('/');
+        size_t lastSlash = currentDirectory.find_last_of(keyCode(command::CommandKey::KEY_SLASH));
         if(lastSlash != std::string::npos && lastSlash > 0)
         {
             std::string parentDir = currentDirectory.substr(0, lastSlash);
@@ -516,14 +516,14 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // ========================================================================
 
     // Toggle hidden files
-    else if(c == '.')
+    else if(c == keyCode(command::CommandKey::KEY_DOT))
     {
         showHidden = !showHidden;
         loadDirectory(ctx, currentDirectory);
         ctx.setStatusMessage(showHidden ? "Showing hidden files"
                                         : "Hiding hidden files");
     }
-    else if(c == 'i' || c == Terminal::CTRL_I)
+    else if(c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(control::ControlKey::CTRL_I))
     {
         ctx.setRespectGitignore(!ctx.respectGitignore());
         ctx.setFuzzyInitialized(false);
@@ -533,31 +533,31 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
 
     // Refresh
-    else if(c == 'r' || c == Terminal::CTRL_L)
+    else if(c == keyCode(typed::TypedKey::KEY_R) || c == keyCode(control::ControlKey::CTRL_L))
     {
         loadDirectory(ctx, currentDirectory);
     }
 
     // Create new file
-    else if(c == '%')
+    else if(c == keyCode(command::CommandKey::KEY_PERCENT))
     {
         ctx.createNewFilePrompt();
     }
 
     // Create new directory
-    else if(c == 'd')
+    else if(c == keyCode(typed::TypedKey::KEY_D))
     {
         ctx.createNewDirectoryPrompt();
     }
 
     // Delete file/directory
-    else if(c == 'D')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_D))
     {
         ctx.deleteFilePrompt();
     }
 
     // Rename file/directory
-    else if(c == 'R')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_R))
     {
         ctx.renameFilePrompt();
     }
@@ -566,20 +566,20 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Mode Switching
     // ========================================================================
 
-    else if(c == Terminal::CTRL_P || c == 'f')
+    else if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(typed::TypedKey::KEY_F))
     {
         return FuzzyFindMode{};
     }
-    else if(c == Terminal::CTRL_W || c == 'b')
+    else if(c == keyCode(control::ControlKey::CTRL_W) || c == keyCode(typed::TypedKey::KEY_B))
     {
         return BufferBrowserMode{};
     }
-    else if(c == Terminal::CTRL_S)
+    else if(c == keyCode(control::ControlKey::CTRL_S))
     {
         return GrepSearchMode{};
     }
 
-    if((c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H) &&
+    if((c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H)) &&
        filterActive && ctx.editor->fileBrowserFuzzy)
     {
         if(!filterQuery.empty())
@@ -598,8 +598,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     if(c >= 32 && c < 127 && ctx.editor->fileBrowserFuzzy)
     {
-        if(std::isalnum(static_cast<unsigned char>(c)) || c == '_' ||
-           c == '-' || (filterActive && c == '.'))
+        if(std::isalnum(static_cast<unsigned char>(c)) || c == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+           c == keyCode(command::CommandKey::KEY_MINUS) || (filterActive && c == keyCode(command::CommandKey::KEY_DOT)))
         {
             filterActive = true;
             filterQuery.push_back(static_cast<char>(c));
@@ -639,7 +639,7 @@ void FileBrowserMode::draw(Editor& editor) const
     if(commandPrompt && commandPrompt->isActive())
     {
         const std::string& input = commandPrompt->getInput();
-        if(input.size() > 1 && (input[0] == '/' || input[0] == '?'))
+        if(input.size() > 1 && (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION)))
         {
             try
             {
@@ -746,7 +746,7 @@ void FileBrowserMode::draw(Editor& editor) const
                 editor.screenCols - 5 - displayName.length() - info.length();
             if(padding > 0)
             {
-                output.append(padding, ' ');
+                output.append(padding, keyCode(control::ControlKey::SPACE));
             }
 
             output += editor.theme.uiDim();
@@ -791,7 +791,7 @@ void FileBrowserMode::draw(Editor& editor) const
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)
     {
-        output.append(padding, ' ');
+        output.append(padding, keyCode(control::ControlKey::SPACE));
     }
     output += right;
     output += editor.theme.reset();
@@ -836,7 +836,7 @@ void FileBrowserMode::draw(Editor& editor) const
     {
         const std::string& input = commandPrompt->getInput();
         suppressCommandPopups =
-            !input.empty() && (input[0] == '/' || input[0] == '?');
+            !input.empty() && (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION));
     }
     if(!suppressCommandPopups)
     {
@@ -879,8 +879,8 @@ static int fuzzyScore(std::string_view text, std::string_view pattern)
 
     auto lower = [](unsigned char ch) -> unsigned char
     {
-        if(ch >= 'A' && ch <= 'Z')
-            return (unsigned char)(ch - 'A' + 'a');
+        if(ch >= keyCode(typed::TypedKey::KEY_CAP_A) && ch <= keyCode(typed::TypedKey::KEY_CAP_Z))
+            return (unsigned char)(ch - keyCode(typed::TypedKey::KEY_CAP_A) + keyCode(typed::TypedKey::KEY_A));
         return ch;
     };
 
@@ -903,8 +903,8 @@ static int fuzzyScore(std::string_view text, std::string_view pattern)
                 else
                 {
                     char prev = (char)text[ti - 1];
-                    if(prev == '_' || prev == '-' || prev == ' ' ||
-                       prev == '\t' || prev == '.')
+                    if(prev == keyCode(command::CommandKey::KEY_UNDERSCORE) || prev == keyCode(command::CommandKey::KEY_MINUS) || prev == keyCode(control::ControlKey::SPACE) ||
+                       prev == '\t' || prev == keyCode(command::CommandKey::KEY_DOT))
                         score += 8;
                 }
                 ++consecutive;
@@ -1227,12 +1227,12 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 if(!args.empty())
                 {
                     if(!pattern.empty())
-                        pattern.push_back(' ');
+                        pattern.push_back(keyCode(control::ControlKey::SPACE));
                     pattern += args;
                 }
                 if(pattern.empty())
                 {
-                    ctx.setStatusMessage(prefix == '/' ? "Usage: :/ <regex>"
+                    ctx.setStatusMessage(prefix == keyCode(command::CommandKey::KEY_SLASH) ? "Usage: :/ <regex>"
                                                        : "Usage: :? <regex>");
                     return true;
                 }
@@ -1353,9 +1353,9 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 return true;
             };
 
-            if(runRegexSearch('/', false))
+            if(runRegexSearch(keyCode(command::CommandKey::KEY_SLASH), false))
                 return true;
-            if(runRegexSearch('?', true))
+            if(runRegexSearch(keyCode(command::CommandKey::KEY_QUESTION), true))
                 return true;
 
             // =================================================================
@@ -1527,16 +1527,16 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 else
                 {
                     std::filesystem::path targetPath;
-                    if(args[0] == '/' || args[0] == '~')
+                    if(args[0] == keyCode(command::CommandKey::KEY_SLASH) || args[0] == keyCode(command::CommandKey::KEY_TILDE))
                     {
                         // Absolute path
-                        if(args[0] == '~')
+                        if(args[0] == keyCode(command::CommandKey::KEY_TILDE))
                         {
                             const char* home = getenv("HOME");
                             if(home)
                             {
                                 targetPath = std::filesystem::path(home);
-                                if(args.length() > 1 && args[1] == '/')
+                                if(args.length() > 1 && args[1] == keyCode(command::CommandKey::KEY_SLASH))
                                 {
                                     targetPath /= args.substr(2);
                                 }

@@ -24,9 +24,9 @@ void HelpMode::on_enter(ModeContext& ctx)
 void HelpMode::on_exit(ModeContext& /* ctx */) {}
 
 std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
-                                          const KeyEvent& event)
+                                          int key)
 {
-    int c = event.key;
+    int c = keyCode(key);
     bool needsRedraw = false;
 
     std::optional<ModeState> nextState;
@@ -41,9 +41,9 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
         if(!previousFile.empty())
         {
@@ -57,7 +57,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
         if(scrollOffset < maxScroll)
@@ -66,7 +66,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
             needsRedraw = true;
         }
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
+    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
         {
@@ -74,7 +74,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
             needsRedraw = true;
         }
     }
-    else if(c == 'G')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         int newOffset =
             std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
@@ -84,10 +84,10 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
             needsRedraw = true;
         }
     }
-    else if(c == 'g')
+    else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             if(scrollOffset != 0)
             {
@@ -96,7 +96,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
             }
         }
     }
-    else if(c == Terminal::CTRL_D)
+    else if(c == keyCode(control::ControlKey::CTRL_D))
     {
         int half = (ctx.screenRows() - 3) / 2;
         int oldOffset = scrollOffset;
@@ -107,7 +107,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         if(scrollOffset != oldOffset)
             needsRedraw = true;
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         int half = (ctx.screenRows() - 3) / 2;
         int oldOffset = scrollOffset;
@@ -165,7 +165,7 @@ void HelpMode::draw(Editor& editor) const
         output += "  ";
 
         // Check if line is a topic title (starts with # or all caps)
-        if(!line.empty() && line[0] == '#')
+        if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_HASH))
         {
             // Topic title
             output += editor.theme.syntax(TOKEN_KEYWORD);
@@ -174,7 +174,7 @@ void HelpMode::draw(Editor& editor) const
             output += editor.theme.reset();
         }
         else if(!line.empty() && std::isupper(line[0]) &&
-                line.find(':') != std::string::npos && line.find(':') < 30)
+                line.find(keyCode(command::CommandKey::KEY_COLON)) != std::string::npos && line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
         {
             // Section header (e.g., "COMMANDS:")
             output += editor.theme.uiAccent();
@@ -191,13 +191,13 @@ void HelpMode::draw(Editor& editor) const
             while(pos < line.length())
             {
                 // Look for commands starting with : or starting with uppercase
-                if(line[pos] == ':')
+                if(line[pos] == keyCode(command::CommandKey::KEY_COLON))
                 {
                     // Find end of command
                     size_t end = pos + 1;
                     while(end < line.length() &&
-                          (std::isalnum(line[end]) || line[end] == '!' ||
-                           line[end] == '?'))
+                          (std::isalnum(line[end]) || line[end] == keyCode(command::CommandKey::KEY_EXCLAMATION) ||
+                           line[end] == keyCode(command::CommandKey::KEY_QUESTION)))
                     {
                         end++;
                     }
@@ -209,10 +209,10 @@ void HelpMode::draw(Editor& editor) const
                     processedLine += editor.theme.reset();
                     pos = end;
                 }
-                else if(line[pos] == '`')
+                else if(line[pos] == keyCode(command::CommandKey::KEY_BACKTICK))
                 {
                     // Code/command in backticks
-                    size_t end = line.find('`', pos + 1);
+                    size_t end = line.find(keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
                     if(end != std::string::npos)
                     {
                         processedLine += editor.theme.syntax(TOKEN_FUNCTION);
@@ -264,7 +264,7 @@ void HelpMode::draw(Editor& editor) const
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)
     {
-        output.append(padding, ' ');
+        output.append(padding, keyCode(control::ControlKey::SPACE));
     }
     output += right;
     output += editor.theme.reset();
@@ -432,7 +432,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set smartcase` or `:set scs` - Smart case search",
             "  `:set gdcenter`               - Center view after gd",
             "  `:set nogdcenter`             - Keep view steady after gd",
-            "  `:set nocommandline.messageprefix` - Hide ':' prefix for messages",
+            "  `:set nocommandline.messageprefix` - Hide keyCode(command::CommandKey::KEY_COLON) prefix for messages",
             "",
             "HELP:",
             "  `:help`           - Show this help",

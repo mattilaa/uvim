@@ -86,22 +86,22 @@ std::string git_show_toplevel(const std::string& dir)
 
 struct StatusEntry
 {
-    char indexStatus = ' ';
-    char worktreeStatus = ' ';
+    char indexStatus = keyCode(control::ControlKey::SPACE);
+    char worktreeStatus = keyCode(control::ControlKey::SPACE);
 };
 
 std::string normalize_repo_path(std::string path)
 {
     while(path.rfind("./", 0) == 0)
         path.erase(0, 2);
-    while(!path.empty() && path.back() == '/')
+    while(!path.empty() && path.back() == keyCode(command::CommandKey::KEY_SLASH))
         path.pop_back();
     std::string out;
     out.reserve(path.size());
     bool prevSlash = false;
     for(char c : path)
     {
-        if(c == '/')
+        if(c == keyCode(command::CommandKey::KEY_SLASH))
         {
             if(prevSlash)
                 continue;
@@ -126,7 +126,7 @@ parse_status_z(const std::string& raw)
         char x = raw[i];
         char y = raw[i + 1];
         i += 2;
-        if(i < raw.size() && raw[i] == ' ')
+        if(i < raw.size() && raw[i] == keyCode(control::ControlKey::SPACE))
             ++i;
 
         size_t end = raw.find('\0', i);
@@ -135,7 +135,7 @@ parse_status_z(const std::string& raw)
         std::string path = raw.substr(i, end - i);
         i = end + 1;
 
-        if(x == 'R' || x == 'C' || y == 'R' || y == 'C')
+        if(x == keyCode(typed::TypedKey::KEY_CAP_R) || x == keyCode(typed::TypedKey::KEY_CAP_C) || y == keyCode(typed::TypedKey::KEY_CAP_R) || y == keyCode(typed::TypedKey::KEY_CAP_C))
         {
             size_t end2 = raw.find('\0', i);
             if(end2 == std::string::npos)
@@ -157,17 +157,17 @@ parse_status_z(const std::string& raw)
 
 bool is_untracked(const StatusEntry& entry)
 {
-    return entry.indexStatus == '?' && entry.worktreeStatus == '?';
+    return entry.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) && entry.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
 }
 
 bool has_staged(const StatusEntry& entry)
 {
-    return entry.indexStatus != ' ' && entry.indexStatus != '?';
+    return entry.indexStatus != keyCode(control::ControlKey::SPACE) && entry.indexStatus != keyCode(command::CommandKey::KEY_QUESTION);
 }
 
 bool has_unstaged(const StatusEntry& entry)
 {
-    return entry.worktreeStatus != ' ' && entry.worktreeStatus != '?';
+    return entry.worktreeStatus != keyCode(control::ControlKey::SPACE) && entry.worktreeStatus != keyCode(command::CommandKey::KEY_QUESTION);
 }
 
 std::string status_color(const Theme& theme, const StatusEntry& entry)
@@ -206,11 +206,11 @@ void append_diff_line(std::string& output, const Editor& editor,
     {
         output += editor.theme.uiInfo();
     }
-    else if(!line.empty() && line[0] == '+')
+    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
     {
         output += editor.theme.uiSuccess();
     }
-    else if(!line.empty() && line[0] == '-')
+    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
     {
         output += editor.theme.uiError();
     }
@@ -229,7 +229,7 @@ std::vector<std::string> split_path(const std::string& path)
     size_t pos = 0;
     while(pos < path.size())
     {
-        size_t next = path.find('/', pos);
+        size_t next = path.find(keyCode(command::CommandKey::KEY_SLASH), pos);
         if(next == std::string::npos)
             next = path.size();
         if(next > pos)
@@ -295,10 +295,10 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
         if(i >= text.size())
             break;
 
-        if(text[i] == '[')
+        if(text[i] == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
         {
             size_t start = i;
-            size_t end = text.find(']', i);
+            size_t end = text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
             if(end == std::string::npos)
             {
                 tokens.emplace_back(text.substr(start));
@@ -311,7 +311,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
 
         size_t start = i;
         while(i < text.size() && !text_utils::is_space(text[i]) &&
-              text[i] != '[')
+              text[i] != keyCode(command::CommandKey::KEY_LEFT_BRACKET))
             ++i;
         tokens.emplace_back(text.substr(start, i - start));
     }
@@ -336,7 +336,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
 
         if(spaceW)
         {
-            current.push_back(' ');
+            current.push_back(keyCode(control::ControlKey::SPACE));
             currentW += 1;
         }
         current.append(tok);
@@ -361,7 +361,7 @@ int git_stage_content_rows(int screenRows, int screenCols)
 
 bool is_ansi_start(std::string_view text, size_t i)
 {
-    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == '[';
+    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == keyCode(command::CommandKey::KEY_LEFT_BRACKET);
 }
 
 size_t skip_ansi(std::string_view text, size_t i)
@@ -370,7 +370,7 @@ size_t skip_ansi(std::string_view text, size_t i)
     while(i < text.size())
     {
         char c = text[i++];
-        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+        if((c >= keyCode(typed::TypedKey::KEY_CAP_A) && c <= keyCode(typed::TypedKey::KEY_CAP_Z)) || (c >= keyCode(typed::TypedKey::KEY_A) && c <= keyCode(typed::TypedKey::KEY_Z)))
             break;
     }
     return i;
@@ -628,7 +628,7 @@ bool GitStageMode::refreshStatus(Editor& editor)
     nodes.clear();
     visible.clear();
 
-    nodes.push_back(Node{"", "", true, true, ' ', ' ', {}}); // root
+    nodes.push_back(Node{"", "", true, true, keyCode(control::ControlKey::SPACE), keyCode(control::ControlKey::SPACE), {}}); // root
 
     std::unordered_map<std::string, int> dirIndex;
     dirIndex[""] = 0;
@@ -705,7 +705,7 @@ bool GitStageMode::refreshStatus(Editor& editor)
         for(const auto& kv : statusMap)
         {
             bool isUntracked =
-                kv.second.indexStatus == '?' && kv.second.worktreeStatus == '?';
+                kv.second.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) && kv.second.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
             if(untrackedMode == UntrackedMode::TrackedOnly && isUntracked)
                 continue;
             if(untrackedMode == UntrackedMode::UntrackedOnly && !isUntracked)
@@ -760,7 +760,7 @@ bool GitStageMode::refreshStatus(Editor& editor)
         for(const auto& kv : statusMap)
         {
             bool isUntracked =
-                kv.second.indexStatus == '?' && kv.second.worktreeStatus == '?';
+                kv.second.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) && kv.second.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
             if(untrackedMode == UntrackedMode::TrackedOnly && isUntracked)
                 continue;
             if(untrackedMode == UntrackedMode::UntrackedOnly && !isUntracked)
@@ -872,14 +872,14 @@ void GitStageMode::refreshDiff(Editor& editor)
 }
 
 std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
-                                              const KeyEvent& event)
+                                              int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         if(returnMode.has_value() && returnMode.value() == FILE_BROWSER)
         {
@@ -898,7 +898,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return defaultExitMode(ed);
     }
 
-    if(c == 'r')
+    if(c == keyCode(typed::TypedKey::KEY_R))
     {
         refreshStatus(*ed);
         refreshDiff(*ed);
@@ -906,7 +906,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'm')
+    if(c == keyCode(typed::TypedKey::KEY_M))
     {
         if(cursor >= 0 && cursor < (int)visible.size())
         {
@@ -924,7 +924,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'c')
+    if(c == keyCode(typed::TypedKey::KEY_C))
     {
         showChangedOnly = !showChangedOnly;
         refreshStatus(*ed);
@@ -933,7 +933,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'u')
+    if(c == keyCode(typed::TypedKey::KEY_U))
     {
         if(untrackedMode == UntrackedMode::UntrackedOnly)
             untrackedMode = UntrackedMode::TrackedOnly;
@@ -945,7 +945,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'b')
+    if(c == keyCode(typed::TypedKey::KEY_B))
     {
         if(untrackedMode == UntrackedMode::Both)
             untrackedMode = UntrackedMode::TrackedOnly;
@@ -957,14 +957,14 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'h' || c == 'l')
+    if(c == keyCode(typed::TypedKey::KEY_H) || c == keyCode(typed::TypedKey::KEY_L))
     {
         if(cursor >= 0 && cursor < (int)visible.size())
         {
             int nodeId = visible[cursor].node;
             if(nodes[nodeId].isDir)
             {
-                if(c == 'h' && nodes[nodeId].expanded)
+                if(c == keyCode(typed::TypedKey::KEY_H) && nodes[nodeId].expanded)
                 {
                     nodes[nodeId].expanded = false;
                     rebuildVisible();
@@ -972,7 +972,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
                     if(newIndex >= 0)
                         cursor = newIndex;
                 }
-                else if(c == 'l' && !nodes[nodeId].expanded)
+                else if(c == keyCode(typed::TypedKey::KEY_L) && !nodes[nodeId].expanded)
                 {
                     nodes[nodeId].expanded = true;
                     rebuildVisible();
@@ -981,7 +981,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
                         cursor = newIndex;
                 }
             }
-            else if(c == 'h')
+            else if(c == keyCode(typed::TypedKey::KEY_H))
             {
                 int depth = visible[cursor].depth;
                 for(int i = cursor - 1; i >= 0; --i)
@@ -1003,7 +1003,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(cursor >= 0 && cursor < (int)visible.size())
         {
@@ -1024,7 +1024,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == ' ')
+    if(c == keyCode(control::ControlKey::SPACE))
     {
         if(cursor >= 0 && cursor < (int)visible.size() && !repoDir.empty())
         {
@@ -1074,7 +1074,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(cursor < (int)visible.size() - 1)
         {
@@ -1087,7 +1087,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             lastCursorMove = std::chrono::steady_clock::now();
         }
     }
-    else if(c == 'k' || c == Terminal::ARROW_UP)
+    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
@@ -1098,7 +1098,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             lastCursorMove = std::chrono::steady_clock::now();
         }
     }
-    else if(c == Terminal::CTRL_J)
+    else if(c == keyCode(control::ControlKey::CTRL_J))
     {
         int maxScroll = std::max(
             0, (int)diffLines.size() -
@@ -1106,12 +1106,12 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         if(diffOffset < maxScroll)
             diffOffset++;
     }
-    else if(c == Terminal::CTRL_K)
+    else if(c == keyCode(control::ControlKey::CTRL_K))
     {
         if(diffOffset > 0)
             diffOffset--;
     }
-    else if(c == Terminal::CTRL_H || c == Terminal::CTRL_L)
+    else if(c == keyCode(control::ControlKey::CTRL_H) || c == keyCode(control::ControlKey::CTRL_L))
     {
         int listWidth = std::max(24, ed->screenCols / 3);
         int diffWidth = ed->screenCols - listWidth - 1;
@@ -1120,23 +1120,23 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         int viewWidth = std::max(0, diffWidth - 1);
         int maxW = max_diff_width(diffLines, ed->gitUseDefaultColors);
         int maxOffset = std::max(0, maxW - viewWidth);
-        if(c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::CTRL_H))
             diffHorizontalOffset = std::max(0, diffHorizontalOffset - 1);
         else
             diffHorizontalOffset =
                 std::min(maxOffset, diffHorizontalOffset + 1);
     }
-    else if(c == 'g')
+    else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             cursor = 0;
             offset = 0;
             diffDirty = true;
             lastCursorMove = std::chrono::steady_clock::now();
         }
-        else if(nextChar == 'f')
+        else if(nextChar == keyCode(typed::TypedKey::KEY_F))
         {
             std::vector<std::string> files;
             files.reserve(fixupMarked.size());
@@ -1151,7 +1151,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
             return fixup;
         }
     }
-    else if(c == 'G')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         if(!visible.empty())
         {
@@ -1279,7 +1279,7 @@ void GitStageMode::draw(Editor& editor) const
             }
             else
             {
-                if(entry.indexStatus != ' ' || entry.worktreeStatus != ' ')
+                if(entry.indexStatus != keyCode(control::ControlKey::SPACE) || entry.worktreeStatus != keyCode(control::ControlKey::SPACE))
                     output += status_color(editor.theme, entry);
                 else
                     output += editor.theme.baseFg();
@@ -1293,7 +1293,7 @@ void GitStageMode::draw(Editor& editor) const
             }
             else
             {
-                if(entry.indexStatus != ' ' || entry.worktreeStatus != ' ')
+                if(entry.indexStatus != keyCode(control::ControlKey::SPACE) || entry.worktreeStatus != keyCode(control::ControlKey::SPACE))
                     output += status_color(editor.theme, entry);
                 else
                     output += editor.theme.baseFg();
@@ -1302,7 +1302,7 @@ void GitStageMode::draw(Editor& editor) const
             output += path;
             int used = nonPathWidth + text_utils::utf8DisplayWidth(path);
             if(used < listWidth)
-                output.append(listWidth - used, ' ');
+                output.append(listWidth - used, keyCode(control::ControlKey::SPACE));
             output += editor.theme.reset();
         }
         else
@@ -1311,7 +1311,7 @@ void GitStageMode::draw(Editor& editor) const
             output += "~";
             output += editor.theme.baseFg();
             if(listWidth > 1)
-                output.append(listWidth - 1, ' ');
+                output.append(listWidth - 1, keyCode(control::ControlKey::SPACE));
         }
 
         if(diffWidth > 0)
@@ -1357,7 +1357,7 @@ void GitStageMode::draw(Editor& editor) const
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)
-        output.append(padding, ' ');
+        output.append(padding, keyCode(control::ControlKey::SPACE));
     output += right;
     output += editor.theme.reset();
 

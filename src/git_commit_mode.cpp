@@ -144,7 +144,7 @@ bool is_comment_line(const std::string& line)
     while(i < line.size() &&
           std::isspace(static_cast<unsigned char>(line[i])))
         ++i;
-    return i < line.size() && line[i] == '#';
+    return i < line.size() && line[i] == keyCode(command::CommandKey::KEY_HASH);
 }
 
 bool is_blank_line(const std::string& line)
@@ -164,7 +164,7 @@ std::string shell_escape_single(std::string_view text)
     out += '\'';
     for(char ch : text)
     {
-        if(ch == '\'')
+        if(ch == keyCode(command::CommandKey::KEY_APOSTROPHE))
             out += "'\\''";
         else
             out += ch;
@@ -218,7 +218,7 @@ std::vector<std::string> build_comment_lines(
         out.push_back("# d, drop <commit> = remove commit");
         out.push_back("#");
         out.push_back("# Reorder lines to move commits.");
-        out.push_back("# Lines starting with '#' will be ignored.");
+        out.push_back("# Lines starting with keyCode(command::CommandKey::KEY_HASH) will be ignored.");
         out.push_back("# Remove a line here to drop that commit.");
         out.push_back("#");
         out.push_back("# :wq to run rebase, :q to cancel.");
@@ -228,7 +228,7 @@ std::vector<std::string> build_comment_lines(
     out.push_back(
         "# Please enter the commit message for your changes. Lines starting");
     out.push_back(
-        "# with '#' will be ignored, and an empty message aborts the commit.");
+        "# with keyCode(command::CommandKey::KEY_HASH) will be ignored, and an empty message aborts the commit.");
     out.push_back("#");
     out.push_back("# On branch " + (branch.empty() ? std::string("(unknown)") : branch));
     out.push_back("#");
@@ -258,21 +258,21 @@ std::vector<std::string> build_comment_lines(
         {
             size_t tab = line.find('\t');
             size_t splitPos =
-                (tab != std::string::npos) ? tab : line.find(' ');
+                (tab != std::string::npos) ? tab : line.find(keyCode(control::ControlKey::SPACE));
             if(splitPos != std::string::npos && splitPos + 1 < line.size())
                 path = line.substr(splitPos + 1);
         }
 
         std::string kind = "modified";
-        if(status == 'A')
+        if(status == keyCode(typed::TypedKey::KEY_CAP_A))
             kind = "new file";
-        else if(status == 'D')
+        else if(status == keyCode(typed::TypedKey::KEY_CAP_D))
             kind = "deleted";
-        else if(status == 'R')
+        else if(status == keyCode(typed::TypedKey::KEY_CAP_R))
             kind = "renamed";
-        else if(status == 'C')
+        else if(status == keyCode(typed::TypedKey::KEY_CAP_C))
             kind = "copied";
-        else if(status == 'M')
+        else if(status == keyCode(typed::TypedKey::KEY_CAP_M))
             kind = "modified";
 
         out.push_back("#   " + kind + ":   " + path);
@@ -356,10 +356,10 @@ void GitCommitMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
-                                               const KeyEvent& event)
+                                               int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     int contentRows = std::max(1, ed->screenRows - 2);
     auto clamp_cursor = [&]()
@@ -418,7 +418,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 if(start >= raw.size())
                     continue;
                 std::string line = raw.substr(start);
-                size_t sp1 = line.find(' ');
+                size_t sp1 = line.find(keyCode(control::ControlKey::SPACE));
                 std::string actionToken =
                     (sp1 == std::string::npos) ? line : line.substr(0, sp1);
                 std::string actionNorm = normalize_todo_action(actionToken);
@@ -430,7 +430,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 }
 
                 size_t pos = (sp1 == std::string::npos) ? line.size() : sp1;
-                while(pos < line.size() && line[pos] == ' ')
+                while(pos < line.size() && line[pos] == keyCode(control::ControlKey::SPACE))
                     ++pos;
                 if(pos >= line.size())
                 {
@@ -438,7 +438,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                     return false;
                 }
 
-                size_t sp2 = line.find(' ', pos);
+                size_t sp2 = line.find(keyCode(control::ControlKey::SPACE), pos);
                 std::string hash =
                     (sp2 == std::string::npos) ? line.substr(pos)
                                                : line.substr(pos, sp2 - pos);
@@ -629,21 +629,21 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
     if(commandActive)
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
         {
             commandActive = false;
             commandLine.clear();
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!commandLine.empty())
                 commandLine.pop_back();
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             std::string cmd = trim_newline(commandLine);
             commandActive = false;
@@ -674,20 +674,20 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ESC && insertMode)
+    if(c == keyCode(control::ControlKey::ESC) && insertMode)
     {
         insertMode = false;
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
-    if(c == ':' && !insertMode)
+    if(c == keyCode(command::CommandKey::KEY_COLON) && !insertMode)
     {
         commandActive = true;
         commandLine.clear();
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_R)
+    if(c == keyCode(control::ControlKey::CTRL_R))
     {
         if(action == Action::RebaseTodo)
             return std::nullopt;
@@ -699,35 +699,35 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
     if(!insertMode)
     {
-        if(c == 'q')
+        if(c == keyCode(typed::TypedKey::KEY_Q))
             return return_after_done(false);
-        if(c == 'h')
+        if(c == keyCode(typed::TypedKey::KEY_H))
         {
             if(messageCursorCol > 0)
                 messageCursorCol--;
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'l')
+        if(c == keyCode(typed::TypedKey::KEY_L))
         {
             if(messageCursorCol < (int)messageLines[messageCursorRow].size())
                 messageCursorCol++;
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == '0')
+        if(c == keyCode(typed::TypedKey::KEY_0))
         {
             messageCursorCol = 0;
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == '$')
+        if(c == keyCode(command::CommandKey::KEY_DOLLAR))
         {
             messageCursorCol = (int)messageLines[messageCursorRow].size();
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'j')
+        if(c == keyCode(typed::TypedKey::KEY_J))
         {
             if(messageCursorRow + 1 < (int)messageLines.size())
             {
@@ -739,7 +739,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'k')
+        if(c == keyCode(typed::TypedKey::KEY_K))
         {
             if(messageCursorRow > 0)
             {
@@ -751,16 +751,16 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(action == Action::RebaseTodo && (c == 'J' || c == 'K'))
+        if(action == Action::RebaseTodo && (c == keyCode(typed::TypedKey::KEY_CAP_J) || c == keyCode(typed::TypedKey::KEY_CAP_K)))
         {
-            if(c == 'J' && messageCursorRow + 1 < (int)messageLines.size())
+            if(c == keyCode(typed::TypedKey::KEY_CAP_J) && messageCursorRow + 1 < (int)messageLines.size())
             {
                 std::swap(messageLines[messageCursorRow],
                           messageLines[messageCursorRow + 1]);
                 messageCursorRow++;
                 clamp_cursor();
             }
-            else if(c == 'K' && messageCursorRow > 0)
+            else if(c == keyCode(typed::TypedKey::KEY_CAP_K) && messageCursorRow > 0)
             {
                 std::swap(messageLines[messageCursorRow],
                           messageLines[messageCursorRow - 1]);
@@ -770,10 +770,10 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'g')
+        if(c == keyCode(typed::TypedKey::KEY_G))
         {
             int next = Terminal::readKey();
-            if(next == 'g')
+            if(next == keyCode(typed::TypedKey::KEY_G))
             {
                 messageCursorRow = 0;
                 messageCursorCol = std::min(
@@ -783,7 +783,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             return std::nullopt;
         }
-        if(c == 'G')
+        if(c == keyCode(typed::TypedKey::KEY_CAP_G))
         {
             messageCursorRow = std::max(0, (int)messageLines.size() - 1);
             messageCursorCol = std::min(
@@ -792,7 +792,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'x')
+        if(c == keyCode(typed::TypedKey::KEY_X))
         {
             std::string& line = messageLines[messageCursorRow];
             if(messageCursorCol < (int)line.size())
@@ -802,9 +802,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
         if(action == Action::RebaseTodo &&
-           (c == 'p' || c == 'r' || c == 'e' || c == 's' || c == 'f' ||
-            c == 'd' || c == 'P' || c == 'R' || c == 'E' || c == 'S' ||
-            c == 'F' || c == 'D'))
+           (c == keyCode(typed::TypedKey::KEY_P) || c == keyCode(typed::TypedKey::KEY_R) || c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(typed::TypedKey::KEY_S) || c == keyCode(typed::TypedKey::KEY_F) ||
+            c == keyCode(typed::TypedKey::KEY_D) || c == keyCode(typed::TypedKey::KEY_CAP_P) || c == keyCode(typed::TypedKey::KEY_CAP_R) || c == keyCode(typed::TypedKey::KEY_CAP_E) || c == keyCode(typed::TypedKey::KEY_CAP_S) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_F) || c == keyCode(typed::TypedKey::KEY_CAP_D)))
         {
             char alias = (char)std::tolower((unsigned char)c);
             std::string actionWord = normalize_todo_action(std::string(1, alias));
@@ -814,7 +814,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                   std::isspace((unsigned char)line[start]))
                 ++start;
             size_t wordEnd = start;
-            while(wordEnd < line.size() && line[wordEnd] != ' ')
+            while(wordEnd < line.size() && line[wordEnd] != keyCode(control::ControlKey::SPACE))
                 ++wordEnd;
             if(start < line.size())
             {
@@ -824,7 +824,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             return std::nullopt;
         }
-        if(c == 'O')
+        if(c == keyCode(typed::TypedKey::KEY_CAP_O))
         {
             messageLines.insert(messageLines.begin() + messageCursorRow, "");
             messageCursorCol = 0;
@@ -835,22 +835,22 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         }
         auto is_word_char = [](char ch)
         {
-            return std::isalnum((unsigned char)ch) || ch == '_';
+            return std::isalnum((unsigned char)ch) || ch == keyCode(command::CommandKey::KEY_UNDERSCORE);
         };
-        if(c == 'b' || c == 'B' || c == 'e' || c == 'E')
+        if(c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(typed::TypedKey::KEY_CAP_B) || c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(typed::TypedKey::KEY_CAP_E))
         {
             const std::string& line = messageLines[messageCursorRow];
             if(!line.empty())
             {
                 int pos = messageCursorCol;
                 int n = (int)line.size();
-                bool bigWord = (c == 'B' || c == 'E');
-                bool endMotion = (c == 'e' || c == 'E');
+                bool bigWord = (c == keyCode(typed::TypedKey::KEY_CAP_B) || c == keyCode(typed::TypedKey::KEY_CAP_E));
+                bool endMotion = (c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(typed::TypedKey::KEY_CAP_E));
 
                 auto is_space = [](char ch)
-                { return ch == ' ' || ch == '\t'; };
+                { return ch == keyCode(control::ControlKey::SPACE) || ch == '\t'; };
 
-                if(c == 'b' || c == 'B')
+                if(c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(typed::TypedKey::KEY_CAP_B))
                 {
                     if(pos > 0)
                         --pos;
@@ -897,20 +897,20 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'i')
+        if(c == keyCode(typed::TypedKey::KEY_I))
         {
             insertMode = true;
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'A')
+        if(c == keyCode(typed::TypedKey::KEY_CAP_A))
         {
             messageCursorCol = (int)messageLines[messageCursorRow].size();
             insertMode = true;
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'o')
+        if(c == keyCode(typed::TypedKey::KEY_O))
         {
             messageLines.insert(messageLines.begin() + messageCursorRow + 1, "");
             messageCursorRow++;
@@ -920,10 +920,10 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == 'd')
+        if(c == keyCode(typed::TypedKey::KEY_D))
         {
             int next = Terminal::readKey();
-            if(next == 'd')
+            if(next == keyCode(typed::TypedKey::KEY_D))
             {
                 if(!messageLines.empty())
                 {
@@ -941,17 +941,17 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             return std::nullopt;
         }
-        if(c == 'c')
+        if(c == keyCode(typed::TypedKey::KEY_C))
         {
             int next = Terminal::readKey();
-            if(next == 'w')
+            if(next == keyCode(typed::TypedKey::KEY_W))
             {
                 std::string& line = messageLines[messageCursorRow];
                 int n = (int)line.size();
                 int start = std::clamp(messageCursorCol, 0, n);
                 int end = start;
                 auto is_space = [](char ch)
-                { return ch == ' ' || ch == '\t'; };
+                { return ch == keyCode(control::ControlKey::SPACE) || ch == '\t'; };
 
                 if(end < n)
                 {
@@ -979,7 +979,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         }
     }
 
-    if(c == Terminal::ARROW_LEFT)
+    if(c == keyCode(navigation::NavigationKey::ARROW_LEFT))
     {
         if(messageCursorCol > 0)
             messageCursorCol--;
@@ -992,7 +992,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
-    if(c == Terminal::ARROW_RIGHT)
+    if(c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         if(messageCursorCol < (int)messageLines[messageCursorRow].size())
             messageCursorCol++;
@@ -1005,7 +1005,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
-    if(c == Terminal::ARROW_UP)
+    if(c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(messageCursorRow > 0)
         {
@@ -1017,7 +1017,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
-    if(c == Terminal::ARROW_DOWN)
+    if(c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(messageCursorRow + 1 < (int)messageLines.size())
         {
@@ -1030,7 +1030,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!insertMode)
             return std::nullopt;
@@ -1053,7 +1053,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(!insertMode)
             return std::nullopt;
@@ -1171,9 +1171,9 @@ void GitCommitMode::draw(Editor& editor) const
                 output += "  #";
 
                 std::string body;
-                if(!line.empty() && line[0] == '#')
+                if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_HASH))
                 {
-                    if(line.size() >= 2 && line[1] == ' ')
+                    if(line.size() >= 2 && line[1] == keyCode(control::ControlKey::SPACE))
                         body = line.substr(2);
                     else
                         body = line.substr(1);
@@ -1239,7 +1239,7 @@ void GitCommitMode::draw(Editor& editor) const
     output += status;
     int padding = editor.screenCols - (int)status.size() - (int)right.size();
     if(padding > 0)
-        output.append(padding, ' ');
+        output.append(padding, keyCode(control::ControlKey::SPACE));
     output += right;
     output += editor.theme.reset();
 

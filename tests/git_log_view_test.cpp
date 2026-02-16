@@ -100,7 +100,7 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
 
     smPtr->dispatch(':');
     dispatch_string(*smPtr, "git log");
-    smPtr->dispatch(Terminal::ENTER);
+    smPtr->dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(smPtr->currentStateName(), "GITLOG");
 }

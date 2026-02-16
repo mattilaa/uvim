@@ -32,7 +32,7 @@ bool isCursorInsideQuote(const std::string& line, int cursorX, char quote)
 
 bool isCursorInString(const std::string& line, int cursorX)
 {
-    return isCursorInsideQuote(line, cursorX, '"') ||
+    return isCursorInsideQuote(line, cursorX, keyCode(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
            isCursorInsideQuote(line, cursorX, '\'');
 }
 } // namespace
@@ -68,20 +68,20 @@ void InsertMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
-                                            const KeyEvent& event)
+                                            int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     if(ed->diagnosticPopupActive)
     {
-        if(c == 'q')
+        if(c == keyCode(typed::TypedKey::KEY_Q))
         {
             ed->closeDiagnosticPopup();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN)
+        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -101,7 +101,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
+        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -120,7 +120,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             ed->applyDiagnosticFix(ed->diagnosticPopupFixIndex);
             ctx.repeatCount = 0;
@@ -134,28 +134,28 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(ed->emojiPopupActive)
     {
-        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
+        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(typed::TypedKey::KEY_J))
         {
             ed->emojiNext();
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP || c == 'k')
+        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(typed::TypedKey::KEY_K))
         {
             ed->emojiPrev();
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             ed->acceptEmoji();
             return std::nullopt;
         }
-        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
         {
             ed->cancelEmojiPopup();
             return std::nullopt;
         }
-        if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
-           c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == keyCode(control::ControlKey::DEL) ||
+           c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!ed->emojiQuery.empty())
             {
@@ -180,31 +180,31 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(ed->completionActive)
     {
-        if(c == Terminal::CTRL_N || c == Terminal::CTRL_J ||
-           c == Terminal::ARROW_DOWN)
+        if(c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(control::ControlKey::CTRL_J) ||
+           c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             ed->nextCompletion();
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_P || c == Terminal::CTRL_K ||
-           c == Terminal::ARROW_UP)
+        if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
+           c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             ed->previousCompletion();
             return std::nullopt;
         }
-        if(c == Terminal::TAB || c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::TAB) || c == keyCode(control::ControlKey::ENTER))
         {
             ed->acceptCompletion();
             return std::nullopt;
         }
-        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
         {
             ed->cancelCompletion();
             if(ctx.cursorX() > 0)
             {
                 ctx.cursorX()--;
             }
-            if(c == Terminal::ESC)
+            if(c == keyCode(control::ControlKey::ESC))
             {
                 ed->formatOnDoubleEscPending =
                     ed->formatOnInsertLeave &&
@@ -221,13 +221,13 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Exit Insert Mode
     // ========================================================================
 
-    if(c == Terminal::ESC || c == Terminal::CTRL_C)
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
     {
         if(ctx.cursorX() > 0)
         {
             ctx.cursorX()--;
         }
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
         {
             ed->formatOnDoubleEscPending = ed->formatOnInsertLeave &&
                                            ed->isFileType<FileType::Cpp>() &&
@@ -242,7 +242,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Trigger/Navigate Completion
     // ========================================================================
 
-    if(c == Terminal::CTRL_N)
+    if(c == keyCode(control::ControlKey::CTRL_N))
     {
         if(!ed->completionActive)
         {
@@ -255,7 +255,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::CTRL_P)
+    if(c == keyCode(control::ControlKey::CTRL_P))
     {
         if(ed->completionActive)
         {
@@ -268,7 +268,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Backspace
     // ========================================================================
 
-    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         auto& lines = ctx.lines();
         int& cursorX = ctx.cursorX();
@@ -326,7 +326,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Enter / Newline
     // ========================================================================
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(ed->completionActive)
         {
@@ -343,7 +343,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Tab
     // ========================================================================
 
-    if(c == Terminal::TAB)
+    if(c == keyCode(control::ControlKey::TAB))
     {
         if(ed->completionActive)
         {
@@ -356,7 +356,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::SHIFT_TAB)
+    if(c == keyCode(control::ControlKey::SHIFT_TAB))
     {
         if(!ed->completionActive)
         {
@@ -368,7 +368,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 std::string& line = lines[cursorY];
                 int remove = 0;
                 int i = cursorX - 1;
-                while(i >= 0 && remove < ed->tabSpaces && line[i] == ' ')
+                while(i >= 0 && remove < ed->tabSpaces && line[i] == keyCode(control::ControlKey::SPACE))
                 {
                     remove++;
                     i--;
@@ -396,7 +396,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Arrow Keys
     // ========================================================================
 
-    if(c == Terminal::ARROW_LEFT)
+    if(c == keyCode(navigation::NavigationKey::ARROW_LEFT))
     {
         if(ctx.cursorX() > 0)
         {
@@ -409,7 +409,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ARROW_RIGHT)
+    if(c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         auto& lines = ctx.lines();
         int& cursorX = ctx.cursorX();
@@ -427,7 +427,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ARROW_UP)
+    if(c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(ed->completionActive)
         {
@@ -452,7 +452,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ARROW_DOWN)
+    if(c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(ed->completionActive)
         {
@@ -480,7 +480,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Ctrl+W - Delete Word Backward
     // ========================================================================
 
-    if(c == Terminal::CTRL_W)
+    if(c == keyCode(control::ControlKey::CTRL_W))
     {
         ed->deleteWordBackward();
         if(ed->completionActive)
@@ -494,7 +494,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Ctrl+U - Delete to Line Start
     // ========================================================================
 
-    if(c == Terminal::CTRL_U)
+    if(c == keyCode(control::ControlKey::CTRL_U))
     {
         ed->deleteToLineStart();
         if(ed->completionActive)
@@ -518,7 +518,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 inString = isCursorInString(lines[cursorY], ctx.cursorX());
         }
 
-        if(ed->autoBraces && (c == ')' || c == ']' || c == '}'))
+        if(ed->autoBraces && (c == keyCode(command::CommandKey::KEY_RIGHT_PAREN) || c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) || c == keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
@@ -536,7 +536,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
 
         if(ed->autoBraces && ed->autoQuotes &&
-           (c == '"' || c == '\'' || c == '`'))
+           (c == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) || c == keyCode(command::CommandKey::KEY_APOSTROPHE) ||
+            c == keyCode(command::CommandKey::KEY_BACKTICK)))
         {
             auto handleQuote = [&](char quote) -> bool
             {
@@ -571,7 +572,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 return std::nullopt;
         }
 
-        if(ed->autoBraces && ed->autoBracesInStrings && c == '{' && inString)
+        if(ed->autoBraces && ed->autoBracesInStrings && c == keyCode(command::CommandKey::KEY_LEFT_BRACE) && inString)
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
@@ -583,19 +584,19 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(cursorX > (int)line.length())
                 cursorX = line.length();
 
-            if(cursorX < (int)line.length() && line[cursorX] == '}')
+            if(cursorX < (int)line.length() && line[cursorX] == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
             {
-                ed->insertChar('{');
+                ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
                 return std::nullopt;
             }
 
-            ed->insertChar('{');
-            ed->insertChar('}');
+            ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
+            ed->insertChar(keyCode(command::CommandKey::KEY_RIGHT_BRACE));
             ctx.cursorX()--;
             return std::nullopt;
         }
 
-        if(ed->autoBraces && c == '{' && !inString)
+        if(ed->autoBraces && c == keyCode(command::CommandKey::KEY_LEFT_BRACE) && !inString)
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
@@ -613,13 +614,13 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             size_t indent = 0;
             while(indent < line.length() &&
-                  (line[indent] == ' ' || line[indent] == '\t'))
+                  (line[indent] == keyCode(control::ControlKey::SPACE) || line[indent] == '\t'))
             {
                 indent++;
             }
             std::string indentStr = line.substr(0, indent);
             std::string innerIndent =
-                indentStr + std::string(ed->indentWidthForBraces(), ' ');
+                indentStr + std::string(ed->indentWidthForBraces(), keyCode(control::ControlKey::SPACE));
 
             if(ed->braceNewLineForAutoBraces())
             {
@@ -658,9 +659,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(ed->autoBraces && (c == '(' || c == '['))
+        if(ed->autoBraces && (c == keyCode(command::CommandKey::KEY_LEFT_PAREN) || c == keyCode(command::CommandKey::KEY_LEFT_BRACKET)))
         {
-            char close = (c == '(') ? ')' : ']';
+            char close = (c == keyCode(command::CommandKey::KEY_LEFT_PAREN)) ? keyCode(command::CommandKey::KEY_RIGHT_PAREN) : keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
             int cursorY = ctx.cursorY();
@@ -683,7 +684,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        if(ed->autoTags && c == '>' && !inString &&
+        if(ed->autoTags && c == keyCode(command::CommandKey::KEY_GREATER) && !inString &&
            (ed->isFileType<FileType::Html>() ||
             ed->isFileType<FileType::Xml>()))
         {
@@ -700,21 +701,21 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(gtPos < 0 || gtPos >= (int)line.size())
                 return std::nullopt;
 
-            int ltPos = (int)line.rfind('<', (size_t)gtPos);
+            int ltPos = (int)line.rfind(keyCode(command::CommandKey::KEY_LESS), (size_t)gtPos);
             if(ltPos == (int)std::string::npos)
                 return std::nullopt;
 
             if(ltPos + 1 < (int)line.size())
             {
                 char next = line[ltPos + 1];
-                if(next == '/' || next == '!' || next == '?')
+                if(next == keyCode(command::CommandKey::KEY_SLASH) || next == keyCode(command::CommandKey::KEY_EXCLAMATION) || next == keyCode(command::CommandKey::KEY_QUESTION))
                     return std::nullopt;
             }
 
             int j = gtPos - 1;
             while(j > ltPos && text_utils::is_space(line[j]))
                 --j;
-            if(j > ltPos && line[j] == '/')
+            if(j > ltPos && line[j] == keyCode(command::CommandKey::KEY_SLASH))
                 return std::nullopt;
 
             int nameStart = ltPos + 1;
@@ -726,8 +727,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             int nameEnd = nameStart;
             auto isTagChar = [](char ch)
             {
-                return text_utils::is_alnum(ch) || ch == ':' || ch == '_' ||
-                       ch == '-';
+                return text_utils::is_alnum(ch) || ch == keyCode(command::CommandKey::KEY_COLON) || ch == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+                       ch == keyCode(command::CommandKey::KEY_MINUS);
             };
             while(nameEnd < gtPos && isTagChar(line[nameEnd]))
                 ++nameEnd;
@@ -778,18 +779,18 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 ed->rebuildCompletionFilter();
             }
         }
-        // Auto-trigger completion after '.', '::', or '->'
-        else if(c == '.' && !isMarkup)
+        // Auto-trigger completion after keyCode(command::CommandKey::KEY_DOT), '::', or '->'
+        else if(c == keyCode(command::CommandKey::KEY_DOT) && !isMarkup)
         {
             ed->triggerCompletion();
         }
-        else if(c == ':' && !isMarkup && cursorX >= 2 &&
-                lines[cursorY][cursorX - 2] == ':')
+        else if(c == keyCode(command::CommandKey::KEY_COLON) && !isMarkup && cursorX >= 2 &&
+                lines[cursorY][cursorX - 2] == keyCode(command::CommandKey::KEY_COLON))
         {
             ed->triggerCompletion();
         }
-        else if(c == '>' && !isMarkup && cursorX >= 2 &&
-                lines[cursorY][cursorX - 2] == '-')
+        else if(c == keyCode(command::CommandKey::KEY_GREATER) && !isMarkup && cursorX >= 2 &&
+                lines[cursorY][cursorX - 2] == keyCode(command::CommandKey::KEY_MINUS))
         {
             ed->triggerCompletion();
         }
@@ -811,7 +812,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             {
                 const std::string& line = lines[cursorY];
                 auto isWordChar = [](char ch)
-                { return text_utils::isIdent(ch) || ch == '-' || ch == '.'; };
+                { return text_utils::isIdent(ch) || ch == keyCode(command::CommandKey::KEY_MINUS) || ch == keyCode(command::CommandKey::KEY_DOT); };
                 int start = cursorX;
                 while(start > 0 && isWordChar(line[start - 1]))
                     --start;

@@ -38,7 +38,7 @@ void dispatch_command(ModeStateMachine& sm, std::string_view cmd)
     sm.dispatch(':');
     for(char c : cmd)
         sm.dispatch(c);
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 }
 } // namespace
 
@@ -47,7 +47,7 @@ TEST(RealModeTransitionsTest, WelcomeEscStaysInWelcome)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, WelcomeMode{});
 
-    sm.dispatch(Terminal::ESC);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
 
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
@@ -79,10 +79,10 @@ TEST(RealModeTransitionsTest, DoubleEscClearsStatusMessageInWelcome)
     editor.setStatusMessage("Message");
     auto sm = makeMachine(editor, WelcomeMode{});
 
-    sm.dispatch(Terminal::ESC);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_EQ(editor.statusMessage, "Message");
 
-    sm.dispatch(Terminal::ESC);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
     EXPECT_TRUE(editor.statusMessage.empty());
 }
 
@@ -258,7 +258,7 @@ TEST(RealModeTransitionsTest, LocListReturnsToFileBrowserWithCursorState)
     sm.dispatch('c');
     sm.dispatch(' ');
     sm.dispatch('.');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "LOC");
 
@@ -348,7 +348,7 @@ TEST(RealModeTransitionsTest, ExCommandOpensFileBrowser)
     sm.dispatch(':');
     sm.dispatch('E');
     sm.dispatch('x');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
@@ -366,7 +366,7 @@ TEST(RealModeTransitionsTest, ExCommandWithPathOpensFileBrowser)
     sm.dispatch('s');
     sm.dispatch('r');
     sm.dispatch('c');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
@@ -380,7 +380,7 @@ TEST(RealModeTransitionsTest, ExCommandFromCommandModeOpensFileBrowser)
     sm.dispatch(':');
     sm.dispatch('E');
     sm.dispatch('x');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
@@ -499,7 +499,7 @@ TEST(RealModeTransitionsTest, FileBrowserSlashKeyRunsLocalRegexSearch)
     sm.dispatch('p');
     sm.dispatch('h');
     sm.dispatch('a');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
@@ -538,7 +538,7 @@ TEST(RealModeTransitionsTest, FileBrowserQuestionKeyRunsBackwardRegexSearch)
     sm.dispatch('p');
     sm.dispatch('h');
     sm.dispatch('a');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
@@ -554,7 +554,7 @@ TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    sm.dispatch(Terminal::CTRL_S);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
 
     EXPECT_STREQ(sm.currentStateName(), "GREP");
 }
@@ -631,8 +631,8 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
 
     sm.dispatch('/');
     sm.dispatch('e');
-    sm.dispatch(Terminal::TAB);
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
@@ -643,8 +643,8 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
     auto sm2 = makeMachine(editor2, FileBrowserMode{root.string()});
     sm2.dispatch('/');
     sm2.dispatch('e');
-    sm2.dispatch(Terminal::SHIFT_TAB);
-    sm2.dispatch(Terminal::ENTER);
+    sm2.dispatch(keyCode(control::ControlKey::SHIFT_TAB));
+    sm2.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm2.currentStateName(), "NORMAL");
     ASSERT_NE(editor2.currentBuffer, nullptr);
@@ -691,24 +691,24 @@ TEST(RealModeTransitionsTest, FileBrowserCtrlJKCyclesWhileSearchPromptActive)
     EXPECT_TRUE(state->commandPrompt->isActive());
     EXPECT_EQ(state->commandPrompt->getInput(), "/edit");
 
-    sm.dispatch(Terminal::CTRL_J);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
     ASSERT_TRUE(state->commandPrompt);
     EXPECT_TRUE(state->commandPrompt->isActive());
     EXPECT_EQ(state->browserCursor, betaIndex);
 
-    sm.dispatch(Terminal::CTRL_J);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
     EXPECT_EQ(state->browserCursor, gammaIndex);
 
-    sm.dispatch(Terminal::CTRL_K);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
     EXPECT_EQ(state->browserCursor, betaIndex);
 
-    sm.dispatch(Terminal::CTRL_K);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
     EXPECT_EQ(state->browserCursor, alphaIndex);
@@ -728,12 +728,12 @@ TEST(RealModeTransitionsTest, FileBrowserEscClearsSearchBeforeExit)
     sm.dispatch('d');
     sm.dispatch('i');
     sm.dispatch('t');
-    sm.dispatch(Terminal::CTRL_J);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
     auto* state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
     ASSERT_FALSE(state->searchMatches.empty());
 
-    sm.dispatch(Terminal::ESC);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
@@ -786,7 +786,7 @@ TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedFile)
     sm.dispatch('g');
     sm.dispatch('e');
     sm.dispatch('t');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
@@ -808,7 +808,7 @@ TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedDirectory)
     sm.dispatch('o');
     sm.dispatch('c');
     sm.dispatch('s');
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     const std::string mode = sm.currentStateName();
     EXPECT_TRUE(mode == "BROWSE" || mode == "NORMAL");
@@ -824,7 +824,7 @@ TEST(RealModeTransitionsTest, FileBrowserParentThenEnterSiblingDirectoryStays)
     auto sm = makeMachine(editor, FileBrowserMode{(root / "from").string()});
 
     // Enter parent via ".." (first entry).
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     auto* state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
@@ -843,7 +843,7 @@ TEST(RealModeTransitionsTest, FileBrowserParentThenEnterSiblingDirectoryStays)
     for(int i = 0; i < toIndex; ++i)
         sm.dispatch('j');
 
-    sm.dispatch(Terminal::ENTER);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);

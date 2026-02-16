@@ -19,12 +19,12 @@ std::optional<std::string> promptReplaceWordInput(Editor* ed,
         ed->refreshScreen();
 
         int key = Terminal::readKey();
-        if(key == Terminal::ESC || key == Terminal::CTRL_C)
+        if(key == keyCode(control::ControlKey::ESC) || key == keyCode(control::ControlKey::CTRL_C))
             return std::nullopt;
-        if(key == Terminal::ENTER)
+        if(key == keyCode(control::ControlKey::ENTER))
             return input;
-        if(key == Terminal::BACKSPACE || key == Terminal::DEL ||
-           key == Terminal::CTRL_H || key == 127)
+        if(key == keyCode(control::ControlKey::BACKSPACE) || key == keyCode(control::ControlKey::DEL) ||
+           key == keyCode(control::ControlKey::CTRL_H) || key == 127)
         {
             if(!input.empty())
                 input.pop_back();
@@ -103,20 +103,20 @@ void NormalMode::on_exit(ModeContext& /* ctx */)
 }
 
 std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
-                                            const KeyEvent& event)
+                                            int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     if(ed->diagnosticPopupActive)
     {
-        if(c == 'q')
+        if(c == keyCode(typed::TypedKey::KEY_Q))
         {
             ed->closeDiagnosticPopup();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN)
+        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -135,7 +135,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP)
+        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -153,7 +153,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             ed->applyDiagnosticFix(ed->diagnosticPopupFixIndex);
             ctx.repeatCount = 0;
@@ -163,32 +163,32 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(ed->emojiPopupActive)
     {
-        if(c == Terminal::CTRL_J || c == Terminal::ARROW_DOWN || c == 'j')
+        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(typed::TypedKey::KEY_J))
         {
             ed->emojiNext();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP || c == 'k')
+        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(typed::TypedKey::KEY_K))
         {
             ed->emojiPrev();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             ed->acceptEmoji();
             ctx.repeatCount = 0;
             return InsertMode{};
         }
-        if(c == Terminal::ESC || c == Terminal::CTRL_C)
+        if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
         {
             ed->cancelEmojiPopup();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::BACKSPACE || c == Terminal::DEL ||
-           c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == keyCode(control::ControlKey::DEL) ||
+           c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!ed->emojiQuery.empty())
             {
@@ -210,10 +210,10 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::CTRL_E)
+    if(c == keyCode(control::ControlKey::CTRL_E))
     {
         int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == Terminal::CTRL_M || nextChar == Terminal::ENTER)
+        if(nextChar == keyCode(control::ControlKey::CTRL_M) || nextChar == keyCode(control::ControlKey::ENTER))
         {
             ed->openEmojiPopup();
             ctx.repeatCount = 0;
@@ -225,13 +225,13 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::CTRL_M)
+    if(c == keyCode(control::ControlKey::CTRL_M))
     {
         int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == 'h' || nextChar == 'j' || nextChar == 'k' ||
-           nextChar == 'l')
+        if(nextChar == keyCode(typed::TypedKey::KEY_H) || nextChar == keyCode(typed::TypedKey::KEY_J) || nextChar == keyCode(typed::TypedKey::KEY_K) ||
+           nextChar == keyCode(typed::TypedKey::KEY_L))
         {
-            if(nextChar == 'h' || nextChar == 'k')
+            if(nextChar == keyCode(typed::TypedKey::KEY_H) || nextChar == keyCode(typed::TypedKey::KEY_K))
                 ed->previousBuffer();
             else
                 ed->nextBuffer();
@@ -248,14 +248,14 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Count Prefix Accumulation
     // ========================================================================
 
-    if(ctx.repeatCount == 0 && c >= '1' && c <= '9')
+    if(ctx.repeatCount == 0 && c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = c - '0';
+        ctx.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return std::nullopt;
     }
-    if(ctx.repeatCount > 0 && c >= '0' && c <= '9')
+    if(ctx.repeatCount > 0 && c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9))
     {
-        ctx.repeatCount = ctx.repeatCount * 10 + (c - '0');
+        ctx.repeatCount = ctx.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return std::nullopt;
     }
 
@@ -265,7 +265,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Escape Handling (double-ESC clears search)
     // ========================================================================
 
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         auto now = std::chrono::steady_clock::now();
         auto timeSinceLastEsc =
@@ -305,7 +305,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(ed->diagnosticPopupActive && c == 'q')
+    if(ed->diagnosticPopupActive && c == keyCode(typed::TypedKey::KEY_Q))
     {
         ed->closeDiagnosticPopup();
         ctx.repeatCount = 0;
@@ -314,19 +314,19 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(ed->splitActive)
     {
-        if(c == Terminal::CTRL_J || c == Terminal::CTRL_K)
+        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(control::ControlKey::CTRL_K))
         {
             ed->switchPane();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::CTRL_H))
         {
             ed->previousBuffer();
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_L)
+        if(c == keyCode(control::ControlKey::CTRL_L))
         {
             ed->nextBuffer();
             ctx.repeatCount = 0;
@@ -334,9 +334,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         }
     }
 
-    if(ed->showTabs && (c == Terminal::CTRL_H || c == Terminal::CTRL_L))
+    if(ed->showTabs && (c == keyCode(control::ControlKey::CTRL_H) || c == keyCode(control::ControlKey::CTRL_L)))
     {
-        if(c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::CTRL_H))
             ed->previousBuffer();
         else
             ed->nextBuffer();
@@ -371,7 +371,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(ctx.commandBuffer == " b")
     {
-        if(c == 'd')
+        if(c == keyCode(typed::TypedKey::KEY_D))
         {
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
@@ -386,7 +386,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == ' ')
+    if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
         ctx.setStatusMessage("Leader");
@@ -399,7 +399,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // ========================================================================
 
     // Insert modes
-    if(c == 'i')
+    if(c == keyCode(typed::TypedKey::KEY_I))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -407,7 +407,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'I')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_I))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -416,7 +416,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'a')
+    if(c == keyCode(typed::TypedKey::KEY_A))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -428,7 +428,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'A')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_A))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -442,7 +442,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'o')
+    if(c == keyCode(typed::TypedKey::KEY_O))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -451,7 +451,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'O')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_O))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -462,53 +462,53 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
 
     // Visual modes
-    if(c == 'v')
+    if(c == keyCode(typed::TypedKey::KEY_V))
     {
         ctx.repeatCount = 0;
         return VisualMode{};
     }
-    if(c == 'V')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_V))
     {
         ctx.repeatCount = 0;
         return VisualLineMode{};
     }
-    if(c == Terminal::CTRL_V)
+    if(c == keyCode(control::ControlKey::CTRL_V))
     {
         ctx.repeatCount = 0;
         return VisualBlockMode{};
     }
 
     // Command mode
-    if(c == ':')
+    if(c == keyCode(command::CommandKey::KEY_COLON))
     {
         ctx.repeatCount = 0;
         return CommandMode{};
     }
 
     // Quick mode switching
-    if(c == Terminal::CTRL_P)
+    if(c == keyCode(control::ControlKey::CTRL_P))
     {
         ctx.repeatCount = 0;
         return FuzzyFindMode{};
     }
-    if(c == Terminal::CTRL_W)
+    if(c == keyCode(control::ControlKey::CTRL_W))
     {
         ctx.repeatCount = 0;
         return BufferBrowserMode{};
     }
-    if(c == Terminal::CTRL_S)
+    if(c == keyCode(control::ControlKey::CTRL_S))
     {
         ctx.repeatCount = 0;
         return GrepSearchMode{};
     }
 
     // Search modes
-    if(c == '/')
+    if(c == keyCode(command::CommandKey::KEY_SLASH))
     {
         ctx.repeatCount = 0;
         return SearchForwardMode{};
     }
-    if(c == '?')
+    if(c == keyCode(command::CommandKey::KEY_QUESTION))
     {
         ctx.repeatCount = 0;
         return SearchBackwardMode{};
@@ -518,9 +518,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Operators (d, c, y, >, <, =)
     // ========================================================================
 
-    if(c == 'd' || c == 'c' || c == 'y' || c == '>' || c == '<' || c == '=')
+    if(c == keyCode(typed::TypedKey::KEY_D) || c == keyCode(typed::TypedKey::KEY_C) || c == keyCode(typed::TypedKey::KEY_Y) || c == keyCode(command::CommandKey::KEY_GREATER) || c == keyCode(command::CommandKey::KEY_LESS) || c == keyCode(command::CommandKey::KEY_EQUAL))
     {
-        if(c != 'y')
+        if(c != keyCode(typed::TypedKey::KEY_Y))
         {
             ed->beginChangeRecording(count);
             ed->recordChangeKey(c);
@@ -532,25 +532,25 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Basic Movement
     // ========================================================================
 
-    if(c == 'h' || c == Terminal::ARROW_LEFT)
+    if(c == keyCode(typed::TypedKey::KEY_H) || c == keyCode(navigation::NavigationKey::ARROW_LEFT))
     {
         ed->moveLeft(count);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'j' || c == Terminal::ARROW_DOWN)
+    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         ed->moveDown(count);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'k' || c == Terminal::ARROW_UP)
+    if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         ed->moveUp(count);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'l' || c == Terminal::ARROW_RIGHT)
+    if(c == keyCode(typed::TypedKey::KEY_L) || c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         ed->moveRight(count);
         ctx.repeatCount = 0;
@@ -561,42 +561,42 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Word Movement
     // ========================================================================
 
-    if(c == 'w')
+    if(c == keyCode(typed::TypedKey::KEY_W))
     {
         for(int i = 0; i < count; i++)
             ed->moveWordForward();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'W')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_W))
     {
         for(int i = 0; i < count; i++)
             ed->moveWordForwardBig();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'b')
+    if(c == keyCode(typed::TypedKey::KEY_B))
     {
         for(int i = 0; i < count; i++)
             ed->moveWordBackward();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'B')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_B))
     {
         for(int i = 0; i < count; i++)
             ed->moveWordBackwardBig();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'e')
+    if(c == keyCode(typed::TypedKey::KEY_E))
     {
         for(int i = 0; i < count; i++)
             ed->moveToEndOfWord();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'E')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_E))
     {
         for(int i = 0; i < count; i++)
             ed->moveToEndOfWordBig();
@@ -608,19 +608,19 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Line Movement
     // ========================================================================
 
-    if(c == '0')
+    if(c == keyCode(typed::TypedKey::KEY_0))
     {
         ed->moveToLineStart();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '^')
+    if(c == keyCode(command::CommandKey::KEY_CARET))
     {
         ed->moveToFirstNonBlank();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '$')
+    if(c == keyCode(command::CommandKey::KEY_DOLLAR))
     {
         ed->moveToLineEnd();
         ctx.repeatCount = 0;
@@ -631,7 +631,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // File/Screen Movement
     // ========================================================================
 
-    if(c == 'G')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         if(ctx.repeatCount > 0)
         {
@@ -645,25 +645,25 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == 'g')
+    if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
         return handleGCommand(ctx, nextChar);
     }
 
-    if(c == 'H')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_H))
     {
         ed->moveToScreenTop();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'M')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_M))
     {
         ed->moveToScreenMiddle();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'L')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_L))
     {
         ed->moveToScreenBottom();
         ctx.repeatCount = 0;
@@ -674,14 +674,14 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Paragraph Movement
     // ========================================================================
 
-    if(c == '{')
+    if(c == keyCode(command::CommandKey::KEY_LEFT_BRACE))
     {
         for(int i = 0; i < count; i++)
             ed->moveParagraphBackward();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '}')
+    if(c == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
     {
         for(int i = 0; i < count; i++)
             ed->moveParagraphForward();
@@ -693,25 +693,25 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Scrolling
     // ========================================================================
 
-    if(c == Terminal::CTRL_D)
+    if(c == keyCode(control::ControlKey::CTRL_D))
     {
         ed->scrollHalfPageDown(false);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_U)
+    if(c == keyCode(control::ControlKey::CTRL_U))
     {
         ed->scrollHalfPageUp(false);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_F || c == Terminal::PAGE_DOWN)
+    if(c == keyCode(control::ControlKey::CTRL_F) || c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         ed->scrollPageDown();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_B || c == Terminal::PAGE_UP)
+    if(c == keyCode(control::ControlKey::CTRL_B) || c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         ed->scrollPageUp();
         ctx.repeatCount = 0;
@@ -722,20 +722,20 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Character Search (f, F, t, T)
     // ========================================================================
 
-    if(c == 'f' || c == 'F' || c == 't' || c == 'T')
+    if(c == keyCode(typed::TypedKey::KEY_F) || c == keyCode(typed::TypedKey::KEY_CAP_F) || c == keyCode(typed::TypedKey::KEY_T) || c == keyCode(typed::TypedKey::KEY_CAP_T))
     {
         int targetChar = Terminal::readKey();
-        if(targetChar != Terminal::ESC)
+        if(targetChar != keyCode(control::ControlKey::ESC))
         {
             for(int i = 0; i < count; i++)
             {
-                if(c == 'f')
+                if(c == keyCode(typed::TypedKey::KEY_F))
                     ed->findCharForward(static_cast<char>(targetChar));
-                else if(c == 'F')
+                else if(c == keyCode(typed::TypedKey::KEY_CAP_F))
                     ed->findCharBackward(static_cast<char>(targetChar));
-                else if(c == 't')
+                else if(c == keyCode(typed::TypedKey::KEY_T))
                     ed->findCharForwardBefore(static_cast<char>(targetChar));
-                else if(c == 'T')
+                else if(c == keyCode(typed::TypedKey::KEY_CAP_T))
                     ed->findCharBackwardAfter(static_cast<char>(targetChar));
             }
         }
@@ -747,7 +747,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Matching Bracket
     // ========================================================================
 
-    if(c == '%')
+    if(c == keyCode(command::CommandKey::KEY_PERCENT))
     {
         ed->moveToMatchingBracket();
         ctx.repeatCount = 0;
@@ -758,27 +758,27 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Search Navigation
     // ========================================================================
 
-    if(c == 'n')
+    if(c == keyCode(typed::TypedKey::KEY_N))
     {
         for(int i = 0; i < count; i++)
             ed->searchNext();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'N')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_N))
     {
         for(int i = 0; i < count; i++)
             ed->searchPrevious();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '*')
+    if(c == keyCode(command::CommandKey::KEY_ASTERISK))
     {
         ed->searchWordUnderCursor(true);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '#')
+    if(c == keyCode(command::CommandKey::KEY_HASH))
     {
         ed->searchWordUnderCursor(false);
         ctx.repeatCount = 0;
@@ -789,7 +789,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Editing Commands
     // ========================================================================
 
-    if(c == 'x')
+    if(c == keyCode(typed::TypedKey::KEY_X))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -800,7 +800,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'X')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_X))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -811,13 +811,13 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'r')
+    if(c == keyCode(typed::TypedKey::KEY_R))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
 
         int replaceChar = Terminal::readKeyTimeout(250);
-        if(replaceChar == 'n')
+        if(replaceChar == keyCode(typed::TypedKey::KEY_N))
         {
             ed->recordChangeKey(replaceChar);
             std::string target = ed->getSymbolUnderCursor();
@@ -869,7 +869,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             else
                 ed->recordChangeKey(replaceChar);
 
-            if(replaceChar != Terminal::ESC && replaceChar >= 32)
+            if(replaceChar != keyCode(control::ControlKey::ESC) && replaceChar >= 32)
             {
                 ed->replaceCharAtCursor(static_cast<char>(replaceChar));
                 ed->commitChangeRecording();
@@ -882,7 +882,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'R')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_R))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -890,7 +890,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return ReplaceMode{};
     }
-    if(c == 's')
+    if(c == keyCode(typed::TypedKey::KEY_S))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -899,7 +899,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'S')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_S))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -909,7 +909,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'C')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_C))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -920,7 +920,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return InsertMode{};
     }
-    if(c == 'D')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_D))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -931,7 +931,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'J')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_J))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -941,7 +941,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '~')
+    if(c == keyCode(command::CommandKey::KEY_TILDE))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -956,7 +956,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Yank/Put
     // ========================================================================
 
-    if(c == 'p')
+    if(c == keyCode(typed::TypedKey::KEY_P))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -966,7 +966,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'P')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_P))
     {
         ed->beginChangeRecording(count);
         ed->recordChangeKey(c);
@@ -976,7 +976,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == 'Y')
+    if(c == keyCode(typed::TypedKey::KEY_CAP_Y))
     {
         ed->yankLine();
         ctx.repeatCount = 0;
@@ -987,13 +987,13 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Undo/Redo
     // ========================================================================
 
-    if(c == 'u')
+    if(c == keyCode(typed::TypedKey::KEY_U))
     {
         ed->undo();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_R)
+    if(c == keyCode(control::ControlKey::CTRL_R))
     {
         ed->redo();
         ctx.repeatCount = 0;
@@ -1004,20 +1004,20 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Marks
     // ========================================================================
 
-    if(c == 'm')
+    if(c == keyCode(typed::TypedKey::KEY_M))
     {
         int markChar = Terminal::readKey();
-        if(markChar >= 'a' && markChar <= 'z')
+        if(markChar >= keyCode(typed::TypedKey::KEY_A) && markChar <= keyCode(typed::TypedKey::KEY_Z))
         {
             ed->setMark(static_cast<char>(markChar));
         }
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == '\'' || c == '`')
+    if(c == keyCode(command::CommandKey::KEY_APOSTROPHE) || c == keyCode(command::CommandKey::KEY_BACKTICK))
     {
         int markChar = Terminal::readKey();
-        if(markChar >= 'a' && markChar <= 'z')
+        if(markChar >= keyCode(typed::TypedKey::KEY_A) && markChar <= keyCode(typed::TypedKey::KEY_Z))
         {
             ed->jumpToMark(static_cast<char>(markChar));
         }
@@ -1029,13 +1029,13 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Jump List
     // ========================================================================
 
-    if(c == Terminal::CTRL_O)
+    if(c == keyCode(control::ControlKey::CTRL_O))
     {
         ed->jumpBack();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_I)
+    if(c == keyCode(control::ControlKey::CTRL_I))
     {
         ed->jumpForward();
         ctx.repeatCount = 0;
@@ -1046,19 +1046,19 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Misc Commands
     // ========================================================================
 
-    if(c == '.')
+    if(c == keyCode(command::CommandKey::KEY_DOT))
     {
         ed->repeatLastChange(ctx.repeatCount);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_G)
+    if(c == keyCode(control::ControlKey::CTRL_G))
     {
         ed->showFileInfo();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-    if(c == Terminal::CTRL_L)
+    if(c == keyCode(control::ControlKey::CTRL_L))
     {
         ed->forceFullRedraw();
         ctx.repeatCount = 0;
@@ -1075,7 +1075,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // Z Commands (Scrolling)
     // ========================================================================
 
-    if(c == 'z')
+    if(c == keyCode(typed::TypedKey::KEY_Z))
     {
         int nextChar = Terminal::readKey();
         return handleZCommand(ctx, nextChar);
@@ -1111,7 +1111,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     switch(c)
     {
-    case 'f':
+    case keyCode(typed::TypedKey::KEY_F):
         if(ed->isFileType<FileType::Python>())
         {
             ed->pythonFormatBuffer();
@@ -1138,26 +1138,26 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
         return std::nullopt;
 
-    case 'b':
+    case keyCode(typed::TypedKey::KEY_B):
         // Buffer browser
         ctx.commandBuffer = " b";
         ctx.setStatusMessage("Leader-b");
         ctx.repeatCount = 0;
         return std::nullopt;
 
-    case 'g':
+    case keyCode(typed::TypedKey::KEY_G):
     {
         // <leader>g prefix - wait for next char
         // <leader>g alone = grep search (legacy)
         // <leader>gr = find references
         // <leader>gd = go to definition
         int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == -1 || nextChar == Terminal::ESC)
+        if(nextChar == -1 || nextChar == keyCode(control::ControlKey::ESC))
         {
             // Timeout or cancel - default to grep search
             return GrepSearchMode{};
         }
-        else if(nextChar == 'r')
+        else if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
             // <leader>gr - Find all references
             ed->findReferences();
@@ -1168,7 +1168,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             // No references found, stay in normal mode
             return std::nullopt;
         }
-        else if(nextChar == 'd')
+        else if(nextChar == keyCode(typed::TypedKey::KEY_D))
         {
             // <leader>gd - Go to definition
             ed->goToDefinition();
@@ -1181,12 +1181,12 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
     }
 
-    case 'r':
+    case keyCode(typed::TypedKey::KEY_R):
     {
         // <leader>r prefix - LSP commands
         // <leader>rr = find references (alternative binding)
         int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == 'r')
+        if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
             ed->findReferences();
             if(ed->hasReferences())
@@ -1197,13 +1197,13 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         return std::nullopt;
     }
 
-    case 'x':
+    case keyCode(typed::TypedKey::KEY_X):
         return openFileBrowser();
 
-    case 'e':
+    case keyCode(typed::TypedKey::KEY_E):
     {
         int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == 'm')
+        if(nextChar == keyCode(typed::TypedKey::KEY_M))
         {
             ed->openEmojiPopup();
             return std::nullopt;
@@ -1220,25 +1220,25 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         return openFileBrowser();
     }
 
-    case 'h':
+    case keyCode(typed::TypedKey::KEY_H):
         // Jump to alternate file (header/source)
         ed->jumpToAlternateFile();
         break;
 
-    case 'y':
+    case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard
         ed->yankToSystemClipboard();
         break;
 
-    case 'p':
+    case keyCode(typed::TypedKey::KEY_P):
         // Paste from system clipboard
         ed->pasteFromSystemClipboard();
         break;
 
-    case 'l':
+    case keyCode(typed::TypedKey::KEY_L):
     {
         int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == 'i')
+        if(nextChar == keyCode(typed::TypedKey::KEY_I))
         {
             ed->showLspInfo();
             return LspInfoMode{};
@@ -1254,49 +1254,49 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         break;
     }
 
-    case 'w':
+    case keyCode(typed::TypedKey::KEY_W):
         // Save file
         ed->saveFile();
         break;
 
-    case 's':
+    case keyCode(typed::TypedKey::KEY_S):
         // Show signature popup for symbol under cursor
         ed->openSymbolPopupForCursor();
         break;
 
-    case 'q':
+    case keyCode(typed::TypedKey::KEY_Q):
         // Quit
         ed->forceQuit();
         break;
 
-    case 'n':
+    case keyCode(typed::TypedKey::KEY_N):
         // Clear search highlight
         ed->clearSearch();
         break;
 
-    case '/':
+    case keyCode(command::CommandKey::KEY_SLASH):
         // Project-wide search
         return GrepSearchMode{};
 
-    case 'd':
+    case keyCode(typed::TypedKey::KEY_D):
         // <leader>d - Go to definition (alternative)
         ed->goToDefinition();
         break;
 
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
+    case keyCode(typed::TypedKey::KEY_1):
+    case keyCode(typed::TypedKey::KEY_2):
+    case keyCode(typed::TypedKey::KEY_3):
+    case keyCode(typed::TypedKey::KEY_4):
+    case keyCode(typed::TypedKey::KEY_5):
+    case keyCode(typed::TypedKey::KEY_6):
+    case keyCode(typed::TypedKey::KEY_7):
+    case keyCode(typed::TypedKey::KEY_8):
+    case keyCode(typed::TypedKey::KEY_9):
         // Switch to buffer by number
-        ed->switchToBuffer(c - '1');
+        ed->switchToBuffer(c - keyCode(typed::TypedKey::KEY_1));
         break;
 
-    case ' ':
+    case keyCode(control::ControlKey::SPACE):
         // Double space - do nothing
         break;
 
@@ -1315,25 +1315,25 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
 
     switch(c)
     {
-    case 'g':
+    case keyCode(typed::TypedKey::KEY_G):
         // gg - go to first line
         ed->moveToFirstLine();
         break;
 
-    case 'd':
+    case keyCode(typed::TypedKey::KEY_D):
         // gd - go to definition
         ed->goToDefinition();
         break;
 
-    case 'f':
+    case keyCode(typed::TypedKey::KEY_F):
         // gf - go to file under cursor
         ed->goToFile();
         break;
 
-    case 'b':
+    case keyCode(typed::TypedKey::KEY_B):
     {
         int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == 'v')
+        if(nextChar == keyCode(typed::TypedKey::KEY_V))
         {
             ed->openGitShowCommitMode();
             return std::nullopt;
@@ -1343,10 +1343,10 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         break;
     }
 
-    case 'l':
+    case keyCode(typed::TypedKey::KEY_L):
     {
         int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == 'f')
+        if(nextChar == keyCode(typed::TypedKey::KEY_F))
         {
             // glf - git log for current file
             ed->openGitLogModeForFile();
@@ -1357,7 +1357,7 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         break;
     }
 
-    case 'r':
+    case keyCode(typed::TypedKey::KEY_R):
         // gr - find references
         ed->findReferences();
         if(ed->hasReferences())
@@ -1381,17 +1381,17 @@ std::optional<ModeState> NormalMode::handleZCommand(ModeContext& ctx, int c)
 
     switch(c)
     {
-    case 'z':
+    case keyCode(typed::TypedKey::KEY_Z):
         // zz - center cursor on screen
         ed->centerScreen();
         break;
 
-    case 't':
+    case keyCode(typed::TypedKey::KEY_T):
         // zt - scroll cursor to top
         ed->scrollToTop();
         break;
 
-    case 'b':
+    case keyCode(typed::TypedKey::KEY_B):
         // zb - scroll cursor to bottom
         ed->scrollToBottom();
         break;
@@ -1427,10 +1427,10 @@ void ReplaceMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
-                                             const KeyEvent& event)
+                                             int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
     if(ed->isRecordingChange() && !ed->isReplayingChange())
     {
         ed->recordChangeKey(c);
@@ -1440,7 +1440,7 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
     // Exit Replace Mode
     // ========================================================================
 
-    if(c == Terminal::ESC || c == Terminal::CTRL_C)
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
     {
         if(ctx.cursorX() > 0)
         {
@@ -1454,7 +1454,7 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
     // Backspace
     // ========================================================================
 
-    if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         if(ctx.cursorX() > 0)
         {
@@ -1495,7 +1495,7 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
     // Enter - Insert Newline
     // ========================================================================
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         ed->insertNewline();
         return std::nullopt;

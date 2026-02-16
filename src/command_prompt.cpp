@@ -215,7 +215,7 @@ bool CommandPrompt::handle(
 
     if(!active)
     {
-        if(key == ':')
+        if(key == keyCode(command::CommandKey::KEY_COLON))
         {
             active = true;
             input.clear();
@@ -230,7 +230,7 @@ bool CommandPrompt::handle(
 
     if(ctx.isCommandPopupActive())
     {
-        if(key == Terminal::CTRL_K)
+        if(key == keyCode(control::ControlKey::CTRL_K))
         {
             ctx.moveCommandPopupCursor(-1);
             if(auto selection = ctx.commandPopupSelection())
@@ -239,7 +239,7 @@ bool CommandPrompt::handle(
             nextState.reset();
             return true;
         }
-        if(key == Terminal::CTRL_J)
+        if(key == keyCode(control::ControlKey::CTRL_J))
         {
             ctx.moveCommandPopupCursor(1);
             if(auto selection = ctx.commandPopupSelection())
@@ -252,7 +252,7 @@ bool CommandPrompt::handle(
 
     if(ctx.isCommandHistorySearchActive())
     {
-        if(key == Terminal::ESC)
+        if(key == keyCode(control::ControlKey::ESC))
         {
             input = ctx.cancelCommandHistorySearch();
             clearCompletions();
@@ -262,7 +262,7 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == Terminal::ENTER)
+        if(key == keyCode(control::ControlKey::ENTER))
         {
             input = ctx.acceptCommandHistorySearch();
             clearCompletions();
@@ -272,7 +272,7 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == Terminal::CTRL_J || key == Terminal::ARROW_DOWN)
+        if(key == keyCode(control::ControlKey::CTRL_J) || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             ctx.moveCommandHistorySearchCursor(1);
             ed->needsFullRedraw = true;
@@ -280,7 +280,7 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == Terminal::CTRL_K || key == Terminal::ARROW_UP)
+        if(key == keyCode(control::ControlKey::CTRL_K) || key == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             ctx.moveCommandHistorySearchCursor(-1);
             ed->needsFullRedraw = true;
@@ -288,8 +288,8 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == Terminal::BACKSPACE || key == Terminal::DEL ||
-           key == Terminal::CTRL_H)
+        if(key == keyCode(control::ControlKey::BACKSPACE) || key == keyCode(control::ControlKey::DEL) ||
+           key == keyCode(control::ControlKey::CTRL_H))
         {
             std::string query(ctx.commandHistorySearchQuery());
             if(!query.empty())
@@ -305,7 +305,7 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == Terminal::CTRL_U)
+        if(key == keyCode(control::ControlKey::CTRL_U))
         {
             ctx.updateCommandHistorySearchQuery("");
             input.clear();
@@ -316,7 +316,8 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key >= 32 && key < 127)
+        if(key >= keyCode(control::ControlKey::SPACE) &&
+           key < keyCode(control::ControlKey::DEL))
         {
             std::string query(ctx.commandHistorySearchQuery());
             query += static_cast<char>(key);
@@ -333,7 +334,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::ESC)
+    if(key == keyCode(control::ControlKey::ESC))
     {
         active = false;
         input.clear();
@@ -344,7 +345,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::ENTER)
+    if(key == keyCode(control::ControlKey::ENTER))
     {
         std::string commandToRun = input;
         if(ctx.isCommandPopupActive())
@@ -370,7 +371,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::BACKSPACE || key == Terminal::DEL)
+    if(key == keyCode(control::ControlKey::BACKSPACE) || key == keyCode(control::ControlKey::DEL))
     {
         if(!input.empty())
         {
@@ -383,7 +384,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::TAB)
+    if(key == keyCode(control::ControlKey::TAB))
     {
         handleTabCompletion(false);
         updatePopup();
@@ -392,7 +393,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::SHIFT_TAB)
+    if(key == keyCode(control::ControlKey::SHIFT_TAB))
     {
         handleTabCompletion(true);
         updatePopup();
@@ -401,7 +402,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::CTRL_F)
+    if(key == keyCode(control::ControlKey::CTRL_F))
     {
         ctx.startCommandHistorySearch(input);
         clearCompletions();
@@ -411,7 +412,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::CTRL_K || key == Terminal::ARROW_UP)
+    if(key == keyCode(control::ControlKey::CTRL_K) || key == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(auto cmd = ctx.commandHistoryUp())
         {
@@ -424,7 +425,7 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == Terminal::CTRL_J || key == Terminal::ARROW_DOWN)
+    if(key == keyCode(control::ControlKey::CTRL_J) || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(auto cmd = ctx.commandHistoryDown())
         {
@@ -437,9 +438,10 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key >= 32 && key < 127)
+    if(key >= keyCode(control::ControlKey::SPACE) &&
+       key < keyCode(control::ControlKey::DEL))
     {
-        if(key == '/')
+        if(key == keyCode(command::CommandKey::KEY_SLASH))
         {
             auto isPathCmd = [&]() -> bool
             {

@@ -76,7 +76,7 @@ std::vector<std::string> run_git_lines(const std::string& cmd)
 
 bool is_ansi_start(std::string_view text, size_t i)
 {
-    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == '[';
+    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == keyCode(command::CommandKey::KEY_LEFT_BRACKET);
 }
 
 size_t skip_ansi(std::string_view text, size_t i)
@@ -85,7 +85,7 @@ size_t skip_ansi(std::string_view text, size_t i)
     while(i < text.size())
     {
         char c = text[i++];
-        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+        if((c >= keyCode(typed::TypedKey::KEY_CAP_A) && c <= keyCode(typed::TypedKey::KEY_CAP_Z)) || (c >= keyCode(typed::TypedKey::KEY_A) && c <= keyCode(typed::TypedKey::KEY_Z)))
             break;
     }
     return i;
@@ -196,7 +196,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
        line.rfind("AuthorDate:", 0) == 0 || line.rfind("CommitDate:", 0) == 0 ||
        line.rfind("Date:", 0) == 0)
     {
-        size_t colon = line.find(':');
+        size_t colon = line.find(keyCode(command::CommandKey::KEY_COLON));
         if(colon == std::string::npos)
         {
             append_colored(line, editor.theme.uiAccent());
@@ -213,7 +213,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         std::string_view prefix("diff --git ");
         append_colored(prefix, editor.theme.uiAccent());
         std::string rest = line.substr(prefix.size());
-        size_t split = rest.find(' ');
+        size_t split = rest.find(keyCode(control::ControlKey::SPACE));
         if(split == std::string::npos)
         {
             append_colored(rest, editor.theme.uiInfo());
@@ -228,7 +228,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
        line.rfind("rename from ", 0) == 0 || line.rfind("rename to ", 0) == 0 ||
        line.rfind("Binary files ", 0) == 0)
     {
-        size_t space = line.find(' ');
+        size_t space = line.find(keyCode(control::ControlKey::SPACE));
         if(space == std::string::npos)
         {
             append_colored(line, editor.theme.uiAccent());
@@ -264,12 +264,12 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         append_colored(line, editor.theme.uiInfo());
         return;
     }
-    if(!line.empty() && line[0] == '+')
+    if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
     {
         append_colored(line, editor.theme.uiSuccess());
         return;
     }
-    if(!line.empty() && line[0] == '-')
+    if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
     {
         append_colored(line, editor.theme.uiError());
         return;
@@ -426,7 +426,7 @@ void GitLogMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
-                                            const KeyEvent& event)
+                                            int key)
 {
     Editor* ed = ctx.editor;
     if(filtered.empty())
@@ -447,7 +447,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                                            (int)filtered.size() - 1);
     }
 
-    int c = event.key;
+    int c = keyCode(key);
     int prevCursor = cursor;
     auto mark_preview_dirty = [&]()
     {
@@ -552,7 +552,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
 
     if(searchActive)
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
         {
             auto now = std::chrono::steady_clock::now();
             auto timeSinceLastEsc =
@@ -577,7 +577,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == Terminal::ENTER)
+        if(c == keyCode(control::ControlKey::ENTER))
         {
             if(searchQuery.empty())
             {
@@ -640,14 +640,14 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!searchQuery.empty())
                 searchQuery.pop_back();
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == Terminal::CTRL_U)
+        if(c == keyCode(control::ControlKey::CTRL_U))
         {
             searchQuery.clear();
             ctx.requestFullRedraw();
@@ -662,7 +662,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ESC && rangeSelectActive)
+    if(c == keyCode(control::ControlKey::ESC) && rangeSelectActive)
     {
         rangeSelectActive = false;
         rangeSelectBase.clear();
@@ -670,14 +670,14 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == Terminal::ESC || c == 'q')
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
         return NormalMode{};
     }
 
-    if(c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ENTER))
     {
         if(filtered.empty())
             return std::nullopt;
@@ -698,20 +698,20 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
     int window = std::max(1, ed->screenRows - 2);
     int maxScroll = std::max(0, (int)filtered.size() - window);
 
-    if(prettyView && c == Terminal::CTRL_J)
+    if(prettyView && c == keyCode(control::ControlKey::CTRL_J))
     {
         int maxDiffScroll =
             std::max(0, (int)previewLines.size() - std::max(1, ed->screenRows - 2));
         if(diffOffset < maxDiffScroll)
             diffOffset++;
     }
-    else if(prettyView && c == Terminal::CTRL_K)
+    else if(prettyView && c == keyCode(control::ControlKey::CTRL_K))
     {
         if(diffOffset > 0)
             diffOffset--;
     }
-    else if(c == Terminal::ARROW_DOWN || c == 'j' ||
-            (!prettyView && c == Terminal::CTRL_J))
+    else if(c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(typed::TypedKey::KEY_J) ||
+            (!prettyView && c == keyCode(control::ControlKey::CTRL_J)))
     {
         if(cursor + 1 < (int)filtered.size())
         {
@@ -720,7 +720,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 scrollOffset = cursor - window + 1;
         }
     }
-    else if(c == Terminal::CTRL_K || c == Terminal::ARROW_UP || c == 'k')
+    else if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(typed::TypedKey::KEY_K))
     {
         if(cursor > 0)
         {
@@ -729,31 +729,31 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 scrollOffset = cursor;
         }
     }
-    else if(c == Terminal::CTRL_D)
+    else if(c == keyCode(control::ControlKey::CTRL_D))
     {
         cursor = std::min(cursor + window / 2,
                           filtered.empty() ? 0 : (int)filtered.size() - 1);
         scrollOffset = std::min(scrollOffset + window / 2, maxScroll);
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         cursor = std::max(cursor - window / 2, 0);
         scrollOffset = std::max(scrollOffset - window / 2, 0);
     }
-    else if(c == 'G')
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         cursor = filtered.empty() ? 0 : (int)filtered.size() - 1;
         scrollOffset = maxScroll;
     }
-    else if(c == 'g')
+    else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
-        if(nextChar == 'g')
+        if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             cursor = 0;
             scrollOffset = 0;
         }
-        else if(nextChar == 'r')
+        else if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
             if(filtered.empty())
                 return std::nullopt;
@@ -777,7 +777,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             revertMode.stagedDirty = true;
             return revertMode;
         }
-        else if(nextChar == 'f')
+        else if(nextChar == keyCode(typed::TypedKey::KEY_F))
         {
             std::vector<GitLogMode::Entry> picked;
             if(!selectedHashes.empty())
@@ -832,7 +832,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             return rebaseMode;
         }
     }
-    else if(c == 'v')
+    else if(c == keyCode(typed::TypedKey::KEY_V))
     {
         if(filtered.empty())
             return std::nullopt;
@@ -849,7 +849,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             apply_range_selection();
         }
     }
-    else if(c == ' ')
+    else if(c == keyCode(control::ControlKey::SPACE))
     {
         if(rangeSelectActive)
         {
@@ -867,7 +867,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         else
             selectedHashes.insert(hash);
     }
-    else if(c == Terminal::BACKSPACE || c == 127 || c == Terminal::CTRL_H)
+    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!query.empty())
         {
@@ -877,7 +877,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 apply_range_selection();
         }
     }
-    else if(c == Terminal::CTRL_U)
+    else if(c == keyCode(control::ControlKey::CTRL_U))
     {
         if(!query.empty())
         {
@@ -887,18 +887,18 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 apply_range_selection();
         }
     }
-    else if(c == '/' || c == '?')
+    else if(c == keyCode(command::CommandKey::KEY_SLASH) || c == keyCode(command::CommandKey::KEY_QUESTION))
     {
         searchActive = true;
-        searchForward = (c == '/');
+        searchForward = (c == keyCode(command::CommandKey::KEY_SLASH));
         searchQuery.clear();
         searchPrevCursor = cursor;
         searchPrevScroll = scrollOffset;
         ed->lastEscTime = std::chrono::steady_clock::time_point();
     }
-    else if((c == 'n' || c == 'N') && !searchQuery.empty())
+    else if((c == keyCode(typed::TypedKey::KEY_N) || c == keyCode(typed::TypedKey::KEY_CAP_N)) && !searchQuery.empty())
     {
-        bool forward = (c == 'n') ? searchForward : !searchForward;
+        bool forward = (c == keyCode(typed::TypedKey::KEY_N)) ? searchForward : !searchForward;
         if(!findNextMatch(forward))
             ed->setStatusMessage("search: not found");
     }
@@ -1023,7 +1023,7 @@ void GitLogMode::draw(Editor& editor) const
                     std::string leftTrim = slice_plain(leftText, 0, leftContentWidth);
                     int leftDisplay = text_utils::utf8DisplayWidth(leftTrim);
                     if(leftDisplay < leftContentWidth)
-                        leftTrim.append(leftContentWidth - leftDisplay, ' ');
+                        leftTrim.append(leftContentWidth - leftDisplay, keyCode(control::ControlKey::SPACE));
                     if(selected)
                         output += editor.theme.selection();
                     else
@@ -1062,7 +1062,7 @@ void GitLogMode::draw(Editor& editor) const
                     append_part(entry.subject, editor.theme.baseFg());
 
                     if(usedWidth < leftContentWidth)
-                        output.append(leftContentWidth - usedWidth, ' ');
+                        output.append(leftContentWidth - usedWidth, keyCode(control::ControlKey::SPACE));
                     output += editor.theme.reset();
                 }
             }
@@ -1072,7 +1072,7 @@ void GitLogMode::draw(Editor& editor) const
                 output += editor.theme.uiGutter();
                 output += " ~";
                 if(leftContentWidth > 1)
-                    output.append(leftContentWidth - 1, ' ');
+                    output.append(leftContentWidth - 1, keyCode(control::ControlKey::SPACE));
                 output += editor.theme.reset();
             }
 
@@ -1191,7 +1191,7 @@ void GitLogMode::draw(Editor& editor) const
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)
-        output.append(padding, ' ');
+        output.append(padding, keyCode(control::ControlKey::SPACE));
     output += right;
     output += editor.theme.reset();
 

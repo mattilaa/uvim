@@ -21,13 +21,13 @@ void OperatorPendingMode::on_exit(ModeContext& ctx)
 }
 
 std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
-                                                     const KeyEvent& event)
+                                                     int key)
 {
     Editor* ed = ctx.editor;
-    int c = event.key;
+    int c = keyCode(key);
 
     // Escape -> cancel operator
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         ctx.setStatusMessage("");
         ed->noteDoubleEscStatusClear();
@@ -46,7 +46,7 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         ed->handleLinewiseOperator(op, count);
         ctx.repeatCount = 0;
         ctx.commandBuffer.clear();
-        if(op == 'c')
+        if(op == keyCode(typed::TypedKey::KEY_C))
         {
             ed->deferChangeRecordingCommit();
             return InsertMode{};
@@ -55,8 +55,8 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    // 'i' or 'a' enter text object mode
-    if(!awaitingObject && (c == 'i' || c == 'a'))
+    // keyCode(typed::TypedKey::KEY_I) or keyCode(typed::TypedKey::KEY_A) enter text object mode
+    if(!awaitingObject && (c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(typed::TypedKey::KEY_A)))
     {
         awaitingObject = true;
         objectType = static_cast<char>(c);
@@ -69,9 +69,9 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
 
     if(awaitingObject)
     {
-        // Expect a text-object specifier (e.g., '(', '{', '"', 'w', 'p')
+        // Expect a text-object specifier (e.g., keyCode(command::CommandKey::KEY_LEFT_PAREN), keyCode(command::CommandKey::KEY_LEFT_BRACE), keyCode(command::CommandKey::KEY_DOUBLE_QUOTE), keyCode(typed::TypedKey::KEY_W), keyCode(typed::TypedKey::KEY_P))
         char objSpec = static_cast<char>(c);
-        bool around = (objectType == 'a');
+        bool around = (objectType == keyCode(typed::TypedKey::KEY_A));
         rangeFound =
             ed->getTextObjectRange(objSpec, around, startY, startX, endY, endX);
     }
@@ -89,57 +89,57 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
 
         switch(c)
         {
-        case 'w':
+        case keyCode(typed::TypedKey::KEY_W):
             ed->moveWordForward();
             isExclusiveMotion = true;
             break;
-        case 'W':
+        case keyCode(typed::TypedKey::KEY_CAP_W):
             ed->moveWordForwardBig();
             isExclusiveMotion = true;
             break;
-        case 'b':
+        case keyCode(typed::TypedKey::KEY_B):
             ed->moveWordBackward();
             isExclusiveMotion = true;
             break;
-        case 'B':
+        case keyCode(typed::TypedKey::KEY_CAP_B):
             ed->moveWordBackwardBig();
             isExclusiveMotion = true;
             break;
-        case 'e':
+        case keyCode(typed::TypedKey::KEY_E):
             ed->moveToEndOfWord();
             break;
-        case 'E':
+        case keyCode(typed::TypedKey::KEY_CAP_E):
             ed->moveToEndOfWordBig();
             break;
-        case '0':
+        case keyCode(typed::TypedKey::KEY_0):
             ed->moveToLineStart();
             break;
-        case '^':
+        case keyCode(command::CommandKey::KEY_CARET):
             ed->moveToFirstNonBlank();
             break;
-        case '$':
+        case keyCode(command::CommandKey::KEY_DOLLAR):
             ed->moveToLineEnd();
             break;
-        case '%':
+        case keyCode(command::CommandKey::KEY_PERCENT):
             ed->moveToMatchingBracket();
             break;
-        case 'j':
+        case keyCode(typed::TypedKey::KEY_J):
             ed->moveDown(count);
             break;
-        case 'k':
+        case keyCode(typed::TypedKey::KEY_K):
             ed->moveUp(count);
             break;
-        case 'G':
+        case keyCode(typed::TypedKey::KEY_CAP_G):
             if(count > 1)
                 ed->moveToLine(count - 1);
             else
                 ed->moveToLastLine();
             break;
-        case 'g':
+        case keyCode(typed::TypedKey::KEY_G):
         {
             int nextChar = ed->isRecordingChange() ? ed->readKeyRecorded()
                                                    : Terminal::readKey();
-            if(nextChar == 'g')
+            if(nextChar == keyCode(typed::TypedKey::KEY_G))
             {
                 ed->moveToFirstLine();
             }
@@ -149,34 +149,34 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
             }
             break;
         }
-        case '{':
+        case keyCode(command::CommandKey::KEY_LEFT_BRACE):
             ed->moveParagraphBackward();
             break;
-        case '}':
+        case keyCode(command::CommandKey::KEY_RIGHT_BRACE):
             ed->moveParagraphForward();
             break;
-        case 'h':
+        case keyCode(typed::TypedKey::KEY_H):
             ed->moveLeft(count);
             break;
-        case 'l':
+        case keyCode(typed::TypedKey::KEY_L):
             ed->moveRight(count);
             break;
-        case 'f':
-        case 'F':
-        case 't':
-        case 'T':
+        case keyCode(typed::TypedKey::KEY_F):
+        case keyCode(typed::TypedKey::KEY_CAP_F):
+        case keyCode(typed::TypedKey::KEY_T):
+        case keyCode(typed::TypedKey::KEY_CAP_T):
         {
             int targetChar = ed->isRecordingChange() ? ed->readKeyRecorded()
                                                      : Terminal::readKey();
-            if(targetChar != Terminal::ESC)
+            if(targetChar != keyCode(control::ControlKey::ESC))
             {
-                if(c == 'f')
+                if(c == keyCode(typed::TypedKey::KEY_F))
                     ed->findCharForward(static_cast<char>(targetChar));
-                else if(c == 'F')
+                else if(c == keyCode(typed::TypedKey::KEY_CAP_F))
                     ed->findCharBackward(static_cast<char>(targetChar));
-                else if(c == 't')
+                else if(c == keyCode(typed::TypedKey::KEY_T))
                     ed->findCharForwardBefore(static_cast<char>(targetChar));
-                else if(c == 'T')
+                else if(c == keyCode(typed::TypedKey::KEY_CAP_T))
                     ed->findCharBackwardAfter(static_cast<char>(targetChar));
             }
             break;
@@ -257,8 +257,8 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     ctx.repeatCount = 0;
     ctx.commandBuffer.clear();
 
-    // 'c' operator enters insert mode after deletion
-    if(op == 'c')
+    // keyCode(typed::TypedKey::KEY_C) operator enters insert mode after deletion
+    if(op == keyCode(typed::TypedKey::KEY_C))
     {
         ed->deferChangeRecordingCommit();
         return InsertMode{};

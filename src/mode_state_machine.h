@@ -390,7 +390,7 @@ struct WelcomeMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -409,7 +409,7 @@ struct NormalMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
 private:
     // Helper methods for complex key sequences
@@ -428,7 +428,7 @@ struct InsertMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct ReplaceMode
@@ -441,7 +441,7 @@ struct ReplaceMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct VisualMode
@@ -454,7 +454,7 @@ struct VisualMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct VisualLineMode
@@ -467,7 +467,7 @@ struct VisualLineMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct VisualBlockMode
@@ -480,7 +480,7 @@ struct VisualBlockMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct CommandMode
@@ -500,7 +500,7 @@ struct CommandMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
 private:
     // Helper methods
@@ -519,7 +519,7 @@ struct SearchForwardMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     // Helper methods
     void deleteWordBackward(ModeContext& ctx);
@@ -535,7 +535,7 @@ struct SearchBackwardMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     // Helper methods
     void deleteWordBackward(ModeContext& ctx);
@@ -576,7 +576,7 @@ struct FileBrowserMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -606,7 +606,7 @@ struct FuzzyFindMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -640,7 +640,7 @@ struct BufferBrowserMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -667,7 +667,7 @@ struct GrepSearchMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -711,7 +711,7 @@ struct OperatorPendingMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct ReferencesMode
@@ -724,7 +724,7 @@ struct ReferencesMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct LspInfoMode
@@ -737,7 +737,7 @@ struct LspInfoMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
 
 struct LocListMode
@@ -777,7 +777,7 @@ struct LocListMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 };
@@ -804,7 +804,7 @@ struct HelpMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -876,7 +876,7 @@ struct GitLogMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 
@@ -919,7 +919,7 @@ struct GitShowCommitMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 #ifdef UVIM_TESTING
@@ -992,7 +992,7 @@ struct GitStageMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 #ifdef UVIM_TESTING
@@ -1042,7 +1042,7 @@ struct GitFixupMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 };
@@ -1089,7 +1089,7 @@ struct GitCommitMode
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
     void draw(Editor& editor) const;
 
 private:
@@ -1133,7 +1133,7 @@ struct GitPatchMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, const KeyEvent& event);
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
 };
@@ -1143,7 +1143,8 @@ struct GitPatchMode
 // ============================================================================
 
 // Base type alias for the generic state machine
-using ModeStateMachineBase = StateMachine<ModeState, ModeContext, KeyEvent>;
+using ModeStateMachineBase =
+    StateMachine<ModeState, ModeContext, int>;
 
 class ModeStateMachine : public ModeStateMachineBase
 {
@@ -1162,13 +1163,13 @@ public:
     {
     }
 
-    // Convenience method to dispatch by key code (wraps in KeyEvent)
-    void dispatch(int key)
+    // Convenience overload from character literals.
+    void dispatch(char key)
     {
-        ModeStateMachineBase::dispatch(KeyEvent{key});
+        ModeStateMachineBase::dispatch(static_cast<int>(
+            static_cast<unsigned char>(key)));
     }
 
-    // Also allow dispatching KeyEvent directly (from base class)
     using ModeStateMachineBase::dispatch;
 };
 

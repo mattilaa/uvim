@@ -32,7 +32,7 @@ void Editor::handleOperatorPendingMode(int c)
     }
 
     // If user pressed ESC, cancel
-    if(c == Terminal::ESC)
+    if(c == keyCode(control::ControlKey::ESC))
     {
         setMode(NORMAL);
         setStatusMessage("");
@@ -40,8 +40,8 @@ void Editor::handleOperatorPendingMode(int c)
     }
 
     // If user pressed a digit while building a count (rare), ignore here for
-    // simplicity Support 'i' or 'a' to enter object-specifier substate
-    if(!pendingAwaitingObject && (c == 'i' || c == 'a'))
+    // simplicity Support keyCode(typed::TypedKey::KEY_I) or keyCode(typed::TypedKey::KEY_A) to enter object-specifier substate
+    if(!pendingAwaitingObject && (c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(typed::TypedKey::KEY_A)))
     {
         pendingAwaitingObject = true;
         pendingObjectType = (char)c;
@@ -55,9 +55,9 @@ void Editor::handleOperatorPendingMode(int c)
 
     if(pendingAwaitingObject)
     {
-        // Expect a text-object specifier now (e.g. '(', '{', '"', 'w', etc.)
+        // Expect a text-object specifier now (e.g. keyCode(command::CommandKey::KEY_LEFT_PAREN), keyCode(command::CommandKey::KEY_LEFT_BRACE), keyCode(command::CommandKey::KEY_DOUBLE_QUOTE), keyCode(typed::TypedKey::KEY_W), etc.)
         char obj = (char)c;
-        bool around = (pendingObjectType == 'a');
+        bool around = (pendingObjectType == keyCode(typed::TypedKey::KEY_A));
         rangeFound =
             getTextObjectRange(obj, around, startY, startX, endY, endX);
     }
@@ -74,7 +74,7 @@ void Editor::handleOperatorPendingMode(int c)
         // Apply motion
         switch(c)
         {
-        case 'w':
+        case keyCode(typed::TypedKey::KEY_W):
         {
             // For dw/cw: delete from cursor to start of next word (exclusive)
             // This is vim's behavior: delete current word + trailing whitespace
@@ -86,7 +86,7 @@ void Editor::handleOperatorPendingMode(int c)
             auto isWordChar = [](char ch)
             {
                 return std::isalnum(static_cast<unsigned char>(ch)) ||
-                       ch == '_';
+                       ch == keyCode(command::CommandKey::KEY_UNDERSCORE);
             };
 
             if(end < (int)line.length())
@@ -141,45 +141,45 @@ void Editor::handleOperatorPendingMode(int c)
 
             // Set destination
             *cursorX = end;
-            // 'w' is exclusive, so we'll subtract 1 later
+            // keyCode(typed::TypedKey::KEY_W) is exclusive, so we'll subtract 1 later
             isExclusiveMotion = true;
         }
         break;
-        case 'b':
+        case keyCode(typed::TypedKey::KEY_B):
             moveWordBackward();
-            isExclusiveMotion = true; // 'b' is exclusive in vim
+            isExclusiveMotion = true; // keyCode(typed::TypedKey::KEY_B) is exclusive in vim
             break;
-        case 'e':
+        case keyCode(typed::TypedKey::KEY_E):
             moveToEndOfWord();
-            isExclusiveMotion = false; // 'e' is inclusive in vim
+            isExclusiveMotion = false; // keyCode(typed::TypedKey::KEY_E) is inclusive in vim
             break;
-        case '0':
+        case keyCode(typed::TypedKey::KEY_0):
             moveToLineStart();
             break;
-        case '$':
+        case keyCode(command::CommandKey::KEY_DOLLAR):
             moveToLineEnd();
             break;
-        case '%':
+        case keyCode(command::CommandKey::KEY_PERCENT):
             moveToMatchingBracket();
             break;
-        case 'j':
+        case keyCode(typed::TypedKey::KEY_J):
             moveDown(pendingCount);
             break;
-        case 'k':
+        case keyCode(typed::TypedKey::KEY_K):
             moveUp(pendingCount);
             break;
-        case 'G':
+        case keyCode(typed::TypedKey::KEY_CAP_G):
             // Move to last line or specific line if count given
             if(pendingCount > 0)
                 moveToLine(pendingCount - 1);
             else
                 moveToLastLine();
             break;
-        case 'g':
+        case keyCode(typed::TypedKey::KEY_G):
             // For gg motion - need to read next char
             {
                 int nextChar = Terminal::readKey();
-                if(nextChar == 'g')
+                if(nextChar == keyCode(typed::TypedKey::KEY_G))
                 {
                     moveToFirstLine();
                 }
@@ -197,7 +197,7 @@ void Editor::handleOperatorPendingMode(int c)
                 }
             }
             break;
-        case '{':
+        case keyCode(command::CommandKey::KEY_LEFT_BRACE):
             // Move to beginning of paragraph (previous blank line)
             {
                 int targetY = *cursorY;
@@ -214,7 +214,7 @@ void Editor::handleOperatorPendingMode(int c)
                 *cursorX = 0;
             }
             break;
-        case '}':
+        case keyCode(command::CommandKey::KEY_RIGHT_BRACE):
             // Move to end of paragraph (next blank line)
             {
                 int targetY = *cursorY;
@@ -335,7 +335,7 @@ void Editor::handleOperatorPendingMode(int c)
     pendingObjectType = 0;
     pendingCount = 0;
 
-    if(op == 'c')
+    if(op == keyCode(typed::TypedKey::KEY_C))
     {
         setMode(INSERT);
     }
@@ -363,7 +363,7 @@ void Editor::handleNormalMode(int c)
     static bool pendingShiftLeft = false;
 
     // ----- single-character replace (vim/neovim-style 'r{char}') -----
-    if(c == 'r')
+    if(c == keyCode(typed::TypedKey::KEY_R))
     {
         // Cancel any pending operators
         pendingDelete = pendingYank = pendingIndent = false;
@@ -393,14 +393,14 @@ void Editor::handleNormalMode(int c)
         return;
     }
 
-    if(c >= '1' && c <= '9' && repeatCount == 0 && commandBuffer.empty())
+    if(c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9) && repeatCount == 0 && commandBuffer.empty())
     {
-        repeatCount = c - '0';
+        repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return;
     }
-    else if(c >= '0' && c <= '9' && repeatCount > 0)
+    else if(c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9) && repeatCount > 0)
     {
-        repeatCount = repeatCount * 10 + (c - '0');
+        repeatCount = repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return;
     }
     int count = std::max(1, repeatCount);
@@ -408,7 +408,7 @@ void Editor::handleNormalMode(int c)
     // ----- Leader (space) prefixed commands (MUST be early) -----
     if(commandBuffer == " ")
     {
-        if(c == 'h')
+        if(c == keyCode(typed::TypedKey::KEY_H))
         {
             // Leader + h: jump to alternate file (header/source)
             jumpToAlternateFile();
@@ -416,7 +416,7 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
             return;
         }
-        else if(c == 'b')
+        else if(c == keyCode(typed::TypedKey::KEY_B))
         {
             // Leader + b: start buffer command sequence
             commandBuffer = " b";
@@ -424,7 +424,7 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
             return;
         }
-        else if(c == 'y')
+        else if(c == keyCode(typed::TypedKey::KEY_Y))
         {
             // Leader + y: yank to system clipboard
             yankToSystemClipboard();
@@ -432,7 +432,7 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
             return;
         }
-        else if(c == 'p')
+        else if(c == keyCode(typed::TypedKey::KEY_P))
         {
             // Leader + p: paste from system clipboard
             pasteFromSystemClipboard();
@@ -440,7 +440,7 @@ void Editor::handleNormalMode(int c)
             repeatCount = 0;
             return;
         }
-        else if(c == 'f')
+        else if(c == keyCode(typed::TypedKey::KEY_F))
         {
             // Leader + f: format file
             commandBuffer.clear();
@@ -460,7 +460,7 @@ void Editor::handleNormalMode(int c)
                              ")");
             return;
         }
-        else if(c == 'x')
+        else if(c == keyCode(typed::TypedKey::KEY_X))
         {
             std::string dir = ".";
             if(!filename->empty())
@@ -476,7 +476,7 @@ void Editor::handleNormalMode(int c)
             openFileBrowser(dir);
             return;
         }
-        else if(c == ' ')
+        else if(c == keyCode(control::ControlKey::SPACE))
         {
             // Double space cancels
             commandBuffer.clear();
@@ -495,7 +495,7 @@ void Editor::handleNormalMode(int c)
     // ----- Leader-b (buffer) commands -----
     if(commandBuffer == " b")
     {
-        if(c == 'd')
+        if(c == keyCode(typed::TypedKey::KEY_D))
         {
             // Leader + bd: close current buffer
             commandBuffer.clear();
@@ -514,13 +514,13 @@ void Editor::handleNormalMode(int c)
     // ----- g-prefixed commands (MUST be first) -----
     if(commandBuffer == "g")
     {
-        if(c == 'd')
+        if(c == keyCode(typed::TypedKey::KEY_D))
         {
             goToDefinition();
             repeatCount = 0;
             return;
         }
-        else if(c == 'g')
+        else if(c == keyCode(typed::TypedKey::KEY_G))
         {
             moveToFirstLine();
             commandBuffer.clear();
@@ -533,7 +533,7 @@ void Editor::handleNormalMode(int c)
             commandBuffer.clear();
         }
     }
-    else if(c == 'd')
+    else if(c == keyCode(typed::TypedKey::KEY_D))
     {
         if(pendingDelete)
         {
@@ -552,14 +552,14 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            // first 'd'
+            // first keyCode(typed::TypedKey::KEY_D)
             pendingDelete = true;
             pendingYank = false;   // Cancel any pending yank
             pendingIndent = false; // Cancel any pending indent
             return;
         }
     }
-    else if(c == 'y')
+    else if(c == keyCode(typed::TypedKey::KEY_Y))
     {
         if(pendingYank)
         {
@@ -596,14 +596,14 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            // first 'y'
+            // first keyCode(typed::TypedKey::KEY_Y)
             pendingYank = true;
             pendingDelete = false; // Cancel any pending delete
             pendingIndent = false; // Cancel any pending indent
             return;
         }
     }
-    else if(c == '=')
+    else if(c == keyCode(command::CommandKey::KEY_EQUAL))
     {
         if(pendingIndent)
         {
@@ -624,14 +624,14 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            // first '='
+            // first keyCode(command::CommandKey::KEY_EQUAL)
             pendingIndent = true;
             pendingDelete = false; // Cancel any pending delete
             pendingYank = false;   // Cancel any pending yank
             return;
         }
     }
-    else if(c == '>')
+    else if(c == keyCode(command::CommandKey::KEY_GREATER))
     {
         if(pendingShiftRight)
         {
@@ -657,7 +657,7 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            // first '>'
+            // first keyCode(command::CommandKey::KEY_GREATER)
             pendingShiftRight = true;
             pendingShiftLeft = false;
             pendingDelete = false;
@@ -666,7 +666,7 @@ void Editor::handleNormalMode(int c)
             return;
         }
     }
-    else if(c == '<')
+    else if(c == keyCode(command::CommandKey::KEY_LESS))
     {
         if(pendingShiftLeft)
         {
@@ -693,7 +693,7 @@ void Editor::handleNormalMode(int c)
         }
         else
         {
-            // first '<'
+            // first keyCode(command::CommandKey::KEY_LESS)
             pendingShiftLeft = true;
             pendingShiftRight = false;
             pendingDelete = false;
@@ -702,33 +702,33 @@ void Editor::handleNormalMode(int c)
             return;
         }
     }
-    else if(pendingYank && c != 'y')
+    else if(pendingYank && c != keyCode(typed::TypedKey::KEY_Y))
     {
-        // 'y' followed by motion command - enter operator-pending mode
+        // keyCode(typed::TypedKey::KEY_Y) followed by motion command - enter operator-pending mode
         pendingYank = false;
-        enterOperatorPending('y');
+        enterOperatorPending(keyCode(typed::TypedKey::KEY_Y));
         pendingCount = count;
         // Process the motion command immediately
         handleOperatorPendingMode(c);
         repeatCount = 0;
         return;
     }
-    else if(pendingDelete && c != 'd')
+    else if(pendingDelete && c != keyCode(typed::TypedKey::KEY_D))
     {
-        // 'd' followed by motion command - enter operator-pending mode
+        // keyCode(typed::TypedKey::KEY_D) followed by motion command - enter operator-pending mode
         pendingDelete = false;
-        enterOperatorPending('d');
+        enterOperatorPending(keyCode(typed::TypedKey::KEY_D));
         pendingCount = count;
         // Process the motion command immediately
         handleOperatorPendingMode(c);
         repeatCount = 0;
         return;
     }
-    else if(pendingIndent && c != '=')
+    else if(pendingIndent && c != keyCode(command::CommandKey::KEY_EQUAL))
     {
-        // '=' followed by motion command - enter operator-pending mode
+        // keyCode(command::CommandKey::KEY_EQUAL) followed by motion command - enter operator-pending mode
         pendingIndent = false;
-        enterOperatorPending('=');
+        enterOperatorPending(keyCode(command::CommandKey::KEY_EQUAL));
         pendingCount = count;
         // Process the motion command immediately
         handleOperatorPendingMode(c);
@@ -743,7 +743,7 @@ void Editor::handleNormalMode(int c)
     }
     switch(c)
     {
-    case Terminal::ESC:
+    case keyCode(control::ControlKey::ESC):
     {
         // Handle double ESC to clear search highlights
         auto now = std::chrono::steady_clock::now();
@@ -779,39 +779,39 @@ void Editor::handleNormalMode(int c)
         }
     }
     break;
-    case 'i':
+    case keyCode(typed::TypedKey::KEY_I):
         saveState();
         setMode(INSERT);
         break;
-    case 'I':
+    case keyCode(typed::TypedKey::KEY_CAP_I):
         saveState();
         moveToLineStart();
         setMode(INSERT);
         break;
-    case 'a':
+    case keyCode(typed::TypedKey::KEY_A):
         saveState();
         if(*cursorX < (*lines)[*cursorY].length())
             (*cursorX)++;
         setMode(INSERT);
         break;
-    case 'A':
+    case keyCode(typed::TypedKey::KEY_CAP_A):
         saveState();
         moveToLineEnd();
         if(*cursorX < (*lines)[*cursorY].length())
             (*cursorX)++;
         setMode(INSERT);
         break;
-    case 'o':
+    case keyCode(typed::TypedKey::KEY_O):
     {
         // Get indentation from current line
         const std::string& currentLine = (*lines)[*cursorY];
         size_t indent = 0;
         while(indent < currentLine.length() &&
-              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+              (currentLine[indent] == keyCode(control::ControlKey::SPACE) || currentLine[indent] == '\t'))
             indent++;
 
         // Insert new line below with same indentation
-        std::string newLine(indent, ' ');
+        std::string newLine(indent, keyCode(control::ControlKey::SPACE));
         lines->insert(lines->begin() + *cursorY + 1, newLine);
         *cursorY += 1;
         *cursorX = indent;
@@ -822,16 +822,16 @@ void Editor::handleNormalMode(int c)
         needsFullRedraw = true;
         break;
     }
-    case 'O':
+    case keyCode(typed::TypedKey::KEY_CAP_O):
     {
         // Insert new line above with same indentation
         const std::string& currentLine = (*lines)[*cursorY];
         size_t indent = 0;
         while(indent < currentLine.length() &&
-              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
+              (currentLine[indent] == keyCode(control::ControlKey::SPACE) || currentLine[indent] == '\t'))
             indent++;
 
-        std::string newLine(indent, ' ');
+        std::string newLine(indent, keyCode(control::ControlKey::SPACE));
         lines->insert(lines->begin() + *cursorY, newLine);
         *cursorY = std::max(0, *cursorY);
         *cursorX = indent;
@@ -842,11 +842,11 @@ void Editor::handleNormalMode(int c)
         needsFullRedraw = true;
         break;
     }
-    case 'v':
+    case keyCode(typed::TypedKey::KEY_V):
         saveState();
         setMode(VISUAL);
         break;
-    case 'V':
+    case keyCode(typed::TypedKey::KEY_CAP_V):
         saveState();
         setMode(VISUAL_LINE);
         break;
@@ -854,22 +854,22 @@ void Editor::handleNormalMode(int c)
         saveState();
         setMode(VISUAL_BLOCK);
         break;
-    case ':':
+    case keyCode(command::CommandKey::KEY_COLON):
         setMode(COMMAND);
         break;
-    case '/':
+    case keyCode(command::CommandKey::KEY_SLASH):
         setMode(SEARCH_FORWARD);
         break;
-    case '?':
+    case keyCode(command::CommandKey::KEY_QUESTION):
         setMode(SEARCH_BACKWARD);
         break;
-    case 'n':
+    case keyCode(typed::TypedKey::KEY_N):
         searchNext();
         break;
-    case 'N':
+    case keyCode(typed::TypedKey::KEY_CAP_N):
         searchPrevious();
         break;
-    case '#':
+    case keyCode(command::CommandKey::KEY_HASH):
         // Vim-style: search backward for the word under the cursor.
         {
             std::string sym = getSymbolUnderCursor();
@@ -881,7 +881,7 @@ void Editor::handleNormalMode(int c)
             searchWordUnderCursor(false);
             break;
         }
-    case '*':
+    case keyCode(command::CommandKey::KEY_ASTERISK):
         // Vim-style: search forward for the word under the cursor.
         {
             std::string sym = getSymbolUnderCursor();
@@ -893,85 +893,85 @@ void Editor::handleNormalMode(int c)
             searchWordUnderCursor(true);
             break;
         }
-    case Terminal::CTRL_P:
+    case keyCode(control::ControlKey::CTRL_P):
         setMode(FUZZY_FIND);
         break;
-    case Terminal::CTRL_W: // Ctrl+W for buffer browser
+    case keyCode(control::ControlKey::CTRL_W): // Ctrl+W for buffer browser
         setMode(BUFFER_BROWSER);
         break;
-    case Terminal::CTRL_S: // Ctrl+S for grep search (find in files)
+    case keyCode(control::ControlKey::CTRL_S): // Ctrl+S for grep search (find in files)
         setMode(GREP_SEARCH);
         break;
-    case Terminal::CTRL_O:
+    case keyCode(control::ControlKey::CTRL_O):
         jumpBack();
         break;
-    case Terminal::CTRL_I:
+    case keyCode(control::ControlKey::CTRL_I):
         jumpForward();
         break;
-    case 'h':
-    case Terminal::ARROW_LEFT:
+    case keyCode(typed::TypedKey::KEY_H):
+    case keyCode(navigation::NavigationKey::ARROW_LEFT):
         moveLeft();
         break;
-    case 'l':
-    case Terminal::ARROW_RIGHT:
+    case keyCode(typed::TypedKey::KEY_L):
+    case keyCode(navigation::NavigationKey::ARROW_RIGHT):
         moveRight();
         break;
-    case 'j':
-    case Terminal::ARROW_DOWN:
+    case keyCode(typed::TypedKey::KEY_J):
+    case keyCode(navigation::NavigationKey::ARROW_DOWN):
         moveDown();
         break;
-    case 'k':
-    case Terminal::ARROW_UP:
+    case keyCode(typed::TypedKey::KEY_K):
+    case keyCode(navigation::NavigationKey::ARROW_UP):
         moveUp();
         break;
-    case Terminal::CTRL_D:
+    case keyCode(control::ControlKey::CTRL_D):
         scrollHalfPageDown();
         break;
-    case Terminal::CTRL_U:
+    case keyCode(control::ControlKey::CTRL_U):
         scrollHalfPageUp();
         break;
-    case 'w':
+    case keyCode(typed::TypedKey::KEY_W):
         moveWordForward();
         break;
-    case 'b':
+    case keyCode(typed::TypedKey::KEY_B):
         moveWordBackward();
         break;
-    case 'e':
+    case keyCode(typed::TypedKey::KEY_E):
         moveToEndOfWord();
         break;
-    case '0':
+    case keyCode(typed::TypedKey::KEY_0):
         moveToLineStart();
         break;
-    case '$':
+    case keyCode(command::CommandKey::KEY_DOLLAR):
         moveToLineEnd();
         break;
-    case 'g':
+    case keyCode(typed::TypedKey::KEY_G):
         commandBuffer = "g";
         break;
-    case 'G':
+    case keyCode(typed::TypedKey::KEY_CAP_G):
         moveToLastLine();
         break;
-    case 'x':
+    case keyCode(typed::TypedKey::KEY_X):
         deleteCharAtCursor();
         saveState();
         *dirty = true;
         break;
-    case 's':
+    case keyCode(typed::TypedKey::KEY_S):
         // Substitute: delete char(s) under cursor and enter insert mode
         deleteCharAtCursor();
         saveState();
         *dirty = true;
         setMode(INSERT);
         break;
-    case 'D':
+    case keyCode(typed::TypedKey::KEY_CAP_D):
         deleteToLineEnd();
         saveState();
         *dirty = true;
         break;
-    case 'Y':
+    case keyCode(typed::TypedKey::KEY_CAP_Y):
         yankLine();
         break;
-    case 'J':
+    case keyCode(typed::TypedKey::KEY_CAP_J):
         // Join lines: current line with next line(s)
         {
             int linesToJoin = (repeatCount > 0) ? repeatCount : 2;
@@ -999,24 +999,24 @@ void Editor::handleNormalMode(int c)
             setStatusMessage(std::to_string(linesToJoin) + " lines joined");
             break;
         }
-    case 'c':
+    case keyCode(typed::TypedKey::KEY_C):
         // change operator: enter operator pending (support e.g. cw, ci(, etc.)
-        enterOperatorPending('c');
+        enterOperatorPending(keyCode(typed::TypedKey::KEY_C));
         pendingCount = count;
         break;
-    case 'p':
+    case keyCode(typed::TypedKey::KEY_P):
         pasteAfter();
         break;
-    case 'P':
+    case keyCode(typed::TypedKey::KEY_CAP_P):
         pasteBefore();
         break;
-    case 'u':
+    case keyCode(typed::TypedKey::KEY_U):
         undo();
         break;
-    case Terminal::CTRL_R:
+    case keyCode(control::ControlKey::CTRL_R):
         redo();
         break;
-    case '%':
+    case keyCode(command::CommandKey::KEY_PERCENT):
         moveToMatchingBracket();
         break;
     default:
@@ -1035,12 +1035,12 @@ void Editor::handleNormalMode(int c)
     // g)
     if(commandBuffer == "g")
     {
-        if(c == 'g')
+        if(c == keyCode(typed::TypedKey::KEY_G))
         {
             moveToFirstLine();
             commandBuffer.clear();
         }
-        else if(c != 'g' && c != 'd')
+        else if(c != keyCode(typed::TypedKey::KEY_G) && c != keyCode(typed::TypedKey::KEY_D))
         {
             // Unknown g-command → cancel
             commandBuffer.clear();
@@ -1064,9 +1064,8 @@ void Editor::handleInsertMode(int c)
     // Delegate to state machine implementation in insert_mode.cpp
     InsertMode state;
     ModeContext ctx = createModeContext(this);
-    KeyEvent event{c};
-
-    auto nextState = state.handle(ctx, event);
+    int key = (c);
+    auto nextState = state.handle(ctx, key);
 
     // Handle state transition if returned
     if(nextState.has_value())
@@ -1094,9 +1093,8 @@ void Editor::handleVisualMode(int c)
     // Delegate to state machine implementation in visual_mode.cpp
     VisualMode state;
     ModeContext ctx = createModeContext(this);
-    KeyEvent event{c};
-
-    auto nextState = state.handle(ctx, event);
+    int key = (c);
+    auto nextState = state.handle(ctx, key);
 
     // Handle state transition if returned
     if(nextState.has_value())
@@ -1130,9 +1128,8 @@ void Editor::handleVisualBlockMode(int c)
     // Delegate to state machine implementation in visual_mode.cpp
     VisualBlockMode state;
     ModeContext ctx = createModeContext(this);
-    KeyEvent event{c};
-
-    auto nextState = state.handle(ctx, event);
+    int key = (c);
+    auto nextState = state.handle(ctx, key);
 
     // Handle state transition if returned
     if(nextState.has_value())
@@ -1160,9 +1157,8 @@ void Editor::handleSearchMode(int c)
     {
         SearchForwardMode state;
         ModeContext ctx = createModeContext(this);
-        KeyEvent event{c};
-
-        auto nextState = state.handle(ctx, event);
+        int key = (c);
+        auto nextState = state.handle(ctx, key);
 
         if(nextState.has_value() &&
            std::holds_alternative<NormalMode>(*nextState))
@@ -1174,9 +1170,8 @@ void Editor::handleSearchMode(int c)
     {
         SearchBackwardMode state;
         ModeContext ctx = createModeContext(this);
-        KeyEvent event{c};
-
-        auto nextState = state.handle(ctx, event);
+        int key = (c);
+        auto nextState = state.handle(ctx, key);
 
         if(nextState.has_value() &&
            std::holds_alternative<NormalMode>(*nextState))

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "key_enums.h"
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -178,12 +179,6 @@ protected:
 // Common Event Types
 // ============================================================================
 
-struct KeyEvent
-{
-    int key;
-    explicit KeyEvent(int k) : key(k) {}
-};
-
 // Character event (for text input)
 struct CharEvent
 {
@@ -206,7 +201,7 @@ struct TabEvent
 };
 
 // Composite event that can be any of the above
-using InputEvent = std::variant<KeyEvent, CharEvent, EscapeEvent, EnterEvent,
+using InputEvent = std::variant<int, CharEvent, EscapeEvent, EnterEvent,
                                 BackspaceEvent, TabEvent>;
 
 // ============================================================================

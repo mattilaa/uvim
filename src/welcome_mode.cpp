@@ -18,9 +18,9 @@ void WelcomeMode::on_enter(ModeContext& ctx)
 void WelcomeMode::on_exit(ModeContext& /* ctx */) {}
 
 std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
-                                             const KeyEvent& event)
+                                             int key)
 {
-    int c = event.key;
+    int c = keyCode(key);
 
     std::optional<ModeState> nextState;
     if(commandPrompt && commandPrompt->handle(
@@ -30,9 +30,9 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
         return nextState;
     }
 
-    if(c == Terminal::ESC || c == Terminal::ENTER)
+    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::ENTER))
     {
-        if(c == Terminal::ESC)
+        if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
         ctx.commandBuffer.clear();
         return std::nullopt;
@@ -42,46 +42,46 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     {
         ctx.commandBuffer.clear();
         ctx.setStatusMessage("");
-        if(c == 'x')
+        if(c == keyCode(typed::TypedKey::KEY_X))
         {
             return FileBrowserMode{"."};
         }
         return std::nullopt;
     }
 
-    if(c == ' ')
+    if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
         ctx.setStatusMessage("Leader");
         return std::nullopt;
     }
 
-    if(c == 'i' || c == 'I')
+    if(c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(typed::TypedKey::KEY_CAP_I))
     {
         return InsertMode{};
     }
 
-    if(c == 'e')
+    if(c == keyCode(typed::TypedKey::KEY_E))
     {
         return FileBrowserMode{"."};
     }
 
-    if(c == 'f' || c == Terminal::CTRL_P)
+    if(c == keyCode(typed::TypedKey::KEY_F) || c == keyCode(control::ControlKey::CTRL_P))
     {
         return FuzzyFindMode{};
     }
 
-    if(c == 'b' || c == Terminal::CTRL_W)
+    if(c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(control::ControlKey::CTRL_W))
     {
         return BufferBrowserMode{};
     }
 
-    if(c == '/' || c == Terminal::CTRL_S)
+    if(c == keyCode(command::CommandKey::KEY_SLASH) || c == keyCode(control::ControlKey::CTRL_S))
     {
         return GrepSearchMode{};
     }
 
-    if(c == 'q')
+    if(c == keyCode(typed::TypedKey::KEY_Q))
     {
         ctx.forceQuit();
     }
@@ -178,7 +178,7 @@ void WelcomeMode::draw(Editor& editor) const
         for(const auto& item : items)
         {
             std::string line = "  " + item.key;
-            line.append(keyWidth - item.key.size(), ' ');
+            line.append(keyWidth - item.key.size(), keyCode(control::ControlKey::SPACE));
             line += "  ";
             line += item.desc;
             lines.push_back(std::move(line));
@@ -227,7 +227,7 @@ void WelcomeMode::draw(Editor& editor) const
 
         if(!line.empty())
         {
-            output.append(padding, ' ');
+            output.append(padding, keyCode(control::ControlKey::SPACE));
             if(row - startRow == 0)
             {
                 output += Terminal::ESC_BOLD;
