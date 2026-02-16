@@ -261,6 +261,8 @@ public:
     void completionPrev();
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
+    void augmentCompletionWithBufferWords(std::string_view query,
+                                          size_t maxAdded = 256);
 
     struct EmojiEntry
     {

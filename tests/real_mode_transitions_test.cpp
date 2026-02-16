@@ -188,6 +188,40 @@ TEST(RealModeTransitionsTest, FuzzyFindMatchesEditorFilesForEtdor)
     EXPECT_TRUE(hasEditorH);
 }
 
+TEST(RealModeTransitionsTest, FuzzyFindRanksEditorFilesNearTopForEtdor)
+{
+    Editor editor = Editor::createForTests();
+    editor.fuzzyTypoTolerance = true;
+    editor.allProjectFiles.clear();
+    editor.allProjectFiles.push_back(FileEntry{"network.cpp", "/tmp/network.cpp",
+                                               false, 10, 0});
+    editor.allProjectFiles.push_back(
+        FileEntry{"detour.txt", "/tmp/detour.txt", false, 10, 0});
+    editor.allProjectFiles.push_back(FileEntry{"editor.cpp", "/tmp/editor.cpp",
+                                               false, 10, 0});
+    editor.allProjectFiles.push_back(
+        FileEntry{"editor.h", "/tmp/editor.h", false, 10, 0});
+    editor.fuzzyInitialized = true;
+
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+    sm.dispatch(keyCode(typed::TypedKey::KEY_E));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_D));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_O));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_R));
+
+    auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_GE(static_cast<int>(state->matches.size()), 2);
+
+    std::string topA = state->matches[0].file.name;
+    std::string topB = state->matches[1].file.name;
+    bool topHasEditorCpp = (topA == "editor.cpp" || topB == "editor.cpp");
+    bool topHasEditorH = (topA == "editor.h" || topB == "editor.h");
+    EXPECT_TRUE(topHasEditorCpp);
+    EXPECT_TRUE(topHasEditorH);
+}
+
 TEST(RealModeTransitionsTest, FileBrowserFuzzyMatchesEditorFilesForEtdor)
 {
     auto root = make_temp_dir("uvim_filebrowser_etdor_");
@@ -225,6 +259,57 @@ TEST(RealModeTransitionsTest, FileBrowserFuzzyMatchesEditorFilesForEtdor)
     }
     EXPECT_TRUE(hasEditorCpp);
     EXPECT_TRUE(hasEditorH);
+}
+
+TEST(RealModeTransitionsTest, FuzzyScoreFavorsSetStatusMessageForSetsut)
+{
+    Editor editor = Editor::createForTests();
+    editor.fuzzyTypoTolerance = true;
+    std::vector<int> positions;
+
+    int statusScore = editor.fuzzyScore("setsut", "setStatusMessage", positions);
+    int otherScore = editor.fuzzyScore("setsut", "setupTerminal", positions);
+
+    EXPECT_GE(statusScore, 0);
+    EXPECT_GT(statusScore, otherScore);
+}
+
+TEST(RealModeTransitionsTest, CompletionFilterRanksSetStatusMessageForSetsut)
+{
+    Editor editor = Editor::createForTests();
+    editor.fuzzyTypoTolerance = true;
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"setsut"};
+    *editor.cursorY = 0;
+    *editor.cursorX = 6;
+
+    editor.completionActive = true;
+    editor.completionAnchorY = 0;
+    editor.completionAnchorX = 0;
+    editor.completionAll.clear();
+    editor.completionFiltered.clear();
+    editor.completionSelected = 0;
+    editor.completionScroll = 0;
+
+    {
+        CompletionEntry e;
+        e.label = "setupTerminal";
+        e.insertText = "setupTerminal";
+        editor.completionAll.push_back(std::move(e));
+    }
+    {
+        CompletionEntry e;
+        e.label = "setStatusMessage";
+        e.insertText = "setStatusMessage";
+        editor.completionAll.push_back(std::move(e));
+    }
+
+    editor.rebuildCompletionFilter();
+    ASSERT_FALSE(editor.completionFiltered.empty());
+    int bestIdx = editor.completionFiltered.front();
+    ASSERT_GE(bestIdx, 0);
+    ASSERT_LT(bestIdx, static_cast<int>(editor.completionAll.size()));
+    EXPECT_EQ(editor.completionAll[bestIdx].label, "setStatusMessage");
 }
 
 TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)

@@ -558,6 +558,115 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
 int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
                        std::vector<int>& matchPositions)
 {
+    auto asciiLower = [](char ch) -> char
+    {
+        return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    };
+    auto isTokenChar = [](char ch) -> bool
+    {
+        unsigned char u = static_cast<unsigned char>(ch);
+        return std::isalnum(u) != 0 || ch == keyCode(command::CommandKey::KEY_UNDERSCORE);
+    };
+    auto boundedDamerauLevenshtein = [&](const std::string& a,
+                                         const std::string& b,
+                                         int maxDist) -> int
+    {
+        const int n = static_cast<int>(a.size());
+        const int m = static_cast<int>(b.size());
+        if(std::abs(n - m) > maxDist)
+            return maxDist + 1;
+        if(n == 0)
+            return m;
+        if(m == 0)
+            return n;
+
+        std::vector<int> prev2(m + 1, 0);
+        std::vector<int> prev(m + 1, 0);
+        std::vector<int> curr(m + 1, 0);
+        for(int j = 0; j <= m; ++j)
+            prev[j] = j;
+
+        for(int i = 1; i <= n; ++i)
+        {
+            curr[0] = i;
+            int rowMin = curr[0];
+            for(int j = 1; j <= m; ++j)
+            {
+                int cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+                int del = prev[j] + 1;
+                int ins = curr[j - 1] + 1;
+                int sub = prev[j - 1] + cost;
+                int best = std::min({del, ins, sub});
+                if(i > 1 && j > 1 && a[i - 1] == b[j - 2] &&
+                   a[i - 2] == b[j - 1])
+                {
+                    best = std::min(best, prev2[j - 2] + 1);
+                }
+                curr[j] = best;
+                rowMin = std::min(rowMin, best);
+            }
+            if(rowMin > maxDist)
+                return maxDist + 1;
+            prev2.swap(prev);
+            prev.swap(curr);
+        }
+        return prev[m];
+    };
+    auto tokenProximityBonus = [&]() -> int
+    {
+        if(needle.empty())
+            return 0;
+
+        std::string needleLower = needle;
+        std::transform(needleLower.begin(), needleLower.end(),
+                       needleLower.begin(), asciiLower);
+
+        int bestDist = 3;
+        for(size_t i = 0; i < haystack.size();)
+        {
+            while(i < haystack.size() && !isTokenChar(haystack[i]))
+                ++i;
+            size_t start = i;
+            while(i < haystack.size() && isTokenChar(haystack[i]))
+                ++i;
+            if(start == i)
+                continue;
+
+            std::string token = haystack.substr(start, i - start);
+            std::transform(token.begin(), token.end(), token.begin(),
+                           asciiLower);
+
+            int distFull = boundedDamerauLevenshtein(needleLower, token, 2);
+            bestDist = std::min(bestDist, distFull);
+
+            // Compare against token prefixes near query length so short typos
+            // can match long identifiers (e.g. "setsut" -> "setStatusMessage").
+            if(token.size() > needleLower.size())
+            {
+                size_t minLen = needleLower.size();
+                size_t maxLen = std::min(token.size(), needleLower.size() + 2);
+                for(size_t len = minLen; len <= maxLen; ++len)
+                {
+                    int distPrefix = boundedDamerauLevenshtein(
+                        needleLower, token.substr(0, len), 2);
+                    bestDist = std::min(bestDist, distPrefix);
+                    if(bestDist == 0)
+                        break;
+                }
+            }
+            if(bestDist == 0)
+                break;
+        }
+
+        if(bestDist == 0)
+            return 220;
+        if(bestDist == 1)
+            return 150;
+        if(bestDist == 2)
+            return 90;
+        return 0;
+    };
+
     auto scoreExact = [&](const std::string& localNeedle,
                           std::vector<int>& outPositions) -> int
     {
@@ -638,7 +747,7 @@ int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
     if(exactScore >= 0)
     {
         matchPositions = std::move(exactPositions);
-        return exactScore;
+        return exactScore + tokenProximityBonus();
     }
 
     if(!fuzzyTypoTolerance || needle.size() < 2)
@@ -724,7 +833,7 @@ int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
     if(bestScore >= 0)
     {
         matchPositions = std::move(bestPositions);
-        return bestScore;
+        return bestScore + tokenProximityBonus();
     }
 
     matchPositions.clear();

@@ -730,6 +730,19 @@ void Editor::requestCompletion()
         }
     }
 
+    // LSP servers may pre-filter too aggressively for typos. Merge likely
+    // local identifiers from current buffer so typo-tolerant fuzzy ranking can
+    // still surface symbols like "setStatusMessage" for "setsut".
+    std::string queryFromAnchor;
+    if(*cursorY == completionAnchorY && completionAnchorX <= *cursorX)
+    {
+        int qStart = std::max(0, std::min(completionAnchorX, (int)line.size()));
+        int qEnd = std::max(0, std::min(*cursorX, (int)line.size()));
+        if(qEnd >= qStart)
+            queryFromAnchor = line.substr(qStart, qEnd - qStart);
+    }
+    augmentCompletionWithBufferWords(queryFromAnchor, 256);
+
     if(completionAll.empty())
     {
         cancelCompletion();
@@ -799,6 +812,59 @@ void Editor::requestCompletion()
 #else
     setStatusMessage("LSP completion: not compiled in");
 #endif
+}
+
+void Editor::augmentCompletionWithBufferWords(std::string_view query,
+                                              size_t maxAdded)
+{
+    if(!lines)
+        return;
+
+    auto isWordChar = [](char c)
+    { return text_utils::isIdent(c) || c == '-' || c == '.'; };
+
+    std::unordered_set<std::string> seen;
+    seen.reserve(completionAll.size() * 2 + 32);
+    for(const auto& e : completionAll)
+        seen.insert(e.label);
+
+    size_t added = 0;
+    std::vector<int> positions;
+
+    for(const auto& l : *lines)
+    {
+        size_t i = 0;
+        while(i < l.size())
+        {
+            while(i < l.size() && !isWordChar(l[i]))
+                ++i;
+            size_t start = i;
+            while(i < l.size() && isWordChar(l[i]))
+                ++i;
+            if(start >= i)
+                continue;
+
+            std::string word = l.substr(start, i - start);
+            if(seen.find(word) != seen.end())
+                continue;
+
+            if(!query.empty())
+            {
+                int score = fuzzyScore(std::string(query), word, positions);
+                if(score < 0)
+                    continue;
+            }
+
+            CompletionEntry e;
+            e.label = word;
+            e.insertText = word;
+            completionAll.push_back(std::move(e));
+            seen.insert(word);
+            ++added;
+            if(added >= maxAdded)
+                return;
+        }
+    }
 }
 
 void Editor::cancelCompletion()
