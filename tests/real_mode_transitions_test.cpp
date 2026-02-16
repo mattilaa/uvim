@@ -125,6 +125,108 @@ TEST(RealModeTransitionsTest, SetFuzzyTypoQueryReportsState)
     EXPECT_EQ(editor.statusMessage, "fuzzy.typo=false");
 }
 
+TEST(RealModeTransitionsTest, FuzzyFindSupportsNAndNShiftNavigation)
+{
+    Editor editor = Editor::createForTests();
+    editor.allProjectFiles.clear();
+    editor.allProjectFiles.push_back(FileEntry{"alpha.txt", "/tmp/alpha.txt",
+                                               false, 1, 0});
+    editor.allProjectFiles.push_back(
+        FileEntry{"beta.txt", "/tmp/beta.txt", false, 1, 0});
+    editor.fuzzyInitialized = true;
+
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+    auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_GE(static_cast<int>(state->matches.size()), 2);
+    EXPECT_EQ(state->cursor, 0);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_N));
+    state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->cursor, 1);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_N));
+    state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->cursor, 0);
+}
+
+TEST(RealModeTransitionsTest, FuzzyFindMatchesEditorFilesForEtdor)
+{
+    Editor editor = Editor::createForTests();
+    editor.fuzzyTypoTolerance = true;
+    editor.allProjectFiles.clear();
+    editor.allProjectFiles.push_back(FileEntry{"editor.cpp", "/tmp/editor.cpp",
+                                               false, 10, 0});
+    editor.allProjectFiles.push_back(
+        FileEntry{"editor.h", "/tmp/editor.h", false, 10, 0});
+    editor.allProjectFiles.push_back(
+        FileEntry{"other.txt", "/tmp/other.txt", false, 10, 0});
+    editor.fuzzyInitialized = true;
+
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+    sm.dispatch(keyCode(typed::TypedKey::KEY_E));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_D));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_O));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_R));
+
+    auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+
+    bool hasEditorCpp = false;
+    bool hasEditorH = false;
+    for(const auto& match : state->matches)
+    {
+        if(match.file.name == "editor.cpp")
+            hasEditorCpp = true;
+        if(match.file.name == "editor.h")
+            hasEditorH = true;
+    }
+    EXPECT_TRUE(hasEditorCpp);
+    EXPECT_TRUE(hasEditorH);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserFuzzyMatchesEditorFilesForEtdor)
+{
+    auto root = make_temp_dir("uvim_filebrowser_etdor_");
+    write_file(root / "editor.cpp", "int main() {}\n");
+    write_file(root / "editor.h", "void run();\n");
+    write_file(root / "other.txt", "x\n");
+
+    Editor editor = Editor::createForTests();
+    editor.fileBrowserFuzzy = true;
+    editor.fuzzyTypoTolerance = true;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_E));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_D));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_O));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_R));
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_TRUE(state->filterActive);
+    ASSERT_FALSE(state->filterMatches.empty());
+
+    bool hasEditorCpp = false;
+    bool hasEditorH = false;
+    for(int idx : state->filterMatches)
+    {
+        if(idx < 0 || idx >= static_cast<int>(state->fileList.size()))
+            continue;
+        const auto& name = state->fileList[idx].name;
+        if(name == "editor.cpp")
+            hasEditorCpp = true;
+        if(name == "editor.h")
+            hasEditorH = true;
+    }
+    EXPECT_TRUE(hasEditorCpp);
+    EXPECT_TRUE(hasEditorH);
+}
+
 TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
 {
     Editor editor = Editor::createForTests();

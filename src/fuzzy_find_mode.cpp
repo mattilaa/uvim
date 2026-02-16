@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <sstream>
 #include <sys/stat.h>
+#include <unordered_set>
 #include <unistd.h>
 
 // ============================================================================
@@ -39,6 +40,19 @@ static std::string formatFileSizeShort(size_t size)
     }
 
     return ss.str();
+}
+
+static std::string makeDisplayPath(const std::string& fullPath)
+{
+    char cwd[PATH_MAX];
+    std::string displayPath = fullPath;
+    if(getcwd(cwd, sizeof(cwd)))
+    {
+        std::string cwdStr(cwd);
+        if(displayPath.find(cwdStr) == 0)
+            displayPath = displayPath.substr(cwdStr.length() + 1);
+    }
+    return displayPath;
 }
 
 void FuzzyFindMode::on_enter(ModeContext& ctx)
@@ -87,8 +101,16 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         moveDown(*ed);
     }
+    else if(c == keyCode(typed::TypedKey::KEY_N))
+    {
+        moveDown(*ed);
+    }
     else if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
             c == keyCode(navigation::NavigationKey::ARROW_UP))
+    {
+        moveUp(*ed);
+    }
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_N))
     {
         moveUp(*ed);
     }
@@ -198,16 +220,7 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         output += "  ";
 
-        char cwd[PATH_MAX];
-        std::string displayPath = match.file.path;
-        if(getcwd(cwd, sizeof(cwd)))
-        {
-            std::string cwdStr(cwd);
-            if(displayPath.find(cwdStr) == 0)
-            {
-                displayPath = displayPath.substr(cwdStr.length() + 1);
-            }
-        }
+        std::string displayPath = makeDisplayPath(match.file.path);
 
         if(!query.empty() && !match.matchPositions.empty())
         {
@@ -327,8 +340,10 @@ void FuzzyFindMode::updateMatches(Editor& editor)
             if(file.isDirectory)
                 continue;
 
+            std::string displayPath = makeDisplayPath(file.path);
+
             std::vector<int> positions;
-            int pathScore = editor.fuzzyScore(query, file.path, positions);
+            int pathScore = editor.fuzzyScore(query, displayPath, positions);
 
             std::vector<int> namePositions;
             int nameScore = editor.fuzzyScore(query, file.name, namePositions);
@@ -340,8 +355,24 @@ void FuzzyFindMode::updateMatches(Editor& editor)
                 FuzzyMatch match;
                 match.file = file;
                 match.score = finalScore;
-                match.matchPositions =
-                    (nameScore * 2 > pathScore) ? namePositions : positions;
+                if(nameScore * 2 > pathScore)
+                {
+                    size_t basePos = displayPath.rfind(file.name);
+                    if(basePos != std::string::npos)
+                    {
+                        match.matchPositions = namePositions;
+                        for(int& p : match.matchPositions)
+                            p += static_cast<int>(basePos);
+                    }
+                    else
+                    {
+                        match.matchPositions = positions;
+                    }
+                }
+                else
+                {
+                    match.matchPositions = positions;
+                }
                 matches.push_back(match);
             }
         }
@@ -618,45 +649,76 @@ int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
 
     int bestScore = -1;
     std::vector<int> bestPositions;
-
-    // Single-character omission typo (extra typed character).
-    for(size_t removeIdx = 0; removeIdx < needle.size(); ++removeIdx)
+    auto considerVariant = [&](const std::string& variant, int typoPenalty)
     {
-        std::string variant = needle;
-        variant.erase(removeIdx, 1);
-        if(variant.empty())
-            continue;
-
         std::vector<int> variantPositions;
         int variantScore = scoreExact(variant, variantPositions);
-        if(variantScore >= 0)
+        if(variantScore < 0)
+            return;
+        variantScore -= typoPenalty;
+        if(bestScore < 0 || variantScore > bestScore)
         {
-            variantScore -= 90;
-            if(bestScore < 0 || variantScore > bestScore)
-            {
-                bestScore = variantScore;
-                bestPositions = std::move(variantPositions);
-            }
+            bestScore = variantScore;
+            bestPositions = std::move(variantPositions);
         }
-    }
+    };
 
-    // Adjacent transposition typo (e.g. "gti" -> "git").
-    for(size_t i = 0; i + 1 < needle.size(); ++i)
+    struct VariantNode
     {
-        std::string variant = needle;
-        std::swap(variant[i], variant[i + 1]);
+        std::string pattern;
+        int penalty = 0;
+        int depth = 0;
+    };
 
-        std::vector<int> variantPositions;
-        int variantScore = scoreExact(variant, variantPositions);
-        if(variantScore >= 0)
+    std::vector<VariantNode> frontier;
+    frontier.push_back({needle, 0, 0});
+    std::unordered_set<std::string> seen;
+    seen.insert(needle);
+
+    // Allow small typo chains (up to 2 edits): omission + transposition, etc.
+    constexpr int kMaxDepth = 2;
+    constexpr int kRemovePenalty = 90;
+    constexpr int kSwapPenalty = 65;
+    constexpr int kMaxPenalty = 240;
+
+    for(int depth = 0; depth < kMaxDepth; ++depth)
+    {
+        std::vector<VariantNode> next;
+        for(const auto& node : frontier)
         {
-            variantScore -= 65;
-            if(bestScore < 0 || variantScore > bestScore)
+            const std::string& p = node.pattern;
+
+            // Single-character omission typo (extra typed character).
+            for(size_t removeIdx = 0; removeIdx < p.size(); ++removeIdx)
             {
-                bestScore = variantScore;
-                bestPositions = std::move(variantPositions);
+                std::string variant = p;
+                variant.erase(removeIdx, 1);
+                if(variant.empty())
+                    continue;
+                int penalty = node.penalty + kRemovePenalty;
+                if(penalty > kMaxPenalty)
+                    continue;
+                considerVariant(variant, penalty);
+                if(seen.insert(variant).second)
+                    next.push_back({std::move(variant), penalty, node.depth + 1});
+            }
+
+            // Adjacent transposition typo (e.g. "gti" -> "git").
+            for(size_t i = 0; i + 1 < p.size(); ++i)
+            {
+                std::string variant = p;
+                std::swap(variant[i], variant[i + 1]);
+                int penalty = node.penalty + kSwapPenalty;
+                if(penalty > kMaxPenalty)
+                    continue;
+                considerVariant(variant, penalty);
+                if(seen.insert(variant).second)
+                    next.push_back({std::move(variant), penalty, node.depth + 1});
             }
         }
+        frontier = std::move(next);
+        if(frontier.empty())
+            break;
     }
 
     if(bestScore >= 0)

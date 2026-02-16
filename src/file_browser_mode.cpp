@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <regex>
 #include <sstream>
+#include <unordered_set>
 #include <unistd.h>
 #include <vector>
 
@@ -935,33 +936,66 @@ static int fuzzyScore(std::string_view text, std::string_view pattern,
         return score;
 
     int bestScore = -1;
-
-    for(size_t removeIdx = 0; removeIdx < pattern.size(); ++removeIdx)
+    auto considerVariant = [&](const std::string& variant, int penalty)
     {
-        std::string variant(pattern);
-        variant.erase(removeIdx, 1);
-        if(variant.empty())
-            continue;
         int variantScore = scoreExact(variant);
-        if(variantScore >= 0)
-        {
-            variantScore -= 18;
-            if(bestScore < 0 || variantScore > bestScore)
-                bestScore = variantScore;
-        }
-    }
+        if(variantScore < 0)
+            return;
+        variantScore -= penalty;
+        if(bestScore < 0 || variantScore > bestScore)
+            bestScore = variantScore;
+    };
 
-    for(size_t i = 0; i + 1 < pattern.size(); ++i)
+    struct VariantNode
     {
-        std::string variant(pattern);
-        std::swap(variant[i], variant[i + 1]);
-        int variantScore = scoreExact(variant);
-        if(variantScore >= 0)
+        std::string pattern;
+        int penalty = 0;
+    };
+
+    std::vector<VariantNode> frontier;
+    frontier.push_back({std::string(pattern), 0});
+    std::unordered_set<std::string> seen;
+    seen.insert(std::string(pattern));
+
+    constexpr int kMaxDepth = 2;
+    constexpr int kRemovePenalty = 18;
+    constexpr int kSwapPenalty = 12;
+    constexpr int kMaxPenalty = 54;
+
+    for(int depth = 0; depth < kMaxDepth; ++depth)
+    {
+        std::vector<VariantNode> next;
+        for(const auto& node : frontier)
         {
-            variantScore -= 12;
-            if(bestScore < 0 || variantScore > bestScore)
-                bestScore = variantScore;
+            const std::string& p = node.pattern;
+            for(size_t removeIdx = 0; removeIdx < p.size(); ++removeIdx)
+            {
+                std::string variant = p;
+                variant.erase(removeIdx, 1);
+                if(variant.empty())
+                    continue;
+                int penalty = node.penalty + kRemovePenalty;
+                if(penalty > kMaxPenalty)
+                    continue;
+                considerVariant(variant, penalty);
+                if(seen.insert(variant).second)
+                    next.push_back({std::move(variant), penalty});
+            }
+            for(size_t i = 0; i + 1 < p.size(); ++i)
+            {
+                std::string variant = p;
+                std::swap(variant[i], variant[i + 1]);
+                int penalty = node.penalty + kSwapPenalty;
+                if(penalty > kMaxPenalty)
+                    continue;
+                considerVariant(variant, penalty);
+                if(seen.insert(variant).second)
+                    next.push_back({std::move(variant), penalty});
+            }
         }
+        frontier = std::move(next);
+        if(frontier.empty())
+            break;
     }
 
     return bestScore;

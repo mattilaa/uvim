@@ -314,67 +314,6 @@ static void appendIncludeEntries(const std::filesystem::path& baseDir,
     }
 }
 
-static inline int fuzzyScore(const std::string& text,
-                             const std::string& pattern)
-{
-    if(pattern.empty())
-        return 0;
-
-    auto lower = [](unsigned char ch) -> unsigned char
-    {
-        if(ch >= 'A' && ch <= 'Z')
-            return (unsigned char)(ch - 'A' + 'a');
-        return ch;
-    };
-
-    int score = 0;
-    int ti = 0;
-    int consecutive = 0;
-
-    for(int pi = 0; pi < (int)pattern.size(); ++pi)
-    {
-        unsigned char pc = lower((unsigned char)pattern[pi]);
-        bool found = false;
-
-        while(ti < (int)text.size())
-        {
-            unsigned char tc = (unsigned char)text[ti];
-            unsigned char ltc = lower(tc);
-            if(ltc == pc)
-            {
-                // base points + consecutive bonus
-                score += 10;
-                score += consecutive * 5;
-
-                // token-boundary bonus
-                if(ti == 0)
-                    score += 8;
-                else
-                {
-                    char prev = text[ti - 1];
-                    if(prev == '_' || prev == ':' || prev == ' ' ||
-                       prev == '\t' || prev == '-')
-                        score += 8;
-                }
-
-                ++consecutive;
-                ++ti;
-                found = true;
-                break;
-            }
-            else
-            {
-                consecutive = 0;
-                ++ti;
-            }
-        }
-        if(!found)
-            return -1;
-    }
-
-    return score;
-}
-
 void Editor::requestCompletion()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -1074,10 +1013,8 @@ void Editor::rebuildCompletionFilter()
     for(int i = 0; i < (int)completionAll.size(); ++i)
     {
         const auto& e = completionAll[i];
-        // Use the completion-popup fuzzy matcher (simple subsequence).
-        // Unqualified name would resolve to Editor::fuzzyScore (3-arg) used by
-        // file/buffer pickers, so qualify explicitly.
-        int s = ::fuzzyScore(e.label, completionQuery);
+        std::vector<int> positions;
+        int s = fuzzyScore(completionQuery, e.label, positions);
         if(s >= 0)
             scored.push_back({i, s});
     }
@@ -1229,7 +1166,8 @@ void Editor::rebuildEmojiFilter()
     for(int i = 0; i < (int)emojiEntries.size(); ++i)
     {
         const auto& e = emojiEntries[i];
-        int s = ::fuzzyScore(e.name, emojiQuery);
+        std::vector<int> positions;
+        int s = fuzzyScore(emojiQuery, e.name, positions);
         if(s >= 0)
             scored.push_back({i, s});
     }
