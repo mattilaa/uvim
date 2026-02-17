@@ -373,6 +373,14 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(constants_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(
+            NAME mlang_lsp_scaffold_integration
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/mlang_lsp_integration_test.py
+        )
+    endif()
+
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
         DEPENDS state_machine_tests mode_state_machine_tests constants_tests real_mode_transitions_tests

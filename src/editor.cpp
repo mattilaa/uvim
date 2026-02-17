@@ -285,7 +285,8 @@ static bool find_mlang_builtin_attribute(std::string_view symbol,
 }
 
 static bool find_mlang_builtin_function(std::string_view symbol,
-                                        std::string& path, int& line)
+                                        std::string& path, int& line,
+                                        std::string_view contextFilePath = {})
 {
     std::vector<std::filesystem::path> roots;
     if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
@@ -335,6 +336,94 @@ static bool find_mlang_builtin_function(std::string_view symbol,
             }
         }
     }
+
+    auto is_ident_char = [](char c) -> bool
+    {
+        unsigned char u = static_cast<unsigned char>(c);
+        return std::isalnum(u) || c == '_';
+    };
+
+    auto match_stub_extern = [&](std::string_view lineView) -> bool
+    {
+        static constexpr std::string_view kPrefix = "extern fn ";
+        size_t pos = lineView.find(kPrefix);
+        if(pos == std::string_view::npos)
+            return false;
+        pos += kPrefix.size();
+        while(pos < lineView.size() && text_utils::is_space(lineView[pos]))
+            ++pos;
+        size_t start = pos;
+        while(pos < lineView.size() && is_ident_char(lineView[pos]))
+            ++pos;
+        if(pos <= start)
+            return false;
+        std::string fn(lineView.substr(start, pos - start));
+        return fn == needle || ascii_lower(fn) == needleLower;
+    };
+
+    std::vector<std::filesystem::path> searchDirs;
+    std::unordered_set<std::string> seenDirs;
+    auto add_dir = [&](const std::filesystem::path& dir)
+    {
+        if(dir.empty())
+            return;
+        std::error_code ec;
+        std::filesystem::path canon = std::filesystem::weakly_canonical(dir, ec);
+        std::string key = (ec ? dir : canon).string();
+        if(key.empty() || seenDirs.find(key) != seenDirs.end())
+            return;
+        seenDirs.insert(key);
+        searchDirs.push_back(ec ? dir : canon);
+    };
+
+    if(!contextFilePath.empty())
+    {
+        std::filesystem::path dir = std::filesystem::path(std::string(contextFilePath)).parent_path();
+        while(!dir.empty())
+        {
+            add_dir(dir);
+            std::filesystem::path parent = dir.parent_path();
+            if(parent == dir)
+                break;
+            dir = parent;
+        }
+    }
+
+    {
+        std::error_code ec;
+        add_dir(std::filesystem::current_path(ec));
+    }
+
+    for(const auto& dir : searchDirs)
+    {
+        const std::array<std::filesystem::path, 1> candidates = {
+            dir / "docs" / "runtime_builtins.mlastub",
+        };
+
+        for(const auto& p : candidates)
+        {
+            std::error_code ec;
+            if(!std::filesystem::exists(p, ec))
+                continue;
+            std::ifstream in(p);
+            if(!in)
+                continue;
+            std::string lineStr;
+            int lineNo = 0;
+            while(std::getline(in, lineStr))
+            {
+                ++lineNo;
+                bool matched = match_stub_extern(lineStr);
+                if(matched)
+                {
+                    path = p.string();
+                    line = lineNo - 1;
+                    return true;
+                }
+            }
+        }
+    }
+
     return false;
 }
 
@@ -4399,7 +4488,8 @@ void Editor::goToDefinition()
             }
             std::string fnPath;
             int fnLine = 0;
-            if(find_mlang_builtin_function(symbol, fnPath, fnLine))
+            if(find_mlang_builtin_function(symbol, fnPath, fnLine,
+                                           currentBuffer->filename))
             {
                 pushJumpLocation();
                 openFile(fnPath);
