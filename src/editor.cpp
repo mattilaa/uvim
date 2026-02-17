@@ -487,6 +487,173 @@ find_mlang_top_level_def_in_lines(const std::vector<std::string>& lines,
     return false;
 }
 
+static std::string mlang_module_rel_path(std::string_view modulePath)
+{
+    std::string rel;
+    rel.reserve(modulePath.size());
+    for(size_t i = 0; i < modulePath.size(); ++i)
+    {
+        char c = modulePath[i];
+        if(c == ':' && i + 1 < modulePath.size() && modulePath[i + 1] == ':')
+        {
+            rel.push_back('/');
+            ++i;
+            continue;
+        }
+        rel.push_back(c);
+    }
+    return rel;
+}
+
+static std::vector<std::filesystem::path> mlang_stdlib_roots()
+{
+    std::vector<std::filesystem::path> roots;
+    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
+        roots.emplace_back(env);
+    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
+        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
+    if(const char* home = std::getenv("HOME"))
+        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
+    roots.emplace_back("/usr/local/share/mlang/stdlib");
+    roots.emplace_back("/usr/share/mlang/stdlib");
+    return roots;
+}
+
+static bool resolve_mlang_module_file(std::string_view modulePath,
+                                      std::string_view contextFilePath,
+                                      std::string& outPath)
+{
+    outPath.clear();
+    if(modulePath.empty())
+        return false;
+
+    std::string rel = mlang_module_rel_path(modulePath);
+    auto try_candidate = [&](const std::filesystem::path& p) -> bool
+    {
+        std::error_code ec;
+        if(!std::filesystem::exists(p, ec) || ec)
+            return false;
+        outPath = p.string();
+        return true;
+    };
+
+    auto add_base = [](std::vector<std::filesystem::path>& bases,
+                       std::unordered_set<std::string>& seen,
+                       const std::filesystem::path& base)
+    {
+        if(base.empty())
+            return;
+        std::error_code ec;
+        auto canon = std::filesystem::weakly_canonical(base, ec);
+        std::string key = (ec ? base : canon).string();
+        if(key.empty() || seen.find(key) != seen.end())
+            return;
+        seen.insert(key);
+        bases.push_back(ec ? base : canon);
+    };
+
+    if(modulePath.rfind("std::", 0) == 0)
+    {
+        for(const auto& root : mlang_stdlib_roots())
+        {
+            if(root.empty())
+                continue;
+            if(try_candidate(root / (rel + ".mla")))
+                return true;
+            if(try_candidate(root / rel / "mod.mla"))
+                return true;
+        }
+    }
+
+    std::vector<std::filesystem::path> bases;
+    std::unordered_set<std::string> seen;
+    if(!contextFilePath.empty())
+    {
+        std::filesystem::path dir =
+            std::filesystem::path(std::string(contextFilePath)).parent_path();
+        while(!dir.empty())
+        {
+            add_base(bases, seen, dir);
+            std::filesystem::path parent = dir.parent_path();
+            if(parent == dir)
+                break;
+            dir = parent;
+        }
+    }
+    {
+        std::error_code ec;
+        add_base(bases, seen, std::filesystem::current_path(ec));
+    }
+
+    for(const auto& base : bases)
+    {
+        if(try_candidate(base / (rel + ".mla")))
+            return true;
+        if(try_candidate(base / rel / "mod.mla"))
+            return true;
+    }
+    return false;
+}
+
+static bool mlang_module_decl_under_cursor(std::string_view line, int cursorX,
+                                           std::string& modulePath)
+{
+    modulePath.clear();
+    if(cursorX < 0 || line.empty())
+        return false;
+
+    auto is_ident_char = [](char c) -> bool
+    {
+        unsigned char u = static_cast<unsigned char>(c);
+        return std::isalnum(u) || c == '_';
+    };
+
+    size_t i = 0;
+    while(i < line.size() && text_utils::is_space(line[i]))
+        ++i;
+    if(i + 3 > line.size() || line.compare(i, 3, "mod") != 0)
+        return false;
+    if(i + 3 < line.size() && !text_utils::is_space(line[i + 3]))
+        return false;
+    i += 3;
+    while(i < line.size() && text_utils::is_space(line[i]))
+        ++i;
+    if(i >= line.size())
+        return false;
+
+    size_t pathStart = i;
+    bool cursorInSegment = false;
+    while(i < line.size())
+    {
+        if(!is_ident_char(line[i]))
+            return false;
+        size_t segStart = i;
+        while(i < line.size() && is_ident_char(line[i]))
+            ++i;
+        size_t segEnd = i;
+        if(cursorX >= (int)segStart && cursorX < (int)segEnd)
+            cursorInSegment = true;
+
+        if(i + 1 < line.size() && line[i] == ':' && line[i + 1] == ':')
+        {
+            i += 2;
+            continue;
+        }
+        break;
+    }
+
+    size_t pathEnd = i;
+    while(i < line.size() && text_utils::is_space(line[i]))
+        ++i;
+    if(i < line.size() && line[i] != ';')
+        return false;
+
+    if(!cursorInSegment || pathEnd <= pathStart)
+        return false;
+    modulePath.assign(line.substr(pathStart, pathEnd - pathStart));
+    return true;
+}
+
 static std::unordered_set<std::string> default_robot_keywords()
 {
     static constexpr std::string_view kKeywords[] = {
@@ -1433,6 +1600,15 @@ std::string Editor::testResolveJsTsModule(const std::string& fromFile,
                                           std::string_view module)
 {
     return resolve_js_ts_module(fromFile, module);
+}
+
+std::string Editor::testResolveMlangModule(const std::string& fromFile,
+                                           std::string_view modulePath)
+{
+    std::string out;
+    if(resolve_mlang_module_file(modulePath, fromFile, out))
+        return out;
+    return {};
 }
 
 #endif
@@ -4302,6 +4478,27 @@ void Editor::goToDefinition()
 
     if(isMlangLspEnabled() && isFileType<FileType::Mla>())
     {
+        if(*cursorY >= 0 && *cursorY < (int)lines->size())
+        {
+            const std::string& line = (*lines)[*cursorY];
+            std::string modulePath;
+            if(mlang_module_decl_under_cursor(line, *cursorX, modulePath))
+            {
+                std::string moduleFile;
+                if(resolve_mlang_module_file(modulePath, currentBuffer->filename,
+                                             moduleFile))
+                {
+                    pushJumpLocation();
+                    openFile(moduleFile);
+                    *cursorY = 0;
+                    *cursorX = 0;
+                    apply_gd_viewport();
+                    setStatusMessage("gd (mlang mod) → " + moduleFile);
+                    return;
+                }
+            }
+        }
+
         int lspX = *cursorX;
         if(*cursorY >= 0 && *cursorY < (int)lines->size())
         {

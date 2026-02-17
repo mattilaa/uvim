@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <chrono>
+#include <cstdlib>
 
 namespace
 {
@@ -93,4 +94,19 @@ TEST(JsTsResolutionTest, ResolvesNodeModule)
         (root / "app.ts").string(), "pkg/sub");
     EXPECT_EQ(std::filesystem::path(subResolved).lexically_normal().string(),
               (root / "node_modules/pkg/sub.ts").lexically_normal().string());
+}
+
+TEST(JsTsResolutionTest, ResolvesMlangStdModulePath)
+{
+    auto root = make_temp_dir("uvim_mlang_std_");
+    write_file(root / "std/fs.mla", "pub fn marker() -> i32 { return 0; }\n");
+    write_file(root / "main.mla", "mod std::fs;\n");
+
+    setenv("MLANG_STDLIB_PATH", root.string().c_str(), 1);
+    std::string resolved =
+        Editor::testResolveMlangModule((root / "main.mla").string(),
+                                       "std::fs");
+
+    EXPECT_EQ(std::filesystem::path(resolved).lexically_normal().string(),
+              (root / "std/fs.mla").lexically_normal().string());
 }

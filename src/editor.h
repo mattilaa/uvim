@@ -935,6 +935,8 @@ public:
                                        int& outX);
     static std::string testResolveJsTsModule(const std::string& fromFile,
                                              std::string_view module);
+    static std::string testResolveMlangModule(const std::string& fromFile,
+                                              std::string_view modulePath);
     static int testCountLocForFile(const std::string& filepath);
 private:
 #endif
