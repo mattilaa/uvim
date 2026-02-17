@@ -248,6 +248,8 @@ public:
     std::vector<CompletionEntry> completionAll; // full list from clangd
     std::vector<int> completionFiltered; // indices into completionAll (sorted
                                          // by fuzzy score)
+    std::vector<std::vector<int>>
+        completionMatchPositions; // matched label byte positions per entry
     std::string completionQuery; // derived from buffer [anchorX, cursorX)
     int completionSelected = 0;  // index into completionFiltered
     int completionScroll = 0;  // first visible index (into completionFiltered)

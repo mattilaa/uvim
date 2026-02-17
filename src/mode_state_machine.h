@@ -557,6 +557,7 @@ struct FileBrowserMode
     bool filterActive = false;
     std::string filterQuery;
     std::vector<int> filterMatches;
+    std::vector<std::vector<int>> filterMatchPositions;
     std::vector<int> searchMatches;
     std::string lastSearchPattern;
     char lastSearchPrefix = 0;

@@ -179,14 +179,29 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
     auto appendSyntaxRow = [&](const std::string& label,
                                const std::string& extra, bool selected,
-                               int kind)
+                               int kind, const std::vector<int>& matchPositions)
     {
+        std::vector<char> isMatch(label.size(), 0);
+        for(int pos : matchPositions)
+        {
+            if(pos >= 0 && pos < static_cast<int>(isMatch.size()))
+                isMatch[static_cast<size_t>(pos)] = 1;
+        }
+
         if(!editor.isFileType<FileType::Cpp>())
         {
+            const std::string& baseColor = kindColor(kind);
             if(selected)
                 output += editor.theme.selection();
-            output += kindColor(kind);
-            output += label;
+            output += baseColor;
+            for(size_t i = 0; i < label.size(); ++i)
+            {
+                if(!selected && isMatch[i])
+                    output += editor.theme.matchHighlight();
+                else
+                    output += baseColor;
+                output += label[i];
+            }
             if(!extra.empty())
             {
                 output += editor.theme.uiDim();
@@ -237,12 +252,26 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         }
 
         TokenType current = TOKEN_NORMAL;
+        bool matchActive = false;
         for(size_t i = 0; i < label.size(); ++i)
         {
-            if(colors[i] != current)
+            bool shouldHighlight = !selected && isMatch[i];
+            if(shouldHighlight)
             {
-                current = colors[i];
-                output += editor.getColorCode(current);
+                if(!matchActive)
+                {
+                    output += editor.theme.matchHighlight();
+                    matchActive = true;
+                }
+            }
+            else
+            {
+                if(matchActive || colors[i] != current)
+                {
+                    current = colors[i];
+                    output += editor.getColorCode(current);
+                    matchActive = false;
+                }
             }
             output += label[i];
         }
@@ -284,6 +313,14 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         output += " ";
 
         bool sel = (fidx == editor.completionSelected);
+        const std::vector<int> emptyPositions;
+        const std::vector<int>* matchPositions = &emptyPositions;
+        int entryIndex = editor.completionFiltered[fidx];
+        if(entryIndex >= 0 &&
+           entryIndex < static_cast<int>(editor.completionMatchPositions.size()))
+        {
+            matchPositions = &editor.completionMatchPositions[entryIndex];
+        }
 
         std::string label = e.label;
         std::string extra = buildCompletionExtras(e);
@@ -300,7 +337,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
                 extra = truncateToWidth(extra, avail);
         }
 
-        appendSyntaxRow(label, extra, sel, e.kind);
+        appendSyntaxRow(label, extra, sel, e.kind, *matchPositions);
 
         int pad = innerW - (text_utils::displayWidth(label) +
                             text_utils::displayWidth(extra));

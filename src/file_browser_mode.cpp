@@ -28,7 +28,9 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
         filterActive = false;
         filterQuery.clear();
         filterMatches.clear();
+        filterMatchPositions.clear();
     }
+
     if(previousFile.empty() && ctx.hasCurrentBuffer() && ctx.hasFilename())
     {
         previousFile = std::string(ctx.currentFilename());
@@ -337,6 +339,40 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         filterActive = false;
         filterQuery.clear();
         filterMatches.clear();
+        filterMatchPositions.clear();
+    }
+
+    if(filterActive && ctx.editor->fileBrowserFuzzy)
+    {
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+           c == keyCode(control::ControlKey::CTRL_H))
+        {
+            if(!filterQuery.empty())
+            {
+                filterQuery.pop_back();
+                if(filterQuery.empty())
+                {
+                    filterActive = false;
+                    filterMatches.clear();
+                    filterMatchPositions.clear();
+                }
+                updateFilter(ctx);
+            }
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+
+        if(c >= 32 && c < 127 &&
+           (std::isalnum(static_cast<unsigned char>(c)) ||
+            c == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+            c == keyCode(command::CommandKey::KEY_MINUS) ||
+            c == keyCode(command::CommandKey::KEY_DOT)))
+        {
+            filterQuery.push_back(static_cast<char>(c));
+            updateFilter(ctx);
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
     }
 
     if(c == keyCode(control::ControlKey::ESC) && !searchMatches.empty())
@@ -388,6 +424,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             filterActive = false;
             filterQuery.clear();
             filterMatches.clear();
+            filterMatchPositions.clear();
             browserCursor = 0;
             browserOffset = 0;
             ctx.requestFullRedraw();
@@ -590,6 +627,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             {
                 filterActive = false;
                 filterMatches.clear();
+                filterMatchPositions.clear();
             }
             updateFilter(ctx);
         }
@@ -597,7 +635,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c >= 32 && c < 127 && ctx.editor->fileBrowserFuzzy)
+    if(c >= 32 && c < 127 && ctx.editor->fileBrowserFuzzy && !filterActive)
     {
         if(std::isalnum(static_cast<unsigned char>(c)) || c == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
            c == keyCode(command::CommandKey::KEY_MINUS) || (filterActive && c == keyCode(command::CommandKey::KEY_DOT)))
@@ -683,11 +721,13 @@ void FileBrowserMode::draw(Editor& editor) const
             break;
         const FileEntry& entry = *entryPtr;
 
+        std::string rowStyle = editor.theme.baseFg();
         if(index == browserCursor)
         {
-            output += std::string(Terminal::ESC_DIM) +
-                      (searchVisualActive ? editor.theme.searchMatch()
-                                          : editor.theme.selection());
+            rowStyle = std::string(Terminal::ESC_DIM) +
+                       (searchVisualActive ? editor.theme.searchMatch()
+                                           : editor.theme.selection());
+            output += rowStyle;
         }
         else if(searchVisualActive)
         {
@@ -703,24 +743,28 @@ void FileBrowserMode::draw(Editor& editor) const
                mappedIndex < static_cast<int>(searchHit.size()) &&
                searchHit[mappedIndex])
             {
-                if(searchVisualActive)
-                    output += std::string(Terminal::ESC_DIM) +
-                              editor.theme.selection();
-                else
-                    output += editor.theme.baseFg();
+                rowStyle = std::string(Terminal::ESC_DIM) + editor.theme.selection();
+                output += rowStyle;
             }
+        }
+        else
+        {
+            output += rowStyle;
         }
 
         output += "  ";
 
+        std::string nameStyle = rowStyle;
         if(entry.isDirectory)
         {
-            output += editor.theme.uiDirectory();
+            nameStyle += editor.theme.uiDirectory();
+            nameStyle += Terminal::ESC_BOLD;
+            output += nameStyle;
             output += "📁 ";
-            output += Terminal::ESC_BOLD;
         }
         else
         {
+            output += nameStyle;
             output += "📄 ";
         }
 
@@ -736,7 +780,35 @@ void FileBrowserMode::draw(Editor& editor) const
             displayName = displayName.substr(0, maxNameLen - 3) + "...";
         }
 
-        output += displayName;
+        const std::vector<int>* matchPositions = nullptr;
+        if(filterActive && index >= 0 &&
+           index < static_cast<int>(filterMatchPositions.size()))
+        {
+            matchPositions = &filterMatchPositions[index];
+        }
+
+        if(matchPositions && !matchPositions->empty() && entry.name != "..")
+        {
+            std::vector<char> isMatch(displayName.size(), 0);
+            for(int pos : *matchPositions)
+            {
+                if(pos >= 0 && pos < static_cast<int>(isMatch.size()))
+                    isMatch[static_cast<size_t>(pos)] = 1;
+            }
+            for(size_t j = 0; j < displayName.size(); ++j)
+            {
+                if(isMatch[j])
+                    output += editor.theme.matchHighlight();
+                else
+                    output += nameStyle;
+                output += displayName[j];
+            }
+            output += nameStyle;
+        }
+        else
+        {
+            output += displayName;
+        }
 
         if(entry.name != "..")
         {
@@ -874,7 +946,8 @@ void FileBrowserMode::draw(Editor& editor) const
 }
 
 static int fuzzyScore(std::string_view text, std::string_view pattern,
-                      bool typoTolerance)
+                      bool typoTolerance,
+                      std::vector<int>* matchPositions = nullptr)
 {
     auto lower = [](unsigned char ch) -> unsigned char
     {
@@ -883,8 +956,11 @@ static int fuzzyScore(std::string_view text, std::string_view pattern,
         return ch;
     };
 
-    auto scoreExact = [&](std::string_view localPattern) -> int
+    auto scoreExact = [&](std::string_view localPattern,
+                          std::vector<int>* outPositions) -> int
     {
+        if(outPositions)
+            outPositions->clear();
         if(localPattern.empty())
             return 0;
 
@@ -901,6 +977,8 @@ static int fuzzyScore(std::string_view text, std::string_view pattern,
                 unsigned char ltc = lower(tc);
                 if(ltc == pc)
                 {
+                    if(outPositions)
+                        outPositions->push_back(ti);
                     score += 10 + consecutive * 5;
                     if(ti == 0)
                         score += 8;
@@ -931,19 +1009,36 @@ static int fuzzyScore(std::string_view text, std::string_view pattern,
         return score;
     };
 
-    int score = scoreExact(pattern);
-    if(score >= 0 || !typoTolerance || pattern.size() < 2)
+    std::vector<int> exactPositions;
+    int score = scoreExact(pattern, matchPositions ? &exactPositions : nullptr);
+    if(score >= 0)
+    {
+        if(matchPositions)
+            *matchPositions = std::move(exactPositions);
         return score;
+    }
+    if(!typoTolerance || pattern.size() < 2)
+    {
+        if(matchPositions)
+            matchPositions->clear();
+        return score;
+    }
 
     int bestScore = -1;
+    std::vector<int> bestPositions;
     auto considerVariant = [&](const std::string& variant, int penalty)
     {
-        int variantScore = scoreExact(variant);
+        std::vector<int> variantPositions;
+        int variantScore =
+            scoreExact(variant, matchPositions ? &variantPositions : nullptr);
         if(variantScore < 0)
             return;
         variantScore -= penalty;
         if(bestScore < 0 || variantScore > bestScore)
+        {
             bestScore = variantScore;
+            bestPositions = std::move(variantPositions);
+        }
     };
 
     struct VariantNode
@@ -998,6 +1093,13 @@ static int fuzzyScore(std::string_view text, std::string_view pattern,
             break;
     }
 
+    if(matchPositions)
+    {
+        if(bestScore >= 0)
+            *matchPositions = std::move(bestPositions);
+        else
+            matchPositions->clear();
+    }
     return bestScore;
 }
 
@@ -1169,6 +1271,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
     {
         filterActive = false;
         filterMatches.clear();
+        filterMatchPositions.clear();
         if(fileList.empty())
         {
             browserCursor = 0;
@@ -1191,8 +1294,15 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
     }
 
     filterMatches.clear();
+    filterMatchPositions.clear();
     int parentIndex = -1;
-    std::vector<std::pair<int, int>> scored;
+    struct ScoredMatch
+    {
+        int index = -1;
+        int score = -1;
+        std::vector<int> positions;
+    };
+    std::vector<ScoredMatch> scored;
     scored.reserve(fileList.size());
 
     for(int i = 0; i < (int)fileList.size(); ++i)
@@ -1204,24 +1314,31 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
             continue;
         }
 
+        std::vector<int> positions;
         int score = fuzzyScore(entry.name, filterQuery,
-                               ctx.editor->fuzzyTypoTolerance);
+                               ctx.editor->fuzzyTypoTolerance, &positions);
         if(score >= 0)
-            scored.emplace_back(i, score);
+            scored.push_back({i, score, std::move(positions)});
     }
 
     std::stable_sort(scored.begin(), scored.end(),
                      [&](const auto& a, const auto& b)
                      {
-                         if(a.second != b.second)
-                             return a.second > b.second;
-                         return fileList[a.first].name < fileList[b.first].name;
+                         if(a.score != b.score)
+                             return a.score > b.score;
+                         return fileList[a.index].name < fileList[b.index].name;
                      });
 
     if(parentIndex >= 0)
+    {
         filterMatches.push_back(parentIndex);
+        filterMatchPositions.push_back({});
+    }
     for(const auto& entry : scored)
-        filterMatches.push_back(entry.first);
+    {
+        filterMatches.push_back(entry.index);
+        filterMatchPositions.push_back(entry.positions);
+    }
 
     int count = listSize();
     browserCursor = std::min(browserCursor, std::max(0, count - 1));
@@ -1346,6 +1463,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     filterActive = false;
                     filterQuery.clear();
                     filterMatches.clear();
+                    filterMatchPositions.clear();
                 }
                 startIndex = std::max(
                     0, std::min(startIndex,

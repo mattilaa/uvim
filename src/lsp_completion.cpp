@@ -817,9 +817,6 @@ void Editor::requestCompletion()
 void Editor::augmentCompletionWithBufferWords(std::string_view query,
                                               size_t maxAdded)
 {
-    if(!lines)
-        return;
-
     auto isWordChar = [](char c)
     { return text_utils::isIdent(c) || c == '-' || c == '.'; };
 
@@ -831,39 +828,57 @@ void Editor::augmentCompletionWithBufferWords(std::string_view query,
     size_t added = 0;
     std::vector<int> positions;
 
-    for(const auto& l : *lines)
+    auto addWordsFromLines = [&](const std::vector<std::string>& sourceLines)
     {
-        size_t i = 0;
-        while(i < l.size())
+        for(const auto& l : sourceLines)
         {
-            while(i < l.size() && !isWordChar(l[i]))
-                ++i;
-            size_t start = i;
-            while(i < l.size() && isWordChar(l[i]))
-                ++i;
-            if(start >= i)
-                continue;
+            size_t i = 0;
+            while(i < l.size())
+            {
+                while(i < l.size() && !isWordChar(l[i]))
+                    ++i;
+                size_t start = i;
+                while(i < l.size() && isWordChar(l[i]))
+                    ++i;
+                if(start >= i)
+                    continue;
 
             std::string word = l.substr(start, i - start);
             if(seen.find(word) != seen.end())
                 continue;
+            if(!query.empty() && word == query)
+                continue;
 
             if(!query.empty())
             {
-                int score = fuzzyScore(std::string(query), word, positions);
-                if(score < 0)
-                    continue;
-            }
+                    int score = fuzzyScore(std::string(query), word, positions);
+                    if(score < 0)
+                        continue;
+                }
 
-            CompletionEntry e;
-            e.label = word;
-            e.insertText = word;
-            completionAll.push_back(std::move(e));
-            seen.insert(word);
-            ++added;
-            if(added >= maxAdded)
-                return;
+                CompletionEntry e;
+                e.label = word;
+                e.insertText = word;
+                completionAll.push_back(std::move(e));
+                seen.insert(word);
+                ++added;
+                if(added >= maxAdded)
+                    return;
+            }
         }
+    };
+
+    if(lines)
+        addWordsFromLines(*lines);
+    if(added >= maxAdded)
+        return;
+
+    for(const auto& buf : buffers)
+    {
+        if(buf && !buf->lines.empty())
+            addWordsFromLines(buf->lines);
+        if(added >= maxAdded)
+            return;
     }
 }
 
@@ -873,6 +888,7 @@ void Editor::cancelCompletion()
     completionFromLsp = false;
     completionAll.clear();
     completionFiltered.clear();
+    completionMatchPositions.clear();
     completionSelected = 0;
     completionScroll = 0;
     completionQuery.clear();
@@ -1075,6 +1091,7 @@ void Editor::rebuildCompletionFilter()
     };
     std::vector<Scored> scored;
     scored.reserve(completionAll.size());
+    completionMatchPositions.assign(completionAll.size(), {});
 
     for(int i = 0; i < (int)completionAll.size(); ++i)
     {
@@ -1082,7 +1099,10 @@ void Editor::rebuildCompletionFilter()
         std::vector<int> positions;
         int s = fuzzyScore(completionQuery, e.label, positions);
         if(s >= 0)
+        {
+            completionMatchPositions[i] = std::move(positions);
             scored.push_back({i, s});
+        }
     }
 
     std::stable_sort(scored.begin(), scored.end(),
