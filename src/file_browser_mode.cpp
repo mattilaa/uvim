@@ -316,10 +316,22 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return nextState;
     }
 
-    // Shortcut: start command prompt prefilled with local regex search.
+    // Shortcut: start local search.
     if((!commandPrompt || !commandPrompt->isActive()) &&
        (c == keyCode(command::CommandKey::KEY_SLASH) || c == keyCode(command::CommandKey::KEY_QUESTION)))
     {
+        if(ctx.editor->fileBrowserFuzzy &&
+           c == keyCode(command::CommandKey::KEY_SLASH))
+        {
+            filterActive = true;
+            filterQuery.clear();
+            filterMatches.clear();
+            filterMatchPositions.clear();
+            updateFilter(ctx);
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+
         if(commandPrompt && commandPrompt->handle(
                ctx, keyCode(command::CommandKey::KEY_COLON), [&](std::string_view commandLine)
                { return executeCommand(ctx, commandLine); }, nextState))

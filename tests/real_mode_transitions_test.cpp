@@ -96,6 +96,19 @@ TEST(RealModeTransitionsTest, FuzzyScoreAcceptsSmallTyposByDefault)
     EXPECT_GE(score, 0);
 }
 
+TEST(RealModeTransitionsTest, FuzzyScoreHighlightPositionsExcludeExtraTypoChar)
+{
+    Editor editor = Editor::createForTests();
+    editor.fuzzyTypoTolerance = true;
+    std::vector<int> positions;
+
+    int score = editor.fuzzyScore("editorx", "editor.cpp", positions);
+
+    ASSERT_GE(score, 0);
+    EXPECT_LT(positions.size(), std::string("editorx").size());
+    EXPECT_EQ(positions.size(), std::string("editor").size());
+}
+
 TEST(RealModeTransitionsTest, SetNoFuzzyTypoDisablesTypoTolerance)
 {
     Editor editor = Editor::createForTests();
@@ -261,6 +274,80 @@ TEST(RealModeTransitionsTest, FileBrowserFuzzyMatchesEditorFilesForEtdor)
     EXPECT_TRUE(hasEditorH);
 }
 
+TEST(RealModeTransitionsTest,
+     FileBrowserFuzzyStoresMatchPositionsForTypoQuery)
+{
+    auto root = make_temp_dir("uvim_filebrowser_examples_typo_");
+    std::filesystem::create_directories(root / "examples");
+    write_file(root / "examples" / "readme.txt", "hello\n");
+
+    Editor editor = Editor::createForTests();
+    editor.fileBrowserFuzzy = true;
+    editor.fuzzyTypoTolerance = true;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    for(char ch : std::string("exhples"))
+        sm.dispatch(ch);
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_TRUE(state->filterActive);
+    ASSERT_EQ(state->filterMatches.size(), state->filterMatchPositions.size());
+
+    int slot = -1;
+    for(size_t i = 0; i < state->filterMatches.size(); ++i)
+    {
+        int idx = state->filterMatches[i];
+        if(idx < 0 || idx >= static_cast<int>(state->fileList.size()))
+            continue;
+        if(state->fileList[idx].name == "examples")
+        {
+            slot = static_cast<int>(i);
+            break;
+        }
+    }
+
+    ASSERT_GE(slot, 0);
+    ASSERT_LT(slot, static_cast<int>(state->filterMatchPositions.size()));
+    EXPECT_FALSE(state->filterMatchPositions[slot].empty());
+    EXPECT_LE(state->filterMatchPositions[slot].size(),
+              std::string("examples").size());
+}
+
+TEST(RealModeTransitionsTest, FileBrowserFuzzySlashStartsTypoFilter)
+{
+    auto root = make_temp_dir("uvim_filebrowser_slash_typo_");
+    write_file(root / "editor.cpp", "int main(){}\n");
+    write_file(root / "other.txt", "x\n");
+
+    Editor editor = Editor::createForTests();
+    editor.fileBrowserFuzzy = true;
+    editor.fuzzyTypoTolerance = true;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(keyCode(command::CommandKey::KEY_SLASH));
+    for(char ch : std::string("etdor"))
+        sm.dispatch(ch);
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_TRUE(state->filterActive);
+    EXPECT_EQ(state->filterQuery, "etdor");
+
+    bool hasEditorCpp = false;
+    for(int idx : state->filterMatches)
+    {
+        if(idx < 0 || idx >= static_cast<int>(state->fileList.size()))
+            continue;
+        if(state->fileList[idx].name == "editor.cpp")
+        {
+            hasEditorCpp = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasEditorCpp);
+}
+
 TEST(RealModeTransitionsTest, FuzzyScoreFavorsSetStatusMessageForSetsut)
 {
     Editor editor = Editor::createForTests();
@@ -305,6 +392,51 @@ TEST(RealModeTransitionsTest, CompletionFilterRanksSetStatusMessageForSetsut)
     }
 
     editor.rebuildCompletionFilter();
+    ASSERT_FALSE(editor.completionFiltered.empty());
+    int bestIdx = editor.completionFiltered.front();
+    ASSERT_GE(bestIdx, 0);
+    ASSERT_LT(bestIdx, static_cast<int>(editor.completionAll.size()));
+    EXPECT_EQ(editor.completionAll[bestIdx].label, "setStatusMessage");
+}
+
+TEST(RealModeTransitionsTest, CompletionAugmentFindsSetStatusMessageFromOtherBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.fuzzyTypoTolerance = true;
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"setsut"};
+    *editor.cursorY = 0;
+    *editor.cursorX = 6;
+
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"void setStatusMessage(const std::string&);"};
+    *editor.cursorY = 0;
+    *editor.cursorX = 0;
+
+    editor.switchToBuffer(0);
+
+    editor.completionActive = true;
+    editor.completionAnchorY = 0;
+    editor.completionAnchorX = 0;
+    editor.completionAll.clear();
+    editor.completionFiltered.clear();
+    editor.completionSelected = 0;
+    editor.completionScroll = 0;
+
+    editor.augmentCompletionWithBufferWords("setsut", 256);
+    editor.rebuildCompletionFilter();
+
+    bool hasSetStatusMessage = false;
+    for(const auto& item : editor.completionAll)
+    {
+        if(item.label == "setStatusMessage")
+        {
+            hasSetStatusMessage = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(hasSetStatusMessage);
+
     ASSERT_FALSE(editor.completionFiltered.empty());
     int bestIdx = editor.completionFiltered.front();
     ASSERT_GE(bestIdx, 0);
