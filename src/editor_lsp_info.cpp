@@ -162,11 +162,7 @@ void Editor::drawLspInfo()
             renderKeyValue("version:", std::string_view(line).substr(10),
                            theme.uiDim());
         }
-        else if(line.rfind("clangd:", 0) == 0 ||
-                line.rfind("python:", 0) == 0 || line.rfind("robot:", 0) == 0 ||
-                line.rfind("mlang:", 0) == 0 || line.rfind("html:", 0) == 0 ||
-                line.rfind("css:", 0) == 0 || line.rfind("json:", 0) == 0 ||
-                line.rfind("ts:", 0) == 0)
+        else if(line.find(':') != std::string::npos && line.rfind("  ", 0) != 0)
         {
             size_t colon = line.find(':');
             std::string_view label = std::string_view(line).substr(0, colon);
