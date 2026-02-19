@@ -778,7 +778,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "REQUIRED BINARIES:",
             "  C/C++: `clangd`",
             "  Python: `pyright-langserver` (or `pylsp`)",
-            "  Mlang: `mlangd_mla` (or `mlangd` fallback)",
+            "  Mlang: `mlangd-mla` (or `mlangd` fallback)",
             "  HTML: `vscode-html-language-server` + `node`",
             "  CSS: `vscode-css-language-server` + `node`",
             "  JSON: `vscode-json-language-server` + `node`",

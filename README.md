@@ -64,7 +64,7 @@ on Fedora).
 - `--clangd` enable clangd LSP
 - `--robot-lsp` enable Robot Framework LSP
 - `--python-lsp` enable Python LSP
-- `--mlang-lsp` enable Mlang LSP (prefers external `mlangd_mla`, then `mlangd`)
+- `--mlang-lsp` enable Mlang LSP (prefers external `mlangd-mla`, then `mlangd`)
 - `--html-lsp` enable HTML LSP
 - `--css-lsp` enable CSS LSP
 - `--json-lsp` enable JSON LSP
@@ -73,12 +73,12 @@ on Fedora).
 Local scaffold example:
 
 ```sh
-./build/uvim --mlang-lsp --mlang-lsp-path mlangd_mla
+./build/uvim --mlang-lsp --mlang-lsp-path mlangd-mla
 ```
 
-### mlangd_mla logging
+### mlangd-mla logging
 
-When uvim launches `mlangd_mla`, you can enable server logging directly from
+When uvim launches `mlangd-mla`, you can enable server logging directly from
 uvim CLI:
 
 - `--enable-log`
@@ -105,8 +105,8 @@ uvim --mlang-lsp --log-level verbose
 
 Notes:
 
-- These flags are passed through when uvim resolves `mlangd_mla`.
-- If you force `mlangd` (C++ server), uvim-specific `mlangd_mla` logging flags
+- These flags are passed through when uvim resolves `mlangd-mla`.
+- If you force `mlangd` (C++ server), uvim-specific `mlangd-mla` logging flags
   are not injected.
 
 ## Dependencies (OS-specific)

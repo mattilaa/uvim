@@ -387,13 +387,13 @@ constexpr std::array<HelpRow, 3> kHelpTsLsp = {{
 
 constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
     {"--enable-log[=info|debug|verbose]",
-     "Enable mlangd_mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, verbose=+VERBOSE"},
+     "Enable mlangd-mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, verbose=+VERBOSE"},
     {"--log-level <info|debug|verbose>",
-     "Set mlangd_mla log level (implies --enable-log)"},
+     "Set mlangd-mla log level (implies --enable-log)"},
     {"--log-colors",
-     "Enable colored [INFO/WARN/ERROR/DEBUG/VERBOSE] tags in mlangd_mla log"},
+     "Enable colored [INFO/WARN/ERROR/DEBUG/VERBOSE] tags in mlangd-mla log"},
     {"--log-dir <dir>",
-     "Set mlangd_mla log directory (default file: /tmp/mlangd-mla.log)"},
+     "Set mlangd-mla log directory (default file: /tmp/mlangd-mla.log)"},
 }};
 
 constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
@@ -425,7 +425,7 @@ struct Options
     std::string robotLspArgs;
     std::string pythonLspPath = "pyright-langserver";
     std::string pythonLspArgs;
-    std::string mlangLspPath = "mlangd_mla";
+    std::string mlangLspPath = "mlangd-mla";
     std::string mlangLspArgs;
     std::string htmlLspPath = "vscode-html-language-server";
     std::string htmlLspArgs;
@@ -494,7 +494,7 @@ public:
         print_section("CSS LSP:", kHelpCssLsp);
         print_section("JSON LSP:", kHelpJsonLsp);
         print_section("TypeScript/JavaScript LSP:", kHelpTsLsp);
-        print_section("mlangd_mla Logging:", kHelpMlangLogging);
+        print_section("mlangd-mla Logging:", kHelpMlangLogging);
         print_section("uvim Debug Logging:", kHelpUvimLogging);
     }
 
@@ -798,7 +798,7 @@ struct EditorSettings
     std::string robotLspArgs;
     std::string pythonLspPath = "pyright-langserver";
     std::string pythonLspArgs;
-    std::string mlangLspPath = "mlangd_mla";
+    std::string mlangLspPath = "mlangd-mla";
     std::string mlangLspArgs;
     std::string htmlLspPath = "vscode-html-language-server";
     std::string htmlLspArgs;
@@ -1073,9 +1073,9 @@ struct EditorSettings
             {
                 args = split_args(mlangLspArgs);
             }
-            if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
+            if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
             {
-                std::vector<std::string> candidates = {"mlangd_mla", "mlangd"};
+                std::vector<std::string> candidates = {"mlangd-mla", "mlangd"};
                 for(const auto& candidate : candidates)
                 {
                     std::string found = find_in_path(candidate);
@@ -1086,23 +1086,23 @@ struct EditorSettings
                     }
                 }
 
-                if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
+                if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
                 {
                     std::error_code ec;
-                    fs::path tmpPath = "/tmp/mlangd_mla";
+                    fs::path tmpPath = "/tmp/mlangd-mla";
                     if(fs::exists(tmpPath, ec) && fs::is_regular_file(tmpPath, ec))
                     {
                         mlangPath = tmpPath.string();
                     }
                 }
 
-                if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
+                if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
                 {
                     const char* home = std::getenv("HOME");
                     if(home && *home)
                     {
                         std::vector<fs::path> localCandidates = {
-                            fs::path(home) / ".local" / "bin" / "mlangd_mla",
+                            fs::path(home) / ".local" / "bin" / "mlangd-mla",
                             fs::path(home) / ".local" / "bin" / "mlangd"};
                         for(const auto& localPath : localCandidates)
                         {
@@ -1117,12 +1117,12 @@ struct EditorSettings
                     }
                 }
 
-                if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
+                if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
                 {
                     std::error_code ec;
                     std::vector<fs::path> sysCandidates = {
-                        "/opt/homebrew/bin/mlangd_mla",
-                        "/usr/local/bin/mlangd_mla",
+                        "/opt/homebrew/bin/mlangd-mla",
+                        "/usr/local/bin/mlangd-mla",
                         "/opt/homebrew/bin/mlangd",
                         "/usr/local/bin/mlangd"};
                     for(const auto& sysPath : sysCandidates)
@@ -1152,7 +1152,7 @@ struct EditorSettings
                 return false;
             };
 
-            if(mlangEnableLog && mlangPath.find("mlangd_mla") != std::string::npos)
+            if(mlangEnableLog && mlangPath.find("mlangd-mla") != std::string::npos)
             {
                 if(!has_arg("--enable-log"))
                     args.push_back("--enable-log");

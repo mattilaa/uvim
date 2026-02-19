@@ -127,8 +127,8 @@ void Editor::showLspInfo()
     {
         std::string serverName = mlangLspClient->serverName();
         mlangVersion = mlangLspClient->serverVersion();
-        if(serverName.find("mlangd_mla") != std::string::npos ||
-           mlangLspPath.find("mlangd_mla") != std::string::npos)
+        if(serverName.find("mlangd-mla") != std::string::npos ||
+           mlangLspPath.find("mlangd-mla") != std::string::npos)
             mlangLabel = "mlang (MLA)";
     }
     appendLsp(mlangLabel, isMlangLspEnabled(), isFileType<FileType::Mla>(),
