@@ -380,7 +380,7 @@ struct Options
     std::string robotLspArgs;
     std::string pythonLspPath = "pyright-langserver";
     std::string pythonLspArgs;
-    std::string mlangLspPath = "mlangd";
+    std::string mlangLspPath = "mlangd_mla";
     std::string mlangLspArgs;
     std::string htmlLspPath = "vscode-html-language-server";
     std::string htmlLspArgs;
@@ -665,7 +665,7 @@ struct EditorSettings
     std::string robotLspArgs;
     std::string pythonLspPath = "pyright-langserver";
     std::string pythonLspArgs;
-    std::string mlangLspPath = "mlangd";
+    std::string mlangLspPath = "mlangd_mla";
     std::string mlangLspArgs;
     std::string htmlLspPath = "vscode-html-language-server";
     std::string htmlLspArgs;
@@ -932,59 +932,70 @@ struct EditorSettings
             {
                 args = split_args(mlangLspArgs);
             }
-            if(mlangPath == "mlangd")
+            if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
             {
-                std::string found = find_in_path("mlangd");
-                if(!found.empty())
+                std::vector<std::string> candidates = {"mlangd_mla", "mlangd"};
+                for(const auto& candidate : candidates)
                 {
-                    mlangPath = found;
+                    std::string found = find_in_path(candidate);
+                    if(!found.empty())
+                    {
+                        mlangPath = found;
+                        break;
+                    }
                 }
-                else
+
+                if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
+                {
+                    std::error_code ec;
+                    fs::path tmpPath = "/tmp/mlangd_mla";
+                    if(fs::exists(tmpPath, ec) && fs::is_regular_file(tmpPath, ec))
+                    {
+                        mlangPath = tmpPath.string();
+                    }
+                }
+
+                if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
                 {
                     const char* home = std::getenv("HOME");
                     if(home && *home)
                     {
-                        fs::path localPath =
-                            fs::path(home) / ".local" / "bin" / "mlangd";
-                        std::error_code ec;
-                        if(fs::exists(localPath, ec) &&
-                           fs::is_regular_file(localPath, ec))
+                        std::vector<fs::path> localCandidates = {
+                            fs::path(home) / ".local" / "bin" / "mlangd_mla",
+                            fs::path(home) / ".local" / "bin" / "mlangd"};
+                        for(const auto& localPath : localCandidates)
                         {
-                            mlangPath = localPath.string();
+                            std::error_code ec;
+                            if(fs::exists(localPath, ec) &&
+                               fs::is_regular_file(localPath, ec))
+                            {
+                                mlangPath = localPath.string();
+                                break;
+                            }
                         }
                     }
+                }
 
-                    if(mlangPath == "mlangd")
+                if(mlangPath == "mlangd_mla" || mlangPath == "mlangd")
+                {
+                    std::error_code ec;
+                    std::vector<fs::path> sysCandidates = {
+                        "/opt/homebrew/bin/mlangd_mla",
+                        "/usr/local/bin/mlangd_mla",
+                        "/opt/homebrew/bin/mlangd",
+                        "/usr/local/bin/mlangd"};
+                    for(const auto& sysPath : sysCandidates)
                     {
-                        std::error_code ec;
-                        fs::path brewPath = "/opt/homebrew/bin/mlangd";
-                        fs::path localPath = "/usr/local/bin/mlangd";
-                        if(fs::exists(brewPath, ec) &&
-                           fs::is_regular_file(brewPath, ec))
+                        if(fs::exists(sysPath, ec) && fs::is_regular_file(sysPath, ec))
                         {
-                            mlangPath = brewPath.string();
-                        }
-                        else if(fs::exists(localPath, ec) &&
-                                fs::is_regular_file(localPath, ec))
-                        {
-                            mlangPath = localPath.string();
+                            mlangPath = sysPath.string();
+                            break;
                         }
                     }
                 }
             }
             if(args.empty())
             {
-                bool isPython = (mlangPath.find("python") != std::string::npos);
-                if(isPython)
-                {
-                    fs::path localLsp = fs::current_path() / "tools" /
-                                        "mlang_lsp" / "mlang_lsp.py";
-                    std::error_code ec;
-                    if(fs::exists(localLsp, ec))
-                        args.push_back(localLsp.string());
-                    else
-                        args.push_back("tools/mlang_lsp/mlang_lsp.py");
-                }
                 args.push_back("--stdio");
             }
             if(useMlangLsp || binary_exists(mlangPath))

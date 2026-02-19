@@ -1485,7 +1485,8 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     std::filesystem::path root = find_mlang_root(start);
     std::string rootStr = root.empty() ? std::string{} : root.string();
     const bool hasExplicitLspPath =
-        !editor->mlangLspPath.empty() && editor->mlangLspPath != "mlangd";
+        !editor->mlangLspPath.empty() && editor->mlangLspPath != "mlangd" &&
+        editor->mlangLspPath != "mlangd_mla";
     const std::string effectiveLspPath =
         hasExplicitLspPath ? editor->mlangLspPath : std::string{};
 

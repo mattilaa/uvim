@@ -85,7 +85,7 @@ public:
                          const std::vector<std::string>& pythonLspArgs = {});
     bool isPythonLspEnabled() const;
     void enableMlangLsp(bool enable,
-                        const std::string& mlangLspPath = "python3",
+                        const std::string& mlangLspPath = "mlangd_mla",
                         const std::vector<std::string>& mlangLspArgs = {});
     bool isMlangLspEnabled() const;
     void enableHtmlLsp(bool enable,
@@ -213,7 +213,7 @@ public:
     std::string pythonLspPath = "pylsp";
     std::vector<std::string> pythonLspArgs;
     bool mlangLspEnabled = false;
-    std::string mlangLspPath = "python3";
+    std::string mlangLspPath = "mlangd_mla";
     std::vector<std::string> mlangLspArgs;
     bool htmlLspEnabled = false;
     std::string htmlLspPath = "vscode-html-language-server";

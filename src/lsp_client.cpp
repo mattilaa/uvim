@@ -172,6 +172,8 @@ struct LspClient::Impl
     std::unordered_map<int, ju::Document> responses;
 
     std::string rootDir;
+    std::string serverName;
+    std::string serverVersion;
     std::unordered_map<std::string, int> docVersion;
     mutable std::mutex diagMutex;
     std::unordered_map<std::string, std::vector<LspClient::Diagnostic>>
@@ -534,6 +536,8 @@ struct LspClient::Impl
             const ju::Value* result = ju::find(*resp, "result");
             const ju::Value* caps =
                 result ? ju::find(*result, "capabilities") : nullptr;
+            const ju::Value* serverInfo =
+                result ? ju::find(*result, "serverInfo") : nullptr;
             const ju::Value* sem =
                 caps ? ju::find(*caps, "semanticTokensProvider") : nullptr;
             const ju::Value* legend =
@@ -565,6 +569,17 @@ struct LspClient::Impl
                 }
                 if(!mods.empty())
                     semanticTokenModifiers = std::move(mods);
+            }
+            if(serverInfo && serverInfo->IsObject())
+            {
+                const ju::Value* name = ju::find(*serverInfo, "name");
+                const ju::Value* version = ju::find(*serverInfo, "version");
+                if(name && name->IsString())
+                    serverName.assign(name->GetString(),
+                                      name->GetStringLength());
+                if(version && version->IsString())
+                    serverVersion.assign(version->GetString(),
+                                         version->GetStringLength());
             }
         }
 
@@ -678,11 +693,27 @@ void LspClient::stop()
     impl->pid = -1;
     impl->responses.clear();
     impl->docVersion.clear();
+    impl->serverName.clear();
+    impl->serverVersion.clear();
 }
 
 bool LspClient::running() const
 {
     return impl && impl->alive.load();
+}
+
+std::string LspClient::serverName() const
+{
+    if(!impl)
+        return {};
+    return impl->serverName;
+}
+
+std::string LspClient::serverVersion() const
+{
+    if(!impl)
+        return {};
+    return impl->serverVersion;
 }
 
 void LspClient::didOpen(const std::string& filePath,
@@ -1803,6 +1834,14 @@ void LspClient::stop() {}
 bool LspClient::running() const
 {
     return false;
+}
+std::string LspClient::serverName() const
+{
+    return {};
+}
+std::string LspClient::serverVersion() const
+{
+    return {};
 }
 void LspClient::didOpen(const std::string&, const std::string&,
                         const std::string&)

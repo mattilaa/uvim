@@ -72,6 +72,8 @@ public:
 
     void stop();
     bool running() const;
+    std::string serverName() const;
+    std::string serverVersion() const;
 
     // Document sync
     void didOpen(const std::string& filePath, const std::string& languageId,

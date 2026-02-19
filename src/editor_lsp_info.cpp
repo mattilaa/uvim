@@ -1,5 +1,8 @@
 #include "editor.h"
 #include "terminal.h"
+#ifdef UVIM_ENABLE_CLANGD_LSP
+#include "lsp_client.h"
+#endif
 #include <algorithm>
 #include <string_view>
 
@@ -50,12 +53,15 @@ void Editor::showLspInfo()
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     auto appendLsp = [&](const std::string& label, bool running,
-                         bool activeForFile, const std::string& path)
+                         bool activeForFile, const std::string& path,
+                         const std::string& version = std::string())
     {
         std::string status =
             running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
         lspInfoLines.push_back(label + ": " + status);
         lspInfoLines.push_back("  binary: " + path);
+        if(!version.empty())
+            lspInfoLines.push_back("  version: " + version);
     };
 
     appendLsp("clangd", isClangdLspEnabled(), isFileType<FileType::Cpp>(),
@@ -64,8 +70,18 @@ void Editor::showLspInfo()
               pythonLspPath);
     appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
               robotLspPath);
-    appendLsp("mlang", isMlangLspEnabled(), isFileType<FileType::Mla>(),
-              mlangLspPath);
+    std::string mlangLabel = "mlang";
+    std::string mlangVersion;
+    if(mlangLspClient)
+    {
+        std::string serverName = mlangLspClient->serverName();
+        mlangVersion = mlangLspClient->serverVersion();
+        if(serverName.find("mlangd_mla") != std::string::npos ||
+           mlangLspPath.find("mlangd_mla") != std::string::npos)
+            mlangLabel = "mlang (MLA)";
+    }
+    appendLsp(mlangLabel, isMlangLspEnabled(), isFileType<FileType::Mla>(),
+              mlangLspPath, mlangVersion);
     appendLsp("html", isHtmlLspEnabled(), isFileType<FileType::Html>(),
               htmlLspPath);
     appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(),
@@ -138,6 +154,12 @@ void Editor::drawLspInfo()
         {
             output += "  ";
             renderKeyValue("binary:", std::string_view(line).substr(9),
+                           theme.uiDim());
+        }
+        else if(line.rfind("  version:", 0) == 0)
+        {
+            output += "  ";
+            renderKeyValue("version:", std::string_view(line).substr(10),
                            theme.uiDim());
         }
         else if(line.rfind("clangd:", 0) == 0 ||
