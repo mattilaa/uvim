@@ -4500,6 +4500,7 @@ void Editor::goToDefinition()
         }
 
         int lspX = *cursorX;
+        std::vector<int> lspQueryXs;
         if(*cursorY >= 0 && *cursorY < (int)lines->size())
         {
             const std::string& line = (*lines)[*cursorY];
@@ -4507,6 +4508,17 @@ void Editor::goToDefinition()
             {
                 unsigned char u = static_cast<unsigned char>(ch);
                 return std::isalnum(u) || ch == '_';
+            };
+            auto push_query_x = [&](int x)
+            {
+                if(x < 0 || x >= (int)line.size())
+                    return;
+                for(int existing : lspQueryXs)
+                {
+                    if(existing == x)
+                        return;
+                }
+                lspQueryXs.push_back(x);
             };
 
             if(!line.empty())
@@ -4516,10 +4528,43 @@ void Editor::goToDefinition()
                 if(lspX < 0)
                     lspX = 0;
 
+                // If cursor is on the object side of member access (obj.field),
+                // query LSP at the member token to match expected gd behavior.
+                if(is_sym(line[lspX]))
+                {
+                    int end = lspX;
+                    while(end + 1 < (int)line.size() && is_sym(line[end + 1]))
+                        ++end;
+                    int p = end + 1;
+                    while(p < (int)line.size() &&
+                          std::isspace((unsigned char)line[p]))
+                        ++p;
+                    bool hasArrow =
+                        (p + 1 < (int)line.size() && line[p] == '-' &&
+                         line[p + 1] == '>');
+                    if(hasArrow)
+                        p += 2;
+                    else if(p < (int)line.size() && line[p] == '.')
+                        ++p;
+                    while(p < (int)line.size() &&
+                          std::isspace((unsigned char)line[p]))
+                        ++p;
+                    if(p < (int)line.size() && is_sym(line[p]))
+                        lspX = p;
+                }
+
                 // If cursor is on punctuation/space around a symbol, shift to
                 // nearest identifier character so LSP definition works.
                 if(!is_sym(line[lspX]))
                 {
+                    if(line[lspX] == '.' || line[lspX] == ':')
+                    {
+                        int right = lspX + 1;
+                        while(right < (int)line.size() && !is_sym(line[right]))
+                            ++right;
+                        if(right < (int)line.size() && is_sym(line[right]))
+                            lspX = right;
+                    }
                     int left = lspX - 1;
                     while(left >= 0 && !is_sym(line[left]))
                         --left;
@@ -4531,8 +4576,54 @@ void Editor::goToDefinition()
                     else if(right < (int)line.size() && is_sym(line[right]))
                         lspX = right;
                 }
+
+                push_query_x(lspX);
+                push_query_x(*cursorX);
+
+                // Query token edges around the chosen position.
+                if(is_sym(line[lspX]))
+                {
+                    int start = lspX;
+                    int end = lspX;
+                    while(start > 0 && is_sym(line[start - 1]))
+                        --start;
+                    while(end + 1 < (int)line.size() && is_sym(line[end + 1]))
+                        ++end;
+                    push_query_x(start);
+                    push_query_x(end);
+
+                    // Also try RHS member token for obj.field and obj->field.
+                    int p = end + 1;
+                    while(p < (int)line.size() &&
+                          std::isspace((unsigned char)line[p]))
+                        ++p;
+                    if(p + 1 < (int)line.size() && line[p] == '-' &&
+                       line[p + 1] == '>')
+                        p += 2;
+                    else if(p < (int)line.size() && line[p] == '.')
+                        ++p;
+                    while(p < (int)line.size() &&
+                          std::isspace((unsigned char)line[p]))
+                        ++p;
+                    if(p < (int)line.size() && is_sym(line[p]))
+                    {
+                        push_query_x(p);
+                        int rhs_end = p;
+                        while(rhs_end + 1 < (int)line.size() &&
+                              is_sym(line[rhs_end + 1]))
+                            ++rhs_end;
+                        push_query_x(rhs_end);
+                    }
+                }
+            }
+            else
+            {
+                push_query_x(lspX);
+                push_query_x(*cursorX);
             }
         }
+        if(lspQueryXs.empty())
+            lspQueryXs.push_back(lspX);
 
         std::string text;
         text.reserve(lines->size() * 80);
@@ -4544,10 +4635,12 @@ void Editor::goToDefinition()
         }
 
         mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
-        auto loc =
-            mlangLspClient->definition(currentBuffer->filename, *cursorY, lspX);
-        if(loc)
+        for(int queryX : lspQueryXs)
         {
+            auto loc = mlangLspClient->definition(currentBuffer->filename,
+                                                  *cursorY, queryX);
+            if(!loc)
+                continue;
             pushJumpLocation();
             openFile(loc->path);
             *cursorY = loc->line;
@@ -4711,6 +4804,35 @@ void Editor::goToDefinition()
                 *cursorX = defX;
                 apply_gd_viewport();
                 setStatusMessage("gd (mlang local) → " + *filename + ":" +
+                                 std::to_string(defY + 1));
+                return;
+            }
+        }
+
+        {
+            int defY = -1;
+            int defX = 0;
+            if(searchLocalDefinition(*lines, symbol, *cursorY, *cursorX, defY,
+                                     defX))
+            {
+                if(defY != *cursorY || defX != *cursorX)
+                {
+                    pushJumpLocation();
+                    *cursorY = defY;
+                    *cursorX = defX;
+                    apply_gd_viewport();
+                    setStatusMessage("gd (mlang local) → " + *filename + ":" +
+                                     std::to_string(defY + 1));
+                    return;
+                }
+            }
+            if(searchMemberDefinition(*lines, symbol, defY, defX))
+            {
+                pushJumpLocation();
+                *cursorY = defY;
+                *cursorX = defX;
+                apply_gd_viewport();
+                setStatusMessage("gd (mlang member) → " + *filename + ":" +
                                  std::to_string(defY + 1));
                 return;
             }

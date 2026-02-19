@@ -64,8 +64,7 @@ on Fedora).
 - `--clangd` enable clangd LSP
 - `--robot-lsp` enable Robot Framework LSP
 - `--python-lsp` enable Python LSP
-- `--mlang-lsp` enable Mlang LSP (prefers external `mlangd`; local scaffold is
-  available at `tools/mlang_lsp/mlang_lsp.py`)
+- `--mlang-lsp` enable Mlang LSP (prefers external `mlangd_mla`, then `mlangd`)
 - `--html-lsp` enable HTML LSP
 - `--css-lsp` enable CSS LSP
 - `--json-lsp` enable JSON LSP
@@ -74,7 +73,7 @@ on Fedora).
 Local scaffold example:
 
 ```sh
-./build/uvim --mlang-lsp --mlang-lsp-path python3
+./build/uvim --mlang-lsp --mlang-lsp-path mlangd_mla
 ```
 
 ## Dependencies (OS-specific)
