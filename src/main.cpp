@@ -313,6 +313,7 @@ constexpr std::string_view kTsLspArgs = "--ts-lsp-args";
 constexpr std::string_view kTheme = "--theme";
 constexpr std::string_view kLogFile = "--log-file";
 constexpr std::string_view kLogColors = "--log-colors";
+constexpr std::string_view kLogDir = "--log-dir";
 constexpr std::string_view kEnableLog = "--enable-log";
 constexpr std::string_view kMlangLogLevel = "--log-level";
 
@@ -384,16 +385,19 @@ constexpr std::array<HelpRow, 3> kHelpTsLsp = {{
     {"--ts-lsp-args <args>", "Extra args for TS/JS LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 2> kHelpMlangLogging = {{
+constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
     {"--enable-log[=info|debug|verbose]",
      "Enable mlangd_mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, verbose=+VERBOSE"},
     {"--log-level <info|debug|verbose>",
      "Set mlangd_mla log level (implies --enable-log)"},
+    {"--log-colors",
+     "Enable colored [INFO/WARN/ERROR/DEBUG/VERBOSE] tags in mlangd_mla log"},
+    {"--log-dir <dir>",
+     "Set mlangd_mla log directory (default file: /tmp/mlangd-mla.log)"},
 }};
 
-constexpr std::array<HelpRow, 2> kHelpUvimLogging = {{
+constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
     {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
-    {kLogColors, "Enable colored log output"},
 }};
 
 struct Options
@@ -403,6 +407,7 @@ struct Options
     bool initConfig = false;
     bool logColors = false;
     bool mlangEnableLog = false;
+    bool mlangLogColors = false;
     std::string mlangEnableLogMode = "info";
     bool useClangd = false;
     bool useRobotLsp = false;
@@ -431,6 +436,7 @@ struct Options
     std::string tsLspPath = "typescript-language-server";
     std::string tsLspArgs;
     std::string logFile;
+    std::string mlangLogDir;
     std::string customConfig;
     std::string initConfigPath;
     std::string themePath;
@@ -674,6 +680,14 @@ public:
                 else if(key == kLogColors)
                 {
                     opts.logColors = true;
+                    opts.mlangLogColors = true;
+                }
+                else if(key == kLogDir)
+                {
+                    opts.mlangLogDir =
+                        std::string(require_value(key, i, argc, argv, val));
+                    opts.mlangEnableLog = true;
+                    sawOptionValue = true;
                 }
                 else if(key == kEnableLog)
                 {
@@ -795,7 +809,9 @@ struct EditorSettings
     std::string tsLspPath = "typescript-language-server";
     std::string tsLspArgs;
     bool mlangEnableLog = false;
+    bool mlangLogColors = false;
     std::string mlangEnableLogMode = "info";
+    std::string mlangLogDir;
 
     static EditorSettings fromOptions(const cli::Options& opts)
     {
@@ -826,7 +842,9 @@ struct EditorSettings
         out.tsLspPath = opts.tsLspPath;
         out.tsLspArgs = opts.tsLspArgs;
         out.mlangEnableLog = opts.mlangEnableLog;
+        out.mlangLogColors = opts.mlangLogColors;
         out.mlangEnableLogMode = opts.mlangEnableLogMode;
+        out.mlangLogDir = opts.mlangLogDir;
         return out;
     }
 
@@ -1155,6 +1173,13 @@ struct EditorSettings
                         args.push_back("--log-level");
                         args.push_back("INFO");
                     }
+                }
+                if(mlangLogColors && !has_arg("--log-colors"))
+                    args.push_back("--log-colors");
+                if(!mlangLogDir.empty() && !has_arg("--log-dir"))
+                {
+                    args.push_back("--log-dir");
+                    args.push_back(mlangLogDir);
                 }
             }
 

@@ -86,6 +86,8 @@ uvim CLI:
 - `--enable-log=debug`
 - `--enable-log=verbose`
 - `--log-level <info|debug|verbose>` (implies `--enable-log`)
+- `--log-colors` (colored level tags in server log lines)
+- `--log-dir <dir>` (default log file is `/tmp/mlangd-mla.log`)
 
 Log level behavior:
 
