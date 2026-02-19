@@ -76,6 +76,37 @@ Local scaffold example:
 ./build/uvim --mlang-lsp --mlang-lsp-path mlangd_mla
 ```
 
+### mlangd_mla logging
+
+When uvim launches `mlangd_mla`, you can enable server logging directly from
+uvim CLI:
+
+- `--enable-log`
+- `--enable-log=info`
+- `--enable-log=debug`
+- `--enable-log=verbose`
+- `--log-level <info|debug|verbose>` (implies `--enable-log`)
+
+Log level behavior:
+
+- `info`: includes `[INFO]`, `[WARN]`, `[ERROR]`
+- `debug`: includes `info` + `[DEBUG]`
+- `verbose`: includes `debug` + `[VERBOSE]` (all levels)
+
+Examples:
+
+```sh
+uvim --mlang-lsp --enable-log
+uvim --mlang-lsp --enable-log=debug
+uvim --mlang-lsp --log-level verbose
+```
+
+Notes:
+
+- These flags are passed through when uvim resolves `mlangd_mla`.
+- If you force `mlangd` (C++ server), uvim-specific `mlangd_mla` logging flags
+  are not injected.
+
 ## Dependencies (OS-specific)
 
 uvim LSP helpers need Node.js (npm), Python, git, and clangd. Yarn is optional
