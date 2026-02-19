@@ -313,6 +313,8 @@ constexpr std::string_view kTsLspArgs = "--ts-lsp-args";
 constexpr std::string_view kTheme = "--theme";
 constexpr std::string_view kLogFile = "--log-file";
 constexpr std::string_view kLogColors = "--log-colors";
+constexpr std::string_view kEnableLog = "--enable-log";
+constexpr std::string_view kMlangLogLevel = "--log-level";
 
 struct HelpRow
 {
@@ -320,7 +322,7 @@ struct HelpRow
     std::string_view description;
 };
 
-constexpr std::array<HelpRow, 32> kHelpRows = {{
+constexpr std::array<HelpRow, 34> kHelpRows = {{
     {kHelp, "Show this help and exit"},
     {kVersion, "Show version and exit"},
     {"--config <path>", "Use custom config path"},
@@ -340,6 +342,10 @@ constexpr std::array<HelpRow, 32> kHelpRows = {{
     {kMlangLsp, "Enable Mlang LSP"},
     {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
     {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
+    {"--enable-log[=debug|verbose]",
+     "Enable mlangd_mla logging (default INFO/WARN/ERROR)"},
+    {"--log-level <info|debug|verbose>",
+     "Set mlangd_mla log level (implies --enable-log)"},
     {kHtmlLsp, "Enable HTML LSP"},
     {"--html-lsp-path <path>", "Path to HTML LSP server"},
     {"--html-lsp-args <args>", "Extra args for HTML LSP (space-separated)"},
@@ -364,6 +370,8 @@ struct Options
     bool showVersion = false;
     bool initConfig = false;
     bool logColors = false;
+    bool mlangEnableLog = false;
+    std::string mlangEnableLogMode = "info";
     bool useClangd = false;
     bool useRobotLsp = false;
     bool usePythonLsp = false;
@@ -602,6 +610,52 @@ public:
                 {
                     opts.logColors = true;
                 }
+                else if(key == kEnableLog)
+                {
+                    opts.mlangEnableLog = true;
+                    if(val.empty())
+                    {
+                        opts.mlangEnableLogMode = "info";
+                    }
+                    else if(val == "debug" || val == "DEBUG")
+                    {
+                        opts.mlangEnableLogMode = "debug";
+                    }
+                    else if(val == "verbose" || val == "VERBOSE")
+                    {
+                        opts.mlangEnableLogMode = "verbose";
+                    }
+                    else if(val == "info" || val == "INFO")
+                    {
+                        opts.mlangEnableLogMode = "info";
+                    }
+                    else
+                    {
+                        die("invalid value for --enable-log (use info|debug|verbose)", val);
+                    }
+                }
+                else if(key == kMlangLogLevel)
+                {
+                    std::string_view lvl = require_value(key, i, argc, argv, val);
+                    opts.mlangEnableLog = true;
+                    if(lvl == "debug" || lvl == "DEBUG")
+                    {
+                        opts.mlangEnableLogMode = "debug";
+                    }
+                    else if(lvl == "verbose" || lvl == "VERBOSE")
+                    {
+                        opts.mlangEnableLogMode = "verbose";
+                    }
+                    else if(lvl == "info" || lvl == "INFO")
+                    {
+                        opts.mlangEnableLogMode = "info";
+                    }
+                    else
+                    {
+                        die("invalid value for --log-level (use info|debug|verbose)", lvl);
+                    }
+                    sawOptionValue = true;
+                }
                 else if(key == kConfig)
                 {
                     opts.customConfig =
@@ -675,6 +729,8 @@ struct EditorSettings
     std::string jsonLspArgs;
     std::string tsLspPath = "typescript-language-server";
     std::string tsLspArgs;
+    bool mlangEnableLog = false;
+    std::string mlangEnableLogMode = "info";
 
     static EditorSettings fromOptions(const cli::Options& opts)
     {
@@ -704,6 +760,8 @@ struct EditorSettings
         out.jsonLspArgs = opts.jsonLspArgs;
         out.tsLspPath = opts.tsLspPath;
         out.tsLspArgs = opts.tsLspArgs;
+        out.mlangEnableLog = opts.mlangEnableLog;
+        out.mlangEnableLogMode = opts.mlangEnableLogMode;
         return out;
     }
 
@@ -998,6 +1056,43 @@ struct EditorSettings
             {
                 args.push_back("--stdio");
             }
+
+            auto has_arg = [&](std::string_view key) -> bool
+            {
+                for(const auto& a : args)
+                {
+                    if(a == key)
+                        return true;
+                    if(a.rfind(std::string(key) + "=", 0) == 0)
+                        return true;
+                }
+                return false;
+            };
+
+            if(mlangEnableLog && mlangPath.find("mlangd_mla") != std::string::npos)
+            {
+                if(!has_arg("--enable-log"))
+                    args.push_back("--enable-log");
+                if(!has_arg("--log-level"))
+                {
+                    if(mlangEnableLogMode == "debug")
+                    {
+                        args.push_back("--log-level");
+                        args.push_back("DEBUG");
+                    }
+                    else if(mlangEnableLogMode == "verbose")
+                    {
+                        args.push_back("--log-level");
+                        args.push_back("VERBOSE");
+                    }
+                    else
+                    {
+                        args.push_back("--log-level");
+                        args.push_back("INFO");
+                    }
+                }
+            }
+
             if(useMlangLsp || binary_exists(mlangPath))
             {
                 editor.enableMlangLsp(true, mlangPath, args);
