@@ -322,44 +322,76 @@ struct HelpRow
     std::string_view description;
 };
 
-constexpr std::array<HelpRow, 34> kHelpRows = {{
+constexpr std::array<HelpRow, 2> kHelpGeneral = {{
     {kHelp, "Show this help and exit"},
     {kVersion, "Show version and exit"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpConfig = {{
     {"--config <path>", "Use custom config path"},
     {"--init-config [path]",
      "Write default config to $XDG_CONFIG_HOME/uvim/config.yaml (defaults to "
      "~/.config/uvim/config.yaml) and exit"},
+    {"--theme <path>", "Load theme YAML from path"},
+}};
+
+constexpr std::array<HelpRow, 4> kHelpClangdLsp = {{
     {kClangd, "Enable clangd LSP"},
     {"--ccdir <dir>", "Compile commands dir for clangd"},
     {"--clangd-path <path>", "Path to clangd binary"},
     {"--query-driver <list>", "clangd query-driver allowlist"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpRobotLsp = {{
     {kRobotLsp, "Enable Robot Framework LSP"},
     {"--robot-lsp-path <path>", "Path to Robot LSP server"},
     {"--robot-lsp-args <args>", "Extra args for Robot LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpPythonLsp = {{
     {kPythonLsp, "Enable Python LSP"},
     {"--python-lsp-path <path>", "Path to Python LSP server"},
     {"--python-lsp-args <args>", "Extra args for Python LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpMlangLsp = {{
     {kMlangLsp, "Enable Mlang LSP"},
     {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
     {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpHtmlLsp = {{
+    {kHtmlLsp, "Enable HTML LSP"},
+    {"--html-lsp-path <path>", "Path to HTML LSP server"},
+    {"--html-lsp-args <args>", "Extra args for HTML LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpCssLsp = {{
+    {kCssLsp, "Enable CSS LSP"},
+    {"--css-lsp-path <path>", "Path to CSS LSP server"},
+    {"--css-lsp-args <args>", "Extra args for CSS LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpJsonLsp = {{
+    {kJsonLsp, "Enable JSON LSP"},
+    {"--json-lsp-path <path>", "Path to JSON LSP server"},
+    {"--json-lsp-args <args>", "Extra args for JSON LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 3> kHelpTsLsp = {{
+    {kTsLsp, "Enable TypeScript/JavaScript LSP"},
+    {"--ts-lsp-path <path>", "Path to TS/JS LSP server"},
+    {"--ts-lsp-args <args>", "Extra args for TS/JS LSP (space-separated)"},
+}};
+
+constexpr std::array<HelpRow, 2> kHelpMlangLogging = {{
     {"--enable-log[=info|debug|verbose]",
      "Enable mlangd_mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, verbose=+VERBOSE"},
     {"--log-level <info|debug|verbose>",
      "Set mlangd_mla log level (implies --enable-log)"},
-    {kHtmlLsp, "Enable HTML LSP"},
-    {"--html-lsp-path <path>", "Path to HTML LSP server"},
-    {"--html-lsp-args <args>", "Extra args for HTML LSP (space-separated)"},
-    {kCssLsp, "Enable CSS LSP"},
-    {"--css-lsp-path <path>", "Path to CSS LSP server"},
-    {"--css-lsp-args <args>", "Extra args for CSS LSP (space-separated)"},
-    {kJsonLsp, "Enable JSON LSP"},
-    {"--json-lsp-path <path>", "Path to JSON LSP server"},
-    {"--json-lsp-args <args>", "Extra args for JSON LSP (space-separated)"},
-    {kTsLsp, "Enable TypeScript/JavaScript LSP"},
-    {"--ts-lsp-path <path>", "Path to TS/JS LSP server"},
-    {"--ts-lsp-args <args>",
-     "Extra args for TS/JS LSP (space-separated)"},
-    {"--theme <path>", "Load theme YAML from path"},
+}};
+
+constexpr std::array<HelpRow, 2> kHelpUvimLogging = {{
     {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
     {kLogColors, "Enable colored log output"},
 }};
@@ -410,21 +442,54 @@ class CommandLine
 public:
     static void print_help(const char* exe)
     {
-        std::cout << "Usage: " << exe << " [options] [file|dir]\n"
-#ifdef UVIM_VERSION
-                  << "Version: " << UVIM_VERSION << "\n"
-#endif
+        std::cout << "Usage:\n"
+                  << "  " << exe << " [options] [file|dir]\n"
                   << "\nOptions:\n";
 
         size_t maxOptLen = 0;
-        for(const auto& row : kHelpRows)
-            maxOptLen = std::max(maxOptLen, row.option.size());
-
-        for(const auto& row : kHelpRows)
+        auto scan = [&](const auto& rows)
         {
-            std::cout << "  " << std::left << std::setw((int)maxOptLen + 2)
-                      << row.option << row.description << "\n";
-        }
+            for(const auto& row : rows)
+                maxOptLen = std::max(maxOptLen, row.option.size());
+        };
+        scan(kHelpGeneral);
+        scan(kHelpConfig);
+        scan(kHelpClangdLsp);
+        scan(kHelpRobotLsp);
+        scan(kHelpPythonLsp);
+        scan(kHelpMlangLsp);
+        scan(kHelpHtmlLsp);
+        scan(kHelpCssLsp);
+        scan(kHelpJsonLsp);
+        scan(kHelpTsLsp);
+        scan(kHelpMlangLogging);
+        scan(kHelpUvimLogging);
+
+        auto print_section =
+            [&](std::string_view title, const auto& rows)
+        {
+            std::cout << "  " << title << "\n";
+            for(const auto& row : rows)
+            {
+                std::cout << "    " << std::left
+                          << std::setw((int)maxOptLen + 2) << row.option
+                          << row.description << "\n";
+            }
+            std::cout << "\n";
+        };
+
+        print_section("General:", kHelpGeneral);
+        print_section("Config:", kHelpConfig);
+        print_section("clangd LSP:", kHelpClangdLsp);
+        print_section("Robot LSP:", kHelpRobotLsp);
+        print_section("Python LSP:", kHelpPythonLsp);
+        print_section("Mlang LSP:", kHelpMlangLsp);
+        print_section("HTML LSP:", kHelpHtmlLsp);
+        print_section("CSS LSP:", kHelpCssLsp);
+        print_section("JSON LSP:", kHelpJsonLsp);
+        print_section("TypeScript/JavaScript LSP:", kHelpTsLsp);
+        print_section("mlangd_mla Logging:", kHelpMlangLogging);
+        print_section("uvim Debug Logging:", kHelpUvimLogging);
     }
 
     static Options parse(int argc, char* argv[])
