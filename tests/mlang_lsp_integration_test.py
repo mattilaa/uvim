@@ -14,14 +14,32 @@ SERVER = ROOT / "tools" / "mlang_lsp" / "mlang_lsp.py"
 
 class LspHarness:
     def __init__(self) -> None:
+        cmd = self._resolve_server_cmd()
+        if not cmd:
+            raise unittest.SkipTest(
+                "mlang LSP scaffold server not found at tools/mlang_lsp/mlang_lsp.py"
+            )
         self.proc = subprocess.Popen(
-            [sys.executable, str(SERVER)],
+            cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=False,
         )
         self._next_id = 1
+
+    @staticmethod
+    def _resolve_server_cmd() -> List[str]:
+        env_cmd = os.environ.get("UVIM_MLANG_LSP_SERVER", "").strip()
+        if env_cmd:
+            parts = env_cmd.split()
+            if parts:
+                return parts
+
+        if SERVER.exists():
+            return [sys.executable, str(SERVER)]
+
+        return []
 
     def close(self) -> None:
         if self.proc.poll() is None:
@@ -52,7 +70,12 @@ class LspHarness:
         while True:
             line = self.proc.stdout.readline()
             if not line:
-                raise RuntimeError("LSP server closed stdout unexpectedly")
+                details = "LSP server closed stdout unexpectedly"
+                if self.proc.stderr is not None:
+                    err = self.proc.stderr.read().decode("utf-8", errors="replace").strip()
+                    if err:
+                        details += f" | stderr: {err}"
+                raise RuntimeError(details)
             if line in (b"\r\n", b"\n"):
                 break
             head = line.decode("ascii").strip()

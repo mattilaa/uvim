@@ -336,6 +336,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help search`     - Searching and replacing",
             "  `:help clipboard`  - Clipboard operations",
             "  `:help git`        - Git integrations",
+            "  `:help lsp`        - LSP setup and troubleshooting",
             "",
             "QUICK START:",
             "  `i`        - Enter insert mode",
@@ -764,6 +765,50 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `d$`      - Delete to end of line",
         };
     }
+    else if(topic_lower == "lsp" || topic_lower == "lsp-install" ||
+            topic_lower == "lspinfo")
+    {
+        lines = {
+            "# LSP Setup And Troubleshooting",
+            "",
+            "CHECK STATUS:",
+            "  `:lspinfo` - Shows ACTIVE/ON/OFF and missing runtime/binary",
+            "               details (for example missing `node`)",
+            "",
+            "REQUIRED BINARIES:",
+            "  C/C++: `clangd`",
+            "  Python: `pyright-langserver` (or `pylsp`)",
+            "  Mlang: `mlangd_mla` (or `mlangd` fallback)",
+            "  HTML: `vscode-html-language-server` + `node`",
+            "  CSS: `vscode-css-language-server` + `node`",
+            "  JSON: `vscode-json-language-server` + `node`",
+            "  TS/JS: `typescript-language-server` + `node`",
+            "",
+            "INSTALL ON MACOS:",
+            "  `brew install llvm node pyright`",
+            "  `npm install -g vscode-langservers-extracted "
+            "typescript typescript-language-server`",
+            "  `pip install 'python-lsp-server[all]'`",
+            "",
+            "INSTALL ON LINUX (APT EXAMPLE):",
+            "  `sudo apt install clangd nodejs npm`",
+            "  `npm install -g vscode-langservers-extracted "
+            "typescript typescript-language-server pyright`",
+            "  `pip install 'python-lsp-server[all]'`",
+            "",
+            "INSTALL ON WINDOWS:",
+            "  `winget install OpenJS.NodeJS`",
+            "  `winget install LLVM.LLVM`",
+            "  `npm install -g vscode-langservers-extracted "
+            "typescript typescript-language-server pyright`",
+            "  `pip install \"python-lsp-server[all]\"`",
+            "",
+            "NOTES:",
+            "  - If npm global binaries are not found, add npm's bin directory",
+            "    to PATH and restart your shell/editor.",
+            "  - In uvim config, set explicit `*LspPath` values if needed.",
+        };
+    }
     else
     {
         // Unknown topic - show available topics
@@ -781,6 +826,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help search`",
             "  `:help clipboard`",
             "  `:help git`",
+            "  `:help lsp`",
             "",
             "Type `:help` to see the main help page.",
         };

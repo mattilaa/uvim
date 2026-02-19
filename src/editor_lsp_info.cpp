@@ -4,7 +4,47 @@
 #include "lsp_client.h"
 #endif
 #include <algorithm>
+#include <cstdlib>
+#include <filesystem>
 #include <string_view>
+
+namespace fs = std::filesystem;
+
+static bool binaryExists(const std::string& pathOrExe)
+{
+    if(pathOrExe.empty())
+        return false;
+
+    if(pathOrExe.find('/') != std::string::npos)
+    {
+        std::error_code ec;
+        return fs::exists(pathOrExe, ec) && fs::is_regular_file(pathOrExe, ec);
+    }
+
+    const char* envPath = std::getenv("PATH");
+    if(!envPath || !*envPath)
+        return false;
+
+    std::string_view pathView{envPath};
+    size_t start = 0;
+    while(start < pathView.size())
+    {
+        size_t end = pathView.find(':', start);
+        if(end == std::string_view::npos)
+            end = pathView.size();
+        if(end > start)
+        {
+            fs::path candidate =
+                fs::path(std::string(pathView.substr(start, end - start))) /
+                pathOrExe;
+            std::error_code ec;
+            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
+                return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
 
 static std::string filetypeLabel(const Editor& ed)
 {
@@ -54,12 +94,23 @@ void Editor::showLspInfo()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     auto appendLsp = [&](const std::string& label, bool running,
                          bool activeForFile, const std::string& path,
+                         bool requiresNode = false,
                          const std::string& version = std::string())
     {
         std::string status =
             running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
+        bool hasBinary = binaryExists(path);
+        bool hasNode = !requiresNode || binaryExists("node");
+
         lspInfoLines.push_back(label + ": " + status);
         lspInfoLines.push_back("  binary: " + path);
+        if(requiresNode)
+            lspInfoLines.push_back(std::string("  runtime: node ") +
+                                   (hasNode ? "found" : "not found"));
+        if(!hasBinary)
+            lspInfoLines.push_back("  status: binary not found");
+        if(requiresNode && !hasNode)
+            lspInfoLines.push_back("  status: node runtime not found");
         if(!version.empty())
             lspInfoLines.push_back("  version: " + version);
     };
@@ -81,17 +132,17 @@ void Editor::showLspInfo()
             mlangLabel = "mlang (MLA)";
     }
     appendLsp(mlangLabel, isMlangLspEnabled(), isFileType<FileType::Mla>(),
-              mlangLspPath, mlangVersion);
+              mlangLspPath, false, mlangVersion);
     appendLsp("html", isHtmlLspEnabled(), isFileType<FileType::Html>(),
-              htmlLspPath);
+              htmlLspPath, true);
     appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(),
-              cssLspPath);
+              cssLspPath, true);
     appendLsp("json", isJsonLspEnabled(), isFileType<FileType::Json>(),
-              jsonLspPath);
+              jsonLspPath, true);
     appendLsp("ts", isTsLspEnabled(),
               (isFileType<FileType::JavaScript>() ||
                isFileType<FileType::TypeScript>()),
-              tsLspPath);
+              tsLspPath, true);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");
@@ -161,6 +212,36 @@ void Editor::drawLspInfo()
             output += "  ";
             renderKeyValue("version:", std::string_view(line).substr(10),
                            theme.uiDim());
+        }
+        else if(line.rfind("  runtime:", 0) == 0)
+        {
+            output += "  ";
+            std::string_view value = std::string_view(line).substr(10);
+            output += theme.uiDim();
+            output += "runtime:";
+            output += theme.reset();
+            output += " ";
+            if(value.find("not found") != std::string_view::npos)
+                output += theme.uiError();
+            else
+                output += theme.uiSuccess();
+            output += std::string(value);
+            output += theme.reset();
+        }
+        else if(line.rfind("  status:", 0) == 0)
+        {
+            output += "  ";
+            std::string_view value = std::string_view(line).substr(9);
+            output += theme.uiDim();
+            output += "status:";
+            output += theme.reset();
+            output += " ";
+            if(value.find("not found") != std::string_view::npos)
+                output += theme.uiError();
+            else
+                output += theme.uiWarning();
+            output += std::string(value);
+            output += theme.reset();
         }
         else if(line.find(':') != std::string::npos && line.rfind("  ", 0) != 0)
         {
