@@ -11102,9 +11102,129 @@ bool Editor::mlangFormatBuffer()
         return false;
     if(!isFileType<FileType::Mla>())
         return false;
+
+    const int savedY = cursorY ? *cursorY : 0;
+    const int savedX = cursorX ? *cursorX : 0;
+    bool externalFormatterFailed = false;
+    std::string externalFormatterError;
+
+    // Prefer external mlang-format binary (clang-format style behavior).
+    {
+        std::string tempPath =
+            "/tmp/uvim_mlang_fmt_" + std::to_string(getpid()) + ".mla";
+        std::ofstream tempFile(tempPath);
+        if(tempFile.is_open())
+        {
+            for(size_t i = 0; i < lines->size(); ++i)
+                tempFile << (*lines)[i] << '\n';
+            tempFile.close();
+
+            std::string absFilename = currentBuffer->filename;
+            if(!absFilename.empty() && absFilename[0] != '/')
+            {
+                char cwdBuf[PATH_MAX];
+                if(getcwd(cwdBuf, sizeof(cwdBuf)))
+                    absFilename = std::string(cwdBuf) + "/" + absFilename;
+            }
+
+            std::string errPath = "/tmp/uvim_mlang_fmt_err.log";
+            auto runFmt = [&](const std::string& exe) -> int
+            {
+                std::string cmd = "\"" + exe +
+                                  "\" -i --style file --assume-filename=\"" +
+                                  absFilename + "\" \"" + tempPath +
+                                  "\" 2>\"" + errPath + "\"";
+                return std::system(cmd.c_str());
+            };
+
+            std::string fmtExe = resolve_executable_path("mlang-format");
+            if(fmtExe.empty())
+            {
+                std::error_code ec;
+                const std::string hb = "/opt/homebrew/bin/mlang-format";
+                if(fs::exists(hb, ec) && fs::is_regular_file(hb, ec))
+                    fmtExe = hb;
+            }
+
+            int fmtStatus = -1;
+            bool formattedOk = false;
+            if(!fmtExe.empty())
+            {
+                fmtStatus = runFmt(fmtExe);
+                formattedOk = (fmtStatus == 0);
+            }
+
+            if(!formattedOk)
+            {
+                externalFormatterFailed = true;
+                std::ifstream errFile(errPath);
+                if(errFile.is_open())
+                {
+                    std::getline(errFile, externalFormatterError);
+                    errFile.close();
+                }
+                if(externalFormatterError.empty())
+                {
+                    if(fmtExe.empty())
+                        externalFormatterError = "mlang-format not found";
+                    else
+                        externalFormatterError =
+                            "exit status " + std::to_string(fmtStatus);
+                }
+            }
+
+            if(formattedOk)
+            {
+                std::ifstream in(tempPath);
+                std::vector<std::string> newLines;
+                std::string line;
+                while(std::getline(in, line))
+                {
+                    if(!line.empty() && line.back() == '\r')
+                        line.pop_back();
+                    newLines.push_back(line);
+                }
+                unlink(tempPath.c_str());
+
+                if(!newLines.empty() && newLines.back().empty())
+                    newLines.pop_back();
+                if(newLines.empty())
+                    newLines.push_back("");
+
+                std::vector<std::string>& activeLines = currentBuffer->lines;
+                const std::string fmtLabel =
+                    fmtExe.empty() ? "mlang-format" : ("mlang-format (" + fmtExe + ")");
+                if(newLines == activeLines)
+                {
+                    setStatusMessage(fmtLabel + ": no changes");
+                    return true;
+                }
+
+                saveState();
+                activeLines = std::move(newLines);
+                lines = &currentBuffer->lines;
+                if(dirty)
+                    *dirty = true;
+                currentBuffer->lspSyncNeeded = true;
+                if(cursorY && cursorX && lines && !lines->empty())
+                {
+                    *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
+                    *cursorX = std::clamp(
+                        savedX, 0, (int)(*lines)[*cursorY].size());
+                }
+                adjustViewport();
+                needsFullRedraw = true;
+                setStatusMessage(fmtLabel + ": formatted buffer");
+                return true;
+            }
+            unlink(tempPath.c_str());
+        }
+    }
+
+    // Fallback: LSP document formatting.
     if(!isMlangLspEnabled() || !mlangLspClient)
     {
-        setStatusMessage("mlang LSP: OFF");
+        setStatusMessage("mlang-format: not found (and mlang LSP OFF)");
         return false;
     }
 
@@ -11123,7 +11243,14 @@ bool Editor::mlangFormatBuffer()
         mlangLspClient->formatting(currentBuffer->filename, 4, true);
     if(edits.empty())
     {
-        setStatusMessage("format: no changes");
+        if(externalFormatterFailed)
+        {
+            setStatusMessage("mlang-format failed (" +
+                             externalFormatterError.substr(0, 80) +
+                             "); mlang LSP: no changes");
+        }
+        else
+            setStatusMessage("mlang LSP: no changes");
         return true;
     }
 
@@ -11183,7 +11310,14 @@ bool Editor::mlangFormatBuffer()
     currentBuffer->lspSyncNeeded = true;
     adjustViewport();
     needsFullRedraw = true;
-    setStatusMessage("mlang: formatted buffer");
+    if(externalFormatterFailed)
+    {
+        setStatusMessage("mlang-format failed (" +
+                         externalFormatterError.substr(0, 80) +
+                         "); mlang LSP: formatted buffer");
+    }
+    else
+        setStatusMessage("mlang LSP: formatted buffer");
     return true;
 }
 #else
