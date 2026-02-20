@@ -1089,6 +1089,27 @@ struct EditorSettings
                 if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
                 {
                     std::error_code ec;
+                    std::vector<fs::path> localBuildCandidates = {
+                        fs::current_path() / "build" / "mlangd-mla",
+                        fs::current_path() / "build" / "mlangd",
+                        fs::current_path() / ".." / "mlang" / "build" /
+                            "mlangd-mla",
+                        fs::current_path() / ".." / "mlang" / "build" /
+                            "mlangd"};
+                    for(const auto& localPath : localBuildCandidates)
+                    {
+                        if(fs::exists(localPath, ec) &&
+                           fs::is_regular_file(localPath, ec))
+                        {
+                            mlangPath = localPath.lexically_normal().string();
+                            break;
+                        }
+                    }
+                }
+
+                if(mlangPath == "mlangd-mla" || mlangPath == "mlangd")
+                {
+                    std::error_code ec;
                     fs::path tmpPath = "/tmp/mlangd-mla";
                     if(fs::exists(tmpPath, ec) && fs::is_regular_file(tmpPath, ec))
                     {

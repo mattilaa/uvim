@@ -45,24 +45,82 @@ static std::string firstLine(std::string text)
     return text;
 }
 
+static std::string trimAndCollapse(std::string text)
+{
+    std::string out;
+    out.reserve(text.size());
+
+    bool sawSpace = true;
+    for(char c : text)
+    {
+        if(std::isspace((unsigned char)c))
+        {
+            if(!sawSpace)
+            {
+                out.push_back(' ');
+                sawSpace = true;
+            }
+            continue;
+        }
+        out.push_back(c);
+        sawSpace = false;
+    }
+
+    while(!out.empty() && out.back() == ' ')
+        out.pop_back();
+    if(!out.empty() && out.front() == ' ')
+        out.erase(out.begin());
+
+    return out;
+}
+
+static std::string buildCompletionBrief(const CompletionEntry& entry)
+{
+    if(!entry.labelDescription.empty())
+        return trimAndCollapse(entry.labelDescription);
+    if(!entry.labelDetail.empty())
+        return trimAndCollapse(entry.labelDetail);
+    if(!entry.documentation.empty())
+        return trimAndCollapse(firstLine(entry.documentation));
+    return {};
+}
+
 std::string widgets::buildCompletionRowForTest(const CompletionEntry& entry,
                                                int width)
 {
     std::string label = entry.label;
     std::string extra = buildCompletionExtras(entry);
-    int labelW = text_utils::displayWidth(label);
-    if(labelW >= width)
+    std::string left = label + extra;
+    std::string right = buildCompletionBrief(entry);
+
+    if(right.empty() || width < 20)
     {
-        label = truncateToWidth(label, width);
-        extra.clear();
+        if(text_utils::displayWidth(left) > width)
+            left = truncateToWidth(left, width);
+        return left;
     }
-    else
+
+    int rightW = std::min(24, std::max(8, width / 3));
+    int leftW = width - rightW - 3;
+    if(leftW < 6)
     {
-        int avail = width - labelW;
-        if(!extra.empty())
-            extra = truncateToWidth(extra, avail);
+        if(text_utils::displayWidth(left) > width)
+            left = truncateToWidth(left, width);
+        return left;
     }
-    return label + extra;
+
+    if(text_utils::displayWidth(left) > leftW)
+        left = truncateToWidth(left, leftW);
+    if(text_utils::displayWidth(right) > rightW)
+        right = truncateToWidth(right, rightW);
+
+    std::string row = left;
+    int pad = leftW - text_utils::displayWidth(left);
+    if(pad > 0)
+        row.append(pad, ' ');
+    row += " | ";
+    row += right;
+    return row;
 }
 
 void drawCompletionPopup(std::string& output, const Editor& editor)
@@ -82,21 +140,44 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     cy = std::clamp(cy, 1, editor.screenRows);
     cx = std::clamp(cx, 1, editor.screenCols);
 
-    int maxW = 0;
+    int maxLeftW = 0;
+    int maxBriefW = 0;
     const int cap = std::min((int)editor.completionFiltered.size(), 500);
     for(int i = 0; i < cap; ++i)
     {
         const auto& e = editor.completionAll[editor.completionFiltered[i]];
-        maxW = std::max(
-            maxW, text_utils::displayWidth(e.label) +
-                      text_utils::displayWidth(buildCompletionExtras(e)));
+        maxLeftW = std::max(
+            maxLeftW, text_utils::displayWidth(e.label) +
+                          text_utils::displayWidth(buildCompletionExtras(e)));
+
+        std::string brief = buildCompletionBrief(e);
+        if(!brief.empty())
+            maxBriefW = std::max(maxBriefW, text_utils::displayWidth(brief));
     }
-    int innerW = std::max(12, maxW);
+
+    int briefColW = 0;
+    if(maxBriefW > 0)
+        briefColW = std::clamp(maxBriefW, 12, 36);
+
+    int innerW = std::max(12, maxLeftW + (briefColW > 0 ? (briefColW + 3) : 0));
     int totalW = innerW + 4;
     if(totalW > editor.screenCols)
     {
         totalW = editor.screenCols;
         innerW = std::max(4, totalW - 4);
+    }
+
+    int leftColW = innerW;
+    if(briefColW > 0)
+    {
+        if(briefColW > innerW / 2)
+            briefColW = innerW / 2;
+        leftColW = innerW - briefColW - 3;
+        if(leftColW < 8)
+        {
+            briefColW = 0;
+            leftColW = innerW;
+        }
     }
 
     int docRows = 0;
@@ -262,7 +343,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         text_utils::appendU8(output, u8"│");
         output += " ";
         std::string doc = truncateToWidth(docLine, innerW);
-        output += editor.theme.uiDim();
+        output += editor.theme.uiInfo();
         output += doc;
         output += editor.theme.reset();
         int pad = innerW - text_utils::displayWidth(doc);
@@ -287,25 +368,40 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
         std::string label = e.label;
         std::string extra = buildCompletionExtras(e);
-        int labelW = text_utils::displayWidth(label);
-        if(labelW >= innerW)
+        std::string leftText = label;
+        leftText += extra;
+        if(text_utils::displayWidth(leftText) > leftColW)
         {
-            label = truncateToWidth(label, innerW);
+            leftText = truncateToWidth(leftText, leftColW);
+            label = leftText;
             extra.clear();
-        }
-        else
-        {
-            int avail = innerW - labelW;
-            if(!extra.empty())
-                extra = truncateToWidth(extra, avail);
         }
 
         appendSyntaxRow(label, extra, sel, e.kind);
 
-        int pad = innerW - (text_utils::displayWidth(label) +
-                            text_utils::displayWidth(extra));
-        if(pad > 0)
-            output.append(pad, ' ');
+        int leftUsed = text_utils::displayWidth(label) +
+                       text_utils::displayWidth(extra);
+        int leftPad = leftColW - leftUsed;
+        if(leftPad > 0)
+            output.append(leftPad, ' ');
+
+        if(briefColW > 0)
+        {
+            output += editor.theme.uiDim();
+            output += " │ ";
+
+            std::string brief = buildCompletionBrief(e);
+            if(text_utils::displayWidth(brief) > briefColW)
+                brief = truncateToWidth(brief, briefColW);
+
+            output += editor.theme.uiInfo();
+            output += brief;
+            output += editor.theme.reset();
+
+            int pad = briefColW - text_utils::displayWidth(brief);
+            if(pad > 0)
+                output.append(pad, ' ');
+        }
 
         if(sel)
             output += editor.theme.reset();
