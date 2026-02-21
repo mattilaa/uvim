@@ -80,9 +80,91 @@ static std::string buildCompletionBrief(const CompletionEntry& entry)
         return trimAndCollapse(entry.labelDescription);
     if(!entry.labelDetail.empty())
         return trimAndCollapse(entry.labelDetail);
+    if(!entry.detail.empty())
+        return trimAndCollapse(entry.detail);
     if(!entry.documentation.empty())
         return trimAndCollapse(firstLine(entry.documentation));
     return {};
+}
+
+static std::vector<std::string> wrapTextLines(const std::string& text, int width,
+                                              int maxLines)
+{
+    std::vector<std::string> out;
+    if(text.empty() || width <= 4 || maxLines <= 0)
+        return out;
+
+    std::string line;
+    line.reserve(text.size());
+    int lineW = 0;
+    int start = 0;
+
+    auto flushLine = [&]()
+    {
+        if(!line.empty())
+        {
+            out.push_back(trimAndCollapse(line));
+            line.clear();
+            lineW = 0;
+        }
+    };
+
+    for(size_t i = 0; i <= text.size(); ++i)
+    {
+        bool atEnd = (i == text.size());
+        char c = atEnd ? ' ' : text[i];
+        bool sep = atEnd || c == '\n' || std::isspace((unsigned char)c);
+        if(!sep)
+            continue;
+
+        if((int)i > start)
+        {
+            std::string word = text.substr(start, i - (size_t)start);
+            int ww = text_utils::displayWidth(word);
+            if(line.empty())
+            {
+                if(ww > width)
+                    word = truncateToWidth(word, width);
+                line = word;
+                lineW = text_utils::displayWidth(line);
+            }
+            else
+            {
+                if(lineW + 1 + ww > width)
+                {
+                    flushLine();
+                    if((int)out.size() >= maxLines)
+                        break;
+                    if(ww > width)
+                        word = truncateToWidth(word, width);
+                    line = word;
+                    lineW = text_utils::displayWidth(line);
+                }
+                else
+                {
+                    line += " ";
+                    line += word;
+                    lineW += 1 + ww;
+                }
+            }
+        }
+
+        if(c == '\n')
+        {
+            flushLine();
+            if((int)out.size() >= maxLines)
+                break;
+        }
+
+        start = (int)i + 1;
+    }
+
+    if((int)out.size() < maxLines && !line.empty())
+        flushLine();
+
+    if((int)out.size() > maxLines)
+        out.resize((size_t)maxLines);
+    return out;
 }
 
 std::string widgets::buildCompletionRowForTest(const CompletionEntry& entry,
@@ -160,6 +242,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         briefColW = std::clamp(maxBriefW, 12, 36);
 
     int innerW = std::max(12, maxLeftW + (briefColW > 0 ? (briefColW + 3) : 0));
+    int preferredInnerW = std::clamp((editor.screenCols * 2) / 3, 44, 92);
+    innerW = std::max(innerW, preferredInnerW);
     int totalW = innerW + 4;
     if(totalW > editor.screenCols)
     {
@@ -181,7 +265,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     }
 
     int docRows = 0;
-    std::string docLine;
+    std::vector<std::string> docLines;
     {
         int sel =
             editor.completionSelected < (int)editor.completionFiltered.size()
@@ -191,12 +275,18 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         {
             const auto& selEntry =
                 editor.completionAll[editor.completionFiltered[sel]];
+            std::string docText;
             if(!selEntry.documentation.empty())
             {
-                docLine = firstLine(selEntry.documentation);
-                if(!docLine.empty())
-                    docRows = 1;
+                docText = selEntry.documentation;
             }
+            else if(!selEntry.detail.empty())
+            {
+                docText = selEntry.detail;
+            }
+            int maxDocRows = std::clamp(editor.screenRows / 4, 1, 6);
+            docLines = wrapTextLines(docText, innerW, maxDocRows);
+            docRows = (int)docLines.size();
         }
     }
 
@@ -337,12 +427,14 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         output += editor.theme.reset();
     };
 
-    if(docRows == 1)
+    for(int dr = 0; dr < docRows; ++dr)
     {
-        moveTo(top + 1, left);
+        moveTo(top + 1 + dr, left);
         text_utils::appendU8(output, u8"│");
         output += " ";
-        std::string doc = truncateToWidth(docLine, innerW);
+        std::string doc = docLines[(size_t)dr];
+        if(text_utils::displayWidth(doc) > innerW)
+            doc = truncateToWidth(doc, innerW);
         output += editor.theme.uiInfo();
         output += doc;
         output += editor.theme.reset();

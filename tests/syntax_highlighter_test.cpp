@@ -390,6 +390,17 @@ TEST(SyntaxHighlighterTest, CompletionRowBuildsAndTruncates)
     EXPECT_LE(text_utils::displayWidth(truncated), 8);
 }
 
+TEST(SyntaxHighlighterTest, CompletionRowUsesDetailWhenLabelDetailsMissing)
+{
+    CompletionEntry entry;
+    entry.label = "int";
+    entry.detail = "builtin type alias (int32_t)";
+
+    std::string full = widgets::buildCompletionRowForTest(entry, 200);
+    EXPECT_NE(full.find("int"), std::string::npos);
+    EXPECT_NE(full.find("builtin type alias"), std::string::npos);
+}
+
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
 {
     Editor editor = Editor::createForTests();

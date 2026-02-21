@@ -72,6 +72,118 @@ static std::string stripSnippet(const std::string& s)
     return out;
 }
 
+static std::string mlangBuiltinDetail(std::string_view label)
+{
+    if(label == "int")
+        return "builtin type alias (int32_t)";
+    if(label == "i32")
+        return "builtin 32-bit signed integer";
+    if(label == "i64")
+        return "builtin 64-bit signed integer";
+    if(label == "u32")
+        return "builtin 32-bit unsigned integer";
+    if(label == "u64")
+        return "builtin 64-bit unsigned integer";
+    if(label == "bool")
+        return "builtin boolean type";
+    if(label == "string")
+        return "builtin UTF-8 string type";
+    if(label == "fn")
+        return "keyword: function definition";
+    if(label == "let")
+        return "keyword: immutable binding";
+    if(label == "var")
+        return "keyword: mutable binding";
+    if(label == "if")
+        return "keyword: conditional branch";
+    if(label == "else")
+        return "keyword: alternate branch";
+    if(label == "for")
+        return "keyword: loop over range/iterable";
+    if(label == "return")
+        return "keyword: return from function";
+    if(label == "struct")
+        return "keyword: struct type declaration";
+    if(label == "enum")
+        return "keyword: enum type declaration";
+    if(label == "mod")
+        return "keyword: module declaration";
+    if(label == "use")
+        return "keyword: import symbol/module";
+    if(label == "match")
+        return "keyword: pattern matching";
+    if(label == "impl")
+        return "keyword: implementation block";
+    if(label == "extern")
+        return "keyword: external symbol declaration";
+    if(label == "pub")
+        return "keyword: public visibility";
+    if(label == "println!")
+        return "builtin macro: print line to stdout";
+    if(label == "print!")
+        return "builtin macro: print to stdout";
+    if(label == "eprintln!")
+        return "builtin macro: print line to stderr";
+    if(label == "eprint!")
+        return "builtin macro: print to stderr";
+    if(label == "debug!")
+        return "builtin macro: debug print";
+    if(label == "format!")
+        return "builtin macro: format string";
+    if(label == "assert_eq!")
+        return "builtin macro: assert equality";
+    return {};
+}
+
+static std::string mlangBuiltinDocumentation(std::string_view label)
+{
+    if(label == "int")
+        return "Alias for a 32-bit signed integer. Maps to C int32_t in the runtime ABI.";
+    if(label == "i32")
+        return "Signed 32-bit integer type for arithmetic and integer APIs.";
+    if(label == "i64")
+        return "Signed 64-bit integer type for larger integer values.";
+    if(label == "u32")
+        return "Unsigned 32-bit integer type.";
+    if(label == "u64")
+        return "Unsigned 64-bit integer type.";
+    if(label == "bool")
+        return "Boolean type with true/false values.";
+    if(label == "string")
+        return "UTF-8 string type used by stdlib and formatting macros.";
+    if(label == "fn")
+        return "Starts a function declaration: fn name(params) -> ReturnType { ... }";
+    if(label == "if")
+        return "Conditional branch. Executes block when condition is true.";
+    if(label == "else")
+        return "Alternate branch executed when the preceding if-condition is false.";
+    if(label == "let")
+        return "Introduce an immutable local binding.";
+    if(label == "var")
+        return "Introduce a mutable local binding.";
+    if(label == "for")
+        return "Loop construct, commonly used with ranges: for i in 0..n { ... }";
+    if(label == "return")
+        return "Return a value from the current function.";
+    if(label == "match")
+        return "Pattern matching expression over enum/option/result and literals.";
+    if(label == "println!")
+        return "Print formatted text to stdout and append a newline.";
+    if(label == "print!")
+        return "Print formatted text to stdout without a trailing newline.";
+    if(label == "eprintln!")
+        return "Print formatted text to stderr and append a newline.";
+    if(label == "eprint!")
+        return "Print formatted text to stderr without a trailing newline.";
+    if(label == "debug!")
+        return "Debug macro for development-time diagnostics.";
+    if(label == "format!")
+        return "Format macro that returns a string.";
+    if(label == "assert_eq!")
+        return "Assert that two expressions are equal.";
+    return {};
+}
+
 static inline void appendUtf8Repeat(std::string& out, const char* glyph,
                                     int count)
 {
@@ -379,6 +491,11 @@ void Editor::requestCompletion()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     static constexpr std::string_view kMlangBuiltins[] = {
+        "int",      "i32",      "i64",       "u32",      "u64",
+        "bool",     "string",   "fn",        "let",      "var",
+        "if",       "else",     "for",       "return",   "struct",
+        "enum",     "mod",      "use",       "match",    "impl",
+        "extern",   "pub",
         "println!", "print!",  "eprintln!",  "eprint!",
         "debug!",   "format!", "assert_eq!",
     };
@@ -770,6 +887,10 @@ void Editor::requestCompletion()
         e.labelDetail = ci.labelDetail;
         e.labelDescription = ci.labelDescription;
         e.documentation = ci.documentation;
+        if(e.detail.empty())
+            e.detail = mlangBuiltinDetail(e.label);
+        if(e.documentation.empty())
+            e.documentation = mlangBuiltinDocumentation(e.label);
         completionAll.push_back(std::move(e));
     }
 
@@ -786,6 +907,8 @@ void Editor::requestCompletion()
             {
                 CompletionEntry e;
                 e.label = std::move(labelStr);
+                e.detail = mlangBuiltinDetail(e.label);
+                e.documentation = mlangBuiltinDocumentation(e.label);
                 completionAll.push_back(std::move(e));
             }
         }
