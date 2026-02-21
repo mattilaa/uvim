@@ -872,6 +872,50 @@ TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
     EXPECT_TRUE(hasTokenAt(tokens, valuePos, 5, TOKEN_MEMBER));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangTraitNameAsType)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "trait Summary {";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int namePos = (int)line.find("Summary");
+    ASSERT_NE(namePos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, namePos, 7, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsMlangUserTypeInAnnotationAndLiteral)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "let post: SocialPost = SocialPost {";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    int firstPos = (int)line.find("SocialPost");
+    ASSERT_NE(firstPos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, firstPos, 10, TOKEN_TYPE));
+
+    int secondPos = (int)line.rfind("SocialPost");
+    ASSERT_NE(secondPos, (int)std::string::npos);
+    EXPECT_TRUE(hasTokenAt(tokens, secondPos, 10, TOKEN_TYPE));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsMlangBuiltinDocTypes)
 {
     Editor editor = Editor::createForTests();

@@ -4528,28 +4528,36 @@ void Editor::goToDefinition()
                 if(lspX < 0)
                     lspX = 0;
 
-                // If cursor is on the object side of member access (obj.field),
-                // query LSP at the member token to match expected gd behavior.
+                // For member access, keep cursor-side intent:
+                // - on lhs object -> query lhs
+                // - on separator/rhs -> query rhs member token
                 if(is_sym(line[lspX]))
                 {
+                    int start = lspX;
                     int end = lspX;
+                    while(start > 0 && is_sym(line[start - 1]))
+                        --start;
                     while(end + 1 < (int)line.size() && is_sym(line[end + 1]))
                         ++end;
                     int p = end + 1;
                     while(p < (int)line.size() &&
                           std::isspace((unsigned char)line[p]))
                         ++p;
+                    int sepPos = p;
                     bool hasArrow =
                         (p + 1 < (int)line.size() && line[p] == '-' &&
                          line[p + 1] == '>');
+                    bool hasDot = (!hasArrow && p < (int)line.size() &&
+                                   line[p] == '.');
                     if(hasArrow)
                         p += 2;
-                    else if(p < (int)line.size() && line[p] == '.')
+                    else if(hasDot)
                         ++p;
                     while(p < (int)line.size() &&
                           std::isspace((unsigned char)line[p]))
                         ++p;
-                    if(p < (int)line.size() && is_sym(line[p]))
+                    if((hasArrow || hasDot) && *cursorX >= sepPos &&
+                       p < (int)line.size() && is_sym(line[p]))
                         lspX = p;
                 }
 
@@ -4597,15 +4605,26 @@ void Editor::goToDefinition()
                     while(p < (int)line.size() &&
                           std::isspace((unsigned char)line[p]))
                         ++p;
+                    int sepPos = p;
+                    bool sawMemberSep = false;
                     if(p + 1 < (int)line.size() && line[p] == '-' &&
                        line[p + 1] == '>')
+                    {
+                        sawMemberSep = true;
                         p += 2;
+                    }
                     else if(p < (int)line.size() && line[p] == '.')
+                    {
+                        sawMemberSep = true;
                         ++p;
+                    }
                     while(p < (int)line.size() &&
                           std::isspace((unsigned char)line[p]))
                         ++p;
-                    if(p < (int)line.size() && is_sym(line[p]))
+                    // When cursor is on the object token, keep definition
+                    // anchored to that token instead of jumping to rhs member.
+                    if(sawMemberSep && *cursorX > end && *cursorX >= sepPos &&
+                       p < (int)line.size() && is_sym(line[p]))
                     {
                         push_query_x(p);
                         int rhs_end = p;

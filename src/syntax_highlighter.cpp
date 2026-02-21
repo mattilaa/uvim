@@ -305,10 +305,10 @@ std::optional<TokenType> parse_token_type(std::string_view value)
 
 bool is_mlang_keyword(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 18> kKeywords = {
-        "break", "continue", "else",   "enum",   "extern", "fn",
-        "for",   "if",       "impl",   "in",     "let",    "match",
-        "mod",   "pub",      "return", "struct", "use",    "var"};
+    static constexpr std::array<std::string_view, 19> kKeywords = {
+        "break",  "continue", "else", "enum", "extern", "fn",  "for",
+        "if",     "impl",     "in",   "let",  "match",  "mod", "pub",
+        "return", "struct",   "use",  "var",  "trait"};
     return std::ranges::any_of(kKeywords,
                                [&](std::string_view kw) { return kw == word; });
 }
@@ -1484,9 +1484,9 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
     }
     std::filesystem::path root = find_mlang_root(start);
     std::string rootStr = root.empty() ? std::string{} : root.string();
-    const bool hasExplicitLspPath =
-        !editor->mlangLspPath.empty() && editor->mlangLspPath != "mlangd" &&
-        editor->mlangLspPath != "mlangd-mla";
+    const bool hasExplicitLspPath = !editor->mlangLspPath.empty() &&
+                                    editor->mlangLspPath != "mlangd" &&
+                                    editor->mlangLspPath != "mlangd-mla";
     const std::string effectiveLspPath =
         hasExplicitLspPath ? editor->mlangLspPath : std::string{};
 
@@ -1870,8 +1870,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         editor->syntaxCppHighlightParamTypes;
     const bool syntaxCppHighlightSystemIncludes =
         editor->syntaxCppHighlightSystemIncludes;
-    const bool isJs =
-        isFileType<FileType::JavaScript>() || isFileType<FileType::TypeScript>();
+    const bool isJs = isFileType<FileType::JavaScript>() ||
+                      isFileType<FileType::TypeScript>();
     const bool isCss = isFileType<FileType::Css>();
 
     if(isFileType<FileType::Cpp>() && syntaxCppHighlightTypeNames)
@@ -2389,8 +2389,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     ++i;
                 if(i > nameStart)
                 {
-                    tokens.push_back(
-                        {TOKEN_KEYWORD, nameStart, i - nameStart});
+                    tokens.push_back({TOKEN_KEYWORD, nameStart, i - nameStart});
                 }
 
                 while(i < len && sv[i] != '>')
@@ -3206,19 +3205,19 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             if(isJs)
             {
                 static constexpr std::string_view kJsKeywords[] = {
-                    "break",   "case",    "catch",   "class",  "const",
-                    "continue", "debugger", "default", "delete", "do",
-                    "else",    "export",  "extends", "finally", "for",
-                    "function", "if",     "import",  "in",     "instanceof",
-                    "let",     "new",     "return",  "super",  "switch",
-                    "this",    "throw",   "try",     "typeof", "var",
-                    "void",    "while",   "with",    "yield",  "await",
-                    "async",   "static",  "get",     "set",    "of",
+                    "break",    "case",     "catch",   "class",   "const",
+                    "continue", "debugger", "default", "delete",  "do",
+                    "else",     "export",   "extends", "finally", "for",
+                    "function", "if",       "import",  "in",      "instanceof",
+                    "let",      "new",      "return",  "super",   "switch",
+                    "this",     "throw",    "try",     "typeof",  "var",
+                    "void",     "while",    "with",    "yield",   "await",
+                    "async",    "static",   "get",     "set",     "of",
                 };
                 static constexpr std::string_view kJsTypes[] = {
-                    "string", "number",  "boolean", "any",  "unknown",
-                    "never",  "void",    "null",    "undefined",
-                    "bigint", "symbol",  "object",
+                    "string",    "number", "boolean", "any",
+                    "unknown",   "never",  "void",    "null",
+                    "undefined", "bigint", "symbol",  "object",
                 };
                 auto is_js_keyword = [&](std::string_view w) -> bool
                 {
@@ -3665,9 +3664,55 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                         continue;
                     }
                 }
+                if(syntaxMlangHighlightTypes && !word.empty() &&
+                   std::isupper(static_cast<unsigned char>(word[0])) != 0)
+                {
+                    bool looksLikeType = false;
+
+                    int p = start - 1;
+                    while(p >= 0 && text_utils::is_space(sv[p]))
+                        --p;
+                    if(p >= 0 && sv[p] == ':')
+                        looksLikeType = true;
+
+                    if(!looksLikeType)
+                    {
+                        int q = i;
+                        while(q < len && text_utils::is_space(sv[q]))
+                            ++q;
+                        if(q < len && sv[q] == '{')
+                            looksLikeType = true;
+                    }
+
+                    if(looksLikeType)
+                    {
+                        push_token(TOKEN_TYPE, start, i - start);
+                        continue;
+                    }
+                }
                 if(is_mlang_keyword(word))
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
+                    if(syntaxMlangHighlightTypes &&
+                       (word == "struct" || word == "trait" || word == "impl"))
+                    {
+                        int j = i;
+                        while(j < len && text_utils::is_space(sv[j]))
+                            ++j;
+                        if(j < len &&
+                           (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+                        {
+                            int typeStart = j++;
+                            while(j < len &&
+                                  (text_utils::is_alpha(sv[j]) ||
+                                   text_utils::is_digit(sv[j]) || sv[j] == '_'))
+                            {
+                                ++j;
+                            }
+                            push_token(TOKEN_TYPE, typeStart, j - typeStart);
+                            i = j;
+                        }
+                    }
                     continue;
                 }
                 if(syntaxMlangHighlightTypes && is_mlang_type(word))
