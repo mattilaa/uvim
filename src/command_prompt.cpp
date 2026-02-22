@@ -188,11 +188,38 @@ bool CommandPrompt::handle(
 
     auto updatePopup = [&]()
     {
+        auto isLineJumpQuery = [&](std::string_view q) -> bool
+        {
+            if(q.empty())
+                return false;
+            size_t i = 0;
+            while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
+                ++i;
+            if(i >= q.size())
+                return false;
+            if(q[i] == '+' || q[i] == '-')
+                ++i;
+            size_t digitsStart = i;
+            while(i < q.size() && q[i] >= '0' && q[i] <= '9')
+                ++i;
+            if(i == digitsStart)
+                return false;
+            while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
+                ++i;
+            return i == q.size();
+        };
+
         if(input.empty())
         {
             if(!ctx.isCommandPopupActive())
                 ctx.startCommandPopup();
             ctx.updateCommandPopup("");
+            return;
+        }
+
+        if(isLineJumpQuery(input))
+        {
+            ctx.cancelCommandPopup();
             return;
         }
 
@@ -218,6 +245,7 @@ bool CommandPrompt::handle(
         if(key == keyCode(command::CommandKey::KEY_COLON))
         {
             active = true;
+            ctx.cancelCompletion();
             input.clear();
             clearCompletions();
             updatePopup();

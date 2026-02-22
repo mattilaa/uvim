@@ -9,6 +9,7 @@
 void CommandMode::on_enter(ModeContext& ctx)
 {
     int a = 10;
+    ctx.cancelCompletion();
     ctx.commandBuffer = ":";
     completions.clear();
     completionIndex = -1;
@@ -41,6 +42,33 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     int c = keyCode(key);
     auto updatePopup = [&]()
     {
+        auto isLineJumpQuery = [&](std::string_view q) -> bool
+        {
+            if(q.empty())
+                return false;
+            size_t i = 0;
+            while(i < q.size() &&
+                  (q[i] == keyCode(control::ControlKey::SPACE) || q[i] == '\t'))
+            {
+                ++i;
+            }
+            if(i >= q.size())
+                return false;
+            if(q[i] == '+' || q[i] == '-')
+                ++i;
+            size_t digitsStart = i;
+            while(i < q.size() && q[i] >= '0' && q[i] <= '9')
+                ++i;
+            if(i == digitsStart)
+                return false;
+            while(i < q.size() &&
+                  (q[i] == keyCode(control::ControlKey::SPACE) || q[i] == '\t'))
+            {
+                ++i;
+            }
+            return i == q.size();
+        };
+
         if(ctx.commandBuffer.length() <= 1)
         {
             if(!ctx.isCommandPopupActive())
@@ -50,6 +78,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         }
 
         std::string query = ctx.commandBuffer.substr(1);
+        if(isLineJumpQuery(query))
+        {
+            ctx.cancelCommandPopup();
+            return;
+        }
         bool isSetQuery = query.rfind("set", 0) == 0;
         bool isHelpQuery = query == "help" || query == "h" ||
                            query.rfind("help ", 0) == 0 ||

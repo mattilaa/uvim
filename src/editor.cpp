@@ -5244,6 +5244,8 @@ void Editor::refreshScreen()
     static int lastVisualStartY = -1;
     static int lastVisualEndY = -1;
     static int lastCursorY = -1;
+    static bool lastCommandPopupActive = false;
+    static bool lastCommandHistoryPopupActive = false;
 
     int prevOffsetY = lastOffsetY;
     adjustViewport();
@@ -5255,6 +5257,8 @@ void Editor::refreshScreen()
         lastOffsetX = *offsetX;
         lastMode = currentMode;
         lastCursorY = *cursorY;
+        lastCommandPopupActive = commandPopupActive;
+        lastCommandHistoryPopupActive = commandHistorySearchActive;
         needsFullRedraw = false;
         return;
     }
@@ -5287,9 +5291,12 @@ void Editor::refreshScreen()
     bool isCommandLikeMode =
         (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
          currentMode == SEARCH_BACKWARD);
+    bool commandPopupChanged =
+        (commandPopupActive != lastCommandPopupActive) ||
+        (commandHistorySearchActive != lastCommandHistoryPopupActive);
     bool commandOverlayStable = isCommandLikeMode && !modeChanged &&
                                 scrollDelta == 0 && *offsetX == lastOffsetX &&
-                                !visualChanged;
+                                !visualChanged && !commandPopupChanged;
 
     if(modeChanged || (needsFullRedraw && !commandOverlayStable) ||
        *offsetX != lastOffsetX || abs(scrollDelta) > screenRows / 2 ||
@@ -5344,6 +5351,8 @@ void Editor::refreshScreen()
     lastOffsetX = *offsetX;
     lastMode = currentMode;
     lastCursorY = *cursorY;
+    lastCommandPopupActive = commandPopupActive;
+    lastCommandHistoryPopupActive = commandHistorySearchActive;
     needsFullRedraw = false;
 }
 void Editor::updateCursorPosition(bool flushNow)
@@ -10414,6 +10423,7 @@ void Editor::cancelCommandPopup()
     commandPopupFiltered.clear();
     commandPopupCursor = 0;
     commandPopupOffset = 0;
+    needsFullRedraw = true;
 }
 
 void Editor::updateCommandPopup(std::string_view query)
@@ -10421,7 +10431,37 @@ void Editor::updateCommandPopup(std::string_view query)
     if(!commandPopupActive)
         return;
 
-    commandPopupQuery = std::string(query);
+    auto isLineJumpQuery = [](std::string_view q) -> bool
+    {
+        if(q.empty())
+            return false;
+        size_t i = 0;
+        while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
+            ++i;
+        if(i >= q.size())
+            return false;
+        if(q[i] == '+' || q[i] == '-')
+            ++i;
+        size_t digitsStart = i;
+        while(i < q.size() && q[i] >= '0' && q[i] <= '9')
+            ++i;
+        return i > digitsStart;
+    };
+
+    std::string_view effectiveQuery = query;
+    if(effectiveQuery.empty() && !commandBuffer.empty() &&
+       commandBuffer.front() == ':')
+    {
+        effectiveQuery = std::string_view(commandBuffer).substr(1);
+    }
+
+    if(isLineJumpQuery(effectiveQuery))
+    {
+        cancelCommandPopup();
+        return;
+    }
+
+    commandPopupQuery = std::string(effectiveQuery);
     commandPopupFiltered.clear();
     commandPopupCursor = 0;
     commandPopupOffset = 0;
@@ -10673,6 +10713,33 @@ void Editor::drawCommandPopup(std::string& output) const
         return;
     if(commandHistorySearchActive)
         return;
+
+    auto isLineJumpQuery = [](std::string_view q) -> bool
+    {
+        if(q.empty())
+            return false;
+        size_t i = 0;
+        while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
+            ++i;
+        if(i >= q.size())
+            return false;
+        if(q[i] == '+' || q[i] == '-')
+            ++i;
+        size_t digitsStart = i;
+        while(i < q.size() && q[i] >= '0' && q[i] <= '9')
+            ++i;
+        return i > digitsStart;
+    };
+
+    if(currentMode == COMMAND && !commandBuffer.empty() &&
+       commandBuffer.front() == ':')
+    {
+        std::string_view q(commandBuffer);
+        q.remove_prefix(1);
+        if(isLineJumpQuery(q))
+            return;
+    }
+
     widgets::CommandPopupView view{
         .theme = theme,
         .screenRows = screenRows,

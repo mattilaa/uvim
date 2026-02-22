@@ -385,6 +385,34 @@ TEST(RealModeTransitionsTest, ExCommandFromCommandModeOpensFileBrowser)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
+TEST(RealModeTransitionsTest, ExLineNumberInputSuppressesCommandPopup)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+    ASSERT_TRUE(editor.commandPopupActive);
+    sm.dispatch('5');
+    sm.dispatch('2');
+    sm.dispatch('5');
+
+    EXPECT_FALSE(editor.commandPopupActive);
+    EXPECT_TRUE(editor.needsFullRedraw);
+}
+
+TEST(RealModeTransitionsTest, EnteringCommandModeClearsCompletionPopup)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.completionActive = true;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+
+    EXPECT_FALSE(editor.completionActive);
+}
+
 TEST(RealModeTransitionsTest, FileBrowserFuzzyDisabledIgnoresTyping)
 {
     Editor editor = Editor::createForTests();
