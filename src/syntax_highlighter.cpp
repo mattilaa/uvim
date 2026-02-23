@@ -305,10 +305,10 @@ std::optional<TokenType> parse_token_type(std::string_view value)
 
 bool is_mlang_keyword(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 19> kKeywords = {
-        "break",  "continue", "else", "enum", "extern", "fn",  "for",
-        "if",     "impl",     "in",   "let",  "match",  "mod", "pub",
-        "return", "struct",   "use",  "var",  "trait"};
+    static constexpr std::array<std::string_view, 20> kKeywords = {
+        "break", "continue", "else",   "enum",  "extern", "fn",  "for",
+        "if",    "impl",     "in",     "let",   "match",  "mod", "mut",
+        "pub",   "return",   "struct", "trait", "use",    "var"};
     return std::ranges::any_of(kKeywords,
                                [&](std::string_view kw) { return kw == word; });
 }
