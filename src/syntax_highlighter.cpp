@@ -325,9 +325,9 @@ bool is_mlang_type(std::string_view word)
 
 bool is_mlang_builtin(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 7> kBuiltins = {
-        "assert_eq", "debug", "eprint", "eprintln",
-        "format",    "print", "println"};
+    static constexpr std::array<std::string_view, 8> kBuiltins = {
+        "assert_eq", "debug", "eprint",  "eprintln",
+        "format",    "print", "println", "vec"};
     return std::ranges::any_of(kBuiltins,
                                [&](std::string_view fn) { return fn == word; });
 }
