@@ -32,6 +32,11 @@ Implemented in `tools/mlang_lsp/mlang_lsp.py`:
 
 This is editor-usable, but not compiler-accurate.
 
+Status (repo scaffold):
+- [x] server entrypoint exists at `tools/mlang_lsp/mlang_lsp.py`
+- [x] integration test runs against in-repo server
+- [x] CI verifies scaffold file presence
+
 ## Phased Implementation
 
 ## Phase 1: Transport + Session (Done in scaffold)
