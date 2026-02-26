@@ -55,6 +55,9 @@ Generate the configuration reference:
 
 The HTML output is written to `docs/doxygen/html/index.html`.
 
+Published API/configuration docs are available on GitHub Pages:
+https://mattilaa.github.io/uvim/
+
 Install doxygen with your system package manager (e.g., `brew install doxygen`
 on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
 on Fedora).
