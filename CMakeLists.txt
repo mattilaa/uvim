@@ -379,6 +379,10 @@ if(UVIM_BUILD_TESTS)
             NAME mlang_lsp_scaffold_integration
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/mlang_lsp_integration_test.py
         )
+        add_test(
+            NAME mlang_frontend_parser
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/mlang_frontend_parser_test.py
+        )
     endif()
 
     add_custom_target(check
