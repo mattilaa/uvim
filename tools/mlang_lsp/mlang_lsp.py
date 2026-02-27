@@ -12,8 +12,7 @@ TOOLS_DIR = Path(__file__).resolve().parents[1]
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from mlang_frontend.diagnostics import analyze_text
-from mlang_frontend.parser import collect_symbols
+from mlang_frontend.compiler_api import SemanticResult, analyze_document
 from mlang_frontend.source_map import line_char_to_offset
 
 
@@ -81,11 +80,15 @@ class JsonRpcServer:
             )
             return
 
-        diagnostics = [d.to_lsp(doc.text) for d in analyze_text(doc.text)]
+        diagnostics = [d.to_lsp(doc.text) for d in self._analyze(doc).diagnostics]
         self._notify(
             "textDocument/publishDiagnostics",
             {"uri": uri, "diagnostics": diagnostics, "version": doc.version},
         )
+
+    @staticmethod
+    def _analyze(doc: Document) -> SemanticResult:
+        return analyze_document(doc.text)
 
     @staticmethod
     def _get_line(text: str, line: int) -> str:
@@ -129,11 +132,12 @@ class JsonRpcServer:
         seen: set[str] = set()
         symbols: list[str] = []
         for doc in self._documents.values():
-            for symbol in collect_symbols(doc.text):
-                if symbol in seen:
+            for symbol in self._analyze(doc).symbols:
+                name = symbol.name
+                if name in seen:
                     continue
-                seen.add(symbol)
-                symbols.append(symbol)
+                seen.add(name)
+                symbols.append(name)
         return symbols
 
     def _handle_initialize(self, req_id: Any) -> None:
@@ -214,8 +218,12 @@ class JsonRpcServer:
             doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
         )
         token = self._word_at(doc.text, offset)
+        semantic = self._analyze(doc)
+        symbol = next((s for s in semantic.symbols if s.name == token), None)
         if token == "fn":
             value = "Define a function."
+        elif symbol is not None:
+            value = f"Symbol `{symbol.name}`: `{symbol.type_name}`."
         elif token:
             value = f"Symbol `{token}`."
         else:
@@ -240,8 +248,12 @@ class JsonRpcServer:
         typed = m.group(1) if m else ""
 
         items = self._keyword_items()
-        for symbol in self._workspace_symbols():
-            items.append({"label": symbol, "kind": 6, "detail": "symbol"})
+        all_symbols: dict[str, str] = {}
+        for open_doc in self._documents.values():
+            for sym in self._analyze(open_doc).symbols:
+                all_symbols.setdefault(sym.name, sym.type_name)
+        for symbol, type_name in all_symbols.items():
+            items.append({"label": symbol, "kind": 6, "detail": f"symbol: {type_name}"})
 
         if typed:
             items = [it for it in items if it["label"].startswith(typed)]
@@ -254,7 +266,7 @@ class JsonRpcServer:
         if doc is None:
             self._respond(req_id, {"kind": "full", "items": []})
             return
-        items = [d.to_lsp(doc.text) for d in analyze_text(doc.text)]
+        items = [d.to_lsp(doc.text) for d in self._analyze(doc).diagnostics]
         self._respond(req_id, {"kind": "full", "items": items})
 
     def _dispatch_request(self, req_id: Any, method: str, params: dict[str, Any]) -> None:

@@ -269,6 +269,45 @@ class MlangLspIntegrationTest(unittest.TestCase):
         labels = {item.get("label") for item in completion.get("items", [])}
         self.assertIn("helper", labels)
 
+    def test_hover_shows_symbol_type_from_semantic_model(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/types.mlang"
+        source = "fn main() {\n  let count = 1;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        hover = self.h.request(
+            "textDocument/hover",
+            {"textDocument": {"uri": uri}, "position": {"line": 1, "character": 7}},
+        )
+        self.assertIn("count", hover["contents"]["value"])
+        self.assertIn("Int", hover["contents"]["value"])
+
+    def test_semantic_diagnostic_for_unknown_identifier(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/unknown.mlang"
+        source = "fn main() {\n  let dst = src;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        diags = self.h.read_until_notification("textDocument/publishDiagnostics")
+        messages = [d.get("message", "") for d in diags.get("diagnostics", [])]
+        self.assertIn("Unknown identifier 'src'", messages)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
