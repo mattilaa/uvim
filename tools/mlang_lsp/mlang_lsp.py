@@ -241,7 +241,7 @@ class JsonRpcServer:
                         "full": True,
                     },
                     "completionProvider": {
-                        "resolveProvider": False,
+                        "resolveProvider": True,
                         "triggerCharacters": [".", ":"],
                     },
                     "workDoneProgress": True,
@@ -800,6 +800,30 @@ class JsonRpcServer:
             items = [it for it in items if it["label"].startswith(typed)]
         self._respond(req_id, {"isIncomplete": False, "items": items})
 
+    def _handle_completion_resolve(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        item = dict(params or {})
+        label = str(item.get("label", ""))
+        detail = str(item.get("detail", ""))
+        if detail == "keyword":
+            item["documentation"] = {
+                "kind": "markdown",
+                "value": f"`{label}` keyword",
+            }
+        elif detail.startswith("symbol:"):
+            item["documentation"] = {
+                "kind": "markdown",
+                "value": f"Declared symbol `{label}` ({detail.split(':', 1)[1].strip()}).",
+            }
+        else:
+            item["documentation"] = {
+                "kind": "markdown",
+                "value": f"Completion for `{label}`.",
+            }
+        return self._respond(req_id, item)
+
     def _handle_diagnostic(self, req_id: Any, params: dict[str, Any]) -> None:
         text_doc = params.get("textDocument", {})
         uri = text_doc.get("uri", "")
@@ -852,6 +876,8 @@ class JsonRpcServer:
             self._handle_workspace_symbol(req_id, params)
         elif method == "textDocument/completion":
             self._handle_completion(req_id, params)
+        elif method == "completionItem/resolve":
+            self._handle_completion_resolve(req_id, params)
         elif method == "textDocument/diagnostic":
             self._handle_diagnostic(req_id, params)
         elif method == "workspace/diagnostic":

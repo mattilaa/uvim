@@ -137,6 +137,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         caps = init.get("capabilities", {})
         self.assertTrue(caps.get("hoverProvider"))
         self.assertIn("completionProvider", caps)
+        self.assertTrue(caps.get("completionProvider", {}).get("resolveProvider"))
 
         self.h.notify("initialized", {})
 
@@ -649,6 +650,34 @@ class MlangLspIntegrationTest(unittest.TestCase):
         titles = {l.get("command", {}).get("title") for l in lenses}
         self.assertIn("Run alpha", titles)
         self.assertIn("Run beta", titles)
+
+    def test_completion_item_resolve_returns_documentation(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/resolve.mlang"
+        source = "fn main() {\n  let value = 1;\n  val\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        completion = self.h.request(
+            "textDocument/completion",
+            {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 5}},
+        )
+        items = completion.get("items", [])
+        self.assertGreaterEqual(len(items), 1)
+        target = next((i for i in items if i.get("label") == "value"), items[0])
+
+        resolved = self.h.request("completionItem/resolve", target)
+        self.assertIn("documentation", resolved)
+        doc = resolved.get("documentation", {}).get("value", "")
+        self.assertIn("value", doc)
 
 
 if __name__ == "__main__":
