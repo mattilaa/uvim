@@ -563,6 +563,43 @@ class MlangLspIntegrationTest(unittest.TestCase):
         ws_names = {s.get("name") for s in ws_symbols}
         self.assertIn("helper", ws_names)
 
+    def test_inlay_hints_for_inferred_types(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("inlayHintProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/hints.mlang"
+        source = (
+            "fn main() {\n"
+            "  let count = 1;\n"
+            "  let name = \"x\";\n"
+            "  let ok = true;\n"
+            "}\n"
+        )
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        hints = self.h.request(
+            "textDocument/inlayHint",
+            {
+                "textDocument": {"uri": uri},
+                "range": {
+                    "start": {"line": 0, "character": 0},
+                    "end": {"line": 10, "character": 0},
+                },
+            },
+        )
+        labels = {h.get("label") for h in hints}
+        self.assertIn(": Int", labels)
+        self.assertIn(": String", labels)
+        self.assertIn(": Bool", labels)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")

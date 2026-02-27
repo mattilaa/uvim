@@ -231,6 +231,7 @@ class JsonRpcServer:
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
+                    "inlayHintProvider": True,
                     "codeActionProvider": True,
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
@@ -532,6 +533,39 @@ class JsonRpcServer:
             )
         self._respond(req_id, actions)
 
+    def _handle_inlay_hint(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        semantic = self._analyze(doc)
+        type_by_name = {s.name: s.type_name for s in semantic.symbols}
+        hints: list[dict[str, Any]] = []
+        for m in re.finditer(
+            r"\b(let|const)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^;\n]+)\s*;",
+            doc.text,
+        ):
+            name = m.group(2)
+            inferred = type_by_name.get(name, "Unknown")
+            if inferred == "Unknown":
+                continue
+            line, char = offset_to_line_char(doc.text, m.end(2))
+            hints.append(
+                {
+                    "position": {"line": line, "character": char},
+                    "label": f": {inferred}",
+                    "kind": 1,
+                    "paddingLeft": True,
+                    "paddingRight": False,
+                }
+            )
+        self._respond(req_id, hints)
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -725,6 +759,8 @@ class JsonRpcServer:
             self._handle_semantic_tokens_full(req_id, params)
         elif method == "textDocument/codeAction":
             self._handle_code_action(req_id, params)
+        elif method == "textDocument/inlayHint":
+            self._handle_inlay_hint(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":
