@@ -230,6 +230,7 @@ class JsonRpcServer:
                     "referencesProvider": True,
                     "documentHighlightProvider": True,
                     "foldingRangeProvider": True,
+                    "callHierarchyProvider": True,
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
@@ -304,6 +305,48 @@ class JsonRpcServer:
             for m in pat.finditer(doc.text):
                 out.append(self._location_for_range(uri, doc.text, m.start(), m.end()))
         return out
+
+    def _find_function_declaration(self, name: str) -> tuple[str, Document, re.Match[str]] | None:
+        if not name:
+            return None
+        pat = re.compile(rf"\bfn\s+({re.escape(name)})\s*\(")
+        for uri, doc in self._documents.items():
+            m = pat.search(doc.text)
+            if m:
+                return (uri, doc, m)
+        return None
+
+    @staticmethod
+    def _extract_function_body(text: str, fn_name: str) -> tuple[int, int] | None:
+        m = re.search(rf"\bfn\s+{re.escape(fn_name)}\s*\([^)]*\)\s*\{{", text)
+        if not m:
+            return None
+        start = m.end() - 1  # at '{'
+        depth = 0
+        i = start
+        while i < len(text):
+            ch = text[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return (start + 1, i)
+            i += 1
+        return None
+
+    @staticmethod
+    def _call_hierarchy_item(
+        uri: str, text: str, name: str, start: int, end: int
+    ) -> dict[str, Any]:
+        rng = JsonRpcServer._location_for_range(uri, text, start, end)["range"]
+        return {
+            "name": name,
+            "kind": 12,  # function
+            "uri": uri,
+            "range": rng,
+            "selectionRange": rng,
+        }
 
     @staticmethod
     def _declared_symbols(text: str) -> list[tuple[str, str, int, int]]:
@@ -814,6 +857,104 @@ class JsonRpcServer:
 
         self._respond(req_id, out)
 
+    def _handle_prepare_call_hierarchy(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        found = self._find_function_declaration(token)
+        if not found:
+            self._respond(req_id, [])
+            return
+        f_uri, f_doc, match = found
+        item = self._call_hierarchy_item(f_uri, f_doc.text, token, match.start(1), match.end(1))
+        self._respond(req_id, [item])
+
+    def _handle_outgoing_calls(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        item = params.get("item", {})
+        uri = item.get("uri", "")
+        fn_name = item.get("name", "")
+        doc = self._documents.get(uri)
+        if doc is None or not fn_name:
+            self._respond(req_id, [])
+            return
+        body = self._extract_function_body(doc.text, fn_name)
+        if not body:
+            self._respond(req_id, [])
+            return
+        body_start, body_end = body
+        body_text = doc.text[body_start:body_end]
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for m in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(", body_text):
+            callee = m.group(1)
+            if callee in ("if", "while", "for", "return"):
+                continue
+            target = self._find_function_declaration(callee)
+            if not target or callee in seen:
+                continue
+            seen.add(callee)
+            t_uri, t_doc, t_match = target
+            from_range = self._location_for_range(
+                uri,
+                doc.text,
+                body_start + m.start(1),
+                body_start + m.end(1),
+            )["range"]
+            to_item = self._call_hierarchy_item(
+                t_uri, t_doc.text, callee, t_match.start(1), t_match.end(1)
+            )
+            out.append({"to": to_item, "fromRanges": [from_range]})
+        self._respond(req_id, out)
+
+    def _handle_incoming_calls(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        item = params.get("item", {})
+        target_name = item.get("name", "")
+        if not target_name:
+            self._respond(req_id, [])
+            return
+        out: list[dict[str, Any]] = []
+        for uri, doc in self._documents.items():
+            for fn_match in re.finditer(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", doc.text):
+                caller_name = fn_match.group(1)
+                body = self._extract_function_body(doc.text, caller_name)
+                if not body:
+                    continue
+                body_start, body_end = body
+                body_text = doc.text[body_start:body_end]
+                refs = list(re.finditer(rf"\b{re.escape(target_name)}\s*\(", body_text))
+                if not refs:
+                    continue
+                from_item = self._call_hierarchy_item(
+                    uri, doc.text, caller_name, fn_match.start(1), fn_match.end(1)
+                )
+                from_ranges = [
+                    self._location_for_range(
+                        uri,
+                        doc.text,
+                        body_start + r.start(),
+                        body_start + r.start() + len(target_name),
+                    )["range"]
+                    for r in refs
+                ]
+                out.append({"from": from_item, "fromRanges": from_ranges})
+        self._respond(req_id, out)
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -1045,6 +1186,12 @@ class JsonRpcServer:
             self._handle_document_highlight(req_id, params)
         elif method == "textDocument/foldingRange":
             self._handle_folding_range(req_id, params)
+        elif method == "textDocument/prepareCallHierarchy":
+            self._handle_prepare_call_hierarchy(req_id, params)
+        elif method == "callHierarchy/incomingCalls":
+            self._handle_incoming_calls(req_id, params)
+        elif method == "callHierarchy/outgoingCalls":
+            self._handle_outgoing_calls(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":

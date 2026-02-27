@@ -789,6 +789,44 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("comment", kinds)
         self.assertIn("region", kinds)
 
+    def test_call_hierarchy_incoming_and_outgoing(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("callHierarchyProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/call_hierarchy.mlang"
+        source = (
+            "fn callee() { return 1; }\n"
+            "fn helper() { return callee(); }\n"
+            "fn main() {\n"
+            "  return helper();\n"
+            "}\n"
+        )
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        prepared = self.h.request(
+            "textDocument/prepareCallHierarchy",
+            {"textDocument": {"uri": uri}, "position": {"line": 1, "character": 4}},
+        )
+        self.assertEqual(len(prepared), 1)
+        helper_item = prepared[0]
+        self.assertEqual(helper_item.get("name"), "helper")
+
+        outgoing = self.h.request("callHierarchy/outgoingCalls", {"item": helper_item})
+        self.assertGreaterEqual(len(outgoing), 1)
+        self.assertIn("callee", {c.get("to", {}).get("name") for c in outgoing})
+
+        incoming = self.h.request("callHierarchy/incomingCalls", {"item": helper_item})
+        self.assertGreaterEqual(len(incoming), 1)
+        self.assertIn("main", {c.get("from", {}).get("name") for c in incoming})
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
