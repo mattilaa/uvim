@@ -231,6 +231,7 @@ class JsonRpcServer:
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
+                    "selectionRangeProvider": True,
                     "inlayHintProvider": True,
                     "documentFormattingProvider": True,
                     "codeLensProvider": {"resolveProvider": False},
@@ -647,6 +648,61 @@ class JsonRpcServer:
             )
         self._respond(req_id, items)
 
+    def _handle_selection_range(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+
+        lines = doc.text.splitlines()
+        end_line, end_char = offset_to_line_char(doc.text, len(doc.text))
+        doc_range = {
+            "start": {"line": 0, "character": 0},
+            "end": {"line": end_line, "character": end_char},
+        }
+
+        out: list[dict[str, Any]] = []
+        for pos in params.get("positions", []):
+            line = int(pos.get("line", 0))
+            char = int(pos.get("character", 0))
+            token, start_off, end_off = self._token_at(doc.text, line, char)
+
+            if token:
+                token_range = self._location_for_range(uri, doc.text, start_off, end_off)[
+                    "range"
+                ]
+            else:
+                token_range = {
+                    "start": {"line": line, "character": char},
+                    "end": {"line": line, "character": char},
+                }
+
+            if 0 <= line < len(lines):
+                line_len = len(lines[line])
+            else:
+                line_len = 0
+            line_range = {
+                "start": {"line": max(0, line), "character": 0},
+                "end": {"line": max(0, line), "character": line_len},
+            }
+
+            out.append(
+                {
+                    "range": token_range,
+                    "parent": {
+                        "range": line_range,
+                        "parent": {"range": doc_range},
+                    },
+                }
+            )
+
+        self._respond(req_id, out)
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -870,6 +926,8 @@ class JsonRpcServer:
             self._handle_formatting(req_id, params)
         elif method == "textDocument/codeLens":
             self._handle_code_lens(req_id, params)
+        elif method == "textDocument/selectionRange":
+            self._handle_selection_range(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":

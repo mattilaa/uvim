@@ -679,6 +679,35 @@ class MlangLspIntegrationTest(unittest.TestCase):
         doc = resolved.get("documentation", {}).get("value", "")
         self.assertIn("value", doc)
 
+    def test_selection_range_returns_nested_ranges(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("selectionRangeProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/selection.mlang"
+        source = "fn main() {\n  let value = 1;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        ranges = self.h.request(
+            "textDocument/selectionRange",
+            {
+                "textDocument": {"uri": uri},
+                "positions": [{"line": 1, "character": 7}],
+            },
+        )
+        self.assertEqual(len(ranges), 1)
+        root = ranges[0]
+        self.assertIn("range", root)
+        self.assertIn("parent", root)
+        self.assertIn("parent", root["parent"])
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
