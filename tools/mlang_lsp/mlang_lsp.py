@@ -226,6 +226,7 @@ class JsonRpcServer:
                     "textDocumentSync": 2,
                     "hoverProvider": True,
                     "definitionProvider": True,
+                    "implementationProvider": True,
                     "declarationProvider": True,
                     "referencesProvider": True,
                     "documentHighlightProvider": True,
@@ -382,6 +383,10 @@ class JsonRpcServer:
             doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
         )
         self._respond(req_id, self._find_definition(token))
+
+    def _handle_implementation(self, req_id: Any, params: dict[str, Any]) -> None:
+        # Current scaffold maps implementation lookup to definition lookup.
+        self._handle_definition(req_id, params)
 
     def _handle_declaration(self, req_id: Any, params: dict[str, Any]) -> None:
         self._handle_definition(req_id, params)
@@ -1330,6 +1335,8 @@ class JsonRpcServer:
             self._handle_hover(req_id, params)
         elif method == "textDocument/definition":
             self._handle_definition(req_id, params)
+        elif method == "textDocument/implementation":
+            self._handle_implementation(req_id, params)
         elif method == "textDocument/declaration":
             self._handle_declaration(req_id, params)
         elif method == "textDocument/references":
