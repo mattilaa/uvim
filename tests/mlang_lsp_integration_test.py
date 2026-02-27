@@ -344,6 +344,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
 
         saw_begin = False
+        saw_report = False
         saw_end = False
         result: Dict[str, Any] = {}
         for _ in range(20):
@@ -354,16 +355,19 @@ class MlangLspIntegrationTest(unittest.TestCase):
                     kind = params.get("value", {}).get("kind")
                     if kind == "begin":
                         saw_begin = True
+                    if kind == "report":
+                        saw_report = True
                     if kind == "end":
                         saw_end = True
                 continue
             if msg.get("id") == req_id:
                 self.assertNotIn("error", msg)
                 result = msg.get("result", {})
-            if saw_begin and saw_end and result:
+            if saw_begin and saw_report and saw_end and result:
                 break
 
         self.assertTrue(saw_begin)
+        self.assertTrue(saw_report)
         self.assertTrue(saw_end)
         self.assertGreaterEqual(len(result.get("items", [])), 1)
         item_diags = result["items"][0].get("items", [])
@@ -380,6 +384,67 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         self.assertGreaterEqual(len(second.get("items", [])), 1)
         self.assertTrue(any(i.get("kind") == "unchanged" for i in second.get("items", [])))
+
+    def test_workspace_diagnostic_refresh_on_document_lifecycle(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/refresh.mlang"
+        source = "fn main() { let value = 1; }\n"
+
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        saw_refresh_open = False
+        saw_diag_open = False
+        for _ in range(20):
+            msg = self.h._read()
+            if msg.get("method") == "workspace/diagnostic/refresh":
+                saw_refresh_open = True
+            elif msg.get("method") == "textDocument/publishDiagnostics":
+                saw_diag_open = True
+            if saw_refresh_open and saw_diag_open:
+                break
+        self.assertTrue(saw_refresh_open)
+        self.assertTrue(saw_diag_open)
+
+        self.h.notify(
+            "textDocument/didChange",
+            {
+                "textDocument": {"uri": uri, "version": 2},
+                "contentChanges": [{"text": "fn main() { let value = 2; }\n"}],
+            },
+        )
+        saw_refresh_change = False
+        saw_diag_change = False
+        for _ in range(20):
+            msg = self.h._read()
+            if msg.get("method") == "workspace/diagnostic/refresh":
+                saw_refresh_change = True
+            elif msg.get("method") == "textDocument/publishDiagnostics":
+                saw_diag_change = True
+            if saw_refresh_change and saw_diag_change:
+                break
+        self.assertTrue(saw_refresh_change)
+        self.assertTrue(saw_diag_change)
+
+        self.h.notify("textDocument/didClose", {"textDocument": {"uri": uri}})
+        saw_refresh_close = False
+        saw_diag_close = False
+        for _ in range(20):
+            msg = self.h._read()
+            if msg.get("method") == "workspace/diagnostic/refresh":
+                saw_refresh_close = True
+            elif msg.get("method") == "textDocument/publishDiagnostics":
+                saw_diag_close = True
+            if saw_refresh_close and saw_diag_close:
+                break
+        self.assertTrue(saw_refresh_close)
+        self.assertTrue(saw_diag_close)
 
     def test_document_diagnostic_supports_previous_result_id(self) -> None:
         self.h.request(

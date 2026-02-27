@@ -208,6 +208,21 @@ class JsonRpcServer:
             {"token": token, "value": {"kind": "end", "message": message}},
         )
 
+    def _work_report(self, token: Any, message: str, percentage: int) -> None:
+        if token is None:
+            return
+        pct = max(0, min(100, int(percentage)))
+        self._notify(
+            "$/progress",
+            {
+                "token": token,
+                "value": {"kind": "report", "message": message, "percentage": pct},
+            },
+        )
+
+    def _notify_workspace_diagnostic_refresh(self) -> None:
+        self._notify("workspace/diagnostic/refresh", {})
+
     def _is_canceled(self, req_id: Any) -> bool:
         return isinstance(req_id, int) and req_id in self._canceled_request_ids
 
@@ -229,7 +244,9 @@ class JsonRpcServer:
                 if isinstance(u, str) and isinstance(r, str):
                     prev_by_uri[u] = r
         items: list[dict[str, Any]] = []
-        for uri, doc in self._documents.items():
+        docs = list(self._documents.items())
+        total = len(docs)
+        for idx, (uri, doc) in enumerate(docs, start=1):
             if self._is_canceled(req_id):
                 self._work_end(token, "cancelled")
                 self._error(req_id, -32800, "Request cancelled")
@@ -237,6 +254,10 @@ class JsonRpcServer:
             result = self._analyze(doc)
             self._dependency_graph[uri] = result.imports
             diag_items = [d.to_lsp(doc.text) for d in result.diagnostics]
+            if total > 0:
+                self._work_report(
+                    token, f"processed {idx}/{total}", int((idx * 100) / total)
+                )
             result_id = self._doc_hash(
                 json.dumps(diag_items, sort_keys=True, separators=(",", ":"))
             )
@@ -1907,6 +1928,7 @@ class JsonRpcServer:
         )
         self._invalidate_doc(uri)
         self._update_dependency_graph(uri)
+        self._notify_workspace_diagnostic_refresh()
         self._publish_diagnostics(uri)
 
     @staticmethod
@@ -1941,6 +1963,7 @@ class JsonRpcServer:
         doc.version = int(text_doc.get("version", doc.version))
         self._invalidate_doc(uri)
         self._update_dependency_graph(uri)
+        self._notify_workspace_diagnostic_refresh()
         self._publish_diagnostics(uri)
 
     def _handle_hover(self, req_id: Any, params: dict[str, Any]) -> None:
@@ -2225,6 +2248,7 @@ class JsonRpcServer:
             if uri in self._documents:
                 del self._documents[uri]
                 self._invalidate_doc(uri)
+                self._notify_workspace_diagnostic_refresh()
                 self._publish_diagnostics(uri)
             return
         if method == "$/cancelRequest":
