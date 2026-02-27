@@ -239,6 +239,10 @@ class JsonRpcServer:
                     "linkedEditingRangeProvider": True,
                     "inlayHintProvider": True,
                     "documentFormattingProvider": True,
+                    "documentOnTypeFormattingProvider": {
+                        "firstTriggerCharacter": ";",
+                        "moreTriggerCharacter": ["}"],
+                    },
                     "codeLensProvider": {"resolveProvider": False},
                     "codeActionProvider": True,
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
@@ -692,6 +696,63 @@ class JsonRpcServer:
                         "end": {"line": end_line, "character": end_char},
                     },
                     "newText": new_text,
+                }
+            ],
+        )
+
+    def _handle_on_type_formatting(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        ch = str(params.get("ch", ""))
+        if ch not in (";", "}"):
+            self._respond(req_id, [])
+            return
+        pos = params.get("position", {})
+        line = int(pos.get("line", 0))
+        lines = doc.text.splitlines()
+        if line < 0 or line >= len(lines):
+            self._respond(req_id, [])
+            return
+        old_line = lines[line]
+        stripped = old_line.strip()
+        if not stripped:
+            self._respond(req_id, [])
+            return
+
+        # Estimate indentation from unmatched braces before this line.
+        prefix = "\n".join(lines[:line])
+        depth = 0
+        for c in prefix:
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth = max(0, depth - 1)
+        if stripped.startswith("}"):
+            depth = max(0, depth - 1)
+
+        new_line = ("  " * depth) + stripped
+        if ch == ";" and re.match(r"^(let|const|return)\b", stripped) and not new_line.endswith(";"):
+            new_line += ";"
+        if new_line == old_line:
+            self._respond(req_id, [])
+            return
+
+        self._respond(
+            req_id,
+            [
+                {
+                    "range": {
+                        "start": {"line": line, "character": 0},
+                        "end": {"line": line, "character": len(old_line)},
+                    },
+                    "newText": new_line,
                 }
             ],
         )
@@ -1233,6 +1294,8 @@ class JsonRpcServer:
             self._handle_inlay_hint(req_id, params)
         elif method == "textDocument/formatting":
             self._handle_formatting(req_id, params)
+        elif method == "textDocument/onTypeFormatting":
+            self._handle_on_type_formatting(req_id, params)
         elif method == "textDocument/codeLens":
             self._handle_code_lens(req_id, params)
         elif method == "textDocument/selectionRange":

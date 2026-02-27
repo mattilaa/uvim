@@ -621,6 +621,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
         self.assertTrue(init.get("capabilities", {}).get("documentFormattingProvider"))
+        self.assertIn("documentOnTypeFormattingProvider", init.get("capabilities", {}))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/fmt.mlang"
@@ -642,6 +643,33 @@ class MlangLspIntegrationTest(unittest.TestCase):
         new_text = edits[0].get("newText", "")
         self.assertIn("  let x = 1;", new_text)
         self.assertIn("  return x;", new_text)
+
+    def test_on_type_formatting_fixes_current_line(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/on_type.mlang"
+        source = "fn main() {\nlet x = 1\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        edits = self.h.request(
+            "textDocument/onTypeFormatting",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": 1, "character": 9},
+                "ch": ";",
+                "options": {"tabSize": 2, "insertSpaces": True},
+            },
+        )
+        self.assertEqual(len(edits), 1)
+        self.assertEqual(edits[0].get("newText"), "  let x = 1;")
 
     def test_code_lens_for_functions(self) -> None:
         init = self.h.request(
