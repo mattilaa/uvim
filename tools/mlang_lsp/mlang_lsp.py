@@ -229,6 +229,7 @@ class JsonRpcServer:
                     "declarationProvider": True,
                     "referencesProvider": True,
                     "documentHighlightProvider": True,
+                    "foldingRangeProvider": True,
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
@@ -762,6 +763,57 @@ class JsonRpcServer:
                 break
         self._respond(req_id, out)
 
+    def _handle_folding_range(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        lines = doc.text.splitlines()
+        out: list[dict[str, Any]] = []
+
+        # Brace-based folding for code blocks.
+        stack: list[int] = []
+        for i, line in enumerate(lines):
+            for ch in line:
+                if ch == "{":
+                    stack.append(i)
+                elif ch == "}" and stack:
+                    start = stack.pop()
+                    end = i
+                    if end > start:
+                        out.append(
+                            {
+                                "startLine": start,
+                                "endLine": end,
+                                "kind": "region",
+                            }
+                        )
+
+        # Consecutive line-comment blocks folding.
+        i = 0
+        while i < len(lines):
+            if lines[i].lstrip().startswith("//"):
+                start = i
+                while i + 1 < len(lines) and lines[i + 1].lstrip().startswith("//"):
+                    i += 1
+                end = i
+                if end > start:
+                    out.append(
+                        {
+                            "startLine": start,
+                            "endLine": end,
+                            "kind": "comment",
+                        }
+                    )
+            i += 1
+
+        self._respond(req_id, out)
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -991,6 +1043,8 @@ class JsonRpcServer:
             self._handle_linked_editing_range(req_id, params)
         elif method == "textDocument/documentHighlight":
             self._handle_document_highlight(req_id, params)
+        elif method == "textDocument/foldingRange":
+            self._handle_folding_range(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":

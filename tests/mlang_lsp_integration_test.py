@@ -759,6 +759,36 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn(3, kinds)  # declaration/write
         self.assertIn(2, kinds)  # read usage
 
+    def test_folding_range_for_blocks_and_comment_runs(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("foldingRangeProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/fold.mlang"
+        source = (
+            "// head1\n"
+            "// head2\n"
+            "fn main() {\n"
+            "  if true {\n"
+            "    let v = 1;\n"
+            "  }\n"
+            "}\n"
+        )
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        ranges = self.h.request("textDocument/foldingRange", {"textDocument": {"uri": uri}})
+        self.assertGreaterEqual(len(ranges), 2)
+        kinds = {r.get("kind") for r in ranges}
+        self.assertIn("comment", kinds)
+        self.assertIn("region", kinds)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
