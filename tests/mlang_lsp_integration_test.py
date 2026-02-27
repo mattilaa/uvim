@@ -826,6 +826,31 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("  let x = 1;", new_text)
         self.assertIn("  return x;", new_text)
 
+    def test_document_formatting_honors_tab_size_option(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/fmt_tabsize.mlang"
+        source = "fn main(){\nlet x = 1\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        edits = self.h.request(
+            "textDocument/formatting",
+            {
+                "textDocument": {"uri": uri},
+                "options": {"tabSize": 4, "insertSpaces": True},
+            },
+        )
+        self.assertEqual(len(edits), 1)
+        self.assertIn("    let x = 1;", edits[0].get("newText", ""))
+
     def test_on_type_formatting_fixes_current_line(self) -> None:
         self.h.request(
             "initialize",

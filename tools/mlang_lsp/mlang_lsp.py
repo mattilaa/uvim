@@ -952,7 +952,17 @@ class JsonRpcServer:
         )
 
     @staticmethod
-    def _format_text(text: str) -> str:
+    def _indent_unit_from_options(options: dict[str, Any] | None) -> str:
+        options = options or {}
+        tab_size = int(options.get("tabSize", 2))
+        if tab_size <= 0:
+            tab_size = 2
+        if bool(options.get("insertSpaces", True)):
+            return " " * tab_size
+        return "\t"
+
+    @staticmethod
+    def _format_text(text: str, indent_unit: str = "  ") -> str:
         lines = text.splitlines()
         out: list[str] = []
         indent = 0
@@ -963,7 +973,7 @@ class JsonRpcServer:
                 continue
             if stripped.startswith("}"):
                 indent = max(0, indent - 1)
-            line = ("  " * indent) + stripped
+            line = (indent_unit * indent) + stripped
             # Add semicolon for simple let/const/return declarations.
             if re.match(r"^(let|const|return)\b", stripped):
                 if not line.endswith(";") and not line.endswith("{") and not line.endswith("}"):
@@ -986,7 +996,8 @@ class JsonRpcServer:
         if doc is None:
             self._respond(req_id, [])
             return
-        new_text = self._format_text(doc.text)
+        indent_unit = self._indent_unit_from_options(params.get("options"))
+        new_text = self._format_text(doc.text, indent_unit=indent_unit)
         if new_text == doc.text:
             self._respond(req_id, [])
             return
@@ -1024,7 +1035,8 @@ class JsonRpcServer:
         start_line = max(0, min(start_line, len(lines) - 1))
         end_line = max(start_line, min(end_line, len(lines) - 1))
         old_block = "\n".join(lines[start_line : end_line + 1])
-        new_block = self._format_text(old_block).rstrip("\n")
+        indent_unit = self._indent_unit_from_options(params.get("options"))
+        new_block = self._format_text(old_block, indent_unit=indent_unit).rstrip("\n")
         if old_block == new_block:
             self._respond(req_id, [])
             return
@@ -1078,7 +1090,8 @@ class JsonRpcServer:
         if stripped.startswith("}"):
             depth = max(0, depth - 1)
 
-        new_line = ("  " * depth) + stripped
+        indent_unit = self._indent_unit_from_options(params.get("options"))
+        new_line = (indent_unit * depth) + stripped
         if ch == ";" and re.match(r"^(let|const|return)\b", stripped) and not new_line.endswith(";"):
             new_line += ";"
         if new_line == old_line:
