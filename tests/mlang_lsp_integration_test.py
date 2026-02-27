@@ -406,6 +406,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         caps = init.get("capabilities", {})
         self.assertTrue(caps.get("definitionProvider"))
         self.assertTrue(caps.get("implementationProvider"))
+        self.assertTrue(caps.get("typeDefinitionProvider"))
         self.assertTrue(caps.get("declarationProvider"))
         self.assertTrue(caps.get("referencesProvider"))
         self.assertTrue(caps.get("renameProvider"))
@@ -439,6 +440,12 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(implementation["uri"], uri)
         self.assertEqual(implementation["range"]["start"]["line"], 0)
+
+        type_def = self.h.request(
+            "textDocument/typeDefinition",
+            {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 8}},
+        )
+        self.assertEqual(type_def["uri"], "mlang:///types/Int.mla")
 
         declaration = self.h.request(
             "textDocument/declaration",

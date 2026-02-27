@@ -227,6 +227,7 @@ class JsonRpcServer:
                     "hoverProvider": True,
                     "definitionProvider": True,
                     "implementationProvider": True,
+                    "typeDefinitionProvider": True,
                     "declarationProvider": True,
                     "referencesProvider": True,
                     "documentHighlightProvider": True,
@@ -387,6 +388,37 @@ class JsonRpcServer:
     def _handle_implementation(self, req_id: Any, params: dict[str, Any]) -> None:
         # Current scaffold maps implementation lookup to definition lookup.
         self._handle_definition(req_id, params)
+
+    def _handle_type_definition(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, None)
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        semantic = self._analyze(doc)
+        symbol = next((s for s in semantic.symbols if s.name == token), None)
+        if symbol is None or symbol.type_name in ("Unknown", "Function"):
+            self._respond(req_id, None)
+            return
+        # Built-in type docs location for scaffold.
+        self._respond(
+            req_id,
+            {
+                "uri": f"mlang:///types/{symbol.type_name}.mla",
+                "range": {
+                    "start": {"line": 0, "character": 0},
+                    "end": {"line": 0, "character": len(symbol.type_name)},
+                },
+            },
+        )
 
     def _handle_declaration(self, req_id: Any, params: dict[str, Any]) -> None:
         self._handle_definition(req_id, params)
@@ -1337,6 +1369,8 @@ class JsonRpcServer:
             self._handle_definition(req_id, params)
         elif method == "textDocument/implementation":
             self._handle_implementation(req_id, params)
+        elif method == "textDocument/typeDefinition":
+            self._handle_type_definition(req_id, params)
         elif method == "textDocument/declaration":
             self._handle_declaration(req_id, params)
         elif method == "textDocument/references":
