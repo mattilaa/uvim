@@ -159,7 +159,16 @@ class JsonRpcServer:
             "true",
             "false",
         ]
-        return [{"label": k, "kind": 14, "detail": "keyword"} for k in keywords]
+        return [
+            {
+                "label": k,
+                "kind": 14,
+                "detail": "keyword",
+                "sortText": f"2_{k}",
+                "filterText": k,
+            }
+            for k in keywords
+        ]
 
     def _function_signature_map(self) -> dict[str, str]:
         sigs: dict[str, str] = {}
@@ -1852,6 +1861,13 @@ class JsonRpcServer:
             for sym in self._analyze(open_doc).symbols:
                 all_symbols.setdefault(sym.name, sym.type_name)
         for symbol, type_name in all_symbols.items():
+            rank = "0" if typed and symbol == typed else "1"
+            base_meta = {
+                "sortText": f"{rank}_{symbol}",
+                "filterText": symbol,
+            }
+            if rank == "0":
+                base_meta["preselect"] = True
             if type_name == "Function":
                 sig_detail = fn_sigs.get(symbol, "(...)")
                 items.append(
@@ -1863,10 +1879,18 @@ class JsonRpcServer:
                         "insertText": f"{symbol}($1)",
                         "insertTextFormat": 2,
                         "commitCharacters": ["("],
+                        **base_meta,
                     }
                 )
             else:
-                items.append({"label": symbol, "kind": 6, "detail": f"symbol: {type_name}"})
+                items.append(
+                    {
+                        "label": symbol,
+                        "kind": 6,
+                        "detail": f"symbol: {type_name}",
+                        **base_meta,
+                    }
+                )
 
         if typed:
             items = [it for it in items if it["label"].startswith(typed)]

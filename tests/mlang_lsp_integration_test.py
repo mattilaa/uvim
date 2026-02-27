@@ -992,6 +992,30 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("documentation", resolved)
         self.assertIn("(", resolved.get("documentation", {}).get("value", ""))
 
+    def test_completion_marks_exact_match_preselect_and_sort_text(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/completion_rank.mlang"
+        source = "fn helper() {}\nfn helium() {}\nfn main() {\n  helper\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        completion = self.h.request(
+            "textDocument/completion",
+            {"textDocument": {"uri": uri}, "position": {"line": 3, "character": 8}},
+        )
+        helper = next((i for i in completion.get("items", []) if i.get("label") == "helper"), None)
+        self.assertIsNotNone(helper)
+        self.assertTrue(helper.get("preselect"))
+        self.assertTrue(str(helper.get("sortText", "")).startswith("0_"))
+
     def test_selection_range_returns_nested_ranges(self) -> None:
         init = self.h.request(
             "initialize",
