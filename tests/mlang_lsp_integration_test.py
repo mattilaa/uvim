@@ -369,6 +369,18 @@ class MlangLspIntegrationTest(unittest.TestCase):
         item_diags = result["items"][0].get("items", [])
         self.assertTrue(any("Unknown identifier 'src'" == d.get("message") for d in item_diags))
 
+        # Repeat with previousResultIds and expect unchanged for the same doc.
+        prev_ids = []
+        for it in result.get("items", []):
+            if it.get("uri") and it.get("resultId"):
+                prev_ids.append({"uri": it["uri"], "value": it["resultId"]})
+        second = self.h.request(
+            "workspace/diagnostic",
+            {"previousResultIds": prev_ids},
+        )
+        self.assertGreaterEqual(len(second.get("items", [])), 1)
+        self.assertTrue(any(i.get("kind") == "unchanged" for i in second.get("items", [])))
+
     def test_document_diagnostic_supports_previous_result_id(self) -> None:
         self.h.request(
             "initialize",

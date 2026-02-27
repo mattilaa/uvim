@@ -199,6 +199,16 @@ class JsonRpcServer:
 
         token = params.get("workDoneToken")
         self._work_begin(token, "workspace diagnostics")
+        prev_ids_raw = params.get("previousResultIds", [])
+        prev_by_uri: dict[str, str] = {}
+        if isinstance(prev_ids_raw, list):
+            for entry in prev_ids_raw:
+                if not isinstance(entry, dict):
+                    continue
+                u = entry.get("uri")
+                r = entry.get("value")
+                if isinstance(u, str) and isinstance(r, str):
+                    prev_by_uri[u] = r
         items: list[dict[str, Any]] = []
         for uri, doc in self._documents.items():
             if self._is_canceled(req_id):
@@ -207,12 +217,27 @@ class JsonRpcServer:
                 return
             result = self._analyze(doc)
             self._dependency_graph[uri] = result.imports
+            diag_items = [d.to_lsp(doc.text) for d in result.diagnostics]
+            result_id = self._doc_hash(
+                json.dumps(diag_items, sort_keys=True, separators=(",", ":"))
+            )
+            if prev_by_uri.get(uri) == result_id:
+                items.append(
+                    {
+                        "uri": uri,
+                        "version": doc.version,
+                        "kind": "unchanged",
+                        "resultId": result_id,
+                    }
+                )
+                continue
             items.append(
                 {
                     "uri": uri,
                     "version": doc.version,
                     "kind": "full",
-                    "items": [d.to_lsp(doc.text) for d in result.diagnostics],
+                    "items": diag_items,
+                    "resultId": result_id,
                 }
             )
         self._work_end(token)
