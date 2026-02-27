@@ -14,7 +14,7 @@ if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
 from mlang_frontend.compiler_api import SemanticResult, analyze_document
-from mlang_frontend.source_map import line_char_to_offset
+from mlang_frontend.source_map import line_char_to_offset, offset_to_line_char
 
 
 @dataclass
@@ -26,6 +26,15 @@ class Document:
 
 
 class JsonRpcServer:
+    TOKEN_TYPES = [
+        "keyword",
+        "function",
+        "variable",
+        "number",
+        "string",
+        "comment",
+    ]
+
     def __init__(self) -> None:
         self._documents: dict[str, Document] = {}
         self._semantic_cache: dict[str, tuple[int, str, SemanticResult]] = {}
@@ -216,6 +225,16 @@ class JsonRpcServer:
                 "capabilities": {
                     "textDocumentSync": 2,
                     "hoverProvider": True,
+                    "definitionProvider": True,
+                    "declarationProvider": True,
+                    "referencesProvider": True,
+                    "renameProvider": True,
+                    "codeActionProvider": True,
+                    "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
+                    "semanticTokensProvider": {
+                        "legend": {"tokenTypes": self.TOKEN_TYPES, "tokenModifiers": []},
+                        "full": True,
+                    },
                     "completionProvider": {
                         "resolveProvider": False,
                         "triggerCharacters": [".", ":"],
@@ -228,6 +247,240 @@ class JsonRpcServer:
                 },
             },
         )
+
+    @staticmethod
+    def _location_for_range(uri: str, text: str, start: int, end: int) -> dict[str, Any]:
+        sl, sc = offset_to_line_char(text, start)
+        el, ec = offset_to_line_char(text, end)
+        return {
+            "uri": uri,
+            "range": {
+                "start": {"line": sl, "character": sc},
+                "end": {"line": el, "character": ec},
+            },
+        }
+
+    @staticmethod
+    def _token_at(text: str, line: int, character: int) -> tuple[str, int, int]:
+        offset = line_char_to_offset(text, line, character)
+        if not text:
+            return "", 0, 0
+        offset = max(0, min(offset, len(text)))
+        start = offset
+        end = offset
+        while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+            start -= 1
+        while end < len(text) and (text[end].isalnum() or text[end] == "_"):
+            end += 1
+        return text[start:end], start, end
+
+    def _find_definition(self, name: str) -> dict[str, Any] | None:
+        if not name:
+            return None
+        pat = re.compile(rf"\b(fn|let|const)\s+({re.escape(name)})\b")
+        for uri, doc in self._documents.items():
+            m = pat.search(doc.text)
+            if m:
+                start = m.start(2)
+                end = m.end(2)
+                return self._location_for_range(uri, doc.text, start, end)
+        return None
+
+    def _find_references(self, name: str) -> list[dict[str, Any]]:
+        if not name:
+            return []
+        out: list[dict[str, Any]] = []
+        pat = re.compile(rf"\b{re.escape(name)}\b")
+        for uri, doc in self._documents.items():
+            for m in pat.finditer(doc.text):
+                out.append(self._location_for_range(uri, doc.text, m.start(), m.end()))
+        return out
+
+    def _handle_definition(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, None)
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        self._respond(req_id, self._find_definition(token))
+
+    def _handle_declaration(self, req_id: Any, params: dict[str, Any]) -> None:
+        self._handle_definition(req_id, params)
+
+    def _handle_references(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        refs = self._find_references(token)
+        self._respond(req_id, refs)
+
+    def _handle_rename(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, {"changes": {}})
+            return
+        new_name = params.get("newName", "")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", new_name):
+            self._error(req_id, -32602, "Invalid newName")
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        refs = self._find_references(token)
+        changes: dict[str, list[dict[str, Any]]] = {}
+        for loc in refs:
+            changes.setdefault(loc["uri"], []).append(
+                {"range": loc["range"], "newText": new_name}
+            )
+        self._respond(req_id, {"changes": changes})
+
+    def _handle_signature_help(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, None)
+            return
+        pos = params.get("position", {})
+        line = int(pos.get("line", 0))
+        char = int(pos.get("character", 0))
+        line_text = self._get_line(doc.text, line)
+        prefix = line_text[: min(char, len(line_text))]
+        m = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*\([^()]*$", prefix)
+        if not m:
+            self._respond(req_id, None)
+            return
+        fn_name = m.group(1)
+        signature = f"{fn_name}(...)"
+        for open_doc in self._documents.values():
+            dm = re.search(
+                rf"\bfn\s+{re.escape(fn_name)}\s*\(([^)]*)\)", open_doc.text
+            )
+            if dm:
+                params_src = dm.group(1).strip()
+                signature = f"{fn_name}({params_src})"
+                break
+        comma_count = prefix.rsplit("(", 1)[-1].count(",")
+        self._respond(
+            req_id,
+            {
+                "signatures": [{"label": signature}],
+                "activeSignature": 0,
+                "activeParameter": comma_count,
+            },
+        )
+
+    def _encode_semantic_tokens(self, text: str) -> list[int]:
+        token_map = {name: idx for idx, name in enumerate(self.TOKEN_TYPES)}
+        rows: list[tuple[int, int, int, int, int]] = []
+        for line_idx, line in enumerate(text.splitlines()):
+            for m in re.finditer(r"\b(fn|let|const|return|if|else|while|for|import)\b", line):
+                rows.append((line_idx, m.start(), len(m.group(1)), token_map["keyword"], 0))
+            for m in re.finditer(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)", line):
+                rows.append((line_idx, m.start(1), len(m.group(1)), token_map["function"], 0))
+            for m in re.finditer(r"\b(let|const)\s+([A-Za-z_][A-Za-z0-9_]*)", line):
+                rows.append((line_idx, m.start(2), len(m.group(2)), token_map["variable"], 0))
+            for m in re.finditer(r"\b[0-9]+\b", line):
+                rows.append((line_idx, m.start(), len(m.group(0)), token_map["number"], 0))
+            for m in re.finditer(r'"(?:\\.|[^"\\])*"', line):
+                rows.append((line_idx, m.start(), len(m.group(0)), token_map["string"], 0))
+            c = line.find("//")
+            if c >= 0:
+                rows.append((line_idx, c, len(line) - c, token_map["comment"], 0))
+        rows.sort()
+        out: list[int] = []
+        prev_line = 0
+        prev_char = 0
+        for line, char, length, tok_type, mods in rows:
+            dline = line - prev_line
+            dchar = char - prev_char if dline == 0 else char
+            out.extend([dline, dchar, length, tok_type, mods])
+            prev_line = line
+            prev_char = char
+        return out
+
+    def _handle_semantic_tokens_full(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, {"data": []})
+            return
+        self._respond(req_id, {"data": self._encode_semantic_tokens(doc.text)})
+
+    def _handle_code_action(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        diags = params.get("context", {}).get("diagnostics", [])
+        known_symbols: set[str] = set()
+        for open_doc in self._documents.values():
+            for sym in self._analyze(open_doc).symbols:
+                known_symbols.add(sym.name)
+
+        actions: list[dict[str, Any]] = []
+        for d in diags:
+            msg = d.get("message", "")
+            m = re.match(r"Unknown identifier '([A-Za-z_][A-Za-z0-9_]*)'", msg)
+            if not m:
+                continue
+            missing = m.group(1)
+            replacement = next((s for s in sorted(known_symbols) if s[:1] == missing[:1]), None)
+            if not replacement:
+                continue
+            actions.append(
+                {
+                    "title": f"Replace '{missing}' with '{replacement}'",
+                    "kind": "quickfix",
+                    "edit": {
+                        "changes": {
+                            uri: [
+                                {
+                                    "range": d.get("range"),
+                                    "newText": replacement,
+                                }
+                            ]
+                        }
+                    },
+                }
+            )
+        self._respond(req_id, actions)
 
     def _handle_did_open(self, params: dict[str, Any]) -> None:
         text_doc = params.get("textDocument", {})
@@ -362,6 +615,20 @@ class JsonRpcServer:
             self._respond(req_id, None)
         elif method == "textDocument/hover":
             self._handle_hover(req_id, params)
+        elif method == "textDocument/definition":
+            self._handle_definition(req_id, params)
+        elif method == "textDocument/declaration":
+            self._handle_declaration(req_id, params)
+        elif method == "textDocument/references":
+            self._handle_references(req_id, params)
+        elif method == "textDocument/rename":
+            self._handle_rename(req_id, params)
+        elif method == "textDocument/signatureHelp":
+            self._handle_signature_help(req_id, params)
+        elif method == "textDocument/semanticTokens/full":
+            self._handle_semantic_tokens_full(req_id, params)
+        elif method == "textDocument/codeAction":
+            self._handle_code_action(req_id, params)
         elif method == "textDocument/completion":
             self._handle_completion(req_id, params)
         elif method == "textDocument/diagnostic":

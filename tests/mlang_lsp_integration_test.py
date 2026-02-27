@@ -397,6 +397,117 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("error", msg)
         self.assertEqual(msg["error"].get("code"), -32800)
 
+    def test_phase5_navigation_references_and_rename(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        caps = init.get("capabilities", {})
+        self.assertTrue(caps.get("definitionProvider"))
+        self.assertTrue(caps.get("declarationProvider"))
+        self.assertTrue(caps.get("referencesProvider"))
+        self.assertTrue(caps.get("renameProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/nav.mlang"
+        source = (
+            "fn helper(x, y) { return x; }\n"
+            "fn main() {\n"
+            "  let count = 1;\n"
+            "  let out = helper(count, 2);\n"
+            "  return count;\n"
+            "}\n"
+        )
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        definition = self.h.request(
+            "textDocument/definition",
+            {"textDocument": {"uri": uri}, "position": {"line": 3, "character": 13}},
+        )
+        self.assertEqual(definition["uri"], uri)
+        self.assertEqual(definition["range"]["start"]["line"], 0)
+
+        declaration = self.h.request(
+            "textDocument/declaration",
+            {"textDocument": {"uri": uri}, "position": {"line": 4, "character": 10}},
+        )
+        self.assertEqual(declaration["range"]["start"]["line"], 2)
+
+        refs = self.h.request(
+            "textDocument/references",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": 2, "character": 7},
+                "context": {"includeDeclaration": True},
+            },
+        )
+        self.assertGreaterEqual(len(refs), 3)
+
+        rename = self.h.request(
+            "textDocument/rename",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": 2, "character": 7},
+                "newName": "total",
+            },
+        )
+        edits = rename.get("changes", {}).get(uri, [])
+        self.assertGreaterEqual(len(edits), 3)
+
+    def test_phase5_signature_help_semantic_tokens_and_code_action(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        caps = init.get("capabilities", {})
+        self.assertIn("signatureHelpProvider", caps)
+        self.assertIn("semanticTokensProvider", caps)
+        self.assertTrue(caps.get("codeActionProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/phase5.mlang"
+        source = (
+            "fn add(a, b) { return a; }\n"
+            "fn main() {\n"
+            "  let srcVal = 1;\n"
+            "  let value = add(srcVal, 2);\n"
+            "  let bad = src;\n"
+            "  return value;\n"
+            "}\n"
+        )
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        diag_params = self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        sig = self.h.request(
+            "textDocument/signatureHelp",
+            {"textDocument": {"uri": uri}, "position": {"line": 3, "character": 22}},
+        )
+        self.assertIn("add(a, b)", sig["signatures"][0]["label"])
+
+        tokens = self.h.request(
+            "textDocument/semanticTokens/full",
+            {"textDocument": {"uri": uri}},
+        )
+        self.assertGreater(len(tokens.get("data", [])), 0)
+
+        actions = self.h.request(
+            "textDocument/codeAction",
+            {
+                "textDocument": {"uri": uri},
+                "range": {"start": {"line": 4, "character": 12}, "end": {"line": 4, "character": 15}},
+                "context": {"diagnostics": diag_params.get("diagnostics", [])},
+            },
+        )
+        self.assertGreaterEqual(len(actions), 1)
+        self.assertIn("quickfix", actions[0].get("kind", ""))
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
