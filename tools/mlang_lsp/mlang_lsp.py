@@ -254,6 +254,7 @@ class JsonRpcServer:
                     "definitionProvider": True,
                     "implementationProvider": True,
                     "typeDefinitionProvider": True,
+                    "typeHierarchyProvider": True,
                     "declarationProvider": True,
                     "referencesProvider": True,
                     "documentHighlightProvider": True,
@@ -465,6 +466,68 @@ class JsonRpcServer:
                 },
             },
         )
+
+    @staticmethod
+    def _type_item(type_name: str) -> dict[str, Any]:
+        return {
+            "name": type_name,
+            "kind": 5,  # class-like
+            "uri": f"mlang:///types/{type_name}.mla",
+            "range": {
+                "start": {"line": 0, "character": 0},
+                "end": {"line": 0, "character": len(type_name)},
+            },
+            "selectionRange": {
+                "start": {"line": 0, "character": 0},
+                "end": {"line": 0, "character": len(type_name)},
+            },
+            "data": {"typeName": type_name},
+        }
+
+    def _handle_prepare_type_hierarchy(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        semantic = self._analyze(doc)
+        symbol = next((s for s in semantic.symbols if s.name == token), None)
+        if symbol is None or symbol.type_name in ("Unknown", "Function"):
+            self._respond(req_id, [])
+            return
+        self._respond(req_id, [self._type_item(symbol.type_name)])
+
+    def _handle_type_hierarchy_supertypes(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        item = params.get("item", {})
+        tname = str(item.get("data", {}).get("typeName", item.get("name", "")))
+        if tname in ("Int", "String", "Bool"):
+            self._respond(req_id, [self._type_item("Any")])
+            return
+        self._respond(req_id, [])
+
+    def _handle_type_hierarchy_subtypes(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        item = params.get("item", {})
+        tname = str(item.get("data", {}).get("typeName", item.get("name", "")))
+        if tname == "Any":
+            self._respond(
+                req_id, [self._type_item("Int"), self._type_item("String"), self._type_item("Bool")]
+            )
+            return
+        self._respond(req_id, [])
 
     def _handle_declaration(self, req_id: Any, params: dict[str, Any]) -> None:
         self._handle_definition(req_id, params)
@@ -1780,6 +1843,12 @@ class JsonRpcServer:
             self._handle_implementation(req_id, params)
         elif method == "textDocument/typeDefinition":
             self._handle_type_definition(req_id, params)
+        elif method == "textDocument/prepareTypeHierarchy":
+            self._handle_prepare_type_hierarchy(req_id, params)
+        elif method == "typeHierarchy/supertypes":
+            self._handle_type_hierarchy_supertypes(req_id, params)
+        elif method == "typeHierarchy/subtypes":
+            self._handle_type_hierarchy_subtypes(req_id, params)
         elif method == "textDocument/declaration":
             self._handle_declaration(req_id, params)
         elif method == "textDocument/references":

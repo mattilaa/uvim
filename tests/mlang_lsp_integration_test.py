@@ -449,6 +449,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertTrue(caps.get("definitionProvider"))
         self.assertTrue(caps.get("implementationProvider"))
         self.assertTrue(caps.get("typeDefinitionProvider"))
+        self.assertTrue(caps.get("typeHierarchyProvider"))
         self.assertTrue(caps.get("declarationProvider"))
         self.assertTrue(caps.get("referencesProvider"))
         self.assertTrue(caps.get("renameProvider"))
@@ -488,6 +489,21 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 8}},
         )
         self.assertEqual(type_def["uri"], "mlang:///types/Int.mla")
+
+        prepared = self.h.request(
+            "textDocument/prepareTypeHierarchy",
+            {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 8}},
+        )
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(prepared[0].get("name"), "Int")
+
+        supers = self.h.request("typeHierarchy/supertypes", {"item": prepared[0]})
+        self.assertEqual(len(supers), 1)
+        self.assertEqual(supers[0].get("name"), "Any")
+
+        subs = self.h.request("typeHierarchy/subtypes", {"item": supers[0]})
+        sub_names = {s.get("name") for s in subs}
+        self.assertIn("Int", sub_names)
 
         declaration = self.h.request(
             "textDocument/declaration",
