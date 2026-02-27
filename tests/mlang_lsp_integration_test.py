@@ -499,7 +499,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("signatureHelpProvider", caps)
         self.assertIn("semanticTokensProvider", caps)
         self.assertTrue(caps.get("semanticTokensProvider", {}).get("range"))
-        self.assertTrue(caps.get("codeActionProvider"))
+        self.assertTrue(caps.get("codeActionProvider", {}).get("resolveProvider"))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/phase5.mlang"
@@ -553,6 +553,9 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         self.assertGreaterEqual(len(actions), 1)
         self.assertIn("quickfix", actions[0].get("kind", ""))
+        resolved = self.h.request("codeAction/resolve", actions[0])
+        self.assertIn("documentation", resolved)
+        self.assertTrue(resolved.get("isPreferred"))
 
     def test_symbol_queries_document_and_workspace(self) -> None:
         init = self.h.request(

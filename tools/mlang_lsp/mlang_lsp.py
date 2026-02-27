@@ -249,7 +249,10 @@ class JsonRpcServer:
                         "moreTriggerCharacter": ["}"],
                     },
                     "codeLensProvider": {"resolveProvider": False},
-                    "codeActionProvider": True,
+                    "codeActionProvider": {
+                        "resolveProvider": True,
+                        "codeActionKinds": ["quickfix"],
+                    },
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
                         "legend": {"tokenTypes": self.TOKEN_TYPES, "tokenModifiers": []},
@@ -656,6 +659,20 @@ class JsonRpcServer:
                 }
             )
         self._respond(req_id, actions)
+
+    def _handle_code_action_resolve(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        action = dict(params or {})
+        if "edit" in action:
+            action["isPreferred"] = True
+        title = str(action.get("title", "Quick fix"))
+        action["documentation"] = {
+            "kind": "markdown",
+            "value": f"Resolved code action: `{title}`",
+        }
+        self._respond(req_id, action)
 
     def _handle_inlay_hint(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
@@ -1511,6 +1528,8 @@ class JsonRpcServer:
             self._handle_semantic_tokens_range(req_id, params)
         elif method == "textDocument/codeAction":
             self._handle_code_action(req_id, params)
+        elif method == "codeAction/resolve":
+            self._handle_code_action_resolve(req_id, params)
         elif method == "textDocument/inlayHint":
             self._handle_inlay_hint(req_id, params)
         elif method == "textDocument/inlineValue":
