@@ -988,6 +988,9 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertEqual(helper.get("insertText"), "helper($1)")
         self.assertIn("labelDetails", helper)
         self.assertIn("(", helper.get("labelDetails", {}).get("detail", ""))
+        resolved = self.h.request("completionItem/resolve", helper)
+        self.assertIn("documentation", resolved)
+        self.assertIn("(", resolved.get("documentation", {}).get("value", ""))
 
     def test_selection_range_returns_nested_ranges(self) -> None:
         init = self.h.request(
