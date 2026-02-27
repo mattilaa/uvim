@@ -696,6 +696,39 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertEqual(mons[0].get("scheme"), "mlang")
         self.assertIn("helper", mons[0].get("identifier", ""))
 
+    def test_document_color_and_color_presentation(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("colorProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/colors.mlang"
+        source = 'fn main() { let c = "#FF00AA"; }\n'
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        colors = self.h.request("textDocument/documentColor", {"textDocument": {"uri": uri}})
+        self.assertEqual(len(colors), 1)
+        color = colors[0].get("color", {})
+        self.assertAlmostEqual(color.get("red", 0), 1.0, places=4)
+        self.assertAlmostEqual(color.get("green", 1), 0.0, places=4)
+
+        presentations = self.h.request(
+            "textDocument/colorPresentation",
+            {
+                "textDocument": {"uri": uri},
+                "color": color,
+                "range": colors[0].get("range"),
+            },
+        )
+        self.assertGreaterEqual(len(presentations), 1)
+        self.assertEqual(presentations[0].get("label"), "#FF00AA")
+
     def test_document_formatting_returns_full_text_edit(self) -> None:
         init = self.h.request(
             "initialize",

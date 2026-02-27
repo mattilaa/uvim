@@ -235,6 +235,7 @@ class JsonRpcServer:
                     "callHierarchyProvider": True,
                     "documentLinkProvider": {"resolveProvider": False},
                     "monikerProvider": True,
+                    "colorProvider": True,
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
@@ -757,6 +758,55 @@ class JsonRpcServer:
                     "identifier": f"mlang::{sym.kind}::{sym.name}",
                     "unique": "workspace",
                     "kind": kind,
+                }
+            ],
+        )
+
+    def _handle_document_color(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        out: list[dict[str, Any]] = []
+        # Match "#RRGGBB" inside string literals.
+        for m in re.finditer(r'"(#([0-9A-Fa-f]{6}))"', doc.text):
+            hexv = m.group(2)
+            r = int(hexv[0:2], 16) / 255.0
+            g = int(hexv[2:4], 16) / 255.0
+            b = int(hexv[4:6], 16) / 255.0
+            out.append(
+                {
+                    "range": self._location_for_range(uri, doc.text, m.start(1), m.end(1))[
+                        "range"
+                    ],
+                    "color": {"red": r, "green": g, "blue": b, "alpha": 1.0},
+                }
+            )
+        self._respond(req_id, out)
+
+    def _handle_color_presentation(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        color = params.get("color", {})
+        r = max(0, min(255, int(round(float(color.get("red", 0)) * 255))))
+        g = max(0, min(255, int(round(float(color.get("green", 0)) * 255))))
+        b = max(0, min(255, int(round(float(color.get("blue", 0)) * 255))))
+        hex_color = f"#{r:02X}{g:02X}{b:02X}"
+        self._respond(
+            req_id,
+            [
+                {
+                    "label": hex_color,
+                    "textEdit": {
+                        "range": params.get("range", {}),
+                        "newText": hex_color,
+                    },
                 }
             ],
         )
@@ -1467,6 +1517,10 @@ class JsonRpcServer:
             self._handle_inline_value(req_id, params)
         elif method == "textDocument/moniker":
             self._handle_moniker(req_id, params)
+        elif method == "textDocument/documentColor":
+            self._handle_document_color(req_id, params)
+        elif method == "textDocument/colorPresentation":
+            self._handle_color_presentation(req_id, params)
         elif method == "textDocument/formatting":
             self._handle_formatting(req_id, params)
         elif method == "textDocument/onTypeFormatting":
