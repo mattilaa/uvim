@@ -535,7 +535,8 @@ class MlangLspIntegrationTest(unittest.TestCase):
             "textDocument/prepareRename",
             {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 7}},
         )
-        self.assertEqual(prep["start"]["line"], 2)
+        self.assertEqual(prep["range"]["start"]["line"], 2)
+        self.assertEqual(prep["placeholder"], "count")
 
         rename = self.h.request(
             "textDocument/rename",

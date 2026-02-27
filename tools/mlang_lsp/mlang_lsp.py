@@ -582,7 +582,13 @@ class JsonRpcServer:
         if self._find_definition(token) is None:
             self._respond(req_id, None)
             return
-        self._respond(req_id, self._location_for_range(uri, doc.text, start, end)["range"])
+        self._respond(
+            req_id,
+            {
+                "range": self._location_for_range(uri, doc.text, start, end)["range"],
+                "placeholder": token,
+            },
+        )
 
     def _handle_rename(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
