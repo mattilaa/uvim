@@ -672,6 +672,30 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertTrue(any("count: Int = 1" in t for t in texts))
         self.assertTrue(any('name: String = "x"' in t for t in texts))
 
+    def test_moniker_for_symbol(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("monikerProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/moniker.mlang"
+        source = "fn helper() {}\nfn main() { let value = 1; return value; }\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        mons = self.h.request(
+            "textDocument/moniker",
+            {"textDocument": {"uri": uri}, "position": {"line": 0, "character": 4}},
+        )
+        self.assertEqual(len(mons), 1)
+        self.assertEqual(mons[0].get("scheme"), "mlang")
+        self.assertIn("helper", mons[0].get("identifier", ""))
+
     def test_document_formatting_returns_full_text_edit(self) -> None:
         init = self.h.request(
             "initialize",

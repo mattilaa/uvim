@@ -234,6 +234,7 @@ class JsonRpcServer:
                     "foldingRangeProvider": True,
                     "callHierarchyProvider": True,
                     "documentLinkProvider": {"resolveProvider": False},
+                    "monikerProvider": True,
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
@@ -723,6 +724,42 @@ class JsonRpcServer:
             if len(out) >= 32:
                 break
         self._respond(req_id, out)
+
+    def _handle_moniker(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        if not token:
+            self._respond(req_id, [])
+            return
+        semantic = self._analyze(doc)
+        sym = next((s for s in semantic.symbols if s.name == token), None)
+        if sym is None:
+            self._respond(req_id, [])
+            return
+        role = "export" if sym.kind == "function" else "local"
+        kind = "export" if role == "export" else "local"
+        self._respond(
+            req_id,
+            [
+                {
+                    "scheme": "mlang",
+                    "identifier": f"mlang::{sym.kind}::{sym.name}",
+                    "unique": "workspace",
+                    "kind": kind,
+                }
+            ],
+        )
 
     @staticmethod
     def _format_text(text: str) -> str:
@@ -1428,6 +1465,8 @@ class JsonRpcServer:
             self._handle_inlay_hint(req_id, params)
         elif method == "textDocument/inlineValue":
             self._handle_inline_value(req_id, params)
+        elif method == "textDocument/moniker":
+            self._handle_moniker(req_id, params)
         elif method == "textDocument/formatting":
             self._handle_formatting(req_id, params)
         elif method == "textDocument/onTypeFormatting":
