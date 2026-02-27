@@ -1427,7 +1427,10 @@ class JsonRpcServer:
         offset = line_char_to_offset(
             doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
         )
-        token = self._word_at(doc.text, offset)
+        line = int(pos.get("line", 0))
+        character = int(pos.get("character", 0))
+        token, tok_start, tok_end = self._token_at(doc.text, line, character)
+        token_range = self._location_for_range(uri, doc.text, tok_start, tok_end)["range"]
         semantic = self._analyze(doc)
         symbol = next((s for s in semantic.symbols if s.name == token), None)
         if token == "fn":
@@ -1439,7 +1442,13 @@ class JsonRpcServer:
         else:
             self._respond(req_id, None)
             return
-        self._respond(req_id, {"contents": {"kind": "markdown", "value": value}})
+        self._respond(
+            req_id,
+            {
+                "contents": {"kind": "markdown", "value": value},
+                "range": token_range,
+            },
+        )
 
     def _handle_completion(self, req_id: Any, params: dict[str, Any]) -> None:
         text_doc = params.get("textDocument", {})

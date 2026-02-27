@@ -156,6 +156,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"textDocument": {"uri": uri}, "position": {"line": 0, "character": 1}},
         )
         self.assertIn("Define a function", hover["contents"]["value"])
+        self.assertIn("range", hover)
 
         keyword_completion = self.h.request(
             "textDocument/completion",
