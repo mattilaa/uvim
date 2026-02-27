@@ -793,7 +793,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             "initialize",
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
-        self.assertIn("codeLensProvider", init.get("capabilities", {}))
+        self.assertTrue(init.get("capabilities", {}).get("codeLensProvider", {}).get("resolveProvider"))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/lens.mlang"
@@ -809,6 +809,10 @@ class MlangLspIntegrationTest(unittest.TestCase):
         titles = {l.get("command", {}).get("title") for l in lenses}
         self.assertIn("Run alpha", titles)
         self.assertIn("Run beta", titles)
+
+        resolved = self.h.request("codeLens/resolve", lenses[0])
+        self.assertIn("(resolved)", resolved.get("command", {}).get("title", ""))
+        self.assertIn("tooltip", resolved.get("command", {}))
 
     def test_completion_item_resolve_returns_documentation(self) -> None:
         self.h.request(

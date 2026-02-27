@@ -248,7 +248,7 @@ class JsonRpcServer:
                         "firstTriggerCharacter": ";",
                         "moreTriggerCharacter": ["}"],
                     },
-                    "codeLensProvider": {"resolveProvider": False},
+                    "codeLensProvider": {"resolveProvider": True},
                     "codeActionProvider": {
                         "resolveProvider": True,
                         "codeActionKinds": ["quickfix"],
@@ -1017,6 +1017,20 @@ class JsonRpcServer:
             )
         self._respond(req_id, items)
 
+    def _handle_code_lens_resolve(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        lens = dict(params or {})
+        cmd = dict(lens.get("command", {}))
+        title = str(cmd.get("title", "Run"))
+        args = cmd.get("arguments", [])
+        if isinstance(args, list) and len(args) >= 2:
+            cmd["title"] = f"{title} (resolved)"
+            cmd["tooltip"] = f"Execute function {args[1]}"
+        lens["command"] = cmd
+        self._respond(req_id, lens)
+
     def _handle_selection_range(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -1546,6 +1560,8 @@ class JsonRpcServer:
             self._handle_on_type_formatting(req_id, params)
         elif method == "textDocument/codeLens":
             self._handle_code_lens(req_id, params)
+        elif method == "codeLens/resolve":
+            self._handle_code_lens_resolve(req_id, params)
         elif method == "textDocument/selectionRange":
             self._handle_selection_range(req_id, params)
         elif method == "textDocument/linkedEditingRange":
