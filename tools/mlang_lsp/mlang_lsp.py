@@ -239,6 +239,7 @@ class JsonRpcServer:
                     "workspaceSymbolProvider": True,
                     "selectionRangeProvider": True,
                     "linkedEditingRangeProvider": True,
+                    "inlineValueProvider": True,
                     "inlayHintProvider": True,
                     "documentFormattingProvider": True,
                     "documentOnTypeFormattingProvider": {
@@ -686,6 +687,42 @@ class JsonRpcServer:
                 }
             )
         self._respond(req_id, hints)
+
+    def _handle_inline_value(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        rng = params.get("range", {})
+        start_line = int(rng.get("start", {}).get("line", 0))
+        end_line = int(rng.get("end", {}).get("line", start_line))
+        semantic = self._analyze(doc)
+        type_by_name = {s.name: s.type_name for s in semantic.symbols}
+        out: list[dict[str, Any]] = []
+        for m in re.finditer(
+            r"\b(let|const)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^;\n]+)\s*;",
+            doc.text,
+        ):
+            line, char = offset_to_line_char(doc.text, m.start(2))
+            if line < start_line or line > end_line:
+                continue
+            name = m.group(2)
+            expr = m.group(3).strip()
+            tname = type_by_name.get(name, "Unknown")
+            out.append(
+                {
+                    "range": self._location_for_range(uri, doc.text, m.start(2), m.end(2))["range"],
+                    "text": f"{name}: {tname} = {expr}",
+                }
+            )
+            if len(out) >= 32:
+                break
+        self._respond(req_id, out)
 
     @staticmethod
     def _format_text(text: str) -> str:
@@ -1389,6 +1426,8 @@ class JsonRpcServer:
             self._handle_code_action(req_id, params)
         elif method == "textDocument/inlayHint":
             self._handle_inlay_hint(req_id, params)
+        elif method == "textDocument/inlineValue":
+            self._handle_inline_value(req_id, params)
         elif method == "textDocument/formatting":
             self._handle_formatting(req_id, params)
         elif method == "textDocument/onTypeFormatting":

@@ -599,6 +599,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
         self.assertTrue(init.get("capabilities", {}).get("inlayHintProvider"))
+        self.assertTrue(init.get("capabilities", {}).get("inlineValueProvider"))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/hints.mlang"
@@ -629,6 +630,47 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn(": Int", labels)
         self.assertIn(": String", labels)
         self.assertIn(": Bool", labels)
+
+    def test_inline_values_for_local_bindings(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/inline_values.mlang"
+        source = (
+            "fn main() {\n"
+            "  let count = 1;\n"
+            "  const name = \"x\";\n"
+            "}\n"
+        )
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        values = self.h.request(
+            "textDocument/inlineValue",
+            {
+                "textDocument": {"uri": uri},
+                "range": {
+                    "start": {"line": 0, "character": 0},
+                    "end": {"line": 10, "character": 0},
+                },
+                "context": {
+                    "frameId": 1,
+                    "stoppedLocation": {
+                        "start": {"line": 1, "character": 0},
+                        "end": {"line": 2, "character": 0},
+                    },
+                },
+            },
+        )
+        texts = {v.get("text", "") for v in values}
+        self.assertTrue(any("count: Int = 1" in t for t in texts))
+        self.assertTrue(any('name: String = "x"' in t for t in texts))
 
     def test_document_formatting_returns_full_text_edit(self) -> None:
         init = self.h.request(
