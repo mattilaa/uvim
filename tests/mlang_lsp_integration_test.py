@@ -505,6 +505,49 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("error", msg)
         self.assertEqual(msg["error"].get("code"), -32800)
 
+    def test_cancel_request_is_one_shot_for_request_id(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/cancel_reuse.mlang"
+        source = "fn main() { let count = 1; }\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        req_id = 321
+        self.h.notify("$/cancelRequest", {"id": req_id})
+        self.h._write(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "method": "textDocument/diagnostic",
+                "params": {"textDocument": {"uri": uri}},
+            }
+        )
+        first = self.h._read()
+        self.assertEqual(first.get("id"), req_id)
+        self.assertEqual(first.get("error", {}).get("code"), -32800)
+
+        self.h._write(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "method": "textDocument/diagnostic",
+                "params": {"textDocument": {"uri": uri}},
+            }
+        )
+        second = self.h._read()
+        self.assertEqual(second.get("id"), req_id)
+        self.assertNotIn("error", second)
+        self.assertIn("result", second)
+        self.assertEqual(second.get("result", {}).get("kind"), "full")
+
     def test_phase5_navigation_references_and_rename(self) -> None:
         init = self.h.request(
             "initialize",

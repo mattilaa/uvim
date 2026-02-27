@@ -224,7 +224,12 @@ class JsonRpcServer:
         self._notify("workspace/diagnostic/refresh", {})
 
     def _is_canceled(self, req_id: Any) -> bool:
-        return isinstance(req_id, int) and req_id in self._canceled_request_ids
+        if not isinstance(req_id, int):
+            return False
+        if req_id not in self._canceled_request_ids:
+            return False
+        self._canceled_request_ids.discard(req_id)
+        return True
 
     def _handle_workspace_diagnostic(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
