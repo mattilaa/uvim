@@ -1118,6 +1118,9 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         self.assertIn("documentLinkProvider", init.get("capabilities", {}))
         self.assertIn("executeCommandProvider", init.get("capabilities", {}))
+        commands = init.get("capabilities", {}).get("executeCommandProvider", {}).get("commands", [])
+        self.assertIn("mlang.sortImports", commands)
+        self.assertIn("mlang.addMissingSemicolons", commands)
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/doclinks.mlang"
@@ -1156,6 +1159,31 @@ class MlangLspIntegrationTest(unittest.TestCase):
         changes = result.get("changes", {}).get(uri, [])
         self.assertEqual(len(changes), 1)
         self.assertIn("import alpha.mod;", changes[0].get("newText", ""))
+
+    def test_execute_command_add_missing_semicolons(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/add_semis.mlang"
+        source = "fn main() {\n  let x = 1\n  return x\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        result = self.h.request(
+            "workspace/executeCommand",
+            {"command": "mlang.addMissingSemicolons", "arguments": [uri]},
+        )
+        changes = result.get("changes", {}).get(uri, [])
+        self.assertEqual(len(changes), 1)
+        new_text = changes[0].get("newText", "")
+        self.assertIn("let x = 1;", new_text)
+        self.assertIn("return x;", new_text)
 
     def test_will_rename_files_updates_import_paths(self) -> None:
         init = self.h.request(

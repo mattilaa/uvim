@@ -297,7 +297,7 @@ class JsonRpcServer:
                         "workspaceDiagnostics": True,
                     },
                     "executeCommandProvider": {
-                        "commands": ["mlang.sortImports"],
+                        "commands": ["mlang.sortImports", "mlang.addMissingSemicolons"],
                     },
                     "workspace": {
                         "fileOperations": {
@@ -1117,11 +1117,8 @@ class JsonRpcServer:
             return
         command = str(params.get("command", ""))
         args = params.get("arguments", [])
-        if command != "mlang.sortImports":
-            self._error(req_id, -32602, f"Unknown command: {command}")
-            return
         if not isinstance(args, list) or not args:
-            self._error(req_id, -32602, "mlang.sortImports expects [uri]")
+            self._error(req_id, -32602, f"{command} expects [uri]")
             return
         uri = str(args[0])
         doc = self._documents.get(uri)
@@ -1129,40 +1126,88 @@ class JsonRpcServer:
             self._respond(req_id, {"changes": {}})
             return
 
-        lines = doc.text.splitlines()
-        import_idx = [i for i, line in enumerate(lines) if re.match(r"^\s*import\s+[A-Za-z_][A-Za-z0-9_\.]*\s*;\s*$", line)]
-        if not import_idx:
-            self._respond(req_id, {"changes": {}})
+        if command == "mlang.sortImports":
+            lines = doc.text.splitlines()
+            import_idx = [
+                i
+                for i, line in enumerate(lines)
+                if re.match(r"^\s*import\s+[A-Za-z_][A-Za-z0-9_\.]*\s*;\s*$", line)
+            ]
+            if not import_idx:
+                self._respond(req_id, {"changes": {}})
+                return
+            start = min(import_idx)
+            end = max(import_idx)
+            block = lines[start : end + 1]
+            imports = [line.strip() for line in block if line.strip().startswith("import ")]
+            others = [line for line in block if not line.strip().startswith("import ")]
+            sorted_block = sorted(imports)
+            if others:
+                sorted_block.extend(others)
+            new_block = "\n".join(sorted_block)
+            old_block = "\n".join(block)
+            if new_block == old_block:
+                self._respond(req_id, {"changes": {}})
+                return
+            self._respond(
+                req_id,
+                {
+                    "changes": {
+                        uri: [
+                            {
+                                "range": {
+                                    "start": {"line": start, "character": 0},
+                                    "end": {
+                                        "line": end,
+                                        "character": len(lines[end]) if end < len(lines) else 0,
+                                    },
+                                },
+                                "newText": new_block,
+                            }
+                        ]
+                    }
+                },
+            )
             return
-        start = min(import_idx)
-        end = max(import_idx)
-        block = lines[start : end + 1]
-        imports = [line.strip() for line in block if line.strip().startswith("import ")]
-        others = [line for line in block if not line.strip().startswith("import ")]
-        sorted_block = sorted(imports)
-        if others:
-            sorted_block.extend(others)
-        new_block = "\n".join(sorted_block)
-        old_block = "\n".join(block)
-        if new_block == old_block:
-            self._respond(req_id, {"changes": {}})
+
+        if command == "mlang.addMissingSemicolons":
+            lines = doc.text.splitlines()
+            changed = False
+            new_lines: list[str] = []
+            for line in lines:
+                stripped = line.rstrip()
+                trimmed = stripped.strip()
+                if re.match(r"^(let|const|return)\b", trimmed):
+                    if not trimmed.endswith(";") and not trimmed.endswith("{") and not trimmed.endswith("}"):
+                        stripped += ";"
+                        changed = True
+                new_lines.append(stripped)
+            if not changed:
+                self._respond(req_id, {"changes": {}})
+                return
+            new_text = "\n".join(new_lines)
+            if doc.text.endswith("\n"):
+                new_text += "\n"
+            end_line, end_char = offset_to_line_char(doc.text, len(doc.text))
+            self._respond(
+                req_id,
+                {
+                    "changes": {
+                        uri: [
+                            {
+                                "range": {
+                                    "start": {"line": 0, "character": 0},
+                                    "end": {"line": end_line, "character": end_char},
+                                },
+                                "newText": new_text,
+                            }
+                        ]
+                    }
+                },
+            )
             return
-        self._respond(
-            req_id,
-            {
-                "changes": {
-                    uri: [
-                        {
-                            "range": {
-                                "start": {"line": start, "character": 0},
-                                "end": {"line": end, "character": len(lines[end]) if end < len(lines) else 0},
-                            },
-                            "newText": new_block,
-                        }
-                    ]
-                }
-            },
-        )
+
+        self._error(req_id, -32602, f"Unknown command: {command}")
 
     @staticmethod
     def _uri_to_module_name(uri: str) -> str:
