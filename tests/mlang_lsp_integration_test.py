@@ -708,6 +708,32 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("parent", root)
         self.assertIn("parent", root["parent"])
 
+    def test_linked_editing_range_for_identifier_occurrences(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("linkedEditingRangeProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/linked.mlang"
+        source = "fn main() {\n  let value = 1;\n  return value;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        linked = self.h.request(
+            "textDocument/linkedEditingRange",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": 1, "character": 7},
+            },
+        )
+        self.assertIn("ranges", linked)
+        self.assertGreaterEqual(len(linked.get("ranges", [])), 2)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
