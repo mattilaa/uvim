@@ -277,7 +277,10 @@ class JsonRpcServer:
                         "fileOperations": {
                             "willRename": {
                                 "filters": [{"pattern": {"glob": "**/*.mla"}}]
-                            }
+                            },
+                            "willCreate": {
+                                "filters": [{"pattern": {"glob": "**/*.mla"}}]
+                            },
                         }
                     },
                 },
@@ -1090,6 +1093,48 @@ class JsonRpcServer:
                 changes[uri] = edits
         self._respond(req_id, {"changes": changes})
 
+    def _handle_will_create_files(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        files = params.get("files", [])
+        if not isinstance(files, list) or not files:
+            self._respond(req_id, {"changes": {}})
+            return
+
+        new_modules = [self._uri_to_module_name(str(f.get("uri", ""))) for f in files]
+        new_modules = [m for m in new_modules if m]
+        if not new_modules:
+            self._respond(req_id, {"changes": {}})
+            return
+
+        changes: dict[str, list[dict[str, Any]]] = {}
+        for uri, doc in self._documents.items():
+            lines = doc.text.splitlines()
+            if not lines:
+                continue
+            insert_line = 0
+            for i, line in enumerate(lines):
+                if line.strip().startswith("import "):
+                    insert_line = i + 1
+            existing = set()
+            for m in re.finditer(r"\bimport\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;", doc.text):
+                existing.add(m.group(1))
+            new_imports = [f"import {m};" for m in new_modules if m not in existing]
+            if not new_imports:
+                continue
+            text = "\n".join(new_imports) + "\n"
+            changes[uri] = [
+                {
+                    "range": {
+                        "start": {"line": insert_line, "character": 0},
+                        "end": {"line": insert_line, "character": 0},
+                    },
+                    "newText": text,
+                }
+            ]
+        self._respond(req_id, {"changes": changes})
+
     def _handle_code_lens(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -1706,6 +1751,8 @@ class JsonRpcServer:
             self._handle_execute_command(req_id, params)
         elif method == "workspace/willRenameFiles":
             self._handle_will_rename_files(req_id, params)
+        elif method == "workspace/willCreateFiles":
+            self._handle_will_create_files(req_id, params)
         else:
             self._error(req_id, -32601, f"Method not found: {method}")
 

@@ -1076,6 +1076,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         ws = init.get("capabilities", {}).get("workspace", {})
         self.assertIn("fileOperations", ws)
+        self.assertIn("willCreate", ws.get("fileOperations", {}))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/rename_imports.mlang"
@@ -1100,6 +1101,29 @@ class MlangLspIntegrationTest(unittest.TestCase):
         edits = result.get("changes", {}).get(uri, [])
         self.assertEqual(len(edits), 1)
         self.assertEqual(edits[0].get("newText"), "alpha.newmod")
+
+    def test_will_create_files_suggests_import_insert(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/will_create_imports.mlang"
+        source = "import alpha.mod;\nfn main() {}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        result = self.h.request(
+            "workspace/willCreateFiles",
+            {"files": [{"uri": "mlang:///modules/beta/newmod.mla"}]},
+        )
+        edits = result.get("changes", {}).get(uri, [])
+        self.assertEqual(len(edits), 1)
+        self.assertIn("import beta.newmod;", edits[0].get("newText", ""))
 
 
 if __name__ == "__main__":
