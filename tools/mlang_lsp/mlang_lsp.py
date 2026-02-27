@@ -1733,8 +1733,13 @@ class JsonRpcServer:
         token = params.get("workDoneToken")
         self._work_begin(token, "document diagnostics")
         items = [d.to_lsp(doc.text) for d in self._analyze(doc).diagnostics]
+        result_id = self._doc_hash(json.dumps(items, sort_keys=True, separators=(",", ":")))
+        previous_result_id = params.get("previousResultId")
         self._work_end(token)
-        self._respond(req_id, {"kind": "full", "items": items})
+        if isinstance(previous_result_id, str) and previous_result_id == result_id:
+            self._respond(req_id, {"kind": "unchanged", "resultId": result_id})
+            return
+        self._respond(req_id, {"kind": "full", "items": items, "resultId": result_id})
 
     def _dispatch_request(self, req_id: Any, method: str, params: dict[str, Any]) -> None:
         if method == "initialize":

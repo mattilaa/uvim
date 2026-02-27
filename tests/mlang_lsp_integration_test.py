@@ -369,6 +369,35 @@ class MlangLspIntegrationTest(unittest.TestCase):
         item_diags = result["items"][0].get("items", [])
         self.assertTrue(any("Unknown identifier 'src'" == d.get("message") for d in item_diags))
 
+    def test_document_diagnostic_supports_previous_result_id(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/diag_result_id.mlang"
+        source = "fn main() { let dst = src; }\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        first = self.h.request("textDocument/diagnostic", {"textDocument": {"uri": uri}})
+        self.assertEqual(first.get("kind"), "full")
+        self.assertIn("resultId", first)
+
+        second = self.h.request(
+            "textDocument/diagnostic",
+            {
+                "textDocument": {"uri": uri},
+                "previousResultId": first.get("resultId"),
+            },
+        )
+        self.assertEqual(second.get("kind"), "unchanged")
+        self.assertEqual(second.get("resultId"), first.get("resultId"))
+
     def test_cancel_request_returns_cancelled_error(self) -> None:
         self.h.request(
             "initialize",
