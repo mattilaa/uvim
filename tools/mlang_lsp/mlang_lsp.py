@@ -161,6 +161,15 @@ class JsonRpcServer:
         ]
         return [{"label": k, "kind": 14, "detail": "keyword"} for k in keywords]
 
+    def _function_signature_map(self) -> dict[str, str]:
+        sigs: dict[str, str] = {}
+        for doc in self._documents.values():
+            for m in re.finditer(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)", doc.text):
+                name = m.group(1)
+                params = m.group(2).strip()
+                sigs.setdefault(name, f"({params})")
+        return sigs
+
     def _workspace_symbols(self) -> list[str]:
         seen: set[str] = set()
         symbols: list[str] = []
@@ -1838,16 +1847,19 @@ class JsonRpcServer:
 
         items = self._keyword_items()
         all_symbols: dict[str, str] = {}
+        fn_sigs = self._function_signature_map()
         for open_doc in self._documents.values():
             for sym in self._analyze(open_doc).symbols:
                 all_symbols.setdefault(sym.name, sym.type_name)
         for symbol, type_name in all_symbols.items():
             if type_name == "Function":
+                sig_detail = fn_sigs.get(symbol, "(...)")
                 items.append(
                     {
                         "label": symbol,
                         "kind": 3,
                         "detail": f"symbol: {type_name}",
+                        "labelDetails": {"detail": sig_detail},
                         "insertText": f"{symbol}($1)",
                         "insertTextFormat": 2,
                         "commitCharacters": ["("],
@@ -1873,9 +1885,16 @@ class JsonRpcServer:
                 "value": f"`{label}` keyword",
             }
         elif detail.startswith("symbol:"):
+            label_details = item.get("labelDetails", {})
+            sig = ""
+            if isinstance(label_details, dict):
+                sig = str(label_details.get("detail", "")).strip()
             item["documentation"] = {
                 "kind": "markdown",
-                "value": f"Declared symbol `{label}` ({detail.split(':', 1)[1].strip()}).",
+                "value": (
+                    f"Declared symbol `{label}` ({detail.split(':', 1)[1].strip()})"
+                    + (f" {sig}" if sig else ".")
+                ),
             }
         else:
             item["documentation"] = {
