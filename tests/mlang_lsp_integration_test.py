@@ -600,6 +600,34 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn(": String", labels)
         self.assertIn(": Bool", labels)
 
+    def test_document_formatting_returns_full_text_edit(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("documentFormattingProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/fmt.mlang"
+        source = "fn main(){\nlet x = 1\nreturn x\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        edits = self.h.request(
+            "textDocument/formatting",
+            {
+                "textDocument": {"uri": uri},
+                "options": {"tabSize": 2, "insertSpaces": True},
+            },
+        )
+        self.assertEqual(len(edits), 1)
+        new_text = edits[0].get("newText", "")
+        self.assertIn("  let x = 1;", new_text)
+        self.assertIn("  return x;", new_text)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")

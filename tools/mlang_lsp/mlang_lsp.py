@@ -232,6 +232,7 @@ class JsonRpcServer:
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
                     "inlayHintProvider": True,
+                    "documentFormattingProvider": True,
                     "codeActionProvider": True,
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
@@ -566,6 +567,59 @@ class JsonRpcServer:
             )
         self._respond(req_id, hints)
 
+    @staticmethod
+    def _format_text(text: str) -> str:
+        lines = text.splitlines()
+        out: list[str] = []
+        indent = 0
+        for raw in lines:
+            stripped = raw.strip()
+            if not stripped:
+                out.append("")
+                continue
+            if stripped.startswith("}"):
+                indent = max(0, indent - 1)
+            line = ("  " * indent) + stripped
+            # Add semicolon for simple let/const/return declarations.
+            if re.match(r"^(let|const|return)\b", stripped):
+                if not line.endswith(";") and not line.endswith("{") and not line.endswith("}"):
+                    line += ";"
+            out.append(line.rstrip())
+            if stripped.endswith("{"):
+                indent += 1
+        formatted = "\n".join(out)
+        if text.endswith("\n"):
+            formatted += "\n"
+        return formatted
+
+    def _handle_formatting(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        new_text = self._format_text(doc.text)
+        if new_text == doc.text:
+            self._respond(req_id, [])
+            return
+        end_line, end_char = offset_to_line_char(doc.text, len(doc.text))
+        self._respond(
+            req_id,
+            [
+                {
+                    "range": {
+                        "start": {"line": 0, "character": 0},
+                        "end": {"line": end_line, "character": end_char},
+                    },
+                    "newText": new_text,
+                }
+            ],
+        )
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -761,6 +815,8 @@ class JsonRpcServer:
             self._handle_code_action(req_id, params)
         elif method == "textDocument/inlayHint":
             self._handle_inlay_hint(req_id, params)
+        elif method == "textDocument/formatting":
+            self._handle_formatting(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":
