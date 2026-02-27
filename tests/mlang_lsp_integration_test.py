@@ -841,6 +841,28 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertGreaterEqual(len(incoming), 1)
         self.assertIn("main", {c.get("from", {}).get("name") for c in incoming})
 
+    def test_document_link_for_import_statements(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertIn("documentLinkProvider", init.get("capabilities", {}))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/doclinks.mlang"
+        source = "import core.io;\nimport pkg.math;\nfn main() {}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        links = self.h.request("textDocument/documentLink", {"textDocument": {"uri": uri}})
+        self.assertEqual(len(links), 2)
+        targets = {l.get("target", "") for l in links}
+        self.assertIn("mlang:///modules/core/io.mla", targets)
+        self.assertIn("mlang:///modules/pkg/math.mla", targets)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")

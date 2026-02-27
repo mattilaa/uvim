@@ -231,6 +231,7 @@ class JsonRpcServer:
                     "documentHighlightProvider": True,
                     "foldingRangeProvider": True,
                     "callHierarchyProvider": True,
+                    "documentLinkProvider": {"resolveProvider": False},
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
@@ -884,6 +885,33 @@ class JsonRpcServer:
 
         self._respond(req_id, out)
 
+    def _handle_document_link(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+
+        out: list[dict[str, Any]] = []
+        for m in re.finditer(r"\bimport\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;", doc.text):
+            module_name = m.group(1)
+            start = m.start(1)
+            end = m.end(1)
+            rng = self._location_for_range(uri, doc.text, start, end)["range"]
+            target = "mlang:///modules/" + module_name.replace(".", "/") + ".mla"
+            out.append(
+                {
+                    "range": rng,
+                    "target": target,
+                    "tooltip": f"Open module {module_name}",
+                }
+            )
+        self._respond(req_id, out)
+
     def _handle_prepare_call_hierarchy(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -1215,6 +1243,8 @@ class JsonRpcServer:
             self._handle_document_highlight(req_id, params)
         elif method == "textDocument/foldingRange":
             self._handle_folding_range(req_id, params)
+        elif method == "textDocument/documentLink":
+            self._handle_document_link(req_id, params)
         elif method == "textDocument/prepareCallHierarchy":
             self._handle_prepare_call_hierarchy(req_id, params)
         elif method == "callHierarchy/incomingCalls":
