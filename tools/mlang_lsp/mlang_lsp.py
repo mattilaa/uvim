@@ -244,6 +244,7 @@ class JsonRpcServer:
                     "semanticTokensProvider": {
                         "legend": {"tokenTypes": self.TOKEN_TYPES, "tokenModifiers": []},
                         "full": True,
+                        "range": True,
                     },
                     "completionProvider": {
                         "resolveProvider": True,
@@ -497,10 +498,16 @@ class JsonRpcServer:
             },
         )
 
-    def _encode_semantic_tokens(self, text: str) -> list[int]:
+    def _encode_semantic_tokens(
+        self, text: str, start_line: int | None = None, end_line: int | None = None
+    ) -> list[int]:
         token_map = {name: idx for idx, name in enumerate(self.TOKEN_TYPES)}
         rows: list[tuple[int, int, int, int, int]] = []
         for line_idx, line in enumerate(text.splitlines()):
+            if start_line is not None and line_idx < start_line:
+                continue
+            if end_line is not None and line_idx > end_line:
+                continue
             for m in re.finditer(r"\b(fn|let|const|return|if|else|while|for|import)\b", line):
                 rows.append((line_idx, m.start(), len(m.group(1)), token_map["keyword"], 0))
             for m in re.finditer(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)", line):
@@ -537,6 +544,26 @@ class JsonRpcServer:
             self._respond(req_id, {"data": []})
             return
         self._respond(req_id, {"data": self._encode_semantic_tokens(doc.text)})
+
+    def _handle_semantic_tokens_range(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, {"data": []})
+            return
+        rng = params.get("range", {})
+        start = rng.get("start", {})
+        end = rng.get("end", {})
+        start_line = int(start.get("line", 0))
+        end_line = int(end.get("line", start_line))
+        self._respond(
+            req_id,
+            {"data": self._encode_semantic_tokens(doc.text, start_line=start_line, end_line=end_line)},
+        )
 
     def _handle_code_action(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
@@ -1170,6 +1197,8 @@ class JsonRpcServer:
             self._handle_signature_help(req_id, params)
         elif method == "textDocument/semanticTokens/full":
             self._handle_semantic_tokens_full(req_id, params)
+        elif method == "textDocument/semanticTokens/range":
+            self._handle_semantic_tokens_range(req_id, params)
         elif method == "textDocument/codeAction":
             self._handle_code_action(req_id, params)
         elif method == "textDocument/inlayHint":

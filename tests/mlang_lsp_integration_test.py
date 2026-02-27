@@ -483,6 +483,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         caps = init.get("capabilities", {})
         self.assertIn("signatureHelpProvider", caps)
         self.assertIn("semanticTokensProvider", caps)
+        self.assertTrue(caps.get("semanticTokensProvider", {}).get("range"))
         self.assertTrue(caps.get("codeActionProvider"))
         self.h.notify("initialized", {})
 
@@ -513,6 +514,19 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"textDocument": {"uri": uri}},
         )
         self.assertGreater(len(tokens.get("data", [])), 0)
+
+        range_tokens = self.h.request(
+            "textDocument/semanticTokens/range",
+            {
+                "textDocument": {"uri": uri},
+                "range": {
+                    "start": {"line": 3, "character": 0},
+                    "end": {"line": 3, "character": 40},
+                },
+            },
+        )
+        self.assertGreater(len(range_tokens.get("data", [])), 0)
+        self.assertLessEqual(len(range_tokens.get("data", [])), len(tokens.get("data", [])))
 
         actions = self.h.request(
             "textDocument/codeAction",
