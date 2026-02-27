@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -271,6 +272,13 @@ class JsonRpcServer:
                     },
                     "executeCommandProvider": {
                         "commands": ["mlang.sortImports"],
+                    },
+                    "workspace": {
+                        "fileOperations": {
+                            "willRename": {
+                                "filters": [{"pattern": {"glob": "**/*.mla"}}]
+                            }
+                        }
                     },
                 },
             },
@@ -1029,6 +1037,59 @@ class JsonRpcServer:
             },
         )
 
+    @staticmethod
+    def _uri_to_module_name(uri: str) -> str:
+        # Preferred scaffold path form: mlang:///modules/a/b.mla -> a.b
+        if uri.startswith("mlang:///modules/"):
+            tail = uri[len("mlang:///modules/") :]
+            if tail.endswith(".mla"):
+                tail = tail[:-4]
+            return tail.replace("/", ".")
+        # Fallback for file URIs: use basename.
+        name = os.path.basename(uri)
+        if name.endswith(".mla"):
+            name = name[:-4]
+        return name
+
+    def _handle_will_rename_files(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        files = params.get("files", [])
+        if not isinstance(files, list) or not files:
+            self._respond(req_id, {"changes": {}})
+            return
+
+        renames: list[tuple[str, str]] = []
+        for f in files:
+            old_uri = str(f.get("oldUri", ""))
+            new_uri = str(f.get("newUri", ""))
+            old_mod = self._uri_to_module_name(old_uri)
+            new_mod = self._uri_to_module_name(new_uri)
+            if old_mod and new_mod and old_mod != new_mod:
+                renames.append((old_mod, new_mod))
+        if not renames:
+            self._respond(req_id, {"changes": {}})
+            return
+
+        changes: dict[str, list[dict[str, Any]]] = {}
+        for uri, doc in self._documents.items():
+            edits: list[dict[str, Any]] = []
+            for old_mod, new_mod in renames:
+                pat = re.compile(rf"\bimport\s+{re.escape(old_mod)}\s*;")
+                for m in pat.finditer(doc.text):
+                    start = m.start() + len("import ")
+                    end = start + len(old_mod)
+                    edits.append(
+                        {
+                            "range": self._location_for_range(uri, doc.text, start, end)["range"],
+                            "newText": new_mod,
+                        }
+                    )
+            if edits:
+                changes[uri] = edits
+        self._respond(req_id, {"changes": changes})
+
     def _handle_code_lens(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -1643,6 +1704,8 @@ class JsonRpcServer:
             self._respond(req_id, None)
         elif method == "workspace/executeCommand":
             self._handle_execute_command(req_id, params)
+        elif method == "workspace/willRenameFiles":
+            self._handle_will_rename_files(req_id, params)
         else:
             self._error(req_id, -32601, f"Method not found: {method}")
 

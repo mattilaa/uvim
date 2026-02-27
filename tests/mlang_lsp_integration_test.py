@@ -1069,6 +1069,38 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertEqual(len(changes), 1)
         self.assertIn("import alpha.mod;", changes[0].get("newText", ""))
 
+    def test_will_rename_files_updates_import_paths(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        ws = init.get("capabilities", {}).get("workspace", {})
+        self.assertIn("fileOperations", ws)
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/rename_imports.mlang"
+        source = "import alpha.mod;\nfn main() {}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        result = self.h.request(
+            "workspace/willRenameFiles",
+            {
+                "files": [
+                    {
+                        "oldUri": "mlang:///modules/alpha/mod.mla",
+                        "newUri": "mlang:///modules/alpha/newmod.mla",
+                    }
+                ]
+            },
+        )
+        edits = result.get("changes", {}).get(uri, [])
+        self.assertEqual(len(edits), 1)
+        self.assertEqual(edits[0].get("newText"), "alpha.newmod")
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
