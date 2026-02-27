@@ -963,6 +963,30 @@ class MlangLspIntegrationTest(unittest.TestCase):
         doc = resolved.get("documentation", {}).get("value", "")
         self.assertIn("value", doc)
 
+    def test_function_completion_uses_snippet_insert_text(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/fn_completion.mlang"
+        source = "fn helper() {}\nfn main() {\n  hel\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        completion = self.h.request(
+            "textDocument/completion",
+            {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 5}},
+        )
+        helper = next((i for i in completion.get("items", []) if i.get("label") == "helper"), None)
+        self.assertIsNotNone(helper)
+        self.assertEqual(helper.get("insertTextFormat"), 2)
+        self.assertEqual(helper.get("insertText"), "helper($1)")
+
     def test_selection_range_returns_nested_ranges(self) -> None:
         init = self.h.request(
             "initialize",

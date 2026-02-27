@@ -1842,7 +1842,19 @@ class JsonRpcServer:
             for sym in self._analyze(open_doc).symbols:
                 all_symbols.setdefault(sym.name, sym.type_name)
         for symbol, type_name in all_symbols.items():
-            items.append({"label": symbol, "kind": 6, "detail": f"symbol: {type_name}"})
+            if type_name == "Function":
+                items.append(
+                    {
+                        "label": symbol,
+                        "kind": 3,
+                        "detail": f"symbol: {type_name}",
+                        "insertText": f"{symbol}($1)",
+                        "insertTextFormat": 2,
+                        "commitCharacters": ["("],
+                    }
+                )
+            else:
+                items.append({"label": symbol, "kind": 6, "detail": f"symbol: {type_name}"})
 
         if typed:
             items = [it for it in items if it["label"].startswith(typed)]
