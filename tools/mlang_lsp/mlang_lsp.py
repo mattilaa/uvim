@@ -228,7 +228,7 @@ class JsonRpcServer:
                     "definitionProvider": True,
                     "declarationProvider": True,
                     "referencesProvider": True,
-                    "renameProvider": True,
+                    "renameProvider": {"prepareProvider": True},
                     "codeActionProvider": True,
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
@@ -330,7 +330,42 @@ class JsonRpcServer:
             doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
         )
         refs = self._find_references(token)
+        include_decl = bool(params.get("context", {}).get("includeDeclaration", False))
+        if not include_decl:
+            decl = self._find_definition(token)
+            if decl is not None:
+                refs = [
+                    r
+                    for r in refs
+                    if not (
+                        r.get("uri") == decl.get("uri")
+                        and r.get("range", {}).get("start") == decl.get("range", {}).get("start")
+                        and r.get("range", {}).get("end") == decl.get("range", {}).get("end")
+                    )
+                ]
         self._respond(req_id, refs)
+
+    def _handle_prepare_rename(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, None)
+            return
+        pos = params.get("position", {})
+        token, start, end = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        if not token:
+            self._respond(req_id, None)
+            return
+        if self._find_definition(token) is None:
+            self._respond(req_id, None)
+            return
+        self._respond(req_id, self._location_for_range(uri, doc.text, start, end)["range"])
 
     def _handle_rename(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
@@ -350,6 +385,9 @@ class JsonRpcServer:
         token, _, _ = self._token_at(
             doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
         )
+        if self._find_definition(token) is None:
+            self._error(req_id, -32602, "Symbol is not renameable")
+            return
         refs = self._find_references(token)
         changes: dict[str, list[dict[str, Any]]] = {}
         for loc in refs:
@@ -621,6 +659,8 @@ class JsonRpcServer:
             self._handle_declaration(req_id, params)
         elif method == "textDocument/references":
             self._handle_references(req_id, params)
+        elif method == "textDocument/prepareRename":
+            self._handle_prepare_rename(req_id, params)
         elif method == "textDocument/rename":
             self._handle_rename(req_id, params)
         elif method == "textDocument/signatureHelp":

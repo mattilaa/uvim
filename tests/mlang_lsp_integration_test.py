@@ -447,6 +447,22 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         self.assertGreaterEqual(len(refs), 3)
 
+        refs_no_decl = self.h.request(
+            "textDocument/references",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": 2, "character": 7},
+                "context": {"includeDeclaration": False},
+            },
+        )
+        self.assertLess(len(refs_no_decl), len(refs))
+
+        prep = self.h.request(
+            "textDocument/prepareRename",
+            {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 7}},
+        )
+        self.assertEqual(prep["start"]["line"], 2)
+
         rename = self.h.request(
             "textDocument/rename",
             {
