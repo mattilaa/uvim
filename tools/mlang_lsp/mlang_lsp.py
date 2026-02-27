@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import sys
 from dataclasses import dataclass
@@ -27,6 +28,9 @@ class Document:
 class JsonRpcServer:
     def __init__(self) -> None:
         self._documents: dict[str, Document] = {}
+        self._semantic_cache: dict[str, tuple[int, str, SemanticResult]] = {}
+        self._dependency_graph: dict[str, list[str]] = {}
+        self._canceled_request_ids: set[int] = set()
         self._running = True
         self._shutdown_requested = False
 
@@ -86,9 +90,28 @@ class JsonRpcServer:
             {"uri": uri, "diagnostics": diagnostics, "version": doc.version},
         )
 
-    @staticmethod
-    def _analyze(doc: Document) -> SemanticResult:
-        return analyze_document(doc.text)
+    def _doc_hash(self, text: str) -> str:
+        return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+    def _analyze(self, doc: Document) -> SemanticResult:
+        cached = self._semantic_cache.get(doc.uri)
+        text_hash = self._doc_hash(doc.text)
+        if cached and cached[0] == doc.version and cached[1] == text_hash:
+            return cached[2]
+        result = analyze_document(doc.text)
+        self._semantic_cache[doc.uri] = (doc.version, text_hash, result)
+        return result
+
+    def _invalidate_doc(self, uri: str) -> None:
+        self._semantic_cache.pop(uri, None)
+        self._dependency_graph.pop(uri, None)
+
+    def _update_dependency_graph(self, uri: str) -> None:
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._dependency_graph.pop(uri, None)
+            return
+        self._dependency_graph[uri] = self._analyze(doc).imports
 
     @staticmethod
     def _get_line(text: str, line: int) -> str:
@@ -140,6 +163,51 @@ class JsonRpcServer:
                 symbols.append(name)
         return symbols
 
+    def _work_begin(self, token: Any, title: str) -> None:
+        if token is None:
+            return
+        self._notify(
+            "$/progress",
+            {"token": token, "value": {"kind": "begin", "title": title}},
+        )
+
+    def _work_end(self, token: Any, message: str = "done") -> None:
+        if token is None:
+            return
+        self._notify(
+            "$/progress",
+            {"token": token, "value": {"kind": "end", "message": message}},
+        )
+
+    def _is_canceled(self, req_id: Any) -> bool:
+        return isinstance(req_id, int) and req_id in self._canceled_request_ids
+
+    def _handle_workspace_diagnostic(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+
+        token = params.get("workDoneToken")
+        self._work_begin(token, "workspace diagnostics")
+        items: list[dict[str, Any]] = []
+        for uri, doc in self._documents.items():
+            if self._is_canceled(req_id):
+                self._work_end(token, "cancelled")
+                self._error(req_id, -32800, "Request cancelled")
+                return
+            result = self._analyze(doc)
+            self._dependency_graph[uri] = result.imports
+            items.append(
+                {
+                    "uri": uri,
+                    "version": doc.version,
+                    "kind": "full",
+                    "items": [d.to_lsp(doc.text) for d in result.diagnostics],
+                }
+            )
+        self._work_end(token)
+        self._respond(req_id, {"items": items})
+
     def _handle_initialize(self, req_id: Any) -> None:
         self._respond(
             req_id,
@@ -152,9 +220,10 @@ class JsonRpcServer:
                         "resolveProvider": False,
                         "triggerCharacters": [".", ":"],
                     },
+                    "workDoneProgress": True,
                     "diagnosticProvider": {
                         "interFileDependencies": False,
-                        "workspaceDiagnostics": False,
+                        "workspaceDiagnostics": True,
                     },
                 },
             },
@@ -171,6 +240,8 @@ class JsonRpcServer:
             version=int(text_doc.get("version", 0)),
             language_id=text_doc.get("languageId", "mlang"),
         )
+        self._invalidate_doc(uri)
+        self._update_dependency_graph(uri)
         self._publish_diagnostics(uri)
 
     @staticmethod
@@ -203,6 +274,8 @@ class JsonRpcServer:
             text = self._apply_change(text, change)
         doc.text = text
         doc.version = int(text_doc.get("version", doc.version))
+        self._invalidate_doc(uri)
+        self._update_dependency_graph(uri)
         self._publish_diagnostics(uri)
 
     def _handle_hover(self, req_id: Any, params: dict[str, Any]) -> None:
@@ -211,6 +284,9 @@ class JsonRpcServer:
         doc = self._documents.get(uri)
         if doc is None:
             self._respond(req_id, None)
+            return
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
             return
 
         pos = params.get("position", {})
@@ -237,6 +313,9 @@ class JsonRpcServer:
         doc = self._documents.get(uri)
         if doc is None:
             self._respond(req_id, {"isIncomplete": False, "items": []})
+            return
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
             return
 
         pos = params.get("position", {})
@@ -266,7 +345,13 @@ class JsonRpcServer:
         if doc is None:
             self._respond(req_id, {"kind": "full", "items": []})
             return
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        token = params.get("workDoneToken")
+        self._work_begin(token, "document diagnostics")
         items = [d.to_lsp(doc.text) for d in self._analyze(doc).diagnostics]
+        self._work_end(token)
         self._respond(req_id, {"kind": "full", "items": items})
 
     def _dispatch_request(self, req_id: Any, method: str, params: dict[str, Any]) -> None:
@@ -281,6 +366,10 @@ class JsonRpcServer:
             self._handle_completion(req_id, params)
         elif method == "textDocument/diagnostic":
             self._handle_diagnostic(req_id, params)
+        elif method == "workspace/diagnostic":
+            self._handle_workspace_diagnostic(req_id, params)
+        elif method == "window/workDoneProgress/create":
+            self._respond(req_id, None)
         else:
             self._error(req_id, -32601, f"Method not found: {method}")
 
@@ -307,7 +396,13 @@ class JsonRpcServer:
             uri = text_doc.get("uri", "")
             if uri in self._documents:
                 del self._documents[uri]
+                self._invalidate_doc(uri)
                 self._publish_diagnostics(uri)
+            return
+        if method == "$/cancelRequest":
+            req_id = params.get("id")
+            if isinstance(req_id, int):
+                self._canceled_request_ids.add(req_id)
             return
 
     def run(self) -> int:

@@ -17,6 +17,10 @@ class MlangFrontendCompilerApiTest(unittest.TestCase):
         messages = [d.message for d in result.diagnostics]
         self.assertTrue(any("Unknown identifier 'src'" == m for m in messages))
 
+    def test_analyze_document_extracts_imports(self) -> None:
+        result = analyze_document("import core.io;\nimport pkg.math;\n")
+        self.assertEqual(result.imports, ["core.io", "pkg.math"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

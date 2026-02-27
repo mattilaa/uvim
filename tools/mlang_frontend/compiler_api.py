@@ -47,6 +47,7 @@ class SymbolInfo:
 class SemanticResult:
     symbols: list[SymbolInfo]
     diagnostics: list[SemanticDiagnostic]
+    imports: list[str]
 
 
 def _infer_expr_type(expr: str, known_types: dict[str, str]) -> str:
@@ -116,5 +117,18 @@ def analyze_document(text: str) -> SemanticResult:
             known_names.add(name)
             symbols.append(SymbolInfo(name=name, kind="symbol", type_name="Unknown"))
 
-    return SemanticResult(symbols=symbols, diagnostics=diagnostics)
+    return SemanticResult(
+        symbols=symbols, diagnostics=diagnostics, imports=extract_imports(text)
+    )
 
+
+def extract_imports(text: str) -> list[str]:
+    """Extract imported module names from simple `import name;` statements."""
+    seen: set[str] = set()
+    imports: list[str] = []
+    for mod in re.findall(r"\bimport\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;", text):
+        if mod in seen:
+            continue
+        seen.add(mod)
+        imports.append(mod)
+    return imports

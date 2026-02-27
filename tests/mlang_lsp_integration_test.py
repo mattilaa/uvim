@@ -92,6 +92,13 @@ class LspHarness:
         req_id = self._next_id
         self._next_id += 1
         self._write({"jsonrpc": "2.0", "id": req_id, "method": method, "params": params})
+        return self._read_response_for_id(req_id, method)
+
+    def request_with_id(self, req_id: int, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        self._write({"jsonrpc": "2.0", "id": req_id, "method": method, "params": params})
+        return self._read_response_for_id(req_id, method)
+
+    def _read_response_for_id(self, req_id: int, method: str) -> Dict[str, Any]:
         while True:
             msg = self._read()
             if msg.get("id") == req_id:
@@ -307,6 +314,88 @@ class MlangLspIntegrationTest(unittest.TestCase):
         diags = self.h.read_until_notification("textDocument/publishDiagnostics")
         messages = [d.get("message", "") for d in diags.get("diagnostics", [])]
         self.assertIn("Unknown identifier 'src'", messages)
+
+    def test_workspace_diagnostic_and_progress_notifications(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/workspace.mlang"
+        source = "import core.io;\nfn main() { let dst = src; }\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        req_id = 77
+        token = "wk-1"
+        self.h._write(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "method": "workspace/diagnostic",
+                "params": {"workDoneToken": token},
+            }
+        )
+
+        saw_begin = False
+        saw_end = False
+        result: Dict[str, Any] = {}
+        for _ in range(20):
+            msg = self.h._read()
+            if msg.get("method") == "$/progress":
+                params = msg.get("params", {})
+                if params.get("token") == token:
+                    kind = params.get("value", {}).get("kind")
+                    if kind == "begin":
+                        saw_begin = True
+                    if kind == "end":
+                        saw_end = True
+                continue
+            if msg.get("id") == req_id:
+                self.assertNotIn("error", msg)
+                result = msg.get("result", {})
+            if saw_begin and saw_end and result:
+                break
+
+        self.assertTrue(saw_begin)
+        self.assertTrue(saw_end)
+        self.assertGreaterEqual(len(result.get("items", [])), 1)
+        item_diags = result["items"][0].get("items", [])
+        self.assertTrue(any("Unknown identifier 'src'" == d.get("message") for d in item_diags))
+
+    def test_cancel_request_returns_cancelled_error(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/cancel.mlang"
+        source = "fn main() { let count = 1; }\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        req_id = 123
+        self.h.notify("$/cancelRequest", {"id": req_id})
+        self.h._write(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "method": "textDocument/diagnostic",
+                "params": {"textDocument": {"uri": uri}},
+            }
+        )
+        msg = self.h._read()
+        self.assertEqual(msg.get("id"), req_id)
+        self.assertIn("error", msg)
+        self.assertEqual(msg["error"].get("code"), -32800)
 
 
 if __name__ == "__main__":
