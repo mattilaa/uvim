@@ -739,6 +739,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
         self.assertTrue(init.get("capabilities", {}).get("documentFormattingProvider"))
+        self.assertTrue(init.get("capabilities", {}).get("documentRangeFormattingProvider"))
         self.assertIn("documentOnTypeFormattingProvider", init.get("capabilities", {}))
         self.h.notify("initialized", {})
 
@@ -788,6 +789,37 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(len(edits), 1)
         self.assertEqual(edits[0].get("newText"), "  let x = 1;")
+
+    def test_range_formatting_only_updates_selected_block(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/range_fmt.mlang"
+        source = "fn main() {\nlet x = 1\nlet y = 2\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        edits = self.h.request(
+            "textDocument/rangeFormatting",
+            {
+                "textDocument": {"uri": uri},
+                "range": {
+                    "start": {"line": 1, "character": 0},
+                    "end": {"line": 2, "character": 10},
+                },
+                "options": {"tabSize": 2, "insertSpaces": True},
+            },
+        )
+        self.assertEqual(len(edits), 1)
+        block = edits[0].get("newText", "")
+        self.assertIn("let x = 1;", block)
+        self.assertIn("let y = 2;", block)
 
     def test_code_lens_for_functions(self) -> None:
         init = self.h.request(

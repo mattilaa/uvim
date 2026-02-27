@@ -244,6 +244,7 @@ class JsonRpcServer:
                     "inlineValueProvider": True,
                     "inlayHintProvider": True,
                     "documentFormattingProvider": True,
+                    "documentRangeFormattingProvider": True,
                     "documentOnTypeFormattingProvider": {
                         "firstTriggerCharacter": ";",
                         "moreTriggerCharacter": ["}"],
@@ -877,6 +878,43 @@ class JsonRpcServer:
                         "end": {"line": end_line, "character": end_char},
                     },
                     "newText": new_text,
+                }
+            ],
+        )
+
+    def _handle_range_formatting(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        rng = params.get("range", {})
+        start_line = int(rng.get("start", {}).get("line", 0))
+        end_line = int(rng.get("end", {}).get("line", start_line))
+        lines = doc.text.splitlines()
+        if not lines:
+            self._respond(req_id, [])
+            return
+        start_line = max(0, min(start_line, len(lines) - 1))
+        end_line = max(start_line, min(end_line, len(lines) - 1))
+        old_block = "\n".join(lines[start_line : end_line + 1])
+        new_block = self._format_text(old_block).rstrip("\n")
+        if old_block == new_block:
+            self._respond(req_id, [])
+            return
+        self._respond(
+            req_id,
+            [
+                {
+                    "range": {
+                        "start": {"line": start_line, "character": 0},
+                        "end": {"line": end_line, "character": len(lines[end_line])},
+                    },
+                    "newText": new_block,
                 }
             ],
         )
@@ -1565,6 +1603,8 @@ class JsonRpcServer:
             self._handle_color_presentation(req_id, params)
         elif method == "textDocument/formatting":
             self._handle_formatting(req_id, params)
+        elif method == "textDocument/rangeFormatting":
+            self._handle_range_formatting(req_id, params)
         elif method == "textDocument/onTypeFormatting":
             self._handle_on_type_formatting(req_id, params)
         elif method == "textDocument/codeLens":
