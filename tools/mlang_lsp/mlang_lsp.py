@@ -239,7 +239,7 @@ class JsonRpcServer:
                     "colorProvider": True,
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
-                    "workspaceSymbolProvider": True,
+                    "workspaceSymbolProvider": {"resolveProvider": True},
                     "selectionRangeProvider": True,
                     "linkedEditingRangeProvider": True,
                     "inlineValueProvider": True,
@@ -1545,9 +1545,24 @@ class JsonRpcServer:
                         "name": name,
                         "kind": kind_map.get(kind, 13),
                         "location": self._location_for_range(uri, doc.text, start, end),
+                        "data": {"uri": uri, "name": name, "kind": kind},
                     }
                 )
         self._respond(req_id, items)
+
+    def _handle_workspace_symbol_resolve(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        symbol = dict(params or {})
+        data = symbol.get("data", {})
+        if isinstance(data, dict):
+            uri = str(data.get("uri", symbol.get("location", {}).get("uri", "")))
+            kind = str(data.get("kind", "symbol"))
+            name = str(data.get("name", symbol.get("name", "")))
+            symbol["detail"] = f"{kind} `{name}`"
+            symbol["containerName"] = os.path.basename(uri) if uri else ""
+        self._respond(req_id, symbol)
 
     def _handle_did_open(self, params: dict[str, Any]) -> None:
         text_doc = params.get("textDocument", {})
@@ -1779,6 +1794,8 @@ class JsonRpcServer:
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":
             self._handle_workspace_symbol(req_id, params)
+        elif method == "workspaceSymbol/resolve":
+            self._handle_workspace_symbol_resolve(req_id, params)
         elif method == "textDocument/completion":
             self._handle_completion(req_id, params)
         elif method == "completionItem/resolve":

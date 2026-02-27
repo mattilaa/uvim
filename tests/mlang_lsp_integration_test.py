@@ -565,7 +565,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         )
         caps = init.get("capabilities", {})
         self.assertTrue(caps.get("documentSymbolProvider"))
-        self.assertTrue(caps.get("workspaceSymbolProvider"))
+        self.assertTrue(caps.get("workspaceSymbolProvider", {}).get("resolveProvider"))
         self.h.notify("initialized", {})
 
         uri_a = "file:///tmp/symbol_a.mlang"
@@ -596,6 +596,9 @@ class MlangLspIntegrationTest(unittest.TestCase):
         ws_symbols = self.h.request("workspace/symbol", {"query": "he"})
         ws_names = {s.get("name") for s in ws_symbols}
         self.assertIn("helper", ws_names)
+        resolved = self.h.request("workspaceSymbol/resolve", ws_symbols[0])
+        self.assertIn("detail", resolved)
+        self.assertIn("containerName", resolved)
 
     def test_inlay_hints_for_inferred_types(self) -> None:
         init = self.h.request(
