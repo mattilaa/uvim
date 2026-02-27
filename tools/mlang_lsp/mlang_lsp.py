@@ -278,7 +278,7 @@ class JsonRpcServer:
                     "documentHighlightProvider": True,
                     "foldingRangeProvider": True,
                     "callHierarchyProvider": True,
-                    "documentLinkProvider": {"resolveProvider": False},
+                    "documentLinkProvider": {"resolveProvider": True},
                     "monikerProvider": True,
                     "colorProvider": True,
                     "renameProvider": {"prepareProvider": True},
@@ -1587,9 +1587,27 @@ class JsonRpcServer:
                     "range": rng,
                     "target": target,
                     "tooltip": f"Open module {module_name}",
+                    "data": {"module": module_name},
                 }
             )
         self._respond(req_id, out)
+
+    def _handle_document_link_resolve(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        link = dict(params or {})
+        data = link.get("data", {})
+        module = ""
+        if isinstance(data, dict):
+            module = str(data.get("module", ""))
+        if not module:
+            # Try to infer module from target URI.
+            target = str(link.get("target", ""))
+            module = self._uri_to_module_name(target)
+        if module:
+            link["tooltip"] = f"Open module {module} (resolved)"
+        self._respond(req_id, link)
 
     def _handle_prepare_call_hierarchy(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
@@ -2018,6 +2036,8 @@ class JsonRpcServer:
             self._handle_folding_range(req_id, params)
         elif method == "textDocument/documentLink":
             self._handle_document_link(req_id, params)
+        elif method == "documentLink/resolve":
+            self._handle_document_link_resolve(req_id, params)
         elif method == "textDocument/prepareCallHierarchy":
             self._handle_prepare_call_hierarchy(req_id, params)
         elif method == "callHierarchy/incomingCalls":

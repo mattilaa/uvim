@@ -1169,7 +1169,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             "initialize",
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
-        self.assertIn("documentLinkProvider", init.get("capabilities", {}))
+        self.assertTrue(init.get("capabilities", {}).get("documentLinkProvider", {}).get("resolveProvider"))
         self.assertIn("executeCommandProvider", init.get("capabilities", {}))
         commands = init.get("capabilities", {}).get("executeCommandProvider", {}).get("commands", [])
         self.assertIn("mlang.sortImports", commands)
@@ -1189,6 +1189,8 @@ class MlangLspIntegrationTest(unittest.TestCase):
         targets = {l.get("target", "") for l in links}
         self.assertIn("mlang:///modules/core/io.mla", targets)
         self.assertIn("mlang:///modules/pkg/math.mla", targets)
+        resolved = self.h.request("documentLink/resolve", links[0])
+        self.assertIn("(resolved)", resolved.get("tooltip", ""))
 
     def test_execute_command_sort_imports_returns_workspace_edit(self) -> None:
         self.h.request(
