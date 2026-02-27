@@ -243,7 +243,7 @@ class JsonRpcServer:
                     "selectionRangeProvider": True,
                     "linkedEditingRangeProvider": True,
                     "inlineValueProvider": True,
-                    "inlayHintProvider": True,
+                    "inlayHintProvider": {"resolveProvider": True},
                     "documentFormattingProvider": True,
                     "documentRangeFormattingProvider": True,
                     "documentOnTypeFormattingProvider": {
@@ -718,9 +718,23 @@ class JsonRpcServer:
                     "kind": 1,
                     "paddingLeft": True,
                     "paddingRight": False,
+                    "data": {"name": name, "type": inferred},
                 }
             )
         self._respond(req_id, hints)
+
+    def _handle_inlay_hint_resolve(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        hint = dict(params or {})
+        data = hint.get("data", {})
+        if isinstance(data, dict):
+            name = str(data.get("name", "value"))
+            t = str(data.get("type", "Unknown"))
+            hint["label"] = f": {t}"
+            hint["tooltip"] = {"kind": "markdown", "value": f"Inferred type of `{name}` is `{t}`."}
+        self._respond(req_id, hint)
 
     def _handle_inline_value(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
@@ -1756,6 +1770,8 @@ class JsonRpcServer:
             self._handle_code_action_resolve(req_id, params)
         elif method == "textDocument/inlayHint":
             self._handle_inlay_hint(req_id, params)
+        elif method == "inlayHint/resolve":
+            self._handle_inlay_hint_resolve(req_id, params)
         elif method == "textDocument/inlineValue":
             self._handle_inline_value(req_id, params)
         elif method == "textDocument/moniker":

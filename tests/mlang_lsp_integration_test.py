@@ -605,7 +605,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             "initialize",
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
-        self.assertTrue(init.get("capabilities", {}).get("inlayHintProvider"))
+        self.assertTrue(init.get("capabilities", {}).get("inlayHintProvider", {}).get("resolveProvider"))
         self.assertTrue(init.get("capabilities", {}).get("inlineValueProvider"))
         self.h.notify("initialized", {})
 
@@ -637,6 +637,8 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn(": Int", labels)
         self.assertIn(": String", labels)
         self.assertIn(": Bool", labels)
+        resolved = self.h.request("inlayHint/resolve", hints[0])
+        self.assertIn("tooltip", resolved)
 
     def test_inline_values_for_local_bindings(self) -> None:
         self.h.request(
