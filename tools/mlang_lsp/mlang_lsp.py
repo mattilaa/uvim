@@ -297,7 +297,7 @@ class JsonRpcServer:
                     "codeLensProvider": {"resolveProvider": True},
                     "codeActionProvider": {
                         "resolveProvider": True,
-                        "codeActionKinds": ["quickfix"],
+                        "codeActionKinds": ["quickfix", "source.organizeImports"],
                     },
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
@@ -754,12 +754,60 @@ class JsonRpcServer:
             self._respond(req_id, [])
             return
         diags = params.get("context", {}).get("diagnostics", [])
+        only = params.get("context", {}).get("only", [])
+        only_set = set(only) if isinstance(only, list) else set()
         known_symbols: set[str] = set()
         for open_doc in self._documents.values():
             for sym in self._analyze(open_doc).symbols:
                 known_symbols.add(sym.name)
 
         actions: list[dict[str, Any]] = []
+        if not only_set or "source.organizeImports" in only_set:
+            lines = doc.text.splitlines()
+            import_idx = [
+                i
+                for i, line in enumerate(lines)
+                if re.match(r"^\s*import\s+[A-Za-z_][A-Za-z0-9_\.]*\s*;\s*$", line)
+            ]
+            if import_idx:
+                start = min(import_idx)
+                end = max(import_idx)
+                block = lines[start : end + 1]
+                imports = [line.strip() for line in block if line.strip().startswith("import ")]
+                others = [line for line in block if not line.strip().startswith("import ")]
+                sorted_block = sorted(imports)
+                if others:
+                    sorted_block.extend(others)
+                new_block = "\n".join(sorted_block)
+                old_block = "\n".join(block)
+                if new_block != old_block:
+                    actions.append(
+                        {
+                            "title": "Organize imports",
+                            "kind": "source.organizeImports",
+                            "edit": {
+                                "changes": {
+                                    uri: [
+                                        {
+                                            "range": {
+                                                "start": {"line": start, "character": 0},
+                                                "end": {
+                                                    "line": end,
+                                                    "character": len(lines[end]) if end < len(lines) else 0,
+                                                },
+                                            },
+                                            "newText": new_block,
+                                        }
+                                    ]
+                                }
+                            },
+                        }
+                    )
+
+        if only_set and "quickfix" not in only_set:
+            self._respond(req_id, actions)
+            return
+
         for d in diags:
             msg = d.get("message", "")
             m = re.match(r"Unknown identifier '([A-Za-z_][A-Za-z0-9_]*)'", msg)

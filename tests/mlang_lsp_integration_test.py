@@ -559,6 +559,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("semanticTokensProvider", caps)
         self.assertTrue(caps.get("semanticTokensProvider", {}).get("range"))
         self.assertTrue(caps.get("codeActionProvider", {}).get("resolveProvider"))
+        self.assertIn("source.organizeImports", caps.get("codeActionProvider", {}).get("codeActionKinds", []))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/phase5.mlang"
@@ -615,6 +616,34 @@ class MlangLspIntegrationTest(unittest.TestCase):
         resolved = self.h.request("codeAction/resolve", actions[0])
         self.assertIn("documentation", resolved)
         self.assertTrue(resolved.get("isPreferred"))
+
+    def test_code_action_source_organize_imports(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/organize_imports.mlang"
+        source = "import zeta.mod;\nimport alpha.mod;\nfn main() {}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        actions = self.h.request(
+            "textDocument/codeAction",
+            {
+                "textDocument": {"uri": uri},
+                "range": {"start": {"line": 0, "character": 0}, "end": {"line": 2, "character": 0}},
+                "context": {"diagnostics": [], "only": ["source.organizeImports"]},
+            },
+        )
+        org = next((a for a in actions if a.get("kind") == "source.organizeImports"), None)
+        self.assertIsNotNone(org)
+        change = org.get("edit", {}).get("changes", {}).get(uri, [{}])[0]
+        self.assertIn("import alpha.mod;", change.get("newText", ""))
 
     def test_code_action_insert_missing_semicolon(self) -> None:
         self.h.request(
