@@ -524,6 +524,45 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertGreaterEqual(len(actions), 1)
         self.assertIn("quickfix", actions[0].get("kind", ""))
 
+    def test_symbol_queries_document_and_workspace(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        caps = init.get("capabilities", {})
+        self.assertTrue(caps.get("documentSymbolProvider"))
+        self.assertTrue(caps.get("workspaceSymbolProvider"))
+        self.h.notify("initialized", {})
+
+        uri_a = "file:///tmp/symbol_a.mlang"
+        src_a = "fn helper() {}\nconst PI = 3;\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri_a, "languageId": "mlang", "version": 1, "text": src_a}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        uri_b = "file:///tmp/symbol_b.mlang"
+        src_b = "fn main() {\n  let value = 1;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri_b, "languageId": "mlang", "version": 1, "text": src_b}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        doc_symbols = self.h.request(
+            "textDocument/documentSymbol",
+            {"textDocument": {"uri": uri_b}},
+        )
+        names = {s.get("name") for s in doc_symbols}
+        self.assertIn("main", names)
+        self.assertIn("value", names)
+        self.assertNotIn("helper", names)
+
+        ws_symbols = self.h.request("workspace/symbol", {"query": "he"})
+        ws_names = {s.get("name") for s in ws_symbols}
+        self.assertIn("helper", ws_names)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")

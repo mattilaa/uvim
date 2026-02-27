@@ -229,6 +229,8 @@ class JsonRpcServer:
                     "declarationProvider": True,
                     "referencesProvider": True,
                     "renameProvider": {"prepareProvider": True},
+                    "documentSymbolProvider": True,
+                    "workspaceSymbolProvider": True,
                     "codeActionProvider": True,
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
@@ -294,6 +296,16 @@ class JsonRpcServer:
         for uri, doc in self._documents.items():
             for m in pat.finditer(doc.text):
                 out.append(self._location_for_range(uri, doc.text, m.start(), m.end()))
+        return out
+
+    @staticmethod
+    def _declared_symbols(text: str) -> list[tuple[str, str, int, int]]:
+        out: list[tuple[str, str, int, int]] = []
+        for m in re.finditer(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\b", text):
+            out.append((m.group(1), "Function", m.start(1), m.end(1)))
+        for m in re.finditer(r"\b(let|const)\s+([A-Za-z_][A-Za-z0-9_]*)\b", text):
+            kind = "Constant" if m.group(1) == "const" else "Variable"
+            out.append((m.group(2), kind, m.start(2), m.end(2)))
         return out
 
     def _handle_definition(self, req_id: Any, params: dict[str, Any]) -> None:
@@ -520,6 +532,50 @@ class JsonRpcServer:
             )
         self._respond(req_id, actions)
 
+    def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        kind_map = {"Function": 12, "Variable": 13, "Constant": 14}
+        items: list[dict[str, Any]] = []
+        for name, kind, start, end in self._declared_symbols(doc.text):
+            loc = self._location_for_range(uri, doc.text, start, end)["range"]
+            items.append(
+                {
+                    "name": name,
+                    "kind": kind_map.get(kind, 13),
+                    "range": loc,
+                    "selectionRange": loc,
+                }
+            )
+        self._respond(req_id, items)
+
+    def _handle_workspace_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        query = str(params.get("query", "")).strip()
+        kind_map = {"Function": 12, "Variable": 13, "Constant": 14}
+        items: list[dict[str, Any]] = []
+        for uri, doc in self._documents.items():
+            for name, kind, start, end in self._declared_symbols(doc.text):
+                if query and query.lower() not in name.lower():
+                    continue
+                items.append(
+                    {
+                        "name": name,
+                        "kind": kind_map.get(kind, 13),
+                        "location": self._location_for_range(uri, doc.text, start, end),
+                    }
+                )
+        self._respond(req_id, items)
+
     def _handle_did_open(self, params: dict[str, Any]) -> None:
         text_doc = params.get("textDocument", {})
         uri = text_doc.get("uri", "")
@@ -669,6 +725,10 @@ class JsonRpcServer:
             self._handle_semantic_tokens_full(req_id, params)
         elif method == "textDocument/codeAction":
             self._handle_code_action(req_id, params)
+        elif method == "textDocument/documentSymbol":
+            self._handle_document_symbol(req_id, params)
+        elif method == "workspace/symbol":
+            self._handle_workspace_symbol(req_id, params)
         elif method == "textDocument/completion":
             self._handle_completion(req_id, params)
         elif method == "textDocument/diagnostic":
