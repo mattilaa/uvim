@@ -13,6 +13,7 @@ if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
 from mlang_frontend.diagnostics import analyze_text
+from mlang_frontend.parser import collect_symbols
 from mlang_frontend.source_map import line_char_to_offset
 
 
@@ -109,20 +110,6 @@ class JsonRpcServer:
         return text[start:end]
 
     @staticmethod
-    def _collect_symbols(text: str) -> list[str]:
-        seen: set[str] = set()
-        symbols: list[str] = []
-        for name in re.findall(r"\blet\s+([A-Za-z_][A-Za-z0-9_]*)", text):
-            if name not in seen:
-                seen.add(name)
-                symbols.append(name)
-        for name in re.findall(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)", text):
-            if name not in seen:
-                seen.add(name)
-                symbols.append(name)
-        return symbols
-
-    @staticmethod
     def _keyword_items() -> list[dict[str, Any]]:
         keywords = [
             "fn",
@@ -137,6 +124,17 @@ class JsonRpcServer:
             "false",
         ]
         return [{"label": k, "kind": 14, "detail": "keyword"} for k in keywords]
+
+    def _workspace_symbols(self) -> list[str]:
+        seen: set[str] = set()
+        symbols: list[str] = []
+        for doc in self._documents.values():
+            for symbol in collect_symbols(doc.text):
+                if symbol in seen:
+                    continue
+                seen.add(symbol)
+                symbols.append(symbol)
+        return symbols
 
     def _handle_initialize(self, req_id: Any) -> None:
         self._respond(
@@ -242,7 +240,7 @@ class JsonRpcServer:
         typed = m.group(1) if m else ""
 
         items = self._keyword_items()
-        for symbol in self._collect_symbols(doc.text):
+        for symbol in self._workspace_symbols():
             items.append({"label": symbol, "kind": 6, "detail": "symbol"})
 
         if typed:
@@ -322,4 +320,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

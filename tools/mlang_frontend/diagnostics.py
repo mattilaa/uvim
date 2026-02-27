@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .parser import parse_document
 from .source_map import offset_to_line_char
 
 
@@ -116,5 +117,14 @@ def analyze_text(text: str) -> list[LspDiagnostic]:
             )
         )
 
-    return diagnostics
+    # Include parser-level diagnostics for declaration syntax.
+    for diag in parse_document(text).diagnostics:
+        diagnostics.append(
+            LspDiagnostic(
+                start_offset=diag.start_offset,
+                end_offset=diag.end_offset,
+                message=diag.message,
+            )
+        )
 
+    return diagnostics

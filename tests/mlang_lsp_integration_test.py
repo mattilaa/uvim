@@ -226,6 +226,49 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("value", labels)
         self.assertNotIn("valeu", labels)
 
+    def test_completion_includes_workspace_symbols_from_other_open_documents(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri_a = "file:///tmp/a.mlang"
+        uri_b = "file:///tmp/b.mlang"
+
+        self.h.notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": uri_a,
+                    "languageId": "mlang",
+                    "version": 1,
+                    "text": "fn helper() {}\n",
+                }
+            },
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        self.h.notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": uri_b,
+                    "languageId": "mlang",
+                    "version": 1,
+                    "text": "fn main() {\n  hel\n}\n",
+                }
+            },
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        completion = self.h.request(
+            "textDocument/completion",
+            {"textDocument": {"uri": uri_b}, "position": {"line": 1, "character": 5}},
+        )
+        labels = {item.get("label") for item in completion.get("items", [])}
+        self.assertIn("helper", labels)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
