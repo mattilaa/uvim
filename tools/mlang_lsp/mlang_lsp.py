@@ -763,28 +763,47 @@ class JsonRpcServer:
         for d in diags:
             msg = d.get("message", "")
             m = re.match(r"Unknown identifier '([A-Za-z_][A-Za-z0-9_]*)'", msg)
-            if not m:
-                continue
-            missing = m.group(1)
-            replacement = next((s for s in sorted(known_symbols) if s[:1] == missing[:1]), None)
-            if not replacement:
-                continue
-            actions.append(
-                {
-                    "title": f"Replace '{missing}' with '{replacement}'",
-                    "kind": "quickfix",
-                    "edit": {
-                        "changes": {
-                            uri: [
-                                {
-                                    "range": d.get("range"),
-                                    "newText": replacement,
+            if m:
+                missing = m.group(1)
+                replacement = next((s for s in sorted(known_symbols) if s[:1] == missing[:1]), None)
+                if replacement:
+                    actions.append(
+                        {
+                            "title": f"Replace '{missing}' with '{replacement}'",
+                            "kind": "quickfix",
+                            "edit": {
+                                "changes": {
+                                    uri: [
+                                        {
+                                            "range": d.get("range"),
+                                            "newText": replacement,
+                                        }
+                                    ]
                                 }
-                            ]
+                            },
                         }
-                    },
-                }
-            )
+                    )
+                continue
+
+            if msg == "Expected ';' after declaration":
+                end = d.get("range", {}).get("end")
+                if isinstance(end, dict):
+                    actions.append(
+                        {
+                            "title": "Insert missing ';'",
+                            "kind": "quickfix",
+                            "edit": {
+                                "changes": {
+                                    uri: [
+                                        {
+                                            "range": {"start": end, "end": end},
+                                            "newText": ";",
+                                        }
+                                    ]
+                                }
+                            },
+                        }
+                    )
         self._respond(req_id, actions)
 
     def _handle_code_action_resolve(self, req_id: Any, params: dict[str, Any]) -> None:

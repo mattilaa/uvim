@@ -616,6 +616,36 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("documentation", resolved)
         self.assertTrue(resolved.get("isPreferred"))
 
+    def test_code_action_insert_missing_semicolon(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/missing_semi.mlang"
+        source = "const value = 1\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        diag = self.h.read_until_notification("textDocument/publishDiagnostics")
+        diags = diag.get("diagnostics", [])
+        self.assertTrue(any(d.get("message") == "Expected ';' after declaration" for d in diags))
+
+        actions = self.h.request(
+            "textDocument/codeAction",
+            {
+                "textDocument": {"uri": uri},
+                "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 20}},
+                "context": {"diagnostics": diags},
+            },
+        )
+        semi_action = next((a for a in actions if a.get("title") == "Insert missing ';'"), None)
+        self.assertIsNotNone(semi_action)
+        change = semi_action.get("edit", {}).get("changes", {}).get(uri, [{}])[0]
+        self.assertEqual(change.get("newText"), ";")
+
     def test_symbol_queries_document_and_workspace(self) -> None:
         init = self.h.request(
             "initialize",
