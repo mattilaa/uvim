@@ -558,6 +558,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("signatureHelpProvider", caps)
         self.assertIn("semanticTokensProvider", caps)
         self.assertTrue(caps.get("semanticTokensProvider", {}).get("range"))
+        self.assertTrue(caps.get("semanticTokensProvider", {}).get("full", {}).get("delta"))
         self.assertTrue(caps.get("codeActionProvider", {}).get("resolveProvider"))
         self.assertIn("source.organizeImports", caps.get("codeActionProvider", {}).get("codeActionKinds", []))
         self.h.notify("initialized", {})
@@ -616,6 +617,52 @@ class MlangLspIntegrationTest(unittest.TestCase):
         resolved = self.h.request("codeAction/resolve", actions[0])
         self.assertIn("documentation", resolved)
         self.assertTrue(resolved.get("isPreferred"))
+
+    def test_semantic_tokens_full_delta(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/semantic_delta.mlang"
+        source = "fn main() {\n  let value = 1;\n  return value;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        full = self.h.request(
+            "textDocument/semanticTokens/full",
+            {"textDocument": {"uri": uri}},
+        )
+        self.assertIn("resultId", full)
+        self.assertGreater(len(full.get("data", [])), 0)
+
+        unchanged_delta = self.h.request(
+            "textDocument/semanticTokens/full/delta",
+            {"textDocument": {"uri": uri}, "previousResultId": full["resultId"]},
+        )
+        self.assertEqual(unchanged_delta.get("edits"), [])
+
+        updated = "fn main() {\n  let renamed = 2;\n  return renamed;\n}\n"
+        self.h.notify(
+            "textDocument/didChange",
+            {
+                "textDocument": {"uri": uri, "version": 2},
+                "contentChanges": [{"text": updated}],
+            },
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        changed_delta = self.h.request(
+            "textDocument/semanticTokens/full/delta",
+            {"textDocument": {"uri": uri}, "previousResultId": full["resultId"]},
+        )
+        edits = changed_delta.get("edits", [])
+        self.assertGreaterEqual(len(edits), 1)
+        self.assertIn("data", edits[0])
 
     def test_code_action_source_organize_imports(self) -> None:
         self.h.request(

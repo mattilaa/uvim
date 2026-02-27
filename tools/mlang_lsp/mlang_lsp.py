@@ -39,6 +39,7 @@ class JsonRpcServer:
     def __init__(self) -> None:
         self._documents: dict[str, Document] = {}
         self._semantic_cache: dict[str, tuple[int, str, SemanticResult]] = {}
+        self._semantic_token_history: dict[str, dict[str, list[int]]] = {}
         self._dependency_graph: dict[str, list[str]] = {}
         self._canceled_request_ids: set[int] = set()
         self._running = True
@@ -302,7 +303,7 @@ class JsonRpcServer:
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
                         "legend": {"tokenTypes": self.TOKEN_TYPES, "tokenModifiers": []},
-                        "full": True,
+                        "full": {"delta": True},
                         "range": True,
                     },
                     "completionProvider": {
@@ -721,7 +722,67 @@ class JsonRpcServer:
         if doc is None:
             self._respond(req_id, {"data": []})
             return
-        self._respond(req_id, {"data": self._encode_semantic_tokens(doc.text)})
+        data = self._encode_semantic_tokens(doc.text)
+        result_id = self._doc_hash(
+            json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+        )
+        history = self._semantic_token_history.setdefault(uri, {})
+        history[result_id] = data
+        if len(history) > 8:
+            old_keys = list(history.keys())[:-8]
+            for key in old_keys:
+                history.pop(key, None)
+        self._respond(req_id, {"resultId": result_id, "data": data})
+
+    def _handle_semantic_tokens_full_delta(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, {"edits": []})
+            return
+
+        data = self._encode_semantic_tokens(doc.text)
+        result_id = self._doc_hash(
+            json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+        )
+        history = self._semantic_token_history.setdefault(uri, {})
+        previous_result_id = str(params.get("previousResultId", ""))
+        previous_data = history.get(previous_result_id)
+        history[result_id] = data
+        if len(history) > 8:
+            old_keys = list(history.keys())[:-8]
+            for key in old_keys:
+                history.pop(key, None)
+
+        if previous_result_id == result_id:
+            self._respond(req_id, {"resultId": result_id, "edits": []})
+            return
+        if previous_data is None:
+            self._respond(
+                req_id,
+                {
+                    "resultId": result_id,
+                    "edits": [{"start": 0, "deleteCount": 0, "data": data}],
+                },
+            )
+            return
+        self._respond(
+            req_id,
+            {
+                "resultId": result_id,
+                "edits": [
+                    {
+                        "start": 0,
+                        "deleteCount": len(previous_data),
+                        "data": data,
+                    }
+                ],
+            },
+        )
 
     def _handle_semantic_tokens_range(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
@@ -2067,6 +2128,8 @@ class JsonRpcServer:
             self._handle_semantic_tokens_full(req_id, params)
         elif method == "textDocument/semanticTokens/range":
             self._handle_semantic_tokens_range(req_id, params)
+        elif method == "textDocument/semanticTokens/full/delta":
+            self._handle_semantic_tokens_full_delta(req_id, params)
         elif method == "textDocument/codeAction":
             self._handle_code_action(req_id, params)
         elif method == "codeAction/resolve":
