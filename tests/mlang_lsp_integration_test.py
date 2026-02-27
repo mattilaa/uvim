@@ -734,6 +734,31 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("ranges", linked)
         self.assertGreaterEqual(len(linked.get("ranges", [])), 2)
 
+    def test_document_highlight_marks_read_and_write_occurrences(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertTrue(init.get("capabilities", {}).get("documentHighlightProvider"))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/highlight.mlang"
+        source = "fn main() {\n  let value = 1;\n  return value;\n}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        highlights = self.h.request(
+            "textDocument/documentHighlight",
+            {"textDocument": {"uri": uri}, "position": {"line": 2, "character": 10}},
+        )
+        self.assertGreaterEqual(len(highlights), 2)
+        kinds = {h.get("kind") for h in highlights}
+        self.assertIn(3, kinds)  # declaration/write
+        self.assertIn(2, kinds)  # read usage
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")

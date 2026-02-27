@@ -228,6 +228,7 @@ class JsonRpcServer:
                     "definitionProvider": True,
                     "declarationProvider": True,
                     "referencesProvider": True,
+                    "documentHighlightProvider": True,
                     "renameProvider": {"prepareProvider": True},
                     "documentSymbolProvider": True,
                     "workspaceSymbolProvider": True,
@@ -732,6 +733,35 @@ class JsonRpcServer:
             return
         self._respond(req_id, {"ranges": ranges, "wordPattern": r"[A-Za-z_][A-Za-z0-9_]*"})
 
+    def _handle_document_highlight(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        pos = params.get("position", {})
+        token, _, _ = self._token_at(
+            doc.text, int(pos.get("line", 0)), int(pos.get("character", 0))
+        )
+        if not token:
+            self._respond(req_id, [])
+            return
+        decl = self._find_definition(token)
+        out: list[dict[str, Any]] = []
+        for m in re.finditer(rf"\b{re.escape(token)}\b", doc.text):
+            rng = self._location_for_range(uri, doc.text, m.start(), m.end())["range"]
+            kind = 2  # read
+            if decl and decl.get("uri") == uri and decl.get("range") == rng:
+                kind = 3  # write
+            out.append({"range": rng, "kind": kind})
+            if len(out) >= 64:
+                break
+        self._respond(req_id, out)
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -959,6 +989,8 @@ class JsonRpcServer:
             self._handle_selection_range(req_id, params)
         elif method == "textDocument/linkedEditingRange":
             self._handle_linked_editing_range(req_id, params)
+        elif method == "textDocument/documentHighlight":
+            self._handle_document_highlight(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":
