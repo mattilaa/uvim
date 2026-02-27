@@ -260,6 +260,9 @@ class JsonRpcServer:
                         "interFileDependencies": False,
                         "workspaceDiagnostics": True,
                     },
+                    "executeCommandProvider": {
+                        "commands": ["mlang.sortImports"],
+                    },
                 },
             },
         )
@@ -755,6 +758,59 @@ class JsonRpcServer:
                     "newText": new_line,
                 }
             ],
+        )
+
+    def _handle_execute_command(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        command = str(params.get("command", ""))
+        args = params.get("arguments", [])
+        if command != "mlang.sortImports":
+            self._error(req_id, -32602, f"Unknown command: {command}")
+            return
+        if not isinstance(args, list) or not args:
+            self._error(req_id, -32602, "mlang.sortImports expects [uri]")
+            return
+        uri = str(args[0])
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, {"changes": {}})
+            return
+
+        lines = doc.text.splitlines()
+        import_idx = [i for i, line in enumerate(lines) if re.match(r"^\s*import\s+[A-Za-z_][A-Za-z0-9_\.]*\s*;\s*$", line)]
+        if not import_idx:
+            self._respond(req_id, {"changes": {}})
+            return
+        start = min(import_idx)
+        end = max(import_idx)
+        block = lines[start : end + 1]
+        imports = [line.strip() for line in block if line.strip().startswith("import ")]
+        others = [line for line in block if not line.strip().startswith("import ")]
+        sorted_block = sorted(imports)
+        if others:
+            sorted_block.extend(others)
+        new_block = "\n".join(sorted_block)
+        old_block = "\n".join(block)
+        if new_block == old_block:
+            self._respond(req_id, {"changes": {}})
+            return
+        self._respond(
+            req_id,
+            {
+                "changes": {
+                    uri: [
+                        {
+                            "range": {
+                                "start": {"line": start, "character": 0},
+                                "end": {"line": end, "character": len(lines[end]) if end < len(lines) else 0},
+                            },
+                            "newText": new_block,
+                        }
+                    ]
+                }
+            },
         )
 
     def _handle_code_lens(self, req_id: Any, params: dict[str, Any]) -> None:
@@ -1328,6 +1384,8 @@ class JsonRpcServer:
             self._handle_workspace_diagnostic(req_id, params)
         elif method == "window/workDoneProgress/create":
             self._respond(req_id, None)
+        elif method == "workspace/executeCommand":
+            self._handle_execute_command(req_id, params)
         else:
             self._error(req_id, -32601, f"Method not found: {method}")
 

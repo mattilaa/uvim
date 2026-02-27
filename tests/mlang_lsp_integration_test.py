@@ -875,6 +875,7 @@ class MlangLspIntegrationTest(unittest.TestCase):
             {"processId": None, "rootUri": None, "capabilities": {}},
         )
         self.assertIn("documentLinkProvider", init.get("capabilities", {}))
+        self.assertIn("executeCommandProvider", init.get("capabilities", {}))
         self.h.notify("initialized", {})
 
         uri = "file:///tmp/doclinks.mlang"
@@ -890,6 +891,29 @@ class MlangLspIntegrationTest(unittest.TestCase):
         targets = {l.get("target", "") for l in links}
         self.assertIn("mlang:///modules/core/io.mla", targets)
         self.assertIn("mlang:///modules/pkg/math.mla", targets)
+
+    def test_execute_command_sort_imports_returns_workspace_edit(self) -> None:
+        self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/sort_imports.mlang"
+        source = "import zeta.mod;\nimport alpha.mod;\nfn main() {}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        result = self.h.request(
+            "workspace/executeCommand",
+            {"command": "mlang.sortImports", "arguments": [uri]},
+        )
+        changes = result.get("changes", {}).get(uri, [])
+        self.assertEqual(len(changes), 1)
+        self.assertIn("import alpha.mod;", changes[0].get("newText", ""))
 
 
 if __name__ == "__main__":
