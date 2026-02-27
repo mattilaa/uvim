@@ -233,6 +233,7 @@ class JsonRpcServer:
                     "workspaceSymbolProvider": True,
                     "inlayHintProvider": True,
                     "documentFormattingProvider": True,
+                    "codeLensProvider": {"resolveProvider": False},
                     "codeActionProvider": True,
                     "signatureHelpProvider": {"triggerCharacters": ["(", ","]},
                     "semanticTokensProvider": {
@@ -620,6 +621,32 @@ class JsonRpcServer:
             ],
         )
 
+    def _handle_code_lens(self, req_id: Any, params: dict[str, Any]) -> None:
+        if self._is_canceled(req_id):
+            self._error(req_id, -32800, "Request cancelled")
+            return
+        text_doc = params.get("textDocument", {})
+        uri = text_doc.get("uri", "")
+        doc = self._documents.get(uri)
+        if doc is None:
+            self._respond(req_id, [])
+            return
+        items: list[dict[str, Any]] = []
+        for m in re.finditer(r"\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\b", doc.text):
+            fn_name = m.group(1)
+            rng = self._location_for_range(uri, doc.text, m.start(1), m.end(1))["range"]
+            items.append(
+                {
+                    "range": rng,
+                    "command": {
+                        "title": f"Run {fn_name}",
+                        "command": "mlang.runFunction",
+                        "arguments": [uri, fn_name],
+                    },
+                }
+            )
+        self._respond(req_id, items)
+
     def _handle_document_symbol(self, req_id: Any, params: dict[str, Any]) -> None:
         if self._is_canceled(req_id):
             self._error(req_id, -32800, "Request cancelled")
@@ -817,6 +844,8 @@ class JsonRpcServer:
             self._handle_inlay_hint(req_id, params)
         elif method == "textDocument/formatting":
             self._handle_formatting(req_id, params)
+        elif method == "textDocument/codeLens":
+            self._handle_code_lens(req_id, params)
         elif method == "textDocument/documentSymbol":
             self._handle_document_symbol(req_id, params)
         elif method == "workspace/symbol":

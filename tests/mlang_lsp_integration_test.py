@@ -628,6 +628,28 @@ class MlangLspIntegrationTest(unittest.TestCase):
         self.assertIn("  let x = 1;", new_text)
         self.assertIn("  return x;", new_text)
 
+    def test_code_lens_for_functions(self) -> None:
+        init = self.h.request(
+            "initialize",
+            {"processId": None, "rootUri": None, "capabilities": {}},
+        )
+        self.assertIn("codeLensProvider", init.get("capabilities", {}))
+        self.h.notify("initialized", {})
+
+        uri = "file:///tmp/lens.mlang"
+        source = "fn alpha() {}\nfn beta() {}\n"
+        self.h.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": uri, "languageId": "mlang", "version": 1, "text": source}},
+        )
+        self.h.read_until_notification("textDocument/publishDiagnostics")
+
+        lenses = self.h.request("textDocument/codeLens", {"textDocument": {"uri": uri}})
+        self.assertEqual(len(lenses), 2)
+        titles = {l.get("command", {}).get("title") for l in lenses}
+        self.assertIn("Run alpha", titles)
+        self.assertIn("Run beta", titles)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
