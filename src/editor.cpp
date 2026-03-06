@@ -3854,7 +3854,8 @@ void Editor::goToDefinition()
         }
     }
 
-    if(isStdSymbol || symbolPrefix.rfind("std::", 0) == 0)
+    if((isStdSymbol || symbolPrefix.rfind("std::", 0) == 0) &&
+       !isFileType<FileType::Mla>())
     {
         std::string headerName = stdlib_goto::headerForSymbol(symbol);
         if(!headerName.empty())
@@ -4922,8 +4923,10 @@ void Editor::goToDefinition()
     }
 #endif
 
-    // std::symbol fallback: open matching system header when possible
-    if(*cursorY >= 0 && *cursorY < (int)lines->size())
+    // std::symbol fallback for C/C++: open matching system header when
+    // possible. Keep .mla navigation in mlang domain.
+    if(!isFileType<FileType::Mla>() && *cursorY >= 0 &&
+       *cursorY < (int)lines->size())
     {
         const std::string& line = (*lines)[*cursorY];
         int x = *cursorX;

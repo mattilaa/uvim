@@ -3,10 +3,6 @@
 #include "terminal.h"
 #include <algorithm>
 
-// ============================================================================
-// BufferBrowserMode Implementation
-// ============================================================================
-
 void BufferBrowserMode::on_enter(ModeContext& ctx)
 {
     bufferQuery.clear();
@@ -18,8 +14,7 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
 
 void BufferBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
-                                                   int key)
+std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -36,7 +31,8 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         return defaultExitMode(ed);
     }
 
-    if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
+    if(c == keyCode(control::ControlKey::CTRL_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
        c == keyCode(control::ControlKey::CTRL_N))
     {
         if(bufferCursor < (int)bufferMatches.size() - 1)
@@ -47,7 +43,8 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
                 bufferOffset = bufferCursor - visible + 1;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(control::ControlKey::CTRL_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(bufferCursor > 0)
         {
@@ -75,7 +72,8 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         if(bufferCursor < bufferOffset)
             bufferOffset = bufferCursor;
     }
-    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == keyCode(control::ControlKey::DEL) ||
+    else if(c == keyCode(control::ControlKey::BACKSPACE) ||
+            c == keyCode(control::ControlKey::DEL) ||
             c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!bufferQuery.empty())
@@ -97,7 +95,8 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     {
         return FuzzyFindMode{};
     }
-    else if(c == keyCode(control::ControlKey::CTRL_S) || c == keyCode(command::CommandKey::KEY_SLASH))
+    else if(c == keyCode(control::ControlKey::CTRL_S) ||
+            c == keyCode(command::CommandKey::KEY_SLASH))
     {
         return GrepSearchMode{};
     }
