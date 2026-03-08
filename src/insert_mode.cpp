@@ -10,6 +10,23 @@
 
 namespace
 {
+void moveCursorLeftForNormalMode(Editor* ed, ModeContext& ctx)
+{
+    if(ctx.cursorX() <= 0)
+        return;
+
+    if(ed->utf8Mode && ed->lines && ctx.cursorY() >= 0 &&
+       ctx.cursorY() < (int)ed->lines->size())
+    {
+        ctx.cursorX() = text_utils::prevUtf8CharStart(
+            (*ed->lines)[ctx.cursorY()], ctx.cursorX());
+    }
+    else
+    {
+        ctx.cursorX()--;
+    }
+}
+
 bool isEscaped(const std::string& line, int pos)
 {
     int backslashes = 0;
@@ -200,10 +217,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
         {
             ed->cancelCompletion();
-            if(ctx.cursorX() > 0)
-            {
-                ctx.cursorX()--;
-            }
+            moveCursorLeftForNormalMode(ed, ctx);
             if(c == keyCode(control::ControlKey::ESC))
             {
                 ed->formatOnDoubleEscPending =
@@ -223,10 +237,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
     {
-        if(ctx.cursorX() > 0)
-        {
-            ctx.cursorX()--;
-        }
+        moveCursorLeftForNormalMode(ed, ctx);
         if(c == keyCode(control::ControlKey::ESC))
         {
             ed->formatOnDoubleEscPending = ed->formatOnInsertLeave &&
@@ -619,8 +630,10 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 indent++;
             }
             std::string indentStr = line.substr(0, indent);
+            const int innerWidth =
+                std::max(0, ed->indentWidthForBraces() - 1);
             std::string innerIndent =
-                indentStr + std::string(ed->indentWidthForBraces(), keyCode(control::ControlKey::SPACE));
+                indentStr + std::string(innerWidth, keyCode(control::ControlKey::SPACE));
 
             if(ed->braceNewLineForAutoBraces())
             {

@@ -179,7 +179,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         {
             ed->acceptEmoji();
             ctx.repeatCount = 0;
-            return InsertMode{};
+            return std::nullopt;
         }
         if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
         {

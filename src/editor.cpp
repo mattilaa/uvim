@@ -9402,6 +9402,7 @@ void Editor::insertLineBelow()
         std::string indentStr = currentLine.substr(0, indent);
 
         bool addExtraIndent = false;
+        int extraIndentWidth = tabSpaces;
         if(isFileType<FileType::Cpp>())
         {
             size_t lastNonSpace = currentLine.find_last_not_of(" \t");
@@ -9409,6 +9410,7 @@ void Editor::insertLineBelow()
                currentLine[lastNonSpace] == '{')
             {
                 addExtraIndent = true;
+                extraIndentWidth = std::max(0, indentWidthForBraces() - 1);
             }
         }
         if(autoTags &&
@@ -9461,7 +9463,10 @@ void Editor::insertLineBelow()
                 }
             }
             if(htmlShouldIndent)
+            {
                 addExtraIndent = true;
+                extraIndentWidth = tabSpaces;
+            }
         }
 
         if(isFileType<FileType::Cpp>() && !addExtraIndent)
@@ -9508,7 +9513,7 @@ void Editor::insertLineBelow()
 
         std::string newLine = indentStr;
         if(addExtraIndent)
-            newLine.append(tabSpaces, ' ');
+            newLine.append(extraIndentWidth, ' ');
 
         lines->insert(lines->begin() + *cursorY + 1, newLine);
     }

@@ -251,6 +251,7 @@ void Editor::insertNewline()
     std::string indentStr = currentLine.substr(0, indent);
 
     bool addExtraIndent = false;
+    int extraIndentWidth = tabSpaces;
     if(isFileType<FileType::Cpp>() && *cursorX > 0)
     {
         int checkPos = *cursorX - 1;
@@ -262,6 +263,7 @@ void Editor::insertNewline()
         if(checkPos >= 0 && currentLine[checkPos] == '{')
         {
             addExtraIndent = true;
+            extraIndentWidth = std::max(0, indentWidthForBraces() - 1);
         }
     }
 
@@ -326,14 +328,14 @@ void Editor::insertNewline()
     std::string newLine = indentStr;
     if(addExtraIndent)
     {
-        newLine.append(tabSpaces, ' ');
+        newLine.append(extraIndentWidth, ' ');
     }
     newLine += remainder;
 
     lines->insert(lines->begin() + *cursorY + 1, newLine);
 
     (*cursorY)++;
-    *cursorX = indentStr.length() + (addExtraIndent ? 4 : 0);
+    *cursorX = (int)indentStr.length() + (addExtraIndent ? extraIndentWidth : 0);
     *dirty = true;
     needsFullRedraw = true;
 }

@@ -1292,8 +1292,24 @@ void Editor::acceptEmoji()
     {
         if(*cursorY >= (int)lines->size())
             lines->push_back("");
-        (*lines)[*cursorY].insert(*cursorX, emoji);
-        *cursorX += (int)emoji.size();
+
+        std::string& line = (*lines)[*cursorY];
+        int insertPos = std::clamp(*cursorX, 0, (int)line.size());
+
+        // In normal mode, insert after the current character (like `a`).
+        if(currentMode == NORMAL && insertPos < (int)line.size())
+        {
+            if(utf8Mode)
+                insertPos = text_utils::nextUtf8CharStart(line, insertPos);
+            else
+                ++insertPos;
+        }
+
+        line.insert(insertPos, emoji);
+        if(currentMode == NORMAL)
+            *cursorX = insertPos;
+        else
+            *cursorX = insertPos + (int)emoji.size();
         *dirty = true;
         saveState();
         currentBuffer->lspSyncNeeded = true;
