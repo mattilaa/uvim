@@ -1,8 +1,12 @@
 #include "editor.h"
+#include "json_utils.h"
 #include "log.h"
 #include "theme.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <cctype>
+#include <chrono>
 #include <clocale>
 #include <cstdlib>
 #include <fstream>
@@ -11,6 +15,9 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
+#include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 #include <filesystem>
@@ -68,7 +75,443 @@ static fs::path find_workspace_root(const std::vector<std::string>& args)
     return base;
 }
 
-[[noreturn]] static void die(std::string_view msg, std::string_view arg = {})
+namespace ju = json_utils;
+[[noreturn]] static void die(std::string_view msg, std::string_view arg = {});
+
+static bool is_ascii_alpha(char ch)
+{
+    return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+}
+
+static std::string maybe_windows_to_wsl_path(std::string_view input)
+{
+    if(input.size() < 3 || !is_ascii_alpha(input[0]) || input[1] != ':' ||
+       (input[2] != '\\' && input[2] != '/'))
+    {
+        return {};
+    }
+
+    std::string out = "/mnt/";
+    out.push_back(static_cast<char>(std::tolower(
+        static_cast<unsigned char>(input[0]))));
+    out.push_back('/');
+
+    size_t i = 2;
+    while(i < input.size() && (input[i] == '\\' || input[i] == '/'))
+        ++i;
+
+    for(; i < input.size(); ++i)
+    {
+        char ch = input[i];
+        out.push_back(ch == '\\' ? '/' : ch);
+    }
+    return out;
+}
+
+static std::string rewrite_windows_paths_in_text(std::string_view text)
+{
+    auto is_delim = [](char ch)
+    {
+        return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' ||
+               ch == '\'' || ch == '"';
+    };
+
+    std::string out;
+    out.reserve(text.size());
+
+    size_t i = 0;
+    while(i < text.size())
+    {
+        const bool maybePath =
+            i + 2 < text.size() && is_ascii_alpha(text[i]) && text[i + 1] == ':' &&
+            (text[i + 2] == '\\' || text[i + 2] == '/');
+        if(!maybePath)
+        {
+            out.push_back(text[i]);
+            ++i;
+            continue;
+        }
+
+        const bool quoted = (i > 0 && text[i - 1] == '"');
+        size_t end = i + 3;
+        if(quoted)
+        {
+            while(end < text.size() && text[end] != '"')
+                ++end;
+        }
+        else
+        {
+            while(end < text.size() && !is_delim(text[end]))
+                ++end;
+        }
+
+        std::string converted = maybe_windows_to_wsl_path(
+            std::string_view(text.data() + i, end - i));
+        if(converted.empty())
+            out.append(text.data() + i, end - i);
+        else
+            out.append(converted);
+        i = end;
+    }
+    return out;
+}
+
+static fs::path detect_compile_commands_file(const fs::path& workspaceRoot,
+                                             const std::string& ccdir)
+{
+    std::error_code ec;
+
+    auto pick_from_dir = [&](const fs::path& dir) -> fs::path
+    {
+        fs::path direct = dir / "compile_commands.json";
+        if(fs::exists(direct, ec) && fs::is_regular_file(direct, ec))
+            return direct;
+        fs::path nested = dir / "build" / "compile_commands.json";
+        if(fs::exists(nested, ec) && fs::is_regular_file(nested, ec))
+            return nested;
+        return {};
+    };
+
+    if(!ccdir.empty())
+    {
+        fs::path p(ccdir);
+        if(fs::exists(p, ec) && fs::is_regular_file(p, ec))
+            return p;
+        if(fs::exists(p, ec) && fs::is_directory(p, ec))
+            return pick_from_dir(p);
+        return {};
+    }
+
+    return pick_from_dir(workspaceRoot);
+}
+
+static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
+{
+    auto rewrite_string_member = [&](const char* key, bool treatAsPath)
+    {
+        auto it = entry.FindMember(key);
+        if(it == entry.MemberEnd() || !it->value.IsString())
+            return;
+        std::string value(it->value.GetString(), it->value.GetStringLength());
+        std::string converted =
+            treatAsPath ? maybe_windows_to_wsl_path(value)
+                        : rewrite_windows_paths_in_text(value);
+        if(converted.empty())
+            return;
+        it->value.SetString(converted.c_str(),
+                            static_cast<rapidjson::SizeType>(converted.size()),
+                            alloc);
+    };
+
+    rewrite_string_member("file", true);
+    rewrite_string_member("directory", true);
+    rewrite_string_member("command", false);
+    rewrite_string_member("output", true);
+
+    auto argsIt = entry.FindMember("arguments");
+    if(argsIt == entry.MemberEnd() || !argsIt->value.IsArray())
+        return;
+    for(auto& arg : argsIt->value.GetArray())
+    {
+        if(!arg.IsString())
+            continue;
+        std::string value(arg.GetString(), arg.GetStringLength());
+        std::string converted = maybe_windows_to_wsl_path(value);
+        if(converted.empty())
+            converted = rewrite_windows_paths_in_text(value);
+        if(converted.empty())
+            continue;
+        arg.SetString(converted.c_str(),
+                      static_cast<rapidjson::SizeType>(converted.size()),
+                      alloc);
+    }
+}
+
+static std::string compile_entry_key(const ju::Value& entry)
+{
+    if(!entry.IsObject())
+        return {};
+    auto fileIt = entry.FindMember("file");
+    if(fileIt == entry.MemberEnd() || !fileIt->value.IsString())
+        return {};
+    std::string file(fileIt->value.GetString(), fileIt->value.GetStringLength());
+    fs::path filePath(file);
+
+    auto dirIt = entry.FindMember("directory");
+    if(!filePath.is_absolute() && dirIt != entry.MemberEnd() &&
+       dirIt->value.IsString())
+    {
+        std::string directory(dirIt->value.GetString(),
+                              dirIt->value.GetStringLength());
+        filePath = fs::path(directory) / filePath;
+    }
+    return filePath.lexically_normal().string();
+}
+
+static std::vector<fs::path>
+find_compile_commands_files_recursively(const fs::path& root)
+{
+    std::vector<fs::path> files;
+    std::error_code ec;
+    if(!fs::exists(root, ec) || !fs::is_directory(root, ec))
+        return files;
+
+    fs::recursive_directory_iterator it(
+        root, fs::directory_options::skip_permission_denied, ec);
+    fs::recursive_directory_iterator end;
+    for(; it != end; it.increment(ec))
+    {
+        if(ec)
+        {
+            ec.clear();
+            continue;
+        }
+        const fs::path p = it->path();
+        if(it->is_directory(ec))
+        {
+            const std::string name = p.filename().string();
+            if(name == ".git" || name == ".uvim")
+                it.disable_recursion_pending();
+            continue;
+        }
+        if(!it->is_regular_file(ec))
+            continue;
+        if(p.filename() == "compile_commands.json")
+            files.push_back(p);
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+static std::vector<fs::path> discover_compile_commands_sources(
+    const fs::path& workspaceRoot, const std::string& ccdir, bool collectAll)
+{
+    std::vector<fs::path> sourceFiles;
+    if(collectAll)
+    {
+        fs::path searchBase = ccdir.empty() ? workspaceRoot : fs::path(ccdir);
+        sourceFiles = find_compile_commands_files_recursively(searchBase);
+    }
+    else
+    {
+        fs::path single = detect_compile_commands_file(workspaceRoot, ccdir);
+        if(!single.empty())
+            sourceFiles.push_back(single);
+    }
+    return sourceFiles;
+}
+
+static bool regenerate_clangd_compile_commands(
+    const fs::path& workspaceRoot, const std::vector<fs::path>& sourceFiles,
+    bool windowsToWsl, bool failHard)
+{
+    if(sourceFiles.empty())
+    {
+        if(failHard)
+            die("no compile_commands.json sources found");
+        return false;
+    }
+
+    ju::Document merged;
+    merged.SetArray();
+    ju::Alloc& alloc = merged.GetAllocator();
+    std::unordered_set<std::string> seen;
+
+    for(const fs::path& dbPath : sourceFiles)
+    {
+        std::ifstream in(dbPath);
+        if(!in.is_open())
+        {
+            std::cerr << "warning: cannot open " << dbPath.string() << "\n";
+            continue;
+        }
+        ju::Document doc;
+        if(!ju::parse(doc, in) || !doc.IsArray())
+        {
+            std::cerr << "warning: invalid compile_commands.json at "
+                      << dbPath.string() << "\n";
+            continue;
+        }
+
+        for(const auto& item : doc.GetArray())
+        {
+            if(!item.IsObject())
+                continue;
+            ju::Value outItem(rapidjson::kObjectType);
+            outItem.CopyFrom(item, alloc);
+            if(windowsToWsl)
+                maybe_rewrite_entry_for_wsl(outItem, alloc);
+
+            std::string key = compile_entry_key(outItem);
+            if(!key.empty() && seen.find(key) != seen.end())
+                continue;
+            if(!key.empty())
+                seen.insert(std::move(key));
+            merged.PushBack(outItem, alloc);
+        }
+    }
+
+    fs::path outDir = workspaceRoot / ".uvim" / "clangd";
+    std::error_code ec;
+    fs::create_directories(outDir, ec);
+    if(ec)
+    {
+        if(failHard)
+            die("cannot create clangd compile_commands output dir",
+                outDir.string());
+        return false;
+    }
+
+    fs::path outFile = outDir / "compile_commands.json";
+    fs::path tmpFile = outFile;
+    tmpFile += ".tmp";
+    std::ofstream out(tmpFile, std::ios::trunc);
+    if(!out.is_open())
+    {
+        if(failHard)
+            die("cannot write generated compile_commands.json", outFile.string());
+        return false;
+    }
+    out << ju::stringify_pretty(merged, 2);
+    out.close();
+    if(!out)
+    {
+        if(failHard)
+            die("failed writing generated compile_commands.json", outFile.string());
+        return false;
+    }
+
+    fs::rename(tmpFile, outFile, ec);
+    if(ec)
+    {
+        if(failHard)
+            die("cannot replace generated compile_commands.json",
+                outFile.string());
+        return false;
+    }
+    return true;
+}
+
+static std::string prepare_clangd_compile_commands(
+    const fs::path& workspaceRoot, const std::string& ccdir, bool collectAll,
+    bool windowsToWsl)
+{
+    if(!collectAll && !windowsToWsl)
+        return ccdir;
+
+    std::vector<fs::path> sourceFiles =
+        discover_compile_commands_sources(workspaceRoot, ccdir, collectAll);
+    if(sourceFiles.empty())
+    {
+        if(!ccdir.empty())
+            die("no compile_commands.json found under", ccdir);
+        if(collectAll)
+            die("no compile_commands.json found under", workspaceRoot.string());
+        return ccdir;
+    }
+
+    if(!regenerate_clangd_compile_commands(workspaceRoot, sourceFiles,
+                                           windowsToWsl, true))
+    {
+        return ccdir;
+    }
+    return (workspaceRoot / ".uvim" / "clangd").string();
+}
+
+class CompileCommandsSyncer
+{
+public:
+    CompileCommandsSyncer(fs::path workspaceRoot, std::string ccdir,
+                          bool collectAll, bool windowsToWsl)
+        : workspaceRoot_(std::move(workspaceRoot)),
+          sourceCcdir_(std::move(ccdir)), collectAll_(collectAll),
+          windowsToWsl_(windowsToWsl)
+    {
+    }
+
+    ~CompileCommandsSyncer()
+    {
+        stop();
+    }
+
+    void start()
+    {
+        if(!windowsToWsl_)
+            return;
+        running_.store(true, std::memory_order_release);
+        worker_ = std::thread([this]() { run(); });
+    }
+
+    void stop()
+    {
+        running_.store(false, std::memory_order_release);
+        if(worker_.joinable())
+            worker_.join();
+    }
+
+private:
+    void run()
+    {
+        while(running_.load(std::memory_order_acquire))
+        {
+            std::vector<fs::path> sources = discover_compile_commands_sources(
+                workspaceRoot_, sourceCcdir_, collectAll_);
+            if(has_changes(sources))
+            {
+                if(!sources.empty())
+                {
+                    regenerate_clangd_compile_commands(workspaceRoot_, sources,
+                                                       windowsToWsl_, false);
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        }
+    }
+
+    bool has_changes(const std::vector<fs::path>& sources)
+    {
+        if(sources != lastSources_)
+        {
+            lastSources_ = sources;
+            lastWriteTimes_.clear();
+            for(const auto& p : sources)
+            {
+                std::error_code ec;
+                fs::file_time_type t = fs::last_write_time(p, ec);
+                if(!ec)
+                    lastWriteTimes_[p.string()] = t;
+            }
+            return true;
+        }
+
+        for(const auto& p : sources)
+        {
+            std::error_code ec;
+            fs::file_time_type t = fs::last_write_time(p, ec);
+            if(ec)
+                continue;
+            const std::string key = p.string();
+            auto it = lastWriteTimes_.find(key);
+            if(it == lastWriteTimes_.end() || it->second != t)
+            {
+                lastWriteTimes_[key] = t;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fs::path workspaceRoot_;
+    std::string sourceCcdir_;
+    bool collectAll_ = false;
+    bool windowsToWsl_ = false;
+    std::atomic<bool> running_{false};
+    std::thread worker_;
+    std::vector<fs::path> lastSources_;
+    std::unordered_map<std::string, fs::file_time_type> lastWriteTimes_;
+};
+
+[[noreturn]] static void die(std::string_view msg, std::string_view arg)
 {
     std::cerr << "Error: " << msg;
     if(!arg.empty())
@@ -287,6 +730,8 @@ constexpr std::string_view kConfig = "--config";
 constexpr std::string_view kInitConfig = "--init-config";
 constexpr std::string_view kClangd = "--clangd";
 constexpr std::string_view kCcdir = "--ccdir";
+constexpr std::string_view kCcCollectAll = "--cc-collect-all";
+constexpr std::string_view kCcWindowsToWsl = "--cc-windows-to-wsl";
 constexpr std::string_view kClangdPath = "--clangd-path";
 constexpr std::string_view kQueryDriver = "--query-driver";
 constexpr std::string_view kRobotLsp = "--robot-lsp";
@@ -336,9 +781,13 @@ constexpr std::array<HelpRow, 3> kHelpConfig = {{
     {"--theme <path>", "Load theme YAML from path"},
 }};
 
-constexpr std::array<HelpRow, 4> kHelpClangdLsp = {{
+constexpr std::array<HelpRow, 6> kHelpClangdLsp = {{
     {kClangd, "Enable clangd LSP"},
     {"--ccdir <dir>", "Compile commands dir for clangd"},
+    {"--cc-collect-all",
+     "Merge all compile_commands.json files recursively for clangd"},
+    {"--cc-windows-to-wsl",
+     "Rewrite Windows paths in compile_commands.json to WSL style"},
     {"--clangd-path <path>", "Path to clangd binary"},
     {"--query-driver <list>", "clangd query-driver allowlist"},
 }};
@@ -417,6 +866,8 @@ struct Options
     bool useCssLsp = false;
     bool useJsonLsp = false;
     bool useTsLsp = false;
+    bool ccCollectAll = false;
+    bool ccWindowsToWsl = false;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -540,6 +991,14 @@ public:
                     opts.ccdir =
                         std::string(require_value(key, i, argc, argv, val));
                     sawOptionValue = true;
+                }
+                else if(key == kCcCollectAll)
+                {
+                    opts.ccCollectAll = true;
+                }
+                else if(key == kCcWindowsToWsl)
+                {
+                    opts.ccWindowsToWsl = true;
                 }
                 else if(key == kClangdPath)
                 {
@@ -790,6 +1249,8 @@ struct EditorSettings
     bool useCssLsp = false;
     bool useJsonLsp = false;
     bool useTsLsp = false;
+    bool ccCollectAll = false;
+    bool ccWindowsToWsl = false;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -824,6 +1285,8 @@ struct EditorSettings
         out.useCssLsp = opts.useCssLsp;
         out.useJsonLsp = opts.useJsonLsp;
         out.useTsLsp = opts.useTsLsp;
+        out.ccCollectAll = opts.ccCollectAll;
+        out.ccWindowsToWsl = opts.ccWindowsToWsl;
         out.ccdir = opts.ccdir;
         out.clangdPath = opts.clangdPath.empty() ? "clangd" : opts.clangdPath;
         out.queryDriver = opts.queryDriver;
@@ -1396,7 +1859,16 @@ int main(int argc, char* argv[])
     Editor editor(!opts.args.empty(), configPath, opts.themePath);
     fs::path workspaceRoot = find_workspace_root(opts.args);
     editor.setProjectRoot(workspaceRoot.string());
-    EditorSettings::fromOptions(opts).apply(editor);
+    EditorSettings settings = EditorSettings::fromOptions(opts);
+    std::string sourceCcdir = settings.ccdir;
+    settings.ccdir = prepare_clangd_compile_commands(
+        workspaceRoot, settings.ccdir, settings.ccCollectAll,
+        settings.ccWindowsToWsl);
+    CompileCommandsSyncer ccSyncer(workspaceRoot, sourceCcdir,
+                                   settings.ccCollectAll,
+                                   settings.ccWindowsToWsl);
+    ccSyncer.start();
+    settings.apply(editor);
 
     if(!opts.args.empty())
     {
