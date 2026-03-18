@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <iomanip>
 #include <limits.h>
+#include <filesystem>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -14,6 +15,51 @@
 // ============================================================================
 // FuzzyFindMode Implementation
 // ============================================================================
+
+namespace
+{
+std::string runCmd(const std::string& cmd)
+{
+    std::string out;
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return out;
+    char buf[4096];
+    while(true)
+    {
+        size_t n = fread(buf, 1, sizeof(buf), pipe);
+        if(n > 0)
+            out.append(buf, n);
+        if(n < sizeof(buf))
+            break;
+    }
+    pclose(pipe);
+    return out;
+}
+
+std::string trimNewline(std::string s)
+{
+    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
+        s.pop_back();
+    return s;
+}
+
+std::vector<std::string> splitNul(const std::string& s)
+{
+    std::vector<std::string> out;
+    size_t i = 0;
+    while(i < s.size())
+    {
+        size_t j = s.find('\0', i);
+        if(j == std::string::npos)
+            j = s.size();
+        if(j > i)
+            out.push_back(s.substr(i, j - i));
+        i = j + 1;
+    }
+    return out;
+}
+} // namespace
 
 static std::string formatFileSizeShort(size_t size)
 {
@@ -288,12 +334,60 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
     char cwd[PATH_MAX];
     if(getcwd(cwd, sizeof(cwd)))
     {
+        const std::string cwdStr(cwd);
+        std::string repoRoot = trimNewline(
+            runCmd("git -C \"" + cwdStr +
+                   "\" rev-parse --show-toplevel 2>/dev/null"));
+
+        if(!repoRoot.empty())
+        {
+            const std::string trackedCmd =
+                "git -C \"" + repoRoot +
+                "\" ls-files -z --cached --others --exclude-standard 2>/dev/null";
+            const std::string raw = runCmd(trackedCmd);
+            const auto relPaths = splitNul(raw);
+
+            for(const auto& relPath : relPaths)
+            {
+                if(relPath.empty())
+                    continue;
+
+                const std::string fullPath = repoRoot + "/" + relPath;
+                struct stat st;
+                if(stat(fullPath.c_str(), &st) != 0)
+                    continue;
+                if(S_ISDIR(st.st_mode))
+                    continue;
+
+                std::string displayPath = fullPath;
+                std::error_code ec;
+                std::filesystem::path rel =
+                    std::filesystem::relative(fullPath, cwdStr, ec);
+                if(!ec)
+                    displayPath = rel.lexically_normal().string();
+
+                FileEntry entry;
+                std::filesystem::path fullFs(fullPath);
+                entry.name = fullFs.filename().string();
+                entry.path = displayPath;
+                entry.isDirectory = false;
+                entry.size = st.st_size;
+                entry.modTime = st.st_mtime;
+                editor.allProjectFiles.push_back(std::move(entry));
+            }
+            if(!editor.allProjectFiles.empty())
+            {
+                editor.fuzzyInitialized = true;
+                return;
+            }
+        }
+
         GitIgnore gitignore;
         if(editor.respectGitignore)
         {
             gitignore.loadRecursive(cwd);
         }
-        editor.collectProjectFiles(std::string(cwd), 0, gitignore);
+        editor.collectProjectFiles(cwdStr, 0, gitignore);
     }
 
     editor.fuzzyInitialized = true;
