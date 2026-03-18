@@ -148,6 +148,9 @@ endif()
 
 add_executable(uvim ${UVIM_SOURCES})
 target_compile_definitions(uvim PRIVATE UVIM_VERSION="${PROJECT_VERSION}")
+add_custom_command(TARGET uvim POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
+)
 
 # ------------------------------------------------------------------------------
 # Terminal backend selection -> compile definitions
@@ -390,6 +393,9 @@ endif()
 # ============================================================================
 # Install (binary only)
 # ============================================================================
+install(CODE "message(STATUS \"Installing uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}\")"
+    COMPONENT uvim
+)
 install(TARGETS uvim
     RUNTIME DESTINATION bin
     COMPONENT uvim
