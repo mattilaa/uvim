@@ -70,7 +70,7 @@ on Fedora).
 - `--cc-windows-to-wsl` rewrite Windows paths (`C:\...`) to WSL paths (`/mnt/c/...`)
 - `--robot-lsp` enable Robot Framework LSP
 - `--python-lsp` enable Python LSP
-- `--mlang-lsp` enable Mlang LSP (prefers external `mlangd-mla`, then `mlangd`)
+- `--mlang-lsp` enable Mlang LSP (optional; not distributed yet)
 - `--html-lsp` enable HTML LSP
 - `--css-lsp` enable CSS LSP
 - `--json-lsp` enable JSON LSP
@@ -79,10 +79,10 @@ on Fedora).
 Local scaffold example:
 
 ```sh
-./build/uvim --mlang-lsp --mlang-lsp-path mlangd-mla
+./build/uvim --clangd --python-lsp --html-lsp --css-lsp --ts-lsp
 ```
 
-### mlangd-mla logging
+### Optional: mlangd-mla logging (private builds)
 
 When uvim launches `mlangd-mla`, you can enable server logging directly from
 uvim CLI:
@@ -119,6 +119,31 @@ Notes:
 
 uvim LSP helpers need Node.js (npm), Python, git, and clangd. Yarn is optional
 if you prefer it over npm.
+
+If you run `uvim` inside WSL, install these tools inside the WSL distro
+terminal (`apt`/`pacman`), not only on Windows host (`winget`/`choco`).
+
+### Language servers for Python + C/C++ + HTML/CSS/TS
+
+Install these language servers:
+
+```sh
+npm install -g pyright vscode-langservers-extracted \
+  typescript-language-server typescript
+```
+
+Then run:
+
+```sh
+uvim --clangd --python-lsp --html-lsp --css-lsp --ts-lsp
+```
+
+If you prefer `pylsp` instead of `pyright`:
+
+```sh
+python3 -m pip install --upgrade python-lsp-server
+uvim --clangd --python-lsp --python-lsp-path pylsp --html-lsp --css-lsp --ts-lsp
+```
 
 ### macOS (Homebrew)
 
@@ -166,6 +191,16 @@ If you run `uvim` inside WSL but your project/builds are on Windows drives
 Studio/MSVC, use:
 
 ```sh
+# inside WSL terminal
+sudo apt-get update
+sudo apt-get install -y clangd nodejs npm python3 python3-pip git
+npm install -g pyright vscode-langservers-extracted \
+  typescript-language-server typescript
+```
+
+Then run uvim:
+
+```sh
 uvim --clangd --cc-collect-all --cc-windows-to-wsl /mnt/c/dev/your-project
 ```
 
@@ -201,6 +236,28 @@ Use the helper script to install one or more LSPs (uses git+https for Node packa
 ./scripts/install_lsps.sh --robot --python
 ./scripts/install_lsps.sh --all
 ```
+
+Note:
+- `--python` in `install_lsps.sh` installs `python-lsp-server` (`pylsp`).
+- uvim default Python LSP path is `pyright-langserver`; install `pyright` (npm)
+  or run with `--python-lsp-path pylsp`.
+
+### One-shot setup script (macOS/WSL/Ubuntu/Arch)
+
+For Python + C/C++ + HTML/CSS/TS, you can use:
+
+```sh
+./scripts/install_dev_stack.sh
+```
+
+Optional (`pylsp` fallback):
+
+```sh
+./scripts/install_dev_stack.sh --with-pylsp
+```
+
+This script detects Homebrew/apt/pacman and, when running in WSL, installs
+inside the WSL distro environment.
 
 ### Sample files (LSP smoke tests)
 
