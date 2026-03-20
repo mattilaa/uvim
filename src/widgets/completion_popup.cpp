@@ -167,8 +167,7 @@ static std::vector<std::string> wrapTextLines(const std::string& text, int width
     return out;
 }
 
-std::string buildCompletionRowForTest(const CompletionEntry& entry,
-                                               int width)
+std::string buildCompletionRowForTest(const CompletionEntry& entry, int width)
 {
     std::string label = entry.label;
     std::string extra = buildCompletionExtras(entry);
