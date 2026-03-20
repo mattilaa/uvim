@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cstdio>

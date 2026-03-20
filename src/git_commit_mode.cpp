@@ -4,14 +4,40 @@
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <sys/stat.h>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 namespace
 {
 constexpr int COMMIT_SOFT_LIMIT = 52;
+
+std::string make_temp_path(std::string_view prefix)
+{
+    std::error_code ec;
+    std::filesystem::path dir = std::filesystem::temp_directory_path(ec);
+    if(ec)
+        dir = "/tmp";
+    const auto stamp = std::chrono::steady_clock::now()
+                           .time_since_epoch()
+                           .count();
+    std::filesystem::path file =
+        std::string(prefix) + "_" + std::to_string(platform::process_id()) +
+        "_" + std::to_string(stamp);
+    return (dir / file).string();
+}
+
+bool write_text_file(const std::string& path, const std::string& text)
+{
+    std::ofstream out(path, std::ios::trunc);
+    if(!out.is_open())
+        return false;
+    out << text;
+    return static_cast<bool>(out);
+}
 
 std::string trim_newline(std::string s)
 {
@@ -477,49 +503,31 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 todoText += "\n";
             }
 
-            char todoTemplate[] = "/tmp/uvim_rebase_todoXXXXXX";
-            int todoFd = mkstemp(todoTemplate);
-            if(todoFd < 0)
+            std::string todoPath = make_temp_path("uvim_rebase_todo");
+            if(!write_text_file(todoPath, todoText))
             {
-                ed->setStatusMessage("git rebase: failed");
-                return false;
-            }
-            std::string todoPath = todoTemplate;
-            FILE* todoFile = fdopen(todoFd, "w");
-            if(!todoFile)
-            {
-                close(todoFd);
-                platform::remove_file(todoPath);
-                ed->setStatusMessage("git rebase: failed");
-                return false;
-            }
-            fwrite(todoText.data(), 1, todoText.size(), todoFile);
-            fclose(todoFile);
-
-            char scriptTemplate[] = "/tmp/uvim_rebase_editorXXXXXX";
-            int scriptFd = mkstemp(scriptTemplate);
-            if(scriptFd < 0)
-            {
-                platform::remove_file(todoPath);
-                ed->setStatusMessage("git rebase: failed");
-                return false;
-            }
-            std::string scriptPath = scriptTemplate;
-            FILE* scriptFile = fdopen(scriptFd, "w");
-            if(!scriptFile)
-            {
-                close(scriptFd);
-                platform::remove_file(scriptPath);
-                platform::remove_file(todoPath);
                 ed->setStatusMessage("git rebase: failed");
                 return false;
             }
 
+            std::string scriptPath = make_temp_path("uvim_rebase_editor");
             std::string script = "#!/bin/sh\ncat " +
                                  shell_escape_single(todoPath) + " > \"$1\"\n";
-            fwrite(script.data(), 1, script.size(), scriptFile);
-            fclose(scriptFile);
-            chmod(scriptPath.c_str(), 0700);
+            if(!write_text_file(scriptPath, script))
+            {
+                platform::remove_file(todoPath);
+                ed->setStatusMessage("git rebase: failed");
+                return false;
+            }
+#ifndef _WIN32
+            std::error_code ec;
+            std::filesystem::permissions(
+                scriptPath,
+                std::filesystem::perms::owner_exec |
+                    std::filesystem::perms::owner_read |
+                    std::filesystem::perms::owner_write,
+                std::filesystem::perm_options::add, ec);
+#endif
 
             std::string cmd = "GIT_SEQUENCE_EDITOR=" +
                               shell_escape_single(scriptPath) +
