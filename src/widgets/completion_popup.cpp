@@ -167,7 +167,7 @@ static std::vector<std::string> wrapTextLines(const std::string& text, int width
     return out;
 }
 
-std::string widgets::buildCompletionRowForTest(const CompletionEntry& entry,
+std::string buildCompletionRowForTest(const CompletionEntry& entry,
                                                int width)
 {
     std::string label = entry.label;
