@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "json_utils.h"
 #include "log.h"
+#include "platform_compat.h"
 #include "theme.h"
 #include <algorithm>
 #include <array>
@@ -723,10 +724,10 @@ static void prepend_env_path(const char* key, const std::string& value)
     std::string merged = value;
     if(old && *old)
     {
-        merged += ":";
+        merged.push_back(platform::path_list_separator());
         merged += old;
     }
-    setenv(key, merged.c_str(), 1);
+    platform::set_env(key, merged);
 }
 
 static std::string find_project_config()
@@ -1410,7 +1411,7 @@ struct EditorSettings
                 std::error_code ec;
                 if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
                 {
-                    setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
+                    platform::set_env("VIRTUAL_ENV", venvRoot.string());
                     prepend_env_path("PATH", (venvRoot / "bin").string());
                     std::string sp = find_site_packages(venvRoot);
                     prepend_env_path("PYTHONPATH", sp);
@@ -1443,7 +1444,7 @@ struct EditorSettings
                 std::error_code ec;
                 if(fs::exists(venvRoot, ec) && fs::is_directory(venvRoot, ec))
                 {
-                    setenv("VIRTUAL_ENV", venvRoot.string().c_str(), 1);
+                    platform::set_env("VIRTUAL_ENV", venvRoot.string());
                     prepend_env_path("PATH", (venvRoot / "bin").string());
                     std::string sp = find_site_packages(venvRoot);
                     prepend_env_path("PYTHONPATH", sp);

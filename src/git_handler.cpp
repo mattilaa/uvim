@@ -99,7 +99,7 @@ std::string format_git_date(const std::string& secondsText)
         return "";
     std::time_t t = static_cast<std::time_t>(seconds);
     std::tm tm{};
-    if(!localtime_r(&t, &tm))
+    if(!platform::local_time(t, tm))
         return "";
     char buf[16];
     if(std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm) == 0)

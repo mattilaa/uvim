@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
+#include "platform_compat.h"
 #include <locale>
 #include <string>
 #include <string_view>
@@ -152,7 +153,7 @@ inline int utf8DisplayWidth(std::string_view s)
         if(n == 0)
             break;
 
-        int w = ::wcwidth(wc);
+        int w = platform::wcwidth_compat(wc);
         if(w < 0)
             w = 1;
         width += w;
