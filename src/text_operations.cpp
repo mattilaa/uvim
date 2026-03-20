@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "enablelog.h"
+#include "platform_compat.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
@@ -7,7 +8,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
-#include <unistd.h>
 
 void Editor::yankRange(int startY, int startX, int endY, int endX)
 {

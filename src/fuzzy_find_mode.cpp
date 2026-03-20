@@ -1,16 +1,14 @@
 #include "editor.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
-#include <dirent.h>
+#include <chrono>
 #include <iomanip>
-#include <limits.h>
 #include <filesystem>
 #include <sstream>
-#include <sys/stat.h>
-#include <unistd.h>
 
 // ============================================================================
 // FuzzyFindMode Implementation
@@ -244,11 +242,10 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         output += "  ";
 
-        char cwd[PATH_MAX];
         std::string displayPath = match.file.path;
-        if(getcwd(cwd, sizeof(cwd)))
+        std::string cwdStr = platform::current_path_string();
+        if(!cwdStr.empty())
         {
-            std::string cwdStr(cwd);
             if(displayPath.find(cwdStr) == 0)
             {
                 displayPath = displayPath.substr(cwdStr.length() + 1);
@@ -331,10 +328,9 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
 
     editor.allProjectFiles.clear();
 
-    char cwd[PATH_MAX];
-    if(getcwd(cwd, sizeof(cwd)))
+    std::string cwdStr = platform::current_path_string();
+    if(!cwdStr.empty())
     {
-        const std::string cwdStr(cwd);
         std::string repoRoot = trimNewline(
             runCmd("git -C \"" + cwdStr +
                    "\" rev-parse --show-toplevel 2>/dev/null"));
@@ -353,14 +349,15 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                     continue;
 
                 const std::string fullPath = repoRoot + "/" + relPath;
-                struct stat st;
-                if(stat(fullPath.c_str(), &st) != 0)
+                std::error_code ec;
+                if(!std::filesystem::exists(fullPath, ec))
                     continue;
-                if(S_ISDIR(st.st_mode))
+                if(std::filesystem::is_directory(fullPath, ec))
+                    continue;
+                if(ec)
                     continue;
 
                 std::string displayPath = fullPath;
-                std::error_code ec;
                 std::filesystem::path rel =
                     std::filesystem::relative(fullPath, cwdStr, ec);
                 if(!ec)
@@ -371,8 +368,21 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                 entry.name = fullFs.filename().string();
                 entry.path = displayPath;
                 entry.isDirectory = false;
-                entry.size = st.st_size;
-                entry.modTime = st.st_mtime;
+                entry.size = static_cast<size_t>(std::filesystem::file_size(
+                    fullFs, ec));
+                if(ec)
+                {
+                    ec.clear();
+                    entry.size = 0;
+                }
+                entry.modTime =
+                    platform::to_time_t(std::filesystem::last_write_time(
+                        fullFs, ec));
+                if(ec)
+                {
+                    ec.clear();
+                    entry.modTime = 0;
+                }
                 editor.allProjectFiles.push_back(std::move(entry));
             }
             if(!editor.allProjectFiles.empty())
@@ -385,7 +395,7 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
         GitIgnore gitignore;
         if(editor.respectGitignore)
         {
-            gitignore.loadRecursive(cwd);
+            gitignore.loadRecursive(cwdStr);
         }
         editor.collectProjectFiles(cwdStr, 0, gitignore);
     }
@@ -571,26 +581,26 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
     if(depth > 10)
         return; // Limit recursion depth
 
-    DIR* d = opendir(dir.c_str());
-    if(!d)
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir, ec);
+    if(ec)
         return;
 
-    struct dirent* entry;
-    while((entry = readdir(d)))
+    for(const auto& entry : it)
     {
-        std::string name = entry->d_name;
+        std::string name = entry.path().filename().string();
 
         // Skip hidden files and special directories
         if(name == "." || name == "..")
             continue;
 
-        std::string fullPath = dir + "/" + name;
-
-        struct stat st;
-        if(stat(fullPath.c_str(), &st) != 0)
+        std::string fullPath = entry.path().string();
+        bool isDir = entry.is_directory(ec);
+        if(ec)
+        {
+            ec.clear();
             continue;
-
-        bool isDir = S_ISDIR(st.st_mode);
+        }
 
         // Check gitignore
         if(gitignore.isIgnored(fullPath, isDir))
@@ -604,8 +614,18 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
         fileEntry.name = name;
         fileEntry.path = fullPath;
         fileEntry.isDirectory = isDir;
-        fileEntry.size = st.st_size;
-        fileEntry.modTime = st.st_mtime;
+        fileEntry.size = isDir ? 0 : static_cast<size_t>(entry.file_size(ec));
+        if(ec)
+        {
+            ec.clear();
+            fileEntry.size = 0;
+        }
+        fileEntry.modTime = platform::to_time_t(entry.last_write_time(ec));
+        if(ec)
+        {
+            ec.clear();
+            fileEntry.modTime = 0;
+        }
 
         allProjectFiles.push_back(fileEntry);
 
@@ -614,8 +634,6 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
             collectProjectFiles(fullPath, depth + 1, gitignore);
         }
     }
-
-    closedir(d);
 }
 
 int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,

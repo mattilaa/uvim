@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
@@ -7,7 +8,6 @@
 #include <cstdlib>
 #include <sys/stat.h>
 #include <string>
-#include <unistd.h>
 
 namespace
 {
@@ -489,7 +489,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(!todoFile)
             {
                 close(todoFd);
-                unlink(todoPath.c_str());
+                platform::remove_file(todoPath);
                 ed->setStatusMessage("git rebase: failed");
                 return false;
             }
@@ -500,7 +500,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             int scriptFd = mkstemp(scriptTemplate);
             if(scriptFd < 0)
             {
-                unlink(todoPath.c_str());
+                platform::remove_file(todoPath);
                 ed->setStatusMessage("git rebase: failed");
                 return false;
             }
@@ -509,8 +509,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(!scriptFile)
             {
                 close(scriptFd);
-                unlink(scriptPath.c_str());
-                unlink(todoPath.c_str());
+                platform::remove_file(scriptPath);
+                platform::remove_file(todoPath);
                 ed->setStatusMessage("git rebase: failed");
                 return false;
             }
@@ -532,8 +532,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             cmd += " 2>/dev/null";
 
             int status = std::system(cmd.c_str());
-            unlink(scriptPath.c_str());
-            unlink(todoPath.c_str());
+            platform::remove_file(scriptPath);
+            platform::remove_file(todoPath);
             if(status != 0)
             {
                 ed->setStatusMessage("git rebase: failed");

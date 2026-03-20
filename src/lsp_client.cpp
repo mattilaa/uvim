@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "json_utils.h"
+#include "platform_compat.h"
 #include "text_utils.h"
 
 namespace ju = json_utils;
@@ -481,7 +482,7 @@ struct LspClient::Impl
     {
         ju::Document params(rapidjson::kObjectType);
         auto& alloc = params.GetAllocator();
-        params.AddMember("processId", (int)getpid(), alloc);
+        params.AddMember("processId", (int)platform::process_id(), alloc);
         params.AddMember("rootUri", ju::make_string(pathToFileUri(rootDir), alloc),
                          alloc);
         params.AddMember("rootPath", ju::make_string(absPath(rootDir), alloc),

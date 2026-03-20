@@ -1,6 +1,7 @@
 #include "git_handler.h"
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include <cctype>
 #include <charconv>
 #include <cstdio>
@@ -8,9 +9,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
-#include <limits.h>
 #include <string>
-#include <unistd.h>
 
 namespace fs = std::filesystem;
 
@@ -83,9 +82,7 @@ std::string base_dir_for_editor(const Editor* editor)
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            baseDir = cwd;
+        baseDir = platform::current_path_string();
     }
     return baseDir;
 }
@@ -194,7 +191,9 @@ void GitHandler::updateGitBlameForVisibleRange()
     std::string tempPath;
     if(editor->dirty && *editor->dirty)
     {
-        tempPath = "/tmp/uvim_blame_" + std::to_string(getpid()) + ".tmp";
+        tempPath =
+            "/tmp/uvim_blame_" + std::to_string(platform::process_id()) +
+            ".tmp";
         std::ofstream tempFile(tempPath);
         if(tempFile.is_open())
         {
@@ -216,7 +215,7 @@ void GitHandler::updateGitBlameForVisibleRange()
     {
         editor->setStatusMessage("git blame: failed to run");
         if(!tempPath.empty())
-            unlink(tempPath.c_str());
+            platform::remove_file(tempPath);
         editor->currentBuffer->blameEntries.clear();
         editor->currentBuffer->blameStart = -1;
         editor->currentBuffer->blameEnd = -1;
@@ -269,7 +268,7 @@ void GitHandler::updateGitBlameForVisibleRange()
     }
     pclose(pipe);
     if(!tempPath.empty())
-        unlink(tempPath.c_str());
+        platform::remove_file(tempPath);
 
     if((int)entries.size() != (int)editor->lines->size())
     {

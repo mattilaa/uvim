@@ -1,5 +1,6 @@
 #include "formatter.h"
 #include "editor.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -9,7 +10,6 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <unistd.h>
 
 Formatter::Formatter(Editor* editor) : editor(editor) {}
 
@@ -47,7 +47,7 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     const int savedX = editor->cursorX ? *editor->cursorX : 0;
 
     std::string tempPath =
-        "/tmp/uvim_format_" + std::to_string(getpid()) + ".tmp";
+        "/tmp/uvim_format_" + std::to_string(platform::process_id()) + ".tmp";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -62,9 +62,9 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     std::string absFilename = *editor->filename;
     if(!absFilename.empty() && absFilename[0] != '/')
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            absFilename = std::string(cwd) + "/" + *editor->filename;
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            absFilename = cwd + "/" + *editor->filename;
     }
 
     auto buildCmd = [&](const std::string& exe) -> std::string
@@ -88,7 +88,7 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
 
     if(!pipe)
     {
-        unlink(tempPath.c_str());
+        platform::remove_file(tempPath);
         editor->setStatusMessage("clang-format: failed to run");
         return false;
     }
@@ -100,7 +100,7 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
 
     int status = pclose(pipe);
     (void)status;
-    unlink(tempPath.c_str());
+    platform::remove_file(tempPath);
 
     if(formatted.empty())
     {
@@ -172,7 +172,7 @@ bool Formatter::pythonFormatBuffer()
     const int savedX = editor->cursorX ? *editor->cursorX : 0;
 
     std::string tempPath =
-        "/tmp/uvim_pyfmt_" + std::to_string(getpid()) + ".py";
+        "/tmp/uvim_pyfmt_" + std::to_string(platform::process_id()) + ".py";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -207,7 +207,7 @@ bool Formatter::pythonFormatBuffer()
         }
         if(errMsg.empty())
             errMsg = editor->pythonFormatter + " failed";
-        unlink(tempPath.c_str());
+        platform::remove_file(tempPath);
         editor->setStatusMessage(editor->pythonFormatter + ": " +
                                  errMsg.substr(0, 80));
         return false;
@@ -216,7 +216,7 @@ bool Formatter::pythonFormatBuffer()
     std::ifstream in(tempPath);
     if(!in.is_open())
     {
-        unlink(tempPath.c_str());
+        platform::remove_file(tempPath);
         editor->setStatusMessage("black: failed to read temp output");
         return false;
     }
@@ -230,7 +230,7 @@ bool Formatter::pythonFormatBuffer()
         newLines.push_back(line);
     }
     in.close();
-    unlink(tempPath.c_str());
+    platform::remove_file(tempPath);
 
     if(!newLines.empty() && newLines.back().empty())
         newLines.pop_back();
@@ -273,7 +273,8 @@ void Formatter::pythonLintBuffer()
         return;
     }
 
-    std::string tempPath = "/tmp/uvim_ruff_" + std::to_string(getpid()) + ".py";
+    std::string tempPath =
+        "/tmp/uvim_ruff_" + std::to_string(platform::process_id()) + ".py";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -289,7 +290,7 @@ void Formatter::pythonLintBuffer()
     FILE* pipe = popen(cmd.c_str(), "r");
     if(!pipe)
     {
-        unlink(tempPath.c_str());
+        platform::remove_file(tempPath);
         editor->setStatusMessage("ruff: failed to run");
         return;
     }
@@ -299,7 +300,7 @@ void Formatter::pythonLintBuffer()
     while(fgets(buffer, sizeof(buffer), pipe))
         output += buffer;
     pclose(pipe);
-    unlink(tempPath.c_str());
+    platform::remove_file(tempPath);
 
     if(output.empty())
     {
@@ -681,7 +682,7 @@ bool Formatter::robotFormatBuffer()
     const int savedX = editor->cursorX ? *editor->cursorX : 0;
 
     std::string tempPath =
-        "/tmp/uvim_robot_" + std::to_string(getpid()) + ".robot";
+        "/tmp/uvim_robot_" + std::to_string(platform::process_id()) + ".robot";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -738,8 +739,8 @@ bool Formatter::robotFormatBuffer()
         if(err.empty())
             err = "robocop failed";
         editor->setStatusMessage(err);
-        unlink(tempPath.c_str());
-        unlink(robocopFmt.c_str());
+        platform::remove_file(tempPath);
+        platform::remove_file(robocopFmt);
         return false;
     }
 
@@ -748,8 +749,8 @@ bool Formatter::robotFormatBuffer()
     std::ifstream in(readPath);
     if(!in.is_open())
     {
-        unlink(tempPath.c_str());
-        unlink(robocopFmt.c_str());
+        platform::remove_file(tempPath);
+        platform::remove_file(robocopFmt);
         editor->setStatusMessage("robocop: failed to read temp output");
         return false;
     }
@@ -763,8 +764,8 @@ bool Formatter::robotFormatBuffer()
         newLines.push_back(line);
     }
     in.close();
-    unlink(tempPath.c_str());
-    unlink(robocopFmt.c_str());
+    platform::remove_file(tempPath);
+    platform::remove_file(robocopFmt);
 
     if(!newLines.empty() && newLines.back().empty())
         newLines.pop_back();
@@ -854,9 +855,10 @@ bool Formatter::jsonFormatBuffer()
     const int savedX = editor->cursorX ? *editor->cursorX : 0;
 
     std::string tempPath =
-        "/tmp/uvim_json_" + std::to_string(getpid()) + ".json";
+        "/tmp/uvim_json_" + std::to_string(platform::process_id()) + ".json";
     std::string outPath =
-        "/tmp/uvim_json_" + std::to_string(getpid()) + "_out.json";
+        "/tmp/uvim_json_" + std::to_string(platform::process_id()) +
+        "_out.json";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -876,16 +878,16 @@ bool Formatter::jsonFormatBuffer()
         if(err.empty())
             err = "json.tool failed";
         editor->setStatusMessage(err);
-        unlink(tempPath.c_str());
-        unlink(outPath.c_str());
+        platform::remove_file(tempPath);
+        platform::remove_file(outPath);
         return false;
     }
 
     std::ifstream in(outPath);
     if(!in.is_open())
     {
-        unlink(tempPath.c_str());
-        unlink(outPath.c_str());
+        platform::remove_file(tempPath);
+        platform::remove_file(outPath);
         editor->setStatusMessage("json.tool: failed to read temp output");
         return false;
     }
@@ -899,8 +901,8 @@ bool Formatter::jsonFormatBuffer()
         newLines.push_back(line);
     }
     in.close();
-    unlink(tempPath.c_str());
-    unlink(outPath.c_str());
+    platform::remove_file(tempPath);
+    platform::remove_file(outPath);
 
     if(!newLines.empty() && newLines.back().empty())
         newLines.pop_back();
@@ -947,9 +949,10 @@ bool Formatter::yamlFormatBuffer()
     const int savedX = editor->cursorX ? *editor->cursorX : 0;
 
     std::string tempPath =
-        "/tmp/uvim_yaml_" + std::to_string(getpid()) + ".yml";
+        "/tmp/uvim_yaml_" + std::to_string(platform::process_id()) + ".yml";
     std::string outPath =
-        "/tmp/uvim_yaml_" + std::to_string(getpid()) + "_out.yml";
+        "/tmp/uvim_yaml_" + std::to_string(platform::process_id()) +
+        "_out.yml";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -969,16 +972,16 @@ bool Formatter::yamlFormatBuffer()
         if(err.empty())
             err = "yaml formatter failed";
         editor->setStatusMessage(err);
-        unlink(tempPath.c_str());
-        unlink(outPath.c_str());
+        platform::remove_file(tempPath);
+        platform::remove_file(outPath);
         return false;
     }
 
     std::ifstream in(outPath);
     if(!in.is_open())
     {
-        unlink(tempPath.c_str());
-        unlink(outPath.c_str());
+        platform::remove_file(tempPath);
+        platform::remove_file(outPath);
         editor->setStatusMessage("yaml: failed to read temp output");
         return false;
     }
@@ -992,8 +995,8 @@ bool Formatter::yamlFormatBuffer()
         newLines.push_back(line);
     }
     in.close();
-    unlink(tempPath.c_str());
-    unlink(outPath.c_str());
+    platform::remove_file(tempPath);
+    platform::remove_file(outPath);
 
     if(!newLines.empty() && newLines.back().empty())
         newLines.pop_back();

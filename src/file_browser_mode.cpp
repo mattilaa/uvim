@@ -2,6 +2,7 @@
 #include "file_utils.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
@@ -11,7 +12,6 @@
 #include <iomanip>
 #include <regex>
 #include <sstream>
-#include <unistd.h>
 #include <vector>
 
 // ============================================================================
@@ -1569,11 +1569,11 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         browserOffset = 0;
                         std::string pathStr =
                             file_utils::path_to_utf8_string(targetPath);
-                        if(chdir(pathStr.c_str()) == 0)
+                        if(platform::set_current_path(pathStr))
                         {
-                            char cwd[PATH_MAX];
-                            if(getcwd(cwd, sizeof(cwd)))
-                                ctx.setStatusMessage(std::string(cwd));
+                            std::string cwd = platform::current_path_string();
+                            if(!cwd.empty())
+                                ctx.setStatusMessage(cwd);
                         }
                     }
                     else
@@ -1594,11 +1594,11 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 loadDirectory(ctx, root);
                 browserCursor = 0;
                 browserOffset = 0;
-                if(chdir(root.c_str()) == 0)
+                if(platform::set_current_path(root))
                 {
-                    char cwd[PATH_MAX];
-                    if(getcwd(cwd, sizeof(cwd)))
-                        ctx.setStatusMessage(std::string(cwd));
+                    std::string cwd = platform::current_path_string();
+                    if(!cwd.empty())
+                        ctx.setStatusMessage(cwd);
                 }
                 return true;
             }

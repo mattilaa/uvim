@@ -6,6 +6,7 @@
 #include "git_handler.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "stdlib_goto.h"
 #include "syntax_highlighter.h"
 #include "terminal.h"
@@ -23,18 +24,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <dirent.h>
 #include <filesystem>
 #include <fstream>
-#include <limits.h>
 #include <memory>
 #include <optional>
-#include <pwd.h>
 #include <sstream>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -1781,17 +1775,16 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     // Auto-detect compile_commands.json if caller didn't specify --ccdir
     std::string ccdir = clangdLspCompileCommandsDir;
     auto exists = [](const std::string& p)
     {
-        struct stat st;
-        return stat(p.c_str(), &st) == 0;
+        return platform::path_exists(p);
     };
 
     if(ccdir.empty())
@@ -1873,9 +1866,9 @@ void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->robotLspArgs;
@@ -1937,9 +1930,9 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->pythonLspArgs;
@@ -1998,9 +1991,9 @@ void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->mlangLspArgs;
@@ -2060,9 +2053,9 @@ void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->htmlLspArgs;
@@ -2122,9 +2115,9 @@ void Editor::enableCssLsp(bool enable, const std::string& cssLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->cssLspArgs;
@@ -2184,9 +2177,9 @@ void Editor::enableJsonLsp(bool enable, const std::string& jsonLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->jsonLspArgs;
@@ -2246,9 +2239,9 @@ void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
+            rootDir = cwd;
     }
 
     std::vector<std::string> args = this->tsLspArgs;
@@ -3195,8 +3188,7 @@ void Editor::reloadCurrentFile()
 // Jump between header and source file
 bool Editor::fileExists(const std::string& path)
 {
-    struct stat buffer;
-    return (stat(path.c_str(), &buffer) == 0);
+    return platform::path_exists(path);
 }
 
 std::string Editor::getSymbolUnderCursor()
@@ -7469,9 +7461,9 @@ void Editor::executeCommand(std::string_view cmd)
         }
         if(cmd == "pwd")
         {
-            char cwd[PATH_MAX];
-            if(getcwd(cwd, sizeof(cwd)))
-                setStatusMessage(std::string(cwd));
+            std::string cwd = platform::current_path_string();
+            if(!cwd.empty())
+                setStatusMessage(cwd);
             else
                 setStatusMessage("Error getting current directory");
             return;
@@ -7483,11 +7475,11 @@ void Editor::executeCommand(std::string_view cmd)
                 setStatusMessage("Project root not set");
                 return;
             }
-            if(chdir(projectRoot.c_str()) == 0)
+            if(platform::set_current_path(projectRoot))
             {
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                    setStatusMessage(std::string(cwd));
+                std::string cwd = platform::current_path_string();
+                if(!cwd.empty())
+                    setStatusMessage(cwd);
             }
             else
             {
@@ -7513,11 +7505,11 @@ void Editor::executeCommand(std::string_view cmd)
                 if(home)
                     path = std::string(home) + path.substr(1);
             }
-            if(chdir(path.c_str()) == 0)
+            if(platform::set_current_path(path))
             {
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                    setStatusMessage(std::string(cwd));
+                std::string cwd = platform::current_path_string();
+                if(!cwd.empty())
+                    setStatusMessage(cwd);
             }
             else
             {
@@ -7562,9 +7554,7 @@ void Editor::executeCommand(std::string_view cmd)
             }
             else
             {
-                struct stat fileStat;
-                if(stat(path.c_str(), &fileStat) == 0 &&
-                   S_ISDIR(fileStat.st_mode))
+                if(platform::is_directory(path))
                 {
                     commandRequestedModeSet = true;
                     commandRequestedMode = FILE_BROWSER;
@@ -7845,8 +7835,7 @@ void Editor::executeCommand(std::string_view cmd)
         }
         else
         {
-            struct stat fileStat;
-            if(stat(path.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode))
+            if(platform::is_directory(path))
             {
                 commandRequestedModeSet = true;
                 commandRequestedMode = FILE_BROWSER;
@@ -7889,10 +7878,10 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd == "pwd")
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
         {
-            setStatusMessage(std::string(cwd));
+            setStatusMessage(cwd);
         }
         else
         {
@@ -7906,11 +7895,11 @@ void Editor::executeCommand(std::string_view cmd)
             setStatusMessage("Project root not set");
             return;
         }
-        if(chdir(projectRoot.c_str()) == 0)
+        if(platform::set_current_path(projectRoot))
         {
-            char cwd[PATH_MAX];
-            if(getcwd(cwd, sizeof(cwd)))
-                setStatusMessage(std::string(cwd));
+            std::string cwd = platform::current_path_string();
+            if(!cwd.empty())
+                setStatusMessage(cwd);
         }
         else
         {
@@ -7938,11 +7927,11 @@ void Editor::executeCommand(std::string_view cmd)
                 path = std::string(home) + path.substr(1);
         }
 
-        if(chdir(path.c_str()) == 0)
+        if(platform::set_current_path(path))
         {
-            char cwd[PATH_MAX];
-            if(getcwd(cwd, sizeof(cwd)))
-                setStatusMessage(std::string(cwd));
+            std::string cwd = platform::current_path_string();
+            if(!cwd.empty())
+                setStatusMessage(cwd);
         }
         else
         {
@@ -11204,8 +11193,11 @@ bool Editor::mlangFormatBuffer()
 
     // Prefer external mlang-format binary (clang-format style behavior).
     {
+        const auto tempStamp = std::chrono::steady_clock::now()
+                                   .time_since_epoch()
+                                   .count();
         std::string tempPath =
-            "/tmp/uvim_mlang_fmt_" + std::to_string(getpid()) + ".mla";
+            "/tmp/uvim_mlang_fmt_" + std::to_string(tempStamp) + ".mla";
         std::ofstream tempFile(tempPath);
         if(tempFile.is_open())
         {
@@ -11216,9 +11208,9 @@ bool Editor::mlangFormatBuffer()
             std::string absFilename = currentBuffer->filename;
             if(!absFilename.empty() && absFilename[0] != '/')
             {
-                char cwdBuf[PATH_MAX];
-                if(getcwd(cwdBuf, sizeof(cwdBuf)))
-                    absFilename = std::string(cwdBuf) + "/" + absFilename;
+                std::string cwd = platform::current_path_string();
+                if(!cwd.empty())
+                    absFilename = cwd + "/" + absFilename;
             }
 
             std::string errPath = "/tmp/uvim_mlang_fmt_err.log";
@@ -11278,7 +11270,7 @@ bool Editor::mlangFormatBuffer()
                         line.pop_back();
                     newLines.push_back(line);
                 }
-                unlink(tempPath.c_str());
+                std::filesystem::remove(tempPath);
 
                 if(!newLines.empty() && newLines.back().empty())
                     newLines.pop_back();
@@ -11311,7 +11303,7 @@ bool Editor::mlangFormatBuffer()
                 setStatusMessage(fmtLabel + ": formatted buffer");
                 return true;
             }
-            unlink(tempPath.c_str());
+            std::filesystem::remove(tempPath);
         }
     }
 

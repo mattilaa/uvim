@@ -1,13 +1,12 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
-#include <limits.h>
 #include <string>
-#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -508,8 +507,8 @@ void GitStageMode::on_enter(ModeContext& ctx)
     diffHorizontalOffset = 0;
     diffDirty = true;
 
-    char cwd[PATH_MAX];
-    if(getcwd(cwd, sizeof(cwd)))
+    std::string cwd = platform::current_path_string();
+    if(!cwd.empty())
         viewRoot = cwd;
     else if(viewRoot.empty())
         viewRoot = ".";
@@ -534,9 +533,9 @@ void GitStageMode::on_enter(ModeContext& ctx)
 
     if(viewRoot.empty())
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            viewRoot = cwd;
+        std::string cwdNow = platform::current_path_string();
+        if(!cwdNow.empty())
+            viewRoot = cwdNow;
         else
             viewRoot = repoRoot;
     }

@@ -2,13 +2,12 @@
 #include "editor.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "platform_compat.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <limits.h>
-#include <unistd.h>
 
 namespace
 {
@@ -278,8 +277,8 @@ void GrepSearchMode::initialize(Editor& editor)
     if(!editor.fuzzyInitialized)
     {
         editor.allProjectFiles.clear();
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
+        std::string cwd = platform::current_path_string();
+        if(!cwd.empty())
         {
             GitIgnore gitignore;
             if(editor.respectGitignore)
