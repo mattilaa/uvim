@@ -114,6 +114,7 @@ public:
     static void flush();
     static bool isTmux();
     static bool useSynchronizedOutput();
+    static bool outputIsConsole();
 
     static void unreadKey(int key);
     static bool hasBufferedKeys();

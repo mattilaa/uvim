@@ -25,6 +25,18 @@ namespace
 {
 using namespace std::chrono;
 
+static int parse_env_int(const char* name) noexcept
+{
+    const char* v = std::getenv(name);
+    if(!v || !*v)
+        return 0;
+    char* end = nullptr;
+    long n = std::strtol(v, &end, 10);
+    if(end == v || n <= 0 || n > 10000)
+        return 0;
+    return static_cast<int>(n);
+}
+
 #if defined(UVIM_TERMINAL_WIN32)
 
 static DWORD g_origInMode = 0;
@@ -522,6 +534,16 @@ void Terminal::getWindowSize(int& rows, int& cols)
         rows = static_cast<int>(info.srWindow.Bottom - info.srWindow.Top + 1);
         return;
     }
+
+    const int envCols = parse_env_int("COLUMNS");
+    const int envRows = parse_env_int("LINES");
+    if(envCols > 0 && envRows > 0)
+    {
+        cols = envCols;
+        rows = envRows;
+        return;
+    }
+
     rows = 24;
     cols = 80;
 #else
@@ -536,18 +558,6 @@ void Terminal::getWindowSize(int& rows, int& cols)
     }
 
     // 2) Secondary: environment variables (often set by shells/terminals)
-    auto parse_env_int = [](const char* name) -> int
-    {
-        const char* v = std::getenv(name);
-        if(!v || !*v)
-            return 0;
-        char* end = nullptr;
-        long n = std::strtol(v, &end, 10);
-        if(end == v || n <= 0 || n > 10000)
-            return 0;
-        return static_cast<int>(n);
-    };
-
     const int envCols = parse_env_int("COLUMNS");
     const int envRows = parse_env_int("LINES");
     if(envCols > 0 && envRows > 0)
@@ -606,6 +616,15 @@ bool Terminal::isTmux()
 {
     const char* tmux = std::getenv("TMUX");
     return tmux && *tmux;
+}
+
+bool Terminal::outputIsConsole()
+{
+#if defined(UVIM_TERMINAL_WIN32)
+    return output_is_console();
+#else
+    return true;
+#endif
 }
 
 bool Terminal::useSynchronizedOutput()

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cwchar>
 #include "platform_compat.h"
+#include "terminal.h"
 #include <locale>
 #include <string>
 #include <string_view>
@@ -86,50 +87,53 @@ inline std::string ascii_lower(std::string_view value)
 inline void appendU8(std::string& out, std::u8string_view s)
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    if(s == u8"┌" || s == u8"╭")
+    if(Terminal::outputIsConsole())
     {
-        out += "\x1b(0l\x1b(B";
-        return;
-    }
-    if(s == u8"┐" || s == u8"╮")
-    {
-        out += "\x1b(0k\x1b(B";
-        return;
-    }
-    if(s == u8"└" || s == u8"╰")
-    {
-        out += "\x1b(0m\x1b(B";
-        return;
-    }
-    if(s == u8"┘" || s == u8"╯")
-    {
-        out += "\x1b(0j\x1b(B";
-        return;
-    }
-    if(s == u8"─")
-    {
-        out += "\x1b(0q\x1b(B";
-        return;
-    }
-    if(s == u8"│")
-    {
-        out += "\x1b(0x\x1b(B";
-        return;
-    }
-    if(s == u8"│ ")
-    {
-        out += "\x1b(0x\x1b(B ";
-        return;
-    }
-    if(s == u8" │")
-    {
-        out += " \x1b(0x\x1b(B";
-        return;
-    }
-    if(s == u8" │ ")
-    {
-        out += " \x1b(0x\x1b(B ";
-        return;
+        if(s == u8"┌" || s == u8"╭")
+        {
+            out += "\x1b(0l\x1b(B";
+            return;
+        }
+        if(s == u8"┐" || s == u8"╮")
+        {
+            out += "\x1b(0k\x1b(B";
+            return;
+        }
+        if(s == u8"└" || s == u8"╰")
+        {
+            out += "\x1b(0m\x1b(B";
+            return;
+        }
+        if(s == u8"┘" || s == u8"╯")
+        {
+            out += "\x1b(0j\x1b(B";
+            return;
+        }
+        if(s == u8"─")
+        {
+            out += "\x1b(0q\x1b(B";
+            return;
+        }
+        if(s == u8"│")
+        {
+            out += "\x1b(0x\x1b(B";
+            return;
+        }
+        if(s == u8"│ ")
+        {
+            out += "\x1b(0x\x1b(B ";
+            return;
+        }
+        if(s == u8" │")
+        {
+            out += " \x1b(0x\x1b(B";
+            return;
+        }
+        if(s == u8" │ ")
+        {
+            out += " \x1b(0x\x1b(B ";
+            return;
+        }
     }
 #endif
     out.append(reinterpret_cast<const char*>(s.data()), s.size());
@@ -150,7 +154,7 @@ inline std::string_view utf8View(std::u8string_view s) noexcept
 inline std::string_view directoryIcon() noexcept
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    return utf8View(u8"▣ ");
+    return Terminal::outputIsConsole() ? utf8View(u8"▣ ") : "[D]";
 #else
     return "📁 ";
 #endif
@@ -159,7 +163,7 @@ inline std::string_view directoryIcon() noexcept
 inline std::string_view fileIcon() noexcept
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    return utf8View(u8"□ ");
+    return Terminal::outputIsConsole() ? utf8View(u8"□ ") : "[F]";
 #else
     return "📄 ";
 #endif
