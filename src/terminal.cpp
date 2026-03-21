@@ -150,6 +150,51 @@ static bool wait_stdin(milliseconds timeout) noexcept
     return WaitForSingleObject(hIn(), ms) == WAIT_OBJECT_0;
 }
 
+// Wait for console input via polling GetNumberOfConsoleInputEvents.
+// Used for ConPTY-backed console handles where WaitForSingleObject may not
+// signal reliably (it can trigger on non-character events such as focus or
+// resize, and then ReadFile blocks indefinitely waiting for real char data).
+static bool wait_conin(milliseconds timeout) noexcept
+{
+    using clock = std::chrono::steady_clock;
+    const bool infinite = timeout.count() < 0;
+    const auto deadline = clock::now() + timeout;
+    while(true)
+    {
+        DWORD n = 0;
+        if(GetNumberOfConsoleInputEvents(hIn(), &n) && n > 0)
+            return true;
+        if(!infinite && clock::now() >= deadline)
+            return false;
+        Sleep(1);
+    }
+}
+
+// Read one VT byte from the console input using ReadConsoleInputW.
+// Unlike ReadFile, this never blocks on non-character events (focus, resize,
+// mouse, key-up) — it simply skips them and returns false once the queue is
+// empty, keeping the caller in control of the wait loop.
+static bool read_conin_byte(char& c) noexcept
+{
+    while(true)
+    {
+        DWORD available = 0;
+        if(!GetNumberOfConsoleInputEvents(hIn(), &available) || available == 0)
+            return false;
+        INPUT_RECORD rec{};
+        DWORD n = 0;
+        if(!ReadConsoleInputW(hIn(), &rec, 1, &n) || n != 1)
+            return false;
+        if(rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown)
+            continue;
+        const WCHAR wc = rec.Event.KeyEvent.uChar.UnicodeChar;
+        if(wc == 0 || wc > 0xFF)
+            continue;
+        c = static_cast<char>(static_cast<unsigned char>(wc));
+        return true;
+    }
+}
+
 static bool read_console_key_event(KEY_EVENT_RECORD& kev) noexcept
 {
     INPUT_RECORD rec{};
@@ -276,6 +321,121 @@ static int read_vt_key_stream(milliseconds timeout)
                     if(!read_input_byte(seq[3]))
                         return keyCode(control::ControlKey::ESC);
                     if(!read_input_byte(seq[4]))
+                        return keyCode(control::ControlKey::ESC);
+
+                    if(seq[4] == 'Z')
+                        return keyCode(control::ControlKey::SHIFT_TAB);
+
+                    switch(seq[4])
+                    {
+                    case 'A':
+                        return keyCode(navigation::NavigationKey::ARROW_UP);
+                    case 'B':
+                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                    case 'C':
+                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                    case 'D':
+                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                    }
+                }
+            }
+            else if(seq[1] == 'Z')
+            {
+                return keyCode(control::ControlKey::SHIFT_TAB);
+            }
+            else
+            {
+                switch(seq[1])
+                {
+                case 'A':
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
+                case 'B':
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                case 'C':
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                case 'D':
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                case 'H':
+                    return keyCode(navigation::NavigationKey::HOME);
+                case 'F':
+                    return keyCode(navigation::NavigationKey::END);
+                }
+            }
+        }
+        else if(seq[0] == 'O')
+        {
+            switch(seq[1])
+            {
+            case 'H':
+                return keyCode(navigation::NavigationKey::HOME);
+            case 'F':
+                return keyCode(navigation::NavigationKey::END);
+            }
+        }
+
+        return keyCode(control::ControlKey::ESC);
+    }
+
+    return static_cast<unsigned char>(c);
+}
+
+// Same VT sequence parser as read_vt_key_stream, but using wait_conin and
+// read_conin_byte instead of WaitForSingleObject/ReadFile.  Used for
+// ConPTY-backed console handles (Alacritty, Windows Terminal) where ReadFile
+// can block indefinitely on non-character events after WaitForSingleObject
+// returns early.
+static int read_vt_key_stream_conin(milliseconds timeout)
+{
+    if(!wait_conin(timeout))
+        return -1;
+
+    char c = 0;
+    if(!read_conin_byte(c))
+        return -1;
+
+    if(c == '\x1b')
+    {
+        if(!wait_conin(milliseconds(50)))
+            return keyCode(control::ControlKey::ESC);
+
+        std::array<char, 5> seq{};
+        if(!read_conin_byte(seq[0]))
+            return keyCode(control::ControlKey::ESC);
+        if(!read_conin_byte(seq[1]))
+            return keyCode(control::ControlKey::ESC);
+
+        if(seq[0] == '[')
+        {
+            if(seq[1] >= '0' && seq[1] <= '9')
+            {
+                if(!read_conin_byte(seq[2]))
+                    return keyCode(control::ControlKey::ESC);
+
+                if(seq[2] == '~')
+                {
+                    switch(seq[1])
+                    {
+                    case '1':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '3':
+                        return keyCode(navigation::NavigationKey::DELETE_KEY);
+                    case '4':
+                        return keyCode(navigation::NavigationKey::END);
+                    case '5':
+                        return keyCode(navigation::NavigationKey::PAGE_UP);
+                    case '6':
+                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
+                    case '7':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '8':
+                        return keyCode(navigation::NavigationKey::END);
+                    }
+                }
+                else if(seq[2] == ';')
+                {
+                    if(!read_conin_byte(seq[3]))
+                        return keyCode(control::ControlKey::ESC);
+                    if(!read_conin_byte(seq[4]))
                         return keyCode(control::ControlKey::ESC);
 
                     if(seq[4] == 'Z')
@@ -689,10 +849,15 @@ int Terminal::readKeyInternal(int timeoutMs)
         (timeoutMs >= 0) ? milliseconds(timeoutMs) : milliseconds(-1);
 
 #if defined(UVIM_TERMINAL_WIN32)
-    // Use the VT byte-stream path for non-console handles (pipes) OR for
-    // virtual terminal emulators running via ConPTY (Alacritty, WT, etc.)
-    // where the console handle is real but input arrives as raw VT bytes.
-    if(!input_is_console() || g_isVirtualTerminal)
+    // Virtual terminal emulators (Alacritty, Windows Terminal) via ConPTY:
+    // use the conin path that polls with GetNumberOfConsoleInputEvents and
+    // reads with ReadConsoleInputW to avoid WaitForSingleObject/ReadFile
+    // blocking on non-character events (focus, resize, mouse).
+    if(g_isVirtualTerminal)
+        return read_vt_key_stream_conin(timeout);
+
+    // Non-console stdin (pipe): use the standard VT byte stream path.
+    if(!input_is_console())
         return read_vt_key_stream(timeout);
 
     if(!wait_stdin(timeout))
