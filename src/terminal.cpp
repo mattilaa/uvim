@@ -499,7 +499,16 @@ int Terminal::readKey()
         keyBuffer.pop_front();
         return key;
     }
-    return readKeyInternal(-1);
+    // On Windows/ConPTY, readKeyInternal can return -1 when only non-character
+    // events (key-up, focus, resize) were in the console input buffer.  Retry
+    // until a real key arrives — this is an infinite-timeout call so -1 never
+    // means "timed out".
+    int k;
+    do
+    {
+        k = readKeyInternal(-1);
+    } while(k < 0);
+    return k;
 }
 
 int Terminal::readKeyTimeout(int timeoutMs)
