@@ -41,6 +41,27 @@ static int parse_env_int(const char* name) noexcept
 
 static DWORD g_origInMode = 0;
 static DWORD g_origOutMode = 0;
+static bool g_isVirtualTerminal = false;
+
+static void detect_terminal_type() noexcept
+{
+    // Alacritty sets TERM=alacritty; other terminal emulators set TERM too.
+    // Native cmd.exe / PowerShell in a real console window do not set TERM.
+    if(const char* term = std::getenv("TERM"); term && *term)
+    {
+        g_isVirtualTerminal = true;
+        return;
+    }
+    // Windows Terminal sets WT_SESSION.
+    if(const char* wt = std::getenv("WT_SESSION"); wt && *wt)
+    {
+        g_isVirtualTerminal = true;
+        return;
+    }
+    // ConPTY-hosted processes have no visible console window.
+    const HWND hwnd = GetConsoleWindow();
+    g_isVirtualTerminal = (!hwnd || !IsWindowVisible(hwnd));
+}
 
 static HANDLE hIn() noexcept
 {
@@ -82,6 +103,8 @@ static std::wstring utf8_to_utf16(std::string_view text)
 
 static void enable_vt_and_raw_console()
 {
+    detect_terminal_type();
+
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
 
@@ -93,7 +116,13 @@ static void enable_vt_and_raw_console()
         inMode &= ~(ENABLE_MOUSE_INPUT);
         inMode |= ENABLE_EXTENDED_FLAGS;
         inMode &= ~(ENABLE_QUICK_EDIT_MODE);
-        inMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+        // In virtual terminal emulators (Alacritty, Windows Terminal) that use
+        // ConPTY, do NOT set ENABLE_VIRTUAL_TERMINAL_INPUT.  With this flag on,
+        // ConPTY's VT→KEY_EVENT translation can interfere with our own VT
+        // sequence parser.  Without it, raw VT bytes arrive as char KEY_EVENTs
+        // that ReadFile delivers byte-by-byte, which our VT parser handles.
+        if(!g_isVirtualTerminal)
+            inMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
         SetConsoleMode(hIn(), inMode);
     }
 
@@ -621,7 +650,11 @@ bool Terminal::isTmux()
 bool Terminal::outputIsConsole()
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    return output_is_console();
+    // Virtual terminal emulators (Alacritty, Windows Terminal) present a real
+    // console output handle via ConPTY, but they render UTF-8 natively and do
+    // not need DEC line-drawing escape sequences.  Treat them as non-console
+    // so the renderer uses plain UTF-8 box-drawing characters instead.
+    return output_is_console() && !g_isVirtualTerminal;
 #else
     return true;
 #endif
@@ -656,7 +689,10 @@ int Terminal::readKeyInternal(int timeoutMs)
         (timeoutMs >= 0) ? milliseconds(timeoutMs) : milliseconds(-1);
 
 #if defined(UVIM_TERMINAL_WIN32)
-    if(!input_is_console())
+    // Use the VT byte-stream path for non-console handles (pipes) OR for
+    // virtual terminal emulators running via ConPTY (Alacritty, WT, etc.)
+    // where the console handle is real but input arrives as raw VT bytes.
+    if(!input_is_console() || g_isVirtualTerminal)
         return read_vt_key_stream(timeout);
 
     if(!wait_stdin(timeout))
