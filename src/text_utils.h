@@ -85,6 +85,53 @@ inline std::string ascii_lower(std::string_view value)
 
 inline void appendU8(std::string& out, std::u8string_view s)
 {
+#if defined(UVIM_TERMINAL_WIN32)
+    if(s == u8"┌" || s == u8"╭")
+    {
+        out += "\x1b(0l\x1b(B";
+        return;
+    }
+    if(s == u8"┐" || s == u8"╮")
+    {
+        out += "\x1b(0k\x1b(B";
+        return;
+    }
+    if(s == u8"└" || s == u8"╰")
+    {
+        out += "\x1b(0m\x1b(B";
+        return;
+    }
+    if(s == u8"┘" || s == u8"╯")
+    {
+        out += "\x1b(0j\x1b(B";
+        return;
+    }
+    if(s == u8"─")
+    {
+        out += "\x1b(0q\x1b(B";
+        return;
+    }
+    if(s == u8"│")
+    {
+        out += "\x1b(0x\x1b(B";
+        return;
+    }
+    if(s == u8"│ ")
+    {
+        out += "\x1b(0x\x1b(B ";
+        return;
+    }
+    if(s == u8" │")
+    {
+        out += " \x1b(0x\x1b(B";
+        return;
+    }
+    if(s == u8" │ ")
+    {
+        out += " \x1b(0x\x1b(B ";
+        return;
+    }
+#endif
     out.append(reinterpret_cast<const char*>(s.data()), s.size());
 }
 
