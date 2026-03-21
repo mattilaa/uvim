@@ -2,11 +2,16 @@
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#else
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 #include <atomic>
 #include <condition_variable>
@@ -29,7 +34,14 @@ static void logLspDebug(const std::string& tag, const ju::Value& payload)
 {
     static std::mutex logMutex;
     std::lock_guard<std::mutex> lk(logMutex);
-    std::ofstream out("/tmp/uvim_lsp_codeactions.log", std::ios::app);
+    std::ofstream out(
+#ifdef _WIN32
+        std::string(std::getenv("TEMP") ? std::getenv("TEMP") : "C:\\Temp") +
+            "\\uvim_lsp_codeactions.log"
+#else
+        "/tmp/uvim_lsp_codeactions.log"
+#endif
+        , std::ios::app);
     if(!out.is_open())
         return;
     out << "=== " << tag << " ===\n";
@@ -67,6 +79,12 @@ static std::vector<std::string> defaultSemanticTokenModifiers()
 
 static std::string absPath(const std::string& p)
 {
+#ifdef _WIN32
+    char buf[MAX_PATH];
+    if(GetFullPathNameA(p.c_str(), MAX_PATH, buf, nullptr))
+        return std::string(buf);
+    return p;
+#else
     char buf[PATH_MAX];
     if(realpath(p.c_str(), buf))
         return std::string(buf);
@@ -77,13 +95,22 @@ static std::string absPath(const std::string& p)
     if(getcwd(cwd, sizeof(cwd)))
         return std::string(cwd) + "/" + p;
     return p;
+#endif
 }
 
 static std::string pathToFileUri(const std::string& path)
 {
-    // Minimal file:// URI escaping (spaces only).
     std::string p = absPath(path);
+#ifdef _WIN32
+    // Convert backslashes to forward slashes.
+    for(char& c : p)
+        if(c == '\\')
+            c = '/';
+    // Windows absolute paths: C:/... → file:///C:/...
+    std::string out = "file:///";
+#else
     std::string out = "file://";
+#endif
     for(char c : p)
     {
         if(c == ' ')
@@ -101,6 +128,12 @@ static std::string uriToPath(const std::string& uri)
     if(uri.rfind(prefix, 0) == 0)
     {
         std::string p = uri.substr(prefix.size());
+#ifdef _WIN32
+        // file:///C:/... → strip leading '/' before drive letter
+        if(p.size() > 2 && p[0] == '/' &&
+           std::isalpha((unsigned char)p[1]) && p[2] == ':')
+            p = p.substr(1);
+#endif
         // Decode percent-encoded bytes (e.g. %20, %2B).
         std::string out;
         out.reserve(p.size());
@@ -130,6 +163,12 @@ static std::string uriToPath(const std::string& uri)
             }
             out.push_back(p[i]);
         }
+#ifdef _WIN32
+        // Convert forward slashes back to backslashes.
+        for(char& c : out)
+            if(c == '/')
+                c = '\\';
+#endif
         return out;
     }
     return uri;
@@ -159,9 +198,15 @@ static std::string get_string_member(const ju::Value* obj, const char* key,
 
 struct LspClient::Impl
 {
+#ifdef _WIN32
+    HANDLE hIn = INVALID_HANDLE_VALUE;  // write to clangd stdin
+    HANDLE hOut = INVALID_HANDLE_VALUE; // read from clangd stdout
+    HANDLE hProcess = INVALID_HANDLE_VALUE;
+#else
     int inFd = -1;  // write to clangd stdin
     int outFd = -1; // read from clangd stdout
     pid_t pid = -1;
+#endif
 
     std::thread reader;
     std::atomic<bool> alive{false};
@@ -191,13 +236,25 @@ struct LspClient::Impl
 
     bool sendRaw(const std::string& payload)
     {
-        if(inFd < 0)
-            return false;
         std::string hdr =
             "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
         std::string msg = hdr + payload;
-
         const char* p = msg.data();
+#ifdef _WIN32
+        if(hIn == INVALID_HANDLE_VALUE)
+            return false;
+        DWORD left = static_cast<DWORD>(msg.size());
+        while(left > 0)
+        {
+            DWORD written = 0;
+            if(!WriteFile(hIn, p, left, &written, nullptr) || written == 0)
+                return false;
+            left -= written;
+            p += written;
+        }
+#else
+        if(inFd < 0)
+            return false;
         ssize_t left = (ssize_t)msg.size();
         while(left > 0)
         {
@@ -211,6 +268,7 @@ struct LspClient::Impl
             left -= n;
             p += n;
         }
+#endif
         return true;
     }
 
@@ -276,11 +334,15 @@ struct LspClient::Impl
         char tmp[4096];
         while(alive.load())
         {
+#ifdef _WIN32
+            DWORD n = 0;
+            if(!ReadFile(hOut, tmp, sizeof(tmp), &n, nullptr) || n == 0)
+                break;
+#else
             ssize_t n = ::read(outFd, tmp, sizeof(tmp));
             if(n <= 0)
-            {
                 break;
-            }
+#endif
             buf.append(tmp, tmp + n);
 
             while(true)
@@ -435,6 +497,79 @@ struct LspClient::Impl
     bool startClangd(const std::string& clangdPath,
                      const std::vector<std::string>& extraArgs)
     {
+#ifdef _WIN32
+        // Build inheritable pipe pair for child stdin.
+        SECURITY_ATTRIBUTES sa{};
+        sa.nLength = sizeof(sa);
+        sa.bInheritHandle = TRUE;
+
+        HANDLE childInR = INVALID_HANDLE_VALUE;
+        HANDLE childInW = INVALID_HANDLE_VALUE;
+        HANDLE childOutR = INVALID_HANDLE_VALUE;
+        HANDLE childOutW = INVALID_HANDLE_VALUE;
+
+        if(!CreatePipe(&childInR, &childInW, &sa, 0))
+            return false;
+        if(!CreatePipe(&childOutR, &childOutW, &sa, 0))
+        {
+            CloseHandle(childInR);
+            CloseHandle(childInW);
+            return false;
+        }
+
+        // Our ends must not be inherited by the child.
+        SetHandleInformation(childInW, HANDLE_FLAG_INHERIT, 0);
+        SetHandleInformation(childOutR, HANDLE_FLAG_INHERIT, 0);
+
+        // Build the command line: "clangdPath" [args...]
+        std::string cmdLine = "\"" + clangdPath + "\"";
+        for(const auto& a : extraArgs)
+        {
+            cmdLine += ' ';
+            const bool needQ = a.find(' ') != std::string::npos;
+            if(needQ)
+                cmdLine += '"';
+            cmdLine += a;
+            if(needQ)
+                cmdLine += '"';
+        }
+        std::vector<char> cmdBuf(cmdLine.begin(), cmdLine.end());
+        cmdBuf.push_back('\0');
+
+        STARTUPINFOA si{};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        si.hStdInput = childInR;
+        si.hStdOutput = childOutW;
+        si.hStdError = childOutW; // redirect stderr into same pipe
+
+        PROCESS_INFORMATION pi{};
+        const BOOL ok = CreateProcessA(
+            nullptr, cmdBuf.data(), nullptr, nullptr,
+            /*bInheritHandles=*/TRUE, CREATE_NO_WINDOW,
+            nullptr, nullptr, &si, &pi);
+
+        // Child's ends are no longer needed in the parent.
+        CloseHandle(childInR);
+        CloseHandle(childOutW);
+
+        if(!ok)
+        {
+            CloseHandle(childInW);
+            CloseHandle(childOutR);
+            return false;
+        }
+
+        CloseHandle(pi.hThread);
+        hIn = childInW;
+        hOut = childOutR;
+        hProcess = pi.hProcess;
+
+        alive.store(true);
+        reader = std::thread([this] { readerLoop(); });
+        return true;
+#else
         int inPipe[2];
         int outPipe[2];
         if(pipe(inPipe) != 0)
@@ -471,11 +606,10 @@ struct LspClient::Impl
         inFd = inPipe[1];
         outFd = outPipe[0];
 
-        // non-blocking read is fine but not required
         alive.store(true);
         reader = std::thread([this] { readerLoop(); });
-
         return true;
+#endif
     }
 
     bool initialize(const std::string& rootDir)
@@ -676,6 +810,31 @@ void LspClient::stop()
     }
 
     impl->alive.store(false);
+#ifdef _WIN32
+    // Close the write end of the stdin pipe so the server sees EOF and exits.
+    if(impl->hIn != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(impl->hIn);
+        impl->hIn = INVALID_HANDLE_VALUE;
+    }
+    // Terminate the process so its stdout write-end closes, which unblocks
+    // any ReadFile in the reader thread.
+    if(impl->hProcess != INVALID_HANDLE_VALUE)
+        TerminateProcess(impl->hProcess, 0);
+    if(impl->reader.joinable())
+        impl->reader.join();
+    if(impl->hOut != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(impl->hOut);
+        impl->hOut = INVALID_HANDLE_VALUE;
+    }
+    if(impl->hProcess != INVALID_HANDLE_VALUE)
+    {
+        WaitForSingleObject(impl->hProcess, 2000);
+        CloseHandle(impl->hProcess);
+        impl->hProcess = INVALID_HANDLE_VALUE;
+    }
+#else
     if(impl->inFd >= 0)
         close(impl->inFd);
     if(impl->outFd >= 0)
@@ -692,6 +851,7 @@ void LspClient::stop()
 
     impl->inFd = impl->outFd = -1;
     impl->pid = -1;
+#endif
     impl->responses.clear();
     impl->docVersion.clear();
     impl->serverName.clear();

@@ -38,10 +38,6 @@ option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
 
-if(WIN32 AND UVIM_ENABLE_CLANGD_LSP)
-    message(WARNING "UVIM_ENABLE_CLANGD_LSP=ON is not supported on Windows yet; disabling it for this build.")
-    set(UVIM_ENABLE_CLANGD_LSP OFF CACHE BOOL "Build uvim with clangd LSP support" FORCE)
-endif()
 
 if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
