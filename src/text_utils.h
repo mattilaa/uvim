@@ -153,20 +153,12 @@ inline std::string_view utf8View(std::u8string_view s) noexcept
 
 inline std::string_view directoryIcon() noexcept
 {
-#if defined(UVIM_TERMINAL_WIN32)
-    return Terminal::outputIsConsole() ? utf8View(u8"▣ ") : "📁 ";
-#else
     return "📁 ";
-#endif
 }
 
 inline std::string_view fileIcon() noexcept
 {
-#if defined(UVIM_TERMINAL_WIN32)
-    return Terminal::outputIsConsole() ? utf8View(u8"□ ") : "📄 ";
-#else
     return "📄 ";
-#endif
 }
 
 inline int prevUtf8CharStart(std::string_view s, int index)
