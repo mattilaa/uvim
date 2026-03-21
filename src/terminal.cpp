@@ -636,6 +636,7 @@ void Terminal::enableRawMode()
     enable_vt_and_raw_console();
     atexit(restoreTerminal);
     rawModeEnabled = true;
+    write("\x1b[?1049h");
 #else
     tcgetattr(STDIN_FILENO, &originalTermios);
     atexit(restoreTerminal);
@@ -664,6 +665,10 @@ void Terminal::disableRawMode()
         return;
 
 #if defined(UVIM_TERMINAL_WIN32)
+    write("\x1b[?25h");
+    write("\x1b[0 q");
+    write("\x1b[?1049l");
+    flush();
     restore_console_modes();
     rawModeEnabled = false;
 #else
