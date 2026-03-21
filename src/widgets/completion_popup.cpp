@@ -479,7 +479,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         if(briefColW > 0)
         {
             output += editor.theme.uiDim();
-            output += " │ ";
+            text_utils::appendU8(output, u8" │ ");
 
             std::string brief = buildCompletionBrief(e);
             if(text_utils::displayWidth(brief) > briefColW)

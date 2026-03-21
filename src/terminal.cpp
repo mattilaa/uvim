@@ -39,8 +39,34 @@ static HANDLE hOut() noexcept
     return GetStdHandle(STD_OUTPUT_HANDLE);
 }
 
+static bool output_is_console() noexcept
+{
+    DWORD mode = 0;
+    return GetConsoleMode(hOut(), &mode) != 0;
+}
+
+static std::wstring utf8_to_utf16(std::string_view text)
+{
+    if(text.empty())
+        return {};
+    const int needed = MultiByteToWideChar(
+        CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if(needed <= 0)
+        return {};
+    std::wstring out(static_cast<size_t>(needed), L'\0');
+    const int converted = MultiByteToWideChar(
+        CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(),
+        needed);
+    if(converted <= 0)
+        return {};
+    return out;
+}
+
 static void enable_vt_and_raw_console()
 {
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+
     DWORD inMode = 0;
     if(GetConsoleMode(hIn(), &inMode))
     {
@@ -308,9 +334,20 @@ void Terminal::getWindowSize(int& rows, int& cols)
 void Terminal::write(const std::string& str)
 {
 #if defined(UVIM_TERMINAL_WIN32)
+    if(output_is_console())
+    {
+        std::wstring wide = utf8_to_utf16(str);
+        if(!wide.empty())
+        {
+            DWORD written = 0;
+            (void)WriteConsoleW(hOut(), wide.data(), static_cast<DWORD>(wide.size()),
+                                &written, nullptr);
+            return;
+        }
+    }
     DWORD written = 0;
-    (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), str.data(),
-                    static_cast<DWORD>(str.size()), &written, nullptr);
+    (void)WriteFile(hOut(), str.data(), static_cast<DWORD>(str.size()), &written,
+                    nullptr);
 #else
     ::write(STDOUT_FILENO, str.c_str(), str.length());
 #endif
@@ -319,8 +356,7 @@ void Terminal::write(const std::string& str)
 void Terminal::write(char c)
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    DWORD written = 0;
-    (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), &c, 1, &written, nullptr);
+    write(std::string(1, c));
 #else
     ::write(STDOUT_FILENO, &c, 1);
 #endif
