@@ -670,21 +670,23 @@ static std::string find_in_path(const std::string& exe)
     if(!path || !*path)
         return "";
 
+    const char sep = platform::path_list_separator();
     std::string_view pathView{path};
     size_t start = 0;
     while(start < pathView.size())
     {
-        size_t end = pathView.find(':', start);
+        size_t end = pathView.find(sep, start);
         if(end == std::string_view::npos)
             end = pathView.size();
         if(end > start)
         {
-            fs::path candidate =
-                fs::path(std::string(pathView.substr(start, end - start))) /
-                exe;
+            fs::path dir{std::string(pathView.substr(start, end - start))};
             std::error_code ec;
-            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
-                return candidate.string();
+            for(const auto& candidate : {dir / exe, dir / (exe + ".exe")})
+            {
+                if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
+                    return candidate.string();
+            }
         }
         start = end + 1;
     }
@@ -1344,7 +1346,8 @@ struct EditorSettings
         {
             if(path.empty())
                 return false;
-            if(path.find('/') != std::string::npos)
+            if(path.find('/') != std::string::npos ||
+               path.find('\\') != std::string::npos)
             {
                 std::error_code ec;
                 return fs::exists(path, ec) && fs::is_regular_file(path, ec);
