@@ -183,7 +183,7 @@ message(STATUS "uvim terminal backend: ${_backend}")
 # Compiler warnings / options (portable)
 # ------------------------------------------------------------------------------
 if(MSVC)
-    target_compile_options(uvim PRIVATE /W4 /permissive-)
+    target_compile_options(uvim PRIVATE /W4 /permissive- /utf-8)
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
 endif()
