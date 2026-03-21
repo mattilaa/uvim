@@ -142,10 +142,15 @@ inline void appendUtf8Repeat(std::string& out, std::u8string_view glyph,
         appendU8(out, glyph);
 }
 
+inline std::string_view utf8View(std::u8string_view s) noexcept
+{
+    return std::string_view(reinterpret_cast<const char*>(s.data()), s.size());
+}
+
 inline std::string_view directoryIcon() noexcept
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    return u8"▣ ";
+    return utf8View(u8"▣ ");
 #else
     return "📁 ";
 #endif
@@ -154,7 +159,7 @@ inline std::string_view directoryIcon() noexcept
 inline std::string_view fileIcon() noexcept
 {
 #if defined(UVIM_TERMINAL_WIN32)
-    return u8"□ ";
+    return utf8View(u8"□ ");
 #else
     return "📄 ";
 #endif
