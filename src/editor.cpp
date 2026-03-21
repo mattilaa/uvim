@@ -1803,8 +1803,11 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
     std::string qd = clangdLspQueryDriverAllowList;
     if(qd.empty())
     {
+#ifndef _WIN32
         // Only allow executing compilers from typical system locations.
         // clangd expects a comma-separated list of globs/paths.
+        // On Windows, clangd uses MSVC/clang-cl detection automatically and
+        // does not need --query-driver (POSIX paths don't exist on Windows).
         qd =
             "/usr/bin/*clang*,/usr/bin/*clang++*,/usr/bin/*gcc*,/usr/bin/*g++*,"
             "/bin/*gcc*,/bin/*g++*,"
@@ -1812,6 +1815,7 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
             "*gcc*,/usr/local/bin/*g++*,"
             "/opt/homebrew/bin/*clang*,/opt/homebrew/bin/*clang++*,/opt/"
             "homebrew/bin/*gcc*,/opt/homebrew/bin/*g++*";
+#endif
     }
 
     lspClient = std::make_unique<LspClient>();

@@ -536,13 +536,18 @@ struct LspClient::Impl
         std::vector<char> cmdBuf(cmdLine.begin(), cmdLine.end());
         cmdBuf.push_back('\0');
 
+        // Redirect clangd's stderr to NUL so its log output doesn't corrupt
+        // the LSP JSON-RPC stream on stdout.
+        HANDLE hNul = CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE,
+                                  &sa, OPEN_EXISTING, 0, nullptr);
+
         STARTUPINFOA si{};
         si.cb = sizeof(si);
         si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
         si.hStdInput = childInR;
         si.hStdOutput = childOutW;
-        si.hStdError = childOutW; // redirect stderr into same pipe
+        si.hStdError = (hNul != INVALID_HANDLE_VALUE) ? hNul : childOutW;
 
         PROCESS_INFORMATION pi{};
         const BOOL ok = CreateProcessA(
@@ -553,6 +558,8 @@ struct LspClient::Impl
         // Child's ends are no longer needed in the parent.
         CloseHandle(childInR);
         CloseHandle(childOutW);
+        if(hNul != INVALID_HANDLE_VALUE)
+            CloseHandle(hNul);
 
         if(!ok)
         {
