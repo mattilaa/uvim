@@ -39,6 +39,12 @@ static HANDLE hOut() noexcept
     return GetStdHandle(STD_OUTPUT_HANDLE);
 }
 
+static bool input_is_console() noexcept
+{
+    DWORD mode = 0;
+    return GetConsoleMode(hIn(), &mode) != 0;
+}
+
 static bool output_is_console() noexcept
 {
     DWORD mode = 0;
@@ -119,6 +125,12 @@ static bool read_console_key_event(KEY_EVENT_RECORD& kev) noexcept
     }
 }
 
+static bool read_input_byte(char& c) noexcept
+{
+    DWORD n = 0;
+    return ReadFile(hIn(), &c, 1, &n, nullptr) != 0 && n == 1;
+}
+
 static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
 {
     if(!k.bKeyDown)
@@ -171,6 +183,116 @@ static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
     return -1;
 }
 
+static int read_vt_key_stream(milliseconds timeout)
+{
+    if(!wait_stdin(timeout))
+        return -1;
+
+    char c = 0;
+    if(!read_input_byte(c))
+        return -1;
+
+    if(c == '\x1b')
+    {
+        if(!wait_stdin(milliseconds(50)))
+            return keyCode(control::ControlKey::ESC);
+
+        std::array<char, 5> seq{};
+        if(!read_input_byte(seq[0]))
+            return keyCode(control::ControlKey::ESC);
+        if(!read_input_byte(seq[1]))
+            return keyCode(control::ControlKey::ESC);
+
+        if(seq[0] == '[')
+        {
+            if(seq[1] >= '0' && seq[1] <= '9')
+            {
+                if(!read_input_byte(seq[2]))
+                    return keyCode(control::ControlKey::ESC);
+
+                if(seq[2] == '~')
+                {
+                    switch(seq[1])
+                    {
+                    case '1':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '3':
+                        return keyCode(navigation::NavigationKey::DELETE_KEY);
+                    case '4':
+                        return keyCode(navigation::NavigationKey::END);
+                    case '5':
+                        return keyCode(navigation::NavigationKey::PAGE_UP);
+                    case '6':
+                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
+                    case '7':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '8':
+                        return keyCode(navigation::NavigationKey::END);
+                    }
+                }
+                else if(seq[2] == ';')
+                {
+                    if(!read_input_byte(seq[3]))
+                        return keyCode(control::ControlKey::ESC);
+                    if(!read_input_byte(seq[4]))
+                        return keyCode(control::ControlKey::ESC);
+
+                    if(seq[4] == 'Z')
+                        return keyCode(control::ControlKey::SHIFT_TAB);
+
+                    switch(seq[4])
+                    {
+                    case 'A':
+                        return keyCode(navigation::NavigationKey::ARROW_UP);
+                    case 'B':
+                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                    case 'C':
+                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                    case 'D':
+                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                    }
+                }
+            }
+            else if(seq[1] == 'Z')
+            {
+                return keyCode(control::ControlKey::SHIFT_TAB);
+            }
+            else
+            {
+                switch(seq[1])
+                {
+                case 'A':
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
+                case 'B':
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                case 'C':
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                case 'D':
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                case 'H':
+                    return keyCode(navigation::NavigationKey::HOME);
+                case 'F':
+                    return keyCode(navigation::NavigationKey::END);
+                }
+            }
+        }
+        else if(seq[0] == 'O')
+        {
+            switch(seq[1])
+            {
+            case 'H':
+                return keyCode(navigation::NavigationKey::HOME);
+            case 'F':
+                return keyCode(navigation::NavigationKey::END);
+            }
+        }
+
+        return keyCode(control::ControlKey::ESC);
+    }
+
+    return static_cast<unsigned char>(c);
+}
+
 #else // POSIX
 
 static bool wait_stdin(milliseconds timeout) noexcept
@@ -188,6 +310,116 @@ static bool wait_stdin(milliseconds timeout) noexcept
 static bool read_byte(char& c) noexcept
 {
     return ::read(STDIN_FILENO, &c, 1) == 1;
+}
+
+static int read_vt_key_stream(milliseconds timeout)
+{
+    if(!wait_stdin(timeout))
+        return -1;
+
+    char c = 0;
+    if(!read_byte(c))
+        return -1;
+
+    if(c == '\x1b')
+    {
+        if(!wait_stdin(milliseconds(50)))
+            return keyCode(control::ControlKey::ESC);
+
+        std::array<char, 5> seq{};
+        if(!read_byte(seq[0]))
+            return keyCode(control::ControlKey::ESC);
+        if(!read_byte(seq[1]))
+            return keyCode(control::ControlKey::ESC);
+
+        if(seq[0] == '[')
+        {
+            if(seq[1] >= '0' && seq[1] <= '9')
+            {
+                if(!read_byte(seq[2]))
+                    return keyCode(control::ControlKey::ESC);
+
+                if(seq[2] == '~')
+                {
+                    switch(seq[1])
+                    {
+                    case '1':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '3':
+                        return keyCode(navigation::NavigationKey::DELETE_KEY);
+                    case '4':
+                        return keyCode(navigation::NavigationKey::END);
+                    case '5':
+                        return keyCode(navigation::NavigationKey::PAGE_UP);
+                    case '6':
+                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
+                    case '7':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '8':
+                        return keyCode(navigation::NavigationKey::END);
+                    }
+                }
+                else if(seq[2] == ';')
+                {
+                    if(!read_byte(seq[3]))
+                        return keyCode(control::ControlKey::ESC);
+                    if(!read_byte(seq[4]))
+                        return keyCode(control::ControlKey::ESC);
+
+                    if(seq[4] == 'Z')
+                        return keyCode(control::ControlKey::SHIFT_TAB);
+
+                    switch(seq[4])
+                    {
+                    case 'A':
+                        return keyCode(navigation::NavigationKey::ARROW_UP);
+                    case 'B':
+                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                    case 'C':
+                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                    case 'D':
+                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                    }
+                }
+            }
+            else if(seq[1] == 'Z')
+            {
+                return keyCode(control::ControlKey::SHIFT_TAB);
+            }
+            else
+            {
+                switch(seq[1])
+                {
+                case 'A':
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
+                case 'B':
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                case 'C':
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                case 'D':
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                case 'H':
+                    return keyCode(navigation::NavigationKey::HOME);
+                case 'F':
+                    return keyCode(navigation::NavigationKey::END);
+                }
+            }
+        }
+        else if(seq[0] == 'O')
+        {
+            switch(seq[1])
+            {
+            case 'H':
+                return keyCode(navigation::NavigationKey::HOME);
+            case 'F':
+                return keyCode(navigation::NavigationKey::END);
+            }
+        }
+
+        return keyCode(control::ControlKey::ESC);
+    }
+
+    return static_cast<unsigned char>(c);
 }
 
 #endif
@@ -405,6 +637,9 @@ int Terminal::readKeyInternal(int timeoutMs)
         (timeoutMs >= 0) ? milliseconds(timeoutMs) : milliseconds(-1);
 
 #if defined(UVIM_TERMINAL_WIN32)
+    if(!input_is_console())
+        return read_vt_key_stream(timeout);
+
     if(!wait_stdin(timeout))
         return -1;
 
@@ -418,112 +653,7 @@ int Terminal::readKeyInternal(int timeoutMs)
     return -1;
 
 #else
-    if(!wait_stdin(timeout))
-        return -1;
-
-    char c = 0;
-    if(!read_byte(c))
-        return -1;
-
-    if(c == '\x1b')
-    {
-        if(!wait_stdin(milliseconds(50)))
-            return keyCode(control::ControlKey::ESC);
-
-        std::array<char, 5> seq{};
-        if(!read_byte(seq[0]))
-            return keyCode(control::ControlKey::ESC);
-        if(!read_byte(seq[1]))
-            return keyCode(control::ControlKey::ESC);
-
-        if(seq[0] == '[')
-        {
-            if(seq[1] >= '0' && seq[1] <= '9')
-            {
-                if(!read_byte(seq[2]))
-                    return keyCode(control::ControlKey::ESC);
-
-                if(seq[2] == '~')
-                {
-                    switch(seq[1])
-                    {
-                    case '1':
-                        return keyCode(navigation::NavigationKey::HOME);
-                    case '3':
-                        return keyCode(navigation::NavigationKey::DELETE_KEY);
-                    case '4':
-                        return keyCode(navigation::NavigationKey::END);
-                    case '5':
-                        return keyCode(navigation::NavigationKey::PAGE_UP);
-                    case '6':
-                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
-                    case '7':
-                        return keyCode(navigation::NavigationKey::HOME);
-                    case '8':
-                        return keyCode(navigation::NavigationKey::END);
-                    }
-                }
-                else if(seq[2] == ';')
-                {
-                    if(!read_byte(seq[3]))
-                        return keyCode(control::ControlKey::ESC);
-                    if(!read_byte(seq[4]))
-                        return keyCode(control::ControlKey::ESC);
-
-                    if(seq[4] == 'Z')
-                        return keyCode(control::ControlKey::SHIFT_TAB);
-
-                    switch(seq[4])
-                    {
-                    case 'A':
-                        return keyCode(navigation::NavigationKey::ARROW_UP);
-                    case 'B':
-                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
-                    case 'C':
-                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
-                    case 'D':
-                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
-                    }
-                }
-            }
-            else if(seq[1] == 'Z')
-            {
-                return keyCode(control::ControlKey::SHIFT_TAB);
-            }
-            else
-            {
-                switch(seq[1])
-                {
-                case 'A':
-                    return keyCode(navigation::NavigationKey::ARROW_UP);
-                case 'B':
-                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
-                case 'C':
-                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
-                case 'D':
-                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
-                case 'H':
-                    return keyCode(navigation::NavigationKey::HOME);
-                case 'F':
-                    return keyCode(navigation::NavigationKey::END);
-                }
-            }
-        }
-        else if(seq[0] == 'O')
-        {
-            switch(seq[1])
-            {
-            case 'H':
-                return keyCode(navigation::NavigationKey::HOME);
-            case 'F':
-                return keyCode(navigation::NavigationKey::END);
-            }
-        }
-
-        return keyCode(control::ControlKey::ESC);
-    }
-
-    return static_cast<unsigned char>(c);
+    return read_vt_key_stream(timeout);
 #endif
 }
 

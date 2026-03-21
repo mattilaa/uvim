@@ -4,6 +4,7 @@
 #include "mode_state_machine.h"
 #include "platform_compat.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -715,12 +716,12 @@ void FileBrowserMode::draw(Editor& editor) const
         if(entry.isDirectory)
         {
             output += editor.theme.uiDirectory();
-            output += "📁 ";
+            output += std::string(text_utils::directoryIcon());
             output += Terminal::ESC_BOLD;
         }
         else
         {
-            output += "📄 ";
+            output += std::string(text_utils::fileIcon());
         }
 
         std::string displayName = entry.name;

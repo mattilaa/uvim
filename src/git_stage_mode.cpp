@@ -1251,7 +1251,9 @@ void GitStageMode::draw(Editor& editor) const
                 indent += "  ";
             std::string marker =
                 node.isDir ? (node.expanded ? "▾ " : "▸ ") : "  ";
-            std::string icon = node.isDir ? "📁 " : "📄 ";
+            std::string icon = node.isDir
+                                   ? std::string(text_utils::directoryIcon())
+                                   : std::string(text_utils::fileIcon());
 
             std::string path = indent + marker + icon + name;
             const int nonPathWidth = 1 + 2 + 1 + 1;

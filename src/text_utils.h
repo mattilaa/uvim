@@ -142,6 +142,24 @@ inline void appendUtf8Repeat(std::string& out, std::u8string_view glyph,
         appendU8(out, glyph);
 }
 
+inline std::string_view directoryIcon() noexcept
+{
+#if defined(UVIM_TERMINAL_WIN32)
+    return u8"▣ ";
+#else
+    return "📁 ";
+#endif
+}
+
+inline std::string_view fileIcon() noexcept
+{
+#if defined(UVIM_TERMINAL_WIN32)
+    return u8"□ ";
+#else
+    return "📄 ";
+#endif
+}
+
 inline int prevUtf8CharStart(std::string_view s, int index)
 {
     if(index <= 0)
