@@ -360,6 +360,7 @@ public:
     void openGitLogMode();
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
+    void openGitStageMode();
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;

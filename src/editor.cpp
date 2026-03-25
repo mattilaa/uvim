@@ -5725,6 +5725,12 @@ void Editor::openGitLogModeForFile()
         gitHandler->openGitLogModeForFile();
 }
 
+void Editor::openGitStageMode()
+{
+    if(gitHandler)
+        gitHandler->openGitStageMode();
+}
+
 static std::optional<int> parseIndentWidthLine(const std::string& line)
 {
     size_t start = 0;
