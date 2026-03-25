@@ -104,3 +104,38 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
 
     EXPECT_STREQ(smPtr->currentStateName(), "GITLOG");
 }
+
+TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
+{
+    auto repo = make_temp_dir("uvim_gitshow_");
+    std::string repoStr = repo.string();
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr +
+                      "\" config user.email \"test@example.com\""),
+              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.name \"Test\""),
+              0);
+
+    auto file = repo / "notes.txt";
+    write_file(file, "line one\n");
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
+              0);
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+    editor.showGitBlame = true;
+
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), NormalMode{});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* smPtr = editor.getModeStateMachine();
+    ASSERT_NE(smPtr, nullptr);
+
+    Terminal::unreadKey('j');
+    smPtr->dispatch('g');
+
+    EXPECT_STREQ(smPtr->currentStateName(), "GITSHOW");
+}

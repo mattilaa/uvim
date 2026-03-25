@@ -6,6 +6,38 @@
 #include <cstdio>
 #include <cstring>
 
+namespace
+{
+void writePaddedGitBlame(const Theme& theme, std::string_view blame, int width)
+{
+    Terminal::write(theme.uiDim());
+    Terminal::write(std::string(blame));
+    if((int)blame.size() < width)
+        Terminal::write(std::string(width - blame.size(), ' '));
+}
+
+void appendPaddedGitBlame(std::string& output, const Theme& theme,
+                          std::string_view blame, int width)
+{
+    output += theme.uiDim();
+    output.append(blame.data(), blame.size());
+    if((int)blame.size() < width)
+        output.append(width - blame.size(), ' ');
+}
+
+void writeGitBlameDivider(const Theme& theme)
+{
+    Terminal::write(theme.uiGutter());
+    Terminal::write('|');
+}
+
+void appendGitBlameDivider(std::string& output, const Theme& theme)
+{
+    output += theme.uiGutter();
+    output += '|';
+}
+} // namespace
+
 std::string Editor::buildTabBarLine(int width)
 {
     if(!showTabs || buffers.empty())
@@ -149,11 +181,9 @@ void Editor::drawRows()
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(row);
-                Terminal::write(theme.uiDim());
-                Terminal::write(blame);
-                if((int)blame.size() < kGitBlameWidth)
-                    Terminal::write(
-                        std::string(kGitBlameWidth - blame.size(), ' '));
+                writePaddedGitBlame(theme, blame, kGitBlameWidth);
+                if(showNumbers)
+                    writeGitBlameDivider(theme);
             }
             else
             {
@@ -388,10 +418,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            output += theme.uiDim();
-            output += blame;
-            if((int)blame.size() < kGitBlameWidth)
-                output.append(kGitBlameWidth - blame.size(), ' ');
+            appendPaddedGitBlame(output, theme, blame, kGitBlameWidth);
+            appendGitBlameDivider(output, theme);
         }
         else
         {
@@ -790,10 +818,8 @@ void Editor::drawGutterQuick()
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            output += theme.uiDim();
-            output += blame;
-            if((int)blame.size() < kGitBlameWidth)
-                output.append(kGitBlameWidth - blame.size(), ' ');
+            appendPaddedGitBlame(output, theme, blame, kGitBlameWidth);
+            appendGitBlameDivider(output, theme);
         }
         else
         {
@@ -996,10 +1022,9 @@ void Editor::drawFullScreenSingle()
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            output += theme.uiDim();
-            output += blame;
-            if((int)blame.size() < kGitBlameWidth)
-                output.append(kGitBlameWidth - blame.size(), ' ');
+            appendPaddedGitBlame(output, theme, blame, kGitBlameWidth);
+            if(showNumbers)
+                appendGitBlameDivider(output, theme);
         }
         else
         {
@@ -1317,18 +1342,18 @@ void Editor::drawFullScreenSingle()
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)statusMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)statusMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(statusMessage, 0, msglen);
     }
     else if(!locMessage.empty())
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)locMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)locMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(locMessage, 0, msglen);
     }
     else
@@ -1500,10 +1525,9 @@ void Editor::drawSplitFullScreen()
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(rowIndex);
-                row += theme.uiDim();
-                row += blame;
-                if((int)blame.size() < kGitBlameWidth)
-                    row.append(kGitBlameWidth - blame.size(), ' ');
+                appendPaddedGitBlame(row, theme, blame, kGitBlameWidth);
+                if(showNumbers)
+                    appendGitBlameDivider(row, theme);
             }
             else
             {
@@ -1854,18 +1878,18 @@ void Editor::drawSplitFullScreen()
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)statusMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)statusMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(statusMessage, 0, msglen);
     }
     else if(!locMessage.empty())
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)locMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)locMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(locMessage, 0, msglen);
     }
     else

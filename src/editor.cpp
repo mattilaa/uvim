@@ -5637,7 +5637,11 @@ int Editor::gutterWidth() const
     int width = showGitBlame ? kGitBlameWidth : kDiagnosticGutterWidth;
     int numbers = lineNumberWidth();
     if(numbers > 0)
+    {
         width += numbers + 1; // add space after line number
+        if(showGitBlame)
+            width += 1; // add separator between blame and line numbers
+    }
     return width;
 }
 
