@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "constants.h"
 #include "editor_utils.h"
@@ -3760,6 +3761,8 @@ static std::string resolveSystemInclude(const std::string& includeName)
 
 void Editor::goToDefinition()
 {
+    const std::string gdArrow = ascii::utf8(ascii::RIGHT_ARROW_PADDED);
+
     // First, check if we're on an #include line
     if(*cursorY >= 0 && *cursorY < (int)lines->size())
     {
@@ -3811,7 +3814,7 @@ void Editor::goToDefinition()
                         displayPath =
                             ".../" + resolvedPath.substr(lastSlash + 1);
                 }
-                setStatusMessage("gd → " + displayPath);
+                setStatusMessage(std::string("gd") + gdArrow + displayPath);
                 return;
             }
             else
@@ -3865,7 +3868,8 @@ void Editor::goToDefinition()
             {
                 pushJumpLocation();
                 openFile(header);
-                setStatusMessage(std::string("gd → <sys>/") + headerName);
+                setStatusMessage(std::string("gd") + gdArrow + "<sys>/" +
+                                 headerName);
                 return;
             }
         }
@@ -3900,7 +3904,7 @@ void Editor::goToDefinition()
                 *cursorX = (*lines)[*cursorY].length();
 
             apply_gd_viewport();
-            setStatusMessage("gd (robot) → " + loc->path + ":" +
+            setStatusMessage(std::string("gd (robot)") + gdArrow + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
         }
@@ -3923,7 +3927,7 @@ void Editor::goToDefinition()
             *cursorY = defY;
             *cursorX = defX;
             apply_gd_viewport();
-            setStatusMessage("gd (robot) → " + *filename + ":" +
+            setStatusMessage(std::string("gd (robot)") + gdArrow + *filename + ":" +
                              std::to_string(defY + 1));
             return;
         }
@@ -3955,7 +3959,7 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage("gd (robot) → " + p.string() + ":" +
+                setStatusMessage(std::string("gd (robot)") + gdArrow + p.string() + ":" +
                                  std::to_string(defY + 1));
                 return;
             }
@@ -4042,7 +4046,7 @@ void Editor::goToDefinition()
                 *cursorX = (*lines)[*cursorY].length();
 
             apply_gd_viewport();
-            setStatusMessage("gd (python) → " + loc->path + ":" +
+            setStatusMessage(std::string("gd (python)") + gdArrow + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
         }
@@ -4061,7 +4065,7 @@ void Editor::goToDefinition()
             *cursorY = defY;
             *cursorX = defX;
             apply_gd_viewport();
-            setStatusMessage("gd (python) → " + *filename + ":" +
+            setStatusMessage(std::string("gd (python)") + gdArrow + *filename + ":" +
                              std::to_string(defY + 1));
             return;
         }
@@ -4092,7 +4096,7 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage("gd (python) → " + p.string() + ":" +
+                setStatusMessage(std::string("gd (python)") + gdArrow + p.string() + ":" +
                                  std::to_string(defY + 1));
                 return;
             }
@@ -4133,7 +4137,7 @@ void Editor::goToDefinition()
             *cursorX = (*lines)[*cursorY].length();
 
         apply_gd_viewport();
-        setStatusMessage("gd (" + std::string(label) + ") → " + loc->path +
+        setStatusMessage("gd (" + std::string(label) + ")" + gdArrow + loc->path +
                          ":" + std::to_string(loc->line + 1));
         return true;
     };
@@ -4230,9 +4234,9 @@ void Editor::goToDefinition()
                                     *cursorY = memberY;
                                     *cursorX = memberX;
                                     apply_gd_viewport();
-                                    setStatusMessage(
-                                        "gd (ts member) → " + *filename + ":" +
-                                        std::to_string(memberY + 1));
+                                    setStatusMessage(std::string("gd (ts member)") +
+                                                     gdArrow + *filename + ":" +
+                                                     std::to_string(memberY + 1));
                                     return;
                                 }
                             }
@@ -4275,10 +4279,9 @@ void Editor::goToDefinition()
                                                 *cursorX = memberX;
                                                 apply_gd_viewport();
                                                 setStatusMessage(
-                                                    "gd (ts member) → " +
-                                                    resolved + ":" +
-                                                    std::to_string(memberY +
-                                                                   1));
+                                                    std::string("gd (ts member)") +
+                                                    gdArrow + resolved + ":" +
+                                                    std::to_string(memberY + 1));
                                                 return;
                                             }
                                         }
@@ -4311,7 +4314,8 @@ void Editor::goToDefinition()
                         pushJumpLocation();
                         openFile(resolved);
                         apply_gd_viewport();
-                        setStatusMessage("gd (js/ts import) → " + resolved);
+                        setStatusMessage(std::string("gd (js/ts import)") +
+                                         gdArrow + resolved);
                         return;
                     }
                 }
@@ -4325,7 +4329,7 @@ void Editor::goToDefinition()
             *cursorY = defY;
             *cursorX = defX;
             apply_gd_viewport();
-            setStatusMessage("gd (js/ts) → " + *filename + ":" +
+            setStatusMessage(std::string("gd (js/ts)") + gdArrow + *filename + ":" +
                              std::to_string(defY + 1));
             return;
         }
@@ -4350,13 +4354,14 @@ void Editor::goToDefinition()
                     *cursorY = defFileY;
                     *cursorX = defFileX;
                     apply_gd_viewport();
-                    setStatusMessage("gd (js/ts) → " + resolved + ":" +
+                    setStatusMessage(std::string("gd (js/ts)") + gdArrow + resolved + ":" +
                                      std::to_string(defFileY + 1));
                 }
                 else
                 {
                     apply_gd_viewport();
-                    setStatusMessage("gd (js/ts import) → " + resolved);
+                    setStatusMessage(std::string("gd (js/ts import)") +
+                                     gdArrow + resolved);
                 }
                 return;
             }
@@ -4386,7 +4391,8 @@ void Editor::goToDefinition()
                 pushJumpLocation();
                 openFile(resolved);
                 apply_gd_viewport();
-                setStatusMessage("gd (html link) → " + resolved);
+                setStatusMessage(std::string("gd (html link)") + gdArrow +
+                                 resolved);
                 return;
             }
         }
@@ -4440,7 +4446,7 @@ void Editor::goToDefinition()
                     *cursorY = defY;
                     *cursorX = defX;
                     apply_gd_viewport();
-                    setStatusMessage("gd (html css) → " + resolved + ":" +
+                    setStatusMessage(std::string("gd (html css)") + gdArrow + resolved + ":" +
                                      std::to_string(defY + 1));
                     return;
                 }
@@ -4471,7 +4477,8 @@ void Editor::goToDefinition()
                 pushJumpLocation();
                 openFile(resolved);
                 apply_gd_viewport();
-                setStatusMessage("gd (css import) → " + resolved);
+                setStatusMessage(std::string("gd (css import)") + gdArrow +
+                                 resolved);
                 return;
             }
         }
@@ -4494,7 +4501,8 @@ void Editor::goToDefinition()
                     *cursorY = 0;
                     *cursorX = 0;
                     apply_gd_viewport();
-                    setStatusMessage("gd (mlang mod) → " + moduleFile);
+                    setStatusMessage(std::string("gd (mlang mod)") + gdArrow +
+                                     moduleFile);
                     return;
                 }
             }
@@ -4672,7 +4680,7 @@ void Editor::goToDefinition()
                 *cursorX = (*lines)[*cursorY].length();
 
             apply_gd_viewport();
-            setStatusMessage("gd (mlang) → " + loc->path + ":" +
+            setStatusMessage(std::string("gd (mlang)") + gdArrow + loc->path + ":" +
                              std::to_string(loc->line + 1));
             return;
         }
@@ -4693,7 +4701,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang builtin) → " + it->second.path +
+                setStatusMessage(std::string("gd (mlang builtin)") + gdArrow + it->second.path +
                                  ":" + std::to_string(it->second.line + 1));
                 return;
             }
@@ -4711,7 +4719,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang macro) → " + mit->second.path +
+                setStatusMessage(std::string("gd (mlang macro)") + gdArrow + mit->second.path +
                                  ":" + std::to_string(mit->second.line + 1));
                 return;
             }
@@ -4726,7 +4734,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang attribute) → " + ait->second.path +
+                setStatusMessage(std::string("gd (mlang attribute)") + gdArrow + ait->second.path +
                                  ":" + std::to_string(ait->second.line + 1));
                 return;
             }
@@ -4741,7 +4749,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang fn) → " + fit->second.path + ":" +
+                setStatusMessage(std::string("gd (mlang fn)") + gdArrow + fit->second.path + ":" +
                                  std::to_string(fit->second.line + 1));
                 return;
             }
@@ -4759,7 +4767,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang builtin) → " + builtinPath + ":" +
+                setStatusMessage(std::string("gd (mlang builtin)") + gdArrow + builtinPath + ":" +
                                  std::to_string(builtinLine + 1));
                 return;
             }
@@ -4777,7 +4785,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang macro) → " + macroPath + ":" +
+                setStatusMessage(std::string("gd (mlang macro)") + gdArrow + macroPath + ":" +
                                  std::to_string(macroLine + 1));
                 return;
             }
@@ -4792,7 +4800,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang attribute) → " + attrPath + ":" +
+                setStatusMessage(std::string("gd (mlang attribute)") + gdArrow + attrPath + ":" +
                                  std::to_string(attrLine + 1));
                 return;
             }
@@ -4808,7 +4816,7 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang fn) → " + fnPath + ":" +
+                setStatusMessage(std::string("gd (mlang fn)") + gdArrow + fnPath + ":" +
                                  std::to_string(fnLine + 1));
                 return;
             }
@@ -4823,7 +4831,7 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang local) → " + *filename + ":" +
+                setStatusMessage(std::string("gd (mlang local)") + gdArrow + *filename + ":" +
                                  std::to_string(defY + 1));
                 return;
             }
@@ -4841,7 +4849,7 @@ void Editor::goToDefinition()
                     *cursorY = defY;
                     *cursorX = defX;
                     apply_gd_viewport();
-                    setStatusMessage("gd (mlang local) → " + *filename + ":" +
+                    setStatusMessage(std::string("gd (mlang local)") + gdArrow + *filename + ":" +
                                      std::to_string(defY + 1));
                     return;
                 }
@@ -4852,7 +4860,7 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage("gd (mlang member) → " + *filename + ":" +
+                setStatusMessage(std::string("gd (mlang member)") + gdArrow + *filename + ":" +
                                  std::to_string(defY + 1));
                 return;
             }
@@ -4916,7 +4924,7 @@ void Editor::goToDefinition()
                 if(lastSlash != std::string::npos)
                     displayPath = "<sys>/" + loc->path.substr(lastSlash + 1);
             }
-            setStatusMessage("gd (clangd) → " + displayPath + ":" +
+            setStatusMessage(std::string("gd (clangd)") + gdArrow + displayPath + ":" +
                              std::to_string(loc->line + 1));
             return;
         }
@@ -4943,7 +4951,8 @@ void Editor::goToDefinition()
                 {
                     pushJumpLocation();
                     openFile(header);
-                    setStatusMessage("gd → <sys>/" + symbol);
+                    setStatusMessage(std::string("gd") + gdArrow + "<sys>/" +
+                                     symbol);
                     return;
                 }
             }
@@ -4966,7 +4975,7 @@ void Editor::goToDefinition()
             *cursorY = y;
             *cursorX = x;
             apply_gd_viewport();
-            setStatusMessage("gd → local '" + symbol + "' at " +
+            setStatusMessage(std::string("gd") + gdArrow + "local '" + symbol + "' at " +
                              std::to_string(y + 1) + ":" +
                              std::to_string(x + 1));
             return;
@@ -4981,7 +4990,7 @@ void Editor::goToDefinition()
             *cursorY = y;
             *cursorX = x;
             apply_gd_viewport();
-            setStatusMessage("gd → member '" + symbol + "' at " +
+            setStatusMessage(std::string("gd") + gdArrow + "member '" + symbol + "' at " +
                              std::to_string(y + 1) + ":" +
                              std::to_string(x + 1));
             return;
@@ -4998,7 +5007,7 @@ void Editor::goToDefinition()
             *cursorY = y;
             *cursorX = x;
             apply_gd_viewport();
-            setStatusMessage("gd → " + alternate);
+            setStatusMessage(std::string("gd") + gdArrow + alternate);
             return;
         }
 

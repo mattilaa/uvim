@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -28,13 +29,13 @@ void appendPaddedGitBlame(std::string& output, const Theme& theme,
 void writeGitBlameDivider(const Theme& theme)
 {
     Terminal::write(theme.uiGutter());
-    Terminal::write('|');
+    Terminal::write(ascii::utf8(ascii::BOX_HEAVY_VERTICAL));
 }
 
 void appendGitBlameDivider(std::string& output, const Theme& theme)
 {
     output += theme.uiGutter();
-    output += '|';
+    ascii::append(output, ascii::BOX_HEAVY_VERTICAL);
 }
 } // namespace
 

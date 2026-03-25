@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "constants.h"
 #include "editor.h"
 #include "gitignore.h"
@@ -169,8 +170,9 @@ void GrepSearchMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output +=
-        "  [Enter: open] [Esc: cancel] [↑↓: navigate] [Ctrl+I: gitignore]";
+    output += "  [Enter: open] [Esc: cancel] [" +
+              ascii::utf8(ascii::UP_DOWN_ARROWS) +
+              ": navigate] [Ctrl+I: gitignore]";
     output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;

@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "emoji_list.h"
 #include "lsp_client.h"
@@ -1510,19 +1511,20 @@ void Editor::drawEmojiPopup(std::string& output) const
     }
 
     moveTo(top, left);
-    text_utils::appendU8(output, u8"┌");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┐");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     moveTo(top + 1, left);
-    text_utils::appendU8(output, u8"│");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += " ";
     std::string header = queryLabel;
     while(displayWidth(header) > innerW)
         header.pop_back();
     output += header;
     moveTo(top + 1, left + totalW - 1);
-    text_utils::appendU8(output, u8"│");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     for(int i = 0; i < maxRows; ++i)
     {
@@ -1533,7 +1535,7 @@ void Editor::drawEmojiPopup(std::string& output) const
         const int entryIndex = hasSelection ? emojiFiltered[idx] : -1;
 
         moveTo(top + 2 + i, left);
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         output += " ";
 
         bool sel = hasSelection && (idx == emojiSelected);
@@ -1573,13 +1575,14 @@ void Editor::drawEmojiPopup(std::string& output) const
             output += theme.reset();
 
         moveTo(top + 2 + i, left + totalW - 1);
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     }
 
     moveTo(top + 1 + innerRows, left);
-    text_utils::appendU8(output, u8"└");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┘");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 
     emojiPopupLastTop = top;
     emojiPopupLastLeft = left;
@@ -1764,14 +1767,15 @@ void Editor::drawDiagnosticPopup(std::string& output) const
                                    : theme.uiWarning();
 
     moveTo(top, left);
-    text_utils::appendU8(output, u8"┌");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┐");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     moveTo(top + 1, left);
     for(size_t i = 0; i < rows.size(); ++i)
     {
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         output += " ";
         if(i == 0)
         {
@@ -1796,15 +1800,16 @@ void Editor::drawDiagnosticPopup(std::string& output) const
         if(pad > 0)
             output.append(pad, ' ');
         output += " ";
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         if(i + 1 < rows.size())
             moveTo(top + 1 + (int)i + 1, left);
     }
 
     moveTo(top + 1 + (int)rows.size(), left);
-    text_utils::appendU8(output, u8"└");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┘");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 
 void Editor::drawSymbolPopup(std::string& output) const
@@ -1862,12 +1867,13 @@ void Editor::drawSymbolPopup(std::string& output) const
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
     moveTo(top, left);
-    text_utils::appendU8(output, u8"┌");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┐");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     moveTo(top + 1, left);
-    text_utils::appendU8(output, u8"│");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += " ";
     output += theme.panel();
     output += row;
@@ -1876,12 +1882,13 @@ void Editor::drawSymbolPopup(std::string& output) const
     if(pad > 0)
         output.append(pad, ' ');
     output += " ";
-    text_utils::appendU8(output, u8"│");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + 2, left);
-    text_utils::appendU8(output, u8"└");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┘");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 
 void Editor::openDiagnosticPopupForCursor()

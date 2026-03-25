@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -757,8 +758,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  buffer is empty.",
             "",
             "  This allows seamless integration with other applications:",
-            "  - Yank in uvim → Paste in terminal or other apps",
-            "  - Copy in other apps → Paste in uvim",
+            std::string("  - Yank in uvim ") + ascii::utf8(ascii::RIGHT_ARROW) +
+                " Paste in terminal or other apps",
+            std::string("  - Copy in other apps ") + ascii::utf8(ascii::RIGHT_ARROW) +
+                " Paste in uvim",
             "",
             "DELETE (CUT):",
             "  `dd`      - Delete (cut) current line",
