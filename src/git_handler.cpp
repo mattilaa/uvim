@@ -1,6 +1,7 @@
 #include "git_handler.h"
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "text_utils.h"
 #include <cctype>
 #include <charconv>
 #include <cstdio>
@@ -33,6 +34,25 @@ std::string trim_newline(std::string s)
     while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
         s.pop_back();
     return s;
+}
+
+std::string truncate_with_ellipsis(std::string_view text, int width)
+{
+    if(width <= 0)
+        return "";
+    if(text_utils::utf8DisplayWidth(text) <= width)
+        return std::string(text);
+    if(width <= 3)
+        return std::string(width, '.');
+
+    std::string out(text);
+    while(!out.empty() && text_utils::utf8DisplayWidth(out) > width - 3)
+    {
+        int prev = text_utils::prevUtf8CharStart(out, (int)out.size());
+        out.resize(prev);
+    }
+    out += "...";
+    return out;
 }
 
 bool is_inside_git_repo(const std::string& filePath)
@@ -314,14 +334,11 @@ std::string GitHandler::blameDisplayForLine(int row) const
     std::string hash = entry.hash;
     if(hash.size() > 7)
         hash = hash.substr(0, 7);
-    std::string out = isUncommitted(entry) ? "not committed" : hash;
-    if(!entry.author.empty())
+    bool uncommitted = isUncommitted(entry);
+    std::string out = uncommitted ? "Not committed" : hash;
+    if(!uncommitted && !entry.author.empty())
         out += " " + entry.author;
-    if(!entry.date.empty())
-        out += " " + entry.date;
-    if((int)out.size() > Editor::kGitBlameWidth)
-        out.resize(Editor::kGitBlameWidth);
-    return out;
+    return truncate_with_ellipsis(out, Editor::kGitBlameMaxWidth);
 }
 
 std::string GitHandler::blameFullForLine(int row) const

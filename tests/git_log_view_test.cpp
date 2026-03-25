@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <filesystem>
@@ -103,4 +104,63 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
     smPtr->dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(smPtr->currentStateName(), "GITLOG");
+}
+
+TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
+{
+    auto repo = make_temp_dir("uvim_gitshow_");
+    std::string repoStr = repo.string();
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr +
+                      "\" config user.email \"test@example.com\""),
+              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.name \"Test\""),
+              0);
+
+    auto file = repo / "notes.txt";
+    write_file(file, "line one\n");
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
+              0);
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+    editor.showGitBlame = true;
+
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), NormalMode{});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* smPtr = editor.getModeStateMachine();
+    ASSERT_NE(smPtr, nullptr);
+
+    Terminal::unreadKey('j');
+    smPtr->dispatch('g');
+
+    EXPECT_STREQ(smPtr->currentStateName(), "GITSHOW");
+}
+
+TEST(GitBlameDisplayTest, BlameDisplayTruncatesHashAndAuthorToEllipsis)
+{
+    auto repo = make_temp_dir("uvim_blame_display_");
+    auto file = repo / "notes.txt";
+    write_file(file, "line one\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+    ASSERT_NE(editor.currentBuffer, nullptr);
+
+    editor.showGitBlame = true;
+    editor.currentBuffer->blameEntries.resize(1);
+    auto& entry = editor.currentBuffer->blameEntries[0];
+    entry.valid = true;
+    entry.hash = "84397dc123456789";
+    entry.author = "Matti Laamanen Exampleperson";
+    entry.date = "2026-03-25";
+
+    const std::string blame = editor.blameDisplayForLine(0);
+
+    EXPECT_EQ(blame, "84397dc Matti Laamanen Exam...");
+    EXPECT_EQ(text_utils::utf8DisplayWidth(blame), Editor::kGitBlameMaxWidth);
 }

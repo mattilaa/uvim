@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "widgets/completion_popup.h"
 
 #include "editor.h"
@@ -303,9 +304,10 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
     moveTo(top, left);
-    text_utils::appendU8(output, u8"┌");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┐");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
     auto kindColor = [&](int kind) -> const std::string&
     {
@@ -429,7 +431,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     for(int dr = 0; dr < docRows; ++dr)
     {
         moveTo(top + 1 + dr, left);
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         output += " ";
         std::string doc = docLines[(size_t)dr];
         if(text_utils::displayWidth(doc) > innerW)
@@ -441,7 +443,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         if(pad > 0)
             output.append(pad, ' ');
         output += " ";
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     }
 
     for(int i = 0; i < maxRows; ++i)
@@ -452,7 +454,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         const auto& e = editor.completionAll[editor.completionFiltered[fidx]];
 
         moveTo(top + 1 + docRows + i, left);
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         output += " ";
 
         bool sel = (fidx == editor.completionSelected);
@@ -479,7 +481,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         if(briefColW > 0)
         {
             output += editor.theme.uiDim();
-            output += " │ ";
+            output += ascii::utf8(ascii::BOX_LIGHT_VERTICAL_PADDED);
 
             std::string brief = buildCompletionBrief(e);
             if(text_utils::displayWidth(brief) > briefColW)
@@ -498,12 +500,13 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             output += editor.theme.reset();
 
         output += " ";
-        text_utils::appendU8(output, u8"│");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     }
 
     moveTo(top + 1 + docRows + maxRows, left);
-    text_utils::appendU8(output, u8"└");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"┘");
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 } // namespace widgets

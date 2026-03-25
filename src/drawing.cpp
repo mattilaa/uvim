@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -5,6 +6,32 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+
+namespace
+{
+void writeGitBlameField(const Theme& theme, std::string_view blame, int width)
+{
+    Terminal::write(theme.uiDim());
+    Terminal::write(std::string(blame));
+    int blameWidth = text_utils::utf8DisplayWidth(blame);
+    if(blameWidth < width)
+        Terminal::write(std::string(width - blameWidth, ' '));
+    Terminal::write(theme.uiGutter());
+    Terminal::write(ascii::utf8(ascii::BOX_HEAVY_VERTICAL));
+}
+
+void appendGitBlameField(std::string& output, const Theme& theme,
+                         std::string_view blame, int width)
+{
+    output += theme.uiDim();
+    output.append(blame.data(), blame.size());
+    int blameWidth = text_utils::utf8DisplayWidth(blame);
+    if(blameWidth < width)
+        output.append(width - blameWidth, ' ');
+    output += theme.uiGutter();
+    ascii::append(output, ascii::BOX_HEAVY_VERTICAL);
+}
+} // namespace
 
 std::string Editor::buildTabBarLine(int width)
 {
@@ -123,6 +150,7 @@ void Editor::drawRows()
     int tabRows = tabBarRows();
     int rows = contentRows();
     int textCols = std::max(1, screenCols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     int numberWidth = lineNumberWidth();
     bool showNumbers = numberWidth > 0;
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
@@ -149,11 +177,7 @@ void Editor::drawRows()
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(row);
-                Terminal::write(theme.uiDim());
-                Terminal::write(blame);
-                if((int)blame.size() < kGitBlameWidth)
-                    Terminal::write(
-                        std::string(kGitBlameWidth - blame.size(), ' '));
+                writeGitBlameField(theme, blame, blameWidth);
             }
             else
             {
@@ -368,6 +392,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
     }
 
     int textCols = std::max(1, screenCols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     int numberWidth = lineNumberWidth();
     bool showNumbers = numberWidth > 0;
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
@@ -388,10 +413,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            output += theme.uiDim();
-            output += blame;
-            if((int)blame.size() < kGitBlameWidth)
-                output.append(kGitBlameWidth - blame.size(), ' ');
+            appendGitBlameField(output, theme, blame, blameWidth);
         }
         else
         {
@@ -779,6 +801,7 @@ void Editor::drawGutterQuick()
 
     int tabRows = tabBarRows();
     int rows = contentRows();
+    int blameWidth = gitBlameWidth();
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
         getClangdDiagnosticsByLine();
 
@@ -790,10 +813,7 @@ void Editor::drawGutterQuick()
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            output += theme.uiDim();
-            output += blame;
-            if((int)blame.size() < kGitBlameWidth)
-                output.append(kGitBlameWidth - blame.size(), ' ');
+            appendGitBlameField(output, theme, blame, blameWidth);
         }
         else
         {
@@ -963,6 +983,7 @@ void Editor::drawFullScreenSingle()
     output.reserve((screenRows + 3) * screenCols * 3);
 
     int textCols = std::max(1, screenCols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     int numberWidth = lineNumberWidth();
     bool showNumbers = numberWidth > 0;
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
@@ -996,10 +1017,7 @@ void Editor::drawFullScreenSingle()
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            output += theme.uiDim();
-            output += blame;
-            if((int)blame.size() < kGitBlameWidth)
-                output.append(kGitBlameWidth - blame.size(), ' ');
+            appendGitBlameField(output, theme, blame, blameWidth);
         }
         else
         {
@@ -1317,18 +1335,18 @@ void Editor::drawFullScreenSingle()
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)statusMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)statusMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(statusMessage, 0, msglen);
     }
     else if(!locMessage.empty())
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)locMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)locMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(locMessage, 0, msglen);
     }
     else
@@ -1364,6 +1382,7 @@ void Editor::drawSplitFullScreen()
     int rows1 = std::max(1, layout1.rows - tabBarRows());
     int cols0 = std::max(1, layout0.cols - gutterWidth());
     int cols1 = std::max(1, layout1.cols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     adjustViewportForPane(splitPanes[0], rows0, cols0);
     adjustViewportForPane(splitPanes[1], rows1, cols1);
 
@@ -1500,10 +1519,7 @@ void Editor::drawSplitFullScreen()
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(rowIndex);
-                row += theme.uiDim();
-                row += blame;
-                if((int)blame.size() < kGitBlameWidth)
-                    row.append(kGitBlameWidth - blame.size(), ' ');
+                appendGitBlameField(row, theme, blame, blameWidth);
             }
             else
             {
@@ -1854,18 +1870,18 @@ void Editor::drawSplitFullScreen()
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)statusMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)statusMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(statusMessage, 0, msglen);
     }
     else if(!locMessage.empty())
     {
         if(commandLineMessagePrefix)
             output += ": ";
-        int msglen =
-            std::min((int)locMessage.length(),
-                     std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
+        int msglen = std::min(
+            (int)locMessage.length(),
+            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
         output.append(locMessage, 0, msglen);
     }
     else

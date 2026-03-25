@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "file_utils.h"
 #include "gitignore.h"
@@ -715,12 +716,12 @@ void FileBrowserMode::draw(Editor& editor) const
         if(entry.isDirectory)
         {
             output += editor.theme.uiDirectory();
-            output += "📁 ";
+            output += ascii::utf8(ascii::FOLDER_ICON);
             output += Terminal::ESC_BOLD;
         }
         else
         {
-            output += "📄 ";
+            output += ascii::utf8(ascii::FILE_ICON);
         }
 
         std::string displayName = entry.name;

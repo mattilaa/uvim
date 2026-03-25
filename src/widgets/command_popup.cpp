@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "widgets/command_popup.h"
 
 #include "terminal.h"
@@ -77,6 +78,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Count lines of code";
     if(cmd == "git stage")
         return "Open interactive git stage";
+    if(cmd == "git blame")
+        return "Toggle git blame gutter";
     if(cmd == "git log")
         return "Browse commit log";
     if(cmd == "git prettylog")
@@ -202,14 +205,15 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
     moveTo(top, left);
-    text_utils::appendU8(output, u8"╭");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"╮");
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     for(int i = 0; i < rows; ++i)
     {
         moveTo(top + 1 + i, left);
-        text_utils::appendU8(output, u8"│ ");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL_RIGHT_PAD);
 
         std::string line;
         std::string cmdPart;
@@ -273,12 +277,13 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         int pad = innerW - text_utils::displayWidth(line);
         if(pad > 0)
             output.append(pad, ' ');
-        text_utils::appendU8(output, u8" │");
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL_LEFT_PAD);
     }
 
     moveTo(top + totalH - 1, left);
-    text_utils::appendU8(output, u8"╰");
-    text_utils::appendUtf8Repeat(output, u8"─", innerW + 2);
-    text_utils::appendU8(output, u8"╯");
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
 }
 } // namespace widgets

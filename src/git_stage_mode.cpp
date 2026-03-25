@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -1251,8 +1252,12 @@ void GitStageMode::draw(Editor& editor) const
             for(int i = 0; i < vis.depth; ++i)
                 indent += "  ";
             std::string marker =
-                node.isDir ? (node.expanded ? "▾ " : "▸ ") : "  ";
-            std::string icon = node.isDir ? "📁 " : "📄 ";
+                node.isDir ? (node.expanded ? ascii::utf8(ascii::DISCLOSURE_DOWN)
+                                            : ascii::utf8(ascii::DISCLOSURE_RIGHT))
+                           : "  ";
+            std::string icon =
+                node.isDir ? ascii::utf8(ascii::FOLDER_ICON)
+                           : ascii::utf8(ascii::FILE_ICON);
 
             std::string path = indent + marker + icon + name;
             const int nonPathWidth = 1 + 2 + 1 + 1;

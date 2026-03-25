@@ -1330,6 +1330,18 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         ed->goToFile();
         break;
 
+    case keyCode(typed::TypedKey::KEY_J):
+        if(ed->showGitBlame)
+        {
+            // gj - show commit diff for line under cursor when blame is visible
+            ed->openGitShowCommitMode();
+        }
+        else
+        {
+            ctx.setStatusMessage("gj requires git blame gutter");
+        }
+        break;
+
     case keyCode(typed::TypedKey::KEY_B):
     {
         int nextChar = Terminal::readKeyTimeout(500);

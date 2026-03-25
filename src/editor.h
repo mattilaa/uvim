@@ -290,8 +290,9 @@ public:
     void rebuildEmojiFilter();
     void drawEmojiPopup(std::string& output) const;
     static constexpr int kDiagnosticGutterWidth = 1;
-    static constexpr int kGitBlameWidth = 20;
+    static constexpr int kGitBlameMaxWidth = 30;
     int lineNumberWidth() const;
+    int gitBlameWidth() const;
     int gutterWidth() const;
 
     struct LspDiagnosticSummary

@@ -50,6 +50,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gr` : find references
 - `gf` : go to file under cursor
 - `gb` : toggle git blame
+- `gj` : show commit diff for current line when git blame is visible
 - `gbv` : show commit diff for line under cursor
 - `gl` / `glf` : git log (repo / current file)
 
