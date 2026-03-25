@@ -990,6 +990,7 @@ struct GitStageMode
     std::string repoDir;
     std::string viewRoot;
     std::string diffPath;
+    bool diffVisible = false;
     bool diffStaged = false;
     bool diffDirty = true;
     std::chrono::steady_clock::time_point lastCursorMove;
@@ -1029,6 +1030,7 @@ struct GitStageMode
 #endif
 
 private:
+    void refreshDiff(Editor& editor);
     bool refreshStatus(Editor& editor);
     void clampCursor();
     void keepCursorVisible(const Editor& editor);

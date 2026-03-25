@@ -1,3 +1,4 @@
+#include "ascii.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -197,8 +198,9 @@ std::string unstaged_label(char status)
 
 std::string git_stage_help_text()
 {
-    return "  [space: stage/unstage] [j/k: move files] [enter: open] "
-           "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
+    return "  [space: stage/unstage] [j/k: move files] [d: diff] "
+           "[ctrl-j/k: scroll diff] [enter: open] [m: mark fixup] "
+           "[g f: fixup] [r: refresh] [q/esc: close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -332,6 +334,148 @@ std::string status_path_bg(GitStageMode::FileGroup group)
         return "";
     }
 }
+
+bool is_ansi_start(std::string_view text, size_t i)
+{
+    return i + 1 < text.size() && text[i] == '\x1b' &&
+           text[i + 1] == keyCode(command::CommandKey::KEY_LEFT_BRACKET);
+}
+
+size_t skip_ansi(std::string_view text, size_t i)
+{
+    i += 2;
+    while(i < text.size())
+    {
+        char c = text[i++];
+        if((c >= keyCode(typed::TypedKey::KEY_CAP_A) &&
+            c <= keyCode(typed::TypedKey::KEY_CAP_Z)) ||
+           (c >= keyCode(typed::TypedKey::KEY_A) &&
+            c <= keyCode(typed::TypedKey::KEY_Z)))
+            break;
+    }
+    return i;
+}
+
+int max_diff_width(const std::vector<std::string>& lines, bool useDefaultColors)
+{
+    int maxW = 0;
+    for(const auto& line : lines)
+    {
+        int w = useDefaultColors ? text_utils::displayWidth(line)
+                                 : text_utils::utf8DisplayWidth(line);
+        if(w > maxW)
+            maxW = w;
+    }
+    return maxW;
+}
+
+std::string slice_plain(std::string_view text, int startCol, int width)
+{
+    if(width <= 0 || text.empty())
+        return "";
+    if(startCol < 0)
+        startCol = 0;
+
+    std::string out;
+    int col = 0;
+    int pos = 0;
+    while(pos < (int)text.size())
+    {
+        int next = text_utils::nextUtf8CharStart(text, pos);
+        int w = text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(col + w <= startCol)
+        {
+            col += w;
+            pos = next;
+            continue;
+        }
+        if(col >= startCol + width)
+            break;
+        if(col >= startCol && col + w <= startCol + width)
+            out.append(text.substr(pos, next - pos));
+        col += w;
+        pos = next;
+    }
+    return out;
+}
+
+std::string slice_with_ansi(std::string_view text, int startCol, int width)
+{
+    if(width <= 0 || text.empty())
+        return "";
+    if(startCol < 0)
+        startCol = 0;
+
+    std::string out;
+    int col = 0;
+    size_t i = 0;
+    while(i < text.size())
+    {
+        if(is_ansi_start(text, i))
+        {
+            size_t end = skip_ansi(text, i);
+            out.append(text.substr(i, end - i));
+            i = end;
+            continue;
+        }
+
+        int next = text_utils::nextUtf8CharStart(text, (int)i);
+        int w = text_utils::utf8DisplayWidth(text.substr(i, next - (int)i));
+        if(col + w <= startCol)
+        {
+            col += w;
+            i = next;
+            continue;
+        }
+        if(col >= startCol + width)
+            break;
+        if(col >= startCol && col + w <= startCol + width)
+            out.append(text.substr(i, next - (int)i));
+        col += w;
+        i = next;
+    }
+    return out;
+}
+
+void append_diff_line(std::string& output, const Editor& editor,
+                      const std::string& line)
+{
+    if(editor.gitUseDefaultColors)
+    {
+        output += line;
+        output += editor.theme.reset();
+        return;
+    }
+
+    if(line.rfind("diff --git", 0) == 0 || line.rfind("--- ", 0) == 0 ||
+       line.rfind("+++ ", 0) == 0)
+    {
+        output += editor.theme.uiAccent();
+    }
+    else if(line.rfind("index ", 0) == 0 || line.rfind("commit ", 0) == 0)
+    {
+        output += editor.theme.uiDim();
+    }
+    else if(line.rfind("@@ ", 0) == 0)
+    {
+        output += editor.theme.uiInfo();
+    }
+    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
+    {
+        output += editor.theme.uiSuccess();
+    }
+    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
+    {
+        output += editor.theme.uiError();
+    }
+    else
+    {
+        output += editor.theme.baseFg();
+    }
+
+    output += line;
+    output += editor.theme.reset();
+}
 } // namespace
 
 GitStageMode::GitStageMode(std::vector<Node> items, std::string root,
@@ -406,6 +550,7 @@ void GitStageMode::on_enter(ModeContext& ctx)
         viewRoot = repoRoot;
 
     refreshStatus(*ed);
+    refreshDiff(*ed);
     ctx.requestFullRedraw();
 }
 
@@ -556,8 +701,86 @@ bool GitStageMode::refreshStatus(Editor& editor)
         }
     }
     clampCursor();
+    diffDirty = true;
     keepCursorVisible(editor);
     return true;
+}
+
+void GitStageMode::refreshDiff(Editor& editor)
+{
+    if(!diffDirty)
+        return;
+
+    diffLines.clear();
+    diffPath.clear();
+    diffStaged = false;
+    diffOffset = 0;
+
+    int rowIndex = selectedRowIndex();
+    if(rowIndex < 0 || rowIndex >= (int)rows.size())
+    {
+        diffLines.push_back("(clean)");
+        diffDirty = false;
+        return;
+    }
+
+    const StatusRow& row = rows[rowIndex];
+    diffPath = row.path;
+    diffStaged = row.group == FileGroup::Staged;
+
+    if(row.group == FileGroup::Untracked)
+    {
+        diffLines.push_back("(untracked file)");
+        diffDirty = false;
+        return;
+    }
+
+    std::string cacheKey =
+        row.path + (row.group == FileGroup::Staged ? "|staged" : "|unstaged");
+    auto cacheIt = diffCache.find(cacheKey);
+    if(cacheIt != diffCache.end())
+    {
+        diffLines = cacheIt->second;
+        diffDirty = false;
+        return;
+    }
+
+    std::string cmd = "git -C \"" + repoDir + "\" --no-pager diff ";
+    if(row.group == FileGroup::Staged)
+        cmd += "--cached ";
+    cmd += std::string(editor.gitUseDefaultColors ? "--color=always "
+                                                  : "--no-color ");
+    cmd += "-- \"" + row.path + "\" 2>/dev/null";
+
+    std::string raw = run_git_raw(cmd);
+    size_t pos = 0;
+    while(pos <= raw.size())
+    {
+        size_t next = raw.find('\n', pos);
+        if(next == std::string::npos)
+        {
+            if(pos < raw.size())
+                diffLines.push_back(raw.substr(pos));
+            break;
+        }
+        diffLines.push_back(raw.substr(pos, next - pos));
+        pos = next + 1;
+    }
+
+    if(diffLines.empty())
+        diffLines.push_back("(no diff)");
+
+    diffCache.emplace(cacheKey, diffLines);
+    diffCacheOrder.push_back(cacheKey);
+    constexpr size_t kDiffCacheMax = 64;
+    if(diffCacheOrder.size() > kDiffCacheMax)
+    {
+        const std::string oldest = diffCacheOrder.front();
+        diffCache.erase(oldest);
+        diffCacheOrder.erase(diffCacheOrder.begin());
+    }
+
+    diffDirty = false;
 }
 
 std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
@@ -590,6 +813,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
     if(c == keyCode(typed::TypedKey::KEY_R))
     {
         refreshStatus(*ed);
+        if(diffVisible)
+            refreshDiff(*ed);
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
@@ -606,6 +831,16 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
                 fixupMarked.erase(path);
             ed->needsFullRedraw = true;
         }
+        return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_D))
+    {
+        diffVisible = !diffVisible;
+        diffDirty = true;
+        if(diffVisible)
+            refreshDiff(*ed);
+        ed->needsFullRedraw = true;
         return std::nullopt;
     }
 
@@ -652,6 +887,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
             {
                 std::system(cmd.c_str());
                 refreshStatus(*ed);
+                if(diffVisible)
+                    refreshDiff(*ed);
                 ed->needsFullRedraw = true;
             }
         }
@@ -664,6 +901,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(cursor < (int)fileRows.size() - 1)
         {
             ++cursor;
+            diffDirty = true;
+            if(diffVisible)
+                refreshDiff(*ed);
             keepCursorVisible(*ed);
         }
     }
@@ -673,8 +913,31 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(cursor > 0)
         {
             --cursor;
+            diffDirty = true;
+            if(diffVisible)
+                refreshDiff(*ed);
             keepCursorVisible(*ed);
         }
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_J))
+    {
+        if(diffVisible)
+        {
+            int maxScroll = std::max(0, (int)diffLines.size() -
+                                            git_stage_content_rows(
+                                                ed->screenRows,
+                                                (int)wrap_help(
+                                                    git_stage_help_text(),
+                                                    ed->screenCols)
+                                                    .size()));
+            if(diffOffset < maxScroll)
+                ++diffOffset;
+        }
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_K))
+    {
+        if(diffVisible && diffOffset > 0)
+            --diffOffset;
     }
     else if(c == keyCode(typed::TypedKey::KEY_G))
     {
@@ -682,6 +945,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             cursor = 0;
+            diffDirty = true;
+            if(diffVisible)
+                refreshDiff(*ed);
             keepCursorVisible(*ed);
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_F))
@@ -704,6 +970,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(!fileRows.empty())
         {
             cursor = std::max(0, (int)fileRows.size() - 1);
+            diffDirty = true;
+            if(diffVisible)
+                refreshDiff(*ed);
             keepCursorVisible(*ed);
         }
     }
@@ -716,6 +985,9 @@ void GitStageMode::draw(Editor& editor) const
 {
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
+    auto* self = const_cast<GitStageMode*>(this);
+    if(self->diffVisible && self->diffDirty && !Terminal::hasBufferedKeys())
+        self->refreshDiff(editor);
 
     auto helpLines = wrap_help(git_stage_help_text(), editor.screenCols);
     if(helpLines.empty())
@@ -747,6 +1019,19 @@ void GitStageMode::draw(Editor& editor) const
 
     int contentRows =
         git_stage_content_rows(editor.screenRows, (int)helpLines.size());
+    int listWidth = editor.screenCols;
+    int diffWidth = 0;
+    if(diffVisible)
+    {
+        listWidth = std::max(36, editor.screenCols / 2);
+        diffWidth = editor.screenCols - listWidth - 1;
+        if(diffWidth < 20)
+        {
+            listWidth = editor.screenCols;
+            diffWidth = 0;
+        }
+    }
+
     int selected = selectedRowIndex();
     for(int screenRow = 0; screenRow < contentRows; ++screenRow)
     {
@@ -758,91 +1043,134 @@ void GitStageMode::draw(Editor& editor) const
             output += editor.theme.uiGutter();
             output += "~";
             output += editor.theme.baseFg();
-            if(editor.screenCols > 1)
-                output.append(editor.screenCols - 1, ' ');
-            continue;
+            if(listWidth > 1)
+                output.append(listWidth - 1, ' ');
         }
-
-        const StatusRow& row = rows[rowIndex];
-        bool isSelected = rowIndex == selected;
-
-        if(row.kind == RowKind::Blank)
-        {
-            output.append(editor.screenCols, ' ');
-            continue;
-        }
-
-        if(row.kind == RowKind::Header)
-        {
-            output += editor.theme.baseFg();
-            output += row.prefix;
-            int used = text_utils::utf8DisplayWidth(row.prefix);
-            if(used < editor.screenCols)
-            {
-                output += editor.theme.base();
-                output.append(editor.screenCols - used, ' ');
-            }
-            continue;
-        }
-
-        if(row.kind == RowKind::Hint)
-        {
-            output += editor.theme.uiDim();
-            output += row.prefix;
-            output += editor.theme.baseFg();
-            int used = text_utils::utf8DisplayWidth(row.prefix);
-            if(used < editor.screenCols)
-            {
-                output += editor.theme.base();
-                output.append(editor.screenCols - used, ' ');
-            }
-            continue;
-        }
-
-        if(row.kind == RowKind::Summary)
-        {
-            output += editor.theme.uiDim();
-            output += row.prefix;
-            output += editor.theme.baseFg();
-            int used = text_utils::utf8DisplayWidth(row.prefix);
-            if(used < editor.screenCols)
-            {
-                output += editor.theme.base();
-                output.append(editor.screenCols - used, ' ');
-            }
-            continue;
-        }
-
-        std::string prefix = row.prefix;
-        if(fixupMarked.find(row.path) != fixupMarked.end() && prefix.size() >= 8)
-            prefix[7] = '*';
-
-        int prefixWidth = text_utils::utf8DisplayWidth(prefix);
-        int available = std::max(0, editor.screenCols - prefixWidth);
-        std::string path = row.path;
-        int pathWidth = text_utils::utf8DisplayWidth(path);
-        if(pathWidth > available)
-        {
-            if(available > 3)
-                path = "..." + utf8SuffixByWidth(path, available - 3);
-            else
-                path = utf8PrefixByWidth(path, available);
-            pathWidth = text_utils::utf8DisplayWidth(path);
-        }
-
-        output += editor.theme.baseFg();
-        output += prefix;
-
-        if(isSelected)
-            output += editor.theme.searchMatch();
         else
-            output += status_path_bg(row.group) + editor.theme.baseFg();
-        output += path;
-        output += editor.theme.base();
+        {
+            const StatusRow& row = rows[rowIndex];
+            bool isSelected = rowIndex == selected;
 
-        int used = prefixWidth + pathWidth;
-        if(used < editor.screenCols)
-            output.append(editor.screenCols - used, ' ');
+            if(row.kind == RowKind::Blank)
+            {
+                output.append(listWidth, ' ');
+            }
+            else if(row.kind == RowKind::Header)
+            {
+                output += editor.theme.baseFg();
+                output += row.prefix;
+                int used = text_utils::utf8DisplayWidth(row.prefix);
+                if(used < listWidth)
+                {
+                    output += editor.theme.base();
+                    output.append(listWidth - used, ' ');
+                }
+            }
+            else if(row.kind == RowKind::Hint)
+            {
+                output += editor.theme.uiDim();
+                output += row.prefix;
+                output += editor.theme.baseFg();
+                int used = text_utils::utf8DisplayWidth(row.prefix);
+                if(used < listWidth)
+                {
+                    output += editor.theme.base();
+                    output.append(listWidth - used, ' ');
+                }
+            }
+            else if(row.kind == RowKind::Summary)
+            {
+                output += editor.theme.uiDim();
+                output += row.prefix;
+                output += editor.theme.baseFg();
+                int used = text_utils::utf8DisplayWidth(row.prefix);
+                if(used < listWidth)
+                {
+                    output += editor.theme.base();
+                    output.append(listWidth - used, ' ');
+                }
+            }
+            else
+            {
+                std::string prefix = row.prefix;
+                if(fixupMarked.find(row.path) != fixupMarked.end() &&
+                   prefix.size() >= 8)
+                    prefix[7] = '*';
+
+                int prefixWidth = text_utils::utf8DisplayWidth(prefix);
+                int available = std::max(0, listWidth - prefixWidth);
+                std::string path = row.path;
+                int pathWidth = text_utils::utf8DisplayWidth(path);
+                if(pathWidth > available)
+                {
+                    if(available > 3)
+                        path = "..." + utf8SuffixByWidth(path, available - 3);
+                    else
+                        path = utf8PrefixByWidth(path, available);
+                    pathWidth = text_utils::utf8DisplayWidth(path);
+                }
+
+                output += editor.theme.baseFg();
+                output += prefix;
+
+                if(isSelected)
+                    output += editor.theme.searchMatch();
+                else
+                    output += status_path_bg(row.group) + editor.theme.baseFg();
+                output += path;
+                output += editor.theme.base();
+
+                int used = prefixWidth + pathWidth;
+                if(used < listWidth)
+                    output.append(listWidth - used, ' ');
+            }
+        }
+
+        if(diffWidth > 0)
+        {
+            output += editor.theme.uiGutter();
+            output += ascii::utf8(ascii::BOX_HEAVY_VERTICAL);
+            output += editor.theme.base();
+
+            int diffIdx = diffOffset + screenRow;
+            int diffViewWidth = std::max(0, diffWidth - 1);
+            if(diffIdx >= 0 && diffIdx < (int)diffLines.size())
+            {
+                output += " ";
+                if(editor.gitUseDefaultColors)
+                {
+                    output += slice_with_ansi(diffLines[diffIdx], 0,
+                                              diffViewWidth);
+                    output += editor.theme.reset();
+                    output += editor.theme.base();
+                }
+                else
+                {
+                    append_diff_line(output, editor,
+                                     slice_plain(diffLines[diffIdx], 0,
+                                                 diffViewWidth));
+                    output += editor.theme.base();
+                }
+                int visibleWidth =
+                    editor.gitUseDefaultColors
+                        ? text_utils::displayWidth(
+                              slice_with_ansi(diffLines[diffIdx], 0,
+                                              diffViewWidth))
+                        : text_utils::utf8DisplayWidth(
+                              slice_plain(diffLines[diffIdx], 0,
+                                          diffViewWidth));
+                if(visibleWidth + 1 < diffWidth)
+                    output.append(diffWidth - visibleWidth - 1, ' ');
+            }
+            else
+            {
+                output += editor.theme.uiGutter();
+                output += " ~";
+                output += editor.theme.base();
+                if(diffWidth > 2)
+                    output.append(diffWidth - 2, ' ');
+            }
+        }
     }
 
     output += Terminal::NEWLINE_CLEAR;
