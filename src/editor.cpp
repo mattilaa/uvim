@@ -5641,15 +5641,29 @@ int Editor::lineNumberWidth() const
     return (int)std::to_string(maxLineCountSeen).length();
 }
 
+int Editor::gitBlameWidth() const
+{
+    if(!showGitBlame || !currentBuffer)
+        return 0;
+
+    int width = 0;
+    for(int row = 0; row < (int)currentBuffer->blameEntries.size(); ++row)
+    {
+        std::string blame = blameDisplayForLine(row);
+        int blameWidth = text_utils::utf8DisplayWidth(blame);
+        if(blameWidth > width)
+            width = blameWidth;
+    }
+    return std::min(width, kGitBlameMaxWidth);
+}
+
 int Editor::gutterWidth() const
 {
-    int width = showGitBlame ? kGitBlameWidth : kDiagnosticGutterWidth;
+    int width = showGitBlame ? gitBlameWidth() + 1 : kDiagnosticGutterWidth;
     int numbers = lineNumberWidth();
     if(numbers > 0)
     {
         width += numbers + 1; // add space after line number
-        if(showGitBlame)
-            width += 1; // add separator between blame and line numbers
     }
     return width;
 }

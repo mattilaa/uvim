@@ -9,31 +9,25 @@
 
 namespace
 {
-void writePaddedGitBlame(const Theme& theme, std::string_view blame, int width)
+void writeGitBlameField(const Theme& theme, std::string_view blame, int width)
 {
     Terminal::write(theme.uiDim());
     Terminal::write(std::string(blame));
-    if((int)blame.size() < width)
-        Terminal::write(std::string(width - blame.size(), ' '));
-}
-
-void appendPaddedGitBlame(std::string& output, const Theme& theme,
-                          std::string_view blame, int width)
-{
-    output += theme.uiDim();
-    output.append(blame.data(), blame.size());
-    if((int)blame.size() < width)
-        output.append(width - blame.size(), ' ');
-}
-
-void writeGitBlameDivider(const Theme& theme)
-{
+    int blameWidth = text_utils::utf8DisplayWidth(blame);
+    if(blameWidth < width)
+        Terminal::write(std::string(width - blameWidth, ' '));
     Terminal::write(theme.uiGutter());
     Terminal::write(ascii::utf8(ascii::BOX_HEAVY_VERTICAL));
 }
 
-void appendGitBlameDivider(std::string& output, const Theme& theme)
+void appendGitBlameField(std::string& output, const Theme& theme,
+                         std::string_view blame, int width)
 {
+    output += theme.uiDim();
+    output.append(blame.data(), blame.size());
+    int blameWidth = text_utils::utf8DisplayWidth(blame);
+    if(blameWidth < width)
+        output.append(width - blameWidth, ' ');
     output += theme.uiGutter();
     ascii::append(output, ascii::BOX_HEAVY_VERTICAL);
 }
@@ -156,6 +150,7 @@ void Editor::drawRows()
     int tabRows = tabBarRows();
     int rows = contentRows();
     int textCols = std::max(1, screenCols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     int numberWidth = lineNumberWidth();
     bool showNumbers = numberWidth > 0;
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
@@ -182,9 +177,7 @@ void Editor::drawRows()
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(row);
-                writePaddedGitBlame(theme, blame, kGitBlameWidth);
-                if(showNumbers)
-                    writeGitBlameDivider(theme);
+                writeGitBlameField(theme, blame, blameWidth);
             }
             else
             {
@@ -399,6 +392,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
     }
 
     int textCols = std::max(1, screenCols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     int numberWidth = lineNumberWidth();
     bool showNumbers = numberWidth > 0;
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
@@ -419,8 +413,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            appendPaddedGitBlame(output, theme, blame, kGitBlameWidth);
-            appendGitBlameDivider(output, theme);
+            appendGitBlameField(output, theme, blame, blameWidth);
         }
         else
         {
@@ -808,6 +801,7 @@ void Editor::drawGutterQuick()
 
     int tabRows = tabBarRows();
     int rows = contentRows();
+    int blameWidth = gitBlameWidth();
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
         getClangdDiagnosticsByLine();
 
@@ -819,8 +813,7 @@ void Editor::drawGutterQuick()
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            appendPaddedGitBlame(output, theme, blame, kGitBlameWidth);
-            appendGitBlameDivider(output, theme);
+            appendGitBlameField(output, theme, blame, blameWidth);
         }
         else
         {
@@ -990,6 +983,7 @@ void Editor::drawFullScreenSingle()
     output.reserve((screenRows + 3) * screenCols * 3);
 
     int textCols = std::max(1, screenCols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     int numberWidth = lineNumberWidth();
     bool showNumbers = numberWidth > 0;
     std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
@@ -1023,9 +1017,7 @@ void Editor::drawFullScreenSingle()
         if(showGitBlame)
         {
             std::string blame = blameDisplayForLine(row);
-            appendPaddedGitBlame(output, theme, blame, kGitBlameWidth);
-            if(showNumbers)
-                appendGitBlameDivider(output, theme);
+            appendGitBlameField(output, theme, blame, blameWidth);
         }
         else
         {
@@ -1390,6 +1382,7 @@ void Editor::drawSplitFullScreen()
     int rows1 = std::max(1, layout1.rows - tabBarRows());
     int cols0 = std::max(1, layout0.cols - gutterWidth());
     int cols1 = std::max(1, layout1.cols - gutterWidth());
+    int blameWidth = gitBlameWidth();
     adjustViewportForPane(splitPanes[0], rows0, cols0);
     adjustViewportForPane(splitPanes[1], rows1, cols1);
 
@@ -1526,9 +1519,7 @@ void Editor::drawSplitFullScreen()
             if(showGitBlame)
             {
                 std::string blame = blameDisplayForLine(rowIndex);
-                appendPaddedGitBlame(row, theme, blame, kGitBlameWidth);
-                if(showNumbers)
-                    appendGitBlameDivider(row, theme);
+                appendGitBlameField(row, theme, blame, blameWidth);
             }
             else
             {
