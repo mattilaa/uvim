@@ -492,6 +492,22 @@ int GitStageMode::selectedRowIndex() const
     return fileRows[cursor];
 }
 
+int GitStageMode::maxListHorizontalOffset(int listWidth) const
+{
+    int maxWidth = 0;
+    for(const auto& row : rows)
+    {
+        int width = 0;
+        if(row.kind == RowKind::File)
+            width = text_utils::utf8DisplayWidth(row.prefix) +
+                    text_utils::utf8DisplayWidth(row.path);
+        else
+            width = text_utils::utf8DisplayWidth(row.prefix);
+        maxWidth = std::max(maxWidth, width);
+    }
+    return std::max(0, maxWidth - std::max(0, listWidth));
+}
+
 void GitStageMode::clampCursor()
 {
     if(fileRows.empty())
@@ -702,6 +718,11 @@ bool GitStageMode::refreshStatus(Editor& editor)
     }
     clampCursor();
     diffDirty = true;
+    int listWidth = editor.screenCols;
+    if(diffVisible)
+        listWidth = std::max(36, editor.screenCols / 2);
+    listHorizontalOffset =
+        std::min(listHorizontalOffset, maxListHorizontalOffset(listWidth));
     keepCursorVisible(editor);
     return true;
 }
@@ -940,6 +961,23 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(diffVisible && diffOffset > 0)
             --diffOffset;
     }
+    else if(c == keyCode(typed::TypedKey::KEY_H))
+    {
+        listHorizontalOffset = std::max(0, listHorizontalOffset - 1);
+    }
+    else if(c == keyCode(typed::TypedKey::KEY_L))
+    {
+        int listWidth = ed->screenCols;
+        if(diffVisible)
+        {
+            listWidth = std::max(36, ed->screenCols / 2);
+            int diffWidth = ed->screenCols - listWidth - 1;
+            if(diffWidth < 20)
+                listWidth = ed->screenCols;
+        }
+        listHorizontalOffset =
+            std::min(maxListHorizontalOffset(listWidth), listHorizontalOffset + 1);
+    }
     else if(c == keyCode(control::ControlKey::CTRL_H))
     {
         if(diffVisible)
@@ -1054,6 +1092,9 @@ void GitStageMode::draw(Editor& editor) const
             diffWidth = 0;
         }
     }
+    int maxListOffset = maxListHorizontalOffset(listWidth);
+    int listOff = std::min(listHorizontalOffset, maxListOffset);
+    self->listHorizontalOffset = listOff;
     int diffViewWidth = std::max(0, diffWidth - 1);
     int maxDiffOffset = std::max(
         0, max_diff_width(diffLines, editor.gitUseDefaultColors) - diffViewWidth);
@@ -1085,9 +1126,11 @@ void GitStageMode::draw(Editor& editor) const
             }
             else if(row.kind == RowKind::Header)
             {
+                std::string clipped =
+                    slice_plain(row.prefix, listOff, listWidth);
                 output += editor.theme.baseFg();
-                output += row.prefix;
-                int used = text_utils::utf8DisplayWidth(row.prefix);
+                output += clipped;
+                int used = text_utils::utf8DisplayWidth(clipped);
                 if(used < listWidth)
                 {
                     output += editor.theme.base();
@@ -1096,10 +1139,12 @@ void GitStageMode::draw(Editor& editor) const
             }
             else if(row.kind == RowKind::Hint)
             {
+                std::string clipped =
+                    slice_plain(row.prefix, listOff, listWidth);
                 output += editor.theme.uiDim();
-                output += row.prefix;
+                output += clipped;
                 output += editor.theme.baseFg();
-                int used = text_utils::utf8DisplayWidth(row.prefix);
+                int used = text_utils::utf8DisplayWidth(clipped);
                 if(used < listWidth)
                 {
                     output += editor.theme.base();
@@ -1108,10 +1153,12 @@ void GitStageMode::draw(Editor& editor) const
             }
             else if(row.kind == RowKind::Summary)
             {
+                std::string clipped =
+                    slice_plain(row.prefix, listOff, listWidth);
                 output += editor.theme.uiDim();
-                output += row.prefix;
+                output += clipped;
                 output += editor.theme.baseFg();
-                int used = text_utils::utf8DisplayWidth(row.prefix);
+                int used = text_utils::utf8DisplayWidth(clipped);
                 if(used < listWidth)
                 {
                     output += editor.theme.base();
@@ -1126,29 +1173,31 @@ void GitStageMode::draw(Editor& editor) const
                     prefix[7] = '*';
 
                 int prefixWidth = text_utils::utf8DisplayWidth(prefix);
-                int available = std::max(0, listWidth - prefixWidth);
-                std::string path = row.path;
-                int pathWidth = text_utils::utf8DisplayWidth(path);
-                if(pathWidth > available)
-                {
-                    if(available > 3)
-                        path = "..." + utf8SuffixByWidth(path, available - 3);
-                    else
-                        path = utf8PrefixByWidth(path, available);
-                    pathWidth = text_utils::utf8DisplayWidth(path);
-                }
+                std::string visiblePrefix =
+                    listOff < prefixWidth ? slice_plain(prefix, listOff, listWidth)
+                                          : "";
+                int used = text_utils::utf8DisplayWidth(visiblePrefix);
+                int remaining = std::max(0, listWidth - used);
+                int pathOffset = std::max(0, listOff - prefixWidth);
+                std::string visiblePath =
+                    slice_plain(row.path, pathOffset, remaining);
+                int pathWidth = text_utils::utf8DisplayWidth(visiblePath);
 
                 output += editor.theme.baseFg();
-                output += prefix;
+                output += visiblePrefix;
 
-                if(isSelected)
-                    output += editor.theme.searchMatch();
-                else
-                    output += status_path_bg(row.group) + editor.theme.baseFg();
-                output += path;
+                if(!visiblePath.empty())
+                {
+                    if(isSelected)
+                        output += editor.theme.searchMatch();
+                    else
+                        output += status_path_bg(row.group) +
+                                  editor.theme.baseFg();
+                    output += visiblePath;
+                }
                 output += editor.theme.base();
 
-                int used = prefixWidth + pathWidth;
+                used += pathWidth;
                 if(used < listWidth)
                     output.append(listWidth - used, ' ');
             }

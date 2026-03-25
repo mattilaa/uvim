@@ -1008,6 +1008,7 @@ struct GitStageMode
     int pendingG = 0;
     int cursor = 0;
     int offset = 0;
+    int listHorizontalOffset = 0;
     int diffOffset = 0;
     int diffHorizontalOffset = 0;
     std::optional<Mode> returnMode;
@@ -1035,6 +1036,7 @@ private:
     void clampCursor();
     void keepCursorVisible(const Editor& editor);
     int selectedRowIndex() const;
+    int maxListHorizontalOffset(int listWidth) const;
 };
 
 struct GitFixupMode
