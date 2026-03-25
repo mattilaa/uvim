@@ -7183,6 +7183,14 @@ void Editor::executeCommand(std::string_view cmd)
         }
         return;
     }
+    if(trimmedCmd == "git add")
+    {
+        if(gitHandler)
+            gitHandler->addCurrentBuffer();
+        else
+            setStatusMessage("git add: unavailable");
+        return;
+    }
     if(trimmedCmd == "git blame")
     {
         toggleGitBlame();
@@ -8570,11 +8578,24 @@ void Editor::listBuffers()
         if(i == currentBufferIndex)
             ss << "]";
 
-        if(i < buffers.size() - 1)
-            ss << " ";
+    if(i < buffers.size() - 1)
+        ss << " ";
     }
 
-    setStatusMessage(ss.str());
+    std::string status = ss.str();
+    if(gitHandler)
+    {
+        if(auto changes = gitHandler->currentBufferHasChanges();
+           changes.has_value())
+        {
+            status += " | git add ";
+            if(*changes)
+                status += "current buffer";
+            else
+                status += "(nothing to add)";
+        }
+    }
+    setStatusMessage(status);
 }
 
 int Editor::findBufferByFilename(const std::string& fname)

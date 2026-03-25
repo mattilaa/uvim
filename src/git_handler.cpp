@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits.h>
+#include <optional>
 #include <string>
 #include <unistd.h>
 
@@ -804,6 +805,77 @@ void GitHandler::openGitStageMode()
         editor->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
+}
+
+void GitHandler::addCurrentBuffer()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+    if(!editor->currentBuffer || editor->currentBuffer->filename.empty())
+    {
+        editor->setStatusMessage("git add: no file");
+        return;
+    }
+    if(!is_inside_git_repo(editor->currentBuffer->filename))
+    {
+        editor->setStatusMessage("git add: not a repo");
+        return;
+    }
+
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git add: not a repo");
+        return;
+    }
+
+    std::string cmd = "git -C \"" + repoRoot + "\" add -- \"" +
+                      editor->currentBuffer->filename + "\" 2>/dev/null";
+    int result = std::system(cmd.c_str());
+    if(result == 0)
+        editor->setStatusMessage("git add: added");
+    else
+        editor->setStatusMessage("git add: failed");
+}
+
+std::optional<bool> GitHandler::currentBufferHasChanges()
+{
+    if(!ensureGitAvailable())
+        return std::nullopt;
+    if(!editor->currentBuffer || editor->currentBuffer->filename.empty())
+        return std::nullopt;
+    if(!is_inside_git_repo(editor->currentBuffer->filename))
+        return std::nullopt;
+
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+        return std::nullopt;
+
+    std::string cmd = "git -C \"" + repoRoot +
+                      "\" status --short -- \"" +
+                      editor->currentBuffer->filename + "\" 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return std::nullopt;
+
+    char buffer[512];
+    bool hasChanges = false;
+    while(fgets(buffer, sizeof(buffer), pipe))
+    {
+        std::string line = trim_newline(buffer);
+        if(!line.empty())
+        {
+            hasChanges = true;
+            break;
+        }
+    }
+    pclose(pipe);
+    return hasChanges;
 }
 
 bool GitHandler::runGitStash(std::string& outMessage)
