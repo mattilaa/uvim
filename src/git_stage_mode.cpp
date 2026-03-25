@@ -1,25 +1,25 @@
-#include "ascii.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
+
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
-#include <limits.h>
 #include <string>
-#include <unistd.h>
-#include <unordered_map>
+#include <string_view>
 #include <unordered_set>
+#include <unistd.h>
 
 namespace
 {
-std::string trim_newline(std::string s)
+struct StatusEntry
 {
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
+    std::string path;
+    char indexStatus = keyCode(control::ControlKey::SPACE);
+    char worktreeStatus = keyCode(control::ControlKey::SPACE);
+};
 
 std::string run_git_raw(const std::string& cmd)
 {
@@ -35,97 +35,87 @@ std::string run_git_raw(const std::string& cmd)
     return output;
 }
 
-std::vector<std::string> split_nul(const std::string& s)
+std::string trim_newline(std::string s)
 {
-    std::vector<std::string> out;
-    size_t pos = 0;
-    while(pos <= s.size())
-    {
-        size_t next = s.find('\0', pos);
-        if(next == std::string::npos)
-        {
-            if(pos < s.size())
-                out.push_back(s.substr(pos));
-            break;
-        }
-        out.push_back(s.substr(pos, next - pos));
-        pos = next + 1;
-    }
-    return out;
-}
-
-std::vector<std::string> split_lines(const std::string& s)
-{
-    std::vector<std::string> out;
-    size_t pos = 0;
-    while(pos <= s.size())
-    {
-        size_t next = s.find('\n', pos);
-        if(next == std::string::npos)
-        {
-            out.push_back(s.substr(pos));
-            break;
-        }
-        out.push_back(s.substr(pos, next - pos));
-        pos = next + 1;
-    }
-    return out;
+    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
+        s.pop_back();
+    return s;
 }
 
 std::string git_show_toplevel(const std::string& dir)
 {
     std::string cmd =
         "git -C \"" + dir + "\" rev-parse --show-toplevel 2>/dev/null";
-    std::string out = run_git_raw(cmd);
-    if(out.empty())
-        return "";
-    auto lines = split_nul(out);
-    if(lines.empty())
-        return trim_newline(out);
-    return trim_newline(lines.front());
+    return trim_newline(run_git_raw(cmd));
 }
 
-struct StatusEntry
+std::string git_branch_name(const std::string& dir)
 {
-    char indexStatus = keyCode(control::ControlKey::SPACE);
-    char worktreeStatus = keyCode(control::ControlKey::SPACE);
-};
+    std::string cmd =
+        "git -C \"" + dir +
+        "\" branch --show-current 2>/dev/null";
+    return trim_newline(run_git_raw(cmd));
+}
 
-std::string normalize_repo_path(std::string path)
+std::string shell_escape_single(std::string_view text)
 {
-    while(path.rfind("./", 0) == 0)
-        path.erase(0, 2);
-    while(!path.empty() && path.back() == keyCode(command::CommandKey::KEY_SLASH))
-        path.pop_back();
     std::string out;
-    out.reserve(path.size());
-    bool prevSlash = false;
-    for(char c : path)
+    out.reserve(text.size() + 8);
+    out += keyCode(command::CommandKey::KEY_APOSTROPHE);
+    for(char ch : text)
     {
-        if(c == keyCode(command::CommandKey::KEY_SLASH))
-        {
-            if(prevSlash)
-                continue;
-            prevSlash = true;
-        }
+        if(ch == keyCode(command::CommandKey::KEY_APOSTROPHE))
+            out += "'\\''";
         else
-        {
-            prevSlash = false;
-        }
-        out.push_back(c);
+            out.push_back(ch);
     }
+    out += keyCode(command::CommandKey::KEY_APOSTROPHE);
     return out;
 }
 
-std::unordered_map<std::string, StatusEntry>
-parse_status_z(const std::string& raw)
+std::string decode_git_path(std::string_view raw)
 {
-    std::unordered_map<std::string, StatusEntry> out;
+    auto unescape = [](std::string_view in) -> std::string
+    {
+        std::string out;
+        out.reserve(in.size());
+        for(size_t i = 0; i < in.size(); ++i)
+        {
+            char c = in[i];
+            if(c == '\\' && i + 1 < in.size())
+            {
+                ++i;
+                char next = in[i];
+                if(next == 'n')
+                    c = '\n';
+                else if(next == 't')
+                    c = '\t';
+                else
+                    c = next;
+            }
+            out.push_back(c);
+        }
+        return out;
+    };
+
+    if(raw.size() >= 2 &&
+       raw.front() == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) &&
+       raw.back() == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE))
+    {
+        return unescape(raw.substr(1, raw.size() - 2));
+    }
+    return unescape(raw);
+}
+
+std::vector<StatusEntry> parse_status_porcelain_z(const std::string& raw)
+{
+    std::vector<StatusEntry> out;
     size_t i = 0;
     while(i + 2 < raw.size())
     {
-        char x = raw[i];
-        char y = raw[i + 1];
+        StatusEntry entry;
+        entry.indexStatus = raw[i];
+        entry.worktreeStatus = raw[i + 1];
         i += 2;
         if(i < raw.size() && raw[i] == keyCode(control::ControlKey::SPACE))
             ++i;
@@ -133,156 +123,82 @@ parse_status_z(const std::string& raw)
         size_t end = raw.find('\0', i);
         if(end == std::string::npos)
             break;
-        std::string path = raw.substr(i, end - i);
+        std::string path = std::string(raw.substr(i, end - i));
         i = end + 1;
 
-        if(x == keyCode(typed::TypedKey::KEY_CAP_R) || x == keyCode(typed::TypedKey::KEY_CAP_C) || y == keyCode(typed::TypedKey::KEY_CAP_R) || y == keyCode(typed::TypedKey::KEY_CAP_C))
+        if(entry.indexStatus == keyCode(typed::TypedKey::KEY_CAP_R) ||
+           entry.indexStatus == keyCode(typed::TypedKey::KEY_CAP_C) ||
+           entry.worktreeStatus == keyCode(typed::TypedKey::KEY_CAP_R) ||
+           entry.worktreeStatus == keyCode(typed::TypedKey::KEY_CAP_C))
         {
             size_t end2 = raw.find('\0', i);
             if(end2 == std::string::npos)
                 break;
-            std::string newPath = raw.substr(i, end2 - i);
+            path = std::string(raw.substr(i, end2 - i));
             i = end2 + 1;
-            if(!newPath.empty())
-                path = newPath;
         }
 
+        path = decode_git_path(path);
         if(path.empty())
             continue;
-        path = normalize_repo_path(path);
-        if(!path.empty())
-            out[path] = StatusEntry{x, y};
+        entry.path = std::move(path);
+        out.push_back(std::move(entry));
     }
     return out;
 }
 
 bool is_untracked(const StatusEntry& entry)
 {
-    return entry.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) && entry.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
+    return entry.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) &&
+           entry.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
 }
 
 bool has_staged(const StatusEntry& entry)
 {
-    return entry.indexStatus != keyCode(control::ControlKey::SPACE) && entry.indexStatus != keyCode(command::CommandKey::KEY_QUESTION);
+    return entry.indexStatus != keyCode(control::ControlKey::SPACE) &&
+           entry.indexStatus != keyCode(command::CommandKey::KEY_QUESTION);
 }
 
 bool has_unstaged(const StatusEntry& entry)
 {
-    return entry.worktreeStatus != keyCode(control::ControlKey::SPACE) && entry.worktreeStatus != keyCode(command::CommandKey::KEY_QUESTION);
+    return entry.worktreeStatus != keyCode(control::ControlKey::SPACE) &&
+           entry.worktreeStatus != keyCode(command::CommandKey::KEY_QUESTION);
 }
 
-std::string status_color(const Theme& theme, const StatusEntry& entry)
+std::string staged_label(char status)
 {
-    if(is_untracked(entry))
-        return theme.uiInfo();
-    if(has_staged(entry) && has_unstaged(entry))
-        return theme.uiWarning();
-    if(has_staged(entry))
-        return theme.uiSuccess();
-    if(has_unstaged(entry))
-        return theme.uiError();
-    return theme.baseFg();
+    switch(status)
+    {
+    case keyCode(typed::TypedKey::KEY_CAP_A):
+        return "new file:   ";
+    case keyCode(typed::TypedKey::KEY_CAP_D):
+        return "deleted:    ";
+    case keyCode(typed::TypedKey::KEY_CAP_R):
+        return "renamed:    ";
+    case keyCode(typed::TypedKey::KEY_CAP_C):
+        return "copied:     ";
+    case keyCode(typed::TypedKey::KEY_CAP_M):
+    default:
+        return "modified:   ";
+    }
 }
 
-void append_diff_line(std::string& output, const Editor& editor,
-                      const std::string& line)
+std::string unstaged_label(char status)
 {
-    if(editor.gitUseDefaultColors)
+    switch(status)
     {
-        output += line;
-        output += editor.theme.reset();
-        return;
+    case keyCode(typed::TypedKey::KEY_CAP_D):
+        return "deleted:    ";
+    case keyCode(typed::TypedKey::KEY_CAP_M):
+    default:
+        return "modified:   ";
     }
-
-    if(line.rfind("diff --git", 0) == 0 || line.rfind("--- ", 0) == 0 ||
-       line.rfind("+++ ", 0) == 0)
-    {
-        output += editor.theme.uiAccent();
-    }
-    else if(line.rfind("index ", 0) == 0 || line.rfind("commit ", 0) == 0)
-    {
-        output += editor.theme.uiDim();
-    }
-    else if(line.rfind("@@ ", 0) == 0)
-    {
-        output += editor.theme.uiInfo();
-    }
-    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
-    {
-        output += editor.theme.uiSuccess();
-    }
-    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
-    {
-        output += editor.theme.uiError();
-    }
-    else
-    {
-        output += editor.theme.baseFg();
-    }
-
-    output += line;
-    output += editor.theme.reset();
-}
-
-std::vector<std::string> split_path(const std::string& path)
-{
-    std::vector<std::string> parts;
-    size_t pos = 0;
-    while(pos < path.size())
-    {
-        size_t next = path.find(keyCode(command::CommandKey::KEY_SLASH), pos);
-        if(next == std::string::npos)
-            next = path.size();
-        if(next > pos)
-            parts.push_back(path.substr(pos, next - pos));
-        pos = next + 1;
-    }
-    return parts;
-}
-
-std::string utf8PrefixByWidth(std::string_view text, int maxWidth)
-{
-    if(maxWidth <= 0)
-        return "";
-    int width = 0;
-    int pos = 0;
-    while(pos < (int)text.size())
-    {
-        int next = text_utils::nextUtf8CharStart(text, pos);
-        int charWidth =
-            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
-        if(width + charWidth > maxWidth)
-            break;
-        width += charWidth;
-        pos = next;
-    }
-    return std::string(text.substr(0, pos));
-}
-
-std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
-{
-    if(maxWidth <= 0)
-        return "";
-    int width = 0;
-    int pos = (int)text.size();
-    while(pos > 0)
-    {
-        int prev = text_utils::prevUtf8CharStart(text, pos);
-        int charWidth =
-            text_utils::utf8DisplayWidth(text.substr(prev, pos - prev));
-        if(width + charWidth > maxWidth)
-            break;
-        width += charWidth;
-        pos = prev;
-    }
-    return std::string(text.substr(pos));
 }
 
 std::string git_stage_help_text()
 {
-    return "  [space: toggle/stage] [m: mark fixup] [g f: fixup] "
-           "[u: untracked] [b: both] [c: changed] [h/l: fold] "
-           "[enter: open] [r: refresh] [q/esc: close] [ctrl-h/l: pan]";
+    return "  [space: stage/unstage] [j/k: move files] [enter: open] "
+           "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -299,7 +215,8 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
         if(text[i] == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
         {
             size_t start = i;
-            size_t end = text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
+            size_t end =
+                text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
             if(end == std::string::npos)
             {
                 tokens.emplace_back(text.substr(start));
@@ -348,114 +265,72 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
     return lines;
 }
 
-int git_stage_content_rows(int screenRows, int screenCols)
+int git_stage_content_rows(int screenRows, int helpRows)
 {
     const int headerRows = 1;
     const int statusRows = 1;
-    const int messageRows = 1;
-    // Keep stage layout aligned with other modes; stage view starts lower.
-    const int stageViewportCompensation = 2;
-    int helpRows = (int)wrap_help(git_stage_help_text(), screenCols).size();
-    return std::max(0, screenRows - headerRows - helpRows - statusRows -
-                           messageRows + stageViewportCompensation);
+    return std::max(0, screenRows - headerRows - helpRows - statusRows);
 }
 
-bool is_ansi_start(std::string_view text, size_t i)
+std::string utf8PrefixByWidth(std::string_view text, int maxWidth)
 {
-    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == keyCode(command::CommandKey::KEY_LEFT_BRACKET);
-}
-
-size_t skip_ansi(std::string_view text, size_t i)
-{
-    i += 2;
-    while(i < text.size())
-    {
-        char c = text[i++];
-        if((c >= keyCode(typed::TypedKey::KEY_CAP_A) && c <= keyCode(typed::TypedKey::KEY_CAP_Z)) || (c >= keyCode(typed::TypedKey::KEY_A) && c <= keyCode(typed::TypedKey::KEY_Z)))
-            break;
-    }
-    return i;
-}
-
-int max_diff_width(const std::vector<std::string>& lines, bool useDefaultColors)
-{
-    int maxW = 0;
-    for(const auto& line : lines)
-    {
-        int w = useDefaultColors ? text_utils::displayWidth(line)
-                                 : text_utils::utf8DisplayWidth(line);
-        if(w > maxW)
-            maxW = w;
-    }
-    return maxW;
-}
-
-std::string slice_plain(std::string_view text, int startCol, int width)
-{
-    if(width <= 0 || text.empty())
+    if(maxWidth <= 0)
         return "";
-    if(startCol < 0)
-        startCol = 0;
-
-    std::string out;
-    int col = 0;
+    int width = 0;
     int pos = 0;
     while(pos < (int)text.size())
     {
         int next = text_utils::nextUtf8CharStart(text, pos);
-        int w = text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
-        if(col + w <= startCol)
-        {
-            col += w;
-            pos = next;
-            continue;
-        }
-        if(col >= startCol + width)
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(width + charWidth > maxWidth)
             break;
-        if(col >= startCol && col + w <= startCol + width)
-            out.append(text.substr(pos, next - pos));
-        col += w;
+        width += charWidth;
         pos = next;
     }
-    return out;
+    return std::string(text.substr(0, pos));
 }
 
-std::string slice_with_ansi(std::string_view text, int startCol, int width)
+std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
 {
-    if(width <= 0 || text.empty())
+    if(maxWidth <= 0)
         return "";
-    if(startCol < 0)
-        startCol = 0;
-
-    std::string out;
-    int col = 0;
-    size_t i = 0;
-    while(i < text.size())
+    int width = 0;
+    int pos = (int)text.size();
+    while(pos > 0)
     {
-        if(is_ansi_start(text, i))
-        {
-            size_t end = skip_ansi(text, i);
-            out.append(text.substr(i, end - i));
-            i = end;
-            continue;
-        }
-
-        int next = text_utils::nextUtf8CharStart(text, (int)i);
-        int w = text_utils::utf8DisplayWidth(text.substr(i, next - (int)i));
-        if(col + w <= startCol)
-        {
-            col += w;
-            i = next;
-            continue;
-        }
-        if(col >= startCol + width)
+        int prev = text_utils::prevUtf8CharStart(text, pos);
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(prev, pos - prev));
+        if(width + charWidth > maxWidth)
             break;
-        if(col >= startCol && col + w <= startCol + width)
-            out.append(text.substr(i, next - (int)i));
-        col += w;
-        i = next;
+        width += charWidth;
+        pos = prev;
     }
-    return out;
+    return std::string(text.substr(pos));
+}
+
+std::string bg_rgb(int r, int g, int b)
+{
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm", r, g, b);
+    return buf;
+}
+
+std::string status_path_bg(GitStageMode::FileGroup group)
+{
+    switch(group)
+    {
+    case GitStageMode::FileGroup::Staged:
+        return bg_rgb(24, 64, 36);
+    case GitStageMode::FileGroup::Unstaged:
+        return bg_rgb(78, 26, 26);
+    case GitStageMode::FileGroup::Untracked:
+        return bg_rgb(42, 42, 42);
+    case GitStageMode::FileGroup::None:
+    default:
+        return "";
+    }
 }
 } // namespace
 
@@ -466,48 +341,45 @@ GitStageMode::GitStageMode(std::vector<Node> items, std::string root,
 {
 }
 
-void GitStageMode::rebuildVisible()
+int GitStageMode::selectedRowIndex() const
 {
-    visible.clear();
-    if(nodes.empty())
-        return;
-
-    auto walk = [&](auto&& self, int nodeId, int depth) -> void
-    {
-        const Node& node = nodes[nodeId];
-        visible.push_back({nodeId, depth});
-        if(!node.isDir || !node.expanded)
-            return;
-        for(int child : node.children)
-        {
-            self(self, child, depth + 1);
-        }
-    };
-
-    for(int child : nodes[0].children)
-    {
-        walk(walk, child, 0);
-    }
+    if(cursor < 0 || cursor >= (int)fileRows.size())
+        return -1;
+    return fileRows[cursor];
 }
 
-int GitStageMode::visibleIndexForNode(int nodeId) const
+void GitStageMode::clampCursor()
 {
-    for(size_t i = 0; i < visible.size(); ++i)
+    if(fileRows.empty())
     {
-        if(visible[i].node == nodeId)
-            return (int)i;
+        cursor = 0;
+        offset = 0;
+        return;
     }
-    return -1;
+    cursor = std::clamp(cursor, 0, (int)fileRows.size() - 1);
+}
+
+void GitStageMode::keepCursorVisible(const Editor& editor)
+{
+    auto helpLines = wrap_help(git_stage_help_text(), editor.screenCols);
+    int contentRows =
+        git_stage_content_rows(editor.screenRows, (int)helpLines.size());
+    int rowIndex = selectedRowIndex();
+    if(rowIndex < 0)
+    {
+        offset = 0;
+        return;
+    }
+    if(rowIndex < offset)
+        offset = rowIndex;
+    else if(rowIndex >= offset + contentRows)
+        offset = rowIndex - contentRows + 1;
+    offset = std::clamp(offset, 0, std::max(0, (int)rows.size() - contentRows));
 }
 
 void GitStageMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
-    cursor = std::clamp(cursor, 0, (int)visible.size());
-    offset = 0;
-    diffOffset = 0;
-    diffHorizontalOffset = 0;
-    diffDirty = true;
 
     char cwd[PATH_MAX];
     if(getcwd(cwd, sizeof(cwd)))
@@ -521,29 +393,19 @@ void GitStageMode::on_enter(ModeContext& ctx)
         if(root.empty())
         {
             ctx.setStatusMessage("git stage: not a repo");
-            nodes.clear();
-            visible.clear();
-            diffLines = {"(not a repo)"};
-            diffDirty = false;
+            rows.clear();
+            fileRows.clear();
             ctx.requestFullRedraw();
             return;
         }
-
         repoRoot = root;
         repoDir = root;
     }
 
     if(viewRoot.empty())
-    {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            viewRoot = cwd;
-        else
-            viewRoot = repoRoot;
-    }
+        viewRoot = repoRoot;
 
     refreshStatus(*ed);
-    refreshDiff(*ed);
     ctx.requestFullRedraw();
 }
 
@@ -557,328 +419,154 @@ bool GitStageMode::refreshStatus(Editor& editor)
     if(repoDir.empty())
         return false;
 
-    std::error_code ec;
-    std::filesystem::path repoPath = std::filesystem::path(repoRoot);
-    std::filesystem::path viewPath = std::filesystem::absolute(viewRoot, ec);
-    if(ec)
-        viewPath = std::filesystem::path(viewRoot);
-
-    std::filesystem::path relView =
-        std::filesystem::relative(viewPath, repoPath, ec);
-    if(ec)
+    std::string previousPath;
+    FileGroup previousGroup = FileGroup::None;
+    int previousRow = selectedRowIndex();
+    if(previousRow >= 0 && previousRow < (int)rows.size())
     {
-        editor.setStatusMessage("git stage: outside repo");
-        nodes.clear();
-        visible.clear();
-        diffLines = {"(outside repo)"};
-        diffDirty = false;
-        return false;
+        previousPath = rows[previousRow].path;
+        previousGroup = rows[previousRow].group;
     }
 
-    std::string relViewStr = normalize_repo_path(relView.string());
-    if(relViewStr == ".")
-        relViewStr.clear();
-    if(!relViewStr.empty() && relViewStr.rfind("..", 0) == 0)
-    {
-        editor.setStatusMessage("git stage: outside repo");
-        nodes.clear();
-        visible.clear();
-        diffLines = {"(outside repo)"};
-        diffDirty = false;
-        return false;
-    }
+    rows.clear();
+    fileRows.clear();
 
     std::string statusCmd =
         "git -C \"" + repoDir + "\" status --porcelain -z 2>/dev/null";
-    std::string statusRaw = run_git_raw(statusCmd);
-    auto statusMap = parse_status_z(statusRaw);
+    std::vector<StatusEntry> entries =
+        parse_status_porcelain_z(run_git_raw(statusCmd));
 
-    std::string lsCmd = "git -C \"" + repoDir + "\" ls-files -z";
-    if(!relViewStr.empty())
-        lsCmd += " -- \"" + relViewStr + "\"";
-    lsCmd += " 2>/dev/null";
-    std::string lsRaw = run_git_raw(lsCmd);
-    auto tracked = split_nul(lsRaw);
-    for(auto& t : tracked)
-        t = normalize_repo_path(t);
-
-    std::vector<std::string> untracked;
-    if(untrackedMode != UntrackedMode::TrackedOnly)
+    std::unordered_set<std::string> validPaths;
+    for(const auto& entry : entries)
+        validPaths.insert(entry.path);
+    for(auto it = fixupMarked.begin(); it != fixupMarked.end();)
     {
-        std::string untrackedCmd = "git -C \"" + repoDir +
-                                   "\" ls-files -z --others --exclude-standard";
-        if(!relViewStr.empty())
-            untrackedCmd += " -- \"" + relViewStr + "\"";
-        untrackedCmd += " 2>/dev/null";
-        std::string untrackedRaw = run_git_raw(untrackedCmd);
-        untracked = split_nul(untrackedRaw);
-        for(auto& u : untracked)
-            u = normalize_repo_path(u);
+        if(validPaths.find(*it) == validPaths.end())
+            it = fixupMarked.erase(it);
+        else
+            ++it;
     }
 
-    std::unordered_map<std::string, bool> prevExpanded;
-    for(size_t i = 0; i < nodes.size(); ++i)
+    std::vector<StatusEntry> stagedEntries;
+    std::vector<StatusEntry> unstagedEntries;
+    std::vector<StatusEntry> untrackedEntries;
+    for(const auto& entry : entries)
     {
-        if(nodes[i].isDir)
+        if(is_untracked(entry))
         {
-            std::string key = nodes[i].repoPath;
-            prevExpanded[key] = nodes[i].expanded;
+            untrackedEntries.push_back(entry);
+            continue;
         }
+        if(has_staged(entry))
+            stagedEntries.push_back(entry);
+        if(has_unstaged(entry))
+            unstagedEntries.push_back(entry);
     }
 
-    nodes.clear();
-    visible.clear();
+    std::sort(stagedEntries.begin(), stagedEntries.end(),
+              [](const StatusEntry& a, const StatusEntry& b)
+              { return a.path < b.path; });
+    std::sort(unstagedEntries.begin(), unstagedEntries.end(),
+              [](const StatusEntry& a, const StatusEntry& b)
+              { return a.path < b.path; });
+    std::sort(untrackedEntries.begin(), untrackedEntries.end(),
+              [](const StatusEntry& a, const StatusEntry& b)
+              { return a.path < b.path; });
 
-    nodes.push_back(Node{"", "", true, true, keyCode(control::ControlKey::SPACE), keyCode(control::ControlKey::SPACE), {}}); // root
-
-    std::unordered_map<std::string, int> dirIndex;
-    dirIndex[""] = 0;
-
-    std::unordered_set<std::string> seenFiles;
-    auto add_file_node = [&](const std::string& repoFileRaw)
+    auto add_row = [&](StatusRow row)
     {
-        std::string repoFile = normalize_repo_path(repoFileRaw);
-        if(repoFile.empty())
-            return;
-        if(!seenFiles.emplace(repoFile).second)
-            return;
-
-        std::string displayPath = repoFile;
-        if(!relViewStr.empty())
-        {
-            if(displayPath.rfind(relViewStr + "/", 0) != 0)
-                return;
-            displayPath = displayPath.substr(relViewStr.size() + 1);
-        }
-        displayPath = normalize_repo_path(displayPath);
-        if(displayPath.empty())
-            return;
-
-        auto parts = split_path(displayPath);
-        std::string dirKey;
-        int parent = 0;
-        for(size_t i = 0; i + 1 < parts.size(); ++i)
-        {
-            if(!dirKey.empty())
-                dirKey += "/";
-            dirKey += parts[i];
-            auto it = dirIndex.find(dirKey);
-            if(it == dirIndex.end())
-            {
-                Node node;
-                node.name = parts[i];
-                node.repoPath =
-                    relViewStr.empty() ? dirKey : relViewStr + "/" + dirKey;
-                node.isDir = true;
-                node.expanded = false;
-                auto prev = prevExpanded.find(node.repoPath);
-                if(prev != prevExpanded.end())
-                    node.expanded = prev->second;
-                int idx = (int)nodes.size();
-                nodes.push_back(std::move(node));
-                nodes[parent].children.push_back(idx);
-                dirIndex[dirKey] = idx;
-                parent = idx;
-            }
-            else
-            {
-                parent = it->second;
-            }
-        }
-
-        Node fileNode;
-        fileNode.name = parts.back();
-        fileNode.repoPath = repoFile;
-        fileNode.isDir = false;
-        auto statusIt = statusMap.find(repoFile);
-        if(statusIt != statusMap.end())
-        {
-            fileNode.indexStatus = statusIt->second.indexStatus;
-            fileNode.worktreeStatus = statusIt->second.worktreeStatus;
-        }
-        int idx = (int)nodes.size();
-        nodes.push_back(std::move(fileNode));
-        nodes[parent].children.push_back(idx);
+        if(row.kind == RowKind::File)
+            fileRows.push_back((int)rows.size());
+        rows.push_back(std::move(row));
     };
 
-    if(showChangedOnly)
+    std::string branch = git_branch_name(repoDir);
+    if(!branch.empty())
+        add_row({RowKind::Header, FileGroup::None, "On branch " + branch, ""});
+
+    if(entries.empty())
     {
-        for(const auto& kv : statusMap)
-        {
-            bool isUntracked =
-                kv.second.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) && kv.second.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
-            if(untrackedMode == UntrackedMode::TrackedOnly && isUntracked)
-                continue;
-            if(untrackedMode == UntrackedMode::UntrackedOnly && !isUntracked)
-                continue;
-            add_file_node(kv.first);
-        }
+        add_row({RowKind::Blank, FileGroup::None, "", ""});
+        add_row(
+            {RowKind::Summary, FileGroup::None, "nothing to commit, working tree clean", ""});
     }
     else
     {
-        if(untrackedMode != UntrackedMode::UntrackedOnly)
+        if(!stagedEntries.empty())
         {
-            for(const auto& repoFile : tracked)
-                add_file_node(repoFile);
-        }
-        if(untrackedMode != UntrackedMode::TrackedOnly)
-        {
-            for(const auto& repoFile : untracked)
-                add_file_node(repoFile);
-        }
-    }
-
-    if(!nodes.empty())
-    {
-        auto expand_path = [&](const std::string& repoFileRaw)
-        {
-            std::string repoFile = normalize_repo_path(repoFileRaw);
-            if(repoFile.empty())
-                return;
-            std::string displayPath = repoFile;
-            if(!relViewStr.empty())
+            add_row({RowKind::Blank, FileGroup::None, "", ""});
+            add_row({RowKind::Header, FileGroup::None,
+                     "Changes to be committed:", ""});
+            add_row({RowKind::Hint, FileGroup::None,
+                     "  (use \"git restore --staged <file>...\" to unstage)",
+                     ""});
+            for(const auto& entry : stagedEntries)
             {
-                if(displayPath.rfind(relViewStr + "/", 0) != 0)
-                    return;
-                displayPath = displayPath.substr(relViewStr.size() + 1);
+                add_row({RowKind::File, FileGroup::Staged,
+                         "        " + staged_label(entry.indexStatus),
+                         entry.path, entry.indexStatus, entry.worktreeStatus});
             }
-            displayPath = normalize_repo_path(displayPath);
-            if(displayPath.empty())
-                return;
-            auto parts = split_path(displayPath);
-            std::string dirKey;
-            for(size_t i = 0; i + 1 < parts.size(); ++i)
+        }
+
+        if(!unstagedEntries.empty())
+        {
+            add_row({RowKind::Blank, FileGroup::None, "", ""});
+            add_row({RowKind::Header, FileGroup::None,
+                     "Changes not staged for commit:", ""});
+            add_row({RowKind::Hint, FileGroup::None,
+                     "  (use \"git add <file>...\" to update what will be committed)",
+                     ""});
+            add_row({RowKind::Hint, FileGroup::None,
+                     "  (use \"git restore <file>...\" to discard changes in working directory)",
+                     ""});
+            for(const auto& entry : unstagedEntries)
             {
-                if(!dirKey.empty())
-                    dirKey += "/";
-                dirKey += parts[i];
-                auto it = dirIndex.find(dirKey);
-                if(it != dirIndex.end())
-                    nodes[it->second].expanded = true;
+                add_row({RowKind::File, FileGroup::Unstaged,
+                         "        " + unstaged_label(entry.worktreeStatus),
+                         entry.path, entry.indexStatus, entry.worktreeStatus});
             }
-        };
+        }
 
-        for(const auto& kv : statusMap)
+        if(!untrackedEntries.empty())
         {
-            bool isUntracked =
-                kv.second.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) && kv.second.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
-            if(untrackedMode == UntrackedMode::TrackedOnly && isUntracked)
-                continue;
-            if(untrackedMode == UntrackedMode::UntrackedOnly && !isUntracked)
-                continue;
-            expand_path(kv.first);
+            add_row({RowKind::Blank, FileGroup::None, "", ""});
+            add_row({RowKind::Header, FileGroup::None, "Untracked files:", ""});
+            add_row({RowKind::Hint, FileGroup::None,
+                     "  (use \"git add <file>...\" to include in what will be committed)",
+                     ""});
+            for(const auto& entry : untrackedEntries)
+            {
+                add_row({RowKind::File, FileGroup::Untracked, "        ",
+                         entry.path, entry.indexStatus, entry.worktreeStatus});
+            }
         }
     }
 
-    rebuildVisible();
+    clampCursor();
+    if(!previousPath.empty())
     {
-        std::unordered_set<std::string> valid;
-        for(const auto& node : nodes)
+        for(size_t i = 0; i < fileRows.size(); ++i)
         {
-            if(!node.isDir && !node.repoPath.empty())
-                valid.insert(node.repoPath);
-        }
-        for(auto it = fixupMarked.begin(); it != fixupMarked.end();)
-        {
-            if(valid.find(*it) == valid.end())
-                it = fixupMarked.erase(it);
-            else
-                ++it;
+            const StatusRow& row = rows[fileRows[i]];
+            if(row.path == previousPath && row.group == previousGroup)
+            {
+                cursor = (int)i;
+                break;
+            }
         }
     }
-    cursor = std::clamp(cursor, 0, std::max(0, (int)visible.size() - 1));
-    int visibleRows =
-        git_stage_content_rows(editor.screenRows, editor.screenCols);
-    offset =
-        std::clamp(offset, 0, std::max(0, (int)visible.size() - visibleRows));
-    diffDirty = true;
+    clampCursor();
+    keepCursorVisible(editor);
     return true;
 }
 
-void GitStageMode::refreshDiff(Editor& editor)
-{
-    if(!diffDirty)
-        return;
-
-    diffLines.clear();
-    diffOffset = 0;
-    diffHorizontalOffset = 0;
-    diffPath.clear();
-    diffStaged = false;
-
-    if(visible.empty())
-    {
-        diffLines.push_back("(clean)");
-        diffDirty = false;
-        return;
-    }
-
-    cursor = std::clamp(cursor, 0, (int)visible.size() - 1);
-    const Node& node = nodes[visible[cursor].node];
-
-    if(node.isDir)
-    {
-        diffLines.push_back("(directory)");
-        diffDirty = false;
-        return;
-    }
-
-    diffPath = node.repoPath;
-    StatusEntry status{node.indexStatus, node.worktreeStatus};
-
-    if(is_untracked(status))
-    {
-        diffLines.push_back("(untracked file)");
-        diffDirty = false;
-        return;
-    }
-
-    bool useUnstaged = has_unstaged(status);
-    bool useStaged = !useUnstaged && has_staged(status);
-    diffStaged = useStaged;
-
-    std::string cacheKey =
-        node.repoPath + (useStaged ? "|staged" : "|unstaged");
-    auto cacheIt = diffCache.find(cacheKey);
-    if(cacheIt != diffCache.end())
-    {
-        diffLines = cacheIt->second;
-        diffDirty = false;
-        return;
-    }
-
-    std::string cmd = "git -C \"" + repoDir + "\" --no-pager diff ";
-    if(useStaged)
-        cmd += "--cached ";
-    cmd += std::string(editor.gitUseDefaultColors ? "--color=always "
-                                                  : "--no-color ");
-    cmd += "-- \"" + node.repoPath + "\" 2>/dev/null";
-
-    std::string raw = run_git_raw(cmd);
-    diffLines = split_lines(raw);
-    if(diffLines.empty())
-        diffLines.push_back("(no diff)");
-
-    diffCache.emplace(cacheKey, diffLines);
-    diffCacheOrder.push_back(cacheKey);
-    constexpr size_t kDiffCacheMax = 64;
-    if(diffCacheOrder.size() > kDiffCacheMax)
-    {
-        const std::string& oldest = diffCacheOrder.front();
-        diffCache.erase(oldest);
-        diffCacheOrder.erase(diffCacheOrder.begin());
-    }
-
-    diffDirty = false;
-}
-
-std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
-                                              int key)
+std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
@@ -902,103 +590,20 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_R))
     {
         refreshStatus(*ed);
-        refreshDiff(*ed);
         ed->needsFullRedraw = true;
         return std::nullopt;
     }
 
     if(c == keyCode(typed::TypedKey::KEY_M))
     {
-        if(cursor >= 0 && cursor < (int)visible.size())
+        int rowIndex = selectedRowIndex();
+        if(rowIndex >= 0 && rowIndex < (int)rows.size())
         {
-            int nodeId = visible[cursor].node;
-            const Node& node = nodes[nodeId];
-            if(!node.isDir)
-            {
-                if(fixupMarked.find(node.repoPath) == fixupMarked.end())
-                    fixupMarked.insert(node.repoPath);
-                else
-                    fixupMarked.erase(node.repoPath);
-                ed->needsFullRedraw = true;
-            }
-        }
-        return std::nullopt;
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_C))
-    {
-        showChangedOnly = !showChangedOnly;
-        refreshStatus(*ed);
-        refreshDiff(*ed);
-        ed->needsFullRedraw = true;
-        return std::nullopt;
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_U))
-    {
-        if(untrackedMode == UntrackedMode::UntrackedOnly)
-            untrackedMode = UntrackedMode::TrackedOnly;
-        else
-            untrackedMode = UntrackedMode::UntrackedOnly;
-        refreshStatus(*ed);
-        refreshDiff(*ed);
-        ed->needsFullRedraw = true;
-        return std::nullopt;
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_B))
-    {
-        if(untrackedMode == UntrackedMode::Both)
-            untrackedMode = UntrackedMode::TrackedOnly;
-        else
-            untrackedMode = UntrackedMode::Both;
-        refreshStatus(*ed);
-        refreshDiff(*ed);
-        ed->needsFullRedraw = true;
-        return std::nullopt;
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_H) || c == keyCode(typed::TypedKey::KEY_L))
-    {
-        if(cursor >= 0 && cursor < (int)visible.size())
-        {
-            int nodeId = visible[cursor].node;
-            if(nodes[nodeId].isDir)
-            {
-                if(c == keyCode(typed::TypedKey::KEY_H) && nodes[nodeId].expanded)
-                {
-                    nodes[nodeId].expanded = false;
-                    rebuildVisible();
-                    int newIndex = visibleIndexForNode(nodeId);
-                    if(newIndex >= 0)
-                        cursor = newIndex;
-                }
-                else if(c == keyCode(typed::TypedKey::KEY_L) && !nodes[nodeId].expanded)
-                {
-                    nodes[nodeId].expanded = true;
-                    rebuildVisible();
-                    int newIndex = visibleIndexForNode(nodeId);
-                    if(newIndex >= 0)
-                        cursor = newIndex;
-                }
-            }
-            else if(c == keyCode(typed::TypedKey::KEY_H))
-            {
-                int depth = visible[cursor].depth;
-                for(int i = cursor - 1; i >= 0; --i)
-                {
-                    if(visible[i].depth < depth && nodes[visible[i].node].isDir)
-                    {
-                        nodes[visible[i].node].expanded = false;
-                        rebuildVisible();
-                        int newIndex = visibleIndexForNode(visible[i].node);
-                        if(newIndex >= 0)
-                            cursor = newIndex;
-                        break;
-                    }
-                }
-            }
-            diffDirty = true;
+            const std::string& path = rows[rowIndex].path;
+            if(fixupMarked.find(path) == fixupMarked.end())
+                fixupMarked.insert(path);
+            else
+                fixupMarked.erase(path);
             ed->needsFullRedraw = true;
         }
         return std::nullopt;
@@ -1006,126 +611,70 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
 
     if(c == keyCode(control::ControlKey::ENTER))
     {
-        if(cursor >= 0 && cursor < (int)visible.size())
+        int rowIndex = selectedRowIndex();
+        if(rowIndex >= 0 && rowIndex < (int)rows.size())
         {
-            const Node& node = nodes[visible[cursor].node];
-            if(!node.isDir)
+            std::string openPath = rows[rowIndex].path;
+            if(!repoRoot.empty() &&
+               !std::filesystem::path(openPath).is_absolute())
             {
-                std::string openPath = node.repoPath;
-                if(!repoRoot.empty() &&
-                   !std::filesystem::path(openPath).is_absolute())
-                {
-                    openPath =
-                        (std::filesystem::path(repoRoot) / openPath).string();
-                }
-                ed->openFile(openPath);
-                return NormalMode{};
+                openPath =
+                    (std::filesystem::path(repoRoot) / openPath).string();
             }
+            ed->openFile(openPath);
+            return NormalMode{};
         }
         return std::nullopt;
     }
 
     if(c == keyCode(control::ControlKey::SPACE))
     {
-        if(cursor >= 0 && cursor < (int)visible.size() && !repoDir.empty())
+        int rowIndex = selectedRowIndex();
+        if(rowIndex >= 0 && rowIndex < (int)rows.size() && !repoDir.empty())
         {
-            int nodeId = visible[cursor].node;
-            Node& node = nodes[nodeId];
-            if(node.isDir)
+            const StatusRow& row = rows[rowIndex];
+            std::string repoDirEsc = shell_escape_single(repoDir);
+            std::string pathEsc = shell_escape_single(row.path);
+            std::string cmd;
+            if(row.group == FileGroup::Staged)
             {
-                node.expanded = !node.expanded;
-                rebuildVisible();
-                int newIndex = visibleIndexForNode(nodeId);
-                if(newIndex >= 0)
-                    cursor = newIndex;
+                cmd = "git -C " + repoDirEsc +
+                      " restore --staged -- " + pathEsc + " 2>/dev/null";
             }
-            else
+            else if(row.group == FileGroup::Unstaged ||
+                    row.group == FileGroup::Untracked)
             {
-                StatusEntry status{node.indexStatus, node.worktreeStatus};
-                std::string cmd;
-                bool stagedUntracked = false;
-                if(has_unstaged(status) || is_untracked(status))
-                {
-                    cmd = "git -C \"" + repoDir + "\" add -- \"" +
-                          node.repoPath + "\" 2>/dev/null";
-                    stagedUntracked = is_untracked(status);
-                }
-                else if(has_staged(status))
-                {
-                    cmd = "git -C \"" + repoDir + "\" restore --staged -- \"" +
-                          node.repoPath + "\" 2>/dev/null";
-                }
-                if(!cmd.empty())
-                {
-                    std::system(cmd.c_str());
-                    if(stagedUntracked &&
-                       untrackedMode == UntrackedMode::UntrackedOnly)
-                    {
-                        untrackedMode = UntrackedMode::TrackedOnly;
-                    }
-                    refreshStatus(*ed);
-                    int newIndex = visibleIndexForNode(nodeId);
-                    if(newIndex >= 0)
-                        cursor = newIndex;
-                }
+                cmd = "git -C " + repoDirEsc + " add -- " + pathEsc +
+                      " 2>/dev/null";
             }
-            diffDirty = true;
-            ed->needsFullRedraw = true;
+
+            if(!cmd.empty())
+            {
+                std::system(cmd.c_str());
+                refreshStatus(*ed);
+                ed->needsFullRedraw = true;
+            }
         }
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        if(cursor < (int)visible.size() - 1)
+        if(cursor < (int)fileRows.size() - 1)
         {
-            cursor++;
-            int visibleRows =
-                git_stage_content_rows(ed->screenRows, ed->screenCols);
-            if(cursor >= offset + visibleRows)
-                offset = cursor - visibleRows + 1;
-            diffDirty = true;
-            lastCursorMove = std::chrono::steady_clock::now();
+            ++cursor;
+            keepCursorVisible(*ed);
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
-            cursor--;
-            if(cursor < offset)
-                offset = cursor;
-            diffDirty = true;
-            lastCursorMove = std::chrono::steady_clock::now();
+            --cursor;
+            keepCursorVisible(*ed);
         }
-    }
-    else if(c == keyCode(control::ControlKey::CTRL_J))
-    {
-        int maxScroll = std::max(
-            0, (int)diffLines.size() -
-                   git_stage_content_rows(ed->screenRows, ed->screenCols));
-        if(diffOffset < maxScroll)
-            diffOffset++;
-    }
-    else if(c == keyCode(control::ControlKey::CTRL_K))
-    {
-        if(diffOffset > 0)
-            diffOffset--;
-    }
-    else if(c == keyCode(control::ControlKey::CTRL_H) || c == keyCode(control::ControlKey::CTRL_L))
-    {
-        int listWidth = std::max(24, ed->screenCols / 3);
-        int diffWidth = ed->screenCols - listWidth - 1;
-        if(diffWidth < 10)
-            diffWidth = 0;
-        int viewWidth = std::max(0, diffWidth - 1);
-        int maxW = max_diff_width(diffLines, ed->gitUseDefaultColors);
-        int maxOffset = std::max(0, maxW - viewWidth);
-        if(c == keyCode(control::ControlKey::CTRL_H))
-            diffHorizontalOffset = std::max(0, diffHorizontalOffset - 1);
-        else
-            diffHorizontalOffset =
-                std::min(maxOffset, diffHorizontalOffset + 1);
     }
     else if(c == keyCode(typed::TypedKey::KEY_G))
     {
@@ -1133,9 +682,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
         if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
             cursor = 0;
-            offset = 0;
-            diffDirty = true;
-            lastCursorMove = std::chrono::steady_clock::now();
+            keepCursorVisible(*ed);
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_F))
         {
@@ -1154,14 +701,10 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
-        if(!visible.empty())
+        if(!fileRows.empty())
         {
-            cursor = std::max(0, (int)visible.size() - 1);
-            int visibleRows =
-                git_stage_content_rows(ed->screenRows, ed->screenCols);
-            offset = std::max(0, cursor - visibleRows + 1);
-            diffDirty = true;
-            lastCursorMove = std::chrono::steady_clock::now();
+            cursor = std::max(0, (int)fileRows.size() - 1);
+            keepCursorVisible(*ed);
         }
     }
 
@@ -1173,12 +716,10 @@ void GitStageMode::draw(Editor& editor) const
 {
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
-    auto* self = const_cast<GitStageMode*>(this);
-    if(self->diffDirty && !Terminal::hasBufferedKeys())
-        self->refreshDiff(editor);
 
-    std::string help = git_stage_help_text();
-    auto helpLines = wrap_help(help, editor.screenCols);
+    auto helpLines = wrap_help(git_stage_help_text(), editor.screenCols);
+    if(helpLines.empty())
+        helpLines.push_back("");
 
     output += Terminal::ESC_HIDE_CURSOR;
     output += Terminal::cursorPos(1, 1);
@@ -1189,14 +730,13 @@ void GitStageMode::draw(Editor& editor) const
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
     std::string header = "  GIT STAGE";
-    if(!viewRoot.empty())
-        header += " - " + viewRoot;
+    if(!repoRoot.empty())
+        header += " - " + repoRoot;
     output += header;
     output += editor.theme.reset();
+
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    if(helpLines.empty())
-        helpLines.push_back("");
     for(size_t i = 0; i < helpLines.size(); ++i)
     {
         output += helpLines[i];
@@ -1206,163 +746,118 @@ void GitStageMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     int contentRows =
-        git_stage_content_rows(editor.screenRows, editor.screenCols);
-    int listWidth = std::max(24, editor.screenCols / 3);
-    int diffWidth = editor.screenCols - listWidth - 1;
-    if(diffWidth < 10)
-    {
-        listWidth = editor.screenCols;
-        diffWidth = 0;
-    }
-    int diffViewWidth = std::max(0, diffWidth - 1);
-    int maxDiffW = max_diff_width(diffLines, editor.gitUseDefaultColors);
-    int maxDiffOffset = std::max(0, maxDiffW - diffViewWidth);
-    int hOff = std::min(diffHorizontalOffset, maxDiffOffset);
-
-    for(int row = 0; row < contentRows; ++row)
+        git_stage_content_rows(editor.screenRows, (int)helpLines.size());
+    int selected = selectedRowIndex();
+    for(int screenRow = 0; screenRow < contentRows; ++screenRow)
     {
         output += Terminal::NEWLINE_CLEAR;
-        int idx = offset + row;
-        if(idx >= 0 && idx < (int)visible.size())
-        {
-            const VisibleEntry& vis = visible[idx];
-            const Node& node = nodes[vis.node];
-            bool isSelected = (idx == cursor);
-            if(isSelected)
-                output += editor.theme.selection();
-
-            std::string status = "  ";
-            StatusEntry entry{node.indexStatus, node.worktreeStatus};
-            if(!node.isDir)
-            {
-                status[0] = entry.indexStatus;
-                status[1] = entry.worktreeStatus;
-            }
-
-            std::string mark = " ";
-            if(!node.isDir &&
-               fixupMarked.find(node.repoPath) != fixupMarked.end())
-                mark = "*";
-
-            std::string name = node.name;
-            if(node.isDir && name != "..")
-                name += "/";
-
-            std::string indent;
-            for(int i = 0; i < vis.depth; ++i)
-                indent += "  ";
-            std::string marker =
-                node.isDir ? (node.expanded ? ascii::utf8(ascii::DISCLOSURE_DOWN)
-                                            : ascii::utf8(ascii::DISCLOSURE_RIGHT))
-                           : "  ";
-            std::string icon =
-                node.isDir ? ascii::utf8(ascii::FOLDER_ICON)
-                           : ascii::utf8(ascii::FILE_ICON);
-
-            std::string path = indent + marker + icon + name;
-            const int nonPathWidth = 1 + 2 + 1 + 1;
-            int maxPathWidth = std::max(0, listWidth - nonPathWidth);
-            int pathWidth = text_utils::utf8DisplayWidth(path);
-            if(pathWidth > maxPathWidth)
-            {
-                if(maxPathWidth > 3)
-                {
-                    std::string tail =
-                        utf8SuffixByWidth(path, maxPathWidth - 3);
-                    path = "..." + tail;
-                }
-                else
-                {
-                    path = utf8PrefixByWidth(path, maxPathWidth);
-                }
-            }
-
-            output += " ";
-            if(node.isDir)
-            {
-                output += editor.theme.uiDirectory();
-            }
-            else
-            {
-                if(entry.indexStatus != keyCode(control::ControlKey::SPACE) || entry.worktreeStatus != keyCode(control::ControlKey::SPACE))
-                    output += status_color(editor.theme, entry);
-                else
-                    output += editor.theme.baseFg();
-            }
-            output += status;
-            output += mark;
-            if(node.isDir)
-            {
-                output += editor.theme.uiDirectory();
-                output += Terminal::ESC_BOLD;
-            }
-            else
-            {
-                if(entry.indexStatus != keyCode(control::ControlKey::SPACE) || entry.worktreeStatus != keyCode(control::ControlKey::SPACE))
-                    output += status_color(editor.theme, entry);
-                else
-                    output += editor.theme.baseFg();
-            }
-            output += " ";
-            output += path;
-            int used = nonPathWidth + text_utils::utf8DisplayWidth(path);
-            if(used < listWidth)
-                output.append(listWidth - used, keyCode(control::ControlKey::SPACE));
-            output += editor.theme.reset();
-        }
-        else
+        output += editor.theme.base();
+        int rowIndex = offset + screenRow;
+        if(rowIndex < 0 || rowIndex >= (int)rows.size())
         {
             output += editor.theme.uiGutter();
             output += "~";
             output += editor.theme.baseFg();
-            if(listWidth > 1)
-                output.append(listWidth - 1, keyCode(control::ControlKey::SPACE));
+            if(editor.screenCols > 1)
+                output.append(editor.screenCols - 1, ' ');
+            continue;
         }
 
-        if(diffWidth > 0)
+        const StatusRow& row = rows[rowIndex];
+        bool isSelected = rowIndex == selected;
+
+        if(row.kind == RowKind::Blank)
         {
-            output += editor.theme.uiGutter();
-            output += "|";
-            output += editor.theme.baseFg();
-            int diffIdx = diffOffset + row;
-            if(diffIdx >= 0 && diffIdx < (int)diffLines.size())
-            {
-                output += " ";
-                if(editor.gitUseDefaultColors)
-                {
-                    output += slice_with_ansi(diffLines[diffIdx], hOff,
-                                              diffViewWidth);
-                    output += editor.theme.reset();
-                }
-                else
-                {
-                    std::string sliced =
-                        slice_plain(diffLines[diffIdx], hOff, diffViewWidth);
-                    append_diff_line(output, editor, sliced);
-                }
-            }
-            else
-            {
-                output += editor.theme.uiGutter();
-                output += " ~";
-                output += editor.theme.baseFg();
-            }
+            output.append(editor.screenCols, ' ');
+            continue;
         }
 
-        // NEWLINE_CLEAR already emitted at row start.
+        if(row.kind == RowKind::Header)
+        {
+            output += editor.theme.baseFg();
+            output += row.prefix;
+            int used = text_utils::utf8DisplayWidth(row.prefix);
+            if(used < editor.screenCols)
+            {
+                output += editor.theme.base();
+                output.append(editor.screenCols - used, ' ');
+            }
+            continue;
+        }
+
+        if(row.kind == RowKind::Hint)
+        {
+            output += editor.theme.uiDim();
+            output += row.prefix;
+            output += editor.theme.baseFg();
+            int used = text_utils::utf8DisplayWidth(row.prefix);
+            if(used < editor.screenCols)
+            {
+                output += editor.theme.base();
+                output.append(editor.screenCols - used, ' ');
+            }
+            continue;
+        }
+
+        if(row.kind == RowKind::Summary)
+        {
+            output += editor.theme.uiDim();
+            output += row.prefix;
+            output += editor.theme.baseFg();
+            int used = text_utils::utf8DisplayWidth(row.prefix);
+            if(used < editor.screenCols)
+            {
+                output += editor.theme.base();
+                output.append(editor.screenCols - used, ' ');
+            }
+            continue;
+        }
+
+        std::string prefix = row.prefix;
+        if(fixupMarked.find(row.path) != fixupMarked.end() && prefix.size() >= 8)
+            prefix[7] = '*';
+
+        int prefixWidth = text_utils::utf8DisplayWidth(prefix);
+        int available = std::max(0, editor.screenCols - prefixWidth);
+        std::string path = row.path;
+        int pathWidth = text_utils::utf8DisplayWidth(path);
+        if(pathWidth > available)
+        {
+            if(available > 3)
+                path = "..." + utf8SuffixByWidth(path, available - 3);
+            else
+                path = utf8PrefixByWidth(path, available);
+            pathWidth = text_utils::utf8DisplayWidth(path);
+        }
+
+        output += editor.theme.baseFg();
+        output += prefix;
+
+        if(isSelected)
+            output += editor.theme.searchMatch();
+        else
+            output += status_path_bg(row.group) + editor.theme.baseFg();
+        output += path;
+        output += editor.theme.base();
+
+        int used = prefixWidth + pathWidth;
+        if(used < editor.screenCols)
+            output.append(editor.screenCols - used, ' ');
     }
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
     std::string status = " GIT STAGE";
-    if(!viewRoot.empty())
-        status += " | " + viewRoot;
-    std::string right = " " + std::to_string(visible.empty() ? 0 : cursor + 1) +
-                        "/" + std::to_string(visible.size()) + " ";
+    if(!repoRoot.empty())
+        status += " | " + repoRoot;
+    std::string right =
+        " " + std::to_string(fileRows.size()) + " files ";
     output += status;
-    int padding = editor.screenCols - status.length() - right.length();
+    int statusWidth = text_utils::utf8DisplayWidth(status);
+    int rightWidth = text_utils::utf8DisplayWidth(right);
+    int padding = editor.screenCols - statusWidth - rightWidth;
     if(padding > 0)
-        output.append(padding, keyCode(control::ControlKey::SPACE));
+        output.append(padding, ' ');
     output += right;
     output += editor.theme.reset();
 
@@ -1382,6 +877,7 @@ void GitStageMode::draw(Editor& editor) const
 #ifdef UVIM_TESTING
 int GitStageMode::testContentRows(int screenRows, int screenCols)
 {
-    return git_stage_content_rows(screenRows, screenCols);
+    return git_stage_content_rows(
+        screenRows, (int)wrap_help(git_stage_help_text(), screenCols).size());
 }
 #endif

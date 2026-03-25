@@ -954,8 +954,37 @@ struct GitStageMode
         int depth = 0;
     };
 
+    enum class RowKind
+    {
+        Header,
+        Hint,
+        File,
+        Blank,
+        Summary
+    };
+
+    enum class FileGroup
+    {
+        None,
+        Staged,
+        Unstaged,
+        Untracked
+    };
+
+    struct StatusRow
+    {
+        RowKind kind = RowKind::Blank;
+        FileGroup group = FileGroup::None;
+        std::string prefix;
+        std::string path;
+        char indexStatus = ' ';
+        char worktreeStatus = ' ';
+    };
+
     std::vector<Node> nodes;
     std::vector<VisibleEntry> visible;
+    std::vector<StatusRow> rows;
+    std::vector<int> fileRows;
     std::vector<std::string> diffLines;
     std::string repoRoot;
     std::string repoDir;
@@ -1000,10 +1029,10 @@ struct GitStageMode
 #endif
 
 private:
-    void refreshDiff(Editor& editor);
     bool refreshStatus(Editor& editor);
-    void rebuildVisible();
-    int visibleIndexForNode(int nodeId) const;
+    void clampCursor();
+    void keepCursorVisible(const Editor& editor);
+    int selectedRowIndex() const;
 };
 
 struct GitFixupMode
