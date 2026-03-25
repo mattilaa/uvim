@@ -417,6 +417,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gb`      - Toggle git blame gutter",
             "  `gj`      - Show commit diff for line under cursor in blame mode",
             "  `gbv`     - Show commit diff for line under cursor",
+            "  `:git blame` - Toggle git blame gutter from command mode",
             "  `gl`      - Show git log (repo)",
             "  `glf`     - Show git log (current file)",
             "  `:git stage` - Open git staging view",
@@ -451,6 +452,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gb`   - Toggle git blame gutter",
             "  `gj`   - Show commit diff for line under cursor in blame mode",
             "  `gbv`  - Show commit diff for line under cursor",
+            "  `:git blame` - Toggle git blame gutter from command mode",
             "",
             "GIT LOG:",
             "  `gl`   - Browse git log (repo)",
@@ -485,6 +487,50 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "COMMENT TOGGLE:",
             "  `:set commenttogglepartial`   - Toggle on any commented line",
             "  `:set nocommenttogglepartial` - Toggle only if all commented",
+        };
+    }
+    else if(topic_lower == "gb")
+    {
+        lines = {
+            "# gb",
+            "",
+            "`gb` toggles the git blame gutter for the current file.",
+            "",
+            "Related:",
+            "  `gj`         - Open commit diff for the line under cursor",
+            "  `gbv`        - Open commit diff for the line under cursor",
+            "  `:git blame` - Toggle git blame gutter from command mode",
+        };
+    }
+    else if(topic_lower == "gj")
+    {
+        lines = {
+            "# gj",
+            "",
+            "`gj` opens the commit diff for the line under cursor when the",
+            "git blame gutter is visible.",
+            "",
+            "Inside the commit view:",
+            "  `j/k`   - Scroll",
+            "  `/` `?` - Search",
+            "  `q`     - Quit",
+            "",
+            "Related:",
+            "  `gb`  - Toggle git blame gutter",
+            "  `gbv` - Open commit diff for the line under cursor",
+        };
+    }
+    else if(topic_lower == "gbv")
+    {
+        lines = {
+            "# gbv",
+            "",
+            "`gbv` opens the commit diff for the line under cursor.",
+            "",
+            "Related:",
+            "  `gb`         - Toggle git blame gutter",
+            "  `gj`         - Open commit diff in blame mode",
+            "  `:git blame` - Toggle git blame gutter from command mode",
         };
     }
     else if(topic_lower == "modes")
@@ -831,6 +877,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help search`",
             "  `:help clipboard`",
             "  `:help git`",
+            "  `:help gb`",
+            "  `:help gj`",
+            "  `:help gbv`",
             "  `:help lsp`",
             "",
             "Type `:help` to see the main help page.",

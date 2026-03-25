@@ -78,6 +78,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Count lines of code";
     if(cmd == "git stage")
         return "Open interactive git stage";
+    if(cmd == "git blame")
+        return "Toggle git blame gutter";
     if(cmd == "git log")
         return "Browse commit log";
     if(cmd == "git prettylog")

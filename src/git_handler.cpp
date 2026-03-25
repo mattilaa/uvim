@@ -334,8 +334,9 @@ std::string GitHandler::blameDisplayForLine(int row) const
     std::string hash = entry.hash;
     if(hash.size() > 7)
         hash = hash.substr(0, 7);
-    std::string out = isUncommitted(entry) ? "not committed" : hash;
-    if(!entry.author.empty())
+    bool uncommitted = isUncommitted(entry);
+    std::string out = uncommitted ? "Not committed" : hash;
+    if(!uncommitted && !entry.author.empty())
         out += " " + entry.author;
     return truncate_with_ellipsis(out, Editor::kGitBlameMaxWidth);
 }

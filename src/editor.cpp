@@ -7183,6 +7183,11 @@ void Editor::executeCommand(std::string_view cmd)
         }
         return;
     }
+    if(trimmedCmd == "git blame")
+    {
+        toggleGitBlame();
+        return;
+    }
     if(trimmedCmd == "git log")
     {
         if(gitHandler)
@@ -10873,6 +10878,7 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
         "loc!",
         "loc%",
         "loctotal",
+        "git blame",
         "git stage",
         "git log",
         "git prettylog",
@@ -10934,7 +10940,8 @@ std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> topics = {
         "commands", "modes",  "navigation", "editing", "files",
-        "buffers",  "search", "clipboard",  "git",     "help"};
+        "buffers",  "search", "clipboard",  "git",     "gb",
+        "gj",       "gbv",    "help"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)
