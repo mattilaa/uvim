@@ -7278,6 +7278,22 @@ void Editor::executeCommand(std::string_view cmd)
         }
         return;
     }
+    if(trimmedCmd == "git irebase")
+    {
+        if(gitHandler)
+            gitHandler->openGitInteractiveRebaseMode();
+        else
+            setStatusMessage("git irebase: unavailable");
+        return;
+    }
+    if(trimmedCmd == "git rrebase raw")
+    {
+        if(gitHandler)
+            gitHandler->openGitRawRebaseMode();
+        else
+            setStatusMessage("git rrebase: unavailable");
+        return;
+    }
     if(trimmedCmd == "git add")
     {
         if(gitHandler)

@@ -1104,7 +1104,8 @@ struct GitCommitMode
     {
         CommitStaged,
         RevertCommit,
-        RebaseTodo
+        RebaseTodo,
+        RebaseReword
     };
     Action action = Action::CommitStaged;
     std::string revertHash;
@@ -1112,6 +1113,11 @@ struct GitCommitMode
     std::string rebaseBaseHash;
     std::string rebaseHeadHash;
     int rebaseCommandCount = 0;
+    std::vector<std::string> rebaseTodoLines;
+    std::vector<std::string> rewordHashes;
+    std::vector<std::string> rewordSubjects;
+    std::vector<std::vector<std::string>> rewordMessageLines;
+    int rewordIndex = 0;
     std::optional<GitLogMode> returnLog;
 
     GitCommitMode() = default;

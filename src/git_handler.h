@@ -23,6 +23,8 @@ public:
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
+    void openGitInteractiveRebaseMode();
+    void openGitRawRebaseMode();
     void addCurrentBuffer();
     std::optional<bool> currentBufferHasChanges();
     bool runGitStash(std::string& outMessage);

@@ -480,6 +480,12 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `f/enter` - Select commit to fixup",
             "  `y/n/p`   - Confirm (y), cancel (n), or patch mode (p)",
             "",
+            "GIT REBASE:",
+            "  `:git irebase`    - Open interactive rebase from latest fixup target",
+            "  `:git rrebase raw` - Open raw rebase todo history in insert mode",
+            "  Rebase todo: `j/k` move, `p/r/e/s/f/d` set action, `J/K` move line",
+            "  Reword editor: `:wq` save and continue, `:q` cancel rebase view",
+            "",
             "GIT PATCH:",
             "  `y`       - Stage current hunk",
             "  `n`       - Skip current hunk",
@@ -529,6 +535,48 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Related:",
             "  `:git stage` - Open the same view from command mode",
             "  `:help git`  - All git integrations",
+        };
+    }
+    else if(topic_lower == "irebase")
+    {
+        lines = {
+            "# git irebase",
+            "",
+            "`:git irebase` opens an interactive rebase todo view starting from",
+            "the latest fixup/squash target commit up to `HEAD`.",
+            "",
+            "Inside the rebase todo view:",
+            "  `j/k`       - Move between todo lines",
+            "  `p/r/e/s/f/d` - Change the current action",
+            "  `J/K`       - Move the current todo line down/up",
+            "  `i`         - Enter insert mode to edit the todo text directly",
+            "  `:wq`       - Continue to reword editors or run the rebase",
+            "  `:q`        - Close the rebase view",
+            "",
+            "Related:",
+            "  `:git rrebase raw` - Open a raw editable todo from recent history",
+            "  `:help git`        - All git integrations",
+        };
+    }
+    else if(topic_lower == "rrebase")
+    {
+        lines = {
+            "# git rrebase raw",
+            "",
+            "`:git rrebase raw` opens the recent commit history as an editable",
+            "rebase todo buffer directly in insert mode.",
+            "",
+            "Inside the raw rebase todo view:",
+            "  Edit the todo list directly in insert mode",
+            "  `j/k`       - Move between todo lines in normal mode",
+            "  `p/r/e/s/f/d` - Change the current action in normal mode",
+            "  `J/K`       - Move the current todo line down/up",
+            "  `:wq`       - Continue to reword editors or run the rebase",
+            "  `:q`        - Close the rebase view",
+            "",
+            "Related:",
+            "  `:git irebase` - Build the todo from the latest fixup target",
+            "  `:help git`    - All git integrations",
         };
     }
     else if(topic_lower == "gj")
@@ -909,6 +957,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help clipboard`",
             "  `:help git`",
             "  `:help ga`",
+            "  `:help irebase`",
+            "  `:help rrebase`",
             "  `:help gb`",
             "  `:help gj`",
             "  `:help gbv`",

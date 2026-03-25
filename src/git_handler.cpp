@@ -18,6 +18,12 @@ namespace fs = std::filesystem;
 
 namespace
 {
+struct RebaseLogEntry
+{
+    std::string hash;
+    std::string subject;
+};
+
 bool is_hex_token(const std::string& token)
 {
     if(token.empty())
@@ -156,6 +162,89 @@ std::string blame_hash_for_line(const std::string& filePath, int line)
     if(!is_hex_token(token))
         return "";
     return token;
+}
+
+std::vector<RebaseLogEntry> load_rebase_log_entries(const std::string& repoDir,
+                                                    int maxCount = 200)
+{
+    std::string cmd = "git -C \"" + repoDir +
+                      "\" --no-pager log --no-color --pretty=format:%H%x1f%s";
+    if(maxCount > 0)
+        cmd += " -n " + std::to_string(maxCount);
+    cmd += " 2>/dev/null";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return {};
+
+    std::string output;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe))
+        output += buffer;
+    pclose(pipe);
+
+    std::vector<RebaseLogEntry> out;
+    size_t pos = 0;
+    while(pos <= output.size())
+    {
+        size_t next = output.find('\n', pos);
+        std::string line = (next == std::string::npos)
+                               ? output.substr(pos)
+                               : output.substr(pos, next - pos);
+        if(!line.empty())
+        {
+            size_t sep = line.find('\x1f');
+            if(sep != std::string::npos && sep + 1 < line.size())
+                out.push_back({line.substr(0, sep), line.substr(sep + 1)});
+        }
+        if(next == std::string::npos)
+            break;
+        pos = next + 1;
+    }
+    return out;
+}
+
+std::string unwrap_fixup_subject(std::string subject)
+{
+    for(;;)
+    {
+        if(subject.rfind("fixup! ", 0) == 0)
+            subject.erase(0, 7);
+        else if(subject.rfind("squash! ", 0) == 0)
+            subject.erase(0, 8);
+        else
+            break;
+    }
+    return subject;
+}
+
+bool fill_rebase_mode_from_entries(GitCommitMode& rebaseMode,
+                                   const std::vector<RebaseLogEntry>& picked)
+{
+    if(picked.empty())
+        return false;
+    rebaseMode.action = GitCommitMode::Action::RebaseTodo;
+    rebaseMode.rebaseHeadHash = picked.front().hash;
+    rebaseMode.rebaseBaseHash = picked.back().hash;
+    rebaseMode.rebaseCommandCount = (int)picked.size();
+    rebaseMode.messageLines.clear();
+    for(auto it = picked.rbegin(); it != picked.rend(); ++it)
+    {
+        std::string verb = "pick";
+        if(it->subject.rfind("fixup!", 0) == 0)
+            verb = "fixup";
+        else if(it->subject.rfind("squash!", 0) == 0)
+            verb = "squash";
+        rebaseMode.messageLines.push_back(verb + " " + it->hash + " " +
+                                          it->subject);
+    }
+    if(rebaseMode.messageLines.empty())
+        rebaseMode.messageLines.push_back("");
+    rebaseMode.messageCursorRow = 0;
+    rebaseMode.messageCursorCol = 0;
+    rebaseMode.insertMode = false;
+    rebaseMode.stagedDirty = false;
+    return true;
 }
 } // namespace
 
@@ -802,6 +891,110 @@ void GitHandler::openGitStageMode()
     {
         editor->modeStateMachine->transitionTo(
             GitStageMode{{}, repoRoot, repoRoot});
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
+void GitHandler::openGitInteractiveRebaseMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git irebase: not a repo");
+        return;
+    }
+
+    auto entries = load_rebase_log_entries(repoRoot);
+    if(entries.empty())
+    {
+        editor->setStatusMessage("git irebase: no history");
+        return;
+    }
+
+    int baseIdx = -1;
+    for(size_t i = 0; i < entries.size(); ++i)
+    {
+        if(entries[i].subject.rfind("fixup! ", 0) != 0 &&
+           entries[i].subject.rfind("squash! ", 0) != 0)
+            continue;
+        std::string target = unwrap_fixup_subject(entries[i].subject);
+        for(size_t j = i + 1; j < entries.size(); ++j)
+        {
+            if(entries[j].subject == target)
+            {
+                baseIdx = (int)j;
+                break;
+            }
+        }
+        if(baseIdx >= 0)
+            break;
+    }
+
+    if(baseIdx < 0)
+    {
+        editor->setStatusMessage("git irebase: no fixup target found");
+        return;
+    }
+
+    std::vector<RebaseLogEntry> picked(entries.begin(),
+                                       entries.begin() + baseIdx + 1);
+    GitCommitMode rebaseMode{repoRoot, repoRoot};
+    if(!fill_rebase_mode_from_entries(rebaseMode, picked))
+    {
+        editor->setStatusMessage("git irebase: failed");
+        return;
+    }
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(std::move(rebaseMode));
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
+void GitHandler::openGitRawRebaseMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git rrebase: not a repo");
+        return;
+    }
+
+    auto entries = load_rebase_log_entries(repoRoot, 200);
+    if(entries.empty())
+    {
+        editor->setStatusMessage("git rrebase: no history");
+        return;
+    }
+
+    GitCommitMode rebaseMode{repoRoot, repoRoot};
+    if(!fill_rebase_mode_from_entries(rebaseMode, entries))
+    {
+        editor->setStatusMessage("git rrebase: failed");
+        return;
+    }
+    rebaseMode.insertMode = true;
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(std::move(rebaseMode));
         editor->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
