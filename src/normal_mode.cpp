@@ -1330,6 +1330,11 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         ed->goToFile();
         break;
 
+    case keyCode(typed::TypedKey::KEY_A):
+        // ga - git stage view
+        ed->openGitStageMode();
+        break;
+
     case keyCode(typed::TypedKey::KEY_J):
         if(ed->showGitBlame)
         {

@@ -445,6 +445,11 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             browserCursor = 0;
             browserOffset = 0;
         }
+        else if(nextChar == keyCode(typed::TypedKey::KEY_A))
+        {
+            ctx.editor->openGitStageMode();
+            return std::nullopt;
+        }
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
