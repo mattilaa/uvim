@@ -199,8 +199,8 @@ std::string unstaged_label(char status)
 std::string git_stage_help_text()
 {
     return "  [space: stage/unstage] [j/k: move files] [d: diff] "
-           "[ctrl-j/k: scroll diff] [enter: open] [m: mark fixup] "
-           "[g f: fixup] [r: refresh] [q/esc: close]";
+           "[ctrl-j/k: scroll diff] [ctrl-h/l: pan diff] [enter: open] "
+           "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -715,6 +715,7 @@ void GitStageMode::refreshDiff(Editor& editor)
     diffPath.clear();
     diffStaged = false;
     diffOffset = 0;
+    diffHorizontalOffset = 0;
 
     int rowIndex = selectedRowIndex();
     if(rowIndex < 0 || rowIndex >= (int)rows.size())
@@ -939,6 +940,28 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(diffVisible && diffOffset > 0)
             --diffOffset;
     }
+    else if(c == keyCode(control::ControlKey::CTRL_H))
+    {
+        if(diffVisible)
+            diffHorizontalOffset = std::max(0, diffHorizontalOffset - 1);
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_L))
+    {
+        if(diffVisible)
+        {
+            int listWidth = std::max(36, ed->screenCols / 2);
+            int diffWidth = ed->screenCols - listWidth - 1;
+            if(diffWidth >= 20)
+            {
+                int diffViewWidth = std::max(0, diffWidth - 1);
+                int maxDiffOffset =
+                    std::max(0, max_diff_width(diffLines, ed->gitUseDefaultColors) -
+                                    diffViewWidth);
+                diffHorizontalOffset =
+                    std::min(maxDiffOffset, diffHorizontalOffset + 1);
+            }
+        }
+    }
     else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
@@ -1031,6 +1054,11 @@ void GitStageMode::draw(Editor& editor) const
             diffWidth = 0;
         }
     }
+    int diffViewWidth = std::max(0, diffWidth - 1);
+    int maxDiffOffset = std::max(
+        0, max_diff_width(diffLines, editor.gitUseDefaultColors) - diffViewWidth);
+    int hOff = std::min(diffHorizontalOffset, maxDiffOffset);
+    self->diffHorizontalOffset = hOff;
 
     int selected = selectedRowIndex();
     for(int screenRow = 0; screenRow < contentRows; ++screenRow)
@@ -1139,28 +1167,27 @@ void GitStageMode::draw(Editor& editor) const
                 output += " ";
                 if(editor.gitUseDefaultColors)
                 {
-                    output += slice_with_ansi(diffLines[diffIdx], 0,
+                    std::string clipped =
+                        slice_with_ansi(diffLines[diffIdx], hOff,
                                               diffViewWidth);
+                    output += clipped;
                     output += editor.theme.reset();
                     output += editor.theme.base();
+                    int visibleWidth = text_utils::displayWidth(clipped);
+                    if(visibleWidth + 1 < diffWidth)
+                        output.append(diffWidth - visibleWidth - 1, ' ');
                 }
                 else
                 {
+                    std::string clipped =
+                        slice_plain(diffLines[diffIdx], hOff, diffViewWidth);
                     append_diff_line(output, editor,
-                                     slice_plain(diffLines[diffIdx], 0,
-                                                 diffViewWidth));
+                                     clipped);
                     output += editor.theme.base();
+                    int visibleWidth = text_utils::utf8DisplayWidth(clipped);
+                    if(visibleWidth + 1 < diffWidth)
+                        output.append(diffWidth - visibleWidth - 1, ' ');
                 }
-                int visibleWidth =
-                    editor.gitUseDefaultColors
-                        ? text_utils::displayWidth(
-                              slice_with_ansi(diffLines[diffIdx], 0,
-                                              diffViewWidth))
-                        : text_utils::utf8DisplayWidth(
-                              slice_plain(diffLines[diffIdx], 0,
-                                          diffViewWidth));
-                if(visibleWidth + 1 < diffWidth)
-                    output.append(diffWidth - visibleWidth - 1, ' ');
             }
             else
             {
