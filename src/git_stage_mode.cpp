@@ -200,7 +200,7 @@ std::string git_stage_help_text()
 {
     return "  [space: stage/unstage] [j/k: move files] [d: diff] "
            "[ctrl-j/k: scroll diff] [ctrl-h/l: pan diff] [enter: open] "
-           "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
+           "[f: fixup staged] [m: mark fixup] [g f: fixup marked] [r: refresh] [q/esc: close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -727,6 +727,21 @@ bool GitStageMode::refreshStatus(Editor& editor)
     return true;
 }
 
+static std::vector<std::string> collect_staged_paths(
+    const std::vector<GitStageMode::StatusRow>& rows)
+{
+    std::vector<std::string> files;
+    for(const auto& row : rows)
+    {
+        if(row.kind == GitStageMode::RowKind::File &&
+           row.group == GitStageMode::FileGroup::Staged && !row.path.empty())
+        {
+            files.push_back(row.path);
+        }
+    }
+    return files;
+}
+
 void GitStageMode::refreshDiff(Editor& editor)
 {
     if(!diffDirty)
@@ -854,6 +869,18 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
             ed->needsFullRedraw = true;
         }
         return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_F))
+    {
+        std::vector<std::string> files = collect_staged_paths(rows);
+        if(files.empty())
+        {
+            ed->setStatusMessage("fixup: no staged files");
+            return std::nullopt;
+        }
+        GitFixupMode fixup{{}, repoRoot, repoDir, std::move(files), *this};
+        return fixup;
     }
 
     if(c == keyCode(typed::TypedKey::KEY_D))
