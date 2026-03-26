@@ -1,19 +1,13 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cstdio>
 #include <string>
 
 namespace
 {
-std::string trim_newline(std::string s)
-{
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
-
 std::vector<std::string> run_git_lines(const std::string& cmd)
 {
     std::vector<std::string> out;
@@ -45,22 +39,43 @@ std::vector<GitFixupMode::Entry> load_recent_commits(const std::string& repoDir)
 {
     std::string cmd =
         "git -C \"" + repoDir +
-        "\" --no-pager log --no-color --pretty=format:%h\t%s -n 100 2>/dev/null";
+        "\" --no-pager log --no-color --pretty=format:%h%x1f%s -n 100 2>/dev/null";
     auto lines = run_git_lines(cmd);
     std::vector<GitFixupMode::Entry> entries;
     for(const auto& line : lines)
     {
         if(line.empty())
             continue;
-        size_t tab = line.find('\t');
-        if(tab == std::string::npos)
+        size_t sep = line.find('\x1f');
+        if(sep == std::string::npos)
             continue;
         GitFixupMode::Entry entry;
-        entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
+        entry.hash = line.substr(0, sep);
+        entry.subject = line.substr(sep + 1);
         entries.push_back(std::move(entry));
     }
     return entries;
+}
+
+std::string truncate_utf8_width(std::string_view text, int maxWidth)
+{
+    if(maxWidth <= 0)
+        return "";
+    std::string out;
+    int width = 0;
+    int pos = 0;
+    while(pos < (int)text.size())
+    {
+        int next = text_utils::nextUtf8CharStart(text, pos);
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(width + charWidth > maxWidth)
+            break;
+        out.append(text.substr(pos, next - pos));
+        width += charWidth;
+        pos = next;
+    }
+    return out;
 }
 } // namespace
 
@@ -85,42 +100,6 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
-
-    if(confirmActive)
-    {
-        if(c == keyCode(typed::TypedKey::KEY_Y) || c == keyCode(typed::TypedKey::KEY_CAP_Y))
-        {
-            if(!fixupFiles.empty())
-            {
-                for(const auto& file : fixupFiles)
-                {
-                    std::string cmd = "git -C \"" + repoDir + "\" add -- \"" +
-                                      file + "\" 2>/dev/null";
-                    std::system(cmd.c_str());
-                }
-            }
-            std::string cmd = "git -C \"" + repoDir + "\" commit --fixup " +
-                              confirmHash + " 2>/dev/null";
-            std::system(cmd.c_str());
-            ed->setStatusMessage("fixup commit created");
-            return returnStage;
-        }
-        if(c == keyCode(typed::TypedKey::KEY_P) || c == keyCode(typed::TypedKey::KEY_CAP_P))
-        {
-            GitPatchMode::Hunk dummy;
-            std::vector<GitPatchMode::Hunk> hunks;
-            return GitPatchMode{std::move(hunks), repoRoot, repoDir, confirmHash,
-                                fixupFiles, returnStage};
-        }
-        if(c == keyCode(typed::TypedKey::KEY_N) || c == keyCode(typed::TypedKey::KEY_CAP_N) || c == keyCode(control::ControlKey::ESC))
-        {
-            confirmActive = false;
-            confirmHash.clear();
-            ctx.requestFullRedraw();
-            return std::nullopt;
-        }
-        return std::nullopt;
-    }
 
     if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
@@ -164,13 +143,31 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
             offset = std::max(0, cursor - visible + 1);
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_F) || c == keyCode(control::ControlKey::ENTER))
+    else if(c == keyCode(control::ControlKey::SPACE) ||
+            c == keyCode(typed::TypedKey::KEY_F) ||
+            c == keyCode(control::ControlKey::ENTER))
     {
         if(cursor >= 0 && cursor < (int)entries.size())
         {
-            confirmActive = true;
-            confirmHash = entries[cursor].hash;
-            ctx.requestFullRedraw();
+            const std::string& targetHash = entries[cursor].hash;
+            if(!fixupFiles.empty())
+            {
+                for(const auto& file : fixupFiles)
+                {
+                    std::string cmd = "git -C \"" + repoDir + "\" add -- \"" +
+                                      file + "\" 2>/dev/null";
+                    std::system(cmd.c_str());
+                }
+            }
+            std::string cmd = "git -C \"" + repoDir + "\" commit --fixup " +
+                              targetHash + " 2>/dev/null";
+            if(std::system(cmd.c_str()) != 0)
+            {
+                ed->setStatusMessage("fixup commit failed");
+                return std::nullopt;
+            }
+            ed->setStatusMessage("fixup commit created");
+            return returnStage;
         }
     }
 
@@ -180,14 +177,23 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
 
 void GitFixupMode::draw(Editor& editor) const
 {
+    auto* self = const_cast<GitFixupMode*>(this);
+    self->cursor = std::clamp(self->cursor, 0,
+                              entries.empty() ? 0 : (int)entries.size() - 1);
+    int window = std::max(1, editor.screenRows - 2);
+    int maxScroll = std::max(0, (int)entries.size() - window);
+    self->offset = std::clamp(self->offset, 0, maxScroll);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_HIDE_CURSOR;
+    output += Terminal::ESC_CURSOR_HOME;
     output += Terminal::cursorPos(1, 1);
     output += editor.theme.reset();
 
     output += Terminal::ESC_CLEAR_LINE;
+    output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
     output += "  GIT FIXUP";
     if(!repoRoot.empty())
@@ -195,10 +201,10 @@ void GitFixupMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [j/k: move] [f/enter: fixup] [q/esc: back]";
+    output += "  [space: fixup] [q: back] [j/k: commit]";
     output += editor.theme.baseFg();
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = editor.screenRows - 2;
     for(int row = 0; row < availableRows; ++row)
     {
         output += Terminal::NEWLINE_CLEAR;
@@ -206,13 +212,37 @@ void GitFixupMode::draw(Editor& editor) const
         if(idx >= 0 && idx < (int)entries.size())
         {
             const auto& entry = entries[idx];
-            if(idx == cursor)
-                output += editor.theme.selection();
             output += "  ";
-            output += editor.theme.uiAccent();
-            output += entry.hash;
-            output += editor.theme.baseFg();
-            output += " " + entry.subject;
+            bool selected = (idx == cursor);
+            std::string hash = entry.hash;
+            if(hash.size() > 12)
+                hash.resize(12);
+            int maxLine = std::max(0, editor.screenCols - 6);
+            std::string subject = entry.subject;
+            int keep = maxLine - (int)hash.size() - 2;
+            if(keep < 0)
+                keep = 0;
+            if(text_utils::utf8DisplayWidth(subject) > keep)
+                subject = truncate_utf8_width(subject, keep);
+
+            if(selected)
+            {
+                output += editor.theme.selection();
+                output += " ";
+                output += hash;
+                output += " ";
+                output += subject;
+            }
+            else
+            {
+                output += editor.theme.baseFg();
+                output += " ";
+                output += editor.theme.uiAccent();
+                output += hash;
+                output += editor.theme.baseFg();
+                output += " ";
+                output += subject;
+            }
             output += editor.theme.reset();
         }
         else
@@ -237,10 +267,10 @@ void GitFixupMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
-    if(confirmActive)
+    if(entries.empty())
     {
         output += editor.theme.uiWarning();
-        output += "Fixup " + confirmHash + "? [y]es [n]o [p]atch";
+        output += "No commits found";
         output += editor.theme.baseFg();
     }
     else if(!editor.statusMessage.empty())
