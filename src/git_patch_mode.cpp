@@ -129,9 +129,12 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
+    bool stageOnly = targetHash.empty();
 
     if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
     {
+        if(stageOnly)
+            ed->setStatusMessage("git add -p: cancelled");
         return returnStage;
     }
 
@@ -186,11 +189,18 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         }
         else
         {
-            std::string commitCmd =
-                "git -C \"" + repoDir + "\" commit --fixup " + targetHash +
-                " 2>/dev/null";
-            std::system(commitCmd.c_str());
-            ed->setStatusMessage("fixup commit created");
+            if(stageOnly)
+            {
+                ed->setStatusMessage("git add -p: staged");
+            }
+            else
+            {
+                std::string commitCmd =
+                    "git -C \"" + repoDir + "\" commit --fixup " + targetHash +
+                    " 2>/dev/null";
+                std::system(commitCmd.c_str());
+                ed->setStatusMessage("fixup commit created");
+            }
             return returnStage;
         }
     }
@@ -203,11 +213,18 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         }
         else
         {
-            std::string commitCmd =
-                "git -C \"" + repoDir + "\" commit --fixup " + targetHash +
-                " 2>/dev/null";
-            std::system(commitCmd.c_str());
-            ed->setStatusMessage("fixup commit created");
+            if(stageOnly)
+            {
+                ed->setStatusMessage("git add -p: done");
+            }
+            else
+            {
+                std::string commitCmd =
+                    "git -C \"" + repoDir + "\" commit --fixup " + targetHash +
+                    " 2>/dev/null";
+                std::system(commitCmd.c_str());
+                ed->setStatusMessage("fixup commit created");
+            }
             return returnStage;
         }
     }
@@ -227,11 +244,13 @@ void GitPatchMode::draw(Editor& editor) const
 
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
-    output += "  GIT PATCH";
+    output += targetHash.empty() ? "  GIT ADD PATCH" : "  GIT PATCH";
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [y: stage] [n: skip] [ctrl-j/k: next/prev] [q/esc: back]";
+    output += targetHash.empty()
+                  ? "  [y: stage hunk] [n: skip hunk] [q/esc: cancel]"
+                  : "  [y: stage] [n: skip] [ctrl-j/k: next/prev] [q/esc: back]";
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 3;
@@ -299,7 +318,14 @@ void GitPatchMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += Terminal::NEWLINE_CLEAR;
-    if(!editor.statusMessage.empty())
+    if(!hunks.empty())
+    {
+        output += editor.theme.uiDim();
+        output += targetHash.empty() ? "Stage this hunk [y,n,q]?"
+                                     : "Apply this hunk [y,n,q]?";
+        output += editor.theme.baseFg();
+    }
+    else if(!editor.statusMessage.empty())
         output += editor.statusMessage;
 
     Terminal::write(output);

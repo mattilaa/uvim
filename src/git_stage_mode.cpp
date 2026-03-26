@@ -200,7 +200,7 @@ std::string git_stage_help_text()
 {
     return "  [space: stage/unstage] [j/k: move files] [d: diff] "
            "[ctrl-j/k: scroll diff] [ctrl-h/l: pan diff] [enter: open] "
-           "[f: fixup staged] [m: mark fixup] [g f: fixup marked] [r: refresh] [q/esc: close]";
+           "[p: patch stage file] [f: fixup staged] [m: mark fixup] [g f: fixup marked] [r: refresh] [q/esc: close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -881,6 +881,23 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         }
         GitFixupMode fixup{{}, repoRoot, repoDir, std::move(files), *this};
         return fixup;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_P))
+    {
+        int rowIndex = selectedRowIndex();
+        if(rowIndex < 0 || rowIndex >= (int)rows.size())
+            return std::nullopt;
+        const StatusRow& row = rows[rowIndex];
+        if(row.kind != RowKind::File || row.path.empty())
+            return std::nullopt;
+        if(row.group == FileGroup::Untracked)
+        {
+            ed->setStatusMessage("git add -p: untracked file");
+            return std::nullopt;
+        }
+        std::vector<std::string> files = {row.path};
+        return GitPatchMode{{}, repoRoot, repoDir, "", std::move(files), *this};
     }
 
     if(c == keyCode(typed::TypedKey::KEY_D))
