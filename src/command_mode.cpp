@@ -699,6 +699,12 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                        std::string_view("log").rfind(pathPart, 0) == 0)
                         completions.push_back("log");
                     if(pathPart.empty() ||
+                       std::string_view("irebase").rfind(pathPart, 0) == 0)
+                        completions.push_back("irebase");
+                    if(pathPart.empty() ||
+                       std::string_view("rrebase raw").rfind(pathPart, 0) == 0)
+                        completions.push_back("rrebase raw");
+                    if(pathPart.empty() ||
                        std::string_view("stash").rfind(pathPart, 0) == 0)
                         completions.push_back("stash");
                     if(pathPart.empty() ||

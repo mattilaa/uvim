@@ -84,6 +84,10 @@ static std::string_view command_doc(std::string_view cmd)
         return "Browse commit log";
     if(cmd == "git prettylog")
         return "Browse tig-like split commit log";
+    if(cmd == "git irebase")
+        return "Open interactive rebase from latest fixup target";
+    if(cmd == "git rrebase raw")
+        return "Open raw editable rebase todo";
     if(cmd == "git diff")
         return "Show repository diff";
     if(cmd == "git commit")

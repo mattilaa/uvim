@@ -11014,6 +11014,8 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
         "git stage",
         "git log",
         "git prettylog",
+        "git irebase",
+        "git rrebase raw",
         "git diff",
         "git commit",
         "git stash",
