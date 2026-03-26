@@ -5,6 +5,7 @@
 #include <string_view>
 #include <algorithm>
 #include <chrono>
+#include <regex>
 
 // ============================================================================
 // GitShowCommitMode Implementation
@@ -27,6 +28,25 @@ size_t skip_ansi(std::string_view text, size_t i)
             break;
     }
     return i;
+}
+
+std::string strip_ansi(std::string_view text)
+{
+    std::string out;
+    out.reserve(text.size());
+    size_t i = 0;
+    while(i < text.size())
+    {
+        if(is_ansi_start(text, i))
+        {
+            i = skip_ansi(text, i);
+            continue;
+        }
+        int next = text_utils::nextUtf8CharStart(text, (int)i);
+        out.append(text.substr(i, next - (int)i));
+        i = next;
+    }
+    return out;
 }
 
 int display_width_plain(std::string_view text)
@@ -152,6 +172,64 @@ void append_highlighted(std::string& out, std::string_view text,
         pos = found + query.size();
     }
 }
+
+bool compile_search_regex(std::string_view query, std::regex& pattern)
+{
+    if(query.empty())
+        return false;
+    try
+    {
+        pattern = std::regex(std::string(query));
+        return true;
+    }
+    catch(const std::regex_error&)
+    {
+        return false;
+    }
+}
+
+bool line_matches_regex(const std::string& line, const std::regex& pattern)
+{
+    return std::regex_search(strip_ansi(line), pattern);
+}
+
+void append_regex_highlighted(std::string& out, std::string_view text,
+                              const std::regex& pattern,
+                              const std::string& normalSeq,
+                              const std::string& matchSeq)
+{
+    std::string copy(text);
+    std::sregex_iterator it(copy.begin(), copy.end(), pattern);
+    std::sregex_iterator end;
+    if(it == end)
+    {
+        out += normalSeq;
+        out += copy;
+        return;
+    }
+
+    size_t pos = 0;
+    for(; it != end; ++it)
+    {
+        const std::smatch& match = *it;
+        if(match.length() <= 0)
+            continue;
+        size_t matchPos = (size_t)match.position();
+        if(matchPos > pos)
+        {
+            out += normalSeq;
+            out.append(copy.data() + pos, matchPos - pos);
+        }
+        out += matchSeq;
+        out.append(copy.data() + matchPos, (size_t)match.length());
+        pos = matchPos + (size_t)match.length();
+    }
+    if(pos < copy.size())
+    {
+        out += normalSeq;
+        out.append(copy.data() + pos, copy.size() - pos);
+    }
+}
 } // namespace
 
 void GitShowCommitMode::on_enter(ModeContext& ctx)
@@ -174,12 +252,15 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
     {
         if(searchQuery.empty() || lines.empty())
             return false;
+        std::regex pattern;
+        if(!compile_search_regex(searchQuery, pattern))
+            return false;
         int found = -1;
         if(forward)
         {
             for(int i = searchIndex + 1; i < (int)lines.size(); ++i)
             {
-                if(lines[i].find(searchQuery) != std::string::npos)
+                if(line_matches_regex(lines[i], pattern))
                 {
                     found = i;
                     break;
@@ -189,7 +270,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
             {
                 for(int i = 0; i <= searchIndex; ++i)
                 {
-                    if(lines[i].find(searchQuery) != std::string::npos)
+                    if(line_matches_regex(lines[i], pattern))
                     {
                         found = i;
                         break;
@@ -201,7 +282,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         {
             for(int i = searchIndex - 1; i >= 0; --i)
             {
-                if(lines[i].find(searchQuery) != std::string::npos)
+                if(line_matches_regex(lines[i], pattern))
                 {
                     found = i;
                     break;
@@ -211,7 +292,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
             {
                 for(int i = (int)lines.size() - 1; i >= searchIndex; --i)
                 {
-                    if(lines[i].find(searchQuery) != std::string::npos)
+                    if(line_matches_regex(lines[i], pattern))
                     {
                         found = i;
                         break;
@@ -267,12 +348,20 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
             }
             if(!lines.empty())
             {
+                std::regex pattern;
+                if(!compile_search_regex(searchQuery, pattern))
+                {
+                    ctx.setStatusMessage("Invalid regex: " + searchQuery);
+                    searchActive = false;
+                    ctx.requestFullRedraw();
+                    return std::nullopt;
+                }
                 int found = -1;
                 if(searchForward)
                 {
                     for(int i = searchIndex + 1; i < (int)lines.size(); ++i)
                     {
-                        if(lines[i].find(searchQuery) != std::string::npos)
+                        if(line_matches_regex(lines[i], pattern))
                         {
                             found = i;
                             break;
@@ -283,7 +372,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                 {
                     for(int i = searchIndex - 1; i >= 0; --i)
                     {
-                        if(lines[i].find(searchQuery) != std::string::npos)
+                        if(line_matches_regex(lines[i], pattern))
                         {
                             found = i;
                             break;
@@ -443,8 +532,46 @@ void GitShowCommitMode::draw(Editor& editor) const
             output += "  ";
             if(editor.gitUseDefaultColors)
             {
-                output += slice_with_ansi(lines[idx], hOff, viewWidth);
-                output += editor.theme.reset();
+                std::string visibleLine = strip_ansi(lines[idx]);
+                std::string slicedVisible =
+                    slice_plain(visibleLine, hOff, viewWidth);
+                if(searchQuery.empty())
+                {
+                    output += slice_with_ansi(lines[idx], hOff, viewWidth);
+                    output += editor.theme.reset();
+                }
+                else
+                {
+                    const std::string& line = visibleLine;
+                    const std::string* lineSeq = &editor.theme.baseFg();
+                    if(line.rfind("diff --git", 0) == 0 ||
+                       line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0)
+                        lineSeq = &editor.theme.uiAccent();
+                    else if(line.rfind("index ", 0) == 0 ||
+                            line.rfind("commit ", 0) == 0)
+                        lineSeq = &editor.theme.uiDim();
+                    else if(line.rfind("@@ ", 0) == 0)
+                        lineSeq = &editor.theme.uiInfo();
+                    else if(line.rfind("Author:", 0) == 0 ||
+                            line.rfind("Date:", 0) == 0)
+                        lineSeq = &editor.theme.uiDim();
+                    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
+                        lineSeq = &editor.theme.uiSuccess();
+                    else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
+                        lineSeq = &editor.theme.uiError();
+
+                    std::regex pattern;
+                    std::string normalSeq = editor.theme.reset() + *lineSeq;
+                    if(compile_search_regex(searchQuery, pattern))
+                        append_regex_highlighted(output, slicedVisible, pattern,
+                                                 normalSeq,
+                                                 editor.theme.searchMatch());
+                    else
+                        append_highlighted(output, slicedVisible, searchQuery,
+                                           normalSeq,
+                                           editor.theme.searchMatch());
+                    output += editor.theme.reset();
+                }
             }
             else
             {
@@ -468,8 +595,14 @@ void GitShowCommitMode::draw(Editor& editor) const
 
                 std::string normalSeq = editor.theme.reset() + *lineSeq;
                 std::string sliced = slice_plain(line, hOff, viewWidth);
-                append_highlighted(output, sliced, searchQuery, normalSeq,
-                                   editor.theme.searchMatch());
+                std::regex pattern;
+                if(compile_search_regex(searchQuery, pattern))
+                    append_regex_highlighted(output, sliced, pattern,
+                                             normalSeq,
+                                             editor.theme.searchMatch());
+                else
+                    append_highlighted(output, sliced, searchQuery, normalSeq,
+                                       editor.theme.searchMatch());
                 output += editor.theme.reset();
             }
         }
