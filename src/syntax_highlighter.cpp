@@ -4315,15 +4315,19 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         }
     }
 
-    if(isFileType<FileType::Cpp>() && editor && editor->syntaxCppSemanticTokens)
+    if(editor &&
+       ((isFileType<FileType::Cpp>() && editor->syntaxCppSemanticTokens) ||
+        (isFileType<FileType::Mla>() && editor->isMlangLspEnabled())))
     {
         Buffer* buffer = editor->currentBuffer;
         if(buffer && buffer->lspSemanticTokensValid && fileRow >= 0 &&
            fileRow < (int)buffer->lspSemanticTokens.size())
         {
             const auto& semTokens = buffer->lspSemanticTokens[fileRow];
+            const bool isCppSemantics = isFileType<FileType::Cpp>();
             bool inFunctionContext = false;
-            if(fileRow >= 0 && fileRow < (int)buffer->syntaxCache.size())
+            if(isCppSemantics && fileRow >= 0 &&
+               fileRow < (int)buffer->syntaxCache.size())
             {
                 const auto& state = buffer->syntaxCache[fileRow];
                 if(state.valid)
@@ -4342,16 +4346,31 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                 {
                     mapped = TOKEN_TYPE;
                 }
+                else if(type == "keyword")
+                {
+                    mapped = TOKEN_KEYWORD;
+                }
                 else if(type == "function" || type == "method")
+                {
+                    mapped = TOKEN_FUNCTION;
+                }
+                else if(type == "macro")
                 {
                     mapped = TOKEN_FUNCTION;
                 }
                 else if(type == "parameter")
                 {
-                    mapped = editor->syntaxCppLocalToken;
+                    mapped =
+                        isCppSemantics ? editor->syntaxCppLocalToken : TOKEN_NORMAL;
                 }
                 else if(type == "variable")
                 {
+                    if(!isCppSemantics)
+                    {
+                        mapped = TOKEN_NORMAL;
+                    }
+                    else
+                    {
                     bool isObjectReference = false;
                     const std::string& lineRef = line;
                     int tokenStart = token.start;
@@ -4392,11 +4411,13 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                                      ? editor->syntaxCppMemberToken
                                      : editor->syntaxCppLocalToken;
                     }
+                    }
                 }
                 else if(type == "property" || type == "enumMember" ||
                         type == "member" || type == "field")
                 {
-                    mapped = editor->syntaxCppMemberToken;
+                    mapped = isCppSemantics ? editor->syntaxCppMemberToken
+                                            : TOKEN_MEMBER;
                 }
                 if(!mapped)
                     continue;

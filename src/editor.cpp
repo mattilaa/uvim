@@ -2914,6 +2914,7 @@ void Editor::openFile(std::string_view fname)
                 text.push_back('\n');
         }
         mlangLspClient->didChange(path, text, "mlang");
+        mlangLspClient->requestSemanticTokens(path);
     }
     if(isHtmlLspEnabled() && isFileType<FileType::Html>() && htmlLspClient)
     {
@@ -5247,6 +5248,7 @@ void Editor::refreshScreen()
             }
         }
         syncClangdDiagnosticsIfNeeded(false);
+        syncMlangSemanticTokensIfNeeded(false);
     }
 #endif
 
@@ -6086,6 +6088,93 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
         else
         {
             diagnosticPopupData = *diag;
+        }
+    }
+
+    currentBuffer->lspSyncNeeded = false;
+#else
+    (void)force;
+#endif
+}
+
+void Editor::syncMlangSemanticTokensIfNeeded(bool force)
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!currentBuffer || !isMlangLspEnabled() || !isFileType<FileType::Mla>() ||
+       !mlangLspClient)
+        return;
+
+    bool wantSemantic = !currentBuffer->lspSemanticTokensValid;
+    bool shouldCheck = force || currentBuffer->lspSyncNeeded || *dirty;
+    if(!shouldCheck && !wantSemantic)
+        return;
+
+    size_t newHash = 0;
+    if(shouldCheck || wantSemantic)
+        newHash = hash_lines(*lines);
+
+    if(shouldCheck && (force || !currentBuffer->lspHashValid ||
+                       newHash != currentBuffer->lspContentHash))
+    {
+        std::string text;
+        text.reserve(lines->size() * 80);
+        for(size_t i = 0; i < lines->size(); ++i)
+        {
+            text += (*lines)[i];
+            if(i + 1 < lines->size())
+                text.push_back('\n');
+        }
+        mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
+        currentBuffer->lspContentHash = newHash;
+        currentBuffer->lspHashValid = true;
+    }
+
+    if(wantSemantic || shouldCheck)
+    {
+        bool refreshSemantic =
+            force || !currentBuffer->lspSemanticTokensValid ||
+            (newHash != 0 && newHash != currentBuffer->lspSemanticTokensHash);
+        if(refreshSemantic)
+            mlangLspClient->requestSemanticTokens(currentBuffer->filename);
+
+        size_t semRev =
+            mlangLspClient->semanticTokensRevision(currentBuffer->filename);
+        if(semRev != currentBuffer->lspSemanticTokensRevision)
+        {
+            std::vector<LspClient::SemanticToken> tokens =
+                mlangLspClient->semanticTokens(currentBuffer->filename);
+            currentBuffer->lspSemanticTokens.clear();
+            currentBuffer->lspSemanticTokens.resize(lines->size());
+
+            for(const auto& token : tokens)
+            {
+                if(token.line < 0 || token.line >= (int)lines->size())
+                    continue;
+                const std::string& line = (*lines)[token.line];
+                int startByte = utf16ToUtf8ByteOffset(line, token.character);
+                int endByte =
+                    utf16ToUtf8ByteOffset(line, token.character + token.length);
+                if(endByte <= startByte)
+                    continue;
+                if(startByte >= (int)line.size())
+                    continue;
+                if(endByte > (int)line.size())
+                    endByte = (int)line.size();
+                int length = endByte - startByte;
+                if(length <= 0)
+                    continue;
+                bool isDecl = mlangLspClient->semanticTokenHasModifier(
+                    token.modifiers, "declaration");
+                bool isDef = mlangLspClient->semanticTokenHasModifier(
+                    token.modifiers, "definition");
+                currentBuffer->lspSemanticTokens[token.line].push_back(
+                    {startByte, length, token.tokenType, isDecl, isDef});
+            }
+            currentBuffer->lspSemanticTokensRevision = semRev;
+            currentBuffer->lspSemanticTokensValid = true;
+            if(newHash != 0)
+                currentBuffer->lspSemanticTokensHash = newHash;
+            needsFullRedraw = true;
         }
     }
 

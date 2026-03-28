@@ -313,6 +313,7 @@ public:
     void openSymbolPopupForCursor();
     void closeSymbolPopup();
     void syncClangdDiagnosticsIfNeeded(bool force);
+    void syncMlangSemanticTokensIfNeeded(bool force);
 
     bool diagnosticPopupActive = false;
     int diagnosticPopupLine = -1;
