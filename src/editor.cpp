@@ -2835,6 +2835,11 @@ void Editor::openFile(std::string_view fname)
                    [&](bool on, const std::string& p,
                        const std::vector<std::string>& a)
                    { enableJsonLsp(on, p, a); });
+    if(isFileType<FileType::Mla>())
+        ensure_lsp(isMlangLspEnabled(), mlangLspPath, mlangLspArgs,
+                   [&](bool on, const std::string& p,
+                       const std::vector<std::string>& a)
+                   { enableMlangLsp(on, p, a); });
     if(isFileType<FileType::JavaScript>() || isFileType<FileType::TypeScript>())
         ensure_lsp(isTsLspEnabled(), tsLspPath, tsLspArgs,
                    [&](bool on, const std::string& p,
