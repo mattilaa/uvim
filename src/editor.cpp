@@ -5733,6 +5733,11 @@ void Editor::openGitStageMode()
         gitHandler->openGitStageMode();
 }
 
+bool Editor::isGitRebaseInProgress() const
+{
+    return gitHandler && gitHandler->isRebaseInProgress();
+}
+
 static std::optional<int> parseIndentWidthLine(const std::string& line)
 {
     size_t start = 0;
@@ -7292,6 +7297,22 @@ void Editor::executeCommand(std::string_view cmd)
             gitHandler->openGitRawRebaseMode();
         else
             setStatusMessage("git rrebase: unavailable");
+        return;
+    }
+    if(trimmedCmd == "git rebasecontinue")
+    {
+        if(gitHandler)
+            gitHandler->continueGitRebase();
+        else
+            setStatusMessage("git rebasecontinue: unavailable");
+        return;
+    }
+    if(trimmedCmd == "git rebaseabort")
+    {
+        if(gitHandler)
+            gitHandler->abortGitRebase();
+        else
+            setStatusMessage("git rebaseabort: unavailable");
         return;
     }
     if(trimmedCmd == "git add")
@@ -11022,17 +11043,24 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
         "git stash pop",
     };
 
+    std::vector<std::string> dynamicBaseCommands = baseCommands;
+    if(gitHandler && gitHandler->isRebaseInProgress())
+    {
+        dynamicBaseCommands.push_back("git rebasecontinue");
+        dynamicBaseCommands.push_back("git rebaseabort");
+    }
+
     auto hasCommand = [](const std::vector<std::string>& list,
                          const std::string& value) -> bool
     {
         return std::find(list.begin(), list.end(), value) != list.end();
     };
 
-    const std::vector<std::string>* activeList = &baseCommands;
+    const std::vector<std::string>* activeList = &dynamicBaseCommands;
     std::vector<std::string> fileBrowserCommands;
     if(mode == FILE_BROWSER)
     {
-        fileBrowserCommands = baseCommands;
+        fileBrowserCommands = dynamicBaseCommands;
         const std::vector<std::string> extras = {
             "delete", "d",   "rm",   "rename", "r", "mv",
             "mkdir",  "md",  "touch", "new",    "?", 

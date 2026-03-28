@@ -25,8 +25,11 @@ public:
     void openGitStageMode();
     void openGitInteractiveRebaseMode();
     void openGitRawRebaseMode();
+    void continueGitRebase();
+    void abortGitRebase();
     void addCurrentBuffer();
     std::optional<bool> currentBufferHasChanges();
+    bool isRebaseInProgress();
     bool runGitStash(std::string& outMessage);
     bool runGitStashPop(std::string& outMessage);
 

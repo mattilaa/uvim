@@ -704,6 +704,15 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     if(pathPart.empty() ||
                        std::string_view("rrebase raw").rfind(pathPart, 0) == 0)
                         completions.push_back("rrebase raw");
+                    if(ctx.editor->isGitRebaseInProgress())
+                    {
+                        if(pathPart.empty() ||
+                           std::string_view("rebasecontinue").rfind(pathPart, 0) == 0)
+                            completions.push_back("rebasecontinue");
+                        if(pathPart.empty() ||
+                           std::string_view("rebaseabort").rfind(pathPart, 0) == 0)
+                            completions.push_back("rebaseabort");
+                    }
                     if(pathPart.empty() ||
                        std::string_view("stash").rfind(pathPart, 0) == 0)
                         completions.push_back("stash");

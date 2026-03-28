@@ -88,6 +88,10 @@ static std::string_view command_doc(std::string_view cmd)
         return "Open interactive rebase from latest fixup target";
     if(cmd == "git rrebase raw")
         return "Open raw editable rebase todo";
+    if(cmd == "git rebasecontinue")
+        return "Continue ongoing rebase from staged resolution";
+    if(cmd == "git rebaseabort")
+        return "Abort ongoing rebase";
     if(cmd == "git diff")
         return "Show repository diff";
     if(cmd == "git commit")

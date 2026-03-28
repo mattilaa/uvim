@@ -287,8 +287,43 @@ std::vector<std::string> load_commit_message(const std::string& repoDir,
     return lines;
 }
 
-bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
-                     const std::vector<ParsedTodoLine>& todo)
+std::string git_dir_for_repo(const std::string& repoDir)
+{
+    std::string cmd =
+        "git -C \"" + repoDir + "\" rev-parse --git-dir 2>/dev/null";
+    auto lines = run_git_lines(cmd);
+    if(lines.empty())
+        return "";
+    std::string path = trim_newline(lines.front());
+    if(path.empty())
+        return "";
+    if(!path.empty() && path[0] != '/')
+        return repoDir + "/" + path;
+    return path;
+}
+
+bool is_rebase_in_progress_for_repo(const std::string& repoDir)
+{
+    std::string gitDir = git_dir_for_repo(repoDir);
+    if(gitDir.empty())
+        return false;
+    struct stat st{};
+    std::string mergeDir = gitDir + "/rebase-merge";
+    if(stat(mergeDir.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+        return true;
+    std::string applyDir = gitDir + "/rebase-apply";
+    return stat(applyDir.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+enum class RebaseRunResult
+{
+    Success,
+    Conflict,
+    Failure
+};
+
+RebaseRunResult run_rebase_todo(const GitCommitMode& mode, Editor* ed,
+                                const std::vector<ParsedTodoLine>& todo)
 {
     bool hasUnsupportedEditorAction = false;
     for(const auto& item : todo)
@@ -302,7 +337,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
     if(hasUnsupportedEditorAction)
     {
         ed->setStatusMessage("git rebase: squash/edit not supported here");
-        return false;
+        return RebaseRunResult::Failure;
     }
 
     const std::string oldestHash =
@@ -328,7 +363,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
     if(todoFd < 0)
     {
         ed->setStatusMessage("git rebase: failed");
-        return false;
+        return RebaseRunResult::Failure;
     }
     std::string todoPath = todoTemplate;
     FILE* todoFile = fdopen(todoFd, "w");
@@ -337,7 +372,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
         close(todoFd);
         unlink(todoPath.c_str());
         ed->setStatusMessage("git rebase: failed");
-        return false;
+        return RebaseRunResult::Failure;
     }
     fwrite(todoText.data(), 1, todoText.size(), todoFile);
     fclose(todoFile);
@@ -348,7 +383,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
     {
         unlink(todoPath.c_str());
         ed->setStatusMessage("git rebase: failed");
-        return false;
+        return RebaseRunResult::Failure;
     }
     std::string scriptPath = scriptTemplate;
     FILE* scriptFile = fdopen(scriptFd, "w");
@@ -358,7 +393,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
         unlink(scriptPath.c_str());
         unlink(todoPath.c_str());
         ed->setStatusMessage("git rebase: failed");
-        return false;
+        return RebaseRunResult::Failure;
     }
 
     std::string sequenceScript =
@@ -378,7 +413,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
             unlink(scriptPath.c_str());
             unlink(todoPath.c_str());
             ed->setStatusMessage("git rebase: failed");
-            return false;
+            return RebaseRunResult::Failure;
         }
         std::string statePath = msgStateTemplate;
         FILE* stateFile = fdopen(stateFd, "w");
@@ -389,7 +424,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
             unlink(scriptPath.c_str());
             unlink(todoPath.c_str());
             ed->setStatusMessage("git rebase: failed");
-            return false;
+            return RebaseRunResult::Failure;
         }
         fwrite("0\n", 1, 2, stateFile);
         fclose(stateFile);
@@ -407,7 +442,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
                 for(const auto& path : messagePaths)
                     unlink(path.c_str());
                 ed->setStatusMessage("git rebase: failed");
-                return false;
+                return RebaseRunResult::Failure;
             }
             std::string msgPath = msgTemplate;
             FILE* msgFile = fdopen(msgFd, "w");
@@ -420,7 +455,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
                 for(const auto& path : messagePaths)
                     unlink(path.c_str());
                 ed->setStatusMessage("git rebase: failed");
-                return false;
+                return RebaseRunResult::Failure;
             }
             std::string text = join_lines(mode.rewordMessageLines[i]);
             if(!text.empty())
@@ -438,7 +473,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
             for(const auto& path : cleanupPaths)
                 unlink(path.c_str());
             ed->setStatusMessage("git rebase: failed");
-            return false;
+            return RebaseRunResult::Failure;
         }
         std::string editorPath = editorTemplate;
         FILE* editorFile = fdopen(editorFd, "w");
@@ -449,7 +484,7 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
             for(const auto& path : cleanupPaths)
                 unlink(path.c_str());
             ed->setStatusMessage("git rebase: failed");
-            return false;
+            return RebaseRunResult::Failure;
         }
 
         std::string editorScript;
@@ -487,12 +522,18 @@ bool run_rebase_todo(const GitCommitMode& mode, Editor* ed,
         unlink(path.c_str());
     if(status != 0)
     {
+        if(is_rebase_in_progress_for_repo(mode.repoDir))
+        {
+            ed->setStatusMessage(
+                "git rebase: conflicts, resolve and use :git rebasecontinue or :git rebaseabort");
+            return RebaseRunResult::Conflict;
+        }
         ed->setStatusMessage("git rebase: failed");
-        return false;
+        return RebaseRunResult::Failure;
     }
 
     ed->setStatusMessage("git rebase: done");
-    return true;
+    return RebaseRunResult::Success;
 }
 
 std::vector<std::string> build_comment_lines(
@@ -999,8 +1040,12 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                             return rewordMode;
                         }
 
-                        if(run_rebase_todo(*this, ed, todo))
+                        RebaseRunResult result =
+                            run_rebase_todo(*this, ed, todo);
+                        if(result == RebaseRunResult::Success)
                             return return_after_done(true);
+                        if(result == RebaseRunResult::Conflict)
+                            return GitStageMode{{}, repoRoot, repoDir};
                     }
                 }
                 else if(action == Action::RebaseReword)
@@ -1046,8 +1091,12 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                             GitCommitMode runMode = *this;
                             runMode.action = Action::RebaseTodo;
                             runMode.rewordMessageLines = std::move(allMessages);
-                            if(run_rebase_todo(runMode, ed, todo))
+                            RebaseRunResult result =
+                                run_rebase_todo(runMode, ed, todo);
+                            if(result == RebaseRunResult::Success)
                                 return return_after_done(true);
+                            if(result == RebaseRunResult::Conflict)
+                                return GitStageMode{{}, repoRoot, repoDir};
                         }
                     }
                 }

@@ -95,6 +95,37 @@ std::string git_root_for_dir(const std::string& dir)
     return out;
 }
 
+std::string git_dir_for_dir(const std::string& dir)
+{
+    std::string cmd =
+        "git -C \"" + dir + "\" rev-parse --git-dir 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if(!pipe)
+        return "";
+    char buffer[512];
+    std::string out;
+    if(fgets(buffer, sizeof(buffer), pipe))
+        out = trim_newline(buffer);
+    pclose(pipe);
+    if(out.empty())
+        return "";
+    fs::path path(out);
+    if(path.is_relative())
+        path = fs::path(dir) / path;
+    return path.lexically_normal().string();
+}
+
+bool is_rebase_in_progress_in_repo(const std::string& repoRoot)
+{
+    if(repoRoot.empty())
+        return false;
+    std::string gitDir = git_dir_for_dir(repoRoot);
+    if(gitDir.empty())
+        return false;
+    return fs::exists(fs::path(gitDir) / "rebase-merge") ||
+           fs::exists(fs::path(gitDir) / "rebase-apply");
+}
+
 std::string base_dir_for_editor(const Editor* editor)
 {
     std::string baseDir = ".";
@@ -995,6 +1026,96 @@ void GitHandler::openGitRawRebaseMode()
     if(editor->modeStateMachine)
     {
         editor->modeStateMachine->transitionTo(std::move(rebaseMode));
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
+bool GitHandler::isRebaseInProgress()
+{
+    if(!ensureGitAvailable())
+        return false;
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+        return false;
+    return is_rebase_in_progress_in_repo(repoRoot);
+}
+
+void GitHandler::continueGitRebase()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git rebasecontinue: not a repo");
+        return;
+    }
+    if(!is_rebase_in_progress_in_repo(repoRoot))
+    {
+        editor->setStatusMessage("git rebasecontinue: no rebase");
+        return;
+    }
+
+    std::string cmd =
+        "git -C \"" + repoRoot + "\" rebase --continue 2>/dev/null";
+    int status = std::system(cmd.c_str());
+    if(status == 0)
+        editor->setStatusMessage("git rebase: done");
+    else if(is_rebase_in_progress_in_repo(repoRoot))
+        editor->setStatusMessage(
+            "git rebase: conflicts, resolve and use :git rebasecontinue or :git rebaseabort");
+    else
+        editor->setStatusMessage("git rebase: failed");
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(
+            GitStageMode{{}, repoRoot, repoRoot});
+        editor->syncModeFromStateMachine();
+        editor->needsFullRedraw = true;
+    }
+}
+
+void GitHandler::abortGitRebase()
+{
+    if(!ensureGitAvailable())
+    {
+        editor->setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string baseDir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(baseDir);
+    if(repoRoot.empty())
+    {
+        editor->setStatusMessage("git rebaseabort: not a repo");
+        return;
+    }
+    if(!is_rebase_in_progress_in_repo(repoRoot))
+    {
+        editor->setStatusMessage("git rebaseabort: no rebase");
+        return;
+    }
+
+    std::string cmd = "git -C \"" + repoRoot + "\" rebase --abort 2>/dev/null";
+    int status = std::system(cmd.c_str());
+    if(status == 0)
+        editor->setStatusMessage("git rebase: aborted");
+    else
+        editor->setStatusMessage("git rebase: abort failed");
+
+    if(editor->modeStateMachine)
+    {
+        editor->modeStateMachine->transitionTo(
+            GitStageMode{{}, repoRoot, repoRoot});
         editor->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
