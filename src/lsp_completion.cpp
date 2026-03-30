@@ -895,7 +895,7 @@ void Editor::requestCompletion()
         completionAll.push_back(std::move(e));
     }
 
-    if(isFileType<FileType::Mla>())
+    if(isFileType<FileType::Mla>() && completionAll.empty())
     {
         std::unordered_set<std::string> seen;
         seen.reserve(completionAll.size() * 2 + 8);
