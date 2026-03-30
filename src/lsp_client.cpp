@@ -846,6 +846,54 @@ parseDefinitionResult(const ju::Value* result)
     return std::nullopt;
 }
 
+static std::optional<std::string> parseHoverResult(const ju::Value* result)
+{
+    if(!result || result->IsNull() || !result->IsObject())
+        return std::nullopt;
+
+    const ju::Value* contents = ju::find(*result, "contents");
+    if(!contents || contents->IsNull())
+        return std::nullopt;
+
+    auto parseMarkedString = [](const ju::Value& value)
+        -> std::optional<std::string>
+    {
+        if(value.IsString())
+            return std::string(value.GetString(), value.GetStringLength());
+        if(value.IsObject())
+        {
+            if(const ju::Value* text = ju::find(value, "value"))
+            {
+                if(text->IsString())
+                    return std::string(text->GetString(),
+                                       text->GetStringLength());
+            }
+        }
+        return std::nullopt;
+    };
+
+    if(auto direct = parseMarkedString(*contents); direct.has_value())
+        return direct;
+
+    if(contents->IsArray())
+    {
+        std::string joined;
+        for(rapidjson::SizeType i = 0; i < contents->Size(); ++i)
+        {
+            if(auto piece = parseMarkedString((*contents)[i]); piece.has_value())
+            {
+                if(!joined.empty())
+                    joined += "\n";
+                joined += *piece;
+            }
+        }
+        if(!joined.empty())
+            return joined;
+    }
+
+    return std::nullopt;
+}
+
 std::optional<LspClient::Location>
 LspClient::definition(const std::string& filePath, int line,
                       int characterUtf8ByteOffset, std::string_view lineText)
@@ -1031,6 +1079,67 @@ LspClient::typeDefinition(const std::string& filePath, int line,
 
     const ju::Value* result = ju::find(*resp, "result");
     return parseDefinitionResult(result);
+}
+
+std::optional<std::string>
+LspClient::hover(const std::string& filePath, int line,
+                 int characterUtf8ByteOffset, std::string_view lineText)
+{
+    if(!running())
+        return std::nullopt;
+
+    std::string abs = absPath(filePath);
+
+    int utf16ch = characterUtf8ByteOffset;
+    if(!lineText.empty())
+    {
+        utf16ch = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
+                                                    characterUtf8ByteOffset);
+    }
+    else
+    {
+        std::string text = readFileAll(abs);
+        if(!text.empty())
+        {
+            int curLine = 0;
+            size_t start = 0;
+            for(size_t i = 0; i <= text.size(); ++i)
+            {
+                if(i == text.size() || text[i] == '\n')
+                {
+                    if(curLine == line)
+                    {
+                        std::string ln = text.substr(start, i - start);
+                        utf16ch = text_utils::utf8ByteOffsetToUtf16(
+                            ln, characterUtf8ByteOffset);
+                        break;
+                    }
+                    curLine++;
+                    start = i + 1;
+                }
+            }
+        }
+    }
+
+    ju::Document params(rapidjson::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(rapidjson::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+    ju::Value pos(rapidjson::kObjectType);
+    pos.AddMember("line", line, alloc);
+    pos.AddMember("character", utf16ch, alloc);
+    params.AddMember("position", pos, alloc);
+
+    int id = impl->sendRequest("textDocument/hover", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->IsObject())
+        return std::nullopt;
+    if(ju::has(*resp, "error"))
+        return std::nullopt;
+
+    const ju::Value* result = ju::find(*resp, "result");
+    return parseHoverResult(result);
 }
 
 std::vector<LspClient::CompletionItem>

@@ -1325,6 +1325,11 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
         ed->goToDefinition();
         break;
 
+    case keyCode(typed::TypedKey::KEY_H):
+        // gh - show hover popup
+        ed->openHoverPopupForCursor();
+        break;
+
     case keyCode(typed::TypedKey::KEY_F):
         // gf - go to file under cursor
         ed->goToFile();

@@ -5238,6 +5238,9 @@ void Editor::refreshScreen()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {
+        bool isCommandOverlayMode =
+            (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
+             currentMode == SEARCH_BACKWARD);
         if(currentBuffer && isClangdLspEnabled() &&
            isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() &&
            lspClient && !currentBuffer->filename.empty())
@@ -5253,7 +5256,8 @@ void Editor::refreshScreen()
             }
         }
         syncClangdDiagnosticsIfNeeded(false);
-        syncMlangSemanticTokensIfNeeded(false);
+        if(!isCommandOverlayMode)
+            syncMlangSemanticTokensIfNeeded(false);
     }
 #endif
 
@@ -8983,6 +8987,78 @@ static std::string extract_type_before_name(const std::string& line,
         return token;
     }
     return "";
+}
+
+void Editor::openHoverPopupForCursor()
+{
+    closeSymbolPopup();
+    if(!currentBuffer || !lines || !filename)
+        return;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    LspClient* client = nullptr;
+    if(isFileType<FileType::Mla>() && isMlangLspEnabled())
+        client = mlangLspClient.get();
+    else if(isFileType<FileType::Cpp>() && isClangdLspEnabled())
+        client = lspClient.get();
+    else if(isFileType<FileType::Python>() && isPythonLspEnabled())
+        client = pythonLspClient.get();
+    else if(isFileType<FileType::Robot>() && isRobotLspEnabled())
+        client = robotLspClient.get();
+    else if(isFileType<FileType::Html>() && isHtmlLspEnabled())
+        client = htmlLspClient.get();
+    else if(isFileType<FileType::Css>() && isCssLspEnabled())
+        client = cssLspClient.get();
+    else if(isFileType<FileType::Json>() && isJsonLspEnabled())
+        client = jsonLspClient.get();
+    else if((isFileType<FileType::TypeScript>() ||
+             isFileType<FileType::JavaScript>()) &&
+            isTsLspEnabled())
+        client = tsLspClient.get();
+
+    if(client)
+    {
+        const std::string& lineText = (*lines)[*cursorY];
+        auto hover = client->hover(*filename, *cursorY, *cursorX, lineText);
+        if(hover.has_value() && !hover->empty())
+        {
+            std::string popup;
+            popup.reserve(hover->size());
+            bool lastWasSpace = false;
+            for(char ch : *hover)
+            {
+                if(ch == '\r' || ch == '\n' || ch == '\t')
+                    ch = ' ';
+                if(std::isspace(static_cast<unsigned char>(ch)))
+                {
+                    if(lastWasSpace)
+                        continue;
+                    lastWasSpace = true;
+                    popup.push_back(' ');
+                    continue;
+                }
+                lastWasSpace = false;
+                popup.push_back(ch);
+            }
+            while(!popup.empty() &&
+                  std::isspace(static_cast<unsigned char>(popup.back())))
+            {
+                popup.pop_back();
+            }
+            if(!popup.empty())
+            {
+                symbolPopupText = std::move(popup);
+                symbolPopupActive = true;
+                symbolPopupCursorX = *cursorX;
+                symbolPopupCursorY = *cursorY;
+                needsFullRedraw = true;
+                return;
+            }
+        }
+    }
+#endif
+
+    openSymbolPopupForCursor();
 }
 
 void Editor::openSymbolPopupForCursor()

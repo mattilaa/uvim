@@ -658,6 +658,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "CODE NAVIGATION:",
             "  `gd`       - Go to definition",
+            "  `gh`       - Show LSP hover popup",
             "  `gr`       - Find references",
             "  `gf`       - Open file under cursor",
             "  `ga`       - Open git stage view",

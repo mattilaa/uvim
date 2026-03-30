@@ -47,6 +47,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \subsection keys_normal_g g-commands
 - `gd` : go to definition
+- `gh` : show LSP hover popup for symbol under cursor
 - `gr` : find references
 - `gf` : go to file under cursor
 - `gb` : toggle git blame

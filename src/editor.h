@@ -309,6 +309,7 @@ public:
     void drawDiagnosticPopup(std::string& output) const;
     void drawSymbolPopup(std::string& output) const;
     void openDiagnosticPopupForCursor();
+    void openHoverPopupForCursor();
     void closeDiagnosticPopup();
     void openSymbolPopupForCursor();
     void closeSymbolPopup();
