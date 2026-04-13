@@ -2731,6 +2731,13 @@ std::string Editor::getModeString() const
 
 void Editor::openFile(std::string_view fname)
 {
+    if(deferredStartupAction)
+    {
+        auto action = std::move(deferredStartupAction);
+        deferredStartupAction = {};
+        action(*this);
+    }
+
     locMessage.clear();
     // Normalize path (CRITICAL for buffer matching)
     std::string path(fname);

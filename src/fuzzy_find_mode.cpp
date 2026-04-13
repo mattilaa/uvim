@@ -222,9 +222,27 @@ void FuzzyFindMode::draw(Editor& editor) const
         output +=
             "  " + std::to_string(editor.allProjectFiles.size()) + " files";
     }
+    output += " ";
     if(editor.respectGitignore)
     {
-        output += " [gitignore]";
+        output += "[gitignore]";
+    }
+    else
+    {
+        output += editor.theme.uiDim();
+        output += "[gitignore off]";
+        output += editor.theme.baseFg();
+    }
+    output += " ";
+    if(editor.useGitFileIndex)
+    {
+        output += "[git index]";
+    }
+    else
+    {
+        output += editor.theme.uiDim();
+        output += "[git index off]";
+        output += editor.theme.baseFg();
     }
     output += editor.theme.baseFg();
 
@@ -335,50 +353,53 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
     if(getcwd(cwd, sizeof(cwd)))
     {
         const std::string cwdStr(cwd);
-        std::string repoRoot = trimNewline(
-            runCmd("git -C \"" + cwdStr +
-                   "\" rev-parse --show-toplevel 2>/dev/null"));
-
-        if(!repoRoot.empty())
+        if(editor.useGitFileIndex)
         {
-            const std::string trackedCmd =
-                "git -C \"" + repoRoot +
-                "\" ls-files -z --cached --others --exclude-standard 2>/dev/null";
-            const std::string raw = runCmd(trackedCmd);
-            const auto relPaths = splitNul(raw);
+            std::string repoRoot = trimNewline(
+                runCmd("git -C \"" + cwdStr +
+                       "\" rev-parse --show-toplevel 2>/dev/null"));
 
-            for(const auto& relPath : relPaths)
+            if(!repoRoot.empty())
             {
-                if(relPath.empty())
-                    continue;
+                const std::string trackedCmd =
+                    "git -C \"" + repoRoot +
+                    "\" ls-files -z --cached --others --exclude-standard 2>/dev/null";
+                const std::string raw = runCmd(trackedCmd);
+                const auto relPaths = splitNul(raw);
 
-                const std::string fullPath = repoRoot + "/" + relPath;
-                struct stat st;
-                if(stat(fullPath.c_str(), &st) != 0)
-                    continue;
-                if(S_ISDIR(st.st_mode))
-                    continue;
+                for(const auto& relPath : relPaths)
+                {
+                    if(relPath.empty())
+                        continue;
 
-                std::string displayPath = fullPath;
-                std::error_code ec;
-                std::filesystem::path rel =
-                    std::filesystem::relative(fullPath, cwdStr, ec);
-                if(!ec)
-                    displayPath = rel.lexically_normal().string();
+                    const std::string fullPath = repoRoot + "/" + relPath;
+                    struct stat st;
+                    if(stat(fullPath.c_str(), &st) != 0)
+                        continue;
+                    if(S_ISDIR(st.st_mode))
+                        continue;
 
-                FileEntry entry;
-                std::filesystem::path fullFs(fullPath);
-                entry.name = fullFs.filename().string();
-                entry.path = displayPath;
-                entry.isDirectory = false;
-                entry.size = st.st_size;
-                entry.modTime = st.st_mtime;
-                editor.allProjectFiles.push_back(std::move(entry));
-            }
-            if(!editor.allProjectFiles.empty())
-            {
-                editor.fuzzyInitialized = true;
-                return;
+                    std::string displayPath = fullPath;
+                    std::error_code ec;
+                    std::filesystem::path rel =
+                        std::filesystem::relative(fullPath, cwdStr, ec);
+                    if(!ec)
+                        displayPath = rel.lexically_normal().string();
+
+                    FileEntry entry;
+                    std::filesystem::path fullFs(fullPath);
+                    entry.name = fullFs.filename().string();
+                    entry.path = displayPath;
+                    entry.isDirectory = false;
+                    entry.size = st.st_size;
+                    entry.modTime = st.st_mtime;
+                    editor.allProjectFiles.push_back(std::move(entry));
+                }
+                if(!editor.allProjectFiles.empty())
+                {
+                    editor.fuzzyInitialized = true;
+                    return;
+                }
             }
         }
 
@@ -546,6 +567,8 @@ void FuzzyFindMode::clearQuery(Editor& editor)
 
 void FuzzyFindMode::toggleGitignore(Editor& editor)
 {
+    if(editor.gitignoreLockedOff)
+        return;
     editor.respectGitignore = !editor.respectGitignore;
     editor.fuzzyInitialized = false;
     initializeFiles(editor);

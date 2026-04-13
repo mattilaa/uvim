@@ -781,6 +781,8 @@ constexpr std::string_view kTsLsp = "--ts-lsp";
 constexpr std::string_view kTsLspPath = "--ts-lsp-path";
 constexpr std::string_view kTsLspArgs = "--ts-lsp-args";
 constexpr std::string_view kTheme = "--theme";
+constexpr std::string_view kNoGitIndex = "--no-git-index";
+constexpr std::string_view kNoGitignore = "--no-gitignore";
 constexpr std::string_view kLogFile = "--log-file";
 constexpr std::string_view kLogColors = "--log-colors";
 constexpr std::string_view kLogDir = "--log-dir";
@@ -798,12 +800,14 @@ constexpr std::array<HelpRow, 2> kHelpGeneral = {{
     {kVersion, "Show version and exit"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpConfig = {{
+constexpr std::array<HelpRow, 5> kHelpConfig = {{
     {"--config <path>", "Use custom config path"},
     {"--init-config [path]",
      "Write default config to $XDG_CONFIG_HOME/uvim/config.yaml (defaults to "
      "~/.config/uvim/config.yaml) and exit"},
     {"--theme <path>", "Load theme YAML from path"},
+    {kNoGitIndex, "Disable git-backed file indexing for fuzzy find and grep"},
+    {kNoGitignore, "Disable .gitignore filtering at startup"},
 }};
 
 constexpr std::array<HelpRow, 6> kHelpClangdLsp = {{
@@ -893,6 +897,8 @@ struct Options
     bool useTsLsp = false;
     bool ccCollectAll = false;
     bool ccWindowsToWsl = false;
+    bool useGitFileIndex = true;
+    bool respectGitignore = true;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -1155,6 +1161,14 @@ public:
                         std::string(require_value(key, i, argc, argv, val));
                     sawOptionValue = true;
                 }
+                else if(key == kNoGitIndex)
+                {
+                    opts.useGitFileIndex = false;
+                }
+                else if(key == kNoGitignore)
+                {
+                    opts.respectGitignore = false;
+                }
                 else if(key == kLogFile)
                 {
                     opts.logFile =
@@ -1276,6 +1290,8 @@ struct EditorSettings
     bool useTsLsp = false;
     bool ccCollectAll = false;
     bool ccWindowsToWsl = false;
+    bool useGitFileIndex = true;
+    bool respectGitignore = true;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -1299,6 +1315,12 @@ struct EditorSettings
     std::string mlangEnableLogMode = "info";
     std::string mlangLogDir;
 
+    bool hasExplicitLspRequest() const
+    {
+        return useClangd || useRobotLsp || usePythonLsp || useMlangLsp ||
+               useHtmlLsp || useCssLsp || useJsonLsp || useTsLsp;
+    }
+
     static EditorSettings fromOptions(const cli::Options& opts)
     {
         EditorSettings out;
@@ -1312,6 +1334,8 @@ struct EditorSettings
         out.useTsLsp = opts.useTsLsp;
         out.ccCollectAll = opts.ccCollectAll;
         out.ccWindowsToWsl = opts.ccWindowsToWsl;
+        out.useGitFileIndex = opts.useGitFileIndex;
+        out.respectGitignore = opts.respectGitignore;
         out.ccdir = opts.ccdir;
         out.clangdPath = opts.clangdPath.empty() ? "clangd" : opts.clangdPath;
         out.queryDriver = opts.queryDriver;
@@ -1336,7 +1360,7 @@ struct EditorSettings
         return out;
     }
 
-    void apply(Editor& editor) const
+    void applyLspSettings(Editor& editor) const
     {
         const bool autoDetect = editor.autoDetectLsps;
         auto binary_exists = [&](const std::string& path) -> bool
@@ -1778,6 +1802,24 @@ struct EditorSettings
             }
         }
     }
+
+    void apply(Editor& editor, bool deferAutoDetectForDirectory = false) const
+    {
+        editor.useGitFileIndex = useGitFileIndex;
+        editor.respectGitignore = respectGitignore;
+        editor.gitFileIndexLockedOff = !useGitFileIndex;
+        editor.gitignoreLockedOff = !respectGitignore;
+
+        if(deferAutoDetectForDirectory && editor.autoDetectLsps &&
+           !hasExplicitLspRequest())
+        {
+            editor.deferredStartupAction = [settings = *this](Editor& ed)
+            { settings.applyLspSettings(ed); };
+            return;
+        }
+
+        applyLspSettings(editor);
+    }
 };
 
 int main(int argc, char* argv[])
@@ -1900,7 +1942,9 @@ int main(int argc, char* argv[])
                                    settings.ccCollectAll,
                                    settings.ccWindowsToWsl);
     ccSyncer.start();
-    settings.apply(editor);
+    const bool deferAutoDetectForDirectory =
+        opts.args.size() == 1 && is_directory(opts.args[0]);
+    settings.apply(editor, deferAutoDetectForDirectory);
 
     if(!opts.args.empty())
     {

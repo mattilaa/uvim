@@ -95,6 +95,15 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:` : command mode in browser
 - `q` : quit browser
 
+\section keys_cli Startup flags
+- `--no-git-index` : disable git-backed indexing for fuzzy find and grep
+- `--no-gitignore` : disable `.gitignore` filtering for the session
+
+\section keys_startup_notes Startup notes
+- `uvim .` opens the file browser in the target directory
+- with `editor.autodetectlsps: true`, auto-detected LSP startup is deferred
+  until the first file is opened from the browser
+
 \section keys_grep Grep search mode
 - Type to search
 - `Enter` : open selected match

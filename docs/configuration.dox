@@ -166,6 +166,8 @@ Boolean. Default: true. Center screen on `gd` navigation.
 
 \par editor.autodetectlsps
 Boolean. Default: true. Auto-detect available LSP servers.
+When uvim starts directly into a directory browser (for example `uvim .`),
+auto-detected LSP startup is deferred until a file is opened.
 
 \par editor.filebrowser.fuzzy
 Boolean. Default: false. Enable fuzzy search in file browser.

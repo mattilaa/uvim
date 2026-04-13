@@ -42,7 +42,8 @@ public:
     }
 
     // Load from multiple directories (walking up to find .gitignore files)
-    void loadRecursive(const fs::path& directory)
+    void loadRecursive(const fs::path& directory,
+                       const fs::path& stopAt = fs::path())
     {
         patterns.clear();
 
@@ -57,9 +58,21 @@ public:
             current = directory;
         }
         current = current.lexically_normal();
+        fs::path stop = stopAt;
+        if(!stop.empty())
+        {
+            stop = fs::absolute(stop, ec);
+            if(ec || stop.empty())
+            {
+                ec.clear();
+                stop = stopAt;
+            }
+            stop = stop.lexically_normal();
+        }
         std::vector<fs::path> gitignoreFiles;
 
-        // Collect .gitignore files from current to root (inclusive).
+        // Collect .gitignore files from current upwards, optionally stopping
+        // at a workspace boundary.
         while(!current.empty())
         {
             fs::path gitignorePath = current / ".gitignore";
@@ -68,6 +81,9 @@ public:
                 gitignoreFiles.push_back(gitignorePath);
             }
             ec.clear();
+
+            if(!stop.empty() && current == stop)
+                break;
 
             fs::path parent = current.parent_path();
             if(parent == current)

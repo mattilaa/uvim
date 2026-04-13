@@ -9,6 +9,7 @@ struct FileEntry
     std::string name;
     std::string path;
     bool isDirectory;
-    size_t size;
-    time_t modTime;
+    size_t size = 0;
+    time_t modTime = 0;
+    bool metadataLoaded = false;
 };

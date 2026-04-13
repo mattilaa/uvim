@@ -75,12 +75,22 @@ on Fedora).
 - `--css-lsp` enable CSS LSP
 - `--json-lsp` enable JSON LSP
 - `--ts-lsp` enable TypeScript/JavaScript LSP
+- `--no-git-index` disable git-backed indexing for fuzzy find and grep
+- `--no-gitignore` disable `.gitignore` filtering for file browser, fuzzy find,
+  grep, and other project scans
 
 Local scaffold example:
 
 ```sh
 ./build/uvim --clangd --python-lsp --html-lsp --css-lsp --ts-lsp
 ```
+
+Startup note:
+
+- when you start directly into a directory browser with `uvim .`,
+  auto-detected LSP startup is deferred until you open a file
+- this keeps directory launch fast while preserving `autodetectlsps: true` for
+  normal editing
 
 ### Optional: mlangd-mla logging (private builds)
 

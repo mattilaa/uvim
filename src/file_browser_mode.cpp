@@ -19,6 +19,25 @@
 // FileBrowserMode Implementation
 // ============================================================================
 
+namespace
+{
+void ensureEntryMetadata(FileEntry& entry)
+{
+    if(entry.metadataLoaded || entry.name == "..")
+        return;
+
+    std::filesystem::path path(entry.path);
+    std::error_code ec;
+    auto st = file_utils::status_with_policy(path, ec);
+    if(!ec && std::filesystem::is_regular_file(st))
+        entry.size = file_utils::file_size_to_size_t(path);
+    else
+        entry.size = 0;
+    entry.modTime = file_utils::mtime_nothrow(path);
+    entry.metadataLoaded = true;
+}
+} // namespace
+
 void FileBrowserMode::on_enter(ModeContext& ctx)
 {
     commandPrompt = ctx.commandPrompt();
@@ -531,6 +550,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(control::ControlKey::CTRL_I))
     {
+        if(ctx.editor->gitignoreLockedOff)
+        {
+            ctx.setStatusMessage(".gitignore disabled by launch option");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
         ctx.setRespectGitignore(!ctx.respectGitignore());
         ctx.setFuzzyInitialized(false);
         loadDirectory(ctx, currentDirectory);
@@ -745,6 +770,7 @@ void FileBrowserMode::draw(Editor& editor) const
 
         if(entry.name != "..")
         {
+            ensureEntryMetadata(const_cast<FileEntry&>(entry));
             std::string info = formatFileSize(entry.size) + "  " +
                                formatFileTime(entry.modTime);
 
@@ -977,7 +1003,10 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
     GitIgnore gitignore;
     if(ctx.respectGitignore())
     {
-        gitignore.loadRecursive(resolvedDir);
+        std::filesystem::path gitignoreRoot;
+        if(ctx.editor && !ctx.editor->getProjectRoot().empty())
+            gitignoreRoot = ctx.editor->getProjectRoot();
+        gitignore.loadRecursive(resolvedDir, gitignoreRoot);
     }
 
     std::vector<FileEntry> dirs;
@@ -1005,8 +1034,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
         up.name = "..";
         up.path = file_utils::path_to_utf8_string(parentPath);
         up.isDirectory = true;
-        up.size = 0;
-        up.modTime = 0;
+        up.metadataLoaded = true;
         dirs.push_back(std::move(up));
     }
 
@@ -1044,25 +1072,8 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
 
         FileEntry fe;
         fe.name = std::move(name);
-        std::filesystem::path entryPath = std::filesystem::absolute(de.path(), ec2);
-        if(ec2 || entryPath.empty())
-        {
-            ec2.clear();
-            entryPath = de.path();
-        }
-        fe.path = file_utils::path_to_utf8_string(entryPath);
+        fe.path = file_utils::path_to_utf8_string(de.path().lexically_normal());
         fe.isDirectory = isDir;
-
-        if(std::filesystem::is_regular_file(st))
-        {
-            fe.size = file_utils::file_size_to_size_t(de.path());
-        }
-        else
-        {
-            fe.size = 0;
-        }
-
-        fe.modTime = file_utils::mtime_nothrow(de.path());
         push_entry(std::move(fe));
     }
 
