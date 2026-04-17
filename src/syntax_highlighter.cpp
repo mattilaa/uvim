@@ -333,6 +333,14 @@ bool is_mlang_builtin(std::string_view word)
                                [&](std::string_view fn) { return fn == word; });
 }
 
+bool is_mlang_platform_keyword(std::string_view word)
+{
+    static constexpr std::array<std::string_view, 6> kPlatform = {
+        "aarch64", "linux", "macos", "posix", "windows", "x64"};
+    return std::ranges::any_of(kPlatform,
+                               [&](std::string_view kw) { return kw == word; });
+}
+
 std::vector<std::string> split_command_line(std::string_view command)
 {
     std::vector<std::string> args;
@@ -3599,6 +3607,11 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             }
             else if(isFileType<FileType::Mla>())
             {
+                if(is_mlang_platform_keyword(word))
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    continue;
+                }
                 if(syntaxMlangHighlightTypes)
                 {
                     if(auto mapped = lookupMlangTokenType(word))

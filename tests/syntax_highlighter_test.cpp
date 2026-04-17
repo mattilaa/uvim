@@ -986,6 +986,32 @@ TEST(SyntaxHighlighterTest, TogglesMlangTypeHighlighting)
     EXPECT_FALSE(hasTokenAt(tokensOff, typePos, 3, TOKEN_TYPE));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangPlatformKeywords)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line =
+        "if aarch64!() || linux!() || macos!() || posix!() || windows!() || x64!() { }";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                      tomlQuote, inMarkupFence, markupFenceChar);
+
+    for(std::string_view word :
+        {"aarch64", "linux", "macos", "posix", "windows", "x64"})
+    {
+        int pos = (int)line.find(word);
+        ASSERT_NE(pos, (int)std::string::npos) << word;
+        EXPECT_TRUE(hasTokenAt(tokens, pos, (int)word.size(), TOKEN_KEYWORD))
+            << word;
+    }
+}
+
 TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
 {
     Editor editor = Editor::createForTests();
