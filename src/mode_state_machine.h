@@ -591,6 +591,9 @@ struct FileBrowserMode
     std::vector<FileBrowserOp> redoStack;
     std::vector<std::string> historyBack;
     std::vector<std::string> historyForward;
+    bool visualMode = false;
+    int visualAnchor = 0;
+    std::unordered_set<std::string> preVisualSelected;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
@@ -610,6 +613,8 @@ struct FileBrowserMode
 private:
     void loadDirectory(ModeContext& ctx, std::string pathStr);
     void navigateTo(ModeContext& ctx, std::string pathStr);
+    int firstNonDotDotIndex() const;
+    void updateVisualSelection();
     void updateFilter(ModeContext& ctx);
     int listSize() const;
     const FileEntry* entryAt(int index) const;

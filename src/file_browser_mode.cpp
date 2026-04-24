@@ -595,9 +595,20 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             copyBuffer.clear();
             bool wasMove = moveMode;
             moveMode = false;
+            visualMode = false;
+            preVisualSelected.clear();
             if(wasMove)
                 loadDirectory(ctx, currentDirectory);
             ctx.setStatusMessage("Cleared selections and buffer");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(visualMode)
+        {
+            selectedFiles = preVisualSelected;
+            preVisualSelected.clear();
+            visualMode = false;
+            ctx.setStatusMessage("Visual mode cancelled");
             ctx.requestFullRedraw();
             return std::nullopt;
         }
@@ -661,8 +672,25 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         int nextChar = Terminal::readKey();
         if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
-            browserCursor = 0;
-            browserOffset = 0;
+            if(visualMode)
+            {
+                int target = firstNonDotDotIndex();
+                if(target < 0)
+                {
+                    ctx.setStatusMessage(
+                        "No files or directories to select");
+                }
+                else
+                {
+                    browserCursor = target;
+                    browserOffset = 0;
+                }
+            }
+            else
+            {
+                browserCursor = 0;
+                browserOffset = 0;
+            }
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_A))
         {
@@ -826,6 +854,42 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 selectedFiles.erase(it);
             else
                 selectedFiles.insert(entryPtr->path);
+        }
+    }
+
+    // Toggle visual-line selection mode (shift-V)
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_V))
+    {
+        if(visualMode)
+        {
+            visualMode = false;
+            preVisualSelected.clear();
+            ctx.setStatusMessage("");
+        }
+        else
+        {
+            int first = firstNonDotDotIndex();
+            if(first < 0)
+            {
+                ctx.setStatusMessage("No files or directories");
+            }
+            else
+            {
+                const FileEntry* cur = entryAt(browserCursor);
+                if(!cur || cur->name == "..")
+                {
+                    browserCursor = first;
+                    int visible = std::max(1, ctx.screenRows() - 5);
+                    if(browserCursor < browserOffset)
+                        browserOffset = browserCursor;
+                    if(browserCursor >= browserOffset + visible)
+                        browserOffset = browserCursor - visible + 1;
+                }
+                preVisualSelected = selectedFiles;
+                visualAnchor = browserCursor;
+                visualMode = true;
+                updateVisualSelection();
+            }
         }
     }
 
@@ -1223,6 +1287,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
     }
 
+    if(visualMode)
+        updateVisualSelection();
     ctx.requestFullRedraw();
     return std::nullopt;
 }
@@ -1409,7 +1475,7 @@ void FileBrowserMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
 
-    std::string status = " BROWSE";
+    std::string status = visualMode ? " V-BROWSE" : " BROWSE";
     if(editor.respectGitignore)
         status += " [gi]";
     if(showHidden)
@@ -1565,12 +1631,44 @@ static int fuzzyScore(std::string_view text, std::string_view pattern)
 void FileBrowserMode::navigateTo(ModeContext& ctx, std::string pathStr)
 {
     std::string oldDir = currentDirectory;
+    if(visualMode)
+    {
+        visualMode = false;
+        preVisualSelected.clear();
+    }
     loadDirectory(ctx, std::move(pathStr));
     if(!oldDir.empty() && oldDir != currentDirectory)
     {
         historyBack.push_back(oldDir);
         historyForward.clear();
         redoStack.clear();
+    }
+}
+
+int FileBrowserMode::firstNonDotDotIndex() const
+{
+    int n = listSize();
+    for(int i = 0; i < n; ++i)
+    {
+        const FileEntry* e = entryAt(i);
+        if(e && e->name != "..")
+            return i;
+    }
+    return -1;
+}
+
+void FileBrowserMode::updateVisualSelection()
+{
+    if(!visualMode)
+        return;
+    selectedFiles = preVisualSelected;
+    int a = std::min(visualAnchor, browserCursor);
+    int b = std::max(visualAnchor, browserCursor);
+    for(int i = a; i <= b; ++i)
+    {
+        const FileEntry* e = entryAt(i);
+        if(e && e->name != "..")
+            selectedFiles.insert(e->path);
     }
 }
 
