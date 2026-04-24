@@ -3,7 +3,6 @@
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
-#include <chrono>
 #include <string>
 #include <string_view>
 
@@ -16,6 +15,10 @@ namespace
 // Grey background with black foreground — used for search highlight.
 constexpr const char* HIGHLIGHT_SEQ =
     "\x1b[48;2;200;200;200m\x1b[38;2;0;0;0m";
+
+// Match file-browser selection colors (see file_browser_mode.cpp:draw).
+constexpr const char* SELECTED_BG = "\x1b[48;2;24;64;36m";
+constexpr const char* SELECTED_CURSOR_BG = "\x1b[48;2;56;120;72m";
 
 int caseInsensitiveFind(std::string_view haystack, std::string_view needle,
                         size_t from = 0)
@@ -115,29 +118,41 @@ void CommandOutputMode::clampOffsetToCursor(const Editor& editor)
     }
 }
 
-bool CommandOutputMode::selectionRange(int& startIdx, int& endIdx) const
+void CommandOutputMode::updateVisualSelection()
 {
-    if(lines.empty())
-        return false;
     if(!visualMode)
-    {
-        startIdx = endIdx = std::clamp(cursor, 0, (int)lines.size() - 1);
-        return true;
-    }
-    startIdx = std::min(visualAnchor, cursor);
-    endIdx = std::max(visualAnchor, cursor);
-    startIdx = std::max(0, startIdx);
-    endIdx = std::min((int)lines.size() - 1, endIdx);
-    return true;
+        return;
+    selectedLines = preVisualSelected;
+    int a = std::min(visualAnchor, cursor);
+    int b = std::max(visualAnchor, cursor);
+    a = std::max(0, a);
+    b = std::min((int)lines.size() - 1, b);
+    for(int i = a; i <= b; ++i)
+        selectedLines.insert(i);
 }
 
 void CommandOutputMode::yankSelection(Editor& editor)
 {
-    int a = 0, b = 0;
-    if(!selectionRange(a, b))
+    if(lines.empty())
         return;
+    std::vector<int> ordered;
+    if(!selectedLines.empty())
+    {
+        ordered.reserve(selectedLines.size());
+        for(int i : selectedLines)
+        {
+            if(i >= 0 && i < (int)lines.size())
+                ordered.push_back(i);
+        }
+        std::sort(ordered.begin(), ordered.end());
+    }
+    else
+    {
+        int c = std::clamp(cursor, 0, (int)lines.size() - 1);
+        ordered.push_back(c);
+    }
     std::string buf;
-    for(int i = a; i <= b; ++i)
+    for(int i : ordered)
     {
         buf += lines[i];
         buf += '\n';
@@ -147,8 +162,8 @@ void CommandOutputMode::yankSelection(Editor& editor)
     editor.yankBuffer = buf;
     if(editor.useSystemClipboard)
         editor.setSystemClipboard(buf);
-    int count = b - a + 1;
-    editor.setStatusMessage("Yanked " + std::to_string(count) + " line(s)");
+    editor.setStatusMessage("Yanked " + std::to_string(ordered.size()) +
+                            " line(s)");
 }
 
 std::optional<ModeState> CommandOutputMode::returnToFileBrowser() const
@@ -246,7 +261,7 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
 
-    // q exits — if there is a committed search highlight, first q clears it.
+    // q exits — clears search highlight first if active, else returns.
     if(c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(!searchQuery.empty())
@@ -261,10 +276,22 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
 
     if(c == keyCode(control::ControlKey::ESC))
     {
+        // In visual: cancel visual range, restoring pre-visual selection.
         if(visualMode)
         {
+            selectedLines = preVisualSelected;
+            preVisualSelected.clear();
             visualMode = false;
             ed->setStatusMessage("");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        // Double-ESC: clear all accumulated selection.
+        if(ed->noteDoubleEscStatusClear())
+        {
+            selectedLines.clear();
+            searchQuery.clear();
+            ed->setStatusMessage("Cleared selections");
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
@@ -278,9 +305,9 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
         return returnToFileBrowser();
     }
 
-    if(c == keyCode(command::CommandKey::KEY_COLON))
+    if(c == keyCode(command::CommandKey::KEY_COLON) ||
+       c == keyCode(command::CommandKey::KEY_SLASH))
     {
-        // Accept `:/pattern` style search. Simpler: same as '/'.
         searchActive = true;
         searchQuery.clear();
         searchPrevCursor = cursor;
@@ -289,15 +316,7 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
 
-    if(c == keyCode(command::CommandKey::KEY_SLASH))
-    {
-        searchActive = true;
-        searchQuery.clear();
-        searchPrevCursor = cursor;
-        searchPrevOffset = offset;
-        ed->needsFullRedraw = true;
-        return std::nullopt;
-    }
+    bool cursorMoved = false;
 
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
@@ -307,135 +326,172 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
         {
             ++cursor;
             clampOffsetToCursor(*ed);
+            cursorMoved = true;
         }
-        ed->needsFullRedraw = true;
-        return std::nullopt;
     }
-    if(c == keyCode(typed::TypedKey::KEY_K) ||
-       c == keyCode(navigation::NavigationKey::ARROW_UP) ||
-       c == keyCode(control::ControlKey::CTRL_K))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP) ||
+            c == keyCode(control::ControlKey::CTRL_K))
     {
         if(cursor > 0)
         {
             --cursor;
             if(cursor < offset)
                 offset = cursor;
+            cursorMoved = true;
         }
-        ed->needsFullRedraw = true;
-        return std::nullopt;
     }
-    if(c == keyCode(control::ControlKey::CTRL_D) ||
-       c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(c == keyCode(control::ControlKey::CTRL_D) ||
+            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         int half = std::max(1, contentRows(*ed) / 2);
-        cursor = std::min((int)lines.size() - 1, cursor + half);
-        if(cursor < 0)
-            cursor = 0;
-        clampOffsetToCursor(*ed);
-        ed->needsFullRedraw = true;
-        return std::nullopt;
+        int target = std::min((int)lines.size() - 1, cursor + half);
+        if(target < 0)
+            target = 0;
+        if(target != cursor)
+        {
+            cursor = target;
+            clampOffsetToCursor(*ed);
+            cursorMoved = true;
+        }
     }
-    if(c == keyCode(control::ControlKey::CTRL_U) ||
-       c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(c == keyCode(control::ControlKey::CTRL_U) ||
+            c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         int half = std::max(1, contentRows(*ed) / 2);
-        cursor = std::max(0, cursor - half);
-        if(cursor < offset)
-            offset = cursor;
-        ed->needsFullRedraw = true;
-        return std::nullopt;
+        int target = std::max(0, cursor - half);
+        if(target != cursor)
+        {
+            cursor = target;
+            if(cursor < offset)
+                offset = cursor;
+            cursorMoved = true;
+        }
     }
-    if(c == keyCode(typed::TypedKey::KEY_CAP_G))
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
-        cursor = std::max(0, (int)lines.size() - 1);
-        clampOffsetToCursor(*ed);
-        ed->needsFullRedraw = true;
-        return std::nullopt;
+        int target = std::max(0, (int)lines.size() - 1);
+        if(target != cursor)
+        {
+            cursor = target;
+            clampOffsetToCursor(*ed);
+            cursorMoved = true;
+        }
     }
-    if(c == keyCode(typed::TypedKey::KEY_G))
+    else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int next = Terminal::readKey();
         if(next == keyCode(typed::TypedKey::KEY_G))
         {
-            cursor = 0;
-            offset = 0;
+            if(cursor != 0)
+            {
+                cursor = 0;
+                offset = 0;
+                cursorMoved = true;
+            }
         }
-        ed->needsFullRedraw = true;
-        return std::nullopt;
     }
-
-    if(c == keyCode(typed::TypedKey::KEY_CAP_V))
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_V))
     {
         if(visualMode)
         {
+            // Exit visual, keeping the current range in selectedLines.
             visualMode = false;
+            preVisualSelected.clear();
             ed->setStatusMessage("");
         }
-        else
+        else if(!lines.empty())
         {
-            visualMode = true;
+            preVisualSelected = selectedLines;
             visualAnchor = cursor;
+            visualMode = true;
+            updateVisualSelection();
         }
-        ed->needsFullRedraw = true;
-        return std::nullopt;
     }
-
-    if(c == keyCode(typed::TypedKey::KEY_Y))
+    else if(c == keyCode(control::ControlKey::SPACE))
     {
-        yankSelection(*ed);
         if(visualMode)
+        {
+            // Commit visual range into selectedLines, exit visual mode —
+            // leaves the cursor free to move and start a new V-segment.
+            updateVisualSelection();
             visualMode = false;
-        ed->needsFullRedraw = true;
-        return std::nullopt;
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_N) ||
-       c == keyCode(typed::TypedKey::KEY_CAP_N))
-    {
-        if(searchQuery.empty() || lines.empty())
-            return std::nullopt;
-        bool forward = (c == keyCode(typed::TypedKey::KEY_N));
-        int found = -1;
-        int n = (int)lines.size();
-        if(forward)
-        {
-            for(int step = 1; step <= n; ++step)
-            {
-                int i = (cursor + step) % n;
-                if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
-                {
-                    found = i;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            for(int step = 1; step <= n; ++step)
-            {
-                int i = ((cursor - step) % n + n) % n;
-                if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
-                {
-                    found = i;
-                    break;
-                }
-            }
-        }
-        if(found >= 0)
-        {
-            cursor = found;
-            offset = cursor;
-            clampOffsetToCursor(*ed);
+            preVisualSelected.clear();
             ed->setStatusMessage("");
         }
-        else
+        else if(!lines.empty())
         {
-            ed->setStatusMessage("search: not found");
+            int c0 = std::clamp(cursor, 0, (int)lines.size() - 1);
+            auto it = selectedLines.find(c0);
+            if(it != selectedLines.end())
+                selectedLines.erase(it);
+            else
+                selectedLines.insert(c0);
         }
-        ed->needsFullRedraw = true;
-        return std::nullopt;
+    }
+    else if(c == keyCode(typed::TypedKey::KEY_Y))
+    {
+        // If in visual mode, finalize the range into selectedLines first
+        // (mirrors file browser behavior).
+        if(visualMode)
+        {
+            updateVisualSelection();
+            visualMode = false;
+            preVisualSelected.clear();
+        }
+        yankSelection(*ed);
+    }
+    else if(c == keyCode(typed::TypedKey::KEY_N) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_N))
+    {
+        if(!searchQuery.empty() && !lines.empty())
+        {
+            bool forward = (c == keyCode(typed::TypedKey::KEY_N));
+            int found = -1;
+            int n = (int)lines.size();
+            if(forward)
+            {
+                for(int step = 1; step <= n; ++step)
+                {
+                    int i = (cursor + step) % n;
+                    if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
+                    {
+                        found = i;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                for(int step = 1; step <= n; ++step)
+                {
+                    int i = ((cursor - step) % n + n) % n;
+                    if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
+                    {
+                        found = i;
+                        break;
+                    }
+                }
+            }
+            if(found >= 0)
+            {
+                cursor = found;
+                offset = cursor;
+                clampOffsetToCursor(*ed);
+                ed->setStatusMessage("");
+                cursorMoved = true;
+            }
+            else
+            {
+                ed->setStatusMessage("search: not found");
+            }
+        }
     }
 
+    if(cursorMoved && visualMode)
+        updateVisualSelection();
+
+    ed->needsFullRedraw = true;
     return std::nullopt;
 }
 
@@ -460,31 +516,34 @@ void CommandOutputMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
     output +=
-        "  [q: quit] [j/k: scroll] [^u/^d: half-page] [V: visual] [y: yank] [/: search]";
+        "  [q: quit] [j/k: scroll] [space: mark] [V: visual] [y: yank] [/: search]";
     output += editor.theme.baseFg();
 
     int rows = contentRows(editor);
     int cols = std::max(1, editor.screenCols);
     int usable = std::max(1, cols - 2);
 
-    int selStart = 0, selEnd = -1;
-    bool hasSel = visualMode && !lines.empty() &&
-                  selectionRange(selStart, selEnd);
-
     int rowsUsed = 0;
     int idx = offset;
     while(rowsUsed < rows && idx < (int)lines.size())
     {
         int h = displayHeight(idx, cols);
-        bool selected = hasSel && idx >= selStart && idx <= selEnd;
+        bool selected = selectedLines.count(idx) > 0;
         bool isCursor = idx == cursor;
 
-        std::string lineSeq = editor.theme.baseFg();
         std::string bgPrefix;
-        if(isCursor)
+        if(isCursor && selected)
+        {
+            bgPrefix = std::string(SELECTED_CURSOR_BG) + editor.theme.baseFg();
+        }
+        else if(isCursor)
+        {
             bgPrefix = std::string(Terminal::ESC_DIM) + editor.theme.selection();
+        }
         else if(selected)
-            bgPrefix = editor.theme.selection();
+        {
+            bgPrefix = std::string(SELECTED_BG) + editor.theme.baseFg();
+        }
 
         const std::string& line = lines[idx];
         int consumed = 0;
@@ -515,21 +574,28 @@ void CommandOutputMode::draw(Editor& editor) const
                 std::string_view(line).substr(startByte, linePos - startByte);
 
             std::string normalSeq;
-            if(isCursor)
-                normalSeq = bgPrefix + editor.theme.baseFg();
-            else if(selected)
-                normalSeq = bgPrefix + editor.theme.baseFg();
+            if(!bgPrefix.empty())
+                normalSeq = bgPrefix;
             else
                 normalSeq = editor.theme.baseFg();
 
             if(!searchQuery.empty())
-            {
                 appendHighlighted(output, chunk, searchQuery, normalSeq);
-            }
             else
             {
                 output += normalSeq;
                 output.append(chunk.data(), chunk.size());
+            }
+
+            // Fill remaining columns with bg so selection color spans the row.
+            if(!bgPrefix.empty())
+            {
+                int pad = usable - takenWidth;
+                if(pad > 0)
+                {
+                    output += bgPrefix;
+                    output.append(pad, ' ');
+                }
             }
 
             output += editor.theme.reset();
@@ -554,6 +620,8 @@ void CommandOutputMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
     std::string left = visualMode ? " V-RUN" : " RUN";
+    if(!selectedLines.empty())
+        left += " (" + std::to_string(selectedLines.size()) + " sel)";
     left += " | " + command;
     int total = (int)lines.size();
     int current = std::min(cursor + 1, total);

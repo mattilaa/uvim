@@ -1223,6 +1223,8 @@ struct CommandOutputMode
 
     bool visualMode = false;
     int visualAnchor = 0;
+    std::unordered_set<int> selectedLines;
+    std::unordered_set<int> preVisualSelected;
 
     bool searchActive = false;
     std::string searchQuery;
@@ -1257,9 +1259,7 @@ private:
     int contentRows(const Editor& editor) const;
     int displayHeight(int idx, int cols) const;
     void clampOffsetToCursor(const Editor& editor);
-    void scrollDownOneLine(const Editor& editor);
-    void scrollUpOneLine();
-    bool selectionRange(int& startIdx, int& endIdx) const;
+    void updateVisualSelection();
     void yankSelection(Editor& editor);
     std::optional<ModeState> returnToFileBrowser() const;
 };
