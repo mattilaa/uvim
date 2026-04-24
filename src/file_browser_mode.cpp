@@ -1562,6 +1562,13 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
         resolvedDir = resolvedDir.lexically_normal();
     }
 
+    {
+        std::string stripped = file_utils::path_to_utf8_string(resolvedDir);
+        while(stripped.size() > 1 && stripped.back() == '/')
+            stripped.pop_back();
+        resolvedDir = std::filesystem::path(stripped);
+    }
+
     currentDirectory = file_utils::path_to_utf8_string(resolvedDir);
 
     GitIgnore gitignore;
