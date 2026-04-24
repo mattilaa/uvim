@@ -317,6 +317,7 @@ struct GitStageMode;
 struct GitCommitMode;
 struct GitFixupMode;
 struct GitPatchMode;
+struct CommandOutputMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -327,7 +328,7 @@ using ModeState =
                  OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
                  HelpMode, GitShowCommitMode, GitLogMode, GitStageMode,
                  GitCommitMode,
-                 GitFixupMode, GitPatchMode>;
+                 GitFixupMode, GitPatchMode, CommandOutputMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -1206,6 +1207,61 @@ struct GitPatchMode
     std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
+};
+
+struct CommandOutputMode
+{
+    static constexpr const char* name()
+    {
+        return "RUN";
+    }
+
+    std::string command;
+    std::vector<std::string> lines;
+    int cursor = 0;
+    int offset = 0;
+
+    bool visualMode = false;
+    int visualAnchor = 0;
+
+    bool searchActive = false;
+    std::string searchQuery;
+    int searchPrevCursor = 0;
+    int searchPrevOffset = 0;
+
+    std::string returnDirectory;
+    int returnBrowseCursor = 0;
+    int returnBrowseOffset = 0;
+    std::string previousFile;
+
+    CommandOutputMode() = default;
+    CommandOutputMode(std::string cmd, std::vector<std::string> output,
+                      std::string dir = {}, int browseCursor = 0,
+                      int browseOffset = 0, std::string prevFile = {})
+        : command(std::move(cmd)), lines(std::move(output)),
+          returnDirectory(std::move(dir)),
+          returnBrowseCursor(browseCursor),
+          returnBrowseOffset(browseOffset),
+          previousFile(std::move(prevFile))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
+
+    void draw(Editor& editor) const;
+
+private:
+    int contentRows(const Editor& editor) const;
+    int displayHeight(int idx, int cols) const;
+    void clampOffsetToCursor(const Editor& editor);
+    void scrollDownOneLine(const Editor& editor);
+    void scrollUpOneLine();
+    bool selectionRange(int& startIdx, int& endIdx) const;
+    void yankSelection(Editor& editor);
+    std::optional<ModeState> returnToFileBrowser() const;
 };
 
 // ============================================================================

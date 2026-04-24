@@ -2666,6 +2666,9 @@ void Editor::setMode(Mode mode)
     case GIT_PATCH:
         modeStateMachine->transitionTo(GitPatchMode{});
         break;
+    case COMMAND_OUTPUT:
+        modeStateMachine->transitionTo(CommandOutputMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -2725,6 +2728,8 @@ std::string Editor::getModeString() const
         return "GIT FIXUP";
     case GIT_PATCH:
         return "GIT PATCH";
+    case COMMAND_OUTPUT:
+        return "RUN";
     }
     return "";
 }
@@ -5229,6 +5234,19 @@ void Editor::refreshScreen()
         if(modeStateMachine)
         {
             if(auto* state = modeStateMachine->getState<GitPatchMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
+    if(currentMode == COMMAND_OUTPUT)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<CommandOutputMode>())
             {
                 state->draw(*this);
                 return;
@@ -8369,6 +8387,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = GIT_PATCH;
     }
+    else if(std::holds_alternative<CommandOutputMode>(state))
+    {
+        currentMode = COMMAND_OUTPUT;
+    }
 
     if(currentMode != prevMode)
         needsFullRedraw = true;
@@ -8520,6 +8542,7 @@ void Editor::ensureBufferForMode(Mode mode)
     case GIT_COMMIT:
     case GIT_FIXUP:
     case GIT_PATCH:
+    case COMMAND_OUTPUT:
         return;
     default:
         break;

@@ -582,11 +582,71 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
     }
 
+    auto runTabAppendSelected = [&]() -> bool
+    {
+        if(!commandPrompt || !commandPrompt->isActive())
+            return false;
+        const std::string& input = commandPrompt->getInput();
+        if(input.rfind("run ", 0) != 0 && input != "run")
+            return false;
+        if(selectedFiles.empty())
+            return false;
+        auto shellQuote = [](const std::string& s) -> std::string
+        {
+            bool needsQuote = s.find_first_of(" \t'\"\\$`()|&;<>*?[]{}") !=
+                              std::string::npos;
+            if(!needsQuote)
+                return s;
+            std::string out;
+            out.reserve(s.size() + 2);
+            out += '\'';
+            for(char ch : s)
+            {
+                if(ch == '\'')
+                    out += "'\\''";
+                else
+                    out += ch;
+            }
+            out += '\'';
+            return out;
+        };
+        std::vector<std::string> ordered;
+        ordered.reserve(selectedFiles.size());
+        std::filesystem::path base(currentDirectory);
+        for(const auto& p : selectedFiles)
+        {
+            std::error_code ec;
+            std::filesystem::path rel =
+                std::filesystem::relative(std::filesystem::path(p), base, ec);
+            std::string s =
+                ec ? p : file_utils::path_to_utf8_string(rel);
+            if(s.empty())
+                s = p;
+            ordered.push_back(std::move(s));
+        }
+        std::sort(ordered.begin(), ordered.end());
+        std::string newInput = input;
+        if(!newInput.empty() && newInput.back() != ' ')
+            newInput += ' ';
+        for(size_t i = 0; i < ordered.size(); ++i)
+        {
+            if(i > 0)
+                newInput += ' ';
+            newInput += shellQuote(ordered[i]);
+        }
+        commandPrompt->setInput(std::move(newInput));
+        ctx.cancelCommandPopup();
+        ctx.requestFullRedraw();
+        return true;
+    };
+
     if(commandPrompt && commandPrompt->isActive() && c != keyCode(control::ControlKey::TAB) &&
        c != keyCode(control::ControlKey::SHIFT_TAB))
     {
         resetSearchTabCompletion();
     }
+    if(c == keyCode(control::ControlKey::TAB) && runTabAppendSelected())
+        return std::nullopt;
     if(c == keyCode(control::ControlKey::TAB) && searchTabComplete(false))
         return std::nullopt;
     if(c == keyCode(control::ControlKey::SHIFT_TAB) && searchTabComplete(true))
@@ -2656,6 +2716,83 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     if(getcwd(cwd, sizeof(cwd)))
                         ctx.setStatusMessage(std::string(cwd));
                 }
+                return true;
+            }
+
+            // =================================================================
+            // Run shell command and show output
+            // =================================================================
+            if(cmd == "run")
+            {
+                if(args.empty())
+                {
+                    ctx.setStatusMessage("Usage: :run <shell command>");
+                    return true;
+                }
+                std::string shellCmd = "cd ";
+                auto quoteDir = [](const std::string& s) -> std::string
+                {
+                    std::string out;
+                    out.reserve(s.size() + 2);
+                    out += '\'';
+                    for(char ch : s)
+                    {
+                        if(ch == '\'')
+                            out += "'\\''";
+                        else
+                            out += ch;
+                    }
+                    out += '\'';
+                    return out;
+                };
+                shellCmd += quoteDir(currentDirectory);
+                shellCmd += " && { ";
+                shellCmd += args;
+                shellCmd += "; } 2>&1";
+
+                std::vector<std::string> outputLines;
+                FILE* pipe = popen(shellCmd.c_str(), "r");
+                if(!pipe)
+                {
+                    ctx.setStatusMessage("Failed to run: " + args);
+                    return true;
+                }
+                std::string current;
+                char buf[4096];
+                while(true)
+                {
+                    size_t n = fread(buf, 1, sizeof(buf), pipe);
+                    for(size_t i = 0; i < n; ++i)
+                    {
+                        char ch = buf[i];
+                        if(ch == '\n')
+                        {
+                            outputLines.push_back(std::move(current));
+                            current.clear();
+                        }
+                        else if(ch == '\r')
+                        {
+                            // strip
+                        }
+                        else
+                        {
+                            current += ch;
+                        }
+                    }
+                    if(n < sizeof(buf))
+                        break;
+                }
+                if(!current.empty())
+                    outputLines.push_back(std::move(current));
+                int status = pclose(pipe);
+                (void)status;
+                if(outputLines.empty())
+                    outputLines.push_back("(no output)");
+
+                CommandOutputMode co(args, std::move(outputLines),
+                                     currentDirectory, browserCursor,
+                                     browserOffset, previousFile);
+                nextState = ModeState{std::move(co)};
                 return true;
             }
 
