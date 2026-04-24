@@ -1751,27 +1751,35 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 else
                 {
                     std::filesystem::path dirPath =
-                        std::filesystem::path(currentDirectory) /
-                        std::filesystem::path(args);
-                    std::error_code ec;
-                    std::filesystem::create_directory(dirPath, ec);
-                    if(ec)
+                        (std::filesystem::path(currentDirectory) /
+                         std::filesystem::path(args))
+                            .lexically_normal();
+                    std::error_code existsEc;
+                    bool alreadyExisted =
+                        std::filesystem::exists(dirPath, existsEc);
+                    std::error_code createEc;
+                    if(!alreadyExisted)
+                        std::filesystem::create_directories(dirPath, createEc);
+                    if(!alreadyExisted && createEc)
                     {
                         ctx.setStatusMessage("Failed to create directory: " +
-                                             ec.message());
+                                             createEc.message());
                     }
                     else
                     {
-                        ctx.setStatusMessage("Created directory: " + args);
+                        std::filesystem::path parentPath = dirPath.parent_path();
+                        if(parentPath.empty())
+                            parentPath = dirPath;
                         if(filterActive)
                         {
                             filterActive = false;
                             filterQuery.clear();
                             filterMatches.clear();
                         }
-                        loadDirectory(ctx, currentDirectory);
-                        std::string targetPath = file_utils::path_to_utf8_string(
-                            dirPath.lexically_normal());
+                        loadDirectory(
+                            ctx, file_utils::path_to_utf8_string(parentPath));
+                        std::string targetPath =
+                            file_utils::path_to_utf8_string(dirPath);
                         for(int i = 0; i < (int)fileList.size(); ++i)
                         {
                             if(fileList[i].path == targetPath)
@@ -1787,6 +1795,10 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                                 break;
                             }
                         }
+                        if(alreadyExisted)
+                            ctx.setStatusMessage("Directory already exists");
+                        else
+                            ctx.setStatusMessage("Created directory: " + args);
                     }
                 }
                 return true;
