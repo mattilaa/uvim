@@ -178,6 +178,71 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(confirmingDirCreate)
+    {
+        if(c == keyCode(typed::TypedKey::KEY_Y) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_Y))
+        {
+            std::filesystem::path target(pendingFilePath);
+            std::filesystem::path parent = target.parent_path();
+            std::error_code ec;
+            std::filesystem::create_directories(parent, ec);
+            bool ok = !ec;
+            if(ok)
+            {
+                std::ofstream file(target);
+                ok = file.is_open();
+                if(ok)
+                    file.close();
+            }
+            std::string createdPath = pendingFilePath;
+            std::string parentStr =
+                file_utils::path_to_utf8_string(parent.lexically_normal());
+            confirmingDirCreate = false;
+            pendingFilePath.clear();
+            pendingParentRel.clear();
+            if(!ok)
+            {
+                ctx.setStatusMessage("Failed to create file");
+            }
+            else
+            {
+                if(parentStr != currentDirectory)
+                    navigateTo(ctx, parentStr);
+                else
+                    loadDirectory(ctx, currentDirectory);
+                for(int i = 0; i < (int)fileList.size(); ++i)
+                {
+                    if(fileList[i].path == createdPath)
+                    {
+                        browserCursor = i;
+                        int visible = std::max(1, ctx.screenRows() - 5);
+                        if(browserCursor < browserOffset)
+                            browserOffset = browserCursor;
+                        if(browserCursor >= browserOffset + visible)
+                            browserOffset = browserCursor - visible + 1;
+                        break;
+                    }
+                }
+                ctx.setStatusMessage("Created file: " + createdPath);
+            }
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(c == keyCode(typed::TypedKey::KEY_N) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+           c == keyCode(control::ControlKey::ESC))
+        {
+            confirmingDirCreate = false;
+            pendingFilePath.clear();
+            pendingParentRel.clear();
+            ctx.setStatusMessage("Cancelled");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
     auto clearSearchState = [&]()
     {
         searchMatches.clear();
@@ -541,15 +606,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_N) || c == keyCode(typed::TypedKey::KEY_CAP_N))
+    if((c == keyCode(typed::TypedKey::KEY_N) ||
+        c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
+       !searchMatches.empty())
     {
-        if(searchMatches.empty())
-        {
-            ctx.setStatusMessage("No active search");
-            ctx.requestFullRedraw();
-            return std::nullopt;
-        }
-
         bool forward = (c == keyCode(typed::TypedKey::KEY_N));
         if(currentSearchMatch < 0 ||
            currentSearchMatch >= static_cast<int>(searchMatches.size()))
@@ -1230,6 +1290,22 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 { return executeCommand(ctx, commandLine); },
                 next);
             commandPrompt->setInput("mkdir ");
+            ctx.cancelCommandPopup();
+        }
+    }
+
+    // Create new file (open : prompt with "new " prefilled)
+    else if(c == keyCode(typed::TypedKey::KEY_N))
+    {
+        if(commandPrompt)
+        {
+            std::optional<ModeState> next;
+            (void)commandPrompt->handle(
+                ctx, keyCode(command::CommandKey::KEY_COLON),
+                [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); },
+                next);
+            commandPrompt->setInput("new ");
             ctx.cancelCommandPopup();
         }
     }
@@ -2302,25 +2378,75 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             {
                 if(args.empty())
                 {
-                    ctx.createNewFilePrompt();
+                    ctx.setStatusMessage("Usage: :new <name>");
+                    return true;
                 }
-                else
+                std::filesystem::path filePath =
+                    (std::filesystem::path(currentDirectory) /
+                     std::filesystem::path(args))
+                        .lexically_normal();
+                if(!filePath.has_filename() || filePath.filename().empty())
                 {
-                    std::filesystem::path filePath =
-                        std::filesystem::path(currentDirectory) /
-                        std::filesystem::path(args);
-                    std::ofstream file(filePath);
-                    if(!file.is_open())
-                    {
-                        ctx.setStatusMessage("Failed to create file: " + args);
-                    }
+                    ctx.setStatusMessage("Usage: :new <name>");
+                    return true;
+                }
+                std::filesystem::path parent = filePath.parent_path();
+                std::error_code parentEc;
+                bool parentExists =
+                    !parent.empty() &&
+                    std::filesystem::is_directory(parent, parentEc);
+                if(!parentExists)
+                {
+                    std::string rel;
+                    size_t lastSlash =
+                        args.find_last_of(keyCode(command::CommandKey::KEY_SLASH));
+                    if(lastSlash != std::string::npos)
+                        rel = args.substr(0, lastSlash);
                     else
+                        rel = file_utils::path_to_utf8_string(parent);
+                    pendingFilePath =
+                        file_utils::path_to_utf8_string(filePath);
+                    pendingParentRel = rel;
+                    confirmingDirCreate = true;
+                    ctx.setStatusMessage("Directory " + rel +
+                                         " doesn't exist, create? (y/n)");
+                    return true;
+                }
+                std::error_code existsEc;
+                if(std::filesystem::exists(filePath, existsEc))
+                {
+                    ctx.setStatusMessage("File already exists: " + args);
+                    return true;
+                }
+                std::ofstream file(filePath);
+                if(!file.is_open())
+                {
+                    ctx.setStatusMessage("Failed to create file: " + args);
+                    return true;
+                }
+                file.close();
+                std::string createdPath =
+                    file_utils::path_to_utf8_string(filePath);
+                std::string parentStr =
+                    file_utils::path_to_utf8_string(parent.lexically_normal());
+                if(parentStr != currentDirectory)
+                    navigateTo(ctx, parentStr);
+                else
+                    loadDirectory(ctx, currentDirectory);
+                for(int i = 0; i < (int)fileList.size(); ++i)
+                {
+                    if(fileList[i].path == createdPath)
                     {
-                        file.close();
-                        ctx.setStatusMessage("Created file: " + args);
-                        loadDirectory(ctx, currentDirectory);
+                        browserCursor = i;
+                        int visible = std::max(1, ctx.screenRows() - 5);
+                        if(browserCursor < browserOffset)
+                            browserOffset = browserCursor;
+                        if(browserCursor >= browserOffset + visible)
+                            browserOffset = browserCursor - visible + 1;
+                        break;
                     }
                 }
+                ctx.setStatusMessage("Created file: " + args);
                 return true;
             }
 

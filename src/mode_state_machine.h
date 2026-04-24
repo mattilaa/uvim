@@ -586,6 +586,9 @@ struct FileBrowserMode
     std::vector<std::string> copyBuffer;
     std::vector<std::string> deleteTargets;
     bool confirmingDelete = false;
+    bool confirmingDirCreate = false;
+    std::string pendingFilePath;
+    std::string pendingParentRel;
     bool moveMode = false;
     std::vector<FileBrowserOp> undoStack;
     std::vector<FileBrowserOp> redoStack;
