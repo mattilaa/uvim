@@ -541,6 +541,24 @@ struct SearchBackwardMode
     void deleteWordBackward(ModeContext& ctx);
 };
 
+struct FileBrowserOp
+{
+    enum class Kind
+    {
+        Delete,
+        Move,
+        Paste,
+        Mkdir,
+    };
+    Kind kind = Kind::Delete;
+    // Delete: pairs = (trashPath, originalPath) — files currently at trashPath
+    // Move:   pairs = (srcPath, dstPath)       — files currently at dstPath
+    // Paste:  pairs = (trashPath, dstPath)     — files currently at dstPath;
+    //                                            trashPath allocated on undo
+    // Mkdir:  pairs = ("", createdPath)        — dir exists at createdPath
+    std::vector<std::pair<std::string, std::string>> pairs;
+};
+
 struct FileBrowserMode
 {
     static constexpr const char* name()
@@ -569,6 +587,8 @@ struct FileBrowserMode
     std::vector<std::string> deleteTargets;
     bool confirmingDelete = false;
     bool moveMode = false;
+    std::vector<FileBrowserOp> undoStack;
+    std::vector<FileBrowserOp> redoStack;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
