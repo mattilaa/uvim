@@ -564,6 +564,10 @@ struct FileBrowserMode
     std::vector<std::string> searchTabCandidates;
     std::string searchTabSeed;
     int searchTabIndex = -1;
+    std::unordered_set<std::string> selectedFiles;
+    std::vector<std::string> copyBuffer;
+    std::vector<std::string> deleteTargets;
+    bool confirmingDelete = false;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;

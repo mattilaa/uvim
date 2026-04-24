@@ -73,6 +73,48 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 {
     int c = keyCode(key);
 
+    if(confirmingDelete)
+    {
+        if(c == keyCode(typed::TypedKey::KEY_Y) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_Y))
+        {
+            int deleted = 0;
+            int failed = 0;
+            for(const auto& path : deleteTargets)
+            {
+                std::error_code ec;
+                std::filesystem::remove_all(std::filesystem::path(path), ec);
+                if(ec)
+                    ++failed;
+                else
+                    ++deleted;
+            }
+            deleteTargets.clear();
+            selectedFiles.clear();
+            confirmingDelete = false;
+            loadDirectory(ctx, currentDirectory);
+            if(failed > 0)
+                ctx.setStatusMessage("Deleted " + std::to_string(deleted) +
+                                     ", " + std::to_string(failed) + " failed");
+            else
+                ctx.setStatusMessage("Deleted " + std::to_string(deleted) +
+                                     " item(s)");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(c == keyCode(typed::TypedKey::KEY_N) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+           c == keyCode(control::ControlKey::ESC))
+        {
+            deleteTargets.clear();
+            confirmingDelete = false;
+            ctx.setStatusMessage("");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
     auto clearSearchState = [&]()
     {
         searchMatches.clear();
@@ -84,7 +126,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     const auto moveToVisibleCursor = [&]()
     {
-        int visible = std::max(1, ctx.screenRows() - 4);
+        int visible = std::max(1, ctx.screenRows() - 5);
         if(browserCursor < browserOffset)
             browserOffset = browserCursor;
         if(browserCursor >= browserOffset + visible)
@@ -434,7 +476,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor < count - 1)
         {
             browserCursor++;
-            int visible = ctx.screenRows() - 4;
+            int visible = ctx.screenRows() - 5;
             if(browserCursor >= browserOffset + visible)
                 browserOffset = browserCursor - visible + 1;
         }
@@ -452,7 +494,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         int count = listSize();
         browserCursor = std::max(0, count - 1);
-        int visible = ctx.screenRows() - 4;
+        int visible = ctx.screenRows() - 5;
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
     }
@@ -472,18 +514,18 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (ctx.screenRows() - 4) / 2;
+        int half = (ctx.screenRows() - 5) / 2;
         browserCursor += half;
         int count = listSize();
         if(browserCursor >= count)
             browserCursor = std::max(0, count - 1);
-        int visible = ctx.screenRows() - 4;
+        int visible = ctx.screenRows() - 5;
         if(browserCursor >= browserOffset + visible)
             browserOffset = browserCursor - visible + 1;
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = (ctx.screenRows() - 4) / 2;
+        int half = (ctx.screenRows() - 5) / 2;
         browserCursor -= half;
         if(browserCursor < 0)
             browserCursor = 0;
@@ -575,16 +617,137 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         ctx.createNewFilePrompt();
     }
 
-    // Create new directory
-    else if(c == keyCode(typed::TypedKey::KEY_D))
+    // Toggle selection on current entry
+    else if(c == keyCode(control::ControlKey::SPACE))
     {
-        ctx.createNewDirectoryPrompt();
+        const FileEntry* entryPtr = entryAt(browserCursor);
+        if(entryPtr && entryPtr->name != "..")
+        {
+            auto it = selectedFiles.find(entryPtr->path);
+            if(it != selectedFiles.end())
+                selectedFiles.erase(it);
+            else
+                selectedFiles.insert(entryPtr->path);
+        }
     }
 
-    // Delete file/directory
+    // Delete selected files (or current under cursor)
+    else if(c == keyCode(typed::TypedKey::KEY_D))
+    {
+        deleteTargets.clear();
+        if(!selectedFiles.empty())
+        {
+            for(const auto& p : selectedFiles)
+                deleteTargets.push_back(p);
+        }
+        else
+        {
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(entryPtr && entryPtr->name != "..")
+                deleteTargets.push_back(entryPtr->path);
+        }
+        if(deleteTargets.empty())
+        {
+            ctx.setStatusMessage("Nothing to delete");
+        }
+        else
+        {
+            confirmingDelete = true;
+            ctx.setStatusMessage("Delete " +
+                                 std::to_string(deleteTargets.size()) +
+                                 " item(s)? (y/n)");
+        }
+    }
+
+    // Copy selected files (or current) to paste buffer
+    else if(c == keyCode(typed::TypedKey::KEY_C))
+    {
+        copyBuffer.clear();
+        if(!selectedFiles.empty())
+        {
+            for(const auto& p : selectedFiles)
+                copyBuffer.push_back(p);
+        }
+        else
+        {
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(entryPtr && entryPtr->name != "..")
+                copyBuffer.push_back(entryPtr->path);
+        }
+        selectedFiles.clear();
+        if(copyBuffer.empty())
+            ctx.setStatusMessage("Nothing to copy");
+        else
+            ctx.setStatusMessage("Copied " +
+                                 std::to_string(copyBuffer.size()) +
+                                 " item(s)");
+    }
+
+    // Paste buffer contents into current directory
+    else if(c == keyCode(typed::TypedKey::KEY_P))
+    {
+        if(copyBuffer.empty())
+        {
+            ctx.setStatusMessage("Nothing to paste");
+        }
+        else
+        {
+            int pasted = 0;
+            int failed = 0;
+            for(const auto& srcStr : copyBuffer)
+            {
+                std::filesystem::path src(srcStr);
+                std::filesystem::path dst =
+                    std::filesystem::path(currentDirectory) / src.filename();
+                std::error_code ec;
+                if(std::filesystem::exists(dst, ec))
+                {
+                    std::string stem = dst.stem().string();
+                    std::string ext = dst.extension().string();
+                    for(int n = 1; n < 1000; ++n)
+                    {
+                        std::filesystem::path candidate =
+                            dst.parent_path() /
+                            (stem + "_copy" + std::to_string(n) + ext);
+                        if(!std::filesystem::exists(candidate, ec))
+                        {
+                            dst = candidate;
+                            break;
+                        }
+                    }
+                }
+                std::error_code copyEc;
+                if(std::filesystem::is_directory(src, copyEc))
+                {
+                    std::filesystem::copy(
+                        src, dst, std::filesystem::copy_options::recursive,
+                        copyEc);
+                }
+                else
+                {
+                    std::filesystem::copy_file(src, dst, copyEc);
+                }
+                if(copyEc)
+                    ++failed;
+                else
+                    ++pasted;
+            }
+            copyBuffer.clear();
+            selectedFiles.clear();
+            loadDirectory(ctx, currentDirectory);
+            if(failed > 0)
+                ctx.setStatusMessage("Pasted " + std::to_string(pasted) + ", " +
+                                     std::to_string(failed) + " failed");
+            else
+                ctx.setStatusMessage("Pasted " + std::to_string(pasted) +
+                                     " item(s)");
+        }
+    }
+
+    // Create new directory
     else if(c == keyCode(typed::TypedKey::KEY_CAP_D))
     {
-        ctx.deleteFilePrompt();
+        ctx.createNewDirectoryPrompt();
     }
 
     // Rename file/directory
@@ -662,6 +825,14 @@ void FileBrowserMode::draw(Editor& editor) const
         "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore] "
         "[:cmd]";
     output += editor.theme.baseFg();
+    output += Terminal::NEWLINE_CLEAR;
+    output += editor.theme.uiDim();
+    output += "  [Space: select] [d: delete] [c: copy] [p: paste]";
+    if(!selectedFiles.empty())
+        output += "  (" + std::to_string(selectedFiles.size()) + " selected)";
+    if(!copyBuffer.empty())
+        output += "  (" + std::to_string(copyBuffer.size()) + " in buffer)";
+    output += editor.theme.baseFg();
 
     std::vector<char> searchHit(fileList.size(), 0);
     bool hasLiveSearch = false;
@@ -700,7 +871,7 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     bool searchVisualActive = hasLiveSearch || hasCommittedSearch;
 
-    int availableRows = editor.screenRows - 2;
+    int availableRows = editor.screenRows - 3;
 
     int count = listSize();
     for(int i = 0; i < availableRows && i + browserOffset < count; i++)
@@ -713,11 +884,19 @@ void FileBrowserMode::draw(Editor& editor) const
             break;
         const FileEntry& entry = *entryPtr;
 
+        bool isSelected =
+            entry.name != ".." && selectedFiles.count(entry.path) > 0;
+
         if(index == browserCursor)
         {
             output += std::string(Terminal::ESC_DIM) +
                       (searchVisualActive ? editor.theme.searchMatch()
                                           : editor.theme.selection());
+        }
+        else if(isSelected)
+        {
+            output += "\x1b[48;2;24;64;36m";
+            output += editor.theme.baseFg();
         }
         else if(searchVisualActive)
         {
@@ -1118,7 +1297,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
         if(browserCursor < 0)
             browserCursor = 0;
 
-        int visible = std::max(1, ctx.screenRows() - 4);
+        int visible = std::max(1, ctx.screenRows() - 5);
         if(browserOffset > browserCursor)
             browserOffset = browserCursor;
         int maxOffset = std::max(0, (int)fileList.size() - visible);
@@ -1162,7 +1341,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
     int count = listSize();
     browserCursor = std::min(browserCursor, std::max(0, count - 1));
     browserOffset = std::min(browserOffset, std::max(0, count - 1));
-    int visible = std::max(1, ctx.screenRows() - 4);
+    int visible = std::max(1, ctx.screenRows() - 5);
     if(browserCursor < browserOffset)
         browserOffset = browserCursor;
     if(browserCursor >= browserOffset + visible)
@@ -1345,7 +1524,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 lastSearchPrefix = prefix;
                 currentSearchMatch = matchPos;
                 browserCursor = searchMatches[currentSearchMatch];
-                int visible = std::max(1, ctx.screenRows() - 4);
+                int visible = std::max(1, ctx.screenRows() - 5);
                 if(browserCursor < browserOffset)
                     browserOffset = browserCursor;
                 if(browserCursor >= browserOffset + visible)
