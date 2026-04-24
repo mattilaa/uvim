@@ -812,10 +812,20 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
     }
 
-    // Create new directory
+    // Create new directory (open : prompt with "mkdir " prefilled)
     else if(c == keyCode(typed::TypedKey::KEY_CAP_D))
     {
-        ctx.createNewDirectoryPrompt();
+        if(commandPrompt)
+        {
+            std::optional<ModeState> next;
+            (void)commandPrompt->handle(
+                ctx, keyCode(command::CommandKey::KEY_COLON),
+                [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); },
+                next);
+            commandPrompt->setInput("mkdir ");
+            ctx.cancelCommandPopup();
+        }
     }
 
     // Rename file/directory
@@ -1736,7 +1746,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             {
                 if(args.empty())
                 {
-                    ctx.createNewDirectoryPrompt();
+                    ctx.setStatusMessage("Usage: :mkdir <name>");
                 }
                 else
                 {
@@ -1753,7 +1763,30 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     else
                     {
                         ctx.setStatusMessage("Created directory: " + args);
+                        if(filterActive)
+                        {
+                            filterActive = false;
+                            filterQuery.clear();
+                            filterMatches.clear();
+                        }
                         loadDirectory(ctx, currentDirectory);
+                        std::string targetPath = file_utils::path_to_utf8_string(
+                            dirPath.lexically_normal());
+                        for(int i = 0; i < (int)fileList.size(); ++i)
+                        {
+                            if(fileList[i].path == targetPath)
+                            {
+                                browserCursor = i;
+                                int visible =
+                                    std::max(1, ctx.screenRows() - 5);
+                                if(browserCursor < browserOffset)
+                                    browserOffset = browserCursor;
+                                if(browserCursor >= browserOffset + visible)
+                                    browserOffset =
+                                        browserCursor - visible + 1;
+                                break;
+                            }
+                        }
                     }
                 }
                 return true;
