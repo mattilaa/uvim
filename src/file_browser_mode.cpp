@@ -1082,6 +1082,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Yank selected files (or current) to paste buffer (vim-style copy)
     else if(c == keyCode(typed::TypedKey::KEY_Y))
     {
+        if(visualMode)
+            updateVisualSelection();
         copyBuffer.clear();
         moveMode = false;
         if(!selectedFiles.empty())
@@ -1094,6 +1096,11 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             const FileEntry* entryPtr = entryAt(browserCursor);
             if(entryPtr && entryPtr->name != "..")
                 copyBuffer.push_back(entryPtr->path);
+        }
+        if(visualMode)
+        {
+            visualMode = false;
+            preVisualSelected.clear();
         }
         if(copyBuffer.empty())
             ctx.setStatusMessage("Nothing to yank");
