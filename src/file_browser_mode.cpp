@@ -727,6 +727,26 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
     }
+    else if(c == keyCode(typed::TypedKey::KEY_C))
+    {
+        int nextChar = Terminal::readKey();
+        if(nextChar == keyCode(typed::TypedKey::KEY_D))
+        {
+            if(chdir(currentDirectory.c_str()) == 0)
+            {
+                ctx.setFuzzyInitialized(false);
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                    ctx.setStatusMessage(std::string("PWD: ") + cwd);
+                else
+                    ctx.setStatusMessage("PWD updated");
+            }
+            else
+            {
+                ctx.setStatusMessage("Failed to chdir: " + currentDirectory);
+            }
+        }
+    }
     else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
@@ -2505,6 +2525,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         browserOffset = 0;
                         if(chdir(pathStr.c_str()) == 0)
                         {
+                            ctx.setFuzzyInitialized(false);
                             char cwd[PATH_MAX];
                             if(getcwd(cwd, sizeof(cwd)))
                                 ctx.setStatusMessage(std::string(cwd));
@@ -2515,6 +2536,15 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         ctx.setStatusMessage("Not a directory: " + args);
                     }
                 }
+                return true;
+            }
+            if(cmd == "pwd")
+            {
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                    ctx.setStatusMessage(std::string(cwd));
+                else
+                    ctx.setStatusMessage("Unable to read current directory");
                 return true;
             }
             if(cmd == "cdr")
@@ -2531,6 +2561,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 browserOffset = 0;
                 if(chdir(rootCopy.c_str()) == 0)
                 {
+                    ctx.setFuzzyInitialized(false);
                     char cwd[PATH_MAX];
                     if(getcwd(cwd, sizeof(cwd)))
                         ctx.setStatusMessage(std::string(cwd));
