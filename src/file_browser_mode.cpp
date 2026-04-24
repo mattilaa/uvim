@@ -943,6 +943,40 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     else if(c == keyCode(control::ControlKey::ENTER) || c == keyCode(typed::TypedKey::KEY_L) || c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
+        // If Enter and multiple files are selected, open all of them as
+        // buffers. Directories in the selection are skipped.
+        if(c == keyCode(control::ControlKey::ENTER) && !selectedFiles.empty())
+        {
+            std::vector<std::string> toOpen;
+            toOpen.reserve(selectedFiles.size());
+            for(const auto& p : selectedFiles)
+            {
+                std::error_code dirEc;
+                if(std::filesystem::is_directory(std::filesystem::path(p),
+                                                 dirEc))
+                    continue;
+                toOpen.push_back(p);
+            }
+            if(toOpen.empty())
+            {
+                ctx.setStatusMessage("No files selected to open");
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+            std::sort(toOpen.begin(), toOpen.end());
+            for(const auto& p : toOpen)
+                ctx.openFile(std::string_view(p));
+            selectedFiles.clear();
+            if(visualMode)
+            {
+                visualMode = false;
+                preVisualSelected.clear();
+            }
+            ctx.setStatusMessage("Opened " + std::to_string(toOpen.size()) +
+                                 " file(s)");
+            return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                   : ModeState{WelcomeMode{}};
+        }
         if(browserCursor >= 0 && browserCursor < listSize())
         {
             const FileEntry* entryPtr = entryAt(browserCursor);

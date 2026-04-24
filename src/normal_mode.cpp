@@ -344,6 +344,19 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))
+    {
+        ed->moveBufferLeft();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == keyCode(control::ControlKey::SHIFT_CTRL_L))
+    {
+        ed->moveBufferRight();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     // ========================================================================
     // Leader Key (Space)
     // ========================================================================
