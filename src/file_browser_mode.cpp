@@ -439,12 +439,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
 
     // ========================================================================
-    // Exit
+    // Exit / cancel
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC))
     {
-        if(c == keyCode(control::ControlKey::ESC) && filterActive)
+        if(filterActive)
         {
             filterActive = false;
             filterQuery.clear();
@@ -454,8 +454,32 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::ESC))
-            ctx.editor->noteDoubleEscStatusClear();
+        bool doubleEsc = ctx.editor->noteDoubleEscStatusClear();
+        if(doubleEsc)
+        {
+            selectedFiles.clear();
+            copyBuffer.clear();
+            bool wasMove = moveMode;
+            moveMode = false;
+            if(wasMove)
+                loadDirectory(ctx, currentDirectory);
+            ctx.setStatusMessage("Cleared selections and buffer");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(moveMode)
+        {
+            copyBuffer.clear();
+            moveMode = false;
+            loadDirectory(ctx, currentDirectory);
+            ctx.setStatusMessage("Move cancelled");
+        }
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_Q))
+    {
         if(!previousFile.empty())
         {
             ctx.openFile(std::string_view(previousFile));
@@ -663,6 +687,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     else if(c == keyCode(typed::TypedKey::KEY_C))
     {
         copyBuffer.clear();
+        moveMode = false;
         if(!selectedFiles.empty())
         {
             for(const auto& p : selectedFiles)
@@ -674,13 +699,42 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             if(entryPtr && entryPtr->name != "..")
                 copyBuffer.push_back(entryPtr->path);
         }
-        selectedFiles.clear();
         if(copyBuffer.empty())
             ctx.setStatusMessage("Nothing to copy");
         else
             ctx.setStatusMessage("Copied " +
                                  std::to_string(copyBuffer.size()) +
                                  " item(s)");
+    }
+
+    // Cut selected files (or current) into move buffer
+    else if(c == keyCode(typed::TypedKey::KEY_M))
+    {
+        copyBuffer.clear();
+        if(!selectedFiles.empty())
+        {
+            for(const auto& p : selectedFiles)
+                copyBuffer.push_back(p);
+        }
+        else
+        {
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(entryPtr && entryPtr->name != "..")
+                copyBuffer.push_back(entryPtr->path);
+        }
+        if(copyBuffer.empty())
+        {
+            moveMode = false;
+            ctx.setStatusMessage("Nothing to move");
+        }
+        else
+        {
+            moveMode = true;
+            loadDirectory(ctx, currentDirectory);
+            ctx.setStatusMessage("Cut " +
+                                 std::to_string(copyBuffer.size()) +
+                                 " item(s)");
+        }
     }
 
     // Paste buffer contents into current directory
@@ -692,14 +746,21 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
         else
         {
-            int pasted = 0;
+            int done = 0;
             int failed = 0;
+            int skipped = 0;
+            const bool wasMove = moveMode;
+            std::filesystem::path destDir(currentDirectory);
             for(const auto& srcStr : copyBuffer)
             {
                 std::filesystem::path src(srcStr);
-                std::filesystem::path dst =
-                    std::filesystem::path(currentDirectory) / src.filename();
                 std::error_code ec;
+                if(wasMove && src.parent_path() == destDir)
+                {
+                    ++skipped;
+                    continue;
+                }
+                std::filesystem::path dst = destDir / src.filename();
                 if(std::filesystem::exists(dst, ec))
                 {
                     std::string stem = dst.stem().string();
@@ -716,31 +777,38 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                         }
                     }
                 }
-                std::error_code copyEc;
-                if(std::filesystem::is_directory(src, copyEc))
+                std::error_code opEc;
+                if(wasMove)
+                {
+                    std::filesystem::rename(src, dst, opEc);
+                }
+                else if(std::filesystem::is_directory(src, opEc))
                 {
                     std::filesystem::copy(
                         src, dst, std::filesystem::copy_options::recursive,
-                        copyEc);
+                        opEc);
                 }
                 else
                 {
-                    std::filesystem::copy_file(src, dst, copyEc);
+                    std::filesystem::copy_file(src, dst, opEc);
                 }
-                if(copyEc)
+                if(opEc)
                     ++failed;
                 else
-                    ++pasted;
+                    ++done;
             }
             copyBuffer.clear();
             selectedFiles.clear();
+            moveMode = false;
             loadDirectory(ctx, currentDirectory);
+            const char* verb = wasMove ? "Moved" : "Pasted";
+            std::string msg = std::string(verb) + " " + std::to_string(done) +
+                              " item(s)";
             if(failed > 0)
-                ctx.setStatusMessage("Pasted " + std::to_string(pasted) + ", " +
-                                     std::to_string(failed) + " failed");
-            else
-                ctx.setStatusMessage("Pasted " + std::to_string(pasted) +
-                                     " item(s)");
+                msg += ", " + std::to_string(failed) + " failed";
+            if(skipped > 0)
+                msg += ", " + std::to_string(skipped) + " skipped";
+            ctx.setStatusMessage(msg);
         }
     }
 
@@ -827,11 +895,14 @@ void FileBrowserMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [Space: select] [d: delete] [c: copy] [p: paste]";
+    output += "  [Space: select] [d: delete] [c: copy] [m: move] [p: paste]";
     if(!selectedFiles.empty())
         output += "  (" + std::to_string(selectedFiles.size()) + " selected)";
     if(!copyBuffer.empty())
-        output += "  (" + std::to_string(copyBuffer.size()) + " in buffer)";
+    {
+        output += "  (" + std::to_string(copyBuffer.size());
+        output += moveMode ? " cut)" : " copied)";
+    }
     output += editor.theme.baseFg();
 
     std::vector<char> searchHit(fileList.size(), 0);
@@ -1253,6 +1324,12 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
         fe.name = std::move(name);
         fe.path = file_utils::path_to_utf8_string(de.path().lexically_normal());
         fe.isDirectory = isDir;
+
+        if(moveMode && !copyBuffer.empty() &&
+           std::find(copyBuffer.begin(), copyBuffer.end(), fe.path) !=
+               copyBuffer.end())
+            continue;
+
         push_entry(std::move(fe));
     }
 

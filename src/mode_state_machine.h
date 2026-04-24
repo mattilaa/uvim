@@ -568,6 +568,7 @@ struct FileBrowserMode
     std::vector<std::string> copyBuffer;
     std::vector<std::string> deleteTargets;
     bool confirmingDelete = false;
+    bool moveMode = false;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
