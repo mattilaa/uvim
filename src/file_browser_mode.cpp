@@ -357,7 +357,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        if(promptSearch && c == 0)
+        if(promptSearch &&
+           (c == 0 || c == keyCode(control::ControlKey::CTRL_N)))
         {
             char prefix = input[0];
             std::string pattern = input.substr(1);
@@ -378,7 +379,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 ctx.requestFullRedraw();
                 return std::nullopt;
             }
-            int added = 0;
+            bool allSelected = !matches.empty();
             for(int idx : matches)
             {
                 if(idx < 0 || idx >= (int)fileList.size())
@@ -386,11 +387,43 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 const auto& entry = fileList[idx];
                 if(entry.name == "..")
                     continue;
-                if(selectedFiles.insert(entry.path).second)
-                    ++added;
+                if(!selectedFiles.count(entry.path))
+                {
+                    allSelected = false;
+                    break;
+                }
             }
-            ctx.setStatusMessage("Selected " + std::to_string(added) +
-                                 " match(es)");
+            int changed = 0;
+            if(allSelected)
+            {
+                for(int idx : matches)
+                {
+                    if(idx < 0 || idx >= (int)fileList.size())
+                        continue;
+                    const auto& entry = fileList[idx];
+                    if(entry.name == "..")
+                        continue;
+                    if(selectedFiles.erase(entry.path))
+                        ++changed;
+                }
+                ctx.setStatusMessage("Unselected " + std::to_string(changed) +
+                                     " match(es)");
+            }
+            else
+            {
+                for(int idx : matches)
+                {
+                    if(idx < 0 || idx >= (int)fileList.size())
+                        continue;
+                    const auto& entry = fileList[idx];
+                    if(entry.name == "..")
+                        continue;
+                    if(selectedFiles.insert(entry.path).second)
+                        ++changed;
+                }
+                ctx.setStatusMessage("Selected " + std::to_string(changed) +
+                                     " match(es)");
+            }
             ctx.requestFullRedraw();
             return std::nullopt;
         }
