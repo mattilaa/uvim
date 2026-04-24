@@ -1312,7 +1312,12 @@ void FileBrowserMode::draw(Editor& editor) const
         bool isSelected =
             entry.name != ".." && selectedFiles.count(entry.path) > 0;
 
-        if(index == browserCursor)
+        if(index == browserCursor && isSelected)
+        {
+            output += "\x1b[48;2;56;120;72m";
+            output += editor.theme.baseFg();
+        }
+        else if(index == browserCursor)
         {
             output += std::string(Terminal::ESC_DIM) +
                       (searchVisualActive ? editor.theme.searchMatch()
