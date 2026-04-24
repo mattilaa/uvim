@@ -167,7 +167,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
         if(c == keyCode(typed::TypedKey::KEY_N) ||
            c == keyCode(typed::TypedKey::KEY_CAP_N) ||
-           c == keyCode(control::ControlKey::ESC))
+           c == keyCode(control::ControlKey::ESC) ||
+           c == keyCode(control::ControlKey::ENTER))
         {
             deleteTargets.clear();
             confirmingDelete = false;
@@ -231,11 +232,84 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
         if(c == keyCode(typed::TypedKey::KEY_N) ||
            c == keyCode(typed::TypedKey::KEY_CAP_N) ||
-           c == keyCode(control::ControlKey::ESC))
+           c == keyCode(control::ControlKey::ESC) ||
+           c == keyCode(control::ControlKey::ENTER))
         {
             confirmingDirCreate = false;
             pendingFilePath.clear();
             pendingParentRel.clear();
+            ctx.setStatusMessage("Cancelled");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    if(confirmingFileReplace)
+    {
+        auto finishSelect = [&]()
+        {
+            std::string parentStr = file_utils::path_to_utf8_string(
+                std::filesystem::path(pendingFilePath)
+                    .parent_path()
+                    .lexically_normal());
+            if(parentStr != currentDirectory)
+                navigateTo(ctx, parentStr);
+            else
+                loadDirectory(ctx, currentDirectory);
+            for(int i = 0; i < (int)fileList.size(); ++i)
+            {
+                if(fileList[i].path == pendingFilePath)
+                {
+                    browserCursor = i;
+                    int visible = std::max(1, ctx.screenRows() - 5);
+                    if(browserCursor < browserOffset)
+                        browserOffset = browserCursor;
+                    if(browserCursor >= browserOffset + visible)
+                        browserOffset = browserCursor - visible + 1;
+                    break;
+                }
+            }
+        };
+
+        if(c == keyCode(typed::TypedKey::KEY_O) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_O) ||
+           c == keyCode(control::ControlKey::ENTER))
+        {
+            std::string target = pendingFilePath;
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            ctx.openFile(std::string_view(target));
+            ctx.requestFullRedraw();
+            return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                   : ModeState{WelcomeMode{}};
+        }
+        if(c == keyCode(typed::TypedKey::KEY_R) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_R))
+        {
+            std::ofstream file(pendingFilePath, std::ios::trunc);
+            bool ok = file.is_open();
+            if(ok)
+                file.close();
+            if(!ok)
+            {
+                ctx.setStatusMessage("Failed to replace: " + pendingFilePath);
+            }
+            else
+            {
+                std::string msg = "Replaced file: " + pendingFilePath;
+                finishSelect();
+                ctx.setStatusMessage(msg);
+            }
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::ESC))
+        {
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
             ctx.setStatusMessage("Cancelled");
             ctx.requestFullRedraw();
             return std::nullopt;
@@ -657,6 +731,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             moveMode = false;
             visualMode = false;
             preVisualSelected.clear();
+            confirmingDirCreate = false;
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            pendingParentRel.clear();
             if(wasMove)
                 loadDirectory(ctx, currentDirectory);
             ctx.setStatusMessage("Cleared selections and buffer");
@@ -997,7 +1075,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             confirmingDelete = true;
             ctx.setStatusMessage("Delete " +
                                  std::to_string(deleteTargets.size()) +
-                                 " item(s)? (y/n)");
+                                 " item(s)? y/n [n default]");
         }
     }
 
@@ -2428,14 +2506,19 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         file_utils::path_to_utf8_string(filePath);
                     pendingParentRel = rel;
                     confirmingDirCreate = true;
-                    ctx.setStatusMessage("Directory " + rel +
-                                         " doesn't exist, create? (y/n)");
+                    ctx.setStatusMessage(
+                        "Directory " + rel +
+                        " doesn't exist, create? y/n [n default]");
                     return true;
                 }
                 std::error_code existsEc;
                 if(std::filesystem::exists(filePath, existsEc))
                 {
-                    ctx.setStatusMessage("File already exists: " + args);
+                    pendingFilePath =
+                        file_utils::path_to_utf8_string(filePath);
+                    confirmingFileReplace = true;
+                    ctx.setStatusMessage(
+                        "File exists, open or replace? o/r [o default]");
                     return true;
                 }
                 std::ofstream file(filePath);
