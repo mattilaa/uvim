@@ -589,6 +589,8 @@ struct FileBrowserMode
     bool moveMode = false;
     std::vector<FileBrowserOp> undoStack;
     std::vector<FileBrowserOp> redoStack;
+    std::vector<std::string> historyBack;
+    std::vector<std::string> historyForward;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
@@ -606,7 +608,8 @@ struct FileBrowserMode
     void draw(Editor& editor) const;
 
 private:
-    void loadDirectory(ModeContext& ctx, const std::string& pathStr);
+    void loadDirectory(ModeContext& ctx, std::string pathStr);
+    void navigateTo(ModeContext& ctx, std::string pathStr);
     void updateFilter(ModeContext& ctx);
     int listSize() const;
     const FileEntry* entryAt(int index) const;

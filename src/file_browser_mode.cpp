@@ -707,7 +707,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                file_utils::is_directory(std::filesystem::path(entry.path)))
             {
                 std::string targetPath = entry.path;
-                loadDirectory(ctx, targetPath);
+                navigateTo(ctx, std::move(targetPath));
                 browserCursor = 0;
                 browserOffset = 0;
             }
@@ -730,7 +730,47 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(lastSlash != std::string::npos && lastSlash > 0)
         {
             std::string parentDir = currentDirectory.substr(0, lastSlash);
-            loadDirectory(ctx, parentDir);
+            navigateTo(ctx, std::move(parentDir));
+            browserCursor = 0;
+            browserOffset = 0;
+        }
+    }
+
+    // ========================================================================
+    // History (back / forward)
+    // ========================================================================
+
+    else if(c == keyCode(control::ControlKey::CTRL_O))
+    {
+        if(historyBack.empty())
+        {
+            ctx.setStatusMessage("No more history back");
+        }
+        else
+        {
+            std::string target = std::move(historyBack.back());
+            historyBack.pop_back();
+            historyForward.push_back(currentDirectory);
+            redoStack.clear();
+            loadDirectory(ctx, std::move(target));
+            browserCursor = 0;
+            browserOffset = 0;
+        }
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_I) ||
+            c == keyCode(control::ControlKey::TAB))
+    {
+        if(historyForward.empty())
+        {
+            ctx.setStatusMessage("No more history forward");
+        }
+        else
+        {
+            std::string target = std::move(historyForward.back());
+            historyForward.pop_back();
+            historyBack.push_back(currentDirectory);
+            redoStack.clear();
+            loadDirectory(ctx, std::move(target));
             browserCursor = 0;
             browserOffset = 0;
         }
@@ -748,7 +788,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         ctx.setStatusMessage(showHidden ? "Showing hidden files"
                                         : "Hiding hidden files");
     }
-    else if(c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(control::ControlKey::CTRL_I))
+    else if(c == keyCode(control::ControlKey::CTRL_G))
     {
         if(ctx.editor->gitignoreLockedOff)
         {
@@ -1202,8 +1242,8 @@ void FileBrowserMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
     output +=
-        "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore] "
-        "[:cmd]";
+        "  [Enter: open] [q: quit] [.: hidden] [-: parent] "
+        "[^G: gitignore] [^O/^I: back/fwd] [:cmd]";
     output += editor.theme.baseFg();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -1517,8 +1557,19 @@ static int fuzzyScore(std::string_view text, std::string_view pattern)
     return score;
 }
 
-void FileBrowserMode::loadDirectory(ModeContext& ctx,
-                                    const std::string& pathStr)
+void FileBrowserMode::navigateTo(ModeContext& ctx, std::string pathStr)
+{
+    std::string oldDir = currentDirectory;
+    loadDirectory(ctx, std::move(pathStr));
+    if(!oldDir.empty() && oldDir != currentDirectory)
+    {
+        historyBack.push_back(oldDir);
+        historyForward.clear();
+        redoStack.clear();
+    }
+}
+
+void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 {
     fileList.clear();
     searchMatches.clear();
@@ -1933,7 +1984,8 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     return true;
                 if(currentEntry->isDirectory)
                 {
-                    loadDirectory(ctx, currentEntry->path);
+                    std::string target = currentEntry->path;
+                    navigateTo(ctx, std::move(target));
                     browserCursor = 0;
                     browserOffset = 0;
                     return true;
@@ -2112,7 +2164,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                             filterQuery.clear();
                             filterMatches.clear();
                         }
-                        loadDirectory(
+                        navigateTo(
                             ctx, file_utils::path_to_utf8_string(parentPath));
                         std::string targetPath =
                             file_utils::path_to_utf8_string(dirPath);
@@ -2217,12 +2269,11 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     std::error_code ec;
                     if(std::filesystem::is_directory(targetPath, ec) && !ec)
                     {
-                        loadDirectory(
-                            ctx, file_utils::path_to_utf8_string(targetPath));
-                        browserCursor = 0;
-                        browserOffset = 0;
                         std::string pathStr =
                             file_utils::path_to_utf8_string(targetPath);
+                        navigateTo(ctx, pathStr);
+                        browserCursor = 0;
+                        browserOffset = 0;
                         if(chdir(pathStr.c_str()) == 0)
                         {
                             char cwd[PATH_MAX];
@@ -2245,10 +2296,11 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     ctx.setStatusMessage("Project root not set");
                     return true;
                 }
-                loadDirectory(ctx, root);
+                std::string rootCopy = root;
+                navigateTo(ctx, rootCopy);
                 browserCursor = 0;
                 browserOffset = 0;
-                if(chdir(root.c_str()) == 0)
+                if(chdir(rootCopy.c_str()) == 0)
                 {
                     char cwd[PATH_MAX];
                     if(getcwd(cwd, sizeof(cwd)))
