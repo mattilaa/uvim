@@ -1252,7 +1252,7 @@ void Editor::openEmojiPopup()
         emojiEntries.reserve(std::size(kEmojiList));
         for(const auto& e : kEmojiList)
         {
-            EmojiEntry entry;
+            Editor::EmojiPopupEntry entry;
             entry.emoji = e.emoji;
             entry.name = e.name;
             entry.emojiDisplay = stripEmojiSelectors(entry.emoji);
@@ -1405,75 +1405,7 @@ void Editor::drawEmojiPopup(std::string& output) const
         cx = screenCols;
 
     const std::string queryLabel = "emoji: " + emojiQuery;
-    auto emojiGlyphWidth = [](std::string_view s) -> int
-    {
-        int w = 0;
-        for(size_t i = 0; i < s.size();)
-        {
-            unsigned char c = (unsigned char)s[i];
-            if(c < 0x80)
-            {
-                w += 1;
-                i += 1;
-                continue;
-            }
-
-            int codepoint = 0;
-            int len = 1;
-            if((c & 0xE0) == 0xC0 && i + 1 < s.size())
-            {
-                codepoint =
-                    ((c & 0x1F) << 6) | ((unsigned char)s[i + 1] & 0x3F);
-                len = 2;
-            }
-            else if((c & 0xF0) == 0xE0 && i + 2 < s.size())
-            {
-                codepoint = ((c & 0x0F) << 12) |
-                            (((unsigned char)s[i + 1] & 0x3F) << 6) |
-                            ((unsigned char)s[i + 2] & 0x3F);
-                len = 3;
-            }
-            else if((c & 0xF8) == 0xF0 && i + 3 < s.size())
-            {
-                codepoint = ((c & 0x07) << 18) |
-                            (((unsigned char)s[i + 1] & 0x3F) << 12) |
-                            (((unsigned char)s[i + 2] & 0x3F) << 6) |
-                            ((unsigned char)s[i + 3] & 0x3F);
-                len = 4;
-            }
-            else
-            {
-                codepoint = c;
-                len = 1;
-            }
-
-            if(codepoint == 0xFE0F || codepoint == 0xFE0E ||
-               codepoint == 0x200D)
-            {
-                // variation selectors + ZWJ
-            }
-            else
-            {
-                w += 2; // treat emoji codepoints as wide
-            }
-            i += len;
-        }
-        return w;
-    };
-    auto emojiRowWidth = [&](const EmojiEntry& e) -> int
-    { return emojiGlyphWidth(e.emojiDisplay) + 1 + (int)e.name.size(); };
-
-    int maxW = displayWidth(queryLabel);
-    if(!emojiFiltered.empty())
-    {
-        for(int idx : emojiFiltered)
-            maxW = std::max(maxW, emojiRowWidth(emojiEntries[idx]));
-    }
-    else
-    {
-        maxW = std::max(maxW, displayWidth("no matches"));
-    }
-    int innerW = std::max(12, maxW);
+    int innerW = kEmojiPopupMaxWidth;
     int totalW = innerW + 4;
     if(totalW > screenCols)
     {
@@ -1543,15 +1475,14 @@ void Editor::drawEmojiPopup(std::string& output) const
             output += theme.selection();
 
         std::string row;
-        int rowWidth = 0;
         if(hasSelection)
         {
             const auto& e = emojiEntries[entryIndex];
-            int nameAvail = innerW - (emojiGlyphWidth(e.emojiDisplay) + 1);
+            int nameAvail =
+                innerW - (emojiGlyphWidth(e.emoji.c_str()) + 1);
             if(nameAvail <= 0)
             {
                 row = e.emojiDisplay;
-                rowWidth = emojiGlyphWidth(e.emojiDisplay);
             }
             else
             {
@@ -1559,14 +1490,11 @@ void Editor::drawEmojiPopup(std::string& output) const
                 if((int)name.size() > nameAvail)
                     name = name.substr(0, nameAvail);
                 row = e.emojiDisplay + std::string(" ") + name;
-                rowWidth =
-                    emojiGlyphWidth(e.emojiDisplay) + 1 + (int)name.size();
             }
         }
         else
         {
             row = "no matches";
-            rowWidth = (int)row.size();
         }
 
         output += row;

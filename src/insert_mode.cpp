@@ -151,12 +151,14 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(ed->emojiPopupActive)
     {
-        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN) || c == keyCode(typed::TypedKey::KEY_J))
+        if(c == keyCode(control::ControlKey::CTRL_J) ||
+           c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             ed->emojiNext();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP) || c == keyCode(typed::TypedKey::KEY_K))
+        if(c == keyCode(control::ControlKey::CTRL_K) ||
+           c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             ed->emojiPrev();
             return std::nullopt;

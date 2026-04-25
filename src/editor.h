@@ -266,7 +266,7 @@ public:
     void rebuildCompletionFilter();
     void drawCompletionPopup(std::string& output) const;
 
-    struct EmojiEntry
+    struct EmojiPopupEntry
     {
         std::string emoji;
         std::string emojiDisplay;
@@ -275,7 +275,7 @@ public:
     };
 
     bool emojiPopupActive = false;
-    std::vector<EmojiEntry> emojiEntries;
+    std::vector<EmojiPopupEntry> emojiEntries;
     std::vector<int> emojiFiltered;
     std::string emojiQuery;
     int emojiSelected = 0;
@@ -510,6 +510,7 @@ public:
     void handleVisualMode(int c);
     void handleCommandMode(int c);
     void handleSearchMode(int c);
+    bool handleEmojiPopupKey(int c);
     void handleKeypress(int c);
     void handleResize();
     bool isRobotKeyword(std::string_view word) const;
