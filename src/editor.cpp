@@ -11186,9 +11186,11 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
 std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> topics = {
-        "commands", "modes",  "navigation", "editing", "files",
-        "buffers",  "search", "clipboard",  "git",     "gb",
-        "gj",       "gbv",    "help"};
+        "commands",    "modes",       "navigation", "editing",
+        "files",       "filebrowser", "run",        "buffers",
+        "windows",     "search",      "clipboard",  "git",
+        "gb",          "gj",          "gbv",        "lsp",
+        "diagnostics", "help"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)
