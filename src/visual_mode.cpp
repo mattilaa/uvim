@@ -2,6 +2,7 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
+#include <filesystem>
 
 // ============================================================================
 // VisualMode Implementation
@@ -84,6 +85,106 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
+    }
+
+    // ========================================================================
+    // Refactor-Move Prompt (R) — path entry then optional create-y/n
+    // ========================================================================
+
+    if(refactorAwaitConfirm)
+    {
+        if(c == keyCode(typed::TypedKey::KEY_Y) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_Y) ||
+           c == keyCode(control::ControlKey::ENTER))
+        {
+            std::string path = refactorPath;
+            std::string text = refactorYankedText;
+            refactorPromptActive = false;
+            refactorAwaitConfirm = false;
+            refactorPath.clear();
+            refactorYankedText.clear();
+            ed->performRefactorMove(path, text, /*isLineMode=*/false,
+                                    /*createIfMissing=*/true);
+            return NormalMode{};
+        }
+        if(c == keyCode(typed::TypedKey::KEY_N) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+           c == keyCode(control::ControlKey::ESC))
+        {
+            refactorPromptActive = false;
+            refactorAwaitConfirm = false;
+            refactorPath.clear();
+            refactorYankedText.clear();
+            ctx.setStatusMessage("Cancelled");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    if(refactorPromptActive)
+    {
+        if(c == keyCode(control::ControlKey::ESC))
+        {
+            refactorPromptActive = false;
+            refactorPath.clear();
+            refactorYankedText.clear();
+            ctx.setStatusMessage("Cancelled");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::ENTER))
+        {
+            if(refactorPath.empty())
+            {
+                ctx.setStatusMessage("Move to file: (empty path)");
+                return std::nullopt;
+            }
+            if(refactorPath.front() == '~')
+            {
+                ctx.setStatusMessage(
+                    "'~' is not expanded — use absolute path: " +
+                    refactorPath);
+                ed->needsFullRedraw = true;
+                return std::nullopt;
+            }
+            if(std::filesystem::exists(refactorPath))
+            {
+                std::string path = refactorPath;
+                std::string text = refactorYankedText;
+                refactorPromptActive = false;
+                refactorPath.clear();
+                refactorYankedText.clear();
+                ed->performRefactorMove(path, text, /*isLineMode=*/false,
+                                        /*createIfMissing=*/false);
+                return NormalMode{};
+            }
+            refactorAwaitConfirm = true;
+            ctx.setStatusMessage(
+                "File '" + refactorPath +
+                "' does not exist. Create new? y/n [y default]");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::BACKSPACE) ||
+           c == keyCode(control::ControlKey::DEL) ||
+           c == keyCode(control::ControlKey::CTRL_H))
+        {
+            if(!refactorPath.empty())
+                refactorPath.pop_back();
+            ctx.setStatusMessage("Move to file: " + refactorPath);
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(c >= keyCode(control::ControlKey::SPACE) &&
+           c < keyCode(control::ControlKey::DEL))
+        {
+            refactorPath += static_cast<char>(c);
+            ctx.setStatusMessage("Move to file: " + refactorPath);
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -429,6 +530,18 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
+    case keyCode(typed::TypedKey::KEY_CAP_R):
+    {
+        ed->yankSelection();
+        refactorYankedText = ed->yankBuffer;
+        refactorPath.clear();
+        refactorPromptActive = true;
+        refactorAwaitConfirm = false;
+        ctx.setStatusMessage("Move to file: ");
+        ed->needsFullRedraw = true;
+        return std::nullopt;
+    }
+
     // Swap selection ends
     case keyCode(typed::TypedKey::KEY_O):
     {
@@ -475,6 +588,106 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
+
+    // ========================================================================
+    // Refactor-Move Prompt (R) — path entry then optional create-y/n
+    // ========================================================================
+
+    if(refactorAwaitConfirm)
+    {
+        if(c == keyCode(typed::TypedKey::KEY_Y) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_Y) ||
+           c == keyCode(control::ControlKey::ENTER))
+        {
+            std::string path = refactorPath;
+            std::string text = refactorYankedText;
+            refactorPromptActive = false;
+            refactorAwaitConfirm = false;
+            refactorPath.clear();
+            refactorYankedText.clear();
+            ed->performRefactorMove(path, text, /*isLineMode=*/true,
+                                    /*createIfMissing=*/true);
+            return NormalMode{};
+        }
+        if(c == keyCode(typed::TypedKey::KEY_N) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+           c == keyCode(control::ControlKey::ESC))
+        {
+            refactorPromptActive = false;
+            refactorAwaitConfirm = false;
+            refactorPath.clear();
+            refactorYankedText.clear();
+            ctx.setStatusMessage("Cancelled");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    if(refactorPromptActive)
+    {
+        if(c == keyCode(control::ControlKey::ESC))
+        {
+            refactorPromptActive = false;
+            refactorPath.clear();
+            refactorYankedText.clear();
+            ctx.setStatusMessage("Cancelled");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::ENTER))
+        {
+            if(refactorPath.empty())
+            {
+                ctx.setStatusMessage("Move to file: (empty path)");
+                return std::nullopt;
+            }
+            if(refactorPath.front() == '~')
+            {
+                ctx.setStatusMessage(
+                    "'~' is not expanded — use absolute path: " +
+                    refactorPath);
+                ed->needsFullRedraw = true;
+                return std::nullopt;
+            }
+            if(std::filesystem::exists(refactorPath))
+            {
+                std::string path = refactorPath;
+                std::string text = refactorYankedText;
+                refactorPromptActive = false;
+                refactorPath.clear();
+                refactorYankedText.clear();
+                ed->performRefactorMove(path, text, /*isLineMode=*/true,
+                                        /*createIfMissing=*/false);
+                return NormalMode{};
+            }
+            refactorAwaitConfirm = true;
+            ctx.setStatusMessage(
+                "File '" + refactorPath +
+                "' does not exist. Create new? y/n [y default]");
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::BACKSPACE) ||
+           c == keyCode(control::ControlKey::DEL) ||
+           c == keyCode(control::ControlKey::CTRL_H))
+        {
+            if(!refactorPath.empty())
+                refactorPath.pop_back();
+            ctx.setStatusMessage("Move to file: " + refactorPath);
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        if(c >= keyCode(control::ControlKey::SPACE) &&
+           c < keyCode(control::ControlKey::DEL))
+        {
+            refactorPath += static_cast<char>(c);
+            ctx.setStatusMessage("Move to file: " + refactorPath);
+            ed->needsFullRedraw = true;
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
 
     // ========================================================================
     // Count Prefix Accumulation
@@ -716,6 +929,18 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         }
         ed->saveState();
         return NormalMode{};
+    }
+
+    case keyCode(typed::TypedKey::KEY_CAP_R):
+    {
+        ed->yankLineSelection();
+        refactorYankedText = ed->yankBuffer;
+        refactorPath.clear();
+        refactorPromptActive = true;
+        refactorAwaitConfirm = false;
+        ctx.setStatusMessage("Move to file: ");
+        ed->needsFullRedraw = true;
+        return std::nullopt;
     }
 
     // Swap selection ends

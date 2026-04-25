@@ -772,6 +772,12 @@ public:
     void dedentLineSelection();
     void autoIndentLineSelection();
 
+    // Refactor: move yanked selection text to another file, then open it.
+    // Returns true on success. If createIfMissing is false and the file does
+    // not exist, returns false without writing.
+    bool performRefactorMove(const std::string& path, const std::string& text,
+                             bool isLineMode, bool createIfMissing);
+
     // File operations
     void saveFile();
     void executeCommand(std::string_view cmd);

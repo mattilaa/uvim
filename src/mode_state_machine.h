@@ -452,6 +452,12 @@ struct VisualMode
         return "VISUAL";
     }
 
+    // Refactor-move (R): prompt for destination path, then optional create-y/n
+    bool refactorPromptActive = false;
+    bool refactorAwaitConfirm = false;
+    std::string refactorPath;
+    std::string refactorYankedText;
+
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
@@ -464,6 +470,12 @@ struct VisualLineMode
     {
         return "VISUAL LINE";
     }
+
+    // Refactor-move (R): prompt for destination path, then optional create-y/n
+    bool refactorPromptActive = false;
+    bool refactorAwaitConfirm = false;
+    std::string refactorPath;
+    std::string refactorYankedText;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
