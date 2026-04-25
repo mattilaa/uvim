@@ -6,6 +6,25 @@
 #include <string>
 #include <string_view>
 
+#if !defined(UVIM_TERMINAL_WIN32)
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) ||       \
+    defined(__OpenBSD__)
+#include <util.h>
+#elif defined(__linux__)
+#include <pty.h>
+#else
+#include <termios.h>
+extern "C" int forkpty(int* amaster, char* name, struct termios* termp,
+                       struct winsize* winp);
+#endif
+#endif
+
 // ============================================================================
 // CommandOutputMode Implementation
 // ============================================================================
