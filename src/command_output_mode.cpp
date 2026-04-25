@@ -185,7 +185,7 @@ void CommandOutputMode::yankSelection(Editor& editor)
                             " line(s)");
 }
 
-std::optional<ModeState> CommandOutputMode::returnToFileBrowser() const
+std::optional<ModeState> CommandOutputMode::returnToFileBrowser()
 {
     FileBrowserMode fb(returnDirectory, previousFile);
     fb.browserCursor = returnBrowseCursor;

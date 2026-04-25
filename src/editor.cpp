@@ -8459,6 +8459,9 @@ void Editor::handleKeypress(int c)
     LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
               static_cast<int>(currentMode));
 
+    if(handleEmojiPopupKey(c))
+        return;
+
     if(dispatchModeKey(c))
     {
         return;
@@ -8499,6 +8502,62 @@ void Editor::handleKeypress(int c)
     default:
         break;
     }
+}
+
+bool Editor::handleEmojiPopupKey(int c)
+{
+    if(!emojiPopupActive)
+        return false;
+
+    if(c == keyCode(control::ControlKey::CTRL_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    {
+        emojiNext();
+        return true;
+    }
+
+    if(c == keyCode(control::ControlKey::CTRL_K) ||
+       c == keyCode(navigation::NavigationKey::ARROW_UP))
+    {
+        emojiPrev();
+        return true;
+    }
+
+    if(c == keyCode(control::ControlKey::ENTER))
+    {
+        acceptEmoji();
+        return true;
+    }
+
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(control::ControlKey::CTRL_C))
+    {
+        cancelEmojiPopup();
+        return true;
+    }
+
+    if(c == keyCode(control::ControlKey::BACKSPACE) ||
+       c == keyCode(control::ControlKey::DEL) ||
+       c == keyCode(control::ControlKey::CTRL_H))
+    {
+        if(!emojiQuery.empty())
+        {
+            emojiQuery.pop_back();
+            rebuildEmojiFilter();
+            needsFullRedraw = true;
+        }
+        return true;
+    }
+
+    if(c >= 32 && c < 127)
+    {
+        emojiQuery.push_back((char)c);
+        rebuildEmojiFilter();
+        needsFullRedraw = true;
+        return true;
+    }
+
+    return true;
 }
 
 bool isLikelyDefinition(const std::string& line, const std::string& symbol)

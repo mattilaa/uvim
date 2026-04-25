@@ -1258,6 +1258,17 @@ struct CommandOutputMode
           previousFile(std::move(prevFile))
     {
     }
+    CommandOutputMode(std::string cmd, std::vector<std::string> outputLines,
+                      std::string dir = {}, int browseCursor = 0,
+                      int browseOffset = 0, std::string prevFile = {})
+        : command(std::move(cmd)),
+          lines(std::move(outputLines)),
+          returnDirectory(std::move(dir)),
+          returnBrowseCursor(browseCursor),
+          returnBrowseOffset(browseOffset),
+          previousFile(std::move(prevFile))
+    {
+    }
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
