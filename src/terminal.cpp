@@ -160,9 +160,36 @@ static bool wait_stdin(milliseconds timeout) noexcept
     return r > 0 && (pfd.revents & POLLIN);
 }
 
+static FILE* keylogFile()
+{
+    static FILE* fp = []() -> FILE*
+    {
+        const char* path = std::getenv("UVIM_KEYLOG");
+        if(!path || !*path)
+            return nullptr;
+        FILE* f = std::fopen(path, "a");
+        if(f)
+            std::setvbuf(f, nullptr, _IOLBF, 0);
+        return f;
+    }();
+    return fp;
+}
+
 static bool read_byte(char& c) noexcept
 {
-    return ::read(STDIN_FILENO, &c, 1) == 1;
+    if(::read(STDIN_FILENO, &c, 1) != 1)
+        return false;
+    if(FILE* f = keylogFile())
+    {
+        unsigned char ub = static_cast<unsigned char>(c);
+        if(ub == 0x1b)
+            std::fputs("\\e", f);
+        else if(ub >= 0x20 && ub < 0x7f)
+            std::fputc(c, f);
+        else
+            std::fprintf(f, "<%02x>", ub);
+    }
+    return true;
 }
 
 #endif
@@ -197,11 +224,14 @@ void Terminal::enableRawMode()
     write("\x1b[?1049h");
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
-    // xterm modifyOtherKeys=1: terminals report keys not otherwise allocated
-    // (e.g. Ctrl+Shift+letter) as `CSI 27 ; mod ; key ~`. Mode 1 (not 2) is
-    // important — mode 2 would also rewrite Enter/Tab/Ctrl+letter, which we
-    // want to keep as plain ASCII.
-    write("\x1b[>4;1m");
+    // Ask terminal to report modifier combos so Ctrl+Shift+letter is
+    // distinguishable. Two requests cover most terminals:
+    //   - xterm modifyOtherKeys=2:   CSI 27 ; mod ; key ~
+    //   - kitty keyboard protocol:   CSI key ; mod u
+    // The parser handles both formats and falls back to the natural keycode
+    // for combos it doesn't specifically map.
+    write("\x1b[>4;2m");
+    write("\x1b[>1u");
 #endif
 }
 
@@ -223,6 +253,7 @@ void Terminal::disableRawMode()
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
     write("\x1b[>4;0m");
+    write("\x1b[<u");
     write("\x1b[?1049l");
 #endif
 }
