@@ -435,6 +435,7 @@ public:
     std::unique_ptr<GitHandler> gitHandler;
     int tabSpaces = 4;
     bool showTabs = true;
+    bool showTabNumbers = true;
     bool utf8Mode = true;
     int tabBarOffset = 0;
     int splitTabBarOffset[2] = {0, 0};
@@ -521,6 +522,8 @@ public:
     void closeCurrentBuffer();
     void nextBuffer();
     void previousBuffer();
+    void moveBufferLeft();
+    void moveBufferRight();
     void listBuffers();
     int findBufferByFilename(const std::string& filename);
     void updateCurrentBufferPointers();

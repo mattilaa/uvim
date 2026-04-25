@@ -43,9 +43,9 @@ std::string Editor::buildTabBarLine(int width)
 
     std::vector<std::string> labels;
     labels.reserve(buffers.size());
-    for(const auto& bufPtr : buffers)
+    for(size_t bi = 0; bi < buffers.size(); ++bi)
     {
-        const Buffer* buf = bufPtr.get();
+        const Buffer* buf = buffers[bi].get();
         std::string name = buf->filename.empty() ? "[No Name]" : buf->filename;
         size_t slash = name.find_last_of("/\\");
         if(slash != std::string::npos)
@@ -53,7 +53,12 @@ std::string Editor::buildTabBarLine(int width)
         if(buf->dirty)
             name += "*";
 
-        int nameMax = std::max(1, maxLabelWidth - 2);
+        std::string numberPrefix;
+        if(showTabNumbers)
+            numberPrefix = std::to_string(bi + 1) + ":";
+
+        int nameMax =
+            std::max(1, maxLabelWidth - 2 - (int)numberPrefix.size());
         if((int)name.size() > nameMax)
         {
             if(nameMax >= 3)
@@ -62,7 +67,7 @@ std::string Editor::buildTabBarLine(int width)
                 name.resize(nameMax);
         }
 
-        labels.push_back(" " + name + " ");
+        labels.push_back(" " + numberPrefix + name + " ");
     }
 
     int offset = std::clamp(tabBarOffset, 0, (int)labels.size() - 1);

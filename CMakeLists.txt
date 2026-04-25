@@ -61,6 +61,7 @@ set(UVIM_CORE_SOURCES
     src/editor_view_buffer_common.cpp
     src/editor_view_buffer_browser.cpp
     src/editor_view_command.cpp
+    src/editor_view_command_output.cpp
     src/editor_view_file_browser.cpp
     src/editor_view_fuzzy_find.cpp
     src/editor_view_git_commit.cpp
@@ -131,6 +132,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp
     src/file_browser_mode.cpp
+    src/command_output_mode.cpp
 )
 
 # Combine all sources

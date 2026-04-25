@@ -36,6 +36,59 @@ void ensureEntryMetadata(FileEntry& entry)
     entry.modTime = file_utils::mtime_nothrow(path);
     entry.metadataLoaded = true;
 }
+
+const std::string& trashRoot()
+{
+    static const std::string root = [] {
+        std::filesystem::path base = std::filesystem::temp_directory_path();
+        base /= ("uvim_trash_" + std::to_string(::getpid()));
+        std::error_code ec;
+        std::filesystem::create_directories(base, ec);
+        return file_utils::path_to_utf8_string(base.lexically_normal());
+    }();
+    return root;
+}
+
+std::string allocateTrashPath(const std::string& originalPath)
+{
+    static uint64_t counter = 0;
+    std::filesystem::path orig(originalPath);
+    std::string name = file_utils::path_to_utf8_string(orig.filename());
+    if(name.empty())
+        name = "entry";
+    std::filesystem::path target = std::filesystem::path(trashRoot()) /
+                                   (std::to_string(counter++) + "_" + name);
+    return file_utils::path_to_utf8_string(target.lexically_normal());
+}
+
+std::error_code moveToTrash(const std::string& src, const std::string& dst)
+{
+    std::error_code ec;
+    std::filesystem::rename(std::filesystem::path(src),
+                            std::filesystem::path(dst), ec);
+    if(!ec)
+        return ec;
+    ec.clear();
+    std::error_code typeEc;
+    if(std::filesystem::is_directory(std::filesystem::path(src), typeEc))
+    {
+        std::filesystem::copy(std::filesystem::path(src),
+                              std::filesystem::path(dst),
+                              std::filesystem::copy_options::recursive |
+                                  std::filesystem::copy_options::copy_symlinks,
+                              ec);
+    }
+    else
+    {
+        std::filesystem::copy_file(std::filesystem::path(src),
+                                   std::filesystem::path(dst), ec);
+    }
+    if(ec)
+        return ec;
+    std::error_code rmEc;
+    std::filesystem::remove_all(std::filesystem::path(src), rmEc);
+    return rmEc;
+}
 } // namespace
 
 void FileBrowserMode::on_enter(ModeContext& ctx)
@@ -73,6 +126,197 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 {
     int c = keyCode(key);
 
+    if(confirmingDelete)
+    {
+        if(c == keyCode(typed::TypedKey::KEY_Y) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_Y))
+        {
+            int deleted = 0;
+            int failed = 0;
+            FileBrowserOp op;
+            op.kind = FileBrowserOp::Kind::Delete;
+            for(const auto& path : deleteTargets)
+            {
+                std::string trash = allocateTrashPath(path);
+                std::error_code ec = moveToTrash(path, trash);
+                if(ec)
+                    ++failed;
+                else
+                {
+                    op.pairs.emplace_back(trash, path);
+                    ++deleted;
+                }
+            }
+            deleteTargets.clear();
+            selectedFiles.clear();
+            confirmingDelete = false;
+            if(!op.pairs.empty())
+            {
+                undoStack.push_back(std::move(op));
+                redoStack.clear();
+            }
+            loadDirectory(ctx, currentDirectory);
+            if(failed > 0)
+                ctx.setStatusMessage("Deleted " + std::to_string(deleted) +
+                                     ", " + std::to_string(failed) + " failed");
+            else
+                ctx.setStatusMessage("Deleted " + std::to_string(deleted) +
+                                     " item(s)");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(c == keyCode(typed::TypedKey::KEY_N) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+           c == keyCode(control::ControlKey::ESC) ||
+           c == keyCode(control::ControlKey::ENTER))
+        {
+            deleteTargets.clear();
+            confirmingDelete = false;
+            ctx.setStatusMessage("");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    if(confirmingDirCreate)
+    {
+        if(c == keyCode(typed::TypedKey::KEY_Y) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_Y))
+        {
+            std::filesystem::path target(pendingFilePath);
+            std::filesystem::path parent = target.parent_path();
+            std::error_code ec;
+            std::filesystem::create_directories(parent, ec);
+            bool ok = !ec;
+            if(ok)
+            {
+                std::ofstream file(target);
+                ok = file.is_open();
+                if(ok)
+                    file.close();
+            }
+            std::string createdPath = pendingFilePath;
+            std::string parentStr =
+                file_utils::path_to_utf8_string(parent.lexically_normal());
+            confirmingDirCreate = false;
+            pendingFilePath.clear();
+            pendingParentRel.clear();
+            if(!ok)
+            {
+                ctx.setStatusMessage("Failed to create file");
+            }
+            else
+            {
+                if(parentStr != currentDirectory)
+                    navigateTo(ctx, parentStr);
+                else
+                    loadDirectory(ctx, currentDirectory);
+                for(int i = 0; i < (int)fileList.size(); ++i)
+                {
+                    if(fileList[i].path == createdPath)
+                    {
+                        browserCursor = i;
+                        int visible = std::max(1, ctx.screenRows() - 5);
+                        if(browserCursor < browserOffset)
+                            browserOffset = browserCursor;
+                        if(browserCursor >= browserOffset + visible)
+                            browserOffset = browserCursor - visible + 1;
+                        break;
+                    }
+                }
+                ctx.setStatusMessage("Created file: " + createdPath);
+            }
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(c == keyCode(typed::TypedKey::KEY_N) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+           c == keyCode(control::ControlKey::ESC) ||
+           c == keyCode(control::ControlKey::ENTER))
+        {
+            confirmingDirCreate = false;
+            pendingFilePath.clear();
+            pendingParentRel.clear();
+            ctx.setStatusMessage("Cancelled");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    if(confirmingFileReplace)
+    {
+        auto finishSelect = [&]()
+        {
+            std::string parentStr = file_utils::path_to_utf8_string(
+                std::filesystem::path(pendingFilePath)
+                    .parent_path()
+                    .lexically_normal());
+            if(parentStr != currentDirectory)
+                navigateTo(ctx, parentStr);
+            else
+                loadDirectory(ctx, currentDirectory);
+            for(int i = 0; i < (int)fileList.size(); ++i)
+            {
+                if(fileList[i].path == pendingFilePath)
+                {
+                    browserCursor = i;
+                    int visible = std::max(1, ctx.screenRows() - 5);
+                    if(browserCursor < browserOffset)
+                        browserOffset = browserCursor;
+                    if(browserCursor >= browserOffset + visible)
+                        browserOffset = browserCursor - visible + 1;
+                    break;
+                }
+            }
+        };
+
+        if(c == keyCode(typed::TypedKey::KEY_O) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_O) ||
+           c == keyCode(control::ControlKey::ENTER))
+        {
+            std::string target = pendingFilePath;
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            ctx.openFile(std::string_view(target));
+            ctx.requestFullRedraw();
+            return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                   : ModeState{WelcomeMode{}};
+        }
+        if(c == keyCode(typed::TypedKey::KEY_R) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_R))
+        {
+            std::ofstream file(pendingFilePath, std::ios::trunc);
+            bool ok = file.is_open();
+            if(ok)
+                file.close();
+            if(!ok)
+            {
+                ctx.setStatusMessage("Failed to replace: " + pendingFilePath);
+            }
+            else
+            {
+                std::string msg = "Replaced file: " + pendingFilePath;
+                finishSelect();
+                ctx.setStatusMessage(msg);
+            }
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::ESC))
+        {
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            ctx.setStatusMessage("Cancelled");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
     auto clearSearchState = [&]()
     {
         searchMatches.clear();
@@ -84,7 +328,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     const auto moveToVisibleCursor = [&]()
     {
-        int visible = std::max(1, ctx.screenRows() - 4);
+        int visible = std::max(1, ctx.screenRows() - 5);
         if(browserCursor < browserOffset)
             browserOffset = browserCursor;
         if(browserCursor >= browserOffset + visible)
@@ -252,6 +496,77 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
+        if(promptSearch &&
+           (c == 0 || c == keyCode(control::ControlKey::CTRL_N)))
+        {
+            char prefix = input[0];
+            std::string pattern = input.substr(1);
+            if(pattern.empty())
+            {
+                ctx.setStatusMessage("Usage: :/ <regex>");
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+            std::vector<int> matches;
+            try
+            {
+                matches = collectRegexMatches(prefix, pattern);
+            }
+            catch(const std::regex_error&)
+            {
+                ctx.setStatusMessage("Invalid regex: " + pattern);
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+            bool allSelected = !matches.empty();
+            for(int idx : matches)
+            {
+                if(idx < 0 || idx >= (int)fileList.size())
+                    continue;
+                const auto& entry = fileList[idx];
+                if(entry.name == "..")
+                    continue;
+                if(!selectedFiles.count(entry.path))
+                {
+                    allSelected = false;
+                    break;
+                }
+            }
+            int changed = 0;
+            if(allSelected)
+            {
+                for(int idx : matches)
+                {
+                    if(idx < 0 || idx >= (int)fileList.size())
+                        continue;
+                    const auto& entry = fileList[idx];
+                    if(entry.name == "..")
+                        continue;
+                    if(selectedFiles.erase(entry.path))
+                        ++changed;
+                }
+                ctx.setStatusMessage("Unselected " + std::to_string(changed) +
+                                     " match(es)");
+            }
+            else
+            {
+                for(int idx : matches)
+                {
+                    if(idx < 0 || idx >= (int)fileList.size())
+                        continue;
+                    const auto& entry = fileList[idx];
+                    if(entry.name == "..")
+                        continue;
+                    if(selectedFiles.insert(entry.path).second)
+                        ++changed;
+                }
+                ctx.setStatusMessage("Selected " + std::to_string(changed) +
+                                     " match(es)");
+            }
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+
         if(promptSearch && c == keyCode(control::ControlKey::ESC))
         {
             std::optional<ModeState> nextState;
@@ -267,11 +582,71 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
     }
 
+    auto runTabAppendSelected = [&]() -> bool
+    {
+        if(!commandPrompt || !commandPrompt->isActive())
+            return false;
+        const std::string& input = commandPrompt->getInput();
+        if(input.rfind("run ", 0) != 0 && input != "run")
+            return false;
+        if(selectedFiles.empty())
+            return false;
+        auto shellQuote = [](const std::string& s) -> std::string
+        {
+            bool needsQuote = s.find_first_of(" \t'\"\\$`()|&;<>*?[]{}") !=
+                              std::string::npos;
+            if(!needsQuote)
+                return s;
+            std::string out;
+            out.reserve(s.size() + 2);
+            out += '\'';
+            for(char ch : s)
+            {
+                if(ch == '\'')
+                    out += "'\\''";
+                else
+                    out += ch;
+            }
+            out += '\'';
+            return out;
+        };
+        std::vector<std::string> ordered;
+        ordered.reserve(selectedFiles.size());
+        std::filesystem::path base(currentDirectory);
+        for(const auto& p : selectedFiles)
+        {
+            std::error_code ec;
+            std::filesystem::path rel =
+                std::filesystem::relative(std::filesystem::path(p), base, ec);
+            std::string s =
+                ec ? p : file_utils::path_to_utf8_string(rel);
+            if(s.empty())
+                s = p;
+            ordered.push_back(std::move(s));
+        }
+        std::sort(ordered.begin(), ordered.end());
+        std::string newInput = input;
+        if(!newInput.empty() && newInput.back() != ' ')
+            newInput += ' ';
+        for(size_t i = 0; i < ordered.size(); ++i)
+        {
+            if(i > 0)
+                newInput += ' ';
+            newInput += shellQuote(ordered[i]);
+        }
+        commandPrompt->setInput(std::move(newInput));
+        ctx.cancelCommandPopup();
+        ctx.requestFullRedraw();
+        return true;
+    };
+
     if(commandPrompt && commandPrompt->isActive() && c != keyCode(control::ControlKey::TAB) &&
        c != keyCode(control::ControlKey::SHIFT_TAB))
     {
         resetSearchTabCompletion();
     }
+    if(c == keyCode(control::ControlKey::TAB) && runTabAppendSelected())
+        return std::nullopt;
     if(c == keyCode(control::ControlKey::TAB) && searchTabComplete(false))
         return std::nullopt;
     if(c == keyCode(control::ControlKey::SHIFT_TAB) && searchTabComplete(true))
@@ -365,15 +740,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_N) || c == keyCode(typed::TypedKey::KEY_CAP_N))
+    if((c == keyCode(typed::TypedKey::KEY_N) ||
+        c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
+       !searchMatches.empty())
     {
-        if(searchMatches.empty())
-        {
-            ctx.setStatusMessage("No active search");
-            ctx.requestFullRedraw();
-            return std::nullopt;
-        }
-
         bool forward = (c == keyCode(typed::TypedKey::KEY_N));
         if(currentSearchMatch < 0 ||
            currentSearchMatch >= static_cast<int>(searchMatches.size()))
@@ -397,12 +767,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
 
     // ========================================================================
-    // Exit
+    // Exit / cancel
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC))
     {
-        if(c == keyCode(control::ControlKey::ESC) && filterActive)
+        if(filterActive)
         {
             filterActive = false;
             filterQuery.clear();
@@ -412,8 +782,47 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::ESC))
-            ctx.editor->noteDoubleEscStatusClear();
+        bool doubleEsc = ctx.editor->noteDoubleEscStatusClear();
+        if(doubleEsc)
+        {
+            selectedFiles.clear();
+            copyBuffer.clear();
+            bool wasMove = moveMode;
+            moveMode = false;
+            visualMode = false;
+            preVisualSelected.clear();
+            confirmingDirCreate = false;
+            confirmingFileReplace = false;
+            pendingFilePath.clear();
+            pendingParentRel.clear();
+            if(wasMove)
+                loadDirectory(ctx, currentDirectory);
+            ctx.setStatusMessage("Cleared selections and buffer");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(visualMode)
+        {
+            selectedFiles = preVisualSelected;
+            preVisualSelected.clear();
+            visualMode = false;
+            ctx.setStatusMessage("Visual mode cancelled");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        if(moveMode)
+        {
+            copyBuffer.clear();
+            moveMode = false;
+            loadDirectory(ctx, currentDirectory);
+            ctx.setStatusMessage("Move cancelled");
+        }
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_Q))
+    {
         if(!previousFile.empty())
         {
             ctx.openFile(std::string_view(previousFile));
@@ -434,7 +843,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor < count - 1)
         {
             browserCursor++;
-            int visible = ctx.screenRows() - 4;
+            int visible = ctx.screenRows() - 5;
             if(browserCursor >= browserOffset + visible)
                 browserOffset = browserCursor - visible + 1;
         }
@@ -452,17 +861,54 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         int count = listSize();
         browserCursor = std::max(0, count - 1);
-        int visible = ctx.screenRows() - 4;
+        int visible = ctx.screenRows() - 5;
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
+    }
+    else if(c == keyCode(typed::TypedKey::KEY_C))
+    {
+        int nextChar = Terminal::readKey();
+        if(nextChar == keyCode(typed::TypedKey::KEY_D))
+        {
+            if(chdir(currentDirectory.c_str()) == 0)
+            {
+                ctx.setFuzzyInitialized(false);
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                    ctx.setStatusMessage(std::string("PWD: ") + cwd);
+                else
+                    ctx.setStatusMessage("PWD updated");
+            }
+            else
+            {
+                ctx.setStatusMessage("Failed to chdir: " + currentDirectory);
+            }
+        }
     }
     else if(c == keyCode(typed::TypedKey::KEY_G))
     {
         int nextChar = Terminal::readKey();
         if(nextChar == keyCode(typed::TypedKey::KEY_G))
         {
-            browserCursor = 0;
-            browserOffset = 0;
+            if(visualMode)
+            {
+                int target = firstNonDotDotIndex();
+                if(target < 0)
+                {
+                    ctx.setStatusMessage(
+                        "No files or directories to select");
+                }
+                else
+                {
+                    browserCursor = target;
+                    browserOffset = 0;
+                }
+            }
+            else
+            {
+                browserCursor = 0;
+                browserOffset = 0;
+            }
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_A))
         {
@@ -472,18 +918,18 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (ctx.screenRows() - 4) / 2;
+        int half = (ctx.screenRows() - 5) / 2;
         browserCursor += half;
         int count = listSize();
         if(browserCursor >= count)
             browserCursor = std::max(0, count - 1);
-        int visible = ctx.screenRows() - 4;
+        int visible = ctx.screenRows() - 5;
         if(browserCursor >= browserOffset + visible)
             browserOffset = browserCursor - visible + 1;
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = (ctx.screenRows() - 4) / 2;
+        int half = (ctx.screenRows() - 5) / 2;
         browserCursor -= half;
         if(browserCursor < 0)
             browserCursor = 0;
@@ -497,6 +943,40 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     else if(c == keyCode(control::ControlKey::ENTER) || c == keyCode(typed::TypedKey::KEY_L) || c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
+        // If Enter and multiple files are selected, open all of them as
+        // buffers. Directories in the selection are skipped.
+        if(c == keyCode(control::ControlKey::ENTER) && !selectedFiles.empty())
+        {
+            std::vector<std::string> toOpen;
+            toOpen.reserve(selectedFiles.size());
+            for(const auto& p : selectedFiles)
+            {
+                std::error_code dirEc;
+                if(std::filesystem::is_directory(std::filesystem::path(p),
+                                                 dirEc))
+                    continue;
+                toOpen.push_back(p);
+            }
+            if(toOpen.empty())
+            {
+                ctx.setStatusMessage("No files selected to open");
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+            std::sort(toOpen.begin(), toOpen.end());
+            for(const auto& p : toOpen)
+                ctx.openFile(std::string_view(p));
+            selectedFiles.clear();
+            if(visualMode)
+            {
+                visualMode = false;
+                preVisualSelected.clear();
+            }
+            ctx.setStatusMessage("Opened " + std::to_string(toOpen.size()) +
+                                 " file(s)");
+            return ctx.hasBuffer() ? ModeState{NormalMode{}}
+                                   : ModeState{WelcomeMode{}};
+        }
         if(browserCursor >= 0 && browserCursor < listSize())
         {
             const FileEntry* entryPtr = entryAt(browserCursor);
@@ -507,7 +987,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                file_utils::is_directory(std::filesystem::path(entry.path)))
             {
                 std::string targetPath = entry.path;
-                loadDirectory(ctx, targetPath);
+                navigateTo(ctx, std::move(targetPath));
                 browserCursor = 0;
                 browserOffset = 0;
             }
@@ -530,7 +1010,47 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(lastSlash != std::string::npos && lastSlash > 0)
         {
             std::string parentDir = currentDirectory.substr(0, lastSlash);
-            loadDirectory(ctx, parentDir);
+            navigateTo(ctx, std::move(parentDir));
+            browserCursor = 0;
+            browserOffset = 0;
+        }
+    }
+
+    // ========================================================================
+    // History (back / forward)
+    // ========================================================================
+
+    else if(c == keyCode(control::ControlKey::CTRL_O))
+    {
+        if(historyBack.empty())
+        {
+            ctx.setStatusMessage("No more history back");
+        }
+        else
+        {
+            std::string target = std::move(historyBack.back());
+            historyBack.pop_back();
+            historyForward.push_back(currentDirectory);
+            redoStack.clear();
+            loadDirectory(ctx, std::move(target));
+            browserCursor = 0;
+            browserOffset = 0;
+        }
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_I) ||
+            c == keyCode(control::ControlKey::TAB))
+    {
+        if(historyForward.empty())
+        {
+            ctx.setStatusMessage("No more history forward");
+        }
+        else
+        {
+            std::string target = std::move(historyForward.back());
+            historyForward.pop_back();
+            historyBack.push_back(currentDirectory);
+            redoStack.clear();
+            loadDirectory(ctx, std::move(target));
             browserCursor = 0;
             browserOffset = 0;
         }
@@ -548,7 +1068,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         ctx.setStatusMessage(showHidden ? "Showing hidden files"
                                         : "Hiding hidden files");
     }
-    else if(c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(control::ControlKey::CTRL_I))
+    else if(c == keyCode(control::ControlKey::CTRL_G))
     {
         if(ctx.editor->gitignoreLockedOff)
         {
@@ -575,16 +1095,418 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         ctx.createNewFilePrompt();
     }
 
-    // Create new directory
-    else if(c == keyCode(typed::TypedKey::KEY_D))
+    // Toggle selection on current entry
+    else if(c == keyCode(control::ControlKey::SPACE))
     {
-        ctx.createNewDirectoryPrompt();
+        const FileEntry* entryPtr = entryAt(browserCursor);
+        if(entryPtr && entryPtr->name != "..")
+        {
+            auto it = selectedFiles.find(entryPtr->path);
+            if(it != selectedFiles.end())
+                selectedFiles.erase(it);
+            else
+                selectedFiles.insert(entryPtr->path);
+        }
     }
 
-    // Delete file/directory
+    // Toggle visual-line selection mode (shift-V)
+    else if(c == keyCode(typed::TypedKey::KEY_CAP_V))
+    {
+        if(visualMode)
+        {
+            visualMode = false;
+            preVisualSelected.clear();
+            ctx.setStatusMessage("");
+        }
+        else
+        {
+            int first = firstNonDotDotIndex();
+            if(first < 0)
+            {
+                ctx.setStatusMessage("No files or directories");
+            }
+            else
+            {
+                const FileEntry* cur = entryAt(browserCursor);
+                if(!cur || cur->name == "..")
+                {
+                    browserCursor = first;
+                    int visible = std::max(1, ctx.screenRows() - 5);
+                    if(browserCursor < browserOffset)
+                        browserOffset = browserCursor;
+                    if(browserCursor >= browserOffset + visible)
+                        browserOffset = browserCursor - visible + 1;
+                }
+                preVisualSelected = selectedFiles;
+                visualAnchor = browserCursor;
+                visualMode = true;
+                updateVisualSelection();
+            }
+        }
+    }
+
+    // Delete selected files (or current under cursor)
+    else if(c == keyCode(typed::TypedKey::KEY_D))
+    {
+        deleteTargets.clear();
+        if(!selectedFiles.empty())
+        {
+            for(const auto& p : selectedFiles)
+                deleteTargets.push_back(p);
+        }
+        else
+        {
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(entryPtr && entryPtr->name != "..")
+                deleteTargets.push_back(entryPtr->path);
+        }
+        if(deleteTargets.empty())
+        {
+            ctx.setStatusMessage("Nothing to delete");
+        }
+        else
+        {
+            confirmingDelete = true;
+            ctx.setStatusMessage("Delete " +
+                                 std::to_string(deleteTargets.size()) +
+                                 " item(s)? y/n [n default]");
+        }
+    }
+
+    // Yank selected files (or current) to paste buffer (vim-style copy)
+    else if(c == keyCode(typed::TypedKey::KEY_Y))
+    {
+        if(visualMode)
+            updateVisualSelection();
+        copyBuffer.clear();
+        moveMode = false;
+        if(!selectedFiles.empty())
+        {
+            for(const auto& p : selectedFiles)
+                copyBuffer.push_back(p);
+        }
+        else
+        {
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(entryPtr && entryPtr->name != "..")
+                copyBuffer.push_back(entryPtr->path);
+        }
+        if(visualMode)
+        {
+            visualMode = false;
+            preVisualSelected.clear();
+        }
+        if(copyBuffer.empty())
+            ctx.setStatusMessage("Nothing to yank");
+        else
+            ctx.setStatusMessage("Yanked " +
+                                 std::to_string(copyBuffer.size()) +
+                                 " item(s)");
+    }
+
+    // Cut selected files (or current) into move buffer
+    else if(c == keyCode(typed::TypedKey::KEY_M))
+    {
+        copyBuffer.clear();
+        if(!selectedFiles.empty())
+        {
+            for(const auto& p : selectedFiles)
+                copyBuffer.push_back(p);
+        }
+        else
+        {
+            const FileEntry* entryPtr = entryAt(browserCursor);
+            if(entryPtr && entryPtr->name != "..")
+                copyBuffer.push_back(entryPtr->path);
+        }
+        if(copyBuffer.empty())
+        {
+            moveMode = false;
+            ctx.setStatusMessage("Nothing to move");
+        }
+        else
+        {
+            moveMode = true;
+            loadDirectory(ctx, currentDirectory);
+            ctx.setStatusMessage("Cut " +
+                                 std::to_string(copyBuffer.size()) +
+                                 " item(s)");
+        }
+    }
+
+    // Paste buffer contents into current directory
+    else if(c == keyCode(typed::TypedKey::KEY_P))
+    {
+        if(copyBuffer.empty())
+        {
+            ctx.setStatusMessage("Nothing to paste");
+        }
+        else
+        {
+            int done = 0;
+            int failed = 0;
+            int skipped = 0;
+            const bool wasMove = moveMode;
+            FileBrowserOp op;
+            op.kind = wasMove ? FileBrowserOp::Kind::Move
+                              : FileBrowserOp::Kind::Paste;
+            std::filesystem::path destDir(currentDirectory);
+            for(const auto& srcStr : copyBuffer)
+            {
+                std::filesystem::path src(srcStr);
+                std::error_code ec;
+                if(wasMove && src.parent_path() == destDir)
+                {
+                    ++skipped;
+                    continue;
+                }
+                std::filesystem::path dst = destDir / src.filename();
+                if(std::filesystem::exists(dst, ec))
+                {
+                    std::string stem = dst.stem().string();
+                    std::string ext = dst.extension().string();
+                    for(int n = 1; n < 1000; ++n)
+                    {
+                        std::filesystem::path candidate =
+                            dst.parent_path() /
+                            (stem + "_copy" + std::to_string(n) + ext);
+                        if(!std::filesystem::exists(candidate, ec))
+                        {
+                            dst = candidate;
+                            break;
+                        }
+                    }
+                }
+                std::error_code opEc;
+                if(wasMove)
+                {
+                    std::filesystem::rename(src, dst, opEc);
+                }
+                else if(std::filesystem::is_directory(src, opEc))
+                {
+                    std::filesystem::copy(
+                        src, dst, std::filesystem::copy_options::recursive,
+                        opEc);
+                }
+                else
+                {
+                    std::filesystem::copy_file(src, dst, opEc);
+                }
+                if(opEc)
+                    ++failed;
+                else
+                {
+                    ++done;
+                    std::string dstStr = file_utils::path_to_utf8_string(
+                        dst.lexically_normal());
+                    if(wasMove)
+                        op.pairs.emplace_back(srcStr, dstStr);
+                    else
+                        op.pairs.emplace_back(std::string(), dstStr);
+                }
+            }
+            copyBuffer.clear();
+            selectedFiles.clear();
+            moveMode = false;
+            if(!op.pairs.empty())
+            {
+                undoStack.push_back(std::move(op));
+                redoStack.clear();
+            }
+            loadDirectory(ctx, currentDirectory);
+            const char* verb = wasMove ? "Moved" : "Pasted";
+            std::string msg = std::string(verb) + " " + std::to_string(done) +
+                              " item(s)";
+            if(failed > 0)
+                msg += ", " + std::to_string(failed) + " failed";
+            if(skipped > 0)
+                msg += ", " + std::to_string(skipped) + " skipped";
+            ctx.setStatusMessage(msg);
+        }
+    }
+
+    // Undo last file operation
+    else if(c == keyCode(typed::TypedKey::KEY_U))
+    {
+        if(undoStack.empty())
+        {
+            ctx.setStatusMessage("Nothing to undo");
+        }
+        else
+        {
+            FileBrowserOp op = std::move(undoStack.back());
+            undoStack.pop_back();
+            int ok = 0;
+            int failed = 0;
+            const char* what = "undo";
+            switch(op.kind)
+            {
+            case FileBrowserOp::Kind::Delete:
+                what = "delete";
+                for(auto& p : op.pairs)
+                {
+                    std::error_code ec;
+                    std::filesystem::rename(p.first, p.second, ec);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            case FileBrowserOp::Kind::Move:
+                what = "move";
+                for(auto& p : op.pairs)
+                {
+                    std::error_code ec;
+                    std::filesystem::rename(p.second, p.first, ec);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            case FileBrowserOp::Kind::Paste:
+                what = "paste";
+                for(auto& p : op.pairs)
+                {
+                    p.first = allocateTrashPath(p.second);
+                    std::error_code ec = moveToTrash(p.second, p.first);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            case FileBrowserOp::Kind::Mkdir:
+                what = "mkdir";
+                for(auto it = op.pairs.rbegin(); it != op.pairs.rend(); ++it)
+                {
+                    std::error_code ec;
+                    std::filesystem::remove_all(it->second, ec);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            }
+            redoStack.push_back(std::move(op));
+            loadDirectory(ctx, currentDirectory);
+            std::string msg =
+                "Undo " + std::string(what) + ": " + std::to_string(ok);
+            if(failed > 0)
+                msg += ", " + std::to_string(failed) + " failed";
+            ctx.setStatusMessage(msg);
+        }
+    }
+
+    // Redo (Ctrl-R, vim-style)
+    else if(c == keyCode(control::ControlKey::CTRL_R))
+    {
+        if(redoStack.empty())
+        {
+            ctx.setStatusMessage("Nothing to redo");
+        }
+        else
+        {
+            FileBrowserOp op = std::move(redoStack.back());
+            redoStack.pop_back();
+            int ok = 0;
+            int failed = 0;
+            const char* what = "redo";
+            switch(op.kind)
+            {
+            case FileBrowserOp::Kind::Delete:
+                what = "delete";
+                for(auto& p : op.pairs)
+                {
+                    std::error_code ec;
+                    std::filesystem::rename(p.second, p.first, ec);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            case FileBrowserOp::Kind::Move:
+                what = "move";
+                for(auto& p : op.pairs)
+                {
+                    std::error_code ec;
+                    std::filesystem::rename(p.first, p.second, ec);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            case FileBrowserOp::Kind::Paste:
+                what = "paste";
+                for(auto& p : op.pairs)
+                {
+                    std::error_code ec;
+                    std::filesystem::rename(p.first, p.second, ec);
+                    if(!ec)
+                        p.first.clear();
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            case FileBrowserOp::Kind::Mkdir:
+                what = "mkdir";
+                for(auto& p : op.pairs)
+                {
+                    std::error_code ec;
+                    std::filesystem::create_directories(p.second, ec);
+                    if(ec)
+                        ++failed;
+                    else
+                        ++ok;
+                }
+                break;
+            }
+            undoStack.push_back(std::move(op));
+            loadDirectory(ctx, currentDirectory);
+            std::string msg =
+                "Redo " + std::string(what) + ": " + std::to_string(ok);
+            if(failed > 0)
+                msg += ", " + std::to_string(failed) + " failed";
+            ctx.setStatusMessage(msg);
+        }
+    }
+
+    // Create new directory (open : prompt with "mkdir " prefilled)
     else if(c == keyCode(typed::TypedKey::KEY_CAP_D))
     {
-        ctx.deleteFilePrompt();
+        if(commandPrompt)
+        {
+            std::optional<ModeState> next;
+            (void)commandPrompt->handle(
+                ctx, keyCode(command::CommandKey::KEY_COLON),
+                [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); },
+                next);
+            commandPrompt->setInput("mkdir ");
+            ctx.cancelCommandPopup();
+        }
+    }
+
+    // Create new file (open : prompt with "new " prefilled)
+    else if(c == keyCode(typed::TypedKey::KEY_N))
+    {
+        if(commandPrompt)
+        {
+            std::optional<ModeState> next;
+            (void)commandPrompt->handle(
+                ctx, keyCode(command::CommandKey::KEY_COLON),
+                [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); },
+                next);
+            commandPrompt->setInput("new ");
+            ctx.cancelCommandPopup();
+        }
     }
 
     // Rename file/directory
@@ -640,6 +1562,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
     }
 
+    if(visualMode)
+        updateVisualSelection();
     ctx.requestFullRedraw();
     return std::nullopt;
 }
@@ -659,8 +1583,21 @@ void FileBrowserMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
     output +=
-        "  [Enter: open] [q: quit] [.: hidden] [-: parent] [i: gitignore] "
-        "[:cmd]";
+        "  [Enter: open] [q: quit] [.: hidden] [-: parent] "
+        "[^G: gitignore] [^O/^I: back/fwd] [:cmd]";
+    output += editor.theme.baseFg();
+    output += Terminal::NEWLINE_CLEAR;
+    output += editor.theme.uiDim();
+    output +=
+        "  [Space: select] [d: delete] [y: yank] [m: move] [p: paste] "
+        "[u: undo] [^R: redo]";
+    if(!selectedFiles.empty())
+        output += "  (" + std::to_string(selectedFiles.size()) + " selected)";
+    if(!copyBuffer.empty())
+    {
+        output += "  (" + std::to_string(copyBuffer.size());
+        output += moveMode ? " cut)" : " yanked)";
+    }
     output += editor.theme.baseFg();
 
     std::vector<char> searchHit(fileList.size(), 0);
@@ -700,7 +1637,7 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     bool searchVisualActive = hasLiveSearch || hasCommittedSearch;
 
-    int availableRows = editor.screenRows - 2;
+    int availableRows = editor.screenRows - 3;
 
     int count = listSize();
     for(int i = 0; i < availableRows && i + browserOffset < count; i++)
@@ -713,11 +1650,24 @@ void FileBrowserMode::draw(Editor& editor) const
             break;
         const FileEntry& entry = *entryPtr;
 
-        if(index == browserCursor)
+        bool isSelected =
+            entry.name != ".." && selectedFiles.count(entry.path) > 0;
+
+        if(index == browserCursor && isSelected)
+        {
+            output += "\x1b[48;2;56;120;72m";
+            output += editor.theme.baseFg();
+        }
+        else if(index == browserCursor)
         {
             output += std::string(Terminal::ESC_DIM) +
                       (searchVisualActive ? editor.theme.searchMatch()
                                           : editor.theme.selection());
+        }
+        else if(isSelected)
+        {
+            output += "\x1b[48;2;24;64;36m";
+            output += editor.theme.baseFg();
         }
         else if(searchVisualActive)
         {
@@ -800,7 +1750,7 @@ void FileBrowserMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
 
-    std::string status = " BROWSE";
+    std::string status = visualMode ? " V-BROWSE" : " BROWSE";
     if(editor.respectGitignore)
         status += " [gi]";
     if(showHidden)
@@ -953,8 +1903,51 @@ static int fuzzyScore(std::string_view text, std::string_view pattern)
     return score;
 }
 
-void FileBrowserMode::loadDirectory(ModeContext& ctx,
-                                    const std::string& pathStr)
+void FileBrowserMode::navigateTo(ModeContext& ctx, std::string pathStr)
+{
+    std::string oldDir = currentDirectory;
+    if(visualMode)
+    {
+        visualMode = false;
+        preVisualSelected.clear();
+    }
+    loadDirectory(ctx, std::move(pathStr));
+    if(!oldDir.empty() && oldDir != currentDirectory)
+    {
+        historyBack.push_back(oldDir);
+        historyForward.clear();
+        redoStack.clear();
+    }
+}
+
+int FileBrowserMode::firstNonDotDotIndex() const
+{
+    int n = listSize();
+    for(int i = 0; i < n; ++i)
+    {
+        const FileEntry* e = entryAt(i);
+        if(e && e->name != "..")
+            return i;
+    }
+    return -1;
+}
+
+void FileBrowserMode::updateVisualSelection()
+{
+    if(!visualMode)
+        return;
+    selectedFiles = preVisualSelected;
+    int a = std::min(visualAnchor, browserCursor);
+    int b = std::max(visualAnchor, browserCursor);
+    for(int i = a; i <= b; ++i)
+    {
+        const FileEntry* e = entryAt(i);
+        if(e && e->name != "..")
+            selectedFiles.insert(e->path);
+    }
+}
+
+void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 {
     fileList.clear();
     searchMatches.clear();
@@ -996,6 +1989,13 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
             resolvedDir = dirPath;
         }
         resolvedDir = resolvedDir.lexically_normal();
+    }
+
+    {
+        std::string stripped = file_utils::path_to_utf8_string(resolvedDir);
+        while(stripped.size() > 1 && stripped.back() == '/')
+            stripped.pop_back();
+        resolvedDir = std::filesystem::path(stripped);
     }
 
     currentDirectory = file_utils::path_to_utf8_string(resolvedDir);
@@ -1074,6 +2074,12 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx,
         fe.name = std::move(name);
         fe.path = file_utils::path_to_utf8_string(de.path().lexically_normal());
         fe.isDirectory = isDir;
+
+        if(moveMode && !copyBuffer.empty() &&
+           std::find(copyBuffer.begin(), copyBuffer.end(), fe.path) !=
+               copyBuffer.end())
+            continue;
+
         push_entry(std::move(fe));
     }
 
@@ -1118,7 +2124,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
         if(browserCursor < 0)
             browserCursor = 0;
 
-        int visible = std::max(1, ctx.screenRows() - 4);
+        int visible = std::max(1, ctx.screenRows() - 5);
         if(browserOffset > browserCursor)
             browserOffset = browserCursor;
         int maxOffset = std::max(0, (int)fileList.size() - visible);
@@ -1162,7 +2168,7 @@ void FileBrowserMode::updateFilter(ModeContext& ctx)
     int count = listSize();
     browserCursor = std::min(browserCursor, std::max(0, count - 1));
     browserOffset = std::min(browserOffset, std::max(0, count - 1));
-    int visible = std::max(1, ctx.screenRows() - 4);
+    int visible = std::max(1, ctx.screenRows() - 5);
     if(browserCursor < browserOffset)
         browserOffset = browserCursor;
     if(browserCursor >= browserOffset + visible)
@@ -1345,7 +2351,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 lastSearchPrefix = prefix;
                 currentSearchMatch = matchPos;
                 browserCursor = searchMatches[currentSearchMatch];
-                int visible = std::max(1, ctx.screenRows() - 4);
+                int visible = std::max(1, ctx.screenRows() - 5);
                 if(browserCursor < browserOffset)
                     browserOffset = browserCursor;
                 if(browserCursor >= browserOffset + visible)
@@ -1356,7 +2362,8 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     return true;
                 if(currentEntry->isDirectory)
                 {
-                    loadDirectory(ctx, currentEntry->path);
+                    std::string target = currentEntry->path;
+                    navigateTo(ctx, std::move(target));
                     browserCursor = 0;
                     browserOffset = 0;
                     return true;
@@ -1480,24 +2487,84 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             {
                 if(args.empty())
                 {
-                    ctx.createNewDirectoryPrompt();
+                    ctx.setStatusMessage("Usage: :mkdir <name>");
                 }
                 else
                 {
                     std::filesystem::path dirPath =
-                        std::filesystem::path(currentDirectory) /
-                        std::filesystem::path(args);
-                    std::error_code ec;
-                    std::filesystem::create_directory(dirPath, ec);
-                    if(ec)
+                        (std::filesystem::path(currentDirectory) /
+                         std::filesystem::path(args))
+                            .lexically_normal();
+                    std::error_code existsEc;
+                    bool alreadyExisted =
+                        std::filesystem::exists(dirPath, existsEc);
+                    std::vector<std::string> newlyCreated;
+                    if(!alreadyExisted)
+                    {
+                        std::filesystem::path walk;
+                        for(const auto& part : dirPath)
+                        {
+                            walk /= part;
+                            std::error_code chkEc;
+                            if(!std::filesystem::exists(walk, chkEc))
+                            {
+                                newlyCreated.push_back(
+                                    file_utils::path_to_utf8_string(
+                                        walk.lexically_normal()));
+                            }
+                        }
+                    }
+                    std::error_code createEc;
+                    if(!alreadyExisted)
+                        std::filesystem::create_directories(dirPath, createEc);
+                    if(!alreadyExisted && createEc)
                     {
                         ctx.setStatusMessage("Failed to create directory: " +
-                                             ec.message());
+                                             createEc.message());
                     }
                     else
                     {
-                        ctx.setStatusMessage("Created directory: " + args);
-                        loadDirectory(ctx, currentDirectory);
+                        if(!newlyCreated.empty())
+                        {
+                            FileBrowserOp op;
+                            op.kind = FileBrowserOp::Kind::Mkdir;
+                            for(const auto& p : newlyCreated)
+                                op.pairs.emplace_back(std::string(), p);
+                            undoStack.push_back(std::move(op));
+                            redoStack.clear();
+                        }
+                        std::filesystem::path parentPath = dirPath.parent_path();
+                        if(parentPath.empty())
+                            parentPath = dirPath;
+                        if(filterActive)
+                        {
+                            filterActive = false;
+                            filterQuery.clear();
+                            filterMatches.clear();
+                        }
+                        navigateTo(
+                            ctx, file_utils::path_to_utf8_string(parentPath));
+                        std::string targetPath =
+                            file_utils::path_to_utf8_string(dirPath);
+                        for(int i = 0; i < (int)fileList.size(); ++i)
+                        {
+                            if(fileList[i].path == targetPath)
+                            {
+                                browserCursor = i;
+                                int visible =
+                                    std::max(1, ctx.screenRows() - 5);
+                                if(browserCursor < browserOffset)
+                                    browserOffset = browserCursor;
+                                if(browserCursor >= browserOffset + visible)
+                                    browserOffset =
+                                        browserCursor - visible + 1;
+                                break;
+                            }
+                        }
+                        if(alreadyExisted)
+                            ctx.setStatusMessage("Directory already exists");
+                        else
+                            ctx.setStatusMessage("Created directory: " + args);
                     }
                 }
                 return true;
@@ -1510,25 +2577,80 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             {
                 if(args.empty())
                 {
-                    ctx.createNewFilePrompt();
+                    ctx.setStatusMessage("Usage: :new <name>");
+                    return true;
                 }
-                else
+                std::filesystem::path filePath =
+                    (std::filesystem::path(currentDirectory) /
+                     std::filesystem::path(args))
+                        .lexically_normal();
+                if(!filePath.has_filename() || filePath.filename().empty())
                 {
-                    std::filesystem::path filePath =
-                        std::filesystem::path(currentDirectory) /
-                        std::filesystem::path(args);
-                    std::ofstream file(filePath);
-                    if(!file.is_open())
-                    {
-                        ctx.setStatusMessage("Failed to create file: " + args);
-                    }
+                    ctx.setStatusMessage("Usage: :new <name>");
+                    return true;
+                }
+                std::filesystem::path parent = filePath.parent_path();
+                std::error_code parentEc;
+                bool parentExists =
+                    !parent.empty() &&
+                    std::filesystem::is_directory(parent, parentEc);
+                if(!parentExists)
+                {
+                    std::string rel;
+                    size_t lastSlash =
+                        args.find_last_of(keyCode(command::CommandKey::KEY_SLASH));
+                    if(lastSlash != std::string::npos)
+                        rel = args.substr(0, lastSlash);
                     else
+                        rel = file_utils::path_to_utf8_string(parent);
+                    pendingFilePath =
+                        file_utils::path_to_utf8_string(filePath);
+                    pendingParentRel = rel;
+                    confirmingDirCreate = true;
+                    ctx.setStatusMessage(
+                        "Directory " + rel +
+                        " doesn't exist, create? y/n [n default]");
+                    return true;
+                }
+                std::error_code existsEc;
+                if(std::filesystem::exists(filePath, existsEc))
+                {
+                    pendingFilePath =
+                        file_utils::path_to_utf8_string(filePath);
+                    confirmingFileReplace = true;
+                    ctx.setStatusMessage(
+                        "File exists, open or replace? o/r [o default]");
+                    return true;
+                }
+                std::ofstream file(filePath);
+                if(!file.is_open())
+                {
+                    ctx.setStatusMessage("Failed to create file: " + args);
+                    return true;
+                }
+                file.close();
+                std::string createdPath =
+                    file_utils::path_to_utf8_string(filePath);
+                std::string parentStr =
+                    file_utils::path_to_utf8_string(parent.lexically_normal());
+                if(parentStr != currentDirectory)
+                    navigateTo(ctx, parentStr);
+                else
+                    loadDirectory(ctx, currentDirectory);
+                for(int i = 0; i < (int)fileList.size(); ++i)
+                {
+                    if(fileList[i].path == createdPath)
                     {
-                        file.close();
-                        ctx.setStatusMessage("Created file: " + args);
-                        loadDirectory(ctx, currentDirectory);
+                        browserCursor = i;
+                        int visible = std::max(1, ctx.screenRows() - 5);
+                        if(browserCursor < browserOffset)
+                            browserOffset = browserCursor;
+                        if(browserCursor >= browserOffset + visible)
+                            browserOffset = browserCursor - visible + 1;
+                        break;
                     }
                 }
+                ctx.setStatusMessage("Created file: " + args);
                 return true;
             }
 
@@ -1580,14 +2702,14 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     std::error_code ec;
                     if(std::filesystem::is_directory(targetPath, ec) && !ec)
                     {
-                        loadDirectory(
-                            ctx, file_utils::path_to_utf8_string(targetPath));
-                        browserCursor = 0;
-                        browserOffset = 0;
                         std::string pathStr =
                             file_utils::path_to_utf8_string(targetPath);
+                        navigateTo(ctx, pathStr);
+                        browserCursor = 0;
+                        browserOffset = 0;
                         if(chdir(pathStr.c_str()) == 0)
                         {
+                            ctx.setFuzzyInitialized(false);
                             char cwd[PATH_MAX];
                             if(getcwd(cwd, sizeof(cwd)))
                                 ctx.setStatusMessage(std::string(cwd));
@@ -1600,6 +2722,15 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 }
                 return true;
             }
+            if(cmd == "pwd")
+            {
+                char cwd[PATH_MAX];
+                if(getcwd(cwd, sizeof(cwd)))
+                    ctx.setStatusMessage(std::string(cwd));
+                else
+                    ctx.setStatusMessage("Unable to read current directory");
+                return true;
+            }
             if(cmd == "cdr")
             {
                 const std::string& root = ctx.editor->getProjectRoot();
@@ -1608,15 +2739,94 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     ctx.setStatusMessage("Project root not set");
                     return true;
                 }
-                loadDirectory(ctx, root);
+                std::string rootCopy = root;
+                navigateTo(ctx, rootCopy);
                 browserCursor = 0;
                 browserOffset = 0;
-                if(chdir(root.c_str()) == 0)
+                if(chdir(rootCopy.c_str()) == 0)
                 {
+                    ctx.setFuzzyInitialized(false);
                     char cwd[PATH_MAX];
                     if(getcwd(cwd, sizeof(cwd)))
                         ctx.setStatusMessage(std::string(cwd));
                 }
+                return true;
+            }
+
+            // =================================================================
+            // Run shell command and show output
+            // =================================================================
+            if(cmd == "run")
+            {
+                if(args.empty())
+                {
+                    ctx.setStatusMessage("Usage: :run <shell command>");
+                    return true;
+                }
+                std::string shellCmd = "cd ";
+                auto quoteDir = [](const std::string& s) -> std::string
+                {
+                    std::string out;
+                    out.reserve(s.size() + 2);
+                    out += '\'';
+                    for(char ch : s)
+                    {
+                        if(ch == '\'')
+                            out += "'\\''";
+                        else
+                            out += ch;
+                    }
+                    out += '\'';
+                    return out;
+                };
+                shellCmd += quoteDir(currentDirectory);
+                shellCmd += " && { ";
+                shellCmd += args;
+                shellCmd += "; } 2>&1";
+
+                std::vector<std::string> outputLines;
+                FILE* pipe = popen(shellCmd.c_str(), "r");
+                if(!pipe)
+                {
+                    ctx.setStatusMessage("Failed to run: " + args);
+                    return true;
+                }
+                std::string current;
+                char buf[4096];
+                while(true)
+                {
+                    size_t n = fread(buf, 1, sizeof(buf), pipe);
+                    for(size_t i = 0; i < n; ++i)
+                    {
+                        char ch = buf[i];
+                        if(ch == '\n')
+                        {
+                            outputLines.push_back(std::move(current));
+                            current.clear();
+                        }
+                        else if(ch == '\r')
+                        {
+                            // strip
+                        }
+                        else
+                        {
+                            current += ch;
+                        }
+                    }
+                    if(n < sizeof(buf))
+                        break;
+                }
+                if(!current.empty())
+                    outputLines.push_back(std::move(current));
+                int status = pclose(pipe);
+                (void)status;
+                if(outputLines.empty())
+                    outputLines.push_back("(no output)");
+
+                CommandOutputMode co(args, std::move(outputLines),
+                                     currentDirectory, browserCursor,
+                                     browserOffset, previousFile);
+                nextState = ModeState{std::move(co)};
                 return true;
             }
 

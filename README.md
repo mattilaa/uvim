@@ -8,6 +8,7 @@ Reduced version of Vim.
 - Fzf style file browsing
 - Ripgrep search from files
 - Regex search in buffers (`/` and `?`, plus `:/` and `:?` from command mode)
+- Run a shell command and browse its output (`:run`)
 - Syntax highlighting
 - Really small binary
 
@@ -285,6 +286,119 @@ Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
 - `examples/lsp/sample.css`
 - `examples/lsp/sample.js`
 - `examples/lsp/sample.ts`
+
+## File browser
+
+Open with `Space-e` (leader-e) or `:Ex` / `:Explore`.
+
+Navigation:
+
+- `j`/`k` - move cursor down/up
+- `Enter` / `l` / `→` - open file or descend into directory
+- `h` / `←` / `-` - go to parent directory
+- `Ctrl-d` / `Ctrl-u` - half-page down/up
+- `gg` / `G` - top/bottom
+- `Ctrl-o` / `Tab` - history back / forward
+- `cd` - chdir to current directory (then `:pwd` reports it)
+- `.` - toggle hidden files
+- `Ctrl-g` - toggle `.gitignore` filtering
+- `r` / `Ctrl-l` - refresh
+
+Selection (multi-file):
+
+- `Space` - toggle selection on the cursor entry
+- `Shift-V` - start/stop visual-line selection. Exiting with `Shift-V`
+  keeps the range as persistent selection; you can then move the cursor
+  and press `Shift-V` again to extend with another segment.
+- `Esc` - cancel an in-progress visual selection (restores the prior set)
+- Double-`Esc` - clear all selections (and any cut buffer)
+- `Enter` with a non-empty selection - opens every selected file as a
+  buffer (directories skipped, alphabetical order)
+
+File operations:
+
+- `n` - create new file (nested paths like `a/b/c.txt` are created with
+  parent directories on confirmation)
+- `Shift-D` - create new directory (`mkdir -p` semantics)
+- `d` - delete selected entries (or the cursor entry) with confirmation
+- `y` - yank selected entries (or the cursor entry) into the paste buffer
+- `m` - cut selected entries into the paste buffer (move mode)
+- `p` - paste buffer into the current directory (copy or move depending
+  on whether `y` or `m` was used)
+- `u` / `Ctrl-r` - undo / redo the last file operation
+- `Shift-R` - rename the cursor entry
+
+Command-mode entries:
+
+- `:q` - exit file browser
+- `:cd <path>` - change directory; `:cdr` jumps to project root
+- `:pwd` - print working directory
+- `:mkdir <name>` / `:md <name>` - create directory
+- `:new <name>` / `:touch <name>` - create file (prompts to open or
+  replace if it already exists)
+- `:delete` / `:d` / `:rm` - delete cursor entry
+- `:rename <name>` / `:r <name>` / `:mv <name>` - rename cursor entry
+- `:/<regex>` / `:?<regex>` - regex match within the listing; `Ctrl-J`/
+  `Ctrl-K` cycle matches, `Ctrl-Space`/`Ctrl-N` toggle selection on all
+  matches
+- `:run <cmd>` - run a shell command in the current directory and open
+  the result in the run view (see below). Pressing `Tab` after `run `
+  appends the currently selected files to the prompt, alphabetically and
+  shell-quoted, so `:run zip a.zip` + `Tab` becomes `:run zip a.zip 'foo
+  bar.txt' baz.txt ...`.
+
+## :run output view
+
+`:run <shell command>` (from the file browser command line) executes the
+command in the current directory and opens its combined stdout+stderr in
+a scrollable view. Inside the view:
+
+- `j`/`k`, `Ctrl-d`/`Ctrl-u`, `gg`/`G` - cursor / scroll
+- `Space` - toggle the cursor row's selection
+- `Shift-V` - start/stop visual-line selection. Like the file browser,
+  exiting with `Shift-V` keeps the range; pressing `Shift-V` again starts
+  a new segment that extends the persistent selection. `Space` while
+  visual is active commits the current range and exits visual.
+- `Esc` while visual - cancel current segment (restore prior set)
+- Double-`Esc` - clear all selection
+- `y` - yank selected rows (or the cursor row if none) to the system
+  clipboard and yank buffer; selection is preserved
+- `/` - incremental search; matches highlight with grey background and
+  black foreground, `n`/`Shift-N` cycle. `q` clears the highlight; press
+  `q` again (or `Esc`) to exit the view.
+
+Long output lines wrap on screen but count as a single logical row for
+cursor movement and selection.
+
+## Tab bar / buffer management
+
+- Each tab shows the buffer index (e.g. `1:foo.cpp`). Toggle with
+  `:set tabnumbers` / `:set notabnumbers` (default on). Persists in
+  config under `editor.tabnumbers`.
+- `:set showtabs` / `:set noshowtabs` - show/hide the tab bar entirely.
+- `Space-h` / `Space-l` - move the current buffer left / right in the
+  tab bar.
+- `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above, no leader needed.
+  Requires a terminal that supports either xterm `modifyOtherKeys=2` or
+  the kitty keyboard protocol (kitty, ghostty, wezterm, alacritty,
+  iTerm2 with "Report modifiers using CSI u" enabled, recent xterm,
+  tmux with `xterm-keys on`). uvim requests both protocols on startup.
+  In Apple Terminal these combos still arrive as plain `Ctrl-H`/`Ctrl-L`
+  and just switch buffers — use the leader binding there.
+- `Ctrl-h` / `Ctrl-l` - previous / next buffer (unchanged).
+
+## Diagnostics
+
+Set `UVIM_KEYLOG=<path>` to log every byte read from stdin to the given
+file. Useful for working out what your terminal sends for a given key
+combination:
+
+```sh
+UVIM_KEYLOG=/tmp/uvim_keys.log uvim somefile
+```
+
+Press the key, quit, then `cat /tmp/uvim_keys.log`. ESC is written as
+`\e`, printable bytes as themselves, everything else as `<HH>`.
 
 ## Search examples
 

@@ -1155,6 +1155,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     showTabs = false;
             }
+            auto ittn = values.find("editor.tabnumbers");
+            if(ittn == values.end())
+                ittn = values.find("settings.tabnumbers");
+            if(ittn == values.end())
+                ittn = values.find("tabnumbers");
+            if(ittn != values.end())
+            {
+                std::string v = ittn->second;
+                if(v == "true" || v == "1" || v == "on")
+                    showTabNumbers = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    showTabNumbers = false;
+            }
             auto itrn = values.find("editor.relativenumber");
             if(itrn == values.end())
                 itrn = values.find("settings.relativenumber");
@@ -2666,6 +2679,9 @@ void Editor::setMode(Mode mode)
     case GIT_PATCH:
         modeStateMachine->transitionTo(GitPatchMode{});
         break;
+    case COMMAND_OUTPUT:
+        modeStateMachine->transitionTo(CommandOutputMode{});
+        break;
     }
 
     syncModeFromStateMachine();
@@ -2725,6 +2741,8 @@ std::string Editor::getModeString() const
         return "GIT FIXUP";
     case GIT_PATCH:
         return "GIT PATCH";
+    case COMMAND_OUTPUT:
+        return "RUN";
     }
     return "";
 }
@@ -5237,6 +5255,19 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == COMMAND_OUTPUT)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<CommandOutputMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {
@@ -6244,6 +6275,12 @@ bool Editor::handleSetCommand(std::string_view cmd)
                          (showTabs ? "true" : "false"));
         return true;
     }
+    if(opt == "tabnumbers?")
+    {
+        setStatusMessage(std::string("tabnumbers=") +
+                         (showTabNumbers ? "true" : "false"));
+        return true;
+    }
     if(opt == "utf8?")
     {
         setStatusMessage(std::string("utf8=") + (utf8Mode ? "true" : "false"));
@@ -6929,6 +6966,20 @@ bool Editor::handleSetCommand(std::string_view cmd)
         needsFullRedraw = true;
         return true;
     }
+    if(opt == "tabnumbers")
+    {
+        showTabNumbers = true;
+        setStatusMessage("tabnumbers=true");
+        needsFullRedraw = true;
+        return true;
+    }
+    if(opt == "notabnumbers")
+    {
+        showTabNumbers = false;
+        setStatusMessage("tabnumbers=false");
+        needsFullRedraw = true;
+        return true;
+    }
     if(opt == "utf8")
     {
         utf8Mode = true;
@@ -6998,6 +7049,27 @@ bool Editor::handleSetCommand(std::string_view cmd)
         else
         {
             setStatusMessage("showtabs: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("tabnumbers=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("tabnumbers=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            showTabNumbers = true;
+            setStatusMessage("tabnumbers=true");
+            needsFullRedraw = true;
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            showTabNumbers = false;
+            setStatusMessage("tabnumbers=false");
+            needsFullRedraw = true;
+        }
+        else
+        {
+            setStatusMessage("tabnumbers: expected true/false");
         }
         return true;
     }
@@ -8369,6 +8441,10 @@ void Editor::syncModeFromStateMachine()
     {
         currentMode = GIT_PATCH;
     }
+    else if(std::holds_alternative<CommandOutputMode>(state))
+    {
+        currentMode = COMMAND_OUTPUT;
+    }
 
     if(currentMode != prevMode)
         needsFullRedraw = true;
@@ -8520,6 +8596,7 @@ void Editor::ensureBufferForMode(Mode mode)
     case GIT_COMMIT:
     case GIT_FIXUP:
     case GIT_PATCH:
+    case COMMAND_OUTPUT:
         return;
     default:
         break;
@@ -8599,6 +8676,53 @@ void Editor::previousBuffer()
     {
         setStatusMessage("No other buffers");
     }
+}
+
+void Editor::moveBufferLeft()
+{
+    if(buffers.size() < 2 || currentBufferIndex <= 0)
+        return;
+    int a = currentBufferIndex - 1;
+    int b = currentBufferIndex;
+    std::swap(buffers[a], buffers[b]);
+    currentBufferIndex = a;
+    updateCurrentBufferPointers();
+    if(splitActive)
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            int& p = splitPanes[i].bufferIndex;
+            if(p == a)
+                p = b;
+            else if(p == b)
+                p = a;
+        }
+    }
+    needsFullRedraw = true;
+}
+
+void Editor::moveBufferRight()
+{
+    if(buffers.size() < 2 ||
+       currentBufferIndex >= (int)buffers.size() - 1)
+        return;
+    int a = currentBufferIndex;
+    int b = currentBufferIndex + 1;
+    std::swap(buffers[a], buffers[b]);
+    currentBufferIndex = b;
+    updateCurrentBufferPointers();
+    if(splitActive)
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            int& p = splitPanes[i].bufferIndex;
+            if(p == a)
+                p = b;
+            else if(p == b)
+                p = a;
+        }
+    }
+    needsFullRedraw = true;
 }
 
 void Editor::closeCurrentBuffer()
@@ -11062,9 +11186,11 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
 std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> topics = {
-        "commands", "modes",  "navigation", "editing", "files",
-        "buffers",  "search", "clipboard",  "git",     "gb",
-        "gj",       "gbv",    "help"};
+        "commands",    "modes",       "navigation", "editing",
+        "files",       "filebrowser", "run",        "buffers",
+        "windows",     "search",      "clipboard",  "git",
+        "gb",          "gj",          "gbv",        "lsp",
+        "diagnostics", "help"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)
@@ -11105,6 +11231,10 @@ std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
         "set noshowtabs",
         "set showtabs?",
         "set showtabs=",
+        "set tabnumbers",
+        "set notabnumbers",
+        "set tabnumbers?",
+        "set tabnumbers=",
         "set tabspaces?",
         "set tabspaces=",
         "set tabspaces=2",

@@ -317,6 +317,7 @@ struct GitStageMode;
 struct GitCommitMode;
 struct GitFixupMode;
 struct GitPatchMode;
+struct CommandOutputMode;
 
 // The variant holding all possible states
 using ModeState =
@@ -327,7 +328,7 @@ using ModeState =
                  OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
                  HelpMode, GitShowCommitMode, GitLogMode, GitStageMode,
                  GitCommitMode,
-                 GitFixupMode, GitPatchMode>;
+                 GitFixupMode, GitPatchMode, CommandOutputMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 
@@ -541,6 +542,24 @@ struct SearchBackwardMode
     void deleteWordBackward(ModeContext& ctx);
 };
 
+struct FileBrowserOp
+{
+    enum class Kind
+    {
+        Delete,
+        Move,
+        Paste,
+        Mkdir,
+    };
+    Kind kind = Kind::Delete;
+    // Delete: pairs = (trashPath, originalPath) — files currently at trashPath
+    // Move:   pairs = (srcPath, dstPath)       — files currently at dstPath
+    // Paste:  pairs = (trashPath, dstPath)     — files currently at dstPath;
+    //                                            trashPath allocated on undo
+    // Mkdir:  pairs = ("", createdPath)        — dir exists at createdPath
+    std::vector<std::pair<std::string, std::string>> pairs;
+};
+
 struct FileBrowserMode
 {
     static constexpr const char* name()
@@ -564,6 +583,22 @@ struct FileBrowserMode
     std::vector<std::string> searchTabCandidates;
     std::string searchTabSeed;
     int searchTabIndex = -1;
+    std::unordered_set<std::string> selectedFiles;
+    std::vector<std::string> copyBuffer;
+    std::vector<std::string> deleteTargets;
+    bool confirmingDelete = false;
+    bool confirmingDirCreate = false;
+    bool confirmingFileReplace = false;
+    std::string pendingFilePath;
+    std::string pendingParentRel;
+    bool moveMode = false;
+    std::vector<FileBrowserOp> undoStack;
+    std::vector<FileBrowserOp> redoStack;
+    std::vector<std::string> historyBack;
+    std::vector<std::string> historyForward;
+    bool visualMode = false;
+    int visualAnchor = 0;
+    std::unordered_set<std::string> preVisualSelected;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
@@ -581,7 +616,10 @@ struct FileBrowserMode
     void draw(Editor& editor) const;
 
 private:
-    void loadDirectory(ModeContext& ctx, const std::string& pathStr);
+    void loadDirectory(ModeContext& ctx, std::string pathStr);
+    void navigateTo(ModeContext& ctx, std::string pathStr);
+    int firstNonDotDotIndex() const;
+    void updateVisualSelection();
     void updateFilter(ModeContext& ctx);
     int listSize() const;
     const FileEntry* entryAt(int index) const;
@@ -1169,6 +1207,61 @@ struct GitPatchMode
     std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
+};
+
+struct CommandOutputMode
+{
+    static constexpr const char* name()
+    {
+        return "RUN";
+    }
+
+    std::string command;
+    std::vector<std::string> lines;
+    int cursor = 0;
+    int offset = 0;
+
+    bool visualMode = false;
+    int visualAnchor = 0;
+    std::unordered_set<int> selectedLines;
+    std::unordered_set<int> preVisualSelected;
+
+    bool searchActive = false;
+    std::string searchQuery;
+    int searchPrevCursor = 0;
+    int searchPrevOffset = 0;
+
+    std::string returnDirectory;
+    int returnBrowseCursor = 0;
+    int returnBrowseOffset = 0;
+    std::string previousFile;
+
+    CommandOutputMode() = default;
+    CommandOutputMode(std::string cmd, std::vector<std::string> output,
+                      std::string dir = {}, int browseCursor = 0,
+                      int browseOffset = 0, std::string prevFile = {})
+        : command(std::move(cmd)), lines(std::move(output)),
+          returnDirectory(std::move(dir)),
+          returnBrowseCursor(browseCursor),
+          returnBrowseOffset(browseOffset),
+          previousFile(std::move(prevFile))
+    {
+    }
+
+    void on_enter(ModeContext& ctx);
+    void on_exit(ModeContext& ctx);
+
+    std::optional<ModeState> handle(ModeContext& ctx, int key);
+
+    void draw(Editor& editor) const;
+
+private:
+    int contentRows(const Editor& editor) const;
+    int displayHeight(int idx, int cols) const;
+    void clampOffsetToCursor(const Editor& editor);
+    void updateVisualSelection();
+    void yankSelection(Editor& editor);
+    std::optional<ModeState> returnToFileBrowser() const;
 };
 
 // ============================================================================

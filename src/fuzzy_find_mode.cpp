@@ -362,7 +362,7 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
             if(!repoRoot.empty())
             {
                 const std::string trackedCmd =
-                    "git -C \"" + repoRoot +
+                    "git -C \"" + cwdStr +
                     "\" ls-files -z --cached --others --exclude-standard 2>/dev/null";
                 const std::string raw = runCmd(trackedCmd);
                 const auto relPaths = splitNul(raw);
@@ -372,24 +372,17 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                     if(relPath.empty())
                         continue;
 
-                    const std::string fullPath = repoRoot + "/" + relPath;
+                    const std::string fullPath = cwdStr + "/" + relPath;
                     struct stat st;
                     if(stat(fullPath.c_str(), &st) != 0)
                         continue;
                     if(S_ISDIR(st.st_mode))
                         continue;
 
-                    std::string displayPath = fullPath;
-                    std::error_code ec;
-                    std::filesystem::path rel =
-                        std::filesystem::relative(fullPath, cwdStr, ec);
-                    if(!ec)
-                        displayPath = rel.lexically_normal().string();
-
                     FileEntry entry;
                     std::filesystem::path fullFs(fullPath);
                     entry.name = fullFs.filename().string();
-                    entry.path = displayPath;
+                    entry.path = relPath;
                     entry.isDirectory = false;
                     entry.size = st.st_size;
                     entry.modTime = st.st_mtime;
