@@ -344,19 +344,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))
-    {
-        ed->moveBufferLeft();
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-    if(c == keyCode(control::ControlKey::SHIFT_CTRL_L))
-    {
-        ed->moveBufferRight();
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
     // ========================================================================
     // Leader Key (Space)
     // ========================================================================
@@ -1234,8 +1221,8 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     }
 
     case keyCode(typed::TypedKey::KEY_H):
-        // Jump to alternate file (header/source)
-        ed->jumpToAlternateFile();
+        // Move current buffer left in the tab bar.
+        ed->moveBufferLeft();
         break;
 
     case keyCode(typed::TypedKey::KEY_Y):
@@ -1249,23 +1236,9 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         break;
 
     case keyCode(typed::TypedKey::KEY_L):
-    {
-        int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == keyCode(typed::TypedKey::KEY_I))
-        {
-            ed->showLspInfo();
-            return LspInfoMode{};
-        }
-        if(ed->isFileType<FileType::Python>())
-        {
-            ed->pythonLintBuffer();
-        }
-        else
-        {
-            ctx.setStatusMessage("lint: unsupported filetype");
-        }
+        // Move current buffer right in the tab bar.
+        ed->moveBufferRight();
         break;
-    }
 
     case keyCode(typed::TypedKey::KEY_W):
         // Save file

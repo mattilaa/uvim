@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
-#include <vector>
 
 #if defined(UVIM_TERMINAL_WIN32)
 #define NOMINMAX
@@ -197,9 +196,6 @@ void Terminal::enableRawMode()
     write("\x1b[?1049h");
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
-    // Request distinct sequences for Ctrl/Shift + letter keys.
-    // xterm modifyOtherKeys=2 sends "CSI 27 ; mod ; key ~".
-    write("\x1b[>4;2m");
 #endif
 }
 
@@ -220,8 +216,6 @@ void Terminal::disableRawMode()
     write("\x1b[0 q");   // Reset cursor style to default
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
-    // Restore default modifyOtherKeys behavior.
-    write("\x1b[>4;0m");
     write("\x1b[?1049l");
 #endif
 }
@@ -410,132 +404,51 @@ int Terminal::readKeyInternal(int timeoutMs)
         {
             if(seq[1] >= '0' && seq[1] <= '9')
             {
-                // Generic parameter reader: collect digits and ';' until a
-                // final byte (any non-digit, non-semicolon). Handles:
-                //   CSI Pn ~                  (legacy VT function keys)
-                //   CSI 1 ; Pmod [A-D]        (modified arrows)
-                //   CSI 27 ; Pmod ; Pkey ~    (xterm modifyOtherKeys=2)
-                //   CSI Pkey ; Pmod u         (kitty CSI-u)
-                std::string buf;
-                buf += seq[1];
-                char final_byte = 0;
-                for(int i = 0; i < 32; ++i)
+                if(!read_byte(seq[2]))
+                    return keyCode(control::ControlKey::ESC);
+
+                if(seq[2] == '~')
                 {
-                    char b = 0;
-                    if(!read_byte(b))
+                    switch(seq[1])
+                    {
+                    case '1':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '3':
+                        return keyCode(navigation::NavigationKey::DELETE_KEY);
+                    case '4':
+                        return keyCode(navigation::NavigationKey::END);
+                    case '5':
+                        return keyCode(navigation::NavigationKey::PAGE_UP);
+                    case '6':
+                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
+                    case '7':
+                        return keyCode(navigation::NavigationKey::HOME);
+                    case '8':
+                        return keyCode(navigation::NavigationKey::END);
+                    }
+                }
+                else if(seq[2] == ';')
+                {
+                    if(!read_byte(seq[3]))
                         return keyCode(control::ControlKey::ESC);
-                    if((b >= '0' && b <= '9') || b == ';' || b == ':')
-                    {
-                        buf += b;
-                        continue;
-                    }
-                    final_byte = b;
-                    break;
-                }
-                if(final_byte == 0)
-                    return keyCode(control::ControlKey::ESC);
+                    if(!read_byte(seq[4]))
+                        return keyCode(control::ControlKey::ESC);
 
-                std::vector<int> ps;
-                {
-                    std::string tok;
-                    for(char b : buf)
-                    {
-                        if(b == ';' || b == ':')
-                        {
-                            ps.push_back(tok.empty() ? 0 : std::atoi(tok.c_str()));
-                            tok.clear();
-                        }
-                        else
-                        {
-                            tok += b;
-                        }
-                    }
-                    ps.push_back(tok.empty() ? 0 : std::atoi(tok.c_str()));
-                }
+                    if(seq[4] == 'Z')
+                        return keyCode(control::ControlKey::SHIFT_TAB);
 
-                auto mapLetterWithCtrlShift = [](int keyCh) -> int
-                {
-                    int lower = keyCh;
-                    if(lower >= 'A' && lower <= 'Z')
-                        lower = lower - 'A' + 'a';
-                    if(lower == 'h')
-                        return keyCode(control::ControlKey::SHIFT_CTRL_H);
-                    if(lower == 'l')
-                        return keyCode(control::ControlKey::SHIFT_CTRL_L);
-                    return -1;
-                };
-
-                if(final_byte == '~')
-                {
-                    if(ps.size() == 3 && ps[0] == 27)
+                    switch(seq[4])
                     {
-                        int mod = ps[1];
-                        int keyCh = ps[2];
-                        if(mod == 6)
-                        {
-                            int mapped = mapLetterWithCtrlShift(keyCh);
-                            if(mapped != -1)
-                                return mapped;
-                        }
+                    case 'A':
+                        return keyCode(navigation::NavigationKey::ARROW_UP);
+                    case 'B':
+                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                    case 'C':
+                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                    case 'D':
+                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
                     }
-                    if(ps.size() >= 1)
-                    {
-                        switch(ps[0])
-                        {
-                        case 1:
-                            return keyCode(navigation::NavigationKey::HOME);
-                        case 3:
-                            return keyCode(
-                                navigation::NavigationKey::DELETE_KEY);
-                        case 4:
-                            return keyCode(navigation::NavigationKey::END);
-                        case 5:
-                            return keyCode(navigation::NavigationKey::PAGE_UP);
-                        case 6:
-                            return keyCode(
-                                navigation::NavigationKey::PAGE_DOWN);
-                        case 7:
-                            return keyCode(navigation::NavigationKey::HOME);
-                        case 8:
-                            return keyCode(navigation::NavigationKey::END);
-                        }
-                    }
-                    return keyCode(control::ControlKey::ESC);
                 }
-                if(final_byte == 'u')
-                {
-                    // kitty CSI-u: ps[0]=key, ps[1]=mod
-                    if(ps.size() >= 1)
-                    {
-                        int mod = ps.size() >= 2 ? ps[1] : 1;
-                        int keyCh = ps[0];
-                        if(mod == 6)
-                        {
-                            int mapped = mapLetterWithCtrlShift(keyCh);
-                            if(mapped != -1)
-                                return mapped;
-                        }
-                    }
-                    return keyCode(control::ControlKey::ESC);
-                }
-                if(final_byte == 'Z')
-                    return keyCode(control::ControlKey::SHIFT_TAB);
-                switch(final_byte)
-                {
-                case 'A':
-                    return keyCode(navigation::NavigationKey::ARROW_UP);
-                case 'B':
-                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
-                case 'C':
-                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
-                case 'D':
-                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
-                case 'H':
-                    return keyCode(navigation::NavigationKey::HOME);
-                case 'F':
-                    return keyCode(navigation::NavigationKey::END);
-                }
-                return keyCode(control::ControlKey::ESC);
             }
             else if(seq[1] == 'Z')
             {
