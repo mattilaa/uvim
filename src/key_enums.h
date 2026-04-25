@@ -41,6 +41,8 @@ enum class ControlKey : int
     CTRL_Z = 26,
 
     SHIFT_TAB = 1100,
+    SHIFT_CTRL_H = 1102,
+    SHIFT_CTRL_L = 1103,
 };
 } // namespace control
 

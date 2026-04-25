@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 #if defined(UVIM_TERMINAL_WIN32)
 #define NOMINMAX
@@ -196,6 +197,11 @@ void Terminal::enableRawMode()
     write("\x1b[?1049h");
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
+    // xterm modifyOtherKeys=1: terminals report keys not otherwise allocated
+    // (e.g. Ctrl+Shift+letter) as `CSI 27 ; mod ; key ~`. Mode 1 (not 2) is
+    // important — mode 2 would also rewrite Enter/Tab/Ctrl+letter, which we
+    // want to keep as plain ASCII.
+    write("\x1b[>4;1m");
 #endif
 }
 
@@ -216,6 +222,7 @@ void Terminal::disableRawMode()
     write("\x1b[0 q");   // Reset cursor style to default
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
+    write("\x1b[>4;0m");
     write("\x1b[?1049l");
 #endif
 }
@@ -404,51 +411,132 @@ int Terminal::readKeyInternal(int timeoutMs)
         {
             if(seq[1] >= '0' && seq[1] <= '9')
             {
-                if(!read_byte(seq[2]))
+                // Read parameter bytes (digits + ';') until a final byte.
+                // Handles legacy single-param CSI Pn ~, CSI 1;mod letter for
+                // modified arrows, xterm modifyOtherKeys CSI 27;mod;key ~,
+                // and kitty CSI key;mod u.
+                std::string params;
+                params += seq[1];
+                char final_byte = 0;
+                for(int i = 0; i < 32; ++i)
+                {
+                    char b = 0;
+                    if(!read_byte(b))
+                        return keyCode(control::ControlKey::ESC);
+                    if((b >= '0' && b <= '9') || b == ';' || b == ':')
+                    {
+                        params += b;
+                        continue;
+                    }
+                    final_byte = b;
+                    break;
+                }
+                if(final_byte == 0)
                     return keyCode(control::ControlKey::ESC);
 
-                if(seq[2] == '~')
+                std::vector<int> ps;
                 {
-                    switch(seq[1])
+                    std::string tok;
+                    for(char b : params)
                     {
-                    case '1':
-                        return keyCode(navigation::NavigationKey::HOME);
-                    case '3':
-                        return keyCode(navigation::NavigationKey::DELETE_KEY);
-                    case '4':
-                        return keyCode(navigation::NavigationKey::END);
-                    case '5':
-                        return keyCode(navigation::NavigationKey::PAGE_UP);
-                    case '6':
-                        return keyCode(navigation::NavigationKey::PAGE_DOWN);
-                    case '7':
-                        return keyCode(navigation::NavigationKey::HOME);
-                    case '8':
-                        return keyCode(navigation::NavigationKey::END);
+                        if(b == ';' || b == ':')
+                        {
+                            ps.push_back(tok.empty() ? 0
+                                                     : std::atoi(tok.c_str()));
+                            tok.clear();
+                        }
+                        else
+                        {
+                            tok += b;
+                        }
                     }
+                    ps.push_back(tok.empty() ? 0 : std::atoi(tok.c_str()));
                 }
-                else if(seq[2] == ';')
+
+                // Decode a (modifier, key) pair into our keycodes. Falls back
+                // to a sensible plain code so unexpected modifyOtherKeys
+                // sequences don't break basic editing.
+                auto decode = [](int mod, int keyCh) -> int
                 {
-                    if(!read_byte(seq[3]))
-                        return keyCode(control::ControlKey::ESC);
-                    if(!read_byte(seq[4]))
-                        return keyCode(control::ControlKey::ESC);
-
-                    if(seq[4] == 'Z')
-                        return keyCode(control::ControlKey::SHIFT_TAB);
-
-                    switch(seq[4])
+                    int lower = keyCh;
+                    if(lower >= 'A' && lower <= 'Z')
+                        lower = lower - 'A' + 'a';
+                    if(mod == 6) // ctrl+shift
                     {
-                    case 'A':
-                        return keyCode(navigation::NavigationKey::ARROW_UP);
-                    case 'B':
-                        return keyCode(navigation::NavigationKey::ARROW_DOWN);
-                    case 'C':
-                        return keyCode(navigation::NavigationKey::ARROW_RIGHT);
-                    case 'D':
-                        return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                        if(lower == 'h')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_H);
+                        if(lower == 'l')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_L);
                     }
+                    // Fallback: synthesize the natural code.
+                    if(mod == 5 && lower >= 'a' && lower <= 'z')
+                        return lower - 'a' + 1; // ctrl-letter
+                    if(mod == 1 || mod == 2)
+                        return keyCh;
+                    return keyCh;
+                };
+
+                if(final_byte == '~')
+                {
+                    if(ps.size() == 3 && ps[0] == 27)
+                    {
+                        return decode(ps[1], ps[2]);
+                    }
+                    if(ps.size() >= 1)
+                    {
+                        switch(ps[0])
+                        {
+                        case 1:
+                            return keyCode(navigation::NavigationKey::HOME);
+                        case 3:
+                            return keyCode(
+                                navigation::NavigationKey::DELETE_KEY);
+                        case 4:
+                            return keyCode(navigation::NavigationKey::END);
+                        case 5:
+                            return keyCode(
+                                navigation::NavigationKey::PAGE_UP);
+                        case 6:
+                            return keyCode(
+                                navigation::NavigationKey::PAGE_DOWN);
+                        case 7:
+                            return keyCode(navigation::NavigationKey::HOME);
+                        case 8:
+                            return keyCode(navigation::NavigationKey::END);
+                        }
+                    }
+                    return keyCode(control::ControlKey::ESC);
                 }
+                if(final_byte == 'u')
+                {
+                    // kitty CSI-u: ps[0] = key, ps[1] = mod
+                    if(ps.size() >= 1)
+                    {
+                        int mod = ps.size() >= 2 ? ps[1] : 1;
+                        return decode(mod, ps[0]);
+                    }
+                    return keyCode(control::ControlKey::ESC);
+                }
+                if(final_byte == 'Z')
+                    return keyCode(control::ControlKey::SHIFT_TAB);
+                switch(final_byte)
+                {
+                case 'A':
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
+                case 'B':
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                case 'C':
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                case 'D':
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                case 'H':
+                    return keyCode(navigation::NavigationKey::HOME);
+                case 'F':
+                    return keyCode(navigation::NavigationKey::END);
+                }
+                return keyCode(control::ControlKey::ESC);
             }
             else if(seq[1] == 'Z')
             {
