@@ -324,10 +324,11 @@ void GrepSearchMode::initialize(Editor& editor)
     if(!editor.fuzzyInitialized)
     {
         editor.allProjectFiles.clear();
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
         {
-            const std::string cwdStr(cwd);
+            const std::string cwdStr = cwd.string();
             if(editor.useGitFileIndex)
             {
                 std::string repoRoot = trimNewline(

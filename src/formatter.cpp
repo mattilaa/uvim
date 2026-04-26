@@ -61,9 +61,10 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     std::string absFilename = *editor->filename;
     if(!absFilename.empty() && absFilename[0] != '/')
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            absFilename = std::string(cwd) + "/" + *editor->filename;
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            absFilename = cwd.string() + "/" + *editor->filename;
     }
 
     auto buildCmd = [&](const std::string& exe) -> std::string

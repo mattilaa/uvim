@@ -261,11 +261,12 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         output += "  ";
 
-        char cwd[PATH_MAX];
         std::string displayPath = match.file.path;
-        if(getcwd(cwd, sizeof(cwd)))
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
         {
-            std::string cwdStr(cwd);
+            std::string cwdStr = cwd.string();
             if(displayPath.find(cwdStr) == 0)
             {
                 displayPath = displayPath.substr(cwdStr.length() + 1);
@@ -348,10 +349,11 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
 
     editor.allProjectFiles.clear();
 
-    char cwd[PATH_MAX];
-    if(getcwd(cwd, sizeof(cwd)))
+    std::error_code cwdEc;
+    auto cwd = std::filesystem::current_path(cwdEc);
+    if(!cwdEc)
     {
-        const std::string cwdStr(cwd);
+        const std::string cwdStr = cwd.string();
         if(editor.useGitFileIndex)
         {
             std::string repoRoot = trimNewline(

@@ -870,12 +870,15 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         int nextChar = Terminal::readKey();
         if(nextChar == keyCode(typed::TypedKey::KEY_D))
         {
-            if(chdir(currentDirectory.c_str()) == 0)
+            std::error_code chEc;
+            std::filesystem::current_path(currentDirectory, chEc);
+            if(!chEc)
             {
                 ctx.setFuzzyInitialized(false);
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                    ctx.setStatusMessage(std::string("PWD: ") + cwd);
+                std::error_code cwdEc;
+                auto cwd = std::filesystem::current_path(cwdEc);
+                if(!cwdEc)
+                    ctx.setStatusMessage("PWD: " + cwd.string());
                 else
                     ctx.setStatusMessage("PWD updated");
             }
@@ -2707,12 +2710,16 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         navigateTo(ctx, pathStr);
                         browserCursor = 0;
                         browserOffset = 0;
-                        if(chdir(pathStr.c_str()) == 0)
+                        std::error_code chEc;
+                        std::filesystem::current_path(pathStr, chEc);
+                        if(!chEc)
                         {
                             ctx.setFuzzyInitialized(false);
-                            char cwd[PATH_MAX];
-                            if(getcwd(cwd, sizeof(cwd)))
-                                ctx.setStatusMessage(std::string(cwd));
+                            std::error_code cwdEc;
+                            auto cwd =
+                                std::filesystem::current_path(cwdEc);
+                            if(!cwdEc)
+                                ctx.setStatusMessage(cwd.string());
                         }
                     }
                     else
@@ -2724,9 +2731,10 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             }
             if(cmd == "pwd")
             {
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                    ctx.setStatusMessage(std::string(cwd));
+                std::error_code cwdEc;
+                auto cwd = std::filesystem::current_path(cwdEc);
+                if(!cwdEc)
+                    ctx.setStatusMessage(cwd.string());
                 else
                     ctx.setStatusMessage("Unable to read current directory");
                 return true;
@@ -2743,12 +2751,15 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 navigateTo(ctx, rootCopy);
                 browserCursor = 0;
                 browserOffset = 0;
-                if(chdir(rootCopy.c_str()) == 0)
+                std::error_code chEc;
+                std::filesystem::current_path(rootCopy, chEc);
+                if(!chEc)
                 {
                     ctx.setFuzzyInitialized(false);
-                    char cwd[PATH_MAX];
-                    if(getcwd(cwd, sizeof(cwd)))
-                        ctx.setStatusMessage(std::string(cwd));
+                    std::error_code cwdEc;
+                    auto cwd = std::filesystem::current_path(cwdEc);
+                    if(!cwdEc)
+                        ctx.setStatusMessage(cwd.string());
                 }
                 return true;
             }
