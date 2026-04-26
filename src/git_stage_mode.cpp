@@ -198,7 +198,7 @@ std::string unstaged_label(char status)
 
 std::string git_stage_help_text()
 {
-    return "  [space: stage/unstage] [j/k: move files] [d: diff] "
+    return "  [space: stage] [j/k: move] [d: diff] "
            "[ctrl-j/k: scroll diff] [ctrl-h/l: pan diff] [enter: open] "
            "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
 }
