@@ -1,0 +1,39 @@
+.linux:
+  image: ubuntu:24.04
+  before_script:
+    - apt-get update -qq
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential cmake ninja-build git python3 python3-venv python3-pip ca-certificates
+
+build:linux:
+  extends: .linux
+  stage: build
+  script:
+    - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DUVIM_BUILD_TESTS=ON -DUVIM_ENABLE_CLANGD_LSP=OFF
+    - cmake --build build
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 hour
+
+test:linux:unit:
+  extends: .linux
+  stage: test
+  needs: ["build:linux"]
+  script:
+    - ctest --test-dir build --output-on-failure
+
+test:linux:robot:
+  extends: .linux
+  stage: test
+  needs: ["build:linux"]
+  script:
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    - python -m pip install --upgrade pip
+    - python -m pip install -r tests/robot/requirements.txt
+    - UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
+  artifacts:
+    when: always
+    paths:
+      - tests/robot/output/
+    expire_in: 1 week

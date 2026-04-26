@@ -1,0 +1,51 @@
+.windows-msvc:
+  tags: [saas-windows-medium-amd64]
+  before_script:
+    - |
+      $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+      if (-not (Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
+
+      $vsPath = & $vswhere -latest -products * `
+        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        -property installationPath
+
+      if (-not $vsPath) { throw "No VS install with VC x64 tools found" }
+
+      Write-Host "Using VS at: $vsPath"
+      Import-Module (Join-Path $vsPath 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+      Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+
+build:windows:
+  extends: .windows-msvc
+  stage: build
+  script:
+    - cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug -DUVIM_BUILD_TESTS=ON -DUVIM_ENABLE_CLANGD_LSP=OFF
+    - cmake --build build --config Debug
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 hour
+
+test:windows:unit:
+  extends: .windows-msvc
+  stage: test
+  needs: ["build:windows"]
+  script:
+    - ctest --test-dir build -C Debug --output-on-failure
+
+test:windows:robot:
+  extends: .windows-msvc
+  stage: test
+  needs: ["build:windows"]
+  script:
+    - python -m venv .venv
+    - .\.venv\Scripts\Activate.ps1
+    - python -m pip install --upgrade pip
+    - python -m pip install -r tests/robot/requirements.txt
+    - $env:UVIM_BIN = "$PWD\build\Debug\uvim.exe"
+    - robot --outputdir tests/robot/output tests/robot
+  artifacts:
+    when: always
+    paths:
+      - tests/robot/output/
+    expire_in: 1 week
