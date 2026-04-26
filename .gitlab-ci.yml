@@ -35,12 +35,18 @@ build:linux:
       - build/
     expire_in: 1 hour
 
-test:linux:
+test:linux:unit:
   extends: .linux
   stage: test
   needs: ["build:linux"]
   script:
     - ctest --test-dir build --output-on-failure
+
+test:linux:robot:
+  extends: .linux
+  stage: test
+  needs: ["build:linux"]
+  script:
     - python3 -m venv .venv
     - . .venv/bin/activate
     - python -m pip install --upgrade pip
@@ -90,12 +96,18 @@ build:windows:
       - build/
     expire_in: 1 hour
 
-test:windows:
+test:windows:unit:
   extends: .windows-msvc
   stage: test
   needs: ["build:windows"]
   script:
     - ctest --test-dir build -C Debug --output-on-failure
+
+test:windows:robot:
+  extends: .windows-msvc
+  stage: test
+  needs: ["build:windows"]
+  script:
     - python -m venv .venv
     - .\.venv\Scripts\Activate.ps1
     - python -m pip install --upgrade pip
