@@ -967,8 +967,15 @@ TEST(RealModeTransitionsTest, FileBrowserParentThenEnterSiblingDirectoryStays)
 
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
-    EXPECT_NE(state->currentDirectory.find("/to"), std::string::npos);
-    EXPECT_EQ(state->currentDirectory.find("/from"), std::string::npos);
+    // Compare via path components to stay portable (Windows uses backslash).
+    auto endsWithDir = [](const std::string& path,
+                          const std::string& dirName) -> bool
+    {
+        std::filesystem::path p(path);
+        return p.filename() == dirName;
+    };
+    EXPECT_TRUE(endsWithDir(state->currentDirectory, "to"));
+    EXPECT_FALSE(endsWithDir(state->currentDirectory, "from"));
 }
 
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
