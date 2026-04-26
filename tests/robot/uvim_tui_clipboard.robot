@@ -15,7 +15,7 @@ Visual Mode Yank Copies To System Clipboard
     Create File    ${test_file}    ${content}
 
     # Clear system clipboard
-    Run    printf "" | pbcopy
+    Clear Test Clipboard
 
     # Start uvim and yank a line
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${test_file}
@@ -35,7 +35,7 @@ Visual Mode Yank Copies To System Clipboard
     Wait For Exit
 
     # Check if text was copied to system clipboard
-    ${clipboard} =    Run    pbpaste
+    ${clipboard} =    Read Test Clipboard
     Should Contain    ${clipboard}    Line 1: First line
 
 Visual Line Mode Yank Copies To System Clipboard
@@ -47,7 +47,7 @@ Visual Line Mode Yank Copies To System Clipboard
     Create File    ${test_file}    ${content}
 
     # Clear system clipboard
-    Run    printf "" | pbcopy
+    Clear Test Clipboard
 
     # Start uvim and yank a line
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${test_file}
@@ -66,7 +66,7 @@ Visual Line Mode Yank Copies To System Clipboard
     Wait For Exit
 
     # Check if text was copied to system clipboard (should include newline)
-    ${clipboard} =    Run    pbpaste
+    ${clipboard} =    Read Test Clipboard
     Should Contain    ${clipboard}    Line A
 
 Normal Mode YY Copies Line To System Clipboard
@@ -78,7 +78,7 @@ Normal Mode YY Copies Line To System Clipboard
     Create File    ${test_file}    ${content}
 
     # Clear system clipboard
-    Run    printf "" | pbcopy
+    Clear Test Clipboard
 
     # Start uvim and yank a line with yy
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${test_file}
@@ -95,7 +95,7 @@ Normal Mode YY Copies Line To System Clipboard
     Wait For Exit
 
     # Check if line was copied to system clipboard
-    ${clipboard} =    Run    pbpaste
+    ${clipboard} =    Read Test Clipboard
     Should Contain    ${clipboard}    Test Line 1
 
 Paste From System Clipboard
@@ -103,7 +103,7 @@ Paste From System Clipboard
     Create File    ${test_file}    ${EMPTY}
 
     # Copy text to system clipboard
-    Run    printf "Pasted from clipboard" | pbcopy
+    Write Test Clipboard    Pasted from clipboard
 
     # Start uvim and paste
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${test_file}

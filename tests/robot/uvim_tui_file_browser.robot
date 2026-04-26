@@ -12,6 +12,5 @@ File Browser Mode Entry And Exit
     Send Keys    e
     Sleep    0.2
     Expect Text    BROWSE
-    Send Escape
-    Expect Mode    NORMAL
+    Return To Normal Mode
     Quit Uvim
