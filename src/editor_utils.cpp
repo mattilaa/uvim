@@ -8,11 +8,11 @@
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
-#include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <limits.h>
 #include <sstream>
-#include <sys/stat.h>
+#include <system_error>
 #include <unordered_set>
 
 namespace editor::helper
@@ -1766,40 +1766,32 @@ void collectLocFiles(const std::string& dir, int depth,
     if(depth > 10)
         return;
 
-    DIR* d = opendir(dir.c_str());
-    if(!d)
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir, ec);
+    if(ec)
         return;
-
-    struct dirent* entry;
-    while((entry = readdir(d)))
+    for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
-        std::string name = entry->d_name;
-        if(name == "." || name == "..")
-            continue;
-        if(!name.empty() && name[0] == '.')
+        if(ec)
+            break;
+        std::string name = it->path().filename().string();
+        if(name.empty() || name[0] == '.')
             continue;
 
         std::string fullPath = dir + "/" + name;
 
-        struct stat st;
-        if(stat(fullPath.c_str(), &st) != 0)
+        std::error_code statEc;
+        bool isDir = it->is_directory(statEc);
+        if(statEc)
             continue;
-
-        bool isDir = S_ISDIR(st.st_mode);
         if(gitignore.isIgnored(fullPath, isDir))
             continue;
 
         if(isDir)
-        {
             collectLocFiles(fullPath, depth + 1, gitignore, out);
-        }
         else
-        {
             out.push_back(fullPath);
-        }
     }
-
-    closedir(d);
 }
 
 std::string expandTildePath(std::string path)
@@ -1900,16 +1892,16 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
         prefix = expandedPartial;
     }
 
-    DIR* dir = opendir(dirPath.c_str());
-    if(!dir)
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dirPath, ec);
+    if(ec)
         return completions;
-
-    struct dirent* entry;
-    while((entry = readdir(dir)) != nullptr)
+    for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
-        std::string name = entry->d_name;
-
-        if(name == "." || name == "..")
+        if(ec)
+            break;
+        std::string name = it->path().filename().string();
+        if(name.empty())
             continue;
 
         if(name[0] == '.' && (prefix.empty() || prefix[0] != '.'))
@@ -1936,18 +1928,13 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
                 fullPath = name;
             }
 
-            struct stat st;
-            std::string checkPath = dirPath + "/" + name;
-            if(stat(checkPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
-            {
+            std::error_code statEc;
+            if(it->is_directory(statEc) && !statEc)
                 fullPath += "/";
-            }
 
             completions.push_back(fullPath);
         }
     }
-
-    closedir(dir);
 
     std::sort(completions.begin(), completions.end());
 
@@ -1982,25 +1969,23 @@ static void collectRecursiveCompletion(const std::string& dir,
     if(depth > 8 || budget <= 0)
         return;
 
-    DIR* d = opendir(dir.c_str());
-    if(!d)
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir, ec);
+    if(ec)
         return;
-
-    struct dirent* entry;
-    while((entry = readdir(d)) != nullptr)
+    for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
-        std::string name = entry->d_name;
-        if(name == "." || name == "..")
-            continue;
-        if(!name.empty() && name[0] == '.')
+        if(ec)
+            break;
+        std::string name = it->path().filename().string();
+        if(name.empty() || name[0] == '.')
             continue;
 
         std::string fullPath = dir + "/" + name;
-        struct stat st;
-        if(stat(fullPath.c_str(), &st) != 0)
+        std::error_code statEc;
+        bool isDir = it->is_directory(statEc);
+        if(statEc)
             continue;
-
-        bool isDir = S_ISDIR(st.st_mode);
         if(gitignore && gitignore->isIgnored(fullPath, isDir))
             continue;
         std::string rel = relBase.empty() ? name : (relBase + "/" + name);
@@ -2038,8 +2023,6 @@ static void collectRecursiveCompletion(const std::string& dir,
                 break;
         }
     }
-
-    closedir(d);
 }
 
 std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
@@ -2098,10 +2081,10 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
                 std::string fullPath = (lastSlash != std::string::npos)
                                            ? path
                                            : (dirPath + "/" + path);
-                struct stat st;
-                bool isDir = false;
-                if(stat(fullPath.c_str(), &st) == 0)
-                    isDir = S_ISDIR(st.st_mode);
+                std::error_code statEc;
+                bool isDir = std::filesystem::is_directory(fullPath, statEc);
+                if(statEc)
+                    isDir = false;
                 if(!gitignore.isIgnored(fullPath, isDir))
                     filtered.push_back(item);
             }
