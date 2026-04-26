@@ -2,7 +2,7 @@
   image: ubuntu:24.04
   before_script:
     - apt-get update -qq
-    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential cmake ninja-build git python3 python3-venv python3-pip ca-certificates
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential cmake ninja-build git python3 python3-venv python3-pip ca-certificates file
 
 build:linux:
   extends: .linux
