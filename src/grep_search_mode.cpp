@@ -11,7 +11,7 @@
 #include <fstream>
 #include <limits.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include "os_compat.h"
 
 namespace
 {

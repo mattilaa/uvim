@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <regex>
 #include <sstream>
-#include <unistd.h>
+#include "os_compat.h"
 #include <vector>
 
 // ============================================================================

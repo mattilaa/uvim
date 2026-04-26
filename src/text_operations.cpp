@@ -1,20 +1,12 @@
 #include "editor.h"
 #include "enablelog.h"
+#include "os_compat.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
-
-#ifdef _WIN32
-// MSVC names these with leading underscore.
-#define popen _popen
-#define pclose _pclose
-#else
-#include <unistd.h>
-#endif
 
 void Editor::yankRange(int startY, int startX, int endY, int endX)
 {

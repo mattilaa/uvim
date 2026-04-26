@@ -3,8 +3,8 @@
 #include "terminal.h"
 #include "text_utils.h"
 
+#include "os_compat.h"
 #include <algorithm>
-#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <string_view>

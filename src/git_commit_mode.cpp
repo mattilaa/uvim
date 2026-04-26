@@ -3,11 +3,10 @@
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
-#include <cstdio>
+#include "os_compat.h"
 #include <cstdlib>
 #include <sys/stat.h>
 #include <string>
-#include <unistd.h>
 
 namespace
 {

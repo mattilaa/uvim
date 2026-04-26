@@ -4,7 +4,7 @@
 #include "text_utils.h"
 #include <cctype>
 #include <charconv>
-#include <cstdio>
+#include "os_compat.h"
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -12,7 +12,6 @@
 #include <limits.h>
 #include <optional>
 #include <string>
-#include <unistd.h>
 
 namespace fs = std::filesystem;
 

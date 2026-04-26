@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <sstream>
 #include <sys/stat.h>
-#include <unistd.h>
+#include "os_compat.h"
 
 // ============================================================================
 // FuzzyFindMode Implementation

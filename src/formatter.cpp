@@ -3,13 +3,12 @@
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
-#include <cstdio>
+#include "os_compat.h"
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <unistd.h>
 
 Formatter::Formatter(Editor* editor) : editor(editor) {}
 

@@ -5,13 +5,12 @@
 #include "text_utils.h"
 
 #include <algorithm>
-#include <cstdio>
+#include "os_compat.h"
 #include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include <unistd.h>
 
 namespace
 {

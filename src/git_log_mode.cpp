@@ -2,9 +2,9 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include "os_compat.h"
 #include <algorithm>
 #include <chrono>
-#include <cstdio>
 #include <string_view>
 
 // ============================================================================

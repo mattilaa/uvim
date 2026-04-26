@@ -1,8 +1,8 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "os_compat.h"
 #include <algorithm>
-#include <cstdio>
 #include <string>
 
 namespace
