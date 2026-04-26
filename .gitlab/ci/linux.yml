@@ -20,7 +20,18 @@ test:linux:unit:
   stage: test
   needs: ["build:linux"]
   script:
+    - set -o pipefail
     - ctest --test-dir build --output-on-failure
+        --output-junit Testing/junit.xml 2>&1
+        | tee build/Testing/ctest.log
+  artifacts:
+    when: always
+    paths:
+      # Raw ctest stdout + the per-test logs ctest writes under Testing/
+      - build/Testing/
+    reports:
+      junit: build/Testing/junit.xml
+    expire_in: 1 week
 
 test:linux:robot:
   extends: .linux
@@ -35,5 +46,8 @@ test:linux:robot:
   artifacts:
     when: always
     paths:
+      # output.xml, log.html, report.html, plus per-suite stdout
       - tests/robot/output/
+    reports:
+      junit: tests/robot/output/output.xml
     expire_in: 1 week

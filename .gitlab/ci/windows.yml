@@ -31,12 +31,24 @@ test:windows:unit:
   stage: test
   needs: ["build:windows"]
   script:
-    - ctest --test-dir build -C Debug --output-on-failure
+    - ctest --test-dir build -C Debug --output-on-failure --output-junit Testing/junit.xml 2>&1 | Tee-Object -FilePath build/Testing/ctest.log
+  artifacts:
+    when: always
+    paths:
+      # Raw ctest stdout + per-test logs ctest writes under Testing/
+      - build/Testing/
+    reports:
+      junit: build/Testing/junit.xml
+    expire_in: 1 week
 
 test:windows:robot:
   extends: .windows-msvc
   stage: test
   needs: ["build:windows"]
+  # Robot tests use pexpect.spawn, which is POSIX-only. A Windows port via
+  # `wexpect` (ConPTY-backed) is not yet wired up — keep the job to track
+  # progress but don't fail the pipeline on it.
+  allow_failure: true
   script:
     - python -m venv .venv
     - .\.venv\Scripts\Activate.ps1
@@ -47,5 +59,8 @@ test:windows:robot:
   artifacts:
     when: always
     paths:
+      # output.xml, log.html, report.html, plus per-suite stdout
       - tests/robot/output/
+    reports:
+      junit: tests/robot/output/output.xml
     expire_in: 1 week
