@@ -1,12 +1,14 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
-#include "os_compat.h"
 #include <cstdlib>
-#include <sys/stat.h>
 #include <string>
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
 
 namespace
 {
@@ -518,7 +520,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                                  shell_escape_single(todoPath) + " > \"$1\"\n";
             fwrite(script.data(), 1, script.size(), scriptFile);
             fclose(scriptFile);
+#ifndef _WIN32
             chmod(scriptPath.c_str(), 0700);
+#endif
 
             std::string cmd = "GIT_SEQUENCE_EDITOR=" +
                               shell_escape_single(scriptPath) +

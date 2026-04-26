@@ -2,15 +2,14 @@
 #include "gitignore.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
-#include <dirent.h>
+#include <chrono>
 #include <iomanip>
 #include <limits.h>
 #include <filesystem>
 #include <sstream>
-#include <sys/stat.h>
-#include "os_compat.h"
 
 // ============================================================================
 // FuzzyFindMode Implementation
@@ -373,10 +372,11 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                         continue;
 
                     const std::string fullPath = cwdStr + "/" + relPath;
-                    struct stat st;
-                    if(stat(fullPath.c_str(), &st) != 0)
+                    std::error_code stEc;
+                    auto status = std::filesystem::status(fullPath, stEc);
+                    if(stEc)
                         continue;
-                    if(S_ISDIR(st.st_mode))
+                    if(std::filesystem::is_directory(status))
                         continue;
 
                     FileEntry entry;
@@ -384,8 +384,22 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                     entry.name = fullFs.filename().string();
                     entry.path = relPath;
                     entry.isDirectory = false;
-                    entry.size = st.st_size;
-                    entry.modTime = st.st_mtime;
+                    std::error_code szEc;
+                    entry.size =
+                        (uintmax_t)std::filesystem::file_size(fullPath, szEc);
+                    if(szEc)
+                        entry.size = 0;
+                    std::error_code mtEc;
+                    auto ftime =
+                        std::filesystem::last_write_time(fullPath, mtEc);
+                    if(!mtEc)
+                    {
+                        using namespace std::chrono;
+                        auto sctp = time_point_cast<system_clock::duration>(
+                            ftime - decltype(ftime)::clock::now() +
+                            system_clock::now());
+                        entry.modTime = system_clock::to_time_t(sctp);
+                    }
                     editor.allProjectFiles.push_back(std::move(entry));
                 }
                 if(!editor.allProjectFiles.empty())
@@ -587,26 +601,24 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
     if(depth > 10)
         return; // Limit recursion depth
 
-    DIR* d = opendir(dir.c_str());
-    if(!d)
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir, ec);
+    if(ec)
         return;
-
-    struct dirent* entry;
-    while((entry = readdir(d)))
+    for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
-        std::string name = entry->d_name;
-
-        // Skip hidden files and special directories
-        if(name == "." || name == "..")
+        if(ec)
+            break;
+        std::string name = it->path().filename().string();
+        if(name.empty())
             continue;
 
         std::string fullPath = dir + "/" + name;
 
-        struct stat st;
-        if(stat(fullPath.c_str(), &st) != 0)
+        std::error_code statEc;
+        bool isDir = it->is_directory(statEc);
+        if(statEc)
             continue;
-
-        bool isDir = S_ISDIR(st.st_mode);
 
         // Check gitignore
         if(gitignore.isIgnored(fullPath, isDir))
@@ -620,8 +632,20 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
         fileEntry.name = name;
         fileEntry.path = fullPath;
         fileEntry.isDirectory = isDir;
-        fileEntry.size = st.st_size;
-        fileEntry.modTime = st.st_mtime;
+        std::error_code sizeEc;
+        fileEntry.size =
+            isDir ? 0 : (uintmax_t)std::filesystem::file_size(fullPath, sizeEc);
+        if(sizeEc)
+            fileEntry.size = 0;
+        std::error_code mtEc;
+        auto ftime = std::filesystem::last_write_time(fullPath, mtEc);
+        if(!mtEc)
+        {
+            using namespace std::chrono;
+            auto sctp = time_point_cast<system_clock::duration>(
+                ftime - decltype(ftime)::clock::now() + system_clock::now());
+            fileEntry.modTime = system_clock::to_time_t(sctp);
+        }
 
         allProjectFiles.push_back(fileEntry);
 
@@ -630,8 +654,6 @@ void Editor::collectProjectFiles(const std::string& dir, int depth,
             collectProjectFiles(fullPath, depth + 1, gitignore);
         }
     }
-
-    closedir(d);
 }
 
 int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
