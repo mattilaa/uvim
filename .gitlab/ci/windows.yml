@@ -31,6 +31,7 @@ test:windows:unit:
   stage: test
   needs: ["build:windows"]
   script:
+    - New-Item -ItemType Directory -Force -Path build/Testing | Out-Null
     - ctest --test-dir build -C Debug --output-on-failure --output-junit Testing/junit.xml 2>&1 | Tee-Object -FilePath build/Testing/ctest.log
   artifacts:
     when: always

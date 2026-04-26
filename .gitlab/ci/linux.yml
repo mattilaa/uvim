@@ -21,6 +21,7 @@ test:linux:unit:
   needs: ["build:linux"]
   script:
     - set -o pipefail
+    - mkdir -p build/Testing
     - ctest --test-dir build --output-on-failure
         --output-junit Testing/junit.xml 2>&1
         | tee build/Testing/ctest.log
