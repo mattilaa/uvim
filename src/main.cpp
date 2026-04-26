@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "json_utils.h"
 #include "log.h"
+#include "os_compat.h"
 #include "theme.h"
 #include <algorithm>
 #include <array>

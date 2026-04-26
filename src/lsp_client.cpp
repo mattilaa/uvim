@@ -66,15 +66,18 @@ static std::vector<std::string> defaultSemanticTokenModifiers()
 
 static std::string absPath(const std::string& p)
 {
-    char buf[PATH_MAX];
-    if(realpath(p.c_str(), buf))
-        return std::string(buf);
-    // If it doesn't exist yet, fall back to cwd + p
-    if(!p.empty() && p[0] == '/')
+    std::error_code ec;
+    auto canon = std::filesystem::canonical(p, ec);
+    if(!ec)
+        return canon.string();
+    // If it doesn't exist yet, fall back to cwd + p (or return as-is when
+    // already absolute).
+    if(std::filesystem::path(p).is_absolute())
         return p;
-    char cwd[PATH_MAX];
-    if(getcwd(cwd, sizeof(cwd)))
-        return std::string(cwd) + "/" + p;
+    std::error_code cwdEc;
+    auto cwd = std::filesystem::current_path(cwdEc);
+    if(!cwdEc)
+        return cwd.string() + "/" + p;
     return p;
 }
 
