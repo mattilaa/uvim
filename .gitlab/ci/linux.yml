@@ -52,3 +52,39 @@ test:linux:robot:
     reports:
       junit: tests/robot/output/output.xml
     expire_in: 1 week
+
+# ---------------------------------------------------------------------------
+# Release: standalone Linux binary (Release config, fully static link)
+# ---------------------------------------------------------------------------
+# Gated on both test:linux:unit and test:linux:robot — only runs if both
+# pass. Static linking via -static -static-libgcc -static-libstdc++ so the
+# binary runs on any Linux without matching glibc or libstdc++ versions.
+# Verified by `file` reporting "statically linked".
+
+release:linux:
+  extends: .linux
+  stage: release
+  needs: ["test:linux:unit", "test:linux:robot"]
+  script:
+    - cmake -S . -B build-release -G Ninja
+        -DCMAKE_BUILD_TYPE=Release
+        -DUVIM_BUILD_TESTS=OFF
+        -DUVIM_ENABLE_CLANGD_LSP=OFF
+        -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++"
+    - cmake --build build-release
+    - mkdir -p dist
+    - cp build-release/uvim dist/uvim
+    - strip dist/uvim
+    - file dist/uvim | tee dist/file-info.txt
+    - |
+      if ! grep -q "statically linked" dist/file-info.txt; then
+        echo "ERROR: dist/uvim is not a fully static binary"
+        exit 1
+      fi
+  artifacts:
+    name: "uvim-linux-x64-$CI_COMMIT_SHORT_SHA"
+    public: true  # anonymous download; requires Public project visibility
+    paths:
+      - dist/uvim
+      - dist/file-info.txt
+    expire_in: 30 days
