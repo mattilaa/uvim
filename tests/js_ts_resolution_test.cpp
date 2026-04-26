@@ -102,7 +102,11 @@ TEST(JsTsResolutionTest, ResolvesMlangStdModulePath)
     write_file(root / "std/fs.mla", "pub fn marker() -> i32 { return 0; }\n");
     write_file(root / "main.mla", "mod std::fs;\n");
 
+#ifdef _WIN32
+    _putenv_s("MLANG_STDLIB_PATH", root.string().c_str());
+#else
     setenv("MLANG_STDLIB_PATH", root.string().c_str(), 1);
+#endif
     std::string resolved =
         Editor::testResolveMlangModule((root / "main.mla").string(),
                                        "std::fs");

@@ -103,9 +103,10 @@ std::string base_dir_for_editor(const Editor* editor)
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            baseDir = cwd;
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            baseDir = cwd.string();
     }
     return baseDir;
 }
@@ -122,8 +123,13 @@ std::string format_git_date(const std::string& secondsText)
         return "";
     std::time_t t = static_cast<std::time_t>(seconds);
     std::tm tm{};
+#ifdef _WIN32
+    if(localtime_s(&tm, &t) != 0)
+        return "";
+#else
     if(!localtime_r(&t, &tm))
         return "";
+#endif
     char buf[16];
     if(std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm) == 0)
         return "";
