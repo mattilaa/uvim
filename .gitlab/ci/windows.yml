@@ -64,3 +64,39 @@ test:windows:robot:
     reports:
       junit: tests/robot/output/output.xml
     expire_in: 1 week
+
+# ---------------------------------------------------------------------------
+# Release: standalone .exe (Release config, statically linked C runtime)
+# ---------------------------------------------------------------------------
+# Runs only after the Windows unit tests pass. The robot job is allow_failure
+# and is intentionally not in `needs:` so it doesn't gate releases.
+#
+# CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded selects /MT (static CRT). We pass
+# CMAKE_POLICY_DEFAULT_CMP0091=NEW so the variable takes effect even though
+# CMakeLists.txt still uses cmake_minimum_required(VERSION 3.14).
+
+release:windows:
+  extends: .windows-msvc
+  stage: release
+  needs: ["test:windows:unit"]
+  script:
+    - cmake -S . -B build-release -G "Visual Studio 17 2022" -A x64
+        -DCMAKE_BUILD_TYPE=Release
+        -DUVIM_BUILD_TESTS=OFF
+        -DUVIM_ENABLE_CLANGD_LSP=OFF
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+        -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+    - cmake --build build-release --config Release
+    - New-Item -ItemType Directory -Force -Path dist | Out-Null
+    - Copy-Item build-release\Release\uvim.exe dist\uvim.exe
+    # Sanity-check that the .exe has no DLL deps on the VC runtime.
+    - 'dumpbin /DEPENDENTS dist\uvim.exe | Tee-Object -FilePath dist\dependents.txt'
+    - |
+      $bad = Select-String -Path dist\dependents.txt -Pattern '^\s*(VCRUNTIME|MSVCP|UCRTBASE)' -CaseSensitive:$false
+      if ($bad) { throw "uvim.exe still depends on VC runtime DLLs:`n$($bad -join "`n")" }
+  artifacts:
+    name: "uvim-windows-x64-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - dist/uvim.exe
+      - dist/dependents.txt
+    expire_in: 30 days
