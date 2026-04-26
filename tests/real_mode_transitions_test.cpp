@@ -244,7 +244,7 @@ TEST(RealModeTransitionsTest, EmojiAcceptInNormalModeStaysNormal)
     *editor.cursorX = 0;
     *editor.cursorY = 0;
 
-    Editor::EmojiEntry entry;
+    Editor::EmojiPopupEntry entry;
     entry.emoji = "\xF0\x9F\x98\x80"; // 😀
     entry.emojiDisplay = entry.emoji;
     entry.name = "grinning_face";
