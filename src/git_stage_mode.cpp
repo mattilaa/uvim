@@ -5,13 +5,12 @@
 #include "text_utils.h"
 
 #include <algorithm>
-#include <cstdio>
+#include "os_compat.h"
 #include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include <unistd.h>
 
 namespace
 {
@@ -198,7 +197,7 @@ std::string unstaged_label(char status)
 
 std::string git_stage_help_text()
 {
-    return "  [space: stage/unstage] [j/k: move files] [d: diff] "
+    return "  [space: stage] [j/k: move] [d: diff] "
            "[ctrl-j/k: scroll diff] [ctrl-h/l: pan diff] [enter: open] "
            "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
 }
@@ -541,9 +540,10 @@ void GitStageMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    char cwd[PATH_MAX];
-    if(getcwd(cwd, sizeof(cwd)))
-        viewRoot = cwd;
+    std::error_code cwdEc;
+    auto cwd = std::filesystem::current_path(cwdEc);
+    if(!cwdEc)
+        viewRoot = cwd.string();
     else if(viewRoot.empty())
         viewRoot = ".";
 

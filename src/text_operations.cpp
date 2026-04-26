@@ -1,13 +1,12 @@
 #include "editor.h"
 #include "enablelog.h"
+#include "os_compat.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
-#include <unistd.h>
 
 void Editor::yankRange(int startY, int startX, int endY, int endX)
 {
@@ -550,6 +549,9 @@ static std::string getClipboardCommand()
 {
 #ifdef __APPLE__
     return "pbpaste";
+#elif defined(_WIN32)
+    // TODO: Win32 clipboard via OpenClipboard/GetClipboardData(CF_UNICODETEXT)
+    return "";
 #else
     if(system("which xclip > /dev/null 2>&1") == 0)
         return "xclip -selection clipboard -o";
@@ -563,6 +565,9 @@ static std::string setClipboardCommand()
 {
 #ifdef __APPLE__
     return "pbcopy";
+#elif defined(_WIN32)
+    // TODO: Win32 clipboard via OpenClipboard/SetClipboardData
+    return "";
 #else
     if(system("which xclip > /dev/null 2>&1") == 0)
         return "xclip -selection clipboard";

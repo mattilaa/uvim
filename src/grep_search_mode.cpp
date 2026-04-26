@@ -5,13 +5,13 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <limits.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 namespace
 {
@@ -349,10 +349,12 @@ void GrepSearchMode::initialize(Editor& editor)
                             continue;
 
                         const std::string fullPath = cwdStr + "/" + relPath;
-                        struct stat st;
-                        if(stat(fullPath.c_str(), &st) != 0)
+                        std::error_code stEc;
+                        auto status =
+                            std::filesystem::status(fullPath, stEc);
+                        if(stEc)
                             continue;
-                        if(S_ISDIR(st.st_mode))
+                        if(std::filesystem::is_directory(status))
                             continue;
 
                         FileEntry entry;
@@ -360,8 +362,23 @@ void GrepSearchMode::initialize(Editor& editor)
                         entry.name = fullFs.filename().string();
                         entry.path = relPath;
                         entry.isDirectory = false;
-                        entry.size = st.st_size;
-                        entry.modTime = st.st_mtime;
+                        std::error_code szEc;
+                        entry.size = (uintmax_t)std::filesystem::file_size(
+                            fullPath, szEc);
+                        if(szEc)
+                            entry.size = 0;
+                        std::error_code mtEc;
+                        auto ftime = std::filesystem::last_write_time(
+                            fullPath, mtEc);
+                        if(!mtEc)
+                        {
+                            using namespace std::chrono;
+                            auto sctp =
+                                time_point_cast<system_clock::duration>(
+                                    ftime - decltype(ftime)::clock::now() +
+                                    system_clock::now());
+                            entry.modTime = system_clock::to_time_t(sctp);
+                        }
                         editor.allProjectFiles.push_back(std::move(entry));
                     }
                 }

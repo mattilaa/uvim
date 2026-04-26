@@ -10,8 +10,6 @@
 #include <fstream>
 #include <limits.h>
 #include <sstream>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <vector>
 
 static bool isHeaderFile(const std::string& path)

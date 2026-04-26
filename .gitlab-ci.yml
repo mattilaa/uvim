@@ -1,0 +1,121 @@
+# GitLab CI for uvim — builds for Linux (gcc) and Windows x64 (MSVC),
+# then runs unit (ctest) and Robot Framework tests on each platform.
+#
+# Linux jobs run on the default GitLab.com SaaS Docker runner (no tag).
+# Windows jobs target `saas-windows-medium-amd64`; adjust for self-hosted.
+
+stages:
+  - build
+  - test
+
+# ---------------------------------------------------------------------------
+# Linux (Ubuntu 24.04, gcc)
+# ---------------------------------------------------------------------------
+
+.linux:
+  image: ubuntu:24.04
+  before_script:
+    - apt-get update -qq
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
+        build-essential cmake ninja-build git
+        python3 python3-venv python3-pip
+        ca-certificates
+
+build:linux:
+  extends: .linux
+  stage: build
+  script:
+    - cmake -S . -B build -G Ninja
+        -DCMAKE_BUILD_TYPE=Debug
+        -DUVIM_BUILD_TESTS=ON
+        -DUVIM_ENABLE_CLANGD_LSP=OFF
+    - cmake --build build
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 hour
+
+test:linux:unit:
+  extends: .linux
+  stage: test
+  needs: ["build:linux"]
+  script:
+    - ctest --test-dir build --output-on-failure
+
+test:linux:robot:
+  extends: .linux
+  stage: test
+  needs: ["build:linux"]
+  script:
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    - python -m pip install --upgrade pip
+    - python -m pip install -r tests/robot/requirements.txt
+    - UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
+  artifacts:
+    when: always
+    paths:
+      - tests/robot/output/
+    expire_in: 1 week
+
+# ---------------------------------------------------------------------------
+# Windows x64 (MSVC)
+# ---------------------------------------------------------------------------
+# Default shell on the SaaS Windows runner is PowerShell. We activate the
+# Visual Studio developer environment via vswhere + Enter-VsDevShell so
+# `cl.exe`, `cmake`, and the Windows SDK headers are on PATH for the rest
+# of the script.
+
+.windows-msvc:
+  tags: [saas-windows-medium-amd64]
+  before_script:
+    # `-products *` is required because the SaaS runner has Build Tools,
+    # not full Visual Studio, and vswhere ignores Build Tools by default.
+    - |
+      $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+      if (-not (Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
+      $vsPath = & $vswhere -latest -products * `
+        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        -property installationPath
+      if (-not $vsPath) { throw "No VS install with VC x64 tools found" }
+      Write-Host "Using VS at: $vsPath"
+      Import-Module (Join-Path $vsPath 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+      Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+
+build:windows:
+  extends: .windows-msvc
+  stage: build
+  script:
+    - cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+        -DCMAKE_BUILD_TYPE=Debug
+        -DUVIM_BUILD_TESTS=ON
+        -DUVIM_ENABLE_CLANGD_LSP=OFF
+    - cmake --build build --config Debug
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 hour
+
+test:windows:unit:
+  extends: .windows-msvc
+  stage: test
+  needs: ["build:windows"]
+  script:
+    - ctest --test-dir build -C Debug --output-on-failure
+
+test:windows:robot:
+  extends: .windows-msvc
+  stage: test
+  needs: ["build:windows"]
+  script:
+    - python -m venv .venv
+    - .\.venv\Scripts\Activate.ps1
+    - python -m pip install --upgrade pip
+    - python -m pip install -r tests/robot/requirements.txt
+    - $env:UVIM_BIN = "$PWD\build\Debug\uvim.exe"
+    - robot --outputdir tests/robot/output tests/robot
+  artifacts:
+    when: always
+    paths:
+      - tests/robot/output/
+    expire_in: 1 week

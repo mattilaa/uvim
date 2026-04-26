@@ -1,13 +1,14 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
-#include <sys/stat.h>
 #include <string>
-#include <unistd.h>
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
 
 namespace
 {
@@ -468,6 +469,15 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(!baseLines.empty())
                 base = trim_newline(baseLines.front());
 
+#ifdef _WIN32
+            // Interactive rebase via GIT_SEQUENCE_EDITOR script is POSIX-only
+            // (relies on /bin/sh). Not yet ported to Windows.
+            (void)todo;
+            (void)base;
+            ed->setStatusMessage(
+                "git rebase: interactive autosquash not supported on Windows yet");
+            return false;
+#else
             std::string todoText;
             for(const auto& item : todo)
             {
@@ -542,6 +552,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
             ed->setStatusMessage("git rebase: done");
             return true;
+#endif
         }
 
         std::string msg = join_lines(commitLines);

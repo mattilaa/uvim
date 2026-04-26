@@ -22,20 +22,15 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include "os_compat.h"
 #include <cstring>
 #include <ctime>
-#include <dirent.h>
 #include <filesystem>
 #include <fstream>
 #include <limits.h>
 #include <memory>
 #include <optional>
-#include <pwd.h>
 #include <sstream>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -1804,8 +1799,8 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
     std::string ccdir = clangdLspCompileCommandsDir;
     auto exists = [](const std::string& p)
     {
-        struct stat st;
-        return stat(p.c_str(), &st) == 0;
+        std::error_code ec;
+        return std::filesystem::exists(p, ec);
     };
 
     if(ccdir.empty())
@@ -3222,8 +3217,8 @@ void Editor::reloadCurrentFile()
 // Jump between header and source file
 bool Editor::fileExists(const std::string& path)
 {
-    struct stat buffer;
-    return (stat(path.c_str(), &buffer) == 0);
+    std::error_code ec;
+    return std::filesystem::exists(path, ec);
 }
 
 std::string Editor::getSymbolUnderCursor()
@@ -7776,9 +7771,8 @@ void Editor::executeCommand(std::string_view cmd)
             }
             else
             {
-                struct stat fileStat;
-                if(stat(path.c_str(), &fileStat) == 0 &&
-                   S_ISDIR(fileStat.st_mode))
+                std::error_code ec;
+                if(std::filesystem::is_directory(path, ec) && !ec)
                 {
                     commandRequestedModeSet = true;
                     commandRequestedMode = FILE_BROWSER;
@@ -8059,8 +8053,8 @@ void Editor::executeCommand(std::string_view cmd)
         }
         else
         {
-            struct stat fileStat;
-            if(stat(path.c_str(), &fileStat) == 0 && S_ISDIR(fileStat.st_mode))
+            std::error_code ec;
+            if(std::filesystem::is_directory(path, ec) && !ec)
             {
                 commandRequestedModeSet = true;
                 commandRequestedMode = FILE_BROWSER;
