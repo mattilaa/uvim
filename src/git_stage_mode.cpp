@@ -540,9 +540,10 @@ void GitStageMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    char cwd[PATH_MAX];
-    if(getcwd(cwd, sizeof(cwd)))
-        viewRoot = cwd;
+    std::error_code cwdEc;
+    auto cwd = std::filesystem::current_path(cwdEc);
+    if(!cwdEc)
+        viewRoot = cwd.string();
     else if(viewRoot.empty())
         viewRoot = ".";
 

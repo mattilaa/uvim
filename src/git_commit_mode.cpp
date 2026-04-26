@@ -469,6 +469,15 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(!baseLines.empty())
                 base = trim_newline(baseLines.front());
 
+#ifdef _WIN32
+            // Interactive rebase via GIT_SEQUENCE_EDITOR script is POSIX-only
+            // (relies on /bin/sh). Not yet ported to Windows.
+            (void)todo;
+            (void)base;
+            ed->setStatusMessage(
+                "git rebase: interactive autosquash not supported on Windows yet");
+            return false;
+#else
             std::string todoText;
             for(const auto& item : todo)
             {
@@ -520,9 +529,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                                  shell_escape_single(todoPath) + " > \"$1\"\n";
             fwrite(script.data(), 1, script.size(), scriptFile);
             fclose(scriptFile);
-#ifndef _WIN32
             chmod(scriptPath.c_str(), 0700);
-#endif
 
             std::string cmd = "GIT_SEQUENCE_EDITOR=" +
                               shell_escape_single(scriptPath) +
@@ -545,6 +552,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
             ed->setStatusMessage("git rebase: done");
             return true;
+#endif
         }
 
         std::string msg = join_lines(commitLines);
