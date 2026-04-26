@@ -1,5 +1,5 @@
-#include "ascii.h"
 #include "editor.h"
+#include "ascii.h"
 #include "constants.h"
 #include "editor_utils.h"
 #include "enablelog.h"
@@ -16,19 +16,20 @@
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
+#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include "os_compat.h"
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
-#include <limits.h>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <unordered_map>
@@ -97,11 +98,12 @@ static std::string resolve_executable_path(const std::string& exe)
 {
     if(exe.empty())
         return {};
-    if(exe.find('/') != std::string::npos)
+    fs::path exePath(exe);
+    if(exePath.has_parent_path())
     {
         std::error_code ec;
-        if(fs::exists(exe, ec) && fs::is_regular_file(exe, ec))
-            return exe;
+        if(fs::exists(exePath, ec) && fs::is_regular_file(exePath, ec))
+            return exePath.string();
         return {};
     }
 
@@ -113,7 +115,11 @@ static std::string resolve_executable_path(const std::string& exe)
     size_t start = 0;
     while(start < pathView.size())
     {
+#ifdef _WIN32
+        size_t end = pathView.find(';', start);
+#else
         size_t end = pathView.find(':', start);
+#endif
         if(end == std::string_view::npos)
             end = pathView.size();
         if(end > start)
@@ -133,6 +139,133 @@ static std::string resolve_executable_path(const std::string& exe)
 
 namespace
 {
+
+static fs::path get_home_directory()
+{
+#ifdef _WIN32
+    if(const char* userProfile = std::getenv("USERPROFILE"))
+        return userProfile;
+    const char* homeDrive = std::getenv("HOMEDRIVE");
+    const char* homePath = std::getenv("HOMEPATH");
+    if(homeDrive && homePath)
+        return std::string(homeDrive) + std::string(homePath);
+#endif
+    if(const char* home = std::getenv("HOME"))
+        return home;
+
+    std::error_code ec;
+    fs::path cwd = fs::current_path(ec);
+    return ec ? fs::path{} : cwd;
+}
+
+static fs::path expand_user_path(const fs::path& input)
+{
+    std::string text = input.string();
+    if(text.empty() || text[0] != '~')
+        return input;
+
+    fs::path home = get_home_directory();
+    if(home.empty())
+        return input;
+
+    if(text.size() == 1)
+        return home;
+
+    const char sep = text[1];
+    if(sep == '/' || sep == '\\')
+        return home / text.substr(2);
+
+    return input;
+}
+
+static std::mutex& editor_working_directory_mutex()
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+static fs::path& editor_working_directory_unlocked()
+{
+    static fs::path directory = []
+    {
+        std::error_code ec;
+        fs::path cwd = fs::current_path(ec);
+        return ec ? fs::path{} : cwd;
+    }();
+    return directory;
+}
+
+static fs::path get_editor_working_directory()
+{
+    std::lock_guard<std::mutex> lock(editor_working_directory_mutex());
+    return editor_working_directory_unlocked();
+}
+
+static fs::path resolve_editor_path(const fs::path& input)
+{
+    fs::path path = expand_user_path(input);
+    if(path.is_absolute())
+        return path;
+
+    fs::path base = get_editor_working_directory();
+    if(base.empty())
+    {
+        std::error_code ec;
+        base = fs::current_path(ec);
+    }
+    return base / path;
+}
+
+static bool set_editor_working_directory(const fs::path& input,
+                                         std::string& displayPath,
+                                         std::string& errorMessage)
+{
+    fs::path resolved = resolve_editor_path(input);
+
+    std::error_code ec;
+    fs::path normalized = fs::weakly_canonical(resolved, ec);
+    if(ec)
+    {
+        ec.clear();
+        normalized = fs::absolute(resolved, ec);
+    }
+    if(ec)
+    {
+        errorMessage = ec.message();
+        return false;
+    }
+
+    if(!fs::is_directory(normalized, ec) || ec)
+    {
+        errorMessage = ec ? ec.message() : "not a directory";
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(editor_working_directory_mutex());
+        editor_working_directory_unlocked() = normalized;
+    }
+
+    displayPath = normalized.string();
+    return true;
+}
+
+static fs::path make_temp_file_path(const std::string& stem,
+                                    const std::string& extension)
+{
+    std::error_code ec;
+    fs::path dir = fs::temp_directory_path(ec);
+    if(ec || dir.empty())
+        dir = get_editor_working_directory();
+
+    const auto now =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+    std::ostringstream name;
+    name << stem << '_' << now << '_' << reinterpret_cast<std::uintptr_t>(&dir)
+         << extension;
+    return dir / name.str();
+}
+
 static bool find_mlang_builtin_type(std::string_view symbol, std::string& path,
                                     int& line)
 {
@@ -364,7 +497,8 @@ static bool find_mlang_builtin_function(std::string_view symbol,
         if(dir.empty())
             return;
         std::error_code ec;
-        std::filesystem::path canon = std::filesystem::weakly_canonical(dir, ec);
+        std::filesystem::path canon =
+            std::filesystem::weakly_canonical(dir, ec);
         std::string key = (ec ? dir : canon).string();
         if(key.empty() || seenDirs.find(key) != seenDirs.end())
             return;
@@ -374,7 +508,8 @@ static bool find_mlang_builtin_function(std::string_view symbol,
 
     if(!contextFilePath.empty())
     {
-        std::filesystem::path dir = std::filesystem::path(std::string(contextFilePath)).parent_path();
+        std::filesystem::path dir =
+            std::filesystem::path(std::string(contextFilePath)).parent_path();
         while(!dir.empty())
         {
             add_dir(dir);
@@ -1790,9 +1925,10 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     // Auto-detect compile_commands.json if caller didn't specify --ccdir
@@ -1882,9 +2018,10 @@ void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->robotLspArgs;
@@ -1946,9 +2083,10 @@ void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->pythonLspArgs;
@@ -2007,9 +2145,10 @@ void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->mlangLspArgs;
@@ -2069,9 +2208,10 @@ void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->htmlLspArgs;
@@ -2131,9 +2271,10 @@ void Editor::enableCssLsp(bool enable, const std::string& cssLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->cssLspArgs;
@@ -2193,9 +2334,10 @@ void Editor::enableJsonLsp(bool enable, const std::string& jsonLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->jsonLspArgs;
@@ -2255,9 +2397,10 @@ void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
     }
     else
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-            rootDir = std::string(cwd);
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
+            rootDir = cwd.string();
     }
 
     std::vector<std::string> args = this->tsLspArgs;
@@ -2531,13 +2674,15 @@ void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
     }
 
     // Yank if 'y' or for 'd' we fill yankBuffer
-    if(op == keyCode(typed::TypedKey::KEY_Y) || op == keyCode(typed::TypedKey::KEY_D) ||
+    if(op == keyCode(typed::TypedKey::KEY_Y) ||
+       op == keyCode(typed::TypedKey::KEY_D) ||
        op == keyCode(typed::TypedKey::KEY_C))
     {
         yankRange(startY, startX, endY, endX);
     }
 
-    if(op == keyCode(typed::TypedKey::KEY_D) || op == keyCode(typed::TypedKey::KEY_C))
+    if(op == keyCode(typed::TypedKey::KEY_D) ||
+       op == keyCode(typed::TypedKey::KEY_C))
     {
         deleteRange(startY, startX, endY, endX);
         saveState();
@@ -2752,16 +2897,21 @@ void Editor::openFile(std::string_view fname)
     }
 
     locMessage.clear();
-    // Normalize path (CRITICAL for buffer matching)
-    std::string path(fname);
+    // Normalize path (CRITICAL for buffer matching). Resolve relative paths
+    // against the editor's logical working directory instead of changing the
+    // process-wide current directory.
+    fs::path requestedPath = resolve_editor_path(fs::path(std::string(fname)));
+    std::string path = requestedPath.string();
     try
     {
-        path = std::filesystem::canonical(std::string(fname)).string();
+        path = fs::canonical(requestedPath).string();
     }
     catch(...)
     {
-        // fallback if file doesn't exist yet
-        path = fname;
+        std::error_code ec;
+        fs::path absolutePath = fs::absolute(requestedPath, ec);
+        if(!ec)
+            path = absolutePath.string();
     }
 
     // Check if file already open
@@ -3925,8 +4075,8 @@ void Editor::goToDefinition()
                 *cursorX = (*lines)[*cursorY].length();
 
             apply_gd_viewport();
-            setStatusMessage(std::string("gd (robot)") + gdArrow + loc->path + ":" +
-                             std::to_string(loc->line + 1));
+            setStatusMessage(std::string("gd (robot)") + gdArrow + loc->path +
+                             ":" + std::to_string(loc->line + 1));
             return;
         }
 
@@ -3948,8 +4098,8 @@ void Editor::goToDefinition()
             *cursorY = defY;
             *cursorX = defX;
             apply_gd_viewport();
-            setStatusMessage(std::string("gd (robot)") + gdArrow + *filename + ":" +
-                             std::to_string(defY + 1));
+            setStatusMessage(std::string("gd (robot)") + gdArrow + *filename +
+                             ":" + std::to_string(defY + 1));
             return;
         }
 
@@ -3980,8 +4130,8 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (robot)") + gdArrow + p.string() + ":" +
-                                 std::to_string(defY + 1));
+                setStatusMessage(std::string("gd (robot)") + gdArrow +
+                                 p.string() + ":" + std::to_string(defY + 1));
                 return;
             }
         }
@@ -4067,8 +4217,8 @@ void Editor::goToDefinition()
                 *cursorX = (*lines)[*cursorY].length();
 
             apply_gd_viewport();
-            setStatusMessage(std::string("gd (python)") + gdArrow + loc->path + ":" +
-                             std::to_string(loc->line + 1));
+            setStatusMessage(std::string("gd (python)") + gdArrow + loc->path +
+                             ":" + std::to_string(loc->line + 1));
             return;
         }
 
@@ -4086,8 +4236,8 @@ void Editor::goToDefinition()
             *cursorY = defY;
             *cursorX = defX;
             apply_gd_viewport();
-            setStatusMessage(std::string("gd (python)") + gdArrow + *filename + ":" +
-                             std::to_string(defY + 1));
+            setStatusMessage(std::string("gd (python)") + gdArrow + *filename +
+                             ":" + std::to_string(defY + 1));
             return;
         }
 
@@ -4117,8 +4267,8 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (python)") + gdArrow + p.string() + ":" +
-                                 std::to_string(defY + 1));
+                setStatusMessage(std::string("gd (python)") + gdArrow +
+                                 p.string() + ":" + std::to_string(defY + 1));
                 return;
             }
         }
@@ -4158,8 +4308,8 @@ void Editor::goToDefinition()
             *cursorX = (*lines)[*cursorY].length();
 
         apply_gd_viewport();
-        setStatusMessage("gd (" + std::string(label) + ")" + gdArrow + loc->path +
-                         ":" + std::to_string(loc->line + 1));
+        setStatusMessage("gd (" + std::string(label) + ")" + gdArrow +
+                         loc->path + ":" + std::to_string(loc->line + 1));
         return true;
     };
 
@@ -4255,9 +4405,10 @@ void Editor::goToDefinition()
                                     *cursorY = memberY;
                                     *cursorX = memberX;
                                     apply_gd_viewport();
-                                    setStatusMessage(std::string("gd (ts member)") +
-                                                     gdArrow + *filename + ":" +
-                                                     std::to_string(memberY + 1));
+                                    setStatusMessage(
+                                        std::string("gd (ts member)") +
+                                        gdArrow + *filename + ":" +
+                                        std::to_string(memberY + 1));
                                     return;
                                 }
                             }
@@ -4300,9 +4451,11 @@ void Editor::goToDefinition()
                                                 *cursorX = memberX;
                                                 apply_gd_viewport();
                                                 setStatusMessage(
-                                                    std::string("gd (ts member)") +
+                                                    std::string(
+                                                        "gd (ts member)") +
                                                     gdArrow + resolved + ":" +
-                                                    std::to_string(memberY + 1));
+                                                    std::to_string(memberY +
+                                                                   1));
                                                 return;
                                             }
                                         }
@@ -4350,8 +4503,8 @@ void Editor::goToDefinition()
             *cursorY = defY;
             *cursorX = defX;
             apply_gd_viewport();
-            setStatusMessage(std::string("gd (js/ts)") + gdArrow + *filename + ":" +
-                             std::to_string(defY + 1));
+            setStatusMessage(std::string("gd (js/ts)") + gdArrow + *filename +
+                             ":" + std::to_string(defY + 1));
             return;
         }
 
@@ -4375,7 +4528,8 @@ void Editor::goToDefinition()
                     *cursorY = defFileY;
                     *cursorX = defFileX;
                     apply_gd_viewport();
-                    setStatusMessage(std::string("gd (js/ts)") + gdArrow + resolved + ":" +
+                    setStatusMessage(std::string("gd (js/ts)") + gdArrow +
+                                     resolved + ":" +
                                      std::to_string(defFileY + 1));
                 }
                 else
@@ -4467,8 +4621,8 @@ void Editor::goToDefinition()
                     *cursorY = defY;
                     *cursorX = defX;
                     apply_gd_viewport();
-                    setStatusMessage(std::string("gd (html css)") + gdArrow + resolved + ":" +
-                                     std::to_string(defY + 1));
+                    setStatusMessage(std::string("gd (html css)") + gdArrow +
+                                     resolved + ":" + std::to_string(defY + 1));
                     return;
                 }
             }
@@ -4514,8 +4668,8 @@ void Editor::goToDefinition()
             if(mlang_module_decl_under_cursor(line, *cursorX, modulePath))
             {
                 std::string moduleFile;
-                if(resolve_mlang_module_file(modulePath, currentBuffer->filename,
-                                             moduleFile))
+                if(resolve_mlang_module_file(
+                       modulePath, currentBuffer->filename, moduleFile))
                 {
                     pushJumpLocation();
                     openFile(moduleFile);
@@ -4574,11 +4728,10 @@ void Editor::goToDefinition()
                           std::isspace((unsigned char)line[p]))
                         ++p;
                     int sepPos = p;
-                    bool hasArrow =
-                        (p + 1 < (int)line.size() && line[p] == '-' &&
-                         line[p + 1] == '>');
-                    bool hasDot = (!hasArrow && p < (int)line.size() &&
-                                   line[p] == '.');
+                    bool hasArrow = (p + 1 < (int)line.size() &&
+                                     line[p] == '-' && line[p + 1] == '>');
+                    bool hasDot =
+                        (!hasArrow && p < (int)line.size() && line[p] == '.');
                     if(hasArrow)
                         p += 2;
                     else if(hasDot)
@@ -4701,8 +4854,8 @@ void Editor::goToDefinition()
                 *cursorX = (*lines)[*cursorY].length();
 
             apply_gd_viewport();
-            setStatusMessage(std::string("gd (mlang)") + gdArrow + loc->path + ":" +
-                             std::to_string(loc->line + 1));
+            setStatusMessage(std::string("gd (mlang)") + gdArrow + loc->path +
+                             ":" + std::to_string(loc->line + 1));
             return;
         }
 
@@ -4722,8 +4875,9 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang builtin)") + gdArrow + it->second.path +
-                                 ":" + std::to_string(it->second.line + 1));
+                setStatusMessage(std::string("gd (mlang builtin)") + gdArrow +
+                                 it->second.path + ":" +
+                                 std::to_string(it->second.line + 1));
                 return;
             }
 
@@ -4740,8 +4894,9 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang macro)") + gdArrow + mit->second.path +
-                                 ":" + std::to_string(mit->second.line + 1));
+                setStatusMessage(std::string("gd (mlang macro)") + gdArrow +
+                                 mit->second.path + ":" +
+                                 std::to_string(mit->second.line + 1));
                 return;
             }
 
@@ -4755,8 +4910,9 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang attribute)") + gdArrow + ait->second.path +
-                                 ":" + std::to_string(ait->second.line + 1));
+                setStatusMessage(std::string("gd (mlang attribute)") + gdArrow +
+                                 ait->second.path + ":" +
+                                 std::to_string(ait->second.line + 1));
                 return;
             }
 
@@ -4770,7 +4926,8 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang fn)") + gdArrow + fit->second.path + ":" +
+                setStatusMessage(std::string("gd (mlang fn)") + gdArrow +
+                                 fit->second.path + ":" +
                                  std::to_string(fit->second.line + 1));
                 return;
             }
@@ -4788,7 +4945,8 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang builtin)") + gdArrow + builtinPath + ":" +
+                setStatusMessage(std::string("gd (mlang builtin)") + gdArrow +
+                                 builtinPath + ":" +
                                  std::to_string(builtinLine + 1));
                 return;
             }
@@ -4806,7 +4964,8 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang macro)") + gdArrow + macroPath + ":" +
+                setStatusMessage(std::string("gd (mlang macro)") + gdArrow +
+                                 macroPath + ":" +
                                  std::to_string(macroLine + 1));
                 return;
             }
@@ -4821,8 +4980,8 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang attribute)") + gdArrow + attrPath + ":" +
-                                 std::to_string(attrLine + 1));
+                setStatusMessage(std::string("gd (mlang attribute)") + gdArrow +
+                                 attrPath + ":" + std::to_string(attrLine + 1));
                 return;
             }
             std::string fnPath;
@@ -4837,8 +4996,8 @@ void Editor::goToDefinition()
                 if(*cursorY >= (int)lines->size())
                     *cursorY = lines->size() > 0 ? lines->size() - 1 : 0;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang fn)") + gdArrow + fnPath + ":" +
-                                 std::to_string(fnLine + 1));
+                setStatusMessage(std::string("gd (mlang fn)") + gdArrow +
+                                 fnPath + ":" + std::to_string(fnLine + 1));
                 return;
             }
         }
@@ -4852,8 +5011,8 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang local)") + gdArrow + *filename + ":" +
-                                 std::to_string(defY + 1));
+                setStatusMessage(std::string("gd (mlang local)") + gdArrow +
+                                 *filename + ":" + std::to_string(defY + 1));
                 return;
             }
         }
@@ -4870,7 +5029,8 @@ void Editor::goToDefinition()
                     *cursorY = defY;
                     *cursorX = defX;
                     apply_gd_viewport();
-                    setStatusMessage(std::string("gd (mlang local)") + gdArrow + *filename + ":" +
+                    setStatusMessage(std::string("gd (mlang local)") + gdArrow +
+                                     *filename + ":" +
                                      std::to_string(defY + 1));
                     return;
                 }
@@ -4881,8 +5041,8 @@ void Editor::goToDefinition()
                 *cursorY = defY;
                 *cursorX = defX;
                 apply_gd_viewport();
-                setStatusMessage(std::string("gd (mlang member)") + gdArrow + *filename + ":" +
-                                 std::to_string(defY + 1));
+                setStatusMessage(std::string("gd (mlang member)") + gdArrow +
+                                 *filename + ":" + std::to_string(defY + 1));
                 return;
             }
         }
@@ -4945,8 +5105,8 @@ void Editor::goToDefinition()
                 if(lastSlash != std::string::npos)
                     displayPath = "<sys>/" + loc->path.substr(lastSlash + 1);
             }
-            setStatusMessage(std::string("gd (clangd)") + gdArrow + displayPath + ":" +
-                             std::to_string(loc->line + 1));
+            setStatusMessage(std::string("gd (clangd)") + gdArrow +
+                             displayPath + ":" + std::to_string(loc->line + 1));
             return;
         }
     }
@@ -4996,8 +5156,8 @@ void Editor::goToDefinition()
             *cursorY = y;
             *cursorX = x;
             apply_gd_viewport();
-            setStatusMessage(std::string("gd") + gdArrow + "local '" + symbol + "' at " +
-                             std::to_string(y + 1) + ":" +
+            setStatusMessage(std::string("gd") + gdArrow + "local '" + symbol +
+                             "' at " + std::to_string(y + 1) + ":" +
                              std::to_string(x + 1));
             return;
         }
@@ -5011,8 +5171,8 @@ void Editor::goToDefinition()
             *cursorY = y;
             *cursorX = x;
             apply_gd_viewport();
-            setStatusMessage(std::string("gd") + gdArrow + "member '" + symbol + "' at " +
-                             std::to_string(y + 1) + ":" +
+            setStatusMessage(std::string("gd") + gdArrow + "member '" + symbol +
+                             "' at " + std::to_string(y + 1) + ":" +
                              std::to_string(x + 1));
             return;
         }
@@ -7678,9 +7838,9 @@ void Editor::executeCommand(std::string_view cmd)
         }
         if(cmd == "pwd")
         {
-            char cwd[PATH_MAX];
-            if(getcwd(cwd, sizeof(cwd)))
-                setStatusMessage(std::string(cwd));
+            fs::path cwd = get_editor_working_directory();
+            if(!cwd.empty())
+                setStatusMessage(cwd.string());
             else
                 setStatusMessage("Error getting current directory");
             return;
@@ -7692,16 +7852,15 @@ void Editor::executeCommand(std::string_view cmd)
                 setStatusMessage("Project root not set");
                 return;
             }
-            if(chdir(projectRoot.c_str()) == 0)
-            {
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                    setStatusMessage(std::string(cwd));
-            }
+
+            std::string displayPath;
+            std::string errorMessage;
+            if(set_editor_working_directory(projectRoot, displayPath,
+                                            errorMessage))
+                setStatusMessage(displayPath);
             else
-            {
-                setStatusMessage("Cannot change to: " + projectRoot);
-            }
+                setStatusMessage("Cannot change to: " + projectRoot + " (" +
+                                 errorMessage + ")");
             return;
         }
         if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
@@ -7709,29 +7868,15 @@ void Editor::executeCommand(std::string_view cmd)
             std::string path =
                 (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
             if(path.empty())
-            {
-                const char* home = getenv("HOME");
-                if(home)
-                    path = home;
-                else
-                    path = "/";
-            }
-            if(!path.empty() && path[0] == '~')
-            {
-                const char* home = getenv("HOME");
-                if(home)
-                    path = std::string(home) + path.substr(1);
-            }
-            if(chdir(path.c_str()) == 0)
-            {
-                char cwd[PATH_MAX];
-                if(getcwd(cwd, sizeof(cwd)))
-                    setStatusMessage(std::string(cwd));
-            }
+                path = get_home_directory().string();
+
+            std::string displayPath;
+            std::string errorMessage;
+            if(set_editor_working_directory(path, displayPath, errorMessage))
+                setStatusMessage(displayPath);
             else
-            {
-                setStatusMessage("Cannot change to: " + path);
-            }
+                setStatusMessage("Cannot change to: " + path + " (" +
+                                 errorMessage + ")");
             return;
         }
         if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
@@ -8097,15 +8242,11 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd == "pwd")
     {
-        char cwd[PATH_MAX];
-        if(getcwd(cwd, sizeof(cwd)))
-        {
-            setStatusMessage(std::string(cwd));
-        }
+        fs::path cwd = get_editor_working_directory();
+        if(!cwd.empty())
+            setStatusMessage(cwd.string());
         else
-        {
             setStatusMessage("Error getting current directory");
-        }
     }
     else if(cmd == "cdr")
     {
@@ -8114,48 +8255,28 @@ void Editor::executeCommand(std::string_view cmd)
             setStatusMessage("Project root not set");
             return;
         }
-        if(chdir(projectRoot.c_str()) == 0)
-        {
-            char cwd[PATH_MAX];
-            if(getcwd(cwd, sizeof(cwd)))
-                setStatusMessage(std::string(cwd));
-        }
+
+        std::string displayPath;
+        std::string errorMessage;
+        if(set_editor_working_directory(projectRoot, displayPath, errorMessage))
+            setStatusMessage(displayPath);
         else
-        {
-            setStatusMessage("Cannot change to: " + projectRoot);
-        }
+            setStatusMessage("Cannot change to: " + projectRoot + " (" +
+                             errorMessage + ")");
     }
     else if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
     {
         std::string path = (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
         if(path.empty())
-        {
-            // cd with no args goes to home directory
-            const char* home = getenv("HOME");
-            if(home)
-                path = home;
-            else
-                path = "/";
-        }
+            path = get_home_directory().string();
 
-        // Expand ~ to home directory
-        if(!path.empty() && path[0] == '~')
-        {
-            const char* home = getenv("HOME");
-            if(home)
-                path = std::string(home) + path.substr(1);
-        }
-
-        if(chdir(path.c_str()) == 0)
-        {
-            char cwd[PATH_MAX];
-            if(getcwd(cwd, sizeof(cwd)))
-                setStatusMessage(std::string(cwd));
-        }
+        std::string displayPath;
+        std::string errorMessage;
+        if(set_editor_working_directory(path, displayPath, errorMessage))
+            setStatusMessage(displayPath);
         else
-        {
-            setStatusMessage("Cannot change to: " + path);
-        }
+            setStatusMessage("Cannot change to: " + path + " (" + errorMessage +
+                             ")");
     }
     else
     {
@@ -8756,8 +8877,7 @@ void Editor::moveBufferLeft()
 
 void Editor::moveBufferRight()
 {
-    if(buffers.size() < 2 ||
-       currentBufferIndex >= (int)buffers.size() - 1)
+    if(buffers.size() < 2 || currentBufferIndex >= (int)buffers.size() - 1)
         return;
     int a = currentBufferIndex;
     int b = currentBufferIndex + 1;
@@ -8857,8 +8977,8 @@ void Editor::listBuffers()
         if(i == currentBufferIndex)
             ss << "]";
 
-    if(i < buffers.size() - 1)
-        ss << " ";
+        if(i < buffers.size() - 1)
+            ss << " ";
     }
 
     std::string status = ss.str();
@@ -10597,7 +10717,8 @@ void Editor::autoIndentLineSelection()
 
 void Editor::setMark(char mark)
 {
-    if(mark >= keyCode(typed::TypedKey::KEY_A) && mark <= keyCode(typed::TypedKey::KEY_Z))
+    if(mark >= keyCode(typed::TypedKey::KEY_A) &&
+       mark <= keyCode(typed::TypedKey::KEY_Z))
     {
         MarkLocation loc;
         loc.filename = *filename;
@@ -10610,7 +10731,8 @@ void Editor::setMark(char mark)
 
 void Editor::jumpToMark(char mark)
 {
-    if(mark >= keyCode(typed::TypedKey::KEY_A) && mark <= keyCode(typed::TypedKey::KEY_Z))
+    if(mark >= keyCode(typed::TypedKey::KEY_A) &&
+       mark <= keyCode(typed::TypedKey::KEY_Z))
     {
         auto it = marks.find(mark);
         if(it != marks.end())
@@ -11113,8 +11235,8 @@ std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
     return getCommandCompletions(prefix, currentMode);
 }
 
-std::vector<std::string>
-Editor::getCommandCompletions(std::string_view prefix, Mode mode)
+std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix,
+                                                       Mode mode)
 {
     static const std::vector<std::string> baseCommands = {
         "w",
@@ -11190,9 +11312,7 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
 
     auto hasCommand = [](const std::vector<std::string>& list,
                          const std::string& value) -> bool
-    {
-        return std::find(list.begin(), list.end(), value) != list.end();
-    };
+    { return std::find(list.begin(), list.end(), value) != list.end(); };
 
     const std::vector<std::string>* activeList = &baseCommands;
     std::vector<std::string> fileBrowserCommands;
@@ -11200,8 +11320,8 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
     {
         fileBrowserCommands = baseCommands;
         const std::vector<std::string> extras = {
-            "delete", "d",   "rm",   "rename", "r", "mv",
-            "mkdir",  "md",  "touch", "new",    "?", 
+            "delete", "d",  "rm",    "rename", "r", "mv",
+            "mkdir",  "md", "touch", "new",    "?",
         };
         for(const auto& extra : extras)
         {
@@ -11211,14 +11331,13 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
 
         const std::vector<std::string> notApplicable = {"wq", "x"};
         fileBrowserCommands.erase(
-            std::remove_if(fileBrowserCommands.begin(),
-                           fileBrowserCommands.end(),
-                           [&](const std::string& cmd)
-                           {
-                               return std::find(notApplicable.begin(),
-                                                notApplicable.end(),
-                                                cmd) != notApplicable.end();
-                           }),
+            std::remove_if(
+                fileBrowserCommands.begin(), fileBrowserCommands.end(),
+                [&](const std::string& cmd)
+                {
+                    return std::find(notApplicable.begin(), notApplicable.end(),
+                                     cmd) != notApplicable.end();
+                }),
             fileBrowserCommands.end());
 
         activeList = &fileBrowserCommands;
@@ -11239,11 +11358,10 @@ Editor::getCommandCompletions(std::string_view prefix, Mode mode)
 std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
     static const std::vector<std::string> topics = {
-        "commands",    "modes",       "navigation", "editing",
-        "files",       "filebrowser", "run",        "buffers",
-        "windows",     "search",      "clipboard",  "git",
-        "gb",          "gj",          "gbv",        "lsp",
-        "diagnostics", "help"};
+        "commands",    "modes",       "navigation", "editing", "files",
+        "filebrowser", "run",         "buffers",    "windows", "search",
+        "clipboard",   "git",         "gb",         "gj",      "gbv",
+        "lsp",         "diagnostics", "help"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)
@@ -11544,8 +11662,7 @@ bool Editor::mlangFormatBuffer()
 
     // Prefer external mlang-format binary (clang-format style behavior).
     {
-        std::string tempPath =
-            "/tmp/uvim_mlang_fmt_" + std::to_string(getpid()) + ".mla";
+        fs::path tempPath = make_temp_file_path("uvim_mlang_fmt", ".mla");
         std::ofstream tempFile(tempPath);
         if(tempFile.is_open())
         {
@@ -11554,20 +11671,17 @@ bool Editor::mlangFormatBuffer()
             tempFile.close();
 
             std::string absFilename = currentBuffer->filename;
-            if(!absFilename.empty() && absFilename[0] != '/')
-            {
-                char cwdBuf[PATH_MAX];
-                if(getcwd(cwdBuf, sizeof(cwdBuf)))
-                    absFilename = std::string(cwdBuf) + "/" + absFilename;
-            }
+            if(!absFilename.empty())
+                absFilename = resolve_editor_path(absFilename).string();
 
-            std::string errPath = "/tmp/uvim_mlang_fmt_err.log";
+            fs::path errPath =
+                make_temp_file_path("uvim_mlang_fmt_err", ".log");
             auto runFmt = [&](const std::string& exe) -> int
             {
                 std::string cmd = "\"" + exe +
                                   "\" -i --style file --assume-filename=\"" +
-                                  absFilename + "\" \"" + tempPath +
-                                  "\" 2>\"" + errPath + "\"";
+                                  absFilename + "\" \"" + tempPath.string() +
+                                  "\" 2>\"" + errPath.string() + "\"";
                 return std::system(cmd.c_str());
             };
 
@@ -11618,7 +11732,11 @@ bool Editor::mlangFormatBuffer()
                         line.pop_back();
                     newLines.push_back(line);
                 }
-                unlink(tempPath.c_str());
+                {
+                    std::error_code removeEc;
+                    fs::remove(tempPath, removeEc);
+                    fs::remove(errPath, removeEc);
+                }
 
                 if(!newLines.empty() && newLines.back().empty())
                     newLines.pop_back();
@@ -11627,7 +11745,8 @@ bool Editor::mlangFormatBuffer()
 
                 std::vector<std::string>& activeLines = currentBuffer->lines;
                 const std::string fmtLabel =
-                    fmtExe.empty() ? "mlang-format" : ("mlang-format (" + fmtExe + ")");
+                    fmtExe.empty() ? "mlang-format"
+                                   : ("mlang-format (" + fmtExe + ")");
                 if(newLines == activeLines)
                 {
                     setStatusMessage(fmtLabel + ": no changes");
@@ -11643,15 +11762,19 @@ bool Editor::mlangFormatBuffer()
                 if(cursorY && cursorX && lines && !lines->empty())
                 {
                     *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
-                    *cursorX = std::clamp(
-                        savedX, 0, (int)(*lines)[*cursorY].size());
+                    *cursorX =
+                        std::clamp(savedX, 0, (int)(*lines)[*cursorY].size());
                 }
                 adjustViewport();
                 needsFullRedraw = true;
                 setStatusMessage(fmtLabel + ": formatted buffer");
                 return true;
             }
-            unlink(tempPath.c_str());
+            {
+                std::error_code removeEc;
+                fs::remove(tempPath, removeEc);
+                fs::remove(errPath, removeEc);
+            }
         }
     }
 
