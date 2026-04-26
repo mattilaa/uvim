@@ -45,10 +45,10 @@ Setup Fake Clipboard
     Set Suite Variable    ${CLIPBOARD_FILE}    ${clip_file}
     ${pbcopy_script} =    Catenate    SEPARATOR=\n
     ...    #!/bin/sh
-    ...    cat > "${UVIM_TEST_CLIPBOARD_FILE}"
+    ...    cat > "${clip_file}"
     ${pbpaste_script} =    Catenate    SEPARATOR=\n
     ...    #!/bin/sh
-    ...    cat "${UVIM_TEST_CLIPBOARD_FILE}"
+    ...    cat "${clip_file}"
     ${xclip_script} =    Catenate    SEPARATOR=\n
     ...    #!/bin/sh
     ...    want_output=0
@@ -58,9 +58,9 @@ Setup Fake Clipboard
     ...        fi
     ...    done
     ...    if [ "$want_output" -eq 1 ]; then
-    ...        cat "${UVIM_TEST_CLIPBOARD_FILE}"
+    ...        cat "${clip_file}"
     ...    else
-    ...        cat > "${UVIM_TEST_CLIPBOARD_FILE}"
+    ...        cat > "${clip_file}"
     ...    fi
     ${xsel_script} =    Catenate    SEPARATOR=\n
     ...    #!/bin/sh
@@ -71,16 +71,15 @@ Setup Fake Clipboard
     ...        fi
     ...    done
     ...    if [ "$want_output" -eq 1 ]; then
-    ...        cat "${UVIM_TEST_CLIPBOARD_FILE}"
+    ...        cat "${clip_file}"
     ...    else
-    ...        cat > "${UVIM_TEST_CLIPBOARD_FILE}"
+    ...        cat > "${clip_file}"
     ...    fi
     Create File    ${clip_dir}/pbcopy    ${pbcopy_script}
     Create File    ${clip_dir}/pbpaste    ${pbpaste_script}
     Create File    ${clip_dir}/xclip    ${xclip_script}
     Create File    ${clip_dir}/xsel    ${xsel_script}
     Run    chmod +x "${clip_dir}/pbcopy" "${clip_dir}/pbpaste" "${clip_dir}/xclip" "${clip_dir}/xsel"
-    Set Environment Variable    UVIM_TEST_CLIPBOARD_FILE    ${clip_file}
     Set Environment Variable    PATH    ${clip_dir}:${orig_path}
 
 Clear Test Clipboard
