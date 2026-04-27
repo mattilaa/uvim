@@ -8,40 +8,86 @@
 #include <filesystem>
 #include <string_view>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 namespace fs = std::filesystem;
+
+static bool isExecutableFile(const fs::path& p)
+{
+    std::error_code ec;
+    if(!fs::exists(p, ec) || !fs::is_regular_file(p, ec))
+        return false;
+#ifdef _WIN32
+    return true;
+#else
+    return ::access(p.c_str(), X_OK) == 0;
+#endif
+}
 
 static bool binaryExists(const std::string& pathOrExe)
 {
     if(pathOrExe.empty())
         return false;
 
-    if(pathOrExe.find('/') != std::string::npos)
+    // Treat anything with a separator as an explicit path.
+    if(pathOrExe.find('/') != std::string::npos ||
+       pathOrExe.find('\\') != std::string::npos)
     {
-        std::error_code ec;
-        return fs::exists(pathOrExe, ec) && fs::is_regular_file(pathOrExe, ec);
+        return isExecutableFile(fs::path(pathOrExe));
     }
 
-    const char* envPath = std::getenv("PATH");
-    if(!envPath || !*envPath)
-        return false;
+#ifdef _WIN32
+    constexpr char kPathSep = ';';
+#else
+    constexpr char kPathSep = ':';
+#endif
 
-    std::string_view pathView{envPath};
-    size_t start = 0;
-    while(start < pathView.size())
+    if(const char* envPath = std::getenv("PATH"); envPath && *envPath)
     {
-        size_t end = pathView.find(':', start);
-        if(end == std::string_view::npos)
-            end = pathView.size();
-        if(end > start)
+        std::string_view pathView{envPath};
+        size_t start = 0;
+        while(start < pathView.size())
         {
-            fs::path candidate =
-                fs::path(std::string(pathView.substr(start, end - start))) /
-                pathOrExe;
-            std::error_code ec;
-            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
-                return true;
+            size_t end = pathView.find(kPathSep, start);
+            if(end == std::string_view::npos)
+                end = pathView.size();
+            if(end > start)
+            {
+                fs::path candidate =
+                    fs::path(std::string(pathView.substr(start, end - start))) /
+                    pathOrExe;
+                if(isExecutableFile(candidate))
+                    return true;
+#ifdef _WIN32
+                if(fs::path(pathOrExe).extension().empty() &&
+                   isExecutableFile(candidate.string() + ".exe"))
+                    return true;
+#endif
+            }
+            start = end + 1;
         }
-        start = end + 1;
+    }
+
+    // Fallback: standard system locations. Helps when uvim is launched with
+    // a stripped PATH (e.g. some WSL/IDE/desktop-launcher setups) but the
+    // binary is in a conventional spot like /usr/bin/clangd.
+    static const char* const kFallbackDirs[] = {
+#ifdef _WIN32
+        // No reasonable fallbacks on Windows; PATH covers the common cases.
+#else
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/opt/homebrew/bin",
+        "/snap/bin",
+#endif
+    };
+    for(const char* d : kFallbackDirs)
+    {
+        if(isExecutableFile(fs::path(d) / pathOrExe))
+            return true;
     }
     return false;
 }
@@ -117,6 +163,50 @@ void Editor::showLspInfo()
 
     appendLsp("clangd", isClangdLspEnabled(), isFileType<FileType::Cpp>(),
               clangdLspPath);
+    {
+        // Resolve where compile_commands.json actually lives. Prefer the
+        // directory configured/auto-detected at clangd start; otherwise
+        // fall back to looking next to the project root and ./build.
+        std::error_code ec;
+        fs::path ccFile;
+        auto pickFromDir = [&](const fs::path& dir) -> fs::path
+        {
+            if(dir.empty())
+                return {};
+            fs::path direct = dir / "compile_commands.json";
+            if(fs::exists(direct, ec) && fs::is_regular_file(direct, ec))
+                return direct;
+            fs::path nested = dir / "build" / "compile_commands.json";
+            if(fs::exists(nested, ec) && fs::is_regular_file(nested, ec))
+                return nested;
+            return {};
+        };
+        if(!clangdLspCompileCommandsDir.empty())
+            ccFile = pickFromDir(clangdLspCompileCommandsDir);
+        if(ccFile.empty() && !projectRoot.empty())
+            ccFile = pickFromDir(projectRoot);
+        if(ccFile.empty())
+        {
+            auto cwd = fs::current_path(ec);
+            if(!ec)
+                ccFile = pickFromDir(cwd);
+        }
+        if(!ccFile.empty())
+        {
+            lspInfoLines.push_back("  compile_commands: " + ccFile.string());
+        }
+        else
+        {
+            std::string searched =
+                clangdLspCompileCommandsDir.empty()
+                    ? (projectRoot.empty() ? std::string(".")
+                                           : projectRoot)
+                    : clangdLspCompileCommandsDir;
+            lspInfoLines.push_back(
+                "  compile_commands: not found (searched " + searched +
+                " and " + searched + "/build)");
+        }
+    }
     appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(),
               pythonLspPath);
     appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
@@ -206,6 +296,21 @@ void Editor::drawLspInfo()
             output += "  ";
             renderKeyValue("binary:", std::string_view(line).substr(9),
                            theme.uiDim());
+        }
+        else if(line.rfind("  compile_commands:", 0) == 0)
+        {
+            output += "  ";
+            std::string_view value = std::string_view(line).substr(19);
+            output += theme.uiDim();
+            output += "compile_commands:";
+            output += theme.reset();
+            output += " ";
+            if(value.find("not found") != std::string_view::npos)
+                output += theme.uiWarning();
+            else
+                output += theme.uiSuccess();
+            output += std::string(value);
+            output += theme.reset();
         }
         else if(line.rfind("  version:", 0) == 0)
         {
