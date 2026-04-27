@@ -9,11 +9,15 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -35,6 +39,62 @@ static void logLspDebug(const std::string& tag, const ju::Value& payload)
     out << ju::stringify_pretty(payload) << "\n";
 }
 #endif
+
+// ---------------------------------------------------------------------------
+// Runtime LSP traffic logging (--lsp-log <path> / UVIM_LSP_LOG=<path>).
+// Captures spawn/exit, every JSON-RPC message in/out, and clangd's stderr.
+// ---------------------------------------------------------------------------
+static std::mutex& lspLogMutex()
+{
+    static std::mutex m;
+    return m;
+}
+
+static std::string& lspLogPathStorage()
+{
+    static std::string p;
+    return p;
+}
+
+static std::string lspLogTimestamp()
+{
+    auto now = std::chrono::system_clock::now();
+    auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+                  now.time_since_epoch())
+                  .count() %
+              1000000;
+    std::time_t tt = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm, &tt);
+#else
+    localtime_r(&tt, &tm);
+#endif
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%06d", tm.tm_hour,
+                  tm.tm_min, tm.tm_sec, (int)us);
+    return std::string(buf);
+}
+
+static void lspLogWrite(std::string_view tag, std::string_view payload)
+{
+    std::lock_guard<std::mutex> lk(lspLogMutex());
+    const std::string& path = lspLogPathStorage();
+    if(path.empty())
+        return;
+    std::ofstream out(path, std::ios::app);
+    if(!out.is_open())
+        return;
+    out << '[' << lspLogTimestamp() << "] " << tag << ' ' << payload;
+    if(payload.empty() || payload.back() != '\n')
+        out << '\n';
+}
+
+static bool lspLogEnabled()
+{
+    std::lock_guard<std::mutex> lk(lspLogMutex());
+    return !lspLogPathStorage().empty();
+}
 
 static std::string readFileAll(const std::string& path)
 {
@@ -77,64 +137,128 @@ static std::string absPath(const std::string& p)
     std::error_code cwdEc;
     auto cwd = std::filesystem::current_path(cwdEc);
     if(!cwdEc)
-        return cwd.string() + "/" + p;
+    {
+        std::filesystem::path joined = std::filesystem::path(cwd) / p;
+        return joined.string();
+    }
     return p;
 }
 
 static std::string pathToFileUri(const std::string& path)
 {
-    // Minimal file:// URI escaping (spaces only).
+    // Build a file:// URI per RFC 8089 / clangd convention.
+    //   POSIX:   /a/b/c.cpp   -> file:///a/b/c.cpp
+    //   Windows: C:\a\b\c.cpp -> file:///C:/a/b/c.cpp
     std::string p = absPath(path);
-    std::string out = "file://";
-    for(char c : p)
+
+    // Normalize separators on Windows; clangd produces forward slashes.
+#ifdef _WIN32
+    for(char& c : p)
     {
-        if(c == ' ')
-            out += "%20";
-        else
-            out.push_back(c);
+        if(c == '\\')
+            c = '/';
+    }
+#endif
+
+    // Detect a Windows drive-letter prefix (e.g. "C:") so we can insert the
+    // mandatory leading slash for the URI's path component.
+    bool hasDriveLetter =
+        p.size() >= 2 &&
+        ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')) &&
+        p[1] == ':';
+
+    std::string out = "file://";
+    if(hasDriveLetter)
+        out.push_back('/'); // file:/// + C:/...
+
+    auto isUnreserved = [](unsigned char c) -> bool
+    {
+        // RFC 3986 unreserved
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+               (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' ||
+               c == '~';
+    };
+
+    for(size_t i = 0; i < p.size(); ++i)
+    {
+        unsigned char c = static_cast<unsigned char>(p[i]);
+        // Keep path separators and the drive-letter colon as-is.
+        if(c == '/' || (i == 1 && hasDriveLetter && c == ':'))
+        {
+            out.push_back((char)c);
+            continue;
+        }
+        if(isUnreserved(c))
+        {
+            out.push_back((char)c);
+            continue;
+        }
+        // Percent-encode everything else (including space, non-ASCII bytes).
+        static const char hex[] = "0123456789ABCDEF";
+        out.push_back('%');
+        out.push_back(hex[c >> 4]);
+        out.push_back(hex[c & 0x0F]);
     }
     return out;
 }
 
 static std::string uriToPath(const std::string& uri)
 {
-    // Expect file://
     const std::string prefix = "file://";
-    if(uri.rfind(prefix, 0) == 0)
-    {
-        std::string p = uri.substr(prefix.size());
-        // Decode percent-encoded bytes (e.g. %20, %2B).
-        std::string out;
-        out.reserve(p.size());
-        auto hex = [](char c) -> int
-        {
-            if(c >= '0' && c <= '9')
-                return c - '0';
-            if(c >= 'a' && c <= 'f')
-                return 10 + (c - 'a');
-            if(c >= 'A' && c <= 'F')
-                return 10 + (c - 'A');
-            return -1;
-        };
+    if(uri.rfind(prefix, 0) != 0)
+        return uri;
 
-        for(size_t i = 0; i < p.size(); ++i)
+    std::string p = uri.substr(prefix.size());
+
+    // Percent-decode.
+    std::string decoded;
+    decoded.reserve(p.size());
+    auto hex = [](char c) -> int
+    {
+        if(c >= '0' && c <= '9')
+            return c - '0';
+        if(c >= 'a' && c <= 'f')
+            return 10 + (c - 'a');
+        if(c >= 'A' && c <= 'F')
+            return 10 + (c - 'A');
+        return -1;
+    };
+    for(size_t i = 0; i < p.size(); ++i)
+    {
+        if(p[i] == '%' && i + 2 < p.size())
         {
-            if(p[i] == '%' && i + 2 < p.size())
+            int hi = hex(p[i + 1]);
+            int lo = hex(p[i + 2]);
+            if(hi >= 0 && lo >= 0)
             {
-                int hi = hex(p[i + 1]);
-                int lo = hex(p[i + 2]);
-                if(hi >= 0 && lo >= 0)
-                {
-                    out.push_back(static_cast<char>((hi << 4) | lo));
-                    i += 2;
-                    continue;
-                }
+                decoded.push_back(static_cast<char>((hi << 4) | lo));
+                i += 2;
+                continue;
             }
-            out.push_back(p[i]);
         }
-        return out;
+        decoded.push_back(p[i]);
     }
-    return uri;
+
+    // Strip the leading "/" used to separate the empty authority from a
+    // Windows drive-letter path: file:///C:/foo -> "/C:/foo" -> "C:/foo".
+    if(decoded.size() >= 3 && decoded[0] == '/' &&
+       ((decoded[1] >= 'A' && decoded[1] <= 'Z') ||
+        (decoded[1] >= 'a' && decoded[1] <= 'z')) &&
+       decoded[2] == ':')
+    {
+        decoded.erase(0, 1);
+    }
+
+#ifdef _WIN32
+    // std::filesystem on Windows accepts '/', but native paths use '\\'.
+    for(char& c : decoded)
+    {
+        if(c == '/')
+            c = '\\';
+    }
+#endif
+
+    return decoded;
 }
 
 static const ju::Value* member_ptr(const ju::Value* obj, const char* key)
@@ -163,10 +287,13 @@ struct LspClient::Impl
 {
     int inFd = -1;  // write to clangd stdin
     int outFd = -1; // read from clangd stdout
+    int errFd = -1; // read from clangd stderr (logs)
     pid_t pid = -1;
 
     std::thread reader;
+    std::thread errReader;
     std::atomic<bool> alive{false};
+    std::string serverTag; // human label for log lines (e.g. "clangd")
 
     std::mutex m;
     std::condition_variable cv;
@@ -199,6 +326,12 @@ struct LspClient::Impl
             "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
         std::string msg = hdr + payload;
 
+        if(lspLogEnabled())
+        {
+            std::string tag = "[" + serverTag + "] >>> SEND";
+            lspLogWrite(tag, payload);
+        }
+
         const char* p = msg.data();
         ssize_t left = (ssize_t)msg.size();
         while(left > 0)
@@ -208,6 +341,13 @@ struct LspClient::Impl
             {
                 if(errno == EINTR)
                     continue;
+                if(lspLogEnabled())
+                {
+                    std::string tag = "[" + serverTag + "] !!! WRITE";
+                    lspLogWrite(tag, std::string("errno=") +
+                                          std::to_string(errno) + " " +
+                                          std::strerror(errno));
+                }
                 return false;
             }
             left -= n;
@@ -281,6 +421,18 @@ struct LspClient::Impl
             ssize_t n = ::read(outFd, tmp, sizeof(tmp));
             if(n <= 0)
             {
+                if(lspLogEnabled())
+                {
+                    std::string tag = "[" + serverTag + "] !!! READ";
+                    if(n == 0)
+                        lspLogWrite(tag, "EOF on stdout (server exited or "
+                                         "closed pipe)");
+                    else
+                        lspLogWrite(tag,
+                                    std::string("errno=") +
+                                        std::to_string(errno) + " " +
+                                        std::strerror(errno));
+                }
                 break;
             }
             buf.append(tmp, tmp + n);
@@ -321,9 +473,23 @@ struct LspClient::Impl
                 std::string payload = buf.substr(payloadStart, contentLen);
                 buf.erase(0, payloadStart + contentLen);
 
+                if(lspLogEnabled())
+                {
+                    std::string tag = "[" + serverTag + "] <<< RECV";
+                    lspLogWrite(tag, payload);
+                }
+
                 ju::Document msg;
                 if(!ju::parse(msg, payload))
+                {
+                    if(lspLogEnabled())
+                    {
+                        std::string tag =
+                            "[" + serverTag + "] !!! PARSE-FAIL";
+                        lspLogWrite(tag, payload);
+                    }
                     continue;
+                }
 
                 if(const ju::Value* idVal = ju::find(msg, "id"))
                 {
@@ -430,8 +596,51 @@ struct LspClient::Impl
             }
         }
 
+        if(lspLogEnabled())
+        {
+            std::string tag = "[" + serverTag + "] === READER-EXIT";
+            lspLogWrite(tag, "");
+        }
+
         alive.store(false);
         cv.notify_all();
+    }
+
+    void stderrReaderLoop()
+    {
+        // Drains the server's stderr pipe so it never blocks on a full
+        // buffer. When LSP logging is enabled, lines are written to the
+        // log; otherwise they are discarded. Lines must NEVER be merged
+        // back into the JSON-RPC stdout stream — doing so corrupts
+        // Content-Length framing.
+        std::string buf;
+        char tmp[4096];
+        while(true)
+        {
+            ssize_t n = ::read(errFd, tmp, sizeof(tmp));
+            if(n <= 0)
+                break;
+            if(!lspLogEnabled())
+                continue;
+            buf.append(tmp, tmp + n);
+            for(;;)
+            {
+                size_t nl = buf.find('\n');
+                if(nl == std::string::npos)
+                    break;
+                std::string line = buf.substr(0, nl);
+                if(!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                buf.erase(0, nl + 1);
+                std::string tag = "[" + serverTag + "] [stderr]";
+                lspLogWrite(tag, line);
+            }
+        }
+        if(!buf.empty() && lspLogEnabled())
+        {
+            std::string tag = "[" + serverTag + "] [stderr]";
+            lspLogWrite(tag, buf);
+        }
     }
 
     bool startClangd(const std::string& clangdPath,
@@ -439,10 +648,23 @@ struct LspClient::Impl
     {
         int inPipe[2];
         int outPipe[2];
+        int errPipe[2];
         if(pipe(inPipe) != 0)
             return false;
         if(pipe(outPipe) != 0)
+        {
+            close(inPipe[0]);
+            close(inPipe[1]);
             return false;
+        }
+        if(pipe(errPipe) != 0)
+        {
+            close(inPipe[0]);
+            close(inPipe[1]);
+            close(outPipe[0]);
+            close(outPipe[1]);
+            return false;
+        }
 
         pid = fork();
         if(pid == 0)
@@ -450,12 +672,14 @@ struct LspClient::Impl
             // child
             dup2(inPipe[0], STDIN_FILENO);
             dup2(outPipe[1], STDOUT_FILENO);
-            dup2(outPipe[1], STDERR_FILENO); // send logs to stdout for now
+            dup2(errPipe[1], STDERR_FILENO);
 
             close(inPipe[0]);
             close(inPipe[1]);
             close(outPipe[0]);
             close(outPipe[1]);
+            close(errPipe[0]);
+            close(errPipe[1]);
 
             std::vector<char*> argv;
             argv.push_back(const_cast<char*>(clangdPath.c_str()));
@@ -467,15 +691,49 @@ struct LspClient::Impl
             _exit(127);
         }
 
+        if(pid < 0)
+        {
+            close(inPipe[0]);
+            close(inPipe[1]);
+            close(outPipe[0]);
+            close(outPipe[1]);
+            close(errPipe[0]);
+            close(errPipe[1]);
+            if(lspLogEnabled())
+            {
+                std::string tag = "[" + serverTag + "] !!! FORK";
+                lspLogWrite(tag, std::string("errno=") +
+                                     std::to_string(errno) + " " +
+                                     std::strerror(errno));
+            }
+            return false;
+        }
+
         // parent
         close(inPipe[0]);
         close(outPipe[1]);
+        close(errPipe[1]);
         inFd = inPipe[1];
         outFd = outPipe[0];
+        errFd = errPipe[0];
+
+        if(lspLogEnabled())
+        {
+            std::string tag = "[" + serverTag + "] === SPAWN";
+            std::string detail = "pid=" + std::to_string((long)pid) +
+                                 " path=" + clangdPath;
+            for(const auto& a : extraArgs)
+            {
+                detail += " ";
+                detail += a;
+            }
+            lspLogWrite(tag, detail);
+        }
 
         // non-blocking read is fine but not required
         alive.store(true);
         reader = std::thread([this] { readerLoop(); });
+        errReader = std::thread([this] { stderrReaderLoop(); });
 
         return true;
     }
@@ -608,6 +866,7 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
         return true;
 
     impl->rootDir = absPath(rootDir);
+    impl->serverTag = "clangd";
 
     std::vector<std::string> args;
     // log can be tuned; keep quiet by default
@@ -643,6 +902,14 @@ bool LspClient::startServer(const std::string& serverPath,
         return true;
 
     impl->rootDir = absPath(rootDir);
+    if(impl->serverTag.empty())
+    {
+        // derive a short tag from the binary path filename
+        impl->serverTag =
+            std::filesystem::path(serverPath).filename().string();
+        if(impl->serverTag.empty())
+            impl->serverTag = "lsp";
+    }
 
     if(!impl->startClangd(serverPath, args))
         return false;
@@ -682,17 +949,34 @@ void LspClient::stop()
         close(impl->inFd);
     if(impl->outFd >= 0)
         close(impl->outFd);
+    if(impl->errFd >= 0)
+        close(impl->errFd);
 
     if(impl->reader.joinable())
         impl->reader.join();
+    if(impl->errReader.joinable())
+        impl->errReader.join();
 
+    int waitStatus = 0;
     if(impl->pid > 0)
     {
-        int status = 0;
-        waitpid(impl->pid, &status, 0);
+        waitpid(impl->pid, &waitStatus, 0);
     }
 
-    impl->inFd = impl->outFd = -1;
+    if(lspLogEnabled() && impl->pid > 0)
+    {
+        std::string tag = "[" + impl->serverTag + "] === EXIT";
+        std::string detail = "pid=" + std::to_string((long)impl->pid);
+        if(WIFEXITED(waitStatus))
+            detail += " exit=" + std::to_string(WEXITSTATUS(waitStatus));
+        else if(WIFSIGNALED(waitStatus))
+            detail += " signal=" + std::to_string(WTERMSIG(waitStatus));
+        else
+            detail += " status=" + std::to_string(waitStatus);
+        lspLogWrite(tag, detail);
+    }
+
+    impl->inFd = impl->outFd = impl->errFd = -1;
     impl->pid = -1;
     impl->responses.clear();
     impl->docVersion.clear();
@@ -703,6 +987,19 @@ void LspClient::stop()
 bool LspClient::running() const
 {
     return impl && impl->alive.load();
+}
+
+void LspClient::setDebugLogPath(const std::string& path)
+{
+    {
+        std::lock_guard<std::mutex> lk(lspLogMutex());
+        lspLogPathStorage() = path;
+    }
+    if(!path.empty())
+    {
+        // Marker line so users can confirm the log is being written.
+        lspLogWrite("[uvim] === LOG-OPEN", "uvim LSP traffic log");
+    }
 }
 
 std::string LspClient::serverName() const
@@ -1940,5 +2237,7 @@ bool LspClient::semanticTokenHasModifier(int, std::string_view) const
     return false;
 }
 void LspClient::clearSemanticTokens(const std::string&) {}
+
+void LspClient::setDebugLogPath(const std::string&) {}
 
 #endif

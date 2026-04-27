@@ -59,6 +59,13 @@ public:
     LspClient();
     ~LspClient();
 
+    // Enable LSP traffic logging. When path is non-empty, every spawn,
+    // request/response, notification, server stderr line, and exit is
+    // appended to the file with timestamps. Pass an empty string to
+    // disable. Affects all LspClient instances created afterwards (and
+    // is checked on each I/O event for already-running ones).
+    static void setDebugLogPath(const std::string& path);
+
     // Start clangd. If compileCommandsDir is non-empty, clangd is started with
     // --compile-commands-dir=<dir>.
     // If queryDriverAllowList is non-empty, clangd is started with

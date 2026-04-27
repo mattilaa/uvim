@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "json_utils.h"
 #include "log.h"
+#include "lsp_client.h"
 #include "os_compat.h"
 #include "theme.h"
 #include <algorithm>
@@ -789,6 +790,7 @@ constexpr std::string_view kLogColors = "--log-colors";
 constexpr std::string_view kLogDir = "--log-dir";
 constexpr std::string_view kEnableLog = "--enable-log";
 constexpr std::string_view kMlangLogLevel = "--log-level";
+constexpr std::string_view kLspLog = "--lsp-log";
 
 struct HelpRow
 {
@@ -875,8 +877,11 @@ constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
      "Set mlangd-mla log directory (default file: /tmp/mlangd-mla.log)"},
 }};
 
-constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
+constexpr std::array<HelpRow, 2> kHelpUvimLogging = {{
     {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
+    {"--lsp-log <path>",
+     "Log all LSP traffic (sends/recvs/server stderr) to file (or set "
+     "UVIM_LSP_LOG)"},
 }};
 
 struct Options
@@ -919,6 +924,7 @@ struct Options
     std::string tsLspPath = "typescript-language-server";
     std::string tsLspArgs;
     std::string logFile;
+    std::string lspLog;
     std::string mlangLogDir;
     std::string customConfig;
     std::string initConfigPath;
@@ -1173,6 +1179,12 @@ public:
                 else if(key == kLogFile)
                 {
                     opts.logFile =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kLspLog)
+                {
+                    opts.lspLog =
                         std::string(require_value(key, i, argc, argv, val));
                     sawOptionValue = true;
                 }
@@ -1911,6 +1923,18 @@ int main(int argc, char* argv[])
         mla::log::setUseColors(true);
     }
 #endif
+
+    // LSP traffic log: --lsp-log overrides UVIM_LSP_LOG env var
+    {
+        std::string lspLogPath = opts.lspLog;
+        if(lspLogPath.empty())
+        {
+            if(const char* env = std::getenv("UVIM_LSP_LOG"))
+                lspLogPath = env;
+        }
+        if(!lspLogPath.empty())
+            LspClient::setDebugLogPath(lspLogPath);
+    }
 
     std::string projectConfig = find_project_config();
     std::string defaultConfig = Theme::defaultConfigPath();
