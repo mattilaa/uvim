@@ -218,6 +218,8 @@ static fs::path clangd_compile_commands_output_file(const fs::path& outputRoot,
 
 static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
 {
+    std::string rewrittenDirectory;
+
     auto rewrite_string_member = [&](const char* key, bool treatAsPath)
     {
         auto it = entry.FindMember(key);
@@ -232,6 +234,8 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
         it->value.SetString(converted.c_str(),
                             static_cast<rapidjson::SizeType>(converted.size()),
                             alloc);
+        if(std::string_view(key) == "directory")
+            rewrittenDirectory = converted;
     };
 
     rewrite_string_member("file", true);
@@ -256,6 +260,25 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
                       static_cast<rapidjson::SizeType>(converted.size()),
                       alloc);
     }
+
+    auto fileIt = entry.FindMember("file");
+    if(fileIt == entry.MemberEnd() || !fileIt->value.IsString())
+        return;
+    std::string file(fileIt->value.GetString(),
+                     fileIt->value.GetStringLength());
+    fs::path filePath(file);
+    if(filePath.is_absolute())
+        return;
+
+    if(rewrittenDirectory.empty())
+        return;
+
+    fs::path absolutePath = fs::path(rewrittenDirectory) / filePath;
+    absolutePath = absolutePath.lexically_normal();
+    std::string normalized = absolutePath.string();
+    fileIt->value.SetString(normalized.c_str(),
+                            static_cast<rapidjson::SizeType>(normalized.size()),
+                            alloc);
 }
 
 static std::string compile_entry_key(const ju::Value& entry)
