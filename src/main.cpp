@@ -208,6 +208,14 @@ static fs::path detect_compile_commands_file(const fs::path& sourceRoot,
     return pick_from_dir(sourceRoot);
 }
 
+static fs::path clangd_compile_commands_output_file(const fs::path& outputRoot,
+                                                    bool windowsToWsl)
+{
+    if(windowsToWsl)
+        return outputRoot / "compile_commands.json";
+    return outputRoot / ".uvim" / "clangd" / "compile_commands.json";
+}
+
 static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
 {
     auto rewrite_string_member = [&](const char* key, bool treatAsPath)
@@ -374,7 +382,9 @@ static bool regenerate_clangd_compile_commands(
         }
     }
 
-    fs::path outDir = outputRoot / ".uvim" / "clangd";
+    fs::path outFile = clangd_compile_commands_output_file(outputRoot,
+                                                           windowsToWsl);
+    fs::path outDir = outFile.parent_path();
     std::error_code ec;
     fs::create_directories(outDir, ec);
     if(ec)
@@ -385,7 +395,6 @@ static bool regenerate_clangd_compile_commands(
         return false;
     }
 
-    fs::path outFile = outDir / "compile_commands.json";
     fs::path tmpFile = outFile;
     tmpFile += ".tmp";
     std::ofstream out(tmpFile, std::ios::trunc);
@@ -438,6 +447,8 @@ static std::string prepare_clangd_compile_commands(
     {
         return ccdir;
     }
+    if(windowsToWsl)
+        return outputRoot.string();
     return (outputRoot / ".uvim" / "clangd").string();
 }
 
@@ -817,7 +828,7 @@ constexpr std::array<HelpRow, 6> kHelpClangdLsp = {{
     {"--cc-collect-all",
      "Merge all compile_commands.json files recursively for clangd"},
     {"--cc-windows-to-wsl",
-     "WSL mode: rewrite Windows paths and write merged db under startup dir"},
+     "WSL mode: rewrite Windows paths and write compile_commands.json under startup dir"},
     {"--clangd-path <path>", "Path to clangd binary"},
     {"--query-driver <list>", "clangd query-driver allowlist"},
 }};

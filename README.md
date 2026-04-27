@@ -220,16 +220,16 @@ What this does:
 - collects all `compile_commands.json` files recursively from the browsed
   Windows directory tree, for example under `/mnt/c/dev/your-project`
 - rewrites Windows-style paths in compile database entries and command lines
-- writes a merged db for clangd to `.uvim/clangd/compile_commands.json` under
-  the directory where `uvim` was started in WSL
+- writes a merged db for clangd to `compile_commands.json` under the
+  directory where `uvim` was started in WSL
 - when `--cc-windows-to-wsl` is used, uvim watches source compile databases for
-  updates and refreshes `.uvim/clangd/compile_commands.json` automatically
+  updates and refreshes that WSL-local `compile_commands.json` automatically
 
 Current behavior is WSL-specific:
 
 - opening `/mnt/c/dev/your-project` starts the file browser in that directory
-- clangd still reads the merged compile database from the WSL startup
-  directory, not from `/mnt/c/...`
+- clangd reads the converted compile database from the WSL startup directory,
+  not from `/mnt/c/...`
 
 ### VSCode language servers (HTML/CSS/JSON/TS)
 
