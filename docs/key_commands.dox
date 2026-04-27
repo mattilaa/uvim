@@ -49,16 +49,16 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gd` : go to definition
 - `gr` : find references
 - `gf` : go to file under cursor
+- `gh` : alternate file (header/source)
 - `gb` : toggle git blame
 - `gj` : show commit diff for current line when git blame is visible
 - `gbv` : show commit diff for line under cursor
 - `gl` / `glf` : git log (repo / current file)
+- `bd` : close current buffer
 
 \subsection keys_normal_leader Leader (Space)
 - `Space-e` : file browser
-- `Space-b` : buffer browser
 - `Space-s` : grep search
-- `Space-h` : alternate file (header/source)
 - `Space-d` : go to definition
 - `Space-g d` : go to definition
 - `Space-g r` : find references

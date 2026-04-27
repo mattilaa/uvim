@@ -380,27 +380,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    // ========================================================================
-    // Leader-b Buffer Commands
-    // ========================================================================
-
-    if(ctx.commandBuffer == " b")
-    {
-        if(c == keyCode(typed::TypedKey::KEY_D))
-        {
-            ctx.commandBuffer.clear();
-            ctx.setStatusMessage("");
-            ctx.repeatCount = 0;
-            ed->closeCurrentBuffer();
-            return std::nullopt;
-        }
-
-        ctx.commandBuffer.clear();
-        ctx.setStatusMessage("");
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
     if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
@@ -592,6 +571,16 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == keyCode(typed::TypedKey::KEY_B))
     {
+        // bd - close current buffer; otherwise b is back-word motion.
+        int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == keyCode(typed::TypedKey::KEY_D))
+        {
+            ed->closeCurrentBuffer();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
         for(int i = 0; i < count; i++)
             ed->moveWordBackward();
         ctx.repeatCount = 0;
@@ -1153,13 +1142,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
         return std::nullopt;
 
-    case keyCode(typed::TypedKey::KEY_B):
-        // Buffer browser
-        ctx.commandBuffer = " b";
-        ctx.setStatusMessage("Leader-b");
-        ctx.repeatCount = 0;
-        return std::nullopt;
-
     case keyCode(typed::TypedKey::KEY_G):
     {
         // <leader>g prefix - wait for next char
@@ -1329,6 +1311,11 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
     case keyCode(typed::TypedKey::KEY_F):
         // gf - go to file under cursor
         ed->goToFile();
+        break;
+
+    case keyCode(typed::TypedKey::KEY_H):
+        // gh - alternate file (header/source)
+        ed->jumpToAlternateFile();
         break;
 
     case keyCode(typed::TypedKey::KEY_A):
