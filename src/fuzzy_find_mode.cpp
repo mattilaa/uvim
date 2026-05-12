@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <limits.h>
 #include <filesystem>
+#include <fstream>
 #include <sstream>
 
 // ============================================================================
@@ -58,6 +59,65 @@ std::vector<std::string> splitNul(const std::string& s)
     }
     return out;
 }
+
+#ifndef UVIM_TESTING
+bool runExternalFzf(Editor& editor)
+{
+    const std::string fzf = os_compat::find_executable("fzf");
+    if(fzf.empty())
+        return false;
+
+    std::error_code ec;
+    const auto tempDir = std::filesystem::temp_directory_path(ec);
+    if(ec)
+        return false;
+
+    const auto base =
+        tempDir / ("uvim_fzf_" + std::to_string((long long)getpid()));
+    const auto inputPath = base.string() + ".in";
+    const auto outputPath = base.string() + ".out";
+
+    {
+        std::ofstream input(inputPath, std::ios::binary);
+        if(!input)
+            return false;
+        for(const auto& file : editor.allProjectFiles)
+        {
+            if(!file.isDirectory)
+                input << file.path << '\n';
+        }
+    }
+
+    Terminal::showCursor();
+    Terminal::disableRawMode();
+
+    const std::string cmd = os_compat::popen_quote(fzf) +
+                            " --height=100% --reverse < " +
+                            os_compat::popen_quote(inputPath) + " > " +
+                            os_compat::popen_quote(outputPath);
+    const int status = std::system(cmd.c_str());
+
+    Terminal::enableRawMode();
+    Terminal::hideCursor();
+
+    std::string selected;
+    if(status == 0)
+    {
+        std::ifstream output(outputPath, std::ios::binary);
+        std::getline(output, selected);
+        selected = trimNewline(selected);
+    }
+
+    std::filesystem::remove(inputPath, ec);
+    std::filesystem::remove(outputPath, ec);
+
+    if(selected.empty())
+        return true;
+
+    editor.openFile(std::string_view(selected));
+    return true;
+}
+#endif
 } // namespace
 
 static std::string formatFileSizeShort(size_t size)
@@ -90,6 +150,15 @@ void FuzzyFindMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
     initializeFiles(*ed);
+
+#ifndef UVIM_TESTING
+    if(runExternalFzf(*ed))
+    {
+        ed->setMode(NORMAL);
+        return;
+    }
+#endif
+
     query.clear();
     cursor = 0;
     offset = 0;
@@ -357,14 +426,16 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
         if(editor.useGitFileIndex)
         {
             std::string repoRoot = trimNewline(
-                runCmd("git -C \"" + cwdStr +
-                       "\" rev-parse --show-toplevel 2>/dev/null"));
+                runCmd("git -C " + os_compat::popen_quote(cwdStr) +
+                       " rev-parse --show-toplevel " +
+                       os_compat::popen_discard_stderr()));
 
             if(!repoRoot.empty())
             {
                 const std::string trackedCmd =
-                    "git -C \"" + cwdStr +
-                    "\" ls-files -z --cached --others --exclude-standard 2>/dev/null";
+                    "git -C " + os_compat::popen_quote(cwdStr) +
+                    " ls-files -z --cached --others --exclude-standard " +
+                    os_compat::popen_discard_stderr();
                 const std::string raw = runCmd(trackedCmd);
                 const auto relPaths = splitNul(raw);
 

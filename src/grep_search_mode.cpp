@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits.h>
+#include <sstream>
 
 namespace
 {
@@ -63,6 +64,43 @@ std::vector<std::string> splitNul(const std::string& s)
         i = j + 1;
     }
     return out;
+}
+
+bool parseRgLine(const std::string& line, GrepMatch& match)
+{
+    size_t first = line.find(':');
+    if(first == std::string::npos)
+        return false;
+    size_t second = line.find(':', first + 1);
+    if(second == std::string::npos)
+        return false;
+    size_t third = line.find(':', second + 1);
+    if(third == std::string::npos)
+        return false;
+
+    int lineNumber = 0;
+    int column = 0;
+    try
+    {
+        lineNumber = std::stoi(line.substr(first + 1, second - first - 1));
+        column = std::stoi(line.substr(second + 1, third - second - 1));
+    }
+    catch(...)
+    {
+        return false;
+    }
+    if(lineNumber <= 0 || column <= 0)
+        return false;
+
+    match.filepath = line.substr(0, first);
+    size_t lastSlash = match.filepath.find_last_of("/\\");
+    match.filename = (lastSlash != std::string::npos)
+                         ? match.filepath.substr(lastSlash + 1)
+                         : match.filepath;
+    match.lineNumber = lineNumber;
+    match.lineContent = line.substr(third + 1);
+    match.highlightRanges.push_back({column - 1, 0});
+    return true;
 }
 } // namespace
 
@@ -332,15 +370,16 @@ void GrepSearchMode::initialize(Editor& editor)
             if(editor.useGitFileIndex)
             {
                 std::string repoRoot = trimNewline(
-                    runCmd("git -C \"" + cwdStr +
-                           "\" rev-parse --show-toplevel 2>/dev/null"));
+                    runCmd("git -C " + os_compat::popen_quote(cwdStr) +
+                           " rev-parse --show-toplevel " +
+                           os_compat::popen_discard_stderr()));
 
                 if(!repoRoot.empty())
                 {
                     const std::string trackedCmd =
-                        "git -C \"" + cwdStr +
-                        "\" ls-files -z --cached --others --exclude-standard "
-                        "2>/dev/null";
+                        "git -C " + os_compat::popen_quote(cwdStr) +
+                        " ls-files -z --cached --others --exclude-standard " +
+                        os_compat::popen_discard_stderr();
                     const std::string raw = runCmd(trackedCmd);
                     const auto relPaths = splitNul(raw);
 
@@ -410,6 +449,45 @@ void GrepSearchMode::performSearch(Editor& editor)
     if(query.empty())
     {
         searching = false;
+        return;
+    }
+
+    const std::string rg = os_compat::find_executable("rg");
+    if(!rg.empty())
+    {
+        std::string cmd = os_compat::popen_quote(rg);
+        cmd += " --vimgrep --fixed-strings --color never --no-heading";
+        if(!caseSensitive)
+            cmd += " --ignore-case";
+        if(!editor.respectGitignore)
+            cmd += " --no-ignore";
+        cmd += " -- ";
+        cmd += os_compat::popen_quote(query);
+        cmd += " . ";
+        cmd += os_compat::popen_discard_stderr();
+
+        std::istringstream lines(runCmd(cmd));
+        std::string line;
+        while(std::getline(lines, line) && matches.size() < 1000)
+        {
+            line = trimNewline(line);
+            if(line.empty())
+                continue;
+            GrepMatch match;
+            if(parseRgLine(line, match))
+            {
+                if(!query.empty())
+                    match.highlightRanges[0].second = (int)query.size();
+                matches.push_back(std::move(match));
+            }
+        }
+
+        searching = false;
+        if(cursor >= (int)matches.size())
+        {
+            cursor = 0;
+            offset = 0;
+        }
         return;
     }
 

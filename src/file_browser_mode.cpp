@@ -2774,26 +2774,36 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     ctx.setStatusMessage("Usage: :run <shell command>");
                     return true;
                 }
-                std::string shellCmd = "cd ";
-                auto quoteDir = [](const std::string& s) -> std::string
+                std::string shellCmd;
+#ifdef _WIN32
+                const std::string pwsh = os_compat::find_executable("pwsh");
+                const std::string powershell =
+                    !pwsh.empty() ? pwsh : os_compat::find_executable("powershell");
+                if(!powershell.empty())
                 {
-                    std::string out;
-                    out.reserve(s.size() + 2);
-                    out += '\'';
-                    for(char ch : s)
-                    {
-                        if(ch == '\'')
-                            out += "'\\''";
-                        else
-                            out += ch;
-                    }
-                    out += '\'';
-                    return out;
-                };
-                shellCmd += quoteDir(currentDirectory);
+                    shellCmd = os_compat::popen_quote(powershell);
+                    shellCmd +=
+                        " -NoProfile -ExecutionPolicy Bypass -Command ";
+                    shellCmd += os_compat::popen_quote(
+                        "Set-Location -LiteralPath " +
+                        os_compat::shell_quote(currentDirectory) + "; " +
+                        args + " 2>&1");
+                }
+                else
+                {
+                    shellCmd = "cd /d ";
+                    shellCmd += os_compat::popen_quote(currentDirectory);
+                    shellCmd += " && ";
+                    shellCmd += args;
+                    shellCmd += " 2>&1";
+                }
+#else
+                shellCmd = "cd ";
+                shellCmd += os_compat::shell_quote(currentDirectory);
                 shellCmd += " && { ";
                 shellCmd += args;
                 shellCmd += "; } 2>&1";
+#endif
 
                 std::vector<std::string> outputLines;
                 FILE* pipe = popen(shellCmd.c_str(), "r");
