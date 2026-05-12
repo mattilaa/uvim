@@ -27,8 +27,13 @@ inline constexpr Glyph BOX_HEAVY_VERTICAL = u8"┃";
 inline constexpr Glyph DISCLOSURE_RIGHT = u8"▸ ";
 inline constexpr Glyph DISCLOSURE_DOWN = u8"▾ ";
 
+#ifdef _WIN32
+inline constexpr Glyph FOLDER_ICON = u8"[D] ";
+inline constexpr Glyph FILE_ICON = u8"    ";
+#else
 inline constexpr Glyph FOLDER_ICON = u8"📁 ";
 inline constexpr Glyph FILE_ICON = u8"📄 ";
+#endif
 
 inline constexpr Glyph RIGHT_ARROW = u8"→";
 inline constexpr Glyph RIGHT_ARROW_PADDED = u8" → ";

@@ -32,6 +32,7 @@ static DWORD g_origInMode = 0;
 static DWORD g_origOutMode = 0;
 static UINT g_origInputCodePage = 0;
 static UINT g_origOutputCodePage = 0;
+static bool g_useByteInput = false;
 
 #ifndef DISABLE_NEWLINE_AUTO_RETURN
 #define DISABLE_NEWLINE_AUTO_RETURN 0x0008
@@ -56,13 +57,18 @@ static void enable_vt_and_raw_console()
     DWORD inMode = 0;
     if(GetConsoleMode(hIn(), &inMode))
     {
+        g_useByteInput = false;
         g_origInMode = inMode;
         inMode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
         inMode &= ~(ENABLE_MOUSE_INPUT);
         inMode |= ENABLE_EXTENDED_FLAGS;
         inMode &= ~(ENABLE_QUICK_EDIT_MODE);
-        inMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+        inMode &= ~(ENABLE_VIRTUAL_TERMINAL_INPUT);
         SetConsoleMode(hIn(), inMode);
+    }
+    else
+    {
+        g_useByteInput = true;
     }
 
     DWORD outMode = 0;
@@ -94,6 +100,12 @@ static bool wait_stdin(milliseconds timeout) noexcept
     const DWORD ms =
         (timeout.count() < 0) ? INFINITE : static_cast<DWORD>(timeout.count());
     return WaitForSingleObject(hIn(), ms) == WAIT_OBJECT_0;
+}
+
+static bool read_byte(char& c) noexcept
+{
+    DWORD n = 0;
+    return ReadFile(hIn(), &c, 1, &n, nullptr) && n == 1;
 }
 
 static bool read_console_key_event(KEY_EVENT_RECORD& kev) noexcept
@@ -211,6 +223,186 @@ static bool read_byte(char& c) noexcept
 }
 
 #endif
+
+static int read_key_from_vt_bytes(milliseconds timeout)
+{
+    if(!wait_stdin(timeout))
+        return -1;
+
+    char c = 0;
+    if(!read_byte(c))
+        return -1;
+
+    if(c == '\x1b')
+    {
+        if(!wait_stdin(milliseconds(50)))
+            return keyCode(control::ControlKey::ESC);
+
+        std::array<char, 5> seq{};
+        if(!read_byte(seq[0]))
+            return keyCode(control::ControlKey::ESC);
+        if(!read_byte(seq[1]))
+            return keyCode(control::ControlKey::ESC);
+
+        if(seq[0] == '[')
+        {
+            if(seq[1] >= '0' && seq[1] <= '9')
+            {
+                std::string params;
+                params += seq[1];
+                char final_byte = 0;
+                for(int i = 0; i < 32; ++i)
+                {
+                    char b = 0;
+                    if(!read_byte(b))
+                        return keyCode(control::ControlKey::ESC);
+                    if((b >= '0' && b <= '9') || b == ';' || b == ':')
+                    {
+                        params += b;
+                        continue;
+                    }
+                    final_byte = b;
+                    break;
+                }
+                if(final_byte == 0)
+                    return keyCode(control::ControlKey::ESC);
+
+                std::vector<int> ps;
+                {
+                    std::string tok;
+                    for(char b : params)
+                    {
+                        if(b == ';' || b == ':')
+                        {
+                            ps.push_back(tok.empty() ? 0
+                                                     : std::atoi(tok.c_str()));
+                            tok.clear();
+                        }
+                        else
+                        {
+                            tok += b;
+                        }
+                    }
+                    ps.push_back(tok.empty() ? 0 : std::atoi(tok.c_str()));
+                }
+
+                auto decode = [](int mod, int keyCh) -> int
+                {
+                    int lower = keyCh;
+                    if(lower >= 'A' && lower <= 'Z')
+                        lower = lower - 'A' + 'a';
+                    if(mod == 6)
+                    {
+                        if(lower == 'h')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_H);
+                        if(lower == 'l')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_L);
+                    }
+                    if(mod == 5 && lower >= 'a' && lower <= 'z')
+                        return lower - 'a' + 1;
+                    if(mod == 1 || mod == 2)
+                        return keyCh;
+                    return keyCh;
+                };
+
+                if(final_byte == '~')
+                {
+                    if(ps.size() == 3 && ps[0] == 27)
+                        return decode(ps[1], ps[2]);
+                    if(ps.size() >= 1)
+                    {
+                        switch(ps[0])
+                        {
+                        case 1:
+                            return keyCode(navigation::NavigationKey::HOME);
+                        case 3:
+                            return keyCode(
+                                navigation::NavigationKey::DELETE_KEY);
+                        case 4:
+                            return keyCode(navigation::NavigationKey::END);
+                        case 5:
+                            return keyCode(
+                                navigation::NavigationKey::PAGE_UP);
+                        case 6:
+                            return keyCode(
+                                navigation::NavigationKey::PAGE_DOWN);
+                        case 7:
+                            return keyCode(navigation::NavigationKey::HOME);
+                        case 8:
+                            return keyCode(navigation::NavigationKey::END);
+                        }
+                    }
+                    return keyCode(control::ControlKey::ESC);
+                }
+                if(final_byte == 'u')
+                {
+                    if(ps.size() >= 1)
+                    {
+                        int mod = ps.size() >= 2 ? ps[1] : 1;
+                        return decode(mod, ps[0]);
+                    }
+                    return keyCode(control::ControlKey::ESC);
+                }
+                if(final_byte == 'Z')
+                    return keyCode(control::ControlKey::SHIFT_TAB);
+                switch(final_byte)
+                {
+                case 'A':
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
+                case 'B':
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                case 'C':
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                case 'D':
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                case 'H':
+                    return keyCode(navigation::NavigationKey::HOME);
+                case 'F':
+                    return keyCode(navigation::NavigationKey::END);
+                }
+                return keyCode(control::ControlKey::ESC);
+            }
+            else if(seq[1] == 'Z')
+            {
+                return keyCode(control::ControlKey::SHIFT_TAB);
+            }
+            else
+            {
+                switch(seq[1])
+                {
+                case 'A':
+                    return keyCode(navigation::NavigationKey::ARROW_UP);
+                case 'B':
+                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
+                case 'C':
+                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
+                case 'D':
+                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
+                case 'H':
+                    return keyCode(navigation::NavigationKey::HOME);
+                case 'F':
+                    return keyCode(navigation::NavigationKey::END);
+                }
+            }
+        }
+        else if(seq[0] == 'O')
+        {
+            switch(seq[1])
+            {
+            case 'H':
+                return keyCode(navigation::NavigationKey::HOME);
+            case 'F':
+                return keyCode(navigation::NavigationKey::END);
+            }
+        }
+
+        return keyCode(control::ControlKey::ESC);
+    }
+
+    return static_cast<unsigned char>(c);
+}
 
 } // namespace
 
@@ -425,6 +617,9 @@ int Terminal::readKeyInternal(int timeoutMs)
         (timeoutMs >= 0) ? milliseconds(timeoutMs) : milliseconds(-1);
 
 #if defined(UVIM_TERMINAL_WIN32)
+    if(g_useByteInput)
+        return read_key_from_vt_bytes(timeout);
+
     if(!wait_stdin(timeout))
         return -1;
 
@@ -438,193 +633,7 @@ int Terminal::readKeyInternal(int timeoutMs)
     return -1;
 
 #else
-    if(!wait_stdin(timeout))
-        return -1;
-
-    char c = 0;
-    if(!read_byte(c))
-        return -1;
-
-    if(c == '\x1b')
-    {
-        if(!wait_stdin(milliseconds(50)))
-            return keyCode(control::ControlKey::ESC);
-
-        std::array<char, 5> seq{};
-        if(!read_byte(seq[0]))
-            return keyCode(control::ControlKey::ESC);
-        if(!read_byte(seq[1]))
-            return keyCode(control::ControlKey::ESC);
-
-        if(seq[0] == '[')
-        {
-            if(seq[1] >= '0' && seq[1] <= '9')
-            {
-                // Read parameter bytes (digits + ';') until a final byte.
-                // Handles legacy single-param CSI Pn ~, CSI 1;mod letter for
-                // modified arrows, xterm modifyOtherKeys CSI 27;mod;key ~,
-                // and kitty CSI key;mod u.
-                std::string params;
-                params += seq[1];
-                char final_byte = 0;
-                for(int i = 0; i < 32; ++i)
-                {
-                    char b = 0;
-                    if(!read_byte(b))
-                        return keyCode(control::ControlKey::ESC);
-                    if((b >= '0' && b <= '9') || b == ';' || b == ':')
-                    {
-                        params += b;
-                        continue;
-                    }
-                    final_byte = b;
-                    break;
-                }
-                if(final_byte == 0)
-                    return keyCode(control::ControlKey::ESC);
-
-                std::vector<int> ps;
-                {
-                    std::string tok;
-                    for(char b : params)
-                    {
-                        if(b == ';' || b == ':')
-                        {
-                            ps.push_back(tok.empty() ? 0
-                                                     : std::atoi(tok.c_str()));
-                            tok.clear();
-                        }
-                        else
-                        {
-                            tok += b;
-                        }
-                    }
-                    ps.push_back(tok.empty() ? 0 : std::atoi(tok.c_str()));
-                }
-
-                // Decode a (modifier, key) pair into our keycodes. Falls back
-                // to a sensible plain code so unexpected modifyOtherKeys
-                // sequences don't break basic editing.
-                auto decode = [](int mod, int keyCh) -> int
-                {
-                    int lower = keyCh;
-                    if(lower >= 'A' && lower <= 'Z')
-                        lower = lower - 'A' + 'a';
-                    if(mod == 6) // ctrl+shift
-                    {
-                        if(lower == 'h')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_H);
-                        if(lower == 'l')
-                            return keyCode(
-                                control::ControlKey::SHIFT_CTRL_L);
-                    }
-                    // Fallback: synthesize the natural code.
-                    if(mod == 5 && lower >= 'a' && lower <= 'z')
-                        return lower - 'a' + 1; // ctrl-letter
-                    if(mod == 1 || mod == 2)
-                        return keyCh;
-                    return keyCh;
-                };
-
-                if(final_byte == '~')
-                {
-                    if(ps.size() == 3 && ps[0] == 27)
-                    {
-                        return decode(ps[1], ps[2]);
-                    }
-                    if(ps.size() >= 1)
-                    {
-                        switch(ps[0])
-                        {
-                        case 1:
-                            return keyCode(navigation::NavigationKey::HOME);
-                        case 3:
-                            return keyCode(
-                                navigation::NavigationKey::DELETE_KEY);
-                        case 4:
-                            return keyCode(navigation::NavigationKey::END);
-                        case 5:
-                            return keyCode(
-                                navigation::NavigationKey::PAGE_UP);
-                        case 6:
-                            return keyCode(
-                                navigation::NavigationKey::PAGE_DOWN);
-                        case 7:
-                            return keyCode(navigation::NavigationKey::HOME);
-                        case 8:
-                            return keyCode(navigation::NavigationKey::END);
-                        }
-                    }
-                    return keyCode(control::ControlKey::ESC);
-                }
-                if(final_byte == 'u')
-                {
-                    // kitty CSI-u: ps[0] = key, ps[1] = mod
-                    if(ps.size() >= 1)
-                    {
-                        int mod = ps.size() >= 2 ? ps[1] : 1;
-                        return decode(mod, ps[0]);
-                    }
-                    return keyCode(control::ControlKey::ESC);
-                }
-                if(final_byte == 'Z')
-                    return keyCode(control::ControlKey::SHIFT_TAB);
-                switch(final_byte)
-                {
-                case 'A':
-                    return keyCode(navigation::NavigationKey::ARROW_UP);
-                case 'B':
-                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
-                case 'C':
-                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
-                case 'D':
-                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
-                case 'H':
-                    return keyCode(navigation::NavigationKey::HOME);
-                case 'F':
-                    return keyCode(navigation::NavigationKey::END);
-                }
-                return keyCode(control::ControlKey::ESC);
-            }
-            else if(seq[1] == 'Z')
-            {
-                return keyCode(control::ControlKey::SHIFT_TAB);
-            }
-            else
-            {
-                switch(seq[1])
-                {
-                case 'A':
-                    return keyCode(navigation::NavigationKey::ARROW_UP);
-                case 'B':
-                    return keyCode(navigation::NavigationKey::ARROW_DOWN);
-                case 'C':
-                    return keyCode(navigation::NavigationKey::ARROW_RIGHT);
-                case 'D':
-                    return keyCode(navigation::NavigationKey::ARROW_LEFT);
-                case 'H':
-                    return keyCode(navigation::NavigationKey::HOME);
-                case 'F':
-                    return keyCode(navigation::NavigationKey::END);
-                }
-            }
-        }
-        else if(seq[0] == 'O')
-        {
-            switch(seq[1])
-            {
-            case 'H':
-                return keyCode(navigation::NavigationKey::HOME);
-            case 'F':
-                return keyCode(navigation::NavigationKey::END);
-            }
-        }
-
-        return keyCode(control::ControlKey::ESC);
-    }
-
-    return static_cast<unsigned char>(c);
+    return read_key_from_vt_bytes(timeout);
 #endif
 }
 
