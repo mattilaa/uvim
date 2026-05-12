@@ -30,6 +30,12 @@ using namespace std::chrono;
 
 static DWORD g_origInMode = 0;
 static DWORD g_origOutMode = 0;
+static UINT g_origInputCodePage = 0;
+static UINT g_origOutputCodePage = 0;
+
+#ifndef DISABLE_NEWLINE_AUTO_RETURN
+#define DISABLE_NEWLINE_AUTO_RETURN 0x0008
+#endif
 
 static HANDLE hIn() noexcept
 {
@@ -42,6 +48,11 @@ static HANDLE hOut() noexcept
 
 static void enable_vt_and_raw_console()
 {
+    g_origInputCodePage = GetConsoleCP();
+    g_origOutputCodePage = GetConsoleOutputCP();
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+
     DWORD inMode = 0;
     if(GetConsoleMode(hIn(), &inMode))
     {
@@ -58,7 +69,10 @@ static void enable_vt_and_raw_console()
     if(GetConsoleMode(hOut(), &outMode))
     {
         g_origOutMode = outMode;
+        outMode |= ENABLE_PROCESSED_OUTPUT;
         outMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        outMode |= DISABLE_NEWLINE_AUTO_RETURN;
+        outMode &= ~(ENABLE_WRAP_AT_EOL_OUTPUT);
         SetConsoleMode(hOut(), outMode);
     }
 }
@@ -69,6 +83,10 @@ static void restore_console_modes()
         SetConsoleMode(hIn(), g_origInMode);
     if(g_origOutMode)
         SetConsoleMode(hOut(), g_origOutMode);
+    if(g_origInputCodePage)
+        SetConsoleCP(g_origInputCodePage);
+    if(g_origOutputCodePage)
+        SetConsoleOutputCP(g_origOutputCodePage);
 }
 
 static bool wait_stdin(milliseconds timeout) noexcept
