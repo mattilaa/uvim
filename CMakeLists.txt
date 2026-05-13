@@ -260,12 +260,32 @@ endif()
 set(RAPIDJSON_INCLUDE_DIR ${rapidjson_SOURCE_DIR}/include)
 target_include_directories(uvim PRIVATE ${RAPIDJSON_INCLUDE_DIR})
 
+#fmt (formatting library)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG 12.1.0
+  GIT_PROGRESS TRUE
+)
+
+FetchContent_GetProperties(fmt)
+
+if(fmt_POPULATED)
+    message(STATUS "Using cached fmt::format at: ${fmt_SOURCE_DIR}")
+else()
+    message(STATUS "Fetching fmt::format (v12.1.0) ...")
+endif()
+
+FetchContent_MakeAvailable(fmt)
+
+target_link_libraries(uvim PRIVATE fmt::fmt)
+
 # clangd LSP dependencies
 if(UVIM_ENABLE_CLANGD_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
 
     find_package(Threads REQUIRED)
-    target_link_libraries(uvim PRIVATE Threads::Threads)
+    target_link_libraries(uvim PRIVATE Threads::Threads fmt::fmt)
 endif()
 
 # Debug logging
@@ -307,6 +327,7 @@ if(UVIM_BUILD_TESTS)
     target_link_libraries(state_machine_tests
         GTest::gtest_main
         GTest::gmock
+        fmt::fmt
     )
     target_include_directories(state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_include_directories(state_machine_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
@@ -318,6 +339,7 @@ if(UVIM_BUILD_TESTS)
     target_link_libraries(mode_state_machine_tests
         GTest::gtest_main
         GTest::gmock
+        fmt::fmt
     )
     target_include_directories(mode_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_include_directories(mode_state_machine_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
@@ -329,6 +351,7 @@ if(UVIM_BUILD_TESTS)
     target_link_libraries(constants_tests
         GTest::gtest_main
         GTest::gmock
+        fmt::fmt
     )
     target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_include_directories(constants_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
@@ -356,6 +379,7 @@ if(UVIM_BUILD_TESTS)
     target_link_libraries(real_mode_transitions_tests PRIVATE
         GTest::gtest_main
         GTest::gmock
+        fmt::fmt
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_include_directories(real_mode_transitions_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
