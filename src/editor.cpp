@@ -1,6 +1,9 @@
 #include "editor.h"
 #include "ascii.h"
 #include "constants.h"
+#include "editor_buffer_controller.h"
+#include "editor_command_controller.h"
+#include "editor_settings_controller.h"
 #include "editor_utils.h"
 #include "enablelog.h"
 #include "formatter.h"
@@ -1680,6 +1683,9 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
 
     modeStateMachine =
         std::make_unique<ModeStateMachine>(createModeContext(this));
+    settingsController = std::make_unique<EditorSettingsController>(*this);
+    bufferController = std::make_unique<EditorBufferController>(*this);
+    commandController = std::make_unique<EditorCommandController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -1697,6 +1703,9 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
+    settingsController = std::make_unique<EditorSettingsController>(*this);
+    bufferController = std::make_unique<EditorBufferController>(*this);
+    commandController = std::make_unique<EditorCommandController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -6379,922 +6388,7 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
 
 bool Editor::handleSetCommand(std::string_view cmd)
 {
-    if(!cmd.starts_with("set "))
-        return false;
-
-    std::string opt = std::string(cmd.substr(4));
-    if(opt == "autobraces?")
-    {
-        setStatusMessage(std::string("autobraces=") +
-                         (autoBraces ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autoquotes?")
-    {
-        setStatusMessage(std::string("autoquotes=") +
-                         (autoQuotes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autobracesinstrings?")
-    {
-        setStatusMessage(std::string("autobracesinstrings=") +
-                         (autoBracesInStrings ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autotags?")
-    {
-        setStatusMessage(std::string("autotags=") +
-                         (autoTags ? "true" : "false"));
-        return true;
-    }
-    if(opt == "tabspaces?")
-    {
-        setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
-        return true;
-    }
-    if(opt == "autocomplete?")
-    {
-        setStatusMessage(std::string("autocomplete=") +
-                         (autoCompletion ? "true" : "false"));
-        return true;
-    }
-    if(opt == "completionautoparens?")
-    {
-        setStatusMessage(std::string("completionautoparens=") +
-                         (completionAutoParens ? "true" : "false"));
-        return true;
-    }
-    if(opt == "showtabs?")
-    {
-        setStatusMessage(std::string("showtabs=") +
-                         (showTabs ? "true" : "false"));
-        return true;
-    }
-    if(opt == "tabnumbers?")
-    {
-        setStatusMessage(std::string("tabnumbers=") +
-                         (showTabNumbers ? "true" : "false"));
-        return true;
-    }
-    if(opt == "utf8?")
-    {
-        setStatusMessage(std::string("utf8=") + (utf8Mode ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gitblameinfo?")
-    {
-        setStatusMessage(std::string("gitblameinfo=") +
-                         (showGitBlameInfo ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gitdefaultcolors?")
-    {
-        setStatusMessage(std::string("gitdefaultcolors=") +
-                         (gitUseDefaultColors ? "true" : "false"));
-        return true;
-    }
-    if(opt == "commenttogglepartial?")
-    {
-        setStatusMessage(std::string("commenttogglepartial=") +
-                         (commentTogglePartial ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gitignore?")
-    {
-        setStatusMessage(std::string("gitignore=") +
-                         (respectGitignore ? "true" : "false"));
-        return true;
-    }
-    if(opt == "formatoninsertleave?")
-    {
-        setStatusMessage(std::string("formatoninsertleave=") +
-                         (formatOnInsertLeave ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autodetectlsps?")
-    {
-        setStatusMessage(std::string("autodetectlsps=") +
-                         (autoDetectLsps ? "true" : "false"));
-        return true;
-    }
-    if(opt == "filebrowser.fuzzy?")
-    {
-        setStatusMessage(std::string("filebrowser.fuzzy=") +
-                         (fileBrowserFuzzy ? "true" : "false"));
-        return true;
-    }
-    if(opt == "status.lspgap?")
-    {
-        setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
-        return true;
-    }
-    if(opt == "commandline.messageprefix?")
-    {
-        setStatusMessage(std::string("commandline.messageprefix=") +
-                         (commandLineMessagePrefix ? "true" : "false"));
-        return true;
-    }
-    if(opt == "formatonsave?")
-    {
-        setStatusMessage(std::string("formatonsave=") +
-                         (formatOnSave ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gdcenter?")
-    {
-        setStatusMessage(std::string("gdcenter=") +
-                         (gdCenterScreen ? "true" : "false"));
-        return true;
-    }
-    if(opt == "formatondoubleesctimeoutms?")
-    {
-        setStatusMessage("formatondoubleesctimeoutms=" +
-                         std::to_string(formatOnDoubleEscTimeoutMs));
-        return true;
-    }
-    if(opt == "python.formatter?")
-    {
-        setStatusMessage("python.formatter=" + pythonFormatter);
-        return true;
-    }
-    if(opt == "pyfmt?")
-    {
-        setStatusMessage("python.formatter=" + pythonFormatter);
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_system_includes?")
-    {
-        setStatusMessage(std::string("syntax.cpp.highlight_system_includes=") +
-                         (syntaxCppHighlightSystemIncludes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_param_types?")
-    {
-        setStatusMessage(std::string("syntax.cpp.highlight_param_types=") +
-                         (syntaxCppHighlightParamTypes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.cpp.semantic_tokens?")
-    {
-        setStatusMessage(std::string("syntax.cpp.semantic_tokens=") +
-                         (syntaxCppSemanticTokens ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.cpp.locals_color?")
-    {
-        setStatusMessage("syntax.cpp.locals_color=" +
-                         std::string(token_type_name(syntaxCppLocalToken)));
-        return true;
-    }
-    if(opt == "syntax.cpp.member_color?")
-    {
-        setStatusMessage("syntax.cpp.member_color=" +
-                         std::string(token_type_name(syntaxCppMemberToken)));
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_types?")
-    {
-        setStatusMessage(std::string("syntax.mlang.highlight_types=") +
-                         (syntaxMlangHighlightTypes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_builtin_docs?")
-    {
-        setStatusMessage(std::string("syntax.mlang.highlight_builtin_docs=") +
-                         (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
-        return true;
-    }
-
-    auto set_flag = [&](bool value)
-    {
-        autoBraces = value;
-        setStatusMessage(std::string("autobraces=") +
-                         (autoBraces ? "true" : "false"));
-    };
-
-    auto set_auto_quotes = [&](bool value)
-    {
-        autoQuotes = value;
-        setStatusMessage(std::string("autoquotes=") +
-                         (autoQuotes ? "true" : "false"));
-    };
-
-    auto set_auto_braces_in_strings = [&](bool value)
-    {
-        autoBracesInStrings = value;
-        setStatusMessage(std::string("autobracesinstrings=") +
-                         (autoBracesInStrings ? "true" : "false"));
-    };
-
-    auto set_autotags = [&](bool value)
-    {
-        autoTags = value;
-        setStatusMessage(std::string("autotags=") +
-                         (autoTags ? "true" : "false"));
-    };
-
-    auto set_gdcenter = [&](bool value)
-    {
-        gdCenterScreen = value;
-        setStatusMessage(std::string("gdcenter=") +
-                         (gdCenterScreen ? "true" : "false"));
-    };
-
-    if(opt == "autobraces")
-    {
-        set_flag(true);
-        return true;
-    }
-    if(opt == "noautobraces")
-    {
-        set_flag(false);
-        return true;
-    }
-    if(opt == "autoquotes")
-    {
-        set_auto_quotes(true);
-        return true;
-    }
-    if(opt == "noautoquotes")
-    {
-        set_auto_quotes(false);
-        return true;
-    }
-    if(opt == "autobracesinstrings")
-    {
-        set_auto_braces_in_strings(true);
-        return true;
-    }
-    if(opt == "noautobracesinstrings")
-    {
-        set_auto_braces_in_strings(false);
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_system_includes")
-    {
-        syntaxCppHighlightSystemIncludes = true;
-        setStatusMessage("syntax.cpp.highlight_system_includes=true");
-        return true;
-    }
-    if(opt == "nosyntax.cpp.highlight_system_includes")
-    {
-        syntaxCppHighlightSystemIncludes = false;
-        setStatusMessage("syntax.cpp.highlight_system_includes=false");
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_param_types")
-    {
-        syntaxCppHighlightParamTypes = true;
-        setStatusMessage("syntax.cpp.highlight_param_types=true");
-        return true;
-    }
-    if(opt == "nosyntax.cpp.highlight_param_types")
-    {
-        syntaxCppHighlightParamTypes = false;
-        setStatusMessage("syntax.cpp.highlight_param_types=false");
-        return true;
-    }
-    if(opt == "syntax.cpp.semantic_tokens")
-    {
-        syntaxCppSemanticTokens = true;
-        if(currentBuffer)
-            currentBuffer->lspSemanticTokensValid = false;
-        needsFullRedraw = true;
-        setStatusMessage("syntax.cpp.semantic_tokens=true");
-        return true;
-    }
-    if(opt == "nosyntax.cpp.semantic_tokens")
-    {
-        syntaxCppSemanticTokens = false;
-        if(currentBuffer)
-            currentBuffer->lspSemanticTokensValid = false;
-        needsFullRedraw = true;
-        setStatusMessage("syntax.cpp.semantic_tokens=false");
-        return true;
-    }
-    if(opt.rfind("syntax.cpp.locals_color=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("syntax.cpp.locals_color=").length());
-        syntaxCppLocalToken = parse_token_type(value, syntaxCppLocalToken);
-        setStatusMessage("syntax.cpp.locals_color=" +
-                         std::string(token_type_name(syntaxCppLocalToken)));
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt.rfind("syntax.cpp.member_color=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("syntax.cpp.member_color=").length());
-        syntaxCppMemberToken = parse_token_type(value, syntaxCppMemberToken);
-        setStatusMessage("syntax.cpp.member_color=" +
-                         std::string(token_type_name(syntaxCppMemberToken)));
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_types")
-    {
-        syntaxMlangHighlightTypes = true;
-        setStatusMessage("syntax.mlang.highlight_types=true");
-        return true;
-    }
-    if(opt == "nosyntax.mlang.highlight_types")
-    {
-        syntaxMlangHighlightTypes = false;
-        setStatusMessage("syntax.mlang.highlight_types=false");
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_builtin_docs")
-    {
-        syntaxMlangHighlightBuiltinDocs = true;
-        setStatusMessage("syntax.mlang.highlight_builtin_docs=true");
-        return true;
-    }
-    if(opt == "nosyntax.mlang.highlight_builtin_docs")
-    {
-        syntaxMlangHighlightBuiltinDocs = false;
-        setStatusMessage("syntax.mlang.highlight_builtin_docs=false");
-        return true;
-    }
-    if(opt.rfind("python.formatter=", 0) == 0 || opt.rfind("pyfmt=", 0) == 0)
-    {
-        std::string value = opt.substr(opt.find('=') + 1);
-        std::string v = ascii_lower(value);
-        if(v == "black" || v == "ruff")
-        {
-            pythonFormatter = v;
-            setStatusMessage("python.formatter=" + pythonFormatter);
-        }
-        else
-        {
-            setStatusMessage("python.formatter: expected black|ruff");
-        }
-        return true;
-    }
-    if(opt == "autotags")
-    {
-        set_autotags(true);
-        return true;
-    }
-    if(opt == "noautotags")
-    {
-        set_autotags(false);
-        return true;
-    }
-    if(opt == "gitblameinfo")
-    {
-        showGitBlameInfo = true;
-        setStatusMessage("gitblameinfo=true");
-        return true;
-    }
-    if(opt == "nogitblameinfo" || opt == "disablegitblame")
-    {
-        showGitBlameInfo = false;
-        setStatusMessage("gitblameinfo=false");
-        return true;
-    }
-    if(opt == "enablegitdefaultcolors")
-    {
-        gitUseDefaultColors = true;
-        setStatusMessage("gitdefaultcolors=true");
-        return true;
-    }
-    if(opt == "disablegitdefaultcolors")
-    {
-        gitUseDefaultColors = false;
-        setStatusMessage("gitdefaultcolors=false");
-        return true;
-    }
-    if(opt == "commenttogglepartial")
-    {
-        commentTogglePartial = true;
-        setStatusMessage("commenttogglepartial=true");
-        return true;
-    }
-    if(opt == "nocommenttogglepartial")
-    {
-        commentTogglePartial = false;
-        setStatusMessage("commenttogglepartial=false");
-        return true;
-    }
-    if(opt == "gitignore")
-    {
-        respectGitignore = true;
-        setStatusMessage("gitignore=true");
-        return true;
-    }
-    if(opt == "nogitignore")
-    {
-        respectGitignore = false;
-        setStatusMessage("gitignore=false");
-        return true;
-    }
-    if(opt == "formatoninsertleave")
-    {
-        formatOnInsertLeave = true;
-        setStatusMessage("formatoninsertleave=true");
-        return true;
-    }
-    if(opt == "gdcenter")
-    {
-        set_gdcenter(true);
-        return true;
-    }
-    if(opt == "nogdcenter")
-    {
-        set_gdcenter(false);
-        return true;
-    }
-    if(opt == "noformatoninsertleave")
-    {
-        formatOnInsertLeave = false;
-        setStatusMessage("formatoninsertleave=false");
-        return true;
-    }
-    if(opt == "autodetectlsps")
-    {
-        autoDetectLsps = true;
-        setStatusMessage("autodetectlsps=true");
-        return true;
-    }
-    if(opt == "noautodetectlsps")
-    {
-        autoDetectLsps = false;
-        setStatusMessage("autodetectlsps=false");
-        return true;
-    }
-    if(opt == "filebrowser.fuzzy")
-    {
-        fileBrowserFuzzy = true;
-        setStatusMessage("filebrowser.fuzzy=true");
-        return true;
-    }
-    if(opt == "nofilebrowser.fuzzy")
-    {
-        fileBrowserFuzzy = false;
-        setStatusMessage("filebrowser.fuzzy=false");
-        return true;
-    }
-    if(opt == "commandline.messageprefix")
-    {
-        commandLineMessagePrefix = true;
-        setStatusMessage("commandline.messageprefix=true");
-        return true;
-    }
-    if(opt == "nocommandline.messageprefix")
-    {
-        commandLineMessagePrefix = false;
-        setStatusMessage("commandline.messageprefix=false");
-        return true;
-    }
-    if(opt == "formatonsave")
-    {
-        formatOnSave = true;
-        setStatusMessage("formatonsave=true");
-        return true;
-    }
-    if(opt == "noformatonsave")
-    {
-        formatOnSave = false;
-        setStatusMessage("formatonsave=false");
-        return true;
-    }
-    if(opt.rfind("formatondoubleesctimeoutms=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("formatondoubleesctimeoutms=").length());
-        try
-        {
-            int ms = std::stoi(value);
-            if(ms > 0 && ms <= 5000)
-            {
-                formatOnDoubleEscTimeoutMs = ms;
-                setStatusMessage("formatondoubleesctimeoutms=" +
-                                 std::to_string(formatOnDoubleEscTimeoutMs));
-            }
-            else
-            {
-                setStatusMessage("formatondoubleesctimeoutms: expected 1-5000");
-            }
-        }
-        catch(...)
-        {
-            setStatusMessage("formatondoubleesctimeoutms: expected number");
-        }
-        return true;
-    }
-    if(opt.rfind("formatonsave=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("formatonsave=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            formatOnSave = true;
-            setStatusMessage("formatonsave=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            formatOnSave = false;
-            setStatusMessage("formatonsave=false");
-        }
-        else
-        {
-            setStatusMessage("formatonsave: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autodetectlsps=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autodetectlsps=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            autoDetectLsps = true;
-            setStatusMessage("autodetectlsps=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            autoDetectLsps = false;
-            setStatusMessage("autodetectlsps=false");
-        }
-        else
-        {
-            setStatusMessage("autodetectlsps: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("filebrowser.fuzzy=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("filebrowser.fuzzy=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            fileBrowserFuzzy = true;
-            setStatusMessage("filebrowser.fuzzy=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            fileBrowserFuzzy = false;
-            setStatusMessage("filebrowser.fuzzy=false");
-        }
-        else
-        {
-            setStatusMessage("filebrowser.fuzzy: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("status.lspgap=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("status.lspgap=").length());
-        try
-        {
-            int gap = std::stoi(value);
-            if(gap >= 0 && gap <= 20)
-            {
-                lspStatusGap = gap;
-                setStatusMessage("status.lspgap=" +
-                                 std::to_string(lspStatusGap));
-            }
-            else
-            {
-                setStatusMessage("status.lspgap: expected 0-20");
-            }
-        }
-        catch(...)
-        {
-            setStatusMessage("status.lspgap: expected number");
-        }
-        return true;
-    }
-    if(opt.rfind("commandline.messageprefix=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("commandline.messageprefix=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            commandLineMessagePrefix = true;
-            setStatusMessage("commandline.messageprefix=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            commandLineMessagePrefix = false;
-            setStatusMessage("commandline.messageprefix=false");
-        }
-        else
-        {
-            setStatusMessage("commandline.messageprefix: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("gdcenter=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("gdcenter=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_gdcenter(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_gdcenter(false);
-        }
-        else
-        {
-            setStatusMessage("gdcenter: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autobraces=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autobraces=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_flag(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_flag(false);
-        }
-        else
-        {
-            setStatusMessage("autobraces: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autoquotes=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autoquotes=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_auto_quotes(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_auto_quotes(false);
-        }
-        else
-        {
-            setStatusMessage("autoquotes: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autobracesinstrings=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("autobracesinstrings=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_auto_braces_in_strings(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_auto_braces_in_strings(false);
-        }
-        else
-        {
-            setStatusMessage("autobracesinstrings: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autotags=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autotags=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_autotags(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_autotags(false);
-        }
-        else
-        {
-            setStatusMessage("autotags: expected true/false");
-        }
-        return true;
-    }
-
-    auto set_auto_completion = [&](bool value)
-    {
-        autoCompletion = value;
-        setStatusMessage(std::string("autocomplete=") +
-                         (autoCompletion ? "true" : "false"));
-    };
-
-    auto set_completion_auto_parens = [&](bool value)
-    {
-        completionAutoParens = value;
-        setStatusMessage(std::string("completionautoparens=") +
-                         (completionAutoParens ? "true" : "false"));
-    };
-
-    if(opt == "autocomplete")
-    {
-        set_auto_completion(true);
-        return true;
-    }
-    if(opt == "noautocomplete")
-    {
-        set_auto_completion(false);
-        return true;
-    }
-    if(opt == "completionautoparens")
-    {
-        set_completion_auto_parens(true);
-        return true;
-    }
-    if(opt == "nocompletionautoparens")
-    {
-        set_completion_auto_parens(false);
-        return true;
-    }
-    if(opt == "showtabs")
-    {
-        showTabs = true;
-        tabBarOffset = 0;
-        setStatusMessage("showtabs=true");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "noshowtabs")
-    {
-        showTabs = false;
-        tabBarOffset = 0;
-        setStatusMessage("showtabs=false");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "tabnumbers")
-    {
-        showTabNumbers = true;
-        setStatusMessage("tabnumbers=true");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "notabnumbers")
-    {
-        showTabNumbers = false;
-        setStatusMessage("tabnumbers=false");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "utf8")
-    {
-        utf8Mode = true;
-        setStatusMessage("utf8=true");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "noutf8")
-    {
-        utf8Mode = false;
-        setStatusMessage("utf8=false");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt.rfind("autocomplete=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autocomplete=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_auto_completion(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_auto_completion(false);
-        }
-        else
-        {
-            setStatusMessage("autocomplete: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("completionautoparens=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("completionautoparens=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_completion_auto_parens(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_completion_auto_parens(false);
-        }
-        else
-        {
-            setStatusMessage("completionautoparens: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("showtabs=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("showtabs=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            showTabs = true;
-            tabBarOffset = 0;
-            setStatusMessage("showtabs=true");
-            needsFullRedraw = true;
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            showTabs = false;
-            tabBarOffset = 0;
-            setStatusMessage("showtabs=false");
-            needsFullRedraw = true;
-        }
-        else
-        {
-            setStatusMessage("showtabs: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("tabnumbers=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("tabnumbers=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            showTabNumbers = true;
-            setStatusMessage("tabnumbers=true");
-            needsFullRedraw = true;
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            showTabNumbers = false;
-            setStatusMessage("tabnumbers=false");
-            needsFullRedraw = true;
-        }
-        else
-        {
-            setStatusMessage("tabnumbers: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("gitignore=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("gitignore=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            respectGitignore = true;
-            setStatusMessage("gitignore=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            respectGitignore = false;
-            setStatusMessage("gitignore=false");
-        }
-        else
-        {
-            setStatusMessage("gitignore: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("utf8=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("utf8=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            utf8Mode = true;
-            setStatusMessage("utf8=true");
-            needsFullRedraw = true;
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            utf8Mode = false;
-            setStatusMessage("utf8=false");
-            needsFullRedraw = true;
-        }
-        else
-        {
-            setStatusMessage("utf8: expected true/false");
-        }
-        return true;
-    }
-
-    if(opt.rfind("tabspaces=", 0) == 0)
-    {
-        std::string value =
-            std::string(opt.substr(std::string("tabspaces=").length()));
-        try
-        {
-            int v = std::stoi(value);
-            if(v >= 1 && v <= 16)
-            {
-                tabSpaces = v;
-                setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
-            }
-            else
-            {
-                setStatusMessage("tabspaces: expected 1-16");
-            }
-        }
-        catch(...)
-        {
-            setStatusMessage("tabspaces: expected number");
-        }
-        return true;
-    }
-
-    setStatusMessage("Unknown option: " + opt);
-    return true;
+    return settingsController->handleSetCommand(cmd);
 }
 
 void Editor::handleResize()
@@ -8695,329 +7789,77 @@ bool isLikelyDefinition(const std::string& line, const std::string& symbol)
 
 void Editor::createNewBuffer()
 {
-    auto buffer = std::make_unique<Buffer>();
-    buffers.push_back(std::move(buffer));
-    currentBufferIndex = buffers.size() - 1;
-    updateCurrentBufferPointers();
-    if(splitActive)
-    {
-        splitPanes[activePane].bufferIndex = currentBufferIndex;
-        setPanePointers(activePane);
-    }
-    needsFullRedraw = true;
+    bufferController->createNewBuffer();
 }
 
 void Editor::updateCurrentBufferPointers()
 {
-    if(currentBufferIndex >= 0 && currentBufferIndex < buffers.size())
-    {
-        currentBuffer = buffers[currentBufferIndex].get();
-        lines = &currentBuffer->lines;
-        filename = &currentBuffer->filename;
-        dirty = &currentBuffer->dirty;
-        if(splitActive)
-        {
-            setPanePointers(activePane);
-        }
-        else
-        {
-            cursorX = &currentBuffer->cursorX;
-            cursorY = &currentBuffer->cursorY;
-            wantedX = &currentBuffer->wantedX;
-            offsetX = &currentBuffer->offsetX;
-            offsetY = &currentBuffer->offsetY;
-        }
-    }
-    else
-    {
-        currentBufferIndex = -1;
-        clearCurrentBufferPointers();
-    }
+    bufferController->updateCurrentBufferPointers();
 }
 
 void Editor::clearCurrentBufferPointers()
 {
-    currentBuffer = nullptr;
-    lines = nullptr;
-    filename = nullptr;
-    dirty = nullptr;
-    cursorX = nullptr;
-    cursorY = nullptr;
-    wantedX = nullptr;
-    offsetX = nullptr;
-    offsetY = nullptr;
+    bufferController->clearCurrentBufferPointers();
 }
 
 bool Editor::hasBuffer() const
 {
-    return currentBuffer != nullptr;
+    return bufferController->hasBuffer();
 }
 
 void Editor::ensureBufferForMode(Mode mode)
 {
-    switch(mode)
-    {
-    case WELCOME:
-    case COMMAND:
-    case FILE_BROWSER:
-    case FUZZY_FIND:
-    case BUFFER_BROWSER:
-    case GREP_SEARCH:
-    case REFERENCES:
-    case LSP_INFO:
-    case LOC_LIST:
-    case GIT_STAGE:
-    case GIT_COMMIT:
-    case GIT_FIXUP:
-    case GIT_PATCH:
-    case COMMAND_OUTPUT:
-        return;
-    default:
-        break;
-    }
-
-    if(!hasBuffer())
-    {
-        createNewBuffer();
-        saveState();
-        if(currentBuffer)
-            currentBuffer->savedUndoIndex = 0;
-    }
+    bufferController->ensureBufferForMode(mode);
 }
 
 void Editor::switchToBuffer(int index)
 {
-    if(index >= 0 && index < buffers.size())
-    {
-        locMessage.clear();
-        if(splitActive)
-        {
-            switchToBufferInActivePane(index);
-        }
-        else
-        {
-            saveBufferState();
-            currentBufferIndex = index;
-            updateCurrentBufferPointers();
-            restoreBufferState();
-            needsFullRedraw = true;
-        }
-
-        // Check if the file has been modified externally
-        checkFileChanges();
-
-        std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
-                          "/" + std::to_string(buffers.size());
-        if(!filename->empty())
-        {
-            msg += ": " + *filename;
-        }
-        else
-        {
-            msg += ": [No Name]";
-        }
-        if(*dirty)
-        {
-            msg += " [+]";
-        }
-        // setStatusMessage(msg);
-    }
+    bufferController->switchToBuffer(index);
 }
 
 void Editor::nextBuffer()
 {
-    if(buffers.size() > 1)
-    {
-        int nextIndex = (currentBufferIndex + 1) % buffers.size();
-        switchToBuffer(nextIndex);
-    }
-    else
-    {
-        setStatusMessage("No other buffers");
-    }
+    bufferController->nextBuffer();
 }
 
 void Editor::previousBuffer()
 {
-    if(buffers.size() > 1)
-    {
-        int prevIndex = currentBufferIndex - 1;
-        if(prevIndex < 0)
-            prevIndex = buffers.size() - 1;
-        switchToBuffer(prevIndex);
-    }
-    else
-    {
-        setStatusMessage("No other buffers");
-    }
+    bufferController->previousBuffer();
 }
 
 void Editor::moveBufferLeft()
 {
-    if(buffers.size() < 2 || currentBufferIndex <= 0)
-        return;
-    int a = currentBufferIndex - 1;
-    int b = currentBufferIndex;
-    std::swap(buffers[a], buffers[b]);
-    currentBufferIndex = a;
-    updateCurrentBufferPointers();
-    if(splitActive)
-    {
-        for(int i = 0; i < 2; i++)
-        {
-            int& p = splitPanes[i].bufferIndex;
-            if(p == a)
-                p = b;
-            else if(p == b)
-                p = a;
-        }
-    }
-    needsFullRedraw = true;
+    bufferController->moveBufferLeft();
 }
 
 void Editor::moveBufferRight()
 {
-    if(buffers.size() < 2 || currentBufferIndex >= (int)buffers.size() - 1)
-        return;
-    int a = currentBufferIndex;
-    int b = currentBufferIndex + 1;
-    std::swap(buffers[a], buffers[b]);
-    currentBufferIndex = b;
-    updateCurrentBufferPointers();
-    if(splitActive)
-    {
-        for(int i = 0; i < 2; i++)
-        {
-            int& p = splitPanes[i].bufferIndex;
-            if(p == a)
-                p = b;
-            else if(p == b)
-                p = a;
-        }
-    }
-    needsFullRedraw = true;
+    bufferController->moveBufferRight();
 }
 
 void Editor::closeCurrentBuffer()
 {
-    if(*dirty)
-    {
-        setStatusMessage("No write since last change (add ! to override)");
-        return;
-    }
-
-    if(buffers.size() == 1)
-    {
-        buffers.erase(buffers.begin());
-        currentBufferIndex = -1;
-        clearCurrentBufferPointers();
-        splitActive = false;
-        setMode(WELCOME);
-    }
-    else
-    {
-        int removedIndex = currentBufferIndex;
-        buffers.erase(buffers.begin() + currentBufferIndex);
-        if(currentBufferIndex >= buffers.size())
-        {
-            currentBufferIndex = buffers.size() - 1;
-        }
-        updateCurrentBufferPointers();
-        if(splitActive)
-        {
-            for(int i = 0; i < 2; i++)
-            {
-                int& paneIndex = splitPanes[i].bufferIndex;
-                if(paneIndex == removedIndex)
-                {
-                    paneIndex = currentBufferIndex;
-                }
-                else if(paneIndex > removedIndex)
-                {
-                    paneIndex -= 1;
-                }
-            }
-            currentBufferIndex = splitPanes[activePane].bufferIndex;
-            updateCurrentBufferPointers();
-        }
-        restoreBufferState();
-    }
-
-    needsFullRedraw = true;
+    bufferController->closeCurrentBuffer();
 }
 
 void Editor::listBuffers()
 {
-    std::stringstream ss;
-    ss << "Buffers: ";
-
-    for(size_t i = 0; i < buffers.size(); i++)
-    {
-        if(i == currentBufferIndex)
-            ss << "[";
-
-        ss << (i + 1) << ":";
-
-        if(!buffers[i]->filename.empty())
-        {
-            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
-            if(lastSlash != std::string::npos)
-                ss << buffers[i]->filename.substr(lastSlash + 1);
-            else
-                ss << buffers[i]->filename;
-        }
-        else
-        {
-            ss << "[No Name]";
-        }
-
-        if(buffers[i]->dirty)
-            ss << "+";
-
-        if(i == currentBufferIndex)
-            ss << "]";
-
-        if(i < buffers.size() - 1)
-            ss << " ";
-    }
-
-    std::string status = ss.str();
-    if(gitHandler)
-    {
-        if(auto changes = gitHandler->currentBufferHasChanges();
-           changes.has_value())
-        {
-            status += " | git add ";
-            if(*changes)
-                status += "current buffer";
-            else
-                status += "(nothing to add)";
-        }
-    }
-    setStatusMessage(status);
+    bufferController->listBuffers();
 }
 
 int Editor::findBufferByFilename(const std::string& fname)
 {
-    for(int i = 0; i < buffers.size(); i++)
-    {
-        if(buffers[i]->filename == fname)
-            return i;
-    }
-    return -1;
+    return bufferController->findBufferByFilename(fname);
 }
 
 void Editor::saveBufferState()
 {
-    // State is automatically saved in buffer structure
+    bufferController->saveBufferState();
 }
 
 void Editor::restoreBufferState()
 {
-    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
-    {
-        setMode(NORMAL);
-    }
+    bufferController->restoreBufferState();
 }
 
 bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
@@ -10838,708 +9680,124 @@ void Editor::executeOneNormalCommand(int key)
 
 std::optional<std::string> Editor::commandHistoryUp()
 {
-    if(commandHistory.empty())
-        return std::nullopt;
-    if(commandHistoryIndex < 0)
-    {
-        commandHistoryIndex = commandHistory.size() - 1;
-    }
-    else if(commandHistoryIndex > 0)
-    {
-        commandHistoryIndex--;
-    }
-    commandInput = commandHistory[commandHistoryIndex];
-    return commandInput;
+    return commandController->commandHistoryUp();
 }
 
 std::optional<std::string> Editor::commandHistoryDown()
 {
-    if(commandHistory.empty() || commandHistoryIndex < 0)
-        return std::nullopt;
-    if(commandHistoryIndex < (int)commandHistory.size() - 1)
-    {
-        commandHistoryIndex++;
-        commandInput = commandHistory[commandHistoryIndex];
-        return commandInput;
-    }
-
-    commandHistoryIndex = -1;
-    commandInput.clear();
-    return commandInput;
+    return commandController->commandHistoryDown();
 }
 
 void Editor::startCommandPopup()
 {
-    commandPopupActive = true;
-    commandPopupQuery.clear();
-    commandPopupCursor = 0;
-    commandPopupOffset = 0;
-    commandPopupAll = getCommandCompletions("");
-    updateCommandPopup("");
+    commandController->startCommandPopup();
 }
 
 void Editor::cancelCommandPopup()
 {
-    commandPopupActive = false;
-    commandPopupQuery.clear();
-    commandPopupFiltered.clear();
-    commandPopupCursor = 0;
-    commandPopupOffset = 0;
-    needsFullRedraw = true;
+    commandController->cancelCommandPopup();
 }
 
 void Editor::updateCommandPopup(std::string_view query)
 {
-    if(!commandPopupActive)
-        return;
-
-    auto isLineJumpQuery = [](std::string_view q) -> bool
-    {
-        if(q.empty())
-            return false;
-        size_t i = 0;
-        while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
-            ++i;
-        if(i >= q.size())
-            return false;
-        if(q[i] == '+' || q[i] == '-')
-            ++i;
-        size_t digitsStart = i;
-        while(i < q.size() && q[i] >= '0' && q[i] <= '9')
-            ++i;
-        return i > digitsStart;
-    };
-
-    std::string_view effectiveQuery = query;
-    if(effectiveQuery.empty() && !commandBuffer.empty() &&
-       commandBuffer.front() == ':')
-    {
-        effectiveQuery = std::string_view(commandBuffer).substr(1);
-    }
-
-    if(isLineJumpQuery(effectiveQuery))
-    {
-        cancelCommandPopup();
-        return;
-    }
-
-    commandPopupQuery = std::string(effectiveQuery);
-    commandPopupFiltered.clear();
-    commandPopupCursor = 0;
-    commandPopupOffset = 0;
-
-    bool isSetQuery = commandPopupQuery.rfind("set", 0) == 0;
-    bool isHelpQuery = commandPopupQuery == "help" ||
-                       commandPopupQuery == "h" ||
-                       commandPopupQuery.rfind("help ", 0) == 0 ||
-                       commandPopupQuery.rfind("h ", 0) == 0;
-    if(isSetQuery)
-    {
-        commandPopupAll = getSetCompletions("");
-    }
-    else if(isHelpQuery)
-    {
-        std::string cmd = (commandPopupQuery.rfind("h", 0) == 0 &&
-                           commandPopupQuery.rfind("help", 0) != 0)
-                              ? "h"
-                              : "help";
-        std::string topicPrefix;
-        if(commandPopupQuery.size() > cmd.size() &&
-           commandPopupQuery[cmd.size()] == ' ')
-        {
-            topicPrefix = commandPopupQuery.substr(cmd.size() + 1);
-        }
-        auto topics = getHelpCompletions(topicPrefix);
-        commandPopupAll.clear();
-        for(const auto& topic : topics)
-            commandPopupAll.push_back(cmd + " " + topic);
-    }
-    else
-    {
-        commandPopupAll = getCommandCompletions("");
-    }
-
-    if(commandPopupQuery.empty())
-    {
-        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-            commandPopupFiltered.push_back(i);
-        needsFullRedraw = true;
-        return;
-    }
-
-    if(isHelpQuery)
-    {
-        std::string prefix = commandPopupQuery;
-        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-        {
-            if(commandPopupAll[i].rfind(prefix, 0) == 0)
-                commandPopupFiltered.push_back(i);
-        }
-        needsFullRedraw = true;
-        return;
-    }
-
-    std::vector<std::pair<int, int>> scored;
-    std::vector<int> positions;
-    scored.reserve(commandPopupAll.size());
-
-    for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-    {
-        int score =
-            fuzzyScore(commandPopupQuery, commandPopupAll[i], positions);
-        if(score >= 0)
-            scored.emplace_back(i, score);
-    }
-
-    std::stable_sort(
-        scored.begin(), scored.end(),
-        [](const std::pair<int, int>& left, const std::pair<int, int>& right)
-        {
-            if(left.second != right.second)
-                return left.second > right.second;
-            return left.first < right.first;
-        });
-
-    for(const auto& entry : scored)
-        commandPopupFiltered.push_back(entry.first);
-
-    needsFullRedraw = true;
+    commandController->updateCommandPopup(query);
 }
 
 void Editor::moveCommandPopupCursor(int delta)
 {
-    if(!commandPopupActive || commandPopupFiltered.empty())
-        return;
-
-    int next = commandPopupCursor + delta;
-    if(next < 0)
-        next = 0;
-    if(next >= (int)commandPopupFiltered.size())
-        next = (int)commandPopupFiltered.size() - 1;
-    commandPopupCursor = next;
-
-    const int window = std::min(8, (int)commandPopupFiltered.size());
-    if(commandPopupCursor < commandPopupOffset)
-        commandPopupOffset = commandPopupCursor;
-    else if(commandPopupCursor >= commandPopupOffset + window)
-        commandPopupOffset = commandPopupCursor - window + 1;
-
-    needsFullRedraw = true;
+    commandController->moveCommandPopupCursor(delta);
 }
 
 bool Editor::isCommandPopupActive() const
 {
-    return commandPopupActive;
+    return commandController->isCommandPopupActive();
 }
 
 std::optional<std::string> Editor::commandPopupSelection() const
 {
-    if(!commandPopupActive || commandPopupFiltered.empty())
-        return std::nullopt;
-    int idx = commandPopupFiltered[commandPopupCursor];
-    if(idx < 0 || idx >= (int)commandPopupAll.size())
-        return std::nullopt;
-    return commandPopupAll[idx];
+    return commandController->commandPopupSelection();
 }
 
 void Editor::startCommandHistorySearch(std::string_view seed)
 {
-    commandHistorySearchActive = true;
-    commandHistorySearchOriginal = std::string(seed);
-    commandHistorySearchQueryValue = std::string(seed);
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-    updateCommandHistorySearchQuery(commandHistorySearchQueryValue);
+    commandController->startCommandHistorySearch(seed);
 }
 
 std::string Editor::cancelCommandHistorySearch()
 {
-    std::string restored = commandHistorySearchOriginal;
-    commandHistorySearchActive = false;
-    commandHistorySearchQueryValue.clear();
-    commandHistorySearchOriginal.clear();
-    commandHistorySearchMatches.clear();
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-    needsFullRedraw = true;
-    return restored;
+    return commandController->cancelCommandHistorySearch();
 }
 
 std::string Editor::acceptCommandHistorySearch()
 {
-    std::string selected;
-    if(!commandHistorySearchMatches.empty() &&
-       commandHistorySearchCursor >= 0 &&
-       commandHistorySearchCursor < (int)commandHistorySearchMatches.size())
-    {
-        int idx = commandHistorySearchMatches[commandHistorySearchCursor];
-        if(idx >= 0 && idx < (int)commandHistory.size())
-            selected = commandHistory[idx];
-    }
-    if(selected.empty())
-        selected = commandHistorySearchQueryValue;
-
-    commandHistorySearchActive = false;
-    commandHistorySearchQueryValue.clear();
-    commandHistorySearchOriginal.clear();
-    commandHistorySearchMatches.clear();
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-    needsFullRedraw = true;
-    return selected;
+    return commandController->acceptCommandHistorySearch();
 }
 
 void Editor::updateCommandHistorySearchQuery(std::string_view query)
 {
-    commandHistorySearchQueryValue = std::string(query);
-    commandHistorySearchMatches.clear();
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-
-    if(commandHistory.empty())
-    {
-        needsFullRedraw = true;
-        return;
-    }
-
-    if(commandHistorySearchQueryValue.empty())
-    {
-        for(int i = (int)commandHistory.size() - 1; i >= 0; --i)
-            commandHistorySearchMatches.push_back(i);
-        needsFullRedraw = true;
-        return;
-    }
-
-    std::vector<std::pair<int, int>> scored;
-    scored.reserve(commandHistory.size());
-    std::vector<int> positions;
-
-    for(int i = 0; i < (int)commandHistory.size(); ++i)
-    {
-        int score = fuzzyScore(commandHistorySearchQueryValue,
-                               commandHistory[i], positions);
-        if(score >= 0)
-            scored.emplace_back(i, score);
-    }
-
-    if(!scored.empty())
-    {
-        std::stable_sort(scored.begin(), scored.end(),
-                         [](const std::pair<int, int>& left,
-                            const std::pair<int, int>& right)
-                         {
-                             if(left.second != right.second)
-                                 return left.second > right.second;
-                             return left.first > right.first;
-                         });
-        for(const auto& entry : scored)
-            commandHistorySearchMatches.push_back(entry.first);
-    }
-
-    needsFullRedraw = true;
+    commandController->updateCommandHistorySearchQuery(query);
 }
 
 void Editor::moveCommandHistorySearchCursor(int delta)
 {
-    if(!commandHistorySearchActive || commandHistorySearchMatches.empty())
-        return;
-    int next = commandHistorySearchCursor + delta;
-    if(next < 0)
-        next = 0;
-    if(next >= (int)commandHistorySearchMatches.size())
-        next = (int)commandHistorySearchMatches.size() - 1;
-    commandHistorySearchCursor = next;
-
-    const int window = std::min(8, (int)commandHistorySearchMatches.size());
-    if(commandHistorySearchCursor < commandHistorySearchOffset)
-        commandHistorySearchOffset = commandHistorySearchCursor;
-    else if(commandHistorySearchCursor >= commandHistorySearchOffset + window)
-        commandHistorySearchOffset = commandHistorySearchCursor - window + 1;
-
-    needsFullRedraw = true;
+    commandController->moveCommandHistorySearchCursor(delta);
 }
 
 bool Editor::isCommandHistorySearchActive() const
 {
-    return commandHistorySearchActive;
+    return commandController->isCommandHistorySearchActive();
 }
 
 const std::string& Editor::commandHistorySearchQuery() const
 {
-    return commandHistorySearchQueryValue;
+    return commandController->commandHistorySearchQuery();
 }
 
 void Editor::drawCommandPopup(std::string& output) const
 {
-    if(!commandPopupActive)
-        return;
-    if(commandHistorySearchActive)
-        return;
-
-    auto isLineJumpQuery = [](std::string_view q) -> bool
-    {
-        if(q.empty())
-            return false;
-        size_t i = 0;
-        while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
-            ++i;
-        if(i >= q.size())
-            return false;
-        if(q[i] == '+' || q[i] == '-')
-            ++i;
-        size_t digitsStart = i;
-        while(i < q.size() && q[i] >= '0' && q[i] <= '9')
-            ++i;
-        return i > digitsStart;
-    };
-
-    if(currentMode == COMMAND && !commandBuffer.empty() &&
-       commandBuffer.front() == ':')
-    {
-        std::string_view q(commandBuffer);
-        q.remove_prefix(1);
-        if(isLineJumpQuery(q))
-            return;
-    }
-
-    widgets::CommandPopupView view{
-        .theme = theme,
-        .screenRows = screenRows,
-        .screenCols = screenCols,
-        .entries = commandPopupAll,
-        .filtered = commandPopupFiltered,
-        .offset = commandPopupOffset,
-        .cursor = commandPopupCursor,
-    };
-    widgets::drawCommandPopup(output, view);
+    commandController->drawCommandPopup(output);
 }
 
 void Editor::drawCommandHistoryPopup(std::string& output) const
 {
-    if(!commandHistorySearchActive)
-        return;
-    widgets::CommandHistoryPopupView view{
-        .theme = theme,
-        .screenRows = screenRows,
-        .screenCols = screenCols,
-        .history = commandHistory,
-        .matches = commandHistorySearchMatches,
-        .offset = commandHistorySearchOffset,
-        .cursor = commandHistorySearchCursor,
-    };
-    widgets::drawCommandHistoryPopup(output, view);
+    commandController->drawCommandHistoryPopup(output);
 }
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
-    return getCommandCompletions(prefix, currentMode);
+    return commandController->getCommandCompletions(prefix);
 }
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix,
                                                        Mode mode)
 {
-    static const std::vector<std::string> baseCommands = {
-        "w",
-        "write",
-        "q",
-        "quit",
-        "q!",
-        "qa",
-        "qall",
-        "qa!",
-        "qall!",
-        "wq",
-        "x",
-        "qw",
-        "qw!",
-        "wa",
-        "wall",
-        "wa!",
-        "wqa",
-        "wqall",
-        "wqa!",
-        "wqall!",
-        "xa",
-        "e",
-        "edit",
-        "e%",
-        "edit%",
-        "new",
-        "vnew",
-        "bn",
-        "bnext",
-        "bp",
-        "bprev",
-        "bd",
-        "bdelete",
-        "ls",
-        "buffers",
-        "sp",
-        "split",
-        "vs",
-        "vsplit",
-        "vh",
-        "hs",
-        "hsplit",
-        "only",
-        "tabnew",
-        "tabc",
-        "tabclose",
-        "set",
-        "syntax",
-        "noh",
-        "nohlsearch",
-        "lspinfo",
-        "emoji",
-        "em",
-        "help",
-        "h",
-        "cd",
-        "cdr",
-        "loc",
-        "loc!",
-        "loc%",
-        "loctotal",
-        "git blame",
-        "git stage",
-        "git log",
-        "git prettylog",
-        "git diff",
-        "git commit",
-        "git stash",
-        "git stash pop",
-    };
-
-    auto hasCommand = [](const std::vector<std::string>& list,
-                         const std::string& value) -> bool
-    { return std::find(list.begin(), list.end(), value) != list.end(); };
-
-    const std::vector<std::string>* activeList = &baseCommands;
-    std::vector<std::string> fileBrowserCommands;
-    if(mode == FILE_BROWSER)
-    {
-        fileBrowserCommands = baseCommands;
-        const std::vector<std::string> extras = {
-            "delete", "d",  "rm",    "rename", "r", "mv",
-            "mkdir",  "md", "touch", "new",    "?",
-        };
-        for(const auto& extra : extras)
-        {
-            if(!hasCommand(fileBrowserCommands, extra))
-                fileBrowserCommands.push_back(extra);
-        }
-
-        const std::vector<std::string> notApplicable = {"wq", "x"};
-        fileBrowserCommands.erase(
-            std::remove_if(
-                fileBrowserCommands.begin(), fileBrowserCommands.end(),
-                [&](const std::string& cmd)
-                {
-                    return std::find(notApplicable.begin(), notApplicable.end(),
-                                     cmd) != notApplicable.end();
-                }),
-            fileBrowserCommands.end());
-
-        activeList = &fileBrowserCommands;
-    }
-
-    std::vector<std::string> matches;
-    for(const auto& cmd : *activeList)
-    {
-        if(prefix.size() <= cmd.size() &&
-           std::string_view(cmd).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(cmd);
-        }
-    }
-    return matches;
+    return commandController->getCommandCompletions(prefix, mode);
 }
 
 std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
-    static const std::vector<std::string> topics = {
-        "commands",    "modes",       "navigation", "editing", "files",
-        "filebrowser", "run",         "buffers",    "windows", "search",
-        "clipboard",   "git",         "gb",         "gj",      "gbv",
-        "lsp",         "diagnostics", "help"};
-
-    std::vector<std::string> matches;
-    for(const auto& topic : topics)
-    {
-        if(prefix.size() <= topic.size() &&
-           std::string_view(topic).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(topic);
-        }
-    }
-    return matches;
+    return commandController->getHelpCompletions(prefix);
 }
 
 std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
 {
-    static const std::vector<std::string> options = {
-        "set autobraces",
-        "set noautobraces",
-        "set autobraces?",
-        "set autobraces=",
-        "set autoquotes",
-        "set noautoquotes",
-        "set autoquotes?",
-        "set autoquotes=",
-        "set autobracesinstrings",
-        "set noautobracesinstrings",
-        "set autobracesinstrings?",
-        "set autobracesinstrings=",
-        "set autocomplete",
-        "set noautocomplete",
-        "set autocomplete?",
-        "set autocomplete=",
-        "set completionautoparens",
-        "set nocompletionautoparens",
-        "set completionautoparens?",
-        "set completionautoparens=",
-        "set showtabs",
-        "set noshowtabs",
-        "set showtabs?",
-        "set showtabs=",
-        "set tabnumbers",
-        "set notabnumbers",
-        "set tabnumbers?",
-        "set tabnumbers=",
-        "set tabspaces?",
-        "set tabspaces=",
-        "set tabspaces=2",
-        "set tabspaces=4",
-        "set tabspaces=8",
-        "set tabspaces=1",
-        "set tabspaces=3",
-        "set tabspaces=5",
-        "set tabspaces=6",
-        "set tabspaces=7",
-        "set tabspaces=9",
-        "set tabspaces=10",
-        "set tabspaces=12",
-        "set tabspaces=16",
-        "set commenttogglepartial",
-        "set nocommenttogglepartial",
-        "set commenttogglepartial?",
-        "set gdcenter",
-        "set nogdcenter",
-        "set gdcenter?",
-        "set gdcenter=",
-        "set formatoninsertleave",
-        "set noformatoninsertleave",
-        "set formatoninsertleave?",
-        "set formatonsave",
-        "set noformatonsave",
-        "set formatonsave?",
-        "set formatonsave=",
-        "set autodetectlsps",
-        "set noautodetectlsps",
-        "set autodetectlsps?",
-        "set autodetectlsps=",
-        "set filebrowser.fuzzy",
-        "set nofilebrowser.fuzzy",
-        "set filebrowser.fuzzy?",
-        "set filebrowser.fuzzy=",
-        "set status.lspgap",
-        "set status.lspgap?",
-        "set status.lspgap=",
-        "set commandline.messageprefix",
-        "set nocommandline.messageprefix",
-        "set commandline.messageprefix?",
-        "set commandline.messageprefix=",
-        "set formatondoubleesctimeoutms?",
-        "set formatondoubleesctimeoutms=",
-        "set gitdefaultcolors?",
-        "set enablegitdefaultcolors",
-        "set disablegitdefaultcolors",
-        "set gitignore?",
-        "set gitignore",
-        "set nogitignore",
-        "set gitblameinfo?",
-        "set gitblameinfo",
-        "set nogitblameinfo",
-        "set gitignore=",
-        "set syntax.cpp.highlight_system_includes",
-        "set nosyntax.cpp.highlight_system_includes",
-        "set syntax.cpp.highlight_system_includes?",
-        "set syntax.cpp.highlight_param_types",
-        "set nosyntax.cpp.highlight_param_types",
-        "set syntax.cpp.highlight_param_types?",
-        "set syntax.cpp.locals_color",
-        "set syntax.cpp.locals_color?",
-        "set syntax.cpp.locals_color=normal",
-        "set syntax.cpp.locals_color=keyword",
-        "set syntax.cpp.locals_color=type",
-        "set syntax.cpp.locals_color=string",
-        "set syntax.cpp.locals_color=char",
-        "set syntax.cpp.locals_color=comment",
-        "set syntax.cpp.locals_color=preprocessor",
-        "set syntax.cpp.locals_color=number",
-        "set syntax.cpp.locals_color=operator",
-        "set syntax.cpp.locals_color=function",
-        "set syntax.cpp.locals_color=member",
-        "set syntax.cpp.member_color",
-        "set syntax.cpp.member_color?",
-        "set syntax.cpp.member_color=normal",
-        "set syntax.cpp.member_color=keyword",
-        "set syntax.cpp.member_color=type",
-        "set syntax.cpp.member_color=string",
-        "set syntax.cpp.member_color=char",
-        "set syntax.cpp.member_color=comment",
-        "set syntax.cpp.member_color=preprocessor",
-        "set syntax.cpp.member_color=number",
-        "set syntax.cpp.member_color=operator",
-        "set syntax.cpp.member_color=function",
-        "set syntax.cpp.member_color=member",
-        "set syntax.cpp.semantic_tokens",
-        "set nosyntax.cpp.semantic_tokens",
-        "set syntax.cpp.semantic_tokens?",
-        "set syntax.mlang.highlight_types",
-        "set nosyntax.mlang.highlight_types",
-        "set syntax.mlang.highlight_types?",
-        "set syntax.mlang.highlight_builtin_docs",
-        "set nosyntax.mlang.highlight_builtin_docs",
-        "set syntax.mlang.highlight_builtin_docs?",
-        "set python.formatter?",
-        "set python.formatter=ruff",
-        "set python.formatter=black",
-        "set pyfmt=ruff",
-        "set pyfmt=black",
-        "set pyfmt?",
-        "set utf8",
-        "set noutf8",
-        "set utf8?",
-        "set utf8=",
-    };
-
-    std::vector<std::string> matches;
-    for(const auto& opt : options)
-    {
-        if(prefix.size() <= opt.size() &&
-           std::string_view(opt).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(opt);
-        }
-    }
-    return matches;
+    return commandController->getSetCompletions(prefix);
 }
 
 std::vector<std::string> Editor::getPathCompletions(std::string_view path)
 {
-    return editor::helper::getPathCompletions(path);
+    return commandController->getPathCompletions(path);
 }
 
 std::vector<std::string>
 Editor::getPathCompletionsRecursive(std::string_view path)
 {
-    return editor::helper::getRecursivePathCompletions(path, respectGitignore);
+    return commandController->getPathCompletionsRecursive(path);
 }
 
 std::vector<std::string> Editor::getLocPathCompletions(std::string_view path)
 {
-    return editor::helper::getLocPathCompletions(path, respectGitignore);
+    return commandController->getLocPathCompletions(path);
 }
 
 void Editor::deleteFilePrompt()

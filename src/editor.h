@@ -29,6 +29,9 @@ class ModeStateMachine;
 class SyntaxHighlighter;
 class Formatter;
 class GitHandler;
+class EditorSettingsController;
+class EditorBufferController;
+class EditorCommandController;
 struct CommandPrompt;
 
 struct MlangTokenCache
@@ -88,25 +91,25 @@ public:
                         const std::string& mlangLspPath = "mlangd-mla",
                         const std::vector<std::string>& mlangLspArgs = {});
     bool isMlangLspEnabled() const;
-    void enableHtmlLsp(bool enable,
-                       const std::string& htmlLspPath =
-                           "vscode-html-language-server",
-                       const std::vector<std::string>& htmlLspArgs = {});
+    void enableHtmlLsp(
+        bool enable,
+        const std::string& htmlLspPath = "vscode-html-language-server",
+        const std::vector<std::string>& htmlLspArgs = {});
     bool isHtmlLspEnabled() const;
-    void enableCssLsp(bool enable,
-                      const std::string& cssLspPath =
-                          "vscode-css-language-server",
-                      const std::vector<std::string>& cssLspArgs = {});
+    void
+    enableCssLsp(bool enable,
+                 const std::string& cssLspPath = "vscode-css-language-server",
+                 const std::vector<std::string>& cssLspArgs = {});
     bool isCssLspEnabled() const;
-    void enableJsonLsp(bool enable,
-                       const std::string& jsonLspPath =
-                           "vscode-json-language-server",
-                       const std::vector<std::string>& jsonLspArgs = {});
+    void enableJsonLsp(
+        bool enable,
+        const std::string& jsonLspPath = "vscode-json-language-server",
+        const std::vector<std::string>& jsonLspArgs = {});
     bool isJsonLspEnabled() const;
-    void enableTsLsp(bool enable,
-                     const std::string& tsLspPath =
-                         "typescript-language-server",
-                     const std::vector<std::string>& tsLspArgs = {});
+    void
+    enableTsLsp(bool enable,
+                const std::string& tsLspPath = "typescript-language-server",
+                const std::vector<std::string>& tsLspArgs = {});
     bool isTsLspEnabled() const;
 
     void run();
@@ -918,6 +921,9 @@ public:
 
 private:
     friend class GitHandler;
+    friend class EditorSettingsController;
+    friend class EditorBufferController;
+    friend class EditorCommandController;
 #ifdef UVIM_TESTING
     struct TestTag
     {
@@ -925,6 +931,48 @@ private:
     Editor(TestTag tag, int rows, int cols);
 #endif
     bool formatBufferForSave();
+    bool handleSetCommandImpl(std::string_view cmd);
+    void createNewBufferImpl();
+    void updateCurrentBufferPointersImpl();
+    void clearCurrentBufferPointersImpl();
+    bool hasBufferImpl() const;
+    void ensureBufferForModeImpl(Mode mode);
+    void switchToBufferImpl(int index);
+    void nextBufferImpl();
+    void previousBufferImpl();
+    void moveBufferLeftImpl();
+    void moveBufferRightImpl();
+    void closeCurrentBufferImpl();
+    void listBuffersImpl();
+    int findBufferByFilenameImpl(const std::string& filename);
+    void saveBufferStateImpl();
+    void restoreBufferStateImpl();
+    std::optional<std::string> commandHistoryUpImpl();
+    std::optional<std::string> commandHistoryDownImpl();
+    void startCommandPopupImpl();
+    void cancelCommandPopupImpl();
+    void updateCommandPopupImpl(std::string_view query);
+    void moveCommandPopupCursorImpl(int delta);
+    bool isCommandPopupActiveImpl() const;
+    std::optional<std::string> commandPopupSelectionImpl() const;
+    void startCommandHistorySearchImpl(std::string_view seed);
+    std::string cancelCommandHistorySearchImpl();
+    std::string acceptCommandHistorySearchImpl();
+    void updateCommandHistorySearchQueryImpl(std::string_view query);
+    void moveCommandHistorySearchCursorImpl(int delta);
+    bool isCommandHistorySearchActiveImpl() const;
+    const std::string& commandHistorySearchQueryImpl() const;
+    void drawCommandPopupImpl(std::string& output) const;
+    void drawCommandHistoryPopupImpl(std::string& output) const;
+    std::vector<std::string> getCommandCompletionsImpl(std::string_view prefix);
+    std::vector<std::string> getCommandCompletionsImpl(std::string_view prefix,
+                                                       Mode mode);
+    std::vector<std::string> getHelpCompletionsImpl(std::string_view prefix);
+    std::vector<std::string> getSetCompletionsImpl(std::string_view prefix);
+    std::vector<std::string> getPathCompletionsImpl(std::string_view path);
+    std::vector<std::string>
+    getPathCompletionsRecursiveImpl(std::string_view path);
+    std::vector<std::string> getLocPathCompletionsImpl(std::string_view path);
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
@@ -932,26 +980,27 @@ public:
     static std::string
     testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
                                  std::string_view ident, int startY);
-    static std::string
-    testInferTsTypeFromArrayMethodLine(std::string_view line,
-                                       std::string_view param,
-                                       const std::vector<std::string>& lines,
-                                       int lineNo);
-    static bool testFindTsTypeDefinition(
-        const std::vector<std::string>& lines, std::string_view typeName,
-        int& outY, int& outX);
+    static std::string testInferTsTypeFromArrayMethodLine(
+        std::string_view line, std::string_view param,
+        const std::vector<std::string>& lines, int lineNo);
+    static bool testFindTsTypeDefinition(const std::vector<std::string>& lines,
+                                         std::string_view typeName, int& outY,
+                                         int& outX);
     static bool testFindTsMemberInType(const std::vector<std::string>& lines,
-                                       int typeStartY,
-                                       std::string_view member, int& outY,
-                                       int& outX);
+                                       int typeStartY, std::string_view member,
+                                       int& outY, int& outX);
     static std::string testResolveJsTsModule(const std::string& fromFile,
                                              std::string_view module);
     static std::string testResolveMlangModule(const std::string& fromFile,
                                               std::string_view modulePath);
     static int testCountLocForFile(const std::string& filepath);
+
 private:
 #endif
     bool dispatchModeKey(int c);
     void syncModeFromStateMachine();
     std::unique_ptr<ModeStateMachine> modeStateMachine;
+    std::unique_ptr<EditorSettingsController> settingsController;
+    std::unique_ptr<EditorBufferController> bufferController;
+    std::unique_ptr<EditorCommandController> commandController;
 };
