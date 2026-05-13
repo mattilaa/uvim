@@ -33,6 +33,8 @@ class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
 class EditorEditingController;
+class EditorLspController;
+class EditorVisualController;
 struct CommandPrompt;
 
 struct MlangTokenCache
@@ -926,6 +928,8 @@ private:
     friend class EditorBufferController;
     friend class EditorCommandController;
     friend class EditorEditingController;
+    friend class EditorLspController;
+    friend class EditorVisualController;
 #ifdef UVIM_TESTING
     struct TestTag
     {
@@ -933,6 +937,31 @@ private:
     Editor(TestTag tag, int rows, int cols);
 #endif
     bool formatBufferForSave();
+    void enableClangdLspImpl(bool enable, const std::string& compileCommandsDir,
+                             const std::string& clangdPath,
+                             const std::string& queryDriverAllowList);
+    bool isClangdLspEnabledImpl() const;
+    void enableRobotLspImpl(bool enable, const std::string& robotLspPath,
+                            const std::vector<std::string>& robotLspArgs);
+    bool isRobotLspEnabledImpl() const;
+    void enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
+                             const std::vector<std::string>& pythonLspArgs);
+    bool isPythonLspEnabledImpl() const;
+    void enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
+                            const std::vector<std::string>& mlangLspArgs);
+    bool isMlangLspEnabledImpl() const;
+    void enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
+                           const std::vector<std::string>& htmlLspArgs);
+    bool isHtmlLspEnabledImpl() const;
+    void enableCssLspImpl(bool enable, const std::string& cssLspPath,
+                          const std::vector<std::string>& cssLspArgs);
+    bool isCssLspEnabledImpl() const;
+    void enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
+                           const std::vector<std::string>& jsonLspArgs);
+    bool isJsonLspEnabledImpl() const;
+    void enableTsLspImpl(bool enable, const std::string& tsLspPath,
+                         const std::vector<std::string>& tsLspArgs);
+    bool isTsLspEnabledImpl() const;
     bool handleSetCommandImpl(std::string_view cmd);
     void createNewBufferImpl();
     void updateCurrentBufferPointersImpl();
@@ -1003,6 +1032,31 @@ private:
     void indentCurrentLineImpl();
     void dedentCurrentLineImpl();
     void handleLinewiseOperatorImpl(char op, int count);
+    void startVisualModeImpl();
+    void startVisualLineModeImpl();
+    void startVisualBlockModeImpl();
+    void updateVisualSelectionImpl();
+    void updateVisualBlockSelectionImpl();
+    bool isInSelectionImpl(int row, int col);
+    bool isInVisualBlockImpl(int row, int col);
+    void getSelectionBoundsImpl(int& startY, int& startX, int& endY, int& endX);
+    void getVisualBlockBoundsImpl(int& startY, int& startX, int& endY,
+                                  int& endX);
+    void setVisualRangeImpl();
+    void swapVisualEndsImpl();
+    void swapVisualBlockCornerImpl();
+    void prepareBlockInsertImpl(bool atEnd);
+    void indentSelectionImpl();
+    void dedentSelectionImpl();
+    void autoIndentSelectionImpl();
+    void lowercaseSelectionImpl();
+    void uppercaseSelectionImpl();
+    void toggleCaseSelectionImpl();
+    void yankLineSelectionImpl();
+    void deleteLineSelectionImpl();
+    void indentLineSelectionImpl();
+    void dedentLineSelectionImpl();
+    void autoIndentLineSelectionImpl();
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
@@ -1034,4 +1088,6 @@ private:
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
     std::unique_ptr<EditorEditingController> editingController;
+    std::unique_ptr<EditorLspController> lspController;
+    std::unique_ptr<EditorVisualController> visualController;
 };

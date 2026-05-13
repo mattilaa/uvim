@@ -4,8 +4,10 @@
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_editing_controller.h"
+#include "editor_lsp_controller.h"
 #include "editor_settings_controller.h"
 #include "editor_utils.h"
+#include "editor_visual_controller.h"
 #include "enablelog.h"
 #include "formatter.h"
 #include "git_handler.h"
@@ -1688,6 +1690,8 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
+    lspController = std::make_unique<EditorLspController>(*this);
+    visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -1709,6 +1713,8 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
+    lspController = std::make_unique<EditorLspController>(*this);
+    visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -1914,537 +1920,90 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
                              const std::string& clangdPath,
                              const std::string& queryDriverAllowList)
 {
-    clangdLspEnabled = false;
-    clangdLspCompileCommandsDir = compileCommandsDir;
-    clangdLspPath = clangdPath;
-    clangdLspQueryDriverAllowList = queryDriverAllowList;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(lspClient)
-        {
-            lspClient->stop();
-            lspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    // Auto-detect compile_commands.json if caller didn't specify --ccdir
-    std::string ccdir = clangdLspCompileCommandsDir;
-    auto exists = [](const std::string& p)
-    {
-        std::error_code ec;
-        return std::filesystem::exists(p, ec);
-    };
-
-    if(ccdir.empty())
-    {
-        if(exists(rootDir + "/compile_commands.json"))
-            ccdir = rootDir;
-        else if(exists(rootDir + "/build/compile_commands.json"))
-            ccdir = rootDir + "/build";
-    }
-
-    // If not provided, use a conservative default query-driver allowlist so
-    // clangd can discover system include paths (standard library headers etc)
-    // from common compilers referenced in compile_commands.json. Users with
-    // custom toolchains can pass:
-    //   --query-driver "/opt/toolchain/bin/*g++*,/opt/toolchain/bin/*gcc*"
-    std::string qd = clangdLspQueryDriverAllowList;
-    if(qd.empty())
-    {
-        // Only allow executing compilers from typical system locations.
-        // clangd expects a comma-separated list of globs/paths.
-        qd =
-            "/usr/bin/*clang*,/usr/bin/*clang++*,/usr/bin/*gcc*,/usr/bin/*g++*,"
-            "/bin/*gcc*,/bin/*g++*,"
-            "/usr/local/bin/*clang*,/usr/local/bin/*clang++*,/usr/local/bin/"
-            "*gcc*,/usr/local/bin/*g++*,"
-            "/opt/homebrew/bin/*clang*,/opt/homebrew/bin/*clang++*,/opt/"
-            "homebrew/bin/*gcc*,/opt/homebrew/bin/*g++*";
-    }
-
-    lspClient = std::make_unique<LspClient>();
-    if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
-    {
-        lspClient.reset();
-        setStatusMessage("clangd LSP: failed to start");
-        return;
-    }
-
-    clangdLspEnabled = true;
-    clangdLspCompileCommandsDir = ccdir;
-#else
-    (void)enable;
-    (void)compileCommandsDir;
-    (void)clangdPath;
-    setStatusMessage("clangd LSP: not compiled in");
-#endif
+    lspController->enableClangdLsp(enable, compileCommandsDir, clangdPath,
+                                   queryDriverAllowList);
 }
 
 bool Editor::isClangdLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return clangdLspEnabled && lspClient && lspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isClangdLspEnabled();
 }
 
 void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
                             const std::vector<std::string>& robotLspArgs)
 {
-    robotLspEnabled = false;
-    this->robotLspPath = robotLspPath;
-    this->robotLspArgs = robotLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(robotLspClient)
-        {
-            robotLspClient->stop();
-            robotLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->robotLspArgs;
-    if(args.empty())
-    {
-        args.push_back("--stdio");
-    }
-
-    robotLspClient = std::make_unique<LspClient>();
-    if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
-    {
-        LOG_ERROR(LOG, "Robot LSP failed to start, LSP path: {}",
-                  this->robotLspPath.c_str());
-        robotLspClient.reset();
-        return;
-    }
-
-    robotLspEnabled = true;
-    LOG_DEBUG(LOG, "Robot LSP enabled");
-#else
-    (void)enable;
-    (void)robotLspPath;
-    (void)robotLspArgs;
-    LOG_ERROR(LOG, "Robot LSP is not compiled in");
-#endif
+    lspController->enableRobotLsp(enable, robotLspPath, robotLspArgs);
 }
 
 bool Editor::isRobotLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return robotLspEnabled && robotLspClient && robotLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isRobotLspEnabled();
 }
 
 void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
                              const std::vector<std::string>& pythonLspArgs)
 {
-    pythonLspEnabled = false;
-    this->pythonLspPath = pythonLspPath;
-    this->pythonLspArgs = pythonLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(pythonLspClient)
-        {
-            pythonLspClient->stop();
-            pythonLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->pythonLspArgs;
-
-    pythonLspClient = std::make_unique<LspClient>();
-    if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
-    {
-        pythonLspClient.reset();
-
-        LOG_ERROR(LOG, "Python LSP failed to start. Python LSP path: {}",
-                  this->pythonLspPath);
-        return;
-    }
-
-    pythonLspEnabled = true;
-    LOG_DEBUG(LOG, "Python LSP enabled");
-#else
-    (void)enable;
-    (void)pythonLspPath;
-    (void)pythonLspArgs;
-    LOG_ERROR(LOG, "python LSP support is not compiled");
-#endif
+    lspController->enablePythonLsp(enable, pythonLspPath, pythonLspArgs);
 }
 
 bool Editor::isPythonLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return pythonLspEnabled && pythonLspClient && pythonLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isPythonLspEnabled();
 }
 
 void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
                             const std::vector<std::string>& mlangLspArgs)
 {
-    mlangLspEnabled = false;
-    this->mlangLspPath = mlangLspPath;
-    this->mlangLspArgs = mlangLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(mlangLspClient)
-        {
-            mlangLspClient->stop();
-            mlangLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->mlangLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    mlangLspClient = std::make_unique<LspClient>();
-    if(!mlangLspClient->startServer(this->mlangLspPath, rootDir, args))
-    {
-        mlangLspClient.reset();
-        LOG_ERROR(LOG, "Mlang LSP failed to start. LSP path: {}",
-                  this->mlangLspPath);
-        return;
-    }
-
-    mlangLspEnabled = true;
-    LOG_DEBUG(LOG, "Mlang LSP enabled");
-#else
-    (void)enable;
-    (void)mlangLspPath;
-    (void)mlangLspArgs;
-    LOG_ERROR(LOG, "Mlang LSP is not compiled");
-#endif
+    lspController->enableMlangLsp(enable, mlangLspPath, mlangLspArgs);
 }
 
 bool Editor::isMlangLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return mlangLspEnabled && mlangLspClient && mlangLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isMlangLspEnabled();
 }
 
 void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,
                            const std::vector<std::string>& htmlLspArgs)
 {
-    htmlLspEnabled = false;
-    this->htmlLspPath = htmlLspPath;
-    this->htmlLspArgs = htmlLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(htmlLspClient)
-        {
-            htmlLspClient->stop();
-            htmlLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->htmlLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    htmlLspClient = std::make_unique<LspClient>();
-    if(!htmlLspClient->startServer(this->htmlLspPath, rootDir, args))
-    {
-        htmlLspClient.reset();
-        LOG_ERROR(LOG, "HTML LSP failed to start. LSP path: {}",
-                  this->htmlLspPath);
-        return;
-    }
-
-    htmlLspEnabled = true;
-    LOG_DEBUG(LOG, "HTML LSP enabled");
-#else
-    (void)enable;
-    (void)htmlLspPath;
-    (void)htmlLspArgs;
-    LOG_ERROR(LOG, "HTML LSP is not compiled");
-#endif
+    lspController->enableHtmlLsp(enable, htmlLspPath, htmlLspArgs);
 }
 
 bool Editor::isHtmlLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return htmlLspEnabled && htmlLspClient && htmlLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isHtmlLspEnabled();
 }
 
 void Editor::enableCssLsp(bool enable, const std::string& cssLspPath,
                           const std::vector<std::string>& cssLspArgs)
 {
-    cssLspEnabled = false;
-    this->cssLspPath = cssLspPath;
-    this->cssLspArgs = cssLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(cssLspClient)
-        {
-            cssLspClient->stop();
-            cssLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->cssLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    cssLspClient = std::make_unique<LspClient>();
-    if(!cssLspClient->startServer(this->cssLspPath, rootDir, args))
-    {
-        cssLspClient.reset();
-        LOG_ERROR(LOG, "CSS LSP failed to start. LSP path: {}",
-                  this->cssLspPath);
-        return;
-    }
-
-    cssLspEnabled = true;
-    LOG_DEBUG(LOG, "CSS LSP enabled");
-#else
-    (void)enable;
-    (void)cssLspPath;
-    (void)cssLspArgs;
-    LOG_ERROR(LOG, "CSS LSP is not compiled");
-#endif
+    lspController->enableCssLsp(enable, cssLspPath, cssLspArgs);
 }
 
 bool Editor::isCssLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return cssLspEnabled && cssLspClient && cssLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isCssLspEnabled();
 }
 
 void Editor::enableJsonLsp(bool enable, const std::string& jsonLspPath,
                            const std::vector<std::string>& jsonLspArgs)
 {
-    jsonLspEnabled = false;
-    this->jsonLspPath = jsonLspPath;
-    this->jsonLspArgs = jsonLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(jsonLspClient)
-        {
-            jsonLspClient->stop();
-            jsonLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->jsonLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    jsonLspClient = std::make_unique<LspClient>();
-    if(!jsonLspClient->startServer(this->jsonLspPath, rootDir, args))
-    {
-        jsonLspClient.reset();
-        LOG_ERROR(LOG, "JSON LSP failed to start. LSP path: {}",
-                  this->jsonLspPath);
-        return;
-    }
-
-    jsonLspEnabled = true;
-    LOG_DEBUG(LOG, "JSON LSP enabled");
-#else
-    (void)enable;
-    (void)jsonLspPath;
-    (void)jsonLspArgs;
-    LOG_ERROR(LOG, "JSON LSP is not compiled");
-#endif
+    lspController->enableJsonLsp(enable, jsonLspPath, jsonLspArgs);
 }
 
 bool Editor::isJsonLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return jsonLspEnabled && jsonLspClient && jsonLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isJsonLspEnabled();
 }
 
 void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
                          const std::vector<std::string>& tsLspArgs)
 {
-    tsLspEnabled = false;
-    this->tsLspPath = tsLspPath;
-    this->tsLspArgs = tsLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(tsLspClient)
-        {
-            tsLspClient->stop();
-            tsLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->tsLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    tsLspClient = std::make_unique<LspClient>();
-    if(!tsLspClient->startServer(this->tsLspPath, rootDir, args))
-    {
-        tsLspClient.reset();
-        LOG_ERROR(LOG, "TypeScript LSP failed to start. LSP path: {}",
-                  this->tsLspPath);
-        return;
-    }
-
-    tsLspEnabled = true;
-    LOG_DEBUG(LOG, "TypeScript LSP enabled");
-#else
-    (void)enable;
-    (void)tsLspPath;
-    (void)tsLspArgs;
-    LOG_ERROR(LOG, "TypeScript LSP is not compiled");
-#endif
+    lspController->enableTsLsp(enable, tsLspPath, tsLspArgs);
 }
 
 bool Editor::isTsLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return tsLspEnabled && tsLspClient && tsLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isTsLspEnabled();
 }
 
 void Editor::enterOperatorPending(char op)
@@ -3603,106 +3162,48 @@ bool Editor::isWordChar(char c) const
 
 void Editor::startVisualMode()
 {
-    setMode(VISUAL);
+    visualController->startVisualMode();
 }
 
 void Editor::startVisualLineMode()
 {
-    setMode(VISUAL_LINE);
+    visualController->startVisualLineMode();
 }
 
 void Editor::startVisualBlockMode()
 {
-    setMode(VISUAL_BLOCK);
-    currentBuffer->visualBlockStartX = *cursorX;
-    currentBuffer->visualBlockStartY = *cursorY;
-    currentBuffer->visualBlockEndX = *cursorX;
-    currentBuffer->visualBlockEndY = *cursorY;
-    currentBuffer->visualBlockInsertText.clear();
+    visualController->startVisualBlockMode();
 }
 
 void Editor::updateVisualSelection()
 {
-    currentBuffer->visualEndX = *cursorX;
-    currentBuffer->visualEndY = *cursorY;
+    visualController->updateVisualSelection();
 }
 
 void Editor::updateVisualBlockSelection()
 {
-    currentBuffer->visualBlockEndX = *cursorX;
-    currentBuffer->visualBlockEndY = *cursorY;
+    visualController->updateVisualBlockSelection();
 }
 
 bool Editor::isInSelection(int row, int col)
 {
-    if(currentMode != VISUAL && currentMode != VISUAL_LINE)
-        return false;
-
-    if(currentMode == VISUAL_LINE)
-    {
-        int startY =
-            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-        int endY =
-            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-        return row >= startY && row <= endY;
-    }
-
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    if(row < startY || row > endY)
-        return false;
-    if(row == startY && row == endY)
-        return col >= startX && col <= endX;
-    if(row == startY)
-        return col >= startX;
-    if(row == endY)
-        return col <= endX;
-    return true;
+    return visualController->isInSelection(row, col);
 }
 
 bool Editor::isInVisualBlock(int row, int col)
 {
-    if(currentMode != VISUAL_BLOCK)
-        return false;
-
-    int startY, startX, endY, endX;
-    getVisualBlockBounds(startY, startX, endY, endX);
-
-    return row >= startY && row <= endY && col >= startX && col <= endX;
+    return visualController->isInVisualBlock(row, col);
 }
 
 void Editor::getVisualBlockBounds(int& startY, int& startX, int& endY,
                                   int& endX)
 {
-    startY = std::min(currentBuffer->visualBlockStartY,
-                      currentBuffer->visualBlockEndY);
-    endY = std::max(currentBuffer->visualBlockStartY,
-                    currentBuffer->visualBlockEndY);
-    startX = std::min(currentBuffer->visualBlockStartX,
-                      currentBuffer->visualBlockEndX);
-    endX = std::max(currentBuffer->visualBlockStartX,
-                    currentBuffer->visualBlockEndX);
+    visualController->getVisualBlockBounds(startY, startX, endY, endX);
 }
 
 void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
 {
-    if(currentBuffer->visualStartY < currentBuffer->visualEndY ||
-       (currentBuffer->visualStartY == currentBuffer->visualEndY &&
-        currentBuffer->visualStartX <= currentBuffer->visualEndX))
-    {
-        startY = currentBuffer->visualStartY;
-        startX = currentBuffer->visualStartX;
-        endY = currentBuffer->visualEndY;
-        endX = currentBuffer->visualEndX;
-    }
-    else
-    {
-        startY = currentBuffer->visualEndY;
-        startX = currentBuffer->visualEndX;
-        endY = currentBuffer->visualStartY;
-        endX = currentBuffer->visualStartX;
-    }
+    visualController->getSelectionBounds(startY, startX, endY, endX);
 }
 
 // deleteVisualBlock, yankVisualBlock, changeVisualBlock,
@@ -8563,286 +8064,78 @@ void Editor::handleLinewiseOperator(char op, int count)
 
 void Editor::setVisualRange()
 {
-    currentBuffer->visualEndX = *cursorX;
-    currentBuffer->visualEndY = *cursorY;
+    visualController->setVisualRange();
 }
 
 void Editor::swapVisualEnds()
 {
-    std::swap(*cursorX, currentBuffer->visualStartX);
-    std::swap(*cursorY, currentBuffer->visualStartY);
-    currentBuffer->visualEndX = *cursorX;
-    currentBuffer->visualEndY = *cursorY;
-    adjustViewport();
+    visualController->swapVisualEnds();
 }
 
 void Editor::swapVisualBlockCorner()
 {
-    std::swap(*cursorX, currentBuffer->visualBlockStartX);
-    std::swap(*cursorY, currentBuffer->visualBlockStartY);
-    currentBuffer->visualBlockEndX = *cursorX;
-    currentBuffer->visualBlockEndY = *cursorY;
-    adjustViewport();
+    visualController->swapVisualBlockCorner();
 }
 
 void Editor::prepareBlockInsert(bool atEnd)
 {
-    int startY, startX, endY, endX;
-    getVisualBlockBounds(startY, startX, endY, endX);
-
-    currentBuffer->visualBlockStartY = startY;
-    currentBuffer->visualBlockEndY = endY;
-    currentBuffer->visualBlockStartX = atEnd ? endX + 1 : startX;
-    currentBuffer->visualBlockInsertText.clear();
-
-    *cursorY = startY;
-    *cursorX = atEnd ? endX + 1 : startX;
-
-    if(*cursorY < (int)lines->size())
-    {
-        std::string& line = (*lines)[*cursorY];
-        while((int)line.length() < *cursorX)
-        {
-            line += ' ';
-        }
-    }
+    visualController->prepareBlockInsert(atEnd);
 }
 
 void Editor::indentSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        (*lines)[y] = "    " + (*lines)[y];
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->indentSelection();
 }
 
 void Editor::dedentSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int remove = 0;
-        while(remove < 4 && remove < (int)line.length() &&
-              (line[remove] == ' ' || line[remove] == '\t'))
-        {
-            remove++;
-        }
-        if(remove > 0)
-            line.erase(0, remove);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->dedentSelection();
 }
 
 void Editor::autoIndentSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        autoIndentLine(y);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->autoIndentSelection();
 }
 
 void Editor::lowercaseSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
-
-        for(int x = start; x < end; x++)
-        {
-            line[x] = std::tolower(line[x]);
-        }
-    }
-    *dirty = true;
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->lowercaseSelection();
 }
 
 void Editor::uppercaseSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
-
-        for(int x = start; x < end; x++)
-        {
-            line[x] = std::toupper(line[x]);
-        }
-    }
-    *dirty = true;
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->uppercaseSelection();
 }
 
 void Editor::toggleCaseSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
-
-        for(int x = start; x < end; x++)
-        {
-            if(std::isupper(line[x]))
-                line[x] = std::tolower(line[x]);
-            else if(std::islower(line[x]))
-                line[x] = std::toupper(line[x]);
-        }
-    }
-    *dirty = true;
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->toggleCaseSelection();
 }
 
 void Editor::yankLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    yankBuffer.clear();
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        yankBuffer += (*lines)[y] + "\n";
-    }
-
-    if(useSystemClipboard && !yankBuffer.empty())
-    {
-        setSystemClipboard(yankBuffer);
-    }
-    setStatusMessage(std::to_string(endY - startY + 1) + " lines yanked");
+    visualController->yankLineSelection();
 }
 
 void Editor::deleteLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    yankLineSelection();
-
-    for(int y = endY; y >= startY; y--)
-    {
-        if(y < (int)lines->size())
-        {
-            lines->erase(lines->begin() + y);
-            if(currentBuffer && currentBuffer->blameValid &&
-               y < (int)currentBuffer->blameEntries.size())
-            {
-                currentBuffer->blameEntries.erase(
-                    currentBuffer->blameEntries.begin() + y);
-            }
-        }
-    }
-
-    if(lines->empty())
-        lines->push_back("");
-
-    *cursorY = std::min(startY, (int)lines->size() - 1);
-    *cursorX = 0;
-    *dirty = true;
-    if(currentBuffer && currentBuffer->blameValid)
-    {
-        currentBuffer->blameStart = 0;
-        currentBuffer->blameEnd = (int)currentBuffer->blameEntries.size() - 1;
-    }
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->deleteLineSelection();
 }
 
 void Editor::indentLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        (*lines)[y] = "    " + (*lines)[y];
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->indentLineSelection();
 }
 
 void Editor::dedentLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int remove = 0;
-        while(remove < 4 && remove < (int)line.length() &&
-              (line[remove] == ' ' || line[remove] == '\t'))
-        {
-            remove++;
-        }
-        if(remove > 0)
-            line.erase(0, remove);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->dedentLineSelection();
 }
 
 void Editor::autoIndentLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        autoIndentLine(y);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->autoIndentLineSelection();
 }
-
-// ============================================================================
-// Marks
-// ============================================================================
 
 void Editor::setMark(char mark)
 {

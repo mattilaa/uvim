@@ -61,7 +61,9 @@ set(UVIM_CORE_SOURCES
     src/editor_buffer_controller.cpp
     src/editor_command_controller.cpp
     src/editor_editing_controller.cpp
+    src/editor_lsp_controller.cpp
     src/editor_settings_controller.cpp
+    src/editor_visual_controller.cpp
     src/editor_view_buffer_common.cpp
     src/editor_view_buffer_browser.cpp
     src/editor_view_command.cpp
