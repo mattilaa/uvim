@@ -6,6 +6,7 @@
 #include "editor_editing_controller.h"
 #include "editor_lsp_controller.h"
 #include "editor_settings_controller.h"
+#include "editor_split_controller.h"
 #include "editor_utils.h"
 #include "editor_visual_controller.h"
 #include "enablelog.h"
@@ -1691,6 +1692,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
+    splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
@@ -1714,6 +1716,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
+    splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
@@ -5153,181 +5156,57 @@ bool Editor::noteDoubleEscStatusClear()
 
 int Editor::tabBarRows() const
 {
-    return (showTabs && !buffers.empty()) ? 1 : 0;
+    return splitController->tabBarRows();
 }
 
 int Editor::contentRows() const
 {
-    if(splitActive)
-    {
-        PaneLayout layout = getPaneLayout(activePane);
-        return std::max(1, layout.rows - tabBarRows());
-    }
-    return std::max(1, screenRows - tabBarRows());
+    return splitController->contentRows();
 }
 
 Editor::PaneLayout Editor::getPaneLayout(int pane) const
 {
-    PaneLayout layout;
-    layout.x = 0;
-    layout.y = 0;
-    layout.rows = screenRows;
-    layout.cols = screenCols;
-
-    if(!splitActive)
-        return layout;
-
-    if(splitVertical)
-    {
-        if(screenCols < 2)
-            return layout;
-        int leftCols = screenCols / 2;
-        int rightCols = screenCols - leftCols;
-        if(rightCols > 1)
-            rightCols -= 1; // avoid auto-wrap at last column
-        if(pane == 0)
-        {
-            layout.x = 0;
-            layout.cols = leftCols;
-        }
-        else
-        {
-            layout.x = leftCols;
-            layout.cols = rightCols;
-        }
-        layout.y = 0;
-        layout.rows = screenRows;
-    }
-    else
-    {
-        if(screenRows < 2)
-            return layout;
-        int topRows = screenRows / 2;
-        int bottomRows = screenRows - topRows;
-        layout.x = 0;
-        layout.cols = screenCols;
-        if(pane == 0)
-        {
-            layout.y = 0;
-            layout.rows = topRows;
-        }
-        else
-        {
-            layout.y = topRows;
-            layout.rows = bottomRows;
-        }
-    }
-
-    layout.rows = std::max(1, layout.rows);
-    layout.cols = std::max(1, layout.cols);
-    return layout;
+    return splitController->getPaneLayout(pane);
 }
 
 void Editor::setPanePointers(int pane)
 {
-    cursorX = &splitPanes[pane].cursorX;
-    cursorY = &splitPanes[pane].cursorY;
-    wantedX = &splitPanes[pane].wantedX;
-    offsetX = &splitPanes[pane].offsetX;
-    offsetY = &splitPanes[pane].offsetY;
+    splitController->setPanePointers(pane);
 }
 
 void Editor::enableSplit(bool vertical)
 {
-    if(!currentBuffer)
-    {
-        setStatusMessage("No buffer");
-        return;
-    }
-    if(splitActive)
-    {
-        syncBufferStateFromActivePane();
-    }
-    splitActive = true;
-    splitVertical = vertical;
-    activePane = 0;
-    splitTabBarOffset[0] = tabBarOffset;
-    splitTabBarOffset[1] = tabBarOffset;
-    initSplitPanesFromBuffer();
-    setPanePointers(activePane);
-    needsFullRedraw = true;
+    splitController->enableSplit(vertical);
 }
 
 void Editor::closeSplit()
 {
-    if(!splitActive)
-        return;
-    syncBufferStateFromActivePane();
-    int paneIndex = activePane;
-    splitActive = false;
-    currentBufferIndex = splitPanes[paneIndex].bufferIndex;
-    tabBarOffset = splitTabBarOffset[paneIndex];
-    activePane = 0;
-    updateCurrentBufferPointers();
-    needsFullRedraw = true;
+    splitController->closeSplit();
 }
 
 void Editor::switchPane()
 {
-    if(!splitActive)
-        return;
-    syncBufferStateFromActivePane();
-    splitTabBarOffset[activePane] = tabBarOffset;
-    activePane = (activePane == 0) ? 1 : 0;
-    tabBarOffset = splitTabBarOffset[activePane];
-    currentBufferIndex = splitPanes[activePane].bufferIndex;
-    updateCurrentBufferPointers();
-    adjustViewport();
-    needsFullRedraw = true;
+    splitController->switchPane();
 }
 
 void Editor::syncBufferStateFromActivePane()
 {
-    if(!currentBuffer)
-        return;
-    currentBuffer->cursorX = splitPanes[activePane].cursorX;
-    currentBuffer->cursorY = splitPanes[activePane].cursorY;
-    currentBuffer->wantedX = splitPanes[activePane].wantedX;
-    currentBuffer->offsetX = splitPanes[activePane].offsetX;
-    currentBuffer->offsetY = splitPanes[activePane].offsetY;
+    splitController->syncBufferStateFromActivePane();
 }
 
 void Editor::initSplitPanesFromBuffer()
 {
-    if(!currentBuffer)
-        return;
-    PaneState state;
-    state.bufferIndex = currentBufferIndex;
-    state.cursorX = currentBuffer->cursorX;
-    state.cursorY = currentBuffer->cursorY;
-    state.wantedX = currentBuffer->wantedX;
-    state.offsetX = currentBuffer->offsetX;
-    state.offsetY = currentBuffer->offsetY;
-    splitPanes[0] = state;
-    splitPanes[1] = state;
+    splitController->initSplitPanesFromBuffer();
 }
 
 void Editor::switchToBufferInActivePane(int index)
 {
-    if(index < 0 || index >= buffers.size())
-        return;
-    syncBufferStateFromActivePane();
-    splitTabBarOffset[activePane] = tabBarOffset;
-    tabBarOffset = splitTabBarOffset[activePane];
-    splitPanes[activePane].bufferIndex = index;
-    currentBufferIndex = index;
-    updateCurrentBufferPointers();
-    restoreBufferState();
-    needsFullRedraw = true;
+    splitController->switchToBufferInActivePane(index);
 }
 
 bool Editor::canSplit() const
 {
-    if(!splitActive)
-        return false;
-    if(splitVertical)
-        return screenCols >= 2;
-    return screenRows >= 2;
+    return splitController->canSplit();
 }
 
 int Editor::lineNumberWidth() const

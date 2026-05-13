@@ -34,6 +34,7 @@ class EditorBufferController;
 class EditorCommandController;
 class EditorEditingController;
 class EditorLspController;
+class EditorSplitController;
 class EditorVisualController;
 struct CommandPrompt;
 
@@ -929,6 +930,7 @@ private:
     friend class EditorCommandController;
     friend class EditorEditingController;
     friend class EditorLspController;
+    friend class EditorSplitController;
     friend class EditorVisualController;
 #ifdef UVIM_TESTING
     struct TestTag
@@ -1057,6 +1059,17 @@ private:
     void indentLineSelectionImpl();
     void dedentLineSelectionImpl();
     void autoIndentLineSelectionImpl();
+    int tabBarRowsImpl() const;
+    int contentRowsImpl() const;
+    PaneLayout getPaneLayoutImpl(int pane) const;
+    void setPanePointersImpl(int pane);
+    void enableSplitImpl(bool vertical);
+    void closeSplitImpl();
+    void switchPaneImpl();
+    void syncBufferStateFromActivePaneImpl();
+    void initSplitPanesFromBufferImpl();
+    void switchToBufferInActivePaneImpl(int index);
+    bool canSplitImpl() const;
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
@@ -1089,5 +1102,6 @@ private:
     std::unique_ptr<EditorCommandController> commandController;
     std::unique_ptr<EditorEditingController> editingController;
     std::unique_ptr<EditorLspController> lspController;
+    std::unique_ptr<EditorSplitController> splitController;
     std::unique_ptr<EditorVisualController> visualController;
 };
