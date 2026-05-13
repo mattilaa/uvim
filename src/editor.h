@@ -35,6 +35,7 @@ class EditorCommandController;
 class EditorEditingController;
 class EditorFileController;
 class EditorGitController;
+class EditorIndentController;
 class EditorLspController;
 class EditorOperatorController;
 class EditorSplitController;
@@ -934,6 +935,7 @@ private:
     friend class EditorEditingController;
     friend class EditorFileController;
     friend class EditorGitController;
+    friend class EditorIndentController;
     friend class EditorLspController;
     friend class EditorOperatorController;
     friend class EditorSplitController;
@@ -1071,6 +1073,15 @@ private:
                                 int& outStartX, int& outEndY, int& outEndX);
     void applyOperatorToRangeImpl(char op, int startY, int startX, int endY,
                                   int endX);
+    std::string toLowerCaseImpl(const std::string& str);
+    int getLineIndentImpl(int line);
+    void indentLineImpl(int line, int spaces);
+    void autoIndentLineImpl(int line);
+    void autoIndentRangeImpl(int startLine, int endLine);
+    void updateClangFormatIndentWidthImpl();
+    int indentWidthForBracesImpl() const;
+    bool braceNewLineForAutoBracesImpl() const;
+    void commentLinesImpl(int startY, int endY);
     void startVisualModeImpl();
     void startVisualLineModeImpl();
     void startVisualBlockModeImpl();
@@ -1140,6 +1151,7 @@ private:
     std::unique_ptr<EditorEditingController> editingController;
     std::unique_ptr<EditorFileController> fileController;
     std::unique_ptr<EditorGitController> gitController;
+    std::unique_ptr<EditorIndentController> indentController;
     std::unique_ptr<EditorLspController> lspController;
     std::unique_ptr<EditorOperatorController> operatorController;
     std::unique_ptr<EditorSplitController> splitController;
