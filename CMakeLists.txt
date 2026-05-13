@@ -103,6 +103,10 @@ set(UVIM_CORE_SOURCES
     src/text_operations.cpp
     src/search.cpp
     src/formatter.cpp
+    src/formatter_clang.cpp
+    src/formatter_json_yaml.cpp
+    src/formatter_python.cpp
+    src/formatter_robot.cpp
     src/git_handler.cpp
     src/syntax_highlighter.cpp
     src/undo_redo.cpp
