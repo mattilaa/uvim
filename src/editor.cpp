@@ -4,6 +4,7 @@
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_editing_controller.h"
+#include "editor_file_controller.h"
 #include "editor_lsp_controller.h"
 #include "editor_settings_controller.h"
 #include "editor_split_controller.h"
@@ -1691,6 +1692,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
+    fileController = std::make_unique<EditorFileController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
@@ -1715,6 +1717,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
+    fileController = std::make_unique<EditorFileController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
@@ -2759,388 +2762,38 @@ bool Editor::formatBufferForSave()
 
 void Editor::saveFile()
 {
-    if(filename->empty())
-    {
-        setStatusMessage("No file name");
-        return;
-    }
-
-    if(formatOnSave)
-        formatBufferForSave();
-
-    // Clean up lines before saving: convert tabs to spaces, remove trailing
-    // whitespace
-    int linesModified = 0;
-    for(size_t lineIdx = 0; lineIdx < lines->size(); lineIdx++)
-    {
-        std::string& line = (*lines)[lineIdx];
-        std::string original = line;
-
-        // Convert tabs to spaces (4 spaces per tab, aligned to tab stops)
-        std::string expanded;
-        expanded.reserve(line.size());
-        int col = 0;
-        for(char c : line)
-        {
-            if(c == '\t')
-            {
-                // Add spaces to reach next tab stop (every 4 columns)
-                int spacesToAdd = 4 - (col % 4);
-                expanded.append(spacesToAdd, ' ');
-                col += spacesToAdd;
-            }
-            else
-            {
-                expanded += c;
-                col++;
-            }
-        }
-        line = expanded;
-
-        // Remove trailing whitespace
-        size_t endPos = line.find_last_not_of(" \t");
-        if(endPos != std::string::npos)
-        {
-            line = line.substr(0, endPos + 1);
-        }
-        else if(!line.empty())
-        {
-            // Line is all whitespace
-            line.clear();
-        }
-
-        if(line != original)
-        {
-            linesModified++;
-
-            // Adjust cursor if on this line and beyond the new line length
-            if((int)lineIdx == *cursorY && *cursorX > (int)line.length())
-            {
-                *cursorX = line.length() > 0 ? line.length() - 1 : 0;
-            }
-        }
-    }
-
-    std::ofstream file(*filename);
-    if(file.is_open())
-    {
-        for(const auto& line : *lines)
-        {
-            file << line << '\n';
-        }
-        file.close();
-        *dirty = false;
-        currentBuffer->savedUndoIndex =
-            currentBuffer->undoIndex; // Mark this state as saved
-        currentBuffer->savedContentHash = hash_lines(*lines);
-        currentBuffer->savedContentHashValid = true;
-
-        // Update file modification time after saving
-        std::error_code ec;
-        auto ftime = std::filesystem::last_write_time(*filename, ec);
-        if(!ec)
-        {
-            currentBuffer->lastModificationTime = ftime;
-        }
-
-        std::string msg = "\"" + *filename + "\" " +
-                          std::to_string(lines->size()) + "L written";
-        if(linesModified > 0)
-        {
-            msg += " (" + std::to_string(linesModified) + " lines cleaned)";
-            needsFullRedraw = true; // Redraw to show cleaned lines
-        }
-        setStatusMessage(msg);
-    }
-    else
-    {
-        setStatusMessage("Can't save! I/O error");
-    }
+    fileController->saveFile();
 }
 
 void Editor::checkFileChanges()
 {
-    // Only check if we have a valid file and buffer
-    if(!currentBuffer || filename->empty() || *dirty)
-        return;
-
-    std::error_code ec;
-
-    // Check if file still exists
-    if(!std::filesystem::exists(*filename, ec) || ec)
-        return;
-
-    // Get current modification time
-    auto currentTime = std::filesystem::last_write_time(*filename, ec);
-    if(ec)
-        return;
-
-    // Compare with stored modification time
-    if(currentTime != currentBuffer->lastModificationTime)
-    {
-        // File has been modified externally, reload it
-        reloadCurrentFile();
-    }
+    fileController->checkFileChanges();
 }
 
 void Editor::reloadCurrentFile()
 {
-    if(!currentBuffer || filename->empty())
-        return;
-
-    // Save cursor position
-    int savedCursorX = *cursorX;
-    int savedCursorY = *cursorY;
-    int savedOffsetX = *offsetX;
-    int savedOffsetY = *offsetY;
-
-    std::string filepath = *filename;
-
-    // Reload the file
-    lines->clear();
-
-    std::ifstream file(filepath);
-    if(file.is_open())
-    {
-        std::string line;
-        while(std::getline(file, line))
-        {
-            if(!line.empty() && line.back() == '\r')
-                line.pop_back();
-            lines->push_back(line);
-        }
-        file.close();
-    }
-
-    if(lines->empty())
-        lines->push_back("");
-
-    // Update modification time
-    std::error_code ec;
-    auto ftime = std::filesystem::last_write_time(filepath, ec);
-    if(!ec)
-    {
-        currentBuffer->lastModificationTime = ftime;
-    }
-
-    // Restore cursor position (clamped to valid range)
-    *cursorY = std::min(savedCursorY, (int)lines->size() - 1);
-    *cursorX = std::min(savedCursorX, (int)(*lines)[*cursorY].length());
-    *offsetX = savedOffsetX;
-    *offsetY =
-        std::min(savedOffsetY, std::max(0, (int)lines->size() - screenRows));
-
-    *dirty = false;
-    currentBuffer->savedContentHash = hash_lines(*lines);
-    currentBuffer->savedContentHashValid = true;
-    needsFullRedraw = true;
-
-    setStatusMessage("File reloaded from disk");
+    fileController->reloadCurrentFile();
 }
 
 // Jump between header and source file
 bool Editor::fileExists(const std::string& path)
 {
-    std::error_code ec;
-    return std::filesystem::exists(path, ec);
+    return fileController->fileExists(path);
 }
 
 std::string Editor::getSymbolUnderCursor()
 {
-    if(*cursorY >= lines->size())
-        return "";
-
-    const std::string& line = (*lines)[*cursorY];
-    int x = *cursorX;
-
-    if(x >= line.size() || !isIdent(line[x]))
-        return "";
-
-    int l = x;
-    int r = x;
-
-    while(l > 0 && isIdent(line[l - 1]))
-        l--;
-    while(r < line.size() && isIdent(line[r]))
-        r++;
-
-    symbolPrefix.clear();
-    int prefixStart = l;
-    while(prefixStart >= 2 && line[prefixStart - 1] == ':' &&
-          line[prefixStart - 2] == ':')
-    {
-        int p = prefixStart - 3;
-        while(p >= 0 && isIdent(line[p]))
-            p--;
-        if(p + 1 >= prefixStart - 1)
-            break;
-        prefixStart = p + 1;
-    }
-
-    if(prefixStart < l)
-    {
-        symbolPrefix = line.substr(prefixStart, l - prefixStart);
-    }
-
-    return line.substr(l, r - l);
+    return fileController->getSymbolUnderCursor();
 }
 
 std::string Editor::findAlternateFile(const std::string& currentFile)
 {
-    if(currentFile.empty())
-        return "";
-
-    // Find the last dot to get the extension
-    size_t lastDot = currentFile.find_last_of('.');
-    if(lastDot == std::string::npos)
-        return "";
-
-    std::string baseName = currentFile.substr(0, lastDot);
-    std::string extension = currentFile.substr(lastDot);
-
-    // List of header extensions
-    static const std::vector<std::string> headerExts = {".h", ".hpp", ".hxx",
-                                                        ".H", ".HPP", ".HXX"};
-
-    // List of source extensions
-    static const std::vector<std::string> sourceExts = {
-        ".cpp", ".cc", ".cxx", ".c", ".C", ".CPP", ".CC", ".CXX"};
-
-    // Check if current file is a header
-    bool isHeader = false;
-    for(const auto& ext : headerExts)
-    {
-        if(extension == ext)
-        {
-            isHeader = true;
-            break;
-        }
-    }
-
-    // Try to find the alternate file
-    std::vector<std::string> candidates;
-
-    if(isHeader)
-    {
-        // Current file is a header, look for source files
-        for(const auto& ext : sourceExts)
-        {
-            candidates.push_back(baseName + ext);
-        }
-    }
-    else
-    {
-        // Current file is likely a source, look for header files
-        for(const auto& ext : headerExts)
-        {
-            candidates.push_back(baseName + ext);
-        }
-    }
-
-    // Also check in common relative directories
-    size_t lastSlash = currentFile.find_last_of('/');
-    std::string dir = "";
-    std::string fileName = currentFile;
-
-    if(lastSlash != std::string::npos)
-    {
-        dir = currentFile.substr(0, lastSlash + 1);
-        fileName = currentFile.substr(lastSlash + 1);
-        baseName = fileName.substr(0, fileName.find_last_of('.'));
-    }
-
-    // Common directory pairs
-    std::vector<std::pair<std::string, std::string>> dirPairs = {
-        {"src/", "include/"},
-        {"source/", "include/"},
-        {"src/", "inc/"},
-        {"source/", "headers/"},
-        {"lib/", "include/"},
-        {"", "../include/"},
-        {"", "../inc/"},
-        {"include/", "../src/"},
-        {"include/", "../source/"},
-        {"inc/", "../src/"},
-        {"headers/", "../source/"},
-        {"include/", "../lib/"},
-    };
-
-    // Add candidates from related directories
-    for(const auto& [srcDir, incDir] : dirPairs)
-    {
-        if(dir.find(srcDir) != std::string::npos && isHeader == false)
-        {
-            // We're in a source dir, look for headers in include dir
-            std::string altDir = dir;
-            size_t pos = altDir.find(srcDir);
-            if(pos != std::string::npos)
-            {
-                altDir.replace(pos, srcDir.length(), incDir);
-                for(const auto& ext : headerExts)
-                {
-                    candidates.push_back(altDir + baseName + ext);
-                }
-            }
-        }
-        else if(dir.find(incDir) != std::string::npos && isHeader == true)
-        {
-            // We're in an include dir, look for sources in source dir
-            std::string altDir = dir;
-            size_t pos = altDir.find(incDir);
-            if(pos != std::string::npos)
-            {
-                altDir.replace(pos, incDir.length(), srcDir);
-                for(const auto& ext : sourceExts)
-                {
-                    candidates.push_back(altDir + baseName + ext);
-                }
-            }
-        }
-    }
-
-    // Check which candidate exists
-    for(const auto& candidate : candidates)
-    {
-        if(fileExists(candidate))
-        {
-            return candidate;
-        }
-    }
-
-    return "";
+    return fileController->findAlternateFile(currentFile);
 }
 
 void Editor::jumpToAlternateFile()
 {
-    if(filename->empty())
-    {
-        setStatusMessage("No file currently open");
-        return;
-    }
-
-    std::string alternate = findAlternateFile(*filename);
-
-    if(alternate.empty())
-    {
-        setStatusMessage("No alternate file found for " + *filename);
-        return;
-    }
-
-    // Check if the alternate file is already open in a buffer
-    int bufferIndex = findBufferByFilename(alternate);
-
-    if(bufferIndex >= 0)
-    {
-        // Switch to existing buffer
-        switchToBuffer(bufferIndex);
-        setStatusMessage("Switched to " + alternate);
-    }
-    else
-    {
-        // Open the alternate file in a new buffer
-        openFile(alternate);
-        setStatusMessage("Opened " + alternate);
-    }
+    fileController->jumpToAlternateFile();
 }
 
 // Movement implementations
@@ -8060,34 +7713,12 @@ void Editor::jumpToMark(char mark)
 
 void Editor::goToFile()
 {
-    std::string word = getSymbolUnderCursor();
-    if(!word.empty())
-    {
-        if(fileExists(word))
-        {
-            openFile(word);
-        }
-        else
-        {
-            setStatusMessage("File not found: " + word);
-        }
-    }
+    fileController->goToFile();
 }
 
 void Editor::showFileInfo()
 {
-    std::string info =
-        "\"" + (filename->empty() ? "[No Name]" : *filename) + "\"";
-    info += " " + std::to_string(lines->size()) + " lines";
-    if(*dirty)
-        info += " [Modified]";
-    info += " -- " + std::to_string(*cursorY + 1) + "/" +
-            std::to_string(lines->size());
-    info +=
-        " -- " +
-        std::to_string((*cursorY + 1) * 100 / std::max(1, (int)lines->size())) +
-        "%";
-    setStatusMessage(info);
+    fileController->showFileInfo();
 }
 
 void Editor::forceFullRedraw()
@@ -8261,25 +7892,22 @@ std::vector<std::string> Editor::getLocPathCompletions(std::string_view path)
 
 void Editor::deleteFilePrompt()
 {
-    setStatusMessage("File deletion not yet implemented");
+    fileController->deleteFilePrompt();
 }
 
 void Editor::renameFilePrompt()
 {
-    setStatusMessage("File rename not yet implemented");
+    fileController->renameFilePrompt();
 }
 
 void Editor::createNewFilePrompt()
 {
-    setMode(COMMAND);
-    commandBuffer = ":e ";
-    cancelCommandPopup();
-    needsFullRedraw = true;
+    fileController->createNewFilePrompt();
 }
 
 void Editor::createNewDirectoryPrompt()
 {
-    setStatusMessage("New directory creation not yet implemented");
+    fileController->createNewDirectoryPrompt();
 }
 
 // ============================================================================
