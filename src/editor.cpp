@@ -5,6 +5,7 @@
 #include "editor_command_controller.h"
 #include "editor_editing_controller.h"
 #include "editor_file_controller.h"
+#include "editor_git_controller.h"
 #include "editor_lsp_controller.h"
 #include "editor_settings_controller.h"
 #include "editor_split_controller.h"
@@ -1693,6 +1694,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
+    gitController = std::make_unique<EditorGitController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
@@ -1718,6 +1720,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     commandController = std::make_unique<EditorCommandController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
+    gitController = std::make_unique<EditorGitController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
@@ -4864,111 +4867,67 @@ bool Editor::canSplit() const
 
 int Editor::lineNumberWidth() const
 {
-    if(!showRelativeLineNumbers)
-        return 0;
-    int maxLine = 1;
-    if(!buffers.empty())
-    {
-        for(const auto& buf : buffers)
-        {
-            int count = (int)buf->lines.size();
-            if(count > maxLine)
-                maxLine = count;
-        }
-    }
-    if(maxLine > maxLineCountSeen)
-        maxLineCountSeen = maxLine;
-    return (int)std::to_string(maxLineCountSeen).length();
+    return gitController->lineNumberWidth();
 }
 
 int Editor::gitBlameWidth() const
 {
-    if(!showGitBlame || !currentBuffer)
-        return 0;
-
-    int width = 0;
-    for(int row = 0; row < (int)currentBuffer->blameEntries.size(); ++row)
-    {
-        std::string blame = blameDisplayForLine(row);
-        int blameWidth = text_utils::utf8DisplayWidth(blame);
-        if(blameWidth > width)
-            width = blameWidth;
-    }
-    return std::min(width, kGitBlameMaxWidth);
+    return gitController->gitBlameWidth();
 }
 
 int Editor::gutterWidth() const
 {
-    int width = showGitBlame ? gitBlameWidth() + 1 : kDiagnosticGutterWidth;
-    int numbers = lineNumberWidth();
-    if(numbers > 0)
-    {
-        width += numbers + 1; // add space after line number
-    }
-    return width;
+    return gitController->gutterWidth();
 }
 
 void Editor::toggleGitBlame()
 {
-    if(gitHandler)
-        gitHandler->toggleGitBlame();
+    gitController->toggleGitBlame();
 }
 
 void Editor::updateGitBlameForVisibleRange()
 {
-    if(gitHandler)
-        gitHandler->updateGitBlameForVisibleRange();
+    gitController->updateGitBlameForVisibleRange();
 }
 
 std::string Editor::blameDisplayForLine(int row) const
 {
-    if(gitHandler)
-        return gitHandler->blameDisplayForLine(row);
-    return "";
+    return gitController->blameDisplayForLine(row);
 }
 
 std::string Editor::blameFullForLine(int row) const
 {
-    if(gitHandler)
-        return gitHandler->blameFullForLine(row);
-    return "";
+    return gitController->blameFullForLine(row);
 }
 
 void Editor::openGitShowCommitMode()
 {
-    if(gitHandler)
-        gitHandler->openGitShowCommitMode();
+    gitController->openGitShowCommitMode();
 }
 
 std::vector<std::string> Editor::loadGitShowLines(const std::string& hash)
 {
-    if(gitHandler)
-        return gitHandler->loadGitShowLines(hash);
-    return {};
+    return gitController->loadGitShowLines(hash);
 }
 
 void Editor::openGitLogMode()
 {
-    if(gitHandler)
-        gitHandler->openGitLogMode();
+    gitController->openGitLogMode();
 }
 
 void Editor::openGitPrettyLogMode()
 {
-    if(gitHandler)
-        gitHandler->openGitPrettyLogMode();
+    gitController->openGitPrettyLogMode();
 }
 
 void Editor::openGitLogModeForFile()
 {
-    if(gitHandler)
-        gitHandler->openGitLogModeForFile();
+    gitController->openGitLogModeForFile();
 }
 
 void Editor::openGitStageMode()
 {
-    if(gitHandler)
-        gitHandler->openGitStageMode();
+    gitController->openGitStageMode();
 }
 
 static std::optional<int> parseIndentWidthLine(const std::string& line)
