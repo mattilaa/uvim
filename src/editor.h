@@ -36,6 +36,7 @@ class EditorEditingController;
 class EditorFileController;
 class EditorGitController;
 class EditorLspController;
+class EditorOperatorController;
 class EditorSplitController;
 class EditorVisualController;
 struct CommandPrompt;
@@ -934,6 +935,7 @@ private:
     friend class EditorFileController;
     friend class EditorGitController;
     friend class EditorLspController;
+    friend class EditorOperatorController;
     friend class EditorSplitController;
     friend class EditorVisualController;
 #ifdef UVIM_TESTING
@@ -1064,6 +1066,11 @@ private:
     void openGitPrettyLogModeImpl();
     void openGitLogModeForFileImpl();
     void openGitStageModeImpl();
+    void enterOperatorPendingImpl(char op);
+    bool getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
+                                int& outStartX, int& outEndY, int& outEndX);
+    void applyOperatorToRangeImpl(char op, int startY, int startX, int endY,
+                                  int endX);
     void startVisualModeImpl();
     void startVisualLineModeImpl();
     void startVisualBlockModeImpl();
@@ -1134,6 +1141,7 @@ private:
     std::unique_ptr<EditorFileController> fileController;
     std::unique_ptr<EditorGitController> gitController;
     std::unique_ptr<EditorLspController> lspController;
+    std::unique_ptr<EditorOperatorController> operatorController;
     std::unique_ptr<EditorSplitController> splitController;
     std::unique_ptr<EditorVisualController> visualController;
 };

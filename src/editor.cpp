@@ -7,6 +7,7 @@
 #include "editor_file_controller.h"
 #include "editor_git_controller.h"
 #include "editor_lsp_controller.h"
+#include "editor_operator_controller.h"
 #include "editor_settings_controller.h"
 #include "editor_split_controller.h"
 #include "editor_utils.h"
@@ -1696,6 +1697,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     fileController = std::make_unique<EditorFileController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
+    operatorController = std::make_unique<EditorOperatorController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
@@ -1722,6 +1724,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     fileController = std::make_unique<EditorFileController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
+    operatorController = std::make_unique<EditorOperatorController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
@@ -2017,287 +2020,20 @@ bool Editor::isTsLspEnabled() const
 
 void Editor::enterOperatorPending(char op)
 {
-    pendingOperator = op;
-    pendingAwaitingObject = false;
-    pendingObjectType = 0;
-    pendingCount = std::max(1, repeatCount);
-    commandBuffer.clear(); // keep UI tidy
-    setStatusMessage(std::string("Operator: ") + op);
-    setMode(OP_PENDING);
+    operatorController->enterOperatorPending(op);
 }
 
 bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
                                 int& outStartX, int& outEndY, int& outEndX)
 {
-    // Current position
-    int y = *cursorY;
-    int x = *cursorX;
-
-    // Support bracket pairs
-    auto findEnclosing = [&](char openc, char closec) -> bool
-    {
-        // search left for the nearest openc
-        int ly = y, lx = x;
-        bool foundOpen = false;
-        for(;;)
-        {
-            const std::string& line = (*lines)[ly];
-            for(int i = lx; i >= 0; --i)
-            {
-                if(line[i] == openc)
-                {
-                    // try to find matching close from here
-                    int matchY = ly, matchX = i;
-                    // simulate bracket match forward
-                    int depth = 0;
-                    int ty = matchY, tx = matchX;
-                    for(;;)
-                    {
-                        // move one char forward
-                        tx++;
-                        while(ty < lines->size() && tx >= (*lines)[ty].length())
-                        {
-                            ty++;
-                            tx = 0;
-                            if(ty >= lines->size())
-                                break;
-                        }
-                        if(ty >= lines->size())
-                            break;
-                        char ch = (*lines)[ty][tx];
-                        if(ch == openc)
-                            depth++;
-                        else if(ch == closec)
-                        {
-                            if(depth == 0)
-                            {
-                                // match found at ty,tx
-                                outStartY = ly;
-                                outStartX = i;
-                                outEndY = ty;
-                                outEndX = tx;
-                                // adjust for 'inner' vs 'around'
-                                if(!around)
-                                {
-                                    // inner: exclude the brackets themselves
-                                    // move start forward one char
-                                    if(outStartX + 1 <=
-                                       (*lines)[outStartY].length())
-                                    {
-                                        outStartX = outStartX + 1;
-                                    }
-                                    else
-                                    {
-                                        // move to next position
-                                        outStartY++;
-                                        outStartX = 0;
-                                    }
-                                    // move end back one char
-                                    if(outEndX - 1 >= 0)
-                                    {
-                                        outEndX = outEndX - 1;
-                                    }
-                                    else
-                                    {
-                                        // move to previous line end
-                                        outEndY--;
-                                        outEndX =
-                                            (*lines)[outEndY].length() - 1;
-                                    }
-                                }
-                                return true;
-                            }
-                            else
-                            {
-                                depth--;
-                            }
-                        }
-                    }
-                }
-            }
-            // move to previous line
-            if(ly == 0)
-                break;
-            ly--;
-            if(ly >= 0)
-                lx = (*lines)[ly].length() - 1;
-        }
-        return false;
-    };
-
-    if(objChar == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
-       objChar == keyCode(command::CommandKey::KEY_RIGHT_PAREN))
-    {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_PAREN),
-                         keyCode(command::CommandKey::KEY_RIGHT_PAREN)))
-            return true;
-    }
-    if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACE) ||
-       objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
-    {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACE),
-                         keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
-            return true;
-    }
-    if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACKET) ||
-       objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACKET))
-    {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACKET),
-                         keyCode(command::CommandKey::KEY_RIGHT_BRACKET)))
-            return true;
-    }
-
-    // Quotes: find nearest pair of quotes in current line (simple)
-    if(objChar == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) ||
-       objChar == keyCode(command::CommandKey::KEY_APOSTROPHE))
-    {
-        const std::string& line = (*lines)[y];
-        // search left for quote
-        int lpos = -1, rpos = -1;
-        for(int i = x; i >= 0; --i)
-            if(line[i] == objChar)
-            {
-                lpos = i;
-                break;
-            }
-        for(int i = x; i < line.length(); ++i)
-            if(line[i] == objChar)
-            {
-                rpos = i;
-                break;
-            }
-
-        if(lpos >= 0 && rpos >= 0 && lpos < rpos)
-        {
-            outStartY = y;
-            outEndY = y;
-            if(around)
-            {
-                outStartX = lpos;
-                outEndX = rpos;
-            }
-            else
-            {
-                outStartX = lpos + 1;
-                outEndX = rpos - 1;
-            }
-            return true;
-        }
-    }
-
-    // Word objects: iw / aw
-    if(objChar == keyCode(typed::TypedKey::KEY_W))
-    {
-        // For inner word -> find word boundaries around cursor on same line
-        const std::string& line = (*lines)[y];
-        int L = x, R = x;
-        // If cursor at end-of-line and not in word, try next char
-        if(L >= line.length())
-            L = line.length() - 1;
-        // move L to start of word
-        while(L > 0 && !isWordChar(line[L]))
-            L--;
-        while(L > 0 && isWordChar(line[L - 1]))
-            L--;
-        // move R to end of word
-        while(R < (int)line.length() && isWordChar(line[R]))
-            R++;
-        if(R <= L)
-            return false;
-        outStartY = y;
-        outEndY = y;
-        if(around)
-        {
-            outStartX = L;
-            outEndX = R - 1;
-        } // 'aw' includes trailing space? keep simple: word only
-        else
-        {
-            outStartX = L;
-            outEndX = R - 1;
-        }
-        return true;
-    }
-
-    // Paragraph 'p' (simple: blank-line separated)
-    if(objChar == keyCode(typed::TypedKey::KEY_P))
-    {
-        int sy = y, ey = y;
-        // find paragraph start
-        while(sy > 0 && !(*lines)[sy].empty())
-            sy--;
-        if((*lines)[sy].empty() && sy < y)
-            sy++;
-        // find paragraph end
-        while(ey < lines->size() - 1 && !(*lines)[ey].empty())
-            ey++;
-        if((*lines)[ey].empty() && ey > y)
-            ey--;
-        outStartY = sy;
-        outEndY = ey;
-        outStartX = 0;
-        outEndX = (*lines)[outEndY].length() - 1;
-        return true;
-    }
-
-    return false;
+    return operatorController->getTextObjectRange(objChar, around, outStartY,
+                                                  outStartX, outEndY, outEndX);
 }
 
 void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
                                   int endX)
 {
-    // Normalize bounds
-    if(startY > endY || (startY == endY && startX > endX))
-    {
-        std::swap(startY, endY);
-        std::swap(startX, endX);
-    }
-
-    // Yank if 'y' or for 'd' we fill yankBuffer
-    if(op == keyCode(typed::TypedKey::KEY_Y) ||
-       op == keyCode(typed::TypedKey::KEY_D) ||
-       op == keyCode(typed::TypedKey::KEY_C))
-    {
-        yankRange(startY, startX, endY, endX);
-    }
-
-    if(op == keyCode(typed::TypedKey::KEY_D) ||
-       op == keyCode(typed::TypedKey::KEY_C))
-    {
-        deleteRange(startY, startX, endY, endX);
-        saveState();
-    }
-
-    if(op == keyCode(command::CommandKey::KEY_EQUAL))
-    {
-        // For indent operator, we indent all lines in the range
-        // For line-wise motions or when the range spans multiple lines
-        autoIndentRange(startY, endY);
-
-        int linesIndented = endY - startY + 1;
-        setStatusMessage(std::to_string(linesIndented) + " line" +
-                         (linesIndented > 1 ? "s" : "") + " indented");
-        saveState();
-    }
-
-    if(op == keyCode(typed::TypedKey::KEY_C))
-    {
-        // After change, enter insert mode at start
-        *cursorY = startY;
-        *cursorX = startX;
-    }
-    else
-    {
-        // Place cursor at start of affected range (or keep it for indent)
-        if(op != keyCode(command::CommandKey::KEY_EQUAL))
-        {
-            *cursorY = startY;
-            *cursorX = startX;
-        }
-    }
-
-    needsFullRedraw = true;
-    *dirty = true;
+    operatorController->applyOperatorToRange(op, startY, startX, endY, endX);
 }
 
 // yankRange and deleteRange are now in text_operations.cpp
