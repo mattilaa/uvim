@@ -928,6 +928,7 @@ public:
     }
 
 private:
+    friend class Formatter;
     friend class GitHandler;
     friend class EditorSettingsController;
     friend class EditorBufferController;
@@ -940,6 +941,7 @@ private:
     friend class EditorOperatorController;
     friend class EditorSplitController;
     friend class EditorVisualController;
+    std::string resolveEditorPathString(const std::string& input) const;
 #ifdef UVIM_TESTING
     struct TestTag
     {

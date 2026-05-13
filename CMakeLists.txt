@@ -105,6 +105,7 @@ set(UVIM_CORE_SOURCES
     src/formatter.cpp
     src/formatter_clang.cpp
     src/formatter_json_yaml.cpp
+    src/formatter_mlang.cpp
     src/formatter_python.cpp
     src/formatter_robot.cpp
     src/git_handler.cpp
