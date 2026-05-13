@@ -32,6 +32,7 @@ class GitHandler;
 class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
+class EditorEditingController;
 struct CommandPrompt;
 
 struct MlangTokenCache
@@ -924,6 +925,7 @@ private:
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
+    friend class EditorEditingController;
 #ifdef UVIM_TESTING
     struct TestTag
     {
@@ -973,6 +975,34 @@ private:
     std::vector<std::string>
     getPathCompletionsRecursiveImpl(std::string_view path);
     std::vector<std::string> getLocPathCompletionsImpl(std::string_view path);
+    void insertTabImpl();
+    void toggleCaseImpl();
+    void joinLinesImpl();
+    void insertLineAboveImpl();
+    void insertLineBelowImpl();
+    void deleteCurrentLineImpl();
+    void deleteToLineStartImpl();
+    void deleteCharAtCursorImpl();
+    void deleteCharBeforeCursorImpl();
+    void deleteWordBackwardImpl();
+    void deleteWordImpl();
+    void yankWordImpl();
+    void handleBackspaceImpl();
+    void replaceCharAtCursorImpl(char c);
+    void beginChangeRecordingImpl(int count = 1);
+    void recordChangeKeyImpl(int key);
+    void deferChangeRecordingCommitImpl();
+    void commitChangeRecordingImpl();
+    void cancelChangeRecordingImpl();
+    void finishChangeRecordingIfDeferredImpl();
+    bool isRecordingChangeImpl() const;
+    bool isReplayingChangeImpl() const;
+    int readKeyRecordedImpl();
+    void repeatLastChangeImpl(int times = 1);
+    void insertUtf8CharImpl(int c);
+    void indentCurrentLineImpl();
+    void dedentCurrentLineImpl();
+    void handleLinewiseOperatorImpl(char op, int count);
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
@@ -1003,4 +1033,5 @@ private:
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorEditingController> editingController;
 };
