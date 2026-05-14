@@ -335,6 +335,39 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             browserOffset = browserCursor - visible + 1;
     };
 
+    auto openSelectedFiles = [&]() -> std::optional<ModeState>
+    {
+        std::vector<std::string> toOpen;
+        toOpen.reserve(selectedFiles.size());
+        for(const auto& p : selectedFiles)
+        {
+            std::error_code dirEc;
+            if(std::filesystem::is_directory(std::filesystem::path(p), dirEc))
+                continue;
+            toOpen.push_back(p);
+        }
+        if(toOpen.empty())
+        {
+            ctx.setStatusMessage("No files selected to open");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        std::sort(toOpen.begin(), toOpen.end());
+        for(const auto& p : toOpen)
+            ctx.openFile(std::string_view(p));
+        selectedFiles.clear();
+        if(visualMode)
+        {
+            visualMode = false;
+            preVisualSelected.clear();
+        }
+        ctx.setStatusMessage("Opened " + std::to_string(toOpen.size()) +
+                             " file(s)");
+        return ctx.hasBuffer()
+                   ? std::optional<ModeState>(ModeState{NormalMode{}})
+                   : std::optional<ModeState>(ModeState{WelcomeMode{}});
+    };
+
     const auto collectRegexMatches =
         [&](char prefix, const std::string& pattern) -> std::vector<int>
     {
@@ -433,7 +466,19 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         const std::string& input = commandPrompt->getInput();
         bool promptSearch =
-            !input.empty() && (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION));
+            !input.empty() &&
+            (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION));
+
+        if(promptSearch && c == keyCode(control::ControlKey::ENTER) &&
+           !selectedFiles.empty())
+        {
+            std::optional<ModeState> ignored;
+            (void)commandPrompt->handle(
+                ctx, keyCode(control::ControlKey::ESC),
+                [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); }, ignored);
+            return openSelectedFiles();
+        }
 
         if(promptSearch &&
            (c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(control::ControlKey::CTRL_K) ||
@@ -950,35 +995,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         // buffers. Directories in the selection are skipped.
         if(c == keyCode(control::ControlKey::ENTER) && !selectedFiles.empty())
         {
-            std::vector<std::string> toOpen;
-            toOpen.reserve(selectedFiles.size());
-            for(const auto& p : selectedFiles)
-            {
-                std::error_code dirEc;
-                if(std::filesystem::is_directory(std::filesystem::path(p),
-                                                 dirEc))
-                    continue;
-                toOpen.push_back(p);
-            }
-            if(toOpen.empty())
-            {
-                ctx.setStatusMessage("No files selected to open");
-                ctx.requestFullRedraw();
-                return std::nullopt;
-            }
-            std::sort(toOpen.begin(), toOpen.end());
-            for(const auto& p : toOpen)
-                ctx.openFile(std::string_view(p));
-            selectedFiles.clear();
-            if(visualMode)
-            {
-                visualMode = false;
-                preVisualSelected.clear();
-            }
-            ctx.setStatusMessage("Opened " + std::to_string(toOpen.size()) +
-                                 " file(s)");
-            return ctx.hasBuffer() ? ModeState{NormalMode{}}
-                                   : ModeState{WelcomeMode{}};
+            return openSelectedFiles();
         }
         if(browserCursor >= 0 && browserCursor < listSize())
         {
@@ -1591,9 +1608,8 @@ void FileBrowserMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output +=
-        "  [Space: select] [d: delete] [y: yank] [m: move] [p: paste] "
-        "[u: undo] [^R: redo]";
+    output += "  [Space: select] [d: delete] [y: yank] [m: move] [p: paste] "
+              "[u: undo] [^R: redo] [:/regex ^N: select matches]";
     if(!selectedFiles.empty())
         output += "  (" + std::to_string(selectedFiles.size()) + " selected)";
     if(!copyBuffer.empty())

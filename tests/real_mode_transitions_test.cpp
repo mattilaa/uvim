@@ -932,6 +932,38 @@ TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedFile)
               std::string::npos);
 }
 
+TEST(RealModeTransitionsTest,
+     FileBrowserPromptSearchCtrlNEnterOpensSelectedMatches)
+{
+    auto root = make_temp_dir("uvim_browse_search_multi_open_");
+    write_file(root / "match-alpha.txt", "alpha\n");
+    write_file(root / "match-beta.txt", "beta\n");
+    write_file(root / "other.txt", "other\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(':');
+    sm.dispatch('/');
+    for(char ch : std::string("match-"))
+        sm.dispatch(ch);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_N));
+
+    auto* state = sm.getState<FileBrowserMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->selectedFiles.size(), 2u);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_EQ(editor.buffers.size(), 2u);
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    EXPECT_NE(editor.buffers[0]->filename.find("match-alpha.txt"),
+              std::string::npos);
+    EXPECT_NE(editor.buffers[1]->filename.find("match-beta.txt"),
+              std::string::npos);
+}
+
 TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedDirectory)
 {
     auto root = make_temp_dir("uvim_browse_search_enter_dir_");
