@@ -94,6 +94,7 @@ PenaltyReturnTypeOnItsOwnLine: 60
 RequiresExpressionIndentation: OuterScope
 PointerAlignment: Left
 ReflowComments: true
+SeparateDefinitionBlocks: Always
 SortIncludes: true
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
