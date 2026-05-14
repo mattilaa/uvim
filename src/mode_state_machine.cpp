@@ -149,9 +149,9 @@ void ModeContext::setRespectGitignore(bool value)
     editor->respectGitignore = value;
 }
 
-void ModeContext::setFuzzyInitialized(bool value)
+void ModeContext::setGrepFileIndexInitialized(bool value)
 {
-    editor->fuzzyInitialized = value;
+    editor->grepFileIndexInitialized = value;
 }
 
 void ModeContext::executeCommand(std::string_view cmd)
@@ -1079,8 +1079,7 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     }
     if(ctx.editor && ctx.editor->getModeStateMachine())
     {
-        const ModeState& state =
-            ctx.editor->getModeStateMachine()->state();
+        const ModeState& state = ctx.editor->getModeStateMachine()->state();
         if(std::holds_alternative<GitLogMode>(state))
             return std::get<GitLogMode>(state);
         if(std::holds_alternative<GitShowCommitMode>(state))

@@ -89,7 +89,7 @@ struct ModeContext
     int tabSpaces() const;
     bool respectGitignore() const;
     void setRespectGitignore(bool value);
-    void setFuzzyInitialized(bool value);
+    void setGrepFileIndexInitialized(bool value);
 
     // Command helpers
     void executeCommand(std::string_view cmd);
@@ -637,9 +637,11 @@ struct FuzzyFindMode
     }
 
     std::vector<FuzzyMatch> matches;
+    std::vector<FileEntry> projectFiles;
     std::string query;
     int cursor = 0;
     int offset = 0;
+    bool projectFilesInitialized = false;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

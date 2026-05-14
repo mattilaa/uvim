@@ -1,6 +1,7 @@
 #include "ascii.h"
 #include "constants.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -321,9 +322,9 @@ void GrepSearchMode::draw(Editor& editor) const
 
 void GrepSearchMode::initialize(Editor& editor)
 {
-    if(!editor.fuzzyInitialized)
+    if(!editor.grepFileIndexInitialized)
     {
-        editor.allProjectFiles.clear();
+        editor.grepProjectFiles.clear();
         std::error_code cwdEc;
         auto cwd = std::filesystem::current_path(cwdEc);
         if(!cwdEc)
@@ -380,22 +381,23 @@ void GrepSearchMode::initialize(Editor& editor)
                                     system_clock::now());
                             entry.modTime = system_clock::to_time_t(sctp);
                         }
-                        editor.allProjectFiles.push_back(std::move(entry));
+                        editor.grepProjectFiles.push_back(std::move(entry));
                     }
                 }
             }
 
-            if(editor.allProjectFiles.empty())
+            if(editor.grepProjectFiles.empty())
             {
                 GitIgnore gitignore;
                 if(editor.respectGitignore)
                 {
                     gitignore.loadRecursive(cwd);
                 }
-                editor.collectProjectFiles(cwdStr, 0, gitignore);
+                editor::helper::collectProjectFileEntries(
+                    cwdStr, 0, gitignore, editor.grepProjectFiles);
             }
         }
-        editor.fuzzyInitialized = true;
+        editor.grepFileIndexInitialized = true;
     }
 
     searchClear();
@@ -413,7 +415,7 @@ void GrepSearchMode::performSearch(Editor& editor)
         return;
     }
 
-    for(const auto& file : editor.allProjectFiles)
+    for(const auto& file : editor.grepProjectFiles)
     {
         if(file.isDirectory)
             continue;
@@ -694,7 +696,7 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
     if(editor.gitignoreLockedOff)
         return;
     editor.respectGitignore = !editor.respectGitignore;
-    editor.fuzzyInitialized = false;
+    editor.grepFileIndexInitialized = false;
     initialize(editor);
 }
 

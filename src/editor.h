@@ -145,9 +145,9 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
-    // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
-    std::vector<FileEntry> allProjectFiles; // All files in project
-    bool fuzzyInitialized = false;
+    // Grep file index
+    std::vector<FileEntry> grepProjectFiles; // All files in project
+    bool grepFileIndexInitialized = false;
 
     bool respectGitignore = true;
     bool useGitFileIndex = true;
@@ -570,11 +570,6 @@ public:
     std::string getSymbolUnderCursor();
 
     // Fuzzy finder functions
-    void collectProjectFiles(const std::string& dir, int depth,
-                             const GitIgnore& gitignore);
-    int fuzzyScore(const std::string& needle, const std::string& haystack,
-                   std::vector<int>& matchPositions);
-
     // File browser navigation helpers (for mode handlers)
     void deleteFilePrompt();
     void renameFilePrompt();

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_utils.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
@@ -231,15 +232,18 @@ void BufferBrowserMode::updateMatches(Editor& editor)
         }
 
         std::vector<int> posDisplay;
-        int s1 = editor.fuzzyScore(bufferQuery, m.display, posDisplay);
+        int s1 =
+            editor::helper::fuzzyScoreWithPositions(bufferQuery, m.display,
+                                                    posDisplay);
 
         std::vector<int> posName;
         int s2 = editor.buffers[i]->filename.empty()
                      ? -1
-                     : editor.fuzzyScore(bufferQuery,
-                                         editor.buffers[i]->filename, posName);
+                     : editor::helper::fuzzyScoreWithPositions(
+                           bufferQuery, editor.buffers[i]->filename, posName);
         std::vector<int> posBase;
-        int s3 = editor.fuzzyScore(bufferQuery, base, posBase);
+        int s3 =
+            editor::helper::fuzzyScoreWithPositions(bufferQuery, base, posBase);
 
         int best = std::max({s1, s2, s3 * 2});
 

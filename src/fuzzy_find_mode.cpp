@@ -1,14 +1,15 @@
 #include "editor.h"
+#include "editor_utils.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
-#include "terminal.h"
 #include "os_compat.h"
+#include "terminal.h"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <filesystem>
 #include <iomanip>
 #include <limits.h>
-#include <filesystem>
 #include <sstream>
 
 // ============================================================================
@@ -106,8 +107,7 @@ void FuzzyFindMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
-                                               int key)
+std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -127,17 +127,20 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(control::ControlKey::CTRL_J) ||
+    if(c == keyCode(control::ControlKey::CTRL_N) ||
+       c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         moveDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
+    else if(c == keyCode(control::ControlKey::CTRL_P) ||
+            c == keyCode(control::ControlKey::CTRL_K) ||
             c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         moveUp(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) || c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(c == keyCode(control::ControlKey::CTRL_D) ||
+            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         halfPageDown(*ed);
     }
@@ -145,7 +148,8 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         halfPageUp(*ed);
     }
-    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+            c == keyCode(control::ControlKey::CTRL_H))
     {
         backspace(*ed);
     }
@@ -218,8 +222,7 @@ void FuzzyFindMode::draw(Editor& editor) const
     }
     else
     {
-        output +=
-            "  " + std::to_string(editor.allProjectFiles.size()) + " files";
+        output += "  " + std::to_string(projectFiles.size()) + " files";
     }
     output += " ";
     if(editor.respectGitignore)
@@ -344,10 +347,10 @@ void FuzzyFindMode::draw(Editor& editor) const
 
 void FuzzyFindMode::initializeFiles(Editor& editor)
 {
-    if(editor.fuzzyInitialized)
+    if(projectFilesInitialized)
         return;
 
-    editor.allProjectFiles.clear();
+    projectFiles.clear();
 
     std::error_code cwdEc;
     auto cwd = std::filesystem::current_path(cwdEc);
@@ -356,15 +359,16 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
         const std::string cwdStr = cwd.string();
         if(editor.useGitFileIndex)
         {
-            std::string repoRoot = trimNewline(
-                runCmd("git -C \"" + cwdStr +
-                       "\" rev-parse --show-toplevel 2>/dev/null"));
+            std::string repoRoot =
+                trimNewline(runCmd("git -C \"" + cwdStr +
+                                   "\" rev-parse --show-toplevel 2>/dev/null"));
 
             if(!repoRoot.empty())
             {
                 const std::string trackedCmd =
                     "git -C \"" + cwdStr +
-                    "\" ls-files -z --cached --others --exclude-standard 2>/dev/null";
+                    "\" ls-files -z --cached --others --exclude-standard "
+                    "2>/dev/null";
                 const std::string raw = runCmd(trackedCmd);
                 const auto relPaths = splitNul(raw);
 
@@ -402,11 +406,11 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                             system_clock::now());
                         entry.modTime = system_clock::to_time_t(sctp);
                     }
-                    editor.allProjectFiles.push_back(std::move(entry));
+                    projectFiles.push_back(std::move(entry));
                 }
-                if(!editor.allProjectFiles.empty())
+                if(!projectFiles.empty())
                 {
-                    editor.fuzzyInitialized = true;
+                    projectFilesInitialized = true;
                     return;
                 }
             }
@@ -417,10 +421,11 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
         {
             gitignore.loadRecursive(cwd);
         }
-        editor.collectProjectFiles(cwdStr, 0, gitignore);
+        editor::helper::collectProjectFileEntries(cwdStr, 0, gitignore,
+                                                  projectFiles);
     }
 
-    editor.fuzzyInitialized = true;
+    projectFilesInitialized = true;
 }
 
 void FuzzyFindMode::updateMatches(Editor& editor)
@@ -429,7 +434,7 @@ void FuzzyFindMode::updateMatches(Editor& editor)
 
     if(query.empty())
     {
-        for(const auto& file : editor.allProjectFiles)
+        for(const auto& file : projectFiles)
         {
             if(!file.isDirectory)
             {
@@ -446,16 +451,18 @@ void FuzzyFindMode::updateMatches(Editor& editor)
     }
     else
     {
-        for(const auto& file : editor.allProjectFiles)
+        for(const auto& file : projectFiles)
         {
             if(file.isDirectory)
                 continue;
 
             std::vector<int> positions;
-            int pathScore = editor.fuzzyScore(query, file.path, positions);
+            int pathScore = editor::helper::fuzzyScoreWithPositions(
+                query, file.path, positions);
 
             std::vector<int> namePositions;
-            int nameScore = editor.fuzzyScore(query, file.name, namePositions);
+            int nameScore = editor::helper::fuzzyScoreWithPositions(
+                query, file.name, namePositions);
 
             int finalScore = std::max(pathScore, nameScore * 2);
 
@@ -579,7 +586,7 @@ void FuzzyFindMode::toggleGitignore(Editor& editor)
     if(editor.gitignoreLockedOff)
         return;
     editor.respectGitignore = !editor.respectGitignore;
-    editor.fuzzyInitialized = false;
+    projectFilesInitialized = false;
     initializeFiles(editor);
     query.clear();
     cursor = 0;
@@ -595,148 +602,4 @@ bool FuzzyFindMode::select(Editor& editor)
     const FuzzyMatch& match = matches[cursor];
     editor.openFile(std::string_view(match.file.path));
     return true;
-}
-
-void Editor::collectProjectFiles(const std::string& dir, int depth,
-                                 const GitIgnore& gitignore)
-{
-    if(depth > 10)
-        return; // Limit recursion depth
-
-    std::error_code ec;
-    std::filesystem::directory_iterator it(dir, ec);
-    if(ec)
-        return;
-    for(; it != std::filesystem::directory_iterator(); it.increment(ec))
-    {
-        if(ec)
-            break;
-        std::string name = it->path().filename().string();
-        if(name.empty())
-            continue;
-
-        std::string fullPath = dir + "/" + name;
-
-        std::error_code statEc;
-        bool isDir = it->is_directory(statEc);
-        if(statEc)
-            continue;
-
-        // Check gitignore
-        if(gitignore.isIgnored(fullPath, isDir))
-            continue;
-
-        // Skip hidden files (starting with .)
-        if(name[0] == keyCode(command::CommandKey::KEY_DOT))
-            continue;
-
-        FileEntry fileEntry;
-        fileEntry.name = name;
-        fileEntry.path = fullPath;
-        fileEntry.isDirectory = isDir;
-        std::error_code sizeEc;
-        fileEntry.size =
-            isDir ? 0 : (uintmax_t)std::filesystem::file_size(fullPath, sizeEc);
-        if(sizeEc)
-            fileEntry.size = 0;
-        std::error_code mtEc;
-        auto ftime = std::filesystem::last_write_time(fullPath, mtEc);
-        if(!mtEc)
-        {
-            using namespace std::chrono;
-            auto sctp = time_point_cast<system_clock::duration>(
-                ftime - decltype(ftime)::clock::now() + system_clock::now());
-            fileEntry.modTime = system_clock::to_time_t(sctp);
-        }
-
-        allProjectFiles.push_back(fileEntry);
-
-        if(isDir)
-        {
-            collectProjectFiles(fullPath, depth + 1, gitignore);
-        }
-    }
-}
-
-int Editor::fuzzyScore(const std::string& needle, const std::string& haystack,
-                       std::vector<int>& matchPositions)
-{
-    matchPositions.clear();
-
-    if(needle.empty())
-        return 0;
-    if(needle.length() > haystack.length())
-        return -1;
-
-    int score = 0;
-    int consecutiveBonus = 10;
-    int separatorBonus = 30;
-    int camelBonus = 30;
-    int firstLetterBonus = 15;
-
-    size_t needleIdx = 0;
-    int prevMatchIdx = -1;
-
-    for(size_t i = 0; i < haystack.length() && needleIdx < needle.length(); i++)
-    {
-        char needleChar = std::tolower(needle[needleIdx]);
-        char haystackChar = std::tolower(haystack[i]);
-
-        if(needleChar == haystackChar)
-        {
-            matchPositions.push_back(i);
-
-            score += 100;
-
-            if(prevMatchIdx >= 0 && i == (size_t)prevMatchIdx + 1)
-            {
-                score += consecutiveBonus;
-            }
-
-            if(i > 0)
-            {
-                char prevChar = haystack[i - 1];
-                if(prevChar == keyCode(command::CommandKey::KEY_SLASH) || prevChar == keyCode(command::CommandKey::KEY_MINUS) || prevChar == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
-                   prevChar == keyCode(command::CommandKey::KEY_DOT))
-                {
-                    score += separatorBonus;
-                }
-            }
-
-            if(i > 0 && std::islower(haystack[i - 1]) &&
-               std::isupper(haystack[i]))
-            {
-                score += camelBonus;
-            }
-
-            if(i == 0)
-            {
-                score += firstLetterBonus;
-            }
-
-            if(needle[needleIdx] == haystack[i])
-            {
-                score += 5;
-            }
-
-            prevMatchIdx = static_cast<int>(i);
-            needleIdx++;
-        }
-        else
-        {
-            if(prevMatchIdx >= 0)
-            {
-                score -= (int)(i - static_cast<size_t>(prevMatchIdx));
-            }
-        }
-    }
-
-    if(needleIdx != needle.length())
-    {
-        return -1;
-    }
-
-    score -= static_cast<int>(haystack.length());
-
-    return score;
 }

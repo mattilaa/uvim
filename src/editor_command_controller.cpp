@@ -265,8 +265,8 @@ void Editor::updateCommandPopupImpl(std::string_view query)
 
     for(int i = 0; i < (int)commandPopupAll.size(); ++i)
     {
-        int score =
-            fuzzyScore(commandPopupQuery, commandPopupAll[i], positions);
+        int score = editor::helper::fuzzyScoreWithPositions(
+            commandPopupQuery, commandPopupAll[i], positions);
         if(score >= 0)
             scored.emplace_back(i, score);
     }
@@ -396,8 +396,8 @@ void Editor::updateCommandHistorySearchQueryImpl(std::string_view query)
 
     for(int i = 0; i < (int)commandHistory.size(); ++i)
     {
-        int score = fuzzyScore(commandHistorySearchQueryValue,
-                               commandHistory[i], positions);
+        int score = editor::helper::fuzzyScoreWithPositions(
+            commandHistorySearchQueryValue, commandHistory[i], positions);
         if(score >= 0)
             scored.emplace_back(i, score);
     }

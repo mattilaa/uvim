@@ -1197,8 +1197,7 @@ void Editor::rebuildCompletionFilter()
     {
         const auto& e = completionAll[i];
         // Use the completion-popup fuzzy matcher (simple subsequence).
-        // Unqualified name would resolve to Editor::fuzzyScore (3-arg) used by
-        // file/buffer pickers, so qualify explicitly.
+        // Qualify explicitly instead of shared file-list scoring.
         int s = ::fuzzyScore(e.label, completionQuery);
         if(s >= 0)
             scored.push_back({i, s});
