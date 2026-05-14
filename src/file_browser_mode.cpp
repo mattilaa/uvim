@@ -874,7 +874,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             std::filesystem::current_path(currentDirectory, chEc);
             if(!chEc)
             {
-                ctx.setFuzzyInitialized(false);
+                ctx.setGrepFileIndexInitialized(false);
                 std::error_code cwdEc;
                 auto cwd = std::filesystem::current_path(cwdEc);
                 if(!cwdEc)
@@ -1080,7 +1080,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
         ctx.setRespectGitignore(!ctx.respectGitignore());
-        ctx.setFuzzyInitialized(false);
+        ctx.setGrepFileIndexInitialized(false);
         loadDirectory(ctx, currentDirectory);
         ctx.setStatusMessage(ctx.respectGitignore() ? "Respecting .gitignore"
                                                     : "Ignoring .gitignore");
@@ -2714,7 +2714,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         std::filesystem::current_path(pathStr, chEc);
                         if(!chEc)
                         {
-                            ctx.setFuzzyInitialized(false);
+                            ctx.setGrepFileIndexInitialized(false);
                             std::error_code cwdEc;
                             auto cwd =
                                 std::filesystem::current_path(cwdEc);
@@ -2755,7 +2755,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 std::filesystem::current_path(rootCopy, chEc);
                 if(!chEc)
                 {
-                    ctx.setFuzzyInitialized(false);
+                    ctx.setGrepFileIndexInitialized(false);
                     std::error_code cwdEc;
                     auto cwd = std::filesystem::current_path(cwdEc);
                     if(!cwdEc)

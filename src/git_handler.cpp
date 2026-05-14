@@ -1,5 +1,6 @@
 #include "git_handler.h"
 #include "editor.h"
+#include "editor_mode_controller.h"
 #include "mode_state_machine.h"
 #include "text_utils.h"
 #include <cctype>
@@ -425,7 +426,7 @@ void GitHandler::openGitShowCommitMode()
     {
         editor->modeStateMachine->transitionTo(
             GitShowCommitMode{hash, std::move(linesOut)});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }
@@ -489,7 +490,7 @@ void GitHandler::openGitDiffMode()
     {
         editor->modeStateMachine->transitionTo(
             GitShowCommitMode{"DIFF", std::move(linesOut)});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }
@@ -514,7 +515,7 @@ void GitHandler::openGitCommitMode()
     {
         editor->modeStateMachine->transitionTo(
             GitCommitMode{repoRoot, repoRoot});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }
@@ -637,7 +638,7 @@ void GitHandler::openGitLogMode()
     {
         editor->modeStateMachine->transitionTo(
             GitLogMode{std::move(entries), false, repoRoot, repoRoot, {}});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }
@@ -710,7 +711,7 @@ void GitHandler::openGitPrettyLogMode()
     {
         editor->modeStateMachine->transitionTo(
             GitLogMode{std::move(entries), false, repoRoot, repoRoot, {}, true});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }
@@ -782,7 +783,7 @@ void GitHandler::openGitLogModeForFile()
         editor->modeStateMachine->transitionTo(
             GitLogMode{std::move(entries), true, repoRoot, repoRoot,
                        editor->currentBuffer->filename});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }
@@ -807,7 +808,7 @@ void GitHandler::openGitStageMode()
     {
         editor->modeStateMachine->transitionTo(
             GitStageMode{{}, repoRoot, repoRoot});
-        editor->syncModeFromStateMachine();
+        editor->modeController->syncModeFromStateMachine();
         editor->needsFullRedraw = true;
     }
 }

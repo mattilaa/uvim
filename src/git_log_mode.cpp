@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_utils.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -303,7 +304,9 @@ void GitLogMode::rebuildFilter(Editor& editor)
         for(int i = 0; i < (int)entries.size(); ++i)
         {
             std::string text = entries[i].hash + " " + entries[i].subject;
-            int score = editor.fuzzyScore(query, text, positions);
+            int score =
+                editor::helper::fuzzyScoreWithPositions(query, text,
+                                                        positions);
             if(score >= 0)
                 scored.emplace_back(i, score);
         }

@@ -17,6 +17,7 @@ struct StatusBarView
     int bufferCount = 0;
     int cursorY = 0;
     int cursorX = 0;
+    int lineCount = 0;
     std::string_view filename;
     bool dirty = false;
     std::string_view searchQuery;

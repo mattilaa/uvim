@@ -58,6 +58,18 @@ set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
     src/editor.cpp
+    src/editor_buffer_controller.cpp
+    src/editor_command_controller.cpp
+    src/editor_editing_controller.cpp
+    src/editor_file_controller.cpp
+    src/editor_git_controller.cpp
+    src/editor_indent_controller.cpp
+    src/editor_lsp_controller.cpp
+    src/editor_mode_controller.cpp
+    src/editor_operator_controller.cpp
+    src/editor_settings_controller.cpp
+    src/editor_split_controller.cpp
+    src/editor_visual_controller.cpp
     src/editor_view_buffer_common.cpp
     src/editor_view_buffer_browser.cpp
     src/editor_view_command.cpp
@@ -86,19 +98,24 @@ set(UVIM_CORE_SOURCES
     src/editor_view_visual_line.cpp
     src/editor_view_welcome.cpp
     src/editor_utils.cpp
-    src/editor_mode_handlers.cpp
+    src/editor_mode_controller_handlers.cpp
     src/editor_lsp_info.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp
     src/search.cpp
     src/formatter.cpp
+    src/formatter_clang.cpp
+    src/formatter_json_yaml.cpp
+    src/formatter_mlang.cpp
+    src/formatter_python.cpp
+    src/formatter_robot.cpp
     src/git_handler.cpp
     src/syntax_highlighter.cpp
     src/undo_redo.cpp
     src/drawing.cpp
     src/lsp_completion.cpp
     src/cpp_constants.cpp
-    src/editor_references.cpp
+    src/editor_references_controller.cpp
     src/stdlib_goto.cpp
     src/theme.cpp
     src/widgets/command_popup.cpp

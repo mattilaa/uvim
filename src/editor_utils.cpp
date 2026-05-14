@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -1794,6 +1795,68 @@ void collectLocFiles(const std::string& dir, int depth,
     }
 }
 
+void collectProjectFileEntries(const std::string& dir, int depth,
+                               const GitIgnore& gitignore,
+                               std::vector<FileEntry>& out)
+{
+    if(depth > 10)
+        return;
+
+    std::error_code ec;
+    std::filesystem::directory_iterator it(dir, ec);
+    if(ec)
+        return;
+
+    for(; it != std::filesystem::directory_iterator(); it.increment(ec))
+    {
+        if(ec)
+            break;
+
+        std::string name = it->path().filename().string();
+        if(name.empty())
+            continue;
+
+        std::string fullPath = dir + "/" + name;
+
+        std::error_code statEc;
+        bool isDir = it->is_directory(statEc);
+        if(statEc)
+            continue;
+
+        if(gitignore.isIgnored(fullPath, isDir))
+            continue;
+
+        if(name[0] == '.')
+            continue;
+
+        FileEntry fileEntry;
+        fileEntry.name = name;
+        fileEntry.path = fullPath;
+        fileEntry.isDirectory = isDir;
+
+        std::error_code sizeEc;
+        fileEntry.size =
+            isDir ? 0 : (uintmax_t)std::filesystem::file_size(fullPath, sizeEc);
+        if(sizeEc)
+            fileEntry.size = 0;
+
+        std::error_code mtEc;
+        auto ftime = std::filesystem::last_write_time(fullPath, mtEc);
+        if(!mtEc)
+        {
+            using namespace std::chrono;
+            auto sctp = time_point_cast<system_clock::duration>(
+                ftime - decltype(ftime)::clock::now() + system_clock::now());
+            fileEntry.modTime = system_clock::to_time_t(sctp);
+        }
+
+        out.push_back(fileEntry);
+
+        if(isDir)
+            collectProjectFileEntries(fullPath, depth + 1, gitignore, out);
+    }
+}
+
 std::string expandTildePath(std::string path)
 {
     if(!path.empty() && path[0] == '~')
@@ -1860,6 +1923,78 @@ int fuzzyScore(const std::string& text, const std::string& pattern)
             return -1;
     }
 
+    return score;
+}
+
+int fuzzyScoreWithPositions(const std::string& needle,
+                            const std::string& haystack,
+                            std::vector<int>& matchPositions)
+{
+    matchPositions.clear();
+
+    if(needle.empty())
+        return 0;
+    if(needle.length() > haystack.length())
+        return -1;
+
+    int score = 0;
+    int consecutiveBonus = 10;
+    int separatorBonus = 30;
+    int camelBonus = 30;
+    int firstLetterBonus = 15;
+
+    size_t needleIdx = 0;
+    int prevMatchIdx = -1;
+
+    for(size_t i = 0; i < haystack.length() && needleIdx < needle.length(); i++)
+    {
+        char needleChar = std::tolower(needle[needleIdx]);
+        char haystackChar = std::tolower(haystack[i]);
+
+        if(needleChar == haystackChar)
+        {
+            matchPositions.push_back(i);
+
+            score += 100;
+
+            if(prevMatchIdx >= 0 && i == (size_t)prevMatchIdx + 1)
+                score += consecutiveBonus;
+
+            if(i > 0)
+            {
+                char prevChar = haystack[i - 1];
+                if(prevChar == '/' || prevChar == '-' || prevChar == '_' ||
+                   prevChar == '.')
+                {
+                    score += separatorBonus;
+                }
+            }
+
+            if(i > 0 && std::islower(haystack[i - 1]) &&
+               std::isupper(haystack[i]))
+            {
+                score += camelBonus;
+            }
+
+            if(i == 0)
+                score += firstLetterBonus;
+
+            if(needle[needleIdx] == haystack[i])
+                score += 5;
+
+            prevMatchIdx = static_cast<int>(i);
+            needleIdx++;
+        }
+        else if(prevMatchIdx >= 0)
+        {
+            score -= (int)(i - static_cast<size_t>(prevMatchIdx));
+        }
+    }
+
+    if(needleIdx != needle.length())
+        return -1;
+
+    score -= static_cast<int>(haystack.length());
     return score;
 }
 

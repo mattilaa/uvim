@@ -18,6 +18,7 @@ public:
     bool robotFormatBuffer();
     bool jsonFormatBuffer();
     bool yamlFormatBuffer();
+    bool mlangFormatBuffer();
     void clangFormatVisualSelection();
     void clangFormatVisualBlockSelection();
 

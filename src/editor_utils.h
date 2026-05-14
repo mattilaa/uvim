@@ -1,8 +1,10 @@
 #pragma once
 
 /// @file editor_utils.h
-/// @brief Editor helper utilities for parsing, navigation, and path/LOC helpers.
+/// @brief Editor helper utilities for parsing, navigation, and path/LOC
+/// helpers.
 
+#include "file_entry.h"
 #include "json_utils.h"
 #include "token_type.h"
 #include <filesystem>
@@ -75,7 +77,8 @@ std::string_view robot_first_cell(std::string_view line);
 /// @return True if the line marks the keywords section.
 bool robot_keyword_section(std::string_view line);
 
-/// @brief Checks whether a line is any recognized Robot Framework section header.
+/// @brief Checks whether a line is any recognized Robot Framework section
+/// header.
 /// @param line Robot Framework line.
 /// @return True if the line is a recognized section header.
 bool robot_section_header(std::string_view line);
@@ -85,7 +88,8 @@ bool robot_section_header(std::string_view line);
 /// @return True if the line appears to define a keyword.
 bool robot_is_keyword_def(std::string_view line);
 
-/// @brief Checks whether a line defines a Python function with the given symbol.
+/// @brief Checks whether a line defines a Python function with the given
+/// symbol.
 /// @param line Python source line.
 /// @param symbol Function name to match.
 /// @return True if the line defines @p symbol.
@@ -325,6 +329,15 @@ int locCountInLines(const std::vector<std::string>& lines,
 void collectLocFiles(const std::string& dir, int depth,
                      const GitIgnore& gitignore, std::vector<std::string>& out);
 
+/// @brief Recursively collects filesystem entries for fuzzy-style file lists.
+/// @param dir Root directory.
+/// @param depth Current recursion depth.
+/// @param gitignore Loaded gitignore matcher.
+/// @param out Output file entries.
+void collectProjectFileEntries(const std::string& dir, int depth,
+                               const GitIgnore& gitignore,
+                               std::vector<FileEntry>& out);
+
 /// @brief Expands a leading tilde to the current HOME directory.
 /// @param path Path to expand.
 /// @return Expanded path.
@@ -335,6 +348,15 @@ std::string expandTildePath(std::string path);
 /// @param pattern Pattern to match.
 /// @return Match score, or -1 if pattern does not match.
 int fuzzyScore(const std::string& text, const std::string& pattern);
+
+/// @brief Scores fuzzy match quality and records matched character positions.
+/// @param needle Pattern to match.
+/// @param haystack Candidate text.
+/// @param matchPositions Matched character offsets.
+/// @return Match score, or -1 if the pattern does not match.
+int fuzzyScoreWithPositions(const std::string& needle,
+                            const std::string& haystack,
+                            std::vector<int>& matchPositions);
 
 /// @brief Returns filesystem path completions for a partial path.
 /// @param partial Partial path text.

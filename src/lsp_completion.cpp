@@ -769,9 +769,8 @@ void Editor::requestCompletion()
 
             if(includeCtx->isSystem)
             {
-                std::vector<std::string> systemPaths;
+                static constexpr std::string_view systemPaths[] = {
 #ifdef __APPLE__
-                systemPaths = {
                     "/Applications/Xcode.app/Contents/Developer/Platforms/"
                     "MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/"
                     "v1",
@@ -786,7 +785,6 @@ void Editor::requestCompletion()
                     "/Library/Developer/CommandLineTools/usr/include/c++/v1",
                 };
 #else
-                systemPaths = {
                     "/usr/include/c++/13",
                     "/usr/include/c++/12",
                     "/usr/include/c++/11",
@@ -798,7 +796,7 @@ void Editor::requestCompletion()
                 };
 #endif
 
-                for(const auto& base : systemPaths)
+                for(auto base : systemPaths)
                 {
                     appendIncludeEntries(base, includeCtx->dirPrefix,
                                          includeCtx->filePrefix, completionAll,
@@ -1199,8 +1197,7 @@ void Editor::rebuildCompletionFilter()
     {
         const auto& e = completionAll[i];
         // Use the completion-popup fuzzy matcher (simple subsequence).
-        // Unqualified name would resolve to Editor::fuzzyScore (3-arg) used by
-        // file/buffer pickers, so qualify explicitly.
+        // Qualify explicitly instead of shared file-list scoring.
         int s = ::fuzzyScore(e.label, completionQuery);
         if(s >= 0)
             scored.push_back({i, s});

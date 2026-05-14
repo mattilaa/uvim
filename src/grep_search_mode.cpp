@@ -1,6 +1,7 @@
 #include "ascii.h"
 #include "constants.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -63,6 +64,29 @@ std::vector<std::string> splitNul(const std::string& s)
         i = j + 1;
     }
     return out;
+}
+
+std::string truncatePathMiddle(std::string path, int width)
+{
+    if(width <= 0)
+        return "";
+    if(text_utils::utf8DisplayWidth(path) <= width)
+        return path;
+    if(width <= 3)
+        return std::string(width, '.');
+
+    const std::string prefix = "...";
+    const int suffixWidth = width - (int)prefix.size();
+    std::string suffix = path;
+    while(!suffix.empty() && text_utils::utf8DisplayWidth(suffix) > suffixWidth)
+    {
+        size_t slash = suffix.find('/');
+        if(slash == std::string::npos || slash + 1 >= suffix.size())
+            suffix.erase(suffix.begin());
+        else
+            suffix.erase(0, slash + 1);
+    }
+    return prefix + suffix;
 }
 } // namespace
 
@@ -256,28 +280,57 @@ void GrepSearchMode::draw(Editor& editor) const
         output += "  ";
 
         output += editor.theme.uiInfo();
-        std::string displayName = match.filename;
-        if(displayName.length() > 20)
+        std::string displayName = match.filepath;
+        std::error_code cwdEc;
+        auto cwd = std::filesystem::current_path(cwdEc);
+        if(!cwdEc)
         {
-            displayName = displayName.substr(0, 17) + "...";
+            const std::string cwdStr = cwd.string();
+            if(displayName.find(cwdStr) == 0)
+                displayName = displayName.substr(cwdStr.length() + 1);
         }
+
+        const std::string lineNumber = std::to_string(match.lineNumber);
+        const int rowPrefixWidth = 2;
+        const int separatorsWidth = 3; // ":" + ": "
+        const int minContentWidth =
+            std::min(20, std::max(0, editor.screenCols / 3));
+        int pathWidth = editor.screenCols - rowPrefixWidth - separatorsWidth -
+                        (int)lineNumber.length() - minContentWidth;
+        if(pathWidth < 8)
+            pathWidth = std::max(1, editor.screenCols - rowPrefixWidth -
+                                        separatorsWidth -
+                                        (int)lineNumber.length());
+
+        displayName = truncatePathMiddle(displayName, pathWidth);
         output += displayName;
         output += editor.theme.baseFg();
 
         output += ":";
         output += editor.theme.uiWarning();
-        output += std::to_string(match.lineNumber);
+        output += lineNumber;
         output += editor.theme.baseFg();
         output += ": ";
 
         std::string content = match.lineContent;
-        int maxContentLen = editor.screenCols - displayName.length() - 10;
-        if(maxContentLen < 20)
-            maxContentLen = 20;
+        int maxContentLen = editor.screenCols - rowPrefixWidth -
+                            text_utils::utf8DisplayWidth(displayName) -
+                            separatorsWidth - (int)lineNumber.length();
+        if(maxContentLen < 0)
+            maxContentLen = 0;
 
-        if((int)content.length() > maxContentLen)
+        if(text_utils::utf8DisplayWidth(content) > maxContentLen)
         {
-            content = content.substr(0, maxContentLen - 3) + "...";
+            if(maxContentLen <= 3)
+                content = std::string(std::max(0, maxContentLen), '.');
+            else
+            {
+                while(!content.empty() &&
+                      text_utils::utf8DisplayWidth(content) >
+                          maxContentLen - 3)
+                    content.pop_back();
+                content += "...";
+            }
         }
 
         if(!match.highlightRanges.empty() && index != cursor)
@@ -321,9 +374,9 @@ void GrepSearchMode::draw(Editor& editor) const
 
 void GrepSearchMode::initialize(Editor& editor)
 {
-    if(!editor.fuzzyInitialized)
+    if(!editor.grepFileIndexInitialized)
     {
-        editor.allProjectFiles.clear();
+        editor.grepProjectFiles.clear();
         std::error_code cwdEc;
         auto cwd = std::filesystem::current_path(cwdEc);
         if(!cwdEc)
@@ -380,22 +433,23 @@ void GrepSearchMode::initialize(Editor& editor)
                                     system_clock::now());
                             entry.modTime = system_clock::to_time_t(sctp);
                         }
-                        editor.allProjectFiles.push_back(std::move(entry));
+                        editor.grepProjectFiles.push_back(std::move(entry));
                     }
                 }
             }
 
-            if(editor.allProjectFiles.empty())
+            if(editor.grepProjectFiles.empty())
             {
                 GitIgnore gitignore;
                 if(editor.respectGitignore)
                 {
                     gitignore.loadRecursive(cwd);
                 }
-                editor.collectProjectFiles(cwdStr, 0, gitignore);
+                editor::helper::collectProjectFileEntries(
+                    cwdStr, 0, gitignore, editor.grepProjectFiles);
             }
         }
-        editor.fuzzyInitialized = true;
+        editor.grepFileIndexInitialized = true;
     }
 
     searchClear();
@@ -413,7 +467,7 @@ void GrepSearchMode::performSearch(Editor& editor)
         return;
     }
 
-    for(const auto& file : editor.allProjectFiles)
+    for(const auto& file : editor.grepProjectFiles)
     {
         if(file.isDirectory)
             continue;
@@ -694,7 +748,7 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
     if(editor.gitignoreLockedOff)
         return;
     editor.respectGitignore = !editor.respectGitignore;
-    editor.fuzzyInitialized = false;
+    editor.grepFileIndexInitialized = false;
     initialize(editor);
 }
 

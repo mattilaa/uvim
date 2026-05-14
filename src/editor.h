@@ -29,6 +29,19 @@ class ModeStateMachine;
 class SyntaxHighlighter;
 class Formatter;
 class GitHandler;
+class EditorSettingsController;
+class EditorBufferController;
+class EditorCommandController;
+class EditorEditingController;
+class EditorFileController;
+class EditorGitController;
+class EditorIndentController;
+class EditorLspController;
+class EditorModeController;
+class EditorOperatorController;
+class EditorReferencesController;
+class EditorSplitController;
+class EditorVisualController;
 struct CommandPrompt;
 
 struct MlangTokenCache
@@ -88,25 +101,25 @@ public:
                         const std::string& mlangLspPath = "mlangd-mla",
                         const std::vector<std::string>& mlangLspArgs = {});
     bool isMlangLspEnabled() const;
-    void enableHtmlLsp(bool enable,
-                       const std::string& htmlLspPath =
-                           "vscode-html-language-server",
-                       const std::vector<std::string>& htmlLspArgs = {});
+    void enableHtmlLsp(
+        bool enable,
+        const std::string& htmlLspPath = "vscode-html-language-server",
+        const std::vector<std::string>& htmlLspArgs = {});
     bool isHtmlLspEnabled() const;
-    void enableCssLsp(bool enable,
-                      const std::string& cssLspPath =
-                          "vscode-css-language-server",
-                      const std::vector<std::string>& cssLspArgs = {});
+    void
+    enableCssLsp(bool enable,
+                 const std::string& cssLspPath = "vscode-css-language-server",
+                 const std::vector<std::string>& cssLspArgs = {});
     bool isCssLspEnabled() const;
-    void enableJsonLsp(bool enable,
-                       const std::string& jsonLspPath =
-                           "vscode-json-language-server",
-                       const std::vector<std::string>& jsonLspArgs = {});
+    void enableJsonLsp(
+        bool enable,
+        const std::string& jsonLspPath = "vscode-json-language-server",
+        const std::vector<std::string>& jsonLspArgs = {});
     bool isJsonLspEnabled() const;
-    void enableTsLsp(bool enable,
-                     const std::string& tsLspPath =
-                         "typescript-language-server",
-                     const std::vector<std::string>& tsLspArgs = {});
+    void
+    enableTsLsp(bool enable,
+                const std::string& tsLspPath = "typescript-language-server",
+                const std::vector<std::string>& tsLspArgs = {});
     bool isTsLspEnabled() const;
 
     void run();
@@ -133,9 +146,9 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
-    // Fuzzy finder (FuzzyMatch struct is now in search_types.h)
-    std::vector<FileEntry> allProjectFiles; // All files in project
-    bool fuzzyInitialized = false;
+    // Grep file index
+    std::vector<FileEntry> grepProjectFiles; // All files in project
+    bool grepFileIndexInitialized = false;
 
     bool respectGitignore = true;
     bool useGitFileIndex = true;
@@ -504,14 +517,7 @@ public:
     void adjustViewportForPane(PaneState& pane, int rows, int cols);
     bool canSplit() const;
 
-    // Mode handlers
-    void handleNormalMode(int c);
-    void handleInsertMode(int c);
-    void handleVisualMode(int c);
-    void handleCommandMode(int c);
-    void handleSearchMode(int c);
-    bool handleEmojiPopupKey(int c);
-    void handleKeypress(int c);
+    // Mode handling
     void handleResize();
     bool isRobotKeyword(std::string_view word) const;
     bool isRobotCustomKeyword(std::string_view word) const;
@@ -538,7 +544,6 @@ public:
 
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
-    void handleOperatorPendingMode(int c);
     bool getTextObjectRange(char objChar, bool around, int& outStartY,
                             int& outStartX, int& outEndY, int& outEndX);
     void applyOperatorToRange(char op, int startY, int startX, int endY,
@@ -560,11 +565,6 @@ public:
     std::string getSymbolUnderCursor();
 
     // Fuzzy finder functions
-    void collectProjectFiles(const std::string& dir, int depth,
-                             const GitIgnore& gitignore);
-    int fuzzyScore(const std::string& needle, const std::string& haystack,
-                   std::vector<int>& matchPositions);
-
     // File browser navigation helpers (for mode handlers)
     void deleteFilePrompt();
     void renameFilePrompt();
@@ -588,7 +588,6 @@ public:
     void toggleReferencesPreview();
     void drawReferences();
     bool hasReferences() const;
-    std::string readLineFromFile(const std::string& path, int lineNum);
 
     // LSP info panel
     void showLspInfo();
@@ -752,7 +751,6 @@ public:
     void deleteVisualBlock();
     void changeVisualBlock();
     void yankVisualBlock();
-    void handleVisualBlockMode(int c);
     void applyVisualBlockInsert();
 
     // Extended visual mode commands (for mode handlers)
@@ -917,7 +915,22 @@ public:
     }
 
 private:
+    friend class Formatter;
     friend class GitHandler;
+    friend class EditorSettingsController;
+    friend class EditorBufferController;
+    friend class EditorCommandController;
+    friend class EditorEditingController;
+    friend class EditorFileController;
+    friend class EditorGitController;
+    friend class EditorIndentController;
+    friend class EditorLspController;
+    friend class EditorModeController;
+    friend class EditorOperatorController;
+    friend class EditorReferencesController;
+    friend class EditorSplitController;
+    friend class EditorVisualController;
+    std::string resolveEditorPathString(const std::string& input) const;
 #ifdef UVIM_TESTING
     struct TestTag
     {
@@ -925,6 +938,177 @@ private:
     Editor(TestTag tag, int rows, int cols);
 #endif
     bool formatBufferForSave();
+    void enableClangdLspImpl(bool enable, const std::string& compileCommandsDir,
+                             const std::string& clangdPath,
+                             const std::string& queryDriverAllowList);
+    bool isClangdLspEnabledImpl() const;
+    void enableRobotLspImpl(bool enable, const std::string& robotLspPath,
+                            const std::vector<std::string>& robotLspArgs);
+    bool isRobotLspEnabledImpl() const;
+    void enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
+                             const std::vector<std::string>& pythonLspArgs);
+    bool isPythonLspEnabledImpl() const;
+    void enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
+                            const std::vector<std::string>& mlangLspArgs);
+    bool isMlangLspEnabledImpl() const;
+    void enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
+                           const std::vector<std::string>& htmlLspArgs);
+    bool isHtmlLspEnabledImpl() const;
+    void enableCssLspImpl(bool enable, const std::string& cssLspPath,
+                          const std::vector<std::string>& cssLspArgs);
+    bool isCssLspEnabledImpl() const;
+    void enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
+                           const std::vector<std::string>& jsonLspArgs);
+    bool isJsonLspEnabledImpl() const;
+    void enableTsLspImpl(bool enable, const std::string& tsLspPath,
+                         const std::vector<std::string>& tsLspArgs);
+    bool isTsLspEnabledImpl() const;
+    bool handleSetCommandImpl(std::string_view cmd);
+    void createNewBufferImpl();
+    void updateCurrentBufferPointersImpl();
+    void clearCurrentBufferPointersImpl();
+    bool hasBufferImpl() const;
+    void ensureBufferForModeImpl(Mode mode);
+    void switchToBufferImpl(int index);
+    void nextBufferImpl();
+    void previousBufferImpl();
+    void moveBufferLeftImpl();
+    void moveBufferRightImpl();
+    void closeCurrentBufferImpl();
+    void listBuffersImpl();
+    int findBufferByFilenameImpl(const std::string& filename);
+    void saveBufferStateImpl();
+    void restoreBufferStateImpl();
+    std::optional<std::string> commandHistoryUpImpl();
+    std::optional<std::string> commandHistoryDownImpl();
+    void startCommandPopupImpl();
+    void cancelCommandPopupImpl();
+    void updateCommandPopupImpl(std::string_view query);
+    void moveCommandPopupCursorImpl(int delta);
+    bool isCommandPopupActiveImpl() const;
+    std::optional<std::string> commandPopupSelectionImpl() const;
+    void startCommandHistorySearchImpl(std::string_view seed);
+    std::string cancelCommandHistorySearchImpl();
+    std::string acceptCommandHistorySearchImpl();
+    void updateCommandHistorySearchQueryImpl(std::string_view query);
+    void moveCommandHistorySearchCursorImpl(int delta);
+    bool isCommandHistorySearchActiveImpl() const;
+    const std::string& commandHistorySearchQueryImpl() const;
+    void drawCommandPopupImpl(std::string& output) const;
+    void drawCommandHistoryPopupImpl(std::string& output) const;
+    std::vector<std::string> getCommandCompletionsImpl(std::string_view prefix);
+    std::vector<std::string> getCommandCompletionsImpl(std::string_view prefix,
+                                                       Mode mode);
+    std::vector<std::string> getHelpCompletionsImpl(std::string_view prefix);
+    std::vector<std::string> getSetCompletionsImpl(std::string_view prefix);
+    std::vector<std::string> getPathCompletionsImpl(std::string_view path);
+    std::vector<std::string>
+    getPathCompletionsRecursiveImpl(std::string_view path);
+    std::vector<std::string> getLocPathCompletionsImpl(std::string_view path);
+    void insertTabImpl();
+    void toggleCaseImpl();
+    void joinLinesImpl();
+    void insertLineAboveImpl();
+    void insertLineBelowImpl();
+    void deleteCurrentLineImpl();
+    void deleteToLineStartImpl();
+    void deleteCharAtCursorImpl();
+    void deleteCharBeforeCursorImpl();
+    void deleteWordBackwardImpl();
+    void deleteWordImpl();
+    void yankWordImpl();
+    void handleBackspaceImpl();
+    void replaceCharAtCursorImpl(char c);
+    void beginChangeRecordingImpl(int count = 1);
+    void recordChangeKeyImpl(int key);
+    void deferChangeRecordingCommitImpl();
+    void commitChangeRecordingImpl();
+    void cancelChangeRecordingImpl();
+    void finishChangeRecordingIfDeferredImpl();
+    bool isRecordingChangeImpl() const;
+    bool isReplayingChangeImpl() const;
+    int readKeyRecordedImpl();
+    void repeatLastChangeImpl(int times = 1);
+    void insertUtf8CharImpl(int c);
+    void indentCurrentLineImpl();
+    void dedentCurrentLineImpl();
+    void handleLinewiseOperatorImpl(char op, int count);
+    void saveFileImpl();
+    void checkFileChangesImpl();
+    void reloadCurrentFileImpl();
+    bool fileExistsImpl(const std::string& path);
+    std::string getSymbolUnderCursorImpl();
+    std::string findAlternateFileImpl(const std::string& currentFile);
+    void jumpToAlternateFileImpl();
+    void goToFileImpl();
+    void showFileInfoImpl();
+    void deleteFilePromptImpl();
+    void renameFilePromptImpl();
+    void createNewFilePromptImpl();
+    void createNewDirectoryPromptImpl();
+    int lineNumberWidthImpl() const;
+    int gitBlameWidthImpl() const;
+    int gutterWidthImpl() const;
+    void toggleGitBlameImpl();
+    void updateGitBlameForVisibleRangeImpl();
+    std::string blameDisplayForLineImpl(int row) const;
+    std::string blameFullForLineImpl(int row) const;
+    void openGitShowCommitModeImpl();
+    std::vector<std::string> loadGitShowLinesImpl(const std::string& hash);
+    void openGitLogModeImpl();
+    void openGitPrettyLogModeImpl();
+    void openGitLogModeForFileImpl();
+    void openGitStageModeImpl();
+    void enterOperatorPendingImpl(char op);
+    bool getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
+                                int& outStartX, int& outEndY, int& outEndX);
+    void applyOperatorToRangeImpl(char op, int startY, int startX, int endY,
+                                  int endX);
+    std::string toLowerCaseImpl(const std::string& str);
+    int getLineIndentImpl(int line);
+    void indentLineImpl(int line, int spaces);
+    void autoIndentLineImpl(int line);
+    void autoIndentRangeImpl(int startLine, int endLine);
+    void updateClangFormatIndentWidthImpl();
+    int indentWidthForBracesImpl() const;
+    bool braceNewLineForAutoBracesImpl() const;
+    void commentLinesImpl(int startY, int endY);
+    void startVisualModeImpl();
+    void startVisualLineModeImpl();
+    void startVisualBlockModeImpl();
+    void updateVisualSelectionImpl();
+    void updateVisualBlockSelectionImpl();
+    bool isInSelectionImpl(int row, int col);
+    bool isInVisualBlockImpl(int row, int col);
+    void getSelectionBoundsImpl(int& startY, int& startX, int& endY, int& endX);
+    void getVisualBlockBoundsImpl(int& startY, int& startX, int& endY,
+                                  int& endX);
+    void setVisualRangeImpl();
+    void swapVisualEndsImpl();
+    void swapVisualBlockCornerImpl();
+    void prepareBlockInsertImpl(bool atEnd);
+    void indentSelectionImpl();
+    void dedentSelectionImpl();
+    void autoIndentSelectionImpl();
+    void lowercaseSelectionImpl();
+    void uppercaseSelectionImpl();
+    void toggleCaseSelectionImpl();
+    void yankLineSelectionImpl();
+    void deleteLineSelectionImpl();
+    void indentLineSelectionImpl();
+    void dedentLineSelectionImpl();
+    void autoIndentLineSelectionImpl();
+    int tabBarRowsImpl() const;
+    int contentRowsImpl() const;
+    PaneLayout getPaneLayoutImpl(int pane) const;
+    void setPanePointersImpl(int pane);
+    void enableSplitImpl(bool vertical);
+    void closeSplitImpl();
+    void switchPaneImpl();
+    void syncBufferStateFromActivePaneImpl();
+    void initSplitPanesFromBufferImpl();
+    void switchToBufferInActivePaneImpl(int index);
+    bool canSplitImpl() const;
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
@@ -932,26 +1116,35 @@ public:
     static std::string
     testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
                                  std::string_view ident, int startY);
-    static std::string
-    testInferTsTypeFromArrayMethodLine(std::string_view line,
-                                       std::string_view param,
-                                       const std::vector<std::string>& lines,
-                                       int lineNo);
-    static bool testFindTsTypeDefinition(
-        const std::vector<std::string>& lines, std::string_view typeName,
-        int& outY, int& outX);
+    static std::string testInferTsTypeFromArrayMethodLine(
+        std::string_view line, std::string_view param,
+        const std::vector<std::string>& lines, int lineNo);
+    static bool testFindTsTypeDefinition(const std::vector<std::string>& lines,
+                                         std::string_view typeName, int& outY,
+                                         int& outX);
     static bool testFindTsMemberInType(const std::vector<std::string>& lines,
-                                       int typeStartY,
-                                       std::string_view member, int& outY,
-                                       int& outX);
+                                       int typeStartY, std::string_view member,
+                                       int& outY, int& outX);
     static std::string testResolveJsTsModule(const std::string& fromFile,
                                              std::string_view module);
     static std::string testResolveMlangModule(const std::string& fromFile,
                                               std::string_view modulePath);
     static int testCountLocForFile(const std::string& filepath);
+
 private:
 #endif
-    bool dispatchModeKey(int c);
-    void syncModeFromStateMachine();
     std::unique_ptr<ModeStateMachine> modeStateMachine;
+    std::unique_ptr<EditorSettingsController> settingsController;
+    std::unique_ptr<EditorBufferController> bufferController;
+    std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorEditingController> editingController;
+    std::unique_ptr<EditorFileController> fileController;
+    std::unique_ptr<EditorGitController> gitController;
+    std::unique_ptr<EditorIndentController> indentController;
+    std::unique_ptr<EditorLspController> lspController;
+    std::unique_ptr<EditorModeController> modeController;
+    std::unique_ptr<EditorOperatorController> operatorController;
+    std::unique_ptr<EditorReferencesController> referencesController;
+    std::unique_ptr<EditorSplitController> splitController;
+    std::unique_ptr<EditorVisualController> visualController;
 };

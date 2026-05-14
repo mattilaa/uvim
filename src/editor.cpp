@@ -1,7 +1,20 @@
 #include "editor.h"
 #include "ascii.h"
 #include "constants.h"
+#include "editor_buffer_controller.h"
+#include "editor_command_controller.h"
+#include "editor_editing_controller.h"
+#include "editor_file_controller.h"
+#include "editor_git_controller.h"
+#include "editor_indent_controller.h"
+#include "editor_lsp_controller.h"
+#include "editor_mode_controller.h"
+#include "editor_operator_controller.h"
+#include "editor_references_controller.h"
+#include "editor_settings_controller.h"
+#include "editor_split_controller.h"
 #include "editor_utils.h"
+#include "editor_visual_controller.h"
 #include "enablelog.h"
 #include "formatter.h"
 #include "git_handler.h"
@@ -21,7 +34,6 @@
 #include <cctype>
 #include <chrono>
 #include <csignal>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -248,22 +260,6 @@ static bool set_editor_working_directory(const fs::path& input,
 
     displayPath = normalized.string();
     return true;
-}
-
-static fs::path make_temp_file_path(const std::string& stem,
-                                    const std::string& extension)
-{
-    std::error_code ec;
-    fs::path dir = fs::temp_directory_path(ec);
-    if(ec || dir.empty())
-        dir = get_editor_working_directory();
-
-    const auto now =
-        std::chrono::steady_clock::now().time_since_epoch().count();
-    std::ostringstream name;
-    name << stem << '_' << now << '_' << reinterpret_cast<std::uintptr_t>(&dir)
-         << extension;
-    return dir / name.str();
 }
 
 static bool find_mlang_builtin_type(std::string_view symbol, std::string& path,
@@ -1680,6 +1676,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
 
     modeStateMachine =
         std::make_unique<ModeStateMachine>(createModeContext(this));
+    settingsController = std::make_unique<EditorSettingsController>(*this);
+    bufferController = std::make_unique<EditorBufferController>(*this);
+    commandController = std::make_unique<EditorCommandController>(*this);
+    editingController = std::make_unique<EditorEditingController>(*this);
+    fileController = std::make_unique<EditorFileController>(*this);
+    gitController = std::make_unique<EditorGitController>(*this);
+    indentController = std::make_unique<EditorIndentController>(*this);
+    lspController = std::make_unique<EditorLspController>(*this);
+    modeController = std::make_unique<EditorModeController>(*this);
+    operatorController = std::make_unique<EditorOperatorController>(*this);
+    referencesController = std::make_unique<EditorReferencesController>(*this);
+    splitController = std::make_unique<EditorSplitController>(*this);
+    visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -1697,6 +1706,19 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     robotSettingSet = default_robot_settings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
+    settingsController = std::make_unique<EditorSettingsController>(*this);
+    bufferController = std::make_unique<EditorBufferController>(*this);
+    commandController = std::make_unique<EditorCommandController>(*this);
+    editingController = std::make_unique<EditorEditingController>(*this);
+    fileController = std::make_unique<EditorFileController>(*this);
+    gitController = std::make_unique<EditorGitController>(*this);
+    indentController = std::make_unique<EditorIndentController>(*this);
+    lspController = std::make_unique<EditorLspController>(*this);
+    modeController = std::make_unique<EditorModeController>(*this);
+    operatorController = std::make_unique<EditorOperatorController>(*this);
+    referencesController = std::make_unique<EditorReferencesController>(*this);
+    splitController = std::make_unique<EditorSplitController>(*this);
+    visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(this);
     gitHandler = std::make_unique<GitHandler>(this);
@@ -1814,6 +1836,18 @@ bool Editor::yamlFormatBuffer()
     return formatter->yamlFormatBuffer();
 }
 
+bool Editor::mlangFormatBuffer()
+{
+    if(!formatter)
+        return false;
+    return formatter->mlangFormatBuffer();
+}
+
+std::string Editor::resolveEditorPathString(const std::string& input) const
+{
+    return resolve_editor_path(fs::path(input)).string();
+}
+
 void Editor::clangFormatVisualSelection()
 {
     if(formatter)
@@ -1902,822 +1936,173 @@ void Editor::enableClangdLsp(bool enable, const std::string& compileCommandsDir,
                              const std::string& clangdPath,
                              const std::string& queryDriverAllowList)
 {
-    clangdLspEnabled = false;
-    clangdLspCompileCommandsDir = compileCommandsDir;
-    clangdLspPath = clangdPath;
-    clangdLspQueryDriverAllowList = queryDriverAllowList;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(lspClient)
-        {
-            lspClient->stop();
-            lspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    // Auto-detect compile_commands.json if caller didn't specify --ccdir
-    std::string ccdir = clangdLspCompileCommandsDir;
-    auto exists = [](const std::string& p)
-    {
-        std::error_code ec;
-        return std::filesystem::exists(p, ec);
-    };
-
-    if(ccdir.empty())
-    {
-        if(exists(rootDir + "/compile_commands.json"))
-            ccdir = rootDir;
-        else if(exists(rootDir + "/build/compile_commands.json"))
-            ccdir = rootDir + "/build";
-    }
-
-    // If not provided, use a conservative default query-driver allowlist so
-    // clangd can discover system include paths (standard library headers etc)
-    // from common compilers referenced in compile_commands.json. Users with
-    // custom toolchains can pass:
-    //   --query-driver "/opt/toolchain/bin/*g++*,/opt/toolchain/bin/*gcc*"
-    std::string qd = clangdLspQueryDriverAllowList;
-    if(qd.empty())
-    {
-        // Only allow executing compilers from typical system locations.
-        // clangd expects a comma-separated list of globs/paths.
-        qd =
-            "/usr/bin/*clang*,/usr/bin/*clang++*,/usr/bin/*gcc*,/usr/bin/*g++*,"
-            "/bin/*gcc*,/bin/*g++*,"
-            "/usr/local/bin/*clang*,/usr/local/bin/*clang++*,/usr/local/bin/"
-            "*gcc*,/usr/local/bin/*g++*,"
-            "/opt/homebrew/bin/*clang*,/opt/homebrew/bin/*clang++*,/opt/"
-            "homebrew/bin/*gcc*,/opt/homebrew/bin/*g++*";
-    }
-
-    lspClient = std::make_unique<LspClient>();
-    if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
-    {
-        lspClient.reset();
-        setStatusMessage("clangd LSP: failed to start");
-        return;
-    }
-
-    clangdLspEnabled = true;
-    clangdLspCompileCommandsDir = ccdir;
-#else
-    (void)enable;
-    (void)compileCommandsDir;
-    (void)clangdPath;
-    setStatusMessage("clangd LSP: not compiled in");
-#endif
+    lspController->enableClangdLsp(enable, compileCommandsDir, clangdPath,
+                                   queryDriverAllowList);
 }
 
 bool Editor::isClangdLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return clangdLspEnabled && lspClient && lspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isClangdLspEnabled();
 }
 
 void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
                             const std::vector<std::string>& robotLspArgs)
 {
-    robotLspEnabled = false;
-    this->robotLspPath = robotLspPath;
-    this->robotLspArgs = robotLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(robotLspClient)
-        {
-            robotLspClient->stop();
-            robotLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->robotLspArgs;
-    if(args.empty())
-    {
-        args.push_back("--stdio");
-    }
-
-    robotLspClient = std::make_unique<LspClient>();
-    if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
-    {
-        LOG_ERROR(LOG, "Robot LSP failed to start, LSP path: {}",
-                  this->robotLspPath.c_str());
-        robotLspClient.reset();
-        return;
-    }
-
-    robotLspEnabled = true;
-    LOG_DEBUG(LOG, "Robot LSP enabled");
-#else
-    (void)enable;
-    (void)robotLspPath;
-    (void)robotLspArgs;
-    LOG_ERROR(LOG, "Robot LSP is not compiled in");
-#endif
+    lspController->enableRobotLsp(enable, robotLspPath, robotLspArgs);
 }
 
 bool Editor::isRobotLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return robotLspEnabled && robotLspClient && robotLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isRobotLspEnabled();
 }
 
 void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
                              const std::vector<std::string>& pythonLspArgs)
 {
-    pythonLspEnabled = false;
-    this->pythonLspPath = pythonLspPath;
-    this->pythonLspArgs = pythonLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(pythonLspClient)
-        {
-            pythonLspClient->stop();
-            pythonLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->pythonLspArgs;
-
-    pythonLspClient = std::make_unique<LspClient>();
-    if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
-    {
-        pythonLspClient.reset();
-
-        LOG_ERROR(LOG, "Python LSP failed to start. Python LSP path: {}",
-                  this->pythonLspPath);
-        return;
-    }
-
-    pythonLspEnabled = true;
-    LOG_DEBUG(LOG, "Python LSP enabled");
-#else
-    (void)enable;
-    (void)pythonLspPath;
-    (void)pythonLspArgs;
-    LOG_ERROR(LOG, "python LSP support is not compiled");
-#endif
+    lspController->enablePythonLsp(enable, pythonLspPath, pythonLspArgs);
 }
 
 bool Editor::isPythonLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return pythonLspEnabled && pythonLspClient && pythonLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isPythonLspEnabled();
 }
 
 void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
                             const std::vector<std::string>& mlangLspArgs)
 {
-    mlangLspEnabled = false;
-    this->mlangLspPath = mlangLspPath;
-    this->mlangLspArgs = mlangLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(mlangLspClient)
-        {
-            mlangLspClient->stop();
-            mlangLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->mlangLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    mlangLspClient = std::make_unique<LspClient>();
-    if(!mlangLspClient->startServer(this->mlangLspPath, rootDir, args))
-    {
-        mlangLspClient.reset();
-        LOG_ERROR(LOG, "Mlang LSP failed to start. LSP path: {}",
-                  this->mlangLspPath);
-        return;
-    }
-
-    mlangLspEnabled = true;
-    LOG_DEBUG(LOG, "Mlang LSP enabled");
-#else
-    (void)enable;
-    (void)mlangLspPath;
-    (void)mlangLspArgs;
-    LOG_ERROR(LOG, "Mlang LSP is not compiled");
-#endif
+    lspController->enableMlangLsp(enable, mlangLspPath, mlangLspArgs);
 }
 
 bool Editor::isMlangLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return mlangLspEnabled && mlangLspClient && mlangLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isMlangLspEnabled();
+}
+
+void Editor::findReferences()
+{
+    referencesController->findReferences();
+}
+
+void Editor::clearReferences()
+{
+    referencesController->clearReferences();
+}
+
+bool Editor::selectReference()
+{
+    return referencesController->selectReference();
+}
+
+void Editor::openReferencePreview()
+{
+    referencesController->openReferencePreview();
+}
+
+void Editor::referencesUp()
+{
+    referencesController->referencesUp();
+}
+
+void Editor::referencesDown()
+{
+    referencesController->referencesDown();
+}
+
+void Editor::referencesHalfPageUp()
+{
+    referencesController->referencesHalfPageUp();
+}
+
+void Editor::referencesHalfPageDown()
+{
+    referencesController->referencesHalfPageDown();
+}
+
+void Editor::referencesFirst()
+{
+    referencesController->referencesFirst();
+}
+
+void Editor::referencesLast()
+{
+    referencesController->referencesLast();
+}
+
+void Editor::toggleReferencesPreview()
+{
+    referencesController->toggleReferencesPreview();
+}
+
+void Editor::drawReferences()
+{
+    referencesController->drawReferences();
+}
+
+bool Editor::hasReferences() const
+{
+    return referencesController->hasReferences();
 }
 
 void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,
                            const std::vector<std::string>& htmlLspArgs)
 {
-    htmlLspEnabled = false;
-    this->htmlLspPath = htmlLspPath;
-    this->htmlLspArgs = htmlLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(htmlLspClient)
-        {
-            htmlLspClient->stop();
-            htmlLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->htmlLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    htmlLspClient = std::make_unique<LspClient>();
-    if(!htmlLspClient->startServer(this->htmlLspPath, rootDir, args))
-    {
-        htmlLspClient.reset();
-        LOG_ERROR(LOG, "HTML LSP failed to start. LSP path: {}",
-                  this->htmlLspPath);
-        return;
-    }
-
-    htmlLspEnabled = true;
-    LOG_DEBUG(LOG, "HTML LSP enabled");
-#else
-    (void)enable;
-    (void)htmlLspPath;
-    (void)htmlLspArgs;
-    LOG_ERROR(LOG, "HTML LSP is not compiled");
-#endif
+    lspController->enableHtmlLsp(enable, htmlLspPath, htmlLspArgs);
 }
 
 bool Editor::isHtmlLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return htmlLspEnabled && htmlLspClient && htmlLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isHtmlLspEnabled();
 }
 
 void Editor::enableCssLsp(bool enable, const std::string& cssLspPath,
                           const std::vector<std::string>& cssLspArgs)
 {
-    cssLspEnabled = false;
-    this->cssLspPath = cssLspPath;
-    this->cssLspArgs = cssLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(cssLspClient)
-        {
-            cssLspClient->stop();
-            cssLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->cssLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    cssLspClient = std::make_unique<LspClient>();
-    if(!cssLspClient->startServer(this->cssLspPath, rootDir, args))
-    {
-        cssLspClient.reset();
-        LOG_ERROR(LOG, "CSS LSP failed to start. LSP path: {}",
-                  this->cssLspPath);
-        return;
-    }
-
-    cssLspEnabled = true;
-    LOG_DEBUG(LOG, "CSS LSP enabled");
-#else
-    (void)enable;
-    (void)cssLspPath;
-    (void)cssLspArgs;
-    LOG_ERROR(LOG, "CSS LSP is not compiled");
-#endif
+    lspController->enableCssLsp(enable, cssLspPath, cssLspArgs);
 }
 
 bool Editor::isCssLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return cssLspEnabled && cssLspClient && cssLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isCssLspEnabled();
 }
 
 void Editor::enableJsonLsp(bool enable, const std::string& jsonLspPath,
                            const std::vector<std::string>& jsonLspArgs)
 {
-    jsonLspEnabled = false;
-    this->jsonLspPath = jsonLspPath;
-    this->jsonLspArgs = jsonLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(jsonLspClient)
-        {
-            jsonLspClient->stop();
-            jsonLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->jsonLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    jsonLspClient = std::make_unique<LspClient>();
-    if(!jsonLspClient->startServer(this->jsonLspPath, rootDir, args))
-    {
-        jsonLspClient.reset();
-        LOG_ERROR(LOG, "JSON LSP failed to start. LSP path: {}",
-                  this->jsonLspPath);
-        return;
-    }
-
-    jsonLspEnabled = true;
-    LOG_DEBUG(LOG, "JSON LSP enabled");
-#else
-    (void)enable;
-    (void)jsonLspPath;
-    (void)jsonLspArgs;
-    LOG_ERROR(LOG, "JSON LSP is not compiled");
-#endif
+    lspController->enableJsonLsp(enable, jsonLspPath, jsonLspArgs);
 }
 
 bool Editor::isJsonLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return jsonLspEnabled && jsonLspClient && jsonLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isJsonLspEnabled();
 }
 
 void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
                          const std::vector<std::string>& tsLspArgs)
 {
-    tsLspEnabled = false;
-    this->tsLspPath = tsLspPath;
-    this->tsLspArgs = tsLspArgs;
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(!enable)
-    {
-        if(tsLspClient)
-        {
-            tsLspClient->stop();
-            tsLspClient.reset();
-        }
-        return;
-    }
-
-    std::string rootDir = ".";
-    if(!projectRoot.empty())
-    {
-        rootDir = projectRoot;
-    }
-    else
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            rootDir = cwd.string();
-    }
-
-    std::vector<std::string> args = this->tsLspArgs;
-    if(args.empty())
-        args.push_back("--stdio");
-
-    tsLspClient = std::make_unique<LspClient>();
-    if(!tsLspClient->startServer(this->tsLspPath, rootDir, args))
-    {
-        tsLspClient.reset();
-        LOG_ERROR(LOG, "TypeScript LSP failed to start. LSP path: {}",
-                  this->tsLspPath);
-        return;
-    }
-
-    tsLspEnabled = true;
-    LOG_DEBUG(LOG, "TypeScript LSP enabled");
-#else
-    (void)enable;
-    (void)tsLspPath;
-    (void)tsLspArgs;
-    LOG_ERROR(LOG, "TypeScript LSP is not compiled");
-#endif
+    lspController->enableTsLsp(enable, tsLspPath, tsLspArgs);
 }
 
 bool Editor::isTsLspEnabled() const
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    return tsLspEnabled && tsLspClient && tsLspClient->running();
-#else
-    return false;
-#endif
+    return lspController->isTsLspEnabled();
 }
 
 void Editor::enterOperatorPending(char op)
 {
-    pendingOperator = op;
-    pendingAwaitingObject = false;
-    pendingObjectType = 0;
-    pendingCount = std::max(1, repeatCount);
-    commandBuffer.clear(); // keep UI tidy
-    setStatusMessage(std::string("Operator: ") + op);
-    setMode(OP_PENDING);
+    operatorController->enterOperatorPending(op);
 }
 
 bool Editor::getTextObjectRange(char objChar, bool around, int& outStartY,
                                 int& outStartX, int& outEndY, int& outEndX)
 {
-    // Current position
-    int y = *cursorY;
-    int x = *cursorX;
-
-    // Support bracket pairs
-    auto findEnclosing = [&](char openc, char closec) -> bool
-    {
-        // search left for the nearest openc
-        int ly = y, lx = x;
-        bool foundOpen = false;
-        for(;;)
-        {
-            const std::string& line = (*lines)[ly];
-            for(int i = lx; i >= 0; --i)
-            {
-                if(line[i] == openc)
-                {
-                    // try to find matching close from here
-                    int matchY = ly, matchX = i;
-                    // simulate bracket match forward
-                    int depth = 0;
-                    int ty = matchY, tx = matchX;
-                    for(;;)
-                    {
-                        // move one char forward
-                        tx++;
-                        while(ty < lines->size() && tx >= (*lines)[ty].length())
-                        {
-                            ty++;
-                            tx = 0;
-                            if(ty >= lines->size())
-                                break;
-                        }
-                        if(ty >= lines->size())
-                            break;
-                        char ch = (*lines)[ty][tx];
-                        if(ch == openc)
-                            depth++;
-                        else if(ch == closec)
-                        {
-                            if(depth == 0)
-                            {
-                                // match found at ty,tx
-                                outStartY = ly;
-                                outStartX = i;
-                                outEndY = ty;
-                                outEndX = tx;
-                                // adjust for 'inner' vs 'around'
-                                if(!around)
-                                {
-                                    // inner: exclude the brackets themselves
-                                    // move start forward one char
-                                    if(outStartX + 1 <=
-                                       (*lines)[outStartY].length())
-                                    {
-                                        outStartX = outStartX + 1;
-                                    }
-                                    else
-                                    {
-                                        // move to next position
-                                        outStartY++;
-                                        outStartX = 0;
-                                    }
-                                    // move end back one char
-                                    if(outEndX - 1 >= 0)
-                                    {
-                                        outEndX = outEndX - 1;
-                                    }
-                                    else
-                                    {
-                                        // move to previous line end
-                                        outEndY--;
-                                        outEndX =
-                                            (*lines)[outEndY].length() - 1;
-                                    }
-                                }
-                                return true;
-                            }
-                            else
-                            {
-                                depth--;
-                            }
-                        }
-                    }
-                }
-            }
-            // move to previous line
-            if(ly == 0)
-                break;
-            ly--;
-            if(ly >= 0)
-                lx = (*lines)[ly].length() - 1;
-        }
-        return false;
-    };
-
-    if(objChar == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
-       objChar == keyCode(command::CommandKey::KEY_RIGHT_PAREN))
-    {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_PAREN),
-                         keyCode(command::CommandKey::KEY_RIGHT_PAREN)))
-            return true;
-    }
-    if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACE) ||
-       objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
-    {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACE),
-                         keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
-            return true;
-    }
-    if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACKET) ||
-       objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACKET))
-    {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACKET),
-                         keyCode(command::CommandKey::KEY_RIGHT_BRACKET)))
-            return true;
-    }
-
-    // Quotes: find nearest pair of quotes in current line (simple)
-    if(objChar == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) ||
-       objChar == keyCode(command::CommandKey::KEY_APOSTROPHE))
-    {
-        const std::string& line = (*lines)[y];
-        // search left for quote
-        int lpos = -1, rpos = -1;
-        for(int i = x; i >= 0; --i)
-            if(line[i] == objChar)
-            {
-                lpos = i;
-                break;
-            }
-        for(int i = x; i < line.length(); ++i)
-            if(line[i] == objChar)
-            {
-                rpos = i;
-                break;
-            }
-
-        if(lpos >= 0 && rpos >= 0 && lpos < rpos)
-        {
-            outStartY = y;
-            outEndY = y;
-            if(around)
-            {
-                outStartX = lpos;
-                outEndX = rpos;
-            }
-            else
-            {
-                outStartX = lpos + 1;
-                outEndX = rpos - 1;
-            }
-            return true;
-        }
-    }
-
-    // Word objects: iw / aw
-    if(objChar == keyCode(typed::TypedKey::KEY_W))
-    {
-        // For inner word -> find word boundaries around cursor on same line
-        const std::string& line = (*lines)[y];
-        int L = x, R = x;
-        // If cursor at end-of-line and not in word, try next char
-        if(L >= line.length())
-            L = line.length() - 1;
-        // move L to start of word
-        while(L > 0 && !isWordChar(line[L]))
-            L--;
-        while(L > 0 && isWordChar(line[L - 1]))
-            L--;
-        // move R to end of word
-        while(R < (int)line.length() && isWordChar(line[R]))
-            R++;
-        if(R <= L)
-            return false;
-        outStartY = y;
-        outEndY = y;
-        if(around)
-        {
-            outStartX = L;
-            outEndX = R - 1;
-        } // 'aw' includes trailing space? keep simple: word only
-        else
-        {
-            outStartX = L;
-            outEndX = R - 1;
-        }
-        return true;
-    }
-
-    // Paragraph 'p' (simple: blank-line separated)
-    if(objChar == keyCode(typed::TypedKey::KEY_P))
-    {
-        int sy = y, ey = y;
-        // find paragraph start
-        while(sy > 0 && !(*lines)[sy].empty())
-            sy--;
-        if((*lines)[sy].empty() && sy < y)
-            sy++;
-        // find paragraph end
-        while(ey < lines->size() - 1 && !(*lines)[ey].empty())
-            ey++;
-        if((*lines)[ey].empty() && ey > y)
-            ey--;
-        outStartY = sy;
-        outEndY = ey;
-        outStartX = 0;
-        outEndX = (*lines)[outEndY].length() - 1;
-        return true;
-    }
-
-    return false;
+    return operatorController->getTextObjectRange(objChar, around, outStartY,
+                                                  outStartX, outEndY, outEndX);
 }
 
 void Editor::applyOperatorToRange(char op, int startY, int startX, int endY,
                                   int endX)
 {
-    // Normalize bounds
-    if(startY > endY || (startY == endY && startX > endX))
-    {
-        std::swap(startY, endY);
-        std::swap(startX, endX);
-    }
-
-    // Yank if 'y' or for 'd' we fill yankBuffer
-    if(op == keyCode(typed::TypedKey::KEY_Y) ||
-       op == keyCode(typed::TypedKey::KEY_D) ||
-       op == keyCode(typed::TypedKey::KEY_C))
-    {
-        yankRange(startY, startX, endY, endX);
-    }
-
-    if(op == keyCode(typed::TypedKey::KEY_D) ||
-       op == keyCode(typed::TypedKey::KEY_C))
-    {
-        deleteRange(startY, startX, endY, endX);
-        saveState();
-    }
-
-    if(op == keyCode(command::CommandKey::KEY_EQUAL))
-    {
-        // For indent operator, we indent all lines in the range
-        // For line-wise motions or when the range spans multiple lines
-        autoIndentRange(startY, endY);
-
-        int linesIndented = endY - startY + 1;
-        setStatusMessage(std::to_string(linesIndented) + " line" +
-                         (linesIndented > 1 ? "s" : "") + " indented");
-        saveState();
-    }
-
-    if(op == keyCode(typed::TypedKey::KEY_C))
-    {
-        // After change, enter insert mode at start
-        *cursorY = startY;
-        *cursorX = startX;
-    }
-    else
-    {
-        // Place cursor at start of affected range (or keep it for indent)
-        if(op != keyCode(command::CommandKey::KEY_EQUAL))
-        {
-            *cursorY = startY;
-            *cursorX = startX;
-        }
-    }
-
-    needsFullRedraw = true;
-    *dirty = true;
+    operatorController->applyOperatorToRange(op, startY, startX, endY, endX);
 }
 
 // yankRange and deleteRange are now in text_operations.cpp
@@ -2824,7 +2209,7 @@ void Editor::setMode(Mode mode)
         break;
     }
 
-    syncModeFromStateMachine();
+    modeController->syncModeFromStateMachine();
 }
 
 std::string Editor::getModeString() const
@@ -3159,7 +2544,7 @@ void Editor::openFileBrowser(std::string_view path)
     {
         modeStateMachine->transitionTo(
             FileBrowserMode{std::string(path), prev});
-        syncModeFromStateMachine();
+        modeController->syncModeFromStateMachine();
     }
     else
     {
@@ -3185,388 +2570,38 @@ bool Editor::formatBufferForSave()
 
 void Editor::saveFile()
 {
-    if(filename->empty())
-    {
-        setStatusMessage("No file name");
-        return;
-    }
-
-    if(formatOnSave)
-        formatBufferForSave();
-
-    // Clean up lines before saving: convert tabs to spaces, remove trailing
-    // whitespace
-    int linesModified = 0;
-    for(size_t lineIdx = 0; lineIdx < lines->size(); lineIdx++)
-    {
-        std::string& line = (*lines)[lineIdx];
-        std::string original = line;
-
-        // Convert tabs to spaces (4 spaces per tab, aligned to tab stops)
-        std::string expanded;
-        expanded.reserve(line.size());
-        int col = 0;
-        for(char c : line)
-        {
-            if(c == '\t')
-            {
-                // Add spaces to reach next tab stop (every 4 columns)
-                int spacesToAdd = 4 - (col % 4);
-                expanded.append(spacesToAdd, ' ');
-                col += spacesToAdd;
-            }
-            else
-            {
-                expanded += c;
-                col++;
-            }
-        }
-        line = expanded;
-
-        // Remove trailing whitespace
-        size_t endPos = line.find_last_not_of(" \t");
-        if(endPos != std::string::npos)
-        {
-            line = line.substr(0, endPos + 1);
-        }
-        else if(!line.empty())
-        {
-            // Line is all whitespace
-            line.clear();
-        }
-
-        if(line != original)
-        {
-            linesModified++;
-
-            // Adjust cursor if on this line and beyond the new line length
-            if((int)lineIdx == *cursorY && *cursorX > (int)line.length())
-            {
-                *cursorX = line.length() > 0 ? line.length() - 1 : 0;
-            }
-        }
-    }
-
-    std::ofstream file(*filename);
-    if(file.is_open())
-    {
-        for(const auto& line : *lines)
-        {
-            file << line << '\n';
-        }
-        file.close();
-        *dirty = false;
-        currentBuffer->savedUndoIndex =
-            currentBuffer->undoIndex; // Mark this state as saved
-        currentBuffer->savedContentHash = hash_lines(*lines);
-        currentBuffer->savedContentHashValid = true;
-
-        // Update file modification time after saving
-        std::error_code ec;
-        auto ftime = std::filesystem::last_write_time(*filename, ec);
-        if(!ec)
-        {
-            currentBuffer->lastModificationTime = ftime;
-        }
-
-        std::string msg = "\"" + *filename + "\" " +
-                          std::to_string(lines->size()) + "L written";
-        if(linesModified > 0)
-        {
-            msg += " (" + std::to_string(linesModified) + " lines cleaned)";
-            needsFullRedraw = true; // Redraw to show cleaned lines
-        }
-        setStatusMessage(msg);
-    }
-    else
-    {
-        setStatusMessage("Can't save! I/O error");
-    }
+    fileController->saveFile();
 }
 
 void Editor::checkFileChanges()
 {
-    // Only check if we have a valid file and buffer
-    if(!currentBuffer || filename->empty() || *dirty)
-        return;
-
-    std::error_code ec;
-
-    // Check if file still exists
-    if(!std::filesystem::exists(*filename, ec) || ec)
-        return;
-
-    // Get current modification time
-    auto currentTime = std::filesystem::last_write_time(*filename, ec);
-    if(ec)
-        return;
-
-    // Compare with stored modification time
-    if(currentTime != currentBuffer->lastModificationTime)
-    {
-        // File has been modified externally, reload it
-        reloadCurrentFile();
-    }
+    fileController->checkFileChanges();
 }
 
 void Editor::reloadCurrentFile()
 {
-    if(!currentBuffer || filename->empty())
-        return;
-
-    // Save cursor position
-    int savedCursorX = *cursorX;
-    int savedCursorY = *cursorY;
-    int savedOffsetX = *offsetX;
-    int savedOffsetY = *offsetY;
-
-    std::string filepath = *filename;
-
-    // Reload the file
-    lines->clear();
-
-    std::ifstream file(filepath);
-    if(file.is_open())
-    {
-        std::string line;
-        while(std::getline(file, line))
-        {
-            if(!line.empty() && line.back() == '\r')
-                line.pop_back();
-            lines->push_back(line);
-        }
-        file.close();
-    }
-
-    if(lines->empty())
-        lines->push_back("");
-
-    // Update modification time
-    std::error_code ec;
-    auto ftime = std::filesystem::last_write_time(filepath, ec);
-    if(!ec)
-    {
-        currentBuffer->lastModificationTime = ftime;
-    }
-
-    // Restore cursor position (clamped to valid range)
-    *cursorY = std::min(savedCursorY, (int)lines->size() - 1);
-    *cursorX = std::min(savedCursorX, (int)(*lines)[*cursorY].length());
-    *offsetX = savedOffsetX;
-    *offsetY =
-        std::min(savedOffsetY, std::max(0, (int)lines->size() - screenRows));
-
-    *dirty = false;
-    currentBuffer->savedContentHash = hash_lines(*lines);
-    currentBuffer->savedContentHashValid = true;
-    needsFullRedraw = true;
-
-    setStatusMessage("File reloaded from disk");
+    fileController->reloadCurrentFile();
 }
 
 // Jump between header and source file
 bool Editor::fileExists(const std::string& path)
 {
-    std::error_code ec;
-    return std::filesystem::exists(path, ec);
+    return fileController->fileExists(path);
 }
 
 std::string Editor::getSymbolUnderCursor()
 {
-    if(*cursorY >= lines->size())
-        return "";
-
-    const std::string& line = (*lines)[*cursorY];
-    int x = *cursorX;
-
-    if(x >= line.size() || !isIdent(line[x]))
-        return "";
-
-    int l = x;
-    int r = x;
-
-    while(l > 0 && isIdent(line[l - 1]))
-        l--;
-    while(r < line.size() && isIdent(line[r]))
-        r++;
-
-    symbolPrefix.clear();
-    int prefixStart = l;
-    while(prefixStart >= 2 && line[prefixStart - 1] == ':' &&
-          line[prefixStart - 2] == ':')
-    {
-        int p = prefixStart - 3;
-        while(p >= 0 && isIdent(line[p]))
-            p--;
-        if(p + 1 >= prefixStart - 1)
-            break;
-        prefixStart = p + 1;
-    }
-
-    if(prefixStart < l)
-    {
-        symbolPrefix = line.substr(prefixStart, l - prefixStart);
-    }
-
-    return line.substr(l, r - l);
+    return fileController->getSymbolUnderCursor();
 }
 
 std::string Editor::findAlternateFile(const std::string& currentFile)
 {
-    if(currentFile.empty())
-        return "";
-
-    // Find the last dot to get the extension
-    size_t lastDot = currentFile.find_last_of('.');
-    if(lastDot == std::string::npos)
-        return "";
-
-    std::string baseName = currentFile.substr(0, lastDot);
-    std::string extension = currentFile.substr(lastDot);
-
-    // List of header extensions
-    static const std::vector<std::string> headerExts = {".h", ".hpp", ".hxx",
-                                                        ".H", ".HPP", ".HXX"};
-
-    // List of source extensions
-    static const std::vector<std::string> sourceExts = {
-        ".cpp", ".cc", ".cxx", ".c", ".C", ".CPP", ".CC", ".CXX"};
-
-    // Check if current file is a header
-    bool isHeader = false;
-    for(const auto& ext : headerExts)
-    {
-        if(extension == ext)
-        {
-            isHeader = true;
-            break;
-        }
-    }
-
-    // Try to find the alternate file
-    std::vector<std::string> candidates;
-
-    if(isHeader)
-    {
-        // Current file is a header, look for source files
-        for(const auto& ext : sourceExts)
-        {
-            candidates.push_back(baseName + ext);
-        }
-    }
-    else
-    {
-        // Current file is likely a source, look for header files
-        for(const auto& ext : headerExts)
-        {
-            candidates.push_back(baseName + ext);
-        }
-    }
-
-    // Also check in common relative directories
-    size_t lastSlash = currentFile.find_last_of('/');
-    std::string dir = "";
-    std::string fileName = currentFile;
-
-    if(lastSlash != std::string::npos)
-    {
-        dir = currentFile.substr(0, lastSlash + 1);
-        fileName = currentFile.substr(lastSlash + 1);
-        baseName = fileName.substr(0, fileName.find_last_of('.'));
-    }
-
-    // Common directory pairs
-    std::vector<std::pair<std::string, std::string>> dirPairs = {
-        {"src/", "include/"},
-        {"source/", "include/"},
-        {"src/", "inc/"},
-        {"source/", "headers/"},
-        {"lib/", "include/"},
-        {"", "../include/"},
-        {"", "../inc/"},
-        {"include/", "../src/"},
-        {"include/", "../source/"},
-        {"inc/", "../src/"},
-        {"headers/", "../source/"},
-        {"include/", "../lib/"},
-    };
-
-    // Add candidates from related directories
-    for(const auto& [srcDir, incDir] : dirPairs)
-    {
-        if(dir.find(srcDir) != std::string::npos && isHeader == false)
-        {
-            // We're in a source dir, look for headers in include dir
-            std::string altDir = dir;
-            size_t pos = altDir.find(srcDir);
-            if(pos != std::string::npos)
-            {
-                altDir.replace(pos, srcDir.length(), incDir);
-                for(const auto& ext : headerExts)
-                {
-                    candidates.push_back(altDir + baseName + ext);
-                }
-            }
-        }
-        else if(dir.find(incDir) != std::string::npos && isHeader == true)
-        {
-            // We're in an include dir, look for sources in source dir
-            std::string altDir = dir;
-            size_t pos = altDir.find(incDir);
-            if(pos != std::string::npos)
-            {
-                altDir.replace(pos, incDir.length(), srcDir);
-                for(const auto& ext : sourceExts)
-                {
-                    candidates.push_back(altDir + baseName + ext);
-                }
-            }
-        }
-    }
-
-    // Check which candidate exists
-    for(const auto& candidate : candidates)
-    {
-        if(fileExists(candidate))
-        {
-            return candidate;
-        }
-    }
-
-    return "";
+    return fileController->findAlternateFile(currentFile);
 }
 
 void Editor::jumpToAlternateFile()
 {
-    if(filename->empty())
-    {
-        setStatusMessage("No file currently open");
-        return;
-    }
-
-    std::string alternate = findAlternateFile(*filename);
-
-    if(alternate.empty())
-    {
-        setStatusMessage("No alternate file found for " + *filename);
-        return;
-    }
-
-    // Check if the alternate file is already open in a buffer
-    int bufferIndex = findBufferByFilename(alternate);
-
-    if(bufferIndex >= 0)
-    {
-        // Switch to existing buffer
-        switchToBuffer(bufferIndex);
-        setStatusMessage("Switched to " + alternate);
-    }
-    else
-    {
-        // Open the alternate file in a new buffer
-        openFile(alternate);
-        setStatusMessage("Opened " + alternate);
-    }
+    fileController->jumpToAlternateFile();
 }
 
 // Movement implementations
@@ -3591,106 +2626,48 @@ bool Editor::isWordChar(char c) const
 
 void Editor::startVisualMode()
 {
-    setMode(VISUAL);
+    visualController->startVisualMode();
 }
 
 void Editor::startVisualLineMode()
 {
-    setMode(VISUAL_LINE);
+    visualController->startVisualLineMode();
 }
 
 void Editor::startVisualBlockMode()
 {
-    setMode(VISUAL_BLOCK);
-    currentBuffer->visualBlockStartX = *cursorX;
-    currentBuffer->visualBlockStartY = *cursorY;
-    currentBuffer->visualBlockEndX = *cursorX;
-    currentBuffer->visualBlockEndY = *cursorY;
-    currentBuffer->visualBlockInsertText.clear();
+    visualController->startVisualBlockMode();
 }
 
 void Editor::updateVisualSelection()
 {
-    currentBuffer->visualEndX = *cursorX;
-    currentBuffer->visualEndY = *cursorY;
+    visualController->updateVisualSelection();
 }
 
 void Editor::updateVisualBlockSelection()
 {
-    currentBuffer->visualBlockEndX = *cursorX;
-    currentBuffer->visualBlockEndY = *cursorY;
+    visualController->updateVisualBlockSelection();
 }
 
 bool Editor::isInSelection(int row, int col)
 {
-    if(currentMode != VISUAL && currentMode != VISUAL_LINE)
-        return false;
-
-    if(currentMode == VISUAL_LINE)
-    {
-        int startY =
-            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-        int endY =
-            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-        return row >= startY && row <= endY;
-    }
-
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    if(row < startY || row > endY)
-        return false;
-    if(row == startY && row == endY)
-        return col >= startX && col <= endX;
-    if(row == startY)
-        return col >= startX;
-    if(row == endY)
-        return col <= endX;
-    return true;
+    return visualController->isInSelection(row, col);
 }
 
 bool Editor::isInVisualBlock(int row, int col)
 {
-    if(currentMode != VISUAL_BLOCK)
-        return false;
-
-    int startY, startX, endY, endX;
-    getVisualBlockBounds(startY, startX, endY, endX);
-
-    return row >= startY && row <= endY && col >= startX && col <= endX;
+    return visualController->isInVisualBlock(row, col);
 }
 
 void Editor::getVisualBlockBounds(int& startY, int& startX, int& endY,
                                   int& endX)
 {
-    startY = std::min(currentBuffer->visualBlockStartY,
-                      currentBuffer->visualBlockEndY);
-    endY = std::max(currentBuffer->visualBlockStartY,
-                    currentBuffer->visualBlockEndY);
-    startX = std::min(currentBuffer->visualBlockStartX,
-                      currentBuffer->visualBlockEndX);
-    endX = std::max(currentBuffer->visualBlockStartX,
-                    currentBuffer->visualBlockEndX);
+    visualController->getVisualBlockBounds(startY, startX, endY, endX);
 }
 
 void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
 {
-    if(currentBuffer->visualStartY < currentBuffer->visualEndY ||
-       (currentBuffer->visualStartY == currentBuffer->visualEndY &&
-        currentBuffer->visualStartX <= currentBuffer->visualEndX))
-    {
-        startY = currentBuffer->visualStartY;
-        startX = currentBuffer->visualStartX;
-        endY = currentBuffer->visualEndY;
-        endX = currentBuffer->visualEndX;
-    }
-    else
-    {
-        startY = currentBuffer->visualEndY;
-        startX = currentBuffer->visualEndX;
-        endY = currentBuffer->visualStartY;
-        endX = currentBuffer->visualStartX;
-    }
+    visualController->getSelectionBounds(startY, startX, endY, endX);
 }
 
 // deleteVisualBlock, yankVisualBlock, changeVisualBlock,
@@ -3698,138 +2675,27 @@ void Editor::getSelectionBounds(int& startY, int& startX, int& endY, int& endX)
 
 std::string Editor::toLowerCase(const std::string& str)
 {
-    std::string result = str;
-    std::transform(result.begin(), result.end(), result.begin(), ::tolower);
-    return result;
+    return indentController->toLowerCase(str);
 }
 
 int Editor::getLineIndent(int line)
 {
-    if(line < 0 || line >= (int)lines->size())
-        return 0;
-
-    const std::string& text = (*lines)[line];
-    int indent = 0;
-    for(char c : text)
-    {
-        if(c == ' ')
-            indent++;
-        else if(c == '\t')
-            indent += 4; // Treat tab as 4 spaces
-        else
-            break;
-    }
-    return indent;
+    return indentController->getLineIndent(line);
 }
 
 void Editor::indentLine(int line, int spaces)
 {
-    if(line < 0 || line >= (int)lines->size())
-        return;
-
-    std::string& text = (*lines)[line];
-
-    // Remove existing indentation
-    size_t firstNonSpace = 0;
-    while(firstNonSpace < text.length() &&
-          (text[firstNonSpace] == ' ' || text[firstNonSpace] == '\t'))
-    {
-        firstNonSpace++;
-    }
-
-    // Build new indentation
-    std::string newIndent(spaces, ' ');
-    text = newIndent + text.substr(firstNonSpace);
-    *dirty = true;
+    indentController->indentLine(line, spaces);
 }
 
-// Auto-indent a line based on the previous line and C++ syntax rules
 void Editor::autoIndentLine(int line)
 {
-    if(line < 0 || line >= (int)lines->size())
-        return;
-
-    // Get the content of current line (without leading spaces)
-    std::string currentLine = (*lines)[line];
-    size_t firstNonSpace = currentLine.find_first_not_of(" \t");
-    if(firstNonSpace != std::string::npos)
-        currentLine = currentLine.substr(firstNonSpace);
-    else
-        currentLine = "";
-
-    // Start with previous line's indent
-    int baseIndent = 0;
-    if(line > 0)
-    {
-        baseIndent = getLineIndent(line - 1);
-
-        // Check if previous line ends with { or starts a block
-        const std::string& prevLine = (*lines)[line - 1];
-        size_t lastNonSpace = prevLine.find_last_not_of(" \t\r\n");
-        if(lastNonSpace != std::string::npos)
-        {
-            char lastChar = prevLine[lastNonSpace];
-            if(lastChar == '{')
-            {
-                baseIndent += 4; // Increase indent after opening brace
-            }
-            else if(lastChar == ':' &&
-                    (prevLine.find("public") != std::string::npos ||
-                     prevLine.find("private") != std::string::npos ||
-                     prevLine.find("protected") != std::string::npos ||
-                     prevLine.find("case") != std::string::npos ||
-                     prevLine.find("default") != std::string::npos))
-            {
-                baseIndent += 4; // Increase indent after class access
-                                 // specifiers or case labels
-            }
-        }
-    }
-
-    // Check if current line starts with closing brace or special keywords
-    if(!currentLine.empty())
-    {
-        if(currentLine[0] == '}')
-        {
-            baseIndent = std::max(
-                0, baseIndent - 4); // Decrease indent for closing brace
-        }
-        else if(currentLine.find("public:") == 0 ||
-                currentLine.find("private:") == 0 ||
-                currentLine.find("protected:") == 0)
-        {
-            // Access specifiers typically have less indent than class members
-            if(line > 0 && baseIndent >= 4)
-                baseIndent -= 4;
-        }
-        else if(currentLine.find("case ") == 0 ||
-                currentLine.find("default:") == 0)
-        {
-            // Case labels typically align with switch
-            if(baseIndent >= 4)
-                baseIndent -= 4;
-        }
-    }
-
-    indentLine(line, baseIndent);
+    indentController->autoIndentLine(line);
 }
 
-// Auto-indent a range of lines
 void Editor::autoIndentRange(int startLine, int endLine)
 {
-    if(startLine > endLine)
-        std::swap(startLine, endLine);
-
-    startLine = std::max(0, startLine);
-    endLine = std::min((int)lines->size() - 1, endLine);
-
-    for(int i = startLine; i <= endLine; i++)
-    {
-        autoIndentLine(i);
-    }
-
-    *dirty = true;
-    needsFullRedraw = true;
+    indentController->autoIndentRange(startLine, endLine);
 }
 
 // Helper function to extract include path from a line
@@ -5215,7 +4081,7 @@ void Editor::goToDefinition()
 
 void Editor::refreshScreen()
 {
-    syncModeFromStateMachine();
+    modeController->syncModeFromStateMachine();
 
     if(diagnosticPopupActive && (*cursorY != diagnosticPopupCursorY ||
                                  *cursorX != diagnosticPopupCursorX))
@@ -5640,551 +4506,142 @@ bool Editor::noteDoubleEscStatusClear()
 
 int Editor::tabBarRows() const
 {
-    return (showTabs && !buffers.empty()) ? 1 : 0;
+    return splitController->tabBarRows();
 }
 
 int Editor::contentRows() const
 {
-    if(splitActive)
-    {
-        PaneLayout layout = getPaneLayout(activePane);
-        return std::max(1, layout.rows - tabBarRows());
-    }
-    return std::max(1, screenRows - tabBarRows());
+    return splitController->contentRows();
 }
 
 Editor::PaneLayout Editor::getPaneLayout(int pane) const
 {
-    PaneLayout layout;
-    layout.x = 0;
-    layout.y = 0;
-    layout.rows = screenRows;
-    layout.cols = screenCols;
-
-    if(!splitActive)
-        return layout;
-
-    if(splitVertical)
-    {
-        if(screenCols < 2)
-            return layout;
-        int leftCols = screenCols / 2;
-        int rightCols = screenCols - leftCols;
-        if(rightCols > 1)
-            rightCols -= 1; // avoid auto-wrap at last column
-        if(pane == 0)
-        {
-            layout.x = 0;
-            layout.cols = leftCols;
-        }
-        else
-        {
-            layout.x = leftCols;
-            layout.cols = rightCols;
-        }
-        layout.y = 0;
-        layout.rows = screenRows;
-    }
-    else
-    {
-        if(screenRows < 2)
-            return layout;
-        int topRows = screenRows / 2;
-        int bottomRows = screenRows - topRows;
-        layout.x = 0;
-        layout.cols = screenCols;
-        if(pane == 0)
-        {
-            layout.y = 0;
-            layout.rows = topRows;
-        }
-        else
-        {
-            layout.y = topRows;
-            layout.rows = bottomRows;
-        }
-    }
-
-    layout.rows = std::max(1, layout.rows);
-    layout.cols = std::max(1, layout.cols);
-    return layout;
+    return splitController->getPaneLayout(pane);
 }
 
 void Editor::setPanePointers(int pane)
 {
-    cursorX = &splitPanes[pane].cursorX;
-    cursorY = &splitPanes[pane].cursorY;
-    wantedX = &splitPanes[pane].wantedX;
-    offsetX = &splitPanes[pane].offsetX;
-    offsetY = &splitPanes[pane].offsetY;
+    splitController->setPanePointers(pane);
 }
 
 void Editor::enableSplit(bool vertical)
 {
-    if(!currentBuffer)
-    {
-        setStatusMessage("No buffer");
-        return;
-    }
-    if(splitActive)
-    {
-        syncBufferStateFromActivePane();
-    }
-    splitActive = true;
-    splitVertical = vertical;
-    activePane = 0;
-    splitTabBarOffset[0] = tabBarOffset;
-    splitTabBarOffset[1] = tabBarOffset;
-    initSplitPanesFromBuffer();
-    setPanePointers(activePane);
-    needsFullRedraw = true;
+    splitController->enableSplit(vertical);
 }
 
 void Editor::closeSplit()
 {
-    if(!splitActive)
-        return;
-    syncBufferStateFromActivePane();
-    int paneIndex = activePane;
-    splitActive = false;
-    currentBufferIndex = splitPanes[paneIndex].bufferIndex;
-    tabBarOffset = splitTabBarOffset[paneIndex];
-    activePane = 0;
-    updateCurrentBufferPointers();
-    needsFullRedraw = true;
+    splitController->closeSplit();
 }
 
 void Editor::switchPane()
 {
-    if(!splitActive)
-        return;
-    syncBufferStateFromActivePane();
-    splitTabBarOffset[activePane] = tabBarOffset;
-    activePane = (activePane == 0) ? 1 : 0;
-    tabBarOffset = splitTabBarOffset[activePane];
-    currentBufferIndex = splitPanes[activePane].bufferIndex;
-    updateCurrentBufferPointers();
-    adjustViewport();
-    needsFullRedraw = true;
+    splitController->switchPane();
 }
 
 void Editor::syncBufferStateFromActivePane()
 {
-    if(!currentBuffer)
-        return;
-    currentBuffer->cursorX = splitPanes[activePane].cursorX;
-    currentBuffer->cursorY = splitPanes[activePane].cursorY;
-    currentBuffer->wantedX = splitPanes[activePane].wantedX;
-    currentBuffer->offsetX = splitPanes[activePane].offsetX;
-    currentBuffer->offsetY = splitPanes[activePane].offsetY;
+    splitController->syncBufferStateFromActivePane();
 }
 
 void Editor::initSplitPanesFromBuffer()
 {
-    if(!currentBuffer)
-        return;
-    PaneState state;
-    state.bufferIndex = currentBufferIndex;
-    state.cursorX = currentBuffer->cursorX;
-    state.cursorY = currentBuffer->cursorY;
-    state.wantedX = currentBuffer->wantedX;
-    state.offsetX = currentBuffer->offsetX;
-    state.offsetY = currentBuffer->offsetY;
-    splitPanes[0] = state;
-    splitPanes[1] = state;
+    splitController->initSplitPanesFromBuffer();
 }
 
 void Editor::switchToBufferInActivePane(int index)
 {
-    if(index < 0 || index >= buffers.size())
-        return;
-    syncBufferStateFromActivePane();
-    splitTabBarOffset[activePane] = tabBarOffset;
-    tabBarOffset = splitTabBarOffset[activePane];
-    splitPanes[activePane].bufferIndex = index;
-    currentBufferIndex = index;
-    updateCurrentBufferPointers();
-    restoreBufferState();
-    needsFullRedraw = true;
+    splitController->switchToBufferInActivePane(index);
 }
 
 bool Editor::canSplit() const
 {
-    if(!splitActive)
-        return false;
-    if(splitVertical)
-        return screenCols >= 2;
-    return screenRows >= 2;
+    return splitController->canSplit();
 }
 
 int Editor::lineNumberWidth() const
 {
-    if(!showRelativeLineNumbers)
-        return 0;
-    int maxLine = 1;
-    if(!buffers.empty())
-    {
-        for(const auto& buf : buffers)
-        {
-            int count = (int)buf->lines.size();
-            if(count > maxLine)
-                maxLine = count;
-        }
-    }
-    if(maxLine > maxLineCountSeen)
-        maxLineCountSeen = maxLine;
-    return (int)std::to_string(maxLineCountSeen).length();
+    return gitController->lineNumberWidth();
 }
 
 int Editor::gitBlameWidth() const
 {
-    if(!showGitBlame || !currentBuffer)
-        return 0;
-
-    int width = 0;
-    for(int row = 0; row < (int)currentBuffer->blameEntries.size(); ++row)
-    {
-        std::string blame = blameDisplayForLine(row);
-        int blameWidth = text_utils::utf8DisplayWidth(blame);
-        if(blameWidth > width)
-            width = blameWidth;
-    }
-    return std::min(width, kGitBlameMaxWidth);
+    return gitController->gitBlameWidth();
 }
 
 int Editor::gutterWidth() const
 {
-    int width = showGitBlame ? gitBlameWidth() + 1 : kDiagnosticGutterWidth;
-    int numbers = lineNumberWidth();
-    if(numbers > 0)
-    {
-        width += numbers + 1; // add space after line number
-    }
-    return width;
+    return gitController->gutterWidth();
 }
 
 void Editor::toggleGitBlame()
 {
-    if(gitHandler)
-        gitHandler->toggleGitBlame();
+    gitController->toggleGitBlame();
 }
 
 void Editor::updateGitBlameForVisibleRange()
 {
-    if(gitHandler)
-        gitHandler->updateGitBlameForVisibleRange();
+    gitController->updateGitBlameForVisibleRange();
 }
 
 std::string Editor::blameDisplayForLine(int row) const
 {
-    if(gitHandler)
-        return gitHandler->blameDisplayForLine(row);
-    return "";
+    return gitController->blameDisplayForLine(row);
 }
 
 std::string Editor::blameFullForLine(int row) const
 {
-    if(gitHandler)
-        return gitHandler->blameFullForLine(row);
-    return "";
+    return gitController->blameFullForLine(row);
 }
 
 void Editor::openGitShowCommitMode()
 {
-    if(gitHandler)
-        gitHandler->openGitShowCommitMode();
+    gitController->openGitShowCommitMode();
 }
 
 std::vector<std::string> Editor::loadGitShowLines(const std::string& hash)
 {
-    if(gitHandler)
-        return gitHandler->loadGitShowLines(hash);
-    return {};
+    return gitController->loadGitShowLines(hash);
 }
 
 void Editor::openGitLogMode()
 {
-    if(gitHandler)
-        gitHandler->openGitLogMode();
+    gitController->openGitLogMode();
 }
 
 void Editor::openGitPrettyLogMode()
 {
-    if(gitHandler)
-        gitHandler->openGitPrettyLogMode();
+    gitController->openGitPrettyLogMode();
 }
 
 void Editor::openGitLogModeForFile()
 {
-    if(gitHandler)
-        gitHandler->openGitLogModeForFile();
+    gitController->openGitLogModeForFile();
 }
 
 void Editor::openGitStageMode()
 {
-    if(gitHandler)
-        gitHandler->openGitStageMode();
-}
-
-static std::optional<int> parseIndentWidthLine(const std::string& line)
-{
-    size_t start = 0;
-    while(start < line.size() && (line[start] == ' ' || line[start] == '\t'))
-        start++;
-    if(start >= line.size() || line[start] == '#')
-        return std::nullopt;
-
-    constexpr std::string_view key = "IndentWidth";
-    if(line.compare(start, key.size(), key) != 0)
-        return std::nullopt;
-    size_t pos = start + key.size();
-    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
-        pos++;
-    if(pos >= line.size() || line[pos] != ':')
-        return std::nullopt;
-    pos++;
-    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
-        pos++;
-    if(pos >= line.size())
-        return std::nullopt;
-
-    size_t end = pos;
-    while(end < line.size() && std::isdigit((unsigned char)line[end]))
-        end++;
-    if(end == pos)
-        return std::nullopt;
-
-    try
-    {
-        int value = std::stoi(line.substr(pos, end - pos));
-        if(value > 0)
-            return value;
-    }
-    catch(...)
-    {
-    }
-    return std::nullopt;
-}
-
-static std::optional<std::string> parseScalarValueLine(const std::string& line,
-                                                       std::string_view key)
-{
-    size_t start = 0;
-    while(start < line.size() && (line[start] == ' ' || line[start] == '\t'))
-        start++;
-    if(start >= line.size() || line[start] == '#')
-        return std::nullopt;
-
-    if(line.compare(start, key.size(), key) != 0)
-        return std::nullopt;
-    size_t pos = start + key.size();
-    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
-        pos++;
-    if(pos >= line.size() || line[pos] != ':')
-        return std::nullopt;
-    pos++;
-    while(pos < line.size() && (line[pos] == ' ' || line[pos] == '\t'))
-        pos++;
-    if(pos >= line.size())
-        return std::nullopt;
-
-    std::string value = line.substr(pos);
-    while(!value.empty() && (value.back() == ' ' || value.back() == '\t' ||
-                             value.back() == '\r' || value.back() == '\n'))
-        value.pop_back();
-    return value;
-}
-
-static bool parseBraceNewLineValue(std::string value)
-{
-    for(char& c : value)
-        c = (char)std::tolower((unsigned char)c);
-    if(value == "allman" || value == "whitesmiths" || value == "gnu")
-        return true;
-    if(value == "attach" || value == "stroustrup" || value == "linux" ||
-       value == "webkit")
-        return false;
-    if(value == "true" || value == "always")
-        return true;
-    if(value == "false" || value == "never")
-        return false;
-    return false;
+    gitController->openGitStageMode();
 }
 
 void Editor::updateClangFormatIndentWidth()
 {
-    if(!currentBuffer)
-        return;
-
-    currentBuffer->clangIndentWidthValid = true;
-    currentBuffer->clangIndentWidth = -1;
-    currentBuffer->clangBraceStyleValid = true;
-    currentBuffer->clangBraceNewLine = false;
-
-    if(!isFileType<FileType::Cpp>() || !filename || filename->empty())
-        return;
-
-    std::filesystem::path path = *filename;
-    if(path.is_relative())
-        path = std::filesystem::absolute(path);
-    if(path.has_parent_path())
-        path = path.parent_path();
-
-    std::error_code ec;
-    while(true)
-    {
-        std::filesystem::path clangFormat = path / ".clang-format";
-        std::filesystem::path altFormat = path / "_clang-format";
-        std::filesystem::path found;
-
-        if(std::filesystem::exists(clangFormat, ec))
-            found = clangFormat;
-        else if(std::filesystem::exists(altFormat, ec))
-            found = altFormat;
-
-        if(!found.empty())
-        {
-            std::ifstream in(found);
-            if(in.is_open())
-            {
-                std::string line;
-                bool inBraceWrapping = false;
-                size_t braceWrappingIndent = 0;
-                while(std::getline(in, line))
-                {
-                    std::optional<int> width = parseIndentWidthLine(line);
-                    if(width)
-                    {
-                        currentBuffer->clangIndentWidth = *width;
-                    }
-
-                    auto breakValue =
-                        parseScalarValueLine(line, "BreakBeforeBraces");
-                    if(breakValue)
-                    {
-                        currentBuffer->clangBraceNewLine =
-                            parseBraceNewLineValue(*breakValue);
-                        continue;
-                    }
-
-                    auto braceWrapping =
-                        parseScalarValueLine(line, "BraceWrapping");
-                    if(braceWrapping)
-                    {
-                        inBraceWrapping = true;
-                        braceWrappingIndent = line.find_first_not_of(" \t");
-                        if(braceWrappingIndent == std::string::npos)
-                            braceWrappingIndent = 0;
-                        continue;
-                    }
-
-                    if(inBraceWrapping)
-                    {
-                        size_t indent = line.find_first_not_of(" \t");
-                        if(indent == std::string::npos)
-                            continue;
-                        if(indent <= braceWrappingIndent)
-                        {
-                            inBraceWrapping = false;
-                            continue;
-                        }
-
-                        auto afterControl =
-                            parseScalarValueLine(line, "AfterControlStatement");
-                        if(afterControl)
-                        {
-                            currentBuffer->clangBraceNewLine =
-                                parseBraceNewLineValue(*afterControl);
-                        }
-                    }
-                }
-            }
-            return;
-        }
-
-        if(path == path.root_path())
-            break;
-        path = path.parent_path();
-    }
+    indentController->updateClangFormatIndentWidth();
 }
 
 int Editor::indentWidthForBraces() const
 {
-    if(currentBuffer && currentBuffer->clangIndentWidthValid &&
-       currentBuffer->clangIndentWidth > 0)
-        return currentBuffer->clangIndentWidth;
-    return tabSpaces;
+    return indentController->indentWidthForBraces();
 }
 
 bool Editor::braceNewLineForAutoBraces() const
 {
-    if(currentBuffer && currentBuffer->clangBraceStyleValid)
-        return currentBuffer->clangBraceNewLine;
-    return false;
+    return indentController->braceNewLineForAutoBraces();
 }
 
 void Editor::commentLines(int startY, int endY)
 {
-    if(!currentBuffer || !lines)
-        return;
-    if(!isFileType<FileType::Cpp>() && !isFileType<FileType::Python>())
-    {
-        setStatusMessage("comment: unsupported filetype");
-        return;
-    }
-
-    std::string prefix = isFileType<FileType::Python>() ? "#" : "//";
-    if(startY > endY)
-        std::swap(startY, endY);
-
-    bool allCommented = true;
-    bool anyCommented = false;
-    for(int y = startY; y <= endY && y < (int)lines->size(); ++y)
-    {
-        const std::string& line = (*lines)[y];
-        size_t pos = line.find_first_not_of(" \t");
-        if(pos == std::string::npos)
-            continue;
-        if(line.compare(pos, prefix.size(), prefix) == 0)
-        {
-            anyCommented = true;
-        }
-        else
-        {
-            allCommented = false;
-        }
-    }
-
-    if(commentTogglePartial && anyCommented)
-        allCommented = true;
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); ++y)
-    {
-        std::string& line = (*lines)[y];
-        size_t pos = line.find_first_not_of(" \t");
-        if(pos == std::string::npos)
-            continue;
-
-        if(allCommented)
-        {
-            if(line.compare(pos, prefix.size(), prefix) != 0)
-                continue;
-            size_t eraseLen = prefix.size();
-            if(pos + eraseLen < line.size() && line[pos + eraseLen] == ' ')
-                eraseLen++;
-            line.erase(pos, eraseLen);
-            continue;
-        }
-
-        if(line.compare(pos, prefix.size(), prefix) == 0)
-            continue;
-        line.insert(pos, prefix + " ");
-    }
-
-    *dirty = true;
-    saveState();
-    currentBuffer->lspSyncNeeded = true;
-    needsFullRedraw = true;
+    indentController->commentLines(startY, endY);
 }
 
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)
@@ -6379,922 +4836,7 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
 
 bool Editor::handleSetCommand(std::string_view cmd)
 {
-    if(!cmd.starts_with("set "))
-        return false;
-
-    std::string opt = std::string(cmd.substr(4));
-    if(opt == "autobraces?")
-    {
-        setStatusMessage(std::string("autobraces=") +
-                         (autoBraces ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autoquotes?")
-    {
-        setStatusMessage(std::string("autoquotes=") +
-                         (autoQuotes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autobracesinstrings?")
-    {
-        setStatusMessage(std::string("autobracesinstrings=") +
-                         (autoBracesInStrings ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autotags?")
-    {
-        setStatusMessage(std::string("autotags=") +
-                         (autoTags ? "true" : "false"));
-        return true;
-    }
-    if(opt == "tabspaces?")
-    {
-        setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
-        return true;
-    }
-    if(opt == "autocomplete?")
-    {
-        setStatusMessage(std::string("autocomplete=") +
-                         (autoCompletion ? "true" : "false"));
-        return true;
-    }
-    if(opt == "completionautoparens?")
-    {
-        setStatusMessage(std::string("completionautoparens=") +
-                         (completionAutoParens ? "true" : "false"));
-        return true;
-    }
-    if(opt == "showtabs?")
-    {
-        setStatusMessage(std::string("showtabs=") +
-                         (showTabs ? "true" : "false"));
-        return true;
-    }
-    if(opt == "tabnumbers?")
-    {
-        setStatusMessage(std::string("tabnumbers=") +
-                         (showTabNumbers ? "true" : "false"));
-        return true;
-    }
-    if(opt == "utf8?")
-    {
-        setStatusMessage(std::string("utf8=") + (utf8Mode ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gitblameinfo?")
-    {
-        setStatusMessage(std::string("gitblameinfo=") +
-                         (showGitBlameInfo ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gitdefaultcolors?")
-    {
-        setStatusMessage(std::string("gitdefaultcolors=") +
-                         (gitUseDefaultColors ? "true" : "false"));
-        return true;
-    }
-    if(opt == "commenttogglepartial?")
-    {
-        setStatusMessage(std::string("commenttogglepartial=") +
-                         (commentTogglePartial ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gitignore?")
-    {
-        setStatusMessage(std::string("gitignore=") +
-                         (respectGitignore ? "true" : "false"));
-        return true;
-    }
-    if(opt == "formatoninsertleave?")
-    {
-        setStatusMessage(std::string("formatoninsertleave=") +
-                         (formatOnInsertLeave ? "true" : "false"));
-        return true;
-    }
-    if(opt == "autodetectlsps?")
-    {
-        setStatusMessage(std::string("autodetectlsps=") +
-                         (autoDetectLsps ? "true" : "false"));
-        return true;
-    }
-    if(opt == "filebrowser.fuzzy?")
-    {
-        setStatusMessage(std::string("filebrowser.fuzzy=") +
-                         (fileBrowserFuzzy ? "true" : "false"));
-        return true;
-    }
-    if(opt == "status.lspgap?")
-    {
-        setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
-        return true;
-    }
-    if(opt == "commandline.messageprefix?")
-    {
-        setStatusMessage(std::string("commandline.messageprefix=") +
-                         (commandLineMessagePrefix ? "true" : "false"));
-        return true;
-    }
-    if(opt == "formatonsave?")
-    {
-        setStatusMessage(std::string("formatonsave=") +
-                         (formatOnSave ? "true" : "false"));
-        return true;
-    }
-    if(opt == "gdcenter?")
-    {
-        setStatusMessage(std::string("gdcenter=") +
-                         (gdCenterScreen ? "true" : "false"));
-        return true;
-    }
-    if(opt == "formatondoubleesctimeoutms?")
-    {
-        setStatusMessage("formatondoubleesctimeoutms=" +
-                         std::to_string(formatOnDoubleEscTimeoutMs));
-        return true;
-    }
-    if(opt == "python.formatter?")
-    {
-        setStatusMessage("python.formatter=" + pythonFormatter);
-        return true;
-    }
-    if(opt == "pyfmt?")
-    {
-        setStatusMessage("python.formatter=" + pythonFormatter);
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_system_includes?")
-    {
-        setStatusMessage(std::string("syntax.cpp.highlight_system_includes=") +
-                         (syntaxCppHighlightSystemIncludes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_param_types?")
-    {
-        setStatusMessage(std::string("syntax.cpp.highlight_param_types=") +
-                         (syntaxCppHighlightParamTypes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.cpp.semantic_tokens?")
-    {
-        setStatusMessage(std::string("syntax.cpp.semantic_tokens=") +
-                         (syntaxCppSemanticTokens ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.cpp.locals_color?")
-    {
-        setStatusMessage("syntax.cpp.locals_color=" +
-                         std::string(token_type_name(syntaxCppLocalToken)));
-        return true;
-    }
-    if(opt == "syntax.cpp.member_color?")
-    {
-        setStatusMessage("syntax.cpp.member_color=" +
-                         std::string(token_type_name(syntaxCppMemberToken)));
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_types?")
-    {
-        setStatusMessage(std::string("syntax.mlang.highlight_types=") +
-                         (syntaxMlangHighlightTypes ? "true" : "false"));
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_builtin_docs?")
-    {
-        setStatusMessage(std::string("syntax.mlang.highlight_builtin_docs=") +
-                         (syntaxMlangHighlightBuiltinDocs ? "true" : "false"));
-        return true;
-    }
-
-    auto set_flag = [&](bool value)
-    {
-        autoBraces = value;
-        setStatusMessage(std::string("autobraces=") +
-                         (autoBraces ? "true" : "false"));
-    };
-
-    auto set_auto_quotes = [&](bool value)
-    {
-        autoQuotes = value;
-        setStatusMessage(std::string("autoquotes=") +
-                         (autoQuotes ? "true" : "false"));
-    };
-
-    auto set_auto_braces_in_strings = [&](bool value)
-    {
-        autoBracesInStrings = value;
-        setStatusMessage(std::string("autobracesinstrings=") +
-                         (autoBracesInStrings ? "true" : "false"));
-    };
-
-    auto set_autotags = [&](bool value)
-    {
-        autoTags = value;
-        setStatusMessage(std::string("autotags=") +
-                         (autoTags ? "true" : "false"));
-    };
-
-    auto set_gdcenter = [&](bool value)
-    {
-        gdCenterScreen = value;
-        setStatusMessage(std::string("gdcenter=") +
-                         (gdCenterScreen ? "true" : "false"));
-    };
-
-    if(opt == "autobraces")
-    {
-        set_flag(true);
-        return true;
-    }
-    if(opt == "noautobraces")
-    {
-        set_flag(false);
-        return true;
-    }
-    if(opt == "autoquotes")
-    {
-        set_auto_quotes(true);
-        return true;
-    }
-    if(opt == "noautoquotes")
-    {
-        set_auto_quotes(false);
-        return true;
-    }
-    if(opt == "autobracesinstrings")
-    {
-        set_auto_braces_in_strings(true);
-        return true;
-    }
-    if(opt == "noautobracesinstrings")
-    {
-        set_auto_braces_in_strings(false);
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_system_includes")
-    {
-        syntaxCppHighlightSystemIncludes = true;
-        setStatusMessage("syntax.cpp.highlight_system_includes=true");
-        return true;
-    }
-    if(opt == "nosyntax.cpp.highlight_system_includes")
-    {
-        syntaxCppHighlightSystemIncludes = false;
-        setStatusMessage("syntax.cpp.highlight_system_includes=false");
-        return true;
-    }
-    if(opt == "syntax.cpp.highlight_param_types")
-    {
-        syntaxCppHighlightParamTypes = true;
-        setStatusMessage("syntax.cpp.highlight_param_types=true");
-        return true;
-    }
-    if(opt == "nosyntax.cpp.highlight_param_types")
-    {
-        syntaxCppHighlightParamTypes = false;
-        setStatusMessage("syntax.cpp.highlight_param_types=false");
-        return true;
-    }
-    if(opt == "syntax.cpp.semantic_tokens")
-    {
-        syntaxCppSemanticTokens = true;
-        if(currentBuffer)
-            currentBuffer->lspSemanticTokensValid = false;
-        needsFullRedraw = true;
-        setStatusMessage("syntax.cpp.semantic_tokens=true");
-        return true;
-    }
-    if(opt == "nosyntax.cpp.semantic_tokens")
-    {
-        syntaxCppSemanticTokens = false;
-        if(currentBuffer)
-            currentBuffer->lspSemanticTokensValid = false;
-        needsFullRedraw = true;
-        setStatusMessage("syntax.cpp.semantic_tokens=false");
-        return true;
-    }
-    if(opt.rfind("syntax.cpp.locals_color=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("syntax.cpp.locals_color=").length());
-        syntaxCppLocalToken = parse_token_type(value, syntaxCppLocalToken);
-        setStatusMessage("syntax.cpp.locals_color=" +
-                         std::string(token_type_name(syntaxCppLocalToken)));
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt.rfind("syntax.cpp.member_color=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("syntax.cpp.member_color=").length());
-        syntaxCppMemberToken = parse_token_type(value, syntaxCppMemberToken);
-        setStatusMessage("syntax.cpp.member_color=" +
-                         std::string(token_type_name(syntaxCppMemberToken)));
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_types")
-    {
-        syntaxMlangHighlightTypes = true;
-        setStatusMessage("syntax.mlang.highlight_types=true");
-        return true;
-    }
-    if(opt == "nosyntax.mlang.highlight_types")
-    {
-        syntaxMlangHighlightTypes = false;
-        setStatusMessage("syntax.mlang.highlight_types=false");
-        return true;
-    }
-    if(opt == "syntax.mlang.highlight_builtin_docs")
-    {
-        syntaxMlangHighlightBuiltinDocs = true;
-        setStatusMessage("syntax.mlang.highlight_builtin_docs=true");
-        return true;
-    }
-    if(opt == "nosyntax.mlang.highlight_builtin_docs")
-    {
-        syntaxMlangHighlightBuiltinDocs = false;
-        setStatusMessage("syntax.mlang.highlight_builtin_docs=false");
-        return true;
-    }
-    if(opt.rfind("python.formatter=", 0) == 0 || opt.rfind("pyfmt=", 0) == 0)
-    {
-        std::string value = opt.substr(opt.find('=') + 1);
-        std::string v = ascii_lower(value);
-        if(v == "black" || v == "ruff")
-        {
-            pythonFormatter = v;
-            setStatusMessage("python.formatter=" + pythonFormatter);
-        }
-        else
-        {
-            setStatusMessage("python.formatter: expected black|ruff");
-        }
-        return true;
-    }
-    if(opt == "autotags")
-    {
-        set_autotags(true);
-        return true;
-    }
-    if(opt == "noautotags")
-    {
-        set_autotags(false);
-        return true;
-    }
-    if(opt == "gitblameinfo")
-    {
-        showGitBlameInfo = true;
-        setStatusMessage("gitblameinfo=true");
-        return true;
-    }
-    if(opt == "nogitblameinfo" || opt == "disablegitblame")
-    {
-        showGitBlameInfo = false;
-        setStatusMessage("gitblameinfo=false");
-        return true;
-    }
-    if(opt == "enablegitdefaultcolors")
-    {
-        gitUseDefaultColors = true;
-        setStatusMessage("gitdefaultcolors=true");
-        return true;
-    }
-    if(opt == "disablegitdefaultcolors")
-    {
-        gitUseDefaultColors = false;
-        setStatusMessage("gitdefaultcolors=false");
-        return true;
-    }
-    if(opt == "commenttogglepartial")
-    {
-        commentTogglePartial = true;
-        setStatusMessage("commenttogglepartial=true");
-        return true;
-    }
-    if(opt == "nocommenttogglepartial")
-    {
-        commentTogglePartial = false;
-        setStatusMessage("commenttogglepartial=false");
-        return true;
-    }
-    if(opt == "gitignore")
-    {
-        respectGitignore = true;
-        setStatusMessage("gitignore=true");
-        return true;
-    }
-    if(opt == "nogitignore")
-    {
-        respectGitignore = false;
-        setStatusMessage("gitignore=false");
-        return true;
-    }
-    if(opt == "formatoninsertleave")
-    {
-        formatOnInsertLeave = true;
-        setStatusMessage("formatoninsertleave=true");
-        return true;
-    }
-    if(opt == "gdcenter")
-    {
-        set_gdcenter(true);
-        return true;
-    }
-    if(opt == "nogdcenter")
-    {
-        set_gdcenter(false);
-        return true;
-    }
-    if(opt == "noformatoninsertleave")
-    {
-        formatOnInsertLeave = false;
-        setStatusMessage("formatoninsertleave=false");
-        return true;
-    }
-    if(opt == "autodetectlsps")
-    {
-        autoDetectLsps = true;
-        setStatusMessage("autodetectlsps=true");
-        return true;
-    }
-    if(opt == "noautodetectlsps")
-    {
-        autoDetectLsps = false;
-        setStatusMessage("autodetectlsps=false");
-        return true;
-    }
-    if(opt == "filebrowser.fuzzy")
-    {
-        fileBrowserFuzzy = true;
-        setStatusMessage("filebrowser.fuzzy=true");
-        return true;
-    }
-    if(opt == "nofilebrowser.fuzzy")
-    {
-        fileBrowserFuzzy = false;
-        setStatusMessage("filebrowser.fuzzy=false");
-        return true;
-    }
-    if(opt == "commandline.messageprefix")
-    {
-        commandLineMessagePrefix = true;
-        setStatusMessage("commandline.messageprefix=true");
-        return true;
-    }
-    if(opt == "nocommandline.messageprefix")
-    {
-        commandLineMessagePrefix = false;
-        setStatusMessage("commandline.messageprefix=false");
-        return true;
-    }
-    if(opt == "formatonsave")
-    {
-        formatOnSave = true;
-        setStatusMessage("formatonsave=true");
-        return true;
-    }
-    if(opt == "noformatonsave")
-    {
-        formatOnSave = false;
-        setStatusMessage("formatonsave=false");
-        return true;
-    }
-    if(opt.rfind("formatondoubleesctimeoutms=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("formatondoubleesctimeoutms=").length());
-        try
-        {
-            int ms = std::stoi(value);
-            if(ms > 0 && ms <= 5000)
-            {
-                formatOnDoubleEscTimeoutMs = ms;
-                setStatusMessage("formatondoubleesctimeoutms=" +
-                                 std::to_string(formatOnDoubleEscTimeoutMs));
-            }
-            else
-            {
-                setStatusMessage("formatondoubleesctimeoutms: expected 1-5000");
-            }
-        }
-        catch(...)
-        {
-            setStatusMessage("formatondoubleesctimeoutms: expected number");
-        }
-        return true;
-    }
-    if(opt.rfind("formatonsave=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("formatonsave=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            formatOnSave = true;
-            setStatusMessage("formatonsave=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            formatOnSave = false;
-            setStatusMessage("formatonsave=false");
-        }
-        else
-        {
-            setStatusMessage("formatonsave: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autodetectlsps=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autodetectlsps=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            autoDetectLsps = true;
-            setStatusMessage("autodetectlsps=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            autoDetectLsps = false;
-            setStatusMessage("autodetectlsps=false");
-        }
-        else
-        {
-            setStatusMessage("autodetectlsps: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("filebrowser.fuzzy=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("filebrowser.fuzzy=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            fileBrowserFuzzy = true;
-            setStatusMessage("filebrowser.fuzzy=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            fileBrowserFuzzy = false;
-            setStatusMessage("filebrowser.fuzzy=false");
-        }
-        else
-        {
-            setStatusMessage("filebrowser.fuzzy: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("status.lspgap=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("status.lspgap=").length());
-        try
-        {
-            int gap = std::stoi(value);
-            if(gap >= 0 && gap <= 20)
-            {
-                lspStatusGap = gap;
-                setStatusMessage("status.lspgap=" +
-                                 std::to_string(lspStatusGap));
-            }
-            else
-            {
-                setStatusMessage("status.lspgap: expected 0-20");
-            }
-        }
-        catch(...)
-        {
-            setStatusMessage("status.lspgap: expected number");
-        }
-        return true;
-    }
-    if(opt.rfind("commandline.messageprefix=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("commandline.messageprefix=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            commandLineMessagePrefix = true;
-            setStatusMessage("commandline.messageprefix=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            commandLineMessagePrefix = false;
-            setStatusMessage("commandline.messageprefix=false");
-        }
-        else
-        {
-            setStatusMessage("commandline.messageprefix: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("gdcenter=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("gdcenter=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_gdcenter(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_gdcenter(false);
-        }
-        else
-        {
-            setStatusMessage("gdcenter: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autobraces=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autobraces=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_flag(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_flag(false);
-        }
-        else
-        {
-            setStatusMessage("autobraces: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autoquotes=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autoquotes=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_auto_quotes(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_auto_quotes(false);
-        }
-        else
-        {
-            setStatusMessage("autoquotes: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autobracesinstrings=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("autobracesinstrings=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_auto_braces_in_strings(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_auto_braces_in_strings(false);
-        }
-        else
-        {
-            setStatusMessage("autobracesinstrings: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("autotags=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autotags=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_autotags(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_autotags(false);
-        }
-        else
-        {
-            setStatusMessage("autotags: expected true/false");
-        }
-        return true;
-    }
-
-    auto set_auto_completion = [&](bool value)
-    {
-        autoCompletion = value;
-        setStatusMessage(std::string("autocomplete=") +
-                         (autoCompletion ? "true" : "false"));
-    };
-
-    auto set_completion_auto_parens = [&](bool value)
-    {
-        completionAutoParens = value;
-        setStatusMessage(std::string("completionautoparens=") +
-                         (completionAutoParens ? "true" : "false"));
-    };
-
-    if(opt == "autocomplete")
-    {
-        set_auto_completion(true);
-        return true;
-    }
-    if(opt == "noautocomplete")
-    {
-        set_auto_completion(false);
-        return true;
-    }
-    if(opt == "completionautoparens")
-    {
-        set_completion_auto_parens(true);
-        return true;
-    }
-    if(opt == "nocompletionautoparens")
-    {
-        set_completion_auto_parens(false);
-        return true;
-    }
-    if(opt == "showtabs")
-    {
-        showTabs = true;
-        tabBarOffset = 0;
-        setStatusMessage("showtabs=true");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "noshowtabs")
-    {
-        showTabs = false;
-        tabBarOffset = 0;
-        setStatusMessage("showtabs=false");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "tabnumbers")
-    {
-        showTabNumbers = true;
-        setStatusMessage("tabnumbers=true");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "notabnumbers")
-    {
-        showTabNumbers = false;
-        setStatusMessage("tabnumbers=false");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "utf8")
-    {
-        utf8Mode = true;
-        setStatusMessage("utf8=true");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt == "noutf8")
-    {
-        utf8Mode = false;
-        setStatusMessage("utf8=false");
-        needsFullRedraw = true;
-        return true;
-    }
-    if(opt.rfind("autocomplete=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("autocomplete=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_auto_completion(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_auto_completion(false);
-        }
-        else
-        {
-            setStatusMessage("autocomplete: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("completionautoparens=", 0) == 0)
-    {
-        std::string value =
-            opt.substr(std::string("completionautoparens=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            set_completion_auto_parens(true);
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            set_completion_auto_parens(false);
-        }
-        else
-        {
-            setStatusMessage("completionautoparens: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("showtabs=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("showtabs=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            showTabs = true;
-            tabBarOffset = 0;
-            setStatusMessage("showtabs=true");
-            needsFullRedraw = true;
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            showTabs = false;
-            tabBarOffset = 0;
-            setStatusMessage("showtabs=false");
-            needsFullRedraw = true;
-        }
-        else
-        {
-            setStatusMessage("showtabs: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("tabnumbers=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("tabnumbers=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            showTabNumbers = true;
-            setStatusMessage("tabnumbers=true");
-            needsFullRedraw = true;
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            showTabNumbers = false;
-            setStatusMessage("tabnumbers=false");
-            needsFullRedraw = true;
-        }
-        else
-        {
-            setStatusMessage("tabnumbers: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("gitignore=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("gitignore=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            respectGitignore = true;
-            setStatusMessage("gitignore=true");
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            respectGitignore = false;
-            setStatusMessage("gitignore=false");
-        }
-        else
-        {
-            setStatusMessage("gitignore: expected true/false");
-        }
-        return true;
-    }
-    if(opt.rfind("utf8=", 0) == 0)
-    {
-        std::string value = opt.substr(std::string("utf8=").length());
-        if(value == "true" || value == "1" || value == "on")
-        {
-            utf8Mode = true;
-            setStatusMessage("utf8=true");
-            needsFullRedraw = true;
-        }
-        else if(value == "false" || value == "0" || value == "off")
-        {
-            utf8Mode = false;
-            setStatusMessage("utf8=false");
-            needsFullRedraw = true;
-        }
-        else
-        {
-            setStatusMessage("utf8: expected true/false");
-        }
-        return true;
-    }
-
-    if(opt.rfind("tabspaces=", 0) == 0)
-    {
-        std::string value =
-            std::string(opt.substr(std::string("tabspaces=").length()));
-        try
-        {
-            int v = std::stoi(value);
-            if(v >= 1 && v <= 16)
-            {
-                tabSpaces = v;
-                setStatusMessage("tabspaces=" + std::to_string(tabSpaces));
-            }
-            else
-            {
-                setStatusMessage("tabspaces: expected 1-16");
-            }
-        }
-        catch(...)
-        {
-            setStatusMessage("tabspaces: expected number");
-        }
-        return true;
-    }
-
-    setStatusMessage("Unknown option: " + opt);
-    return true;
+    return settingsController->handleSetCommand(cmd);
 }
 
 void Editor::handleResize()
@@ -8432,249 +5974,6 @@ std::string Editor::getAlternateFilePath()
     return findAlternateFile(currentBuffer->filename);
 }
 
-bool Editor::dispatchModeKey(int c)
-{
-    if(!modeStateMachine)
-    {
-        return false;
-    }
-
-    modeStateMachine->dispatch(c);
-    syncModeFromStateMachine();
-    ensureBufferForMode(currentMode);
-    if(replayingChange && !Terminal::hasBufferedKeys())
-        replayingChange = false;
-    return true;
-}
-
-void Editor::syncModeFromStateMachine()
-{
-    if(!modeStateMachine)
-    {
-        return;
-    }
-
-    Mode prevMode = currentMode;
-    const ModeState& state = modeStateMachine->state();
-    if(std::holds_alternative<WelcomeMode>(state))
-    {
-        currentMode = WELCOME;
-    }
-    else if(std::holds_alternative<NormalMode>(state))
-    {
-        currentMode = NORMAL;
-    }
-    else if(std::holds_alternative<InsertMode>(state))
-    {
-        currentMode = INSERT;
-    }
-    else if(std::holds_alternative<ReplaceMode>(state))
-    {
-        currentMode = REPLACE;
-    }
-    else if(std::holds_alternative<VisualMode>(state))
-    {
-        currentMode = VISUAL;
-    }
-    else if(std::holds_alternative<VisualLineMode>(state))
-    {
-        currentMode = VISUAL_LINE;
-    }
-    else if(std::holds_alternative<VisualBlockMode>(state))
-    {
-        currentMode = VISUAL_BLOCK;
-    }
-    else if(std::holds_alternative<CommandMode>(state))
-    {
-        currentMode = COMMAND;
-    }
-    else if(std::holds_alternative<SearchForwardMode>(state))
-    {
-        currentMode = SEARCH_FORWARD;
-    }
-    else if(std::holds_alternative<SearchBackwardMode>(state))
-    {
-        currentMode = SEARCH_BACKWARD;
-    }
-    else if(std::holds_alternative<FileBrowserMode>(state))
-    {
-        currentMode = FILE_BROWSER;
-    }
-    else if(std::holds_alternative<FuzzyFindMode>(state))
-    {
-        currentMode = FUZZY_FIND;
-    }
-    else if(std::holds_alternative<BufferBrowserMode>(state))
-    {
-        currentMode = BUFFER_BROWSER;
-    }
-    else if(std::holds_alternative<GrepSearchMode>(state))
-    {
-        currentMode = GREP_SEARCH;
-    }
-    else if(std::holds_alternative<OperatorPendingMode>(state))
-    {
-        currentMode = OP_PENDING;
-    }
-    else if(std::holds_alternative<ReferencesMode>(state))
-    {
-        currentMode = REFERENCES;
-    }
-    else if(std::holds_alternative<LspInfoMode>(state))
-    {
-        currentMode = LSP_INFO;
-    }
-    else if(std::holds_alternative<LocListMode>(state))
-    {
-        currentMode = LOC_LIST;
-    }
-    else if(std::holds_alternative<HelpMode>(state))
-    {
-        currentMode = HELP;
-    }
-    else if(std::holds_alternative<GitShowCommitMode>(state))
-    {
-        currentMode = GIT_SHOW;
-    }
-    else if(std::holds_alternative<GitLogMode>(state))
-    {
-        currentMode = GIT_LOG;
-    }
-    else if(std::holds_alternative<GitStageMode>(state))
-    {
-        currentMode = GIT_STAGE;
-    }
-    else if(std::holds_alternative<GitCommitMode>(state))
-    {
-        currentMode = GIT_COMMIT;
-    }
-    else if(std::holds_alternative<GitFixupMode>(state))
-    {
-        currentMode = GIT_FIXUP;
-    }
-    else if(std::holds_alternative<GitPatchMode>(state))
-    {
-        currentMode = GIT_PATCH;
-    }
-    else if(std::holds_alternative<CommandOutputMode>(state))
-    {
-        currentMode = COMMAND_OUTPUT;
-    }
-
-    if(currentMode != prevMode)
-        needsFullRedraw = true;
-}
-
-void Editor::handleKeypress(int c)
-{
-    if(c < 0)
-        return;
-    if(!locMessage.empty())
-        locMessage.clear();
-    LOG_DEBUG(LOG, "handleKeypress c={} ('{}') mode={}", c, (char)c,
-              static_cast<int>(currentMode));
-
-    if(handleEmojiPopupKey(c))
-        return;
-
-    if(dispatchModeKey(c))
-    {
-        return;
-    }
-
-    switch(currentMode)
-    {
-    case NORMAL:
-        handleNormalMode(c);
-        break;
-    case INSERT:
-    case REPLACE:
-        handleInsertMode(c);
-        break;
-    case VISUAL:
-    case VISUAL_LINE:
-        handleVisualMode(c);
-        break;
-    case VISUAL_BLOCK:
-        handleVisualBlockMode(c);
-        break;
-    case COMMAND:
-        handleCommandMode(c);
-        break;
-    case SEARCH_FORWARD:
-    case SEARCH_BACKWARD:
-        handleSearchMode(c);
-        break;
-    case FILE_BROWSER:
-        break;
-    case FUZZY_FIND:
-        break;
-    case BUFFER_BROWSER:
-        break;
-    case OP_PENDING:
-        handleOperatorPendingMode(c);
-        break;
-    default:
-        break;
-    }
-}
-
-bool Editor::handleEmojiPopupKey(int c)
-{
-    if(!emojiPopupActive)
-        return false;
-
-    if(c == keyCode(control::ControlKey::CTRL_J) ||
-       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
-    {
-        emojiNext();
-        return true;
-    }
-
-    if(c == keyCode(control::ControlKey::CTRL_K) ||
-       c == keyCode(navigation::NavigationKey::ARROW_UP))
-    {
-        emojiPrev();
-        return true;
-    }
-
-    if(c == keyCode(control::ControlKey::ENTER))
-    {
-        acceptEmoji();
-        return true;
-    }
-
-    if(c == keyCode(control::ControlKey::ESC) ||
-       c == keyCode(control::ControlKey::CTRL_C))
-    {
-        cancelEmojiPopup();
-        return true;
-    }
-
-    if(c == keyCode(control::ControlKey::BACKSPACE) ||
-       c == keyCode(control::ControlKey::DEL) ||
-       c == keyCode(control::ControlKey::CTRL_H))
-    {
-        if(!emojiQuery.empty())
-        {
-            emojiQuery.pop_back();
-            rebuildEmojiFilter();
-            needsFullRedraw = true;
-        }
-        return true;
-    }
-
-    if(c >= 32 && c < 127)
-    {
-        emojiQuery.push_back((char)c);
-        rebuildEmojiFilter();
-        needsFullRedraw = true;
-        return true;
-    }
-
-    return true;
-}
-
 bool isLikelyDefinition(const std::string& line, const std::string& symbol)
 {
     // skip comments
@@ -8695,329 +5994,77 @@ bool isLikelyDefinition(const std::string& line, const std::string& symbol)
 
 void Editor::createNewBuffer()
 {
-    auto buffer = std::make_unique<Buffer>();
-    buffers.push_back(std::move(buffer));
-    currentBufferIndex = buffers.size() - 1;
-    updateCurrentBufferPointers();
-    if(splitActive)
-    {
-        splitPanes[activePane].bufferIndex = currentBufferIndex;
-        setPanePointers(activePane);
-    }
-    needsFullRedraw = true;
+    bufferController->createNewBuffer();
 }
 
 void Editor::updateCurrentBufferPointers()
 {
-    if(currentBufferIndex >= 0 && currentBufferIndex < buffers.size())
-    {
-        currentBuffer = buffers[currentBufferIndex].get();
-        lines = &currentBuffer->lines;
-        filename = &currentBuffer->filename;
-        dirty = &currentBuffer->dirty;
-        if(splitActive)
-        {
-            setPanePointers(activePane);
-        }
-        else
-        {
-            cursorX = &currentBuffer->cursorX;
-            cursorY = &currentBuffer->cursorY;
-            wantedX = &currentBuffer->wantedX;
-            offsetX = &currentBuffer->offsetX;
-            offsetY = &currentBuffer->offsetY;
-        }
-    }
-    else
-    {
-        currentBufferIndex = -1;
-        clearCurrentBufferPointers();
-    }
+    bufferController->updateCurrentBufferPointers();
 }
 
 void Editor::clearCurrentBufferPointers()
 {
-    currentBuffer = nullptr;
-    lines = nullptr;
-    filename = nullptr;
-    dirty = nullptr;
-    cursorX = nullptr;
-    cursorY = nullptr;
-    wantedX = nullptr;
-    offsetX = nullptr;
-    offsetY = nullptr;
+    bufferController->clearCurrentBufferPointers();
 }
 
 bool Editor::hasBuffer() const
 {
-    return currentBuffer != nullptr;
+    return bufferController->hasBuffer();
 }
 
 void Editor::ensureBufferForMode(Mode mode)
 {
-    switch(mode)
-    {
-    case WELCOME:
-    case COMMAND:
-    case FILE_BROWSER:
-    case FUZZY_FIND:
-    case BUFFER_BROWSER:
-    case GREP_SEARCH:
-    case REFERENCES:
-    case LSP_INFO:
-    case LOC_LIST:
-    case GIT_STAGE:
-    case GIT_COMMIT:
-    case GIT_FIXUP:
-    case GIT_PATCH:
-    case COMMAND_OUTPUT:
-        return;
-    default:
-        break;
-    }
-
-    if(!hasBuffer())
-    {
-        createNewBuffer();
-        saveState();
-        if(currentBuffer)
-            currentBuffer->savedUndoIndex = 0;
-    }
+    bufferController->ensureBufferForMode(mode);
 }
 
 void Editor::switchToBuffer(int index)
 {
-    if(index >= 0 && index < buffers.size())
-    {
-        locMessage.clear();
-        if(splitActive)
-        {
-            switchToBufferInActivePane(index);
-        }
-        else
-        {
-            saveBufferState();
-            currentBufferIndex = index;
-            updateCurrentBufferPointers();
-            restoreBufferState();
-            needsFullRedraw = true;
-        }
-
-        // Check if the file has been modified externally
-        checkFileChanges();
-
-        std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
-                          "/" + std::to_string(buffers.size());
-        if(!filename->empty())
-        {
-            msg += ": " + *filename;
-        }
-        else
-        {
-            msg += ": [No Name]";
-        }
-        if(*dirty)
-        {
-            msg += " [+]";
-        }
-        // setStatusMessage(msg);
-    }
+    bufferController->switchToBuffer(index);
 }
 
 void Editor::nextBuffer()
 {
-    if(buffers.size() > 1)
-    {
-        int nextIndex = (currentBufferIndex + 1) % buffers.size();
-        switchToBuffer(nextIndex);
-    }
-    else
-    {
-        setStatusMessage("No other buffers");
-    }
+    bufferController->nextBuffer();
 }
 
 void Editor::previousBuffer()
 {
-    if(buffers.size() > 1)
-    {
-        int prevIndex = currentBufferIndex - 1;
-        if(prevIndex < 0)
-            prevIndex = buffers.size() - 1;
-        switchToBuffer(prevIndex);
-    }
-    else
-    {
-        setStatusMessage("No other buffers");
-    }
+    bufferController->previousBuffer();
 }
 
 void Editor::moveBufferLeft()
 {
-    if(buffers.size() < 2 || currentBufferIndex <= 0)
-        return;
-    int a = currentBufferIndex - 1;
-    int b = currentBufferIndex;
-    std::swap(buffers[a], buffers[b]);
-    currentBufferIndex = a;
-    updateCurrentBufferPointers();
-    if(splitActive)
-    {
-        for(int i = 0; i < 2; i++)
-        {
-            int& p = splitPanes[i].bufferIndex;
-            if(p == a)
-                p = b;
-            else if(p == b)
-                p = a;
-        }
-    }
-    needsFullRedraw = true;
+    bufferController->moveBufferLeft();
 }
 
 void Editor::moveBufferRight()
 {
-    if(buffers.size() < 2 || currentBufferIndex >= (int)buffers.size() - 1)
-        return;
-    int a = currentBufferIndex;
-    int b = currentBufferIndex + 1;
-    std::swap(buffers[a], buffers[b]);
-    currentBufferIndex = b;
-    updateCurrentBufferPointers();
-    if(splitActive)
-    {
-        for(int i = 0; i < 2; i++)
-        {
-            int& p = splitPanes[i].bufferIndex;
-            if(p == a)
-                p = b;
-            else if(p == b)
-                p = a;
-        }
-    }
-    needsFullRedraw = true;
+    bufferController->moveBufferRight();
 }
 
 void Editor::closeCurrentBuffer()
 {
-    if(*dirty)
-    {
-        setStatusMessage("No write since last change (add ! to override)");
-        return;
-    }
-
-    if(buffers.size() == 1)
-    {
-        buffers.erase(buffers.begin());
-        currentBufferIndex = -1;
-        clearCurrentBufferPointers();
-        splitActive = false;
-        setMode(WELCOME);
-    }
-    else
-    {
-        int removedIndex = currentBufferIndex;
-        buffers.erase(buffers.begin() + currentBufferIndex);
-        if(currentBufferIndex >= buffers.size())
-        {
-            currentBufferIndex = buffers.size() - 1;
-        }
-        updateCurrentBufferPointers();
-        if(splitActive)
-        {
-            for(int i = 0; i < 2; i++)
-            {
-                int& paneIndex = splitPanes[i].bufferIndex;
-                if(paneIndex == removedIndex)
-                {
-                    paneIndex = currentBufferIndex;
-                }
-                else if(paneIndex > removedIndex)
-                {
-                    paneIndex -= 1;
-                }
-            }
-            currentBufferIndex = splitPanes[activePane].bufferIndex;
-            updateCurrentBufferPointers();
-        }
-        restoreBufferState();
-    }
-
-    needsFullRedraw = true;
+    bufferController->closeCurrentBuffer();
 }
 
 void Editor::listBuffers()
 {
-    std::stringstream ss;
-    ss << "Buffers: ";
-
-    for(size_t i = 0; i < buffers.size(); i++)
-    {
-        if(i == currentBufferIndex)
-            ss << "[";
-
-        ss << (i + 1) << ":";
-
-        if(!buffers[i]->filename.empty())
-        {
-            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
-            if(lastSlash != std::string::npos)
-                ss << buffers[i]->filename.substr(lastSlash + 1);
-            else
-                ss << buffers[i]->filename;
-        }
-        else
-        {
-            ss << "[No Name]";
-        }
-
-        if(buffers[i]->dirty)
-            ss << "+";
-
-        if(i == currentBufferIndex)
-            ss << "]";
-
-        if(i < buffers.size() - 1)
-            ss << " ";
-    }
-
-    std::string status = ss.str();
-    if(gitHandler)
-    {
-        if(auto changes = gitHandler->currentBufferHasChanges();
-           changes.has_value())
-        {
-            status += " | git add ";
-            if(*changes)
-                status += "current buffer";
-            else
-                status += "(nothing to add)";
-        }
-    }
-    setStatusMessage(status);
+    bufferController->listBuffers();
 }
 
 int Editor::findBufferByFilename(const std::string& fname)
 {
-    for(int i = 0; i < buffers.size(); i++)
-    {
-        if(buffers[i]->filename == fname)
-            return i;
-    }
-    return -1;
+    return bufferController->findBufferByFilename(fname);
 }
 
 void Editor::saveBufferState()
 {
-    // State is automatically saved in buffer structure
+    bufferController->saveBufferState();
 }
 
 void Editor::restoreBufferState()
 {
-    if(currentMode == VISUAL || currentMode == VISUAL_LINE)
-    {
-        setMode(NORMAL);
-    }
+    bufferController->restoreBufferState();
 }
 
 bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
@@ -9561,871 +6608,155 @@ void Editor::run()
             continue;
         }
         // Apply a burst of ready keys first, then render once.
-        handleKeypress(c);
+        modeController->handleKeypress(c);
         while(true)
         {
             int next = Terminal::readKeyTimeout(0);
             if(next < 0)
                 break;
-            handleKeypress(next);
+            modeController->handleKeypress(next);
         }
         draw();
     }
 }
 void Editor::insertTab()
 {
-    for(int i = 0; i < tabSpaces; i++)
-    {
-        insertChar(' ');
-    }
+    editingController->insertTab();
 }
 
 void Editor::toggleCase()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    std::string& line = (*lines)[*cursorY];
-    if(*cursorX >= (int)line.length())
-        return;
-
-    char c = line[*cursorX];
-    if(std::isupper(c))
-        line[*cursorX] = std::tolower(c);
-    else if(std::islower(c))
-        line[*cursorX] = std::toupper(c);
-
-    if(*cursorX < (int)line.length() - 1)
-        (*cursorX)++;
-    *dirty = true;
-    saveState();
+    editingController->toggleCase();
 }
 
 void Editor::joinLines()
 {
-    if(*cursorY >= (int)lines->size() - 1)
-        return;
-
-    std::string& currentLine = (*lines)[*cursorY];
-    const std::string& nextLine = (*lines)[*cursorY + 1];
-
-    while(!currentLine.empty() && std::isspace(currentLine.back()))
-    {
-        currentLine.pop_back();
-    }
-
-    int joinPos = currentLine.length();
-
-    if(!currentLine.empty() && !nextLine.empty())
-    {
-        currentLine += ' ';
-        joinPos++;
-    }
-
-    size_t start = 0;
-    while(start < nextLine.length() && std::isspace(nextLine[start]))
-    {
-        start++;
-    }
-
-    currentLine += nextLine.substr(start);
-    lines->erase(lines->begin() + *cursorY + 1);
-
-    *cursorX = joinPos;
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    editingController->joinLines();
 }
 
 void Editor::insertLineAbove()
 {
-    const std::string& currentLine = (*lines)[*cursorY];
-    auto leading_ws_len = [](const std::string& s) -> size_t
-    {
-        size_t i = 0;
-        while(i < s.size() && (s[i] == ' ' || s[i] == '\t'))
-            ++i;
-        return i;
-    };
-    auto ltrim = [&](const std::string& s) -> std::string
-    {
-        size_t i = leading_ws_len(s);
-        return s.substr(i);
-    };
-    auto starts_with_kw = [](const std::string& s) -> bool
-    {
-        auto starts = [&](const char* kw) -> bool
-        {
-            size_t n = std::strlen(kw);
-            if(s.size() < n)
-                return false;
-            if(s.compare(0, n, kw) != 0)
-                return false;
-            if(s.size() == n)
-                return true;
-            char next = s[n];
-            return std::isspace((unsigned char)next) || next == ';';
-        };
-        return starts("return") || starts("break") || starts("continue") ||
-               starts("throw") || starts("goto");
-    };
-    auto starts_control = [](const std::string& s) -> bool
-    {
-        auto starts = [&](const char* kw) -> bool
-        {
-            size_t n = std::strlen(kw);
-            if(s.size() < n)
-                return false;
-            if(s.compare(0, n, kw) != 0)
-                return false;
-            if(s.size() == n)
-                return true;
-            char next = s[n];
-            return std::isspace((unsigned char)next) || next == '(';
-        };
-        return starts("if") || starts("for") || starts("while") ||
-               starts("else") || starts("switch");
-    };
-    size_t indent = 0;
-    while(indent < currentLine.length() &&
-          (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
-    {
-        indent++;
-    }
-    std::string indentStr = currentLine.substr(0, indent);
-    if(autoTags &&
-       (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
-    {
-        size_t pos = currentLine.find('<');
-        if(pos != std::string::npos)
-        {
-            size_t gt = currentLine.find('>', pos);
-            if(gt != std::string::npos && pos + 1 < currentLine.size())
-            {
-                char next = currentLine[pos + 1];
-                if(next != '/' && next != '!' && next != '?')
-                {
-                    size_t nameStart = pos + 1;
-                    while(nameStart < gt && (currentLine[nameStart] == ' ' ||
-                                             currentLine[nameStart] == '\t'))
-                        ++nameStart;
-                    size_t nameEnd = nameStart;
-                    auto isTagChar = [](char ch)
-                    {
-                        return text_utils::is_alnum(ch) || ch == ':' ||
-                               ch == '_' || ch == '-';
-                    };
-                    while(nameEnd < gt && isTagChar(currentLine[nameEnd]))
-                        ++nameEnd;
-                    bool isVoid = false;
-                    if(nameEnd > nameStart)
-                    {
-                        std::string_view tag =
-                            std::string_view(currentLine)
-                                .substr(nameStart, nameEnd - nameStart);
-                        if(isFileType<FileType::Html>())
-                        {
-                            for(auto v : constants::html_void_tags)
-                            {
-                                if(text_utils::iequals_ascii(tag, v))
-                                {
-                                    isVoid = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if(isVoid)
-                        return;
-                    indentStr.append(tabSpaces, ' ');
-                }
-            }
-        }
-    }
-    if(isFileType<FileType::Cpp>())
-    {
-        std::string trimmed = ltrim(currentLine);
-        if(starts_with_kw(trimmed))
-        {
-            bool adjusted = false;
-            for(int y = *cursorY - 1; y >= 0; --y)
-            {
-                const std::string& prevLine = (*lines)[y];
-                std::string prevTrim = ltrim(prevLine);
-                if(prevTrim.empty())
-                    continue;
-                size_t prevIndent = leading_ws_len(prevLine);
-                if(prevIndent < indent)
-                {
-                    if(starts_control(prevTrim) &&
-                       prevTrim.find('{') == std::string::npos)
-                    {
-                        indentStr = prevLine.substr(0, prevIndent);
-                        adjusted = true;
-                    }
-                    break;
-                }
-            }
-            if(!adjusted && !indentStr.empty())
-            {
-                if(indentStr.back() == '\t')
-                {
-                    indentStr.pop_back();
-                }
-                else if(indentStr.length() >= 4)
-                {
-                    indentStr.erase(indentStr.length() - 4);
-                }
-                else
-                {
-                    indentStr.clear();
-                }
-            }
-        }
-    }
-
-    lines->insert(lines->begin() + *cursorY, indentStr);
-    *cursorX = (int)indentStr.length();
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    editingController->insertLineAbove();
 }
 
 void Editor::insertLineBelow()
 {
-    if(*cursorY >= (int)lines->size())
-    {
-        lines->push_back("");
-    }
-    else
-    {
-        const std::string& currentLine = (*lines)[*cursorY];
-        auto leading_ws_len = [](const std::string& s) -> size_t
-        {
-            size_t i = 0;
-            while(i < s.size() && (s[i] == ' ' || s[i] == '\t'))
-                ++i;
-            return i;
-        };
-        auto ltrim = [&](const std::string& s) -> std::string
-        {
-            size_t i = leading_ws_len(s);
-            return s.substr(i);
-        };
-        auto starts_with_kw = [](const std::string& s) -> bool
-        {
-            auto starts = [&](const char* kw) -> bool
-            {
-                size_t n = std::strlen(kw);
-                if(s.size() < n)
-                    return false;
-                if(s.compare(0, n, kw) != 0)
-                    return false;
-                if(s.size() == n)
-                    return true;
-                char next = s[n];
-                return std::isspace((unsigned char)next) || next == ';';
-            };
-            return starts("return") || starts("break") || starts("continue") ||
-                   starts("throw") || starts("goto");
-        };
-        auto starts_control = [](const std::string& s) -> bool
-        {
-            auto starts = [&](const char* kw) -> bool
-            {
-                size_t n = std::strlen(kw);
-                if(s.size() < n)
-                    return false;
-                if(s.compare(0, n, kw) != 0)
-                    return false;
-                if(s.size() == n)
-                    return true;
-                char next = s[n];
-                return std::isspace((unsigned char)next) || next == '(';
-            };
-            return starts("if") || starts("for") || starts("while") ||
-                   starts("else") || starts("switch");
-        };
-        size_t indent = 0;
-        while(indent < currentLine.length() &&
-              (currentLine[indent] == ' ' || currentLine[indent] == '\t'))
-        {
-            indent++;
-        }
-        std::string indentStr = currentLine.substr(0, indent);
-
-        bool addExtraIndent = false;
-        int extraIndentWidth = tabSpaces;
-        if(isFileType<FileType::Cpp>())
-        {
-            size_t lastNonSpace = currentLine.find_last_not_of(" \t");
-            if(lastNonSpace != std::string::npos &&
-               currentLine[lastNonSpace] == '{')
-            {
-                addExtraIndent = true;
-                extraIndentWidth = std::max(0, indentWidthForBraces() - 1);
-            }
-        }
-        if(autoTags &&
-           (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
-        {
-            bool htmlShouldIndent = false;
-            size_t lt = currentLine.rfind('<');
-            size_t gt = currentLine.rfind('>');
-            if(lt != std::string::npos && gt != std::string::npos && lt < gt &&
-               lt + 1 < currentLine.size())
-            {
-                char next = currentLine[lt + 1];
-                if(next != '/' && next != '!' && next != '?')
-                {
-                    size_t selfClose = currentLine.rfind('/');
-                    if(selfClose == std::string::npos || selfClose < lt ||
-                       selfClose > gt)
-                    {
-                        bool isVoid = false;
-                        size_t nameStart = lt + 1;
-                        while(nameStart < gt &&
-                              (currentLine[nameStart] == ' ' ||
-                               currentLine[nameStart] == '\t'))
-                            ++nameStart;
-                        size_t nameEnd = nameStart;
-                        auto isTagChar = [](char ch)
-                        {
-                            return text_utils::is_alnum(ch) || ch == ':' ||
-                                   ch == '_' || ch == '-';
-                        };
-                        while(nameEnd < gt && isTagChar(currentLine[nameEnd]))
-                            ++nameEnd;
-                        if(nameEnd > nameStart && isFileType<FileType::Html>())
-                        {
-                            std::string_view tag =
-                                std::string_view(currentLine)
-                                    .substr(nameStart, nameEnd - nameStart);
-                            for(auto v : constants::html_void_tags)
-                            {
-                                if(text_utils::iequals_ascii(tag, v))
-                                {
-                                    isVoid = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if(!isVoid)
-                            htmlShouldIndent = true;
-                    }
-                }
-            }
-            if(htmlShouldIndent)
-            {
-                addExtraIndent = true;
-                extraIndentWidth = tabSpaces;
-            }
-        }
-
-        if(isFileType<FileType::Cpp>() && !addExtraIndent)
-        {
-            std::string trimmed = ltrim(currentLine);
-            if(starts_with_kw(trimmed))
-            {
-                bool adjusted = false;
-                for(int y = *cursorY - 1; y >= 0; --y)
-                {
-                    const std::string& prevLine = (*lines)[y];
-                    std::string prevTrim = ltrim(prevLine);
-                    if(prevTrim.empty())
-                        continue;
-                    size_t prevIndent = leading_ws_len(prevLine);
-                    if(prevIndent < indent)
-                    {
-                        if(starts_control(prevTrim) &&
-                           prevTrim.find('{') == std::string::npos)
-                        {
-                            indentStr = prevLine.substr(0, prevIndent);
-                            adjusted = true;
-                        }
-                        break;
-                    }
-                }
-                if(!adjusted && !indentStr.empty())
-                {
-                    if(indentStr.back() == '\t')
-                    {
-                        indentStr.pop_back();
-                    }
-                    else if(indentStr.length() >= 4)
-                    {
-                        indentStr.erase(indentStr.length() - 4);
-                    }
-                    else
-                    {
-                        indentStr.clear();
-                    }
-                }
-            }
-        }
-
-        std::string newLine = indentStr;
-        if(addExtraIndent)
-            newLine.append(extraIndentWidth, ' ');
-
-        lines->insert(lines->begin() + *cursorY + 1, newLine);
-    }
-    (*cursorY)++;
-    if(*cursorY >= 0 && *cursorY < (int)lines->size())
-        *cursorX = (int)(*lines)[*cursorY].length();
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    editingController->insertLineBelow();
 }
 
 void Editor::deleteCurrentLine()
 {
-    if(lines->empty())
-        return;
-
-    yankLine();
-    lines->erase(lines->begin() + *cursorY);
-
-    if(lines->empty())
-    {
-        lines->push_back("");
-    }
-    if(*cursorY >= (int)lines->size())
-    {
-        *cursorY = lines->size() - 1;
-    }
-    *cursorX = 0;
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    editingController->deleteCurrentLine();
 }
 
 void Editor::deleteToLineStart()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-
-    std::string& line = (*lines)[*cursorY];
-    if(*cursorX > 0 && *cursorX <= (int)line.length())
-    {
-        line.erase(0, *cursorX);
-        *cursorX = 0;
-        *dirty = true;
-    }
+    editingController->deleteToLineStart();
 }
 
 void Editor::deleteCharAtCursor()
 {
-    deleteCharForward();
-    saveState();
+    editingController->deleteCharAtCursor();
 }
 
 void Editor::deleteCharBeforeCursor()
 {
-    if(*cursorX > 0)
-    {
-        deleteChar();
-        saveState();
-    }
+    editingController->deleteCharBeforeCursor();
 }
 
 void Editor::deleteWordBackward()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    std::string& line = (*lines)[*cursorY];
-
-    if(*cursorX == 0)
-        return;
-
-    int start = *cursorX;
-
-    while(*cursorX > 0 && std::isspace(line[*cursorX - 1]))
-    {
-        (*cursorX)--;
-    }
-    while(*cursorX > 0 && !std::isspace(line[*cursorX - 1]))
-    {
-        (*cursorX)--;
-    }
-
-    line.erase(*cursorX, start - *cursorX);
-    *dirty = true;
+    editingController->deleteWordBackward();
 }
 
 void Editor::deleteWord()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    std::string& line = (*lines)[*cursorY];
-
-    if(line.empty())
-        return;
-
-    int start = *cursorX;
-    int end = *cursorX;
-
-    if(end >= (int)line.length())
-        return;
-
-    // Helper lambda to check if char is a word character (alphanumeric or
-    // underscore)
-    auto isWordChar = [](char c)
-    { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
-
-    char startChar = line[end];
-
-    if(std::isspace(static_cast<unsigned char>(startChar)))
-    {
-        // On whitespace: delete whitespace, then the next word/punctuation
-        while(end < (int)line.length() &&
-              std::isspace(static_cast<unsigned char>(line[end])))
-            end++;
-
-        // Now delete the word or punctuation sequence
-        if(end < (int)line.length())
-        {
-            if(isWordChar(line[end]))
-            {
-                while(end < (int)line.length() && isWordChar(line[end]))
-                    end++;
-            }
-            else
-            {
-                // Punctuation sequence
-                while(end < (int)line.length() && !isWordChar(line[end]) &&
-                      !std::isspace(static_cast<unsigned char>(line[end])))
-                    end++;
-            }
-        }
-    }
-    else if(isWordChar(startChar))
-    {
-        // On a word character: delete word + trailing whitespace
-        while(end < (int)line.length() && isWordChar(line[end]))
-            end++;
-
-        // Include trailing whitespace
-        while(end < (int)line.length() &&
-              std::isspace(static_cast<unsigned char>(line[end])))
-            end++;
-    }
-    else
-    {
-        // On punctuation: delete punctuation sequence + trailing whitespace
-        while(end < (int)line.length() && !isWordChar(line[end]) &&
-              !std::isspace(static_cast<unsigned char>(line[end])))
-            end++;
-
-        // Include trailing whitespace
-        while(end < (int)line.length() &&
-              std::isspace(static_cast<unsigned char>(line[end])))
-            end++;
-    }
-
-    if(end > start)
-    {
-        // Yank before deleting
-        yankBuffer = line.substr(start, end - start);
-        line.erase(start, end - start);
-
-        // Adjust cursor if past end of line
-        if(*cursorX >= (int)line.length() && !line.empty())
-        {
-            *cursorX = line.length() - 1;
-        }
-        *dirty = true;
-    }
+    editingController->deleteWord();
 }
 
 void Editor::yankWord()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    const std::string& line = (*lines)[*cursorY];
-
-    if(*cursorX >= (int)line.length())
-        return;
-
-    int start = *cursorX;
-    int end = *cursorX;
-
-    // Get current word characters
-    while(end < (int)line.length() && !std::isspace(line[end]))
-    {
-        end++;
-    }
-    // Include trailing whitespace
-    while(end < (int)line.length() && std::isspace(line[end]))
-    {
-        end++;
-    }
-
-    yankBuffer = line.substr(start, end - start);
-    setStatusMessage("Yanked: " + std::to_string(end - start) + " chars");
+    editingController->yankWord();
 }
 
 void Editor::handleBackspace()
 {
-    deleteChar();
+    editingController->handleBackspace();
 }
 
 void Editor::replaceCharAtCursor(char c)
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    std::string& line = (*lines)[*cursorY];
-    if(*cursorX >= (int)line.length())
-        return;
-
-    line[*cursorX] = c;
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    editingController->replaceCharAtCursor(c);
 }
 
 void Editor::beginChangeRecording(int count)
 {
-    if(replayingChange || recordingChange)
-        return;
-    recordingChange = true;
-    deferChangeCommit = false;
-    pendingChangeKeys.clear();
-    pendingChangeCount = (count > 0) ? count : 1;
+    editingController->beginChangeRecording(count);
 }
 
 void Editor::recordChangeKey(int key)
 {
-    if(!recordingChange || replayingChange)
-        return;
-    pendingChangeKeys.push_back(key);
+    editingController->recordChangeKey(key);
 }
 
 void Editor::deferChangeRecordingCommit()
 {
-    if(!recordingChange || replayingChange)
-        return;
-    deferChangeCommit = true;
+    editingController->deferChangeRecordingCommit();
 }
 
 void Editor::commitChangeRecording()
 {
-    if(!recordingChange || replayingChange)
-        return;
-    if(!pendingChangeKeys.empty())
-    {
-        lastChangeKeys = pendingChangeKeys;
-        lastChangeCount = pendingChangeCount;
-    }
-    recordingChange = false;
-    deferChangeCommit = false;
-    pendingChangeKeys.clear();
-    pendingChangeCount = 1;
+    editingController->commitChangeRecording();
 }
 
 void Editor::cancelChangeRecording()
 {
-    recordingChange = false;
-    deferChangeCommit = false;
-    pendingChangeKeys.clear();
-    pendingChangeCount = 1;
+    editingController->cancelChangeRecording();
 }
 
 void Editor::finishChangeRecordingIfDeferred()
 {
-    if(recordingChange && deferChangeCommit)
-    {
-        commitChangeRecording();
-    }
+    editingController->finishChangeRecordingIfDeferred();
 }
 
 bool Editor::isRecordingChange() const
 {
-    return recordingChange;
+    return editingController->isRecordingChange();
 }
 
 bool Editor::isReplayingChange() const
 {
-    return replayingChange;
+    return editingController->isReplayingChange();
 }
 
 int Editor::readKeyRecorded()
 {
-    int key = Terminal::readKey();
-    recordChangeKey(key);
-    return key;
+    return editingController->readKeyRecorded();
 }
 
 void Editor::repeatLastChange(int times)
 {
-    if(lastChangeKeys.empty())
-    {
-        setStatusMessage("No previous change");
-        return;
-    }
-    int repeats = std::max(1, times);
-    replayingChange = true;
-
-    for(int i = repeats - 1; i >= 0; --i)
-    {
-        std::vector<int> sequence;
-        if(lastChangeCount > 1)
-        {
-            std::string countStr = std::to_string(lastChangeCount);
-            for(char ch : countStr)
-                sequence.push_back(static_cast<unsigned char>(ch));
-        }
-        sequence.insert(sequence.end(), lastChangeKeys.begin(),
-                        lastChangeKeys.end());
-        for(auto it = sequence.rbegin(); it != sequence.rend(); ++it)
-            Terminal::unreadKey(*it);
-    }
+    editingController->repeatLastChange(times);
 }
 
 void Editor::insertUtf8Char(int c)
 {
-    if(c < 128)
-    {
-        insertChar((char)c);
-    }
-    else
-    {
-        char buf[5] = {0};
-        if(c < 0x800)
-        {
-            buf[0] = 0xC0 | (c >> 6);
-            buf[1] = 0x80 | (c & 0x3F);
-        }
-        else if(c < 0x10000)
-        {
-            buf[0] = 0xE0 | (c >> 12);
-            buf[1] = 0x80 | ((c >> 6) & 0x3F);
-            buf[2] = 0x80 | (c & 0x3F);
-        }
-        else
-        {
-            buf[0] = 0xF0 | (c >> 18);
-            buf[1] = 0x80 | ((c >> 12) & 0x3F);
-            buf[2] = 0x80 | ((c >> 6) & 0x3F);
-            buf[3] = 0x80 | (c & 0x3F);
-        }
-        for(int i = 0; buf[i]; i++)
-        {
-            insertChar(buf[i]);
-        }
-    }
+    editingController->insertUtf8Char(c);
 }
 
 void Editor::indentCurrentLine()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    (*lines)[*cursorY] = "    " + (*lines)[*cursorY];
-    *cursorX += 4;
-    *dirty = true;
+    editingController->indentCurrentLine();
 }
 
 void Editor::dedentCurrentLine()
 {
-    if(*cursorY >= (int)lines->size())
-        return;
-    std::string& line = (*lines)[*cursorY];
-
-    int remove = 0;
-    while(remove < 4 && remove < (int)line.length() &&
-          (line[remove] == ' ' || line[remove] == '\t'))
-    {
-        remove++;
-    }
-
-    if(remove > 0)
-    {
-        line.erase(0, remove);
-        *cursorX = std::max(0, *cursorX - remove);
-        *dirty = true;
-    }
+    editingController->dedentCurrentLine();
 }
 
 void Editor::handleLinewiseOperator(char op, int count)
 {
-    switch(op)
-    {
-    case keyCode(typed::TypedKey::KEY_D):
-        for(int i = 0; i < count && !lines->empty(); i++)
-        {
-            deleteCurrentLine();
-        }
-        break;
-    case keyCode(typed::TypedKey::KEY_Y):
-    {
-        LOG_DEBUG(LOG,
-                  "handleLinewiseOperator: yy detected, count={}, cursorY={}",
-                  count, *cursorY);
-        yankBuffer.clear();
-        int endLine = std::min(*cursorY + count, (int)lines->size());
-        for(int y = *cursorY; y < endLine; y++)
-        {
-            yankBuffer += (*lines)[y] + "\n";
-        }
-
-        LOG_DEBUG(LOG,
-                  "handleLinewiseOperator: yankBuffer.length()={}, "
-                  "useSystemClipboard={}",
-                  yankBuffer.length(), useSystemClipboard);
-
-        std::string msg = std::to_string(count) + " lines yanked";
-        if(useSystemClipboard && !yankBuffer.empty())
-        {
-            LOG_DEBUG(LOG,
-                      "handleLinewiseOperator: calling setSystemClipboard");
-            setSystemClipboard(yankBuffer);
-            msg += " (copied to clipboard)";
-        }
-        setStatusMessage(msg);
-    }
-    break;
-    case keyCode(command::CommandKey::KEY_GREATER):
-        for(int i = 0; i < count && *cursorY + i < (int)lines->size(); i++)
-        {
-            (*lines)[*cursorY + i] = "    " + (*lines)[*cursorY + i];
-        }
-        *dirty = true;
-        saveState();
-        needsFullRedraw = true;
-        break;
-    case keyCode(command::CommandKey::KEY_LESS):
-        for(int i = 0; i < count && *cursorY + i < (int)lines->size(); i++)
-        {
-            std::string& line = (*lines)[*cursorY + i];
-            int remove = 0;
-            while(remove < 4 && remove < (int)line.length() &&
-                  (line[remove] == ' ' || line[remove] == '\t'))
-            {
-                remove++;
-            }
-            if(remove > 0)
-                line.erase(0, remove);
-        }
-        *dirty = true;
-        saveState();
-        needsFullRedraw = true;
-        break;
-    case keyCode(command::CommandKey::KEY_EQUAL):
-        for(int i = 0; i < count && *cursorY + i < (int)lines->size(); i++)
-        {
-            autoIndentLine(*cursorY + i);
-        }
-        *dirty = true;
-        saveState();
-        needsFullRedraw = true;
-        break;
-    case keyCode(typed::TypedKey::KEY_C):
-        for(int i = 0; i < count && !lines->empty(); i++)
-        {
-            deleteCurrentLine();
-        }
-        insertLineAbove();
-        break;
-    }
+    editingController->handleLinewiseOperator(op, count);
 }
 
 // ============================================================================
@@ -10434,286 +6765,78 @@ void Editor::handleLinewiseOperator(char op, int count)
 
 void Editor::setVisualRange()
 {
-    currentBuffer->visualEndX = *cursorX;
-    currentBuffer->visualEndY = *cursorY;
+    visualController->setVisualRange();
 }
 
 void Editor::swapVisualEnds()
 {
-    std::swap(*cursorX, currentBuffer->visualStartX);
-    std::swap(*cursorY, currentBuffer->visualStartY);
-    currentBuffer->visualEndX = *cursorX;
-    currentBuffer->visualEndY = *cursorY;
-    adjustViewport();
+    visualController->swapVisualEnds();
 }
 
 void Editor::swapVisualBlockCorner()
 {
-    std::swap(*cursorX, currentBuffer->visualBlockStartX);
-    std::swap(*cursorY, currentBuffer->visualBlockStartY);
-    currentBuffer->visualBlockEndX = *cursorX;
-    currentBuffer->visualBlockEndY = *cursorY;
-    adjustViewport();
+    visualController->swapVisualBlockCorner();
 }
 
 void Editor::prepareBlockInsert(bool atEnd)
 {
-    int startY, startX, endY, endX;
-    getVisualBlockBounds(startY, startX, endY, endX);
-
-    currentBuffer->visualBlockStartY = startY;
-    currentBuffer->visualBlockEndY = endY;
-    currentBuffer->visualBlockStartX = atEnd ? endX + 1 : startX;
-    currentBuffer->visualBlockInsertText.clear();
-
-    *cursorY = startY;
-    *cursorX = atEnd ? endX + 1 : startX;
-
-    if(*cursorY < (int)lines->size())
-    {
-        std::string& line = (*lines)[*cursorY];
-        while((int)line.length() < *cursorX)
-        {
-            line += ' ';
-        }
-    }
+    visualController->prepareBlockInsert(atEnd);
 }
 
 void Editor::indentSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        (*lines)[y] = "    " + (*lines)[y];
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->indentSelection();
 }
 
 void Editor::dedentSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int remove = 0;
-        while(remove < 4 && remove < (int)line.length() &&
-              (line[remove] == ' ' || line[remove] == '\t'))
-        {
-            remove++;
-        }
-        if(remove > 0)
-            line.erase(0, remove);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->dedentSelection();
 }
 
 void Editor::autoIndentSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        autoIndentLine(y);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->autoIndentSelection();
 }
 
 void Editor::lowercaseSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
-
-        for(int x = start; x < end; x++)
-        {
-            line[x] = std::tolower(line[x]);
-        }
-    }
-    *dirty = true;
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->lowercaseSelection();
 }
 
 void Editor::uppercaseSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
-
-        for(int x = start; x < end; x++)
-        {
-            line[x] = std::toupper(line[x]);
-        }
-    }
-    *dirty = true;
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->uppercaseSelection();
 }
 
 void Editor::toggleCaseSelection()
 {
-    int startY, startX, endY, endX;
-    getSelectionBounds(startY, startX, endY, endX);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
-
-        for(int x = start; x < end; x++)
-        {
-            if(std::isupper(line[x]))
-                line[x] = std::tolower(line[x]);
-            else if(std::islower(line[x]))
-                line[x] = std::toupper(line[x]);
-        }
-    }
-    *dirty = true;
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->toggleCaseSelection();
 }
 
 void Editor::yankLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    yankBuffer.clear();
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        yankBuffer += (*lines)[y] + "\n";
-    }
-
-    if(useSystemClipboard && !yankBuffer.empty())
-    {
-        setSystemClipboard(yankBuffer);
-    }
-    setStatusMessage(std::to_string(endY - startY + 1) + " lines yanked");
+    visualController->yankLineSelection();
 }
 
 void Editor::deleteLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    yankLineSelection();
-
-    for(int y = endY; y >= startY; y--)
-    {
-        if(y < (int)lines->size())
-        {
-            lines->erase(lines->begin() + y);
-            if(currentBuffer && currentBuffer->blameValid &&
-               y < (int)currentBuffer->blameEntries.size())
-            {
-                currentBuffer->blameEntries.erase(
-                    currentBuffer->blameEntries.begin() + y);
-            }
-        }
-    }
-
-    if(lines->empty())
-        lines->push_back("");
-
-    *cursorY = std::min(startY, (int)lines->size() - 1);
-    *cursorX = 0;
-    *dirty = true;
-    if(currentBuffer && currentBuffer->blameValid)
-    {
-        currentBuffer->blameStart = 0;
-        currentBuffer->blameEnd = (int)currentBuffer->blameEntries.size() - 1;
-    }
-    saveState();
-    setMode(NORMAL);
-    needsFullRedraw = true;
+    visualController->deleteLineSelection();
 }
 
 void Editor::indentLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        (*lines)[y] = "    " + (*lines)[y];
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->indentLineSelection();
 }
 
 void Editor::dedentLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        std::string& line = (*lines)[y];
-        int remove = 0;
-        while(remove < 4 && remove < (int)line.length() &&
-              (line[remove] == ' ' || line[remove] == '\t'))
-        {
-            remove++;
-        }
-        if(remove > 0)
-            line.erase(0, remove);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->dedentLineSelection();
 }
 
 void Editor::autoIndentLineSelection()
 {
-    int startY =
-        std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
-    int endY = std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
-
-    for(int y = startY; y <= endY && y < (int)lines->size(); y++)
-    {
-        autoIndentLine(y);
-    }
-    *dirty = true;
-    saveState();
-    needsFullRedraw = true;
+    visualController->autoIndentLineSelection();
 }
-
-// ============================================================================
-// Marks
-// ============================================================================
 
 void Editor::setMark(char mark)
 {
@@ -10759,34 +6882,12 @@ void Editor::jumpToMark(char mark)
 
 void Editor::goToFile()
 {
-    std::string word = getSymbolUnderCursor();
-    if(!word.empty())
-    {
-        if(fileExists(word))
-        {
-            openFile(word);
-        }
-        else
-        {
-            setStatusMessage("File not found: " + word);
-        }
-    }
+    fileController->goToFile();
 }
 
 void Editor::showFileInfo()
 {
-    std::string info =
-        "\"" + (filename->empty() ? "[No Name]" : *filename) + "\"";
-    info += " " + std::to_string(lines->size()) + " lines";
-    if(*dirty)
-        info += " [Modified]";
-    info += " -- " + std::to_string(*cursorY + 1) + "/" +
-            std::to_string(lines->size());
-    info +=
-        " -- " +
-        std::to_string((*cursorY + 1) * 100 / std::max(1, (int)lines->size())) +
-        "%";
-    setStatusMessage(info);
+    fileController->showFileInfo();
 }
 
 void Editor::forceFullRedraw()
@@ -10838,731 +6939,144 @@ void Editor::executeOneNormalCommand(int key)
 
 std::optional<std::string> Editor::commandHistoryUp()
 {
-    if(commandHistory.empty())
-        return std::nullopt;
-    if(commandHistoryIndex < 0)
-    {
-        commandHistoryIndex = commandHistory.size() - 1;
-    }
-    else if(commandHistoryIndex > 0)
-    {
-        commandHistoryIndex--;
-    }
-    commandInput = commandHistory[commandHistoryIndex];
-    return commandInput;
+    return commandController->commandHistoryUp();
 }
 
 std::optional<std::string> Editor::commandHistoryDown()
 {
-    if(commandHistory.empty() || commandHistoryIndex < 0)
-        return std::nullopt;
-    if(commandHistoryIndex < (int)commandHistory.size() - 1)
-    {
-        commandHistoryIndex++;
-        commandInput = commandHistory[commandHistoryIndex];
-        return commandInput;
-    }
-
-    commandHistoryIndex = -1;
-    commandInput.clear();
-    return commandInput;
+    return commandController->commandHistoryDown();
 }
 
 void Editor::startCommandPopup()
 {
-    commandPopupActive = true;
-    commandPopupQuery.clear();
-    commandPopupCursor = 0;
-    commandPopupOffset = 0;
-    commandPopupAll = getCommandCompletions("");
-    updateCommandPopup("");
+    commandController->startCommandPopup();
 }
 
 void Editor::cancelCommandPopup()
 {
-    commandPopupActive = false;
-    commandPopupQuery.clear();
-    commandPopupFiltered.clear();
-    commandPopupCursor = 0;
-    commandPopupOffset = 0;
-    needsFullRedraw = true;
+    commandController->cancelCommandPopup();
 }
 
 void Editor::updateCommandPopup(std::string_view query)
 {
-    if(!commandPopupActive)
-        return;
-
-    auto isLineJumpQuery = [](std::string_view q) -> bool
-    {
-        if(q.empty())
-            return false;
-        size_t i = 0;
-        while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
-            ++i;
-        if(i >= q.size())
-            return false;
-        if(q[i] == '+' || q[i] == '-')
-            ++i;
-        size_t digitsStart = i;
-        while(i < q.size() && q[i] >= '0' && q[i] <= '9')
-            ++i;
-        return i > digitsStart;
-    };
-
-    std::string_view effectiveQuery = query;
-    if(effectiveQuery.empty() && !commandBuffer.empty() &&
-       commandBuffer.front() == ':')
-    {
-        effectiveQuery = std::string_view(commandBuffer).substr(1);
-    }
-
-    if(isLineJumpQuery(effectiveQuery))
-    {
-        cancelCommandPopup();
-        return;
-    }
-
-    commandPopupQuery = std::string(effectiveQuery);
-    commandPopupFiltered.clear();
-    commandPopupCursor = 0;
-    commandPopupOffset = 0;
-
-    bool isSetQuery = commandPopupQuery.rfind("set", 0) == 0;
-    bool isHelpQuery = commandPopupQuery == "help" ||
-                       commandPopupQuery == "h" ||
-                       commandPopupQuery.rfind("help ", 0) == 0 ||
-                       commandPopupQuery.rfind("h ", 0) == 0;
-    if(isSetQuery)
-    {
-        commandPopupAll = getSetCompletions("");
-    }
-    else if(isHelpQuery)
-    {
-        std::string cmd = (commandPopupQuery.rfind("h", 0) == 0 &&
-                           commandPopupQuery.rfind("help", 0) != 0)
-                              ? "h"
-                              : "help";
-        std::string topicPrefix;
-        if(commandPopupQuery.size() > cmd.size() &&
-           commandPopupQuery[cmd.size()] == ' ')
-        {
-            topicPrefix = commandPopupQuery.substr(cmd.size() + 1);
-        }
-        auto topics = getHelpCompletions(topicPrefix);
-        commandPopupAll.clear();
-        for(const auto& topic : topics)
-            commandPopupAll.push_back(cmd + " " + topic);
-    }
-    else
-    {
-        commandPopupAll = getCommandCompletions("");
-    }
-
-    if(commandPopupQuery.empty())
-    {
-        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-            commandPopupFiltered.push_back(i);
-        needsFullRedraw = true;
-        return;
-    }
-
-    if(isHelpQuery)
-    {
-        std::string prefix = commandPopupQuery;
-        for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-        {
-            if(commandPopupAll[i].rfind(prefix, 0) == 0)
-                commandPopupFiltered.push_back(i);
-        }
-        needsFullRedraw = true;
-        return;
-    }
-
-    std::vector<std::pair<int, int>> scored;
-    std::vector<int> positions;
-    scored.reserve(commandPopupAll.size());
-
-    for(int i = 0; i < (int)commandPopupAll.size(); ++i)
-    {
-        int score =
-            fuzzyScore(commandPopupQuery, commandPopupAll[i], positions);
-        if(score >= 0)
-            scored.emplace_back(i, score);
-    }
-
-    std::stable_sort(
-        scored.begin(), scored.end(),
-        [](const std::pair<int, int>& left, const std::pair<int, int>& right)
-        {
-            if(left.second != right.second)
-                return left.second > right.second;
-            return left.first < right.first;
-        });
-
-    for(const auto& entry : scored)
-        commandPopupFiltered.push_back(entry.first);
-
-    needsFullRedraw = true;
+    commandController->updateCommandPopup(query);
 }
 
 void Editor::moveCommandPopupCursor(int delta)
 {
-    if(!commandPopupActive || commandPopupFiltered.empty())
-        return;
-
-    int next = commandPopupCursor + delta;
-    if(next < 0)
-        next = 0;
-    if(next >= (int)commandPopupFiltered.size())
-        next = (int)commandPopupFiltered.size() - 1;
-    commandPopupCursor = next;
-
-    const int window = std::min(8, (int)commandPopupFiltered.size());
-    if(commandPopupCursor < commandPopupOffset)
-        commandPopupOffset = commandPopupCursor;
-    else if(commandPopupCursor >= commandPopupOffset + window)
-        commandPopupOffset = commandPopupCursor - window + 1;
-
-    needsFullRedraw = true;
+    commandController->moveCommandPopupCursor(delta);
 }
 
 bool Editor::isCommandPopupActive() const
 {
-    return commandPopupActive;
+    return commandController->isCommandPopupActive();
 }
 
 std::optional<std::string> Editor::commandPopupSelection() const
 {
-    if(!commandPopupActive || commandPopupFiltered.empty())
-        return std::nullopt;
-    int idx = commandPopupFiltered[commandPopupCursor];
-    if(idx < 0 || idx >= (int)commandPopupAll.size())
-        return std::nullopt;
-    return commandPopupAll[idx];
+    return commandController->commandPopupSelection();
 }
 
 void Editor::startCommandHistorySearch(std::string_view seed)
 {
-    commandHistorySearchActive = true;
-    commandHistorySearchOriginal = std::string(seed);
-    commandHistorySearchQueryValue = std::string(seed);
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-    updateCommandHistorySearchQuery(commandHistorySearchQueryValue);
+    commandController->startCommandHistorySearch(seed);
 }
 
 std::string Editor::cancelCommandHistorySearch()
 {
-    std::string restored = commandHistorySearchOriginal;
-    commandHistorySearchActive = false;
-    commandHistorySearchQueryValue.clear();
-    commandHistorySearchOriginal.clear();
-    commandHistorySearchMatches.clear();
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-    needsFullRedraw = true;
-    return restored;
+    return commandController->cancelCommandHistorySearch();
 }
 
 std::string Editor::acceptCommandHistorySearch()
 {
-    std::string selected;
-    if(!commandHistorySearchMatches.empty() &&
-       commandHistorySearchCursor >= 0 &&
-       commandHistorySearchCursor < (int)commandHistorySearchMatches.size())
-    {
-        int idx = commandHistorySearchMatches[commandHistorySearchCursor];
-        if(idx >= 0 && idx < (int)commandHistory.size())
-            selected = commandHistory[idx];
-    }
-    if(selected.empty())
-        selected = commandHistorySearchQueryValue;
-
-    commandHistorySearchActive = false;
-    commandHistorySearchQueryValue.clear();
-    commandHistorySearchOriginal.clear();
-    commandHistorySearchMatches.clear();
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-    needsFullRedraw = true;
-    return selected;
+    return commandController->acceptCommandHistorySearch();
 }
 
 void Editor::updateCommandHistorySearchQuery(std::string_view query)
 {
-    commandHistorySearchQueryValue = std::string(query);
-    commandHistorySearchMatches.clear();
-    commandHistorySearchCursor = 0;
-    commandHistorySearchOffset = 0;
-
-    if(commandHistory.empty())
-    {
-        needsFullRedraw = true;
-        return;
-    }
-
-    if(commandHistorySearchQueryValue.empty())
-    {
-        for(int i = (int)commandHistory.size() - 1; i >= 0; --i)
-            commandHistorySearchMatches.push_back(i);
-        needsFullRedraw = true;
-        return;
-    }
-
-    std::vector<std::pair<int, int>> scored;
-    scored.reserve(commandHistory.size());
-    std::vector<int> positions;
-
-    for(int i = 0; i < (int)commandHistory.size(); ++i)
-    {
-        int score = fuzzyScore(commandHistorySearchQueryValue,
-                               commandHistory[i], positions);
-        if(score >= 0)
-            scored.emplace_back(i, score);
-    }
-
-    if(!scored.empty())
-    {
-        std::stable_sort(scored.begin(), scored.end(),
-                         [](const std::pair<int, int>& left,
-                            const std::pair<int, int>& right)
-                         {
-                             if(left.second != right.second)
-                                 return left.second > right.second;
-                             return left.first > right.first;
-                         });
-        for(const auto& entry : scored)
-            commandHistorySearchMatches.push_back(entry.first);
-    }
-
-    needsFullRedraw = true;
+    commandController->updateCommandHistorySearchQuery(query);
 }
 
 void Editor::moveCommandHistorySearchCursor(int delta)
 {
-    if(!commandHistorySearchActive || commandHistorySearchMatches.empty())
-        return;
-    int next = commandHistorySearchCursor + delta;
-    if(next < 0)
-        next = 0;
-    if(next >= (int)commandHistorySearchMatches.size())
-        next = (int)commandHistorySearchMatches.size() - 1;
-    commandHistorySearchCursor = next;
-
-    const int window = std::min(8, (int)commandHistorySearchMatches.size());
-    if(commandHistorySearchCursor < commandHistorySearchOffset)
-        commandHistorySearchOffset = commandHistorySearchCursor;
-    else if(commandHistorySearchCursor >= commandHistorySearchOffset + window)
-        commandHistorySearchOffset = commandHistorySearchCursor - window + 1;
-
-    needsFullRedraw = true;
+    commandController->moveCommandHistorySearchCursor(delta);
 }
 
 bool Editor::isCommandHistorySearchActive() const
 {
-    return commandHistorySearchActive;
+    return commandController->isCommandHistorySearchActive();
 }
 
 const std::string& Editor::commandHistorySearchQuery() const
 {
-    return commandHistorySearchQueryValue;
+    return commandController->commandHistorySearchQuery();
 }
 
 void Editor::drawCommandPopup(std::string& output) const
 {
-    if(!commandPopupActive)
-        return;
-    if(commandHistorySearchActive)
-        return;
-
-    auto isLineJumpQuery = [](std::string_view q) -> bool
-    {
-        if(q.empty())
-            return false;
-        size_t i = 0;
-        while(i < q.size() && (q[i] == ' ' || q[i] == '\t'))
-            ++i;
-        if(i >= q.size())
-            return false;
-        if(q[i] == '+' || q[i] == '-')
-            ++i;
-        size_t digitsStart = i;
-        while(i < q.size() && q[i] >= '0' && q[i] <= '9')
-            ++i;
-        return i > digitsStart;
-    };
-
-    if(currentMode == COMMAND && !commandBuffer.empty() &&
-       commandBuffer.front() == ':')
-    {
-        std::string_view q(commandBuffer);
-        q.remove_prefix(1);
-        if(isLineJumpQuery(q))
-            return;
-    }
-
-    widgets::CommandPopupView view{
-        .theme = theme,
-        .screenRows = screenRows,
-        .screenCols = screenCols,
-        .entries = commandPopupAll,
-        .filtered = commandPopupFiltered,
-        .offset = commandPopupOffset,
-        .cursor = commandPopupCursor,
-    };
-    widgets::drawCommandPopup(output, view);
+    commandController->drawCommandPopup(output);
 }
 
 void Editor::drawCommandHistoryPopup(std::string& output) const
 {
-    if(!commandHistorySearchActive)
-        return;
-    widgets::CommandHistoryPopupView view{
-        .theme = theme,
-        .screenRows = screenRows,
-        .screenCols = screenCols,
-        .history = commandHistory,
-        .matches = commandHistorySearchMatches,
-        .offset = commandHistorySearchOffset,
-        .cursor = commandHistorySearchCursor,
-    };
-    widgets::drawCommandHistoryPopup(output, view);
+    commandController->drawCommandHistoryPopup(output);
 }
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix)
 {
-    return getCommandCompletions(prefix, currentMode);
+    return commandController->getCommandCompletions(prefix);
 }
 
 std::vector<std::string> Editor::getCommandCompletions(std::string_view prefix,
                                                        Mode mode)
 {
-    static const std::vector<std::string> baseCommands = {
-        "w",
-        "write",
-        "q",
-        "quit",
-        "q!",
-        "qa",
-        "qall",
-        "qa!",
-        "qall!",
-        "wq",
-        "x",
-        "qw",
-        "qw!",
-        "wa",
-        "wall",
-        "wa!",
-        "wqa",
-        "wqall",
-        "wqa!",
-        "wqall!",
-        "xa",
-        "e",
-        "edit",
-        "e%",
-        "edit%",
-        "new",
-        "vnew",
-        "bn",
-        "bnext",
-        "bp",
-        "bprev",
-        "bd",
-        "bdelete",
-        "ls",
-        "buffers",
-        "sp",
-        "split",
-        "vs",
-        "vsplit",
-        "vh",
-        "hs",
-        "hsplit",
-        "only",
-        "tabnew",
-        "tabc",
-        "tabclose",
-        "set",
-        "syntax",
-        "noh",
-        "nohlsearch",
-        "lspinfo",
-        "emoji",
-        "em",
-        "help",
-        "h",
-        "cd",
-        "cdr",
-        "loc",
-        "loc!",
-        "loc%",
-        "loctotal",
-        "git blame",
-        "git stage",
-        "git log",
-        "git prettylog",
-        "git diff",
-        "git commit",
-        "git stash",
-        "git stash pop",
-    };
-
-    auto hasCommand = [](const std::vector<std::string>& list,
-                         const std::string& value) -> bool
-    { return std::find(list.begin(), list.end(), value) != list.end(); };
-
-    const std::vector<std::string>* activeList = &baseCommands;
-    std::vector<std::string> fileBrowserCommands;
-    if(mode == FILE_BROWSER)
-    {
-        fileBrowserCommands = baseCommands;
-        const std::vector<std::string> extras = {
-            "delete", "d",  "rm",    "rename", "r", "mv",
-            "mkdir",  "md", "touch", "new",    "?",
-        };
-        for(const auto& extra : extras)
-        {
-            if(!hasCommand(fileBrowserCommands, extra))
-                fileBrowserCommands.push_back(extra);
-        }
-
-        const std::vector<std::string> notApplicable = {"wq", "x"};
-        fileBrowserCommands.erase(
-            std::remove_if(
-                fileBrowserCommands.begin(), fileBrowserCommands.end(),
-                [&](const std::string& cmd)
-                {
-                    return std::find(notApplicable.begin(), notApplicable.end(),
-                                     cmd) != notApplicable.end();
-                }),
-            fileBrowserCommands.end());
-
-        activeList = &fileBrowserCommands;
-    }
-
-    std::vector<std::string> matches;
-    for(const auto& cmd : *activeList)
-    {
-        if(prefix.size() <= cmd.size() &&
-           std::string_view(cmd).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(cmd);
-        }
-    }
-    return matches;
+    return commandController->getCommandCompletions(prefix, mode);
 }
 
 std::vector<std::string> Editor::getHelpCompletions(std::string_view prefix)
 {
-    static const std::vector<std::string> topics = {
-        "commands",    "modes",       "navigation", "editing", "files",
-        "filebrowser", "run",         "buffers",    "windows", "search",
-        "clipboard",   "git",         "gb",         "gj",      "gbv",
-        "lsp",         "diagnostics", "help"};
-
-    std::vector<std::string> matches;
-    for(const auto& topic : topics)
-    {
-        if(prefix.size() <= topic.size() &&
-           std::string_view(topic).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(topic);
-        }
-    }
-    return matches;
+    return commandController->getHelpCompletions(prefix);
 }
 
 std::vector<std::string> Editor::getSetCompletions(std::string_view prefix)
 {
-    static const std::vector<std::string> options = {
-        "set autobraces",
-        "set noautobraces",
-        "set autobraces?",
-        "set autobraces=",
-        "set autoquotes",
-        "set noautoquotes",
-        "set autoquotes?",
-        "set autoquotes=",
-        "set autobracesinstrings",
-        "set noautobracesinstrings",
-        "set autobracesinstrings?",
-        "set autobracesinstrings=",
-        "set autocomplete",
-        "set noautocomplete",
-        "set autocomplete?",
-        "set autocomplete=",
-        "set completionautoparens",
-        "set nocompletionautoparens",
-        "set completionautoparens?",
-        "set completionautoparens=",
-        "set showtabs",
-        "set noshowtabs",
-        "set showtabs?",
-        "set showtabs=",
-        "set tabnumbers",
-        "set notabnumbers",
-        "set tabnumbers?",
-        "set tabnumbers=",
-        "set tabspaces?",
-        "set tabspaces=",
-        "set tabspaces=2",
-        "set tabspaces=4",
-        "set tabspaces=8",
-        "set tabspaces=1",
-        "set tabspaces=3",
-        "set tabspaces=5",
-        "set tabspaces=6",
-        "set tabspaces=7",
-        "set tabspaces=9",
-        "set tabspaces=10",
-        "set tabspaces=12",
-        "set tabspaces=16",
-        "set commenttogglepartial",
-        "set nocommenttogglepartial",
-        "set commenttogglepartial?",
-        "set gdcenter",
-        "set nogdcenter",
-        "set gdcenter?",
-        "set gdcenter=",
-        "set formatoninsertleave",
-        "set noformatoninsertleave",
-        "set formatoninsertleave?",
-        "set formatonsave",
-        "set noformatonsave",
-        "set formatonsave?",
-        "set formatonsave=",
-        "set autodetectlsps",
-        "set noautodetectlsps",
-        "set autodetectlsps?",
-        "set autodetectlsps=",
-        "set filebrowser.fuzzy",
-        "set nofilebrowser.fuzzy",
-        "set filebrowser.fuzzy?",
-        "set filebrowser.fuzzy=",
-        "set status.lspgap",
-        "set status.lspgap?",
-        "set status.lspgap=",
-        "set commandline.messageprefix",
-        "set nocommandline.messageprefix",
-        "set commandline.messageprefix?",
-        "set commandline.messageprefix=",
-        "set formatondoubleesctimeoutms?",
-        "set formatondoubleesctimeoutms=",
-        "set gitdefaultcolors?",
-        "set enablegitdefaultcolors",
-        "set disablegitdefaultcolors",
-        "set gitignore?",
-        "set gitignore",
-        "set nogitignore",
-        "set gitblameinfo?",
-        "set gitblameinfo",
-        "set nogitblameinfo",
-        "set gitignore=",
-        "set syntax.cpp.highlight_system_includes",
-        "set nosyntax.cpp.highlight_system_includes",
-        "set syntax.cpp.highlight_system_includes?",
-        "set syntax.cpp.highlight_param_types",
-        "set nosyntax.cpp.highlight_param_types",
-        "set syntax.cpp.highlight_param_types?",
-        "set syntax.cpp.locals_color",
-        "set syntax.cpp.locals_color?",
-        "set syntax.cpp.locals_color=normal",
-        "set syntax.cpp.locals_color=keyword",
-        "set syntax.cpp.locals_color=type",
-        "set syntax.cpp.locals_color=string",
-        "set syntax.cpp.locals_color=char",
-        "set syntax.cpp.locals_color=comment",
-        "set syntax.cpp.locals_color=preprocessor",
-        "set syntax.cpp.locals_color=number",
-        "set syntax.cpp.locals_color=operator",
-        "set syntax.cpp.locals_color=function",
-        "set syntax.cpp.locals_color=member",
-        "set syntax.cpp.member_color",
-        "set syntax.cpp.member_color?",
-        "set syntax.cpp.member_color=normal",
-        "set syntax.cpp.member_color=keyword",
-        "set syntax.cpp.member_color=type",
-        "set syntax.cpp.member_color=string",
-        "set syntax.cpp.member_color=char",
-        "set syntax.cpp.member_color=comment",
-        "set syntax.cpp.member_color=preprocessor",
-        "set syntax.cpp.member_color=number",
-        "set syntax.cpp.member_color=operator",
-        "set syntax.cpp.member_color=function",
-        "set syntax.cpp.member_color=member",
-        "set syntax.cpp.semantic_tokens",
-        "set nosyntax.cpp.semantic_tokens",
-        "set syntax.cpp.semantic_tokens?",
-        "set syntax.mlang.highlight_types",
-        "set nosyntax.mlang.highlight_types",
-        "set syntax.mlang.highlight_types?",
-        "set syntax.mlang.highlight_builtin_docs",
-        "set nosyntax.mlang.highlight_builtin_docs",
-        "set syntax.mlang.highlight_builtin_docs?",
-        "set python.formatter?",
-        "set python.formatter=ruff",
-        "set python.formatter=black",
-        "set pyfmt=ruff",
-        "set pyfmt=black",
-        "set pyfmt?",
-        "set utf8",
-        "set noutf8",
-        "set utf8?",
-        "set utf8=",
-    };
-
-    std::vector<std::string> matches;
-    for(const auto& opt : options)
-    {
-        if(prefix.size() <= opt.size() &&
-           std::string_view(opt).substr(0, prefix.size()) == prefix)
-        {
-            matches.push_back(opt);
-        }
-    }
-    return matches;
+    return commandController->getSetCompletions(prefix);
 }
 
 std::vector<std::string> Editor::getPathCompletions(std::string_view path)
 {
-    return editor::helper::getPathCompletions(path);
+    return commandController->getPathCompletions(path);
 }
 
 std::vector<std::string>
 Editor::getPathCompletionsRecursive(std::string_view path)
 {
-    return editor::helper::getRecursivePathCompletions(path, respectGitignore);
+    return commandController->getPathCompletionsRecursive(path);
 }
 
 std::vector<std::string> Editor::getLocPathCompletions(std::string_view path)
 {
-    return editor::helper::getLocPathCompletions(path, respectGitignore);
+    return commandController->getLocPathCompletions(path);
 }
 
 void Editor::deleteFilePrompt()
 {
-    setStatusMessage("File deletion not yet implemented");
+    fileController->deleteFilePrompt();
 }
 
 void Editor::renameFilePrompt()
 {
-    setStatusMessage("File rename not yet implemented");
+    fileController->renameFilePrompt();
 }
 
 void Editor::createNewFilePrompt()
 {
-    setMode(COMMAND);
-    commandBuffer = ":e ";
-    cancelCommandPopup();
-    needsFullRedraw = true;
+    fileController->createNewFilePrompt();
 }
 
 void Editor::createNewDirectoryPrompt()
 {
-    setStatusMessage("New directory creation not yet implemented");
+    fileController->createNewDirectoryPrompt();
 }
 
 // ============================================================================
@@ -11646,242 +7160,6 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
         i += len;
     }
     return i;
-}
-
-bool Editor::mlangFormatBuffer()
-{
-    if(!currentBuffer || !lines)
-        return false;
-    if(!isFileType<FileType::Mla>())
-        return false;
-
-    const int savedY = cursorY ? *cursorY : 0;
-    const int savedX = cursorX ? *cursorX : 0;
-    bool externalFormatterFailed = false;
-    std::string externalFormatterError;
-
-    // Prefer external mlang-format binary (clang-format style behavior).
-    {
-        fs::path tempPath = make_temp_file_path("uvim_mlang_fmt", ".mla");
-        std::ofstream tempFile(tempPath);
-        if(tempFile.is_open())
-        {
-            for(size_t i = 0; i < lines->size(); ++i)
-                tempFile << (*lines)[i] << '\n';
-            tempFile.close();
-
-            std::string absFilename = currentBuffer->filename;
-            if(!absFilename.empty())
-                absFilename = resolve_editor_path(absFilename).string();
-
-            fs::path errPath =
-                make_temp_file_path("uvim_mlang_fmt_err", ".log");
-            auto runFmt = [&](const std::string& exe) -> int
-            {
-                std::string cmd = "\"" + exe +
-                                  "\" -i --style file --assume-filename=\"" +
-                                  absFilename + "\" \"" + tempPath.string() +
-                                  "\" 2>\"" + errPath.string() + "\"";
-                return std::system(cmd.c_str());
-            };
-
-            std::string fmtExe = resolve_executable_path("mlang-format");
-            if(fmtExe.empty())
-            {
-                std::error_code ec;
-                const std::string hb = "/opt/homebrew/bin/mlang-format";
-                if(fs::exists(hb, ec) && fs::is_regular_file(hb, ec))
-                    fmtExe = hb;
-            }
-
-            int fmtStatus = -1;
-            bool formattedOk = false;
-            if(!fmtExe.empty())
-            {
-                fmtStatus = runFmt(fmtExe);
-                formattedOk = (fmtStatus == 0);
-            }
-
-            if(!formattedOk)
-            {
-                externalFormatterFailed = true;
-                std::ifstream errFile(errPath);
-                if(errFile.is_open())
-                {
-                    std::getline(errFile, externalFormatterError);
-                    errFile.close();
-                }
-                if(externalFormatterError.empty())
-                {
-                    if(fmtExe.empty())
-                        externalFormatterError = "mlang-format not found";
-                    else
-                        externalFormatterError =
-                            "exit status " + std::to_string(fmtStatus);
-                }
-            }
-
-            if(formattedOk)
-            {
-                std::ifstream in(tempPath);
-                std::vector<std::string> newLines;
-                std::string line;
-                while(std::getline(in, line))
-                {
-                    if(!line.empty() && line.back() == '\r')
-                        line.pop_back();
-                    newLines.push_back(line);
-                }
-                {
-                    std::error_code removeEc;
-                    fs::remove(tempPath, removeEc);
-                    fs::remove(errPath, removeEc);
-                }
-
-                if(!newLines.empty() && newLines.back().empty())
-                    newLines.pop_back();
-                if(newLines.empty())
-                    newLines.push_back("");
-
-                std::vector<std::string>& activeLines = currentBuffer->lines;
-                const std::string fmtLabel =
-                    fmtExe.empty() ? "mlang-format"
-                                   : ("mlang-format (" + fmtExe + ")");
-                if(newLines == activeLines)
-                {
-                    setStatusMessage(fmtLabel + ": no changes");
-                    return true;
-                }
-
-                saveState();
-                activeLines = std::move(newLines);
-                lines = &currentBuffer->lines;
-                if(dirty)
-                    *dirty = true;
-                currentBuffer->lspSyncNeeded = true;
-                if(cursorY && cursorX && lines && !lines->empty())
-                {
-                    *cursorY = std::clamp(savedY, 0, (int)lines->size() - 1);
-                    *cursorX =
-                        std::clamp(savedX, 0, (int)(*lines)[*cursorY].size());
-                }
-                adjustViewport();
-                needsFullRedraw = true;
-                setStatusMessage(fmtLabel + ": formatted buffer");
-                return true;
-            }
-            {
-                std::error_code removeEc;
-                fs::remove(tempPath, removeEc);
-                fs::remove(errPath, removeEc);
-            }
-        }
-    }
-
-    // Fallback: LSP document formatting.
-    if(!isMlangLspEnabled() || !mlangLspClient)
-    {
-        setStatusMessage("mlang-format: not found (and mlang LSP OFF)");
-        return false;
-    }
-
-    std::string text;
-    text.reserve(lines->size() * 80);
-    for(size_t i = 0; i < lines->size(); ++i)
-    {
-        text += (*lines)[i];
-        if(i + 1 < lines->size())
-            text.push_back('\n');
-    }
-    mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
-    mlangLspClient->didChange(currentBuffer->filename, text, "mlang");
-
-    std::vector<LspClient::TextEdit> edits =
-        mlangLspClient->formatting(currentBuffer->filename, 4, true);
-    if(edits.empty())
-    {
-        if(externalFormatterFailed)
-        {
-            setStatusMessage("mlang-format failed (" +
-                             externalFormatterError.substr(0, 80) +
-                             "); mlang LSP: no changes");
-        }
-        else
-            setStatusMessage("mlang LSP: no changes");
-        return true;
-    }
-
-    std::sort(edits.begin(), edits.end(),
-              [](const LspClient::TextEdit& a, const LspClient::TextEdit& b)
-              {
-                  if(a.startLine != b.startLine)
-                      return a.startLine > b.startLine;
-                  return a.startCharacter > b.startCharacter;
-              });
-
-    for(const auto& edit : edits)
-    {
-        if(edit.startLine < 0 || edit.startLine >= (int)lines->size())
-            continue;
-        if(edit.endLine < 0 || edit.endLine >= (int)lines->size())
-            continue;
-
-        std::string& startLine = (*lines)[edit.startLine];
-        std::string& endLine = (*lines)[edit.endLine];
-        int startByte = utf16ToUtf8ByteOffset(startLine, edit.startCharacter);
-        int endByte = utf16ToUtf8ByteOffset(endLine, edit.endCharacter);
-
-        if(edit.startLine == edit.endLine)
-        {
-            startLine = startLine.substr(0, startByte) + edit.newText +
-                        endLine.substr(endByte);
-            continue;
-        }
-
-        std::string prefix = startLine.substr(0, startByte);
-        std::string suffix = endLine.substr(endByte);
-        std::string combined = prefix + edit.newText + suffix;
-
-        std::vector<std::string> newLines;
-        size_t pos = 0;
-        while(pos <= combined.size())
-        {
-            size_t next = combined.find('\n', pos);
-            if(next == std::string::npos)
-            {
-                newLines.push_back(combined.substr(pos));
-                break;
-            }
-            newLines.push_back(combined.substr(pos, next - pos));
-            pos = next + 1;
-        }
-
-        lines->erase(lines->begin() + edit.startLine,
-                     lines->begin() + edit.endLine + 1);
-        lines->insert(lines->begin() + edit.startLine, newLines.begin(),
-                      newLines.end());
-    }
-
-    *dirty = true;
-    saveState();
-    currentBuffer->lspSyncNeeded = true;
-    adjustViewport();
-    needsFullRedraw = true;
-    if(externalFormatterFailed)
-    {
-        setStatusMessage("mlang-format failed (" +
-                         externalFormatterError.substr(0, 80) +
-                         "); mlang LSP: formatted buffer");
-    }
-    else
-        setStatusMessage("mlang LSP: formatted buffer");
-    return true;
-}
-#else
-bool Editor::mlangFormatBuffer()
-{
-    setStatusMessage("mlang LSP: not compiled");
-    return false;
 }
 #endif
 
