@@ -37,6 +37,7 @@ class EditorFileController;
 class EditorGitController;
 class EditorIndentController;
 class EditorLspController;
+class EditorModeController;
 class EditorOperatorController;
 class EditorSplitController;
 class EditorVisualController;
@@ -521,8 +522,6 @@ public:
     void handleVisualMode(int c);
     void handleCommandMode(int c);
     void handleSearchMode(int c);
-    bool handleEmojiPopupKey(int c);
-    void handleKeypress(int c);
     void handleResize();
     bool isRobotKeyword(std::string_view word) const;
     bool isRobotCustomKeyword(std::string_view word) const;
@@ -938,6 +937,7 @@ private:
     friend class EditorGitController;
     friend class EditorIndentController;
     friend class EditorLspController;
+    friend class EditorModeController;
     friend class EditorOperatorController;
     friend class EditorSplitController;
     friend class EditorVisualController;
@@ -1144,8 +1144,6 @@ public:
 
 private:
 #endif
-    bool dispatchModeKey(int c);
-    void syncModeFromStateMachine();
     std::unique_ptr<ModeStateMachine> modeStateMachine;
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
@@ -1155,6 +1153,7 @@ private:
     std::unique_ptr<EditorGitController> gitController;
     std::unique_ptr<EditorIndentController> indentController;
     std::unique_ptr<EditorLspController> lspController;
+    std::unique_ptr<EditorModeController> modeController;
     std::unique_ptr<EditorOperatorController> operatorController;
     std::unique_ptr<EditorSplitController> splitController;
     std::unique_ptr<EditorVisualController> visualController;

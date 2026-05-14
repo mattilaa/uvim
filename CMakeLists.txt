@@ -65,6 +65,7 @@ set(UVIM_CORE_SOURCES
     src/editor_git_controller.cpp
     src/editor_indent_controller.cpp
     src/editor_lsp_controller.cpp
+    src/editor_mode_controller.cpp
     src/editor_operator_controller.cpp
     src/editor_settings_controller.cpp
     src/editor_split_controller.cpp

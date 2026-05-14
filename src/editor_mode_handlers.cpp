@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_mode_controller.h"
 #include "enablelog.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -24,7 +25,7 @@ static bool isSourceFile(const std::string& path)
 
 void Editor::handleOperatorPendingMode(int c)
 {
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }
@@ -349,7 +350,7 @@ void Editor::handleNormalMode(int c)
     LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c,
               (char)c, commandBuffer);
 
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }
@@ -1054,7 +1055,7 @@ void Editor::handleNormalMode(int c)
 
 void Editor::handleInsertMode(int c)
 {
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }
@@ -1083,7 +1084,7 @@ void Editor::handleInsertMode(int c)
 
 void Editor::handleVisualMode(int c)
 {
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }
@@ -1118,7 +1119,7 @@ void Editor::handleVisualMode(int c)
 
 void Editor::handleVisualBlockMode(int c)
 {
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }
@@ -1145,7 +1146,7 @@ void Editor::handleVisualBlockMode(int c)
 
 void Editor::handleSearchMode(int c)
 {
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }

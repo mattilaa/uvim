@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_mode_controller.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 
@@ -567,7 +568,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
 
 void Editor::handleCommandMode(int c)
 {
-    if(dispatchModeKey(c))
+    if(modeController->dispatchModeKey(c))
     {
         return;
     }
