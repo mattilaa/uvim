@@ -395,6 +395,22 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
 
+    if(ctx.commandBuffer == " b")
+    {
+        if(c == keyCode(typed::TypedKey::KEY_D))
+        {
+            ctx.commandBuffer.clear();
+            ed->closeCurrentBuffer();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
@@ -595,16 +611,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
     }
     if(c == keyCode(typed::TypedKey::KEY_B))
     {
-        // bd - close current buffer; otherwise b is back-word motion.
-        int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_D))
-        {
-            ed->closeCurrentBuffer();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(nextChar != -1)
-            Terminal::unreadKey(nextChar);
         for(int i = 0; i < count; i++)
             ed->moveWordBackward();
         ctx.repeatCount = 0;
@@ -1255,6 +1261,13 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         // Move current buffer left in the tab bar.
         ed->moveBufferLeft();
         break;
+
+    case keyCode(typed::TypedKey::KEY_B):
+        // <leader>b prefix - buffer commands.
+        ctx.commandBuffer = " b";
+        ctx.setStatusMessage("Leader-b");
+        ctx.repeatCount = 0;
+        return std::nullopt;
 
     case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard

@@ -1,11 +1,11 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-#include <gtest/gtest.h>
-#include <utility>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <chrono>
+#include <gtest/gtest.h>
+#include <utility>
 
 namespace
 {
@@ -20,8 +20,7 @@ std::filesystem::path make_temp_dir(const std::string& prefix)
 {
     auto now = std::chrono::steady_clock::now().time_since_epoch().count();
     std::filesystem::path base =
-        std::filesystem::temp_directory_path() /
-        (prefix + std::to_string(now));
+        std::filesystem::temp_directory_path() / (prefix + std::to_string(now));
     std::filesystem::create_directories(base);
     return base;
 }
@@ -112,6 +111,26 @@ TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "one one three");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, LeaderBdClosesCurrentBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    ASSERT_EQ(editor.buffers.size(), 2u);
+    ASSERT_EQ(editor.currentBufferIndex, 1);
+
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(' ');
+    sm.dispatch('b');
+    sm.dispatch('d');
+
+    EXPECT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_TRUE(editor.commandBuffer.empty());
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
@@ -768,8 +787,7 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
 
     EXPECT_STREQ(sm2.currentStateName(), "NORMAL");
     ASSERT_NE(editor2.currentBuffer, nullptr);
-    EXPECT_NE(editor2.currentBuffer->filename.find("edit-"),
-              std::string::npos);
+    EXPECT_NE(editor2.currentBuffer->filename.find("edit-"), std::string::npos);
 }
 
 TEST(RealModeTransitionsTest, FileBrowserCtrlJKCyclesWhileSearchPromptActive)
