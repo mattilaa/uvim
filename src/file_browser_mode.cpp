@@ -10,6 +10,7 @@
 #include <ctime>
 #include <fstream>
 #include <iomanip>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include "os_compat.h"
@@ -21,6 +22,21 @@
 
 namespace
 {
+bool isPlainSearchPattern(std::string_view pattern)
+{
+    return pattern.find_first_of(R"(\.^$|()[]{}*+?)") == std::string_view::npos;
+}
+
+bool fileBrowserNameMatchesSearch(const std::string& name,
+                                  const std::string& pattern,
+                                  bool plainPattern,
+                                  const std::regex* regexPattern)
+{
+    if(plainPattern)
+        return name.find(pattern) != std::string::npos;
+    return regexPattern && std::regex_search(name, *regexPattern);
+}
+
 void ensureEntryMetadata(FileEntry& entry)
 {
     if(entry.metadataLoaded || entry.name == "..")
@@ -366,11 +382,6 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return ctx.hasBuffer()
                    ? std::optional<ModeState>(ModeState{NormalMode{}})
                    : std::optional<ModeState>(ModeState{WelcomeMode{}});
-    };
-
-    const auto isPlainSearchPattern = [](const std::string& pattern) -> bool
-    {
-        return pattern.find_first_of(R"(\.^$|()[]{}*+?)") == std::string::npos;
     };
 
     const auto collectRegexMatches =
@@ -1668,8 +1679,11 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     output += editor.theme.baseFg();
 
-    std::vector<char> searchHit(fileList.size(), 0);
     bool hasLiveSearch = false;
+    std::string liveSearchPattern;
+    bool liveSearchPlainPattern = false;
+    std::optional<std::regex> liveSearchRegex;
+    std::vector<char> committedSearchHit;
     bool hasCommittedSearch =
         !searchMatches.empty() && !lastSearchPattern.empty();
     if(commandPrompt && commandPrompt->isActive())
@@ -1679,16 +1693,13 @@ void FileBrowserMode::draw(Editor& editor) const
         {
             try
             {
-                std::regex re(input.substr(1));
+                liveSearchPattern = input.substr(1);
+                liveSearchPlainPattern =
+                    isPlainSearchPattern(liveSearchPattern);
+                if(!liveSearchPlainPattern)
+                    liveSearchRegex.emplace(liveSearchPattern,
+                                            std::regex::optimize);
                 hasLiveSearch = true;
-                for(size_t i = 0; i < fileList.size(); ++i)
-                {
-                    const auto& entry = fileList[i];
-                    if(entry.name == "..")
-                        continue;
-                    if(std::regex_search(entry.name, re))
-                        searchHit[i] = 1;
-                }
             }
             catch(const std::regex_error&)
             {
@@ -1697,10 +1708,11 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     if(!hasLiveSearch && hasCommittedSearch)
     {
+        committedSearchHit.assign(fileList.size(), 0);
         for(int idx : searchMatches)
         {
-            if(idx >= 0 && idx < static_cast<int>(searchHit.size()))
-                searchHit[idx] = 1;
+            if(idx >= 0 && idx < static_cast<int>(committedSearchHit.size()))
+                committedSearchHit[idx] = 1;
         }
     }
     bool searchVisualActive = hasLiveSearch || hasCommittedSearch;
@@ -1747,9 +1759,27 @@ void FileBrowserMode::draw(Editor& editor) const
                 else
                     mappedIndex = filterMatches[index];
             }
-            if(mappedIndex >= 0 &&
-               mappedIndex < static_cast<int>(searchHit.size()) &&
-               searchHit[mappedIndex])
+            bool isSearchHit = false;
+            if(mappedIndex >= 0)
+            {
+                if(hasLiveSearch && mappedIndex < static_cast<int>(fileList.size()))
+                {
+                    const auto& mappedEntry = fileList[mappedIndex];
+                    isSearchHit =
+                        mappedEntry.name != ".." &&
+                        fileBrowserNameMatchesSearch(
+                            mappedEntry.name, liveSearchPattern,
+                            liveSearchPlainPattern,
+                            liveSearchRegex ? &*liveSearchRegex : nullptr);
+                }
+                else if(!hasLiveSearch &&
+                        mappedIndex <
+                            static_cast<int>(committedSearchHit.size()))
+                {
+                    isSearchHit = committedSearchHit[mappedIndex];
+                }
+            }
+            if(isSearchHit)
             {
                 if(searchVisualActive)
                     output += std::string(Terminal::ESC_DIM) +
