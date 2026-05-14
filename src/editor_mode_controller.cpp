@@ -159,25 +159,25 @@ void EditorModeController::handleKeypress(int c)
     switch(editor.currentMode)
     {
     case NORMAL:
-        editor.handleNormalMode(c);
+        handleNormalMode(c);
         break;
     case INSERT:
     case REPLACE:
-        editor.handleInsertMode(c);
+        handleInsertMode(c);
         break;
     case VISUAL:
     case VISUAL_LINE:
-        editor.handleVisualMode(c);
+        handleVisualMode(c);
         break;
     case VISUAL_BLOCK:
-        editor.handleVisualBlockMode(c);
+        handleVisualBlockMode(c);
         break;
     case COMMAND:
-        editor.handleCommandMode(c);
+        handleCommandMode(c);
         break;
     case SEARCH_FORWARD:
     case SEARCH_BACKWARD:
-        editor.handleSearchMode(c);
+        handleSearchMode(c);
         break;
     case FILE_BROWSER:
         break;
@@ -186,7 +186,7 @@ void EditorModeController::handleKeypress(int c)
     case BUFFER_BROWSER:
         break;
     case OP_PENDING:
-        editor.handleOperatorPendingMode(c);
+        handleOperatorPendingMode(c);
         break;
     default:
         break;

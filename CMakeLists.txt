@@ -98,7 +98,7 @@ set(UVIM_CORE_SOURCES
     src/editor_view_visual_line.cpp
     src/editor_view_welcome.cpp
     src/editor_utils.cpp
-    src/editor_mode_handlers.cpp
+    src/editor_mode_controller_handlers.cpp
     src/editor_lsp_info.cpp
     src/cursor_movement.cpp
     src/text_operations.cpp

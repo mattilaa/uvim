@@ -1,5 +1,4 @@
 #include "editor.h"
-#include "editor_mode_controller.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 
@@ -566,52 +565,6 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-void Editor::handleCommandMode(int c)
-{
-    if(modeController->dispatchModeKey(c))
-    {
-        return;
-    }
-
-    if(c == keyCode(control::ControlKey::ESC))
-    {
-        noteDoubleEscStatusClear();
-        commandBuffer.clear();
-        setMode(NORMAL);
-        return;
-    }
-
-    if(c == keyCode(control::ControlKey::ENTER))
-    {
-        if(commandBuffer.length() > 1)
-        {
-            std::string_view cmd(commandBuffer);
-            cmd.remove_prefix(1);
-            executeCommand(cmd);
-        }
-        commandBuffer.clear();
-        setMode(NORMAL);
-        return;
-    }
-
-    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == 8)
-    {
-        if(commandBuffer.length() > 1)
-        {
-            commandBuffer.pop_back();
-        }
-        else
-        {
-            setMode(NORMAL);
-        }
-        return;
-    }
-
-    if(c >= 32 && c < 127)
-    {
-        commandBuffer += (char)c;
-    }
-}
 void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
     std::string input = ctx.commandBuffer.substr(1); // Remove keyCode(command::CommandKey::KEY_COLON)

@@ -516,12 +516,7 @@ public:
     void adjustViewportForPane(PaneState& pane, int rows, int cols);
     bool canSplit() const;
 
-    // Mode handlers
-    void handleNormalMode(int c);
-    void handleInsertMode(int c);
-    void handleVisualMode(int c);
-    void handleCommandMode(int c);
-    void handleSearchMode(int c);
+    // Mode handling
     void handleResize();
     bool isRobotKeyword(std::string_view word) const;
     bool isRobotCustomKeyword(std::string_view word) const;
@@ -548,7 +543,6 @@ public:
 
     // Operator-pending / text-object support
     void enterOperatorPending(char op);
-    void handleOperatorPendingMode(int c);
     bool getTextObjectRange(char objChar, bool around, int& outStartY,
                             int& outStartX, int& outEndY, int& outEndX);
     void applyOperatorToRange(char op, int startY, int startX, int endY,
@@ -757,7 +751,6 @@ public:
     void deleteVisualBlock();
     void changeVisualBlock();
     void yankVisualBlock();
-    void handleVisualBlockMode(int c);
     void applyVisualBlockInsert();
 
     // Extended visual mode commands (for mode handlers)
