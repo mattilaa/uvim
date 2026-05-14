@@ -368,12 +368,30 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                    : std::optional<ModeState>(ModeState{WelcomeMode{}});
     };
 
+    const auto isPlainSearchPattern = [](const std::string& pattern) -> bool
+    {
+        return pattern.find_first_of(R"(\.^$|()[]{}*+?)") == std::string::npos;
+    };
+
     const auto collectRegexMatches =
         [&](char prefix, const std::string& pattern) -> std::vector<int>
     {
         (void)prefix;
         std::vector<int> matches;
-        std::regex re(pattern);
+        if(isPlainSearchPattern(pattern))
+        {
+            for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+            {
+                const auto& entry = fileList[i];
+                if(entry.name == "..")
+                    continue;
+                if(entry.name.find(pattern) != std::string::npos)
+                    matches.push_back(i);
+            }
+            return matches;
+        }
+
+        std::regex re(pattern, std::regex::optimize);
         for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
         {
             const auto& entry = fileList[i];
@@ -383,6 +401,35 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 matches.push_back(i);
         }
         return matches;
+    };
+
+    const auto findFirstRegexMatch =
+        [&](char prefix, const std::string& pattern) -> std::optional<int>
+    {
+        (void)prefix;
+        if(isPlainSearchPattern(pattern))
+        {
+            for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+            {
+                const auto& entry = fileList[i];
+                if(entry.name == "..")
+                    continue;
+                if(entry.name.find(pattern) != std::string::npos)
+                    return i;
+            }
+            return std::nullopt;
+        }
+
+        std::regex re(pattern, std::regex::optimize);
+        for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+        {
+            const auto& entry = fileList[i];
+            if(entry.name == "..")
+                continue;
+            if(std::regex_search(entry.name, re))
+                return i;
+        }
+        return std::nullopt;
     };
 
     auto resetSearchTabCompletion = [&]()
@@ -493,33 +540,36 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 return std::nullopt;
             }
 
-            std::vector<int> matches;
-            try
+            bool sameSearchPattern =
+                lastSearchPattern == pattern && lastSearchPrefix == prefix;
+            bool canReuseMatches = sameSearchPattern && !searchMatches.empty();
+            if(!canReuseMatches)
             {
-                matches = collectRegexMatches(prefix, pattern);
-            }
-            catch(const std::regex_error&)
-            {
-                ctx.setStatusMessage("Invalid regex: " + pattern);
-                ctx.requestFullRedraw();
-                return std::nullopt;
+                std::vector<int> matches;
+                try
+                {
+                    matches = collectRegexMatches(prefix, pattern);
+                }
+                catch(const std::regex_error&)
+                {
+                    ctx.setStatusMessage("Invalid regex: " + pattern);
+                    ctx.requestFullRedraw();
+                    return std::nullopt;
+                }
+
+                if(matches.empty())
+                {
+                    ctx.setStatusMessage("No match for regex: " + pattern);
+                    ctx.requestFullRedraw();
+                    return std::nullopt;
+                }
+
+                searchMatches = std::move(matches);
+                lastSearchPattern = pattern;
+                lastSearchPrefix = prefix;
             }
 
-            if(matches.empty())
-            {
-                ctx.setStatusMessage("No match for regex: " + pattern);
-                ctx.requestFullRedraw();
-                return std::nullopt;
-            }
-
-            bool sameSearch =
-                (lastSearchPattern == pattern && lastSearchPrefix == prefix &&
-                 !searchMatches.empty());
-            searchMatches = std::move(matches);
-            lastSearchPattern = pattern;
-            lastSearchPrefix = prefix;
-
-            if(!sameSearch || currentSearchMatch < 0 ||
+            if(!sameSearchPattern || currentSearchMatch < 0 ||
                currentSearchMatch >= static_cast<int>(searchMatches.size()))
             {
                 currentSearchMatch = 0;
@@ -713,27 +763,26 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return;
         }
 
-        std::vector<int> matches;
+        std::optional<int> match;
         try
         {
-            matches = collectRegexMatches(prefix, pattern);
+            match = findFirstRegexMatch(prefix, pattern);
         }
         catch(const std::regex_error&)
         {
             clearSearchState();
             return;
         }
-        if(matches.empty())
+        if(!match)
         {
             clearSearchState();
             return;
         }
 
-        searchMatches = std::move(matches);
         lastSearchPattern = pattern;
         lastSearchPrefix = prefix;
         currentSearchMatch = 0;
-        browserCursor = searchMatches[currentSearchMatch];
+        browserCursor = *match;
         moveToVisibleCursor();
     };
 
