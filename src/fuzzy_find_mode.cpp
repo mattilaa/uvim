@@ -4,6 +4,7 @@
 #include "mode_state_machine.h"
 #include "os_compat.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -58,6 +59,33 @@ std::vector<std::string> splitNul(const std::string& s)
         i = j + 1;
     }
     return out;
+}
+
+std::string truncatePathMiddle(std::string path, int width)
+{
+    if(width <= 0)
+        return "";
+    if(text_utils::utf8DisplayWidth(path) <= width)
+        return path;
+    if(width <= 3)
+        return std::string(width, '.');
+
+    const std::string prefix = "...";
+    const int suffixWidth = width - (int)prefix.size();
+    std::string suffix = path;
+    while(!suffix.empty() && text_utils::utf8DisplayWidth(suffix) > suffixWidth)
+    {
+        size_t slash = suffix.find('/');
+        if(slash == std::string::npos || slash + 1 >= suffix.size())
+        {
+            suffix.erase(suffix.begin());
+        }
+        else
+        {
+            suffix.erase(0, slash + 1);
+        }
+    }
+    return prefix + suffix;
 }
 } // namespace
 
@@ -276,7 +304,20 @@ void FuzzyFindMode::draw(Editor& editor) const
             }
         }
 
-        if(!query.empty() && !match.matchPositions.empty())
+        std::string sizeStr;
+        int pathWidth = std::max(1, editor.screenCols - 2);
+        if(editor.screenCols > 60)
+        {
+            sizeStr = formatFileSizeShort(match.file.size);
+            pathWidth =
+                std::max(1, editor.screenCols - 2 - (int)sizeStr.length() - 2);
+        }
+
+        const bool truncated =
+            text_utils::utf8DisplayWidth(displayPath) > pathWidth;
+        displayPath = truncatePathMiddle(displayPath, pathWidth);
+
+        if(!truncated && !query.empty() && !match.matchPositions.empty())
         {
             size_t lastPos = 0;
             for(int pos : match.matchPositions)
@@ -311,10 +352,10 @@ void FuzzyFindMode::draw(Editor& editor) const
             output += displayPath;
         }
 
-        if(editor.screenCols > 60)
+        if(!sizeStr.empty())
         {
-            std::string sizeStr = formatFileSizeShort(match.file.size);
-            int padding = editor.screenCols - 2 - (int)displayPath.length() -
+            int padding = editor.screenCols - 2 -
+                          text_utils::utf8DisplayWidth(displayPath) -
                           (int)sizeStr.length() - 2;
             if(padding > 0)
             {
