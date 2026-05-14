@@ -61,6 +61,21 @@ std::vector<std::string> splitNul(const std::string& s)
     return out;
 }
 
+bool hasHiddenPathComponent(std::string_view path)
+{
+    size_t start = 0;
+    while(start < path.size())
+    {
+        size_t end = path.find('/', start);
+        if(end == std::string_view::npos)
+            end = path.size();
+        if(end > start && path[start] == '.')
+            return true;
+        start = end + 1;
+    }
+    return false;
+}
+
 std::string truncatePathMiddle(std::string path, int width)
 {
     if(width <= 0)
@@ -416,6 +431,8 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                 for(const auto& relPath : relPaths)
                 {
                     if(relPath.empty())
+                        continue;
+                    if(hasHiddenPathComponent(relPath))
                         continue;
 
                     const std::string fullPath = cwdStr + "/" + relPath;
