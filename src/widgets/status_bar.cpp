@@ -18,9 +18,13 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
                   std::to_string(view.bufferCount) + "] ";
     }
 
-    char rightStatusBuf[32];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ",
-             view.cursorY + 1, view.cursorX + 1);
+    int lineCount = std::max(1, view.lineCount);
+    int lineNumber = std::clamp(view.cursorY + 1, 1, lineCount);
+    int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
+
+    char rightStatusBuf[48];
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ", progress,
+             lineNumber, view.cursorX + 1);
     std::string rightStatus = rightStatusBuf;
     const int rightFieldWidth = 12;
     int rightStatusWidth = text_utils::displayWidth(rightStatus);

@@ -333,15 +333,17 @@ void Editor::drawStatusBar()
     std::string displayName =
         (filename && !filename->empty()) ? *filename : "[No Name]";
     bool isDirty = (dirty && *dirty);
+    std::string modeLabel = getModeString();
 
     widgets::StatusBarView view{
         .theme = theme,
         .screenCols = screenCols,
-        .modeLabel = getModeString(),
+        .modeLabel = modeLabel,
         .currentBufferIndex = currentBufferIndex,
         .bufferCount = (int)buffers.size(),
         .cursorY = *cursorY,
         .cursorX = *cursorX,
+        .lineCount = lines ? (int)lines->size() : 0,
         .filename = displayName,
         .dirty = isDirty,
         .searchQuery = searchQuery,
@@ -910,15 +912,17 @@ void Editor::drawStatusBarQuick()
     std::string displayName =
         (filename && !filename->empty()) ? *filename : "[No Name]";
     bool isDirty = (dirty && *dirty);
+    std::string modeLabel = getModeString();
 
     widgets::StatusBarView view{
         .theme = theme,
         .screenCols = screenCols,
-        .modeLabel = getModeString(),
+        .modeLabel = modeLabel,
         .currentBufferIndex = currentBufferIndex,
         .bufferCount = (int)buffers.size(),
         .cursorY = *cursorY,
         .cursorX = *cursorX,
+        .lineCount = lines ? (int)lines->size() : 0,
         .filename = displayName,
         .dirty = isDirty,
         .searchQuery = searchQuery,
@@ -1222,9 +1226,13 @@ void Editor::drawFullScreenSingle()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    char rightStatusBuf[32];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ", *cursorY + 1,
-             *cursorX + 1);
+    int lineCount = std::max(1, lines ? (int)lines->size() : 0);
+    int lineNumber = std::clamp(*cursorY + 1, 1, lineCount);
+    int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
+
+    char rightStatusBuf[48];
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ", progress,
+             lineNumber, *cursorX + 1);
     std::string rightStatus = rightStatusBuf;
     const int rightFieldWidth = 12;
     int rightStatusWidth = text_utils::displayWidth(rightStatus);
@@ -1759,9 +1767,13 @@ void Editor::drawSplitFullScreen()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    char rightStatusBuf[32];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d:%d ", *cursorY + 1,
-             *cursorX + 1);
+    int lineCount = std::max(1, lines ? (int)lines->size() : 0);
+    int lineNumber = std::clamp(*cursorY + 1, 1, lineCount);
+    int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
+
+    char rightStatusBuf[48];
+    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ", progress,
+             lineNumber, *cursorX + 1);
     std::string rightStatus = rightStatusBuf;
     const int rightFieldWidth = 12;
     int rightStatusWidth = text_utils::displayWidth(rightStatus);
