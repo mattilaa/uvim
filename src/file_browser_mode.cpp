@@ -14,6 +14,7 @@
 #include <regex>
 #include <sstream>
 #include "os_compat.h"
+#include <unordered_map>
 #include <vector>
 
 // ============================================================================
@@ -35,6 +36,91 @@ bool fileBrowserNameMatchesSearch(const std::string& name,
     if(plainPattern)
         return name.find(pattern) != std::string::npos;
     return regexPattern && std::regex_search(name, *regexPattern);
+}
+
+struct DirectoryCacheEntry
+{
+    std::filesystem::file_time_type modTime{};
+    std::vector<FileEntry> entries;
+};
+
+std::unordered_map<std::string, DirectoryCacheEntry>& directoryListingCache()
+{
+    static std::unordered_map<std::string, DirectoryCacheEntry> cache;
+    return cache;
+}
+
+std::vector<std::string>& directoryListingCacheOrder()
+{
+    static std::vector<std::string> order;
+    return order;
+}
+
+std::string makeDirectoryCacheKey(const std::string& directory,
+                                  bool showHidden,
+                                  bool respectGitignore,
+                                  const std::string& gitignoreRoot)
+{
+    return directory + "\n" + (showHidden ? "H" : "h") + "\n" +
+           (respectGitignore ? "G" : "g") + "\n" + gitignoreRoot;
+}
+
+std::optional<std::vector<FileEntry>>
+getCachedDirectoryListing(const std::string& key,
+                          const std::filesystem::path& directory)
+{
+    auto& cache = directoryListingCache();
+    auto it = cache.find(key);
+    if(it == cache.end())
+        return std::nullopt;
+
+    std::error_code ec;
+    auto modTime = std::filesystem::last_write_time(directory, ec);
+    if(ec || modTime != it->second.modTime)
+    {
+        cache.erase(it);
+        return std::nullopt;
+    }
+    return it->second.entries;
+}
+
+void cacheDirectoryListing(const std::string& key,
+                           const std::filesystem::path& directory,
+                           const std::vector<FileEntry>& entries)
+{
+    std::error_code ec;
+    auto modTime = std::filesystem::last_write_time(directory, ec);
+    if(ec)
+        return;
+
+    auto& cache = directoryListingCache();
+    auto& order = directoryListingCacheOrder();
+    if(cache.find(key) == cache.end())
+        order.push_back(key);
+    cache[key] = DirectoryCacheEntry{modTime, entries};
+
+    static constexpr size_t maxEntries = 64;
+    while(order.size() > maxEntries)
+    {
+        cache.erase(order.front());
+        order.erase(order.begin());
+    }
+}
+
+void invalidateCachedDirectoryListing(const std::string& directory)
+{
+    auto& cache = directoryListingCache();
+    auto& order = directoryListingCacheOrder();
+    order.erase(std::remove_if(order.begin(), order.end(),
+                               [&](const std::string& key)
+                               {
+                                   bool matches =
+                                       key.rfind(directory + "\n", 0) == 0;
+                                   if(matches)
+                                       cache.erase(key);
+                                   return matches;
+                               }),
+                order.end());
 }
 
 void ensureEntryMetadata(FileEntry& entry)
@@ -390,7 +476,14 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     const auto collectRegexMatches =
         [&](char prefix, const std::string& pattern) -> std::vector<int>
     {
-        (void)prefix;
+        std::string cacheKey;
+        cacheKey.push_back(prefix);
+        cacheKey.push_back('\n');
+        cacheKey += pattern;
+        auto cached = searchMatchCache.find(cacheKey);
+        if(cached != searchMatchCache.end())
+            return cached->second;
+
         std::vector<int> matches;
         if(isPlainSearchPattern(pattern))
         {
@@ -402,6 +495,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 if(entry.name.find(pattern) != std::string::npos)
                     matches.push_back(i);
             }
+            searchMatchCache[cacheKey] = matches;
             return matches;
         }
 
@@ -414,6 +508,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             if(std::regex_search(entry.name, re))
                 matches.push_back(i);
         }
+        searchMatchCache[cacheKey] = matches;
         return matches;
     };
 
@@ -1169,6 +1264,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Refresh
     else if(c == keyCode(typed::TypedKey::KEY_R) || c == keyCode(control::ControlKey::CTRL_L))
     {
+        invalidateCachedDirectoryListing(currentDirectory);
         loadDirectory(ctx, currentDirectory);
     }
 
@@ -2052,6 +2148,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 {
     fileList.clear();
     searchMatches.clear();
+    searchMatchCache.clear();
     lastSearchPattern.clear();
     lastSearchPrefix = 0;
     currentSearchMatch = -1;
@@ -2101,12 +2198,42 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 
     currentDirectory = file_utils::path_to_utf8_string(resolvedDir);
 
+    auto removeMovedEntries = [&]()
+    {
+        if(!moveMode || copyBuffer.empty())
+            return;
+        fileList.erase(std::remove_if(fileList.begin(), fileList.end(),
+                                      [&](const FileEntry& entry)
+                                      {
+                                          return std::find(copyBuffer.begin(),
+                                                           copyBuffer.end(),
+                                                           entry.path) !=
+                                                 copyBuffer.end();
+                                      }),
+                       fileList.end());
+    };
+
+    std::string gitignoreRootString;
+    if(ctx.editor && !ctx.editor->getProjectRoot().empty())
+        gitignoreRootString = ctx.editor->getProjectRoot();
+
+    const std::string cacheKey =
+        makeDirectoryCacheKey(currentDirectory, showHidden,
+                              ctx.respectGitignore(), gitignoreRootString);
+    if(auto cached = getCachedDirectoryListing(cacheKey, resolvedDir))
+    {
+        fileList = std::move(*cached);
+        removeMovedEntries();
+        updateFilter(ctx);
+        return;
+    }
+
     GitIgnore gitignore;
     if(ctx.respectGitignore())
     {
         std::filesystem::path gitignoreRoot;
-        if(ctx.editor && !ctx.editor->getProjectRoot().empty())
-            gitignoreRoot = ctx.editor->getProjectRoot();
+        if(!gitignoreRootString.empty())
+            gitignoreRoot = gitignoreRootString;
         gitignore.loadRecursive(resolvedDir, gitignoreRoot);
     }
 
@@ -2176,11 +2303,6 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
         fe.path = file_utils::path_to_utf8_string(de.path().lexically_normal());
         fe.isDirectory = isDir;
 
-        if(moveMode && !copyBuffer.empty() &&
-           std::find(copyBuffer.begin(), copyBuffer.end(), fe.path) !=
-               copyBuffer.end())
-            continue;
-
         push_entry(std::move(fe));
     }
 
@@ -2204,6 +2326,8 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
     fileList.insert(fileList.end(), std::make_move_iterator(files.begin()),
                     std::make_move_iterator(files.end()));
 
+    cacheDirectoryListing(cacheKey, resolvedDir, fileList);
+    removeMovedEntries();
     updateFilter(ctx);
 }
 
