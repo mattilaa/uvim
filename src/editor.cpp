@@ -10,6 +10,7 @@
 #include "editor_lsp_controller.h"
 #include "editor_mode_controller.h"
 #include "editor_operator_controller.h"
+#include "editor_references_controller.h"
 #include "editor_settings_controller.h"
 #include "editor_split_controller.h"
 #include "editor_utils.h"
@@ -1685,6 +1686,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     lspController = std::make_unique<EditorLspController>(*this);
     modeController = std::make_unique<EditorModeController>(*this);
     operatorController = std::make_unique<EditorOperatorController>(*this);
+    referencesController = std::make_unique<EditorReferencesController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
@@ -1714,6 +1716,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     lspController = std::make_unique<EditorLspController>(*this);
     modeController = std::make_unique<EditorModeController>(*this);
     operatorController = std::make_unique<EditorOperatorController>(*this);
+    referencesController = std::make_unique<EditorReferencesController>(*this);
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
@@ -1973,6 +1976,71 @@ void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
 bool Editor::isMlangLspEnabled() const
 {
     return lspController->isMlangLspEnabled();
+}
+
+void Editor::findReferences()
+{
+    referencesController->findReferences();
+}
+
+void Editor::clearReferences()
+{
+    referencesController->clearReferences();
+}
+
+bool Editor::selectReference()
+{
+    return referencesController->selectReference();
+}
+
+void Editor::openReferencePreview()
+{
+    referencesController->openReferencePreview();
+}
+
+void Editor::referencesUp()
+{
+    referencesController->referencesUp();
+}
+
+void Editor::referencesDown()
+{
+    referencesController->referencesDown();
+}
+
+void Editor::referencesHalfPageUp()
+{
+    referencesController->referencesHalfPageUp();
+}
+
+void Editor::referencesHalfPageDown()
+{
+    referencesController->referencesHalfPageDown();
+}
+
+void Editor::referencesFirst()
+{
+    referencesController->referencesFirst();
+}
+
+void Editor::referencesLast()
+{
+    referencesController->referencesLast();
+}
+
+void Editor::toggleReferencesPreview()
+{
+    referencesController->toggleReferencesPreview();
+}
+
+void Editor::drawReferences()
+{
+    referencesController->drawReferences();
+}
+
+bool Editor::hasReferences() const
+{
+    return referencesController->hasReferences();
 }
 
 void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,

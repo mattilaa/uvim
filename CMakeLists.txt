@@ -115,7 +115,7 @@ set(UVIM_CORE_SOURCES
     src/drawing.cpp
     src/lsp_completion.cpp
     src/cpp_constants.cpp
-    src/editor_references.cpp
+    src/editor_references_controller.cpp
     src/stdlib_goto.cpp
     src/theme.cpp
     src/widgets/command_popup.cpp

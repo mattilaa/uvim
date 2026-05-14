@@ -39,6 +39,7 @@ class EditorIndentController;
 class EditorLspController;
 class EditorModeController;
 class EditorOperatorController;
+class EditorReferencesController;
 class EditorSplitController;
 class EditorVisualController;
 struct CommandPrompt;
@@ -587,7 +588,6 @@ public:
     void toggleReferencesPreview();
     void drawReferences();
     bool hasReferences() const;
-    std::string readLineFromFile(const std::string& path, int lineNum);
 
     // LSP info panel
     void showLspInfo();
@@ -927,6 +927,7 @@ private:
     friend class EditorLspController;
     friend class EditorModeController;
     friend class EditorOperatorController;
+    friend class EditorReferencesController;
     friend class EditorSplitController;
     friend class EditorVisualController;
     std::string resolveEditorPathString(const std::string& input) const;
@@ -1143,6 +1144,7 @@ private:
     std::unique_ptr<EditorLspController> lspController;
     std::unique_ptr<EditorModeController> modeController;
     std::unique_ptr<EditorOperatorController> operatorController;
+    std::unique_ptr<EditorReferencesController> referencesController;
     std::unique_ptr<EditorSplitController> splitController;
     std::unique_ptr<EditorVisualController> visualController;
 };
