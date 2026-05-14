@@ -12,6 +12,60 @@
 
 namespace fs = std::filesystem;
 
+namespace
+{
+int referencesVisibleRows(const Editor& editor)
+{
+    // Editor::screenRows excludes the normal status and message bars. The
+    // references browser owns the full terminal, including its own status and
+    // message rows, so it has two extra rows available.
+    return std::max(1, editor.screenRows - 1);
+}
+
+int referencesRowsThroughCursor(const Editor& editor, int offset, int cursor)
+{
+    int rows = 0;
+    std::string lastFile;
+    for(int idx = offset; idx <= cursor && idx < (int)editor.referencesList.size();
+        ++idx)
+    {
+        const auto& ref = editor.referencesList[idx];
+        if(ref.displayPath != lastFile)
+        {
+            ++rows;
+            lastFile = ref.displayPath;
+        }
+        ++rows;
+    }
+    return rows;
+}
+
+void clampReferencesOffsetToCursor(Editor& editor)
+{
+    if(editor.referencesList.empty())
+    {
+        editor.referencesCursor = 0;
+        editor.referencesOffset = 0;
+        return;
+    }
+
+    int maxCursor = (int)editor.referencesList.size() - 1;
+    editor.referencesCursor = std::clamp(editor.referencesCursor, 0, maxCursor);
+    editor.referencesOffset = std::clamp(editor.referencesOffset, 0, maxCursor);
+
+    if(editor.referencesCursor < editor.referencesOffset)
+        editor.referencesOffset = editor.referencesCursor;
+
+    int visibleRows = referencesVisibleRows(editor);
+    while(editor.referencesOffset < editor.referencesCursor &&
+          referencesRowsThroughCursor(editor, editor.referencesOffset,
+                                      editor.referencesCursor) > visibleRows)
+    {
+        ++editor.referencesOffset;
+    }
+}
+} // namespace
+
 // ============================================================================
 // References Browser - Find all usages of symbol under cursor
 // ============================================================================
@@ -223,8 +277,7 @@ void Editor::referencesUp()
     if(referencesCursor > 0)
     {
         referencesCursor--;
-        if(referencesCursor < referencesOffset)
-            referencesOffset = referencesCursor;
+        clampReferencesOffsetToCursor(*this);
     }
     needsFullRedraw = true;
 }
@@ -237,9 +290,7 @@ void Editor::referencesDown()
     if(referencesCursor < (int)referencesList.size() - 1)
     {
         referencesCursor++;
-        int visibleRows = screenRows - 3; // Header + status + message
-        if(referencesCursor >= referencesOffset + visibleRows)
-            referencesOffset = referencesCursor - visibleRows + 1;
+        clampReferencesOffsetToCursor(*this);
     }
     needsFullRedraw = true;
 }
@@ -249,9 +300,10 @@ void Editor::referencesHalfPageUp()
     if(referencesList.empty())
         return;
 
-    int halfPage = (screenRows - 3) / 2;
+    int halfPage = std::max(1, referencesVisibleRows(*this) / 2);
     referencesCursor = std::max(0, referencesCursor - halfPage);
     referencesOffset = std::max(0, referencesOffset - halfPage);
+    clampReferencesOffsetToCursor(*this);
     needsFullRedraw = true;
 }
 
@@ -260,13 +312,10 @@ void Editor::referencesHalfPageDown()
     if(referencesList.empty())
         return;
 
-    int halfPage = (screenRows - 3) / 2;
+    int halfPage = std::max(1, referencesVisibleRows(*this) / 2);
     int maxCursor = (int)referencesList.size() - 1;
     referencesCursor = std::min(maxCursor, referencesCursor + halfPage);
-
-    int visibleRows = screenRows - 3;
-    if(referencesCursor >= referencesOffset + visibleRows)
-        referencesOffset = referencesCursor - visibleRows + 1;
+    clampReferencesOffsetToCursor(*this);
 
     needsFullRedraw = true;
 }
@@ -287,8 +336,9 @@ void Editor::referencesLast()
         return;
 
     referencesCursor = (int)referencesList.size() - 1;
-    int visibleRows = screenRows - 3;
-    referencesOffset = std::max(0, referencesCursor - visibleRows + 1);
+    referencesOffset =
+        std::max(0, referencesCursor - referencesVisibleRows(*this) + 1);
+    clampReferencesOffsetToCursor(*this);
     needsFullRedraw = true;
 }
 
@@ -318,7 +368,7 @@ void Editor::drawReferences()
     output += "\r\n";
 
     // References list
-    int visibleRows = screenRows - 3; // Header + status + message bars
+    int visibleRows = referencesVisibleRows(*this);
     std::string lastFile;
     int row = 0;
     int idx = referencesOffset;
