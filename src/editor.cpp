@@ -2272,7 +2272,7 @@ std::string Editor::getModeString() const
     return "";
 }
 
-void Editor::openFile(std::string_view fname)
+void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 {
     if(deferredStartupAction)
     {
@@ -2348,7 +2348,7 @@ void Editor::openFile(std::string_view fname)
     *dirty = false;
     *cursorX = *cursorY = 0;
     *offsetX = *offsetY = 0;
-    currentBuffer->lspSyncNeeded = false;
+    currentBuffer->lspSyncNeeded = !notifyLspOnOpen;
     currentBuffer->lspHashValid = false;
     currentBuffer->lspDiagnosticsSeenValid = false;
     currentBuffer->lspDiagnosticsSeenRevision = 0;
@@ -2364,37 +2364,42 @@ void Editor::openFile(std::string_view fname)
     currentBuffer->savedContentHashValid = true;
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    auto ensure_lsp = [&](bool enabled, const std::string& path,
-                          const std::vector<std::string>& args, auto enableFn)
+    if(notifyLspOnOpen)
     {
-        if(enabled)
-            return;
-        std::string resolved = resolve_executable_path(path);
-        if(resolved.empty())
-            return;
-        enableFn(true, resolved, args);
-    };
+        auto ensure_lsp =
+            [&](bool enabled, const std::string& path,
+                const std::vector<std::string>& args, auto enableFn)
+        {
+            if(enabled)
+                return;
+            std::string resolved = resolve_executable_path(path);
+            if(resolved.empty())
+                return;
+            enableFn(true, resolved, args);
+        };
 
-    if(isFileType<FileType::Html>())
-        ensure_lsp(isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
-                   [&](bool on, const std::string& p,
-                       const std::vector<std::string>& a)
-                   { enableHtmlLsp(on, p, a); });
-    if(isFileType<FileType::Css>())
-        ensure_lsp(isCssLspEnabled(), cssLspPath, cssLspArgs,
-                   [&](bool on, const std::string& p,
-                       const std::vector<std::string>& a)
-                   { enableCssLsp(on, p, a); });
-    if(isFileType<FileType::Json>())
-        ensure_lsp(isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
-                   [&](bool on, const std::string& p,
-                       const std::vector<std::string>& a)
-                   { enableJsonLsp(on, p, a); });
-    if(isFileType<FileType::JavaScript>() || isFileType<FileType::TypeScript>())
-        ensure_lsp(isTsLspEnabled(), tsLspPath, tsLspArgs,
-                   [&](bool on, const std::string& p,
-                       const std::vector<std::string>& a)
-                   { enableTsLsp(on, p, a); });
+        if(isFileType<FileType::Html>())
+            ensure_lsp(isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
+                       [&](bool on, const std::string& p,
+                           const std::vector<std::string>& a)
+                       { enableHtmlLsp(on, p, a); });
+        if(isFileType<FileType::Css>())
+            ensure_lsp(isCssLspEnabled(), cssLspPath, cssLspArgs,
+                       [&](bool on, const std::string& p,
+                           const std::vector<std::string>& a)
+                       { enableCssLsp(on, p, a); });
+        if(isFileType<FileType::Json>())
+            ensure_lsp(isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
+                       [&](bool on, const std::string& p,
+                           const std::vector<std::string>& a)
+                       { enableJsonLsp(on, p, a); });
+        if(isFileType<FileType::JavaScript>() ||
+           isFileType<FileType::TypeScript>())
+            ensure_lsp(isTsLspEnabled(), tsLspPath, tsLspArgs,
+                       [&](bool on, const std::string& p,
+                           const std::vector<std::string>& a)
+                       { enableTsLsp(on, p, a); });
+    }
 #endif
 
     // Record file modification time for external change detection
@@ -2414,115 +2419,122 @@ void Editor::openFile(std::string_view fname)
     needsFullRedraw = true;
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    // Notify LSP about the newly opened file so gd works from system headers
-    if(isClangdLspEnabled() && isFileType<FileType::Cpp>() &&
-       !isFileType<FileType::Mla>() && lspClient)
+    if(notifyLspOnOpen)
     {
-        // Build text content from loaded lines
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        // Notify LSP about the newly opened file so gd works from system
+        // headers.
+        if(isClangdLspEnabled() && isFileType<FileType::Cpp>() &&
+           !isFileType<FileType::Mla>() && lspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            // Build text content from loaded lines
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            // didChange will call didOpen if needed
+            lspClient->didChange(path, text, "cpp");
+            currentBuffer->lspSyncNeeded = false;
+            if(syntaxCppSemanticTokens)
+                lspClient->requestSemanticTokens(path);
         }
-        // didChange will call didOpen if needed
-        lspClient->didChange(path, text, "cpp");
-        currentBuffer->lspSyncNeeded = false;
-        if(syntaxCppSemanticTokens)
-            lspClient->requestSemanticTokens(path);
-    }
-    if(isRobotLspEnabled() && isFileType<FileType::Robot>() && robotLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isRobotLspEnabled() && isFileType<FileType::Robot>() &&
+           robotLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            robotLspClient->didChange(path, text, "robotframework");
         }
-        robotLspClient->didChange(path, text, "robotframework");
-    }
-    if(isPythonLspEnabled() && isFileType<FileType::Python>() &&
-       pythonLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isPythonLspEnabled() && isFileType<FileType::Python>() &&
+           pythonLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            pythonLspClient->didChange(path, text, "python");
         }
-        pythonLspClient->didChange(path, text, "python");
-    }
-    if(isMlangLspEnabled() && isFileType<FileType::Mla>() && mlangLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isMlangLspEnabled() && isFileType<FileType::Mla>() &&
+           mlangLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            mlangLspClient->didChange(path, text, "mlang");
+            mlangLspClient->requestSemanticTokens(path);
         }
-        mlangLspClient->didChange(path, text, "mlang");
-        mlangLspClient->requestSemanticTokens(path);
-    }
-    if(isHtmlLspEnabled() && isFileType<FileType::Html>() && htmlLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isHtmlLspEnabled() && isFileType<FileType::Html>() && htmlLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            htmlLspClient->didChange(path, text, "html");
         }
-        htmlLspClient->didChange(path, text, "html");
-    }
-    if(isCssLspEnabled() && isFileType<FileType::Css>() && cssLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isCssLspEnabled() && isFileType<FileType::Css>() && cssLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            cssLspClient->didChange(path, text, "css");
         }
-        cssLspClient->didChange(path, text, "css");
-    }
-    if(isJsonLspEnabled() && isFileType<FileType::Json>() && jsonLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isJsonLspEnabled() && isFileType<FileType::Json>() && jsonLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            jsonLspClient->didChange(path, text, "json");
         }
-        jsonLspClient->didChange(path, text, "json");
-    }
-    if(isTsLspEnabled() &&
-       (isFileType<FileType::JavaScript>() ||
-        isFileType<FileType::TypeScript>()) &&
-       tsLspClient)
-    {
-        std::string text;
-        text.reserve(lines->size() * 80);
-        for(size_t i = 0; i < lines->size(); ++i)
+        if(isTsLspEnabled() &&
+           (isFileType<FileType::JavaScript>() ||
+            isFileType<FileType::TypeScript>()) &&
+           tsLspClient)
         {
-            text += (*lines)[i];
-            if(i + 1 < lines->size())
-                text.push_back('\n');
+            std::string text;
+            text.reserve(lines->size() * 80);
+            for(size_t i = 0; i < lines->size(); ++i)
+            {
+                text += (*lines)[i];
+                if(i + 1 < lines->size())
+                    text.push_back('\n');
+            }
+            const char* lang = isFileType<FileType::TypeScript>()
+                                   ? "typescript"
+                                   : "javascript";
+            tsLspClient->didChange(path, text, lang);
         }
-        const char* lang =
-            isFileType<FileType::TypeScript>() ? "typescript" : "javascript";
-        tsLspClient->didChange(path, text, lang);
     }
 #endif
 

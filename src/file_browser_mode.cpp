@@ -369,8 +369,11 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
         std::sort(toOpen.begin(), toOpen.end());
-        for(const auto& p : toOpen)
-            ctx.openFile(std::string_view(p));
+        for(size_t i = 0; i < toOpen.size(); ++i)
+        {
+            bool notifyLsp = (i + 1 == toOpen.size());
+            ctx.editor->openFile(std::string_view(toOpen[i]), notifyLsp);
+        }
         selectedFiles.clear();
         if(visualMode)
         {
