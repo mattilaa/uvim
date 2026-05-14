@@ -18,6 +18,10 @@ CMakeUserPresets.json
 *html
 tests/robot/output
 __pycache__
+.venv
+.github
+.gitlab
+.clangd
 
 # CLion
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
