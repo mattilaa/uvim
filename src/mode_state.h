@@ -1,0 +1,47 @@
+#pragma once
+
+#include <optional>
+#include <variant>
+
+class Editor;
+struct ModeContext;
+class Theme;
+struct CommandPrompt;
+
+struct NormalMode;
+struct WelcomeMode;
+struct InsertMode;
+struct ReplaceMode;
+struct VisualMode;
+struct VisualLineMode;
+struct VisualBlockMode;
+struct CommandMode;
+struct SearchForwardMode;
+struct SearchBackwardMode;
+struct FileBrowserMode;
+struct FuzzyFindMode;
+struct BufferBrowserMode;
+struct GrepSearchMode;
+struct OperatorPendingMode;
+struct ReferencesMode;
+struct LspInfoMode;
+struct LocListMode;
+struct HelpMode;
+struct GitShowCommitMode;
+struct GitLogMode;
+struct GitStageMode;
+struct GitCommitMode;
+struct GitFixupMode;
+struct GitPatchMode;
+struct CommandOutputMode;
+
+using ModeState =
+    std::variant<WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
+                 VisualLineMode, VisualBlockMode, CommandMode,
+                 SearchForwardMode, SearchBackwardMode, FileBrowserMode,
+                 FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
+                 OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
+                 HelpMode, GitShowCommitMode, GitLogMode, GitStageMode,
+                 GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode>;
+
+ModeState defaultExitMode(const Editor* editor);

@@ -130,11 +130,15 @@ set(MODE_STATE_MACHINE_SOURCES
     src/mode_context.cpp
     src/command_prompt.cpp
     src/normal_mode.cpp
+    src/replace_mode.cpp
     src/welcome_mode.cpp
     src/insert_mode.cpp
     src/visual_mode.cpp
+    src/visual_line_mode.cpp
+    src/visual_block_mode.cpp
     src/command_mode.cpp
-    src/search_mode.cpp
+    src/search_forward_mode.cpp
+    src/search_backward_mode.cpp
     src/operator_pending_mode.cpp
     src/references_mode.cpp
     src/lsp_info_mode.cpp
