@@ -581,6 +581,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "loc!",
         "loc%",
         "loctotal",
+        "rfs",
         "git blame",
         "git stage",
         "git log",

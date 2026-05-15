@@ -390,6 +390,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:cd <path>`          - Change directory",
             "  `:cdr`                - Change to project root",
             "  `:pwd`                - Print working directory",
+            "  `:rfs`                - Refresh fuzzy find and grep file cache",
             "  `uvim .`              - Start in file browser (defers auto-LSP)",
             "",
             "WINDOWS / TABS:",

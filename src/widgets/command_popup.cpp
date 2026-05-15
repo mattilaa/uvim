@@ -74,6 +74,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Change working directory";
     if(cmd == "cdr")
         return "Change directory to project root";
+    if(cmd == "rfs")
+        return "Refresh fuzzy find and grep file cache";
     if(cmd == "loc" || cmd == "loc!" || cmd == "loc%" || cmd == "loctotal")
         return "Count lines of code";
     if(cmd == "git stage")

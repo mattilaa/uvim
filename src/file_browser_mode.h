@@ -53,6 +53,7 @@ struct FileBrowserMode
     std::string filterQuery;
     std::vector<int> filterMatches;
     std::vector<int> searchMatches;
+    std::unordered_map<std::string, std::vector<int>> searchMatchCache;
     std::string lastSearchPattern;
     char lastSearchPrefix = 0;
     int currentSearchMatch = -1;

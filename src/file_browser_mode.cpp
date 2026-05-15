@@ -10,9 +10,11 @@
 #include <ctime>
 #include <fstream>
 #include <iomanip>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include "os_compat.h"
+#include <unordered_map>
 #include <vector>
 
 // ============================================================================
@@ -21,6 +23,106 @@
 
 namespace
 {
+bool isPlainSearchPattern(std::string_view pattern)
+{
+    return pattern.find_first_of(R"(\.^$|()[]{}*+?)") == std::string_view::npos;
+}
+
+bool fileBrowserNameMatchesSearch(const std::string& name,
+                                  const std::string& pattern,
+                                  bool plainPattern,
+                                  const std::regex* regexPattern)
+{
+    if(plainPattern)
+        return name.find(pattern) != std::string::npos;
+    return regexPattern && std::regex_search(name, *regexPattern);
+}
+
+struct DirectoryCacheEntry
+{
+    std::filesystem::file_time_type modTime{};
+    std::vector<FileEntry> entries;
+};
+
+std::unordered_map<std::string, DirectoryCacheEntry>& directoryListingCache()
+{
+    static std::unordered_map<std::string, DirectoryCacheEntry> cache;
+    return cache;
+}
+
+std::vector<std::string>& directoryListingCacheOrder()
+{
+    static std::vector<std::string> order;
+    return order;
+}
+
+std::string makeDirectoryCacheKey(const std::string& directory,
+                                  bool showHidden,
+                                  bool respectGitignore,
+                                  const std::string& gitignoreRoot)
+{
+    return directory + "\n" + (showHidden ? "H" : "h") + "\n" +
+           (respectGitignore ? "G" : "g") + "\n" + gitignoreRoot;
+}
+
+std::optional<std::vector<FileEntry>>
+getCachedDirectoryListing(const std::string& key,
+                          const std::filesystem::path& directory)
+{
+    auto& cache = directoryListingCache();
+    auto it = cache.find(key);
+    if(it == cache.end())
+        return std::nullopt;
+
+    std::error_code ec;
+    auto modTime = std::filesystem::last_write_time(directory, ec);
+    if(ec || modTime != it->second.modTime)
+    {
+        cache.erase(it);
+        return std::nullopt;
+    }
+    return it->second.entries;
+}
+
+void cacheDirectoryListing(const std::string& key,
+                           const std::filesystem::path& directory,
+                           const std::vector<FileEntry>& entries)
+{
+    std::error_code ec;
+    auto modTime = std::filesystem::last_write_time(directory, ec);
+    if(ec)
+        return;
+
+    auto& cache = directoryListingCache();
+    auto& order = directoryListingCacheOrder();
+    if(cache.find(key) == cache.end())
+        order.push_back(key);
+    cache[key] = DirectoryCacheEntry{modTime, entries};
+
+    static constexpr size_t maxEntries = 64;
+    while(order.size() > maxEntries)
+    {
+        cache.erase(order.front());
+        order.erase(order.begin());
+    }
+}
+
+void invalidateCachedDirectoryListing(const std::string& directory)
+{
+    auto& cache = directoryListingCache();
+    auto& order = directoryListingCacheOrder();
+    order.erase(std::remove_if(order.begin(), order.end(),
+                               [&](const std::string& key)
+                               {
+                                   bool matches =
+                                       key.rfind(directory + "\n", 0) == 0;
+                                   if(matches)
+                                       cache.erase(key);
+                                   return matches;
+                               }),
+                order.end());
+}
+
 void ensureEntryMetadata(FileEntry& entry)
 {
     if(entry.metadataLoaded || entry.name == "..")
@@ -335,12 +437,69 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             browserOffset = browserCursor - visible + 1;
     };
 
+    auto openSelectedFiles = [&]() -> std::optional<ModeState>
+    {
+        std::vector<std::string> toOpen;
+        toOpen.reserve(selectedFiles.size());
+        for(const auto& p : selectedFiles)
+        {
+            std::error_code dirEc;
+            if(std::filesystem::is_directory(std::filesystem::path(p), dirEc))
+                continue;
+            toOpen.push_back(p);
+        }
+        if(toOpen.empty())
+        {
+            ctx.setStatusMessage("No files selected to open");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+        std::sort(toOpen.begin(), toOpen.end());
+        for(size_t i = 0; i < toOpen.size(); ++i)
+        {
+            bool notifyLsp = (i + 1 == toOpen.size());
+            ctx.editor->openFile(std::string_view(toOpen[i]), notifyLsp);
+        }
+        selectedFiles.clear();
+        if(visualMode)
+        {
+            visualMode = false;
+            preVisualSelected.clear();
+        }
+        ctx.setStatusMessage("Opened " + std::to_string(toOpen.size()) +
+                             " file(s)");
+        return ctx.hasBuffer()
+                   ? std::optional<ModeState>(ModeState{NormalMode{}})
+                   : std::optional<ModeState>(ModeState{WelcomeMode{}});
+    };
+
     const auto collectRegexMatches =
         [&](char prefix, const std::string& pattern) -> std::vector<int>
     {
-        (void)prefix;
+        std::string cacheKey;
+        cacheKey.push_back(prefix);
+        cacheKey.push_back('\n');
+        cacheKey += pattern;
+        auto cached = searchMatchCache.find(cacheKey);
+        if(cached != searchMatchCache.end())
+            return cached->second;
+
         std::vector<int> matches;
-        std::regex re(pattern);
+        if(isPlainSearchPattern(pattern))
+        {
+            for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+            {
+                const auto& entry = fileList[i];
+                if(entry.name == "..")
+                    continue;
+                if(entry.name.find(pattern) != std::string::npos)
+                    matches.push_back(i);
+            }
+            searchMatchCache[cacheKey] = matches;
+            return matches;
+        }
+
+        std::regex re(pattern, std::regex::optimize);
         for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
         {
             const auto& entry = fileList[i];
@@ -349,7 +508,37 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             if(std::regex_search(entry.name, re))
                 matches.push_back(i);
         }
+        searchMatchCache[cacheKey] = matches;
         return matches;
+    };
+
+    const auto findFirstRegexMatch =
+        [&](char prefix, const std::string& pattern) -> std::optional<int>
+    {
+        (void)prefix;
+        if(isPlainSearchPattern(pattern))
+        {
+            for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+            {
+                const auto& entry = fileList[i];
+                if(entry.name == "..")
+                    continue;
+                if(entry.name.find(pattern) != std::string::npos)
+                    return i;
+            }
+            return std::nullopt;
+        }
+
+        std::regex re(pattern, std::regex::optimize);
+        for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+        {
+            const auto& entry = fileList[i];
+            if(entry.name == "..")
+                continue;
+            if(std::regex_search(entry.name, re))
+                return i;
+        }
+        return std::nullopt;
     };
 
     auto resetSearchTabCompletion = [&]()
@@ -433,7 +622,19 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         const std::string& input = commandPrompt->getInput();
         bool promptSearch =
-            !input.empty() && (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION));
+            !input.empty() &&
+            (input[0] == keyCode(command::CommandKey::KEY_SLASH) || input[0] == keyCode(command::CommandKey::KEY_QUESTION));
+
+        if(promptSearch && c == keyCode(control::ControlKey::ENTER) &&
+           !selectedFiles.empty())
+        {
+            std::optional<ModeState> ignored;
+            (void)commandPrompt->handle(
+                ctx, keyCode(control::ControlKey::ESC),
+                [&](std::string_view commandLine)
+                { return executeCommand(ctx, commandLine); }, ignored);
+            return openSelectedFiles();
+        }
 
         if(promptSearch &&
            (c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(control::ControlKey::CTRL_K) ||
@@ -448,33 +649,36 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                 return std::nullopt;
             }
 
-            std::vector<int> matches;
-            try
+            bool sameSearchPattern =
+                lastSearchPattern == pattern && lastSearchPrefix == prefix;
+            bool canReuseMatches = sameSearchPattern && !searchMatches.empty();
+            if(!canReuseMatches)
             {
-                matches = collectRegexMatches(prefix, pattern);
-            }
-            catch(const std::regex_error&)
-            {
-                ctx.setStatusMessage("Invalid regex: " + pattern);
-                ctx.requestFullRedraw();
-                return std::nullopt;
+                std::vector<int> matches;
+                try
+                {
+                    matches = collectRegexMatches(prefix, pattern);
+                }
+                catch(const std::regex_error&)
+                {
+                    ctx.setStatusMessage("Invalid regex: " + pattern);
+                    ctx.requestFullRedraw();
+                    return std::nullopt;
+                }
+
+                if(matches.empty())
+                {
+                    ctx.setStatusMessage("No match for regex: " + pattern);
+                    ctx.requestFullRedraw();
+                    return std::nullopt;
+                }
+
+                searchMatches = std::move(matches);
+                lastSearchPattern = pattern;
+                lastSearchPrefix = prefix;
             }
 
-            if(matches.empty())
-            {
-                ctx.setStatusMessage("No match for regex: " + pattern);
-                ctx.requestFullRedraw();
-                return std::nullopt;
-            }
-
-            bool sameSearch =
-                (lastSearchPattern == pattern && lastSearchPrefix == prefix &&
-                 !searchMatches.empty());
-            searchMatches = std::move(matches);
-            lastSearchPattern = pattern;
-            lastSearchPrefix = prefix;
-
-            if(!sameSearch || currentSearchMatch < 0 ||
+            if(!sameSearchPattern || currentSearchMatch < 0 ||
                currentSearchMatch >= static_cast<int>(searchMatches.size()))
             {
                 currentSearchMatch = 0;
@@ -668,27 +872,26 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             return;
         }
 
-        std::vector<int> matches;
+        std::optional<int> match;
         try
         {
-            matches = collectRegexMatches(prefix, pattern);
+            match = findFirstRegexMatch(prefix, pattern);
         }
         catch(const std::regex_error&)
         {
             clearSearchState();
             return;
         }
-        if(matches.empty())
+        if(!match)
         {
             clearSearchState();
             return;
         }
 
-        searchMatches = std::move(matches);
         lastSearchPattern = pattern;
         lastSearchPrefix = prefix;
         currentSearchMatch = 0;
-        browserCursor = searchMatches[currentSearchMatch];
+        browserCursor = *match;
         moveToVisibleCursor();
     };
 
@@ -950,35 +1153,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         // buffers. Directories in the selection are skipped.
         if(c == keyCode(control::ControlKey::ENTER) && !selectedFiles.empty())
         {
-            std::vector<std::string> toOpen;
-            toOpen.reserve(selectedFiles.size());
-            for(const auto& p : selectedFiles)
-            {
-                std::error_code dirEc;
-                if(std::filesystem::is_directory(std::filesystem::path(p),
-                                                 dirEc))
-                    continue;
-                toOpen.push_back(p);
-            }
-            if(toOpen.empty())
-            {
-                ctx.setStatusMessage("No files selected to open");
-                ctx.requestFullRedraw();
-                return std::nullopt;
-            }
-            std::sort(toOpen.begin(), toOpen.end());
-            for(const auto& p : toOpen)
-                ctx.openFile(std::string_view(p));
-            selectedFiles.clear();
-            if(visualMode)
-            {
-                visualMode = false;
-                preVisualSelected.clear();
-            }
-            ctx.setStatusMessage("Opened " + std::to_string(toOpen.size()) +
-                                 " file(s)");
-            return ctx.hasBuffer() ? ModeState{NormalMode{}}
-                                   : ModeState{WelcomeMode{}};
+            return openSelectedFiles();
         }
         if(browserCursor >= 0 && browserCursor < listSize())
         {
@@ -1089,6 +1264,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     // Refresh
     else if(c == keyCode(typed::TypedKey::KEY_R) || c == keyCode(control::ControlKey::CTRL_L))
     {
+        invalidateCachedDirectoryListing(currentDirectory);
         loadDirectory(ctx, currentDirectory);
     }
 
@@ -1591,9 +1767,8 @@ void FileBrowserMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output +=
-        "  [Space: select] [d: delete] [y: yank] [m: move] [p: paste] "
-        "[u: undo] [^R: redo]";
+    output += "  [Space: select] [d: delete] [y: yank] [m: move] [p: paste] "
+              "[u: undo] [^R: redo] [:/regex ^N: select matches]";
     if(!selectedFiles.empty())
         output += "  (" + std::to_string(selectedFiles.size()) + " selected)";
     if(!copyBuffer.empty())
@@ -1603,8 +1778,11 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     output += editor.theme.baseFg();
 
-    std::vector<char> searchHit(fileList.size(), 0);
     bool hasLiveSearch = false;
+    std::string liveSearchPattern;
+    bool liveSearchPlainPattern = false;
+    std::optional<std::regex> liveSearchRegex;
+    std::vector<char> committedSearchHit;
     bool hasCommittedSearch =
         !searchMatches.empty() && !lastSearchPattern.empty();
     if(commandPrompt && commandPrompt->isActive())
@@ -1614,16 +1792,13 @@ void FileBrowserMode::draw(Editor& editor) const
         {
             try
             {
-                std::regex re(input.substr(1));
+                liveSearchPattern = input.substr(1);
+                liveSearchPlainPattern =
+                    isPlainSearchPattern(liveSearchPattern);
+                if(!liveSearchPlainPattern)
+                    liveSearchRegex.emplace(liveSearchPattern,
+                                            std::regex::optimize);
                 hasLiveSearch = true;
-                for(size_t i = 0; i < fileList.size(); ++i)
-                {
-                    const auto& entry = fileList[i];
-                    if(entry.name == "..")
-                        continue;
-                    if(std::regex_search(entry.name, re))
-                        searchHit[i] = 1;
-                }
             }
             catch(const std::regex_error&)
             {
@@ -1632,10 +1807,11 @@ void FileBrowserMode::draw(Editor& editor) const
     }
     if(!hasLiveSearch && hasCommittedSearch)
     {
+        committedSearchHit.assign(fileList.size(), 0);
         for(int idx : searchMatches)
         {
-            if(idx >= 0 && idx < static_cast<int>(searchHit.size()))
-                searchHit[idx] = 1;
+            if(idx >= 0 && idx < static_cast<int>(committedSearchHit.size()))
+                committedSearchHit[idx] = 1;
         }
     }
     bool searchVisualActive = hasLiveSearch || hasCommittedSearch;
@@ -1682,9 +1858,27 @@ void FileBrowserMode::draw(Editor& editor) const
                 else
                     mappedIndex = filterMatches[index];
             }
-            if(mappedIndex >= 0 &&
-               mappedIndex < static_cast<int>(searchHit.size()) &&
-               searchHit[mappedIndex])
+            bool isSearchHit = false;
+            if(mappedIndex >= 0)
+            {
+                if(hasLiveSearch && mappedIndex < static_cast<int>(fileList.size()))
+                {
+                    const auto& mappedEntry = fileList[mappedIndex];
+                    isSearchHit =
+                        mappedEntry.name != ".." &&
+                        fileBrowserNameMatchesSearch(
+                            mappedEntry.name, liveSearchPattern,
+                            liveSearchPlainPattern,
+                            liveSearchRegex ? &*liveSearchRegex : nullptr);
+                }
+                else if(!hasLiveSearch &&
+                        mappedIndex <
+                            static_cast<int>(committedSearchHit.size()))
+                {
+                    isSearchHit = committedSearchHit[mappedIndex];
+                }
+            }
+            if(isSearchHit)
             {
                 if(searchVisualActive)
                     output += std::string(Terminal::ESC_DIM) +
@@ -1954,6 +2148,7 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 {
     fileList.clear();
     searchMatches.clear();
+    searchMatchCache.clear();
     lastSearchPattern.clear();
     lastSearchPrefix = 0;
     currentSearchMatch = -1;
@@ -2003,12 +2198,42 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
 
     currentDirectory = file_utils::path_to_utf8_string(resolvedDir);
 
+    auto removeMovedEntries = [&]()
+    {
+        if(!moveMode || copyBuffer.empty())
+            return;
+        fileList.erase(std::remove_if(fileList.begin(), fileList.end(),
+                                      [&](const FileEntry& entry)
+                                      {
+                                          return std::find(copyBuffer.begin(),
+                                                           copyBuffer.end(),
+                                                           entry.path) !=
+                                                 copyBuffer.end();
+                                      }),
+                       fileList.end());
+    };
+
+    std::string gitignoreRootString;
+    if(ctx.editor && !ctx.editor->getProjectRoot().empty())
+        gitignoreRootString = ctx.editor->getProjectRoot();
+
+    const std::string cacheKey =
+        makeDirectoryCacheKey(currentDirectory, showHidden,
+                              ctx.respectGitignore(), gitignoreRootString);
+    if(auto cached = getCachedDirectoryListing(cacheKey, resolvedDir))
+    {
+        fileList = std::move(*cached);
+        removeMovedEntries();
+        updateFilter(ctx);
+        return;
+    }
+
     GitIgnore gitignore;
     if(ctx.respectGitignore())
     {
         std::filesystem::path gitignoreRoot;
-        if(ctx.editor && !ctx.editor->getProjectRoot().empty())
-            gitignoreRoot = ctx.editor->getProjectRoot();
+        if(!gitignoreRootString.empty())
+            gitignoreRoot = gitignoreRootString;
         gitignore.loadRecursive(resolvedDir, gitignoreRoot);
     }
 
@@ -2078,11 +2303,6 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
         fe.path = file_utils::path_to_utf8_string(de.path().lexically_normal());
         fe.isDirectory = isDir;
 
-        if(moveMode && !copyBuffer.empty() &&
-           std::find(copyBuffer.begin(), copyBuffer.end(), fe.path) !=
-               copyBuffer.end())
-            continue;
-
         push_entry(std::move(fe));
     }
 
@@ -2106,6 +2326,8 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
     fileList.insert(fileList.end(), std::make_move_iterator(files.begin()),
                     std::make_move_iterator(files.end()));
 
+    cacheDirectoryListing(cacheKey, resolvedDir, fileList);
+    removeMovedEntries();
     updateFilter(ctx);
 }
 

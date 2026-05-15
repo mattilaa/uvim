@@ -123,7 +123,7 @@ public:
     bool isTsLspEnabled() const;
 
     void run();
-    void openFile(std::string_view filename);
+    void openFile(std::string_view filename, bool notifyLspOnOpen = true);
 
     // Buffer struct is now in buffer.h
     // JumpLocation struct is now in jump_location.h
@@ -773,6 +773,7 @@ public:
     // File operations
     void saveFile();
     void executeCommand(std::string_view cmd);
+    void refreshFileSearchCaches();
     void forceQuit();
     std::string getAlternateFilePath();
     void checkFileChanges();
