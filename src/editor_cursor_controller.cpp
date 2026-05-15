@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "editor_cursor_controller.h"
+#include "key_enums.h"
 #include "text_utils.h"
 
 #include <algorithm>
@@ -1153,4 +1154,55 @@ void EditorCursorController::centerScreen()
 
     *editor.cursorY = std::clamp(*editor.cursorY, 0, n - 1);
     *editor.offsetY = std::clamp(*editor.cursorY - rows / 2, 0, maxOffsetY);
+}
+
+void EditorCursorController::setMark(char mark)
+{
+    if(mark < keyCode(typed::TypedKey::KEY_A) ||
+       mark > keyCode(typed::TypedKey::KEY_Z))
+        return;
+
+    if(!editor.filename || !editor.cursorY || !editor.cursorX)
+        return;
+
+    Editor::MarkLocation loc;
+    loc.filename = *editor.filename;
+    loc.line = *editor.cursorY;
+    loc.col = *editor.cursorX;
+    editor.marks[mark] = loc;
+    editor.setStatusMessage(std::string("Mark '") + mark + "' set");
+}
+
+void EditorCursorController::jumpToMark(char mark)
+{
+    if(mark < keyCode(typed::TypedKey::KEY_A) ||
+       mark > keyCode(typed::TypedKey::KEY_Z))
+        return;
+
+    auto it = editor.marks.find(mark);
+    if(it == editor.marks.end())
+    {
+        editor.setStatusMessage(std::string("Mark '") + mark + "' not set");
+        return;
+    }
+
+    const Editor::MarkLocation loc = it->second;
+    pushJumpLocation();
+
+    if(!loc.filename.empty() &&
+       (!editor.filename || *editor.filename != loc.filename))
+    {
+        editor.openFile(loc.filename);
+    }
+
+    if(!editor.lines || editor.lines->empty() || !editor.cursorY ||
+       !editor.cursorX)
+        return;
+
+    *editor.cursorY =
+        std::clamp(loc.line, 0, static_cast<int>(editor.lines->size()) - 1);
+    *editor.cursorX =
+        std::clamp(loc.col, 0, line_len(*editor.lines, *editor.cursorY));
+    *editor.wantedX = *editor.cursorX;
+    adjustViewport();
 }

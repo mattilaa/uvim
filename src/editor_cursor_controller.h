@@ -46,6 +46,8 @@ public:
     void adjustViewport();
     void adjustViewportForPane(Editor::PaneState& pane, int rows, int cols);
     void centerScreen();
+    void setMark(char mark);
+    void jumpToMark(char mark);
 
 private:
     Editor& editor;

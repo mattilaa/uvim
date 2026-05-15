@@ -7067,40 +7067,12 @@ void Editor::centerScreen()
 
 void Editor::setMark(char mark)
 {
-    if(mark >= keyCode(typed::TypedKey::KEY_A) &&
-       mark <= keyCode(typed::TypedKey::KEY_Z))
-    {
-        MarkLocation loc;
-        loc.filename = *filename;
-        loc.line = *cursorY;
-        loc.col = *cursorX;
-        marks[mark] = loc;
-        setStatusMessage(std::string("Mark '") + mark + "' set");
-    }
+    cursorController->setMark(mark);
 }
 
 void Editor::jumpToMark(char mark)
 {
-    if(mark >= keyCode(typed::TypedKey::KEY_A) &&
-       mark <= keyCode(typed::TypedKey::KEY_Z))
-    {
-        auto it = marks.find(mark);
-        if(it != marks.end())
-        {
-            pushJumpLocation();
-            *cursorY = it->second.line;
-            *cursorX = it->second.col;
-            if(*cursorY >= (int)lines->size())
-                *cursorY = lines->size() - 1;
-            if(*cursorY >= 0 && *cursorX > (int)(*lines)[*cursorY].length())
-                *cursorX = (*lines)[*cursorY].length();
-            adjustViewport();
-        }
-        else
-        {
-            setStatusMessage(std::string("Mark '") + mark + "' not set");
-        }
-    }
+    cursorController->jumpToMark(mark);
 }
 
 // ============================================================================

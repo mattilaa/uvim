@@ -134,6 +134,30 @@ TEST(RealModeTransitionsTest, LeaderBdClosesCurrentBuffer)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
+TEST(RealModeTransitionsTest, MarkJumpReopensMarkedFile)
+{
+    auto dir = make_temp_dir("uvim_marks_");
+    auto first = dir / "first.txt";
+    auto second = dir / "second.txt";
+    write_file(first, "one\ntwo\nthree\n");
+    write_file(second, "alpha\nbeta\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(first.string());
+    *editor.cursorY = 2;
+    *editor.cursorX = 3;
+    editor.setMark('a');
+
+    editor.openFile(second.string());
+    ASSERT_EQ(std::filesystem::canonical(second).string(), *editor.filename);
+
+    editor.jumpToMark('a');
+
+    EXPECT_EQ(std::filesystem::canonical(first).string(), *editor.filename);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 3);
+}
+
 TEST(RealModeTransitionsTest, InsertModeAutoPairsDoubleQuote)
 {
     Editor editor = Editor::createForTests();
