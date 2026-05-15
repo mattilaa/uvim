@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "ascii.h"
 #include "constants.h"
+#include "cpp_navigation_utilities.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
@@ -11,6 +12,7 @@
 #include "editor_lsp_controller.h"
 #include "editor_mode_controller.h"
 #include "editor_operator_controller.h"
+#include "editor_path_utilities.h"
 #include "editor_references_controller.h"
 #include "editor_settings_controller.h"
 #include "editor_split_controller.h"
@@ -22,7 +24,9 @@
 #include "gitignore.h"
 #include "mlang_utilities.h"
 #include "mode_state_machine.h"
+#include "robot_utilities.h"
 #include "stdlib_goto.h"
+#include "symbol_popup_utilities.h"
 #include "syntax_highlighter.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -107,202 +111,6 @@ using editor::helper::trim_ascii_ws;
 using editor::helper::trim_view;
 using editor::helper::TsConfigPaths;
 
-#ifdef UVIM_ENABLE_CLANGD_LSP
-static std::string resolve_executable_path(const std::string& exe)
-{
-    if(exe.empty())
-        return {};
-    fs::path exePath(exe);
-    if(exePath.has_parent_path())
-    {
-        std::error_code ec;
-        if(fs::exists(exePath, ec) && fs::is_regular_file(exePath, ec))
-            return exePath.string();
-        return {};
-    }
-
-    const char* path = std::getenv("PATH");
-    if(!path || !*path)
-        return {};
-
-    std::string_view pathView{path};
-    size_t start = 0;
-    while(start < pathView.size())
-    {
-#ifdef _WIN32
-        size_t end = pathView.find(';', start);
-#else
-        size_t end = pathView.find(':', start);
-#endif
-        if(end == std::string_view::npos)
-            end = pathView.size();
-        if(end > start)
-        {
-            fs::path candidate =
-                fs::path(std::string(pathView.substr(start, end - start))) /
-                exe;
-            std::error_code ec;
-            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
-                return candidate.string();
-        }
-        start = end + 1;
-    }
-    return {};
-}
-#endif
-
-namespace
-{
-
-static fs::path get_home_directory()
-{
-#ifdef _WIN32
-    if(const char* userProfile = std::getenv("USERPROFILE"))
-        return userProfile;
-    const char* homeDrive = std::getenv("HOMEDRIVE");
-    const char* homePath = std::getenv("HOMEPATH");
-    if(homeDrive && homePath)
-        return std::string(homeDrive) + std::string(homePath);
-#endif
-    if(const char* home = std::getenv("HOME"))
-        return home;
-
-    std::error_code ec;
-    fs::path cwd = fs::current_path(ec);
-    return ec ? fs::path{} : cwd;
-}
-
-static fs::path expand_user_path(const fs::path& input)
-{
-    std::string text = input.string();
-    if(text.empty() || text[0] != '~')
-        return input;
-
-    fs::path home = get_home_directory();
-    if(home.empty())
-        return input;
-
-    if(text.size() == 1)
-        return home;
-
-    const char sep = text[1];
-    if(sep == '/' || sep == '\\')
-        return home / text.substr(2);
-
-    return input;
-}
-
-static std::mutex& editor_working_directory_mutex()
-{
-    static std::mutex mutex;
-    return mutex;
-}
-
-static fs::path& editor_working_directory_unlocked()
-{
-    static fs::path directory = []
-    {
-        std::error_code ec;
-        fs::path cwd = fs::current_path(ec);
-        return ec ? fs::path{} : cwd;
-    }();
-    return directory;
-}
-
-static fs::path get_editor_working_directory()
-{
-    std::lock_guard<std::mutex> lock(editor_working_directory_mutex());
-    return editor_working_directory_unlocked();
-}
-
-static fs::path resolve_editor_path(const fs::path& input)
-{
-    fs::path path = expand_user_path(input);
-    if(path.is_absolute())
-        return path;
-
-    fs::path base = get_editor_working_directory();
-    if(base.empty())
-    {
-        std::error_code ec;
-        base = fs::current_path(ec);
-    }
-    return base / path;
-}
-
-static bool set_editor_working_directory(const fs::path& input,
-                                         std::string& displayPath,
-                                         std::string& errorMessage)
-{
-    fs::path resolved = resolve_editor_path(input);
-
-    std::error_code ec;
-    fs::path normalized = fs::weakly_canonical(resolved, ec);
-    if(ec)
-    {
-        ec.clear();
-        normalized = fs::absolute(resolved, ec);
-    }
-    if(ec)
-    {
-        errorMessage = ec.message();
-        return false;
-    }
-
-    if(!fs::is_directory(normalized, ec) || ec)
-    {
-        errorMessage = ec ? ec.message() : "not a directory";
-        return false;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(editor_working_directory_mutex());
-        editor_working_directory_unlocked() = normalized;
-    }
-
-    displayPath = normalized.string();
-    return true;
-}
-
-static std::unordered_set<std::string> default_robot_keywords()
-{
-    static constexpr std::string_view kKeywords[] = {
-        "if",       "else",     "end",       "for",           "while",
-        "try",      "except",   "finally",   "return",        "break",
-        "continue", "skip",     "fail",      "run",           "keyword",
-        "library",  "resource", "variables", "documentation", "tags",
-        "metadata", "setup",    "teardown",  "suite",         "test",
-        "task",     "template", "timeout",   "default",       "force",
-    };
-    std::unordered_set<std::string> out;
-    out.reserve(std::size(kKeywords));
-    for(auto kw : kKeywords)
-        out.insert(ascii_lower(kw));
-    return out;
-}
-
-static std::unordered_set<std::string> default_robot_custom_keywords()
-{
-    return {};
-}
-
-static std::unordered_set<std::string> default_robot_settings()
-{
-    static constexpr std::string_view kSettings[] = {
-        "resource",      "library",      "variables",      "documentation",
-        "metadata",      "suite setup",  "suite teardown", "test setup",
-        "test teardown", "task setup",   "task teardown",  "test template",
-        "task template", "test timeout", "task timeout",   "force tags",
-        "default tags",
-    };
-    std::unordered_set<std::string> out;
-    out.reserve(std::size(kSettings));
-    for(auto setting : kSettings)
-        out.insert(ascii_lower(setting));
-    return out;
-}
-} // namespace
-
 #if defined(UVIM_TERMINAL_POSIX)
 static volatile sig_atomic_t g_pending_resize = 0;
 
@@ -312,269 +120,6 @@ static void handle_sigwinch(int)
 }
 #endif
 
-static bool isIdent(char c)
-{
-    return std::isalnum((unsigned char)c) || c == '_';
-}
-
-// Check if a line is likely a variable/parameter declaration for the symbol
-// Returns the column position of the symbol if found, -1 otherwise
-static int findLocalDeclaration(const std::string& line,
-                                const std::string& symbol)
-{
-    // Skip pure comment lines
-    size_t firstNonSpace = line.find_first_not_of(" \t");
-    if(firstNonSpace != std::string::npos &&
-       line.substr(firstNonSpace, 2) == "//")
-        return -1;
-
-    // Get effective line (before any comment)
-    size_t commentPos = line.find("//");
-    std::string effectiveLine =
-        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
-
-    // Find the symbol in the line
-    size_t pos = 0;
-    while((pos = effectiveLine.find(symbol, pos)) != std::string::npos)
-    {
-        // Make sure it's a whole word match
-        bool validStart = (pos == 0 || !isIdent(effectiveLine[pos - 1]));
-        bool validEnd = (pos + symbol.length() >= effectiveLine.length() ||
-                         !isIdent(effectiveLine[pos + symbol.length()]));
-
-        if(!validStart || !validEnd)
-        {
-            pos++;
-            continue;
-        }
-
-        // Check what comes after the symbol
-        size_t afterSymbol = pos + symbol.length();
-        while(afterSymbol < effectiveLine.length() &&
-              std::isspace((unsigned char)effectiveLine[afterSymbol]))
-            afterSymbol++;
-
-        // Check what comes before the symbol (skipping spaces and qualifiers)
-        int beforeSymbol = pos - 1;
-        while(beforeSymbol >= 0 &&
-              std::isspace((unsigned char)effectiveLine[beforeSymbol]))
-            beforeSymbol--;
-
-        // Common patterns for variable declarations:
-        // type name;
-        // type name =
-        // type name,
-        // type name)  - for function parameters
-        // type& name
-        // type* name
-        // const type name
-        // auto name
-
-        if(afterSymbol < effectiveLine.length())
-        {
-            char nextChar = effectiveLine[afterSymbol];
-            // If followed by =, ;, ,, ), [ then it's likely a declaration
-            // NOT if followed by ( which would be a function call
-            if(nextChar == '=' || nextChar == ';' || nextChar == ',' ||
-               nextChar == ')' || nextChar == '[')
-            {
-                // Check that there's something before (a type)
-                if(beforeSymbol >= 0)
-                {
-                    char prevChar = effectiveLine[beforeSymbol];
-                    // Common chars before a variable name in declaration:
-                    // identifier char (end of type name), >, *, &, ]
-                    if(isIdent(prevChar) || prevChar == '>' ||
-                       prevChar == '*' || prevChar == '&' || prevChar == ']')
-                    {
-                        return (int)pos;
-                    }
-                }
-            }
-        }
-        // End of line after symbol (like in "int x")
-        else if(beforeSymbol >= 0)
-        {
-            char prevChar = effectiveLine[beforeSymbol];
-            if(isIdent(prevChar) || prevChar == '>' || prevChar == '*' ||
-               prevChar == '&' || prevChar == ']')
-            {
-                return (int)pos;
-            }
-        }
-
-        pos++;
-    }
-
-    return -1;
-}
-
-// Search backwards from current position for local variable declaration
-static bool searchLocalDefinition(const std::vector<std::string>& lines,
-                                  const std::string& symbol, int startY,
-                                  int startX, int& outY, int& outX)
-{
-    // Track brace depth to stay within current scope
-    int braceDepth = 0;
-    bool foundOpenBrace = false;
-
-    // Start from the line before cursor (or current line if cursor is past the
-    // symbol)
-    for(int y = startY; y >= 0; y--)
-    {
-        const std::string& line = lines[y];
-
-        // Count braces in this line (from end to start for backwards search)
-        for(int i = (int)line.length() - 1; i >= 0; i--)
-        {
-            // Skip if we're on the starting line and past start position
-            if(y == startY && i >= startX)
-                continue;
-
-            char c = line[i];
-            if(c == '}')
-            {
-                braceDepth++;
-            }
-            else if(c == '{')
-            {
-                if(braceDepth > 0)
-                    braceDepth--;
-                else
-                    foundOpenBrace = true; // Found enclosing scope start
-            }
-        }
-
-        // Don't search past the opening brace of current scope
-        // (but do search the line with the opening brace for parameters)
-
-        // Check if this line has a declaration of our symbol
-        // Only search if we're at same or lower brace depth (within scope)
-        if(braceDepth == 0)
-        {
-            int col = findLocalDeclaration(line, symbol);
-            if(col >= 0)
-            {
-                // Make sure it's before our cursor position if on same line
-                if(y < startY || col < startX)
-                {
-                    outY = y;
-                    outX = col;
-                    return true;
-                }
-            }
-        }
-
-        // If we've exited our function scope, stop searching
-        if(foundOpenBrace && braceDepth == 0)
-        {
-            // Check this line one more time (function parameters are on/before
-            // opening brace)
-            int col = findLocalDeclaration(line, symbol);
-            if(col >= 0)
-            {
-                outY = y;
-                outX = col;
-                return true;
-            }
-
-            // Also check the line above for multi-line function signatures
-            if(y > 0)
-            {
-                col = findLocalDeclaration(lines[y - 1], symbol);
-                if(col >= 0)
-                {
-                    outY = y - 1;
-                    outX = col;
-                    return true;
-                }
-            }
-            break;
-        }
-    }
-
-    return false;
-}
-
-// Search for member variable declaration in class/struct
-static bool searchMemberDefinition(const std::vector<std::string>& lines,
-                                   const std::string& symbol, int& outY,
-                                   int& outX)
-{
-    // Look for struct/class definitions and their members
-    bool inClassOrStruct = false;
-    int classStartLine = -1;
-    int braceDepth = 0;
-
-    for(int y = 0; y < (int)lines.size(); y++)
-    {
-        const std::string& line = lines[y];
-
-        // Check for class/struct keyword
-        if(line.find("class ") != std::string::npos ||
-           line.find("struct ") != std::string::npos)
-        {
-            inClassOrStruct = true;
-            classStartLine = y;
-            braceDepth = 0;
-        }
-
-        // Track braces
-        for(char c : line)
-        {
-            if(c == '{')
-                braceDepth++;
-            else if(c == '}')
-            {
-                braceDepth--;
-                if(braceDepth == 0 && inClassOrStruct)
-                {
-                    inClassOrStruct = false;
-                }
-            }
-        }
-
-        // If we're inside a class/struct at depth 1, look for member
-        // declarations
-        if(inClassOrStruct && braceDepth == 1)
-        {
-            int col = findLocalDeclaration(line, symbol);
-            if(col >= 0)
-            {
-                outY = y;
-                outX = col;
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-static bool isHeaderFile(const std::string& path)
-{
-    return path == ".h" || path == ".hpp";
-}
-
-static bool isSourceFile(const std::string& path)
-{
-    return path == ".c" || path == ".cpp" || path == ".cc";
-}
-
-static std::string default_theme_dir()
-{
-    const char* xdg = std::getenv("XDG_CONFIG_HOME");
-    const char* home = std::getenv("HOME");
-    std::string base;
-    if(xdg && *xdg)
-        base = xdg;
-    else if(home && *home)
-        base = std::string(home) + "/.config";
-    else
-        return "";
-    return base + "/uvim/themes";
-}
-
 Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                const std::string& themePath)
 {
@@ -583,9 +128,9 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     screenRows -= 2; // Status bar and message bar
     theme = Theme::defaults();
     this->configPath = configPath;
-    robotKeywordSet = default_robot_keywords();
-    robotCustomKeywordSet = default_robot_custom_keywords();
-    robotSettingSet = default_robot_settings();
+    robotKeywordSet = RobotUtilities::defaultKeywords();
+    robotCustomKeywordSet = RobotUtilities::defaultCustomKeywords();
+    robotSettingSet = RobotUtilities::defaultSettings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
     if(!configPath.empty())
@@ -615,7 +160,8 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                                        name.rfind(".yml") == name.size() - 4);
                         if(!hasExt)
                             name += ".yaml";
-                        std::string dir = default_theme_dir();
+                        std::string dir =
+                            EditorPathUtilities::defaultThemeDir();
                         if(!dir.empty())
                             resolvedThemePath = dir + "/" + name;
                     }
@@ -1185,9 +731,9 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     screenCols = std::max(1, cols);
     theme = Theme::defaults();
     configPath.clear();
-    robotKeywordSet = default_robot_keywords();
-    robotCustomKeywordSet = default_robot_custom_keywords();
-    robotSettingSet = default_robot_settings();
+    robotKeywordSet = RobotUtilities::defaultKeywords();
+    robotCustomKeywordSet = RobotUtilities::defaultCustomKeywords();
+    robotSettingSet = RobotUtilities::defaultSettings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
     settingsController = std::make_unique<EditorSettingsController>(*this);
@@ -1330,7 +876,7 @@ bool Editor::mlangFormatBuffer()
 
 std::string Editor::resolveEditorPathString(const std::string& input) const
 {
-    return resolve_editor_path(fs::path(input)).string();
+    return EditorPathUtilities::resolveEditorPath(fs::path(input)).string();
 }
 
 void Editor::clangFormatVisualSelection()
@@ -1770,7 +1316,8 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     // Normalize path (CRITICAL for buffer matching). Resolve relative paths
     // against the editor's logical working directory instead of changing the
     // process-wide current directory.
-    fs::path requestedPath = resolve_editor_path(fs::path(std::string(fname)));
+    fs::path requestedPath =
+        EditorPathUtilities::resolveEditorPath(fs::path(std::string(fname)));
     std::string path = requestedPath.string();
     try
     {
@@ -1857,7 +1404,8 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
         {
             if(enabled)
                 return;
-            std::string resolved = resolve_executable_path(path);
+            std::string resolved =
+                EditorPathUtilities::resolveExecutablePath(path);
             if(resolved.empty())
                 return;
             enableFn(true, resolved, args);
@@ -2059,7 +1607,8 @@ bool Editor::formatBufferForSave()
     if(isFileType<FileType::Mla>())
         return mlangFormatBuffer();
     if(isFileType<FileType::Cpp>() ||
-       (filename && !filename->empty() && isHeaderFile(*filename)))
+       (filename && !filename->empty() &&
+        CppNavigationUtilities::isHeaderFile(*filename)))
         return clangFormatWithArgs("", "clang-format: formatted file");
     return false;
 }
@@ -2191,104 +1740,6 @@ void Editor::autoIndentRange(int startLine, int endLine)
     indentController->autoIndentRange(startLine, endLine);
 }
 
-// Helper function to extract include path from a line
-static std::pair<std::string, bool> extractIncludePath(const std::string& line)
-{
-    // Returns: {includePath, isSystemInclude}
-    // isSystemInclude = true for <>, false for ""
-
-    size_t includePos = line.find("#include");
-    if(includePos == std::string::npos)
-        return {"", false};
-
-    // Find the opening delimiter after #include
-    size_t pos = includePos + 8; // skip "#include"
-    while(pos < line.length() && std::isspace(line[pos]))
-        pos++;
-
-    if(pos >= line.length())
-        return {"", false};
-
-    bool isSystem = false;
-    char openDelim = line[pos];
-    char closeDelim;
-
-    if(openDelim == '<')
-    {
-        isSystem = true;
-        closeDelim = '>';
-    }
-    else if(openDelim == '"')
-    {
-        isSystem = false;
-        closeDelim = '"';
-    }
-    else
-    {
-        return {"", false};
-    }
-
-    pos++; // skip opening delimiter
-    size_t start = pos;
-    size_t end = line.find(closeDelim, pos);
-
-    if(end == std::string::npos)
-        return {"", false};
-
-    return {line.substr(start, end - start), isSystem};
-}
-
-// Helper function to resolve system include path
-static std::string resolveSystemInclude(const std::string& includeName)
-{
-    // Common system include paths (will be searched in order)
-    std::vector<std::string> systemPaths;
-
-    // Try to get paths from clang/g++ compiler
-    // This is a heuristic approach that works on most systems
-
-#ifdef __APPLE__
-    // macOS with Xcode
-    systemPaths = {
-        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/"
-        "Developer/SDKs/MacOSX.sdk/usr/include/c++/v1",
-        "/Applications/Xcode.app/Contents/Developer/Toolchains/"
-        "XcodeDefault.xctoolchain/usr/lib/clang/17/include",
-        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/"
-        "Developer/SDKs/MacOSX.sdk/usr/include",
-        "/usr/local/include",
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/"
-        "v1",
-        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-    };
-#else
-    // Linux/Unix
-    systemPaths = {
-        "/usr/include/c++/13",
-        "/usr/include/c++/12",
-        "/usr/include/c++/11",
-        "/usr/include/x86_64-linux-gnu/c++/13",
-        "/usr/include/x86_64-linux-gnu/c++/12",
-        "/usr/include/x86_64-linux-gnu/c++/11",
-        "/usr/include",
-        "/usr/local/include",
-    };
-#endif
-
-    // Search for the file in system paths
-    for(const auto& basePath : systemPaths)
-    {
-        std::string fullPath = basePath + "/" + includeName;
-        std::error_code ec;
-        if(fs::exists(fullPath, ec) && !ec)
-        {
-            return fullPath;
-        }
-    }
-
-    return "";
-}
-
 void Editor::goToDefinition()
 {
     const std::string gdArrow = ascii::utf8(ascii::RIGHT_ARROW_PADDED);
@@ -2297,7 +1748,8 @@ void Editor::goToDefinition()
     if(*cursorY >= 0 && *cursorY < (int)lines->size())
     {
         const std::string& currentLine = (*lines)[*cursorY];
-        auto [includePath, isSystem] = extractIncludePath(currentLine);
+        auto [includePath, isSystem] =
+            CppNavigationUtilities::extractIncludePath(currentLine);
 
         if(!includePath.empty())
         {
@@ -2306,7 +1758,8 @@ void Editor::goToDefinition()
             if(isSystem)
             {
                 // System include: search in system paths
-                resolvedPath = resolveSystemInclude(includePath);
+                resolvedPath =
+                    CppNavigationUtilities::resolveSystemInclude(includePath);
             }
             else
             {
@@ -2375,10 +1828,11 @@ void Editor::goToDefinition()
     {
         const std::string& line = (*lines)[*cursorY];
         int x = *cursorX;
-        if(x >= 0 && x < (int)line.size() && isIdent(line[x]))
+        if(x >= 0 && x < (int)line.size() &&
+           CppNavigationUtilities::isIdent(line[x]))
         {
             int l = x;
-            while(l > 0 && isIdent(line[l - 1]))
+            while(l > 0 && CppNavigationUtilities::isIdent(line[l - 1]))
                 l--;
             if(l >= 5 && line.compare(l - 5, 5, "std::") == 0)
             {
@@ -2393,7 +1847,8 @@ void Editor::goToDefinition()
         std::string headerName = stdlib_goto::headerForSymbol(symbol);
         if(!headerName.empty())
         {
-            std::string header = resolveSystemInclude(headerName);
+            std::string header =
+                CppNavigationUtilities::resolveSystemInclude(headerName);
             if(!header.empty())
             {
                 pushJumpLocation();
@@ -2707,19 +2162,20 @@ void Editor::goToDefinition()
             int pos = *cursorX;
             if(pos >= (int)lineView.size())
                 pos = (int)lineView.size() - 1;
-            if(pos >= 0 && !isIdent(lineView[pos]) && pos > 0 &&
-               isIdent(lineView[pos - 1]))
+            if(pos >= 0 && !CppNavigationUtilities::isIdent(lineView[pos]) &&
+               pos > 0 && CppNavigationUtilities::isIdent(lineView[pos - 1]))
             {
                 pos--;
             }
-            if(pos >= 0 && isIdent(lineView[pos]))
+            if(pos >= 0 && CppNavigationUtilities::isIdent(lineView[pos]))
             {
                 int symStart = pos;
                 int symEnd = pos;
-                while(symStart > 0 && isIdent(lineView[symStart - 1]))
+                while(symStart > 0 &&
+                      CppNavigationUtilities::isIdent(lineView[symStart - 1]))
                     --symStart;
                 while(symEnd + 1 < (int)lineView.size() &&
-                      isIdent(lineView[symEnd + 1]))
+                      CppNavigationUtilities::isIdent(lineView[symEnd + 1]))
                     ++symEnd;
 
                 int before = symStart - 1;
@@ -2734,7 +2190,8 @@ void Editor::goToDefinition()
                           text_utils::is_space(lineView[baseEnd]))
                         --baseEnd;
                     int baseStart = baseEnd;
-                    while(baseStart >= 0 && isIdent(lineView[baseStart]))
+                    while(baseStart >= 0 &&
+                          CppNavigationUtilities::isIdent(lineView[baseStart]))
                         --baseStart;
                     ++baseStart;
                     if(baseStart <= baseEnd)
@@ -3382,8 +2839,8 @@ void Editor::goToDefinition()
         {
             int defY = -1;
             int defX = 0;
-            if(searchLocalDefinition(*lines, symbol, *cursorY, *cursorX, defY,
-                                     defX))
+            if(CppNavigationUtilities::searchLocalDefinition(
+                   *lines, symbol, *cursorY, *cursorX, defY, defX))
             {
                 if(defY != *cursorY || defX != *cursorX)
                 {
@@ -3397,7 +2854,8 @@ void Editor::goToDefinition()
                     return;
                 }
             }
-            if(searchMemberDefinition(*lines, symbol, defY, defX))
+            if(CppNavigationUtilities::searchMemberDefinition(*lines, symbol,
+                                                              defY, defX))
             {
                 pushJumpLocation();
                 *cursorY = defY;
@@ -3481,15 +2939,17 @@ void Editor::goToDefinition()
     {
         const std::string& line = (*lines)[*cursorY];
         int x = *cursorX;
-        if(x >= 0 && x < (int)line.size() && isIdent(line[x]))
+        if(x >= 0 && x < (int)line.size() &&
+           CppNavigationUtilities::isIdent(line[x]))
         {
             int l = x;
-            while(l > 0 && isIdent(line[l - 1]))
+            while(l > 0 && CppNavigationUtilities::isIdent(line[l - 1]))
                 l--;
 
             if(l >= 5 && line.compare(l - 5, 5, "std::") == 0)
             {
-                std::string header = resolveSystemInclude(symbol);
+                std::string header =
+                    CppNavigationUtilities::resolveSystemInclude(symbol);
                 if(!header.empty())
                 {
                     pushJumpLocation();
@@ -3510,7 +2970,8 @@ void Editor::goToDefinition()
 
     // 1️⃣ First: Search for LOCAL variable/parameter declaration (backwards from
     // cursor) This handles local variables and function parameters
-    if(searchLocalDefinition(*lines, symbol, *cursorY, *cursorX, y, x))
+    if(CppNavigationUtilities::searchLocalDefinition(*lines, symbol, *cursorY,
+                                                     *cursorX, y, x))
     {
         // Make sure we're not jumping to ourselves
         if(y != *cursorY || x != *cursorX)
@@ -3526,7 +2987,7 @@ void Editor::goToDefinition()
     }
 
     // 2️⃣ Search for member variable in current file (class/struct members)
-    if(searchMemberDefinition(*lines, symbol, y, x))
+    if(CppNavigationUtilities::searchMemberDefinition(*lines, symbol, y, x))
     {
         if(y != *cursorY || x != *cursorX)
         {
@@ -4495,7 +3956,8 @@ void Editor::executeCommand(std::string_view cmd)
             return;
         }
         if(isFileType<FileType::Cpp>() ||
-           (filename && !filename->empty() && isHeaderFile(*filename)))
+           (filename && !filename->empty() &&
+            CppNavigationUtilities::isHeaderFile(*filename)))
         {
             clangFormatWithArgs("", "clang-format: formatted file");
             return;
@@ -4880,7 +4342,7 @@ void Editor::executeCommand(std::string_view cmd)
         }
         if(cmd == "pwd")
         {
-            fs::path cwd = get_editor_working_directory();
+            fs::path cwd = EditorPathUtilities::currentWorkingDirectory();
             if(!cwd.empty())
                 setStatusMessage(cwd.string());
             else
@@ -4897,8 +4359,8 @@ void Editor::executeCommand(std::string_view cmd)
 
             std::string displayPath;
             std::string errorMessage;
-            if(set_editor_working_directory(projectRoot, displayPath,
-                                            errorMessage))
+            if(EditorPathUtilities::setWorkingDirectory(
+                   projectRoot, displayPath, errorMessage))
                 setStatusMessage(displayPath);
             else
                 setStatusMessage("Cannot change to: " + projectRoot + " (" +
@@ -4910,11 +4372,12 @@ void Editor::executeCommand(std::string_view cmd)
             std::string path =
                 (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
             if(path.empty())
-                path = get_home_directory().string();
+                path = EditorPathUtilities::homeDirectory().string();
 
             std::string displayPath;
             std::string errorMessage;
-            if(set_editor_working_directory(path, displayPath, errorMessage))
+            if(EditorPathUtilities::setWorkingDirectory(path, displayPath,
+                                                        errorMessage))
                 setStatusMessage(displayPath);
             else
                 setStatusMessage("Cannot change to: " + path + " (" +
@@ -5284,7 +4747,7 @@ void Editor::executeCommand(std::string_view cmd)
     }
     else if(cmd == "pwd")
     {
-        fs::path cwd = get_editor_working_directory();
+        fs::path cwd = EditorPathUtilities::currentWorkingDirectory();
         if(!cwd.empty())
             setStatusMessage(cwd.string());
         else
@@ -5300,7 +4763,8 @@ void Editor::executeCommand(std::string_view cmd)
 
         std::string displayPath;
         std::string errorMessage;
-        if(set_editor_working_directory(projectRoot, displayPath, errorMessage))
+        if(EditorPathUtilities::setWorkingDirectory(projectRoot, displayPath,
+                                                    errorMessage))
             setStatusMessage(displayPath);
         else
             setStatusMessage("Cannot change to: " + projectRoot + " (" +
@@ -5310,11 +4774,12 @@ void Editor::executeCommand(std::string_view cmd)
     {
         std::string path = (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
         if(path.empty())
-            path = get_home_directory().string();
+            path = EditorPathUtilities::homeDirectory().string();
 
         std::string displayPath;
         std::string errorMessage;
-        if(set_editor_working_directory(path, displayPath, errorMessage))
+        if(EditorPathUtilities::setWorkingDirectory(path, displayPath,
+                                                    errorMessage))
             setStatusMessage(displayPath);
         else
             setStatusMessage("Cannot change to: " + path + " (" + errorMessage +
@@ -5357,156 +4822,12 @@ void Editor::forceQuit()
     std::exit(0);
 }
 
-// ----- clangd completion popup helpers -----
-
-static bool isIdentChar(char c)
-{
-    return std::isalnum((unsigned char)c) || c == '_';
-}
-
-// Very small snippet “desugaring”: turns clangd snippets into plain insert
-// text.
-// - removes $0, $1 ...
-// - turns ${1:foo} -> foo
-// - removes ${1}
-static std::string stripSnippet(const std::string& s)
-{
-    std::string out;
-    out.reserve(s.size());
-    for(size_t i = 0; i < s.size(); ++i)
-    {
-        char c = s[i];
-        if(c != '$')
-        {
-            out.push_back(c);
-            continue;
-        }
-
-        if(i + 1 >= s.size())
-            continue;
-
-        char n = s[i + 1];
-        if(std::isdigit((unsigned char)n))
-        {
-            // $0, $1 ...
-            i += 1;
-            while(i + 1 < s.size() && std::isdigit((unsigned char)s[i + 1]))
-                i++;
-            continue;
-        }
-
-        if(n == '{')
-        {
-            // ${1:foo} or ${1}
-            size_t end = s.find('}', i + 2);
-            if(end == std::string::npos)
-                continue;
-
-            std::string inner = s.substr(i + 2, end - (i + 2));
-            // inner might be "1:foo" or "1"
-            size_t colon = inner.find(':');
-            if(colon != std::string::npos)
-            {
-                out += inner.substr(colon + 1);
-            }
-            // else: just a placeholder number → ignore
-            i = end;
-            continue;
-        }
-
-        // Unknown $-sequence → drop '$' and keep the next char
-        // (so "$$" becomes "$", etc.)
-        out.push_back(n);
-        i += 1;
-    }
-    return out;
-}
-
-static inline void appendUtf8Repeat(std::string& out, const char* glyph,
-                                    int count)
-{
-    for(int i = 0; i < count; ++i)
-        out += glyph;
-}
-
-static inline bool isAnsiStart(const std::string& s, size_t i)
-{
-    return i + 1 < s.size() && s[i] == '\x1b' && s[i + 1] == '[';
-}
-
-static inline size_t skipAnsi(const std::string& s, size_t i)
-{
-    // Skip ESC[ ... <letter>
-    i += 2;
-    while(i < s.size())
-    {
-        char c = s[i++];
-        if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-            break;
-    }
-    return i;
-}
-
-// Approximate terminal display width.
-// - strips ANSI escapes
-// - counts UTF-8 codepoints as width 1 (good enough for our popup)
-static inline int displayWidth(const std::string& s)
-{
-    int w = 0;
-    for(size_t i = 0; i < s.size();)
-    {
-        if(isAnsiStart(s, i))
-        {
-            i = skipAnsi(s, i);
-            continue;
-        }
-
-        unsigned char c = (unsigned char)s[i];
-        if(c < 0x80)
-        {
-            ++w;
-            ++i;
-            continue;
-        }
-
-        // UTF-8: skip continuation bytes
-        if((c & 0xE0) == 0xC0)
-            i += 2;
-        else if((c & 0xF0) == 0xE0)
-            i += 3;
-        else if((c & 0xF8) == 0xF0)
-            i += 4;
-        else
-            ++i;
-        ++w;
-    }
-    return w;
-}
-
 std::string Editor::getAlternateFilePath()
 {
     if(!currentBuffer || currentBuffer->filename.empty())
         return "";
 
     return findAlternateFile(currentBuffer->filename);
-}
-
-bool isLikelyDefinition(const std::string& line, const std::string& symbol)
-{
-    // skip comments
-    size_t commentPos = line.find("//");
-    std::string effectiveLine =
-        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
-
-    // name(
-    if(effectiveLine.find(symbol + "(") != std::string::npos)
-        return true;
-
-    // Class::name(
-    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
-        return true;
-
-    return false;
 }
 
 void Editor::createNewBuffer()
@@ -5590,7 +4911,7 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
     for(int y = 0; y < buf->lines.size(); ++y)
     {
         const std::string& line = buf->lines[y];
-        if(isLikelyDefinition(line, symbol))
+        if(CppNavigationUtilities::isLikelyDefinition(line, symbol))
         {
             size_t pos = line.find(symbol);
             if(pos != std::string::npos)
@@ -5602,250 +4923,6 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
         }
     }
     return false;
-}
-
-static std::string collect_signature_line(const std::vector<std::string>& lines,
-                                          int startY, int maxLines)
-{
-    if(startY < 0 || startY >= (int)lines.size())
-        return "";
-    std::string out = trim_ascii_ws(lines[startY]);
-    if(out.find('(') == std::string::npos)
-        return out;
-    if(out.find(')') != std::string::npos || out.find('{') != std::string::npos)
-        return out;
-
-    for(int i = 1; i <= maxLines && startY + i < (int)lines.size(); ++i)
-    {
-        std::string chunk = trim_ascii_ws(lines[startY + i]);
-        if(chunk.empty())
-            continue;
-        out += " " + chunk;
-        if(chunk.find(')') != std::string::npos ||
-           chunk.find('{') != std::string::npos ||
-           chunk.find(';') != std::string::npos)
-        {
-            break;
-        }
-    }
-    return out;
-}
-
-static std::string extract_initializer_type_candidate(std::string_view rhs)
-{
-    rhs = trim_view(rhs);
-    if(rhs.empty())
-        return "";
-    if(!rhs.empty() && rhs.back() == ';')
-        rhs.remove_suffix(1);
-    rhs = trim_view(rhs);
-    if(rhs.empty())
-        return "";
-
-    int depth = 0;
-    std::string token;
-    token.reserve(rhs.size());
-    for(size_t i = 0; i < rhs.size(); ++i)
-    {
-        char c = rhs[i];
-        if(c == '<')
-            depth++;
-        else if(c == '>')
-            depth = std::max(0, depth - 1);
-        if(depth == 0 && (c == '(' || c == '{' || c == ';'))
-            break;
-        token.push_back(c);
-    }
-    return trim_ascii_ws(token);
-}
-
-static bool is_control_statement(std::string_view line)
-{
-    line = trim_view(line);
-    auto starts = [&](std::string_view kw)
-    {
-        if(!line.starts_with(kw))
-            return false;
-        if(line.size() == kw.size())
-            return true;
-        char next = line[kw.size()];
-        return text_utils::is_space(next) || next == '(';
-    };
-    return starts("if") || starts("for") || starts("while") ||
-           starts("switch") || starts("return") || starts("throw") ||
-           starts("catch") || starts("else");
-}
-
-static bool find_declaration_in_lines(const std::vector<std::string>& lines,
-                                      const std::string& symbol, int& outY,
-                                      int& outX)
-{
-    if(symbol.empty())
-        return false;
-    for(int y = 0; y < (int)lines.size(); ++y)
-    {
-        const std::string& line = lines[y];
-        if(line.find(symbol) == std::string::npos)
-            continue;
-        if(is_control_statement(line))
-            continue;
-
-        size_t pos = 0;
-        while((pos = line.find(symbol, pos)) != std::string::npos)
-        {
-            bool leftOk = true;
-            if(pos > 0)
-            {
-                char prev = line[pos - 1];
-                if(isIdent(prev) || prev == '.' || prev == '>' || prev == '*')
-                {
-                    leftOk = false;
-                }
-                else if(prev == ':' && (pos < 2 || line[pos - 2] != ':'))
-                {
-                    leftOk = false;
-                }
-            }
-            if(!leftOk)
-            {
-                pos += symbol.size();
-                continue;
-            }
-            size_t after = pos + symbol.size();
-            if(after < line.size() && isIdent(line[after]))
-            {
-                pos += symbol.size();
-                continue;
-            }
-            while(after < line.size() &&
-                  std::isspace((unsigned char)line[after]))
-            {
-                ++after;
-            }
-            if(after >= line.size() || line[after] != '(')
-            {
-                pos += symbol.size();
-                continue;
-            }
-            outY = y;
-            outX = (int)pos;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool load_file_lines(const std::string& path,
-                            std::vector<std::string>& out)
-{
-    std::ifstream in(path);
-    if(!in.is_open())
-        return false;
-    out.clear();
-    std::string line;
-    while(std::getline(in, line))
-    {
-        if(!line.empty() && line.back() == '\r')
-            line.pop_back();
-        out.push_back(line);
-    }
-    if(out.empty())
-        out.push_back("");
-    return true;
-}
-
-static std::string last_qualifier(std::string_view text)
-{
-    std::string s(text);
-    while(s.size() >= 2 && s.substr(s.size() - 2) == "::")
-        s.resize(s.size() - 2);
-    size_t pos = s.rfind("::");
-    if(pos != std::string::npos)
-        s = s.substr(pos + 2);
-    return s;
-}
-
-static std::string extract_type_before_name(const std::string& line,
-                                            const std::string& name)
-{
-    if(name.empty())
-        return "";
-    size_t pos = line.find(name);
-    while(pos != std::string::npos)
-    {
-        bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
-        size_t end = pos + name.size();
-        bool rightOk = (end >= line.size()) || !isIdent(line[end]);
-        if(leftOk && rightOk)
-            break;
-        pos = line.find(name, pos + name.size());
-    }
-    if(pos == std::string::npos)
-        return "";
-
-    int i = (int)pos - 1;
-    auto is_skip = [](char c)
-    { return c == ' ' || c == '\t' || c == '*' || c == '&'; };
-    while(i >= 0 && is_skip(line[i]))
-        --i;
-
-    auto skip_template = [&](int& idx)
-    {
-        if(idx < 0 || line[idx] != '>')
-            return;
-        int depth = 0;
-        while(idx >= 0)
-        {
-            char c = line[idx];
-            if(c == '>')
-                depth++;
-            else if(c == '<')
-            {
-                depth--;
-                if(depth == 0)
-                {
-                    --idx;
-                    return;
-                }
-            }
-            --idx;
-        }
-    };
-
-    std::string qualifiers[] = {"const",    "volatile",  "mutable",
-                                "static",   "constexpr", "inline",
-                                "typename", "class",     "struct"};
-
-    while(i >= 0)
-    {
-        while(i >= 0 && is_skip(line[i]))
-            --i;
-        skip_template(i);
-        while(i >= 0 && is_skip(line[i]))
-            --i;
-        if(i < 0)
-            break;
-
-        int end = i;
-        while(i >= 0 && (isIdent(line[i]) || line[i] == ':'))
-            --i;
-        if(end < 0 || end < i + 1)
-            break;
-        std::string token = line.substr((size_t)i + 1, (size_t)(end - i));
-        bool isQualifier = false;
-        for(const auto& q : qualifiers)
-        {
-            if(token == q)
-            {
-                isQualifier = true;
-                break;
-            }
-        }
-        if(isQualifier)
-            continue;
-        return token;
-    }
-    return "";
 }
 
 void Editor::openSymbolPopupForCursor()
@@ -5871,10 +4948,11 @@ void Editor::openSymbolPopupForCursor()
     {
         const std::string& line = (*lines)[*cursorY];
         int x = *cursorX;
-        if(x >= 0 && x < (int)line.size() && isIdent(line[x]))
+        if(x >= 0 && x < (int)line.size() &&
+           CppNavigationUtilities::isIdent(line[x]))
         {
             int l = x;
-            while(l > 0 && isIdent(line[l - 1]))
+            while(l > 0 && CppNavigationUtilities::isIdent(line[l - 1]))
                 l--;
             int p = l - 1;
             while(p >= 0 && std::isspace((unsigned char)line[p]))
@@ -5886,7 +4964,8 @@ void Editor::openSymbolPopupForCursor()
                 while(end >= 0 && std::isspace((unsigned char)line[end]))
                     --end;
                 int start = end;
-                while(start >= 0 && isIdent(line[start]))
+                while(start >= 0 &&
+                      CppNavigationUtilities::isIdent(line[start]))
                     --start;
                 if(end >= 0)
                     memberObject =
@@ -5899,7 +4978,8 @@ void Editor::openSymbolPopupForCursor()
                 while(end >= 0 && std::isspace((unsigned char)line[end]))
                     --end;
                 int start = end;
-                while(start >= 0 && isIdent(line[start]))
+                while(start >= 0 &&
+                      CppNavigationUtilities::isIdent(line[start]))
                     --start;
                 if(end >= 0)
                     memberObject =
@@ -5916,10 +4996,11 @@ void Editor::openSymbolPopupForCursor()
             return "";
         int y = -1;
         int x = 0;
-        if(find_declaration_in_lines(currentLines, funcName, y, x))
+        if(SymbolPopupUtilities::findDeclarationInLines(currentLines, funcName,
+                                                        y, x))
         {
-            std::string type =
-                extract_type_before_name(currentLines[y], funcName);
+            std::string type = SymbolPopupUtilities::extractTypeBeforeName(
+                currentLines[y], funcName);
             if(!type.empty())
                 return type;
         }
@@ -5928,12 +5009,14 @@ void Editor::openSymbolPopupForCursor()
         if(!alternate.empty())
         {
             std::vector<std::string> altLines;
-            if(load_file_lines(alternate, altLines))
+            if(SymbolPopupUtilities::loadFileLines(alternate, altLines))
             {
-                if(find_declaration_in_lines(altLines, funcName, y, x))
+                if(SymbolPopupUtilities::findDeclarationInLines(altLines,
+                                                                funcName, y, x))
                 {
                     std::string type =
-                        extract_type_before_name(altLines[y], funcName);
+                        SymbolPopupUtilities::extractTypeBeforeName(altLines[y],
+                                                                    funcName);
                     if(!type.empty())
                         return type;
                 }
@@ -5942,23 +5025,27 @@ void Editor::openSymbolPopupForCursor()
 
         if(candidate.rfind("std::", 0) == 0)
         {
-            std::string base = last_qualifier(candidate.substr(5));
+            std::string base =
+                SymbolPopupUtilities::lastQualifier(candidate.substr(5));
             std::string header = stdlib_goto::headerForSymbol(base);
             if(header.empty())
                 header = stdlib_goto::headerForSymbol(funcName);
             if(!header.empty())
             {
-                std::string headerPath = resolveSystemInclude(header);
+                std::string headerPath =
+                    CppNavigationUtilities::resolveSystemInclude(header);
                 if(!headerPath.empty())
                 {
                     std::vector<std::string> headerLines;
-                    if(load_file_lines(headerPath, headerLines))
+                    if(SymbolPopupUtilities::loadFileLines(headerPath,
+                                                           headerLines))
                     {
-                        if(find_declaration_in_lines(headerLines, funcName, y,
-                                                     x))
+                        if(SymbolPopupUtilities::findDeclarationInLines(
+                               headerLines, funcName, y, x))
                         {
-                            std::string type = extract_type_before_name(
-                                headerLines[y], funcName);
+                            std::string type =
+                                SymbolPopupUtilities::extractTypeBeforeName(
+                                    headerLines[y], funcName);
                             if(!type.empty())
                                 return type;
                         }
@@ -5978,10 +5065,11 @@ void Editor::openSymbolPopupForCursor()
         if(eq == std::string::npos)
             return "";
         std::string_view rhs = std::string_view(declLine).substr(eq + 1);
-        std::string candidate = extract_initializer_type_candidate(rhs);
+        std::string candidate =
+            SymbolPopupUtilities::extractInitializerTypeCandidate(rhs);
         if(candidate.empty())
             return "";
-        std::string funcName = last_qualifier(candidate);
+        std::string funcName = SymbolPopupUtilities::lastQualifier(candidate);
         std::string type =
             resolve_return_type_for_function(funcName, candidate, currentLines);
         if(!type.empty())
@@ -5993,13 +5081,14 @@ void Editor::openSymbolPopupForCursor()
     {
         int objY = -1;
         int objX = 0;
-        if(searchLocalDefinition(*lines, memberObject, *cursorY, *cursorX, objY,
-                                 objX) ||
-           searchMemberDefinition(*lines, memberObject, objY, objX))
+        if(CppNavigationUtilities::searchLocalDefinition(
+               *lines, memberObject, *cursorY, *cursorX, objY, objX) ||
+           CppNavigationUtilities::searchMemberDefinition(*lines, memberObject,
+                                                          objY, objX))
         {
             std::string declLine = (*lines)[objY];
-            std::string typeToken =
-                extract_type_before_name(declLine, memberObject);
+            std::string typeToken = SymbolPopupUtilities::extractTypeBeforeName(
+                declLine, memberObject);
             if(typeToken == "auto")
             {
                 typeToken =
@@ -6007,21 +5096,25 @@ void Editor::openSymbolPopupForCursor()
             }
             if(!typeToken.empty())
             {
-                std::string base = last_qualifier(typeToken);
+                std::string base =
+                    SymbolPopupUtilities::lastQualifier(typeToken);
                 std::string header = stdlib_goto::headerForSymbol(base);
                 if(!header.empty())
                 {
-                    std::string headerPath = resolveSystemInclude(header);
+                    std::string headerPath =
+                        CppNavigationUtilities::resolveSystemInclude(header);
                     if(!headerPath.empty())
                     {
                         std::vector<std::string> headerLines;
-                        if(load_file_lines(headerPath, headerLines))
+                        if(SymbolPopupUtilities::loadFileLines(headerPath,
+                                                               headerLines))
                         {
-                            if(find_declaration_in_lines(headerLines, symbol,
-                                                         defY, defX))
+                            if(SymbolPopupUtilities::findDeclarationInLines(
+                                   headerLines, symbol, defY, defX))
                             {
-                                signature = collect_signature_line(headerLines,
-                                                                   defY, 3);
+                                signature =
+                                    SymbolPopupUtilities::collectSignatureLine(
+                                        headerLines, defY, 3);
                             }
                         }
                     }
@@ -6032,23 +5125,25 @@ void Editor::openSymbolPopupForCursor()
 
     if(signature.empty() && symbolPrefix.rfind("std::", 0) == 0)
     {
-        std::string base = last_qualifier(symbolPrefix.substr(5));
+        std::string base =
+            SymbolPopupUtilities::lastQualifier(symbolPrefix.substr(5));
         std::string header = stdlib_goto::headerForSymbol(base);
         if(header.empty())
             header = stdlib_goto::headerForSymbol(symbol);
         if(!header.empty())
         {
-            std::string headerPath = resolveSystemInclude(header);
+            std::string headerPath =
+                CppNavigationUtilities::resolveSystemInclude(header);
             if(!headerPath.empty())
             {
                 std::vector<std::string> headerLines;
-                if(load_file_lines(headerPath, headerLines))
+                if(SymbolPopupUtilities::loadFileLines(headerPath, headerLines))
                 {
-                    if(find_declaration_in_lines(headerLines, symbol, defY,
-                                                 defX))
+                    if(SymbolPopupUtilities::findDeclarationInLines(
+                           headerLines, symbol, defY, defX))
                     {
-                        signature =
-                            collect_signature_line(headerLines, defY, 3);
+                        signature = SymbolPopupUtilities::collectSignatureLine(
+                            headerLines, defY, 3);
                     }
                 }
             }
@@ -6061,28 +5156,35 @@ void Editor::openSymbolPopupForCursor()
         if(!alternate.empty())
         {
             std::vector<std::string> altLines;
-            if(load_file_lines(alternate, altLines))
+            if(SymbolPopupUtilities::loadFileLines(alternate, altLines))
             {
-                if(find_declaration_in_lines(altLines, symbol, defY, defX))
-                    signature = collect_signature_line(altLines, defY, 3);
+                if(SymbolPopupUtilities::findDeclarationInLines(
+                       altLines, symbol, defY, defX))
+                    signature = SymbolPopupUtilities::collectSignatureLine(
+                        altLines, defY, 3);
             }
         }
     }
 
     if(signature.empty())
     {
-        if(find_declaration_in_lines(*lines, symbol, defY, defX))
+        if(SymbolPopupUtilities::findDeclarationInLines(*lines, symbol, defY,
+                                                        defX))
         {
-            signature = collect_signature_line(*lines, defY, 3);
+            signature =
+                SymbolPopupUtilities::collectSignatureLine(*lines, defY, 3);
         }
-        else if(searchMemberDefinition(*lines, symbol, defY, defX))
+        else if(CppNavigationUtilities::searchMemberDefinition(*lines, symbol,
+                                                               defY, defX))
         {
-            signature = collect_signature_line(*lines, defY, 1);
+            signature =
+                SymbolPopupUtilities::collectSignatureLine(*lines, defY, 1);
         }
-        else if(searchLocalDefinition(*lines, symbol, *cursorY, *cursorX, defY,
-                                      defX))
+        else if(CppNavigationUtilities::searchLocalDefinition(
+                    *lines, symbol, *cursorY, *cursorX, defY, defX))
         {
-            signature = collect_signature_line(*lines, defY, 1);
+            signature =
+                SymbolPopupUtilities::collectSignatureLine(*lines, defY, 1);
         }
     }
 

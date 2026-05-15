@@ -68,6 +68,7 @@ set(UVIM_CORE_SOURCES
     src/editor_lsp_controller.cpp
     src/editor_mode_controller.cpp
     src/editor_operator_controller.cpp
+    src/editor_path_utilities.cpp
     src/editor_settings_controller.cpp
     src/editor_split_controller.cpp
     src/editor_visual_controller.cpp
@@ -114,7 +115,10 @@ set(UVIM_CORE_SOURCES
     src/undo_redo.cpp
     src/drawing.cpp
     src/lsp_completion.cpp
+    src/cpp_navigation_utilities.cpp
     src/mlang_utilities.cpp
+    src/robot_utilities.cpp
+    src/symbol_popup_utilities.cpp
     src/cpp_constants.cpp
     src/editor_references_controller.cpp
     src/stdlib_goto.cpp
