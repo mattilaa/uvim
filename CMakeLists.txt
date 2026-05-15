@@ -114,6 +114,7 @@ set(UVIM_CORE_SOURCES
     src/undo_redo.cpp
     src/drawing.cpp
     src/lsp_completion.cpp
+    src/mlang_utilities.cpp
     src/cpp_constants.cpp
     src/editor_references_controller.cpp
     src/stdlib_goto.cpp

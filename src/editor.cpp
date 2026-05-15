@@ -20,6 +20,7 @@
 #include "formatter.h"
 #include "git_handler.h"
 #include "gitignore.h"
+#include "mlang_utilities.h"
 #include "mode_state_machine.h"
 #include "stdlib_goto.h"
 #include "syntax_highlighter.h"
@@ -260,525 +261,6 @@ static bool set_editor_working_directory(const fs::path& input,
     }
 
     displayPath = normalized.string();
-    return true;
-}
-
-static bool find_mlang_builtin_type(std::string_view symbol, std::string& path,
-                                    int& line)
-{
-    std::vector<std::filesystem::path> roots;
-    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
-        roots.emplace_back(env);
-    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
-        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
-    if(const char* home = std::getenv("HOME"))
-        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
-    roots.emplace_back("/usr/local/share/mlang/stdlib");
-    roots.emplace_back("/usr/share/mlang/stdlib");
-
-    std::string needle = std::string(symbol);
-    std::string needleLower = ascii_lower(symbol);
-
-    for(const auto& root : roots)
-    {
-        if(root.empty())
-            continue;
-        std::filesystem::path p = root / "types.mla";
-        std::error_code ec;
-        if(!std::filesystem::exists(p, ec))
-            continue;
-        std::ifstream in(p);
-        if(!in)
-            continue;
-        std::string lineStr;
-        int lineNo = 0;
-        while(std::getline(in, lineStr))
-        {
-            ++lineNo;
-            const std::string marker = "// @builtin ";
-            if(lineStr.rfind(marker, 0) != 0)
-                continue;
-            std::string name = lineStr.substr(marker.size());
-            if(name.empty())
-                continue;
-            if(name == needle || ascii_lower(name) == needleLower)
-            {
-                path = p.string();
-                line = lineNo - 1;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-static bool find_mlang_builtin_macro(std::string_view symbol, std::string& path,
-                                     int& line)
-{
-    std::vector<std::filesystem::path> roots;
-    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
-        roots.emplace_back(env);
-    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
-        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
-    if(const char* home = std::getenv("HOME"))
-        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
-    roots.emplace_back("/usr/local/share/mlang/stdlib");
-    roots.emplace_back("/usr/share/mlang/stdlib");
-
-    std::string needle = std::string(symbol);
-    std::string needleLower = ascii_lower(symbol);
-
-    for(const auto& root : roots)
-    {
-        if(root.empty())
-            continue;
-        std::filesystem::path p = root / "macros.mla";
-        std::error_code ec;
-        if(!std::filesystem::exists(p, ec))
-            continue;
-        std::ifstream in(p);
-        if(!in)
-            continue;
-        std::string lineStr;
-        int lineNo = 0;
-        while(std::getline(in, lineStr))
-        {
-            ++lineNo;
-            const std::string marker = "// @builtin_macro ";
-            if(lineStr.rfind(marker, 0) != 0)
-                continue;
-            std::string name = lineStr.substr(marker.size());
-            if(name.empty())
-                continue;
-            if(name == needle || ascii_lower(name) == needleLower)
-            {
-                path = p.string();
-                line = lineNo - 1;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-static bool find_mlang_builtin_attribute(std::string_view symbol,
-                                         std::string& path, int& line)
-{
-    std::vector<std::filesystem::path> roots;
-    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
-        roots.emplace_back(env);
-    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
-        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
-    if(const char* home = std::getenv("HOME"))
-        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
-    roots.emplace_back("/usr/local/share/mlang/stdlib");
-    roots.emplace_back("/usr/share/mlang/stdlib");
-
-    std::string needle = std::string(symbol);
-    std::string needleLower = ascii_lower(symbol);
-
-    for(const auto& root : roots)
-    {
-        if(root.empty())
-            continue;
-        std::filesystem::path p = root / "attributes.mla";
-        std::error_code ec;
-        if(!std::filesystem::exists(p, ec))
-            continue;
-        std::ifstream in(p);
-        if(!in)
-            continue;
-        std::string lineStr;
-        int lineNo = 0;
-        while(std::getline(in, lineStr))
-        {
-            ++lineNo;
-            const std::string marker = "// @builtin_attribute ";
-            if(lineStr.rfind(marker, 0) != 0)
-                continue;
-            std::string name = lineStr.substr(marker.size());
-            if(name.empty())
-                continue;
-            if(name == needle || ascii_lower(name) == needleLower)
-            {
-                path = p.string();
-                line = lineNo - 1;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-static bool find_mlang_builtin_function(std::string_view symbol,
-                                        std::string& path, int& line,
-                                        std::string_view contextFilePath = {})
-{
-    std::vector<std::filesystem::path> roots;
-    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
-        roots.emplace_back(env);
-    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
-        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
-    if(const char* home = std::getenv("HOME"))
-        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
-    roots.emplace_back("/usr/local/share/mlang/stdlib");
-    roots.emplace_back("/usr/share/mlang/stdlib");
-
-    std::string needle = std::string(symbol);
-    std::string needleLower = ascii_lower(symbol);
-
-    for(const auto& root : roots)
-    {
-        if(root.empty())
-            continue;
-        std::filesystem::path p = root / "test.mla";
-        std::error_code ec;
-        if(!std::filesystem::exists(p, ec))
-            continue;
-        std::ifstream in(p);
-        if(!in)
-            continue;
-        std::string lineStr;
-        int lineNo = 0;
-        while(std::getline(in, lineStr))
-        {
-            ++lineNo;
-            const std::string marker = "// @builtin_fn ";
-            if(lineStr.rfind(marker, 0) != 0)
-                continue;
-            std::string name = lineStr.substr(marker.size());
-            if(name.empty())
-                continue;
-            std::string base = name;
-            auto sep = base.rfind("::");
-            if(sep != std::string::npos && sep + 2 < base.size())
-                base = base.substr(sep + 2);
-            if(name == needle || ascii_lower(name) == needleLower ||
-               base == needle || ascii_lower(base) == needleLower)
-            {
-                path = p.string();
-                line = lineNo - 1;
-                return true;
-            }
-        }
-    }
-
-    auto is_ident_char = [](char c) -> bool
-    {
-        unsigned char u = static_cast<unsigned char>(c);
-        return std::isalnum(u) || c == '_';
-    };
-
-    auto match_stub_extern = [&](std::string_view lineView) -> bool
-    {
-        static constexpr std::string_view kPrefix = "extern fn ";
-        size_t pos = lineView.find(kPrefix);
-        if(pos == std::string_view::npos)
-            return false;
-        pos += kPrefix.size();
-        while(pos < lineView.size() && text_utils::is_space(lineView[pos]))
-            ++pos;
-        size_t start = pos;
-        while(pos < lineView.size() && is_ident_char(lineView[pos]))
-            ++pos;
-        if(pos <= start)
-            return false;
-        std::string fn(lineView.substr(start, pos - start));
-        return fn == needle || ascii_lower(fn) == needleLower;
-    };
-
-    std::vector<std::filesystem::path> searchDirs;
-    std::unordered_set<std::string> seenDirs;
-    auto add_dir = [&](const std::filesystem::path& dir)
-    {
-        if(dir.empty())
-            return;
-        std::error_code ec;
-        std::filesystem::path canon =
-            std::filesystem::weakly_canonical(dir, ec);
-        std::string key = (ec ? dir : canon).string();
-        if(key.empty() || seenDirs.find(key) != seenDirs.end())
-            return;
-        seenDirs.insert(key);
-        searchDirs.push_back(ec ? dir : canon);
-    };
-
-    if(!contextFilePath.empty())
-    {
-        std::filesystem::path dir =
-            std::filesystem::path(std::string(contextFilePath)).parent_path();
-        while(!dir.empty())
-        {
-            add_dir(dir);
-            std::filesystem::path parent = dir.parent_path();
-            if(parent == dir)
-                break;
-            dir = parent;
-        }
-    }
-
-    {
-        std::error_code ec;
-        add_dir(std::filesystem::current_path(ec));
-    }
-
-    for(const auto& dir : searchDirs)
-    {
-        const std::array<std::filesystem::path, 1> candidates = {
-            dir / "docs" / "runtime_builtins.mlastub",
-        };
-
-        for(const auto& p : candidates)
-        {
-            std::error_code ec;
-            if(!std::filesystem::exists(p, ec))
-                continue;
-            std::ifstream in(p);
-            if(!in)
-                continue;
-            std::string lineStr;
-            int lineNo = 0;
-            while(std::getline(in, lineStr))
-            {
-                ++lineNo;
-                bool matched = match_stub_extern(lineStr);
-                if(matched)
-                {
-                    path = p.string();
-                    line = lineNo - 1;
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
-}
-
-static bool
-find_mlang_top_level_def_in_lines(const std::vector<std::string>& lines,
-                                  std::string_view symbol, int& outY, int& outX)
-{
-    auto is_ident_char = [](char c) -> bool
-    {
-        unsigned char u = static_cast<unsigned char>(c);
-        return std::isalnum(u) || c == '_';
-    };
-
-    auto parse_ident_after = [&](const std::string& line, size_t start,
-                                 std::string_view kw) -> std::optional<int>
-    {
-        if(start + kw.size() > line.size())
-            return std::nullopt;
-        if(line.compare(start, kw.size(), kw) != 0)
-            return std::nullopt;
-        size_t i = start + kw.size();
-        while(i < line.size() && text_utils::is_space(line[i]))
-            ++i;
-        if(i >= line.size() || !is_ident_char(line[i]))
-            return std::nullopt;
-        size_t nameStart = i;
-        while(i < line.size() && is_ident_char(line[i]))
-            ++i;
-        std::string_view name(line.data() + nameStart, i - nameStart);
-        if(name == symbol)
-            return static_cast<int>(nameStart);
-        return std::nullopt;
-    };
-
-    for(int y = 0; y < (int)lines.size(); ++y)
-    {
-        const std::string& line = lines[(size_t)y];
-        size_t i = 0;
-        while(i < line.size() && text_utils::is_space(line[i]))
-            ++i;
-
-        std::optional<int> x = parse_ident_after(line, i, "pub struct ");
-        if(!x)
-            x = parse_ident_after(line, i, "struct ");
-        if(!x)
-            x = parse_ident_after(line, i, "pub enum ");
-        if(!x)
-            x = parse_ident_after(line, i, "enum ");
-        if(!x)
-            x = parse_ident_after(line, i, "pub fn ");
-        if(!x)
-            x = parse_ident_after(line, i, "fn ");
-        if(x)
-        {
-            outY = y;
-            outX = *x;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static std::string mlang_module_rel_path(std::string_view modulePath)
-{
-    std::string rel;
-    rel.reserve(modulePath.size());
-    for(size_t i = 0; i < modulePath.size(); ++i)
-    {
-        char c = modulePath[i];
-        if(c == ':' && i + 1 < modulePath.size() && modulePath[i + 1] == ':')
-        {
-            rel.push_back('/');
-            ++i;
-            continue;
-        }
-        rel.push_back(c);
-    }
-    return rel;
-}
-
-static std::vector<std::filesystem::path> mlang_stdlib_roots()
-{
-    std::vector<std::filesystem::path> roots;
-    if(const char* env = std::getenv("MLANG_STDLIB_PATH"))
-        roots.emplace_back(env);
-    if(const char* xdg = std::getenv("XDG_DATA_HOME"))
-        roots.emplace_back(std::string(xdg) + "/mlang/stdlib");
-    if(const char* home = std::getenv("HOME"))
-        roots.emplace_back(std::string(home) + "/.local/share/mlang/stdlib");
-    roots.emplace_back("/usr/local/share/mlang/stdlib");
-    roots.emplace_back("/usr/share/mlang/stdlib");
-    return roots;
-}
-
-static bool resolve_mlang_module_file(std::string_view modulePath,
-                                      std::string_view contextFilePath,
-                                      std::string& outPath)
-{
-    outPath.clear();
-    if(modulePath.empty())
-        return false;
-
-    std::string rel = mlang_module_rel_path(modulePath);
-    auto try_candidate = [&](const std::filesystem::path& p) -> bool
-    {
-        std::error_code ec;
-        if(!std::filesystem::exists(p, ec) || ec)
-            return false;
-        outPath = p.string();
-        return true;
-    };
-
-    auto add_base = [](std::vector<std::filesystem::path>& bases,
-                       std::unordered_set<std::string>& seen,
-                       const std::filesystem::path& base)
-    {
-        if(base.empty())
-            return;
-        std::error_code ec;
-        auto canon = std::filesystem::weakly_canonical(base, ec);
-        std::string key = (ec ? base : canon).string();
-        if(key.empty() || seen.find(key) != seen.end())
-            return;
-        seen.insert(key);
-        bases.push_back(ec ? base : canon);
-    };
-
-    if(modulePath.rfind("std::", 0) == 0)
-    {
-        for(const auto& root : mlang_stdlib_roots())
-        {
-            if(root.empty())
-                continue;
-            if(try_candidate(root / (rel + ".mla")))
-                return true;
-            if(try_candidate(root / rel / "mod.mla"))
-                return true;
-        }
-    }
-
-    std::vector<std::filesystem::path> bases;
-    std::unordered_set<std::string> seen;
-    if(!contextFilePath.empty())
-    {
-        std::filesystem::path dir =
-            std::filesystem::path(std::string(contextFilePath)).parent_path();
-        while(!dir.empty())
-        {
-            add_base(bases, seen, dir);
-            std::filesystem::path parent = dir.parent_path();
-            if(parent == dir)
-                break;
-            dir = parent;
-        }
-    }
-    {
-        std::error_code ec;
-        add_base(bases, seen, std::filesystem::current_path(ec));
-    }
-
-    for(const auto& base : bases)
-    {
-        if(try_candidate(base / (rel + ".mla")))
-            return true;
-        if(try_candidate(base / rel / "mod.mla"))
-            return true;
-    }
-    return false;
-}
-
-static bool mlang_module_decl_under_cursor(std::string_view line, int cursorX,
-                                           std::string& modulePath)
-{
-    modulePath.clear();
-    if(cursorX < 0 || line.empty())
-        return false;
-
-    auto is_ident_char = [](char c) -> bool
-    {
-        unsigned char u = static_cast<unsigned char>(c);
-        return std::isalnum(u) || c == '_';
-    };
-
-    size_t i = 0;
-    while(i < line.size() && text_utils::is_space(line[i]))
-        ++i;
-    if(i + 3 > line.size() || line.compare(i, 3, "mod") != 0)
-        return false;
-    if(i + 3 < line.size() && !text_utils::is_space(line[i + 3]))
-        return false;
-    i += 3;
-    while(i < line.size() && text_utils::is_space(line[i]))
-        ++i;
-    if(i >= line.size())
-        return false;
-
-    size_t pathStart = i;
-    bool cursorInSegment = false;
-    while(i < line.size())
-    {
-        if(!is_ident_char(line[i]))
-            return false;
-        size_t segStart = i;
-        while(i < line.size() && is_ident_char(line[i]))
-            ++i;
-        size_t segEnd = i;
-        if(cursorX >= (int)segStart && cursorX < (int)segEnd)
-            cursorInSegment = true;
-
-        if(i + 1 < line.size() && line[i] == ':' && line[i + 1] == ':')
-        {
-            i += 2;
-            continue;
-        }
-        break;
-    }
-
-    size_t pathEnd = i;
-    while(i < line.size() && text_utils::is_space(line[i]))
-        ++i;
-    if(i < line.size() && line[i] != ';')
-        return false;
-
-    if(!cursorInSegment || pathEnd <= pathStart)
-        return false;
-    modulePath.assign(line.substr(pathStart, pathEnd - pathStart));
     return true;
 }
 
@@ -1775,7 +1257,7 @@ std::string Editor::testResolveMlangModule(const std::string& fromFile,
                                            std::string_view modulePath)
 {
     std::string out;
-    if(resolve_mlang_module_file(modulePath, fromFile, out))
+    if(MlangUtilities::resolveModuleFile(modulePath, fromFile, out))
         return out;
     return {};
 }
@@ -2369,9 +1851,9 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(notifyLspOnOpen)
     {
-        auto ensure_lsp =
-            [&](bool enabled, const std::string& path,
-                const std::vector<std::string>& args, auto enableFn)
+        auto ensure_lsp = [&](bool enabled, const std::string& path,
+                              const std::vector<std::string>& args,
+                              auto enableFn)
         {
             if(enabled)
                 return;
@@ -2470,8 +1952,7 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
             }
             pythonLspClient->didChange(path, text, "python");
         }
-        if(isMlangLspEnabled() && isFileType<FileType::Mla>() &&
-           mlangLspClient)
+        if(isMlangLspEnabled() && isFileType<FileType::Mla>() && mlangLspClient)
         {
             std::string text;
             text.reserve(lines->size() * 80);
@@ -3543,10 +3024,11 @@ void Editor::goToDefinition()
         {
             const std::string& line = (*lines)[*cursorY];
             std::string modulePath;
-            if(mlang_module_decl_under_cursor(line, *cursorX, modulePath))
+            if(MlangUtilities::moduleDeclUnderCursor(line, *cursorX,
+                                                     modulePath))
             {
                 std::string moduleFile;
-                if(resolve_mlang_module_file(
+                if(MlangUtilities::resolveModuleFile(
                        modulePath, currentBuffer->filename, moduleFile))
                 {
                     pushJumpLocation();
@@ -3814,7 +3296,8 @@ void Editor::goToDefinition()
         {
             std::string builtinPath;
             int builtinLine = 0;
-            if(find_mlang_builtin_type(symbol, builtinPath, builtinLine))
+            if(MlangUtilities::findBuiltinType(symbol, builtinPath,
+                                               builtinLine))
             {
                 pushJumpLocation();
                 openFile(builtinPath);
@@ -3833,7 +3316,7 @@ void Editor::goToDefinition()
             std::string macroSym = symbol;
             if(!macroSym.empty() && macroSym.back() == '!')
                 macroSym.pop_back();
-            if(find_mlang_builtin_macro(macroSym, macroPath, macroLine))
+            if(MlangUtilities::findBuiltinMacro(macroSym, macroPath, macroLine))
             {
                 pushJumpLocation();
                 openFile(macroPath);
@@ -3849,7 +3332,7 @@ void Editor::goToDefinition()
             }
             std::string attrPath;
             int attrLine = 0;
-            if(find_mlang_builtin_attribute(symbol, attrPath, attrLine))
+            if(MlangUtilities::findBuiltinAttribute(symbol, attrPath, attrLine))
             {
                 pushJumpLocation();
                 openFile(attrPath);
@@ -3864,8 +3347,8 @@ void Editor::goToDefinition()
             }
             std::string fnPath;
             int fnLine = 0;
-            if(find_mlang_builtin_function(symbol, fnPath, fnLine,
-                                           currentBuffer->filename))
+            if(MlangUtilities::findBuiltinFunction(symbol, fnPath, fnLine,
+                                                   currentBuffer->filename))
             {
                 pushJumpLocation();
                 openFile(fnPath);
@@ -3883,7 +3366,8 @@ void Editor::goToDefinition()
         {
             int defY = -1;
             int defX = 0;
-            if(find_mlang_top_level_def_in_lines(*lines, symbol, defY, defX))
+            if(MlangUtilities::findTopLevelDefInLines(*lines, symbol, defY,
+                                                      defX))
             {
                 pushJumpLocation();
                 *cursorY = defY;
@@ -4438,6 +3922,7 @@ void Editor::refreshScreen()
     lastCommandHistoryPopupActive = commandHistorySearchActive;
     needsFullRedraw = false;
 }
+
 void Editor::updateCursorPosition(bool flushNow)
 {
     int cursorRow, cursorCol;
@@ -6622,6 +6107,7 @@ void Editor::closeSymbolPopup()
     symbolPopupCursorY = -1;
     symbolPopupText.clear();
 }
+
 void Editor::run()
 {
     //    setStatusMessage("Welcome to uVim!");
@@ -6651,6 +6137,7 @@ void Editor::run()
         draw();
     }
 }
+
 void Editor::insertTab()
 {
     editingController->insertTab();
