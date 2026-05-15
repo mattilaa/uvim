@@ -60,6 +60,7 @@ set(UVIM_CORE_SOURCES
     src/editor.cpp
     src/editor_buffer_controller.cpp
     src/editor_command_controller.cpp
+    src/editor_cursor_controller.cpp
     src/editor_editing_controller.cpp
     src/editor_file_controller.cpp
     src/editor_git_controller.cpp
@@ -100,7 +101,6 @@ set(UVIM_CORE_SOURCES
     src/editor_utils.cpp
     src/editor_mode_controller_handlers.cpp
     src/editor_lsp_info.cpp
-    src/cursor_movement.cpp
     src/text_operations.cpp
     src/search.cpp
     src/formatter.cpp

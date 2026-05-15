@@ -35,6 +35,7 @@ class EditorCommandController;
 class EditorEditingController;
 class EditorFileController;
 class EditorGitController;
+class EditorCursorController;
 class EditorIndentController;
 class EditorLspController;
 class EditorModeController;
@@ -924,6 +925,7 @@ private:
     friend class EditorEditingController;
     friend class EditorFileController;
     friend class EditorGitController;
+    friend class EditorCursorController;
     friend class EditorIndentController;
     friend class EditorLspController;
     friend class EditorModeController;
@@ -1138,6 +1140,7 @@ private:
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorCursorController> cursorController;
     std::unique_ptr<EditorEditingController> editingController;
     std::unique_ptr<EditorFileController> fileController;
     std::unique_ptr<EditorGitController> gitController;

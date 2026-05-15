@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
+#include "editor_cursor_controller.h"
 #include "editor_editing_controller.h"
 #include "editor_file_controller.h"
 #include "editor_git_controller.h"
@@ -1679,6 +1680,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
@@ -1709,6 +1711,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
@@ -2616,10 +2619,7 @@ void Editor::jumpToAlternateFile()
     fileController->jumpToAlternateFile();
 }
 
-// Movement implementations
-
-// Cursor movement methods (moveLeft through moveToMatchingBracket) are now in
-// cursor_movement.cpp
+// Movement implementations are delegated to EditorCursorController.
 
 bool Editor::isWordChar(char c) const
 {
@@ -4088,8 +4088,6 @@ void Editor::goToDefinition()
                      "' not found (curY=" + std::to_string(*cursorY) +
                      " curX=" + std::to_string(*cursorX) + ")");
 }
-
-// adjustViewport and centerScreen are now in cursor_movement.cpp
 
 void Editor::refreshScreen()
 {
@@ -6870,6 +6868,201 @@ void Editor::dedentLineSelection()
 void Editor::autoIndentLineSelection()
 {
     visualController->autoIndentLineSelection();
+}
+
+void Editor::moveLeft(int count)
+{
+    cursorController->moveLeft(count);
+}
+
+void Editor::moveRight(int count)
+{
+    cursorController->moveRight(count);
+}
+
+void Editor::moveUp(int count)
+{
+    cursorController->moveUp(count);
+}
+
+void Editor::moveDown(int count)
+{
+    cursorController->moveDown(count);
+}
+
+void Editor::moveWordForward()
+{
+    cursorController->moveWordForward();
+}
+
+void Editor::moveWordBackward()
+{
+    cursorController->moveWordBackward();
+}
+
+void Editor::moveToEndOfWord()
+{
+    cursorController->moveToEndOfWord();
+}
+
+void Editor::moveToLineStart()
+{
+    cursorController->moveToLineStart();
+}
+
+void Editor::moveToLineEnd()
+{
+    cursorController->moveToLineEnd();
+}
+
+void Editor::moveToFirstLine()
+{
+    cursorController->moveToFirstLine();
+}
+
+void Editor::moveToLastLine()
+{
+    cursorController->moveToLastLine();
+}
+
+void Editor::moveToLine(int line)
+{
+    cursorController->moveToLine(line);
+}
+
+void Editor::pushJumpLocation()
+{
+    cursorController->pushJumpLocation();
+}
+
+void Editor::jumpForward()
+{
+    cursorController->jumpForward();
+}
+
+void Editor::jumpBack()
+{
+    cursorController->jumpBack();
+}
+
+void Editor::restoreJumpLocation(const JumpLocation& loc)
+{
+    cursorController->restoreJumpLocation(loc);
+}
+
+void Editor::scrollHalfPageDown(bool visual)
+{
+    cursorController->scrollHalfPageDown(visual);
+}
+
+void Editor::scrollHalfPageUp(bool visual)
+{
+    cursorController->scrollHalfPageUp(visual);
+}
+
+void Editor::moveToMatchingBracket()
+{
+    cursorController->moveToMatchingBracket();
+}
+
+void Editor::findCharForward(char c)
+{
+    cursorController->findCharForward(c);
+}
+
+void Editor::findCharBackward(char c)
+{
+    cursorController->findCharBackward(c);
+}
+
+void Editor::moveToFirstNonBlank()
+{
+    cursorController->moveToFirstNonBlank();
+}
+
+void Editor::moveParagraphForward()
+{
+    cursorController->moveParagraphForward();
+}
+
+void Editor::moveParagraphBackward()
+{
+    cursorController->moveParagraphBackward();
+}
+
+void Editor::moveWordForwardBig()
+{
+    cursorController->moveWordForwardBig();
+}
+
+void Editor::moveWordBackwardBig()
+{
+    cursorController->moveWordBackwardBig();
+}
+
+void Editor::moveToEndOfWordBig()
+{
+    cursorController->moveToEndOfWordBig();
+}
+
+void Editor::findCharForwardBefore(char c)
+{
+    cursorController->findCharForwardBefore(c);
+}
+
+void Editor::findCharBackwardAfter(char c)
+{
+    cursorController->findCharBackwardAfter(c);
+}
+
+void Editor::scrollToTop()
+{
+    cursorController->scrollToTop();
+}
+
+void Editor::scrollToBottom()
+{
+    cursorController->scrollToBottom();
+}
+
+void Editor::scrollPageUp()
+{
+    cursorController->scrollPageUp();
+}
+
+void Editor::scrollPageDown()
+{
+    cursorController->scrollPageDown();
+}
+
+void Editor::moveToScreenTop()
+{
+    cursorController->moveToScreenTop();
+}
+
+void Editor::moveToScreenMiddle()
+{
+    cursorController->moveToScreenMiddle();
+}
+
+void Editor::moveToScreenBottom()
+{
+    cursorController->moveToScreenBottom();
+}
+
+void Editor::adjustViewport()
+{
+    cursorController->adjustViewport();
+}
+
+void Editor::adjustViewportForPane(PaneState& pane, int rows, int cols)
+{
+    cursorController->adjustViewportForPane(pane, rows, cols);
+}
+
+void Editor::centerScreen()
+{
+    cursorController->centerScreen();
 }
 
 void Editor::setMark(char mark)
