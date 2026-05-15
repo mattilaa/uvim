@@ -5066,6 +5066,11 @@ void Editor::executeCommand(std::string_view cmd)
         }
         return;
     }
+    if(trimmedCmd == "rfs")
+    {
+        refreshFileSearchCaches();
+        return;
+    }
     if(trimmedCmd == "git add")
     {
         if(gitHandler)
@@ -5844,6 +5849,23 @@ void Editor::executeCommand(std::string_view cmd)
             setStatusMessage("Not an editor command: " + std::string(cmd));
         }
     }
+}
+
+void Editor::refreshFileSearchCaches()
+{
+    grepProjectFiles.clear();
+    grepFileIndexInitialized = false;
+
+    if(modeStateMachine)
+    {
+        if(auto* fuzzy = modeStateMachine->getState<FuzzyFindMode>())
+            fuzzy->refreshFileIndex(*this);
+        if(auto* grep = modeStateMachine->getState<GrepSearchMode>())
+            grep->refreshFileIndex(*this);
+    }
+
+    setStatusMessage("File search cache refreshed");
+    needsFullRedraw = true;
 }
 
 void Editor::forceQuit()

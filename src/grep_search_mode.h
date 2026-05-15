@@ -32,6 +32,7 @@ struct GrepSearchMode
     bool searching = false;
     bool caseSensitive = false;
     bool previewEnabled = false;
+    std::unordered_set<int> selectedMatches;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -39,8 +40,10 @@ struct GrepSearchMode
     std::optional<ModeState> handle(ModeContext& ctx, int key);
 
     void draw(Editor& editor) const;
+    void refreshFileIndex(Editor& editor);
 
 private:
+    void loadFileIndex(Editor& editor);
     void initialize(Editor& editor);
     void performSearch(Editor& editor);
     void searchInFile(const std::string& filepath, std::string_view query);
@@ -58,4 +61,6 @@ private:
     void searchClear();
     void toggleGitignore(Editor& editor);
     void togglePreview();
+    void toggleSelection();
+    bool openSelected(Editor& editor);
 };

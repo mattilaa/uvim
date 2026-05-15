@@ -137,6 +137,7 @@ void FuzzyFindMode::on_enter(ModeContext& ctx)
     query.clear();
     cursor = 0;
     offset = 0;
+    selectedFiles.clear();
     updateMatches(*ed);
     ed->needsFullRedraw = true;
 
@@ -163,16 +164,19 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx, int key)
 
     if(c == keyCode(control::ControlKey::ENTER))
     {
-        if(select(*ed))
+        if(!selectedFiles.empty() ? openSelected(*ed) : select(*ed))
         {
             return defaultExitMode(ed);
         }
         return std::nullopt;
     }
 
-    if(c == keyCode(control::ControlKey::CTRL_N) ||
-       c == keyCode(control::ControlKey::CTRL_J) ||
-       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(control::ControlKey::CTRL_N))
+    {
+        toggleSelection();
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_J) ||
+            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         moveDown(*ed);
     }
@@ -248,8 +252,8 @@ void FuzzyFindMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [Enter: open] [Esc: cancel] [Ctrl+J/K: navigate] [Ctrl+I: "
-              "gitignore]";
+    output += "  [Enter: open] [Esc: cancel] [Ctrl+N: select] "
+              "[Ctrl+J/K: navigate] [Ctrl+I: gitignore]";
     output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
@@ -289,6 +293,10 @@ void FuzzyFindMode::draw(Editor& editor) const
         output += "[git index off]";
         output += editor.theme.baseFg();
     }
+    if(!selectedFiles.empty())
+    {
+        output += " (" + std::to_string(selectedFiles.size()) + " selected)";
+    }
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 3;
@@ -299,10 +307,21 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         int index = i + offset;
         const FuzzyMatch& match = matches[index];
+        bool isSelected = selectedFiles.count(match.file.path) > 0;
 
-        if(index == cursor)
+        if(index == cursor && isSelected)
+        {
+            output += "\x1b[48;2;56;120;72m";
+            output += editor.theme.baseFg();
+        }
+        else if(index == cursor)
         {
             output += editor.theme.selection();
+        }
+        else if(isSelected)
+        {
+            output += "\x1b[48;2;24;64;36m";
+            output += editor.theme.baseFg();
         }
 
         output += "  ";
@@ -489,6 +508,7 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
 void FuzzyFindMode::updateMatches(Editor& editor)
 {
     matches.clear();
+    selectedFiles.clear();
 
     if(query.empty())
     {
@@ -652,6 +672,29 @@ void FuzzyFindMode::toggleGitignore(Editor& editor)
     updateMatches(editor);
 }
 
+void FuzzyFindMode::refreshFileIndex(Editor& editor)
+{
+    projectFilesInitialized = false;
+    initializeFiles(editor);
+    cursor = 0;
+    offset = 0;
+    selectedFiles.clear();
+    updateMatches(editor);
+}
+
+void FuzzyFindMode::toggleSelection()
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return;
+
+    const std::string& path = matches[cursor].file.path;
+    auto it = selectedFiles.find(path);
+    if(it != selectedFiles.end())
+        selectedFiles.erase(it);
+    else
+        selectedFiles.insert(path);
+}
+
 bool FuzzyFindMode::select(Editor& editor)
 {
     if(cursor < 0 || cursor >= (int)matches.size())
@@ -659,5 +702,21 @@ bool FuzzyFindMode::select(Editor& editor)
 
     const FuzzyMatch& match = matches[cursor];
     editor.openFile(std::string_view(match.file.path));
+    return true;
+}
+
+bool FuzzyFindMode::openSelected(Editor& editor)
+{
+    if(selectedFiles.empty())
+        return false;
+
+    std::vector<std::string> paths(selectedFiles.begin(), selectedFiles.end());
+    std::sort(paths.begin(), paths.end());
+    for(size_t i = 0; i < paths.size(); ++i)
+    {
+        bool notifyLsp = (i + 1 == paths.size());
+        editor.openFile(std::string_view(paths[i]), notifyLsp);
+    }
+    selectedFiles.clear();
     return true;
 }

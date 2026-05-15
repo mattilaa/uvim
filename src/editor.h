@@ -773,6 +773,7 @@ public:
     // File operations
     void saveFile();
     void executeCommand(std::string_view cmd);
+    void refreshFileSearchCaches();
     void forceQuit();
     std::string getAlternateFilePath();
     void checkFileChanges();

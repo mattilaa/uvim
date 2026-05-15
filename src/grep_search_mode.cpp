@@ -131,7 +131,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 
     if(c == keyCode(control::ControlKey::ENTER))
     {
-        if(selectMatch(*ed))
+        if(!selectedMatches.empty() ? openSelected(*ed) : selectMatch(*ed))
         {
             return defaultExitMode(ed);
         }
@@ -142,7 +142,11 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Navigation through results
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(control::ControlKey::CTRL_J) ||
+    if(c == keyCode(control::ControlKey::CTRL_N))
+    {
+        toggleSelection();
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         resultDown(*ed);
@@ -238,7 +242,7 @@ void GrepSearchMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [Enter: open] [Esc: cancel] [" +
+    output += "  [Enter: open] [Esc: cancel] [Ctrl+N: select] [" +
               ascii::utf8(ascii::UP_DOWN_ARROWS) +
               ": navigate] [Ctrl+I: gitignore]";
     output += editor.theme.baseFg();
@@ -261,6 +265,10 @@ void GrepSearchMode::draw(Editor& editor) const
     {
         output += " [gitignore]";
     }
+    if(!selectedMatches.empty())
+    {
+        output += " (" + std::to_string(selectedMatches.size()) + " selected)";
+    }
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 3;
@@ -271,10 +279,21 @@ void GrepSearchMode::draw(Editor& editor) const
 
         int index = i + offset;
         const GrepMatch& match = matches[index];
+        bool isSelected = selectedMatches.count(index) > 0;
 
-        if(index == cursor)
+        if(index == cursor && isSelected)
+        {
+            output += "\x1b[48;2;56;120;72m";
+            output += editor.theme.baseFg();
+        }
+        else if(index == cursor)
         {
             output += editor.theme.selection();
+        }
+        else if(isSelected)
+        {
+            output += "\x1b[48;2;24;64;36m";
+            output += editor.theme.baseFg();
         }
 
         output += "  ";
@@ -372,7 +391,7 @@ void GrepSearchMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
-void GrepSearchMode::initialize(Editor& editor)
+void GrepSearchMode::loadFileIndex(Editor& editor)
 {
     if(!editor.grepFileIndexInitialized)
     {
@@ -451,14 +470,36 @@ void GrepSearchMode::initialize(Editor& editor)
         }
         editor.grepFileIndexInitialized = true;
     }
+}
 
+void GrepSearchMode::initialize(Editor& editor)
+{
+    loadFileIndex(editor);
     searchClear();
     searching = false;
+}
+
+void GrepSearchMode::refreshFileIndex(Editor& editor)
+{
+    editor.grepFileIndexInitialized = false;
+    editor.grepProjectFiles.clear();
+    loadFileIndex(editor);
+    cursor = 0;
+    offset = 0;
+    selectedMatches.clear();
+    if(query.empty())
+    {
+        matches.clear();
+        searching = false;
+        return;
+    }
+    performSearch(editor);
 }
 
 void GrepSearchMode::performSearch(Editor& editor)
 {
     matches.clear();
+    selectedMatches.clear();
     searching = true;
 
     if(query.empty())
@@ -739,6 +780,7 @@ void GrepSearchMode::searchClear()
 {
     query.clear();
     matches.clear();
+    selectedMatches.clear();
     cursor = 0;
     offset = 0;
 }
@@ -755,4 +797,72 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
 void GrepSearchMode::togglePreview()
 {
     previewEnabled = !previewEnabled;
+}
+
+void GrepSearchMode::toggleSelection()
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return;
+
+    auto it = selectedMatches.find(cursor);
+    if(it != selectedMatches.end())
+        selectedMatches.erase(it);
+    else
+        selectedMatches.insert(cursor);
+}
+
+bool GrepSearchMode::openSelected(Editor& editor)
+{
+    if(selectedMatches.empty())
+        return false;
+
+    std::vector<int> indexes;
+    indexes.reserve(selectedMatches.size());
+    for(int index : selectedMatches)
+    {
+        if(index >= 0 && index < (int)matches.size())
+            indexes.push_back(index);
+    }
+    if(indexes.empty())
+        return false;
+
+    std::sort(indexes.begin(), indexes.end());
+    std::vector<std::string> openedPaths;
+    openedPaths.reserve(indexes.size());
+    for(int index : indexes)
+    {
+        const std::string& path = matches[index].filepath;
+        if(std::find(openedPaths.begin(), openedPaths.end(), path) ==
+           openedPaths.end())
+            openedPaths.push_back(path);
+    }
+
+    GrepMatch finalMatch = matches[indexes.back()];
+    for(auto it = openedPaths.begin(); it != openedPaths.end();)
+    {
+        if(*it == finalMatch.filepath)
+            it = openedPaths.erase(it);
+        else
+            ++it;
+    }
+    openedPaths.push_back(finalMatch.filepath);
+
+    for(size_t i = 0; i < openedPaths.size(); ++i)
+    {
+        bool notifyLsp = (i + 1 == openedPaths.size());
+        editor.openFile(std::string_view(openedPaths[i]), notifyLsp);
+    }
+
+    *editor.cursorY = finalMatch.lineNumber - 1;
+    if(*editor.cursorY >= (int)editor.lines->size())
+        *editor.cursorY = editor.lines->size() - 1;
+    if(*editor.cursorY < 0)
+        *editor.cursorY = 0;
+    *editor.cursorX = 0;
+    editor.searchQuery = query;
+    editor.findAllMatches();
+    editor.centerScreen();
+
+    selectedMatches.clear();
+    return true;
 }
