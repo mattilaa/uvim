@@ -533,6 +533,52 @@ TEST(RealModeTransitionsTest, CompletionTrimsLeadingSpaceAfterDot)
     EXPECT_EQ(*editor.cursorX, 23);
 }
 
+TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideCall)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"outer(ca)"};
+    *editor.cursorX = 8;
+    *editor.cursorY = 0;
+
+    CompletionEntry e;
+    e.label = "callee()";
+    editor.completionAll = {e};
+    editor.completionFiltered = {0};
+    editor.completionSelected = 0;
+    editor.completionActive = true;
+    editor.completionAnchorX = 6;
+    editor.completionAnchorY = 0;
+
+    editor.acceptCompletion();
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "outer(callee())");
+    EXPECT_EQ(*editor.cursorX, 13);
+}
+
+TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideIfCondition)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"if (rea)"};
+    *editor.cursorX = 7;
+    *editor.cursorY = 0;
+
+    CompletionEntry e;
+    e.label = "ready()";
+    editor.completionAll = {e};
+    editor.completionFiltered = {0};
+    editor.completionSelected = 0;
+    editor.completionActive = true;
+    editor.completionAnchorX = 4;
+    editor.completionAnchorY = 0;
+
+    editor.acceptCompletion();
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "if (ready())");
+    EXPECT_EQ(*editor.cursorX, 10);
+}
+
 TEST(RealModeTransitionsTest, FormatOnSaveCallsFormatterHookWhenEnabled)
 {
     Editor editor = Editor::createForTests();

@@ -73,6 +73,41 @@ static std::string stripSnippet(const std::string& s)
     return out;
 }
 
+static bool cursorIsInsideDelimitedExpression(std::string_view left)
+{
+    int parenDepth = 0;
+    int bracketDepth = 0;
+    for(char ch : left)
+    {
+        if(ch == '(')
+            ++parenDepth;
+        else if(ch == ')' && parenDepth > 0)
+            --parenDepth;
+        else if(ch == '[')
+            ++bracketDepth;
+        else if(ch == ']' && bracketDepth > 0)
+            --bracketDepth;
+    }
+    return parenDepth > 0 || bracketDepth > 0;
+}
+
+static bool completionCallShouldEndStatement(const std::string& line,
+                                             int cursorPos)
+{
+    cursorPos = std::clamp(cursorPos, 0, (int)line.size());
+    if(cursorIsInsideDelimitedExpression(
+           std::string_view(line).substr(0, (size_t)cursorPos)))
+        return false;
+
+    for(int i = cursorPos; i < (int)line.size(); ++i)
+    {
+        if(line[i] != ' ' && line[i] != '\t')
+            return false;
+    }
+
+    return true;
+}
+
 static std::string mlangBuiltinDetail(std::string_view label)
 {
     if(label == "int")
@@ -1108,13 +1143,15 @@ void Editor::acceptCompletion()
     if(functionLike)
     {
         int cursorPos = *cursorX;
+        bool appendSemicolon =
+            completionCallShouldEndStatement(mutableLine, cursorPos);
         if(cursorPos < (int)mutableLine.size() && mutableLine[cursorPos] == '(')
         {
             cursorPos += 1;
         }
         else
         {
-            mutableLine.insert(cursorPos, "();");
+            mutableLine.insert(cursorPos, appendSemicolon ? "();" : "()");
             cursorPos += 1;
         }
 
@@ -1139,7 +1176,7 @@ void Editor::acceptCompletion()
                     break;
                 }
             }
-            if(!hasNonSpaceAfter)
+            if(appendSemicolon && !hasNonSpaceAfter)
             {
                 if(closePos + 1 >= (int)mutableLine.size() ||
                    mutableLine[closePos + 1] != ';')
