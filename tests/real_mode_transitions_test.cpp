@@ -1360,6 +1360,61 @@ TEST(RealModeTransitionsTest, BufferBrowserCtrlXLastBufferReturnsWelcome)
 
     EXPECT_TRUE(editor.buffers.empty());
     EXPECT_FALSE(editor.hasBuffer());
+    EXPECT_EQ(editor.currentMode, WELCOME);
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
+TEST(RealModeTransitionsTest, BufferBrowserCtrlShiftXClosesSearchedBuffers)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.cpp";
+    editor.currentBuffer->lines = {"one"};
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.h";
+    editor.currentBuffer->lines = {"one header"};
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "two.cpp";
+    editor.currentBuffer->lines = {"two"};
+    editor.switchToBuffer(2);
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+    ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+
+    sm.dispatch('o');
+    sm.dispatch('n');
+    sm.dispatch('e');
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_X));
+
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_EQ(editor.currentBuffer->filename, "two.cpp");
+    EXPECT_STREQ(sm.currentStateName(), "BUFFERS");
+}
+
+TEST(RealModeTransitionsTest, BufferBrowserCtrlShiftXAllMatchesReturnsWelcome)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.cpp";
+    editor.currentBuffer->lines = {"one"};
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.h";
+    editor.currentBuffer->lines = {"one header"};
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+    ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+
+    sm.dispatch('o');
+    sm.dispatch('n');
+    sm.dispatch('e');
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_X));
+
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_FALSE(editor.hasBuffer());
+    EXPECT_EQ(editor.currentMode, WELCOME);
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
 

@@ -785,6 +785,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `j/k`      - Navigate",
             "  `Enter`    - Open",
             "  `Ctrl-x`   - Close selected buffer",
+            "  `Ctrl-Shift-x` - Close searched buffers",
             "  `q`        - Quit",
         };
     }

@@ -37,6 +37,12 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx, int key)
         if(!ed->hasBuffer())
             return defaultExitMode(ed);
     }
+    if(c == keyCode(control::ControlKey::SHIFT_CTRL_X))
+    {
+        closeMatchedBuffers(*ed);
+        if(!ed->hasBuffer())
+            return defaultExitMode(ed);
+    }
 
     if(c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
@@ -141,7 +147,8 @@ void BufferBrowserMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
     output +=
-        "  [Enter: switch] [Ctrl+X: close] [Esc: cancel] [Ctrl+J/K: navigate]";
+        "  [Enter: switch] [Ctrl+X: close] [Ctrl+Shift+X: close matches] "
+        "[Esc: cancel] [Ctrl+J/K: navigate]";
     output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
@@ -322,6 +329,7 @@ void BufferBrowserMode::closeSelectedBuffer(Editor& editor)
         editor.currentBufferIndex = -1;
         editor.clearCurrentBufferPointers();
         editor.splitActive = false;
+        editor.currentMode = WELCOME;
         editor.needsFullRedraw = true;
         bufferMatches.clear();
         bufferCursor = 0;
@@ -361,6 +369,90 @@ void BufferBrowserMode::closeSelectedBuffer(Editor& editor)
         editor.needsFullRedraw = true;
     }
 
+    updateMatches(editor);
+    if(bufferCursor >= (int)bufferMatches.size())
+        bufferCursor = std::max(0, (int)bufferMatches.size() - 1);
+    if(bufferOffset > bufferCursor)
+        bufferOffset = bufferCursor;
+}
+
+void BufferBrowserMode::closeMatchedBuffers(Editor& editor)
+{
+    if(bufferQuery.empty() || bufferMatches.empty())
+    {
+        editor.setStatusMessage("No searched buffers to close");
+        return;
+    }
+
+    std::vector<int> indices;
+    indices.reserve(bufferMatches.size());
+    for(const auto& match : bufferMatches)
+    {
+        int idx = match.bufferIndex;
+        if(idx >= 0 && idx < (int)editor.buffers.size() &&
+           !editor.buffers[idx]->dirty)
+        {
+            indices.push_back(idx);
+        }
+    }
+
+    if(indices.empty())
+    {
+        editor.setStatusMessage("No searched buffers closed");
+        return;
+    }
+
+    std::sort(indices.begin(), indices.end());
+    indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+
+    for(auto it = indices.rbegin(); it != indices.rend(); ++it)
+    {
+        int idx = *it;
+        int previousCurrent = editor.currentBufferIndex;
+        editor.buffers.erase(editor.buffers.begin() + idx);
+
+        if(editor.buffers.empty())
+        {
+            editor.currentBufferIndex = -1;
+            editor.clearCurrentBufferPointers();
+            editor.splitActive = false;
+            editor.currentMode = WELCOME;
+            editor.needsFullRedraw = true;
+            bufferMatches.clear();
+            bufferCursor = 0;
+            bufferOffset = 0;
+            return;
+        }
+
+        if(previousCurrent == idx)
+        {
+            editor.currentBufferIndex =
+                std::min(idx, (int)editor.buffers.size() - 1);
+        }
+        else
+        {
+            editor.currentBufferIndex =
+                previousCurrent > idx ? previousCurrent - 1 : previousCurrent;
+        }
+
+        if(editor.splitActive)
+        {
+            for(int i = 0; i < 2; i++)
+            {
+                int& paneIndex = editor.splitPanes[i].bufferIndex;
+                if(paneIndex == idx)
+                    paneIndex = editor.currentBufferIndex;
+                else if(paneIndex > idx)
+                    paneIndex--;
+            }
+            editor.currentBufferIndex =
+                editor.splitPanes[editor.activePane].bufferIndex;
+        }
+    }
+
+    editor.updateCurrentBufferPointers();
+    editor.restoreBufferState();
+    editor.needsFullRedraw = true;
     updateMatches(editor);
     if(bufferCursor >= (int)bufferMatches.size())
         bufferCursor = std::max(0, (int)bufferMatches.size() - 1);

@@ -500,6 +500,9 @@ int Terminal::readKeyInternal(int timeoutMs)
                         if(lower == 'l')
                             return keyCode(
                                 control::ControlKey::SHIFT_CTRL_L);
+                        if(lower == 'x')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_X);
                     }
                     // Fallback: synthesize the natural code.
                     if(mod == 5 && lower >= 'a' && lower <= 'z')

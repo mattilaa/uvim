@@ -41,4 +41,5 @@ private:
     void updateMatches(Editor& editor);
     void selectMatch(Editor& editor);
     void closeSelectedBuffer(Editor& editor);
+    void closeMatchedBuffers(Editor& editor);
 };
