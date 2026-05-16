@@ -77,7 +77,10 @@ void Editor::drawBufferView()
     bool isCommandLikeMode =
         (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
          currentMode == SEARCH_BACKWARD);
-    bool commandOverlayStable = isCommandLikeMode && !modeChanged &&
+    bool isLiveSearchMode =
+        (currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD);
+    bool commandOverlayStable = isCommandLikeMode && !isLiveSearchMode &&
+                                !modeChanged &&
                                 scrollDelta == 0 && *offsetX == lastOffsetX &&
                                 !visualChanged;
 

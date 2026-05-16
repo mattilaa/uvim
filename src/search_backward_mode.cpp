@@ -6,6 +6,26 @@
 // SearchBackwardMode Implementation
 // ============================================================================
 
+namespace
+{
+void previewBackwardSearch(Editor* ed, ModeContext& ctx)
+{
+    ctx.cursorX() = ed->savedCursorX;
+    ctx.cursorY() = ed->savedCursorY;
+
+    if(ed->searchQuery.empty())
+    {
+        ed->searchMatches.clear();
+        ed->currentMatchIndex = -1;
+        ed->needsFullRedraw = true;
+        return;
+    }
+
+    ed->performSearch();
+    ed->needsFullRedraw = true;
+}
+} // namespace
+
 void SearchBackwardMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -75,31 +95,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx, int key)
         {
             ed->searchQuery.pop_back();
             ctx.commandBuffer = "?" + ed->searchQuery;
-
-            ctx.cursorX() = ed->savedCursorX;
-            ctx.cursorY() = ed->savedCursorY;
-
-            if(!ed->searchQuery.empty())
-            {
-                ed->findAllMatches();
-                if(!ed->searchMatches.empty())
-                {
-                    // For backward search, find last match before cursor
-                    int bestIndex = ed->searchMatches.size() - 1;
-                    for(int i = ed->searchMatches.size() - 1; i >= 0; i--)
-                    {
-                        const auto& match = ed->searchMatches[i];
-                        if(match.row < ed->savedCursorY ||
-                           (match.row == ed->savedCursorY &&
-                            match.col < ed->savedCursorX))
-                        {
-                            bestIndex = i;
-                            break;
-                        }
-                    }
-                    ed->jumpToMatch(bestIndex);
-                }
-            }
+            previewBackwardSearch(ed, ctx);
         }
         else
         {
@@ -123,11 +119,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx, int key)
         {
             ed->searchQuery = prevSearch;
             ctx.commandBuffer = "?" + ed->searchQuery;
-            ed->findAllMatches();
-            if(!ed->searchMatches.empty())
-            {
-                ed->jumpToMatch(ed->searchMatches.size() - 1);
-            }
+            previewBackwardSearch(ed, ctx);
         }
         return std::nullopt;
     }
@@ -140,11 +132,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx, int key)
         {
             ed->searchQuery = nextSearch;
             ctx.commandBuffer = "?" + ed->searchQuery;
-            ed->findAllMatches();
-            if(!ed->searchMatches.empty())
-            {
-                ed->jumpToMatch(ed->searchMatches.size() - 1);
-            }
+            previewBackwardSearch(ed, ctx);
         }
         return std::nullopt;
     }
@@ -168,8 +156,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx, int key)
         ed->searchQuery.clear();
         ctx.commandBuffer = "?";
 
-        ctx.cursorX() = ed->savedCursorX;
-        ctx.cursorY() = ed->savedCursorY;
+        previewBackwardSearch(ed, ctx);
         return std::nullopt;
     }
 
@@ -181,26 +168,7 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx, int key)
     {
         ed->searchQuery += static_cast<char>(c);
         ctx.commandBuffer = "?" + ed->searchQuery;
-
-        // Incremental search (backward)
-        ed->findAllMatches();
-        if(!ed->searchMatches.empty())
-        {
-            // Find last match before saved cursor position
-            int bestIndex = ed->searchMatches.size() - 1;
-            for(int i = ed->searchMatches.size() - 1; i >= 0; i--)
-            {
-                const auto& match = ed->searchMatches[i];
-                if(match.row < ed->savedCursorY ||
-                   (match.row == ed->savedCursorY &&
-                    match.col < ed->savedCursorX))
-                {
-                    bestIndex = i;
-                    break;
-                }
-            }
-            ed->jumpToMatch(bestIndex);
-        }
+        previewBackwardSearch(ed, ctx);
     }
 
     ed->needsFullRedraw = true;
@@ -222,18 +190,7 @@ void SearchBackwardMode::deleteWordBackward(ModeContext& ctx)
         ed->searchQuery.pop_back();
     }
     ctx.commandBuffer = "?" + ed->searchQuery;
-
-    ctx.cursorX() = ed->savedCursorX;
-    ctx.cursorY() = ed->savedCursorY;
-
-    if(!ed->searchQuery.empty())
-    {
-        ed->findAllMatches();
-        if(!ed->searchMatches.empty())
-        {
-            ed->jumpToMatch(ed->searchMatches.size() - 1);
-        }
-    }
+    previewBackwardSearch(ed, ctx);
 }
 
 void Editor::performSearch(const std::string& query, bool forward)

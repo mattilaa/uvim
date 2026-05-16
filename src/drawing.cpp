@@ -763,9 +763,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
        currentMode == SEARCH_BACKWARD)
     {
         cursorRow = screenRows + 2;
-        int promptLen = (commandBuffer.empty() || commandBuffer[0] != ':')
-                            ? (int)commandBuffer.length() + 1
-                            : (int)commandBuffer.length();
+        int promptLen = (int)commandBuffer.length();
+        if(commandBuffer.empty())
+            promptLen = 1;
+        else if(currentMode == COMMAND && commandBuffer[0] != ':')
+            promptLen += 1;
         cursorCol = promptLen + 1;
     }
     else
@@ -1327,9 +1329,14 @@ void Editor::drawFullScreenSingle()
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
     {
-        if(commandBuffer.empty())
+        if(commandBuffer.empty() && currentMode == SEARCH_FORWARD)
+            output += "/";
+        else if(commandBuffer.empty() && currentMode == SEARCH_BACKWARD)
+            output += "?";
+        else if(commandBuffer.empty())
             output += ":";
-        else if(commandBuffer.front() == ':')
+        else if(commandBuffer.front() == ':' || commandBuffer.front() == '/' ||
+                commandBuffer.front() == '?')
             output += commandBuffer;
         else
             output += ":" + commandBuffer;
@@ -1866,9 +1873,14 @@ void Editor::drawSplitFullScreen()
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
        currentMode == SEARCH_BACKWARD)
     {
-        if(commandBuffer.empty())
+        if(commandBuffer.empty() && currentMode == SEARCH_FORWARD)
+            output += "/";
+        else if(commandBuffer.empty() && currentMode == SEARCH_BACKWARD)
+            output += "?";
+        else if(commandBuffer.empty())
             output += ":";
-        else if(commandBuffer.front() == ':')
+        else if(commandBuffer.front() == ':' || commandBuffer.front() == '/' ||
+                commandBuffer.front() == '?')
             output += commandBuffer;
         else
             output += ":" + commandBuffer;

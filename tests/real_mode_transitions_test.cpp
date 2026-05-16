@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "widgets/status_bar.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -38,6 +39,13 @@ void dispatch_command(ModeStateMachine& sm, std::string_view cmd)
     for(char c : cmd)
         sm.dispatch(c);
     sm.dispatch(keyCode(control::ControlKey::ENTER));
+}
+
+void set_buffer_filename(Editor& editor, std::string filename)
+{
+    editor.currentBuffer->filename = std::move(filename);
+    if(editor.filename)
+        *editor.filename = editor.currentBuffer->filename;
 }
 } // namespace
 
@@ -328,6 +336,7 @@ TEST(RealModeTransitionsTest, AutoBraceInsertUsesIndentWidth)
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"fn main()"};
+    set_buffer_filename(editor, "main.mla");
     editor.currentBuffer->clangIndentWidthValid = true;
     editor.currentBuffer->clangIndentWidth = 4;
     *editor.cursorX = 0;
@@ -339,10 +348,10 @@ TEST(RealModeTransitionsTest, AutoBraceInsertUsesIndentWidth)
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "fn main(){");
-    EXPECT_EQ(editor.currentBuffer->lines[1], "   ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
     EXPECT_EQ(editor.currentBuffer->lines[2], "}");
     EXPECT_EQ(*editor.cursorY, 1);
-    EXPECT_EQ(*editor.cursorX, 3);
+    EXPECT_EQ(*editor.cursorX, 4);
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
@@ -352,9 +361,7 @@ TEST(RealModeTransitionsTest, EnterAfterCppBraceJumpsToColumn4)
     editor.createNewBuffer();
     editor.autoBraces = false;
     editor.currentBuffer->lines = {"fn main() {"};
-    editor.currentBuffer->filename = "main.cpp";
-    if(editor.filename)
-        *editor.filename = editor.currentBuffer->filename;
+    set_buffer_filename(editor, "main.cpp");
     editor.currentBuffer->clangIndentWidthValid = true;
     editor.currentBuffer->clangIndentWidth = 4;
     *editor.cursorX = (int)editor.currentBuffer->lines[0].size();
@@ -365,9 +372,106 @@ TEST(RealModeTransitionsTest, EnterAfterCppBraceJumpsToColumn4)
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "fn main() {");
-    EXPECT_EQ(editor.currentBuffer->lines[1], "   ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
     EXPECT_EQ(*editor.cursorY, 1);
-    EXPECT_EQ(*editor.cursorX, 3);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, NormalOpenBelowAfterCppBraceUsesIndentWidth)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"fn main() {"};
+    set_buffer_filename(editor, "main.cpp");
+    editor.currentBuffer->clangIndentWidthValid = true;
+    editor.currentBuffer->clangIndentWidth = 4;
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('o');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
+    EXPECT_EQ(*editor.cursorY, 1);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, NormalOpenAboveClosingCppBraceUsesIndentWidth)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"fn main() {", "}"};
+    set_buffer_filename(editor, "main.cpp");
+    editor.currentBuffer->clangIndentWidthValid = true;
+    editor.currentBuffer->clangIndentWidth = 4;
+    *editor.cursorX = 0;
+    *editor.cursorY = 1;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('O');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "}");
+    EXPECT_EQ(*editor.cursorY, 1);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, AutoBraceReturnInitializerStaysInlineInCpp)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"return "};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = (int)editor.currentBuffer->lines[0].size();
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "return {}");
+    EXPECT_EQ(*editor.cursorX, 8);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, AutoBraceReturnInitializerStaysInlineInMla)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"return "};
+    set_buffer_filename(editor, "main.mla");
+    *editor.cursorX = (int)editor.currentBuffer->lines[0].size();
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "return {}");
+    EXPECT_EQ(*editor.cursorX, 8);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, AutoBraceFunctionArgumentStaysInline)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"call()"};
+    set_buffer_filename(editor, "main.mla");
+    *editor.cursorX = 5;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "call({})");
+    EXPECT_EQ(*editor.cursorX, 6);
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
@@ -428,6 +532,135 @@ TEST(RealModeTransitionsTest, CompletionTrimsLeadingSpaceAfterDot)
 
     EXPECT_EQ(editor.currentBuffer->lines[0], "ctx.cancelCommandPopup();");
     EXPECT_EQ(*editor.cursorX, 23);
+}
+
+TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideCall)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"outer(ca)"};
+    *editor.cursorX = 8;
+    *editor.cursorY = 0;
+
+    CompletionEntry e;
+    e.label = "callee()";
+    editor.completionAll = {e};
+    editor.completionFiltered = {0};
+    editor.completionSelected = 0;
+    editor.completionActive = true;
+    editor.completionAnchorX = 6;
+    editor.completionAnchorY = 0;
+
+    editor.acceptCompletion();
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "outer(callee())");
+    EXPECT_EQ(*editor.cursorX, 13);
+}
+
+TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideIfCondition)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"if (rea)"};
+    *editor.cursorX = 7;
+    *editor.cursorY = 0;
+
+    CompletionEntry e;
+    e.label = "ready()";
+    editor.completionAll = {e};
+    editor.completionFiltered = {0};
+    editor.completionSelected = 0;
+    editor.completionActive = true;
+    editor.completionAnchorX = 4;
+    editor.completionAnchorY = 0;
+
+    editor.acceptCompletion();
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "if (ready())");
+    EXPECT_EQ(*editor.cursorX, 10);
+}
+
+TEST(RealModeTransitionsTest, SearchPromptShowsFullTypedPattern)
+{
+    std::string output;
+    widgets::MessageBarView view{
+        .currentMode = SEARCH_FORWARD,
+        .screenCols = 80,
+        .commandBuffer = "/long_pattern",
+    };
+
+    widgets::appendMessageBar(output, view);
+
+    EXPECT_EQ(output, "/long_pattern");
+}
+
+TEST(RealModeTransitionsTest, IncrementalForwardSearchStartsAtSavedCursor)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"foo one", "foo two", "foo three"};
+    *editor.cursorX = 4;
+    *editor.cursorY = 1;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    sm.dispatch('f');
+    sm.dispatch('o');
+    sm.dispatch('o');
+
+    EXPECT_EQ(editor.commandBuffer, "/foo");
+    ASSERT_EQ(editor.searchMatches.size(), 3u);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 0);
+    EXPECT_EQ(editor.currentMatchIndex, 2);
+    EXPECT_STREQ(sm.currentStateName(), "/");
+}
+
+TEST(RealModeTransitionsTest, IncrementalForwardSearchRecomputesAfterEdit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"abc here", "abd there"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    sm.dispatch('a');
+    sm.dispatch('b');
+    sm.dispatch('c');
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    sm.dispatch('d');
+
+    EXPECT_EQ(editor.commandBuffer, "/abd");
+    ASSERT_EQ(editor.searchMatches.size(), 1u);
+    EXPECT_EQ(editor.searchMatches[0].row, 1);
+    EXPECT_EQ(*editor.cursorY, 1);
+    EXPECT_EQ(*editor.cursorX, 0);
+    EXPECT_EQ(editor.currentMatchIndex, 0);
+}
+
+TEST(RealModeTransitionsTest, IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"needle"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    sm.dispatch('n');
+    ASSERT_FALSE(editor.searchMatches.empty());
+    EXPECT_TRUE(editor.isInSearchMatch(0, 0));
+
+    editor.needsFullRedraw = false;
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+
+    EXPECT_EQ(editor.commandBuffer, "/");
+    EXPECT_TRUE(editor.searchMatches.empty());
+    EXPECT_FALSE(editor.isInSearchMatch(0, 0));
+    EXPECT_TRUE(editor.needsFullRedraw);
 }
 
 TEST(RealModeTransitionsTest, FormatOnSaveCallsFormatterHookWhenEnabled)
@@ -1050,6 +1283,42 @@ TEST(RealModeTransitionsTest, FileBrowserParentThenEnterSiblingDirectoryStays)
     };
     EXPECT_TRUE(endsWithDir(state->currentDirectory, "to"));
     EXPECT_FALSE(endsWithDir(state->currentDirectory, "from"));
+}
+
+TEST(RealModeTransitionsTest, BufferBrowserSelectionCanJumpBackAndForward)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.txt";
+    editor.currentBuffer->lines = {"one"};
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "two.txt";
+    editor.currentBuffer->lines = {"two"};
+    editor.switchToBuffer(0);
+    *editor.cursorX = 2;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+    ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+    ASSERT_EQ(editor.jumpBackStack.size(), 1u);
+    ASSERT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_O));
+
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 2);
+    ASSERT_EQ(editor.jumpForwardStack.size(), 1u);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_I));
+
+    EXPECT_EQ(editor.currentBufferIndex, 1);
 }
 
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)

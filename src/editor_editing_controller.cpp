@@ -244,6 +244,14 @@ void Editor::insertLineAboveImpl()
         indent++;
     }
     std::string indentStr = currentLine.substr(0, indent);
+    bool cppClosingBraceLine = false;
+    if(isFileType<FileType::Cpp>())
+    {
+        std::string trimmed = ltrim(currentLine);
+        cppClosingBraceLine = !trimmed.empty() && trimmed[0] == '}';
+        if(cppClosingBraceLine)
+            indentStr.append(indentWidthForBraces(), ' ');
+    }
     if(autoTags &&
        (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
     {
@@ -296,7 +304,7 @@ void Editor::insertLineAboveImpl()
     if(isFileType<FileType::Cpp>())
     {
         std::string trimmed = ltrim(currentLine);
-        if(starts_with_kw(trimmed))
+        if(!cppClosingBraceLine && starts_with_kw(trimmed))
         {
             bool adjusted = false;
             for(int y = *cursorY - 1; y >= 0; --y)
@@ -414,7 +422,7 @@ void Editor::insertLineBelowImpl()
                currentLine[lastNonSpace] == '{')
             {
                 addExtraIndent = true;
-                extraIndentWidth = std::max(0, indentWidthForBraces() - 1);
+                extraIndentWidth = indentWidthForBraces();
             }
         }
         if(autoTags &&
