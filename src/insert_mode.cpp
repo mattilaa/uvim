@@ -52,6 +52,84 @@ bool isCursorInString(const std::string& line, int cursorX)
     return isCursorInsideQuote(line, cursorX, keyCode(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
            isCursorInsideQuote(line, cursorX, '\'');
 }
+
+std::string trimCopy(std::string s)
+{
+    size_t start = 0;
+    while(start < s.size() && std::isspace((unsigned char)s[start]))
+        ++start;
+    size_t end = s.size();
+    while(end > start && std::isspace((unsigned char)s[end - 1]))
+        --end;
+    return s.substr(start, end - start);
+}
+
+bool startsKeyword(const std::string& text, std::string_view keyword)
+{
+    if(text.size() < keyword.size() ||
+       text.compare(0, keyword.size(), keyword) != 0)
+        return false;
+    if(text.size() == keyword.size())
+        return true;
+    char next = text[keyword.size()];
+    return !text_utils::isIdent(next);
+}
+
+bool cursorIsInsideDelimitedExpression(std::string_view left)
+{
+    int parenDepth = 0;
+    int bracketDepth = 0;
+    for(char ch : left)
+    {
+        if(ch == '(')
+            ++parenDepth;
+        else if(ch == ')' && parenDepth > 0)
+            --parenDepth;
+        else if(ch == '[')
+            ++bracketDepth;
+        else if(ch == ']' && bracketDepth > 0)
+            --bracketDepth;
+    }
+    return parenDepth > 0 || bracketDepth > 0;
+}
+
+bool shouldExpandLeftBraceBlock(const Editor* ed, const std::string& left)
+{
+    if(!ed || (!ed->isFileType<FileType::Cpp>() &&
+               !ed->isFileType<FileType::Mla>()))
+        return false;
+
+    if(cursorIsInsideDelimitedExpression(left))
+        return false;
+
+    std::string trimmed = trimCopy(left);
+    if(trimmed.empty())
+        return false;
+
+    if(startsKeyword(trimmed, "return"))
+        return false;
+
+    if(startsKeyword(trimmed, "if") || startsKeyword(trimmed, "else") ||
+       startsKeyword(trimmed, "for") || startsKeyword(trimmed, "while") ||
+       startsKeyword(trimmed, "switch") || startsKeyword(trimmed, "catch") ||
+       startsKeyword(trimmed, "try") || startsKeyword(trimmed, "do"))
+        return true;
+
+    if(ed->isFileType<FileType::Mla>())
+    {
+        return trimmed.find("fn ") != std::string::npos ||
+               trimmed.rfind("fn", 0) == 0;
+    }
+
+    if(trimmed.back() != ')')
+        return false;
+
+    if(trimmed.find('=') != std::string::npos ||
+       startsKeyword(trimmed, "auto") || startsKeyword(trimmed, "let"))
+        return false;
+
+    return true;
+}
 } // namespace
 
 void InsertMode::on_enter(ModeContext& ctx)
@@ -624,6 +702,14 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             std::string left = line.substr(0, cursorX);
             std::string right = line.substr(cursorX);
+
+            if(!shouldExpandLeftBraceBlock(ed, left))
+            {
+                ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
+                ed->insertChar(keyCode(command::CommandKey::KEY_RIGHT_BRACE));
+                ctx.cursorX()--;
+                return std::nullopt;
+            }
 
             size_t indent = 0;
             while(indent < line.length() &&

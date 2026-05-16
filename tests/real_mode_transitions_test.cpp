@@ -39,6 +39,13 @@ void dispatch_command(ModeStateMachine& sm, std::string_view cmd)
         sm.dispatch(c);
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 }
+
+void set_buffer_filename(Editor& editor, std::string filename)
+{
+    editor.currentBuffer->filename = std::move(filename);
+    if(editor.filename)
+        *editor.filename = editor.currentBuffer->filename;
+}
 } // namespace
 
 TEST(RealModeTransitionsTest, WelcomeEscStaysInWelcome)
@@ -328,6 +335,7 @@ TEST(RealModeTransitionsTest, AutoBraceInsertUsesIndentWidth)
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"fn main()"};
+    set_buffer_filename(editor, "main.mla");
     editor.currentBuffer->clangIndentWidthValid = true;
     editor.currentBuffer->clangIndentWidth = 4;
     *editor.cursorX = 0;
@@ -352,9 +360,7 @@ TEST(RealModeTransitionsTest, EnterAfterCppBraceJumpsToColumn4)
     editor.createNewBuffer();
     editor.autoBraces = false;
     editor.currentBuffer->lines = {"fn main() {"};
-    editor.currentBuffer->filename = "main.cpp";
-    if(editor.filename)
-        *editor.filename = editor.currentBuffer->filename;
+    set_buffer_filename(editor, "main.cpp");
     editor.currentBuffer->clangIndentWidthValid = true;
     editor.currentBuffer->clangIndentWidth = 4;
     *editor.cursorX = (int)editor.currentBuffer->lines[0].size();
@@ -376,9 +382,7 @@ TEST(RealModeTransitionsTest, NormalOpenBelowAfterCppBraceUsesIndentWidth)
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"fn main() {"};
-    editor.currentBuffer->filename = "main.cpp";
-    if(editor.filename)
-        *editor.filename = editor.currentBuffer->filename;
+    set_buffer_filename(editor, "main.cpp");
     editor.currentBuffer->clangIndentWidthValid = true;
     editor.currentBuffer->clangIndentWidth = 4;
     *editor.cursorX = 0;
@@ -399,9 +403,7 @@ TEST(RealModeTransitionsTest, NormalOpenAboveClosingCppBraceUsesIndentWidth)
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"fn main() {", "}"};
-    editor.currentBuffer->filename = "main.cpp";
-    if(editor.filename)
-        *editor.filename = editor.currentBuffer->filename;
+    set_buffer_filename(editor, "main.cpp");
     editor.currentBuffer->clangIndentWidthValid = true;
     editor.currentBuffer->clangIndentWidth = 4;
     *editor.cursorX = 0;
@@ -415,6 +417,60 @@ TEST(RealModeTransitionsTest, NormalOpenAboveClosingCppBraceUsesIndentWidth)
     EXPECT_EQ(editor.currentBuffer->lines[2], "}");
     EXPECT_EQ(*editor.cursorY, 1);
     EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, AutoBraceReturnInitializerStaysInlineInCpp)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"return "};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = (int)editor.currentBuffer->lines[0].size();
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "return {}");
+    EXPECT_EQ(*editor.cursorX, 8);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, AutoBraceReturnInitializerStaysInlineInMla)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"return "};
+    set_buffer_filename(editor, "main.mla");
+    *editor.cursorX = (int)editor.currentBuffer->lines[0].size();
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "return {}");
+    EXPECT_EQ(*editor.cursorX, 8);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, AutoBraceFunctionArgumentStaysInline)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"call()"};
+    set_buffer_filename(editor, "main.mla");
+    *editor.cursorX = 5;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch('{');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "call({})");
+    EXPECT_EQ(*editor.cursorX, 6);
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
