@@ -1285,6 +1285,42 @@ TEST(RealModeTransitionsTest, FileBrowserParentThenEnterSiblingDirectoryStays)
     EXPECT_FALSE(endsWithDir(state->currentDirectory, "from"));
 }
 
+TEST(RealModeTransitionsTest, BufferBrowserSelectionCanJumpBackAndForward)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.txt";
+    editor.currentBuffer->lines = {"one"};
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "two.txt";
+    editor.currentBuffer->lines = {"two"};
+    editor.switchToBuffer(0);
+    *editor.cursorX = 2;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+    ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+    ASSERT_EQ(editor.jumpBackStack.size(), 1u);
+    ASSERT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_O));
+
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 2);
+    ASSERT_EQ(editor.jumpForwardStack.size(), 1u);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_I));
+
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+}
+
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
 {
     Editor editor = Editor::createForTests();

@@ -287,6 +287,8 @@ void BufferBrowserMode::selectMatch(Editor& editor)
         int idx = bufferMatches[bufferCursor].bufferIndex;
         if(idx >= 0 && idx < (int)editor.buffers.size())
         {
+            if(idx != editor.currentBufferIndex)
+                editor.pushJumpLocation();
             editor.switchToBuffer(idx);
         }
     }
