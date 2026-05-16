@@ -1321,6 +1321,48 @@ TEST(RealModeTransitionsTest, BufferBrowserSelectionCanJumpBackAndForward)
     EXPECT_EQ(editor.currentBufferIndex, 1);
 }
 
+TEST(RealModeTransitionsTest, BufferBrowserCtrlXClosesSelectedBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.txt";
+    editor.currentBuffer->lines = {"one"};
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "two.txt";
+    editor.currentBuffer->lines = {"two"};
+    editor.switchToBuffer(0);
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+    ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_X));
+
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_EQ(editor.currentBuffer->filename, "one.txt");
+    EXPECT_STREQ(sm.currentStateName(), "BUFFERS");
+}
+
+TEST(RealModeTransitionsTest, BufferBrowserCtrlXLastBufferReturnsWelcome)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "only.txt";
+    editor.currentBuffer->lines = {"only"};
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+    ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_X));
+
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_FALSE(editor.hasBuffer());
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
 {
     Editor editor = Editor::createForTests();

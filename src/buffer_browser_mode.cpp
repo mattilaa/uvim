@@ -31,6 +31,12 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx, int key)
         selectMatch(*ed);
         return defaultExitMode(ed);
     }
+    if(c == keyCode(control::ControlKey::CTRL_X))
+    {
+        closeSelectedBuffer(*ed);
+        if(!ed->hasBuffer())
+            return defaultExitMode(ed);
+    }
 
     if(c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
@@ -134,7 +140,8 @@ void BufferBrowserMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [Enter: switch] [Esc: cancel] [Ctrl+J/K: navigate]";
+    output +=
+        "  [Enter: switch] [Ctrl+X: close] [Esc: cancel] [Ctrl+J/K: navigate]";
     output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
@@ -292,4 +299,71 @@ void BufferBrowserMode::selectMatch(Editor& editor)
             editor.switchToBuffer(idx);
         }
     }
+}
+
+void BufferBrowserMode::closeSelectedBuffer(Editor& editor)
+{
+    if(bufferCursor < 0 || bufferCursor >= (int)bufferMatches.size())
+        return;
+
+    int idx = bufferMatches[bufferCursor].bufferIndex;
+    if(idx < 0 || idx >= (int)editor.buffers.size())
+        return;
+
+    if(editor.buffers[idx]->dirty)
+    {
+        editor.setStatusMessage("No write since last change (add ! to override)");
+        return;
+    }
+
+    if(editor.buffers.size() == 1)
+    {
+        editor.buffers.erase(editor.buffers.begin());
+        editor.currentBufferIndex = -1;
+        editor.clearCurrentBufferPointers();
+        editor.splitActive = false;
+        editor.needsFullRedraw = true;
+        bufferMatches.clear();
+        bufferCursor = 0;
+        bufferOffset = 0;
+        return;
+    }
+
+    if(idx == editor.currentBufferIndex)
+    {
+        editor.switchToBuffer(idx);
+        editor.closeCurrentBuffer();
+    }
+    else
+    {
+        int previousCurrent = editor.currentBufferIndex;
+        editor.buffers.erase(editor.buffers.begin() + idx);
+        if(previousCurrent > idx)
+            previousCurrent--;
+        editor.currentBufferIndex = previousCurrent;
+
+        if(editor.splitActive)
+        {
+            for(int i = 0; i < 2; i++)
+            {
+                int& paneIndex = editor.splitPanes[i].bufferIndex;
+                if(paneIndex == idx)
+                    paneIndex = editor.currentBufferIndex;
+                else if(paneIndex > idx)
+                    paneIndex--;
+            }
+            editor.currentBufferIndex =
+                editor.splitPanes[editor.activePane].bufferIndex;
+        }
+
+        editor.updateCurrentBufferPointers();
+        editor.restoreBufferState();
+        editor.needsFullRedraw = true;
+    }
+
+    updateMatches(editor);
+    if(bufferCursor >= (int)bufferMatches.size())
+        bufferCursor = std::max(0, (int)bufferMatches.size() - 1);
+    if(bufferOffset > bufferCursor)
+        bufferOffset = bufferCursor;
 }

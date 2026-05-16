@@ -782,9 +782,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Config key: `editor.tabnumbers` / `editor.showtabs`",
             "",
             "BUFFER BROWSER:",
-            "  `j/k`    - Navigate",
-            "  `Enter`  - Open",
-            "  `q`      - Quit",
+            "  `j/k`      - Navigate",
+            "  `Enter`    - Open",
+            "  `Ctrl-x`   - Close selected buffer",
+            "  `q`        - Quit",
         };
     }
     else if(topic_lower == "windows" || topic_lower == "splits")
