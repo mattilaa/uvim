@@ -837,7 +837,7 @@ bool Editor::pythonFormatBuffer()
 {
     if(!formatter)
         return false;
-    return formatter->pythonFormatBuffer();
+    return formatter->format(Formatter::Kind::Python);
 }
 
 void Editor::pythonLintBuffer()
@@ -850,28 +850,28 @@ bool Editor::robotFormatBuffer()
 {
     if(!formatter)
         return false;
-    return formatter->robotFormatBuffer();
+    return formatter->format(Formatter::Kind::Robot);
 }
 
 bool Editor::jsonFormatBuffer()
 {
     if(!formatter)
         return false;
-    return formatter->jsonFormatBuffer();
+    return formatter->format(Formatter::Kind::Json);
 }
 
 bool Editor::yamlFormatBuffer()
 {
     if(!formatter)
         return false;
-    return formatter->yamlFormatBuffer();
+    return formatter->format(Formatter::Kind::Yaml);
 }
 
 bool Editor::mlangFormatBuffer()
 {
     if(!formatter)
         return false;
-    return formatter->mlangFormatBuffer();
+    return formatter->format(Formatter::Kind::Mlang);
 }
 
 std::string Editor::resolveEditorPathString(const std::string& input) const
