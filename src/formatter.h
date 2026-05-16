@@ -1,5 +1,6 @@
 #pragma once
 
+#include "file_type.h"
 #include <functional>
 #include <string>
 #include <string_view>
@@ -96,14 +97,10 @@ public:
 
     size_t byteOffsetForPosition(int y, int x) const;
     bool format(Kind kind);
+    bool format(FileType type);
     bool clangFormatWithArgs(const std::string& extraArgs,
                              const std::string& successMessage);
-    bool pythonFormatBuffer();
     void pythonLintBuffer();
-    bool robotFormatBuffer();
-    bool jsonFormatBuffer();
-    bool yamlFormatBuffer();
-    bool mlangFormatBuffer();
     void clangFormatVisualSelection();
     void clangFormatVisualBlockSelection();
 
@@ -117,6 +114,7 @@ private:
                      std::reference_wrapper<MlangFormatter>>;
 
     FormatterVariant formatterFor(Kind kind);
+    FormatterVariant formatterFor(FileType type);
 
     Editor& editor;
     ClangFormatter clangFormatter;

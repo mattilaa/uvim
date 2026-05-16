@@ -833,6 +833,16 @@ bool Editor::clangFormatWithArgs(const std::string& extraArgs,
     return formatter->clangFormatWithArgs(extraArgs, successMessage);
 }
 
+bool Editor::formatBuffer(FileType type)
+{
+    return formatter->format(type);
+}
+
+bool Editor::formatBuffer(Formatter::Kind kind)
+{
+    return formatter->format(kind);
+}
+
 bool Editor::pythonFormatBuffer()
 {
     if(!formatter)

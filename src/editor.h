@@ -3,6 +3,7 @@
 #include "completion_entry.h"
 #include "file_entry.h"
 #include "file_type.h"
+#include "formatter.h"
 #include "jump_location.h"
 #include "mode.h"
 #include "search_types.h"
@@ -51,11 +52,13 @@ struct MlangTokenCache
     bool available = false;
     bool caseInsensitive = false;
     std::unordered_map<std::string, TokenType> tokenTypes;
+
     struct BuiltinTypeDef
     {
         std::string path;
         int line = 0; // 0-based
     };
+
     bool builtinTypesLoaded = false;
     std::unordered_map<std::string, BuiltinTypeDef> builtinTypes;
     bool builtinMacrosLoaded = false;
@@ -166,6 +169,7 @@ public:
         int col = 0;             // 0-based column
         std::string lineContent; // Content of the line for preview
     };
+
     std::vector<ReferenceEntry> referencesList;
     int referencesCursor = 0;
     int referencesOffset = 0;
@@ -178,6 +182,7 @@ public:
         std::string displayPath; // Relative/shortened path for display
         int loc = 0;             // Lines of code (non-empty, non-comment)
     };
+
     std::vector<LocEntry> locList;
     int locListTotal = 0;
     std::string locListRoot;
@@ -411,6 +416,7 @@ public:
     bool autoTags = true;
     bool autoCompletion = true;
     bool completionAutoParens = true;
+
     struct PaneState
     {
         int bufferIndex = -1;
@@ -420,6 +426,7 @@ public:
         int offsetX = 0;
         int offsetY = 0;
     };
+
     struct PaneLayout
     {
         int x = 0;
@@ -427,6 +434,7 @@ public:
         int rows = 0;
         int cols = 0;
     };
+
     bool splitActive = false;
     bool splitVertical = true;
     int activePane = 0;
@@ -615,14 +623,17 @@ public:
     void restoreJumpLocation(const JumpLocation& loc);
     void scrollHalfPageDown(bool visual);
     void scrollHalfPageUp(bool visual);
+
     void scrollHalfPageDown()
     {
         scrollHalfPageDown(false);
     }
+
     void scrollHalfPageUp()
     {
         scrollHalfPageUp(false);
     }
+
     void moveToMatchingBracket();
     void findCharForward(char c);
     void findCharBackward(char c);
@@ -801,6 +812,7 @@ public:
         int line = 0;
         int col = 0;
     };
+
     std::map<char, MarkLocation> marks;
     void setMark(char mark);
     void jumpToMark(char mark);
@@ -859,12 +871,15 @@ public:
     std::vector<JumpLocation> jumpForwardStack;
 
     bool isFileType(FileType type) const;
+
     template <FileType Type>
     bool isFileType() const
     {
         return isFileType(Type);
     }
 
+    bool formatBuffer(FileType type);
+    bool formatBuffer(Formatter::Kind kind);
     bool pythonFormatBuffer();
     void pythonLintBuffer();
     bool robotFormatBuffer();
@@ -902,6 +917,7 @@ public:
     {
         projectRoot = path;
     }
+
     const std::string& getProjectRoot() const
     {
         return projectRoot;
@@ -911,6 +927,7 @@ public:
     {
         return modeStateMachine.get();
     }
+
     const ModeStateMachine* getModeStateMachine() const
     {
         return modeStateMachine.get();
@@ -937,6 +954,7 @@ private:
     struct TestTag
     {
     };
+
     Editor(TestTag tag, int rows, int cols);
 #endif
     bool formatBufferForSave();

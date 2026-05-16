@@ -1158,23 +1158,23 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     case keyCode(typed::TypedKey::KEY_F):
         if(ed->isFileType<FileType::Python>())
         {
-            ed->pythonFormatBuffer();
+            ed->formatBuffer(Formatter::Kind::Python);
         }
         else if(ed->isFileType<FileType::Robot>())
         {
-            ed->robotFormatBuffer();
+            ed->formatBuffer(Formatter::Kind::Robot);
         }
         else if(ed->isFileType<FileType::Json>())
         {
-            ed->jsonFormatBuffer();
+            ed->formatBuffer(Formatter::Kind::Json);
         }
         else if(ed->isFileType<FileType::Yaml>())
         {
-            ed->yamlFormatBuffer();
+            ed->formatBuffer(Formatter::Kind::Yaml);
         }
         else if(ed->isFileType<FileType::Mla>())
         {
-            ed->mlangFormatBuffer();
+            ed->formatBuffer(Formatter::Kind::Mlang);
         }
         else
         {

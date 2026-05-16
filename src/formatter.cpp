@@ -62,6 +62,32 @@ Formatter::FormatterVariant Formatter::formatterFor(Kind kind)
     return std::ref(clangFormatter);
 }
 
+Formatter::FormatterVariant Formatter::formatterFor(FileType type)
+{
+    switch(type)
+    {
+    case FileType::Cpp:
+        return std::ref(clangFormatter);
+    case FileType::Python:
+        return std::ref(pythonFormatter);
+    case FileType::Robot:
+        return std::ref(robotFormatter);
+    case FileType::Json:
+        return std::ref(jsonFormatter);
+    case FileType::Yaml:
+        return std::ref(yamlFormatter);
+    case FileType::Mla:
+        return std::ref(mlangFormatter);
+    }
+    return std::ref(clangFormatter);
+}
+
+bool Formatter::format(FileType type)
+{
+    return std::visit([](auto formatter) { return formatter.get()(); },
+                      formatterFor(type));
+}
+
 bool Formatter::format(Kind kind)
 {
     return std::visit([](auto formatter) { return formatter.get()(); },
@@ -79,34 +105,9 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     return clangFormatter.formatWithArgs(extraArgs, successMessage);
 }
 
-bool Formatter::pythonFormatBuffer()
-{
-    return format(Kind::Python);
-}
-
 void Formatter::pythonLintBuffer()
 {
     pythonFormatter.lintBuffer();
-}
-
-bool Formatter::robotFormatBuffer()
-{
-    return format(Kind::Robot);
-}
-
-bool Formatter::jsonFormatBuffer()
-{
-    return format(Kind::Json);
-}
-
-bool Formatter::yamlFormatBuffer()
-{
-    return format(Kind::Yaml);
-}
-
-bool Formatter::mlangFormatBuffer()
-{
-    return format(Kind::Mlang);
 }
 
 void Formatter::clangFormatVisualSelection()
