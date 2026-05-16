@@ -3327,10 +3327,13 @@ void Editor::refreshScreen()
     bool isCommandLikeMode =
         (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
          currentMode == SEARCH_BACKWARD);
+    bool isLiveSearchMode =
+        (currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD);
     bool commandPopupChanged =
         (commandPopupActive != lastCommandPopupActive) ||
         (commandHistorySearchActive != lastCommandHistoryPopupActive);
-    bool commandOverlayStable = isCommandLikeMode && !modeChanged &&
+    bool commandOverlayStable = isCommandLikeMode && !isLiveSearchMode &&
+                                !modeChanged &&
                                 scrollDelta == 0 && *offsetX == lastOffsetX &&
                                 !visualChanged && !commandPopupChanged;
 
@@ -3400,9 +3403,11 @@ void Editor::updateCursorPosition(bool flushNow)
        currentMode == SEARCH_BACKWARD)
     {
         cursorRow = screenRows + 2;
-        int promptLen = (commandBuffer.empty() || commandBuffer[0] != ':')
-                            ? (int)commandBuffer.length() + 1
-                            : (int)commandBuffer.length();
+        int promptLen = (int)commandBuffer.length();
+        if(commandBuffer.empty())
+            promptLen = 1;
+        else if(currentMode == COMMAND && commandBuffer[0] != ':')
+            promptLen += 1;
         cursorCol = promptLen + 1;
     }
     else

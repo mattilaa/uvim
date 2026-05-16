@@ -6,6 +6,26 @@
 // SearchForwardMode Implementation
 // ============================================================================
 
+namespace
+{
+void previewForwardSearch(Editor* ed, ModeContext& ctx)
+{
+    ctx.cursorX() = ed->savedCursorX;
+    ctx.cursorY() = ed->savedCursorY;
+
+    if(ed->searchQuery.empty())
+    {
+        ed->searchMatches.clear();
+        ed->currentMatchIndex = -1;
+        ed->needsFullRedraw = true;
+        return;
+    }
+
+    ed->performSearch();
+    ed->needsFullRedraw = true;
+}
+} // namespace
+
 void SearchForwardMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -76,19 +96,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx, int key)
         {
             ed->searchQuery.pop_back();
             ctx.commandBuffer = "/" + ed->searchQuery;
-
-            // Restore original position and re-search
-            ctx.cursorX() = ed->savedCursorX;
-            ctx.cursorY() = ed->savedCursorY;
-
-            if(!ed->searchQuery.empty())
-            {
-                ed->findAllMatches();
-                if(!ed->searchMatches.empty())
-                {
-                    ed->jumpToMatch(0);
-                }
-            }
+            previewForwardSearch(ed, ctx);
         }
         else
         {
@@ -113,11 +121,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx, int key)
         {
             ed->searchQuery = prevSearch;
             ctx.commandBuffer = "/" + ed->searchQuery;
-            ed->findAllMatches();
-            if(!ed->searchMatches.empty())
-            {
-                ed->jumpToMatch(0);
-            }
+            previewForwardSearch(ed, ctx);
         }
         return std::nullopt;
     }
@@ -130,11 +134,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx, int key)
         {
             ed->searchQuery = nextSearch;
             ctx.commandBuffer = "/" + ed->searchQuery;
-            ed->findAllMatches();
-            if(!ed->searchMatches.empty())
-            {
-                ed->jumpToMatch(0);
-            }
+            previewForwardSearch(ed, ctx);
         }
         return std::nullopt;
     }
@@ -158,8 +158,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx, int key)
         ed->searchQuery.clear();
         ctx.commandBuffer = "/";
 
-        ctx.cursorX() = ed->savedCursorX;
-        ctx.cursorY() = ed->savedCursorY;
+        previewForwardSearch(ed, ctx);
         return std::nullopt;
     }
 
@@ -171,13 +170,7 @@ std::optional<ModeState> SearchForwardMode::handle(ModeContext& ctx, int key)
     {
         ed->searchQuery += static_cast<char>(c);
         ctx.commandBuffer = "/" + ed->searchQuery;
-
-        // Incremental search
-        ed->findAllMatches();
-        if(!ed->searchMatches.empty())
-        {
-            ed->jumpToMatch(0);
-        }
+        previewForwardSearch(ed, ctx);
     }
 
     ed->needsFullRedraw = true;
@@ -199,16 +192,5 @@ void SearchForwardMode::deleteWordBackward(ModeContext& ctx)
         ed->searchQuery.pop_back();
     }
     ctx.commandBuffer = "/" + ed->searchQuery;
-
-    ctx.cursorX() = ed->savedCursorX;
-    ctx.cursorY() = ed->savedCursorY;
-
-    if(!ed->searchQuery.empty())
-    {
-        ed->findAllMatches();
-        if(!ed->searchMatches.empty())
-        {
-            ed->jumpToMatch(0);
-        }
-    }
+    previewForwardSearch(ed, ctx);
 }

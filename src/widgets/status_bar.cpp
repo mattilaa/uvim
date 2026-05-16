@@ -89,9 +89,13 @@ void appendMessageBar(std::string& output, const MessageBarView& view)
        view.currentMode == SEARCH_BACKWARD)
     {
         std::string prompt = std::string(view.commandBuffer);
-        if(prompt.empty())
+        if(view.currentMode == SEARCH_FORWARD && prompt.empty())
+            prompt = "/";
+        else if(view.currentMode == SEARCH_BACKWARD && prompt.empty())
+            prompt = "?";
+        else if(view.currentMode == COMMAND && prompt.empty())
             prompt = ":";
-        else if(prompt.front() != ':')
+        else if(view.currentMode == COMMAND && prompt.front() != ':')
             prompt.insert(prompt.begin(), ':');
         output += prompt;
         return;

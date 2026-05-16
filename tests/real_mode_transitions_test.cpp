@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "widgets/status_bar.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -577,6 +578,89 @@ TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideIfConditio
 
     EXPECT_EQ(editor.currentBuffer->lines[0], "if (ready())");
     EXPECT_EQ(*editor.cursorX, 10);
+}
+
+TEST(RealModeTransitionsTest, SearchPromptShowsFullTypedPattern)
+{
+    std::string output;
+    widgets::MessageBarView view{
+        .currentMode = SEARCH_FORWARD,
+        .screenCols = 80,
+        .commandBuffer = "/long_pattern",
+    };
+
+    widgets::appendMessageBar(output, view);
+
+    EXPECT_EQ(output, "/long_pattern");
+}
+
+TEST(RealModeTransitionsTest, IncrementalForwardSearchStartsAtSavedCursor)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"foo one", "foo two", "foo three"};
+    *editor.cursorX = 4;
+    *editor.cursorY = 1;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    sm.dispatch('f');
+    sm.dispatch('o');
+    sm.dispatch('o');
+
+    EXPECT_EQ(editor.commandBuffer, "/foo");
+    ASSERT_EQ(editor.searchMatches.size(), 3u);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 0);
+    EXPECT_EQ(editor.currentMatchIndex, 2);
+    EXPECT_STREQ(sm.currentStateName(), "/");
+}
+
+TEST(RealModeTransitionsTest, IncrementalForwardSearchRecomputesAfterEdit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"abc here", "abd there"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    sm.dispatch('a');
+    sm.dispatch('b');
+    sm.dispatch('c');
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    sm.dispatch('d');
+
+    EXPECT_EQ(editor.commandBuffer, "/abd");
+    ASSERT_EQ(editor.searchMatches.size(), 1u);
+    EXPECT_EQ(editor.searchMatches[0].row, 1);
+    EXPECT_EQ(*editor.cursorY, 1);
+    EXPECT_EQ(*editor.cursorX, 0);
+    EXPECT_EQ(editor.currentMatchIndex, 0);
+}
+
+TEST(RealModeTransitionsTest, IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"needle"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    sm.dispatch('n');
+    ASSERT_FALSE(editor.searchMatches.empty());
+    EXPECT_TRUE(editor.isInSearchMatch(0, 0));
+
+    editor.needsFullRedraw = false;
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+
+    EXPECT_EQ(editor.commandBuffer, "/");
+    EXPECT_TRUE(editor.searchMatches.empty());
+    EXPECT_FALSE(editor.isInSearchMatch(0, 0));
+    EXPECT_TRUE(editor.needsFullRedraw);
 }
 
 TEST(RealModeTransitionsTest, FormatOnSaveCallsFormatterHookWhenEnabled)
