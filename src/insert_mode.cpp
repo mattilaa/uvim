@@ -632,8 +632,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 indent++;
             }
             std::string indentStr = line.substr(0, indent);
-            const int innerWidth =
-                std::max(0, ed->indentWidthForBraces() - 1);
+            const int innerWidth = ed->indentWidthForBraces();
             std::string innerIndent =
                 indentStr + std::string(innerWidth, keyCode(control::ControlKey::SPACE));
 

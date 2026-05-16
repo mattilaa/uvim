@@ -262,7 +262,7 @@ void Editor::insertNewline()
         if(checkPos >= 0 && currentLine[checkPos] == '{')
         {
             addExtraIndent = true;
-            extraIndentWidth = std::max(0, indentWidthForBraces() - 1);
+            extraIndentWidth = indentWidthForBraces();
         }
     }
 

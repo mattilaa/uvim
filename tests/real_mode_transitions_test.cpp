@@ -339,10 +339,10 @@ TEST(RealModeTransitionsTest, AutoBraceInsertUsesIndentWidth)
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "fn main(){");
-    EXPECT_EQ(editor.currentBuffer->lines[1], "   ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
     EXPECT_EQ(editor.currentBuffer->lines[2], "}");
     EXPECT_EQ(*editor.cursorY, 1);
-    EXPECT_EQ(*editor.cursorX, 3);
+    EXPECT_EQ(*editor.cursorX, 4);
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
@@ -365,9 +365,56 @@ TEST(RealModeTransitionsTest, EnterAfterCppBraceJumpsToColumn4)
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "fn main() {");
-    EXPECT_EQ(editor.currentBuffer->lines[1], "   ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
     EXPECT_EQ(*editor.cursorY, 1);
-    EXPECT_EQ(*editor.cursorX, 3);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, NormalOpenBelowAfterCppBraceUsesIndentWidth)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"fn main() {"};
+    editor.currentBuffer->filename = "main.cpp";
+    if(editor.filename)
+        *editor.filename = editor.currentBuffer->filename;
+    editor.currentBuffer->clangIndentWidthValid = true;
+    editor.currentBuffer->clangIndentWidth = 4;
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('o');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
+    EXPECT_EQ(*editor.cursorY, 1);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, NormalOpenAboveClosingCppBraceUsesIndentWidth)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"fn main() {", "}"};
+    editor.currentBuffer->filename = "main.cpp";
+    if(editor.filename)
+        *editor.filename = editor.currentBuffer->filename;
+    editor.currentBuffer->clangIndentWidthValid = true;
+    editor.currentBuffer->clangIndentWidth = 4;
+    *editor.cursorX = 0;
+    *editor.cursorY = 1;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('O');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    ");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "}");
+    EXPECT_EQ(*editor.cursorY, 1);
+    EXPECT_EQ(*editor.cursorX, 4);
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
