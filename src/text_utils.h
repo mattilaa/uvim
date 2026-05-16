@@ -138,22 +138,22 @@ inline int wcwidth_win(wchar_t wc) noexcept
         return 0;
     if(wc < 0x20 || (wc >= 0x7F && wc < 0xA0))
         return -1;
-    if((wc >= 0x0300 && wc <= 0x036F) ||  // combining diacriticals
-       (wc >= 0x200B && wc <= 0x200F) ||  // zero-width / format
-       (wc >= 0xFE00 && wc <= 0xFE0F) ||  // variation selectors
+    if((wc >= 0x0300 && wc <= 0x036F) || // combining diacriticals
+       (wc >= 0x200B && wc <= 0x200F) || // zero-width / format
+       (wc >= 0xFE00 && wc <= 0xFE0F) || // variation selectors
        wc == 0x2028 || wc == 0x2029)
         return 0;
-    if((wc >= 0x1100 && wc <= 0x115F) ||  // Hangul Jamo
-       (wc >= 0x2E80 && wc <= 0x303E) ||  // CJK radicals / symbols
-       (wc >= 0x3041 && wc <= 0x33FF) ||  // Hiragana / Katakana / etc.
-       (wc >= 0x3400 && wc <= 0x4DBF) ||  // CJK Ext A
-       (wc >= 0x4E00 && wc <= 0x9FFF) ||  // CJK Unified
-       (wc >= 0xA000 && wc <= 0xA4CF) ||  // Yi
-       (wc >= 0xAC00 && wc <= 0xD7A3) ||  // Hangul Syllables
-       (wc >= 0xF900 && wc <= 0xFAFF) ||  // CJK Compatibility
-       (wc >= 0xFE30 && wc <= 0xFE4F) ||  // CJK Compat Forms
-       (wc >= 0xFF00 && wc <= 0xFF60) ||  // Fullwidth
-       (wc >= 0xFFE0 && wc <= 0xFFE6))    // Fullwidth signs
+    if((wc >= 0x1100 && wc <= 0x115F) || // Hangul Jamo
+       (wc >= 0x2E80 && wc <= 0x303E) || // CJK radicals / symbols
+       (wc >= 0x3041 && wc <= 0x33FF) || // Hiragana / Katakana / etc.
+       (wc >= 0x3400 && wc <= 0x4DBF) || // CJK Ext A
+       (wc >= 0x4E00 && wc <= 0x9FFF) || // CJK Unified
+       (wc >= 0xA000 && wc <= 0xA4CF) || // Yi
+       (wc >= 0xAC00 && wc <= 0xD7A3) || // Hangul Syllables
+       (wc >= 0xF900 && wc <= 0xFAFF) || // CJK Compatibility
+       (wc >= 0xFE30 && wc <= 0xFE4F) || // CJK Compat Forms
+       (wc >= 0xFF00 && wc <= 0xFF60) || // Fullwidth
+       (wc >= 0xFFE0 && wc <= 0xFFE6))   // Fullwidth signs
         return 2;
     return 1;
 }
@@ -256,7 +256,9 @@ inline int utf8ByteOffsetToUtf16(std::string_view line, int byteOffset)
 
     int u16 = 0;
     int i = 0;
+#if WCHAR_MAX <= 0xFFFF
     int safeLen = 0;
+#endif
     while(i < byteOffset)
     {
         unsigned char c = (unsigned char)line[i];
@@ -305,7 +307,9 @@ inline int utf8ByteOffsetToUtf16(std::string_view line, int byteOffset)
             u16 += 2;
 
         i += len;
+#if WCHAR_MAX <= 0xFFFF
         safeLen = i;
+#endif
     }
 
 #if WCHAR_MAX <= 0xFFFF
