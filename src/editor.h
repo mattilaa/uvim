@@ -878,6 +878,8 @@ public:
         return isFileType(Type);
     }
 
+    std::optional<FileType> getFormatterFileType() const;
+
     bool formatBuffer(FileType type);
     bool formatBuffer(Formatter::Kind kind);
     bool pythonFormatBuffer();

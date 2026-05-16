@@ -818,6 +818,81 @@ bool Editor::isFileType(FileType type) const
     return syntaxHighlighter->isFileType(type);
 }
 
+std::optional<FileType> Editor::getFormatterFileType() const
+{
+    std::string_view pathSv;
+    if(filename && !filename->empty())
+    {
+        pathSv = *filename;
+    }
+    else if(currentBuffer && !currentBuffer->filename.empty())
+    {
+        pathSv = currentBuffer->filename;
+    }
+    else
+    {
+        return {};
+    }
+
+    if(constants::is_filetype<constants::no_pattern, constants::cpp_suffixes,
+                              constants::cpp_stdlib_patterns>(pathSv))
+    {
+        return FileType::Cpp;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::mla_suffixes>(pathSv))
+    {
+        return FileType::Mla;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::robot_suffixes>(pathSv))
+    {
+        return FileType::Robot;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::python_suffixes>(pathSv))
+    {
+        return FileType::Python;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::json_suffixes>(pathSv))
+    {
+        return FileType::Json;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::yaml_suffixes>(pathSv))
+    {
+        return FileType::Yaml;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::toml_suffixes>(pathSv))
+    {
+        return FileType::Toml;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::css_suffixes>(pathSv))
+    {
+        return FileType::Css;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::javascript_suffixes>(pathSv))
+    {
+        return FileType::JavaScript;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::typescript_suffixes>(pathSv))
+    {
+        return FileType::TypeScript;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::xml_suffixes>(pathSv))
+    {
+        return FileType::Xml;
+    }
+
+    return {};
+}
+
 size_t Editor::byteOffsetForPosition(int y, int x) const
 {
     if(!formatter)
