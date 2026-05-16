@@ -1,6 +1,6 @@
 #include "editor.h"
 #include "formatter.h"
-#include "os_compat.h"
+#include "process_pipe.h"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -89,11 +89,11 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
     };
 
     std::string cmd = buildCmd("/opt/homebrew/bin/clang-format");
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         cmd = buildCmd("clang-format");
-        pipe = popen(cmd.c_str(), "r");
+        pipe.open(cmd, "r");
     }
 
     if(!pipe)
@@ -105,10 +105,10 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
 
     std::string formatted;
     char buffer[4096];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         formatted += buffer;
 
-    int status = pclose(pipe);
+    int status = pipe.close();
     (void)status;
     unlink(tempPath.c_str());
 

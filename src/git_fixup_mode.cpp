@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
-#include "os_compat.h"
 #include <algorithm>
 #include <string>
 
@@ -17,14 +17,13 @@ std::string trim_newline(std::string s)
 std::vector<std::string> run_git_lines(const std::string& cmd)
 {
     std::vector<std::string> out;
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return out;
     char buffer[1024];
     std::string output;
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         output += buffer;
-    pclose(pipe);
 
     size_t pos = 0;
     while(pos <= output.size())

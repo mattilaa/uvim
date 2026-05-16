@@ -4,9 +4,9 @@
 #include "editor_utils.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
-#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -26,21 +26,10 @@ std::string toLower(std::string_view input)
 
 std::string runCmd(const std::string& cmd)
 {
-    std::string out;
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
-        return out;
-    char buf[4096];
-    while(true)
-    {
-        size_t n = fread(buf, 1, sizeof(buf), pipe);
-        if(n > 0)
-            out.append(buf, n);
-        if(n < sizeof(buf))
-            break;
-    }
-    pclose(pipe);
-    return out;
+        return {};
+    return pipe.readAll();
 }
 
 std::string trimNewline(std::string s)

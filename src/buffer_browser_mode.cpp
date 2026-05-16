@@ -146,9 +146,8 @@ void BufferBrowserMode::draw(Editor& editor) const
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output +=
-        "  [Enter: switch] [Ctrl+X: close] [Ctrl+Shift+X: close matches] "
-        "[Esc: cancel] [Ctrl+J/K: navigate]";
+    output += "  [Enter: switch] [Ctrl+X: close] [Ctrl+Shift+X: close matches] "
+              "[Esc: cancel] [Ctrl+J/K: navigate]";
     output += editor.theme.baseFg();
 
     output += Terminal::NEWLINE_CLEAR;
@@ -246,9 +245,8 @@ void BufferBrowserMode::updateMatches(Editor& editor)
         }
 
         std::vector<int> posDisplay;
-        int s1 =
-            editor::helper::fuzzyScoreWithPositions(bufferQuery, m.display,
-                                                    posDisplay);
+        int s1 = editor::helper::fuzzyScoreWithPositions(bufferQuery, m.display,
+                                                         posDisplay);
 
         std::vector<int> posName;
         int s2 = editor.buffers[i]->filename.empty()
@@ -319,7 +317,8 @@ void BufferBrowserMode::closeSelectedBuffer(Editor& editor)
 
     if(editor.buffers[idx]->dirty)
     {
-        editor.setStatusMessage("No write since last change (add ! to override)");
+        editor.setStatusMessage(
+            "No write since last change (add ! to override)");
         return;
     }
 

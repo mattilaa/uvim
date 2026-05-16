@@ -1,9 +1,9 @@
 #include "editor.h"
 #include "editor_utils.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
-#include "os_compat.h"
 #include <algorithm>
 #include <chrono>
 #include <string_view>
@@ -49,15 +49,14 @@ void append_highlighted(std::string& out, std::string_view text,
 std::vector<std::string> run_git_lines(const std::string& cmd)
 {
     std::vector<std::string> out;
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return out;
 
     std::string output;
     char buffer[2048];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         output += buffer;
-    pclose(pipe);
 
     size_t pos = 0;
     while(pos <= output.size())

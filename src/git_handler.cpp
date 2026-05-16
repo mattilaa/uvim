@@ -2,10 +2,10 @@
 #include "editor.h"
 #include "editor_mode_controller.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "text_utils.h"
 #include <cctype>
 #include <charconv>
-#include "os_compat.h"
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -63,14 +63,13 @@ bool is_inside_git_repo(const std::string& filePath)
         path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string cmd =
         "git -C \"" + dir + "\" rev-parse --is-inside-work-tree 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return false;
     char buffer[128];
     std::string out;
-    if(fgets(buffer, sizeof(buffer), pipe))
+    if(fgets(buffer, sizeof(buffer), pipe.get()))
         out = trim_newline(buffer);
-    pclose(pipe);
     return out == "true";
 }
 
@@ -78,14 +77,13 @@ std::string git_root_for_dir(const std::string& dir)
 {
     std::string cmd =
         "git -C \"" + dir + "\" rev-parse --show-toplevel 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return "";
     char buffer[512];
     std::string out;
-    if(fgets(buffer, sizeof(buffer), pipe))
+    if(fgets(buffer, sizeof(buffer), pipe.get()))
         out = trim_newline(buffer);
-    pclose(pipe);
     return out;
 }
 
@@ -146,14 +144,13 @@ std::string blame_hash_for_line(const std::string& filePath, int line)
                       std::to_string(line + 1) + "," +
                       std::to_string(line + 1) + " -- \"" + filePath +
                       "\" 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return "";
     char buffer[256];
     std::string firstLine;
-    if(fgets(buffer, sizeof(buffer), pipe))
+    if(fgets(buffer, sizeof(buffer), pipe.get()))
         firstLine = trim_newline(buffer);
-    pclose(pipe);
     if(firstLine.empty())
         return "";
     size_t space = firstLine.find(' ');
@@ -238,7 +235,7 @@ void GitHandler::updateGitBlameForVisibleRange()
         cmd += "--contents \"" + tempPath + "\" ";
     cmd += "-- \"" + blameTarget + "\" 2>/dev/null";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         editor->setStatusMessage("git blame: failed to run");
@@ -258,7 +255,7 @@ void GitHandler::updateGitBlameForVisibleRange()
     std::string author;
     std::string authorTime;
     char buffer[512];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(line.empty())
@@ -294,7 +291,6 @@ void GitHandler::updateGitBlameForVisibleRange()
                 hash = token;
         }
     }
-    pclose(pipe);
     if(!tempPath.empty())
         unlink(tempPath.c_str());
 
@@ -453,7 +449,7 @@ void GitHandler::openGitDiffMode()
                                                 : "--no-color ") +
         "2>/dev/null";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         editor->setStatusMessage("git diff: failed");
@@ -462,9 +458,8 @@ void GitHandler::openGitDiffMode()
 
     std::string output;
     char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         output += buffer;
-    pclose(pipe);
 
     if(output.empty())
     {
@@ -540,15 +535,14 @@ std::vector<std::string> GitHandler::loadGitShowLines(const std::string& hash)
                                                 : "--no-color ") +
         hash + " 2>/dev/null";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return {};
 
     std::string output;
     char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         output += buffer;
-    pclose(pipe);
 
     if(output.empty())
         return {};
@@ -590,7 +584,7 @@ void GitHandler::openGitLogMode()
         "\" --no-pager log --no-color --date=format:%Y-%m-%d\\ %H:%M\\ %z "
         "--pretty=format:%H%x1f%ad%x1f%an%x1f%s 2>/dev/null";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         editor->setStatusMessage("git log: failed to run");
@@ -599,7 +593,7 @@ void GitHandler::openGitLogMode()
 
     std::vector<GitLogMode::Entry> entries;
     char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(line.empty())
@@ -626,8 +620,6 @@ void GitHandler::openGitLogMode()
             entry.subject = line.substr(tab + 1);
         entries.push_back(std::move(entry));
     }
-    pclose(pipe);
-
     if(entries.empty())
     {
         editor->setStatusMessage("git log: no output");
@@ -663,7 +655,7 @@ void GitHandler::openGitPrettyLogMode()
         "\" --no-pager log --no-color --date=format:%Y-%m-%d\\ %H:%M\\ %z "
         "--pretty=format:%H%x1f%ad%x1f%an%x1f%s 2>/dev/null";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         editor->setStatusMessage("git prettylog: failed to run");
@@ -672,7 +664,7 @@ void GitHandler::openGitPrettyLogMode()
 
     std::vector<GitLogMode::Entry> entries;
     char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(line.empty())
@@ -699,8 +691,6 @@ void GitHandler::openGitPrettyLogMode()
             entry.subject = line.substr(tab + 1);
         entries.push_back(std::move(entry));
     }
-    pclose(pipe);
-
     if(entries.empty())
     {
         editor->setStatusMessage("git prettylog: no output");
@@ -748,7 +738,7 @@ void GitHandler::openGitLogModeForFile()
         "\" --no-pager log --no-color --pretty=format:%H\\\t%s -- \"" +
         editor->currentBuffer->filename + "\" 2>/dev/null";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         editor->setStatusMessage("git log: failed to run");
@@ -757,7 +747,7 @@ void GitHandler::openGitLogModeForFile()
 
     std::vector<GitLogMode::Entry> entries;
     char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(line.empty())
@@ -770,8 +760,6 @@ void GitHandler::openGitLogModeForFile()
         entry.subject = line.substr(tab + 1);
         entries.push_back(std::move(entry));
     }
-    pclose(pipe);
-
     if(entries.empty())
     {
         editor->setStatusMessage("git log: no output");
@@ -865,13 +853,13 @@ std::optional<bool> GitHandler::currentBufferHasChanges()
     std::string cmd = "git -C \"" + repoRoot +
                       "\" status --short -- \"" +
                       editor->currentBuffer->filename + "\" 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return std::nullopt;
 
     char buffer[512];
     bool hasChanges = false;
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(!line.empty())
@@ -880,7 +868,6 @@ std::optional<bool> GitHandler::currentBufferHasChanges()
             break;
         }
     }
-    pclose(pipe);
     return hasChanges;
 }
 
@@ -902,7 +889,7 @@ bool GitHandler::runGitStash(std::string& outMessage)
 
     std::string cmd =
         "git -C \"" + repoRoot + "\" stash 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         outMessage = "git stash: failed";
@@ -910,9 +897,8 @@ bool GitHandler::runGitStash(std::string& outMessage)
     }
     char buffer[512];
     std::string output;
-    if(fgets(buffer, sizeof(buffer), pipe))
+    if(fgets(buffer, sizeof(buffer), pipe.get()))
         output = trim_newline(buffer);
-    pclose(pipe);
 
     if(output.empty())
         outMessage = "git stash: done";
@@ -939,7 +925,7 @@ bool GitHandler::runGitStashPop(std::string& outMessage)
 
     std::string cmd =
         "git -C \"" + repoRoot + "\" stash pop 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         outMessage = "git stash pop: failed";
@@ -947,9 +933,8 @@ bool GitHandler::runGitStashPop(std::string& outMessage)
     }
     char buffer[512];
     std::string output;
-    if(fgets(buffer, sizeof(buffer), pipe))
+    if(fgets(buffer, sizeof(buffer), pipe.get()))
         output = trim_newline(buffer);
-    pclose(pipe);
 
     if(output.empty())
         outMessage = "git stash pop: done";

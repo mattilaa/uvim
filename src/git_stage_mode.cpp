@@ -1,11 +1,11 @@
 #include "ascii.h"
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
 
 #include <algorithm>
-#include "os_compat.h"
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -23,16 +23,10 @@ struct StatusEntry
 
 std::string run_git_raw(const std::string& cmd)
 {
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return {};
-    std::string output;
-    char buffer[4096];
-    size_t n = 0;
-    while((n = fread(buffer, 1, sizeof(buffer), pipe)) > 0)
-        output.append(buffer, n);
-    pclose(pipe);
-    return output;
+    return pipe.readAll();
 }
 
 std::string trim_newline(std::string s)

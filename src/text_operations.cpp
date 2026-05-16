@@ -1,6 +1,6 @@
 #include "editor.h"
 #include "enablelog.h"
-#include "os_compat.h"
+#include "process_pipe.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
@@ -583,17 +583,16 @@ std::string Editor::getSystemClipboard()
     if(cmd.empty())
         return "";
 
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return "";
 
     std::string result;
     char buffer[256];
-    while(fgets(buffer, sizeof(buffer), pipe) != nullptr)
+    while(fgets(buffer, sizeof(buffer), pipe.get()) != nullptr)
     {
         result += buffer;
     }
-    pclose(pipe);
 
     return result;
 }
@@ -614,7 +613,7 @@ void Editor::setSystemClipboard(const std::string& text)
 #ifdef __APPLE__
     // On macOS, use pbcopy directly
     LOG_DEBUG(LOG, "setSystemClipboard: opening pipe to pbcopy");
-    FILE* pipe = popen("pbcopy", "w");
+    ProcessPipe pipe("pbcopy", "w");
     if(!pipe)
     {
         LOG_DEBUG(LOG, "setSystemClipboard: failed to open pipe to pbcopy");
@@ -623,15 +622,16 @@ void Editor::setSystemClipboard(const std::string& text)
 
     LOG_DEBUG(LOG, "setSystemClipboard: writing {} bytes to pbcopy",
               text.length());
-    size_t written = fwrite(text.c_str(), 1, text.length(), pipe);
+    size_t written = fwrite(text.c_str(), 1, text.length(), pipe.get());
+    (void)written;
     LOG_DEBUG(LOG, "setSystemClipboard: wrote {} bytes, flushing", written);
-    fflush(pipe);
+    pipe.flush();
 
     LOG_DEBUG(
         LOG,
         "setSystemClipboard: closing pipe (waiting for pbcopy to complete)");
-    int status = pclose(pipe);
-    LOG_DEBUG(LOG, "setSystemClipboard: pclose returned status={}", status);
+    int status = pipe.close();
+    LOG_DEBUG(LOG, "setSystemClipboard: pipe close returned status={}", status);
 
     if(status != 0)
     {
@@ -646,13 +646,13 @@ void Editor::setSystemClipboard(const std::string& text)
     if(cmd.empty())
         return;
 
-    FILE* pipe = popen(cmd.c_str(), "w");
+    ProcessPipe pipe(cmd, "w");
     if(!pipe)
         return;
 
-    fwrite(text.c_str(), 1, text.length(), pipe);
-    fflush(pipe);
-    pclose(pipe);
+    pipe.write(text);
+    pipe.flush();
+    pipe.close();
 #endif
 }
 

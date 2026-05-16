@@ -3,6 +3,7 @@
 #include "file_utils.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
 #include <algorithm>
 #include <cctype>
@@ -13,7 +14,6 @@
 #include <optional>
 #include <regex>
 #include <sstream>
-#include "os_compat.h"
 #include <unordered_map>
 #include <vector>
 
@@ -3018,7 +3018,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 shellCmd += "; } 2>&1";
 
                 std::vector<std::string> outputLines;
-                FILE* pipe = popen(shellCmd.c_str(), "r");
+                ProcessPipe pipe(shellCmd, "r");
                 if(!pipe)
                 {
                     ctx.setStatusMessage("Failed to run: " + args);
@@ -3028,7 +3028,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 char buf[4096];
                 while(true)
                 {
-                    size_t n = fread(buf, 1, sizeof(buf), pipe);
+                    size_t n = fread(buf, 1, sizeof(buf), pipe.get());
                     for(size_t i = 0; i < n; ++i)
                     {
                         char ch = buf[i];
@@ -3051,7 +3051,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 }
                 if(!current.empty())
                     outputLines.push_back(std::move(current));
-                int status = pclose(pipe);
+                int status = pipe.close();
                 (void)status;
                 if(outputLines.empty())
                     outputLines.push_back("(no output)");

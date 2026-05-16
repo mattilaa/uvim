@@ -1,6 +1,6 @@
 #include "editor.h"
 #include "formatter.h"
-#include "os_compat.h"
+#include "process_pipe.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -135,7 +135,7 @@ void PythonFormatter::lintBuffer()
 
     std::string cmd =
         "ruff check --quiet \"" + tempPath + "\" 2>/tmp/uvim_ruff_err.log";
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
     {
         unlink(tempPath.c_str());
@@ -145,9 +145,8 @@ void PythonFormatter::lintBuffer()
 
     std::string output;
     char buffer[4096];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         output += buffer;
-    pclose(pipe);
     unlink(tempPath.c_str());
 
     if(output.empty())

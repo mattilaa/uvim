@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
-#include "os_compat.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -24,15 +24,14 @@ std::string trim_newline(std::string s)
 std::vector<std::string> run_git_lines(const std::string& cmd)
 {
     std::vector<std::string> out;
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return out;
 
     std::string output;
     char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe))
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
         output += buffer;
-    pclose(pipe);
 
     size_t pos = 0;
     while(pos <= output.size())
@@ -582,7 +581,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
             std::string commitCmd =
                 "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
-            FILE* pipe = popen(commitCmd.c_str(), "w");
+            ProcessPipe pipe(commitCmd, "w");
             if(!pipe)
             {
                 system(("git -C \"" + repoDir + "\" revert --abort 2>/dev/null")
@@ -590,9 +589,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 ed->setStatusMessage("git revert: failed");
                 return false;
             }
-            fwrite(msg.data(), 1, msg.size(), pipe);
-            fwrite("\n", 1, 1, pipe);
-            int commitStatus = pclose(pipe);
+            pipe.write(msg);
+            pipe.write("\n");
+            int commitStatus = pipe.close();
             if(commitStatus != 0)
             {
                 system(("git -C \"" + repoDir + "\" revert --abort 2>/dev/null")
@@ -607,15 +606,15 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         else
         {
             std::string cmd = "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
-            FILE* pipe = popen(cmd.c_str(), "w");
+            ProcessPipe pipe(cmd, "w");
             if(!pipe)
             {
                 ed->setStatusMessage("git commit: failed");
                 return false;
             }
-            fwrite(msg.data(), 1, msg.size(), pipe);
-            fwrite("\n", 1, 1, pipe);
-            int status = pclose(pipe);
+            pipe.write(msg);
+            pipe.write("\n");
+            int status = pipe.close();
             if(status != 0)
             {
                 ed->setStatusMessage("git commit: failed");

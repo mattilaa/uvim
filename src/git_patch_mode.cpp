@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
-#include "os_compat.h"
 #include <algorithm>
 #include <string>
 
@@ -9,16 +9,10 @@ namespace
 {
 std::string run_git_raw(const std::string& cmd)
 {
-    FILE* pipe = popen(cmd.c_str(), "r");
+    ProcessPipe pipe(cmd, "r");
     if(!pipe)
         return {};
-    std::string output;
-    char buffer[4096];
-    size_t n = 0;
-    while((n = fread(buffer, 1, sizeof(buffer), pipe)) > 0)
-        output.append(buffer, n);
-    pclose(pipe);
-    return output;
+    return pipe.readAll();
 }
 
 std::vector<std::string> split_lines(const std::string& s)
@@ -172,12 +166,11 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
     {
         std::string cmd =
             "git -C \"" + repoDir + "\" apply --cached --unidiff-zero";
-        FILE* pipe = popen(cmd.c_str(), "w");
+        ProcessPipe pipe(cmd, "w");
         if(pipe)
         {
-            fwrite(hunks[hunkIndex].patch.data(), 1,
-                   hunks[hunkIndex].patch.size(), pipe);
-            pclose(pipe);
+            pipe.write(hunks[hunkIndex].patch);
+            pipe.close();
         }
         if(hunkIndex < (int)hunks.size() - 1)
         {
