@@ -17,18 +17,18 @@ static std::string read_first_line(const std::string& path)
     return line;
 }
 
-bool Formatter::jsonFormatBuffer()
+bool JsonFormatter::operator()()
 {
-    if(!editor->lines || !editor->filename)
+    if(!editor.lines || !editor.filename)
         return false;
-    if(!editor->isFileType<FileType::Json>())
+    if(!editor.isFileType<FileType::Json>())
     {
-        editor->setStatusMessage("json.tool: not a JSON file");
+        editor.setStatusMessage("json.tool: not a JSON file");
         return false;
     }
 
-    const int savedY = editor->cursorY ? *editor->cursorY : 0;
-    const int savedX = editor->cursorX ? *editor->cursorX : 0;
+    const int savedY = editor.cursorY ? *editor.cursorY : 0;
+    const int savedX = editor.cursorX ? *editor.cursorX : 0;
 
     std::string tempPath =
         "/tmp/uvim_json_" + std::to_string(getpid()) + ".json";
@@ -37,11 +37,11 @@ bool Formatter::jsonFormatBuffer()
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        editor->setStatusMessage("json.tool: failed to create temp file");
+        editor.setStatusMessage("json.tool: failed to create temp file");
         return false;
     }
-    for(size_t i = 0; i < editor->lines->size(); ++i)
-        tempFile << (*editor->lines)[i] << '\n';
+    for(size_t i = 0; i < editor.lines->size(); ++i)
+        tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
     std::string cmd = "python -m json.tool \"" + tempPath + "\" > \"" +
@@ -52,7 +52,7 @@ bool Formatter::jsonFormatBuffer()
         std::string err = read_first_line("/tmp/uvim_json_err.log");
         if(err.empty())
             err = "json.tool failed";
-        editor->setStatusMessage(err);
+        editor.setStatusMessage(err);
         unlink(tempPath.c_str());
         unlink(outPath.c_str());
         return false;
@@ -63,7 +63,7 @@ bool Formatter::jsonFormatBuffer()
     {
         unlink(tempPath.c_str());
         unlink(outPath.c_str());
-        editor->setStatusMessage("json.tool: failed to read temp output");
+        editor.setStatusMessage("json.tool: failed to read temp output");
         return false;
     }
 
@@ -84,44 +84,43 @@ bool Formatter::jsonFormatBuffer()
     if(newLines.empty())
         newLines.push_back("");
 
-    if(newLines == *editor->lines)
+    if(newLines == *editor.lines)
     {
-        editor->setStatusMessage("json.tool: no changes");
+        editor.setStatusMessage("json.tool: no changes");
         return true;
     }
 
-    editor->saveState();
-    *editor->lines = std::move(newLines);
-    if(editor->dirty)
-        *editor->dirty = true;
+    editor.saveState();
+    *editor.lines = std::move(newLines);
+    if(editor.dirty)
+        *editor.dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines &&
-       !editor->lines->empty())
+    if(editor.cursorY && editor.cursorX && editor.lines &&
+       !editor.lines->empty())
     {
-        *editor->cursorY =
-            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(
-            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor.cursorY = std::clamp(savedY, 0, (int)editor.lines->size() - 1);
+        *editor.cursorX =
+            std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
-    editor->adjustViewport();
-    editor->needsFullRedraw = true;
-    editor->setStatusMessage("json.tool: formatted buffer");
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    editor.setStatusMessage("json.tool: formatted buffer");
     return true;
 }
 
-bool Formatter::yamlFormatBuffer()
+bool YamlFormatter::operator()()
 {
-    if(!editor->lines || !editor->filename)
+    if(!editor.lines || !editor.filename)
         return false;
-    if(!editor->isFileType<FileType::Yaml>())
+    if(!editor.isFileType<FileType::Yaml>())
     {
-        editor->setStatusMessage("yaml: not a YAML file");
+        editor.setStatusMessage("yaml: not a YAML file");
         return false;
     }
 
-    const int savedY = editor->cursorY ? *editor->cursorY : 0;
-    const int savedX = editor->cursorX ? *editor->cursorX : 0;
+    const int savedY = editor.cursorY ? *editor.cursorY : 0;
+    const int savedX = editor.cursorX ? *editor.cursorX : 0;
 
     std::string tempPath =
         "/tmp/uvim_yaml_" + std::to_string(getpid()) + ".yml";
@@ -130,11 +129,11 @@ bool Formatter::yamlFormatBuffer()
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        editor->setStatusMessage("yaml: failed to create temp file");
+        editor.setStatusMessage("yaml: failed to create temp file");
         return false;
     }
-    for(size_t i = 0; i < editor->lines->size(); ++i)
-        tempFile << (*editor->lines)[i] << '\n';
+    for(size_t i = 0; i < editor.lines->size(); ++i)
+        tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
     std::string cmd = "python -m yaml \"" + tempPath + "\" > \"" + outPath +
@@ -145,7 +144,7 @@ bool Formatter::yamlFormatBuffer()
         std::string err = read_first_line("/tmp/uvim_yaml_err.log");
         if(err.empty())
             err = "yaml formatter failed";
-        editor->setStatusMessage(err);
+        editor.setStatusMessage(err);
         unlink(tempPath.c_str());
         unlink(outPath.c_str());
         return false;
@@ -156,7 +155,7 @@ bool Formatter::yamlFormatBuffer()
     {
         unlink(tempPath.c_str());
         unlink(outPath.c_str());
-        editor->setStatusMessage("yaml: failed to read temp output");
+        editor.setStatusMessage("yaml: failed to read temp output");
         return false;
     }
 
@@ -177,28 +176,27 @@ bool Formatter::yamlFormatBuffer()
     if(newLines.empty())
         newLines.push_back("");
 
-    if(newLines == *editor->lines)
+    if(newLines == *editor.lines)
     {
-        editor->setStatusMessage("yaml: no changes");
+        editor.setStatusMessage("yaml: no changes");
         return true;
     }
 
-    editor->saveState();
-    *editor->lines = std::move(newLines);
-    if(editor->dirty)
-        *editor->dirty = true;
+    editor.saveState();
+    *editor.lines = std::move(newLines);
+    if(editor.dirty)
+        *editor.dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines &&
-       !editor->lines->empty())
+    if(editor.cursorY && editor.cursorX && editor.lines &&
+       !editor.lines->empty())
     {
-        *editor->cursorY =
-            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(
-            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor.cursorY = std::clamp(savedY, 0, (int)editor.lines->size() - 1);
+        *editor.cursorX =
+            std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
-    editor->adjustViewport();
-    editor->needsFullRedraw = true;
-    editor->setStatusMessage("yaml: formatted buffer");
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    editor.setStatusMessage("yaml: formatted buffer");
     return true;
 }

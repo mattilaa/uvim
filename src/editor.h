@@ -917,7 +917,6 @@ public:
     }
 
 private:
-    friend class Formatter;
     friend class GitHandler;
     friend class EditorSettingsController;
     friend class EditorBufferController;

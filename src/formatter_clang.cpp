@@ -9,43 +9,43 @@
 #include <string>
 #include <vector>
 
-bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
+bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
                                     const std::string& successMessage)
 {
-    if(!editor->lines || !editor->filename)
+    if(!editor.lines || !editor.filename)
         return false;
 
-    if(!editor->isFileType<FileType::Cpp>() ||
-       editor->isFileType<FileType::Mla>())
+    if(!editor.isFileType<FileType::Cpp>() ||
+       editor.isFileType<FileType::Mla>())
     {
-        editor->setStatusMessage("clang-format: not a C/C++ file (" +
-                                 *editor->filename + ")");
+        editor.setStatusMessage("clang-format: not a C/C++ file (" +
+                                *editor.filename + ")");
         return false;
     }
 
-    const int savedY = editor->cursorY ? *editor->cursorY : 0;
-    const int savedX = editor->cursorX ? *editor->cursorX : 0;
+    const int savedY = editor.cursorY ? *editor.cursorY : 0;
+    const int savedX = editor.cursorX ? *editor.cursorX : 0;
 
     std::string tempPath =
         "/tmp/uvim_format_" + std::to_string(getpid()) + ".tmp";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        editor->setStatusMessage("clang-format: failed to create temp file");
+        editor.setStatusMessage("clang-format: failed to create temp file");
         return false;
     }
 
-    for(size_t i = 0; i < editor->lines->size(); ++i)
-        tempFile << (*editor->lines)[i] << '\n';
+    for(size_t i = 0; i < editor.lines->size(); ++i)
+        tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
-    std::string absFilename = *editor->filename;
+    std::string absFilename = *editor.filename;
     if(!absFilename.empty() && absFilename[0] != '/')
     {
         std::error_code cwdEc;
         auto cwd = std::filesystem::current_path(cwdEc);
         if(!cwdEc)
-            absFilename = cwd.string() + "/" + *editor->filename;
+            absFilename = cwd.string() + "/" + *editor.filename;
     }
 
     auto buildCmd = [&](const std::string& exe) -> std::string
@@ -70,7 +70,7 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     if(!pipe)
     {
         unlink(tempPath.c_str());
-        editor->setStatusMessage("clang-format: failed to run");
+        editor.setStatusMessage("clang-format: failed to run");
         return false;
     }
 
@@ -94,7 +94,7 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
         }
         if(errMsg.empty())
             errMsg = "no output";
-        editor->setStatusMessage("clang-format: " + errMsg.substr(0, 80));
+        editor.setStatusMessage("clang-format: " + errMsg.substr(0, 80));
         return false;
     }
 
@@ -113,50 +113,48 @@ bool Formatter::clangFormatWithArgs(const std::string& extraArgs,
     if(newLines.empty())
         newLines.push_back("");
 
-    if(newLines == *editor->lines)
+    if(newLines == *editor.lines)
     {
-        editor->setStatusMessage("clang-format: no changes needed");
+        editor.setStatusMessage("clang-format: no changes needed");
         return true;
     }
 
-    editor->saveState();
-    *editor->lines = std::move(newLines);
-    if(editor->dirty)
-        *editor->dirty = true;
+    editor.saveState();
+    *editor.lines = std::move(newLines);
+    if(editor.dirty)
+        *editor.dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines &&
-       !editor->lines->empty())
+    if(editor.cursorY && editor.cursorX && editor.lines &&
+       !editor.lines->empty())
     {
-        *editor->cursorY =
-            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(
-            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor.cursorY = std::clamp(savedY, 0, (int)editor.lines->size() - 1);
+        *editor.cursorX =
+            std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
-    editor->adjustViewport();
-    editor->needsFullRedraw = true;
-    editor->setStatusMessage(successMessage);
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    editor.setStatusMessage(successMessage);
     return true;
 }
 
-void Formatter::clangFormatVisualSelection()
+void ClangFormatter::formatVisualSelection()
 {
-    if(!editor ||
-       (editor->currentMode != VISUAL && editor->currentMode != VISUAL_LINE))
+    if(editor.currentMode != VISUAL && editor.currentMode != VISUAL_LINE)
         return;
 
-    if(!editor->lines || editor->lines->empty())
+    if(!editor.lines || editor.lines->empty())
     {
-        editor->setStatusMessage("clang-format: empty buffer");
+        editor.setStatusMessage("clang-format: empty buffer");
         return;
     }
 
-    if(editor->currentMode == VISUAL_LINE)
+    if(editor.currentMode == VISUAL_LINE)
     {
-        const int startY = std::min(editor->currentBuffer->visualStartY,
-                                    editor->currentBuffer->visualEndY);
-        const int endY = std::max(editor->currentBuffer->visualStartY,
-                                  editor->currentBuffer->visualEndY);
+        const int startY = std::min(editor.currentBuffer->visualStartY,
+                                    editor.currentBuffer->visualEndY);
+        const int endY = std::max(editor.currentBuffer->visualStartY,
+                                  editor.currentBuffer->visualEndY);
 
         const int startLine = startY + 1;
         const int endLine = endY + 1;
@@ -164,15 +162,15 @@ void Formatter::clangFormatVisualSelection()
         const std::string args = "-lines=" + std::to_string(startLine) + ":" +
                                  std::to_string(endLine);
 
-        clangFormatWithArgs(args, "clang-format: formatted selection (lines)");
+        formatWithArgs(args, "clang-format: formatted selection (lines)");
         return;
     }
 
     int startY, startX, endY, endX;
-    editor->getSelectionBounds(startY, startX, endY, endX);
+    editor.getSelectionBounds(startY, startX, endY, endX);
 
-    endY = std::clamp(endY, 0, (int)editor->lines->size() - 1);
-    const int endLineLen = (int)(*editor->lines)[endY].size();
+    endY = std::clamp(endY, 0, (int)editor.lines->size() - 1);
+    const int endLineLen = (int)(*editor.lines)[endY].size();
     const int endXExclusive = std::clamp(endX + 1, 0, endLineLen);
 
     const size_t startOff = byteOffsetForPosition(startY, startX);
@@ -180,7 +178,7 @@ void Formatter::clangFormatVisualSelection()
 
     if(endOff <= startOff)
     {
-        editor->setStatusMessage("clang-format: empty selection");
+        editor.setStatusMessage("clang-format: empty selection");
         return;
     }
 
@@ -188,27 +186,27 @@ void Formatter::clangFormatVisualSelection()
     const std::string args = "-offset=" + std::to_string(startOff) +
                              " -length=" + std::to_string(len);
 
-    clangFormatWithArgs(args, "clang-format: formatted selection");
+    formatWithArgs(args, "clang-format: formatted selection");
 }
 
-void Formatter::clangFormatVisualBlockSelection()
+void ClangFormatter::formatVisualBlockSelection()
 {
-    if(!editor || editor->currentMode != VISUAL_BLOCK)
+    if(editor.currentMode != VISUAL_BLOCK)
         return;
 
-    if(!editor->lines || editor->lines->empty())
+    if(!editor.lines || editor.lines->empty())
     {
-        editor->setStatusMessage("clang-format: empty buffer");
+        editor.setStatusMessage("clang-format: empty buffer");
         return;
     }
 
     int startY, startX, endY, endX;
-    editor->getVisualBlockBounds(startY, startX, endY, endX);
+    editor.getVisualBlockBounds(startY, startX, endY, endX);
 
     std::string args;
-    for(int y = startY; y <= endY && y < (int)editor->lines->size(); ++y)
+    for(int y = startY; y <= endY && y < (int)editor.lines->size(); ++y)
     {
-        const int lineLen = (int)(*editor->lines)[y].size();
+        const int lineLen = (int)(*editor.lines)[y].size();
         const int segStart = std::clamp(startX, 0, lineLen);
         const int segEndExclusive = std::clamp(endX + 1, 0, lineLen);
 
@@ -224,12 +222,12 @@ void Formatter::clangFormatVisualBlockSelection()
 
     if(args.empty())
     {
-        editor->setStatusMessage("clang-format: empty visual block");
+        editor.setStatusMessage("clang-format: empty visual block");
         return;
     }
 
     if(!args.empty() && args[0] == ' ')
         args.erase(0, 1);
 
-    clangFormatWithArgs(args, "clang-format: formatted visual block");
+    formatWithArgs(args, "clang-format: formatted visual block");
 }

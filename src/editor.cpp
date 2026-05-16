@@ -720,7 +720,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
-    formatter = std::make_unique<Formatter>(this);
+    formatter = std::make_unique<Formatter>(*this);
     gitHandler = std::make_unique<GitHandler>(this);
 }
 
@@ -751,7 +751,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
-    formatter = std::make_unique<Formatter>(this);
+    formatter = std::make_unique<Formatter>(*this);
     gitHandler = std::make_unique<GitHandler>(this);
 }
 
