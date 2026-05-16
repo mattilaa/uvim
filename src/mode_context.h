@@ -117,6 +117,7 @@ struct ModeContext
     void createNewDirectoryPrompt();
 
     // Formatting and linting
+    /*
     bool pythonFormatBuffer();
     void pythonLintBuffer();
     bool robotFormatBuffer();
@@ -126,6 +127,7 @@ struct ModeContext
                              const std::string& successMessage);
     void clangFormatVisualSelection();
     void clangFormatVisualBlockSelection();
+    */
 
     // Search helpers
     void performSearch();

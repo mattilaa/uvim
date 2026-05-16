@@ -57,30 +57,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
         {
             ctx.commandBuffer.clear();
             ctx.repeatCount = 0;
-            if(ed->isFileType<FileType::Python>())
-            {
-                ed->pythonFormatBuffer();
-            }
-            else if(ed->isFileType<FileType::Robot>())
-            {
-                ed->robotFormatBuffer();
-            }
-            else if(ed->isFileType<FileType::Json>())
-            {
-                ed->jsonFormatBuffer();
-            }
-            else if(ed->isFileType<FileType::Yaml>())
-            {
-                ed->yamlFormatBuffer();
-            }
-            else if(ed->isFileType<FileType::Mla>())
-            {
-                ed->mlangFormatBuffer();
-            }
-            else
-            {
-                ed->clangFormatVisualSelection();
-            }
+            ed->formatBuffer();
             return NormalMode{};
         }
         if(c == keyCode(typed::TypedKey::KEY_P))

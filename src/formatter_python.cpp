@@ -8,35 +8,35 @@
 #include <string>
 #include <vector>
 
-bool Formatter::pythonFormatBuffer()
+bool PythonFormatter::operator()(Mode mode)
 {
-    if(!editor->lines || !editor->filename)
+    if(!editor.lines || !editor.filename)
         return false;
-    if(!editor->isFileType<FileType::Python>())
+    if(!editor.isFileType<FileType::Python>())
     {
-        editor->setStatusMessage("python: not a Python file");
+        editor.setStatusMessage("python: not a Python file");
         return false;
     }
 
-    const int savedY = editor->cursorY ? *editor->cursorY : 0;
-    const int savedX = editor->cursorX ? *editor->cursorX : 0;
+    const int savedY = editor.cursorY ? *editor.cursorY : 0;
+    const int savedX = editor.cursorX ? *editor.cursorX : 0;
 
     std::string tempPath =
         "/tmp/uvim_pyfmt_" + std::to_string(getpid()) + ".py";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        editor->setStatusMessage("black: failed to create temp file");
+        editor.setStatusMessage("black: failed to create temp file");
         return false;
     }
 
-    for(size_t i = 0; i < editor->lines->size(); ++i)
-        tempFile << (*editor->lines)[i] << '\n';
+    for(size_t i = 0; i < editor.lines->size(); ++i)
+        tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
     std::string errPath = "/tmp/uvim_pyfmt_err.log";
     std::string cmd;
-    if(editor->pythonFormatter == "ruff")
+    if(editor.pythonFormatter == "ruff")
     {
         cmd = "ruff format \"" + tempPath + "\" 2>\"" + errPath + "\"";
     }
@@ -56,10 +56,10 @@ bool Formatter::pythonFormatBuffer()
             errFile.close();
         }
         if(errMsg.empty())
-            errMsg = editor->pythonFormatter + " failed";
+            errMsg = editor.pythonFormatter + " failed";
         unlink(tempPath.c_str());
-        editor->setStatusMessage(editor->pythonFormatter + ": " +
-                                 errMsg.substr(0, 80));
+        editor.setStatusMessage(editor.pythonFormatter + ": " +
+                                errMsg.substr(0, 80));
         return false;
     }
 
@@ -67,7 +67,7 @@ bool Formatter::pythonFormatBuffer()
     if(!in.is_open())
     {
         unlink(tempPath.c_str());
-        editor->setStatusMessage("black: failed to read temp output");
+        editor.setStatusMessage("black: failed to read temp output");
         return false;
     }
 
@@ -87,39 +87,38 @@ bool Formatter::pythonFormatBuffer()
     if(newLines.empty())
         newLines.push_back("");
 
-    if(newLines == *editor->lines)
+    if(newLines == *editor.lines)
     {
-        editor->setStatusMessage(editor->pythonFormatter + ": no changes");
+        editor.setStatusMessage(editor.pythonFormatter + ": no changes");
         return true;
     }
 
-    editor->saveState();
-    *editor->lines = std::move(newLines);
-    if(editor->dirty)
-        *editor->dirty = true;
+    editor.saveState();
+    *editor.lines = std::move(newLines);
+    if(editor.dirty)
+        *editor.dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines &&
-       !editor->lines->empty())
+    if(editor.cursorY && editor.cursorX && editor.lines &&
+       !editor.lines->empty())
     {
-        *editor->cursorY =
-            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(
-            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor.cursorY = std::clamp(savedY, 0, (int)editor.lines->size() - 1);
+        *editor.cursorX =
+            std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
-    editor->adjustViewport();
-    editor->needsFullRedraw = true;
-    editor->setStatusMessage(editor->pythonFormatter + ": formatted buffer");
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    editor.setStatusMessage(editor.pythonFormatter + ": formatted buffer");
     return true;
 }
 
-void Formatter::pythonLintBuffer()
+void PythonFormatter::lintBuffer()
 {
-    if(!editor->lines || !editor->filename)
+    if(!editor.lines || !editor.filename)
         return;
-    if(!editor->isFileType<FileType::Python>())
+    if(!editor.isFileType<FileType::Python>())
     {
-        editor->setStatusMessage("ruff: not a Python file");
+        editor.setStatusMessage("ruff: not a Python file");
         return;
     }
 
@@ -127,11 +126,11 @@ void Formatter::pythonLintBuffer()
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        editor->setStatusMessage("ruff: failed to create temp file");
+        editor.setStatusMessage("ruff: failed to create temp file");
         return;
     }
-    for(size_t i = 0; i < editor->lines->size(); ++i)
-        tempFile << (*editor->lines)[i] << '\n';
+    for(size_t i = 0; i < editor.lines->size(); ++i)
+        tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
     std::string cmd =
@@ -140,7 +139,7 @@ void Formatter::pythonLintBuffer()
     if(!pipe)
     {
         unlink(tempPath.c_str());
-        editor->setStatusMessage("ruff: failed to run");
+        editor.setStatusMessage("ruff: failed to run");
         return;
     }
 
@@ -153,12 +152,12 @@ void Formatter::pythonLintBuffer()
 
     if(output.empty())
     {
-        editor->setStatusMessage("ruff: clean");
+        editor.setStatusMessage("ruff: clean");
         return;
     }
 
     size_t nl = output.find('\n');
     if(nl != std::string::npos)
         output = output.substr(0, nl);
-    editor->setStatusMessage("ruff: " + output);
+    editor.setStatusMessage("ruff: " + output);
 }

@@ -295,11 +295,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
                 ed->clearSearch();
                 ed->needsFullRedraw = true;
             }
-            else if(ed->formatOnDoubleEscPending && ed->formatOnInsertLeave &&
-                    ed->isFileType<FileType::Cpp>() &&
-                    !ed->isFileType<FileType::Mla>())
+            else if(ed->formatOnDoubleEscPending && ed->formatOnInsertLeave)
             {
-                ed->clangFormatWithArgs("", "clang-format: formatted file");
+                ed->formatBuffer();
             }
             ctx.setStatusMessage("");
             ed->needsFullRedraw = true;
@@ -1156,30 +1154,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     switch(c)
     {
     case keyCode(typed::TypedKey::KEY_F):
-        if(ed->isFileType<FileType::Python>())
-        {
-            ed->pythonFormatBuffer();
-        }
-        else if(ed->isFileType<FileType::Robot>())
-        {
-            ed->robotFormatBuffer();
-        }
-        else if(ed->isFileType<FileType::Json>())
-        {
-            ed->jsonFormatBuffer();
-        }
-        else if(ed->isFileType<FileType::Yaml>())
-        {
-            ed->yamlFormatBuffer();
-        }
-        else if(ed->isFileType<FileType::Mla>())
-        {
-            ed->mlangFormatBuffer();
-        }
-        else
-        {
-            ed->clangFormatWithArgs("", "clang-format: formatted file");
-        }
+        ed->formatBuffer();
         return std::nullopt;
 
     case keyCode(typed::TypedKey::KEY_G):

@@ -365,29 +365,29 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
     return out;
 }
 
-bool Formatter::robotFormatBuffer()
+bool RobotFormatter::operator()(Mode mode)
 {
-    if(!editor->lines || !editor->filename)
+    if(!editor.lines || !editor.filename)
         return false;
-    if(!editor->isFileType<FileType::Robot>())
+    if(!editor.isFileType<FileType::Robot>())
     {
-        editor->setStatusMessage("robocop: not a Robot file");
+        editor.setStatusMessage("robocop: not a Robot file");
         return false;
     }
 
-    const int savedY = editor->cursorY ? *editor->cursorY : 0;
-    const int savedX = editor->cursorX ? *editor->cursorX : 0;
+    const int savedY = editor.cursorY ? *editor.cursorY : 0;
+    const int savedX = editor.cursorX ? *editor.cursorX : 0;
 
     std::string tempPath =
         "/tmp/uvim_robot_" + std::to_string(getpid()) + ".robot";
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
-        editor->setStatusMessage("robocop: failed to create temp file");
+        editor.setStatusMessage("robocop: failed to create temp file");
         return false;
     }
-    for(size_t i = 0; i < editor->lines->size(); ++i)
-        tempFile << (*editor->lines)[i] << '\n';
+    for(size_t i = 0; i < editor.lines->size(); ++i)
+        tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
     const std::string robocopErr = "/tmp/uvim_robocop_err.log";
@@ -435,7 +435,7 @@ bool Formatter::robotFormatBuffer()
         std::string err = read_first_line(robocopErr);
         if(err.empty())
             err = "robocop failed";
-        editor->setStatusMessage(err);
+        editor.setStatusMessage(err);
         unlink(tempPath.c_str());
         unlink(robocopFmt.c_str());
         return false;
@@ -448,7 +448,7 @@ bool Formatter::robotFormatBuffer()
     {
         unlink(tempPath.c_str());
         unlink(robocopFmt.c_str());
-        editor->setStatusMessage("robocop: failed to read temp output");
+        editor.setStatusMessage("robocop: failed to read temp output");
         return false;
     }
 
@@ -489,51 +489,50 @@ bool Formatter::robotFormatBuffer()
     if(looks_like_robocop_log())
     {
         auto normalized =
-            normalize_robot_spacing(*editor->lines, 4, editor->robotSettingSet);
-        if(normalized != *editor->lines)
+            normalize_robot_spacing(*editor.lines, 4, editor.robotSettingSet);
+        if(normalized != *editor.lines)
         {
-            *editor->lines = std::move(normalized);
-            editor->saveState();
-            if(editor->dirty)
-                *editor->dirty = true;
-            editor->adjustViewport();
-            editor->needsFullRedraw = true;
-            editor->setStatusMessage("robocop: normalized spacing");
+            *editor.lines = std::move(normalized);
+            editor.saveState();
+            if(editor.dirty)
+                *editor.dirty = true;
+            editor.adjustViewport();
+            editor.needsFullRedraw = true;
+            editor.setStatusMessage("robocop: normalized spacing");
             return true;
         }
-        editor->setStatusMessage("robocop: no changes");
-        editor->needsFullRedraw = true;
+        editor.setStatusMessage("robocop: no changes");
+        editor.needsFullRedraw = true;
         return true;
     }
 
     auto normalized =
-        normalize_robot_spacing(newLines, 4, editor->robotSettingSet);
+        normalize_robot_spacing(newLines, 4, editor.robotSettingSet);
     if(normalized != newLines)
         newLines = std::move(normalized);
 
-    if(newLines == *editor->lines)
+    if(newLines == *editor.lines)
     {
-        editor->setStatusMessage("robocop: no changes");
-        editor->needsFullRedraw = true;
+        editor.setStatusMessage("robocop: no changes");
+        editor.needsFullRedraw = true;
         return true;
     }
 
-    *editor->lines = std::move(newLines);
-    editor->saveState();
-    if(editor->dirty)
-        *editor->dirty = true;
+    *editor.lines = std::move(newLines);
+    editor.saveState();
+    if(editor.dirty)
+        *editor.dirty = true;
 
-    if(editor->cursorY && editor->cursorX && editor->lines &&
-       !editor->lines->empty())
+    if(editor.cursorY && editor.cursorX && editor.lines &&
+       !editor.lines->empty())
     {
-        *editor->cursorY =
-            std::clamp(savedY, 0, (int)editor->lines->size() - 1);
-        *editor->cursorX = std::clamp(
-            savedX, 0, (int)(*editor->lines)[*editor->cursorY].size());
+        *editor.cursorY = std::clamp(savedY, 0, (int)editor.lines->size() - 1);
+        *editor.cursorX =
+            std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
-    editor->adjustViewport();
-    editor->needsFullRedraw = true;
-    editor->setStatusMessage("robocop: formatted buffer");
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    editor.setStatusMessage("robocop: formatted buffer");
     return true;
 }

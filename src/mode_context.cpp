@@ -323,47 +323,6 @@ void ModeContext::createNewDirectoryPrompt()
     editor->createNewDirectoryPrompt();
 }
 
-bool ModeContext::pythonFormatBuffer()
-{
-    return editor->pythonFormatBuffer();
-}
-
-void ModeContext::pythonLintBuffer()
-{
-    editor->pythonLintBuffer();
-}
-
-bool ModeContext::robotFormatBuffer()
-{
-    return editor->robotFormatBuffer();
-}
-
-bool ModeContext::jsonFormatBuffer()
-{
-    return editor->jsonFormatBuffer();
-}
-
-bool ModeContext::yamlFormatBuffer()
-{
-    return editor->yamlFormatBuffer();
-}
-
-bool ModeContext::clangFormatWithArgs(const std::string& extraArgs,
-                                      const std::string& successMessage)
-{
-    return editor->clangFormatWithArgs(extraArgs, successMessage);
-}
-
-void ModeContext::clangFormatVisualSelection()
-{
-    editor->clangFormatVisualSelection();
-}
-
-void ModeContext::clangFormatVisualBlockSelection()
-{
-    editor->clangFormatVisualBlockSelection();
-}
-
 void ModeContext::performSearch()
 {
     editor->performSearch();

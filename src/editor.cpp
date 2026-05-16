@@ -720,7 +720,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
-    formatter = std::make_unique<Formatter>(this);
+    formatter = std::make_unique<Formatter>(*this);
     gitHandler = std::make_unique<GitHandler>(this);
 }
 
@@ -751,7 +751,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     splitController = std::make_unique<EditorSplitController>(*this);
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
-    formatter = std::make_unique<Formatter>(this);
+    formatter = std::make_unique<Formatter>(*this);
     gitHandler = std::make_unique<GitHandler>(this);
 }
 
@@ -818,77 +818,93 @@ bool Editor::isFileType(FileType type) const
     return syntaxHighlighter->isFileType(type);
 }
 
-size_t Editor::byteOffsetForPosition(int y, int x) const
+std::optional<FileType> Editor::getFormatterFileType() const
 {
-    if(!formatter)
-        return 0;
-    return formatter->byteOffsetForPosition(y, x);
+    std::string_view pathSv;
+    if(filename && !filename->empty())
+    {
+        pathSv = *filename;
+    }
+    else if(currentBuffer && !currentBuffer->filename.empty())
+    {
+        pathSv = currentBuffer->filename;
+    }
+    else
+    {
+        return {};
+    }
+
+    if(constants::is_filetype<constants::no_pattern, constants::cpp_suffixes,
+                              constants::cpp_stdlib_patterns>(pathSv))
+    {
+        return FileType::Cpp;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::mla_suffixes>(pathSv))
+    {
+        return FileType::Mla;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::robot_suffixes>(pathSv))
+    {
+        return FileType::Robot;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::python_suffixes>(pathSv))
+    {
+        return FileType::Python;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::json_suffixes>(pathSv))
+    {
+        return FileType::Json;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::yaml_suffixes>(pathSv))
+    {
+        return FileType::Yaml;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::toml_suffixes>(pathSv))
+    {
+        return FileType::Toml;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::css_suffixes>(pathSv))
+    {
+        return FileType::Css;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::javascript_suffixes>(pathSv))
+    {
+        return FileType::JavaScript;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::typescript_suffixes>(pathSv))
+    {
+        return FileType::TypeScript;
+    }
+    else if(constants::is_filetype<constants::no_pattern,
+                                   constants::xml_suffixes>(pathSv))
+    {
+        return FileType::Xml;
+    }
+
+    return {};
 }
 
-bool Editor::clangFormatWithArgs(const std::string& extraArgs,
-                                 const std::string& successMessage)
+bool Editor::formatBuffer()
 {
-    if(!formatter)
-        return false;
-    return formatter->clangFormatWithArgs(extraArgs, successMessage);
-}
-
-bool Editor::pythonFormatBuffer()
-{
-    if(!formatter)
-        return false;
-    return formatter->pythonFormatBuffer();
-}
-
-void Editor::pythonLintBuffer()
-{
-    if(formatter)
-        formatter->pythonLintBuffer();
-}
-
-bool Editor::robotFormatBuffer()
-{
-    if(!formatter)
-        return false;
-    return formatter->robotFormatBuffer();
-}
-
-bool Editor::jsonFormatBuffer()
-{
-    if(!formatter)
-        return false;
-    return formatter->jsonFormatBuffer();
-}
-
-bool Editor::yamlFormatBuffer()
-{
-    if(!formatter)
-        return false;
-    return formatter->yamlFormatBuffer();
-}
-
-bool Editor::mlangFormatBuffer()
-{
-    if(!formatter)
-        return false;
-    return formatter->mlangFormatBuffer();
+    if(auto type = getFormatterFileType(); type.has_value())
+    {
+        return formatter->format(*type, currentMode);
+    }
+    return false;
 }
 
 std::string Editor::resolveEditorPathString(const std::string& input) const
 {
     return EditorPathUtilities::resolveEditorPath(fs::path(input)).string();
-}
-
-void Editor::clangFormatVisualSelection()
-{
-    if(formatter)
-        formatter->clangFormatVisualSelection();
-}
-
-void Editor::clangFormatVisualBlockSelection()
-{
-    if(formatter)
-        formatter->clangFormatVisualBlockSelection();
 }
 
 void Editor::ensureMlangTokensLoaded() const
@@ -1602,15 +1618,7 @@ bool Editor::formatBufferForSave()
     if(formatOnSaveTestHook)
         return formatOnSaveTestHook();
 #endif
-    if(isFileType<FileType::Python>())
-        return pythonFormatBuffer();
-    if(isFileType<FileType::Mla>())
-        return mlangFormatBuffer();
-    if(isFileType<FileType::Cpp>() ||
-       (filename && !filename->empty() &&
-        CppNavigationUtilities::isHeaderFile(*filename)))
-        return clangFormatWithArgs("", "clang-format: formatted file");
-    return false;
+    return formatBuffer();
 }
 
 void Editor::saveFile()
@@ -3945,25 +3953,11 @@ void Editor::executeCommand(std::string_view cmd)
     }
     if(cmd == "format" || cmd == "fmt")
     {
-        if(isFileType<FileType::Python>())
+        if(!formatBuffer())
         {
-            pythonFormatBuffer();
+            setStatusMessage("format: unsupported file type");
             return;
         }
-        if(isFileType<FileType::Mla>())
-        {
-            mlangFormatBuffer();
-            return;
-        }
-        if(isFileType<FileType::Cpp>() ||
-           (filename && !filename->empty() &&
-            CppNavigationUtilities::isHeaderFile(*filename)))
-        {
-            clangFormatWithArgs("", "clang-format: formatted file");
-            return;
-        }
-        setStatusMessage("format: unsupported file type");
-        return;
     }
     if(cmd == "emoji" || cmd == "em")
     {

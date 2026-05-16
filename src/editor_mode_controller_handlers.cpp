@@ -34,13 +34,16 @@ void EditorModeController::handleOperatorPendingMode(int c)
     }
 
     // If user pressed a digit while building a count (rare), ignore here for
-    // simplicity Support keyCode(typed::TypedKey::KEY_I) or keyCode(typed::TypedKey::KEY_A) to enter object-specifier substate
-    if(!editor.pendingAwaitingObject && (c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(typed::TypedKey::KEY_A)))
+    // simplicity Support keyCode(typed::TypedKey::KEY_I) or
+    // keyCode(typed::TypedKey::KEY_A) to enter object-specifier substate
+    if(!editor.pendingAwaitingObject && (c == keyCode(typed::TypedKey::KEY_I) ||
+                                         c == keyCode(typed::TypedKey::KEY_A)))
     {
         editor.pendingAwaitingObject = true;
         editor.pendingObjectType = (char)c;
-        editor.setStatusMessage(std::string("Operator: ") + editor.pendingOperator + " " +
-                         editor.pendingObjectType);
+        editor.setStatusMessage(std::string("Operator: ") +
+                                editor.pendingOperator + " " +
+                                editor.pendingObjectType);
         return;
     }
 
@@ -49,9 +52,14 @@ void EditorModeController::handleOperatorPendingMode(int c)
 
     if(editor.pendingAwaitingObject)
     {
-        // Expect a text-object specifier now (e.g. keyCode(command::CommandKey::KEY_LEFT_PAREN), keyCode(command::CommandKey::KEY_LEFT_BRACE), keyCode(command::CommandKey::KEY_DOUBLE_QUOTE), keyCode(typed::TypedKey::KEY_W), etc.)
+        // Expect a text-object specifier now (e.g.
+        // keyCode(command::CommandKey::KEY_LEFT_PAREN),
+        // keyCode(command::CommandKey::KEY_LEFT_BRACE),
+        // keyCode(command::CommandKey::KEY_DOUBLE_QUOTE),
+        // keyCode(typed::TypedKey::KEY_W), etc.)
         char obj = (char)c;
-        bool around = (editor.pendingObjectType == keyCode(typed::TypedKey::KEY_A));
+        bool around =
+            (editor.pendingObjectType == keyCode(typed::TypedKey::KEY_A));
         rangeFound =
             editor.getTextObjectRange(obj, around, startY, startX, endY, endX);
     }
@@ -60,8 +68,9 @@ void EditorModeController::handleOperatorPendingMode(int c)
         // Motion-based operator: treat c as a motion (w, b, e, $, 0, %, etc.)
         // We'll simulate the motion by saving cursor, doing it, reading
         // destination, then restoring.
-        int saveX = *editor.cursorX, saveY = *editor.cursorY, saveWanted = *editor.wantedX,
-            saveOffsetY = *editor.offsetY, saveOffsetX = *editor.offsetX;
+        int saveX = *editor.cursorX, saveY = *editor.cursorY,
+            saveWanted = *editor.wantedX, saveOffsetY = *editor.offsetY,
+            saveOffsetX = *editor.offsetX;
 
         bool isExclusiveMotion = false; // Track if motion should be exclusive
 
@@ -135,17 +144,20 @@ void EditorModeController::handleOperatorPendingMode(int c)
 
             // Set destination
             *editor.cursorX = end;
-            // keyCode(typed::TypedKey::KEY_W) is exclusive, so we'll subtract 1 later
+            // keyCode(typed::TypedKey::KEY_W) is exclusive, so we'll subtract 1
+            // later
             isExclusiveMotion = true;
         }
         break;
         case keyCode(typed::TypedKey::KEY_B):
             editor.moveWordBackward();
-            isExclusiveMotion = true; // keyCode(typed::TypedKey::KEY_B) is exclusive in vim
+            isExclusiveMotion =
+                true; // keyCode(typed::TypedKey::KEY_B) is exclusive in vim
             break;
         case keyCode(typed::TypedKey::KEY_E):
             editor.moveToEndOfWord();
-            isExclusiveMotion = false; // keyCode(typed::TypedKey::KEY_E) is inclusive in vim
+            isExclusiveMotion =
+                false; // keyCode(typed::TypedKey::KEY_E) is inclusive in vim
             break;
         case keyCode(typed::TypedKey::KEY_0):
             editor.moveToLineStart();
@@ -309,13 +321,14 @@ void EditorModeController::handleOperatorPendingMode(int c)
         dbg << "endY=" << endY << " endX=" << endX << std::endl;
         if(startY < (int)editor.lines->size())
         {
-            dbg << "line[" << startY << "]=" << (*editor.lines)[startY] << std::endl;
+            dbg << "line[" << startY << "]=" << (*editor.lines)[startY]
+                << std::endl;
             dbg << "deleting chars " << startX << " to " << endX << std::endl;
             if(startY == endY && startX < (int)(*editor.lines)[startY].length())
             {
                 dbg << "text to delete: ["
-                    << (*editor.lines)[startY].substr(startX, endX - startX + 1) << "]"
-                    << std::endl;
+                    << (*editor.lines)[startY].substr(startX, endX - startX + 1)
+                    << "]" << std::endl;
             }
         }
         dbg << std::endl;
@@ -342,8 +355,8 @@ void EditorModeController::handleOperatorPendingMode(int c)
 
 void EditorModeController::handleNormalMode(int c)
 {
-    LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c, (char)c,
-              editor.commandBuffer);
+    LOG_DEBUG(LOG, "handleNormalMode c={} ('{}') commandBuffer='{}'", c,
+              (char)c, editor.commandBuffer);
 
     if(dispatchModeKey(c))
     {
@@ -387,14 +400,18 @@ void EditorModeController::handleNormalMode(int c)
         return;
     }
 
-    if(c >= keyCode(typed::TypedKey::KEY_1) && c <= keyCode(typed::TypedKey::KEY_9) && editor.repeatCount == 0 && editor.commandBuffer.empty())
+    if(c >= keyCode(typed::TypedKey::KEY_1) &&
+       c <= keyCode(typed::TypedKey::KEY_9) && editor.repeatCount == 0 &&
+       editor.commandBuffer.empty())
     {
         editor.repeatCount = c - keyCode(typed::TypedKey::KEY_0);
         return;
     }
-    else if(c >= keyCode(typed::TypedKey::KEY_0) && c <= keyCode(typed::TypedKey::KEY_9) && editor.repeatCount > 0)
+    else if(c >= keyCode(typed::TypedKey::KEY_0) &&
+            c <= keyCode(typed::TypedKey::KEY_9) && editor.repeatCount > 0)
     {
-        editor.repeatCount = editor.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
+        editor.repeatCount =
+            editor.repeatCount * 10 + (c - keyCode(typed::TypedKey::KEY_0));
         return;
     }
     int count = std::max(1, editor.repeatCount);
@@ -442,16 +459,17 @@ void EditorModeController::handleNormalMode(int c)
 
             if(editor.template isFileType<FileType::Python>())
             {
-                editor.pythonFormatBuffer();
+                editor.formatBuffer();
                 return;
             }
-            if(editor.template isFileType<FileType::Cpp>() || isHeaderFile(*editor.filename))
+            if(editor.template isFileType<FileType::Cpp>() ||
+               isHeaderFile(*editor.filename))
             {
-                editor.clangFormatWithArgs("", "clang-format: formatted file");
+                editor.formatBuffer();
                 return;
             }
-            editor.setStatusMessage("format: unsupported file type (" + *editor.filename +
-                             ")");
+            editor.setStatusMessage("format: unsupported file type (" +
+                                    *editor.filename + ")");
             return;
         }
         else if(c == keyCode(typed::TypedKey::KEY_X))
@@ -569,7 +587,9 @@ void EditorModeController::handleNormalMode(int c)
                 editor.yankBuffer += (*editor.lines)[i] + "\n";
             }
 
-            LOG_DEBUG(LOG, "yy: editor.yankBuffer.length()={}, editor.useSystemClipboard={}",
+            LOG_DEBUG(LOG,
+                      "yy: editor.yankBuffer.length()={}, "
+                      "editor.useSystemClipboard={}",
                       editor.yankBuffer.length(), editor.useSystemClipboard);
 
             int linesYanked = endLine - startLine + 1;
@@ -610,7 +630,8 @@ void EditorModeController::handleNormalMode(int c)
 
             int linesIndented = endLine - startLine + 1;
             editor.setStatusMessage(std::to_string(linesIndented) + " line" +
-                             (linesIndented > 1 ? "s" : "") + " indented");
+                                    (linesIndented > 1 ? "s" : "") +
+                                    " indented");
             pendingIndent = false;
             editor.repeatCount = 0;
             editor.saveState();
@@ -642,7 +663,7 @@ void EditorModeController::handleNormalMode(int c)
 
             int linesIndented = endLine - startLine + 1;
             editor.setStatusMessage(std::to_string(linesIndented) + " line" +
-                             (linesIndented > 1 ? "s" : "") + " >>");
+                                    (linesIndented > 1 ? "s" : "") + " >>");
             pendingShiftRight = false;
             editor.repeatCount = 0;
             editor.saveState();
@@ -672,13 +693,13 @@ void EditorModeController::handleNormalMode(int c)
             for(int i = startLine; i <= endLine; i++)
             {
                 int currentIndent = editor.getLineIndent(i);
-                editor.indentLine(i,
-                           std::max(0, currentIndent - 4)); // Remove 4 spaces
+                editor.indentLine(
+                    i, std::max(0, currentIndent - 4)); // Remove 4 spaces
             }
 
             int linesIndented = endLine - startLine + 1;
             editor.setStatusMessage(std::to_string(linesIndented) + " line" +
-                             (linesIndented > 1 ? "s" : "") + " <<");
+                                    (linesIndented > 1 ? "s" : "") + " <<");
             pendingShiftLeft = false;
             editor.repeatCount = 0;
             editor.saveState();
@@ -698,7 +719,8 @@ void EditorModeController::handleNormalMode(int c)
     }
     else if(pendingYank && c != keyCode(typed::TypedKey::KEY_Y))
     {
-        // keyCode(typed::TypedKey::KEY_Y) followed by motion command - enter operator-pending mode
+        // keyCode(typed::TypedKey::KEY_Y) followed by motion command - enter
+        // operator-pending mode
         pendingYank = false;
         editor.enterOperatorPending(keyCode(typed::TypedKey::KEY_Y));
         editor.pendingCount = count;
@@ -709,7 +731,8 @@ void EditorModeController::handleNormalMode(int c)
     }
     else if(pendingDelete && c != keyCode(typed::TypedKey::KEY_D))
     {
-        // keyCode(typed::TypedKey::KEY_D) followed by motion command - enter operator-pending mode
+        // keyCode(typed::TypedKey::KEY_D) followed by motion command - enter
+        // operator-pending mode
         pendingDelete = false;
         editor.enterOperatorPending(keyCode(typed::TypedKey::KEY_D));
         editor.pendingCount = count;
@@ -720,7 +743,8 @@ void EditorModeController::handleNormalMode(int c)
     }
     else if(pendingIndent && c != keyCode(command::CommandKey::KEY_EQUAL))
     {
-        // keyCode(command::CommandKey::KEY_EQUAL) followed by motion command - enter operator-pending mode
+        // keyCode(command::CommandKey::KEY_EQUAL) followed by motion command -
+        // enter operator-pending mode
         pendingIndent = false;
         editor.enterOperatorPending(keyCode(command::CommandKey::KEY_EQUAL));
         editor.pendingCount = count;
@@ -742,8 +766,8 @@ void EditorModeController::handleNormalMode(int c)
         // Handle double ESC to clear search highlights
         auto now = std::chrono::steady_clock::now();
         auto timeSinceLastEsc =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now -
-                                                                  editor.lastEscTime)
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - editor.lastEscTime)
                 .count();
 
         if(timeSinceLastEsc <= Editor::DOUBLE_ESC_TIMEOUT_MS)
@@ -752,11 +776,13 @@ void EditorModeController::handleNormalMode(int c)
             {
                 // Double ESC detected - clear search highlights
                 editor.clearSearch();
-                editor.needsFullRedraw = true; // Force full redraw to clear highlights
+                editor.needsFullRedraw =
+                    true; // Force full redraw to clear highlights
             }
             editor.setStatusMessage("");
             editor.needsFullRedraw = true;
-            editor.lastEscTime = std::chrono::steady_clock::time_point(); // Reset
+            editor.lastEscTime =
+                std::chrono::steady_clock::time_point(); // Reset
         }
         else
         {
@@ -801,12 +827,14 @@ void EditorModeController::handleNormalMode(int c)
         const std::string& currentLine = (*editor.lines)[*editor.cursorY];
         size_t indent = 0;
         while(indent < currentLine.length() &&
-              (currentLine[indent] == keyCode(control::ControlKey::SPACE) || currentLine[indent] == '\t'))
+              (currentLine[indent] == keyCode(control::ControlKey::SPACE) ||
+               currentLine[indent] == '\t'))
             indent++;
 
         // Insert new line below with same indentation
         std::string newLine(indent, keyCode(control::ControlKey::SPACE));
-        editor.lines->insert(editor.lines->begin() + *editor.cursorY + 1, newLine);
+        editor.lines->insert(editor.lines->begin() + *editor.cursorY + 1,
+                             newLine);
         *editor.cursorY += 1;
         *editor.cursorX = indent;
 
@@ -822,7 +850,8 @@ void EditorModeController::handleNormalMode(int c)
         const std::string& currentLine = (*editor.lines)[*editor.cursorY];
         size_t indent = 0;
         while(indent < currentLine.length() &&
-              (currentLine[indent] == keyCode(control::ControlKey::SPACE) || currentLine[indent] == '\t'))
+              (currentLine[indent] == keyCode(control::ControlKey::SPACE) ||
+               currentLine[indent] == '\t'))
             indent++;
 
         std::string newLine(indent, keyCode(control::ControlKey::SPACE));
@@ -893,7 +922,8 @@ void EditorModeController::handleNormalMode(int c)
     case keyCode(control::ControlKey::CTRL_W): // Ctrl+W for buffer browser
         editor.setMode(BUFFER_BROWSER);
         break;
-    case keyCode(control::ControlKey::CTRL_S): // Ctrl+S for grep search (find in files)
+    case keyCode(
+        control::ControlKey::CTRL_S): // Ctrl+S for grep search (find in files)
         editor.setMode(GREP_SEARCH);
         break;
     case keyCode(control::ControlKey::CTRL_O):
@@ -974,7 +1004,8 @@ void EditorModeController::handleNormalMode(int c)
                 if(*editor.cursorY + 1 < (int)editor.lines->size())
                 {
                     std::string& currentLine = (*editor.lines)[*editor.cursorY];
-                    std::string& nextLine = (*editor.lines)[*editor.cursorY + 1];
+                    std::string& nextLine =
+                        (*editor.lines)[*editor.cursorY + 1];
                     size_t endPos = currentLine.find_last_not_of(" \t");
                     if(endPos != std::string::npos)
                     {
@@ -985,12 +1016,14 @@ void EditorModeController::handleNormalMode(int c)
                                                   ? nextLine.substr(startPos)
                                                   : "";
                     currentLine += " " + trimmedNext;
-                    editor.lines->erase(editor.lines->begin() + *editor.cursorY + 1);
+                    editor.lines->erase(editor.lines->begin() +
+                                        *editor.cursorY + 1);
                 }
             }
             *editor.dirty = true;
             editor.saveState();
-            editor.setStatusMessage(std::to_string(linesToJoin) + " editor.lines joined");
+            editor.setStatusMessage(std::to_string(linesToJoin) +
+                                    " editor.lines joined");
             break;
         }
     case keyCode(typed::TypedKey::KEY_C):
@@ -1034,7 +1067,8 @@ void EditorModeController::handleNormalMode(int c)
             editor.moveToFirstLine();
             editor.commandBuffer.clear();
         }
-        else if(c != keyCode(typed::TypedKey::KEY_G) && c != keyCode(typed::TypedKey::KEY_D))
+        else if(c != keyCode(typed::TypedKey::KEY_G) &&
+                c != keyCode(typed::TypedKey::KEY_D))
         {
             // Unknown g-command → cancel
             editor.commandBuffer.clear();
