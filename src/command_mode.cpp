@@ -187,14 +187,23 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 {
                     if(prefix.size() > text.size())
                         return false;
+                    auto to_lower_ascii = [](unsigned char ch) -> unsigned char
+                    {
+                        if(ch >= keyCode(typed::TypedKey::KEY_CAP_A) &&
+                           ch <= keyCode(typed::TypedKey::KEY_CAP_Z))
+                        {
+                            ch = static_cast<unsigned char>(
+                                ch - keyCode(typed::TypedKey::KEY_CAP_A) +
+                                keyCode(typed::TypedKey::KEY_A));
+                        }
+                        return ch;
+                    };
                     for(size_t i = 0; i < prefix.size(); ++i)
                     {
-                        unsigned char a = static_cast<unsigned char>(text[i]);
-                        unsigned char b = static_cast<unsigned char>(prefix[i]);
-                        if(a >= keyCode(typed::TypedKey::KEY_CAP_A) && a <= keyCode(typed::TypedKey::KEY_CAP_Z))
-                            a = (unsigned char)(a - keyCode(typed::TypedKey::KEY_CAP_A) + keyCode(typed::TypedKey::KEY_A));
-                        if(b >= keyCode(typed::TypedKey::KEY_CAP_A) && b <= keyCode(typed::TypedKey::KEY_CAP_Z))
-                            b = (unsigned char)(b - keyCode(typed::TypedKey::KEY_CAP_A) + keyCode(typed::TypedKey::KEY_A));
+                        unsigned char a = to_lower_ascii(
+                            static_cast<unsigned char>(text[i]));
+                        unsigned char b = to_lower_ascii(
+                            static_cast<unsigned char>(prefix[i]));
                         if(a != b)
                             return false;
                     }
