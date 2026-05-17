@@ -19,19 +19,12 @@
 
 namespace
 {
-std::string runCmd(const std::string& cmd)
+std::string runCmd(const std::vector<std::string>& args)
 {
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return {};
     return pipe.readAll();
-}
-
-std::string trimNewline(std::string s)
-{
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
 }
 
 std::vector<std::string> splitNul(const std::string& s)
@@ -424,16 +417,13 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
         if(editor.useGitFileIndex)
         {
             std::string repoRoot =
-                trimNewline(runCmd("git -C \"" + cwdStr +
-                                   "\" rev-parse --show-toplevel 2>/dev/null"));
+                runCmd({"git", "-C", cwdStr, "rev-parse", "--show-toplevel"});
 
             if(!repoRoot.empty())
             {
-                const std::string trackedCmd =
-                    "git -C \"" + cwdStr +
-                    "\" ls-files -z --cached --others --exclude-standard "
-                    "2>/dev/null";
-                const std::string raw = runCmd(trackedCmd);
+                const std::string raw =
+                    runCmd({"git", "-C", cwdStr, "ls-files", "-z", "--cached",
+                            "--others", "--exclude-standard"});
                 const auto relPaths = splitNul(raw);
 
                 for(const auto& relPath : relPaths)

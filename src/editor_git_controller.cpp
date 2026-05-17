@@ -62,30 +62,14 @@ bool is_inside_git_repo(const std::string& filePath)
     fs::path path(filePath);
     std::string dir =
         path.has_parent_path() ? path.parent_path().string() : std::string(".");
-    std::string cmd =
-        "git -C \"" + dir + "\" rev-parse --is-inside-work-tree 2>/dev/null";
-    ProcessPipe pipe(cmd, "r");
-    if(!pipe)
-        return false;
-    char buffer[128];
-    std::string out;
-    if(fgets(buffer, sizeof(buffer), pipe.get()))
-        out = trim_newline(buffer);
-    return out == "true";
+    ProcessPipe pipe({"git", "-C", dir, "rev-parse", "--is-inside-work-tree"});
+    return pipe && pipe.readLine() == "true";
 }
 
 std::string git_root_for_dir(const std::string& dir)
 {
-    std::string cmd =
-        "git -C \"" + dir + "\" rev-parse --show-toplevel 2>/dev/null";
-    ProcessPipe pipe(cmd, "r");
-    if(!pipe)
-        return "";
-    char buffer[512];
-    std::string out;
-    if(fgets(buffer, sizeof(buffer), pipe.get()))
-        out = trim_newline(buffer);
-    return out;
+    ProcessPipe pipe({"git", "-C", dir, "rev-parse", "--show-toplevel"});
+    return pipe ? pipe.readLine() : "";
 }
 
 std::string base_dir_for_editor(const Editor& editor)
@@ -141,17 +125,13 @@ std::string blame_hash_for_line(const std::string& filePath, int line)
     fs::path path(filePath);
     std::string dir =
         path.has_parent_path() ? path.parent_path().string() : std::string(".");
-    std::string cmd = "git -C \"" + dir + "\" blame --line-porcelain -L " +
-                      std::to_string(line + 1) + "," +
-                      std::to_string(line + 1) + " -- \"" + filePath +
-                      "\" 2>/dev/null";
-    ProcessPipe pipe(cmd, "r");
+    const std::string lineRange =
+        std::to_string(line + 1) + "," + std::to_string(line + 1);
+    ProcessPipe pipe({"git", "-C", dir, "blame", "--line-porcelain", "-L",
+                      lineRange, "--", filePath});
     if(!pipe)
         return "";
-    char buffer[256];
-    std::string firstLine;
-    if(fgets(buffer, sizeof(buffer), pipe.get()))
-        firstLine = trim_newline(buffer);
+    std::string firstLine = pipe.readLine();
     if(firstLine.empty())
         return "";
     size_t space = firstLine.find(' ');
@@ -215,7 +195,9 @@ bool EditorGitController::ensureGitAvailable()
 {
     if(gitAvailableKnown)
         return gitAvailable;
-    gitAvailable = (std::system("git --version > /dev/null 2>&1") == 0);
+    ProcessPipe pipe({"git", "--version"});
+    pipe.readAll();
+    gitAvailable = pipe.close() == 0;
     gitAvailableKnown = true;
     return gitAvailable;
 }
@@ -277,12 +259,17 @@ void EditorGitController::updateGitBlameForVisibleRange()
         }
     }
 
-    std::string cmd = "git -C \"" + dir + "\" blame --line-porcelain ";
+    std::vector<std::string> args = {"git", "-C", dir, "blame",
+                                     "--line-porcelain"};
     if(!tempPath.empty())
-        cmd += "--contents \"" + tempPath + "\" ";
-    cmd += "-- \"" + blameTarget + "\" 2>/dev/null";
+    {
+        args.push_back("--contents");
+        args.push_back(tempPath);
+    }
+    args.push_back("--");
+    args.push_back(blameTarget);
 
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
     {
         editor.setStatusMessage("git blame: failed to run");
@@ -490,23 +477,16 @@ void EditorGitController::openGitDiffMode()
         return;
     }
 
-    std::string cmd =
-        "git -C \"" + repoRoot + "\" --no-pager diff " +
-        std::string(editor.gitUseDefaultColors ? "--color=always "
-                                                : "--no-color ") +
-        "2>/dev/null";
-
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "diff",
+                      editor.gitUseDefaultColors ? "--color=always"
+                                                 : "--no-color"});
     if(!pipe)
     {
         editor.setStatusMessage("git diff: failed");
         return;
     }
 
-    std::string output;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        output += buffer;
+    std::string output = pipe.readAll();
 
     if(output.empty())
     {
@@ -576,20 +556,14 @@ std::vector<std::string> EditorGitController::loadGitShowLines(const std::string
                                           : std::string(".");
     }
 
-    std::string cmd =
-        "git -C \"" + repoRoot + "\" --no-pager show " +
-        std::string(editor.gitUseDefaultColors ? "--color=always "
-                                                : "--no-color ") +
-        hash + " 2>/dev/null";
-
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "show",
+                      editor.gitUseDefaultColors ? "--color=always"
+                                                 : "--no-color",
+                      hash});
     if(!pipe)
         return {};
 
-    std::string output;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        output += buffer;
+    std::string output = pipe.readAll();
 
     if(output.empty())
         return {};
@@ -626,12 +600,14 @@ void EditorGitController::openGitLogMode()
         return;
     }
 
-    std::string cmd =
-        "git -C \"" + repoRoot +
-        "\" --no-pager log --no-color --date=format:%Y-%m-%d\\ %H:%M\\ %z "
-        "--pretty=format:%H%x1f%ad%x1f%an%x1f%s 2>/dev/null";
-
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git",
+                      "-C",
+                      repoRoot,
+                      "--no-pager",
+                      "log",
+                      "--no-color",
+                      "--date=format:%Y-%m-%d %H:%M %z",
+                      "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
     if(!pipe)
     {
         editor.setStatusMessage("git log: failed to run");
@@ -697,12 +673,14 @@ void EditorGitController::openGitPrettyLogMode()
         return;
     }
 
-    std::string cmd =
-        "git -C \"" + repoRoot +
-        "\" --no-pager log --no-color --date=format:%Y-%m-%d\\ %H:%M\\ %z "
-        "--pretty=format:%H%x1f%ad%x1f%an%x1f%s 2>/dev/null";
-
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git",
+                      "-C",
+                      repoRoot,
+                      "--no-pager",
+                      "log",
+                      "--no-color",
+                      "--date=format:%Y-%m-%d %H:%M %z",
+                      "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
     if(!pipe)
     {
         editor.setStatusMessage("git prettylog: failed to run");
@@ -780,12 +758,15 @@ void EditorGitController::openGitLogModeForFile()
         editor.setStatusMessage("git log: not a repo");
         return;
     }
-    std::string cmd =
-        "git -C \"" + dir +
-        "\" --no-pager log --no-color --pretty=format:%H\\\t%s -- \"" +
-        editor.currentBuffer->filename + "\" 2>/dev/null";
-
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git",
+                      "-C",
+                      dir,
+                      "--no-pager",
+                      "log",
+                      "--no-color",
+                      "--pretty=format:%H\t%s",
+                      "--",
+                      editor.currentBuffer->filename});
     if(!pipe)
     {
         editor.setStatusMessage("git log: failed to run");
@@ -874,9 +855,9 @@ void EditorGitController::addCurrentBuffer()
         return;
     }
 
-    std::string cmd = "git -C \"" + repoRoot + "\" add -- \"" +
-                      editor.currentBuffer->filename + "\" 2>/dev/null";
-    int result = std::system(cmd.c_str());
+    ProcessPipe pipe(
+        {"git", "-C", repoRoot, "add", "--", editor.currentBuffer->filename});
+    int result = pipe.close();
     if(result == 0)
         editor.setStatusMessage("git add: added");
     else
@@ -897,25 +878,12 @@ std::optional<bool> EditorGitController::currentBufferHasChanges()
     if(repoRoot.empty())
         return std::nullopt;
 
-    std::string cmd = "git -C \"" + repoRoot +
-                      "\" status --short -- \"" +
-                      editor.currentBuffer->filename + "\" 2>/dev/null";
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git", "-C", repoRoot, "status", "--short", "--",
+                      editor.currentBuffer->filename});
     if(!pipe)
         return std::nullopt;
 
-    char buffer[512];
-    bool hasChanges = false;
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-    {
-        std::string line = trim_newline(buffer);
-        if(!line.empty())
-        {
-            hasChanges = true;
-            break;
-        }
-    }
-    return hasChanges;
+    return !pipe.readLine().empty();
 }
 
 bool EditorGitController::runGitStash(std::string& outMessage)
@@ -934,18 +902,13 @@ bool EditorGitController::runGitStash(std::string& outMessage)
         return false;
     }
 
-    std::string cmd =
-        "git -C \"" + repoRoot + "\" stash 2>/dev/null";
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git", "-C", repoRoot, "stash"});
     if(!pipe)
     {
         outMessage = "git stash: failed";
         return false;
     }
-    char buffer[512];
-    std::string output;
-    if(fgets(buffer, sizeof(buffer), pipe.get()))
-        output = trim_newline(buffer);
+    std::string output = pipe.readLine();
 
     if(output.empty())
         outMessage = "git stash: done";
@@ -970,18 +933,13 @@ bool EditorGitController::runGitStashPop(std::string& outMessage)
         return false;
     }
 
-    std::string cmd =
-        "git -C \"" + repoRoot + "\" stash pop 2>/dev/null";
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"git", "-C", repoRoot, "stash", "pop"});
     if(!pipe)
     {
         outMessage = "git stash pop: failed";
         return false;
     }
-    char buffer[512];
-    std::string output;
-    if(fgets(buffer, sizeof(buffer), pipe.get()))
-        output = trim_newline(buffer);
+    std::string output = pipe.readLine();
 
     if(output.empty())
         outMessage = "git stash pop: done";

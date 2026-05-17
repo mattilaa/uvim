@@ -5,35 +5,17 @@
 #include "text_utils.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace
 {
-std::string run_git_raw(const std::string& cmd)
+std::string run_git_raw(const std::vector<std::string>& args)
 {
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return {};
     return pipe.readAll();
-}
-
-std::string shell_escape_single(std::string_view text)
-{
-    std::string out;
-    out.reserve(text.size() + 8);
-    out += keyCode(command::CommandKey::KEY_APOSTROPHE);
-    for(char ch : text)
-    {
-        if(ch == keyCode(command::CommandKey::KEY_APOSTROPHE))
-            out += "'\\''";
-        else
-            out.push_back(ch);
-    }
-    out += keyCode(command::CommandKey::KEY_APOSTROPHE);
-    return out;
 }
 
 std::vector<std::string> split_lines(const std::string& s)
@@ -221,10 +203,8 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
         previousPath = entries[cursor].path;
 
     entries.clear();
-    std::string cmd =
-        "git -C \"" + repoDir + "\" status --porcelain 2>/dev/null";
-    std::string raw =
-        run_git_raw(cmd);
+    std::string raw = run_git_raw({"git", "-C", repoDir, "status",
+                                   "--porcelain"});
     auto lines = split_lines(raw);
     for(const auto& line : lines)
     {
@@ -335,23 +315,21 @@ std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx, int key)
         if(cursor >= 0 && cursor < (int)entries.size() && !repoDir.empty())
         {
             Entry entry = entries[cursor];
-            std::string cmd;
-            std::string repoDirEsc = shell_escape_single(repoDir);
-            std::string pathEsc = shell_escape_single(entry.path);
+            std::vector<std::string> args;
             if(entry.worktreeStatus != keyCode(control::ControlKey::SPACE) ||
                entry.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION))
             {
-                cmd = "git -C " + repoDirEsc + " add -- " + pathEsc +
-                      " 2>/dev/null";
+                args = {"git", "-C", repoDir, "add", "--", entry.path};
             }
             else if(entry.indexStatus != keyCode(control::ControlKey::SPACE))
             {
-                cmd = "git -C " + repoDirEsc + " restore --staged -- " +
-                      pathEsc + " 2>/dev/null";
+                args = {"git", "-C", repoDir, "restore", "--staged", "--",
+                        entry.path};
             }
-            if(!cmd.empty())
+            if(!args.empty())
             {
-                std::system(cmd.c_str());
+                ProcessPipe pipe(args);
+                pipe.close();
                 refreshStatus(*ed);
                 ed->needsFullRedraw = true;
             }

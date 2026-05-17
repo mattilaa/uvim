@@ -21,17 +21,14 @@ std::string trim_newline(std::string s)
     return s;
 }
 
-std::vector<std::string> run_git_lines(const std::string& cmd)
+std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
 {
     std::vector<std::string> out;
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return out;
 
-    std::string output;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        output += buffer;
+    std::string output = pipe.readAll();
 
     size_t pos = 0;
     while(pos <= output.size())
@@ -55,22 +52,24 @@ bool reload_git_log_mode(GitLogMode& mode)
     if(repoDir.empty())
         return false;
 
-    std::string cmd = "git -C \"" + repoDir +
-                      "\" --no-pager log --no-color ";
+    std::vector<std::string> args = {"git", "-C", repoDir, "--no-pager",
+                                     "log", "--no-color"};
     if(mode.prettyView)
     {
-        cmd += "--date=format:%Y-%m-%d\\ %H:%M\\ %z "
-               "--pretty=format:%H%x1f%ad%x1f%an%x1f%s";
+        args.push_back("--date=format:%Y-%m-%d %H:%M %z");
+        args.push_back("--pretty=format:%H%x1f%ad%x1f%an%x1f%s");
     }
     else
     {
-        cmd += "--pretty=format:%H%x1f%s";
+        args.push_back("--pretty=format:%H%x1f%s");
     }
     if(mode.fileOnly && !mode.filePath.empty())
-        cmd += " -- \"" + mode.filePath + "\"";
-    cmd += " 2>/dev/null";
+    {
+        args.push_back("--");
+        args.push_back(mode.filePath);
+    }
 
-    auto lines = run_git_lines(cmd);
+    auto lines = run_git_lines(args);
     std::vector<GitLogMode::Entry> entries;
     entries.reserve(lines.size());
     for(const auto& raw : lines)
@@ -294,17 +293,15 @@ void GitCommitMode::refreshStaged()
     }
 
     {
-        std::string branchCmd = "git -C \"" + repoDir +
-                                "\" rev-parse --abbrev-ref HEAD 2>/dev/null";
-        auto branchLines = run_git_lines(branchCmd);
+        auto branchLines =
+            run_git_lines({"git", "-C", repoDir, "rev-parse", "--abbrev-ref",
+                           "HEAD"});
         if(!branchLines.empty())
             currentBranch = trim_newline(branchLines.front());
     }
 
-    std::string cmd =
-        "git -C \"" + repoDir +
-        "\" --no-pager diff --cached --name-status --no-color 2>/dev/null";
-    auto lines = run_git_lines(cmd);
+    auto lines = run_git_lines({"git", "-C", repoDir, "--no-pager", "diff",
+                                "--cached", "--name-status", "--no-color"});
     for(auto& line : lines)
     {
         line = trim_newline(line);
@@ -461,9 +458,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             const std::string oldestHash =
                 rebaseBaseHash.empty() ? todo.front().hash : rebaseBaseHash;
-            std::string baseCmd = "git -C \"" + repoDir + "\" rev-parse \"" +
-                                  oldestHash + "^\" 2>/dev/null";
-            auto baseLines = run_git_lines(baseCmd);
+            auto baseLines =
+                run_git_lines({"git", "-C", repoDir, "rev-parse",
+                               oldestHash + "^"});
             std::string base;
             if(!baseLines.empty())
                 base = trim_newline(baseLines.front());
@@ -540,7 +537,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 cmd += shell_escape_single(base);
             cmd += " 2>/dev/null";
 
-            int status = std::system(cmd.c_str());
+            ProcessPipe rebasePipe(cmd, "r");
+            int status = rebasePipe.close();
             unlink(scriptPath.c_str());
             unlink(todoPath.c_str());
             if(status != 0)
@@ -569,23 +567,21 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 return false;
             }
 
-            std::string revertCmd = "git -C \"" + repoDir +
-                                    "\" revert --no-commit \"" + revertHash +
-                                    "\" 2>/dev/null";
-            int revertStatus = system(revertCmd.c_str());
+            ProcessPipe revertPipe(
+                {"git", "-C", repoDir, "revert", "--no-commit", revertHash});
+            int revertStatus = revertPipe.close();
             if(revertStatus != 0)
             {
                 ed->setStatusMessage("git revert: failed");
                 return false;
             }
 
-            std::string commitCmd =
-                "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
-            ProcessPipe pipe(commitCmd, "w");
+            ProcessPipe pipe({"git", "-C", repoDir, "commit", "-F", "-"}, "w");
             if(!pipe)
             {
-                system(("git -C \"" + repoDir + "\" revert --abort 2>/dev/null")
-                           .c_str());
+                ProcessPipe abortPipe(
+                    {"git", "-C", repoDir, "revert", "--abort"});
+                abortPipe.close();
                 ed->setStatusMessage("git revert: failed");
                 return false;
             }
@@ -594,8 +590,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             int commitStatus = pipe.close();
             if(commitStatus != 0)
             {
-                system(("git -C \"" + repoDir + "\" revert --abort 2>/dev/null")
-                           .c_str());
+                ProcessPipe abortPipe(
+                    {"git", "-C", repoDir, "revert", "--abort"});
+                abortPipe.close();
                 ed->setStatusMessage("git revert: failed");
                 return false;
             }
@@ -605,8 +602,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         }
         else
         {
-            std::string cmd = "git -C \"" + repoDir + "\" commit -F - 2>/dev/null";
-            ProcessPipe pipe(cmd, "w");
+            ProcessPipe pipe({"git", "-C", repoDir, "commit", "-F", "-"}, "w");
             if(!pipe)
             {
                 ed->setStatusMessage("git commit: failed");

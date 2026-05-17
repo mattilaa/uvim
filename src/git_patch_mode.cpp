@@ -4,12 +4,13 @@
 #include "terminal.h"
 #include <algorithm>
 #include <string>
+#include <vector>
 
 namespace
 {
-std::string run_git_raw(const std::string& cmd)
+std::string run_git_raw(const std::vector<std::string>& args)
 {
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return {};
     return pipe.readAll();
@@ -97,15 +98,15 @@ void GitPatchMode::on_enter(ModeContext& ctx)
 {
     if(hunks.empty())
     {
-        std::string cmd = "git -C \"" + repoDir + "\" --no-pager diff";
+        std::vector<std::string> args = {"git", "-C", repoDir, "--no-pager",
+                                         "diff"};
         if(!fixupFiles.empty())
         {
-            cmd += " --";
+            args.push_back("--");
             for(const auto& file : fixupFiles)
-                cmd += " \"" + file + "\"";
+                args.push_back(file);
         }
-        cmd += " 2>/dev/null";
-        std::string diff = run_git_raw(cmd);
+        std::string diff = run_git_raw(args);
         hunks = parse_hunks(diff);
     }
     hunkIndex = std::clamp(hunkIndex, 0, std::max(0, (int)hunks.size() - 1));
@@ -164,9 +165,9 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(typed::TypedKey::KEY_Y))
     {
-        std::string cmd =
-            "git -C \"" + repoDir + "\" apply --cached --unidiff-zero";
-        ProcessPipe pipe(cmd, "w");
+        ProcessPipe pipe({"git", "-C", repoDir, "apply", "--cached",
+                          "--unidiff-zero"},
+                         "w");
         if(pipe)
         {
             pipe.write(hunks[hunkIndex].patch);
@@ -179,10 +180,9 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         }
         else
         {
-            std::string commitCmd =
-                "git -C \"" + repoDir + "\" commit --fixup " + targetHash +
-                " 2>/dev/null";
-            std::system(commitCmd.c_str());
+            ProcessPipe pipe(
+                {"git", "-C", repoDir, "commit", "--fixup", targetHash});
+            pipe.close();
             ed->setStatusMessage("fixup commit created");
             return returnStage;
         }
@@ -196,10 +196,9 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         }
         else
         {
-            std::string commitCmd =
-                "git -C \"" + repoDir + "\" commit --fixup " + targetHash +
-                " 2>/dev/null";
-            std::system(commitCmd.c_str());
+            ProcessPipe pipe(
+                {"git", "-C", repoDir, "commit", "--fixup", targetHash});
+            pipe.close();
             ed->setStatusMessage("fixup commit created");
             return returnStage;
         }

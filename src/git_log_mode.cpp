@@ -46,17 +46,14 @@ void append_highlighted(std::string& out, std::string_view text,
     }
 }
 
-std::vector<std::string> run_git_lines(const std::string& cmd)
+std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
 {
     std::vector<std::string> out;
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return out;
 
-    std::string output;
-    char buffer[2048];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        output += buffer;
+    std::string output = pipe.readAll();
 
     size_t pos = 0;
     while(pos <= output.size())
@@ -378,12 +375,12 @@ void GitLogMode::ensurePrettyPreview(Editor& editor)
         return;
     }
 
-    std::string cmd = "git -C \"" + repoDirUse +
-                      "\" --no-pager show --patch --stat ";
-    cmd += editor.gitUseDefaultColors ? "--color=always " : "--no-color ";
-    cmd += "\"" + hash + "\" 2>/dev/null";
-
-    previewLines = run_git_lines(cmd);
+    previewLines =
+        run_git_lines({"git", "-C", repoDirUse, "--no-pager", "show",
+                       "--patch", "--stat",
+                       editor.gitUseDefaultColors ? "--color=always"
+                                                  : "--no-color",
+                       hash});
     if(previewLines.empty())
         previewLines.push_back("(no diff output)");
 

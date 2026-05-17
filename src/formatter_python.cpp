@@ -133,9 +133,7 @@ void PythonFormatter::lintBuffer()
         tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
-    std::string cmd =
-        "ruff check --quiet \"" + tempPath + "\" 2>/tmp/uvim_ruff_err.log";
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe({"ruff", "check", "--quiet", tempPath});
     if(!pipe)
     {
         unlink(tempPath.c_str());
@@ -143,10 +141,7 @@ void PythonFormatter::lintBuffer()
         return;
     }
 
-    std::string output;
-    char buffer[4096];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        output += buffer;
+    std::string output = pipe.readAll();
     unlink(tempPath.c_str());
 
     if(output.empty())

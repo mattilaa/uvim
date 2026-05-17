@@ -4,26 +4,17 @@
 #include "terminal.h"
 #include <algorithm>
 #include <string>
+#include <vector>
 
 namespace
 {
-std::string trim_newline(std::string s)
-{
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
-
-std::vector<std::string> run_git_lines(const std::string& cmd)
+std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
 {
     std::vector<std::string> out;
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return out;
-    char buffer[1024];
-    std::string output;
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        output += buffer;
+    std::string output = pipe.readAll();
 
     size_t pos = 0;
     while(pos <= output.size())
@@ -42,10 +33,9 @@ std::vector<std::string> run_git_lines(const std::string& cmd)
 
 std::vector<GitFixupMode::Entry> load_recent_commits(const std::string& repoDir)
 {
-    std::string cmd =
-        "git -C \"" + repoDir +
-        "\" --no-pager log --no-color --pretty=format:%h\t%s -n 100 2>/dev/null";
-    auto lines = run_git_lines(cmd);
+    auto lines = run_git_lines({"git", "-C", repoDir, "--no-pager", "log",
+                                "--no-color", "--pretty=format:%h\t%s", "-n",
+                                "100"});
     std::vector<GitFixupMode::Entry> entries;
     for(const auto& line : lines)
     {
@@ -93,14 +83,13 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
             {
                 for(const auto& file : fixupFiles)
                 {
-                    std::string cmd = "git -C \"" + repoDir + "\" add -- \"" +
-                                      file + "\" 2>/dev/null";
-                    std::system(cmd.c_str());
+                    ProcessPipe pipe({"git", "-C", repoDir, "add", "--", file});
+                    pipe.close();
                 }
             }
-            std::string cmd = "git -C \"" + repoDir + "\" commit --fixup " +
-                              confirmHash + " 2>/dev/null";
-            std::system(cmd.c_str());
+            ProcessPipe pipe(
+                {"git", "-C", repoDir, "commit", "--fixup", confirmHash});
+            pipe.close();
             ed->setStatusMessage("fixup commit created");
             return returnStage;
         }

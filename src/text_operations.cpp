@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
+#include <vector>
 
 void Editor::yankRange(int startY, int startX, int endY, int endX)
 {
@@ -545,56 +546,49 @@ void Editor::yankSelection()
 }
 
 // System clipboard support
-static std::string getClipboardCommand()
+static std::vector<std::string> getClipboardCommand()
 {
 #ifdef __APPLE__
-    return "pbpaste";
+    return {"pbpaste"};
 #elif defined(_WIN32)
     // TODO: Win32 clipboard via OpenClipboard/GetClipboardData(CF_UNICODETEXT)
-    return "";
+    return {};
 #else
     if(system("which xclip > /dev/null 2>&1") == 0)
-        return "xclip -selection clipboard -o";
+        return {"xclip", "-selection", "clipboard", "-o"};
     if(system("which xsel > /dev/null 2>&1") == 0)
-        return "xsel --clipboard --output";
-    return "";
+        return {"xsel", "--clipboard", "--output"};
+    return {};
 #endif
 }
 
-static std::string setClipboardCommand()
+static std::vector<std::string> setClipboardCommand()
 {
 #ifdef __APPLE__
-    return "pbcopy";
+    return {"pbcopy"};
 #elif defined(_WIN32)
     // TODO: Win32 clipboard via OpenClipboard/SetClipboardData
-    return "";
+    return {};
 #else
     if(system("which xclip > /dev/null 2>&1") == 0)
-        return "xclip -selection clipboard";
+        return {"xclip", "-selection", "clipboard"};
     if(system("which xsel > /dev/null 2>&1") == 0)
-        return "xsel --clipboard --input";
-    return "";
+        return {"xsel", "--clipboard", "--input"};
+    return {};
 #endif
 }
 
 std::string Editor::getSystemClipboard()
 {
-    std::string cmd = getClipboardCommand();
+    auto cmd = getClipboardCommand();
     if(cmd.empty())
         return "";
 
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(cmd);
     if(!pipe)
         return "";
 
-    std::string result;
-    char buffer[256];
-    while(fgets(buffer, sizeof(buffer), pipe.get()) != nullptr)
-    {
-        result += buffer;
-    }
-
-    return result;
+    return pipe.readAll(256);
 }
 
 void Editor::setSystemClipboard(const std::string& text)
@@ -610,39 +604,7 @@ void Editor::setSystemClipboard(const std::string& text)
         return;
     }
 
-#ifdef __APPLE__
-    // On macOS, use pbcopy directly
-    LOG_DEBUG(LOG, "setSystemClipboard: opening pipe to pbcopy");
-    ProcessPipe pipe("pbcopy", "w");
-    if(!pipe)
-    {
-        LOG_DEBUG(LOG, "setSystemClipboard: failed to open pipe to pbcopy");
-        return;
-    }
-
-    LOG_DEBUG(LOG, "setSystemClipboard: writing {} bytes to pbcopy",
-              text.length());
-    size_t written = fwrite(text.c_str(), 1, text.length(), pipe.get());
-    (void)written;
-    LOG_DEBUG(LOG, "setSystemClipboard: wrote {} bytes, flushing", written);
-    pipe.flush();
-
-    LOG_DEBUG(
-        LOG,
-        "setSystemClipboard: closing pipe (waiting for pbcopy to complete)");
-    int status = pipe.close();
-    LOG_DEBUG(LOG, "setSystemClipboard: pipe close returned status={}", status);
-
-    if(status != 0)
-    {
-        LOG_DEBUG(LOG, "setSystemClipboard: pbcopy failed with status {}",
-                  status);
-        return;
-    }
-
-    LOG_DEBUG(LOG, "setSystemClipboard: completed successfully");
-#else
-    std::string cmd = setClipboardCommand();
+    auto cmd = setClipboardCommand();
     if(cmd.empty())
         return;
 
@@ -653,7 +615,6 @@ void Editor::setSystemClipboard(const std::string& text)
     pipe.write(text);
     pipe.flush();
     pipe.close();
-#endif
 }
 
 void Editor::yankToSystemClipboard()

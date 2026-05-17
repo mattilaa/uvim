@@ -6,7 +6,6 @@
 #include "text_utils.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -21,50 +20,24 @@ struct StatusEntry
     char worktreeStatus = keyCode(control::ControlKey::SPACE);
 };
 
-std::string run_git_raw(const std::string& cmd)
+std::string run_git_raw(const std::vector<std::string>& args)
 {
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(args);
     if(!pipe)
         return {};
     return pipe.readAll();
 }
 
-std::string trim_newline(std::string s)
-{
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r'))
-        s.pop_back();
-    return s;
-}
-
 std::string git_show_toplevel(const std::string& dir)
 {
-    std::string cmd =
-        "git -C \"" + dir + "\" rev-parse --show-toplevel 2>/dev/null";
-    return trim_newline(run_git_raw(cmd));
+    ProcessPipe pipe({"git", "-C", dir, "rev-parse", "--show-toplevel"});
+    return pipe ? pipe.readLine() : "";
 }
 
 std::string git_branch_name(const std::string& dir)
 {
-    std::string cmd =
-        "git -C \"" + dir +
-        "\" branch --show-current 2>/dev/null";
-    return trim_newline(run_git_raw(cmd));
-}
-
-std::string shell_escape_single(std::string_view text)
-{
-    std::string out;
-    out.reserve(text.size() + 8);
-    out += keyCode(command::CommandKey::KEY_APOSTROPHE);
-    for(char ch : text)
-    {
-        if(ch == keyCode(command::CommandKey::KEY_APOSTROPHE))
-            out += "'\\''";
-        else
-            out.push_back(ch);
-    }
-    out += keyCode(command::CommandKey::KEY_APOSTROPHE);
-    return out;
+    ProcessPipe pipe({"git", "-C", dir, "branch", "--show-current"});
+    return pipe ? pipe.readLine() : "";
 }
 
 std::string decode_git_path(std::string_view raw)
@@ -586,10 +559,9 @@ bool GitStageMode::refreshStatus(Editor& editor)
     rows.clear();
     fileRows.clear();
 
-    std::string statusCmd =
-        "git -C \"" + repoDir + "\" status --porcelain -z 2>/dev/null";
     std::vector<StatusEntry> entries =
-        parse_status_porcelain_z(run_git_raw(statusCmd));
+        parse_status_porcelain_z(
+            run_git_raw({"git", "-C", repoDir, "status", "--porcelain", "-z"}));
 
     std::unordered_set<std::string> validPaths;
     for(const auto& entry : entries)
@@ -761,14 +733,16 @@ void GitStageMode::refreshDiff(Editor& editor)
         return;
     }
 
-    std::string cmd = "git -C \"" + repoDir + "\" --no-pager diff ";
+    std::vector<std::string> args = {"git", "-C", repoDir, "--no-pager",
+                                     "diff"};
     if(row.group == FileGroup::Staged)
-        cmd += "--cached ";
-    cmd += std::string(editor.gitUseDefaultColors ? "--color=always "
-                                                  : "--no-color ");
-    cmd += "-- \"" + row.path + "\" 2>/dev/null";
+        args.push_back("--cached");
+    args.push_back(editor.gitUseDefaultColors ? "--color=always"
+                                              : "--no-color");
+    args.push_back("--");
+    args.push_back(row.path);
 
-    std::string raw = run_git_raw(cmd);
+    std::string raw = run_git_raw(args);
     size_t pos = 0;
     while(pos <= raw.size())
     {
@@ -884,24 +858,22 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         if(rowIndex >= 0 && rowIndex < (int)rows.size() && !repoDir.empty())
         {
             const StatusRow& row = rows[rowIndex];
-            std::string repoDirEsc = shell_escape_single(repoDir);
-            std::string pathEsc = shell_escape_single(row.path);
-            std::string cmd;
+            std::vector<std::string> args;
             if(row.group == FileGroup::Staged)
             {
-                cmd = "git -C " + repoDirEsc +
-                      " restore --staged -- " + pathEsc + " 2>/dev/null";
+                args = {"git", "-C", repoDir, "restore", "--staged", "--",
+                        row.path};
             }
             else if(row.group == FileGroup::Unstaged ||
                     row.group == FileGroup::Untracked)
             {
-                cmd = "git -C " + repoDirEsc + " add -- " + pathEsc +
-                      " 2>/dev/null";
+                args = {"git", "-C", repoDir, "add", "--", row.path};
             }
 
-            if(!cmd.empty())
+            if(!args.empty())
             {
-                std::system(cmd.c_str());
+                ProcessPipe pipe(args);
+                pipe.close();
                 refreshStatus(*ed);
                 if(diffVisible)
                     refreshDiff(*ed);

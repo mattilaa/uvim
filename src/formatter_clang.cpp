@@ -77,24 +77,24 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
             absFilename = cwd.string() + "/" + *editor.filename;
     }
 
-    auto buildCmd = [&](const std::string& exe) -> std::string
+    auto buildArgs = [&](const std::string& exe) -> std::vector<std::string>
     {
-        std::string cmd = "cat \"" + tempPath + "\" | " + exe +
-                          " -style=file -assume-filename=\"" + absFilename +
-                          "\"";
+        std::vector<std::string> args = {
+            exe, "-style=file", "-assume-filename=" + absFilename};
         if(!extraArgs.empty())
-            cmd += " " + extraArgs;
-        cmd += " 2>/tmp/uvim_clang_err.log";
-        return cmd;
+        {
+            std::istringstream iss(extraArgs);
+            std::string arg;
+            while(iss >> arg)
+                args.push_back(arg);
+        }
+        args.push_back(tempPath);
+        return args;
     };
 
-    std::string cmd = buildCmd("/opt/homebrew/bin/clang-format");
-    ProcessPipe pipe(cmd, "r");
+    ProcessPipe pipe(buildArgs("/opt/homebrew/bin/clang-format"));
     if(!pipe)
-    {
-        cmd = buildCmd("clang-format");
-        pipe.open(cmd, "r");
-    }
+        pipe.open(buildArgs("clang-format"));
 
     if(!pipe)
     {
@@ -103,10 +103,7 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
         return false;
     }
 
-    std::string formatted;
-    char buffer[4096];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-        formatted += buffer;
+    std::string formatted = pipe.readAll();
 
     int status = pipe.close();
     (void)status;
