@@ -1,6 +1,6 @@
 #include "editor_buffer_controller.h"
 #include "editor.h"
-#include "git_handler.h"
+#include "editor_git_controller.h"
 
 EditorBufferController::EditorBufferController(Editor& editor) : editor(editor)
 {
@@ -356,9 +356,9 @@ void Editor::listBuffersImpl()
     }
 
     std::string status = ss.str();
-    if(gitHandler)
+    if(gitController)
     {
-        if(auto changes = gitHandler->currentBufferHasChanges();
+        if(auto changes = gitController->currentBufferHasChanges();
            changes.has_value())
         {
             status += " | git add ";

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,17 @@ public:
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
+    void openGitDiffMode();
+    void openGitCommitMode();
+    void addCurrentBuffer();
+    std::optional<bool> currentBufferHasChanges();
+    bool runGitStash(std::string& outMessage);
+    bool runGitStashPop(std::string& outMessage);
 
 private:
     Editor& editor;
+    bool gitAvailableKnown = false;
+    bool gitAvailable = false;
+
+    bool ensureGitAvailable();
 };

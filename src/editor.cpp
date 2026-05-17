@@ -20,7 +20,6 @@
 #include "editor_visual_controller.h"
 #include "enablelog.h"
 #include "formatter.h"
-#include "git_handler.h"
 #include "gitignore.h"
 #include "mlang_utilities.h"
 #include "mode_state_machine.h"
@@ -721,7 +720,6 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(*this);
-    gitHandler = std::make_unique<GitHandler>(this);
 }
 
 #ifdef UVIM_TESTING
@@ -752,7 +750,6 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     visualController = std::make_unique<EditorVisualController>(*this);
     syntaxHighlighter = std::make_unique<SyntaxHighlighter>(this);
     formatter = std::make_unique<Formatter>(*this);
-    gitHandler = std::make_unique<GitHandler>(this);
 }
 
 Editor Editor::createForTests(int rows, int cols)
@@ -3593,6 +3590,31 @@ void Editor::openGitStageMode()
     gitController->openGitStageMode();
 }
 
+void Editor::openGitDiffMode()
+{
+    gitController->openGitDiffMode();
+}
+
+void Editor::openGitCommitMode()
+{
+    gitController->openGitCommitMode();
+}
+
+void Editor::addCurrentBuffer()
+{
+    gitController->addCurrentBuffer();
+}
+
+bool Editor::runGitStash(std::string& outMessage)
+{
+    return gitController->runGitStash(outMessage);
+}
+
+bool Editor::runGitStashPop(std::string& outMessage)
+{
+    return gitController->runGitStashPop(outMessage);
+}
+
 void Editor::updateClangFormatIndentWidth()
 {
     indentController->updateClangFormatIndentWidth();
@@ -4017,10 +4039,7 @@ void Editor::executeCommand(std::string_view cmd)
     }
     if(trimmedCmd == "git add")
     {
-        if(gitHandler)
-            gitHandler->addCurrentBuffer();
-        else
-            setStatusMessage("git add: unavailable");
+        addCurrentBuffer();
         return;
     }
     if(trimmedCmd == "git blame")
@@ -4030,66 +4049,36 @@ void Editor::executeCommand(std::string_view cmd)
     }
     if(trimmedCmd == "git log")
     {
-        if(gitHandler)
-            gitHandler->openGitLogMode();
-        else
-            setStatusMessage("git log: unavailable");
+        openGitLogMode();
         return;
     }
     if(trimmedCmd == "git prettylog")
     {
-        if(gitHandler)
-            gitHandler->openGitPrettyLogMode();
-        else
-            setStatusMessage("git prettylog: unavailable");
+        openGitPrettyLogMode();
         return;
     }
     if(trimmedCmd == "git diff")
     {
-        if(gitHandler)
-            gitHandler->openGitDiffMode();
-        else
-            setStatusMessage("git diff: unavailable");
+        openGitDiffMode();
         return;
     }
     if(trimmedCmd == "git commit")
     {
-        if(gitHandler)
-            gitHandler->openGitCommitMode();
-        else
-            setStatusMessage("git commit: unavailable");
+        openGitCommitMode();
         return;
     }
     if(trimmedCmd == "git stash")
     {
-        if(gitHandler)
-        {
-            std::string msg;
-            if(gitHandler->runGitStash(msg))
-                setStatusMessage(msg);
-            else
-                setStatusMessage(msg);
-        }
-        else
-        {
-            setStatusMessage("git stash: unavailable");
-        }
+        std::string msg;
+        runGitStash(msg);
+        setStatusMessage(msg);
         return;
     }
     if(trimmedCmd == "git stash pop")
     {
-        if(gitHandler)
-        {
-            std::string msg;
-            if(gitHandler->runGitStashPop(msg))
-                setStatusMessage(msg);
-            else
-                setStatusMessage(msg);
-        }
-        else
-        {
-            setStatusMessage("git stash pop: unavailable");
-        }
+        std::string msg;
+        runGitStashPop(msg);
+        setStatusMessage(msg);
         return;
     }
 

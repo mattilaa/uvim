@@ -110,7 +110,6 @@ set(UVIM_CORE_SOURCES
     src/formatter_mlang.cpp
     src/formatter_python.cpp
     src/formatter_robot.cpp
-    src/git_handler.cpp
     src/syntax_highlighter.cpp
     src/undo_redo.cpp
     src/drawing.cpp

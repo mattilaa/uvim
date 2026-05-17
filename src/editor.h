@@ -29,7 +29,6 @@ class GitIgnore;
 class ModeStateMachine;
 class SyntaxHighlighter;
 class Formatter;
-class GitHandler;
 class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
@@ -385,6 +384,11 @@ public:
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
+    void openGitDiffMode();
+    void openGitCommitMode();
+    void addCurrentBuffer();
+    bool runGitStash(std::string& outMessage);
+    bool runGitStashPop(std::string& outMessage);
     // Search (global state) - SearchMatch struct is now in search_types.h
     std::string searchQuery;
     bool searchForward = true;
@@ -454,7 +458,6 @@ public:
     bool formatOnDoubleEscPending = false;
     int formatOnDoubleEscTimeoutMs = DOUBLE_ESC_TIMEOUT_MS;
     bool gdCenterScreen = true;
-    std::unique_ptr<GitHandler> gitHandler;
     int tabSpaces = 4;
     bool showTabs = true;
     bool showTabNumbers = true;
@@ -923,7 +926,6 @@ public:
     }
 
 private:
-    friend class GitHandler;
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
@@ -1055,19 +1057,6 @@ private:
     void renameFilePromptImpl();
     void createNewFilePromptImpl();
     void createNewDirectoryPromptImpl();
-    int lineNumberWidthImpl() const;
-    int gitBlameWidthImpl() const;
-    int gutterWidthImpl() const;
-    void toggleGitBlameImpl();
-    void updateGitBlameForVisibleRangeImpl();
-    std::string blameDisplayForLineImpl(int row) const;
-    std::string blameFullForLineImpl(int row) const;
-    void openGitShowCommitModeImpl();
-    std::vector<std::string> loadGitShowLinesImpl(const std::string& hash);
-    void openGitLogModeImpl();
-    void openGitPrettyLogModeImpl();
-    void openGitLogModeForFileImpl();
-    void openGitStageModeImpl();
     void enterOperatorPendingImpl(char op);
     bool getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
                                 int& outStartX, int& outEndY, int& outEndX);
