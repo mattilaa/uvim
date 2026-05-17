@@ -285,7 +285,12 @@ else()
     FetchContent_Populate(rapidjson)
 endif()
 set(RAPIDJSON_INCLUDE_DIR ${rapidjson_SOURCE_DIR}/include)
-target_include_directories(uvim PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+
+function(uvim_target_include_rapidjson target_name)
+    target_include_directories(${target_name} SYSTEM PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+endfunction()
+
+uvim_target_include_rapidjson(uvim)
 
 #fmt (formatting library)
 FetchContent_Declare(
@@ -357,7 +362,7 @@ if(UVIM_BUILD_TESTS)
         fmt::fmt
     )
     target_include_directories(state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_include_directories(state_machine_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+    uvim_target_include_rapidjson(state_machine_tests)
 
     add_executable(mode_state_machine_tests
         tests/mode_state_machine_test.cpp
@@ -369,7 +374,7 @@ if(UVIM_BUILD_TESTS)
         fmt::fmt
     )
     target_include_directories(mode_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_include_directories(mode_state_machine_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+    uvim_target_include_rapidjson(mode_state_machine_tests)
 
     add_executable(constants_tests
         tests/constants_test.cpp
@@ -381,7 +386,7 @@ if(UVIM_BUILD_TESTS)
         fmt::fmt
     )
     target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_include_directories(constants_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+    uvim_target_include_rapidjson(constants_tests)
 
     set(UVIM_TEST_SOURCES
         ${UVIM_CORE_SOURCES}
@@ -409,7 +414,7 @@ if(UVIM_BUILD_TESTS)
         fmt::fmt
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_include_directories(real_mode_transitions_tests PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+    uvim_target_include_rapidjson(real_mode_transitions_tests)
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
     if(_backend STREQUAL "WIN32")
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TERMINAL_WIN32=1)
