@@ -386,6 +386,7 @@ public:
     void openGitStageMode();
     void openGitDiffMode();
     void openGitCommitMode();
+    void openGitFixupMode();
     void addCurrentBuffer();
     bool runGitStash(std::string& outMessage);
     bool runGitStashPop(std::string& outMessage);

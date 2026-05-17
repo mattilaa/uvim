@@ -90,6 +90,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Show repository diff";
     if(cmd == "git commit")
         return "Commit staged files";
+    if(cmd == "git fixup")
+        return "Create fixup commit from staged files";
     if(cmd == "git stash")
         return "Stash local changes";
     if(cmd == "git stash pop")

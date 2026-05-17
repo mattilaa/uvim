@@ -152,7 +152,9 @@ std::optional<ModeState> GitFixupMode::handle(ModeContext& ctx,
             offset = std::max(0, cursor - visible + 1);
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_F) || c == keyCode(control::ControlKey::ENTER))
+    else if(c == keyCode(control::ControlKey::SPACE) ||
+            c == keyCode(typed::TypedKey::KEY_F) ||
+            c == keyCode(control::ControlKey::ENTER))
     {
         if(cursor >= 0 && cursor < (int)entries.size())
         {
@@ -183,7 +185,7 @@ void GitFixupMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
-    output += "  [j/k: move] [f/enter: fixup] [q/esc: back]";
+    output += "  [j/k: move] [space/enter: fixup] [q/esc: back]";
     output += editor.theme.baseFg();
 
     int availableRows = editor.screenRows - 3;

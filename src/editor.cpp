@@ -3600,6 +3600,11 @@ void Editor::openGitCommitMode()
     gitController->openGitCommitMode();
 }
 
+void Editor::openGitFixupMode()
+{
+    gitController->openGitFixupMode();
+}
+
 void Editor::addCurrentBuffer()
 {
     gitController->addCurrentBuffer();
@@ -4065,6 +4070,11 @@ void Editor::executeCommand(std::string_view cmd)
     if(trimmedCmd == "git commit")
     {
         openGitCommitMode();
+        return;
+    }
+    if(trimmedCmd == "git fixup")
+    {
+        openGitFixupMode();
         return;
     }
     if(trimmedCmd == "git stash")

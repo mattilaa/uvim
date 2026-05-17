@@ -26,6 +26,7 @@ public:
     void openGitStageMode();
     void openGitDiffMode();
     void openGitCommitMode();
+    void openGitFixupMode();
     void addCurrentBuffer();
     std::optional<bool> currentBufferHasChanges();
     bool runGitStash(std::string& outMessage);

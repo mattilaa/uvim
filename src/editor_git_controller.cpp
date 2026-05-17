@@ -72,6 +72,12 @@ std::string git_root_for_dir(const std::string& dir)
     return pipe ? pipe.readLine() : "";
 }
 
+bool has_staged_changes(const std::string& repoRoot)
+{
+    ProcessPipe pipe({"git", "-C", repoRoot, "diff", "--cached", "--quiet"});
+    return pipe.close() == 1;
+}
+
 std::string base_dir_for_editor(const Editor& editor)
 {
     std::string baseDir = ".";
@@ -537,6 +543,53 @@ void EditorGitController::openGitCommitMode()
     {
         editor.modeStateMachine->transitionTo(
             GitCommitMode{repoRoot, repoRoot});
+        editor.modeController->syncModeFromStateMachine();
+        editor.needsFullRedraw = true;
+    }
+}
+
+void EditorGitController::openGitFixupMode()
+{
+    if(!ensureGitAvailable())
+    {
+        editor.setStatusMessage("git not installed");
+        return;
+    }
+
+    std::string dir = base_dir_for_editor(editor);
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor.setStatusMessage("git fixup: not a repo");
+        return;
+    }
+
+    std::vector<std::string> fixupFiles;
+    GitStageMode returnStage{{}, repoRoot, repoRoot};
+    if(editor.modeStateMachine)
+    {
+        if(auto* stage = editor.modeStateMachine->getState<GitStageMode>())
+        {
+            returnStage = *stage;
+            repoRoot = stage->repoRoot.empty() ? repoRoot : stage->repoRoot;
+            dir = stage->repoDir.empty() ? repoRoot : stage->repoDir;
+            fixupFiles.reserve(stage->fixupMarked.size());
+            for(const auto& path : stage->fixupMarked)
+                fixupFiles.push_back(path);
+        }
+    }
+
+    if(fixupFiles.empty() && !has_staged_changes(repoRoot))
+    {
+        editor.setStatusMessage("git fixup: no staged files");
+        return;
+    }
+
+    if(editor.modeStateMachine)
+    {
+        editor.modeStateMachine->transitionTo(
+            GitFixupMode{{}, repoRoot, dir, std::move(fixupFiles),
+                         std::move(returnStage)});
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }

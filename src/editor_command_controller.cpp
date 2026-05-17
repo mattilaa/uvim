@@ -588,6 +588,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "git prettylog",
         "git diff",
         "git commit",
+        "git fixup",
         "git stash",
         "git stash pop",
     };
@@ -642,7 +643,8 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
     static const std::vector<std::string> topics = {
         "commands",    "modes",       "navigation", "editing", "files",
         "filebrowser", "run",         "buffers",    "windows", "search",
-        "clipboard",   "git",         "gb",         "gj",      "gbv",
+        "clipboard",   "git",         "ga",         "gb",      "gj",
+        "gbv",
         "lsp",         "diagnostics", "help"};
 
     std::vector<std::string> matches;

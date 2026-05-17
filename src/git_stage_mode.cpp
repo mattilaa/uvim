@@ -166,7 +166,7 @@ std::string git_stage_help_text()
 {
     return "  [space: stage] [j/k: move] [d: diff] "
            "[ctrl-j/k: scroll diff] [ctrl-h/l: pan diff] [enter: open] "
-           "[m: mark fixup] [g f: fixup] [r: refresh] [q/esc: close]";
+           "[m: mark fixup] [f: fixup] [r: refresh] [q/esc: close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -299,6 +299,34 @@ std::string status_path_bg(GitStageMode::FileGroup group)
     default:
         return "";
     }
+}
+
+bool has_staged_rows(const GitStageMode& stage)
+{
+    for(const auto& row : stage.rows)
+    {
+        if(row.group == GitStageMode::FileGroup::Staged)
+            return true;
+    }
+    return false;
+}
+
+std::optional<ModeState> start_fixup_from_stage(Editor& editor,
+                                                GitStageMode& stage)
+{
+    std::vector<std::string> files;
+    files.reserve(stage.fixupMarked.size());
+    for(const auto& path : stage.fixupMarked)
+        files.push_back(path);
+
+    if(files.empty() && !has_staged_rows(stage))
+    {
+        editor.setStatusMessage("fixup: no staged files");
+        return std::nullopt;
+    }
+
+    return GitFixupMode{{}, stage.repoRoot, stage.repoDir, std::move(files),
+                        stage};
 }
 
 bool is_ansi_start(std::string_view text, size_t i)
@@ -809,6 +837,11 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
 
+    if(c == keyCode(typed::TypedKey::KEY_F))
+    {
+        return start_fixup_from_stage(*ed, *this);
+    }
+
     if(c == keyCode(typed::TypedKey::KEY_M))
     {
         int rowIndex = selectedRowIndex();
@@ -979,17 +1012,7 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_F))
         {
-            std::vector<std::string> files;
-            files.reserve(fixupMarked.size());
-            for(const auto& path : fixupMarked)
-                files.push_back(path);
-            if(files.empty())
-            {
-                ed->setStatusMessage("fixup: no files marked");
-                return std::nullopt;
-            }
-            GitFixupMode fixup{{}, repoRoot, repoDir, std::move(files), *this};
-            return fixup;
+            return start_fixup_from_stage(*ed, *this);
         }
     }
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
