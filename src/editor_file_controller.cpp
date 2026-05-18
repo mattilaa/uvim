@@ -1,5 +1,5 @@
-#include "editor_file_controller.h"
 #include "editor.h"
+#include "editor_file_controller.h"
 #include "editor_utils.h"
 
 #include <algorithm>
@@ -286,53 +286,19 @@ std::string Editor::findAlternateFileImpl(const std::string& currentFile)
     if(currentFile.empty())
         return "";
 
-    size_t lastDot = currentFile.find_last_of('.');
-    if(lastDot == std::string::npos)
-        return "";
+    static constexpr std::array<std::string_view, 6> headerExts = {
+        ".h", ".hpp", ".hxx", ".H", ".HPP", ".HXX"};
 
-    std::string baseName = currentFile.substr(0, lastDot);
-    std::string extension = currentFile.substr(lastDot);
-
-    static const std::vector<std::string> headerExts = {".h", ".hpp", ".hxx",
-                                                        ".H", ".HPP", ".HXX"};
-    static const std::vector<std::string> sourceExts = {
+    static constexpr std::array<std::string_view, 8> sourceExts = {
         ".cpp", ".cc", ".cxx", ".c", ".C", ".CPP", ".CC", ".CXX"};
 
-    bool isHeader = false;
-    for(const auto& ext : headerExts)
+    struct DirPair
     {
-        if(extension == ext)
-        {
-            isHeader = true;
-            break;
-        }
-    }
+        std::string_view srcDir;
+        std::string_view incDir;
+    };
 
-    std::vector<std::string> candidates;
-
-    if(isHeader)
-    {
-        for(const auto& ext : sourceExts)
-            candidates.push_back(baseName + ext);
-    }
-    else
-    {
-        for(const auto& ext : headerExts)
-            candidates.push_back(baseName + ext);
-    }
-
-    size_t lastSlash = currentFile.find_last_of('/');
-    std::string dir = "";
-    std::string fileName = currentFile;
-
-    if(lastSlash != std::string::npos)
-    {
-        dir = currentFile.substr(0, lastSlash + 1);
-        fileName = currentFile.substr(lastSlash + 1);
-        baseName = fileName.substr(0, fileName.find_last_of('.'));
-    }
-
-    std::vector<std::pair<std::string, std::string>> dirPairs = {
+    static constexpr std::array<DirPair, 12> dirPairs = {{
         {"src/", "include/"},
         {"source/", "include/"},
         {"src/", "inc/"},
@@ -345,38 +311,101 @@ std::string Editor::findAlternateFileImpl(const std::string& currentFile)
         {"inc/", "../src/"},
         {"headers/", "../source/"},
         {"include/", "../lib/"},
-    };
+    }};
 
-    for(const auto& [srcDir, incDir] : dirPairs)
+    const size_t lastDot = currentFile.find_last_of('.');
+    if(lastDot == std::string::npos)
+        return "";
+
+    const std::string extension = currentFile.substr(lastDot);
+
+    bool isHeader = false;
+    for(std::string_view ext : headerExts)
     {
-        if(dir.find(srcDir) != std::string::npos && isHeader == false)
+        if(extension == ext)
         {
-            std::string altDir = dir;
-            size_t pos = altDir.find(srcDir);
-            if(pos != std::string::npos)
-            {
-                altDir.replace(pos, srcDir.length(), incDir);
-                for(const auto& ext : headerExts)
-                    candidates.push_back(altDir + baseName + ext);
-            }
-        }
-        else if(dir.find(incDir) != std::string::npos && isHeader == true)
-        {
-            std::string altDir = dir;
-            size_t pos = altDir.find(incDir);
-            if(pos != std::string::npos)
-            {
-                altDir.replace(pos, incDir.length(), srcDir);
-                for(const auto& ext : sourceExts)
-                    candidates.push_back(altDir + baseName + ext);
-            }
+            isHeader = true;
+            break;
         }
     }
 
-    for(const auto& candidate : candidates)
+    auto checkCandidate = [this](const std::string& candidate) -> std::string
+    { return fileExists(candidate) ? candidate : ""; };
+
+    const size_t lastSlash = currentFile.find_last_of('/');
+
+    std::string dir;
+    std::string fileName = currentFile;
+
+    if(lastSlash != std::string::npos)
     {
-        if(fileExists(candidate))
-            return candidate;
+        dir = currentFile.substr(0, lastSlash + 1);
+        fileName = currentFile.substr(lastSlash + 1);
+    }
+
+    const size_t fileDot = fileName.find_last_of('.');
+    if(fileDot == std::string::npos)
+        return "";
+
+    const std::string baseName = fileName.substr(0, fileDot);
+
+    if(isHeader)
+    {
+        for(std::string_view ext : sourceExts)
+        {
+            if(auto found = checkCandidate(baseName + std::string(ext));
+               !found.empty())
+                return found;
+        }
+    }
+    else
+    {
+        for(std::string_view ext : headerExts)
+        {
+            if(auto found = checkCandidate(baseName + std::string(ext));
+               !found.empty())
+                return found;
+        }
+    }
+
+    for(const auto& [srcDir, incDir] : dirPairs)
+    {
+        if(!isHeader && dir.find(srcDir) != std::string::npos)
+        {
+            std::string altDir = dir;
+            const size_t pos = altDir.find(srcDir);
+
+            if(pos != std::string::npos)
+            {
+                altDir.replace(pos, srcDir.length(), incDir);
+
+                for(std::string_view ext : headerExts)
+                {
+                    if(auto found =
+                           checkCandidate(altDir + baseName + std::string(ext));
+                       !found.empty())
+                        return found;
+                }
+            }
+        }
+        else if(isHeader && dir.find(incDir) != std::string::npos)
+        {
+            std::string altDir = dir;
+            const size_t pos = altDir.find(incDir);
+
+            if(pos != std::string::npos)
+            {
+                altDir.replace(pos, incDir.length(), srcDir);
+
+                for(std::string_view ext : sourceExts)
+                {
+                    if(auto found =
+                           checkCandidate(altDir + baseName + std::string(ext));
+                       !found.empty())
+                        return found;
+                }
+            }
+        }
     }
 
     return "";
