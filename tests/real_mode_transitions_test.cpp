@@ -490,10 +490,47 @@ TEST(RealModeTransitionsTest, NormalOpenAboveClosingCppBraceUsesIndentWidth)
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
+TEST(RealModeTransitionsTest, NormalRnRequestsClangRename)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    Terminal::unreadKey('n');
+    sm.dispatch('r');
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_FALSE(editor.renamePopupActive);
+    EXPECT_EQ(editor.statusMessage, "rn: clangd rename unavailable");
+}
+
+TEST(RealModeTransitionsTest, VisualRnRequestsClangRenameAndReturnsNormal)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualMode{});
+    Terminal::unreadKey('n');
+    sm.dispatch('r');
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_FALSE(editor.renamePopupActive);
+    EXPECT_EQ(editor.statusMessage, "rn: clangd rename unavailable");
+}
+
 TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)
 {
 #ifdef _WIN32
-    GTEST_SKIP() << "System clipboard command lookup is not implemented on Windows";
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
 #else
     auto root = make_temp_dir("uvim_clipboard_");
     auto binDir = root / "bin";
@@ -508,12 +545,11 @@ TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)
     auto pasteCmd = binDir / "xclip";
     write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
 #endif
-    std::filesystem::permissions(
-        pasteCmd,
-        std::filesystem::perms::owner_exec |
-            std::filesystem::perms::owner_read |
-            std::filesystem::perms::owner_write,
-        std::filesystem::perm_options::add);
+    std::filesystem::permissions(pasteCmd,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
 
     const char* oldPath = std::getenv("PATH");
     std::string path = binDir.string();
@@ -542,7 +578,8 @@ TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)
 TEST(RealModeTransitionsTest, VisualLinePasteUsesSystemClipboard)
 {
 #ifdef _WIN32
-    GTEST_SKIP() << "System clipboard command lookup is not implemented on Windows";
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
 #else
     auto root = make_temp_dir("uvim_visual_clipboard_");
     auto binDir = root / "bin";
@@ -557,12 +594,11 @@ TEST(RealModeTransitionsTest, VisualLinePasteUsesSystemClipboard)
     auto pasteCmd = binDir / "xclip";
     write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
 #endif
-    std::filesystem::permissions(
-        pasteCmd,
-        std::filesystem::perms::owner_exec |
-            std::filesystem::perms::owner_read |
-            std::filesystem::perms::owner_write,
-        std::filesystem::perm_options::add);
+    std::filesystem::permissions(pasteCmd,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
 
     const char* oldPath = std::getenv("PATH");
     std::string path = binDir.string();
@@ -594,7 +630,8 @@ TEST(RealModeTransitionsTest, VisualLinePasteUsesSystemClipboard)
 TEST(RealModeTransitionsTest, UndoVisualLinePasteRestoresVisualStartCursor)
 {
 #ifdef _WIN32
-    GTEST_SKIP() << "System clipboard command lookup is not implemented on Windows";
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
 #else
     auto root = make_temp_dir("uvim_visual_clipboard_undo_");
     auto binDir = root / "bin";
@@ -609,12 +646,11 @@ TEST(RealModeTransitionsTest, UndoVisualLinePasteRestoresVisualStartCursor)
     auto pasteCmd = binDir / "xclip";
     write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
 #endif
-    std::filesystem::permissions(
-        pasteCmd,
-        std::filesystem::perms::owner_exec |
-            std::filesystem::perms::owner_read |
-            std::filesystem::perms::owner_write,
-        std::filesystem::perm_options::add);
+    std::filesystem::permissions(pasteCmd,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
 
     const char* oldPath = std::getenv("PATH");
     std::string path = binDir.string();
@@ -802,7 +838,8 @@ TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideCall)
     EXPECT_EQ(*editor.cursorX, 13);
 }
 
-TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideIfCondition)
+TEST(RealModeTransitionsTest,
+     CompletionAutoParensOmitsSemicolonInsideIfCondition)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -927,7 +964,8 @@ TEST(RealModeTransitionsTest, IncrementalForwardSearchRecomputesAfterEdit)
     EXPECT_EQ(editor.currentMatchIndex, 0);
 }
 
-TEST(RealModeTransitionsTest, IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
+TEST(RealModeTransitionsTest,
+     IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1002,16 +1040,14 @@ TEST(RealModeTransitionsTest, ClangFormatUndoRestoresSavedBuffer)
 
     auto root = make_temp_dir("uvim_clang_format_undo_");
     auto file = root / "format_me.cpp";
-    write_file(root / ".clang-format",
-               "BasedOnStyle: LLVM\n"
-               "BreakBeforeBraces: Allman\n"
-               "IndentWidth: 4\n");
-    write_file(file,
-               "int main(){\n"
-               "if(true){\n"
-               "return 1;\n"
-               "}\n"
-               "}\n");
+    write_file(root / ".clang-format", "BasedOnStyle: LLVM\n"
+                                       "BreakBeforeBraces: Allman\n"
+                                       "IndentWidth: 4\n");
+    write_file(file, "int main(){\n"
+                     "if(true){\n"
+                     "return 1;\n"
+                     "}\n"
+                     "}\n");
 
     Editor editor = Editor::createForTests();
     editor.openFile(file.string(), false);

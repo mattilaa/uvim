@@ -372,6 +372,39 @@ public:
     int symbolPopupCursorY = -1;
     std::string symbolPopupText;
 
+    struct RenameEdit
+    {
+        std::string path;
+        int startLine = 0;
+        int startCharacter = 0;
+        int endLine = 0;
+        int endCharacter = 0;
+        std::string newText;
+        bool applied = false;
+    };
+
+    struct RenameFileEdits
+    {
+        std::string path;
+        std::vector<RenameEdit> edits;
+    };
+
+    bool renamePopupActive = false;
+    bool renamePopupReady = false;
+    std::string renameOriginal;
+    std::string renameInput;
+    std::string renameStatus;
+    int renameCursorX = -1;
+    int renameCursorY = -1;
+    int renameCurrentFile = 0;
+    int renameCurrentEdit = 0;
+    std::vector<RenameFileEdits> renameFiles;
+
+    void openRenamePopupForCursor();
+    void closeRenamePopup();
+    bool handleRenamePopupKey(int key);
+    void drawRenamePopup(std::string& output) const;
+
     void applyDiagnosticFix(int index);
     void updateClangFormatIndentWidth();
     int indentWidthForBraces() const;

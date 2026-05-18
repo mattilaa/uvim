@@ -13,12 +13,10 @@ void replaceVisualLineSelection(Editor* ed, std::string pasteBuffer)
 
     const int visualStartY = ed->currentBuffer->visualStartY;
     const int visualStartX = ed->currentBuffer->visualStartX;
-    const int startY =
-        std::min(ed->currentBuffer->visualStartY,
-                 ed->currentBuffer->visualEndY);
-    const int endY =
-        std::max(ed->currentBuffer->visualStartY,
-                 ed->currentBuffer->visualEndY);
+    const int startY = std::min(ed->currentBuffer->visualStartY,
+                                ed->currentBuffer->visualEndY);
+    const int endY = std::max(ed->currentBuffer->visualStartY,
+                              ed->currentBuffer->visualEndY);
 
     *ed->cursorY = std::clamp(visualStartY, 0, (int)ed->lines->size() - 1);
     *ed->cursorX =
@@ -87,6 +85,9 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
+    if(ed->handleRenamePopupKey(c))
+        return std::nullopt;
+
     if(c == keyCode(control::ControlKey::PASTE))
     {
         std::string text = Terminal::takeLastPasteText();
@@ -114,6 +115,19 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
     int count = std::max(1, ctx.repeatCount);
+
+    if(c == keyCode(typed::TypedKey::KEY_R))
+    {
+        int next = Terminal::readKeyTimeout(250);
+        if(next == keyCode(typed::TypedKey::KEY_N))
+        {
+            ed->openRenamePopupForCursor();
+            ctx.repeatCount = 0;
+            return NormalMode{};
+        }
+        if(next != -1)
+            Terminal::unreadKey(next);
+    }
 
     // ========================================================================
     // Leader Key (Space)

@@ -11,6 +11,7 @@ void appendPopups(Editor& editor, std::string& output)
     editor.drawEmojiPopup(output);
     editor.drawDiagnosticPopup(output);
     editor.drawSymbolPopup(output);
+    editor.drawRenamePopup(output);
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 }

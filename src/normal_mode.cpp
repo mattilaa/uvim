@@ -1,80 +1,9 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-#include "text_utils.h"
 #include <cctype>
 #include <chrono>
 #include <optional>
-
-namespace
-{
-
-std::optional<std::string> promptReplaceWordInput(Editor* ed,
-                                                  const std::string& target)
-{
-    std::string input;
-    while(true)
-    {
-        ed->setStatusMessage("rn: replace '" + target + "' with: " + input);
-        ed->needsFullRedraw = true;
-        ed->refreshScreen();
-
-        int key = Terminal::readKey();
-        if(key == keyCode(control::ControlKey::ESC) ||
-           key == keyCode(control::ControlKey::CTRL_C))
-            return std::nullopt;
-        if(key == keyCode(control::ControlKey::ENTER))
-            return input;
-        if(key == keyCode(control::ControlKey::BACKSPACE) ||
-           key == keyCode(control::ControlKey::DEL) ||
-           key == keyCode(control::ControlKey::CTRL_H) || key == 127)
-        {
-            if(!input.empty())
-                input.pop_back();
-            continue;
-        }
-        if(key >= 32 && key < 127)
-            input.push_back(static_cast<char>(key));
-    }
-}
-
-int replaceWholeWordInCurrentBuffer(Editor* ed, const std::string& from,
-                                    const std::string& to)
-{
-    if(!ed || !ed->lines || from.empty())
-        return 0;
-
-    int replaced = 0;
-    for(std::string& line : *ed->lines)
-    {
-        size_t pos = 0;
-        while(pos < line.size())
-        {
-            pos = line.find(from, pos);
-            if(pos == std::string::npos)
-                break;
-
-            size_t end = pos + from.size();
-            bool leftOk = (pos == 0) || !text_utils::isIdent(line[pos - 1]);
-            bool rightOk =
-                (end >= line.size()) || !text_utils::isIdent(line[end]);
-            if(leftOk && rightOk)
-            {
-                line.replace(pos, from.size(), to);
-                ++replaced;
-                pos += to.size();
-            }
-            else
-            {
-                pos += from.size();
-            }
-        }
-    }
-
-    return replaced;
-}
-
-} // namespace
 
 // ============================================================================
 // NormalMode Implementation
@@ -109,6 +38,12 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
+
+    if(ed->handleRenamePopupKey(c))
+    {
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
 
     if(c == keyCode(control::ControlKey::PASTE))
     {
@@ -878,48 +813,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
         if(replaceChar == keyCode(typed::TypedKey::KEY_N))
         {
             ed->recordChangeKey(replaceChar);
-            std::string target = ed->getSymbolUnderCursor();
-            if(target.empty())
-            {
-                ed->setStatusMessage("rn: no word under cursor");
-                ed->cancelChangeRecording();
-                ctx.repeatCount = 0;
-                return std::nullopt;
-            }
-
-            auto replacement = promptReplaceWordInput(ed, target);
-            if(!replacement)
-            {
-                ed->setStatusMessage("rn: cancelled");
-                ed->cancelChangeRecording();
-                ctx.repeatCount = 0;
-                return std::nullopt;
-            }
-
-            if(*replacement == target)
-            {
-                ed->setStatusMessage("rn: no changes");
-                ed->cancelChangeRecording();
-                ctx.repeatCount = 0;
-                return std::nullopt;
-            }
-
-            int replaced =
-                replaceWholeWordInCurrentBuffer(ed, target, *replacement);
-            if(replaced <= 0)
-            {
-                ed->setStatusMessage("rn: no matches for '" + target + "'");
-                ed->cancelChangeRecording();
-                ctx.repeatCount = 0;
-                return std::nullopt;
-            }
-
-            *ed->dirty = true;
-            ed->saveState();
-            ed->needsFullRedraw = true;
-            ed->setStatusMessage("rn: replaced " + std::to_string(replaced) +
-                                 " occurrence(s) of '" + target + "'");
-            ed->commitChangeRecording();
+            ed->cancelChangeRecording();
+            ed->openRenamePopupForCursor();
         }
         else
         {
