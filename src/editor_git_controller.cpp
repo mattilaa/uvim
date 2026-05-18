@@ -147,6 +147,79 @@ std::string blame_hash_for_line(const std::string& filePath, int line)
         return "";
     return token;
 }
+
+bool is_zero_hash(std::string_view hash)
+{
+    if(hash.empty())
+        return false;
+    return std::all_of(hash.begin(), hash.end(),
+                       [](char c) { return c == '0'; });
+}
+
+std::string blame_hash_for_current_line(const Editor& editor)
+{
+    if(!editor.currentBuffer || editor.currentBuffer->filename.empty() ||
+       !editor.cursorY)
+        return "";
+
+    int row = *editor.cursorY;
+    if(editor.currentBuffer->blameValid &&
+       row >= editor.currentBuffer->blameStart &&
+       row <= editor.currentBuffer->blameEnd &&
+       row < (int)editor.currentBuffer->blameEntries.size())
+    {
+        const auto& entry = editor.currentBuffer->blameEntries[row];
+        if(entry.valid && !entry.hash.empty())
+            return entry.hash;
+    }
+
+    return blame_hash_for_line(editor.currentBuffer->filename, row);
+}
+
+std::vector<GitLogMode::Entry> load_repo_log_entries(const std::string& repoRoot)
+{
+    ProcessPipe pipe({"git",
+                      "-C",
+                      repoRoot,
+                      "--no-pager",
+                      "log",
+                      "--no-color",
+                      "--date=format:%Y-%m-%d %H:%M %z",
+                      "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
+    if(!pipe)
+        return {};
+
+    std::vector<GitLogMode::Entry> entries;
+    char buffer[1024];
+    while(fgets(buffer, sizeof(buffer), pipe.get()))
+    {
+        std::string line = trim_newline(buffer);
+        if(line.empty())
+            continue;
+        constexpr char sep = '\x1f';
+        size_t tab = line.find(sep);
+        if(tab == std::string::npos)
+            continue;
+        GitLogMode::Entry entry;
+        size_t tab2 = line.find(sep, tab + 1);
+        size_t tab3 = (tab2 == std::string::npos)
+                          ? std::string::npos
+                          : line.find(sep, tab2 + 1);
+        entry.hash = line.substr(0, tab);
+        if(tab2 != std::string::npos)
+            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
+        if(tab2 != std::string::npos && tab3 != std::string::npos)
+            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
+        if(tab3 != std::string::npos)
+            entry.subject = line.substr(tab3 + 1);
+        else if(tab2 != std::string::npos)
+            entry.subject = line.substr(tab2 + 1);
+        else
+            entry.subject = line.substr(tab + 1);
+        entries.push_back(std::move(entry));
+    }
+    return entries;
+}
 } // namespace
 
 EditorGitController::EditorGitController(Editor& editor) : editor(editor) {}
@@ -449,19 +522,7 @@ void EditorGitController::openGitShowCommitMode()
         return;
     }
 
-    std::string hash;
-    int row = *editor.cursorY;
-    if(editor.currentBuffer->blameValid &&
-       row >= editor.currentBuffer->blameStart &&
-       row <= editor.currentBuffer->blameEnd &&
-       row < (int)editor.currentBuffer->blameEntries.size())
-    {
-        const auto& entry = editor.currentBuffer->blameEntries[row];
-        if(entry.valid)
-            hash = entry.hash;
-    }
-    if(hash.empty())
-        hash = blame_hash_for_line(editor.currentBuffer->filename, row);
+    std::string hash = blame_hash_for_current_line(editor);
     if(hash.empty())
     {
         editor.setStatusMessage("git show: no blame hash");
@@ -670,49 +731,7 @@ void EditorGitController::openGitLogMode()
         return;
     }
 
-    ProcessPipe pipe({"git",
-                      "-C",
-                      repoRoot,
-                      "--no-pager",
-                      "log",
-                      "--no-color",
-                      "--date=format:%Y-%m-%d %H:%M %z",
-                      "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
-    if(!pipe)
-    {
-        editor.setStatusMessage("git log: failed to run");
-        return;
-    }
-
-    std::vector<GitLogMode::Entry> entries;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-    {
-        std::string line = trim_newline(buffer);
-        if(line.empty())
-            continue;
-        constexpr char sep = '\x1f';
-        size_t tab = line.find(sep);
-        if(tab == std::string::npos)
-            continue;
-        GitLogMode::Entry entry;
-        size_t tab2 = line.find(sep, tab + 1);
-        size_t tab3 = (tab2 == std::string::npos)
-                          ? std::string::npos
-                          : line.find(sep, tab2 + 1);
-        entry.hash = line.substr(0, tab);
-        if(tab2 != std::string::npos)
-            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-        if(tab2 != std::string::npos && tab3 != std::string::npos)
-            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-        if(tab3 != std::string::npos)
-            entry.subject = line.substr(tab3 + 1);
-        else if(tab2 != std::string::npos)
-            entry.subject = line.substr(tab2 + 1);
-        else
-            entry.subject = line.substr(tab + 1);
-        entries.push_back(std::move(entry));
-    }
+    std::vector<GitLogMode::Entry> entries = load_repo_log_entries(repoRoot);
     if(entries.empty())
     {
         editor.setStatusMessage("git log: no output");
@@ -723,6 +742,76 @@ void EditorGitController::openGitLogMode()
     {
         editor.modeStateMachine->transitionTo(
             GitLogMode{std::move(entries), false, repoRoot, repoRoot, {}});
+        editor.modeController->syncModeFromStateMachine();
+        editor.needsFullRedraw = true;
+    }
+}
+
+void EditorGitController::openGitLogModeForBlameLine()
+{
+    if(!ensureGitAvailable())
+    {
+        editor.setStatusMessage("git not installed");
+        return;
+    }
+    if(!editor.currentBuffer || editor.currentBuffer->filename.empty())
+    {
+        editor.setStatusMessage("git log: no file");
+        return;
+    }
+    if(!is_inside_git_repo(editor.currentBuffer->filename))
+    {
+        editor.setStatusMessage("git log: not a repo");
+        return;
+    }
+
+    std::string hash = blame_hash_for_current_line(editor);
+    if(hash.empty() || is_zero_hash(hash))
+    {
+        editor.setStatusMessage("git log: no blame commit");
+        return;
+    }
+
+    fs::path path(editor.currentBuffer->filename);
+    std::string dir =
+        path.has_parent_path() ? path.parent_path().string() : std::string(".");
+    std::string repoRoot = git_root_for_dir(dir);
+    if(repoRoot.empty())
+    {
+        editor.setStatusMessage("git log: not a repo");
+        return;
+    }
+
+    std::vector<GitLogMode::Entry> entries = load_repo_log_entries(repoRoot);
+    if(entries.empty())
+    {
+        editor.setStatusMessage("git log: no output");
+        return;
+    }
+
+    auto matchesHash = [&](const std::string& candidate)
+    {
+        return candidate == hash || candidate.rfind(hash, 0) == 0 ||
+               hash.rfind(candidate, 0) == 0;
+    };
+
+    auto it = std::find_if(entries.begin(), entries.end(),
+                           [&](const GitLogMode::Entry& entry)
+                           { return matchesHash(entry.hash); });
+    if(it == entries.end())
+    {
+        editor.setStatusMessage("git log: blame commit not found");
+        return;
+    }
+    int cursor = static_cast<int>(std::distance(entries.begin(), it));
+
+    GitLogMode mode{std::move(entries), false, repoRoot, repoRoot, {}};
+    mode.cursor = cursor;
+    mode.scrollOffset = mode.cursor;
+
+    if(editor.modeStateMachine)
+    {
+        editor.modeStateMachine->transitionTo(std::move(mode));
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }
@@ -743,49 +832,7 @@ void EditorGitController::openGitPrettyLogMode()
         return;
     }
 
-    ProcessPipe pipe({"git",
-                      "-C",
-                      repoRoot,
-                      "--no-pager",
-                      "log",
-                      "--no-color",
-                      "--date=format:%Y-%m-%d %H:%M %z",
-                      "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
-    if(!pipe)
-    {
-        editor.setStatusMessage("git prettylog: failed to run");
-        return;
-    }
-
-    std::vector<GitLogMode::Entry> entries;
-    char buffer[1024];
-    while(fgets(buffer, sizeof(buffer), pipe.get()))
-    {
-        std::string line = trim_newline(buffer);
-        if(line.empty())
-            continue;
-        constexpr char sep = '\x1f';
-        size_t tab = line.find(sep);
-        if(tab == std::string::npos)
-            continue;
-        GitLogMode::Entry entry;
-        size_t tab2 = line.find(sep, tab + 1);
-        size_t tab3 = (tab2 == std::string::npos)
-                          ? std::string::npos
-                          : line.find(sep, tab2 + 1);
-        entry.hash = line.substr(0, tab);
-        if(tab2 != std::string::npos)
-            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-        if(tab2 != std::string::npos && tab3 != std::string::npos)
-            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-        if(tab3 != std::string::npos)
-            entry.subject = line.substr(tab3 + 1);
-        else if(tab2 != std::string::npos)
-            entry.subject = line.substr(tab2 + 1);
-        else
-            entry.subject = line.substr(tab + 1);
-        entries.push_back(std::move(entry));
-    }
+    std::vector<GitLogMode::Entry> entries = load_repo_log_entries(repoRoot);
     if(entries.empty())
     {
         editor.setStatusMessage("git prettylog: no output");

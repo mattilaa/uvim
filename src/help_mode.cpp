@@ -423,6 +423,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `ga`      - Open git stage view",
             "  `gb`      - Toggle git blame gutter",
             "  `gbb`     - Toggle git blame gutter with date/time",
+            "  `gbl`     - Show git log at commit blamed for cursor line",
             "  `gj`      - Show commit diff for line under cursor in blame mode",
             "  `gbv`     - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
@@ -466,6 +467,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "GIT BLAME:",
             "  `gb`   - Toggle git blame gutter",
             "  `gbb`  - Toggle git blame gutter with date/time",
+            "  `gbl`  - Show git log at commit blamed for cursor line",
             "  `gj`   - Show commit diff for line under cursor in blame mode",
             "  `gbv`  - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
@@ -518,6 +520,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "Related:",
             "  `gbb`        - Show blame gutter with date/time",
+            "  `gbl`        - Open git log at the blamed commit",
             "  `gj`         - Open commit diff for the line under cursor",
             "  `gbv`        - Open commit diff for the line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
@@ -533,9 +536,25 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "Related:",
             "  `gb`         - Show the compact hash and author blame gutter",
+            "  `gbl`        - Open git log at the blamed commit",
             "  `gj`         - Open commit diff for the line under cursor",
             "  `gbv`        - Open commit diff for the line under cursor",
             "  `:git blame` - Toggle compact git blame from command mode",
+        };
+    }
+    else if(topic_lower == "gbl")
+    {
+        lines = {
+            "# gbl",
+            "",
+            "`gbl` opens the repository git log with the cursor on the commit",
+            "that git blame reports for the current line.",
+            "",
+            "Related:",
+            "  `gb`   - Toggle the blame gutter",
+            "  `gbb`  - Show blame gutter with date/time",
+            "  `gbv`  - Open commit diff for the line under cursor",
+            "  `gl`   - Open the repository git log",
         };
     }
     else if(topic_lower == "ga")
@@ -1118,6 +1137,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help git`",
             "  `:help ga`",
             "  `:help gb`",
+            "  `:help gbl`",
             "  `:help gj`",
             "  `:help gbv`",
             "  `:help lsp`",

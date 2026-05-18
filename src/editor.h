@@ -384,6 +384,7 @@ public:
     void openGitShowCommitMode();
     std::vector<std::string> loadGitShowLines(const std::string& hash);
     void openGitLogMode();
+    void openGitLogModeForBlameLine();
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();

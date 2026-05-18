@@ -1387,6 +1387,12 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
             ed->toggleGitBlame(true);
             return std::nullopt;
         }
+        if(nextChar == keyCode(typed::TypedKey::KEY_L))
+        {
+            // gbl - open git log at the commit blamed for the cursor line
+            ed->openGitLogModeForBlameLine();
+            return std::nullopt;
+        }
         if(nextChar == keyCode(typed::TypedKey::KEY_V))
         {
             ed->openGitShowCommitMode();

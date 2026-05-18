@@ -3168,6 +3168,11 @@ void Editor::openGitLogMode()
     gitController->openGitLogMode();
 }
 
+void Editor::openGitLogModeForBlameLine()
+{
+    gitController->openGitLogModeForBlameLine();
+}
+
 void Editor::openGitPrettyLogMode()
 {
     gitController->openGitPrettyLogMode();
