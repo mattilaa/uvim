@@ -9,6 +9,41 @@
 #include <string>
 #include <vector>
 
+namespace
+{
+std::string findClangFormatFile(const std::string& filename)
+{
+    std::error_code ec;
+    std::filesystem::path path(filename);
+    if(path.empty())
+        return "";
+
+    if(!path.is_absolute())
+    {
+        auto cwd = std::filesystem::current_path(ec);
+        if(!ec)
+            path = cwd / path;
+        ec.clear();
+    }
+
+    std::filesystem::path dir =
+        path.has_parent_path() ? path.parent_path() : std::filesystem::path(".");
+    while(!dir.empty())
+    {
+        const auto stylePath = dir / ".clang-format";
+        if(std::filesystem::exists(stylePath, ec))
+            return stylePath.string();
+        ec.clear();
+
+        const auto parent = dir.parent_path();
+        if(parent == dir)
+            break;
+        dir = parent;
+    }
+    return "";
+}
+} // namespace
+
 bool ClangFormatter::operator()(Mode mode)
 {
     if(mode == Mode::VISUAL)
@@ -77,10 +112,15 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
             absFilename = cwd.string() + "/" + *editor.filename;
     }
 
+    const std::string styleFile = findClangFormatFile(absFilename);
+
     auto buildArgs = [&](const std::string& exe) -> std::vector<std::string>
     {
-        std::vector<std::string> args = {
-            exe, "-style=file", "-assume-filename=" + absFilename};
+        std::vector<std::string> args = {exe,
+                                         styleFile.empty()
+                                             ? "-style=file"
+                                             : "-style=file:" + styleFile,
+                                         "-assume-filename=" + absFilename};
         if(!extraArgs.empty())
         {
             std::istringstream iss(extraArgs);
