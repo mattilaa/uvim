@@ -315,6 +315,7 @@ public:
     void drawEmojiPopup(std::string& output) const;
     static constexpr int kDiagnosticGutterWidth = 1;
     static constexpr int kGitBlameMaxWidth = 30;
+    static constexpr int kGitBlameDateTimeMaxWidth = 48;
     int lineNumberWidth() const;
     int gitBlameWidth() const;
     int gutterWidth() const;
@@ -376,7 +377,7 @@ public:
     int indentWidthForBraces() const;
     bool braceNewLineForAutoBraces() const;
     void commentLines(int startY, int endY);
-    void toggleGitBlame();
+    void toggleGitBlame(bool includeDateTime = false);
     void updateGitBlameForVisibleRange();
     std::string blameDisplayForLine(int row) const;
     std::string blameFullForLine(int row) const;
@@ -449,6 +450,7 @@ public:
     bool useSystemClipboard = true;
     bool showRelativeLineNumbers = true;
     bool showGitBlame = false;
+    bool showGitBlameDateTime = false;
     bool showGitBlameInfo = true;
     bool gitUseDefaultColors = true;
     bool commentTogglePartial = false;

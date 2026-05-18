@@ -120,8 +120,8 @@ std::string format_git_date(const std::string& secondsText)
     if(!localtime_r(&t, &tm))
         return "";
 #endif
-    char buf[16];
-    if(std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm) == 0)
+    char buf[32];
+    if(std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm) == 0)
         return "";
     return std::string(buf);
 }
@@ -184,7 +184,10 @@ int EditorGitController::gitBlameWidth() const
         if(blameWidth > width)
             width = blameWidth;
     }
-    return std::min(width, Editor::kGitBlameMaxWidth);
+    const int maxWidth = editor.showGitBlameDateTime
+                             ? Editor::kGitBlameDateTimeMaxWidth
+                             : Editor::kGitBlameMaxWidth;
+    return std::min(width, maxWidth);
 }
 
 int EditorGitController::gutterWidth() const
@@ -208,9 +211,17 @@ bool EditorGitController::ensureGitAvailable()
     return gitAvailable;
 }
 
-void EditorGitController::toggleGitBlame()
+void EditorGitController::toggleGitBlame(bool includeDateTime)
 {
+    if(editor.showGitBlame && editor.showGitBlameDateTime != includeDateTime)
+    {
+        editor.showGitBlameDateTime = includeDateTime;
+        editor.needsFullRedraw = true;
+        return;
+    }
+
     editor.showGitBlame = !editor.showGitBlame;
+    editor.showGitBlameDateTime = editor.showGitBlame && includeDateTime;
     if(editor.showGitBlame)
     {
         if(!ensureGitAvailable())
@@ -381,7 +392,13 @@ std::string EditorGitController::blameDisplayForLine(int row) const
     std::string out = uncommitted ? "Not committed" : hash;
     if(!uncommitted && !entry.author.empty())
         out += " " + entry.author;
-    return truncate_with_ellipsis(out, Editor::kGitBlameMaxWidth);
+    if(!uncommitted && editor.showGitBlameDateTime && !entry.date.empty())
+        out += " " + entry.date;
+
+    const int maxWidth = editor.showGitBlameDateTime
+                             ? Editor::kGitBlameDateTimeMaxWidth
+                             : Editor::kGitBlameMaxWidth;
+    return truncate_with_ellipsis(out, maxWidth);
 }
 
 std::string EditorGitController::blameFullForLine(int row) const

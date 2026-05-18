@@ -1381,6 +1381,12 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
     case keyCode(typed::TypedKey::KEY_B):
     {
         int nextChar = Terminal::readKeyTimeout(500);
+        if(nextChar == keyCode(typed::TypedKey::KEY_B))
+        {
+            // gbb - extended git blame gutter with date/time
+            ed->toggleGitBlame(true);
+            return std::nullopt;
+        }
         if(nextChar == keyCode(typed::TypedKey::KEY_V))
         {
             ed->openGitShowCommitMode();

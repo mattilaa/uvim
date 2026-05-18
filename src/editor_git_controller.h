@@ -14,7 +14,7 @@ public:
     int lineNumberWidth() const;
     int gitBlameWidth() const;
     int gutterWidth() const;
-    void toggleGitBlame();
+    void toggleGitBlame(bool includeDateTime = false);
     void updateGitBlameForVisibleRange();
     std::string blameDisplayForLine(int row) const;
     std::string blameFullForLine(int row) const;

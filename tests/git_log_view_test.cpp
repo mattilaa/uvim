@@ -275,3 +275,29 @@ TEST(GitBlameDisplayTest, BlameDisplayTruncatesHashAndAuthorToEllipsis)
     EXPECT_EQ(blame, "84397dc Matti Laamanen Exam...");
     EXPECT_EQ(text_utils::utf8DisplayWidth(blame), Editor::kGitBlameMaxWidth);
 }
+
+TEST(GitBlameDisplayTest, ExtendedBlameDisplayIncludesDateTime)
+{
+    auto repo = make_temp_dir("uvim_blame_display_extended_");
+    auto file = repo / "notes.txt";
+    write_file(file, "line one\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+    ASSERT_NE(editor.currentBuffer, nullptr);
+
+    editor.showGitBlame = true;
+    editor.showGitBlameDateTime = true;
+    editor.currentBuffer->blameEntries.resize(1);
+    auto& entry = editor.currentBuffer->blameEntries[0];
+    entry.valid = true;
+    entry.hash = "84397dc123456789";
+    entry.author = "Matti";
+    entry.date = "2026-03-25 14:05";
+
+    const std::string blame = editor.blameDisplayForLine(0);
+
+    EXPECT_EQ(blame, "84397dc Matti 2026-03-25 14:05");
+    EXPECT_LT(text_utils::utf8DisplayWidth(blame),
+              Editor::kGitBlameDateTimeMaxWidth);
+}

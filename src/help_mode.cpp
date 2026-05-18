@@ -422,6 +422,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "GIT:",
             "  `ga`      - Open git stage view",
             "  `gb`      - Toggle git blame gutter",
+            "  `gbb`     - Toggle git blame gutter with date/time",
             "  `gj`      - Show commit diff for line under cursor in blame mode",
             "  `gbv`     - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
@@ -464,6 +465,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "GIT BLAME:",
             "  `gb`   - Toggle git blame gutter",
+            "  `gbb`  - Toggle git blame gutter with date/time",
             "  `gj`   - Show commit diff for line under cursor in blame mode",
             "  `gbv`  - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
@@ -512,11 +514,28 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "# gb",
             "",
             "`gb` toggles the git blame gutter for the current file.",
+            "`gbb` shows the same blame gutter with date/time included.",
             "",
             "Related:",
+            "  `gbb`        - Show blame gutter with date/time",
             "  `gj`         - Open commit diff for the line under cursor",
             "  `gbv`        - Open commit diff for the line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
+        };
+    }
+    else if(topic_lower == "gbb")
+    {
+        lines = {
+            "# gbb",
+            "",
+            "`gbb` toggles the extended git blame gutter for the current file.",
+            "The extended gutter shows commit hash, author, and local date/time.",
+            "",
+            "Related:",
+            "  `gb`         - Show the compact hash and author blame gutter",
+            "  `gj`         - Open commit diff for the line under cursor",
+            "  `gbv`        - Open commit diff for the line under cursor",
+            "  `:git blame` - Toggle compact git blame from command mode",
         };
     }
     else if(topic_lower == "ga")

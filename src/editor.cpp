@@ -3133,9 +3133,9 @@ int Editor::gutterWidth() const
     return gitController->gutterWidth();
 }
 
-void Editor::toggleGitBlame()
+void Editor::toggleGitBlame(bool includeDateTime)
 {
-    gitController->toggleGitBlame();
+    gitController->toggleGitBlame(includeDateTime);
 }
 
 void Editor::updateGitBlameForVisibleRange()

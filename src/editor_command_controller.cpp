@@ -644,7 +644,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "commands",    "modes",       "navigation", "editing", "files",
         "filebrowser", "run",         "buffers",    "windows", "search",
         "regex",       "clipboard",   "git",        "ga",      "gb",
-        "gj",
+        "gbb",         "gj",
         "gbv",
         "lsp",         "diagnostics", "help"};
 
