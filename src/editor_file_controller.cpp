@@ -23,80 +23,20 @@ EditorFileController::EditorFileController(Editor& editor) : editor(editor) {}
 
 void EditorFileController::saveFile()
 {
-    editor.saveFileImpl();
-}
+    auto* filename = editor.filename;
+    auto* lines = editor.lines;
+    auto* cursorX = editor.cursorX;
+    auto* cursorY = editor.cursorY;
+    auto* dirty = editor.dirty;
 
-void EditorFileController::checkFileChanges()
-{
-    editor.checkFileChangesImpl();
-}
-
-void EditorFileController::reloadCurrentFile()
-{
-    editor.reloadCurrentFileImpl();
-}
-
-bool EditorFileController::fileExists(const std::string& path)
-{
-    return editor.fileExistsImpl(path);
-}
-
-std::string EditorFileController::getSymbolUnderCursor()
-{
-    return editor.getSymbolUnderCursorImpl();
-}
-
-std::string
-EditorFileController::findAlternateFile(const std::string& currentFile)
-{
-    return editor.findAlternateFileImpl(currentFile);
-}
-
-void EditorFileController::jumpToAlternateFile()
-{
-    editor.jumpToAlternateFileImpl();
-}
-
-void EditorFileController::goToFile()
-{
-    editor.goToFileImpl();
-}
-
-void EditorFileController::showFileInfo()
-{
-    editor.showFileInfoImpl();
-}
-
-void EditorFileController::deleteFilePrompt()
-{
-    editor.deleteFilePromptImpl();
-}
-
-void EditorFileController::renameFilePrompt()
-{
-    editor.renameFilePromptImpl();
-}
-
-void EditorFileController::createNewFilePrompt()
-{
-    editor.createNewFilePromptImpl();
-}
-
-void EditorFileController::createNewDirectoryPrompt()
-{
-    editor.createNewDirectoryPromptImpl();
-}
-
-void Editor::saveFileImpl()
-{
     if(filename->empty())
     {
-        setStatusMessage("No file name");
+        editor.setStatusMessage("No file name");
         return;
     }
 
-    if(formatOnSave)
-        formatBufferForSave();
+    if(editor.formatOnSave)
+        editor.formatBufferForSave();
 
     int linesModified = 0;
     for(size_t lineIdx = 0; lineIdx < lines->size(); lineIdx++)
@@ -148,33 +88,36 @@ void Editor::saveFileImpl()
             file << line << '\n';
         file.close();
         *dirty = false;
-        currentBuffer->savedUndoIndex = currentBuffer->undoIndex;
-        currentBuffer->savedContentHash = hash_lines(*lines);
-        currentBuffer->savedContentHashValid = true;
+        editor.currentBuffer->savedUndoIndex = editor.currentBuffer->undoIndex;
+        editor.currentBuffer->savedContentHash = hash_lines(*lines);
+        editor.currentBuffer->savedContentHashValid = true;
 
         std::error_code ec;
         auto ftime = std::filesystem::last_write_time(*filename, ec);
         if(!ec)
-            currentBuffer->lastModificationTime = ftime;
+            editor.currentBuffer->lastModificationTime = ftime;
 
         std::string msg = "\"" + *filename + "\" " +
                           std::to_string(lines->size()) + "L written";
         if(linesModified > 0)
         {
             msg += " (" + std::to_string(linesModified) + " lines cleaned)";
-            needsFullRedraw = true;
+            editor.needsFullRedraw = true;
         }
-        setStatusMessage(msg);
+        editor.setStatusMessage(msg);
     }
     else
     {
-        setStatusMessage("Can't save! I/O error");
+        editor.setStatusMessage("Can't save! I/O error");
     }
 }
 
-void Editor::checkFileChangesImpl()
+void EditorFileController::checkFileChanges()
 {
-    if(!currentBuffer || filename->empty() || *dirty)
+    auto* filename = editor.filename;
+    auto* dirty = editor.dirty;
+
+    if(!editor.currentBuffer || filename->empty() || *dirty)
         return;
 
     std::error_code ec;
@@ -185,13 +128,21 @@ void Editor::checkFileChangesImpl()
     if(ec)
         return;
 
-    if(currentTime != currentBuffer->lastModificationTime)
+    if(currentTime != editor.currentBuffer->lastModificationTime)
         reloadCurrentFile();
 }
 
-void Editor::reloadCurrentFileImpl()
+void EditorFileController::reloadCurrentFile()
 {
-    if(!currentBuffer || filename->empty())
+    auto* filename = editor.filename;
+    auto* lines = editor.lines;
+    auto* cursorX = editor.cursorX;
+    auto* cursorY = editor.cursorY;
+    auto* offsetX = editor.offsetX;
+    auto* offsetY = editor.offsetY;
+    auto* dirty = editor.dirty;
+
+    if(!editor.currentBuffer || filename->empty())
         return;
 
     int savedCursorX = *cursorX;
@@ -221,30 +172,35 @@ void Editor::reloadCurrentFileImpl()
     std::error_code ec;
     auto ftime = std::filesystem::last_write_time(filepath, ec);
     if(!ec)
-        currentBuffer->lastModificationTime = ftime;
+        editor.currentBuffer->lastModificationTime = ftime;
 
     *cursorY = std::min(savedCursorY, (int)lines->size() - 1);
     *cursorX = std::min(savedCursorX, (int)(*lines)[*cursorY].length());
     *offsetX = savedOffsetX;
-    *offsetY =
-        std::min(savedOffsetY, std::max(0, (int)lines->size() - screenRows));
+    *offsetY = std::min(savedOffsetY,
+                        std::max(0, (int)lines->size() - editor.screenRows));
 
     *dirty = false;
-    currentBuffer->savedContentHash = hash_lines(*lines);
-    currentBuffer->savedContentHashValid = true;
-    needsFullRedraw = true;
+    editor.currentBuffer->savedContentHash = hash_lines(*lines);
+    editor.currentBuffer->savedContentHashValid = true;
+    editor.needsFullRedraw = true;
 
-    setStatusMessage("File reloaded from disk");
+    editor.setStatusMessage("File reloaded from disk");
 }
 
-bool Editor::fileExistsImpl(const std::string& path)
+bool EditorFileController::fileExists(const std::string& path)
 {
     std::error_code ec;
     return std::filesystem::exists(path, ec);
 }
 
-std::string Editor::getSymbolUnderCursorImpl()
+std::string EditorFileController::getSymbolUnderCursor()
 {
+    auto* lines = editor.lines;
+    auto* cursorX = editor.cursorX;
+    auto* cursorY = editor.cursorY;
+    auto& symbolPrefix = editor.symbolPrefix;
+
     if(*cursorY >= lines->size())
         return "";
 
@@ -281,7 +237,8 @@ std::string Editor::getSymbolUnderCursorImpl()
     return line.substr(l, r - l);
 }
 
-std::string Editor::findAlternateFileImpl(const std::string& currentFile)
+std::string
+EditorFileController::findAlternateFile(const std::string& currentFile)
 {
     if(currentFile.empty())
         return "";
@@ -411,11 +368,13 @@ std::string Editor::findAlternateFileImpl(const std::string& currentFile)
     return "";
 }
 
-void Editor::jumpToAlternateFileImpl()
+void EditorFileController::jumpToAlternateFile()
 {
+    auto* filename = editor.filename;
+
     if(filename->empty())
     {
-        setStatusMessage("No file currently open");
+        editor.setStatusMessage("No file currently open");
         return;
     }
 
@@ -423,38 +382,43 @@ void Editor::jumpToAlternateFileImpl()
 
     if(alternate.empty())
     {
-        setStatusMessage("No alternate file found for " + *filename);
+        editor.setStatusMessage("No alternate file found for " + *filename);
         return;
     }
 
-    int bufferIndex = findBufferByFilename(alternate);
+    int bufferIndex = editor.findBufferByFilename(alternate);
 
     if(bufferIndex >= 0)
     {
-        switchToBuffer(bufferIndex);
-        setStatusMessage("Switched to " + alternate);
+        editor.switchToBuffer(bufferIndex);
+        editor.setStatusMessage("Switched to " + alternate);
     }
     else
     {
-        openFile(alternate);
-        setStatusMessage("Opened " + alternate);
+        editor.openFile(alternate);
+        editor.setStatusMessage("Opened " + alternate);
     }
 }
 
-void Editor::goToFileImpl()
+void EditorFileController::goToFile()
 {
     std::string word = getSymbolUnderCursor();
     if(!word.empty())
     {
         if(fileExists(word))
-            openFile(word);
+            editor.openFile(word);
         else
-            setStatusMessage("File not found: " + word);
+            editor.setStatusMessage("File not found: " + word);
     }
 }
 
-void Editor::showFileInfoImpl()
+void EditorFileController::showFileInfo()
 {
+    auto* filename = editor.filename;
+    auto* lines = editor.lines;
+    auto* cursorY = editor.cursorY;
+    auto* dirty = editor.dirty;
+
     std::string info =
         "\"" + (filename->empty() ? "[No Name]" : *filename) + "\"";
     info += " " + std::to_string(lines->size()) + " lines";
@@ -466,28 +430,28 @@ void Editor::showFileInfoImpl()
         " -- " +
         std::to_string((*cursorY + 1) * 100 / std::max(1, (int)lines->size())) +
         "%";
-    setStatusMessage(info);
+    editor.setStatusMessage(info);
 }
 
-void Editor::deleteFilePromptImpl()
+void EditorFileController::deleteFilePrompt()
 {
-    setStatusMessage("File deletion not yet implemented");
+    editor.setStatusMessage("File deletion not yet implemented");
 }
 
-void Editor::renameFilePromptImpl()
+void EditorFileController::renameFilePrompt()
 {
-    setStatusMessage("File rename not yet implemented");
+    editor.setStatusMessage("File rename not yet implemented");
 }
 
-void Editor::createNewFilePromptImpl()
+void EditorFileController::createNewFilePrompt()
 {
-    setMode(COMMAND);
-    commandBuffer = ":e ";
-    cancelCommandPopup();
-    needsFullRedraw = true;
+    editor.setMode(COMMAND);
+    editor.commandBuffer = ":e ";
+    editor.cancelCommandPopup();
+    editor.needsFullRedraw = true;
 }
 
-void Editor::createNewDirectoryPromptImpl()
+void EditorFileController::createNewDirectoryPrompt()
 {
-    setStatusMessage("New directory creation not yet implemented");
+    editor.setStatusMessage("New directory creation not yet implemented");
 }

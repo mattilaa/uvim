@@ -1048,19 +1048,6 @@ private:
     void indentCurrentLineImpl();
     void dedentCurrentLineImpl();
     void handleLinewiseOperatorImpl(char op, int count);
-    void saveFileImpl();
-    void checkFileChangesImpl();
-    void reloadCurrentFileImpl();
-    bool fileExistsImpl(const std::string& path);
-    std::string getSymbolUnderCursorImpl();
-    std::string findAlternateFileImpl(const std::string& currentFile);
-    void jumpToAlternateFileImpl();
-    void goToFileImpl();
-    void showFileInfoImpl();
-    void deleteFilePromptImpl();
-    void renameFilePromptImpl();
-    void createNewFilePromptImpl();
-    void createNewDirectoryPromptImpl();
     void enterOperatorPendingImpl(char op);
     bool getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
                                 int& outStartX, int& outEndY, int& outEndX);
