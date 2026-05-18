@@ -168,6 +168,19 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
+    if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = Terminal::takeLastPasteText();
+        if(text.empty())
+            return std::nullopt;
+        ed->yankBuffer = text;
+        const bool useSystemClipboard = ed->useSystemClipboard;
+        ed->useSystemClipboard = false;
+        ed->pasteBefore();
+        ed->useSystemClipboard = useSystemClipboard;
+        return std::nullopt;
+    }
+
     if(ed->diagnosticPopupActive)
     {
         if(c == keyCode(typed::TypedKey::KEY_Q))

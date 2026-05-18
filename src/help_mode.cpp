@@ -890,8 +890,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "SYSTEM CLIPBOARD:",
             "  By default, `useSystemClipboard` is enabled.",
             "  All yank operations automatically copy to system clipboard.",
-            "  Paste operations fall back to system clipboard if internal",
-            "  buffer is empty.",
+            "  Paste operations read system clipboard first, then fall back",
+            "  to the internal yank buffer.",
             "",
             "  This allows seamless integration with other applications:",
             std::string("  - Yank in uvim ") + ascii::utf8(ascii::RIGHT_ARROW) +

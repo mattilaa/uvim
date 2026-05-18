@@ -44,6 +44,7 @@ enum class ControlKey : int
     SHIFT_CTRL_H = 1102,
     SHIFT_CTRL_L = 1103,
     SHIFT_CTRL_X = 1104,
+    PASTE = 1105,
 };
 } // namespace control
 

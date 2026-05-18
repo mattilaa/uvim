@@ -50,6 +50,11 @@ void Editor::saveState()
             currentBuffer->undoStack[currentBuffer->undoIndex];
         if(last.lines == state.lines)
         {
+            currentBuffer->undoStack[currentBuffer->undoIndex].cursorX =
+                state.cursorX;
+            currentBuffer->undoStack[currentBuffer->undoIndex].cursorY =
+                state.cursorY;
+
             bool isSaved = false;
             if(currentBuffer->savedUndoIndex >= 0 &&
                currentBuffer->savedUndoIndex <
@@ -102,9 +107,6 @@ void Editor::undo()
 
     if(currentBuffer->undoIndex > 0)
     {
-        int prevCursorX = *cursorX;
-        int prevCursorY = *cursorY;
-
         currentBuffer->undoIndex--;
         const Buffer::EditState& state =
             currentBuffer->undoStack[currentBuffer->undoIndex];
@@ -121,9 +123,9 @@ void Editor::undo()
         }
         else
         {
-            *cursorY = std::clamp(prevCursorY, 0, (int)lines->size() - 1);
+            *cursorY = std::clamp(state.cursorY, 0, (int)lines->size() - 1);
             *cursorX =
-                std::clamp(prevCursorX, 0, (int)(*lines)[*cursorY].length());
+                std::clamp(state.cursorX, 0, (int)(*lines)[*cursorY].length());
         }
 
         adjustViewport();
@@ -161,9 +163,6 @@ void Editor::redo()
 
     if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
     {
-        int prevCursorX = *cursorX;
-        int prevCursorY = *cursorY;
-
         currentBuffer->undoIndex++;
         const Buffer::EditState& state =
             currentBuffer->undoStack[currentBuffer->undoIndex];
@@ -181,9 +180,9 @@ void Editor::redo()
         }
         else
         {
-            *cursorY = std::clamp(prevCursorY, 0, (int)lines->size() - 1);
+            *cursorY = std::clamp(state.cursorY, 0, (int)lines->size() - 1);
             *cursorX =
-                std::clamp(prevCursorX, 0, (int)(*lines)[*cursorY].length());
+                std::clamp(state.cursorX, 0, (int)(*lines)[*cursorY].length());
         }
 
         adjustViewport();

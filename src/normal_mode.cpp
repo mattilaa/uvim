@@ -110,6 +110,22 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
+    if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = Terminal::takeLastPasteText();
+        if(text.empty())
+            return std::nullopt;
+        ed->yankBuffer = text;
+        const bool useSystemClipboard = ed->useSystemClipboard;
+        ed->useSystemClipboard = false;
+        ed->beginChangeRecording(1);
+        ed->pasteAfter();
+        ed->commitChangeRecording();
+        ed->useSystemClipboard = useSystemClipboard;
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     if(ed->diagnosticPopupActive)
     {
         if(c == keyCode(typed::TypedKey::KEY_Q))

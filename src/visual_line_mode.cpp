@@ -2,6 +2,63 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
+#include <utility>
+
+namespace
+{
+void replaceVisualLineSelection(Editor* ed, std::string pasteBuffer)
+{
+    if(!ed || !ed->lines || !ed->currentBuffer || pasteBuffer.empty())
+        return;
+
+    const int visualStartY = ed->currentBuffer->visualStartY;
+    const int visualStartX = ed->currentBuffer->visualStartX;
+    const int startY =
+        std::min(ed->currentBuffer->visualStartY,
+                 ed->currentBuffer->visualEndY);
+    const int endY =
+        std::max(ed->currentBuffer->visualStartY,
+                 ed->currentBuffer->visualEndY);
+
+    *ed->cursorY = std::clamp(visualStartY, 0, (int)ed->lines->size() - 1);
+    *ed->cursorX =
+        std::clamp(visualStartX, 0, (int)(*ed->lines)[*ed->cursorY].size());
+    ed->saveState();
+
+    for(int y = endY; y >= startY; --y)
+    {
+        if(y >= 0 && y < (int)ed->lines->size())
+        {
+            ed->lines->erase(ed->lines->begin() + y);
+            if(ed->currentBuffer->blameValid &&
+               y < (int)ed->currentBuffer->blameEntries.size())
+            {
+                ed->currentBuffer->blameEntries.erase(
+                    ed->currentBuffer->blameEntries.begin() + y);
+            }
+        }
+    }
+
+    if(ed->lines->empty())
+        ed->lines->push_back("");
+
+    *ed->cursorY = std::min(startY, (int)ed->lines->size() - 1);
+    *ed->cursorX = 0;
+    *ed->dirty = true;
+    if(ed->currentBuffer->blameValid)
+    {
+        ed->currentBuffer->blameStart = 0;
+        ed->currentBuffer->blameEnd =
+            (int)ed->currentBuffer->blameEntries.size() - 1;
+    }
+
+    ed->yankBuffer = std::move(pasteBuffer);
+    const bool useSystemClipboard = ed->useSystemClipboard;
+    ed->useSystemClipboard = false;
+    ed->pasteBefore();
+    ed->useSystemClipboard = useSystemClipboard;
+}
+} // namespace
 
 // ============================================================================
 // VisualLineMode Implementation
@@ -12,7 +69,9 @@ void VisualLineMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
 
     // Initialize visual line selection
+    ed->currentBuffer->visualStartX = ctx.cursorX();
     ed->currentBuffer->visualStartY = ctx.cursorY();
+    ed->currentBuffer->visualEndX = ctx.cursorX();
     ed->currentBuffer->visualEndY = ctx.cursorY();
 
     ed->needsFullRedraw = true;
@@ -27,6 +86,15 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
+
+    if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = Terminal::takeLastPasteText();
+        if(text.empty())
+            return std::nullopt;
+        replaceVisualLineSelection(ed, std::move(text));
+        return NormalMode{};
+    }
 
     // ========================================================================
     // Count Prefix Accumulation
@@ -190,15 +258,15 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
     case keyCode(typed::TypedKey::KEY_P):
     {
         std::string pasteBuffer = ed->yankBuffer;
-        if(pasteBuffer.empty() && ed->useSystemClipboard)
+        if(ed->useSystemClipboard)
         {
-            pasteBuffer = ed->getSystemClipboard();
+            std::string clipboard = ed->getSystemClipboard();
+            if(!clipboard.empty())
+                pasteBuffer = clipboard;
         }
         if(pasteBuffer.empty())
             return std::nullopt;
-        ed->deleteLineSelection();
-        ed->yankBuffer = pasteBuffer;
-        ed->pasteBefore();
+        replaceVisualLineSelection(ed, std::move(pasteBuffer));
         return NormalMode{};
     }
 
