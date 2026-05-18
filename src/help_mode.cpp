@@ -1,5 +1,6 @@
 #include "ascii.h"
 #include "editor.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -9,6 +10,31 @@
 // ============================================================================
 // Help Mode Implementation
 // ============================================================================
+
+namespace
+{
+std::vector<std::string> helpModeHelpTokens()
+{
+    return {"[q: quit]", "[j/k: scroll]", "[gg/G: top/bottom]",
+            "[:help <topic>: navigate]"};
+}
+
+int helpModeContentRows(const Editor& editor)
+{
+    const int headerRows =
+        1 + HeaderHelp::lineCount(helpModeHelpTokens(), editor.screenCols);
+    constexpr int footerRows = 1;
+    return std::max(1, editor.screenRows - headerRows - footerRows);
+}
+
+int helpModeContentRows(const ModeContext& ctx)
+{
+    const int headerRows =
+        1 + HeaderHelp::lineCount(helpModeHelpTokens(), ctx.screenCols());
+    constexpr int footerRows = 1;
+    return std::max(1, ctx.screenRows() - headerRows - footerRows);
+}
+} // namespace
 
 void HelpMode::on_enter(ModeContext& ctx)
 {
@@ -24,14 +50,14 @@ void HelpMode::on_enter(ModeContext& ctx)
 
 void HelpMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
-                                          int key)
+std::optional<ModeState> HelpMode::handle(ModeContext& ctx, int key)
 {
     int c = keyCode(key);
     bool needsRedraw = false;
 
     std::optional<ModeState> nextState;
-    if(commandPrompt && commandPrompt->handle(
+    if(commandPrompt &&
+       commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
@@ -42,7 +68,8 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
@@ -58,16 +85,19 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+        int maxScroll =
+            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
         if(scrollOffset < maxScroll)
         {
             scrollOffset++;
             needsRedraw = true;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
         {
@@ -78,7 +108,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         int newOffset =
-            std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
         if(newOffset != scrollOffset)
         {
             scrollOffset = newOffset;
@@ -99,10 +129,11 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (ctx.screenRows() - 3) / 2;
+        int half = helpModeContentRows(ctx) / 2;
         int oldOffset = scrollOffset;
         scrollOffset += half;
-        int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+        int maxScroll =
+            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
         if(scrollOffset > maxScroll)
             scrollOffset = maxScroll;
         if(scrollOffset != oldOffset)
@@ -110,7 +141,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = (ctx.screenRows() - 3) / 2;
+        int half = helpModeContentRows(ctx) / 2;
         int oldOffset = scrollOffset;
         scrollOffset -= half;
         if(scrollOffset < 0)
@@ -146,13 +177,10 @@ void HelpMode::draw(Editor& editor) const
         output += ": " + topic;
     }
     output += editor.theme.reset();
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [q: quit] [j/k: scroll] [gg/G: top/bottom] [:help <topic>: "
-              "navigate]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       helpModeHelpTokens());
 
-    int availableRows = editor.screenRows - 2;
+    int availableRows = helpModeContentRows(editor);
 
     // Draw help content
     for(int i = 0; i < availableRows && i + scrollOffset < (int)lines.size();
@@ -175,7 +203,9 @@ void HelpMode::draw(Editor& editor) const
             output += editor.theme.reset();
         }
         else if(!line.empty() && std::isupper(line[0]) &&
-                line.find(keyCode(command::CommandKey::KEY_COLON)) != std::string::npos && line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
+                line.find(keyCode(command::CommandKey::KEY_COLON)) !=
+                    std::string::npos &&
+                line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
         {
             // Section header (e.g., "COMMANDS:")
             output += editor.theme.uiAccent();
@@ -197,8 +227,11 @@ void HelpMode::draw(Editor& editor) const
                     // Find end of command
                     size_t end = pos + 1;
                     while(end < line.length() &&
-                          (std::isalnum(line[end]) || line[end] == keyCode(command::CommandKey::KEY_EXCLAMATION) ||
-                           line[end] == keyCode(command::CommandKey::KEY_QUESTION)))
+                          (std::isalnum(line[end]) ||
+                           line[end] ==
+                               keyCode(command::CommandKey::KEY_EXCLAMATION) ||
+                           line[end] ==
+                               keyCode(command::CommandKey::KEY_QUESTION)))
                     {
                         end++;
                     }
@@ -213,7 +246,8 @@ void HelpMode::draw(Editor& editor) const
                 else if(line[pos] == keyCode(command::CommandKey::KEY_BACKTICK))
                 {
                     // Code/command in backticks
-                    size_t end = line.find(keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
+                    size_t end = line.find(
+                        keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
                     if(end != std::string::npos)
                     {
                         processedLine += editor.theme.syntax(TOKEN_FUNCTION);
@@ -424,7 +458,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gb`      - Toggle git blame gutter",
             "  `gbb`     - Toggle git blame gutter with date/time",
             "  `gbl`     - Show git log at commit blamed for cursor line",
-            "  `gj`      - Show commit diff for line under cursor in blame mode",
+            "  `gj`      - Show commit diff for line under cursor in blame "
+            "mode",
             "  `gbv`     - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
             "  `gl`      - Show git log (repo)",
@@ -448,7 +483,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set smartcase` or `:set scs` - Smart case search",
             "  `:set gdcenter`               - Center view after gd",
             "  `:set nogdcenter`             - Keep view steady after gd",
-            "  `:set nocommandline.messageprefix` - Hide keyCode(command::CommandKey::KEY_COLON) prefix for messages",
+            "  `:set nocommandline.messageprefix` - Hide "
+            "keyCode(command::CommandKey::KEY_COLON) prefix for messages",
             "",
             "STARTUP FLAGS:",
             "  `--no-git-index`      - Disable git-backed fuzzy/grep indexing",
@@ -532,7 +568,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "# gbb",
             "",
             "`gbb` toggles the extended git blame gutter for the current file.",
-            "The extended gutter shows commit hash, author, and local date/time.",
+            "The extended gutter shows commit hash, author, and local "
+            "date/time.",
             "",
             "Related:",
             "  `gb`         - Show the compact hash and author blame gutter",
@@ -562,7 +599,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         lines = {
             "# ga",
             "",
-            "`ga` opens the git stage view from normal mode or the file browser.",
+            "`ga` opens the git stage view from normal mode or the file "
+            "browser.",
             "",
             "Inside the git stage view:",
             "  `j/k`       - Move between staged/unstaged/untracked file rows",
@@ -934,8 +972,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  This allows seamless integration with other applications:",
             std::string("  - Yank in uvim ") + ascii::utf8(ascii::RIGHT_ARROW) +
                 " Paste in terminal or other apps",
-            std::string("  - Copy in other apps ") + ascii::utf8(ascii::RIGHT_ARROW) +
-                " Paste in uvim",
+            std::string("  - Copy in other apps ") +
+                ascii::utf8(ascii::RIGHT_ARROW) + " Paste in uvim",
             "",
             "DELETE (CUT):",
             "  `dd`      - Delete (cut) current line",

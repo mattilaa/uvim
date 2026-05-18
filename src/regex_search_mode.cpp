@@ -4,6 +4,7 @@
 #include "editor.h"
 #include "editor_utils.h"
 #include "gitignore.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
@@ -16,6 +17,25 @@
 
 namespace
 {
+std::vector<std::string> regexSearchHelpTokens(bool allFiles)
+{
+    return {"[Enter: open]", "[Esc: cancel]",
+            std::string("[Ctrl+S: ") + (allFiles ? "buffer]" : "all files]"),
+            "[Ctrl+J/K: navigate]", "[Ctrl+W: delete word]"};
+}
+
+int regexSearchHeaderRows(int screenCols, bool allFiles)
+{
+    return 2 +
+           HeaderHelp::lineCount(regexSearchHelpTokens(allFiles), screenCols);
+}
+
+int regexSearchVisibleRows(const Editor& editor, bool allFiles)
+{
+    return std::max(1, editor.screenRows -
+                           regexSearchHeaderRows(editor.screenCols, allFiles));
+}
+
 std::string runCmd(const std::vector<std::string>& args)
 {
     ProcessPipe pipe(args);
@@ -175,12 +195,8 @@ void RegexSearchMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
     }
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [Enter: open] [Esc: cancel] [Ctrl+S: ";
-    output += allFiles ? "buffer" : "all files";
-    output += "] [Ctrl+J/K: navigate] [Ctrl+W: delete word]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       regexSearchHelpTokens(allFiles));
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -206,7 +222,7 @@ void RegexSearchMode::draw(Editor& editor) const
         output += " [gitignore]";
     output += editor.theme.baseFg();
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = regexSearchVisibleRows(editor, allFiles);
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); ++i)
     {
         output += Terminal::NEWLINE_CLEAR;
@@ -429,32 +445,27 @@ bool RegexSearchMode::isTextFile(const std::string& filepath) const
 
         if(ext == ".txt" || ext == ".cpp" || ext == ".c" || ext == ".h" ||
            ext == ".hpp" || isPython || ext == ".js" || ext == ".ts" ||
-           ext == ".jsx" || ext == ".tsx" || ext == ".java" ||
-           ext == ".rs" || ext == ".go" || ext == ".rb" || ext == ".php" ||
-           ext == ".sh" || ext == ".bash" || ext == ".zsh" ||
-           ext == ".vim" || ext == ".lua" || ext == ".md" ||
-           ext == ".markdown" || ext == ".rst" || ext == ".tex" ||
-           ext == ".css" || ext == ".scss" || ext == ".html" ||
-           ext == ".xml" || ext == ".json" || ext == ".yaml" ||
-           ext == ".yml" || ext == ".toml" || ext == ".ini" ||
-           ext == ".conf" || ext == ".config" || ext == ".log" ||
-           ext == ".cmake" || ext == ".make" || ext == ".mk" ||
-           ext == ".am" || isMla)
+           ext == ".jsx" || ext == ".tsx" || ext == ".java" || ext == ".rs" ||
+           ext == ".go" || ext == ".rb" || ext == ".php" || ext == ".sh" ||
+           ext == ".bash" || ext == ".zsh" || ext == ".vim" || ext == ".lua" ||
+           ext == ".md" || ext == ".markdown" || ext == ".rst" ||
+           ext == ".tex" || ext == ".css" || ext == ".scss" || ext == ".html" ||
+           ext == ".xml" || ext == ".json" || ext == ".yaml" || ext == ".yml" ||
+           ext == ".toml" || ext == ".ini" || ext == ".conf" ||
+           ext == ".config" || ext == ".log" || ext == ".cmake" ||
+           ext == ".make" || ext == ".mk" || ext == ".am" || isMla)
             return true;
 
         if(ext == ".exe" || ext == ".o" || ext == ".so" || ext == ".a" ||
-           ext == ".dll" || ext == ".dylib" || ext == ".bin" ||
-           ext == ".dat" || ext == ".jpg" || ext == ".jpeg" ||
-           ext == ".png" || ext == ".gif" || ext == ".bmp" ||
-           ext == ".ico" || ext == ".pdf" || ext == ".doc" ||
-           ext == ".docx" || ext == ".xls" || ext == ".xlsx" ||
-           ext == ".ppt" || ext == ".pptx" || ext == ".zip" ||
-           ext == ".tar" || ext == ".gz" || ext == ".bz2" ||
-           ext == ".7z" || ext == ".rar" || ext == ".mp3" ||
-           ext == ".mp4" || ext == ".avi" || ext == ".mov" ||
-           ext == ".wav" || ext == ".flac" || ext == ".ogg" ||
-           ext == ".ttf" || ext == ".otf" || ext == ".woff" ||
-           ext == ".woff2" || ext == ".eot")
+           ext == ".dll" || ext == ".dylib" || ext == ".bin" || ext == ".dat" ||
+           ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" ||
+           ext == ".bmp" || ext == ".ico" || ext == ".pdf" || ext == ".doc" ||
+           ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".ppt" ||
+           ext == ".pptx" || ext == ".zip" || ext == ".tar" || ext == ".gz" ||
+           ext == ".bz2" || ext == ".7z" || ext == ".rar" || ext == ".mp3" ||
+           ext == ".mp4" || ext == ".avi" || ext == ".mov" || ext == ".wav" ||
+           ext == ".flac" || ext == ".ogg" || ext == ".ttf" || ext == ".otf" ||
+           ext == ".woff" || ext == ".woff2" || ext == ".eot")
             return false;
     }
 
@@ -533,7 +544,7 @@ void RegexSearchMode::moveDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         ++cursor;
-        int visible = editor.screenRows - 4;
+        int visible = regexSearchVisibleRows(editor, allFiles);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -551,16 +562,16 @@ void RegexSearchMode::moveUp(Editor& /* editor */)
 
 void RegexSearchMode::halfPageDown(Editor& editor)
 {
-    int half = std::max(1, (editor.screenRows - 4) / 2);
+    int half = std::max(1, regexSearchVisibleRows(editor, allFiles) / 2);
     cursor = std::min(cursor + half, std::max(0, (int)matches.size() - 1));
-    int visible = editor.screenRows - 4;
+    int visible = regexSearchVisibleRows(editor, allFiles);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
 }
 
 void RegexSearchMode::halfPageUp(Editor& editor)
 {
-    int half = std::max(1, (editor.screenRows - 4) / 2);
+    int half = std::max(1, regexSearchVisibleRows(editor, allFiles) / 2);
     cursor = std::max(0, cursor - half);
     if(cursor < offset)
         offset = cursor;
@@ -616,9 +627,10 @@ bool RegexSearchMode::select(Editor& editor)
     if(!editor.lines || editor.lines->empty())
         return true;
 
-    *editor.cursorY = std::clamp(match.lineNumber - 1, 0,
-                                 (int)editor.lines->size() - 1);
-    int col = match.highlightRanges.empty() ? 0 : match.highlightRanges[0].first;
+    *editor.cursorY =
+        std::clamp(match.lineNumber - 1, 0, (int)editor.lines->size() - 1);
+    int col =
+        match.highlightRanges.empty() ? 0 : match.highlightRanges[0].first;
     *editor.cursorX =
         std::clamp(col, 0, (int)(*editor.lines)[*editor.cursorY].size());
 

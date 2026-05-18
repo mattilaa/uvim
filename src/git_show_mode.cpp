@@ -1,10 +1,11 @@
 #include "editor.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
-#include <string_view>
 #include <algorithm>
 #include <chrono>
+#include <string_view>
 
 // ============================================================================
 // GitShowCommitMode Implementation
@@ -12,9 +13,24 @@
 
 namespace
 {
+std::vector<std::string> gitShowHelpTokens()
+{
+    return {"[q: quit]", "[j/k: scroll]", "[gg/G: top/bottom]",
+            "[ctrl-h/l: pan]"};
+}
+
+int gitShowContentRows(int screenRows, int screenCols)
+{
+    const int headerRows =
+        1 + HeaderHelp::lineCount(gitShowHelpTokens(), screenCols);
+    constexpr int footerRows = 2;
+    return std::max(1, screenRows - headerRows - footerRows);
+}
+
 bool is_ansi_start(std::string_view text, size_t i)
 {
-    return i + 1 < text.size() && text[i] == '\x1b' && text[i + 1] == keyCode(command::CommandKey::KEY_LEFT_BRACKET);
+    return i + 1 < text.size() && text[i] == '\x1b' &&
+           text[i + 1] == keyCode(command::CommandKey::KEY_LEFT_BRACKET);
 }
 
 size_t skip_ansi(std::string_view text, size_t i)
@@ -23,7 +39,10 @@ size_t skip_ansi(std::string_view text, size_t i)
     while(i < text.size())
     {
         char c = text[i++];
-        if((c >= keyCode(typed::TypedKey::KEY_CAP_A) && c <= keyCode(typed::TypedKey::KEY_CAP_Z)) || (c >= keyCode(typed::TypedKey::KEY_A) && c <= keyCode(typed::TypedKey::KEY_Z)))
+        if((c >= keyCode(typed::TypedKey::KEY_CAP_A) &&
+            c <= keyCode(typed::TypedKey::KEY_CAP_Z)) ||
+           (c >= keyCode(typed::TypedKey::KEY_A) &&
+            c <= keyCode(typed::TypedKey::KEY_Z)))
             break;
     }
     return i;
@@ -39,8 +58,7 @@ int display_width_with_ansi(std::string_view text)
     return text_utils::displayWidth(text);
 }
 
-int max_line_width(const std::vector<std::string>& lines,
-                   bool useDefaultColors)
+int max_line_width(const std::vector<std::string>& lines, bool useDefaultColors)
 {
     int maxW = 0;
     for(const auto& line : lines)
@@ -165,8 +183,7 @@ void GitShowCommitMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
-                                                   int key)
+std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
 {
     int c = keyCode(key);
 
@@ -222,8 +239,9 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         if(found >= 0)
         {
             searchIndex = found;
-            int maxScroll =
-                std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
+            int maxScroll = std::max(
+                0, (int)lines.size() -
+                       gitShowContentRows(ctx.screenRows(), ctx.screenCols()));
             scrollOffset = std::clamp(found, 0, maxScroll);
             return true;
         }
@@ -294,7 +312,9 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                 {
                     searchIndex = found;
                     int maxScroll =
-                        std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
+                        std::max(0, (int)lines.size() -
+                                        gitShowContentRows(ctx.screenRows(),
+                                                           ctx.screenCols()));
                     scrollOffset = std::clamp(found, 0, maxScroll);
                 }
                 else
@@ -306,7 +326,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
             ctx.requestFullRedraw();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+           c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!searchQuery.empty())
                 searchQuery.pop_back();
@@ -328,7 +349,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
@@ -337,36 +359,45 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 2));
+    int maxScroll =
+        std::max(0, (int)lines.size() -
+                        gitShowContentRows(ctx.screenRows(), ctx.screenCols()));
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(scrollOffset < maxScroll)
             scrollOffset++;
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
             scrollOffset--;
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (ctx.screenRows() - 2) / 2;
+        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols()) / 2;
         scrollOffset = std::min(scrollOffset + half, maxScroll);
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = (ctx.screenRows() - 2) / 2;
+        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols()) / 2;
         scrollOffset = std::max(scrollOffset - half, 0);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         scrollOffset =
-            std::min(scrollOffset + (ctx.screenRows() - 2), maxScroll);
+            std::min(scrollOffset +
+                         gitShowContentRows(ctx.screenRows(), ctx.screenCols()),
+                     maxScroll);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
-        scrollOffset = std::max(scrollOffset - (ctx.screenRows() - 2), 0);
+        scrollOffset =
+            std::max(scrollOffset -
+                         gitShowContentRows(ctx.screenRows(), ctx.screenCols()),
+                     0);
     }
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
@@ -378,7 +409,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         if(nextChar == keyCode(typed::TypedKey::KEY_G))
             scrollOffset = 0;
     }
-    else if(c == keyCode(command::CommandKey::KEY_SLASH) || c == keyCode(command::CommandKey::KEY_QUESTION))
+    else if(c == keyCode(command::CommandKey::KEY_SLASH) ||
+            c == keyCode(command::CommandKey::KEY_QUESTION))
     {
         searchActive = true;
         searchForward = (c == keyCode(command::CommandKey::KEY_SLASH));
@@ -387,7 +419,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         searchPrevScroll = scrollOffset;
         ctx.lastEscTime() = std::chrono::steady_clock::time_point();
     }
-    else if(c == keyCode(control::ControlKey::CTRL_H) || c == keyCode(control::ControlKey::CTRL_L))
+    else if(c == keyCode(control::ControlKey::CTRL_H) ||
+            c == keyCode(control::ControlKey::CTRL_L))
     {
         int viewWidth = std::max(0, ctx.screenCols() - 2);
         int maxW = max_line_width(lines, ctx.editor->gitUseDefaultColors);
@@ -397,9 +430,12 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         else
             horizontalOffset = std::min(maxOffset, horizontalOffset + 1);
     }
-    else if((c == keyCode(typed::TypedKey::KEY_N) || c == keyCode(typed::TypedKey::KEY_CAP_N)) && !searchQuery.empty())
+    else if((c == keyCode(typed::TypedKey::KEY_N) ||
+             c == keyCode(typed::TypedKey::KEY_CAP_N)) &&
+            !searchQuery.empty())
     {
-        bool forward = (c == keyCode(typed::TypedKey::KEY_N)) ? searchForward : !searchForward;
+        bool forward = (c == keyCode(typed::TypedKey::KEY_N)) ? searchForward
+                                                              : !searchForward;
         if(!findNextMatch(forward))
             ctx.setStatusMessage("search: not found");
     }
@@ -424,12 +460,11 @@ void GitShowCommitMode::draw(Editor& editor) const
     if(!commitHash.empty())
         output += " " + commitHash;
     output += editor.theme.reset();
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [q: quit] [j/k: scroll] [gg/G: top/bottom] [ctrl-h/l: pan]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       gitShowHelpTokens());
 
-    int availableRows = editor.screenRows - 2;
+    int availableRows =
+        gitShowContentRows(editor.screenRows, editor.screenCols);
     int viewWidth = std::max(0, editor.screenCols - 2);
     int maxW = max_line_width(lines, editor.gitUseDefaultColors);
     int maxOffset = std::max(0, maxW - viewWidth);
@@ -461,9 +496,11 @@ void GitShowCommitMode::draw(Editor& editor) const
                 else if(line.rfind("Author:", 0) == 0 ||
                         line.rfind("Date:", 0) == 0)
                     lineSeq = &editor.theme.uiDim();
-                else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
+                else if(!line.empty() &&
+                        line[0] == keyCode(command::CommandKey::KEY_PLUS))
                     lineSeq = &editor.theme.uiSuccess();
-                else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
+                else if(!line.empty() &&
+                        line[0] == keyCode(command::CommandKey::KEY_MINUS))
                     lineSeq = &editor.theme.uiError();
 
                 std::string normalSeq = editor.theme.reset() + *lineSeq;

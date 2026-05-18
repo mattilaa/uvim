@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "editor_utils.h"
 #include "gitignore.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
@@ -19,6 +20,23 @@
 
 namespace
 {
+std::vector<std::string> fuzzyFindHelpTokens()
+{
+    return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
+            "[Ctrl+J/K: navigate]", "[Ctrl+I: gitignore]"};
+}
+
+int fuzzyFindHeaderRows(int screenCols)
+{
+    return 2 + HeaderHelp::lineCount(fuzzyFindHelpTokens(), screenCols);
+}
+
+int fuzzyFindVisibleRows(const Editor& editor)
+{
+    return std::max(1,
+                    editor.screenRows - fuzzyFindHeaderRows(editor.screenCols));
+}
+
 std::string runCmd(const std::vector<std::string>& args)
 {
     ProcessPipe pipe(args);
@@ -88,8 +106,7 @@ std::string truncatePathMiddle(std::string path, int width)
 std::string singleLinePasteText(std::string text)
 {
     text.erase(std::remove_if(text.begin(), text.end(),
-                              [](char ch)
-                              { return ch == '\n' || ch == '\r'; }),
+                              [](char ch) { return ch == '\n' || ch == '\r'; }),
                text.end());
     return text;
 }
@@ -252,11 +269,8 @@ void FuzzyFindMode::draw(Editor& editor) const
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [Enter: open] [Esc: cancel] [Ctrl+N: select] "
-              "[Ctrl+J/K: navigate] [Ctrl+I: gitignore]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       fuzzyFindHelpTokens());
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -301,7 +315,7 @@ void FuzzyFindMode::draw(Editor& editor) const
     }
     output += editor.theme.baseFg();
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = fuzzyFindVisibleRows(editor);
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
@@ -574,7 +588,7 @@ void FuzzyFindMode::moveDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = editor.screenRows - 3;
+        int visible = fuzzyFindVisibleRows(editor);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -598,11 +612,11 @@ void FuzzyFindMode::halfPageDown(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = (editor.screenRows - 3) / 2;
+    int half = fuzzyFindVisibleRows(editor) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = (int)matches.size() - 1;
-    int visible = editor.screenRows - 3;
+    int visible = fuzzyFindVisibleRows(editor);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
 }
@@ -612,7 +626,7 @@ void FuzzyFindMode::halfPageUp(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = (editor.screenRows - 3) / 2;
+    int half = fuzzyFindVisibleRows(editor) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;

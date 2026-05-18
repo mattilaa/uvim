@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -12,9 +13,14 @@
 
 namespace
 {
+std::vector<std::string> commandOutputHelpTokens()
+{
+    return {"[q: quit]",   "[j/k: scroll]", "[space: mark]",
+            "[V: visual]", "[y: yank]",     "[/: search]"};
+}
+
 // Grey background with black foreground — used for search highlight.
-constexpr const char* HIGHLIGHT_SEQ =
-    "\x1b[48;2;200;200;200m\x1b[38;2;0;0;0m";
+constexpr const char* HIGHLIGHT_SEQ = "\x1b[48;2;200;200;200m\x1b[38;2;0;0;0m";
 
 // Match file-browser selection colors (see file_browser_mode.cpp:draw).
 constexpr const char* SELECTED_BG = "\x1b[48;2;24;64;36m";
@@ -43,8 +49,7 @@ int caseInsensitiveFind(std::string_view haystack, std::string_view needle,
 }
 
 void appendHighlighted(std::string& out, std::string_view text,
-                       std::string_view query,
-                       const std::string& normalSeq)
+                       std::string_view query, const std::string& normalSeq)
 {
     if(query.empty() || text.empty())
     {
@@ -77,8 +82,10 @@ void appendHighlighted(std::string& out, std::string_view text,
 
 int CommandOutputMode::contentRows(const Editor& editor) const
 {
-    // 2 rows for header, 1 row for status bar, 1 row for message line
-    return std::max(1, editor.screenRows - 3);
+    const int headerRows =
+        1 + HeaderHelp::lineCount(commandOutputHelpTokens(), editor.screenCols);
+    constexpr int footerRows = 2;
+    return std::max(1, editor.screenRows - headerRows - footerRows);
 }
 
 int CommandOutputMode::displayHeight(int idx, int cols) const
@@ -513,11 +520,8 @@ void CommandOutputMode::draw(Editor& editor) const
     output += command;
     output += editor.theme.reset();
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output +=
-        "  [q: quit] [j/k: scroll] [space: mark] [V: visual] [y: yank] [/: search]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       commandOutputHelpTokens());
 
     int rows = contentRows(editor);
     int cols = std::max(1, editor.screenCols);
@@ -538,7 +542,8 @@ void CommandOutputMode::draw(Editor& editor) const
         }
         else if(isCursor)
         {
-            bgPrefix = std::string(Terminal::ESC_DIM) + editor.theme.selection();
+            bgPrefix =
+                std::string(Terminal::ESC_DIM) + editor.theme.selection();
         }
         else if(selected)
         {
@@ -625,8 +630,8 @@ void CommandOutputMode::draw(Editor& editor) const
     left += " | " + command;
     int total = (int)lines.size();
     int current = std::min(cursor + 1, total);
-    std::string right = " " + std::to_string(current) + "/" +
-                        std::to_string(total) + " ";
+    std::string right =
+        " " + std::to_string(current) + "/" + std::to_string(total) + " ";
     output += left;
     int padding = editor.screenCols - (int)left.size() - (int)right.size();
     if(padding > 0)

@@ -3,6 +3,7 @@
 #include "editor.h"
 #include "editor_utils.h"
 #include "gitignore.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
@@ -16,6 +17,24 @@
 
 namespace
 {
+std::vector<std::string> grepSearchHelpTokens()
+{
+    return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
+            "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
+            "[Ctrl+I: gitignore]"};
+}
+
+int grepSearchHeaderRows(int screenCols)
+{
+    return 2 + HeaderHelp::lineCount(grepSearchHelpTokens(), screenCols);
+}
+
+int grepSearchVisibleRows(const Editor& editor)
+{
+    return std::max(1, editor.screenRows -
+                           grepSearchHeaderRows(editor.screenCols));
+}
+
 std::string toLower(std::string_view input)
 {
     std::string out(input);
@@ -74,8 +93,7 @@ std::string truncatePathMiddle(std::string path, int width)
 std::string singleLinePasteText(std::string text)
 {
     text.erase(std::remove_if(text.begin(), text.end(),
-                              [](char ch)
-                              { return ch == '\n' || ch == '\r'; }),
+                              [](char ch) { return ch == '\n' || ch == '\r'; }),
                text.end());
     return text;
 }
@@ -101,8 +119,7 @@ void GrepSearchMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
-                                                int key)
+std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -138,20 +155,23 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
         toggleSelection();
     }
     else if(c == keyCode(control::ControlKey::CTRL_J) ||
-       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         resultDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
+    else if(c == keyCode(control::ControlKey::CTRL_P) ||
+            c == keyCode(control::ControlKey::CTRL_K) ||
             c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         resultUp(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) || c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(c == keyCode(control::ControlKey::CTRL_D) ||
+            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         resultHalfPageDown(*ed);
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) || c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(c == keyCode(control::ControlKey::CTRL_U) ||
+            c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         resultHalfPageUp(*ed);
     }
@@ -160,7 +180,8 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     // Input Editing
     // ========================================================================
 
-    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+    else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+            c == keyCode(control::ControlKey::CTRL_H))
     {
         searchBackspace(*ed);
     }
@@ -242,12 +263,8 @@ void GrepSearchMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
     }
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [Enter: open] [Esc: cancel] [Ctrl+N: select] [" +
-              ascii::utf8(ascii::UP_DOWN_ARROWS) +
-              ": navigate] [Ctrl+I: gitignore]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       grepSearchHelpTokens());
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -273,7 +290,7 @@ void GrepSearchMode::draw(Editor& editor) const
     }
     output += editor.theme.baseFg();
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = grepSearchVisibleRows(editor);
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
@@ -319,9 +336,9 @@ void GrepSearchMode::draw(Editor& editor) const
         int pathWidth = editor.screenCols - rowPrefixWidth - separatorsWidth -
                         (int)lineNumber.length() - minContentWidth;
         if(pathWidth < 8)
-            pathWidth = std::max(1, editor.screenCols - rowPrefixWidth -
-                                        separatorsWidth -
-                                        (int)lineNumber.length());
+            pathWidth =
+                std::max(1, editor.screenCols - rowPrefixWidth -
+                                separatorsWidth - (int)lineNumber.length());
 
         displayName = truncatePathMiddle(displayName, pathWidth);
         output += displayName;
@@ -347,8 +364,7 @@ void GrepSearchMode::draw(Editor& editor) const
             else
             {
                 while(!content.empty() &&
-                      text_utils::utf8DisplayWidth(content) >
-                          maxContentLen - 3)
+                      text_utils::utf8DisplayWidth(content) > maxContentLen - 3)
                     content.pop_back();
                 content += "...";
             }
@@ -405,8 +421,8 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
             const std::string cwdStr = cwd.string();
             if(editor.useGitFileIndex)
             {
-                std::string repoRoot =
-                    runCmd({"git", "-C", cwdStr, "rev-parse", "--show-toplevel"});
+                std::string repoRoot = runCmd(
+                    {"git", "-C", cwdStr, "rev-parse", "--show-toplevel"});
 
                 if(!repoRoot.empty())
                 {
@@ -422,8 +438,7 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
 
                         const std::string fullPath = cwdStr + "/" + relPath;
                         std::error_code stEc;
-                        auto status =
-                            std::filesystem::status(fullPath, stEc);
+                        auto status = std::filesystem::status(fullPath, stEc);
                         if(stEc)
                             continue;
                         if(std::filesystem::is_directory(status))
@@ -440,15 +455,14 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
                         if(szEc)
                             entry.size = 0;
                         std::error_code mtEc;
-                        auto ftime = std::filesystem::last_write_time(
-                            fullPath, mtEc);
+                        auto ftime =
+                            std::filesystem::last_write_time(fullPath, mtEc);
                         if(!mtEc)
                         {
                             using namespace std::chrono;
-                            auto sctp =
-                                time_point_cast<system_clock::duration>(
-                                    ftime - decltype(ftime)::clock::now() +
-                                    system_clock::now());
+                            auto sctp = time_point_cast<system_clock::duration>(
+                                ftime - decltype(ftime)::clock::now() +
+                                system_clock::now());
                             entry.modTime = system_clock::to_time_t(sctp);
                         }
                         editor.grepProjectFiles.push_back(std::move(entry));
@@ -591,7 +605,8 @@ void GrepSearchMode::searchInFile(const std::string& filepath,
 bool GrepSearchMode::isTextFile(const std::string& filepath) const
 {
     std::string ext;
-    size_t dotPos = filepath.find_last_of(keyCode(command::CommandKey::KEY_DOT));
+    size_t dotPos =
+        filepath.find_last_of(keyCode(command::CommandKey::KEY_DOT));
     if(dotPos != std::string::npos)
     {
         ext = filepath.substr(dotPos);
@@ -718,7 +733,7 @@ void GrepSearchMode::resultDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = editor.screenRows - 4;
+        int visible = grepSearchVisibleRows(editor);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -726,7 +741,7 @@ void GrepSearchMode::resultDown(Editor& editor)
 
 void GrepSearchMode::resultHalfPageUp(Editor& editor)
 {
-    int half = (editor.screenRows - 4) / 2;
+    int half = grepSearchVisibleRows(editor) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;
@@ -736,11 +751,11 @@ void GrepSearchMode::resultHalfPageUp(Editor& editor)
 
 void GrepSearchMode::resultHalfPageDown(Editor& editor)
 {
-    int half = (editor.screenRows - 4) / 2;
+    int half = grepSearchVisibleRows(editor) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = matches.size() - 1;
-    int visible = editor.screenRows - 4;
+    int visible = grepSearchVisibleRows(editor);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
 }
