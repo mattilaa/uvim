@@ -926,6 +926,9 @@ void EditorModeController::handleNormalMode(int c)
         control::ControlKey::CTRL_S): // Ctrl+S for grep search (find in files)
         editor.setMode(GREP_SEARCH);
         break;
+    case keyCode(control::ControlKey::CTRL_X):
+        editor.setMode(REGEX_SEARCH);
+        break;
     case keyCode(control::ControlKey::CTRL_O):
         editor.jumpBack();
         break;

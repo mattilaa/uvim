@@ -217,6 +217,17 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == REGEX_SEARCH)
+    {
+        if(editor.modeStateMachine)
+        {
+            if(auto* state =
+                   editor.modeStateMachine->getState<RegexSearchMode>())
+                state->draw(editor);
+        }
+        return;
+    }
+
     if(editor.currentMode == LOC_LIST)
     {
         if(editor.modeStateMachine)

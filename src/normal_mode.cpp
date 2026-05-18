@@ -524,6 +524,11 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
         ctx.repeatCount = 0;
         return GrepSearchMode{};
     }
+    if(c == keyCode(control::ControlKey::CTRL_X))
+    {
+        ctx.repeatCount = 0;
+        return RegexSearchMode{};
+    }
 
     // Search modes
     if(c == keyCode(command::CommandKey::KEY_SLASH))

@@ -21,6 +21,7 @@
 #include "normal_mode.h"
 #include "operator_pending_mode.h"
 #include "references_mode.h"
+#include "regex_search_mode.h"
 #include "replace_mode.h"
 #include "search_backward_mode.h"
 #include "search_forward_mode.h"

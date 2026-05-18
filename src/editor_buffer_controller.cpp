@@ -137,6 +137,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
     case FUZZY_FIND:
     case BUFFER_BROWSER:
     case GREP_SEARCH:
+    case REGEX_SEARCH:
     case REFERENCES:
     case LSP_INFO:
     case LOC_LIST:

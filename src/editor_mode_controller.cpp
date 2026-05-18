@@ -86,6 +86,10 @@ void EditorModeController::syncModeFromStateMachine()
     {
         editor.currentMode = GREP_SEARCH;
     }
+    else if(std::holds_alternative<RegexSearchMode>(state))
+    {
+        editor.currentMode = REGEX_SEARCH;
+    }
     else if(std::holds_alternative<OperatorPendingMode>(state))
     {
         editor.currentMode = OP_PENDING;
@@ -184,6 +188,8 @@ void EditorModeController::handleKeypress(int c)
     case FUZZY_FIND:
         break;
     case BUFFER_BROWSER:
+        break;
+    case REGEX_SEARCH:
         break;
     case OP_PENDING:
         handleOperatorPendingMode(c);

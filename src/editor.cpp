@@ -1217,6 +1217,9 @@ void Editor::setMode(Mode mode)
     case GREP_SEARCH:
         modeStateMachine->transitionTo(GrepSearchMode{});
         break;
+    case REGEX_SEARCH:
+        modeStateMachine->transitionTo(RegexSearchMode{});
+        break;
     case OP_PENDING:
         modeStateMachine->transitionTo(
             OperatorPendingMode{pendingOperator, pendingCount});
@@ -1291,6 +1294,8 @@ std::string Editor::getModeString() const
         return "BUFFERS";
     case GREP_SEARCH:
         return "GREP";
+    case REGEX_SEARCH:
+        return "REGEX";
     case LSP_INFO:
         return "LSP INFO";
     case REFERENCES:
@@ -3125,6 +3130,19 @@ void Editor::refreshScreen()
         return;
     }
 
+    if(currentMode == REGEX_SEARCH)
+    {
+        if(modeStateMachine)
+        {
+            if(auto* state = modeStateMachine->getState<RegexSearchMode>())
+            {
+                state->draw(*this);
+                return;
+            }
+        }
+        return;
+    }
+
     if(currentMode == LOC_LIST)
     {
         if(modeStateMachine)
@@ -4814,6 +4832,8 @@ void Editor::refreshFileSearchCaches()
             fuzzy->refreshFileIndex(*this);
         if(auto* grep = modeStateMachine->getState<GrepSearchMode>())
             grep->refreshFileIndex(*this);
+        if(auto* regex = modeStateMachine->getState<RegexSearchMode>())
+            regex->refreshFileIndex(*this);
     }
 
     setStatusMessage("File search cache refreshed");

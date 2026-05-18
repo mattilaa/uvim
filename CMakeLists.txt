@@ -158,6 +158,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp
+    src/regex_search_mode.cpp
     src/file_browser_mode.cpp
     src/command_output_mode.cpp
 )
