@@ -90,7 +90,6 @@ bool JsonFormatter::operator()(Mode mode)
         return true;
     }
 
-    editor.saveState();
     *editor.lines = std::move(newLines);
     if(editor.dirty)
         *editor.dirty = true;
@@ -103,6 +102,7 @@ bool JsonFormatter::operator()(Mode mode)
             std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
+    editor.saveState();
     editor.adjustViewport();
     editor.needsFullRedraw = true;
     editor.setStatusMessage("json.tool: formatted buffer");
@@ -182,7 +182,6 @@ bool YamlFormatter::operator()(Mode mode)
         return true;
     }
 
-    editor.saveState();
     *editor.lines = std::move(newLines);
     if(editor.dirty)
         *editor.dirty = true;
@@ -195,6 +194,7 @@ bool YamlFormatter::operator()(Mode mode)
             std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
+    editor.saveState();
     editor.adjustViewport();
     editor.needsFullRedraw = true;
     editor.setStatusMessage("yaml: formatted buffer");

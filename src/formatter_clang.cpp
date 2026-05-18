@@ -185,7 +185,6 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
         return true;
     }
 
-    editor.saveState();
     *editor.lines = std::move(newLines);
     if(editor.dirty)
         *editor.dirty = true;
@@ -198,6 +197,7 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
             std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
+    editor.saveState();
     editor.adjustViewport();
     editor.needsFullRedraw = true;
     editor.setStatusMessage(successMessage);

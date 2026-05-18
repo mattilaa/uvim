@@ -3,6 +3,7 @@
 #include "terminal.h"
 #include "widgets/status_bar.h"
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -705,6 +706,40 @@ TEST(RealModeTransitionsTest, FormatOnSaveSkipsFormatterHookWhenDisabled)
     editor.saveFile();
 
     EXPECT_FALSE(called);
+}
+
+TEST(RealModeTransitionsTest, ClangFormatUndoRestoresSavedBuffer)
+{
+    if(std::system("/opt/homebrew/bin/clang-format --version >/dev/null 2>&1 "
+                   "|| clang-format --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang-format is not available";
+
+    auto root = make_temp_dir("uvim_clang_format_undo_");
+    auto file = root / "format_me.cpp";
+    write_file(root / ".clang-format",
+               "BasedOnStyle: LLVM\n"
+               "BreakBeforeBraces: Allman\n"
+               "IndentWidth: 4\n");
+    write_file(file,
+               "int main(){\n"
+               "if(true){\n"
+               "return 1;\n"
+               "}\n"
+               "}\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string(), false);
+
+    const std::vector<std::string> originalLines = editor.currentBuffer->lines;
+    ASSERT_TRUE(editor.formatBuffer());
+    ASSERT_NE(editor.currentBuffer->lines, originalLines);
+    EXPECT_TRUE(*editor.dirty);
+
+    editor.undo();
+
+    EXPECT_NE(editor.statusMessage, "Already at oldest change");
+    EXPECT_EQ(editor.currentBuffer->lines, originalLines);
+    EXPECT_FALSE(*editor.dirty);
 }
 
 TEST(RealModeTransitionsTest, ExCommandOpensFileBrowser)
