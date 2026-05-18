@@ -5,6 +5,7 @@
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
+#include "editor_drawing_controller.h"
 #include "editor_editing_controller.h"
 #include "editor_file_controller.h"
 #include "editor_git_controller.h"
@@ -707,6 +708,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    drawingController = std::make_unique<EditorDrawingController>(*this);
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
@@ -737,6 +739,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    drawingController = std::make_unique<EditorDrawingController>(*this);
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
@@ -3041,6 +3044,9 @@ void Editor::goToDefinition()
 
 void Editor::refreshScreen()
 {
+    drawingController->refreshScreen();
+    return;
+
     modeController->syncModeFromStateMachine();
 
     if(diagnosticPopupActive && (*cursorY != diagnosticPopupCursorY ||
@@ -3394,6 +3400,9 @@ void Editor::refreshScreen()
 
 void Editor::updateCursorPosition(bool flushNow)
 {
+    drawingController->updateCursorPosition(flushNow);
+    return;
+
     int cursorRow, cursorCol;
 
     if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
@@ -3442,10 +3451,7 @@ void Editor::updateCursorPosition(bool flushNow)
 
 void Editor::draw()
 {
-    refreshScreen();
-    // Some mode-specific draw paths return early from refreshScreen() and
-    // don't clear this flag. Clear it here after a completed frame.
-    needsFullRedraw = false;
+    drawingController->draw();
 }
 
 void Editor::setStatusMessage(const std::string& msg)
@@ -5678,7 +5684,7 @@ void Editor::showFileInfo()
 
 void Editor::forceFullRedraw()
 {
-    needsFullRedraw = true;
+    drawingController->forceFullRedraw();
 }
 
 void Editor::executeOneNormalCommand(int key)

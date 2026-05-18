@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_drawing_controller.h"
 #include "terminal.h"
 #include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -7,6 +8,9 @@
 
 void Editor::drawBufferView()
 {
+    drawingController->drawBufferView();
+    return;
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(currentMode != INSERT && !showGitBlame)
     {

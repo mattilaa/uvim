@@ -32,6 +32,7 @@ class Formatter;
 class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
+class EditorDrawingController;
 class EditorEditingController;
 class EditorFileController;
 class EditorGitController;
@@ -930,6 +931,7 @@ private:
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
+    friend class EditorDrawingController;
     friend class EditorEditingController;
     friend class EditorFileController;
     friend class EditorGitController;
@@ -1136,6 +1138,7 @@ private:
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorDrawingController> drawingController;
     std::unique_ptr<EditorCursorController> cursorController;
     std::unique_ptr<EditorEditingController> editingController;
     std::unique_ptr<EditorFileController> fileController;
