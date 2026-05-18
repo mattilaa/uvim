@@ -84,6 +84,15 @@ std::string truncatePathMiddle(std::string path, int width)
     }
     return prefix + suffix;
 }
+
+std::string singleLinePasteText(std::string text)
+{
+    text.erase(std::remove_if(text.begin(), text.end(),
+                              [](char ch)
+                              { return ch == '\n' || ch == '\r'; }),
+               text.end());
+    return text;
+}
 } // namespace
 
 static std::string formatFileSizeShort(size_t size)
@@ -201,6 +210,17 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx, int key)
     else if(c == keyCode(control::ControlKey::CTRL_S))
     {
         return GrepSearchMode{};
+    }
+    else if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = singleLinePasteText(Terminal::takeLastPasteText());
+        if(!text.empty())
+        {
+            query += text;
+            updateMatches(*ed);
+            cursor = 0;
+            offset = 0;
+        }
     }
     else if(c >= 32 && c < 127)
     {

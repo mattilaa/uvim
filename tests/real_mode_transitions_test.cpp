@@ -1276,6 +1276,50 @@ TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
     EXPECT_STREQ(sm.currentStateName(), "GREP");
 }
 
+TEST(RealModeTransitionsTest, FuzzyFindAcceptsBracketedPaste)
+{
+    auto root = make_temp_dir("uvim_fuzzy_paste_");
+    write_file(root / "alpha-pasted.txt", "a\n");
+    write_file(root / "beta.txt", "b\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+
+    Terminal::setLastPasteTextForTests("alpha-pasted\n");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->query, "alpha-pasted");
+    ASSERT_FALSE(state->matches.empty());
+    EXPECT_EQ(state->matches.front().file.name, "alpha-pasted.txt");
+}
+
+TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
+{
+    auto root = make_temp_dir("uvim_grep_paste_");
+    write_file(root / "src" / "match.txt", "needle pasted\nother\n");
+    write_file(root / "src" / "miss.txt", "needle only\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    auto sm = makeMachine(editor, GrepSearchMode{});
+
+    Terminal::setLastPasteTextForTests("needle pasted\n");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->query, "needle pasted");
+    ASSERT_EQ(state->matches.size(), 1u);
+    EXPECT_NE(state->matches.front().filepath.find("match.txt"),
+              std::string::npos);
+    EXPECT_EQ(state->matches.front().lineNumber, 1);
+}
+
 TEST(RealModeTransitionsTest, CtrlXOpensRegexSearchForCurrentBuffer)
 {
     Editor editor = Editor::createForTests();

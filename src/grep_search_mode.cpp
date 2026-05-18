@@ -70,6 +70,15 @@ std::string truncatePathMiddle(std::string path, int width)
     }
     return prefix + suffix;
 }
+
+std::string singleLinePasteText(std::string text)
+{
+    text.erase(std::remove_if(text.begin(), text.end(),
+                              [](char ch)
+                              { return ch == '\n' || ch == '\r'; }),
+               text.end());
+    return text;
+}
 } // namespace
 
 // ============================================================================
@@ -159,6 +168,17 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         // Delete word backward
         searchDeleteWord(*ed);
+    }
+    else if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = singleLinePasteText(Terminal::takeLastPasteText());
+        if(!text.empty())
+        {
+            query += text;
+            performSearch(*ed);
+            cursor = 0;
+            offset = 0;
+        }
     }
     // ========================================================================
     // Toggles
