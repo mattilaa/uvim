@@ -8,6 +8,7 @@
 #include "editor_drawing_controller.h"
 #include "editor_editing_controller.h"
 #include "editor_file_controller.h"
+#include "editor_file_type_controller.h"
 #include "editor_git_controller.h"
 #include "editor_indent_controller.h"
 #include "editor_lsp_controller.h"
@@ -59,6 +60,24 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset);
 #endif
 
 namespace fs = std::filesystem;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+template <FileType... Types, typename EnableFn>
+void ensure_lsp_for_file_type(Editor& editor, bool enabled,
+                              const std::string& path,
+                              const std::vector<std::string>& args,
+                              EnableFn&& enableFn)
+{
+    if(enabled || !((editor.isFileType<Types>()) || ...))
+        return;
+
+    std::string resolved = EditorPathUtilities::resolveExecutablePath(path);
+    if(resolved.empty())
+        return;
+
+    enableFn(true, resolved, args);
+}
+#endif
 
 using editor::helper::ascii_lower;
 using editor::helper::collect_js_ts_imports;
@@ -712,6 +731,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
+    fileTypeController = std::make_unique<EditorFileTypeController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
     indentController = std::make_unique<EditorIndentController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
@@ -743,6 +763,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
+    fileTypeController = std::make_unique<EditorFileTypeController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
     indentController = std::make_unique<EditorIndentController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
@@ -812,80 +833,52 @@ std::string Editor::testResolveMlangModule(const std::string& fromFile,
 
 bool Editor::isFileType(FileType type) const
 {
-    if(!syntaxHighlighter)
-        return false;
-
-    return syntaxHighlighter->isFileType(type);
+    return fileTypeController && fileTypeController->isFileType(type);
 }
 
 std::optional<FileType> Editor::getFormatterFileType() const
 {
-    std::string_view pathSv;
-    if(filename && !filename->empty())
-    {
-        pathSv = *filename;
-    }
-    else if(currentBuffer && !currentBuffer->filename.empty())
-    {
-        pathSv = currentBuffer->filename;
-    }
-    else
-    {
-        return {};
-    }
-
-    if(constants::is_filetype<constants::no_pattern, constants::cpp_suffixes,
-                              constants::cpp_stdlib_patterns>(pathSv))
+    if(isFileType<FileType::Cpp>())
     {
         return FileType::Cpp;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::mla_suffixes>(pathSv))
+    else if(isFileType<FileType::Mla>())
     {
         return FileType::Mla;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::robot_suffixes>(pathSv))
+    else if(isFileType<FileType::Robot>())
     {
         return FileType::Robot;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::python_suffixes>(pathSv))
+    else if(isFileType<FileType::Python>())
     {
         return FileType::Python;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::json_suffixes>(pathSv))
+    else if(isFileType<FileType::Json>())
     {
         return FileType::Json;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::yaml_suffixes>(pathSv))
+    else if(isFileType<FileType::Yaml>())
     {
         return FileType::Yaml;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::toml_suffixes>(pathSv))
+    else if(isFileType<FileType::Toml>())
     {
         return FileType::Toml;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::css_suffixes>(pathSv))
+    else if(isFileType<FileType::Css>())
     {
         return FileType::Css;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::javascript_suffixes>(pathSv))
+    else if(isFileType<FileType::JavaScript>())
     {
         return FileType::JavaScript;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::typescript_suffixes>(pathSv))
+    else if(isFileType<FileType::TypeScript>())
     {
         return FileType::TypeScript;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::xml_suffixes>(pathSv))
+    else if(isFileType<FileType::Xml>())
     {
         return FileType::Xml;
     }
@@ -1419,40 +1412,26 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(notifyLspOnOpen)
     {
-        auto ensure_lsp = [&](bool enabled, const std::string& path,
-                              const std::vector<std::string>& args,
-                              auto enableFn)
-        {
-            if(enabled)
-                return;
-            std::string resolved =
-                EditorPathUtilities::resolveExecutablePath(path);
-            if(resolved.empty())
-                return;
-            enableFn(true, resolved, args);
-        };
-
-        if(isFileType<FileType::Html>())
-            ensure_lsp(isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableHtmlLsp(on, p, a); });
-        if(isFileType<FileType::Css>())
-            ensure_lsp(isCssLspEnabled(), cssLspPath, cssLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableCssLsp(on, p, a); });
-        if(isFileType<FileType::Json>())
-            ensure_lsp(isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableJsonLsp(on, p, a); });
-        if(isFileType<FileType::JavaScript>() ||
-           isFileType<FileType::TypeScript>())
-            ensure_lsp(isTsLspEnabled(), tsLspPath, tsLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableTsLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::Html>(
+            *this, isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableHtmlLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::Css>(
+            *this, isCssLspEnabled(), cssLspPath, cssLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableCssLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::Json>(
+            *this, isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableJsonLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::JavaScript, FileType::TypeScript>(
+            *this, isTsLspEnabled(), tsLspPath, tsLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableTsLsp(on, p, a); });
     }
 #endif
 

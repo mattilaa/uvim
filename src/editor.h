@@ -35,6 +35,7 @@ class EditorCommandController;
 class EditorDrawingController;
 class EditorEditingController;
 class EditorFileController;
+class EditorFileTypeController;
 class EditorGitController;
 class EditorCursorController;
 class EditorIndentController;
@@ -1142,6 +1143,7 @@ private:
     std::unique_ptr<EditorCursorController> cursorController;
     std::unique_ptr<EditorEditingController> editingController;
     std::unique_ptr<EditorFileController> fileController;
+    std::unique_ptr<EditorFileTypeController> fileTypeController;
     std::unique_ptr<EditorGitController> gitController;
     std::unique_ptr<EditorIndentController> indentController;
     std::unique_ptr<EditorLspController> lspController;

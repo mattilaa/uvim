@@ -2,6 +2,7 @@
 
 #include "syntax_state.h"
 #include "token_type.h"
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -50,6 +51,11 @@ struct Buffer
     int savedUndoIndex = -1; // Track which undo state was last saved
     size_t savedContentHash = 0;
     bool savedContentHashValid = false;
+
+    mutable bool fileTypeCacheValid = false;
+    mutable std::string fileTypeCachePath;
+    mutable size_t fileTypeCacheContentHash = 0;
+    mutable uint64_t fileTypeCacheMask = 0;
 
     // Search state per buffer
     std::string lastSearchQuery;
