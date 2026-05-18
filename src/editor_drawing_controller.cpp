@@ -1,6 +1,9 @@
 #include "editor_drawing_controller.h"
+#include "editor_buffer_view.h"
 #include "editor.h"
+#include "editor_message_bar_view.h"
 #include "editor_mode_controller.h"
+#include "editor_status_bar_view.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -13,139 +16,48 @@
 #include <cstdlib>
 
 EditorDrawingController::EditorDrawingController(Editor& editor)
-    : editor(editor)
+    : editor(editor), bufferView(std::make_unique<EditorBufferView>(editor)),
+      statusBarView(std::make_unique<EditorStatusBarView>(editor)),
+      messageBarView(std::make_unique<EditorMessageBarView>(editor))
 {
 }
 
+EditorDrawingController::~EditorDrawingController() = default;
+
 void EditorDrawingController::drawBufferView()
 {
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(editor.currentMode != INSERT && !editor.showGitBlame)
-    {
-        if(editor.currentBuffer && editor.isClangdLspEnabled() &&
-           editor.isFileType<FileType::Cpp>() &&
-           !editor.isFileType<FileType::Mla>() && editor.lspClient &&
-           !editor.currentBuffer->filename.empty())
-        {
-            size_t revision = editor.lspClient->diagnosticsRevision(
-                editor.currentBuffer->filename);
-            if(!editor.currentBuffer->lspDiagnosticsSeenValid ||
-               revision != editor.currentBuffer->lspDiagnosticsSeenRevision)
-            {
-                editor.currentBuffer->lspDiagnosticsSeenRevision = revision;
-                editor.currentBuffer->lspDiagnosticsSeenValid = true;
-                editor.needsFullRedraw = true;
-            }
-        }
-        editor.syncClangdDiagnosticsIfNeeded(false);
-    }
-#endif
+    bufferView->draw();
+}
 
-    editor.adjustViewport();
+void EditorDrawingController::drawStatusBar()
+{
+    statusBarView->draw();
+}
 
-    if(editor.splitActive)
-    {
-        editor.drawFullScreen();
-        lastBufferOffsetY = *editor.offsetY;
-        lastBufferOffsetX = *editor.offsetX;
-        lastBufferMode = editor.currentMode;
-        lastBufferCursorY = *editor.cursorY;
-        editor.needsFullRedraw = false;
-        return;
-    }
+void EditorDrawingController::drawStatusBarQuick()
+{
+    statusBarView->drawQuick();
+}
 
-    bool modeChanged = (editor.currentMode != lastBufferMode);
-    int scrollDelta = *editor.offsetY - lastBufferOffsetY;
-    bool cursorMoved = (*editor.cursorY != lastBufferCursorY);
+void EditorDrawingController::drawMessageBar()
+{
+    messageBarView->draw();
+}
 
-    if(editor.showGitBlame && editor.currentBuffer &&
-       !editor.currentBuffer->blameValid)
-    {
-        editor.updateGitBlameForVisibleRange();
-    }
+void EditorDrawingController::drawMessageBarQuick()
+{
+    messageBarView->drawQuick();
+}
 
-    bool visualChanged = false;
-    if(editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
-       editor.currentMode == VISUAL_BLOCK)
-    {
-        visualChanged =
-            (editor.currentBuffer->visualStartY != lastBufferVisualStartY ||
-             editor.currentBuffer->visualEndY != lastBufferVisualEndY);
-        lastBufferVisualStartY = editor.currentBuffer->visualStartY;
-        lastBufferVisualEndY = editor.currentBuffer->visualEndY;
-    }
-    else
-    {
-        lastBufferVisualStartY = -1;
-        lastBufferVisualEndY = -1;
-    }
+void EditorDrawingController::appendStatusBar(std::string& output)
+{
+    statusBarView->append(output);
+}
 
-    bool isBufferEditingMode =
-        (editor.currentMode == INSERT || editor.currentMode == REPLACE);
-    bool isCommandLikeMode =
-        (editor.currentMode == COMMAND ||
-         editor.currentMode == SEARCH_FORWARD ||
-         editor.currentMode == SEARCH_BACKWARD);
-    bool isLiveSearchMode =
-        (editor.currentMode == SEARCH_FORWARD ||
-         editor.currentMode == SEARCH_BACKWARD);
-    bool commandOverlayStable =
-        isCommandLikeMode && !isLiveSearchMode && !modeChanged &&
-        scrollDelta == 0 && *editor.offsetX == lastBufferOffsetX &&
-        !visualChanged;
-
-    if(modeChanged || (editor.needsFullRedraw && !commandOverlayStable) ||
-       *editor.offsetX != lastBufferOffsetX ||
-       std::abs(scrollDelta) > editor.screenRows / 2 || visualChanged ||
-       (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
-        editor.currentMode == VISUAL_BLOCK) ||
-       isBufferEditingMode)
-    {
-        editor.drawFullScreen();
-    }
-    else if(scrollDelta == 0 && isCommandLikeMode)
-    {
-        const bool syncOutput = Terminal::useSynchronizedOutput();
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
-        Terminal::write(Terminal::ESC_HIDE_CURSOR);
-        editor.drawStatusBarQuick();
-        editor.drawMessageBarQuick();
-        updateCursorPosition(false);
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
-        Terminal::flush();
-    }
-    else if(scrollDelta != 0 && std::abs(scrollDelta) <= 5 &&
-            editor.currentMode == NORMAL && !Terminal::isTmux())
-    {
-        editor.drawScrollUpdate(scrollDelta);
-    }
-    else if(scrollDelta == 0 && editor.currentMode == NORMAL)
-    {
-        const bool syncOutput = Terminal::useSynchronizedOutput();
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
-        Terminal::write(Terminal::ESC_HIDE_CURSOR);
-        if(cursorMoved && editor.lineNumberWidth() > 0)
-            editor.drawGutterQuick();
-        editor.drawStatusBarQuick();
-        editor.drawMessageBarQuick();
-        updateCursorPosition(false);
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
-        Terminal::flush();
-    }
-    else
-    {
-        editor.drawFullScreen();
-    }
-
-    lastBufferOffsetY = *editor.offsetY;
-    lastBufferOffsetX = *editor.offsetX;
-    lastBufferMode = editor.currentMode;
-    lastBufferCursorY = *editor.cursorY;
-    editor.needsFullRedraw = false;
+void EditorDrawingController::appendMessageBar(std::string& output,
+                                               bool includePopups)
+{
+    messageBarView->append(output, includePopups);
 }
 
 void EditorDrawingController::refreshScreen()

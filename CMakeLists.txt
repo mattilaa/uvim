@@ -62,6 +62,7 @@ set(UVIM_CORE_SOURCES
     src/editor_command_controller.cpp
     src/editor_cursor_controller.cpp
     src/editor_drawing_controller.cpp
+    src/editor_buffer_view.cpp
     src/editor_editing_controller.cpp
     src/editor_file_controller.cpp
     src/editor_file_type_controller.cpp
@@ -91,12 +92,14 @@ set(UVIM_CORE_SOURCES
     src/editor_view_insert.cpp
     src/editor_view_loc_list.cpp
     src/editor_view_lsp_info.cpp
+    src/editor_message_bar_view.cpp
     src/editor_view_normal.cpp
     src/editor_view_operator_pending.cpp
     src/editor_view_references.cpp
     src/editor_view_replace.cpp
     src/editor_view_search_backward.cpp
     src/editor_view_search_forward.cpp
+    src/editor_status_bar_view.cpp
     src/editor_view_visual.cpp
     src/editor_view_visual_block.cpp
     src/editor_view_visual_line.cpp

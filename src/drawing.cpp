@@ -1,5 +1,6 @@
 #include "ascii.h"
 #include "editor.h"
+#include "editor_drawing_controller.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/status_bar.h"
@@ -296,91 +297,12 @@ void Editor::drawRows()
 
 void Editor::drawStatusBar()
 {
-    std::string output;
-    output += Terminal::NEWLINE_CLEAR;
-
-    auto lspLabel = [&](const std::string& path,
-                        std::string_view fallback) -> std::string
-    {
-        if(path.empty())
-            return std::string(fallback);
-        size_t slash = path.find_last_of("/\\");
-        if(slash == std::string::npos)
-            return path;
-        if(slash + 1 >= path.size())
-            return std::string(fallback);
-        return path.substr(slash + 1);
-    };
-
-    std::string lspInfo;
-    if(isFileType(FileType::Cpp) && clangdLspEnabled)
-    {
-        lspInfo = lspLabel(clangdLspPath, "clangd");
-    }
-    else if(isFileType(FileType::Python) && pythonLspEnabled)
-    {
-        lspInfo = lspLabel(pythonLspPath, "python");
-    }
-    else if(isFileType(FileType::Robot) && robotLspEnabled)
-    {
-        lspInfo = lspLabel(robotLspPath, "robot");
-    }
-    else if(isFileType(FileType::Mla) && mlangLspEnabled)
-    {
-        lspInfo = lspLabel(mlangLspPath, "mlang");
-    }
-
-    std::string displayName =
-        (filename && !filename->empty()) ? *filename : "[No Name]";
-    bool isDirty = (dirty && *dirty);
-    std::string modeLabel = getModeString();
-
-    widgets::StatusBarView view{
-        .theme = theme,
-        .screenCols = screenCols,
-        .modeLabel = modeLabel,
-        .currentBufferIndex = currentBufferIndex,
-        .bufferCount = (int)buffers.size(),
-        .cursorY = *cursorY,
-        .cursorX = *cursorX,
-        .lineCount = lines ? (int)lines->size() : 0,
-        .filename = displayName,
-        .dirty = isDirty,
-        .searchQuery = searchQuery,
-        .searchMatchIndex = currentMatchIndex,
-        .searchMatchCount = (int)searchMatches.size(),
-        .lspLabel = lspInfo,
-        .lspGap = lspStatusGap,
-    };
-    widgets::appendStatusBar(output, view);
-    Terminal::write(output);
+    drawingController->drawStatusBar();
 }
 
 void Editor::drawMessageBar()
 {
-    std::string output;
-    output += Terminal::NEWLINE_CLEAR;
-
-    std::string blame;
-    if(showGitBlame && showGitBlameInfo)
-        blame = blameFullForLine(*cursorY);
-
-    widgets::MessageBarView view{
-        .currentMode = currentMode,
-        .screenCols = screenCols,
-        .commandBuffer = commandBuffer,
-        .searchQuery = searchQuery,
-        .searchMatchIndex = currentMatchIndex,
-        .searchMatchCount = (int)searchMatches.size(),
-        .commandLineMessagePrefix = commandLineMessagePrefix,
-        .showGitBlame = showGitBlame,
-        .showGitBlameInfo = showGitBlameInfo,
-        .blameLine = blame,
-        .locMessage = locMessage,
-        .statusMessage = statusMessage,
-    };
-    widgets::appendMessageBar(output, view);
-    Terminal::write(output);
+    drawingController->drawMessageBar();
 }
 
 // Optimized drawing functions
@@ -876,104 +798,12 @@ void Editor::drawGutterQuick()
 
 void Editor::drawStatusBarQuick()
 {
-    std::string output;
-    output += Terminal::cursorPos(screenRows + 1, 1);
-
-    output += Terminal::ESC_CLEAR_LINE;
-    auto lspLabel = [&](const std::string& path,
-                        std::string_view fallback) -> std::string
-    {
-        if(path.empty())
-            return std::string(fallback);
-        size_t slash = path.find_last_of("/\\");
-        if(slash == std::string::npos)
-            return path;
-        if(slash + 1 >= path.size())
-            return std::string(fallback);
-        return path.substr(slash + 1);
-    };
-
-    std::string lspInfo;
-    if(isFileType(FileType::Cpp) && clangdLspEnabled)
-    {
-        lspInfo = lspLabel(clangdLspPath, "clangd");
-    }
-    else if(isFileType(FileType::Python) && pythonLspEnabled)
-    {
-        lspInfo = lspLabel(pythonLspPath, "python");
-    }
-    else if(isFileType(FileType::Robot) && robotLspEnabled)
-    {
-        lspInfo = lspLabel(robotLspPath, "robot");
-    }
-    else if(isFileType(FileType::Mla) && mlangLspEnabled)
-    {
-        lspInfo = lspLabel(mlangLspPath, "mlang");
-    }
-
-    std::string displayName =
-        (filename && !filename->empty()) ? *filename : "[No Name]";
-    bool isDirty = (dirty && *dirty);
-    std::string modeLabel = getModeString();
-
-    widgets::StatusBarView view{
-        .theme = theme,
-        .screenCols = screenCols,
-        .modeLabel = modeLabel,
-        .currentBufferIndex = currentBufferIndex,
-        .bufferCount = (int)buffers.size(),
-        .cursorY = *cursorY,
-        .cursorX = *cursorX,
-        .lineCount = lines ? (int)lines->size() : 0,
-        .filename = displayName,
-        .dirty = isDirty,
-        .searchQuery = searchQuery,
-        .searchMatchIndex = currentMatchIndex,
-        .searchMatchCount = (int)searchMatches.size(),
-        .lspLabel = lspInfo,
-        .lspGap = lspStatusGap,
-    };
-    widgets::appendStatusBar(output, view);
-
-    Terminal::write(output);
+    drawingController->drawStatusBarQuick();
 }
 
 void Editor::drawMessageBarQuick()
 {
-    std::string output;
-    output += Terminal::cursorPos(screenRows + 2, 1);
-
-    output += Terminal::ESC_CLEAR_LINE;
-
-    std::string blame;
-    if(showGitBlame && showGitBlameInfo)
-        blame = blameFullForLine(*cursorY);
-
-    widgets::MessageBarView view{
-        .currentMode = currentMode,
-        .screenCols = screenCols,
-        .commandBuffer = commandBuffer,
-        .searchQuery = searchQuery,
-        .searchMatchIndex = currentMatchIndex,
-        .searchMatchCount = (int)searchMatches.size(),
-        .commandLineMessagePrefix = commandLineMessagePrefix,
-        .showGitBlame = showGitBlame,
-        .showGitBlameInfo = showGitBlameInfo,
-        .blameLine = blame,
-        .locMessage = locMessage,
-        .statusMessage = statusMessage,
-    };
-    widgets::appendMessageBar(output, view);
-
-    // Completion popup (clangd)
-    drawCompletionPopup(output);
-    drawEmojiPopup(output);
-    drawDiagnosticPopup(output);
-    drawSymbolPopup(output);
-    drawCommandHistoryPopup(output);
-    drawCommandPopup(output);
-
-    Terminal::write(output);
+    drawingController->drawMessageBarQuick();
 }
 
 void Editor::drawFullScreen()
@@ -1216,172 +1046,10 @@ void Editor::drawFullScreenSingle()
         }
     }
 
-    // Status bar
     output += Terminal::NEWLINE_CLEAR;
-    output += theme.statusBar();
-
-    std::string statusLeft = " " + getModeString() + " | ";
-
-    if(buffers.size() > 1)
-    {
-        statusLeft += "[" + std::to_string(currentBufferIndex + 1) + "/" +
-                      std::to_string(buffers.size()) + "] ";
-    }
-
-    int lineCount = std::max(1, lines ? (int)lines->size() : 0);
-    int lineNumber = std::clamp(*cursorY + 1, 1, lineCount);
-    int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
-
-    char rightStatusBuf[48];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ", progress,
-             lineNumber, *cursorX + 1);
-    std::string rightStatus = rightStatusBuf;
-    const int rightFieldWidth = 12;
-    int rightStatusWidth = text_utils::displayWidth(rightStatus);
-    if(rightStatusWidth < rightFieldWidth)
-    {
-        rightStatus.insert(0, rightFieldWidth - rightStatusWidth, ' ');
-    }
-
-    std::string searchInfo;
-    if(!searchQuery.empty())
-    {
-        if(!searchMatches.empty())
-        {
-            searchInfo = " [" + std::to_string(currentMatchIndex + 1) + "/" +
-                         std::to_string(searchMatches.size()) + "]";
-        }
-        else
-        {
-            searchInfo = " [No matches]";
-        }
-    }
-
-    auto lspLabel = [&](const std::string& path,
-                        std::string_view fallback) -> std::string
-    {
-        if(path.empty())
-            return std::string(fallback);
-        size_t slash = path.find_last_of("/\\");
-        if(slash == std::string::npos)
-            return path;
-        if(slash + 1 >= path.size())
-            return std::string(fallback);
-        return path.substr(slash + 1);
-    };
-
-    std::string lspInfo;
-    if(isFileType(FileType::Cpp) && clangdLspEnabled)
-    {
-        lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(clangdLspPath, "clangd") + "]" + theme.statusBar();
-    }
-    else if(isFileType(FileType::Python) && pythonLspEnabled)
-    {
-        lspInfo = " " + theme.uiInfo() + "[" +
-                  lspLabel(pythonLspPath, "python") + "]" + theme.statusBar();
-    }
-    else if(isFileType(FileType::Robot) && robotLspEnabled)
-    {
-        lspInfo = " " + theme.uiInfo() + "[" + lspLabel(robotLspPath, "robot") +
-                  "]" + theme.statusBar();
-    }
-    else if(isFileType(FileType::Mla) && mlangLspEnabled)
-    {
-        lspInfo = " " + theme.uiInfo() + "[" + lspLabel(mlangLspPath, "mlang") +
-                  "]" + theme.statusBar();
-    }
-
-    std::string rightBlock = searchInfo;
-    rightBlock += lspInfo;
-    if(!lspInfo.empty())
-        rightBlock.append(std::max(0, lspStatusGap), ' ');
-    rightBlock += rightStatus;
-
-    // Calculate available space for filename
-    int rightLen = text_utils::displayWidth(rightBlock);
-    int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
-
-    std::string displayName = filename->empty() ? "[No Name]" : *filename;
-    if(*dirty)
-        displayName += " [+]";
-
-    // Truncate filename from the beginning if too long
-    if((int)displayName.length() > availableForFile && availableForFile > 4)
-    {
-        displayName = "..." + displayName.substr(displayName.length() -
-                                                 availableForFile + 3);
-    }
-
-    statusLeft += displayName;
-
-    output += statusLeft;
-
-    int padding = screenCols - statusLeft.length() - rightLen;
-    if(padding > 0)
-        output.append(padding, ' ');
-    output += rightBlock;
-    output += theme.reset();
-
-    // Message bar
+    drawingController->appendStatusBar(output);
     output += Terminal::NEWLINE_CLEAR;
-
-    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
-       currentMode == SEARCH_BACKWARD)
-    {
-        if(commandBuffer.empty() && currentMode == SEARCH_FORWARD)
-            output += "/";
-        else if(commandBuffer.empty() && currentMode == SEARCH_BACKWARD)
-            output += "?";
-        else if(commandBuffer.empty())
-            output += ":";
-        else if(commandBuffer.front() == ':' || commandBuffer.front() == '/' ||
-                commandBuffer.front() == '?')
-            output += commandBuffer;
-        else
-            output += ":" + commandBuffer;
-    }
-    else if(showGitBlame && showGitBlameInfo)
-    {
-        std::string blame = blameFullForLine(*cursorY);
-        if(!blame.empty())
-        {
-            if(commandLineMessagePrefix)
-                output += ": ";
-            output += "blame: " + blame;
-        }
-    }
-    else if(!statusMessage.empty())
-    {
-        if(commandLineMessagePrefix)
-            output += ": ";
-        int msglen = std::min(
-            (int)statusMessage.length(),
-            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
-        output.append(statusMessage, 0, msglen);
-    }
-    else if(!locMessage.empty())
-    {
-        if(commandLineMessagePrefix)
-            output += ": ";
-        int msglen = std::min(
-            (int)locMessage.length(),
-            std::max(0, screenCols - (commandLineMessagePrefix ? 2 : 0)));
-        output.append(locMessage, 0, msglen);
-    }
-    else
-    {
-        if(commandLineMessagePrefix)
-            output += ":";
-    }
-
-    // Completion popup (clangd)
-    drawCompletionPopup(output);
-    drawEmojiPopup(output);
-    drawDiagnosticPopup(output);
-    drawSymbolPopup(output);
-    drawCommandHistoryPopup(output);
-    drawCommandPopup(output);
+    drawingController->appendMessageBar(output, true);
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)
