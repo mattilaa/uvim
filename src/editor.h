@@ -389,6 +389,19 @@ public:
         std::vector<RenameEdit> edits;
     };
 
+    struct RenameUndoFileSnapshot
+    {
+        std::string path;
+        std::vector<std::string> lines;
+        bool hadOpenBuffer = false;
+        bool fileExisted = false;
+        bool dirty = false;
+        int cursorX = 0;
+        int cursorY = 0;
+        int offsetX = 0;
+        int offsetY = 0;
+    };
+
     bool renamePopupActive = false;
     bool renamePopupReady = false;
     std::string renameOriginal;
@@ -399,11 +412,15 @@ public:
     int renameCurrentFile = 0;
     int renameCurrentEdit = 0;
     std::vector<RenameFileEdits> renameFiles;
+    bool renameUndoAvailable = false;
+    std::vector<RenameUndoFileSnapshot> renameUndoFiles;
 
     void openRenamePopupForCursor();
     void closeRenamePopup();
     bool handleRenamePopupKey(int key);
     void drawRenamePopup(std::string& output) const;
+    void clearRenameUndoSnapshot();
+    bool restoreRenameUndoSnapshot();
 
     void applyDiagnosticFix(int index);
     void updateClangFormatIndentWidth();

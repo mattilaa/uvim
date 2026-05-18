@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <utility>
 
 namespace
@@ -32,6 +33,13 @@ void write_file(const std::filesystem::path& path, std::string_view content)
     std::filesystem::create_directories(path.parent_path());
     std::ofstream out(path);
     out << content;
+}
+
+std::string read_file(const std::filesystem::path& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
 }
 
 void dispatch_command(ModeStateMachine& sm, std::string_view cmd)
@@ -524,6 +532,49 @@ TEST(RealModeTransitionsTest, VisualRnRequestsClangRenameAndReturnsNormal)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     EXPECT_FALSE(editor.renamePopupActive);
     EXPECT_EQ(editor.statusMessage, "rn: clangd rename unavailable");
+}
+
+TEST(RealModeTransitionsTest, UndoRestoresAllFilesTouchedByRename)
+{
+    auto root = make_temp_dir("uvim_rename_undo_");
+    auto current = root / "main.cpp";
+    auto other = root / "other.cpp";
+    write_file(current, "int value = 1;\n");
+    write_file(other, "int value = 2;\n");
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, current.string());
+    editor.currentBuffer->dirty = false;
+
+    Editor::RenameUndoFileSnapshot currentSnapshot;
+    currentSnapshot.path = current.string();
+    currentSnapshot.lines = {"int value = 1;"};
+    currentSnapshot.hadOpenBuffer = true;
+    currentSnapshot.fileExisted = true;
+    currentSnapshot.dirty = false;
+
+    Editor::RenameUndoFileSnapshot otherSnapshot;
+    otherSnapshot.path = other.string();
+    otherSnapshot.lines = {"int value = 2;"};
+    otherSnapshot.fileExisted = true;
+
+    editor.renameUndoAvailable = true;
+    editor.renameUndoFiles = {currentSnapshot, otherSnapshot};
+
+    editor.currentBuffer->lines = {"int renamed = 1;"};
+    editor.currentBuffer->dirty = true;
+    write_file(other, "int renamed = 2;\n");
+
+    editor.undo();
+
+    EXPECT_EQ(editor.currentBuffer->lines,
+              std::vector<std::string>({"int value = 1;"}));
+    EXPECT_FALSE(editor.currentBuffer->dirty);
+    EXPECT_EQ(read_file(other), "int value = 2;");
+    EXPECT_FALSE(editor.renameUndoAvailable);
+    EXPECT_EQ(editor.statusMessage, "rn: reverted rename in 2 file(s)");
 }
 
 TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)

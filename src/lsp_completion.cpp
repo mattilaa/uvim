@@ -2118,6 +2118,40 @@ static std::string renameDisplayPath(const Editor& editor,
     return path;
 }
 
+static void captureRenameUndoSnapshot(Editor& editor)
+{
+    if(editor.renameUndoAvailable)
+        return;
+
+    editor.clearRenameUndoSnapshot();
+    for(const auto& file : editor.renameFiles)
+    {
+        Editor::RenameUndoFileSnapshot snapshot;
+        snapshot.path = file.path;
+
+        if(Buffer* buffer = findBufferForPath(editor, file.path))
+        {
+            snapshot.hadOpenBuffer = true;
+            snapshot.fileExisted = true;
+            snapshot.lines = buffer->lines;
+            snapshot.dirty = buffer->dirty;
+            snapshot.cursorX = buffer->cursorX;
+            snapshot.cursorY = buffer->cursorY;
+            snapshot.offsetX = buffer->offsetX;
+            snapshot.offsetY = buffer->offsetY;
+        }
+        else
+        {
+            snapshot.fileExisted = std::filesystem::exists(file.path);
+            if(snapshot.fileExisted)
+                snapshot.lines = readFileLinesForRename(file.path);
+        }
+
+        editor.renameUndoFiles.push_back(std::move(snapshot));
+    }
+    editor.renameUndoAvailable = !editor.renameUndoFiles.empty();
+}
+
 void Editor::closeRenamePopup()
 {
     renamePopupActive = false;
@@ -2136,6 +2170,7 @@ void Editor::closeRenamePopup()
 void Editor::openRenamePopupForCursor()
 {
     closeRenamePopup();
+    clearRenameUndoSnapshot();
     if(!currentBuffer || !lines || !cursorX || !cursorY)
     {
         setStatusMessage("rn: no buffer");
@@ -2385,11 +2420,16 @@ bool Editor::handleRenamePopupKey(int key)
     }
     if(c == keyCode(typed::TypedKey::KEY_A))
     {
-        saveState();
+        captureRenameUndoSnapshot(*this);
         int applied = applyRenameAll(*this);
-        *dirty = true;
         if(currentBuffer)
+        {
+            if(dirty)
+                *dirty = currentBuffer->dirty;
             currentBuffer->lspSyncNeeded = true;
+        }
+        if(applied <= 0)
+            clearRenameUndoSnapshot();
         adjustViewport();
         closeRenamePopup();
         setStatusMessage("rn: applied " + std::to_string(applied) + " edit(s)");
@@ -2400,10 +2440,13 @@ bool Editor::handleRenamePopupKey(int key)
         if(renameCurrentFile >= 0 &&
            renameCurrentFile < (int)renameFiles.size())
         {
-            saveState();
+            captureRenameUndoSnapshot(*this);
             int applied =
                 applyRenameFile(*this, renameFiles[renameCurrentFile]);
-            *dirty = true;
+            if(currentBuffer && dirty)
+                *dirty = currentBuffer->dirty;
+            if(applied <= 0)
+                clearRenameUndoSnapshot();
             renameStatus =
                 "Applied " + std::to_string(applied) + " edit(s) in file";
             finishRenameIfDone(*this);
@@ -2420,10 +2463,12 @@ bool Editor::handleRenamePopupKey(int key)
             if(renameCurrentEdit >= 0 &&
                renameCurrentEdit < (int)file.edits.size())
             {
-                saveState();
+                captureRenameUndoSnapshot(*this);
                 bool ok = applyRenameEdit(*this, file.edits[renameCurrentEdit]);
-                if(ok && dirty)
-                    *dirty = true;
+                if(currentBuffer && dirty)
+                    *dirty = currentBuffer->dirty;
+                if(!ok)
+                    clearRenameUndoSnapshot();
                 renameStatus = ok ? "Applied patch" : "Patch failed";
                 finishRenameIfDone(*this);
                 needsFullRedraw = true;

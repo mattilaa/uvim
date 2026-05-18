@@ -1,5 +1,7 @@
 #include "editor.h"
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 
 static size_t hash_lines(const std::vector<std::string>& src)
 {
@@ -17,10 +19,111 @@ static size_t hash_lines(const std::vector<std::string>& src)
     return h;
 }
 
+static bool write_lines_for_undo(const std::string& path,
+                                 const std::vector<std::string>& lines)
+{
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if(!file)
+        return false;
+    for(size_t i = 0; i < lines.size(); ++i)
+    {
+        file << lines[i];
+        if(i + 1 < lines.size())
+            file << '\n';
+    }
+    return true;
+}
+
+static Buffer* find_buffer_for_undo(Editor& editor, const std::string& path)
+{
+    std::error_code targetEc;
+    auto target = std::filesystem::weakly_canonical(path, targetEc);
+    for(auto& buffer : editor.buffers)
+    {
+        if(!buffer)
+            continue;
+        std::error_code ec;
+        auto candidate =
+            std::filesystem::weakly_canonical(buffer->filename, ec);
+        if((!targetEc && !ec && candidate == target) ||
+           buffer->filename == path)
+            return buffer.get();
+    }
+    return nullptr;
+}
+
+void Editor::clearRenameUndoSnapshot()
+{
+    renameUndoAvailable = false;
+    renameUndoFiles.clear();
+}
+
+bool Editor::restoreRenameUndoSnapshot()
+{
+    if(!renameUndoAvailable)
+        return false;
+
+    int restored = 0;
+    for(const auto& snapshot : renameUndoFiles)
+    {
+        if(Buffer* buffer = find_buffer_for_undo(*this, snapshot.path))
+        {
+            buffer->lines = snapshot.lines;
+            buffer->dirty = snapshot.hadOpenBuffer ? snapshot.dirty : false;
+            buffer->cursorX = snapshot.cursorX;
+            buffer->cursorY = snapshot.cursorY;
+            buffer->offsetX = snapshot.offsetX;
+            buffer->offsetY = snapshot.offsetY;
+            buffer->lspSyncNeeded = true;
+            buffer->blameValid = false;
+            ++restored;
+            continue;
+        }
+
+        if(snapshot.fileExisted)
+        {
+            if(write_lines_for_undo(snapshot.path, snapshot.lines))
+                ++restored;
+        }
+        else
+        {
+            std::error_code ec;
+            if(std::filesystem::remove(snapshot.path, ec) || !ec)
+                ++restored;
+        }
+    }
+
+    if(currentBuffer)
+    {
+        lines = &currentBuffer->lines;
+        cursorX = &currentBuffer->cursorX;
+        cursorY = &currentBuffer->cursorY;
+        offsetX = &currentBuffer->offsetX;
+        offsetY = &currentBuffer->offsetY;
+        dirty = &currentBuffer->dirty;
+        currentBuffer->lspSyncNeeded = true;
+        if(lines && !lines->empty())
+        {
+            *cursorY = std::clamp(*cursorY, 0, (int)lines->size() - 1);
+            *cursorX = std::clamp(*cursorX, 0, (int)(*lines)[*cursorY].size());
+        }
+    }
+
+    closeRenamePopup();
+    clearRenameUndoSnapshot();
+    adjustViewport();
+    needsFullRedraw = true;
+    setStatusMessage("rn: reverted rename in " + std::to_string(restored) +
+                     " file(s)");
+    return true;
+}
+
 void Editor::saveState()
 {
     if(!currentBuffer)
         return;
+
+    clearRenameUndoSnapshot();
 
     if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
     {
@@ -105,6 +208,9 @@ void Editor::undo()
     if(!currentBuffer)
         return;
 
+    if(restoreRenameUndoSnapshot())
+        return;
+
     if(currentBuffer->undoIndex > 0)
     {
         currentBuffer->undoIndex--;
@@ -132,8 +238,7 @@ void Editor::undo()
 
         bool isSaved = false;
         if(currentBuffer->savedUndoIndex >= 0 &&
-           currentBuffer->savedUndoIndex <
-               (int)currentBuffer->undoStack.size())
+           currentBuffer->savedUndoIndex < (int)currentBuffer->undoStack.size())
         {
             const auto& saved =
                 currentBuffer->undoStack[currentBuffer->savedUndoIndex];
@@ -142,8 +247,7 @@ void Editor::undo()
         bool hashSaved = false;
         if(currentBuffer->savedContentHashValid)
         {
-            hashSaved = (hash_lines(*lines) ==
-                         currentBuffer->savedContentHash);
+            hashSaved = (hash_lines(*lines) == currentBuffer->savedContentHash);
         }
         *dirty = !(isSaved || hashSaved);
         currentBuffer->lspSyncNeeded = true;
@@ -189,8 +293,7 @@ void Editor::redo()
 
         bool isSaved = false;
         if(currentBuffer->savedUndoIndex >= 0 &&
-           currentBuffer->savedUndoIndex <
-               (int)currentBuffer->undoStack.size())
+           currentBuffer->savedUndoIndex < (int)currentBuffer->undoStack.size())
         {
             const auto& saved =
                 currentBuffer->undoStack[currentBuffer->savedUndoIndex];
@@ -199,8 +302,7 @@ void Editor::redo()
         bool hashSaved = false;
         if(currentBuffer->savedContentHashValid)
         {
-            hashSaved = (hash_lines(*lines) ==
-                         currentBuffer->savedContentHash);
+            hashSaved = (hash_lines(*lines) == currentBuffer->savedContentHash);
         }
         *dirty = !(isSaved || hashSaved);
         currentBuffer->lspSyncNeeded = true;
