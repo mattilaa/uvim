@@ -32,6 +32,7 @@ class Formatter;
 class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
+class EditorDefinitionController;
 class EditorDrawingController;
 class EditorEditingController;
 class EditorFileController;
@@ -930,6 +931,7 @@ public:
     std::vector<JumpLocation> jumpForwardStack;
 
     bool isFileType(FileType type) const;
+    std::optional<FileType> getFileType() const;
 
     template <FileType Type>
     bool isFileType() const
@@ -985,6 +987,7 @@ private:
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
+    friend class EditorDefinitionController;
     friend class EditorDrawingController;
     friend class EditorEditingController;
     friend class EditorFileController;
@@ -1179,6 +1182,7 @@ private:
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorDefinitionController> definitionController;
     std::unique_ptr<EditorDrawingController> drawingController;
     std::unique_ptr<EditorCursorController> cursorController;
     std::unique_ptr<EditorEditingController> editingController;
