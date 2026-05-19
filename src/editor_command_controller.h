@@ -31,6 +31,7 @@ public:
     const std::string& commandHistorySearchQuery() const;
     void drawCommandPopup(std::string& output) const;
     void drawCommandHistoryPopup(std::string& output) const;
+    void executeCommand(std::string_view cmd);
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
     std::vector<std::string> getCommandCompletions(std::string_view prefix,
                                                    Mode mode);
