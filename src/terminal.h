@@ -117,6 +117,10 @@ public:
 
     static void unreadKey(int key);
     static bool hasBufferedKeys();
+    static std::string takeLastPasteText();
+#ifdef UVIM_TESTING
+    static void setLastPasteTextForTests(std::string text);
+#endif
     static int readKey();
     static int readKeyTimeout(int timeoutMs);
 
@@ -140,4 +144,5 @@ private:
 #endif
     static bool rawModeEnabled;
     static std::deque<int> keyBuffer;
+    static std::string lastPasteText;
 };

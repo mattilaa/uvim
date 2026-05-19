@@ -93,7 +93,6 @@ bool PythonFormatter::operator()(Mode mode)
         return true;
     }
 
-    editor.saveState();
     *editor.lines = std::move(newLines);
     if(editor.dirty)
         *editor.dirty = true;
@@ -106,6 +105,7 @@ bool PythonFormatter::operator()(Mode mode)
             std::clamp(savedX, 0, (int)(*editor.lines)[*editor.cursorY].size());
     }
 
+    editor.saveState();
     editor.adjustViewport();
     editor.needsFullRedraw = true;
     editor.setStatusMessage(editor.pythonFormatter + ": formatted buffer");

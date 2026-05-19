@@ -18,6 +18,7 @@ enum Mode
     FUZZY_FIND,
     BUFFER_BROWSER,
     GREP_SEARCH,
+    REGEX_SEARCH,
     OP_PENDING,
     REFERENCES,
     LSP_INFO,

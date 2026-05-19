@@ -32,8 +32,10 @@ class Formatter;
 class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
+class EditorDrawingController;
 class EditorEditingController;
 class EditorFileController;
+class EditorFileTypeController;
 class EditorGitController;
 class EditorCursorController;
 class EditorIndentController;
@@ -313,6 +315,7 @@ public:
     void drawEmojiPopup(std::string& output) const;
     static constexpr int kDiagnosticGutterWidth = 1;
     static constexpr int kGitBlameMaxWidth = 30;
+    static constexpr int kGitBlameDateTimeMaxWidth = 48;
     int lineNumberWidth() const;
     int gitBlameWidth() const;
     int gutterWidth() const;
@@ -369,18 +372,69 @@ public:
     int symbolPopupCursorY = -1;
     std::string symbolPopupText;
 
+    struct RenameEdit
+    {
+        std::string path;
+        int startLine = 0;
+        int startCharacter = 0;
+        int endLine = 0;
+        int endCharacter = 0;
+        std::string newText;
+        bool applied = false;
+    };
+
+    struct RenameFileEdits
+    {
+        std::string path;
+        std::vector<RenameEdit> edits;
+    };
+
+    struct RenameUndoFileSnapshot
+    {
+        std::string path;
+        std::vector<std::string> lines;
+        bool hadOpenBuffer = false;
+        bool fileExisted = false;
+        bool dirty = false;
+        int cursorX = 0;
+        int cursorY = 0;
+        int offsetX = 0;
+        int offsetY = 0;
+    };
+
+    bool renamePopupActive = false;
+    bool renamePopupReady = false;
+    std::string renameOriginal;
+    std::string renameInput;
+    std::string renameStatus;
+    int renameCursorX = -1;
+    int renameCursorY = -1;
+    int renameCurrentFile = 0;
+    int renameCurrentEdit = 0;
+    std::vector<RenameFileEdits> renameFiles;
+    bool renameUndoAvailable = false;
+    std::vector<RenameUndoFileSnapshot> renameUndoFiles;
+
+    void openRenamePopupForCursor();
+    void closeRenamePopup();
+    bool handleRenamePopupKey(int key);
+    void drawRenamePopup(std::string& output) const;
+    void clearRenameUndoSnapshot();
+    bool restoreRenameUndoSnapshot();
+
     void applyDiagnosticFix(int index);
     void updateClangFormatIndentWidth();
     int indentWidthForBraces() const;
     bool braceNewLineForAutoBraces() const;
     void commentLines(int startY, int endY);
-    void toggleGitBlame();
+    void toggleGitBlame(bool includeDateTime = false);
     void updateGitBlameForVisibleRange();
     std::string blameDisplayForLine(int row) const;
     std::string blameFullForLine(int row) const;
     void openGitShowCommitMode();
     std::vector<std::string> loadGitShowLines(const std::string& hash);
     void openGitLogMode();
+    void openGitLogModeForBlameLine();
     void openGitPrettyLogMode();
     void openGitLogModeForFile();
     void openGitStageMode();
@@ -447,6 +501,7 @@ public:
     bool useSystemClipboard = true;
     bool showRelativeLineNumbers = true;
     bool showGitBlame = false;
+    bool showGitBlameDateTime = false;
     bool showGitBlameInfo = true;
     bool gitUseDefaultColors = true;
     bool commentTogglePartial = false;
@@ -930,6 +985,7 @@ private:
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
+    friend class EditorDrawingController;
     friend class EditorEditingController;
     friend class EditorFileController;
     friend class EditorGitController;
@@ -1045,19 +1101,6 @@ private:
     void indentCurrentLineImpl();
     void dedentCurrentLineImpl();
     void handleLinewiseOperatorImpl(char op, int count);
-    void saveFileImpl();
-    void checkFileChangesImpl();
-    void reloadCurrentFileImpl();
-    bool fileExistsImpl(const std::string& path);
-    std::string getSymbolUnderCursorImpl();
-    std::string findAlternateFileImpl(const std::string& currentFile);
-    void jumpToAlternateFileImpl();
-    void goToFileImpl();
-    void showFileInfoImpl();
-    void deleteFilePromptImpl();
-    void renameFilePromptImpl();
-    void createNewFilePromptImpl();
-    void createNewDirectoryPromptImpl();
     void enterOperatorPendingImpl(char op);
     bool getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
                                 int& outStartX, int& outEndY, int& outEndX);
@@ -1136,9 +1179,11 @@ private:
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorDrawingController> drawingController;
     std::unique_ptr<EditorCursorController> cursorController;
     std::unique_ptr<EditorEditingController> editingController;
     std::unique_ptr<EditorFileController> fileController;
+    std::unique_ptr<EditorFileTypeController> fileTypeController;
     std::unique_ptr<EditorGitController> gitController;
     std::unique_ptr<EditorIndentController> indentController;
     std::unique_ptr<EditorLspController> lspController;

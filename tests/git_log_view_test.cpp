@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <gtest/gtest.h>
@@ -30,6 +31,12 @@ void write_file(const std::filesystem::path& path, std::string_view content)
 int run_cmd(const std::string& cmd)
 {
     return std::system(cmd.c_str());
+}
+
+std::string run_cmd_line(const std::vector<std::string>& args)
+{
+    ProcessPipe pipe(args);
+    return pipe ? pipe.readLine() : "";
 }
 
 void dispatch_string(ModeStateMachine& sm, const std::string& text)
@@ -139,6 +146,58 @@ TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
     smPtr->dispatch('g');
 
     EXPECT_STREQ(smPtr->currentStateName(), "GITSHOW");
+}
+
+TEST(GitLogCommandTest, GblOpensGitLogAtBlamedCommit)
+{
+    auto repo = make_temp_dir("uvim_gitlog_blame_");
+    std::string repoStr = repo.string();
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr +
+                      "\" config user.email \"test@example.com\""),
+              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.name \"Test\""),
+              0);
+
+    auto file = repo / "notes.txt";
+    write_file(file, "line one\n");
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"first\" -q"),
+              0);
+    std::string firstHash =
+        run_cmd_line({"git", "-C", repoStr, "rev-parse", "HEAD"});
+    ASSERT_FALSE(firstHash.empty());
+
+    write_file(file, "line one\nline two\n");
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"second\" -q"),
+              0);
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    ASSERT_NE(editor.cursorY, nullptr);
+    *editor.cursorY = 0;
+    editor.showGitBlame = true;
+
+    auto sm = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), NormalMode{});
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* smPtr = editor.getModeStateMachine();
+    ASSERT_NE(smPtr, nullptr);
+
+    Terminal::unreadKey('l');
+    Terminal::unreadKey('b');
+    smPtr->dispatch('g');
+
+    auto* log = smPtr->getState<GitLogMode>();
+    ASSERT_NE(log, nullptr);
+    ASSERT_LT(log->cursor, (int)log->filtered.size());
+    int selected = log->filtered[log->cursor];
+    ASSERT_LT(selected, (int)log->entries.size());
+    EXPECT_EQ(log->entries[selected].hash, firstHash);
 }
 
 TEST(GitFixupCommandTest, CommandOpensFixupForStagedFiles)
@@ -274,4 +333,30 @@ TEST(GitBlameDisplayTest, BlameDisplayTruncatesHashAndAuthorToEllipsis)
 
     EXPECT_EQ(blame, "84397dc Matti Laamanen Exam...");
     EXPECT_EQ(text_utils::utf8DisplayWidth(blame), Editor::kGitBlameMaxWidth);
+}
+
+TEST(GitBlameDisplayTest, ExtendedBlameDisplayIncludesDateTime)
+{
+    auto repo = make_temp_dir("uvim_blame_display_extended_");
+    auto file = repo / "notes.txt";
+    write_file(file, "line one\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+    ASSERT_NE(editor.currentBuffer, nullptr);
+
+    editor.showGitBlame = true;
+    editor.showGitBlameDateTime = true;
+    editor.currentBuffer->blameEntries.resize(1);
+    auto& entry = editor.currentBuffer->blameEntries[0];
+    entry.valid = true;
+    entry.hash = "84397dc123456789";
+    entry.author = "Matti";
+    entry.date = "2026-03-25 14:05";
+
+    const std::string blame = editor.blameDisplayForLine(0);
+
+    EXPECT_EQ(blame, "84397dc Matti 2026-03-25 14:05");
+    EXPECT_LT(text_utils::utf8DisplayWidth(blame),
+              Editor::kGitBlameDateTimeMaxWidth);
 }

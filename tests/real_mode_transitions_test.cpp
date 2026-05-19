@@ -3,9 +3,11 @@
 #include "terminal.h"
 #include "widgets/status_bar.h"
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <utility>
 
 namespace
@@ -33,6 +35,13 @@ void write_file(const std::filesystem::path& path, std::string_view content)
     out << content;
 }
 
+std::string read_file(const std::filesystem::path& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
+}
+
 void dispatch_command(ModeStateMachine& sm, std::string_view cmd)
 {
     sm.dispatch(':');
@@ -47,6 +56,74 @@ void set_buffer_filename(Editor& editor, std::string filename)
     if(editor.filename)
         *editor.filename = editor.currentBuffer->filename;
 }
+
+void set_env_var(const std::string& name, const std::string& value)
+{
+#ifdef _WIN32
+    _putenv_s(name.c_str(), value.c_str());
+#else
+    setenv(name.c_str(), value.c_str(), 1);
+#endif
+}
+
+void unset_env_var(const std::string& name)
+{
+#ifdef _WIN32
+    _putenv_s(name.c_str(), "");
+#else
+    unsetenv(name.c_str());
+#endif
+}
+
+class ScopedCurrentPath
+{
+public:
+    explicit ScopedCurrentPath(const std::filesystem::path& next)
+    {
+        std::error_code ec;
+        previous = std::filesystem::current_path(ec);
+        if(!ec)
+            std::filesystem::current_path(next, ec);
+    }
+
+    ~ScopedCurrentPath()
+    {
+        std::error_code ec;
+        if(!previous.empty())
+            std::filesystem::current_path(previous, ec);
+    }
+
+private:
+    std::filesystem::path previous;
+};
+
+class ScopedEnv
+{
+public:
+    ScopedEnv(const char* name, std::string value) : name(name)
+    {
+        const char* current = std::getenv(name);
+        if(current)
+        {
+            hadValue = true;
+            previous = current;
+        }
+        set_env_var(name, value);
+    }
+
+    ~ScopedEnv()
+    {
+        if(hadValue)
+            set_env_var(name, previous);
+        else
+            unset_env_var(name);
+    }
+
+private:
+    std::string name;
+    bool hadValue = false;
+    std::string previous;
+};
 } // namespace
 
 TEST(RealModeTransitionsTest, WelcomeEscStaysInWelcome)
@@ -421,6 +498,261 @@ TEST(RealModeTransitionsTest, NormalOpenAboveClosingCppBraceUsesIndentWidth)
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
+TEST(RealModeTransitionsTest, NormalRnRequestsClangRename)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    Terminal::unreadKey('n');
+    sm.dispatch('r');
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_FALSE(editor.renamePopupActive);
+    EXPECT_EQ(editor.statusMessage, "rn: clangd rename unavailable");
+}
+
+TEST(RealModeTransitionsTest, VisualRnRequestsClangRenameAndReturnsNormal)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualMode{});
+    Terminal::unreadKey('n');
+    sm.dispatch('r');
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_FALSE(editor.renamePopupActive);
+    EXPECT_EQ(editor.statusMessage, "rn: clangd rename unavailable");
+}
+
+TEST(RealModeTransitionsTest, UndoRestoresAllFilesTouchedByRename)
+{
+    auto root = make_temp_dir("uvim_rename_undo_");
+    auto current = root / "main.cpp";
+    auto other = root / "other.cpp";
+    write_file(current, "int value = 1;\n");
+    write_file(other, "int value = 2;\n");
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, current.string());
+    editor.currentBuffer->dirty = false;
+
+    Editor::RenameUndoFileSnapshot currentSnapshot;
+    currentSnapshot.path = current.string();
+    currentSnapshot.lines = {"int value = 1;"};
+    currentSnapshot.hadOpenBuffer = true;
+    currentSnapshot.fileExisted = true;
+    currentSnapshot.dirty = false;
+
+    Editor::RenameUndoFileSnapshot otherSnapshot;
+    otherSnapshot.path = other.string();
+    otherSnapshot.lines = {"int value = 2;"};
+    otherSnapshot.fileExisted = true;
+
+    editor.renameUndoAvailable = true;
+    editor.renameUndoFiles = {currentSnapshot, otherSnapshot};
+
+    editor.currentBuffer->lines = {"int renamed = 1;"};
+    editor.currentBuffer->dirty = true;
+    write_file(other, "int renamed = 2;\n");
+
+    editor.undo();
+
+    EXPECT_EQ(editor.currentBuffer->lines,
+              std::vector<std::string>({"int value = 1;"}));
+    EXPECT_FALSE(editor.currentBuffer->dirty);
+    EXPECT_EQ(read_file(other), "int value = 2;");
+    EXPECT_FALSE(editor.renameUndoAvailable);
+    EXPECT_EQ(editor.statusMessage, "rn: reverted rename in 2 file(s)");
+}
+
+TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)
+{
+#ifdef _WIN32
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
+#else
+    auto root = make_temp_dir("uvim_clipboard_");
+    auto binDir = root / "bin";
+    auto clipFile = root / "clipboard.txt";
+    std::filesystem::create_directories(binDir);
+    write_file(clipFile, "external");
+
+#ifdef __APPLE__
+    auto pasteCmd = binDir / "pbpaste";
+    write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
+#else
+    auto pasteCmd = binDir / "xclip";
+    write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
+#endif
+    std::filesystem::permissions(pasteCmd,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
+
+    const char* oldPath = std::getenv("PATH");
+    std::string path = binDir.string();
+    if(oldPath && *oldPath)
+        path += std::string(":") + oldPath;
+
+    ScopedEnv pathEnv("PATH", path);
+    ScopedEnv clipEnv("UVIM_TEST_CLIPBOARD", clipFile.string());
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"alpha"};
+    editor.yankBuffer = "stale";
+    *editor.cursorX = 4;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('p');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "alphaexternal");
+    EXPECT_EQ(editor.yankBuffer, "external");
+#endif
+}
+
+TEST(RealModeTransitionsTest, VisualLinePasteUsesSystemClipboard)
+{
+#ifdef _WIN32
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
+#else
+    auto root = make_temp_dir("uvim_visual_clipboard_");
+    auto binDir = root / "bin";
+    auto clipFile = root / "clipboard.txt";
+    std::filesystem::create_directories(binDir);
+    write_file(clipFile, "replacement\n");
+
+#ifdef __APPLE__
+    auto pasteCmd = binDir / "pbpaste";
+    write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
+#else
+    auto pasteCmd = binDir / "xclip";
+    write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
+#endif
+    std::filesystem::permissions(pasteCmd,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
+
+    const char* oldPath = std::getenv("PATH");
+    std::string path = binDir.string();
+    if(oldPath && *oldPath)
+        path += std::string(":") + oldPath;
+
+    ScopedEnv pathEnv("PATH", path);
+    ScopedEnv clipEnv("UVIM_TEST_CLIPBOARD", clipFile.string());
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"void f() {", "    old();", "}", "after"};
+    editor.yankBuffer = "stale\n";
+    *editor.cursorX = 9;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualLineMode{});
+    sm.dispatch('%');
+    sm.dispatch('p');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "replacement");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "after");
+    EXPECT_EQ(editor.yankBuffer, "replacement\n");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+#endif
+}
+
+TEST(RealModeTransitionsTest, UndoVisualLinePasteRestoresVisualStartCursor)
+{
+#ifdef _WIN32
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
+#else
+    auto root = make_temp_dir("uvim_visual_clipboard_undo_");
+    auto binDir = root / "bin";
+    auto clipFile = root / "clipboard.txt";
+    std::filesystem::create_directories(binDir);
+    write_file(clipFile, "replacement\n");
+
+#ifdef __APPLE__
+    auto pasteCmd = binDir / "pbpaste";
+    write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
+#else
+    auto pasteCmd = binDir / "xclip";
+    write_file(pasteCmd, "#!/bin/sh\ncat \"$UVIM_TEST_CLIPBOARD\"\n");
+#endif
+    std::filesystem::permissions(pasteCmd,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
+
+    const char* oldPath = std::getenv("PATH");
+    std::string path = binDir.string();
+    if(oldPath && *oldPath)
+        path += std::string(":") + oldPath;
+
+    ScopedEnv pathEnv("PATH", path);
+    ScopedEnv clipEnv("UVIM_TEST_CLIPBOARD", clipFile.string());
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"void f() {", "    old();", "}", "after"};
+    *editor.cursorX = 9;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualLineMode{});
+    sm.dispatch('%');
+    sm.dispatch('p');
+    editor.undo();
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 4u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "void f() {");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    old();");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "}");
+    EXPECT_EQ(editor.currentBuffer->lines[3], "after");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 9);
+#endif
+}
+
+TEST(RealModeTransitionsTest, VisualLineBracketedPasteReplacesSelection)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"void f() {", "    old();", "}", "after"};
+    editor.yankBuffer = "stale\n";
+    *editor.cursorX = 9;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualLineMode{});
+    sm.dispatch('%');
+    Terminal::setLastPasteTextForTests("replacement\n");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "replacement");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "after");
+    EXPECT_EQ(editor.yankBuffer, "replacement\n");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
 TEST(RealModeTransitionsTest, AutoBraceReturnInitializerStaysInlineInCpp)
 {
     Editor editor = Editor::createForTests();
@@ -557,7 +889,8 @@ TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideCall)
     EXPECT_EQ(*editor.cursorX, 13);
 }
 
-TEST(RealModeTransitionsTest, CompletionAutoParensOmitsSemicolonInsideIfCondition)
+TEST(RealModeTransitionsTest,
+     CompletionAutoParensOmitsSemicolonInsideIfCondition)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -616,6 +949,48 @@ TEST(RealModeTransitionsTest, IncrementalForwardSearchStartsAtSavedCursor)
     EXPECT_STREQ(sm.currentStateName(), "/");
 }
 
+TEST(RealModeTransitionsTest, SearchPromptAcceptsBracketedPaste)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"alpha one", "beta two", "alpha pasted"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('/');
+    Terminal::setLastPasteTextForTests("alpha pasted\n");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    EXPECT_EQ(editor.commandBuffer, "/alpha pasted");
+    ASSERT_EQ(editor.searchMatches.size(), 1u);
+    EXPECT_EQ(editor.searchMatches[0].row, 2);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 0);
+    EXPECT_STREQ(sm.currentStateName(), "/");
+}
+
+TEST(RealModeTransitionsTest, BackwardSearchPromptAcceptsBracketedPaste)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"alpha pasted", "beta two", "alpha one"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 2;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('?');
+    Terminal::setLastPasteTextForTests("alpha pasted");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    EXPECT_EQ(editor.commandBuffer, "?alpha pasted");
+    ASSERT_EQ(editor.searchMatches.size(), 1u);
+    EXPECT_EQ(editor.searchMatches[0].row, 0);
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 0);
+    EXPECT_STREQ(sm.currentStateName(), "?");
+}
+
 TEST(RealModeTransitionsTest, IncrementalForwardSearchRecomputesAfterEdit)
 {
     Editor editor = Editor::createForTests();
@@ -640,7 +1015,8 @@ TEST(RealModeTransitionsTest, IncrementalForwardSearchRecomputesAfterEdit)
     EXPECT_EQ(editor.currentMatchIndex, 0);
 }
 
-TEST(RealModeTransitionsTest, IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
+TEST(RealModeTransitionsTest,
+     IncrementalSearchClearsStaleHighlightsOnEmptyQuery)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -705,6 +1081,38 @@ TEST(RealModeTransitionsTest, FormatOnSaveSkipsFormatterHookWhenDisabled)
     editor.saveFile();
 
     EXPECT_FALSE(called);
+}
+
+TEST(RealModeTransitionsTest, ClangFormatUndoRestoresSavedBuffer)
+{
+    if(std::system("/opt/homebrew/bin/clang-format --version >/dev/null 2>&1 "
+                   "|| clang-format --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang-format is not available";
+
+    auto root = make_temp_dir("uvim_clang_format_undo_");
+    auto file = root / "format_me.cpp";
+    write_file(root / ".clang-format", "BasedOnStyle: LLVM\n"
+                                       "BreakBeforeBraces: Allman\n"
+                                       "IndentWidth: 4\n");
+    write_file(file, "int main(){\n"
+                     "if(true){\n"
+                     "return 1;\n"
+                     "}\n"
+                     "}\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string(), false);
+
+    const std::vector<std::string> originalLines = editor.currentBuffer->lines;
+    ASSERT_TRUE(editor.formatBuffer());
+    ASSERT_NE(editor.currentBuffer->lines, originalLines);
+    EXPECT_TRUE(*editor.dirty);
+
+    editor.undo();
+
+    EXPECT_NE(editor.statusMessage, "Already at oldest change");
+    EXPECT_EQ(editor.currentBuffer->lines, originalLines);
+    EXPECT_FALSE(*editor.dirty);
 }
 
 TEST(RealModeTransitionsTest, ExCommandOpensFileBrowser)
@@ -953,6 +1361,114 @@ TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
     sm.dispatch(keyCode(control::ControlKey::CTRL_S));
 
     EXPECT_STREQ(sm.currentStateName(), "GREP");
+}
+
+TEST(RealModeTransitionsTest, FuzzyFindAcceptsBracketedPaste)
+{
+    auto root = make_temp_dir("uvim_fuzzy_paste_");
+    write_file(root / "alpha-pasted.txt", "a\n");
+    write_file(root / "beta.txt", "b\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+
+    Terminal::setLastPasteTextForTests("alpha-pasted\n");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->query, "alpha-pasted");
+    ASSERT_FALSE(state->matches.empty());
+    EXPECT_EQ(state->matches.front().file.name, "alpha-pasted.txt");
+}
+
+TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
+{
+    auto root = make_temp_dir("uvim_grep_paste_");
+    write_file(root / "src" / "match.txt", "needle pasted\nother\n");
+    write_file(root / "src" / "miss.txt", "needle only\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    auto sm = makeMachine(editor, GrepSearchMode{});
+
+    Terminal::setLastPasteTextForTests("needle pasted\n");
+    sm.dispatch(keyCode(control::ControlKey::PASTE));
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->query, "needle pasted");
+    ASSERT_EQ(state->matches.size(), 1u);
+    EXPECT_NE(state->matches.front().filepath.find("match.txt"),
+              std::string::npos);
+    EXPECT_EQ(state->matches.front().lineNumber, 1);
+}
+
+TEST(RealModeTransitionsTest, CtrlXOpensRegexSearchForCurrentBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    set_buffer_filename(editor, "sample.cpp");
+    editor.currentBuffer->lines = {
+        "int value1 = 0;",
+        "int other = 0;",
+        "int value42 = 1;",
+    };
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_X));
+
+    ASSERT_STREQ(sm.currentStateName(), "REGEX");
+    auto* state = sm.getState<RegexSearchMode>();
+    ASSERT_NE(state, nullptr);
+
+    for(char c : std::string("value[0-9]+"))
+        sm.dispatch(c);
+
+    state = sm.getState<RegexSearchMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_EQ(state->matches.size(), 2u);
+    EXPECT_EQ(state->matches[0].lineNumber, 1);
+    EXPECT_EQ(state->matches[0].matchText, "value1");
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_FALSE(editor.searchMatches.empty());
+}
+
+TEST(RealModeTransitionsTest, RegexSearchCtrlSTogglesProjectFiles)
+{
+    auto root = make_temp_dir("uvim_regex_search_");
+    write_file(root / "a.cpp", "int needle1 = 0;\n");
+    write_file(root / "b.cpp", "int other = 0;\nint needle22 = 1;\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+    set_buffer_filename(editor, (root / "current.cpp").string());
+    editor.currentBuffer->lines = {"int local = 0;"};
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_X));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+    for(char c : std::string("needle[0-9]+"))
+        sm.dispatch(c);
+
+    auto* state = sm.getState<RegexSearchMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_TRUE(state->allFiles);
+    ASSERT_EQ(state->matches.size(), 2u);
+    EXPECT_NE(state->matches[0].filepath.find("a.cpp"), std::string::npos);
+    EXPECT_NE(state->matches[1].filepath.find("b.cpp"), std::string::npos);
 }
 
 TEST(RealModeTransitionsTest, FileBrowserNAndNShiftWrapSearchMatches)

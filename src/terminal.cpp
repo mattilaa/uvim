@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(UVIM_TERMINAL_WIN32)
@@ -21,6 +22,7 @@ termios Terminal::originalTermios;
 #endif
 bool Terminal::rawModeEnabled = false;
 std::deque<int> Terminal::keyBuffer;
+std::string Terminal::lastPasteText;
 
 namespace
 {
@@ -192,6 +194,13 @@ static bool read_byte(char& c) noexcept
     return true;
 }
 
+static bool read_byte_blocking(char& c) noexcept
+{
+    if(!wait_stdin(milliseconds(-1)))
+        return false;
+    return read_byte(c);
+}
+
 #endif
 
 } // namespace
@@ -224,6 +233,7 @@ void Terminal::enableRawMode()
     write("\x1b[?1049h");
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
+    write("\x1b[?2004h");
     // Ask terminal to report modifier combos so Ctrl+Shift+letter is
     // distinguishable. Two requests cover most terminals:
     //   - xterm modifyOtherKeys=2:   CSI 27 ; mod ; key ~
@@ -252,6 +262,7 @@ void Terminal::disableRawMode()
     write("\x1b[0 q");   // Reset cursor style to default
     write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l");
     write("\x1b[?1005l\x1b[?1006l\x1b[?1015l");
+    write("\x1b[?2004l");
     write("\x1b[>4;0m");
     write("\x1b[<u");
     write("\x1b[?1049l");
@@ -401,6 +412,20 @@ bool Terminal::hasBufferedKeys()
     return !keyBuffer.empty();
 }
 
+std::string Terminal::takeLastPasteText()
+{
+    std::string text = std::move(lastPasteText);
+    lastPasteText.clear();
+    return text;
+}
+
+#ifdef UVIM_TESTING
+void Terminal::setLastPasteTextForTests(std::string text)
+{
+    lastPasteText = std::move(text);
+}
+#endif
+
 int Terminal::readKeyInternal(int timeoutMs)
 {
     const auto timeout =
@@ -514,6 +539,31 @@ int Terminal::readKeyInternal(int timeoutMs)
 
                 if(final_byte == '~')
                 {
+                    if(ps.size() >= 1 && ps[0] == 200)
+                    {
+                        lastPasteText.clear();
+                        std::string tail;
+                        tail.reserve(6);
+                        while(true)
+                        {
+                            char b = 0;
+                            if(!read_byte_blocking(b))
+                                break;
+                            tail.push_back(b);
+                            if(tail.size() > 6)
+                            {
+                                lastPasteText.push_back(tail.front());
+                                tail.erase(tail.begin());
+                            }
+                            if(tail == "\x1b[201~")
+                            {
+                                break;
+                            }
+                        }
+                        return keyCode(control::ControlKey::PASTE);
+                    }
+                    if(ps.size() >= 1 && ps[0] == 201)
+                        return keyCode(control::ControlKey::ESC);
                     if(ps.size() == 3 && ps[0] == 27)
                     {
                         return decode(ps[1], ps[2]);

@@ -1,8 +1,26 @@
 #include "editor.h"
 #include "editor_utils.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include <algorithm>
+
+namespace
+{
+std::vector<std::string> bufferBrowserHelpTokens()
+{
+    return {"[Enter: switch]", "[Ctrl+X: close]",
+            "[Ctrl+Shift+X: close matches]", "[Esc: cancel]",
+            "[Ctrl+J/K: navigate]"};
+}
+
+int bufferBrowserVisibleRows(const Editor& editor)
+{
+    const int headerRows =
+        2 + HeaderHelp::lineCount(bufferBrowserHelpTokens(), editor.screenCols);
+    return std::max(1, editor.screenRows - headerRows);
+}
+} // namespace
 
 void BufferBrowserMode::on_enter(ModeContext& ctx)
 {
@@ -51,7 +69,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx, int key)
         if(bufferCursor < (int)bufferMatches.size() - 1)
         {
             bufferCursor++;
-            int visible = ed->screenRows - 4;
+            int visible = bufferBrowserVisibleRows(*ed);
             if(bufferCursor >= bufferOffset + visible)
                 bufferOffset = bufferCursor - visible + 1;
         }
@@ -68,17 +86,17 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx, int key)
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (ed->screenRows - 4) / 2;
+        int half = bufferBrowserVisibleRows(*ed) / 2;
         bufferCursor += half;
         if(bufferCursor >= (int)bufferMatches.size())
             bufferCursor = bufferMatches.size() - 1;
-        int visible = ed->screenRows - 4;
+        int visible = bufferBrowserVisibleRows(*ed);
         if(bufferCursor >= bufferOffset + visible)
             bufferOffset = bufferCursor - visible + 1;
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
-        int half = (ed->screenRows - 4) / 2;
+        int half = bufferBrowserVisibleRows(*ed) / 2;
         bufferCursor -= half;
         if(bufferCursor < 0)
             bufferCursor = 0;
@@ -144,11 +162,8 @@ void BufferBrowserMode::draw(Editor& editor) const
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [Enter: switch] [Ctrl+X: close] [Ctrl+Shift+X: close matches] "
-              "[Esc: cancel] [Ctrl+J/K: navigate]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       bufferBrowserHelpTokens());
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -166,7 +181,7 @@ void BufferBrowserMode::draw(Editor& editor) const
     }
     output += editor.theme.baseFg();
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = bufferBrowserVisibleRows(editor);
 
     for(int i = 0;
         i < availableRows && i + bufferOffset < (int)bufferMatches.size(); i++)

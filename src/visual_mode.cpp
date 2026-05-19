@@ -30,6 +30,23 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
+    if(ed->handleRenamePopupKey(c))
+        return std::nullopt;
+
+    if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = Terminal::takeLastPasteText();
+        if(text.empty())
+            return std::nullopt;
+        const bool useSystemClipboard = ed->useSystemClipboard;
+        ed->useSystemClipboard = false;
+        ed->deleteSelection();
+        ed->yankBuffer = text;
+        ed->pasteBefore();
+        ed->useSystemClipboard = useSystemClipboard;
+        return NormalMode{};
+    }
+
     if(ed->diagnosticPopupActive)
     {
         if(c == keyCode(typed::TypedKey::KEY_Q))
@@ -103,6 +120,19 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
     int count = std::max(1, ctx.repeatCount);
+
+    if(c == keyCode(typed::TypedKey::KEY_R))
+    {
+        int next = Terminal::readKeyTimeout(250);
+        if(next == keyCode(typed::TypedKey::KEY_N))
+        {
+            ed->openRenamePopupForCursor();
+            ctx.repeatCount = 0;
+            return NormalMode{};
+        }
+        if(next != -1)
+            Terminal::unreadKey(next);
+    }
 
     // ========================================================================
     // Leader Key (Space)
@@ -337,15 +367,20 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
     case keyCode(typed::TypedKey::KEY_P):
     {
         std::string pasteBuffer = ed->yankBuffer;
-        if(pasteBuffer.empty() && ed->useSystemClipboard)
+        if(ed->useSystemClipboard)
         {
-            pasteBuffer = ed->getSystemClipboard();
+            std::string clipboard = ed->getSystemClipboard();
+            if(!clipboard.empty())
+                pasteBuffer = clipboard;
         }
         if(pasteBuffer.empty())
             return std::nullopt;
-        ed->yankBuffer = pasteBuffer;
+        const bool useSystemClipboard = ed->useSystemClipboard;
+        ed->useSystemClipboard = false;
         ed->deleteSelection();
+        ed->yankBuffer = pasteBuffer;
         ed->pasteBefore();
+        ed->useSystemClipboard = useSystemClipboard;
         return NormalMode{};
     }
 

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
@@ -8,6 +9,20 @@
 
 namespace
 {
+std::vector<std::string> gitPatchHelpTokens()
+{
+    return {"[y: stage]", "[n: skip]", "[ctrl-j/k: next/prev]",
+            "[q/esc: back]"};
+}
+
+int gitPatchContentRows(const Editor& editor)
+{
+    const int headerRows =
+        1 + HeaderHelp::lineCount(gitPatchHelpTokens(), editor.screenCols);
+    constexpr int footerRows = 2;
+    return std::max(1, editor.screenRows - headerRows - footerRows);
+}
+
 std::string run_git_raw(const std::vector<std::string>& args)
 {
     ProcessPipe pipe(args);
@@ -119,13 +134,13 @@ void GitPatchMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
-                                              int key)
+std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         return returnStage;
     }
@@ -135,14 +150,16 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         return returnStage;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         int maxScroll = std::max(0, (int)hunks[hunkIndex].lines.size() -
-                                      (ed->screenRows - 3));
+                                        gitPatchContentRows(*ed));
         if(scrollOffset < maxScroll)
             scrollOffset++;
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
             scrollOffset--;
@@ -165,9 +182,8 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(typed::TypedKey::KEY_Y))
     {
-        ProcessPipe pipe({"git", "-C", repoDir, "apply", "--cached",
-                          "--unidiff-zero"},
-                         "w");
+        ProcessPipe pipe(
+            {"git", "-C", repoDir, "apply", "--cached", "--unidiff-zero"}, "w");
         if(pipe)
         {
             pipe.write(hunks[hunkIndex].patch);
@@ -221,12 +237,10 @@ void GitPatchMode::draw(Editor& editor) const
     output += Terminal::ESC_BOLD;
     output += "  GIT PATCH";
     output += editor.theme.reset();
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [y: stage] [n: skip] [ctrl-j/k: next/prev] [q/esc: back]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       gitPatchHelpTokens());
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = gitPatchContentRows(editor);
     if(hunks.empty())
     {
         for(int i = 0; i < availableRows; ++i)
@@ -257,9 +271,11 @@ void GitPatchMode::draw(Editor& editor) const
             {
                 const std::string& line = hunk.lines[lineIdx];
                 output += "  ";
-                if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_PLUS))
+                if(!line.empty() &&
+                   line[0] == keyCode(command::CommandKey::KEY_PLUS))
                     output += editor.theme.uiSuccess();
-                else if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_MINUS))
+                else if(!line.empty() &&
+                        line[0] == keyCode(command::CommandKey::KEY_MINUS))
                     output += editor.theme.uiError();
                 else if(line.rfind("@@ ", 0) == 0)
                     output += editor.theme.uiInfo();
@@ -280,9 +296,9 @@ void GitPatchMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.statusBar();
     std::string status = " PATCH";
-    std::string right =
-        " " + std::to_string(hunks.empty() ? 0 : hunkIndex + 1) + "/" +
-        std::to_string(hunks.size()) + " ";
+    std::string right = " " +
+                        std::to_string(hunks.empty() ? 0 : hunkIndex + 1) +
+                        "/" + std::to_string(hunks.size()) + " ";
     output += status;
     int padding = editor.screenCols - status.length() - right.length();
     if(padding > 0)

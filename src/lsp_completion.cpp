@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iterator>
 #include <optional>
 #include <unordered_map>
@@ -174,7 +175,8 @@ static std::string mlangBuiltinDetail(std::string_view label)
 static std::string mlangBuiltinDocumentation(std::string_view label)
 {
     if(label == "int")
-        return "Alias for a 32-bit signed integer. Maps to C int32_t in the runtime ABI.";
+        return "Alias for a 32-bit signed integer. Maps to C int32_t in the "
+               "runtime ABI.";
     if(label == "i32")
         return "Signed 32-bit integer type for arithmetic and integer APIs.";
     if(label == "i64")
@@ -188,21 +190,25 @@ static std::string mlangBuiltinDocumentation(std::string_view label)
     if(label == "string")
         return "UTF-8 string type used by stdlib and formatting macros.";
     if(label == "fn")
-        return "Starts a function declaration: fn name(params) -> ReturnType { ... }";
+        return "Starts a function declaration: fn name(params) -> ReturnType { "
+               "... }";
     if(label == "if")
         return "Conditional branch. Executes block when condition is true.";
     if(label == "else")
-        return "Alternate branch executed when the preceding if-condition is false.";
+        return "Alternate branch executed when the preceding if-condition is "
+               "false.";
     if(label == "let")
         return "Introduce an immutable local binding.";
     if(label == "var")
         return "Introduce a mutable local binding.";
     if(label == "for")
-        return "Loop construct, commonly used with ranges: for i in 0..n { ... }";
+        return "Loop construct, commonly used with ranges: for i in 0..n { ... "
+               "}";
     if(label == "return")
         return "Return a value from the current function.";
     if(label == "match")
-        return "Pattern matching expression over enum/option/result and literals.";
+        return "Pattern matching expression over enum/option/result and "
+               "literals.";
     if(label == "println!")
         return "Print formatted text to stdout and append a newline.";
     if(label == "print!")
@@ -527,13 +533,11 @@ void Editor::requestCompletion()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     static constexpr std::string_view kMlangBuiltins[] = {
-        "int",      "i32",      "i64",       "u32",      "u64",
-        "bool",     "string",   "fn",        "let",      "var",
-        "if",       "else",     "for",       "return",   "struct",
-        "enum",     "mod",      "use",       "match",    "impl",
-        "extern",   "pub",
-        "println!", "print!",  "eprintln!",  "eprint!",
-        "debug!",   "format!", "assert_eq!",
+        "int",       "i32",     "i64",    "u32",     "u64",        "bool",
+        "string",    "fn",      "let",    "var",     "if",         "else",
+        "for",       "return",  "struct", "enum",    "mod",        "use",
+        "match",     "impl",    "extern", "pub",     "println!",   "print!",
+        "eprintln!", "eprint!", "debug!", "format!", "assert_eq!",
     };
     auto keywordFallback =
         [&](const std::vector<std::string_view>& words, std::string_view label)
@@ -1227,6 +1231,7 @@ void Editor::rebuildCompletionFilter()
         int idx;
         int score;
     };
+
     std::vector<Scored> scored;
     scored.reserve(completionAll.size());
 
@@ -1397,6 +1402,7 @@ void Editor::rebuildEmojiFilter()
         int idx;
         int score;
     };
+
     std::vector<Scored> scored;
     scored.reserve(emojiEntries.size());
 
@@ -1512,8 +1518,7 @@ void Editor::drawEmojiPopup(std::string& output) const
         if(hasSelection)
         {
             const auto& e = emojiEntries[entryIndex];
-            int nameAvail =
-                innerW - (emojiGlyphWidth(e.emoji.c_str()) + 1);
+            int nameAvail = innerW - (emojiGlyphWidth(e.emoji.c_str()) + 1);
             if(nameAvail <= 0)
             {
                 row = e.emojiDisplay;
@@ -1990,6 +1995,576 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
         i += len;
     }
     return i;
+}
+
+static std::string joinLinesForLsp(const std::vector<std::string>& source)
+{
+    std::string text;
+    for(size_t i = 0; i < source.size(); ++i)
+    {
+        text += source[i];
+        if(i + 1 < source.size())
+            text.push_back('\n');
+    }
+    return text;
+}
+
+static bool applyRenameEditToLines(std::vector<std::string>& targetLines,
+                                   const Editor::RenameEdit& edit)
+{
+    if(edit.startLine < 0 || edit.startLine >= (int)targetLines.size())
+        return false;
+    if(edit.endLine < 0 || edit.endLine >= (int)targetLines.size())
+        return false;
+
+    std::string& startLine = targetLines[edit.startLine];
+    std::string& endLine = targetLines[edit.endLine];
+    int startByte = utf16ToUtf8ByteOffset(startLine, edit.startCharacter);
+    int endByte = utf16ToUtf8ByteOffset(endLine, edit.endCharacter);
+
+    if(edit.startLine == edit.endLine)
+    {
+        startLine = startLine.substr(0, startByte) + edit.newText +
+                    endLine.substr(endByte);
+        return true;
+    }
+
+    std::string prefix = startLine.substr(0, startByte);
+    std::string suffix = endLine.substr(endByte);
+    std::string combined = prefix + edit.newText + suffix;
+
+    std::vector<std::string> newLines;
+    size_t pos = 0;
+    while(pos <= combined.size())
+    {
+        size_t next = combined.find('\n', pos);
+        if(next == std::string::npos)
+        {
+            newLines.push_back(combined.substr(pos));
+            break;
+        }
+        newLines.push_back(combined.substr(pos, next - pos));
+        pos = next + 1;
+    }
+
+    targetLines.erase(targetLines.begin() + edit.startLine,
+                      targetLines.begin() + edit.endLine + 1);
+    targetLines.insert(targetLines.begin() + edit.startLine, newLines.begin(),
+                       newLines.end());
+    if(targetLines.empty())
+        targetLines.push_back("");
+    return true;
+}
+
+static std::vector<std::string> readFileLinesForRename(const std::string& path)
+{
+    std::vector<std::string> out;
+    std::ifstream file(path);
+    std::string line;
+    while(std::getline(file, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        out.push_back(line);
+    }
+    if(out.empty())
+        out.push_back("");
+    return out;
+}
+
+static bool writeFileLinesForRename(const std::string& path,
+                                    const std::vector<std::string>& lines)
+{
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if(!file)
+        return false;
+    for(size_t i = 0; i < lines.size(); ++i)
+    {
+        file << lines[i];
+        if(i + 1 < lines.size())
+            file << '\n';
+    }
+    return true;
+}
+
+Buffer* findBufferForPath(Editor& editor, const std::string& path)
+{
+    std::error_code targetEc;
+    auto target = std::filesystem::weakly_canonical(path, targetEc);
+    for(auto& buffer : editor.buffers)
+    {
+        if(!buffer)
+            continue;
+        std::error_code ec;
+        auto candidate =
+            std::filesystem::weakly_canonical(buffer->filename, ec);
+        if((!targetEc && !ec && candidate == target) ||
+           buffer->filename == path)
+            return buffer.get();
+    }
+    return nullptr;
+}
+
+static std::string renameDisplayPath(const Editor& editor,
+                                     const std::string& path)
+{
+    if(!editor.projectRoot.empty() && path.rfind(editor.projectRoot, 0) == 0)
+    {
+        size_t skip = editor.projectRoot.size();
+        if(skip < path.size() && (path[skip] == '/' || path[skip] == '\\'))
+            ++skip;
+        return path.substr(skip);
+    }
+    return path;
+}
+
+static void captureRenameUndoSnapshot(Editor& editor)
+{
+    if(editor.renameUndoAvailable)
+        return;
+
+    editor.clearRenameUndoSnapshot();
+    for(const auto& file : editor.renameFiles)
+    {
+        Editor::RenameUndoFileSnapshot snapshot;
+        snapshot.path = file.path;
+
+        if(Buffer* buffer = findBufferForPath(editor, file.path))
+        {
+            snapshot.hadOpenBuffer = true;
+            snapshot.fileExisted = true;
+            snapshot.lines = buffer->lines;
+            snapshot.dirty = buffer->dirty;
+            snapshot.cursorX = buffer->cursorX;
+            snapshot.cursorY = buffer->cursorY;
+            snapshot.offsetX = buffer->offsetX;
+            snapshot.offsetY = buffer->offsetY;
+        }
+        else
+        {
+            snapshot.fileExisted = std::filesystem::exists(file.path);
+            if(snapshot.fileExisted)
+                snapshot.lines = readFileLinesForRename(file.path);
+        }
+
+        editor.renameUndoFiles.push_back(std::move(snapshot));
+    }
+    editor.renameUndoAvailable = !editor.renameUndoFiles.empty();
+}
+
+void Editor::closeRenamePopup()
+{
+    renamePopupActive = false;
+    renamePopupReady = false;
+    renameOriginal.clear();
+    renameInput.clear();
+    renameStatus.clear();
+    renameCursorX = -1;
+    renameCursorY = -1;
+    renameCurrentFile = 0;
+    renameCurrentEdit = 0;
+    renameFiles.clear();
+    needsFullRedraw = true;
+}
+
+void Editor::openRenamePopupForCursor()
+{
+    closeRenamePopup();
+    clearRenameUndoSnapshot();
+    if(!currentBuffer || !lines || !cursorX || !cursorY)
+    {
+        setStatusMessage("rn: no buffer");
+        return;
+    }
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!isClangdLspEnabled() || !isFileType<FileType::Cpp>() ||
+       isFileType<FileType::Mla>() || !lspClient)
+    {
+        setStatusMessage("rn: clangd rename unavailable");
+        return;
+    }
+#else
+    setStatusMessage("rn: clangd rename unavailable");
+    return;
+#endif
+
+    renameOriginal = getSymbolUnderCursor();
+    if(renameOriginal.empty())
+    {
+        setStatusMessage("rn: no symbol under cursor");
+        return;
+    }
+
+    renameInput = renameOriginal;
+    renameCursorX = *cursorX;
+    renameCursorY = *cursorY;
+    renamePopupActive = true;
+    renamePopupReady = false;
+    renameStatus = "Enter new name";
+    needsFullRedraw = true;
+}
+
+static int renameRemainingEditCount(const Editor::RenameFileEdits& file)
+{
+    return (int)std::count_if(file.edits.begin(), file.edits.end(),
+                              [](const Editor::RenameEdit& edit)
+                              { return !edit.applied; });
+}
+
+static int
+renameTotalRemainingEditCount(const std::vector<Editor::RenameFileEdits>& files)
+{
+    int total = 0;
+    for(const auto& file : files)
+        total += renameRemainingEditCount(file);
+    return total;
+}
+
+static bool renameSelectNextPending(Editor& editor)
+{
+    for(int f = 0; f < (int)editor.renameFiles.size(); ++f)
+    {
+        if(renameRemainingEditCount(editor.renameFiles[f]) <= 0)
+            continue;
+        editor.renameCurrentFile = f;
+        for(int e = 0; e < (int)editor.renameFiles[f].edits.size(); ++e)
+        {
+            if(!editor.renameFiles[f].edits[e].applied)
+            {
+                editor.renameCurrentEdit = e;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool applyRenameEdit(Editor& editor, Editor::RenameEdit& edit)
+{
+    if(edit.applied)
+        return false;
+
+    if(Buffer* buffer = findBufferForPath(editor, edit.path))
+    {
+        bool ok = applyRenameEditToLines(buffer->lines, edit);
+        if(!ok)
+            return false;
+        buffer->dirty = true;
+        buffer->lspSyncNeeded = true;
+        buffer->blameValid = false;
+        edit.applied = true;
+        return true;
+    }
+
+    std::vector<std::string> fileLines = readFileLinesForRename(edit.path);
+    bool ok = applyRenameEditToLines(fileLines, edit);
+    if(!ok)
+        return false;
+    if(!writeFileLinesForRename(edit.path, fileLines))
+        return false;
+    edit.applied = true;
+    return true;
+}
+
+static int applyRenameFile(Editor& editor, Editor::RenameFileEdits& file)
+{
+    int applied = 0;
+    for(auto& edit : file.edits)
+    {
+        if(!edit.applied && applyRenameEdit(editor, edit))
+            ++applied;
+    }
+    return applied;
+}
+
+static int applyRenameAll(Editor& editor)
+{
+    int applied = 0;
+    for(auto& file : editor.renameFiles)
+        applied += applyRenameFile(editor, file);
+    return applied;
+}
+
+static void finishRenameIfDone(Editor& editor)
+{
+    if(renameTotalRemainingEditCount(editor.renameFiles) > 0)
+    {
+        renameSelectNextPending(editor);
+        return;
+    }
+    int files = (int)editor.renameFiles.size();
+    editor.closeRenamePopup();
+    editor.setStatusMessage("rn: rename applied in " + std::to_string(files) +
+                            " file(s)");
+}
+
+static bool prepareRenameEdits(Editor& editor)
+{
+    if(editor.renameInput.empty())
+    {
+        editor.renameStatus = "New name is empty";
+        return false;
+    }
+    if(editor.renameInput == editor.renameOriginal)
+    {
+        editor.renameStatus = "Name unchanged";
+        return false;
+    }
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!editor.currentBuffer || !editor.lines || !editor.lspClient)
+        return false;
+
+    std::string text = joinLinesForLsp(*editor.lines);
+    editor.lspClient->didChange(editor.currentBuffer->filename, text, "cpp");
+    editor.currentBuffer->lspSyncNeeded = false;
+
+    std::string lineText;
+    if(*editor.cursorY >= 0 && *editor.cursorY < (int)editor.lines->size())
+        lineText = (*editor.lines)[*editor.cursorY];
+
+    auto edits = editor.lspClient->renameSymbol(
+        editor.currentBuffer->filename, *editor.cursorY, *editor.cursorX,
+        lineText, editor.renameInput);
+
+    editor.renameFiles.clear();
+    for(auto& file : edits)
+    {
+        Editor::RenameFileEdits grouped;
+        grouped.path = file.path;
+        for(auto& edit : file.edits)
+        {
+            Editor::RenameEdit local;
+            local.path = file.path;
+            local.startLine = edit.startLine;
+            local.startCharacter = edit.startCharacter;
+            local.endLine = edit.endLine;
+            local.endCharacter = edit.endCharacter;
+            local.newText = edit.newText;
+            grouped.edits.push_back(std::move(local));
+        }
+        std::sort(grouped.edits.begin(), grouped.edits.end(),
+                  [](const Editor::RenameEdit& a, const Editor::RenameEdit& b)
+                  {
+                      if(a.startLine != b.startLine)
+                          return a.startLine > b.startLine;
+                      return a.startCharacter > b.startCharacter;
+                  });
+        if(!grouped.edits.empty())
+            editor.renameFiles.push_back(std::move(grouped));
+    }
+
+    if(editor.renameFiles.empty())
+    {
+        editor.renameStatus = "No rename edits returned";
+        return false;
+    }
+    editor.renamePopupReady = true;
+    editor.renameStatus = "p patch, y file, a all, n cancel";
+    renameSelectNextPending(editor);
+    return true;
+#else
+    editor.renameStatus = "clangd LSP not built";
+    return false;
+#endif
+}
+
+bool Editor::handleRenamePopupKey(int key)
+{
+    if(!renamePopupActive)
+        return false;
+
+    int c = keyCode(key);
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(control::ControlKey::CTRL_C))
+    {
+        closeRenamePopup();
+        setStatusMessage("rn: cancelled");
+        return true;
+    }
+
+    if(!renamePopupReady)
+    {
+        if(c == keyCode(control::ControlKey::ENTER))
+        {
+            renameStatus = "Requesting clangd rename...";
+            needsFullRedraw = true;
+            refreshScreen();
+            prepareRenameEdits(*this);
+            needsFullRedraw = true;
+            return true;
+        }
+        if(c == keyCode(control::ControlKey::BACKSPACE) ||
+           c == keyCode(control::ControlKey::DEL) ||
+           c == keyCode(control::ControlKey::CTRL_H) || c == 127)
+        {
+            if(!renameInput.empty())
+                renameInput.pop_back();
+            needsFullRedraw = true;
+            return true;
+        }
+        if(c >= 32 && c < 127)
+        {
+            renameInput.push_back(static_cast<char>(c));
+            needsFullRedraw = true;
+            return true;
+        }
+        return true;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_N))
+    {
+        closeRenamePopup();
+        setStatusMessage("rn: cancelled");
+        return true;
+    }
+    if(c == keyCode(typed::TypedKey::KEY_A))
+    {
+        captureRenameUndoSnapshot(*this);
+        int applied = applyRenameAll(*this);
+        if(currentBuffer)
+        {
+            if(dirty)
+                *dirty = currentBuffer->dirty;
+            currentBuffer->lspSyncNeeded = true;
+        }
+        if(applied <= 0)
+            clearRenameUndoSnapshot();
+        adjustViewport();
+        closeRenamePopup();
+        setStatusMessage("rn: applied " + std::to_string(applied) + " edit(s)");
+        return true;
+    }
+    if(c == keyCode(typed::TypedKey::KEY_Y))
+    {
+        if(renameCurrentFile >= 0 &&
+           renameCurrentFile < (int)renameFiles.size())
+        {
+            captureRenameUndoSnapshot(*this);
+            int applied =
+                applyRenameFile(*this, renameFiles[renameCurrentFile]);
+            if(currentBuffer && dirty)
+                *dirty = currentBuffer->dirty;
+            if(applied <= 0)
+                clearRenameUndoSnapshot();
+            renameStatus =
+                "Applied " + std::to_string(applied) + " edit(s) in file";
+            finishRenameIfDone(*this);
+            needsFullRedraw = true;
+        }
+        return true;
+    }
+    if(c == keyCode(typed::TypedKey::KEY_P))
+    {
+        if(renameCurrentFile >= 0 &&
+           renameCurrentFile < (int)renameFiles.size())
+        {
+            auto& file = renameFiles[renameCurrentFile];
+            if(renameCurrentEdit >= 0 &&
+               renameCurrentEdit < (int)file.edits.size())
+            {
+                captureRenameUndoSnapshot(*this);
+                bool ok = applyRenameEdit(*this, file.edits[renameCurrentEdit]);
+                if(currentBuffer && dirty)
+                    *dirty = currentBuffer->dirty;
+                if(!ok)
+                    clearRenameUndoSnapshot();
+                renameStatus = ok ? "Applied patch" : "Patch failed";
+                finishRenameIfDone(*this);
+                needsFullRedraw = true;
+            }
+        }
+        return true;
+    }
+
+    return true;
+}
+
+void Editor::drawRenamePopup(std::string& output) const
+{
+    if(!renamePopupActive || !currentBuffer)
+        return;
+
+    std::vector<std::string> rows;
+    rows.push_back("rename: " + renameOriginal);
+    rows.push_back("new: " + renameInput + "_");
+    if(renamePopupReady)
+    {
+        int remaining = renameTotalRemainingEditCount(renameFiles);
+        rows.push_back("remaining: " + std::to_string(remaining) + " edit(s)");
+        if(renameCurrentFile >= 0 &&
+           renameCurrentFile < (int)renameFiles.size())
+        {
+            const auto& file = renameFiles[renameCurrentFile];
+            rows.push_back("file: " + renameDisplayPath(*this, file.path));
+            rows.push_back("file edits: " +
+                           std::to_string(renameRemainingEditCount(file)));
+        }
+        rows.push_back("[p] patch  [y] file  [a] all  [n/esc] cancel");
+    }
+    if(!renameStatus.empty())
+        rows.push_back(renameStatus);
+
+    int innerW = 0;
+    for(const auto& row : rows)
+        innerW = std::max(innerW, text_utils::displayWidth(row));
+    int maxInner = std::max(20, screenCols - 6);
+    for(auto& row : rows)
+    {
+        while(text_utils::displayWidth(row) > maxInner && row.size() > 3)
+            row.pop_back();
+        if(text_utils::displayWidth(row) > maxInner)
+            row = row.substr(0, std::min<size_t>(row.size(), maxInner));
+    }
+    innerW = 0;
+    for(const auto& row : rows)
+        innerW = std::max(innerW, text_utils::displayWidth(row));
+
+    int totalW = std::min(screenCols, innerW + 4);
+    innerW = std::max(1, totalW - 4);
+    int totalH = (int)rows.size() + 2;
+
+    int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
+    int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
+    cy = std::clamp(cy, 1, std::max(1, screenRows));
+    cx = std::clamp(cx, 1, std::max(1, screenCols));
+
+    int top = cy + 1;
+    if(top + totalH - 1 > screenRows)
+        top = cy - totalH;
+    if(top < 1)
+        top = 1;
+    int left = cx;
+    if(left + totalW - 1 > screenCols)
+        left = std::max(1, screenCols - totalW + 1);
+
+    auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
+    moveTo(top, left);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
+
+    for(size_t i = 0; i < rows.size(); ++i)
+    {
+        moveTo(top + 1 + (int)i, left);
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+        output += " ";
+        output += i == 0 ? theme.uiAccent() : theme.panel();
+        output += rows[i];
+        output += theme.reset();
+        int pad = innerW - text_utils::displayWidth(rows[i]);
+        if(pad > 0)
+            output.append(pad, ' ');
+        output += " ";
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+    }
+
+    moveTo(top + 1 + (int)rows.size(), left);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerW + 2);
+    text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_RIGHT);
 }
 
 void Editor::applyDiagnosticFix(int index)

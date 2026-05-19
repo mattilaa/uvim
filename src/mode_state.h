@@ -22,6 +22,7 @@ struct FileBrowserMode;
 struct FuzzyFindMode;
 struct BufferBrowserMode;
 struct GrepSearchMode;
+struct RegexSearchMode;
 struct OperatorPendingMode;
 struct ReferencesMode;
 struct LspInfoMode;
@@ -40,8 +41,9 @@ using ModeState =
                  VisualLineMode, VisualBlockMode, CommandMode,
                  SearchForwardMode, SearchBackwardMode, FileBrowserMode,
                  FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 OperatorPendingMode, ReferencesMode, LspInfoMode, LocListMode,
-                 HelpMode, GitShowCommitMode, GitLogMode, GitStageMode,
-                 GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode>;
+                 RegexSearchMode, OperatorPendingMode, ReferencesMode,
+                 LspInfoMode, LocListMode, HelpMode, GitShowCommitMode,
+                 GitLogMode, GitStageMode, GitCommitMode, GitFixupMode,
+                 GitPatchMode, CommandOutputMode>;
 
 ModeState defaultExitMode(const Editor* editor);

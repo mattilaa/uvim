@@ -643,25 +643,15 @@ void Editor::pasteFromSystemClipboard()
 
 void Editor::pasteAfter()
 {
-    if(yankBuffer.empty())
+    if(useSystemClipboard)
     {
-        if(useSystemClipboard)
-        {
-            std::string clipboard = getSystemClipboard();
-            if(!clipboard.empty())
-            {
-                yankBuffer = clipboard;
-            }
-            else
-            {
-                return;
-            }
-        }
-        else
-        {
-            return;
-        }
+        std::string clipboard = getSystemClipboard();
+        if(!clipboard.empty())
+            yankBuffer = clipboard;
     }
+
+    if(yankBuffer.empty())
+        return;
 
     bool hasNewline = (yankBuffer.find('\n') != std::string::npos);
     if(yankBuffer.back() == '\n')
@@ -772,25 +762,15 @@ void Editor::pasteAfter()
 
 void Editor::pasteBefore()
 {
-    if(yankBuffer.empty())
+    if(useSystemClipboard)
     {
-        if(useSystemClipboard)
-        {
-            std::string clipboard = getSystemClipboard();
-            if(!clipboard.empty())
-            {
-                yankBuffer = clipboard;
-            }
-            else
-            {
-                return;
-            }
-        }
-        else
-        {
-            return;
-        }
+        std::string clipboard = getSystemClipboard();
+        if(!clipboard.empty())
+            yankBuffer = clipboard;
     }
+
+    if(yankBuffer.empty())
+        return;
 
     bool hasNewline = (yankBuffer.find('\n') != std::string::npos);
     if(yankBuffer.back() == '\n')

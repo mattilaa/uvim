@@ -5,8 +5,10 @@
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
+#include "editor_drawing_controller.h"
 #include "editor_editing_controller.h"
 #include "editor_file_controller.h"
+#include "editor_file_type_controller.h"
 #include "editor_git_controller.h"
 #include "editor_indent_controller.h"
 #include "editor_lsp_controller.h"
@@ -58,6 +60,24 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset);
 #endif
 
 namespace fs = std::filesystem;
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+template <FileType... Types, typename EnableFn>
+void ensure_lsp_for_file_type(Editor& editor, bool enabled,
+                              const std::string& path,
+                              const std::vector<std::string>& args,
+                              EnableFn&& enableFn)
+{
+    if(enabled || !((editor.isFileType<Types>()) || ...))
+        return;
+
+    std::string resolved = EditorPathUtilities::resolveExecutablePath(path);
+    if(resolved.empty())
+        return;
+
+    enableFn(true, resolved, args);
+}
+#endif
 
 using editor::helper::ascii_lower;
 using editor::helper::collect_js_ts_imports;
@@ -707,9 +727,11 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    drawingController = std::make_unique<EditorDrawingController>(*this);
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
+    fileTypeController = std::make_unique<EditorFileTypeController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
     indentController = std::make_unique<EditorIndentController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
@@ -737,9 +759,11 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    drawingController = std::make_unique<EditorDrawingController>(*this);
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
     fileController = std::make_unique<EditorFileController>(*this);
+    fileTypeController = std::make_unique<EditorFileTypeController>(*this);
     gitController = std::make_unique<EditorGitController>(*this);
     indentController = std::make_unique<EditorIndentController>(*this);
     lspController = std::make_unique<EditorLspController>(*this);
@@ -809,80 +833,52 @@ std::string Editor::testResolveMlangModule(const std::string& fromFile,
 
 bool Editor::isFileType(FileType type) const
 {
-    if(!syntaxHighlighter)
-        return false;
-
-    return syntaxHighlighter->isFileType(type);
+    return fileTypeController && fileTypeController->isFileType(type);
 }
 
 std::optional<FileType> Editor::getFormatterFileType() const
 {
-    std::string_view pathSv;
-    if(filename && !filename->empty())
-    {
-        pathSv = *filename;
-    }
-    else if(currentBuffer && !currentBuffer->filename.empty())
-    {
-        pathSv = currentBuffer->filename;
-    }
-    else
-    {
-        return {};
-    }
-
-    if(constants::is_filetype<constants::no_pattern, constants::cpp_suffixes,
-                              constants::cpp_stdlib_patterns>(pathSv))
+    if(isFileType<FileType::Cpp>())
     {
         return FileType::Cpp;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::mla_suffixes>(pathSv))
+    else if(isFileType<FileType::Mla>())
     {
         return FileType::Mla;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::robot_suffixes>(pathSv))
+    else if(isFileType<FileType::Robot>())
     {
         return FileType::Robot;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::python_suffixes>(pathSv))
+    else if(isFileType<FileType::Python>())
     {
         return FileType::Python;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::json_suffixes>(pathSv))
+    else if(isFileType<FileType::Json>())
     {
         return FileType::Json;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::yaml_suffixes>(pathSv))
+    else if(isFileType<FileType::Yaml>())
     {
         return FileType::Yaml;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::toml_suffixes>(pathSv))
+    else if(isFileType<FileType::Toml>())
     {
         return FileType::Toml;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::css_suffixes>(pathSv))
+    else if(isFileType<FileType::Css>())
     {
         return FileType::Css;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::javascript_suffixes>(pathSv))
+    else if(isFileType<FileType::JavaScript>())
     {
         return FileType::JavaScript;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::typescript_suffixes>(pathSv))
+    else if(isFileType<FileType::TypeScript>())
     {
         return FileType::TypeScript;
     }
-    else if(constants::is_filetype<constants::no_pattern,
-                                   constants::xml_suffixes>(pathSv))
+    else if(isFileType<FileType::Xml>())
     {
         return FileType::Xml;
     }
@@ -1214,6 +1210,9 @@ void Editor::setMode(Mode mode)
     case GREP_SEARCH:
         modeStateMachine->transitionTo(GrepSearchMode{});
         break;
+    case REGEX_SEARCH:
+        modeStateMachine->transitionTo(RegexSearchMode{});
+        break;
     case OP_PENDING:
         modeStateMachine->transitionTo(
             OperatorPendingMode{pendingOperator, pendingCount});
@@ -1288,6 +1287,8 @@ std::string Editor::getModeString() const
         return "BUFFERS";
     case GREP_SEARCH:
         return "GREP";
+    case REGEX_SEARCH:
+        return "REGEX";
     case LSP_INFO:
         return "LSP INFO";
     case REFERENCES:
@@ -1411,40 +1412,26 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(notifyLspOnOpen)
     {
-        auto ensure_lsp = [&](bool enabled, const std::string& path,
-                              const std::vector<std::string>& args,
-                              auto enableFn)
-        {
-            if(enabled)
-                return;
-            std::string resolved =
-                EditorPathUtilities::resolveExecutablePath(path);
-            if(resolved.empty())
-                return;
-            enableFn(true, resolved, args);
-        };
-
-        if(isFileType<FileType::Html>())
-            ensure_lsp(isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableHtmlLsp(on, p, a); });
-        if(isFileType<FileType::Css>())
-            ensure_lsp(isCssLspEnabled(), cssLspPath, cssLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableCssLsp(on, p, a); });
-        if(isFileType<FileType::Json>())
-            ensure_lsp(isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableJsonLsp(on, p, a); });
-        if(isFileType<FileType::JavaScript>() ||
-           isFileType<FileType::TypeScript>())
-            ensure_lsp(isTsLspEnabled(), tsLspPath, tsLspArgs,
-                       [&](bool on, const std::string& p,
-                           const std::vector<std::string>& a)
-                       { enableTsLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::Html>(
+            *this, isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableHtmlLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::Css>(
+            *this, isCssLspEnabled(), cssLspPath, cssLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableCssLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::Json>(
+            *this, isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableJsonLsp(on, p, a); });
+        ensure_lsp_for_file_type<FileType::JavaScript, FileType::TypeScript>(
+            *this, isTsLspEnabled(), tsLspPath, tsLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableTsLsp(on, p, a); });
     }
 #endif
 
@@ -3041,411 +3028,17 @@ void Editor::goToDefinition()
 
 void Editor::refreshScreen()
 {
-    modeController->syncModeFromStateMachine();
-
-    if(diagnosticPopupActive && (*cursorY != diagnosticPopupCursorY ||
-                                 *cursorX != diagnosticPopupCursorX))
-    {
-        closeDiagnosticPopup();
-    }
-    if(symbolPopupActive &&
-       (*cursorY != symbolPopupCursorY || *cursorX != symbolPopupCursorX))
-    {
-        closeSymbolPopup();
-    }
-
-    if(currentMode == WELCOME)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<WelcomeMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == FILE_BROWSER)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<FileBrowserMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == FUZZY_FIND)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<FuzzyFindMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == BUFFER_BROWSER)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<BufferBrowserMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GREP_SEARCH)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GrepSearchMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == LOC_LIST)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<LocListMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == REFERENCES)
-    {
-        drawReferences();
-        return;
-    }
-    if(currentMode == LSP_INFO)
-    {
-        drawLspInfo();
-        return;
-    }
-
-    if(currentMode == HELP)
-    {
-        if(!needsFullRedraw)
-            return;
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<HelpMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_SHOW)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitShowCommitMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_LOG)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitLogMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_STAGE)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitStageMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_COMMIT)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitCommitMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_FIXUP)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitFixupMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == GIT_PATCH)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<GitPatchMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-    if(currentMode == COMMAND_OUTPUT)
-    {
-        if(modeStateMachine)
-        {
-            if(auto* state = modeStateMachine->getState<CommandOutputMode>())
-            {
-                state->draw(*this);
-                return;
-            }
-        }
-        return;
-    }
-
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(currentMode != INSERT && !showGitBlame)
-    {
-        if(currentBuffer && isClangdLspEnabled() &&
-           isFileType<FileType::Cpp>() && !isFileType<FileType::Mla>() &&
-           lspClient && !currentBuffer->filename.empty())
-        {
-            size_t revision =
-                lspClient->diagnosticsRevision(currentBuffer->filename);
-            if(!currentBuffer->lspDiagnosticsSeenValid ||
-               revision != currentBuffer->lspDiagnosticsSeenRevision)
-            {
-                currentBuffer->lspDiagnosticsSeenRevision = revision;
-                currentBuffer->lspDiagnosticsSeenValid = true;
-                needsFullRedraw = true;
-            }
-        }
-        syncClangdDiagnosticsIfNeeded(false);
-        syncMlangSemanticTokensIfNeeded(false);
-    }
-#endif
-
-    static int lastOffsetY = -1;
-    static int lastOffsetX = -1;
-    static Mode lastMode = NORMAL;
-    static int lastVisualStartY = -1;
-    static int lastVisualEndY = -1;
-    static int lastCursorY = -1;
-    static bool lastCommandPopupActive = false;
-    static bool lastCommandHistoryPopupActive = false;
-
-    int prevOffsetY = lastOffsetY;
-    adjustViewport();
-
-    if(splitActive)
-    {
-        drawFullScreen();
-        lastOffsetY = *offsetY;
-        lastOffsetX = *offsetX;
-        lastMode = currentMode;
-        lastCursorY = *cursorY;
-        lastCommandPopupActive = commandPopupActive;
-        lastCommandHistoryPopupActive = commandHistorySearchActive;
-        needsFullRedraw = false;
-        return;
-    }
-
-    bool scrolled = (*offsetY != lastOffsetY || *offsetX != lastOffsetX);
-    bool modeChanged = (currentMode != lastMode);
-    int scrollDelta = *offsetY - lastOffsetY;
-    bool cursorMoved = (*cursorY != lastCursorY);
-
-    if(showGitBlame && currentBuffer && !currentBuffer->blameValid)
-        updateGitBlameForVisibleRange();
-
-    bool visualChanged = false;
-    if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
-       currentMode == VISUAL_BLOCK)
-    {
-        visualChanged = (currentBuffer->visualStartY != lastVisualStartY ||
-                         currentBuffer->visualEndY != lastVisualEndY);
-        lastVisualStartY = currentBuffer->visualStartY;
-        lastVisualEndY = currentBuffer->visualEndY;
-    }
-    else
-    {
-        lastVisualStartY = -1;
-        lastVisualEndY = -1;
-    }
-
-    bool isBufferEditingMode =
-        (currentMode == INSERT || currentMode == REPLACE);
-    bool isCommandLikeMode =
-        (currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
-         currentMode == SEARCH_BACKWARD);
-    bool isLiveSearchMode =
-        (currentMode == SEARCH_FORWARD || currentMode == SEARCH_BACKWARD);
-    bool commandPopupChanged =
-        (commandPopupActive != lastCommandPopupActive) ||
-        (commandHistorySearchActive != lastCommandHistoryPopupActive);
-    bool commandOverlayStable = isCommandLikeMode && !isLiveSearchMode &&
-                                !modeChanged &&
-                                scrollDelta == 0 && *offsetX == lastOffsetX &&
-                                !visualChanged && !commandPopupChanged;
-
-    if(modeChanged || (needsFullRedraw && !commandOverlayStable) ||
-       *offsetX != lastOffsetX || abs(scrollDelta) > screenRows / 2 ||
-       visualChanged ||
-       (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-        currentMode == VISUAL_BLOCK) ||
-       isBufferEditingMode)
-    {
-        drawFullScreen();
-    }
-    else if(scrollDelta == 0 && isCommandLikeMode)
-    {
-        // Command/search editing only affects overlays (message line, popups,
-        // cursor). Keep buffer rows stable to avoid tmux flicker.
-        const bool syncOutput = Terminal::useSynchronizedOutput();
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
-        Terminal::write(Terminal::ESC_HIDE_CURSOR);
-        drawStatusBarQuick();
-        drawMessageBarQuick();
-        updateCursorPosition(false);
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
-        Terminal::flush();
-    }
-    else if(scrollDelta != 0 && abs(scrollDelta) <= 5 &&
-            currentMode == NORMAL && !Terminal::isTmux())
-    {
-        drawScrollUpdate(scrollDelta);
-    }
-    else if(scrollDelta == 0 && currentMode == NORMAL)
-    {
-        const bool syncOutput = Terminal::useSynchronizedOutput();
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
-        Terminal::write(Terminal::ESC_HIDE_CURSOR);
-        if(cursorMoved && lineNumberWidth() > 0)
-            drawGutterQuick();
-        drawStatusBarQuick();
-        drawMessageBarQuick(); // Add this
-        updateCursorPosition(false);
-        if(syncOutput)
-            Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
-        Terminal::flush();
-    }
-    else
-    {
-        drawFullScreen();
-    }
-
-    lastOffsetY = *offsetY;
-    lastOffsetX = *offsetX;
-    lastMode = currentMode;
-    lastCursorY = *cursorY;
-    lastCommandPopupActive = commandPopupActive;
-    lastCommandHistoryPopupActive = commandHistorySearchActive;
-    needsFullRedraw = false;
+    drawingController->refreshScreen();
 }
 
 void Editor::updateCursorPosition(bool flushNow)
 {
-    int cursorRow, cursorCol;
-
-    if(currentMode == COMMAND || currentMode == SEARCH_FORWARD ||
-       currentMode == SEARCH_BACKWARD)
-    {
-        cursorRow = screenRows + 2;
-        int promptLen = (int)commandBuffer.length();
-        if(commandBuffer.empty())
-            promptLen = 1;
-        else if(currentMode == COMMAND && commandBuffer[0] != ':')
-            promptLen += 1;
-        cursorCol = promptLen + 1;
-    }
-    else
-    {
-        PaneLayout layout = getPaneLayout(activePane);
-        cursorRow = layout.y + (*cursorY - *offsetY) + 1 + tabBarRows();
-        if(utf8Mode && *cursorY >= 0 && *cursorY < (int)lines->size())
-        {
-            const std::string& line = (*lines)[*cursorY];
-            int start = std::clamp(*offsetX, 0, (int)line.size());
-            int end = std::clamp(*cursorX, 0, (int)line.size());
-            if(end < start)
-                std::swap(start, end);
-            cursorCol = text_utils::utf8DisplayWidth(
-                            std::string_view(line).substr(start, end - start)) +
-                        1 + gutterWidth() + layout.x;
-        }
-        else
-        {
-            cursorCol = layout.x + (*cursorX - *offsetX) + 1 + gutterWidth();
-        }
-    }
-
-    Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
-    bool hideCursor = (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                       currentMode == VISUAL_BLOCK);
-    Terminal::write(hideCursor ? Terminal::ESC_HIDE_CURSOR
-                               : Terminal::ESC_SHOW_CURSOR);
-    if(flushNow)
-        Terminal::flush();
-
-    lastCursorScreenY = cursorRow;
-    lastCursorScreenX = cursorCol;
+    drawingController->updateCursorPosition(flushNow);
 }
 
 void Editor::draw()
 {
-    refreshScreen();
-    // Some mode-specific draw paths return early from refreshScreen() and
-    // don't clear this flag. Clear it here after a completed frame.
-    needsFullRedraw = false;
+    drawingController->draw();
 }
 
 void Editor::setStatusMessage(const std::string& msg)
@@ -3540,9 +3133,9 @@ int Editor::gutterWidth() const
     return gitController->gutterWidth();
 }
 
-void Editor::toggleGitBlame()
+void Editor::toggleGitBlame(bool includeDateTime)
 {
-    gitController->toggleGitBlame();
+    gitController->toggleGitBlame(includeDateTime);
 }
 
 void Editor::updateGitBlameForVisibleRange()
@@ -3573,6 +3166,11 @@ std::vector<std::string> Editor::loadGitShowLines(const std::string& hash)
 void Editor::openGitLogMode()
 {
     gitController->openGitLogMode();
+}
+
+void Editor::openGitLogModeForBlameLine()
+{
+    gitController->openGitLogModeForBlameLine();
 }
 
 void Editor::openGitPrettyLogMode()
@@ -3838,16 +3436,29 @@ bool Editor::handleSetCommand(std::string_view cmd)
 void Editor::handleResize()
 {
 #if defined(UVIM_TERMINAL_POSIX)
-    if(!g_pending_resize)
-        return;
+    const bool signalPending = g_pending_resize != 0;
     g_pending_resize = 0;
 
     int rows = 0;
     int cols = 0;
     Terminal::getWindowSize(rows, cols);
-    screenRows = std::max(1, rows - 2);
-    screenCols = std::max(1, cols);
+    const int newScreenRows = std::max(1, rows - 2);
+    const int newScreenCols = std::max(1, cols);
+
+    if(!signalPending && newScreenRows == screenRows &&
+       newScreenCols == screenCols)
+        return;
+
+    screenRows = newScreenRows;
+    screenCols = newScreenCols;
     needsFullRedraw = true;
+
+    std::string output;
+    output += Terminal::ESC_RESET_SCROLL_REGION;
+    output += Terminal::ESC_CURSOR_HOME;
+    output += Terminal::ESC_CLEAR_SCREEN;
+    Terminal::write(output);
+    Terminal::flush();
 #endif
 }
 
@@ -3859,942 +3470,9 @@ int Editor::testCountLocForFile(const std::string& filepath)
 }
 #endif
 
-// Command execution
 void Editor::executeCommand(std::string_view cmd)
 {
-    if(!cmd.empty())
-    {
-        if(commandHistory.empty() || commandHistory.back() != cmd)
-            commandHistory.push_back(std::string(cmd));
-        commandHistoryIndex = -1;
-    }
-
-    if(!cmd.empty() && (cmd.front() == '/' || cmd.front() == '?'))
-    {
-        if(!hasBuffer())
-        {
-            setStatusMessage("No buffer");
-            return;
-        }
-        std::string query = std::string(cmd.substr(1));
-        if(!query.empty())
-        {
-            addSearchToHistory(query);
-            savedCursorX = *cursorX;
-            savedCursorY = *cursorY;
-            performSearch(query, cmd.front() == '/');
-        }
-        return;
-    }
-
-    if(handleSetCommand(cmd))
-        return;
-
-    auto is_edit_percent = [&](std::string_view command, bool& force) -> bool
-    {
-        std::string_view trimmed = trim_view(command);
-        auto check = [&](std::string_view prefix) -> bool
-        {
-            if(trimmed.rfind(prefix, 0) != 0)
-                return false;
-            std::string_view rest = trim_view(trimmed.substr(prefix.size()));
-            if(!rest.empty() && rest.front() == '!')
-            {
-                force = true;
-                rest = trim_view(rest.substr(1));
-            }
-            return rest == "%";
-        };
-        if(check("e"))
-            return true;
-        if(check("edit"))
-            return true;
-        return false;
-    };
-
-    bool editForce = false;
-    if(is_edit_percent(cmd, editForce))
-    {
-        if(!hasBuffer() || !filename || filename->empty())
-        {
-            setStatusMessage("No file to reload");
-            return;
-        }
-        if(*dirty && !editForce)
-        {
-            setStatusMessage(
-                "No write since last change (use :e!% to discard)");
-            return;
-        }
-        reloadCurrentFile();
-        return;
-    }
-
-    if(cmd == "lspinfo")
-    {
-        showLspInfo();
-        commandRequestedModeSet = true;
-        commandRequestedMode = LSP_INFO;
-        return;
-    }
-    auto is_ex_command = [&](std::string_view command,
-                             std::string& outPath) -> bool
-    {
-        auto trim = [](std::string_view value) -> std::string_view
-        {
-            size_t start = 0;
-            while(start < value.size() &&
-                  (value[start] == ' ' || value[start] == '\t'))
-                ++start;
-            size_t end = value.size();
-            while(end > start &&
-                  (value[end - 1] == ' ' || value[end - 1] == '\t'))
-                --end;
-            return value.substr(start, end - start);
-        };
-
-        auto starts_with = [&](std::string_view prefix) -> bool
-        { return command.rfind(prefix, 0) == 0; };
-
-        if(command == "Ex" || command == "ex" || command == "E" ||
-           command == "Explore" || command == "explore")
-        {
-            outPath = ".";
-            return true;
-        }
-
-        if(starts_with("Ex ") || starts_with("ex ") || starts_with("E ") ||
-           starts_with("Explore ") || starts_with("explore "))
-        {
-            std::string_view rest = command.substr(command.find(' ') + 1);
-            rest = trim(rest);
-            outPath = rest.empty() ? "." : std::string(rest);
-            return true;
-        }
-
-        return false;
-    };
-
-    std::string exPath;
-    if(is_ex_command(cmd, exPath))
-    {
-        commandRequestedModeSet = true;
-        commandRequestedMode = FILE_BROWSER;
-        commandRequestedPath = exPath;
-        return;
-    }
-    if(cmd == "format" || cmd == "fmt")
-    {
-        if(!formatBuffer())
-        {
-            setStatusMessage("format: unsupported file type");
-            return;
-        }
-    }
-    if(cmd == "emoji" || cmd == "em")
-    {
-        openEmojiPopup();
-        return;
-    }
-
-    if(cmd == "help" || cmd.rfind("help ", 0) == 0 || cmd.rfind("h ", 0) == 0)
-    {
-        std::string topic;
-        if(cmd == "help" || cmd == "h")
-        {
-            topic = ""; // Default help
-        }
-        else if(cmd.rfind("help ", 0) == 0)
-        {
-            topic = std::string(cmd.substr(5));
-        }
-        else if(cmd.rfind("h ", 0) == 0)
-        {
-            topic = std::string(cmd.substr(2));
-        }
-
-        commandRequestedModeSet = true;
-        commandRequestedMode = HELP;
-        commandRequestedPath = topic; // Reuse path field for topic
-        return;
-    }
-
-    std::string_view trimmedCmd = trim_view(cmd);
-    if(trimmedCmd == "git stage")
-    {
-        commandRequestedModeSet = true;
-        commandRequestedMode = GIT_STAGE;
-        commandRequestedPath.clear();
-        commandRequestedReturnMode = currentMode;
-        if(modeStateMachine && currentMode == FILE_BROWSER)
-        {
-            if(auto* fb = modeStateMachine->getState<FileBrowserMode>())
-            {
-                commandRequestedBrowseCursor = fb->browserCursor;
-                commandRequestedBrowseOffset = fb->browserOffset;
-                commandRequestedBrowseDirectory = fb->currentDirectory;
-            }
-        }
-        return;
-    }
-    if(trimmedCmd == "rfs")
-    {
-        refreshFileSearchCaches();
-        return;
-    }
-    if(trimmedCmd == "git add")
-    {
-        addCurrentBuffer();
-        return;
-    }
-    if(trimmedCmd == "git blame")
-    {
-        toggleGitBlame();
-        return;
-    }
-    if(trimmedCmd == "git log")
-    {
-        openGitLogMode();
-        return;
-    }
-    if(trimmedCmd == "git prettylog")
-    {
-        openGitPrettyLogMode();
-        return;
-    }
-    if(trimmedCmd == "git diff")
-    {
-        openGitDiffMode();
-        return;
-    }
-    if(trimmedCmd == "git commit")
-    {
-        openGitCommitMode();
-        return;
-    }
-    if(trimmedCmd == "git fixup")
-    {
-        openGitFixupMode();
-        return;
-    }
-    if(trimmedCmd == "git stash")
-    {
-        std::string msg;
-        runGitStash(msg);
-        setStatusMessage(msg);
-        return;
-    }
-    if(trimmedCmd == "git stash pop")
-    {
-        std::string msg;
-        runGitStashPop(msg);
-        setStatusMessage(msg);
-        return;
-    }
-
-    auto parse_loctotal_command = [&](std::string_view command,
-                                      std::string& outPath) -> bool
-    {
-        std::string_view trimmed = trim_view(command);
-        if(trimmed.rfind("loctotal", 0) != 0)
-            return false;
-
-        std::string_view rest = trim_view(trimmed.substr(8));
-        outPath = rest.empty() ? "" : std::string(rest);
-        return true;
-    };
-
-    auto parse_loc_command = [&](std::string_view command, bool& listView,
-                                 std::string& outPath) -> bool
-    {
-        std::string_view trimmed = trim_view(command);
-        if(trimmed.rfind("loc", 0) != 0 || trimmed.rfind("loctotal", 0) == 0)
-            return false;
-
-        std::string_view rest = trim_view(trimmed.substr(3));
-        listView = false;
-
-        if(!rest.empty() && rest.front() == '!')
-        {
-            listView = true;
-            rest = trim_view(rest.substr(1));
-        }
-
-        if(rest.rfind("-l", 0) == 0)
-        {
-            listView = true;
-            rest = trim_view(rest.substr(2));
-        }
-        else if(rest.rfind("--list", 0) == 0)
-        {
-            listView = true;
-            rest = trim_view(rest.substr(6));
-        }
-        else if(rest.rfind("list", 0) == 0)
-        {
-            listView = true;
-            rest = trim_view(rest.substr(4));
-        }
-
-        outPath = rest.empty() ? "" : std::string(rest);
-        return true;
-    };
-
-    std::string locTotalPath;
-    if(parse_loctotal_command(cmd, locTotalPath))
-    {
-        if(locTotalPath.empty())
-        {
-            if(!projectRoot.empty())
-                locTotalPath = projectRoot;
-            else
-                locTotalPath = ".";
-        }
-
-        locTotalPath = expandTildePath(locTotalPath);
-
-        std::error_code ec;
-        std::filesystem::path targetPath =
-            std::filesystem::absolute(locTotalPath, ec);
-        if(ec)
-            targetPath = std::filesystem::path(locTotalPath);
-
-        if(!std::filesystem::exists(targetPath, ec))
-        {
-            setStatusMessage("loctotal: path not found: " + locTotalPath);
-            return;
-        }
-
-        std::vector<std::string> files;
-        if(std::filesystem::is_directory(targetPath, ec))
-        {
-            GitIgnore gitignore;
-            if(respectGitignore)
-                gitignore.loadRecursive(targetPath.string());
-            collectLocFiles(targetPath.string(), 0, gitignore, files);
-        }
-        else
-        {
-            files.push_back(targetPath.string());
-        }
-
-        int totalLoc = 0;
-        for(const auto& file : files)
-        {
-            if(!locIsTextFile(file))
-                continue;
-            auto rules = editor::helper::locCommentRulesForPath(file);
-            totalLoc += locCountInFile(file, rules);
-        }
-
-        statusMessage.clear();
-        locMessage = "LOC total " + std::to_string(totalLoc);
-        needsFullRedraw = true;
-        return;
-    }
-
-    bool locListView = false;
-    std::string locPath;
-    if(parse_loc_command(cmd, locListView, locPath))
-    {
-        bool locExplicitBuffer = false;
-        if(locPath.empty())
-        {
-            if(hasBuffer() && filename && !filename->empty())
-            {
-                locPath = *filename;
-                locExplicitBuffer = true;
-            }
-            else
-            {
-                locPath = ".";
-            }
-        }
-        else if(locPath == "%")
-        {
-            if(hasBuffer() && filename && !filename->empty())
-            {
-                locPath = *filename;
-                locExplicitBuffer = true;
-            }
-            else
-            {
-                setStatusMessage("loc: no current buffer");
-                return;
-            }
-        }
-
-        locPath = expandTildePath(locPath);
-
-        std::error_code ec;
-        std::filesystem::path targetPath =
-            std::filesystem::absolute(locPath, ec);
-        if(ec)
-            targetPath = std::filesystem::path(locPath);
-
-        if(!std::filesystem::exists(targetPath, ec))
-        {
-            setStatusMessage("loc: path not found: " + locPath);
-            return;
-        }
-
-        std::vector<std::string> files;
-        std::filesystem::path rootPath;
-        std::string rootDisplay = locPath;
-        bool useBufferForSingle = false;
-        if(hasBuffer() && filename && !filename->empty())
-        {
-            std::error_code currErr;
-            std::filesystem::path currentPath =
-                std::filesystem::absolute(*filename, currErr);
-            if(currErr)
-                currentPath = std::filesystem::path(*filename);
-            std::error_code eqErr;
-            if(std::filesystem::equivalent(targetPath, currentPath, eqErr))
-                useBufferForSingle = true;
-        }
-        if(locExplicitBuffer)
-            useBufferForSingle = true;
-
-        if(std::filesystem::is_directory(targetPath, ec))
-        {
-            locListView = true;
-            rootPath = targetPath;
-            GitIgnore gitignore;
-            if(respectGitignore)
-                gitignore.loadRecursive(rootPath.string());
-            collectLocFiles(rootPath.string(), 0, gitignore, files);
-        }
-        else
-        {
-            rootPath = targetPath.parent_path();
-            files.push_back(targetPath.string());
-        }
-
-        std::vector<LocEntry> entries;
-        int totalLoc = 0;
-
-        for(const auto& file : files)
-        {
-            if(!locIsTextFile(file))
-                continue;
-
-            auto rules = editor::helper::locCommentRulesForPath(file);
-            int loc = 0;
-            if(!locListView && useBufferForSingle)
-                loc = locCountInLines(*lines, rules);
-            else
-                loc = locCountInFile(file, rules);
-            totalLoc += loc;
-
-            if(locListView)
-            {
-                LocEntry entry;
-                entry.path = file;
-
-                std::string displayPath = file;
-                if(!rootPath.empty())
-                {
-                    std::error_code relErr;
-                    std::filesystem::path rel =
-                        std::filesystem::relative(file, rootPath, relErr);
-                    if(!relErr)
-                        displayPath = rel.string();
-                }
-                entry.displayPath = displayPath;
-                entry.loc = loc;
-                entries.push_back(std::move(entry));
-            }
-        }
-
-        if(locListView)
-        {
-            std::sort(entries.begin(), entries.end(),
-                      [](const LocEntry& a, const LocEntry& b)
-                      { return a.displayPath < b.displayPath; });
-            locList = std::move(entries);
-            locListTotal = totalLoc;
-            locListRoot = rootDisplay;
-            commandRequestedModeSet = true;
-            commandRequestedMode = LOC_LIST;
-            commandRequestedPath.clear();
-            commandRequestedReturnMode.reset();
-            commandRequestedBrowseCursor = 0;
-            commandRequestedBrowseOffset = 0;
-            commandRequestedBrowseDirectory.clear();
-        }
-
-        statusMessage.clear();
-        locMessage = "LOC " + std::to_string(totalLoc);
-        needsFullRedraw = true;
-        return;
-    }
-
-    if(!hasBuffer())
-    {
-        if(cmd == "q" || cmd == "q!" || cmd == "qa" || cmd == "qa!" ||
-           cmd == "qall" || cmd == "qall!")
-        {
-            Terminal::clearScreen();
-            exit(0);
-        }
-        if(cmd == "pwd")
-        {
-            fs::path cwd = EditorPathUtilities::currentWorkingDirectory();
-            if(!cwd.empty())
-                setStatusMessage(cwd.string());
-            else
-                setStatusMessage("Error getting current directory");
-            return;
-        }
-        if(cmd == "cdr")
-        {
-            if(projectRoot.empty())
-            {
-                setStatusMessage("Project root not set");
-                return;
-            }
-
-            std::string displayPath;
-            std::string errorMessage;
-            if(EditorPathUtilities::setWorkingDirectory(
-                   projectRoot, displayPath, errorMessage))
-                setStatusMessage(displayPath);
-            else
-                setStatusMessage("Cannot change to: " + projectRoot + " (" +
-                                 errorMessage + ")");
-            return;
-        }
-        if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
-        {
-            std::string path =
-                (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
-            if(path.empty())
-                path = EditorPathUtilities::homeDirectory().string();
-
-            std::string displayPath;
-            std::string errorMessage;
-            if(EditorPathUtilities::setWorkingDirectory(path, displayPath,
-                                                        errorMessage))
-                setStatusMessage(displayPath);
-            else
-                setStatusMessage("Cannot change to: " + path + " (" +
-                                 errorMessage + ")");
-            return;
-        }
-        if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
-           cmd == "Vexplore")
-        {
-            setStatusMessage("Split explorer not yet implemented");
-            commandRequestedModeSet = true;
-            commandRequestedMode = FILE_BROWSER;
-            commandRequestedPath = ".";
-            return;
-        }
-        if(cmd == "ls" || cmd == "buffers" || cmd == "bn" || cmd == "bnext" ||
-           cmd == "bp" || cmd == "bprev" || cmd == "bprevious" || cmd == "bd" ||
-           cmd == "bdelete")
-        {
-            setStatusMessage("No buffers");
-            return;
-        }
-        if(cmd == "enew")
-        {
-            createNewBuffer();
-            setStatusMessage("New buffer created");
-            return;
-        }
-        if(cmd.rfind("e ", 0) == 0 || cmd.rfind("edit ", 0) == 0)
-        {
-            std::string path = (cmd.rfind("e ", 0) == 0)
-                                   ? std::string(cmd.substr(2))
-                                   : std::string(cmd.substr(5));
-
-            if(path == ".")
-            {
-                commandRequestedModeSet = true;
-                commandRequestedMode = FILE_BROWSER;
-                commandRequestedPath = ".";
-                return;
-            }
-            else
-            {
-                std::error_code ec;
-                if(std::filesystem::is_directory(path, ec) && !ec)
-                {
-                    commandRequestedModeSet = true;
-                    commandRequestedMode = FILE_BROWSER;
-                    commandRequestedPath = path;
-                    return;
-                }
-                openFile(path);
-                setMode(NORMAL);
-                return;
-            }
-        }
-        if(cmd.rfind("tabnew", 0) == 0 || cmd.rfind("tabe ", 0) == 0)
-        {
-            std::string fname = "";
-            if(cmd.rfind("tabe ", 0) == 0 && cmd.length() > 5)
-            {
-                fname = std::string(cmd.substr(5));
-            }
-            else if(cmd.rfind("tabnew ", 0) == 0 && cmd.length() > 7)
-            {
-                fname = std::string(cmd.substr(7));
-            }
-
-            if(!fname.empty())
-            {
-                openFile(fname);
-            }
-            else
-            {
-                createNewBuffer();
-                setStatusMessage("New buffer created");
-            }
-            return;
-        }
-
-        setStatusMessage("No buffer");
-        return;
-    }
-
-    auto saveAllBuffers = [&](bool forceExit) -> bool
-    {
-        int savedCount = 0;
-        int skippedNoName = 0;
-        int currentBuf = currentBufferIndex;
-
-        for(size_t i = 0; i < buffers.size(); i++)
-        {
-            if(buffers[i]->dirty)
-            {
-                if(buffers[i]->filename.empty())
-                {
-                    skippedNoName++;
-                    continue;
-                }
-                switchToBuffer(i);
-                saveFile();
-                savedCount++;
-            }
-        }
-
-        switchToBuffer(currentBuf);
-
-        if(!forceExit)
-        {
-            if(skippedNoName > 0)
-            {
-                setStatusMessage("Saved " + std::to_string(savedCount) +
-                                 " buffer(s), " +
-                                 std::to_string(skippedNoName) + " unnamed");
-            }
-            else
-            {
-                setStatusMessage("Saved " + std::to_string(savedCount) +
-                                 " buffer(s)");
-            }
-        }
-
-        return skippedNoName == 0;
-    };
-
-    // Buffer commands
-    if(cmd == "bn" || cmd == "bnext")
-    {
-        nextBuffer();
-    }
-    else if(cmd == "bp" || cmd == "bprev" || cmd == "bprevious")
-    {
-        previousBuffer();
-    }
-    else if(cmd == "bd" || cmd == "bdelete")
-    {
-        closeCurrentBuffer();
-    }
-    else if(cmd == "bd!")
-    {
-        *dirty = false;
-        closeCurrentBuffer();
-    }
-    else if(cmd == "ls" || cmd == "buffers")
-    {
-        listBuffers();
-    }
-    else if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
-    {
-        std::string_view arg =
-            (cmd.rfind("b ", 0) == 0) ? cmd.substr(2) : cmd.substr(7);
-        arg = trim_view(arg);
-
-        int bufNum = 0;
-        if(parse_int(arg, bufNum))
-        {
-            bufNum -= 1;
-            if(bufNum >= 0 && bufNum < (int)buffers.size())
-            {
-                switchToBuffer(bufNum);
-            }
-            else
-            {
-                setStatusMessage("Buffer " + std::string(arg) +
-                                 " does not exist");
-            }
-        }
-        else
-        {
-            std::string needle(arg);
-            for(size_t i = 0; i < buffers.size(); i++)
-            {
-                if(buffers[i]->filename.find(needle) != std::string::npos)
-                {
-                    switchToBuffer(i);
-                    return;
-                }
-            }
-            setStatusMessage("No matching buffer for " + needle);
-        }
-    }
-    else if(cmd == "enew")
-    {
-        createNewBuffer();
-        setStatusMessage("New buffer created");
-    }
-    else if(cmd == "wall" || cmd == "wa")
-    {
-        saveAllBuffers(false);
-    }
-    else if(cmd == "wa!")
-    {
-        saveAllBuffers(false);
-    }
-    else if(cmd == "qall" || cmd == "qa")
-    {
-        bool hasUnsaved = false;
-        for(const auto& buf : buffers)
-        {
-            if(buf->dirty)
-            {
-                hasUnsaved = true;
-                break;
-            }
-        }
-
-        if(hasUnsaved)
-        {
-            setStatusMessage(
-                "Some buffers have unsaved changes (add ! to override)");
-        }
-        else
-        {
-            Terminal::clearScreen();
-            exit(0);
-        }
-    }
-    else if(cmd == "qall!" || cmd == "qa!")
-    {
-        Terminal::clearScreen();
-        exit(0);
-    }
-    else if(cmd == "qw" || cmd == "wqall" || cmd == "wqa" || cmd == "xa")
-    {
-        if(!saveAllBuffers(false))
-        {
-            setStatusMessage("Some buffers have no name (use :qw! to force)");
-            return;
-        }
-        Terminal::clearScreen();
-        exit(0);
-    }
-    // File browser commands
-    else if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Vex" ||
-            cmd == "Vexplore")
-    {
-        setStatusMessage("Split explorer not yet implemented");
-        commandRequestedModeSet = true;
-        commandRequestedMode = FILE_BROWSER;
-        commandRequestedPath = ".";
-        return;
-    }
-    // Standard commands
-    else if(cmd == "w")
-    {
-        saveFile();
-    }
-    else if(cmd == "vs" || cmd == "vsplit")
-    {
-        enableSplit(true);
-    }
-    else if(cmd == "vh" || cmd == "hs" || cmd == "hsplit")
-    {
-        enableSplit(false);
-    }
-    else if(cmd == "q")
-    {
-        if(splitActive)
-        {
-            closeSplit();
-            return;
-        }
-        bool anyDirty = false;
-        for(const auto& buf : buffers)
-        {
-            if(buf->dirty)
-            {
-                anyDirty = true;
-                break;
-            }
-        }
-        if(anyDirty)
-        {
-            setStatusMessage("No write since last change (add ! to override)");
-        }
-        else
-        {
-            Terminal::clearScreen();
-            exit(0);
-        }
-    }
-    else if(cmd == "q!")
-    {
-        Terminal::clearScreen();
-        exit(0);
-    }
-    else if(cmd == "qw!" || cmd == "wqall!" || cmd == "wqa!")
-    {
-        saveAllBuffers(true);
-        Terminal::clearScreen();
-        exit(0);
-    }
-    else if(cmd == "wq" || cmd == "x")
-    {
-        saveFile();
-        if(buffers.size() > 1)
-        {
-            closeCurrentBuffer();
-        }
-        else
-        {
-            Terminal::clearScreen();
-            exit(0);
-        }
-    }
-    else if(cmd.rfind("w ", 0) == 0)
-    {
-        *filename = std::string(cmd.substr(2));
-        saveFile();
-    }
-    else if(cmd.rfind("e ", 0) == 0 || cmd.rfind("edit ", 0) == 0)
-    {
-        std::string path = (cmd.rfind("e ", 0) == 0)
-                               ? std::string(cmd.substr(2))
-                               : std::string(cmd.substr(5));
-
-        if(path == ".")
-        {
-            commandRequestedModeSet = true;
-            commandRequestedMode = FILE_BROWSER;
-            commandRequestedPath = ".";
-            return;
-        }
-        else
-        {
-            std::error_code ec;
-            if(std::filesystem::is_directory(path, ec) && !ec)
-            {
-                commandRequestedModeSet = true;
-                commandRequestedMode = FILE_BROWSER;
-                commandRequestedPath = path;
-                return;
-            }
-            openFile(path);
-            setMode(NORMAL);
-        }
-    }
-    else if(cmd.rfind("tabnew", 0) == 0 || cmd.rfind("tabe ", 0) == 0)
-    {
-        std::string fname = "";
-        if(cmd.rfind("tabe ", 0) == 0 && cmd.length() > 5)
-        {
-            fname = std::string(cmd.substr(5));
-        }
-        else if(cmd.rfind("tabnew ", 0) == 0 && cmd.length() > 7)
-        {
-            fname = std::string(cmd.substr(7));
-        }
-
-        if(!fname.empty())
-        {
-            openFile(fname);
-        }
-        else
-        {
-            createNewBuffer();
-            setStatusMessage("New buffer created");
-        }
-    }
-    else if(cmd == "tabn" || cmd == "tabnext")
-    {
-        nextBuffer();
-    }
-    else if(cmd == "tabp" || cmd == "tabprev")
-    {
-        previousBuffer();
-    }
-    else if(cmd == "pwd")
-    {
-        fs::path cwd = EditorPathUtilities::currentWorkingDirectory();
-        if(!cwd.empty())
-            setStatusMessage(cwd.string());
-        else
-            setStatusMessage("Error getting current directory");
-    }
-    else if(cmd == "cdr")
-    {
-        if(projectRoot.empty())
-        {
-            setStatusMessage("Project root not set");
-            return;
-        }
-
-        std::string displayPath;
-        std::string errorMessage;
-        if(EditorPathUtilities::setWorkingDirectory(projectRoot, displayPath,
-                                                    errorMessage))
-            setStatusMessage(displayPath);
-        else
-            setStatusMessage("Cannot change to: " + projectRoot + " (" +
-                             errorMessage + ")");
-    }
-    else if(cmd.rfind("cd ", 0) == 0 || cmd == "cd")
-    {
-        std::string path = (cmd.length() > 3) ? std::string(cmd.substr(3)) : "";
-        if(path.empty())
-            path = EditorPathUtilities::homeDirectory().string();
-
-        std::string displayPath;
-        std::string errorMessage;
-        if(EditorPathUtilities::setWorkingDirectory(path, displayPath,
-                                                    errorMessage))
-            setStatusMessage(displayPath);
-        else
-            setStatusMessage("Cannot change to: " + path + " (" + errorMessage +
-                             ")");
-    }
-    else
-    {
-        int line = 0;
-        if(parse_int(cmd, line))
-        {
-            moveToLine(line - 1);
-        }
-        else
-        {
-            setStatusMessage("Not an editor command: " + std::string(cmd));
-        }
-    }
+    commandController->executeCommand(cmd);
 }
 
 void Editor::refreshFileSearchCaches()
@@ -4808,6 +3486,8 @@ void Editor::refreshFileSearchCaches()
             fuzzy->refreshFileIndex(*this);
         if(auto* grep = modeStateMachine->getState<GrepSearchMode>())
             grep->refreshFileIndex(*this);
+        if(auto* regex = modeStateMachine->getState<RegexSearchMode>())
+            regex->refreshFileIndex(*this);
     }
 
     setStatusMessage("File search cache refreshed");
@@ -5678,7 +4358,7 @@ void Editor::showFileInfo()
 
 void Editor::forceFullRedraw()
 {
-    needsFullRedraw = true;
+    drawingController->forceFullRedraw();
 }
 
 void Editor::executeOneNormalCommand(int key)

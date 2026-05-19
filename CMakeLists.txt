@@ -60,9 +60,64 @@ set(UVIM_CORE_SOURCES
     src/editor.cpp
     src/editor_buffer_controller.cpp
     src/editor_command_controller.cpp
+    src/editor_command_execution_controller.cpp
+    src/editor_execution_buffer_delete_command.cpp
+    src/editor_execution_buffer_delete_force_command.cpp
+    src/editor_execution_buffer_list_command.cpp
+    src/editor_execution_buffer_next_command.cpp
+    src/editor_execution_buffer_previous_command.cpp
+    src/editor_execution_buffer_select_command.cpp
+    src/editor_execution_cd_command.cpp
+    src/editor_execution_cd_root_command.cpp
+    src/editor_execution_command_helpers.cpp
+    src/editor_execution_commands.cpp
+    src/editor_execution_edit_command.cpp
+    src/editor_execution_emoji_command.cpp
+    src/editor_execution_explore_command.cpp
+    src/editor_execution_format_command.cpp
+    src/editor_execution_git_add_command.cpp
+    src/editor_execution_git_blame_command.cpp
+    src/editor_execution_git_commit_command.cpp
+    src/editor_execution_git_diff_command.cpp
+    src/editor_execution_git_fixup_command.cpp
+    src/editor_execution_git_log_command.cpp
+    src/editor_execution_git_pretty_log_command.cpp
+    src/editor_execution_git_stage_command.cpp
+    src/editor_execution_git_stash_command.cpp
+    src/editor_execution_git_stash_pop_command.cpp
+    src/editor_execution_help_command.cpp
+    src/editor_execution_line_jump_command.cpp
+    src/editor_execution_loc_command.cpp
+    src/editor_execution_loc_total_command.cpp
+    src/editor_execution_lsp_info_command.cpp
+    src/editor_execution_new_buffer_command.cpp
+    src/editor_execution_no_buffer_only_command.cpp
+    src/editor_execution_pwd_command.cpp
+    src/editor_execution_quit_all_command.cpp
+    src/editor_execution_quit_command.cpp
+    src/editor_execution_quit_without_buffer_command.cpp
+    src/editor_execution_refresh_file_search_command.cpp
+    src/editor_execution_reload_current_file_command.cpp
+    src/editor_execution_requires_buffer_command.cpp
+    src/editor_execution_search_command.cpp
+    src/editor_execution_set_command.cpp
+    src/editor_execution_split_command.cpp
+    src/editor_execution_split_explorer_command.cpp
+    src/editor_execution_tab_new_command.cpp
+    src/editor_execution_tab_next_command.cpp
+    src/editor_execution_tab_previous_command.cpp
+    src/editor_execution_unknown_command.cpp
+    src/editor_execution_write_all_command.cpp
+    src/editor_execution_write_as_command.cpp
+    src/editor_execution_write_command.cpp
+    src/editor_execution_write_quit_all_command.cpp
+    src/editor_execution_write_quit_command.cpp
     src/editor_cursor_controller.cpp
+    src/editor_drawing_controller.cpp
+    src/editor_buffer_view.cpp
     src/editor_editing_controller.cpp
     src/editor_file_controller.cpp
+    src/editor_file_type_controller.cpp
     src/editor_git_controller.cpp
     src/editor_indent_controller.cpp
     src/editor_lsp_controller.cpp
@@ -89,12 +144,14 @@ set(UVIM_CORE_SOURCES
     src/editor_view_insert.cpp
     src/editor_view_loc_list.cpp
     src/editor_view_lsp_info.cpp
+    src/editor_message_bar_view.cpp
     src/editor_view_normal.cpp
     src/editor_view_operator_pending.cpp
     src/editor_view_references.cpp
     src/editor_view_replace.cpp
     src/editor_view_search_backward.cpp
     src/editor_view_search_forward.cpp
+    src/editor_status_bar_view.cpp
     src/editor_view_visual.cpp
     src/editor_view_visual_block.cpp
     src/editor_view_visual_line.cpp
@@ -157,6 +214,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/buffer_browser_mode.cpp
     src/fuzzy_find_mode.cpp
     src/grep_search_mode.cpp
+    src/regex_search_mode.cpp
     src/file_browser_mode.cpp
     src/command_output_mode.cpp
 )

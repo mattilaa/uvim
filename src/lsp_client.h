@@ -39,6 +39,12 @@ public:
         std::string newText;
     };
 
+    struct WorkspaceEdit
+    {
+        std::string path;
+        std::vector<TextEdit> edits;
+    };
+
     struct CodeAction
     {
         std::string title;
@@ -90,7 +96,8 @@ public:
     std::optional<Location> declaration(const std::string& filePath, int line,
                                         int characterUtf8ByteOffset,
                                         std::string_view lineText = {});
-    std::optional<Location> typeDefinition(const std::string& filePath, int line,
+    std::optional<Location> typeDefinition(const std::string& filePath,
+                                           int line,
                                            int characterUtf8ByteOffset,
                                            std::string_view lineText = {});
 
@@ -132,6 +139,12 @@ public:
     executeCommand(const std::string& command,
                    const std::vector<std::string>& argumentsJson,
                    const std::string& filePath);
+
+    std::vector<WorkspaceEdit> renameSymbol(const std::string& filePath,
+                                            int line,
+                                            int characterUtf8ByteOffset,
+                                            std::string_view lineText,
+                                            const std::string& newName);
 
     // Document formatting (textDocument/formatting)
     std::vector<TextEdit> formatting(const std::string& filePath,

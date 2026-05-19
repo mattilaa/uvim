@@ -1,5 +1,6 @@
 #include "ascii.h"
 #include "editor.h"
+#include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -9,6 +10,31 @@
 // ============================================================================
 // Help Mode Implementation
 // ============================================================================
+
+namespace
+{
+std::vector<std::string> helpModeHelpTokens()
+{
+    return {"[q: quit]", "[j/k: scroll]", "[gg/G: top/bottom]",
+            "[:help <topic>: navigate]"};
+}
+
+int helpModeContentRows(const Editor& editor)
+{
+    const int headerRows =
+        1 + HeaderHelp::lineCount(helpModeHelpTokens(), editor.screenCols);
+    constexpr int footerRows = 1;
+    return std::max(1, editor.screenRows - headerRows - footerRows);
+}
+
+int helpModeContentRows(const ModeContext& ctx)
+{
+    const int headerRows =
+        1 + HeaderHelp::lineCount(helpModeHelpTokens(), ctx.screenCols());
+    constexpr int footerRows = 1;
+    return std::max(1, ctx.screenRows() - headerRows - footerRows);
+}
+} // namespace
 
 void HelpMode::on_enter(ModeContext& ctx)
 {
@@ -24,14 +50,14 @@ void HelpMode::on_enter(ModeContext& ctx)
 
 void HelpMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
-                                          int key)
+std::optional<ModeState> HelpMode::handle(ModeContext& ctx, int key)
 {
     int c = keyCode(key);
     bool needsRedraw = false;
 
     std::optional<ModeState> nextState;
-    if(commandPrompt && commandPrompt->handle(
+    if(commandPrompt &&
+       commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
@@ -42,7 +68,8 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
@@ -58,16 +85,19 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     // Navigation
     // ========================================================================
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+        int maxScroll =
+            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
         if(scrollOffset < maxScroll)
         {
             scrollOffset++;
             needsRedraw = true;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(scrollOffset > 0)
         {
@@ -78,7 +108,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         int newOffset =
-            std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
         if(newOffset != scrollOffset)
         {
             scrollOffset = newOffset;
@@ -99,10 +129,11 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (ctx.screenRows() - 3) / 2;
+        int half = helpModeContentRows(ctx) / 2;
         int oldOffset = scrollOffset;
         scrollOffset += half;
-        int maxScroll = std::max(0, (int)lines.size() - (ctx.screenRows() - 3));
+        int maxScroll =
+            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
         if(scrollOffset > maxScroll)
             scrollOffset = maxScroll;
         if(scrollOffset != oldOffset)
@@ -110,7 +141,7 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = (ctx.screenRows() - 3) / 2;
+        int half = helpModeContentRows(ctx) / 2;
         int oldOffset = scrollOffset;
         scrollOffset -= half;
         if(scrollOffset < 0)
@@ -146,13 +177,10 @@ void HelpMode::draw(Editor& editor) const
         output += ": " + topic;
     }
     output += editor.theme.reset();
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    output += "  [q: quit] [j/k: scroll] [gg/G: top/bottom] [:help <topic>: "
-              "navigate]";
-    output += editor.theme.baseFg();
+    HeaderHelp::append(output, editor.theme, editor.screenCols,
+                       helpModeHelpTokens());
 
-    int availableRows = editor.screenRows - 2;
+    int availableRows = helpModeContentRows(editor);
 
     // Draw help content
     for(int i = 0; i < availableRows && i + scrollOffset < (int)lines.size();
@@ -175,7 +203,9 @@ void HelpMode::draw(Editor& editor) const
             output += editor.theme.reset();
         }
         else if(!line.empty() && std::isupper(line[0]) &&
-                line.find(keyCode(command::CommandKey::KEY_COLON)) != std::string::npos && line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
+                line.find(keyCode(command::CommandKey::KEY_COLON)) !=
+                    std::string::npos &&
+                line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
         {
             // Section header (e.g., "COMMANDS:")
             output += editor.theme.uiAccent();
@@ -197,8 +227,11 @@ void HelpMode::draw(Editor& editor) const
                     // Find end of command
                     size_t end = pos + 1;
                     while(end < line.length() &&
-                          (std::isalnum(line[end]) || line[end] == keyCode(command::CommandKey::KEY_EXCLAMATION) ||
-                           line[end] == keyCode(command::CommandKey::KEY_QUESTION)))
+                          (std::isalnum(line[end]) ||
+                           line[end] ==
+                               keyCode(command::CommandKey::KEY_EXCLAMATION) ||
+                           line[end] ==
+                               keyCode(command::CommandKey::KEY_QUESTION)))
                     {
                         end++;
                     }
@@ -213,7 +246,8 @@ void HelpMode::draw(Editor& editor) const
                 else if(line[pos] == keyCode(command::CommandKey::KEY_BACKTICK))
                 {
                     // Code/command in backticks
-                    size_t end = line.find(keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
+                    size_t end = line.find(
+                        keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
                     if(end != std::string::npos)
                     {
                         processedLine += editor.theme.syntax(TOKEN_FUNCTION);
@@ -354,6 +388,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gg`       - Go to top",
             "  `G`        - Go to bottom",
             "  `Ctrl-f`   - Fuzzy file finder",
+            "  `Ctrl-x`   - Regex search view",
             "  `Space-e`  - File browser",
             "  `Ctrl-j/k` - Switch split pane (when split is open)",
             "",
@@ -421,7 +456,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "GIT:",
             "  `ga`      - Open git stage view",
             "  `gb`      - Toggle git blame gutter",
-            "  `gj`      - Show commit diff for line under cursor in blame mode",
+            "  `gbb`     - Toggle git blame gutter with date/time",
+            "  `gbl`     - Show git log at commit blamed for cursor line",
+            "  `gj`      - Show commit diff for line under cursor in blame "
+            "mode",
             "  `gbv`     - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
             "  `gl`      - Show git log (repo)",
@@ -445,7 +483,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set smartcase` or `:set scs` - Smart case search",
             "  `:set gdcenter`               - Center view after gd",
             "  `:set nogdcenter`             - Keep view steady after gd",
-            "  `:set nocommandline.messageprefix` - Hide keyCode(command::CommandKey::KEY_COLON) prefix for messages",
+            "  `:set nocommandline.messageprefix` - Hide "
+            "keyCode(command::CommandKey::KEY_COLON) prefix for messages",
             "",
             "STARTUP FLAGS:",
             "  `--no-git-index`      - Disable git-backed fuzzy/grep indexing",
@@ -463,6 +502,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "GIT BLAME:",
             "  `gb`   - Toggle git blame gutter",
+            "  `gbb`  - Toggle git blame gutter with date/time",
+            "  `gbl`  - Show git log at commit blamed for cursor line",
             "  `gj`   - Show commit diff for line under cursor in blame mode",
             "  `gbv`  - Show commit diff for line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
@@ -511,11 +552,46 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "# gb",
             "",
             "`gb` toggles the git blame gutter for the current file.",
+            "`gbb` shows the same blame gutter with date/time included.",
             "",
             "Related:",
+            "  `gbb`        - Show blame gutter with date/time",
+            "  `gbl`        - Open git log at the blamed commit",
             "  `gj`         - Open commit diff for the line under cursor",
             "  `gbv`        - Open commit diff for the line under cursor",
             "  `:git blame` - Toggle git blame gutter from command mode",
+        };
+    }
+    else if(topic_lower == "gbb")
+    {
+        lines = {
+            "# gbb",
+            "",
+            "`gbb` toggles the extended git blame gutter for the current file.",
+            "The extended gutter shows commit hash, author, and local "
+            "date/time.",
+            "",
+            "Related:",
+            "  `gb`         - Show the compact hash and author blame gutter",
+            "  `gbl`        - Open git log at the blamed commit",
+            "  `gj`         - Open commit diff for the line under cursor",
+            "  `gbv`        - Open commit diff for the line under cursor",
+            "  `:git blame` - Toggle compact git blame from command mode",
+        };
+    }
+    else if(topic_lower == "gbl")
+    {
+        lines = {
+            "# gbl",
+            "",
+            "`gbl` opens the repository git log with the cursor on the commit",
+            "that git blame reports for the current line.",
+            "",
+            "Related:",
+            "  `gb`   - Toggle the blame gutter",
+            "  `gbb`  - Show blame gutter with date/time",
+            "  `gbv`  - Open commit diff for the line under cursor",
+            "  `gl`   - Open the repository git log",
         };
     }
     else if(topic_lower == "ga")
@@ -523,7 +599,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         lines = {
             "# ga",
             "",
-            "`ga` opens the git stage view from normal mode or the file browser.",
+            "`ga` opens the git stage view from normal mode or the file "
+            "browser.",
             "",
             "Inside the git stage view:",
             "  `j/k`       - Move between staged/unstaged/untracked file rows",
@@ -658,9 +735,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "FILE NAVIGATION:",
             "  `Ctrl-p`  - Fuzzy file finder",
+            "  `Ctrl-x`  - Regex search view",
             "  `Space-e` - File browser",
             "  `Space-b` - Buffer browser",
-            "  `Space-s` - Grep search",
+            "  `Ctrl-s`  - Grep search",
+            "  `Space-/` - Grep search",
             "",
             "MARKS & JUMPS:",
             "  `m{a-z}`   - Set mark",
@@ -701,7 +780,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `D`     - Delete to end of line",
             "  `J`     - Join lines",
             "  `r`     - Replace single char",
-            "  `rn`    - Rename word under cursor (replace in file)",
+            "  `rn`    - Rename symbol with clangd (normal/visual)",
+            "            Popup: `p` patch, `y` file, `a` all, `n`/ESC cancel",
             "  `R`     - Replace mode",
             "  `~`     - Toggle case",
             "",
@@ -833,10 +913,38 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-n` - Clear search highlights",
             "",
             "PROJECT:",
-            "  `Space-s` - Grep search",
-            "  `/` in normal mode opens grep search mode",
+            "  `Ctrl-x`  - Regex search view for the current buffer",
+            "  Regex view: `Ctrl-s` toggles current buffer / project files",
+            "  Regex view: `Enter` opens the selected match",
+            "  `Ctrl-s`  - Grep search",
+            "  `Space-/` - Grep search",
             "  `:/...`   - Regex search forward (command mode)",
             "  `:? ...`  - Regex search backward (command mode)",
+        };
+    }
+    else if(topic_lower == "regex")
+    {
+        lines = {
+            "# Regex Search View",
+            "",
+            "NORMAL MODE:",
+            "  `Ctrl-x` - Open regex search view",
+            "",
+            "PROMPT:",
+            "  Type a regex pattern to list matching lines.",
+            "  Matching text is highlighted in the result list.",
+            "",
+            "SCOPE:",
+            "  Starts by searching the current buffer.",
+            "  `Ctrl-s` toggles between current buffer and all project files.",
+            "  Project-file search respects `.gitignore` when enabled.",
+            "",
+            "KEYS:",
+            "  `Enter`    - Open selected match",
+            "  `Esc`      - Cancel",
+            "  `Ctrl-j/k` - Move through results",
+            "  `Ctrl-d/u` - Half-page down/up",
+            "  `Ctrl-w`   - Delete previous word in the prompt",
         };
     }
     else if(topic_lower == "clipboard")
@@ -859,14 +967,14 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "SYSTEM CLIPBOARD:",
             "  By default, `useSystemClipboard` is enabled.",
             "  All yank operations automatically copy to system clipboard.",
-            "  Paste operations fall back to system clipboard if internal",
-            "  buffer is empty.",
+            "  Paste operations read system clipboard first, then fall back",
+            "  to the internal yank buffer.",
             "",
             "  This allows seamless integration with other applications:",
             std::string("  - Yank in uvim ") + ascii::utf8(ascii::RIGHT_ARROW) +
                 " Paste in terminal or other apps",
-            std::string("  - Copy in other apps ") + ascii::utf8(ascii::RIGHT_ARROW) +
-                " Paste in uvim",
+            std::string("  - Copy in other apps ") +
+                ascii::utf8(ascii::RIGHT_ARROW) + " Paste in uvim",
             "",
             "DELETE (CUT):",
             "  `dd`      - Delete (cut) current line",
@@ -1068,6 +1176,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help git`",
             "  `:help ga`",
             "  `:help gb`",
+            "  `:help gbl`",
             "  `:help gj`",
             "  `:help gbv`",
             "  `:help lsp`",

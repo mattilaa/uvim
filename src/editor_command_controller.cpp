@@ -643,7 +643,8 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
     static const std::vector<std::string> topics = {
         "commands",    "modes",       "navigation", "editing", "files",
         "filebrowser", "run",         "buffers",    "windows", "search",
-        "clipboard",   "git",         "ga",         "gb",      "gj",
+        "regex",       "clipboard",   "git",        "ga",      "gb",
+        "gbb",         "gbl",         "gj",
         "gbv",
         "lsp",         "diagnostics", "help"};
 

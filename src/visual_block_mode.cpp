@@ -30,6 +30,9 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx, int key)
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
+    if(ed->handleRenamePopupKey(c))
+        return std::nullopt;
+
     // ========================================================================
     // Count Prefix Accumulation
     // ========================================================================
@@ -48,6 +51,19 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
     int count = std::max(1, ctx.repeatCount);
+
+    if(c == keyCode(typed::TypedKey::KEY_R))
+    {
+        int next = Terminal::readKeyTimeout(250);
+        if(next == keyCode(typed::TypedKey::KEY_N))
+        {
+            ed->openRenamePopupForCursor();
+            ctx.repeatCount = 0;
+            return NormalMode{};
+        }
+        if(next != -1)
+            Terminal::unreadKey(next);
+    }
 
     // ========================================================================
     // Exit

@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include <algorithm>
 
 // ============================================================================
 // SearchBackwardMode Implementation
@@ -8,6 +9,15 @@
 
 namespace
 {
+std::string singleLinePasteText(std::string text)
+{
+    text.erase(std::remove_if(text.begin(), text.end(),
+                              [](char ch)
+                              { return ch == '\n' || ch == '\r'; }),
+               text.end());
+    return text;
+}
+
 void previewBackwardSearch(Editor* ed, ModeContext& ctx)
 {
     ctx.cursorX() = ed->savedCursorX;
@@ -59,6 +69,18 @@ std::optional<ModeState> SearchBackwardMode::handle(ModeContext& ctx, int key)
     // ========================================================================
     // Cancel Search
     // ========================================================================
+
+    if(c == keyCode(control::ControlKey::PASTE))
+    {
+        std::string text = singleLinePasteText(Terminal::takeLastPasteText());
+        if(!text.empty())
+        {
+            ed->searchQuery += text;
+            ctx.commandBuffer = "?" + ed->searchQuery;
+            previewBackwardSearch(ed, ctx);
+        }
+        return std::nullopt;
+    }
 
     if(c == keyCode(control::ControlKey::ESC))
     {

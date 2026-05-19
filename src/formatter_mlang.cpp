@@ -232,7 +232,6 @@ bool MlangFormatter::operator()(Mode mode)
                     return true;
                 }
 
-                editor.saveState();
                 activeLines = std::move(newLines);
                 editor.lines = &editor.currentBuffer->lines;
                 if(editor.dirty)
@@ -247,6 +246,7 @@ bool MlangFormatter::operator()(Mode mode)
                         savedX, 0,
                         (int)(*editor.lines)[*editor.cursorY].size());
                 }
+                editor.saveState();
                 editor.adjustViewport();
                 editor.needsFullRedraw = true;
                 editor.setStatusMessage(fmtLabel + ": formatted buffer");
