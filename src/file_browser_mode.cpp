@@ -6,6 +6,7 @@
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -61,11 +62,9 @@ int fileBrowserHeaderRows(int screenCols, size_t selectedCount,
 int fileBrowserVisibleRows(int screenRows, int screenCols, size_t selectedCount,
                            size_t copyCount, bool moveMode)
 {
-    constexpr int footerRows = 2;
-    return std::max(1, screenRows -
-                           fileBrowserHeaderRows(screenCols, selectedCount,
-                                                 copyCount, moveMode) -
-                           footerRows);
+    return std::max(1, screenRows - fileBrowserHeaderRows(screenCols,
+                                                          selectedCount,
+                                                          copyCount, moveMode));
 }
 
 bool isPlainSearchPattern(std::string_view pattern)
@@ -80,6 +79,66 @@ bool fileBrowserNameMatchesSearch(const std::string& name,
     if(plainPattern)
         return name.find(pattern) != std::string::npos;
     return regexPattern && std::regex_search(name, *regexPattern);
+}
+
+std::string truncateToWidth(std::string text, int width)
+{
+    if(width <= 0)
+        return {};
+
+    while(!text.empty() && text_utils::displayWidth(text) > width)
+        text.resize(text_utils::prevUtf8CharStart(text, (int)text.size()));
+
+    return text;
+}
+
+std::string firstLine(std::string text)
+{
+    size_t newline = text.find_first_of("\r\n");
+    if(newline != std::string::npos)
+        text.resize(newline);
+    return text;
+}
+
+std::string browserMessageLine(const Editor& editor,
+                               const CommandPrompt* commandPrompt,
+                               bool filterActive,
+                               const std::string& filterQuery)
+{
+    std::string line;
+    if(commandPrompt && commandPrompt->isActive())
+        line = ":" + commandPrompt->getInput();
+    else if(filterActive)
+        line = "/" + filterQuery;
+    else if(!editor.statusMessage.empty())
+        line = ": " + editor.statusMessage;
+    else if(!editor.locMessage.empty())
+        line = ": " + editor.locMessage;
+    else
+        line = ":";
+
+    return truncateToWidth(firstLine(std::move(line)), editor.screenCols);
+}
+
+int promptCursorColumn(const std::string& visiblePrompt, int screenCols)
+{
+    return std::clamp(text_utils::displayWidth(visiblePrompt) + 1, 1,
+                      std::max(1, screenCols));
+}
+
+void appendStatusLine(std::string& output, std::string status,
+                      const std::string& right, int screenCols)
+{
+    const int rightWidth = text_utils::displayWidth(right);
+    const int statusWidth = std::max(0, screenCols - rightWidth);
+    status = truncateToWidth(std::move(status), statusWidth);
+    output += status;
+
+    int padding = screenCols - text_utils::displayWidth(status) - rightWidth;
+    if(padding > 0)
+        output.append(padding, keyCode(control::ControlKey::SPACE));
+    if(rightWidth <= screenCols)
+        output += right;
 }
 
 struct DirectoryCacheEntry
@@ -1843,7 +1902,7 @@ void FileBrowserMode::draw(Editor& editor) const
 
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
-    output += "  " + currentDirectory;
+    output += truncateToWidth("  " + currentDirectory, editor.screenCols);
     output += editor.theme.reset();
     HeaderHelp::append(output, editor.theme, editor.screenCols,
                        fileBrowserPrimaryHelpTokens());
@@ -1985,10 +2044,14 @@ void FileBrowserMode::draw(Editor& editor) const
             displayName += "/";
         }
 
-        int maxNameLen = editor.screenCols - 30;
-        if(displayName.length() > maxNameLen)
+        int maxNameLen = std::max(1, editor.screenCols - 30);
+        if(text_utils::displayWidth(displayName) > maxNameLen)
         {
-            displayName = displayName.substr(0, maxNameLen - 3) + "...";
+            if(maxNameLen >= 4)
+                displayName =
+                    truncateToWidth(displayName, maxNameLen - 3) + "...";
+            else
+                displayName = truncateToWidth(displayName, maxNameLen);
         }
 
         output += displayName;
@@ -1999,15 +2062,15 @@ void FileBrowserMode::draw(Editor& editor) const
             std::string info = formatFileSize(entry.size) + "  " +
                                formatFileTime(entry.modTime);
 
-            int padding =
-                editor.screenCols - 5 - displayName.length() - info.length();
+            int padding = editor.screenCols - 5 -
+                          text_utils::displayWidth(displayName) -
+                          text_utils::displayWidth(info);
             if(padding > 0)
             {
                 output.append(padding, keyCode(control::ControlKey::SPACE));
+                output += editor.theme.uiDim();
+                output += info;
             }
-
-            output += editor.theme.uiDim();
-            output += info;
         }
 
         output += editor.theme.reset();
@@ -2022,7 +2085,8 @@ void FileBrowserMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
     }
 
-    output += Terminal::NEWLINE_CLEAR;
+    output += Terminal::cursorPos(editor.screenRows + 1, 1);
+    output += Terminal::ESC_CLEAR_LINE;
     output += editor.theme.statusBar();
 
     std::string status = visualMode ? " V-BROWSE" : " BROWSE";
@@ -2044,49 +2108,15 @@ void FileBrowserMode::draw(Editor& editor) const
                         std::to_string(std::min(browserCursor + 1, count)) +
                         "/" + std::to_string(count) + " ";
 
-    output += status;
-    int padding = editor.screenCols - status.length() - right.length();
-    if(padding > 0)
-    {
-        output.append(padding, keyCode(control::ControlKey::SPACE));
-    }
-    output += right;
+    appendStatusLine(output, std::move(status), right, editor.screenCols);
     output += editor.theme.reset();
 
-    output += Terminal::NEWLINE_CLEAR;
-    if(commandPrompt && commandPrompt->isActive())
-    {
-        output += editor.theme.baseFg();
-        output += ":" + commandPrompt->getInput();
-    }
-    else if(filterActive)
-    {
-        output += editor.theme.baseFg();
-        output += "/" + filterQuery;
-    }
-    else if(!editor.statusMessage.empty())
-    {
-        output += editor.theme.baseFg();
-        output += ": ";
-        size_t maxLen =
-            editor.screenCols > 2 ? (size_t)editor.screenCols - 2 : 0;
-        output += editor.statusMessage.substr(
-            0, std::min(maxLen, editor.statusMessage.length()));
-    }
-    else if(!editor.locMessage.empty())
-    {
-        output += editor.theme.baseFg();
-        output += ": ";
-        size_t maxLen =
-            editor.screenCols > 2 ? (size_t)editor.screenCols - 2 : 0;
-        output += editor.locMessage.substr(
-            0, std::min(maxLen, editor.locMessage.length()));
-    }
-    else
-    {
-        output += editor.theme.baseFg();
-        output += ":";
-    }
+    output += Terminal::cursorPos(editor.screenRows + 2, 1);
+    output += Terminal::ESC_CLEAR_LINE;
+    output += editor.theme.baseFg();
+    std::string promptLine = browserMessageLine(editor, commandPrompt.get(),
+                                                filterActive, filterQuery);
+    output += promptLine;
 
     bool suppressCommandPopups = false;
     if(commandPrompt && commandPrompt->isActive())
@@ -2101,20 +2131,24 @@ void FileBrowserMode::draw(Editor& editor) const
     {
         editor.drawCommandHistoryPopup(output);
         editor.drawCommandPopup(output);
+        output += Terminal::cursorPos(editor.screenRows + 2, 1);
+        output += Terminal::ESC_CLEAR_LINE;
+        output += editor.theme.baseFg();
+        output += promptLine;
     }
 
     if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
         int row = editor.screenRows + 2;
-        int col = 2 + (int)commandPrompt->getInput().size();
+        int col = promptCursorColumn(promptLine, editor.screenCols);
         output += Terminal::cursorPos(row, col);
     }
     else if(filterActive)
     {
         output += Terminal::ESC_SHOW_CURSOR;
         int row = editor.screenRows + 2;
-        int col = 2 + (int)filterQuery.size();
+        int col = promptCursorColumn(promptLine, editor.screenCols);
         output += Terminal::cursorPos(row, col);
     }
     else

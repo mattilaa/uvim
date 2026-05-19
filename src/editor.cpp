@@ -3436,16 +3436,29 @@ bool Editor::handleSetCommand(std::string_view cmd)
 void Editor::handleResize()
 {
 #if defined(UVIM_TERMINAL_POSIX)
-    if(!g_pending_resize)
-        return;
+    const bool signalPending = g_pending_resize != 0;
     g_pending_resize = 0;
 
     int rows = 0;
     int cols = 0;
     Terminal::getWindowSize(rows, cols);
-    screenRows = std::max(1, rows - 2);
-    screenCols = std::max(1, cols);
+    const int newScreenRows = std::max(1, rows - 2);
+    const int newScreenCols = std::max(1, cols);
+
+    if(!signalPending && newScreenRows == screenRows &&
+       newScreenCols == screenCols)
+        return;
+
+    screenRows = newScreenRows;
+    screenCols = newScreenCols;
     needsFullRedraw = true;
+
+    std::string output;
+    output += Terminal::ESC_RESET_SCROLL_REGION;
+    output += Terminal::ESC_CURSOR_HOME;
+    output += Terminal::ESC_CLEAR_SCREEN;
+    Terminal::write(output);
+    Terminal::flush();
 #endif
 }
 
