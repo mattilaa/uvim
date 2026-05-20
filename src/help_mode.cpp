@@ -11,6 +11,8 @@
 // Help Mode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> helpModeHelpTokens()
@@ -1228,3 +1230,4 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
             return true;
         });
 }
+} // namespace editor::statemachine

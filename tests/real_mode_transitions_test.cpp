@@ -10,6 +10,8 @@
 #include <iterator>
 #include <utility>
 
+using namespace editor::statemachine;
+
 namespace
 {
 template <typename InitialState>

@@ -4,6 +4,8 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 
+using namespace editor::statemachine;
+
 EditorModeController::EditorModeController(Editor& editor) : editor(editor) {}
 
 bool EditorModeController::dispatchModeKey(int c)

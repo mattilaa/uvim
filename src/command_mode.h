@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct CommandMode
 {
     static constexpr const char* name()
@@ -43,3 +45,4 @@ private:
     void handleReverseTabCompletion(ModeContext& ctx);
     void deleteWordBackward(ModeContext& ctx);
 };
+} // namespace editor::statemachine

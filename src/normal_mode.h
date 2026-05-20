@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct NormalMode
 {
     static constexpr const char* name()
@@ -36,3 +38,4 @@ private:
     std::optional<ModeState> handleGCommand(ModeContext& ctx, int c);
     std::optional<ModeState> handleZCommand(ModeContext& ctx, int c);
 };
+} // namespace editor::statemachine

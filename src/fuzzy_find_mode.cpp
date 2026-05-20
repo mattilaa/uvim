@@ -18,6 +18,8 @@
 // FuzzyFindMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> fuzzyFindHelpTokens()
@@ -733,3 +735,4 @@ bool FuzzyFindMode::openSelected(Editor& editor)
     selectedFiles.clear();
     return true;
 }
+} // namespace editor::statemachine

@@ -31,6 +31,8 @@
 #include "visual_mode.h"
 #include "welcome_mode.h"
 
+namespace editor::statemachine
+{
 using ModeStateMachineBase = StateMachine<ModeState, ModeContext, int>;
 
 class ModeStateMachine : public ModeStateMachineBase
@@ -58,3 +60,4 @@ public:
 };
 
 ModeContext createModeContext(Editor* editor);
+} // namespace editor::statemachine

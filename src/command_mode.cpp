@@ -6,6 +6,8 @@
 // CommandMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void CommandMode::on_enter(ModeContext& ctx)
 {
     int a = 10;
@@ -36,8 +38,7 @@ void CommandMode::on_exit(ModeContext& ctx)
     }
 }
 
-std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
-                                             int key)
+std::optional<ModeState> CommandMode::handle(ModeContext& ctx, int key)
 {
     int c = keyCode(key);
     auto updatePopup = [&]()
@@ -88,8 +89,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                            query.rfind("help ", 0) == 0 ||
                            query.rfind("h ", 0) == 0;
         bool isGitQuery = query == "git" || query.rfind("git ", 0) == 0;
-        if(query.find(keyCode(control::ControlKey::SPACE)) != std::string::npos && !isSetQuery &&
-           !isHelpQuery && !isGitQuery)
+        if(query.find(keyCode(control::ControlKey::SPACE)) !=
+               std::string::npos &&
+           !isSetQuery && !isHelpQuery && !isGitQuery)
         {
             ctx.cancelCommandPopup();
             return;
@@ -119,19 +121,22 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        if(c == keyCode(control::ControlKey::CTRL_J) ||
+           c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             ctx.moveCommandHistorySearchCursor(1);
             return std::nullopt;
         }
 
-        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+        if(c == keyCode(control::ControlKey::CTRL_K) ||
+           c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             ctx.moveCommandHistorySearchCursor(-1);
             return std::nullopt;
         }
 
-        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+           c == keyCode(control::ControlKey::CTRL_H))
         {
             std::string query(ctx.commandHistorySearchQuery());
             if(!query.empty())
@@ -181,7 +186,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
                 std::string_view query =
                     std::string_view(ctx.commandBuffer).substr(1);
-                bool hasSpace = query.find(keyCode(control::ControlKey::SPACE)) != std::string::npos;
+                bool hasSpace =
+                    query.find(keyCode(control::ControlKey::SPACE)) !=
+                    std::string::npos;
                 auto starts_with_ci = [&](std::string_view text,
                                           std::string_view prefix) -> bool
                 {
@@ -200,8 +207,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     };
                     for(size_t i = 0; i < prefix.size(); ++i)
                     {
-                        unsigned char a = to_lower_ascii(
-                            static_cast<unsigned char>(text[i]));
+                        unsigned char a =
+                            to_lower_ascii(static_cast<unsigned char>(text[i]));
                         unsigned char b = to_lower_ascii(
                             static_cast<unsigned char>(prefix[i]));
                         if(a != b)
@@ -215,7 +222,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 {
                     shouldReplace = starts_with_ci(*selection, query);
                 }
-                else if(hasSpace && selection->find(keyCode(control::ControlKey::SPACE)) != std::string::npos)
+                else if(hasSpace &&
+                        selection->find(keyCode(control::ControlKey::SPACE)) !=
+                            std::string::npos)
                 {
                     shouldReplace = true;
                 }
@@ -229,7 +238,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             ctx.cancelCommandPopup();
             std::string_view cmd(ctx.commandBuffer);
-            cmd.remove_prefix(1); // Remove leading keyCode(command::CommandKey::KEY_COLON)
+            cmd.remove_prefix(
+                1); // Remove leading keyCode(command::CommandKey::KEY_COLON)
             ctx.executeCommand(cmd);
             if(ctx.currentMode() == LSP_INFO)
             {
@@ -313,7 +323,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     }
 
     // Backspace
-    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+       c == keyCode(control::ControlKey::CTRL_H))
     {
         if(ctx.commandBuffer.length() > 1)
         {
@@ -360,13 +371,15 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         if(isLocTotal || isLoc)
         {
             std::string input = ctx.commandBuffer.substr(1);
-            size_t spacePos = ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
+            size_t spacePos =
+                ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
             std::string_view pathPart;
             if(spacePos != std::string::npos)
                 pathPart =
                     std::string_view(ctx.commandBuffer).substr(spacePos + 1);
             while(!pathPart.empty() &&
-                  (pathPart.front() == keyCode(control::ControlKey::SPACE) || pathPart.front() == '\t'))
+                  (pathPart.front() == keyCode(control::ControlKey::SPACE) ||
+                   pathPart.front() == '\t'))
             {
                 pathPart.remove_prefix(1);
             }
@@ -411,13 +424,15 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         if(isLocTotal || isLoc)
         {
             std::string input = ctx.commandBuffer.substr(1);
-            size_t spacePos = ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
+            size_t spacePos =
+                ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
             std::string_view pathPart;
             if(spacePos != std::string::npos)
                 pathPart =
                     std::string_view(ctx.commandBuffer).substr(spacePos + 1);
             while(!pathPart.empty() &&
-                  (pathPart.front() == keyCode(control::ControlKey::SPACE) || pathPart.front() == '\t'))
+                  (pathPart.front() == keyCode(control::ControlKey::SPACE) ||
+                   pathPart.front() == '\t'))
             {
                 pathPart.remove_prefix(1);
             }
@@ -485,8 +500,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.moveCommandPopupCursor(-1);
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE)) == std::string::npos ||
-                   selection->find(keyCode(control::ControlKey::SPACE)) != std::string::npos)
+                if(ctx.commandBuffer.find(keyCode(
+                       control::ControlKey::SPACE)) == std::string::npos ||
+                   selection->find(keyCode(control::ControlKey::SPACE)) !=
+                       std::string::npos)
                 {
                     ctx.commandBuffer = ":" + *selection;
                 }
@@ -502,8 +519,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.moveCommandPopupCursor(1);
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE)) == std::string::npos ||
-                   selection->find(keyCode(control::ControlKey::SPACE)) != std::string::npos)
+                if(ctx.commandBuffer.find(keyCode(
+                       control::ControlKey::SPACE)) == std::string::npos ||
+                   selection->find(keyCode(control::ControlKey::SPACE)) !=
+                       std::string::npos)
                 {
                     ctx.commandBuffer = ":" + *selection;
                 }
@@ -557,7 +576,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                        ctx.commandBuffer.rfind(":loctotal", 0) == 0;
             };
             if(isPathCmd() && !ctx.commandBuffer.empty() &&
-               ctx.commandBuffer.back() == keyCode(command::CommandKey::KEY_SLASH))
+               ctx.commandBuffer.back() ==
+                   keyCode(command::CommandKey::KEY_SLASH))
             {
                 return std::nullopt;
             }
@@ -576,7 +596,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
 
 void CommandMode::handleTabCompletion(ModeContext& ctx)
 {
-    std::string input = ctx.commandBuffer.substr(1); // Remove keyCode(command::CommandKey::KEY_COLON)
+    std::string input = ctx.commandBuffer.substr(
+        1); // Remove keyCode(command::CommandKey::KEY_COLON)
     bool wholeCompletion = false;
     bool helpCompletion = false;
     bool locCompletionLocal = false;
@@ -597,13 +618,15 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
             else
                 locCommandLocal =
                     ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
-            size_t spacePos = ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
+            size_t spacePos =
+                ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
             std::string_view pathPart;
             if(spacePos != std::string::npos)
                 pathPart =
                     std::string_view(ctx.commandBuffer).substr(spacePos + 1);
             while(!pathPart.empty() &&
-                  (pathPart.front() == keyCode(control::ControlKey::SPACE) || pathPart.front() == '\t'))
+                  (pathPart.front() == keyCode(control::ControlKey::SPACE) ||
+                   pathPart.front() == '\t'))
             {
                 pathPart.remove_prefix(1);
             }
@@ -625,8 +648,10 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                 std::string cmd = input.substr(0, spacePos);
                 std::string_view pathPart =
                     std::string_view(input).substr(spacePos + 1);
-                while(!pathPart.empty() &&
-                      (pathPart.front() == keyCode(control::ControlKey::SPACE) || pathPart.front() == '\t'))
+                while(
+                    !pathPart.empty() &&
+                    (pathPart.front() == keyCode(control::ControlKey::SPACE) ||
+                     pathPart.front() == '\t'))
                 {
                     pathPart.remove_prefix(1);
                 }
@@ -807,7 +832,8 @@ void CommandMode::deleteWordBackward(ModeContext& ctx)
     }
 
     // Delete word characters
-    while(pos > 0 && buf[pos] != keyCode(control::ControlKey::SPACE) && buf[pos] != keyCode(command::CommandKey::KEY_COLON))
+    while(pos > 0 && buf[pos] != keyCode(control::ControlKey::SPACE) &&
+          buf[pos] != keyCode(command::CommandKey::KEY_COLON))
     {
         pos--;
     }
@@ -825,3 +851,4 @@ void CommandMode::deleteWordBackward(ModeContext& ctx)
     completions.clear();
     completionIndex = -1;
 }
+} // namespace editor::statemachine

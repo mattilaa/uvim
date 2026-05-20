@@ -13,6 +13,8 @@
 #include <sstream>
 #include <vector>
 
+using namespace editor::statemachine;
+
 static bool isHeaderFile(const std::string& path)
 {
     return path == ".h" || path == ".hpp";

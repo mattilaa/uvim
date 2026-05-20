@@ -5,6 +5,8 @@
 #include "terminal.h"
 #include <algorithm>
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> bufferBrowserHelpTokens()
@@ -473,3 +475,4 @@ void BufferBrowserMode::closeMatchedBuffers(Editor& editor)
     if(bufferOffset > bufferCursor)
         bufferOffset = bufferCursor;
 }
+} // namespace editor::statemachine

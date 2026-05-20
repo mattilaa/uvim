@@ -11,6 +11,8 @@
 // GitShowCommitMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> gitShowHelpTokens()
@@ -590,3 +592,4 @@ std::string GitShowCommitMode::testRenderLine(const Theme& theme,
     return output;
 }
 #endif
+} // namespace editor::statemachine

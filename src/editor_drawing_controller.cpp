@@ -1,6 +1,6 @@
 #include "editor_drawing_controller.h"
-#include "editor_buffer_view.h"
 #include "editor.h"
+#include "editor_buffer_view.h"
 #include "editor_message_bar_view.h"
 #include "editor_mode_controller.h"
 #include "editor_status_bar_view.h"
@@ -8,6 +8,7 @@
 #include "terminal.h"
 #include "text_utils.h"
 
+using namespace editor::statemachine;
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -123,7 +124,8 @@ void EditorDrawingController::refreshScreen()
     {
         if(editor.modeStateMachine)
         {
-            if(auto* state = editor.modeStateMachine->getState<GrepSearchMode>())
+            if(auto* state =
+                   editor.modeStateMachine->getState<GrepSearchMode>())
                 state->draw(editor);
         }
         return;
@@ -311,21 +313,19 @@ void EditorDrawingController::refreshScreen()
 
     bool isBufferEditingMode =
         (editor.currentMode == INSERT || editor.currentMode == REPLACE);
-    bool isCommandLikeMode =
-        (editor.currentMode == COMMAND ||
-         editor.currentMode == SEARCH_FORWARD ||
-         editor.currentMode == SEARCH_BACKWARD);
-    bool isLiveSearchMode =
-        (editor.currentMode == SEARCH_FORWARD ||
-         editor.currentMode == SEARCH_BACKWARD);
+    bool isCommandLikeMode = (editor.currentMode == COMMAND ||
+                              editor.currentMode == SEARCH_FORWARD ||
+                              editor.currentMode == SEARCH_BACKWARD);
+    bool isLiveSearchMode = (editor.currentMode == SEARCH_FORWARD ||
+                             editor.currentMode == SEARCH_BACKWARD);
     bool commandPopupChanged =
         (editor.commandPopupActive != lastFrameCommandPopupActive) ||
         (editor.commandHistorySearchActive !=
          lastFrameCommandHistoryPopupActive);
-    bool commandOverlayStable =
-        isCommandLikeMode && !isLiveSearchMode && !modeChanged &&
-        scrollDelta == 0 && *editor.offsetX == lastFrameOffsetX &&
-        !visualChanged && !commandPopupChanged;
+    bool commandOverlayStable = isCommandLikeMode && !isLiveSearchMode &&
+                                !modeChanged && scrollDelta == 0 &&
+                                *editor.offsetX == lastFrameOffsetX &&
+                                !visualChanged && !commandPopupChanged;
 
     if(modeChanged || (editor.needsFullRedraw && !commandOverlayStable) ||
        *editor.offsetX != lastFrameOffsetX ||
@@ -394,8 +394,7 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
         int promptLen = (int)editor.commandBuffer.length();
         if(editor.commandBuffer.empty())
             promptLen = 1;
-        else if(editor.currentMode == COMMAND &&
-                editor.commandBuffer[0] != ':')
+        else if(editor.currentMode == COMMAND && editor.commandBuffer[0] != ':')
             promptLen += 1;
         cursorCol = promptLen + 1;
     }
@@ -412,10 +411,9 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
             int end = std::clamp(*editor.cursorX, 0, (int)line.size());
             if(end < start)
                 std::swap(start, end);
-            cursorCol =
-                text_utils::utf8DisplayWidth(
-                    std::string_view(line).substr(start, end - start)) +
-                1 + editor.gutterWidth() + layout.x;
+            cursorCol = text_utils::utf8DisplayWidth(
+                            std::string_view(line).substr(start, end - start)) +
+                        1 + editor.gutterWidth() + layout.x;
         }
         else
         {
@@ -425,9 +423,9 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
-    bool hideCursor = (editor.currentMode == VISUAL ||
-                       editor.currentMode == VISUAL_LINE ||
-                       editor.currentMode == VISUAL_BLOCK);
+    bool hideCursor =
+        (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
+         editor.currentMode == VISUAL_BLOCK);
     Terminal::write(hideCursor ? Terminal::ESC_HIDE_CURSOR
                                : Terminal::ESC_SHOW_CURSOR);
     if(flushNow)

@@ -9,6 +9,8 @@
 // WelcomeMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void WelcomeMode::on_enter(ModeContext& ctx)
 {
     commandPrompt = ctx.commandPrompt();
@@ -17,20 +19,21 @@ void WelcomeMode::on_enter(ModeContext& ctx)
 
 void WelcomeMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
-                                             int key)
+std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx, int key)
 {
     int c = keyCode(key);
 
     std::optional<ModeState> nextState;
-    if(commandPrompt && commandPrompt->handle(
+    if(commandPrompt &&
+       commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
         return nextState;
     }
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::ENTER))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(control::ControlKey::ENTER))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
@@ -56,7 +59,8 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(typed::TypedKey::KEY_CAP_I))
+    if(c == keyCode(typed::TypedKey::KEY_I) ||
+       c == keyCode(typed::TypedKey::KEY_CAP_I))
     {
         return InsertMode{};
     }
@@ -66,17 +70,20 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
         return FileBrowserMode{"."};
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_F) || c == keyCode(control::ControlKey::CTRL_P))
+    if(c == keyCode(typed::TypedKey::KEY_F) ||
+       c == keyCode(control::ControlKey::CTRL_P))
     {
         return FuzzyFindMode{};
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(control::ControlKey::CTRL_W))
+    if(c == keyCode(typed::TypedKey::KEY_B) ||
+       c == keyCode(control::ControlKey::CTRL_W))
     {
         return BufferBrowserMode{};
     }
 
-    if(c == keyCode(command::CommandKey::KEY_SLASH) || c == keyCode(control::ControlKey::CTRL_S))
+    if(c == keyCode(command::CommandKey::KEY_SLASH) ||
+       c == keyCode(control::ControlKey::CTRL_S))
     {
         return GrepSearchMode{};
     }
@@ -178,7 +185,8 @@ void WelcomeMode::draw(Editor& editor) const
         for(const auto& item : items)
         {
             std::string line = "  " + item.key;
-            line.append(keyWidth - item.key.size(), keyCode(control::ControlKey::SPACE));
+            line.append(keyWidth - item.key.size(),
+                        keyCode(control::ControlKey::SPACE));
             line += "  ";
             line += item.desc;
             lines.push_back(std::move(line));
@@ -280,3 +288,4 @@ void WelcomeMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+} // namespace editor::statemachine

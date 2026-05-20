@@ -23,6 +23,8 @@
 // FileBrowserMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> fileBrowserPrimaryHelpTokens()
@@ -3228,3 +3230,4 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             return next;
         });
 }
+} // namespace editor::statemachine

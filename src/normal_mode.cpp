@@ -9,6 +9,8 @@
 // NormalMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void NormalMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -1359,3 +1361,4 @@ std::optional<ModeState> NormalMode::handleZCommand(ModeContext& ctx, int c)
     ctx.repeatCount = 0;
     return std::nullopt;
 }
+} // namespace editor::statemachine

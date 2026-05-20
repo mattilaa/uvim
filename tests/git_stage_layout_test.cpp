@@ -1,6 +1,8 @@
 #include "mode_state_machine.h"
 #include <gtest/gtest.h>
 
+using namespace editor::statemachine;
+
 TEST(GitStageLayoutTest, ContentRowsForKnownViewport)
 {
     // Regression case from user report.

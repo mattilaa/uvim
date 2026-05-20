@@ -2,6 +2,8 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 
+using namespace editor::statemachine;
+
 bool EditorViewGrepSearch::draw(Editor& editor)
 {
     auto* stateMachine = editor.getModeStateMachine();

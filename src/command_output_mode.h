@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct CommandOutputMode
 {
     static constexpr const char* name()
@@ -101,3 +103,4 @@ private:
     void absorbBytes(const char* data, size_t len);
     void reapChild(bool waitForExit);
 };
+} // namespace editor::statemachine

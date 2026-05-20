@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct GitStageMode
 {
     static constexpr const char* name()
@@ -125,3 +127,4 @@ private:
     int selectedRowIndex() const;
     int maxListHorizontalOffset(int listWidth) const;
 };
+} // namespace editor::statemachine

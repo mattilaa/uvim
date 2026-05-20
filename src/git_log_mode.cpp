@@ -13,6 +13,8 @@
 // GitLogMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> gitLogHelpTokens(bool prettyView)
@@ -1285,3 +1287,4 @@ std::string GitLogMode::testRenderLine(const Theme& theme, const Entry& entry,
     return output;
 }
 #endif
+} // namespace editor::statemachine

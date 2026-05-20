@@ -6,6 +6,8 @@
 // ReferencesMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void ReferencesMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -24,8 +26,7 @@ void ReferencesMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
-                                                int key)
+std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -34,7 +35,8 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Exit
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
@@ -46,7 +48,9 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Selection - Jump to reference
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ENTER) || c == keyCode(typed::TypedKey::KEY_L) || c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
+    if(c == keyCode(control::ControlKey::ENTER) ||
+       c == keyCode(typed::TypedKey::KEY_L) ||
+       c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
         if(ed->selectReference())
         {
@@ -59,11 +63,15 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Navigation through results
     // ========================================================================
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(control::ControlKey::CTRL_N) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         ed->referencesDown();
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(control::ControlKey::CTRL_P) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         ed->referencesUp();
     }
@@ -94,7 +102,8 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     // Preview Toggle
     // ========================================================================
 
-    else if(c == keyCode(control::ControlKey::TAB) || c == keyCode(typed::TypedKey::KEY_P))
+    else if(c == keyCode(control::ControlKey::TAB) ||
+            c == keyCode(typed::TypedKey::KEY_P))
     {
         ed->toggleReferencesPreview();
     }
@@ -112,3 +121,4 @@ std::optional<ModeState> ReferencesMode::handle(ModeContext& ctx,
     ed->needsFullRedraw = true;
     return std::nullopt;
 }
+} // namespace editor::statemachine

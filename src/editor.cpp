@@ -34,6 +34,7 @@
 #include "text_utils.h"
 #include "widgets/command_history_popup.h"
 #include "widgets/command_popup.h"
+using namespace editor::statemachine;
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif

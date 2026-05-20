@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct HelpMode
 {
     static constexpr const char* name()
@@ -50,3 +52,4 @@ private:
     std::optional<ModeState> executeCommand(ModeContext& ctx,
                                             std::string_view commandLine);
 };
+} // namespace editor::statemachine

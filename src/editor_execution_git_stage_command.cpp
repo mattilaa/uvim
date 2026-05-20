@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 
+using namespace editor::statemachine;
 namespace fs = std::filesystem;
 
 namespace command::execution

@@ -7,13 +7,14 @@
 // SearchBackwardMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::string singleLinePasteText(std::string text)
 {
     text.erase(std::remove_if(text.begin(), text.end(),
-                              [](char ch)
-                              { return ch == '\n' || ch == '\r'; }),
+                              [](char ch) { return ch == '\n' || ch == '\r'; }),
                text.end());
     return text;
 }
@@ -214,6 +215,8 @@ void SearchBackwardMode::deleteWordBackward(ModeContext& ctx)
     ctx.commandBuffer = "?" + ed->searchQuery;
     previewBackwardSearch(ed, ctx);
 }
+
+} // namespace editor::statemachine
 
 void Editor::performSearch(const std::string& query, bool forward)
 {

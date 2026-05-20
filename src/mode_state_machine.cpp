@@ -3,6 +3,8 @@
 #include "terminal.h"
 #include "text_utils.h"
 
+namespace editor::statemachine
+{
 ParsedCommand parseCommandLine(std::string_view commandLine)
 {
     while(!commandLine.empty() && text_utils::is_space(commandLine.front()))
@@ -180,3 +182,4 @@ ModeState defaultExitMode(const Editor* editor)
         return WelcomeMode{};
     return NormalMode{};
 }
+} // namespace editor::statemachine

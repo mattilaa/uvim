@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct LocListMode
 {
     static constexpr const char* name()
@@ -58,3 +60,4 @@ struct LocListMode
 
     void draw(Editor& editor) const;
 };
+} // namespace editor::statemachine

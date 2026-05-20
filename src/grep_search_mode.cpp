@@ -15,6 +15,8 @@
 #include <fstream>
 #include <limits.h>
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> grepSearchHelpTokens()
@@ -880,3 +882,4 @@ bool GrepSearchMode::openSelected(Editor& editor)
     selectedMatches.clear();
     return true;
 }
+} // namespace editor::statemachine

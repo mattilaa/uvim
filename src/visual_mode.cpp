@@ -7,6 +7,8 @@
 // VisualMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void VisualMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -464,3 +466,4 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
 
     return std::nullopt;
 }
+} // namespace editor::statemachine

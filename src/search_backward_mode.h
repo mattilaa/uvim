@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct SearchBackwardMode
 {
     static constexpr const char* name()
@@ -33,3 +35,4 @@ struct SearchBackwardMode
     // Helper methods
     void deleteWordBackward(ModeContext& ctx);
 };
+} // namespace editor::statemachine

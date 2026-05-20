@@ -15,6 +15,8 @@
 #include <filesystem>
 #include <fstream>
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> regexSearchHelpTokens(bool allFiles)
@@ -639,3 +641,4 @@ bool RegexSearchMode::select(Editor& editor)
     editor.centerScreen();
     return true;
 }
+} // namespace editor::statemachine

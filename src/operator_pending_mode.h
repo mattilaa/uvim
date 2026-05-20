@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct OperatorPendingMode
 {
     static constexpr const char* name()
@@ -40,3 +42,4 @@ struct OperatorPendingMode
 
     std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
+} // namespace editor::statemachine

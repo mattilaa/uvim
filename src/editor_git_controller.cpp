@@ -15,6 +15,8 @@
 #include <optional>
 #include <string>
 
+using namespace editor::statemachine;
+
 namespace fs = std::filesystem;
 
 namespace
@@ -176,14 +178,10 @@ std::string blame_hash_for_current_line(const Editor& editor)
     return blame_hash_for_line(editor.currentBuffer->filename, row);
 }
 
-std::vector<GitLogMode::Entry> load_repo_log_entries(const std::string& repoRoot)
+std::vector<GitLogMode::Entry>
+load_repo_log_entries(const std::string& repoRoot)
 {
-    ProcessPipe pipe({"git",
-                      "-C",
-                      repoRoot,
-                      "--no-pager",
-                      "log",
-                      "--no-color",
+    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "log", "--no-color",
                       "--date=format:%Y-%m-%d %H:%M %z",
                       "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
     if(!pipe)
@@ -202,9 +200,8 @@ std::vector<GitLogMode::Entry> load_repo_log_entries(const std::string& repoRoot
             continue;
         GitLogMode::Entry entry;
         size_t tab2 = line.find(sep, tab + 1);
-        size_t tab3 = (tab2 == std::string::npos)
-                          ? std::string::npos
-                          : line.find(sep, tab2 + 1);
+        size_t tab3 = (tab2 == std::string::npos) ? std::string::npos
+                                                  : line.find(sep, tab2 + 1);
         entry.hash = line.substr(0, tab);
         if(tab2 != std::string::npos)
             entry.date = line.substr(tab + 1, tab2 - (tab + 1));
@@ -265,8 +262,8 @@ int EditorGitController::gitBlameWidth() const
 
 int EditorGitController::gutterWidth() const
 {
-    int width =
-        editor.showGitBlame ? gitBlameWidth() + 1 : Editor::kDiagnosticGutterWidth;
+    int width = editor.showGitBlame ? gitBlameWidth() + 1
+                                    : Editor::kDiagnosticGutterWidth;
     int numbers = lineNumberWidth();
     if(numbers > 0)
         width += numbers + 1;
@@ -561,9 +558,9 @@ void EditorGitController::openGitDiffMode()
         return;
     }
 
-    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "diff",
-                      editor.gitUseDefaultColors ? "--color=always"
-                                                 : "--no-color"});
+    ProcessPipe pipe(
+        {"git", "-C", repoRoot, "--no-pager", "diff",
+         editor.gitUseDefaultColors ? "--color=always" : "--no-color"});
     if(!pipe)
     {
         editor.setStatusMessage("git diff: failed");
@@ -665,15 +662,15 @@ void EditorGitController::openGitFixupMode()
 
     if(editor.modeStateMachine)
     {
-        editor.modeStateMachine->transitionTo(
-            GitFixupMode{{}, repoRoot, dir, std::move(fixupFiles),
-                         std::move(returnStage)});
+        editor.modeStateMachine->transitionTo(GitFixupMode{
+            {}, repoRoot, dir, std::move(fixupFiles), std::move(returnStage)});
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }
 }
 
-std::vector<std::string> EditorGitController::loadGitShowLines(const std::string& hash)
+std::vector<std::string>
+EditorGitController::loadGitShowLines(const std::string& hash)
 {
     std::string dir = base_dir_for_editor(editor);
     std::string repoRoot = git_root_for_dir(dir);
@@ -687,10 +684,9 @@ std::vector<std::string> EditorGitController::loadGitShowLines(const std::string
                                           : std::string(".");
     }
 
-    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "show",
-                      editor.gitUseDefaultColors ? "--color=always"
-                                                 : "--no-color",
-                      hash});
+    ProcessPipe pipe(
+        {"git", "-C", repoRoot, "--no-pager", "show",
+         editor.gitUseDefaultColors ? "--color=always" : "--no-color", hash});
     if(!pipe)
         return {};
 
@@ -841,8 +837,8 @@ void EditorGitController::openGitPrettyLogMode()
 
     if(editor.modeStateMachine)
     {
-        editor.modeStateMachine->transitionTo(
-            GitLogMode{std::move(entries), false, repoRoot, repoRoot, {}, true});
+        editor.modeStateMachine->transitionTo(GitLogMode{
+            std::move(entries), false, repoRoot, repoRoot, {}, true});
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }
@@ -875,14 +871,8 @@ void EditorGitController::openGitLogModeForFile()
         editor.setStatusMessage("git log: not a repo");
         return;
     }
-    ProcessPipe pipe({"git",
-                      "-C",
-                      dir,
-                      "--no-pager",
-                      "log",
-                      "--no-color",
-                      "--pretty=format:%H\t%s",
-                      "--",
+    ProcessPipe pipe({"git", "-C", dir, "--no-pager", "log", "--no-color",
+                      "--pretty=format:%H\t%s", "--",
                       editor.currentBuffer->filename});
     if(!pipe)
     {

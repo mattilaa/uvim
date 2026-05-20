@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> gitPatchHelpTokens()
@@ -313,3 +315,4 @@ void GitPatchMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+} // namespace editor::statemachine

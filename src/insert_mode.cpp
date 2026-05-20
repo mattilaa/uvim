@@ -8,6 +8,8 @@
 // InsertMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 void moveCursorLeftForNormalMode(Editor* ed, ModeContext& ctx)
@@ -49,7 +51,8 @@ bool isCursorInsideQuote(const std::string& line, int cursorX, char quote)
 
 bool isCursorInString(const std::string& line, int cursorX)
 {
-    return isCursorInsideQuote(line, cursorX, keyCode(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
+    return isCursorInsideQuote(
+               line, cursorX, keyCode(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
            isCursorInsideQuote(line, cursorX, '\'');
 }
 
@@ -95,8 +98,8 @@ bool cursorIsInsideDelimitedExpression(std::string_view left)
 
 bool shouldExpandLeftBraceBlock(const Editor* ed, const std::string& left)
 {
-    if(!ed || (!ed->isFileType<FileType::Cpp>() &&
-               !ed->isFileType<FileType::Mla>()))
+    if(!ed ||
+       (!ed->isFileType<FileType::Cpp>() && !ed->isFileType<FileType::Mla>()))
         return false;
 
     if(cursorIsInsideDelimitedExpression(left))
@@ -162,8 +165,7 @@ void InsertMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
-                                            int key)
+std::optional<ModeState> InsertMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -189,7 +191,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_J) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        if(c == keyCode(control::ControlKey::CTRL_J) ||
+           c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -198,8 +201,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                              (int)ed->diagnosticPopupFixes.size() - 1);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
-                    ed->diagnosticPopupFixScroll =
-                        ed->diagnosticPopupFixIndex;
+                    ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
                 else if(ed->diagnosticPopupFixIndex >=
                         ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
@@ -209,7 +211,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_K) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+        if(c == keyCode(control::ControlKey::CTRL_K) ||
+           c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             if(!ed->diagnosticPopupFixes.empty())
             {
@@ -217,8 +220,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                     std::max(ed->diagnosticPopupFixIndex - 1, 0);
                 int window = std::min(6, (int)ed->diagnosticPopupFixes.size());
                 if(ed->diagnosticPopupFixIndex < ed->diagnosticPopupFixScroll)
-                    ed->diagnosticPopupFixScroll =
-                        ed->diagnosticPopupFixIndex;
+                    ed->diagnosticPopupFixScroll = ed->diagnosticPopupFixIndex;
                 else if(ed->diagnosticPopupFixIndex >=
                         ed->diagnosticPopupFixScroll + window)
                     ed->diagnosticPopupFixScroll =
@@ -259,12 +261,14 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ed->acceptEmoji();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
+        if(c == keyCode(control::ControlKey::ESC) ||
+           c == keyCode(control::ControlKey::CTRL_C))
         {
             ed->cancelEmojiPopup();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::BACKSPACE) || c == keyCode(control::ControlKey::DEL) ||
+        if(c == keyCode(control::ControlKey::BACKSPACE) ||
+           c == keyCode(control::ControlKey::DEL) ||
            c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!ed->emojiQuery.empty())
@@ -290,24 +294,28 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     if(ed->completionActive)
     {
-        if(c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(control::ControlKey::CTRL_J) ||
+        if(c == keyCode(control::ControlKey::CTRL_N) ||
+           c == keyCode(control::ControlKey::CTRL_J) ||
            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             ed->nextCompletion();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(control::ControlKey::CTRL_K) ||
+        if(c == keyCode(control::ControlKey::CTRL_P) ||
+           c == keyCode(control::ControlKey::CTRL_K) ||
            c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             ed->previousCompletion();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::TAB) || c == keyCode(control::ControlKey::ENTER))
+        if(c == keyCode(control::ControlKey::TAB) ||
+           c == keyCode(control::ControlKey::ENTER))
         {
             ed->acceptCompletion();
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
+        if(c == keyCode(control::ControlKey::ESC) ||
+           c == keyCode(control::ControlKey::CTRL_C))
         {
             ed->cancelCompletion();
             moveCursorLeftForNormalMode(ed, ctx);
@@ -328,7 +336,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Exit Insert Mode
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(control::ControlKey::CTRL_C))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(control::ControlKey::CTRL_C))
     {
         moveCursorLeftForNormalMode(ed, ctx);
         if(c == keyCode(control::ControlKey::ESC))
@@ -372,7 +381,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     // Backspace
     // ========================================================================
 
-    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+       c == keyCode(control::ControlKey::CTRL_H))
     {
         auto& lines = ctx.lines();
         int& cursorX = ctx.cursorX();
@@ -472,7 +482,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 std::string& line = lines[cursorY];
                 int remove = 0;
                 int i = cursorX - 1;
-                while(i >= 0 && remove < ed->tabSpaces && line[i] == keyCode(control::ControlKey::SPACE))
+                while(i >= 0 && remove < ed->tabSpaces &&
+                      line[i] == keyCode(control::ControlKey::SPACE))
                 {
                     remove++;
                     i--;
@@ -622,7 +633,10 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 inString = isCursorInString(lines[cursorY], ctx.cursorX());
         }
 
-        if(ed->autoBraces && (c == keyCode(command::CommandKey::KEY_RIGHT_PAREN) || c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) || c == keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
+        if(ed->autoBraces &&
+           (c == keyCode(command::CommandKey::KEY_RIGHT_PAREN) ||
+            c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) ||
+            c == keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
@@ -640,7 +654,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
 
         if(ed->autoBraces && ed->autoQuotes &&
-           (c == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) || c == keyCode(command::CommandKey::KEY_APOSTROPHE) ||
+           (c == keyCode(command::CommandKey::KEY_DOUBLE_QUOTE) ||
+            c == keyCode(command::CommandKey::KEY_APOSTROPHE) ||
             c == keyCode(command::CommandKey::KEY_BACKTICK)))
         {
             auto handleQuote = [&](char quote) -> bool
@@ -676,7 +691,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 return std::nullopt;
         }
 
-        if(ed->autoBraces && ed->autoBracesInStrings && c == keyCode(command::CommandKey::KEY_LEFT_BRACE) && inString)
+        if(ed->autoBraces && ed->autoBracesInStrings &&
+           c == keyCode(command::CommandKey::KEY_LEFT_BRACE) && inString)
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
@@ -688,7 +704,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(cursorX > (int)line.length())
                 cursorX = line.length();
 
-            if(cursorX < (int)line.length() && line[cursorX] == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
+            if(cursorX < (int)line.length() &&
+               line[cursorX] == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
             {
                 ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
                 return std::nullopt;
@@ -700,7 +717,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        if(ed->autoBraces && c == keyCode(command::CommandKey::KEY_LEFT_BRACE) && !inString)
+        if(ed->autoBraces &&
+           c == keyCode(command::CommandKey::KEY_LEFT_BRACE) && !inString)
         {
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
@@ -726,14 +744,16 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             size_t indent = 0;
             while(indent < line.length() &&
-                  (line[indent] == keyCode(control::ControlKey::SPACE) || line[indent] == '\t'))
+                  (line[indent] == keyCode(control::ControlKey::SPACE) ||
+                   line[indent] == '\t'))
             {
                 indent++;
             }
             std::string indentStr = line.substr(0, indent);
             const int innerWidth = ed->indentWidthForBraces();
             std::string innerIndent =
-                indentStr + std::string(innerWidth, keyCode(control::ControlKey::SPACE));
+                indentStr +
+                std::string(innerWidth, keyCode(control::ControlKey::SPACE));
 
             if(ed->braceNewLineForAutoBraces())
             {
@@ -772,9 +792,13 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(ed->autoBraces && (c == keyCode(command::CommandKey::KEY_LEFT_PAREN) || c == keyCode(command::CommandKey::KEY_LEFT_BRACKET)))
+        if(ed->autoBraces &&
+           (c == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
+            c == keyCode(command::CommandKey::KEY_LEFT_BRACKET)))
         {
-            char close = (c == keyCode(command::CommandKey::KEY_LEFT_PAREN)) ? keyCode(command::CommandKey::KEY_RIGHT_PAREN) : keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
+            char close = (c == keyCode(command::CommandKey::KEY_LEFT_PAREN))
+                             ? keyCode(command::CommandKey::KEY_RIGHT_PAREN)
+                             : keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
             int cursorY = ctx.cursorY();
@@ -797,7 +821,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
 
-        if(ed->autoTags && c == keyCode(command::CommandKey::KEY_GREATER) && !inString &&
+        if(ed->autoTags && c == keyCode(command::CommandKey::KEY_GREATER) &&
+           !inString &&
            (ed->isFileType<FileType::Html>() ||
             ed->isFileType<FileType::Xml>()))
         {
@@ -814,14 +839,17 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(gtPos < 0 || gtPos >= (int)line.size())
                 return std::nullopt;
 
-            int ltPos = (int)line.rfind(keyCode(command::CommandKey::KEY_LESS), (size_t)gtPos);
+            int ltPos = (int)line.rfind(keyCode(command::CommandKey::KEY_LESS),
+                                        (size_t)gtPos);
             if(ltPos == (int)std::string::npos)
                 return std::nullopt;
 
             if(ltPos + 1 < (int)line.size())
             {
                 char next = line[ltPos + 1];
-                if(next == keyCode(command::CommandKey::KEY_SLASH) || next == keyCode(command::CommandKey::KEY_EXCLAMATION) || next == keyCode(command::CommandKey::KEY_QUESTION))
+                if(next == keyCode(command::CommandKey::KEY_SLASH) ||
+                   next == keyCode(command::CommandKey::KEY_EXCLAMATION) ||
+                   next == keyCode(command::CommandKey::KEY_QUESTION))
                     return std::nullopt;
             }
 
@@ -840,7 +868,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             int nameEnd = nameStart;
             auto isTagChar = [](char ch)
             {
-                return text_utils::is_alnum(ch) || ch == keyCode(command::CommandKey::KEY_COLON) || ch == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
+                return text_utils::is_alnum(ch) ||
+                       ch == keyCode(command::CommandKey::KEY_COLON) ||
+                       ch == keyCode(command::CommandKey::KEY_UNDERSCORE) ||
                        ch == keyCode(command::CommandKey::KEY_MINUS);
             };
             while(nameEnd < gtPos && isTagChar(line[nameEnd]))
@@ -892,18 +922,23 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 ed->rebuildCompletionFilter();
             }
         }
-        // Auto-trigger completion after keyCode(command::CommandKey::KEY_DOT), '::', or '->'
+        // Auto-trigger completion after keyCode(command::CommandKey::KEY_DOT),
+        // '::', or '->'
         else if(c == keyCode(command::CommandKey::KEY_DOT) && !isMarkup)
         {
             ed->triggerCompletion();
         }
-        else if(c == keyCode(command::CommandKey::KEY_COLON) && !isMarkup && cursorX >= 2 &&
-                lines[cursorY][cursorX - 2] == keyCode(command::CommandKey::KEY_COLON))
+        else if(c == keyCode(command::CommandKey::KEY_COLON) && !isMarkup &&
+                cursorX >= 2 &&
+                lines[cursorY][cursorX - 2] ==
+                    keyCode(command::CommandKey::KEY_COLON))
         {
             ed->triggerCompletion();
         }
-        else if(c == keyCode(command::CommandKey::KEY_GREATER) && !isMarkup && cursorX >= 2 &&
-                lines[cursorY][cursorX - 2] == keyCode(command::CommandKey::KEY_MINUS))
+        else if(c == keyCode(command::CommandKey::KEY_GREATER) && !isMarkup &&
+                cursorX >= 2 &&
+                lines[cursorY][cursorX - 2] ==
+                    keyCode(command::CommandKey::KEY_MINUS))
         {
             ed->triggerCompletion();
         }
@@ -925,7 +960,11 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             {
                 const std::string& line = lines[cursorY];
                 auto isWordChar = [](char ch)
-                { return text_utils::isIdent(ch) || ch == keyCode(command::CommandKey::KEY_MINUS) || ch == keyCode(command::CommandKey::KEY_DOT); };
+                {
+                    return text_utils::isIdent(ch) ||
+                           ch == keyCode(command::CommandKey::KEY_MINUS) ||
+                           ch == keyCode(command::CommandKey::KEY_DOT);
+                };
                 int start = cursorX;
                 while(start > 0 && isWordChar(line[start - 1]))
                     --start;
@@ -976,3 +1015,4 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
     return std::nullopt;
 }
+} // namespace editor::statemachine

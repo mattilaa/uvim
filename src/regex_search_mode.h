@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct RegexSearchMatch
 {
     std::string filename;
@@ -67,3 +69,4 @@ private:
     void toggleScope(Editor& editor);
     bool select(Editor& editor);
 };
+} // namespace editor::statemachine

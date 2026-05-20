@@ -5,6 +5,8 @@
 #include "text_utils.h"
 #include <algorithm>
 
+namespace editor::statemachine
+{
 namespace
 {
 int computeCountWidth(const std::vector<Editor::LocEntry>& entries)
@@ -32,8 +34,8 @@ std::string_view locFileColor(const Theme& theme, std::string_view path)
         return theme.uiInfo();
     }
 
-    if(constants::is_filetype<constants::no_pattern, constants::python_suffixes>(
-           path) ||
+    if(constants::is_filetype<constants::no_pattern,
+                              constants::python_suffixes>(path) ||
        constants::is_filetype<constants::no_pattern, constants::robot_suffixes>(
            path))
     {
@@ -74,8 +76,8 @@ std::string_view locFileColor(const Theme& theme, std::string_view path)
 
     if(constants::is_filetype<constants::cmake_prefixes,
                               constants::cmake_suffixes>(path) ||
-       constants::is_filetype<constants::no_pattern,
-                              constants::shell_suffixes>(path))
+       constants::is_filetype<constants::no_pattern, constants::shell_suffixes>(
+           path))
     {
         return theme.uiWarning();
     }
@@ -102,22 +104,22 @@ void LocListMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
-                                             int key)
+std::optional<ModeState> LocListMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
         {
             if(sortMode != SortMode::Normal)
             {
-                std::sort(ed->locList.begin(), ed->locList.end(),
-                          [](const Editor::LocEntry& a,
-                             const Editor::LocEntry& b)
-                          { return a.displayPath < b.displayPath; });
+                std::sort(
+                    ed->locList.begin(), ed->locList.end(),
+                    [](const Editor::LocEntry& a, const Editor::LocEntry& b)
+                    { return a.displayPath < b.displayPath; });
                 sortMode = SortMode::Normal;
                 countWidth = computeCountWidth(ed->locList);
                 ed->needsFullRedraw = true;
@@ -150,8 +152,7 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
         if(sortMode == SortMode::Normal || sortMode == SortMode::Asc)
         {
             std::sort(ed->locList.begin(), ed->locList.end(),
-                      [](const Editor::LocEntry& a,
-                         const Editor::LocEntry& b)
+                      [](const Editor::LocEntry& a, const Editor::LocEntry& b)
                       {
                           if(a.loc != b.loc)
                               return a.loc > b.loc;
@@ -162,8 +163,7 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
         else
         {
             std::sort(ed->locList.begin(), ed->locList.end(),
-                      [](const Editor::LocEntry& a,
-                         const Editor::LocEntry& b)
+                      [](const Editor::LocEntry& a, const Editor::LocEntry& b)
                       {
                           if(a.loc != b.loc)
                               return a.loc < b.loc;
@@ -180,7 +180,9 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_J) || c == keyCode(control::ControlKey::CTRL_N) || c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(c == keyCode(typed::TypedKey::KEY_J) ||
+       c == keyCode(control::ControlKey::CTRL_N) ||
+       c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(cursor < (int)ed->locList.size() - 1)
         {
@@ -190,7 +192,9 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
                 offset = cursor - visible + 1;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_K) || c == keyCode(control::ControlKey::CTRL_P) || c == keyCode(navigation::NavigationKey::ARROW_UP))
+    else if(c == keyCode(typed::TypedKey::KEY_K) ||
+            c == keyCode(control::ControlKey::CTRL_P) ||
+            c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(cursor > 0)
         {
@@ -199,7 +203,8 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
                 offset = cursor;
         }
     }
-    else if(c == keyCode(control::ControlKey::CTRL_D) || c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+    else if(c == keyCode(control::ControlKey::CTRL_D) ||
+            c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         int half = (ed->screenRows - 3) / 2;
         cursor += half;
@@ -209,7 +214,8 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
-    else if(c == keyCode(control::ControlKey::CTRL_U) || c == keyCode(navigation::NavigationKey::PAGE_UP))
+    else if(c == keyCode(control::ControlKey::CTRL_U) ||
+            c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         int half = (ed->screenRows - 3) / 2;
         cursor -= half;
@@ -255,7 +261,8 @@ void LocListMode::draw(Editor& editor) const
     if(!editor.locListRoot.empty())
         header += " - " + editor.locListRoot;
     if((int)header.length() < editor.screenCols)
-        header += std::string(editor.screenCols - header.length(), keyCode(control::ControlKey::SPACE));
+        header += std::string(editor.screenCols - header.length(),
+                              keyCode(control::ControlKey::SPACE));
     output += header;
     output += editor.theme.reset();
     output += "\r\n";
@@ -263,8 +270,8 @@ void LocListMode::draw(Editor& editor) const
     int availableRows = editor.screenRows - 3;
     int idx = offset;
 
-    for(int row = 0;
-        row < availableRows && idx < (int)editor.locList.size(); row++, idx++)
+    for(int row = 0; row < availableRows && idx < (int)editor.locList.size();
+        row++, idx++)
     {
         const auto& entry = editor.locList[idx];
         bool isSelected = (idx == cursor);
@@ -275,23 +282,23 @@ void LocListMode::draw(Editor& editor) const
 
         std::string countStr = std::to_string(std::max(0, entry.loc));
         if((int)countStr.size() < countWidth)
-            countStr.insert(0, countWidth - countStr.size(), keyCode(control::ControlKey::SPACE));
+            countStr.insert(0, countWidth - countStr.size(),
+                            keyCode(control::ControlKey::SPACE));
 
         output += " ";
         output += editor.theme.baseFg();
         output += countStr;
         output += " ";
 
-        std::string displayPath = entry.displayPath.empty() ? entry.path
-                                                            : entry.displayPath;
+        std::string displayPath =
+            entry.displayPath.empty() ? entry.path : entry.displayPath;
         int maxPathLen = std::max(0, editor.screenCols - (countWidth + 3));
         if((int)displayPath.length() > maxPathLen)
         {
             if(maxPathLen > 3)
             {
-                displayPath =
-                    "..." +
-                    displayPath.substr(displayPath.length() - maxPathLen + 3);
+                displayPath = "..." + displayPath.substr(displayPath.length() -
+                                                         maxPathLen + 3);
             }
             else
             {
@@ -323,7 +330,8 @@ void LocListMode::draw(Editor& editor) const
                          std::to_string(editor.locList.size()) + "]";
     status += " <Enter> open  <q/Esc> close  <j/k> navigate";
     if((int)status.length() < editor.screenCols)
-        status += std::string(editor.screenCols - status.length(), keyCode(control::ControlKey::SPACE));
+        status += std::string(editor.screenCols - status.length(),
+                              keyCode(control::ControlKey::SPACE));
     output += status;
     output += editor.theme.reset();
 
@@ -336,3 +344,4 @@ void LocListMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+} // namespace editor::statemachine
