@@ -2308,7 +2308,7 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
         if(CppNavigationUtilities::isLikelyDefinition(line, symbol))
         {
             size_t pos = line.find(symbol);
-            if(pos != std::string::npos)
+            if(text_utils::is_found(pos))
             {
                 outY = y;
                 outX = pos;
@@ -2456,7 +2456,7 @@ void Editor::openSymbolPopupForCursor()
             const std::vector<std::string>& currentLines) -> std::string
     {
         size_t eq = declLine.find('=');
-        if(eq == std::string::npos)
+        if(text_utils::is_not_found(eq))
             return "";
         std::string_view rhs = std::string_view(declLine).substr(eq + 1);
         std::string candidate =

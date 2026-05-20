@@ -1,5 +1,5 @@
-#include "ascii.h"
 #include "widgets/completion_popup.h"
+#include "ascii.h"
 
 #include "editor.h"
 #include "terminal.h"
@@ -16,9 +16,8 @@ static std::string buildCompletionExtras(const CompletionEntry& entry)
     std::string extra;
     if(!entry.labelDetail.empty())
     {
-        bool needsSpace =
-            entry.labelDetail[0] != '(' &&
-            !text_utils::is_space(entry.labelDetail[0]);
+        bool needsSpace = entry.labelDetail[0] != '(' &&
+                          !text_utils::is_space(entry.labelDetail[0]);
         if(needsSpace)
             extra.push_back(' ');
         extra += entry.labelDetail;
@@ -41,7 +40,7 @@ static std::string truncateToWidth(std::string text, int width)
 static std::string firstLine(std::string text)
 {
     auto pos = text.find('\n');
-    if(pos != std::string::npos)
+    if(text_utils::is_found(pos))
         text.resize(pos);
     return text;
 }
@@ -88,8 +87,8 @@ static std::string buildCompletionBrief(const CompletionEntry& entry)
     return {};
 }
 
-static std::vector<std::string> wrapTextLines(const std::string& text, int width,
-                                              int maxLines)
+static std::vector<std::string> wrapTextLines(const std::string& text,
+                                              int width, int maxLines)
 {
     std::vector<std::string> out;
     if(text.empty() || width <= 4 || maxLines <= 0)
@@ -384,9 +383,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             if(token.type != TOKEN_NORMAL)
                 hasColor = true;
             int tokenEnd = token.start + token.length;
-            for(int pos = token.start; pos < tokenEnd &&
-                                     pos < (int)label.size();
-                pos++)
+            for(int pos = token.start;
+                pos < tokenEnd && pos < (int)label.size(); pos++)
             {
                 colors[pos] = token.type;
             }
@@ -472,8 +470,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
 
         appendSyntaxRow(label, extra, sel, e.kind);
 
-        int leftUsed = text_utils::displayWidth(label) +
-                       text_utils::displayWidth(extra);
+        int leftUsed =
+            text_utils::displayWidth(label) + text_utils::displayWidth(extra);
         int leftPad = leftColW - leftUsed;
         if(leftPad > 0)
             output.append(leftPad, ' ');

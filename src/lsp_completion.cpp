@@ -51,13 +51,13 @@ static std::string stripSnippet(const std::string& s)
         {
             // ${1:foo} or ${1}
             size_t end = s.find('}', i + 2);
-            if(end == std::string::npos)
+            if(text_utils::is_not_found(end))
                 continue;
 
             std::string inner = s.substr(i + 2, end - (i + 2));
             // inner might be "1:foo" or "1"
             size_t colon = inner.find(':');
-            if(colon != std::string::npos)
+            if(text_utils::is_found(colon))
             {
                 out += inner.substr(colon + 1);
             }
@@ -346,7 +346,7 @@ static std::optional<IncludeContext> findIncludeContext(const std::string& line,
                                                         int cursorX)
 {
     size_t includePos = line.find("#include");
-    if(includePos == std::string::npos)
+    if(text_utils::is_not_found(includePos))
         return std::nullopt;
 
     size_t pos = includePos + 8; // skip "#include"
@@ -379,11 +379,11 @@ static std::optional<IncludeContext> findIncludeContext(const std::string& line,
         return std::nullopt;
 
     size_t closePos = line.find(closeDelim, pos + 1);
-    if(closePos != std::string::npos && cursorX > (int)closePos)
+    if(text_utils::is_found(closePos) && cursorX > (int)closePos)
         return std::nullopt;
 
     int pathStart = openPos + 1;
-    int pathEnd = (closePos == std::string::npos)
+    int pathEnd = (text_utils::is_not_found(closePos))
                       ? cursorX
                       : std::min(cursorX, (int)closePos);
     if(pathEnd < pathStart)
@@ -394,7 +394,7 @@ static std::optional<IncludeContext> findIncludeContext(const std::string& line,
 
     IncludeContext ctx;
     ctx.isSystem = isSystem;
-    if(lastSlash == std::string::npos)
+    if(text_utils::is_not_found(lastSlash))
     {
         ctx.dirPrefix = "";
         ctx.filePrefix = typed;
@@ -848,7 +848,7 @@ void Editor::requestCompletion()
                 if(currentBuffer && !currentBuffer->filename.empty())
                 {
                     size_t lastSlash = currentBuffer->filename.rfind('/');
-                    if(lastSlash != std::string::npos)
+                    if(text_utils::is_found(lastSlash))
                         currentDir =
                             currentBuffer->filename.substr(0, lastSlash);
                 }
@@ -1086,8 +1086,8 @@ void Editor::acceptCompletion()
     bool functionLike = completionAutoParens && !it.isSnippet;
     if(functionLike)
     {
-        bool hasParen = (it.label.find('(') != std::string::npos) ||
-                        (insert.find('(') != std::string::npos);
+        bool hasParen = text_utils::contains(it.label, '(') ||
+                        text_utils::contains(insert, '(');
         functionLike = hasParen;
     }
     if(functionLike)
@@ -1095,12 +1095,12 @@ void Editor::acceptCompletion()
         auto baseFrom = [&](const std::string& text) -> std::string
         {
             size_t pos = text.find('(');
-            if(pos == std::string::npos)
+            if(text_utils::is_not_found(pos))
                 return text;
             return text.substr(0, pos);
         };
         std::string name = baseFrom(insert);
-        if(name == insert && it.label.find('(') != std::string::npos)
+        if(name == insert && text_utils::contains(it.label, '('))
             name = baseFrom(it.label);
         if(!name.empty())
             insert = name;
@@ -1124,7 +1124,7 @@ void Editor::acceptCompletion()
         if(!prevIsSpace)
         {
             size_t first = insert.find_first_not_of(" \t");
-            if(first != std::string::npos)
+            if(text_utils::is_found(first))
                 insert.erase(0, first);
         }
     }
@@ -2038,7 +2038,7 @@ static bool applyRenameEditToLines(std::vector<std::string>& targetLines,
     while(pos <= combined.size())
     {
         size_t next = combined.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             newLines.push_back(combined.substr(pos));
             break;
@@ -2636,7 +2636,7 @@ void Editor::applyDiagnosticFix(int index)
         while(pos <= combined.size())
         {
             size_t next = combined.find('\n', pos);
-            if(next == std::string::npos)
+            if(text_utils::is_not_found(next))
             {
                 newLines.push_back(combined.substr(pos));
                 break;

@@ -143,8 +143,9 @@ std::string blame_hash_for_line(const std::string& filePath, int line)
     if(firstLine.empty())
         return "";
     size_t space = firstLine.find(' ');
-    std::string token =
-        (space == std::string::npos) ? firstLine : firstLine.substr(0, space);
+    std::string token = (text_utils::is_not_found(space))
+                            ? firstLine
+                            : firstLine.substr(0, space);
     if(!is_hex_token(token))
         return "";
     return token;
@@ -196,20 +197,21 @@ load_repo_log_entries(const std::string& repoRoot)
             continue;
         constexpr char sep = '\x1f';
         size_t tab = line.find(sep);
-        if(tab == std::string::npos)
+        if(text_utils::is_not_found(tab))
             continue;
         GitLogMode::Entry entry;
         size_t tab2 = line.find(sep, tab + 1);
-        size_t tab3 = (tab2 == std::string::npos) ? std::string::npos
-                                                  : line.find(sep, tab2 + 1);
+        size_t tab3 = (text_utils::is_not_found(tab2))
+                          ? text_utils::npos()
+                          : line.find(sep, tab2 + 1);
         entry.hash = line.substr(0, tab);
-        if(tab2 != std::string::npos)
+        if(text_utils::is_found(tab2))
             entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-        if(tab2 != std::string::npos && tab3 != std::string::npos)
+        if(text_utils::is_found(tab2) && text_utils::is_found(tab3))
             entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-        if(tab3 != std::string::npos)
+        if(text_utils::is_found(tab3))
             entry.subject = line.substr(tab3 + 1);
-        else if(tab2 != std::string::npos)
+        else if(text_utils::is_found(tab2))
             entry.subject = line.substr(tab2 + 1);
         else
             entry.subject = line.substr(tab + 1);
@@ -405,7 +407,7 @@ void EditorGitController::updateGitBlameForVisibleRange()
             continue;
         }
         size_t space = line.find(' ');
-        if(space != std::string::npos)
+        if(text_utils::is_found(space))
         {
             std::string token = line.substr(0, space);
             if(is_hex_token(token))
@@ -580,7 +582,7 @@ void EditorGitController::openGitDiffMode()
     while(pos <= output.size())
     {
         size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             linesOut.push_back(output.substr(pos));
             break;
@@ -700,7 +702,7 @@ EditorGitController::loadGitShowLines(const std::string& hash)
     while(pos <= output.size())
     {
         size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             linesOut.push_back(output.substr(pos));
             break;
@@ -888,7 +890,7 @@ void EditorGitController::openGitLogModeForFile()
         if(line.empty())
             continue;
         size_t tab = line.find('\t');
-        if(tab == std::string::npos)
+        if(text_utils::is_not_found(tab))
             continue;
         GitLogMode::Entry entry;
         entry.hash = line.substr(0, tab);

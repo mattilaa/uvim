@@ -3,6 +3,7 @@
 #include "ascii.h"
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
+#include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -35,9 +36,8 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
                                   loc->path.find("/Applications/") == 0;
             if(isSystemHeader)
             {
-                size_t lastSlash = loc->path.rfind('/');
-                if(lastSlash != std::string::npos)
-                    displayPath = "<sys>/" + loc->path.substr(lastSlash + 1);
+                displayPath =
+                    "<sys>/" + std::string(text_utils::basename(loc->path));
             }
             editor.setStatusMessage(std::string("gd (clangd)") + gdArrow +
                                     displayPath + ":" +

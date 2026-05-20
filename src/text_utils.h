@@ -1,4 +1,6 @@
 #pragma once
+#include "text_utils_detail.h"
+
 #include <climits>
 #include <codecvt>
 #include <cstddef>
@@ -10,6 +12,18 @@
 
 namespace text_utils
 {
+
+/**
+ * Returns the sentinel value used by std::string/std::string_view find APIs.
+ *
+ * Use this when an API requires the actual sentinel value, for example as a
+ * `substr` count or a ternary branch value. For boolean checks, prefer
+ * is_found(), is_not_found(), or contains().
+ */
+constexpr size_t npos() noexcept
+{
+    return static_cast<size_t>(-1);
+}
 
 // --- ASCII classification (constexpr, locale-free) ---
 
@@ -65,9 +79,125 @@ constexpr bool iequals_ascii(std::string_view a, std::string_view b) noexcept
     return true;
 }
 
+/**
+ * Returns true when a string find-style result refers to an existing position.
+ *
+ * Prefer this over open-coded comparisons against raw standard-library npos
+ * constants.
+ */
+constexpr bool is_found(size_t pos) noexcept
+{
+    return pos != npos();
+}
+
+/**
+ * Returns true when a string find-style result did not find a match.
+ *
+ * This is the negated companion to is_found() and keeps parser code readable
+ * when the found position still needs to be reused.
+ */
+constexpr bool is_not_found(size_t pos) noexcept
+{
+    return !is_found(pos);
+}
+
+/** Returns true when `needle` appears anywhere in `s`. */
 constexpr bool contains(std::string_view s, std::string_view needle) noexcept
 {
-    return s.find(needle) != std::string_view::npos;
+    return is_found(s.find(needle));
+}
+
+/** Returns true when `needle` appears anywhere in `s`. */
+constexpr bool contains(std::string_view s, char needle) noexcept
+{
+    return is_found(s.find(needle));
+}
+
+/**
+ * Returns a lightweight range of every non-overlapping match position.
+ *
+ * The range stores a view of `text` and owns a copy of `needle`, so temporary
+ * needles are safe. The caller must keep `text` alive while iterating.
+ */
+template <typename Text, typename Needle,
+          detail::enable_string_view_compatible<Text> = 0,
+          detail::enable_string_view_compatible<Needle> = 0>
+detail::FindAllRange find_all(Text&& text, Needle&& needle)
+{
+    return {std::string_view{text}, std::string{std::string_view{needle}}};
+}
+
+/**
+ * Returns a lightweight range of every non-overlapping character match.
+ */
+template <typename Text, detail::enable_string_view_compatible<Text> = 0>
+detail::FindAllRange find_all(Text&& text, char needle)
+{
+    return {std::string_view{text}, std::string(1, needle)};
+}
+
+/**
+ * Returns a stateful finder for code that needs to control the next search
+ * offset after inspecting a match.
+ */
+template <typename Text, typename Needle,
+          detail::enable_string_view_compatible<Text> = 0,
+          detail::enable_string_view_compatible<Needle> = 0>
+detail::FindCursor find_cursor(Text&& text, Needle&& needle)
+{
+    return {std::string_view{text}, std::string{std::string_view{needle}}};
+}
+
+/**
+ * Returns a stateful finder for character searches.
+ */
+template <typename Text, detail::enable_string_view_compatible<Text> = 0>
+detail::FindCursor find_cursor(Text&& text, char needle)
+{
+    return {std::string_view{text}, std::string(1, needle)};
+}
+
+/**
+ * Returns the filename component of a path without allocating.
+ *
+ * Both POSIX ('/') and Windows ('\\') separators are recognized. If the path
+ * has no directory component, the original view is returned.
+ */
+constexpr std::string_view basename(std::string_view path) noexcept
+{
+    const size_t slash = path.find_last_of("/\\");
+    return is_not_found(slash) ? path : path.substr(slash + 1);
+}
+
+/**
+ * Returns the directory component of a path without allocating.
+ *
+ * The returned view excludes the trailing separator, except for a root path
+ * such as "/file" where "/" is returned. If the path has no directory
+ * component, an empty view is returned.
+ */
+constexpr std::string_view dirname(std::string_view path) noexcept
+{
+    const size_t slash = path.find_last_of("/\\");
+    if(is_not_found(slash))
+        return {};
+    if(slash == 0)
+        return path.substr(0, 1);
+    return path.substr(0, slash);
+}
+
+/**
+ * Returns the directory component of a path without allocating.
+ *
+ * The returned view includes the trailing separator so callers can append a
+ * filename directly. If the path has no directory component, an empty view is
+ * returned.
+ */
+constexpr std::string_view
+dirname_with_separator(std::string_view path) noexcept
+{
+    const size_t slash = path.find_last_of("/\\");
+    return is_not_found(slash) ? std::string_view{} : path.substr(0, slash + 1);
 }
 
 inline std::string ascii_lower(std::string_view value)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "text_utils.h"
 #include <cerrno>
 #include <cstdio>
 #include <initializer_list>
@@ -214,8 +215,8 @@ public:
 
     bool write(std::string_view data)
     {
-        return file && std::fwrite(data.data(), 1, data.size(), file) ==
-                           data.size();
+        return file &&
+               std::fwrite(data.data(), 1, data.size(), file) == data.size();
     }
 
     bool flush()
@@ -250,7 +251,7 @@ private:
 #ifdef _WIN32
     static std::string quoteArg(const std::string& arg)
     {
-        if(arg.empty() || arg.find_first_of(" \t\"") != std::string::npos)
+        if(arg.empty() || text_utils::is_found(arg.find_first_of(" \t\"")))
         {
             std::string out = "\"";
             for(char ch : arg)

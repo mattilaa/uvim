@@ -4,6 +4,7 @@
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
 #include "stdlib_goto.h"
+#include "text_utils.h"
 
 #include <filesystem>
 #include <system_error>
@@ -98,7 +99,7 @@ bool EditorDefinitionController::goToInclude()
         if(!editor.filename->empty())
         {
             size_t lastSlash = editor.filename->rfind('/');
-            if(lastSlash != std::string::npos)
+            if(text_utils::is_found(lastSlash))
                 currentDir = editor.filename->substr(0, lastSlash);
         }
 
@@ -121,9 +122,7 @@ bool EditorDefinitionController::goToInclude()
     std::string displayPath = resolvedPath;
     if(isSystem && resolvedPath.length() > 50)
     {
-        size_t lastSlash = resolvedPath.rfind('/');
-        if(lastSlash != std::string::npos)
-            displayPath = ".../" + resolvedPath.substr(lastSlash + 1);
+        displayPath = ".../" + std::string(text_utils::basename(resolvedPath));
     }
     editor.setStatusMessage(std::string("gd") + gdArrow + displayPath);
     return true;

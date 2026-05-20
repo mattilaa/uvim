@@ -1,5 +1,6 @@
 #pragma once
 
+#include "text_utils.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -28,7 +29,7 @@ inline bool iequals_suffix(std::string_view str, std::string_view suffix)
 inline std::string_view basename(std::string_view path)
 {
     size_t slash = path.find_last_of("/\\");
-    return (slash == std::string_view::npos) ? path : path.substr(slash + 1);
+    return (text_utils::is_not_found(slash)) ? path : path.substr(slash + 1);
 }
 
 inline std::string ascii_lower(std::string_view value)
@@ -84,7 +85,7 @@ bool matches_path_substrings(std::string_view path,
     {
         return std::ranges::any_of(
             patterns, [&](std::string_view pattern)
-            { return path.find(pattern) != std::string_view::npos; });
+            { return text_utils::contains(path, pattern); });
     }
     std::string lower_path = detail::ascii_lower(path);
     return std::ranges::any_of(
@@ -92,7 +93,7 @@ bool matches_path_substrings(std::string_view path,
         [&](std::string_view pattern)
         {
             std::string lower_pattern = detail::ascii_lower(pattern);
-            return lower_path.find(lower_pattern) != std::string_view::npos;
+            return text_utils::contains(lower_path, lower_pattern);
         });
 }
 

@@ -2,6 +2,7 @@
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -37,7 +38,7 @@ std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
     while(pos <= output.size())
     {
         size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < output.size())
                 out.push_back(output.substr(pos));
@@ -83,23 +84,23 @@ bool reload_git_log_mode(GitLogMode& mode)
             continue;
         constexpr char sep = '\x1f';
         size_t tab = line.find(sep);
-        if(tab == std::string::npos)
+        if(text_utils::is_not_found(tab))
             continue;
         GitLogMode::Entry entry;
         entry.hash = line.substr(0, tab);
         if(mode.prettyView)
         {
             size_t tab2 = line.find(sep, tab + 1);
-            size_t tab3 = (tab2 == std::string::npos)
-                              ? std::string::npos
+            size_t tab3 = (text_utils::is_not_found(tab2))
+                              ? text_utils::npos()
                               : line.find(sep, tab2 + 1);
-            if(tab2 != std::string::npos)
+            if(text_utils::is_found(tab2))
                 entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-            if(tab2 != std::string::npos && tab3 != std::string::npos)
+            if(text_utils::is_found(tab2) && text_utils::is_found(tab3))
                 entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-            if(tab3 != std::string::npos)
+            if(text_utils::is_found(tab3))
                 entry.subject = line.substr(tab3 + 1);
-            else if(tab2 != std::string::npos)
+            else if(text_utils::is_found(tab2))
                 entry.subject = line.substr(tab2 + 1);
             else
                 entry.subject = line.substr(tab + 1);
@@ -265,10 +266,10 @@ build_comment_lines(const std::vector<std::string>& stagedLines,
         {
             size_t tab = line.find('\t');
             size_t splitPos =
-                (tab != std::string::npos)
+                (text_utils::is_found(tab))
                     ? tab
                     : line.find(keyCode(control::ControlKey::SPACE));
-            if(splitPos != std::string::npos && splitPos + 1 < line.size())
+            if(text_utils::is_found(splitPos) && splitPos + 1 < line.size())
                 path = line.substr(splitPos + 1);
         }
 
@@ -423,8 +424,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx, int key)
                     continue;
                 std::string line = raw.substr(start);
                 size_t sp1 = line.find(keyCode(control::ControlKey::SPACE));
-                std::string actionToken =
-                    (sp1 == std::string::npos) ? line : line.substr(0, sp1);
+                std::string actionToken = (text_utils::is_not_found(sp1))
+                                              ? line
+                                              : line.substr(0, sp1);
                 std::string actionNorm = normalize_todo_action(actionToken);
                 if(actionNorm.empty())
                 {
@@ -433,7 +435,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx, int key)
                     return false;
                 }
 
-                size_t pos = (sp1 == std::string::npos) ? line.size() : sp1;
+                size_t pos =
+                    (text_utils::is_not_found(sp1)) ? line.size() : sp1;
                 while(pos < line.size() &&
                       line[pos] == keyCode(control::ControlKey::SPACE))
                     ++pos;
@@ -445,10 +448,10 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx, int key)
 
                 size_t sp2 =
                     line.find(keyCode(control::ControlKey::SPACE), pos);
-                std::string hash = (sp2 == std::string::npos)
+                std::string hash = (text_utils::is_not_found(sp2))
                                        ? line.substr(pos)
                                        : line.substr(pos, sp2 - pos);
-                std::string subject = (sp2 == std::string::npos)
+                std::string subject = (text_utils::is_not_found(sp2))
                                           ? std::string{}
                                           : line.substr(sp2 + 1);
                 if(hash.empty())
@@ -1235,12 +1238,12 @@ void GitCommitMode::draw(Editor& editor) const
                 }
 
                 size_t labelPos = body.find(":");
-                bool fileEntry = body.find("new file:") != std::string::npos ||
-                                 body.find("modified:") != std::string::npos ||
-                                 body.find("deleted:") != std::string::npos ||
-                                 body.find("renamed:") != std::string::npos ||
-                                 body.find("copied:") != std::string::npos;
-                if(fileEntry && labelPos != std::string::npos)
+                bool fileEntry = text_utils::contains(body, "new file:") ||
+                                 text_utils::contains(body, "modified:") ||
+                                 text_utils::contains(body, "deleted:") ||
+                                 text_utils::contains(body, "renamed:") ||
+                                 text_utils::contains(body, "copied:");
+                if(fileEntry && text_utils::is_found(labelPos))
                 {
                     output += body.substr(0, labelPos + 1);
                     output += Terminal::FG_GREEN;

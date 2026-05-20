@@ -59,10 +59,10 @@ TEST(GitSearchHighlightTest, GitLogHighlightsOnlyMatches)
     std::string normalHash = editor.theme.reset() + editor.theme.uiAccent();
     std::string normalText = editor.theme.reset() + editor.theme.baseFg();
 
-    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalHash),
-              std::string::npos);
-    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalText),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        out.find(matchSeq + std::string("abc") + normalHash)));
+    EXPECT_TRUE(text_utils::is_found(
+        out.find(matchSeq + std::string("abc") + normalText)));
 }
 
 TEST(GitSearchHighlightTest, GitShowHighlightsOnlyMatches)
@@ -76,8 +76,8 @@ TEST(GitSearchHighlightTest, GitShowHighlightsOnlyMatches)
     std::string matchSeq = editor.theme.searchMatch();
     std::string normalSeq = editor.theme.reset() + editor.theme.uiDim();
 
-    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalSeq),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        out.find(matchSeq + std::string("abc") + normalSeq)));
 }
 
 TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)

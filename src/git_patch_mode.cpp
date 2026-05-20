@@ -3,6 +3,7 @@
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -40,7 +41,7 @@ std::vector<std::string> split_lines(const std::string& s)
     while(pos <= s.size())
     {
         size_t next = s.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             out.push_back(s.substr(pos));
             break;

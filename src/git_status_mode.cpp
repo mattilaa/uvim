@@ -27,7 +27,7 @@ std::vector<std::string> split_lines(const std::string& s)
     while(pos <= s.size())
     {
         size_t next = s.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < s.size())
                 out.push_back(s.substr(pos));
@@ -97,7 +97,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
             size_t start = i;
             size_t end =
                 text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
-            if(end == std::string::npos)
+            if(text_utils::is_not_found(end))
             {
                 tokens.emplace_back(text.substr(start));
                 break;
@@ -227,7 +227,7 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
         std::string rawPath = line.substr(pos);
         std::string path;
         size_t arrow = rawPath.find(" -> ");
-        if(arrow != std::string::npos)
+        if(text_utils::is_found(arrow))
             path = decode_git_status_path(rawPath.substr(arrow + 4));
         else
             path = decode_git_status_path(rawPath);

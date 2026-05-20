@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "editor_path_utilities.h"
 #include "formatter.h"
+#include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -44,7 +45,7 @@ static std::string resolve_executable_path(const std::string& exe)
 #else
         size_t end = pathView.find(':', start);
 #endif
-        if(end == std::string_view::npos)
+        if(text_utils::is_not_found(end))
             end = pathView.size();
         if(end > start)
         {
@@ -330,7 +331,7 @@ bool MlangFormatter::operator()(Mode mode)
         while(pos <= combined.size())
         {
             size_t next = combined.find('\n', pos);
-            if(next == std::string::npos)
+            if(text_utils::is_not_found(next))
             {
                 newLines.push_back(combined.substr(pos));
                 break;

@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -137,9 +138,9 @@ void WelcomeMode::draw(Editor& editor) const
         while(true)
         {
             size_t hit = line.find(token, pos);
-            if(hit == std::string::npos)
+            if(text_utils::is_not_found(hit))
             {
-                out.append(line, pos, std::string::npos);
+                out.append(line, pos, text_utils::npos());
                 break;
             }
             out.append(line, pos, hit - pos);

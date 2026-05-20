@@ -1,6 +1,7 @@
 #include "editor_buffer_controller.h"
 #include "editor.h"
 #include "editor_git_controller.h"
+#include "text_utils.h"
 
 EditorBufferController::EditorBufferController(Editor& editor) : editor(editor)
 {
@@ -10,58 +11,72 @@ void EditorBufferController::createNewBuffer()
 {
     editor.createNewBufferImpl();
 }
+
 void EditorBufferController::updateCurrentBufferPointers()
 {
     editor.updateCurrentBufferPointersImpl();
 }
+
 void EditorBufferController::clearCurrentBufferPointers()
 {
     editor.clearCurrentBufferPointersImpl();
 }
+
 bool EditorBufferController::hasBuffer() const
 {
     return editor.hasBufferImpl();
 }
+
 void EditorBufferController::ensureBufferForMode(Mode mode)
 {
     editor.ensureBufferForModeImpl(mode);
 }
+
 void EditorBufferController::switchToBuffer(int index)
 {
     editor.switchToBufferImpl(index);
 }
+
 void EditorBufferController::nextBuffer()
 {
     editor.nextBufferImpl();
 }
+
 void EditorBufferController::previousBuffer()
 {
     editor.previousBufferImpl();
 }
+
 void EditorBufferController::moveBufferLeft()
 {
     editor.moveBufferLeftImpl();
 }
+
 void EditorBufferController::moveBufferRight()
 {
     editor.moveBufferRightImpl();
 }
+
 void EditorBufferController::closeCurrentBuffer()
 {
     editor.closeCurrentBufferImpl();
 }
+
 void EditorBufferController::listBuffers()
 {
     editor.listBuffersImpl();
 }
+
 int EditorBufferController::findBufferByFilename(const std::string& filename)
 {
     return editor.findBufferByFilenameImpl(filename);
 }
+
 void EditorBufferController::saveBufferState()
 {
     editor.saveBufferStateImpl();
 }
+
 void EditorBufferController::restoreBufferState()
 {
     editor.restoreBufferStateImpl();
@@ -335,11 +350,7 @@ void Editor::listBuffersImpl()
 
         if(!buffers[i]->filename.empty())
         {
-            size_t lastSlash = buffers[i]->filename.find_last_of("/\\");
-            if(lastSlash != std::string::npos)
-                ss << buffers[i]->filename.substr(lastSlash + 1);
-            else
-                ss << buffers[i]->filename;
+            ss << text_utils::basename(buffers[i]->filename);
         }
         else
         {

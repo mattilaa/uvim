@@ -1,6 +1,7 @@
-#include "editor.h"
 #include "editor_file_controller.h"
+#include "editor.h"
 #include "editor_utils.h"
+#include "text_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -64,7 +65,7 @@ void EditorFileController::saveFile()
         line = expanded;
 
         size_t endPos = line.find_last_not_of(" \t");
-        if(endPos != std::string::npos)
+        if(text_utils::is_found(endPos))
         {
             line = line.substr(0, endPos + 1);
         }
@@ -271,7 +272,7 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
     }};
 
     const size_t lastDot = currentFile.find_last_of('.');
-    if(lastDot == std::string::npos)
+    if(text_utils::is_not_found(lastDot))
         return "";
 
     const std::string extension = currentFile.substr(lastDot);
@@ -294,14 +295,14 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
     std::string dir;
     std::string fileName = currentFile;
 
-    if(lastSlash != std::string::npos)
+    if(text_utils::is_found(lastSlash))
     {
         dir = currentFile.substr(0, lastSlash + 1);
         fileName = currentFile.substr(lastSlash + 1);
     }
 
     const size_t fileDot = fileName.find_last_of('.');
-    if(fileDot == std::string::npos)
+    if(text_utils::is_not_found(fileDot))
         return "";
 
     const std::string baseName = fileName.substr(0, fileDot);
@@ -327,12 +328,12 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
 
     for(const auto& [srcDir, incDir] : dirPairs)
     {
-        if(!isHeader && dir.find(srcDir) != std::string::npos)
+        if(!isHeader && text_utils::contains(dir, srcDir))
         {
             std::string altDir = dir;
             const size_t pos = altDir.find(srcDir);
 
-            if(pos != std::string::npos)
+            if(text_utils::is_found(pos))
             {
                 altDir.replace(pos, srcDir.length(), incDir);
 
@@ -345,12 +346,12 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
                 }
             }
         }
-        else if(isHeader && dir.find(incDir) != std::string::npos)
+        else if(isHeader && text_utils::contains(dir, incDir))
         {
             std::string altDir = dir;
             const size_t pos = altDir.find(incDir);
 
-            if(pos != std::string::npos)
+            if(text_utils::is_found(pos))
             {
                 altDir.replace(pos, incDir.length(), srcDir);
 

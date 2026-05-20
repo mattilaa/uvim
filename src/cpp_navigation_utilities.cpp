@@ -1,4 +1,5 @@
 #include "cpp_navigation_utilities.h"
+#include "text_utils.h"
 
 #include <cctype>
 #include <filesystem>
@@ -12,16 +13,17 @@ int CppNavigationUtilities::findLocalDeclaration(const std::string& line,
                                                  const std::string& symbol)
 {
     size_t firstNonSpace = line.find_first_not_of(" \t");
-    if(firstNonSpace != std::string::npos &&
+    if(text_utils::is_found(firstNonSpace) &&
        line.substr(firstNonSpace, 2) == "//")
         return -1;
 
     size_t commentPos = line.find("//");
     std::string effectiveLine =
-        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
+        (text_utils::is_found(commentPos)) ? line.substr(0, commentPos) : line;
 
+    auto matches = text_utils::find_cursor(effectiveLine, symbol);
     size_t pos = 0;
-    while((pos = effectiveLine.find(symbol, pos)) != std::string::npos)
+    while(matches.next(pos))
     {
         bool validStart = (pos == 0 || !isIdent(effectiveLine[pos - 1]));
         bool validEnd = (pos + symbol.length() >= effectiveLine.length() ||
@@ -29,7 +31,7 @@ int CppNavigationUtilities::findLocalDeclaration(const std::string& line,
 
         if(!validStart || !validEnd)
         {
-            pos++;
+            matches.resume_at(pos + 1);
             continue;
         }
 
@@ -155,8 +157,8 @@ bool CppNavigationUtilities::searchMemberDefinition(
     {
         const std::string& line = lines[y];
 
-        if(line.find("class ") != std::string::npos ||
-           line.find("struct ") != std::string::npos)
+        if(text_utils::contains(line, "class ") ||
+           text_utils::contains(line, "struct "))
         {
             inClassOrStruct = true;
             braceDepth = 0;
@@ -203,7 +205,7 @@ std::pair<std::string, bool>
 CppNavigationUtilities::extractIncludePath(const std::string& line)
 {
     size_t includePos = line.find("#include");
-    if(includePos == std::string::npos)
+    if(text_utils::is_not_found(includePos))
         return {"", false};
 
     size_t pos = includePos + 8;
@@ -235,7 +237,7 @@ CppNavigationUtilities::extractIncludePath(const std::string& line)
     size_t start = pos;
     size_t end = line.find(closeDelim, pos);
 
-    if(end == std::string::npos)
+    if(text_utils::is_not_found(end))
         return {"", false};
 
     return {line.substr(start, end - start), isSystem};
@@ -283,12 +285,12 @@ bool CppNavigationUtilities::isLikelyDefinition(const std::string& line,
 {
     size_t commentPos = line.find("//");
     std::string effectiveLine =
-        (commentPos != std::string::npos) ? line.substr(0, commentPos) : line;
+        (text_utils::is_found(commentPos)) ? line.substr(0, commentPos) : line;
 
-    if(effectiveLine.find(symbol + "(") != std::string::npos)
+    if(text_utils::contains(effectiveLine, symbol + "("))
         return true;
 
-    if(effectiveLine.find("::" + symbol + "(") != std::string::npos)
+    if(text_utils::contains(effectiveLine, "::" + symbol + "("))
         return true;
 
     return false;

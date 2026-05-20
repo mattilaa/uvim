@@ -1,4 +1,5 @@
 #pragma once
+#include "text_utils.h"
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -185,7 +186,7 @@ private:
         }
 
         // Check if pattern is anchored (contains / except at end)
-        p.anchored = (pat.find('/') != std::string::npos);
+        p.anchored = (text_utils::contains(pat, '/'));
 
         // Handle leading /
         if(!pat.empty() && pat[0] == '/')
@@ -322,7 +323,7 @@ private:
     static std::string trim(const std::string& str)
     {
         size_t first = str.find_first_not_of(" \t\r\n");
-        if(first == std::string::npos)
+        if(text_utils::is_not_found(first))
             return "";
         size_t last = str.find_last_not_of(" \t\r\n");
         return str.substr(first, last - first + 1);

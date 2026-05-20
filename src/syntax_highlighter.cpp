@@ -183,7 +183,7 @@ void load_builtin_functions_from_file(MlangTokenCache& cache,
         def.line = lineNo - 1;
         cache.builtinFunctions.emplace(name, def);
         auto sep = name.rfind("::");
-        if(sep != std::string::npos && sep + 2 < name.size())
+        if(text_utils::is_found(sep) && sep + 2 < name.size())
         {
             std::string base = name.substr(sep + 2);
             cache.builtinFunctions.emplace(std::move(base), def);
@@ -412,7 +412,7 @@ void scan_line_for_cpp_method_context(
         if(state.inBlockComment)
         {
             size_t closePos = line.find("*/", i);
-            if(closePos == std::string::npos)
+            if(text_utils::is_not_found(closePos))
                 return;
             state.inBlockComment = false;
             i = closePos + 2;
@@ -536,7 +536,7 @@ void scan_line_for_cpp_param_list_context(const std::string& line,
         if(state.inBlockComment)
         {
             size_t closePos = line.find("*/", i);
-            if(closePos == std::string::npos)
+            if(text_utils::is_not_found(closePos))
                 return;
             state.inBlockComment = false;
             i = closePos + 2;
@@ -641,7 +641,7 @@ void scan_line_for_cpp_function_context(const std::string& line,
         if(state.inBlockComment)
         {
             size_t closePos = line.find("*/", i);
-            if(closePos == std::string::npos)
+            if(text_utils::is_not_found(closePos))
                 return;
             state.inBlockComment = false;
             i = closePos + 2;
@@ -799,7 +799,7 @@ MlangConfig parse_mlangd(const std::filesystem::path& path)
     };
 
     // JSON format
-    if(!contents.empty() && contents.find('{') != std::string::npos)
+    if(!contents.empty() && text_utils::contains(contents, '{'))
     {
         json_utils::Document root;
         if(json_utils::parse(root, contents) && root.IsObject())
@@ -827,7 +827,7 @@ MlangConfig parse_mlangd(const std::filesystem::path& path)
         if(line.starts_with("#") || line.starts_with("//"))
             continue;
         auto pos = line.find('=');
-        if(pos == std::string::npos)
+        if(text_utils::is_not_found(pos))
             continue;
         std::string key = line.substr(0, pos);
         std::string value = line.substr(pos + 1);
@@ -948,18 +948,18 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                 continue;
 
             auto has_keyword = [&](std::string_view kw) -> bool
-            { return cleaned.find(kw) != std::string::npos; };
+            { return text_utils::contains(cleaned, kw); };
 
             auto parse_class_name = [&]()
             {
                 size_t pos = cleaned.find("class ");
                 size_t skip = 6;
-                if(pos == std::string::npos)
+                if(text_utils::is_not_found(pos))
                 {
                     pos = cleaned.find("struct ");
                     skip = 7;
                 }
-                if(pos == std::string::npos)
+                if(text_utils::is_not_found(pos))
                     return;
                 size_t i = pos + skip;
                 while(i < cleaned.size() && text_utils::is_space(cleaned[i]))
@@ -980,7 +980,7 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                (has_keyword("class ") || has_keyword("struct ")))
             {
                 parse_class_name();
-                if(cleaned.find('{') != std::string::npos)
+                if(text_utils::contains(cleaned, '{'))
                 {
                     inClass = true;
                     braceDepth = 0;
@@ -991,14 +991,14 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                 }
             }
 
-            if(pendingClass && cleaned.find('{') != std::string::npos)
+            if(pendingClass && text_utils::contains(cleaned, '{'))
             {
                 pendingClass = false;
                 inClass = true;
                 braceDepth = 0;
             }
-            if(pendingClass && cleaned.find(';') != std::string::npos &&
-               cleaned.find('{') == std::string::npos)
+            if(pendingClass && text_utils::contains(cleaned, ';') &&
+               !text_utils::contains(cleaned, '{'))
             {
                 pendingClass = false;
             }
@@ -1027,10 +1027,10 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
 
             std::string_view memberLine(cleaned);
             size_t bracePos = memberLine.rfind('{');
-            if(bracePos != std::string_view::npos)
+            if(text_utils::is_found(bracePos))
                 memberLine = memberLine.substr(bracePos + 1);
             size_t closePos = memberLine.find('}');
-            if(closePos != std::string_view::npos)
+            if(text_utils::is_found(closePos))
                 memberLine = memberLine.substr(0, closePos);
 
             if(has_keyword("typedef") || has_keyword("using ") ||
@@ -1045,19 +1045,19 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
             while(segStart < memberLine.size())
             {
                 size_t semi = memberLine.find(';', segStart);
-                if(semi == std::string_view::npos)
+                if(text_utils::is_not_found(semi))
                     break;
                 foundSemi = true;
                 std::string_view stmt =
                     memberLine.substr(segStart, semi - segStart);
-                if(stmt.find('(') != std::string_view::npos)
+                if(text_utils::contains(stmt, '('))
                 {
                     segStart = semi + 1;
                     continue;
                 }
 
                 auto eq = stmt.find('=');
-                if(eq != std::string_view::npos)
+                if(text_utils::is_found(eq))
                     stmt = stmt.substr(0, eq);
 
                 // split by commas to catch "int a, b"
@@ -1065,9 +1065,10 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                 while(start < stmt.size())
                 {
                     size_t comma = stmt.find(',', start);
-                    std::string_view part = stmt.substr(
-                        start, comma == std::string::npos ? std::string::npos
-                                                          : comma - start);
+                    std::string_view part =
+                        stmt.substr(start, text_utils::is_not_found(comma)
+                                               ? text_utils::npos()
+                                               : comma - start);
                     // find last identifier
                     int i = (int)part.size() - 1;
                     while(i >= 0 && text_utils::is_space(part[i]))
@@ -1086,7 +1087,7 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
                         if(!name.empty())
                             cppMemberNames.insert(name);
                     }
-                    if(comma == std::string::npos)
+                    if(text_utils::is_not_found(comma))
                         break;
                     start = comma + 1;
                 }
@@ -1482,7 +1483,7 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     def.line = line > 0 ? line - 1 : 0;
                     cache.builtinFunctions.emplace(name, def);
                     auto sep = name.rfind("::");
-                    if(sep != std::string::npos && sep + 2 < name.size())
+                    if(text_utils::is_found(sep) && sep + 2 < name.size())
                     {
                         std::string base = name.substr(sep + 2);
                         cache.builtinFunctions.emplace(std::move(base), def);
@@ -1827,7 +1828,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                         size_t start = pos;
                         ++pos;
                         size_t end = line.find(close, pos);
-                        if(end != std::string::npos && end > pos)
+                        if(text_utils::is_found(end) && end > pos)
                         {
                             std::string_view header =
                                 std::string_view(line).substr(pos, end - pos);
@@ -1883,7 +1884,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         if(sv[first] == '[')
         {
             size_t close = sv.find(']', (size_t)first + 1);
-            if(close != std::string_view::npos)
+            if(text_utils::is_found(close))
             {
                 tokens.push_back(
                     {TOKEN_KEYWORD, first, (int)(close - first + 1)});
@@ -1927,6 +1928,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 int start = 0;
                 int end = 0;
             };
+
             auto parse_cells = [&](int start) -> std::vector<CellRange>
             {
                 std::vector<CellRange> cells;
@@ -2246,7 +2248,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             if(inBlockComment)
             {
                 size_t end = sv.find("*/", (size_t)i);
-                if(end == std::string_view::npos)
+                if(text_utils::is_not_found(end))
                 {
                     tokens.push_back({TOKEN_COMMENT, i, len - i});
                     return tokens;
@@ -2262,7 +2264,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             {
                 int start = i;
                 size_t end = sv.find("*/", (size_t)i + 2);
-                if(end == std::string_view::npos)
+                if(text_utils::is_not_found(end))
                 {
                     tokens.push_back({TOKEN_COMMENT, start, len - start});
                     inBlockComment = true;
@@ -2408,7 +2410,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 continue;
             }
 
-            if(std::string_view("{}[]:,.").find(c) != std::string_view::npos)
+            if(text_utils::contains(std::string_view("{}[]:,."), c))
             {
                 tokens.push_back({TOKEN_OPERATOR, i, 1});
                 ++i;
@@ -2479,7 +2481,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 {
                     i += 2;
                     size_t end = sv.find(std::string(3, quote), (size_t)i);
-                    if(end == std::string_view::npos)
+                    if(text_utils::is_not_found(end))
                     {
                         tokens.push_back({TOKEN_STRING, start, len - start});
                         break;
@@ -2769,8 +2771,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 continue;
             }
 
-            if(std::string_view("=.,{}[]").find(sv[i]) !=
-               std::string_view::npos)
+            if(text_utils::contains(std::string_view("=.,{}[]"), sv[i]))
             {
                 tokens.push_back({TOKEN_OPERATOR, i, 1});
                 ++i;
@@ -2801,7 +2802,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     if(inBlockComment)
     {
         size_t end = sv.find("*/");
-        if(end != std::string_view::npos)
+        if(text_utils::is_found(end))
         {
             int len = (int)end + 2;
             push_token(TOKEN_COMMENT, 0, len);
@@ -2818,7 +2819,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     if(inMarkupFence)
     {
         size_t fenceStart = line.find(markupFenceChar);
-        if(fenceStart != std::string::npos)
+        if(text_utils::is_found(fenceStart))
         {
             bool isFence = fenceStart + 2 < line.size() &&
                            line[fenceStart + 1] == markupFenceChar &&
@@ -2843,10 +2844,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 return false;
             push_token(TOKEN_COMMENT, 0, len);
             size_t atPos = sv.find('@');
-            if(atPos != std::string_view::npos)
+            if(text_utils::is_found(atPos))
             {
                 size_t spacePos = sv.find(' ', atPos);
-                size_t keywordLen = spacePos == std::string_view::npos
+                size_t keywordLen = text_utils::is_not_found(spacePos)
                                         ? marker.size() - atPos
                                         : spacePos - atPos;
                 if(keywordLen > 0)
@@ -2896,7 +2897,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 int start = i;
                 i += 2;
                 size_t end = sv.find("*/", (size_t)i);
-                if(end != std::string_view::npos)
+                if(text_utils::is_found(end))
                 {
                     int tokenLen = (int)end + 2 - start;
                     push_token(TOKEN_COMMENT, start, tokenLen);
@@ -3042,7 +3043,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     if(word == "template" && syntaxCppHighlightTypeNames)
                     {
                         size_t lt = sv.find('<', i);
-                        if(lt != std::string_view::npos)
+                        if(text_utils::is_found(lt))
                         {
                             int depth = 0;
                             for(size_t j = lt; j < sv.size(); ++j)
@@ -3745,7 +3746,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             {
                 // Looking for closing */
                 size_t closePos = scanLine.find("*/", pos);
-                if(closePos != std::string::npos)
+                if(text_utils::is_found(closePos))
                 {
                     inComment = false;
                     pos = closePos + 2;
@@ -4149,8 +4150,8 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                 }
                 else if(type == "parameter")
                 {
-                    mapped =
-                        isCppSemantics ? editor->syntaxCppLocalToken : TOKEN_NORMAL;
+                    mapped = isCppSemantics ? editor->syntaxCppLocalToken
+                                            : TOKEN_NORMAL;
                 }
                 else if(type == "variable")
                 {
@@ -4160,46 +4161,47 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     }
                     else
                     {
-                    bool isObjectReference = false;
-                    const std::string& lineRef = line;
-                    int tokenStart = token.start;
-                    int tokenEnd = token.start + token.length;
-                    if(tokenEnd > tokenStart)
-                    {
-                        int p = tokenStart - 1;
-                        while(p >= 0 && text_utils::is_space(lineRef[p]))
-                            --p;
-                        if(p >= 0 && lineRef[p] == '.')
-                            isObjectReference = true;
-                        if(p >= 1 && lineRef[p] == '>' && lineRef[p - 1] == '-')
-                            isObjectReference = true;
-                        if(!isObjectReference)
+                        bool isObjectReference = false;
+                        const std::string& lineRef = line;
+                        int tokenStart = token.start;
+                        int tokenEnd = token.start + token.length;
+                        if(tokenEnd > tokenStart)
                         {
-                            int q = tokenEnd;
-                            while(q < (int)lineRef.size() &&
-                                  text_utils::is_space(lineRef[q]))
-                                ++q;
-                            if(q < (int)lineRef.size() &&
-                               (lineRef[q] == '.' ||
-                                (lineRef[q] == '-' &&
-                                 q + 1 < (int)lineRef.size() &&
-                                 lineRef[q + 1] == '>')))
-                            {
+                            int p = tokenStart - 1;
+                            while(p >= 0 && text_utils::is_space(lineRef[p]))
+                                --p;
+                            if(p >= 0 && lineRef[p] == '.')
                                 isObjectReference = true;
+                            if(p >= 1 && lineRef[p] == '>' &&
+                               lineRef[p - 1] == '-')
+                                isObjectReference = true;
+                            if(!isObjectReference)
+                            {
+                                int q = tokenEnd;
+                                while(q < (int)lineRef.size() &&
+                                      text_utils::is_space(lineRef[q]))
+                                    ++q;
+                                if(q < (int)lineRef.size() &&
+                                   (lineRef[q] == '.' ||
+                                    (lineRef[q] == '-' &&
+                                     q + 1 < (int)lineRef.size() &&
+                                     lineRef[q + 1] == '>')))
+                                {
+                                    isObjectReference = true;
+                                }
                             }
                         }
-                    }
-                    if(!inFunctionContext &&
-                       (token.isDeclaration || token.isDefinition))
-                    {
-                        mapped = editor->syntaxCppMemberToken;
-                    }
-                    else
-                    {
-                        mapped = isObjectReference
-                                     ? editor->syntaxCppMemberToken
-                                     : editor->syntaxCppLocalToken;
-                    }
+                        if(!inFunctionContext &&
+                           (token.isDeclaration || token.isDefinition))
+                        {
+                            mapped = editor->syntaxCppMemberToken;
+                        }
+                        else
+                        {
+                            mapped = isObjectReference
+                                         ? editor->syntaxCppMemberToken
+                                         : editor->syntaxCppLocalToken;
+                        }
                     }
                 }
                 else if(type == "property" || type == "enumMember" ||

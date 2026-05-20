@@ -60,7 +60,7 @@ std::vector<std::string> splitNul(const std::string& s)
     while(i < s.size())
     {
         size_t j = s.find('\0', i);
-        if(j == std::string::npos)
+        if(text_utils::is_not_found(j))
             j = s.size();
         if(j > i)
             out.push_back(s.substr(i, j - i));
@@ -84,7 +84,7 @@ std::string truncatePathMiddle(std::string path, int width)
     while(!suffix.empty() && text_utils::utf8DisplayWidth(suffix) > suffixWidth)
     {
         size_t slash = suffix.find('/');
-        if(slash == std::string::npos || slash + 1 >= suffix.size())
+        if(text_utils::is_not_found(slash) || slash + 1 >= suffix.size())
             suffix.erase(suffix.begin());
         else
             suffix.erase(0, slash + 1);
@@ -378,7 +378,7 @@ void GrepSearchMode::draw(Editor& editor) const
             std::string lowerQuery = toLower(query);
 
             size_t pos = lowerContent.find(lowerQuery);
-            if(pos != std::string::npos)
+            if(text_utils::is_found(pos))
             {
                 output += content.substr(0, pos);
                 output += editor.theme.matchHighlight();
@@ -579,16 +579,13 @@ void GrepSearchMode::searchInFile(const std::string& filepath,
             haystack = loweredLine;
         }
 
+        auto foundPositions = text_utils::find_cursor(haystack, searchNeedle);
         size_t pos = 0;
-        while((pos = haystack.find(searchNeedle, pos)) != std::string::npos)
+        while(foundPositions.next(pos))
         {
             GrepMatch match;
             match.filepath = filepath;
-
-            size_t lastSlash = filepath.find_last_of("/\\");
-            match.filename = (lastSlash != std::string::npos)
-                                 ? filepath.substr(lastSlash + 1)
-                                 : filepath;
+            match.filename = text_utils::basename(filepath);
 
             match.lineNumber = lineNumber;
             match.lineContent = trimString(line);
@@ -596,8 +593,6 @@ void GrepSearchMode::searchInFile(const std::string& filepath,
                 std::make_pair((int)pos, (int)needle.length()));
 
             matches.push_back(match);
-            pos += needle.length();
-
             if(matches.size() >= 1000)
                 return;
         }
@@ -609,7 +604,7 @@ bool GrepSearchMode::isTextFile(const std::string& filepath) const
     std::string ext;
     size_t dotPos =
         filepath.find_last_of(keyCode(command::CommandKey::KEY_DOT));
-    if(dotPos != std::string::npos)
+    if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
         bool isPythonExt =
@@ -690,7 +685,7 @@ bool GrepSearchMode::isBinaryFile(const std::string& filepath) const
 std::string GrepSearchMode::trimString(const std::string& str) const
 {
     size_t first = str.find_first_not_of(" \t\r\n");
-    if(first == std::string::npos)
+    if(text_utils::is_not_found(first))
         return "";
     size_t last = str.find_last_not_of(" \t\r\n");
     return str.substr(first, last - first + 1);

@@ -1,5 +1,6 @@
 #include "editor_indent_controller.h"
 #include "editor.h"
+#include "text_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -196,7 +197,7 @@ void Editor::autoIndentLineImpl(int line)
 
     std::string currentLine = (*lines)[line];
     size_t firstNonSpace = currentLine.find_first_not_of(" \t");
-    if(firstNonSpace != std::string::npos)
+    if(text_utils::is_found(firstNonSpace))
         currentLine = currentLine.substr(firstNonSpace);
     else
         currentLine = "";
@@ -208,7 +209,7 @@ void Editor::autoIndentLineImpl(int line)
 
         const std::string& prevLine = (*lines)[line - 1];
         size_t lastNonSpace = prevLine.find_last_not_of(" \t\r\n");
-        if(lastNonSpace != std::string::npos)
+        if(text_utils::is_found(lastNonSpace))
         {
             char lastChar = prevLine[lastNonSpace];
             if(lastChar == '{')
@@ -216,11 +217,11 @@ void Editor::autoIndentLineImpl(int line)
                 baseIndent += 4;
             }
             else if(lastChar == ':' &&
-                    (prevLine.find("public") != std::string::npos ||
-                     prevLine.find("private") != std::string::npos ||
-                     prevLine.find("protected") != std::string::npos ||
-                     prevLine.find("case") != std::string::npos ||
-                     prevLine.find("default") != std::string::npos))
+                    (text_utils::contains(prevLine, "public") ||
+                     text_utils::contains(prevLine, "private") ||
+                     text_utils::contains(prevLine, "protected") ||
+                     text_utils::contains(prevLine, "case") ||
+                     text_utils::contains(prevLine, "default")))
             {
                 baseIndent += 4;
             }
@@ -326,7 +327,7 @@ void Editor::updateClangFormatIndentWidthImpl()
                     {
                         inBraceWrapping = true;
                         braceWrappingIndent = line.find_first_not_of(" \t");
-                        if(braceWrappingIndent == std::string::npos)
+                        if(text_utils::is_not_found(braceWrappingIndent))
                             braceWrappingIndent = 0;
                         continue;
                     }
@@ -334,7 +335,7 @@ void Editor::updateClangFormatIndentWidthImpl()
                     if(inBraceWrapping)
                     {
                         size_t indent = line.find_first_not_of(" \t");
-                        if(indent == std::string::npos)
+                        if(text_utils::is_not_found(indent))
                             continue;
                         if(indent <= braceWrappingIndent)
                         {
@@ -396,7 +397,7 @@ void Editor::commentLinesImpl(int startY, int endY)
     {
         const std::string& line = (*lines)[y];
         size_t pos = line.find_first_not_of(" \t");
-        if(pos == std::string::npos)
+        if(text_utils::is_not_found(pos))
             continue;
         if(line.compare(pos, prefix.size(), prefix) == 0)
             anyCommented = true;
@@ -411,7 +412,7 @@ void Editor::commentLinesImpl(int startY, int endY)
     {
         std::string& line = (*lines)[y];
         size_t pos = line.find_first_not_of(" \t");
-        if(pos == std::string::npos)
+        if(text_utils::is_not_found(pos))
             continue;
 
         if(allCommented)

@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "formatter.h"
 #include "process_pipe.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -151,7 +152,7 @@ void PythonFormatter::lintBuffer()
     }
 
     size_t nl = output.find('\n');
-    if(nl != std::string::npos)
+    if(text_utils::is_found(nl))
         output = output.substr(0, nl);
     editor.setStatusMessage("ruff: " + output);
 }

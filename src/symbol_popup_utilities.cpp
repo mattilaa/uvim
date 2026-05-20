@@ -16,9 +16,9 @@ std::string SymbolPopupUtilities::collectSignatureLine(
     if(startY < 0 || startY >= (int)lines.size())
         return "";
     std::string out = trim_ascii_ws(lines[startY]);
-    if(out.find('(') == std::string::npos)
+    if(!text_utils::contains(out, '('))
         return out;
-    if(out.find(')') != std::string::npos || out.find('{') != std::string::npos)
+    if(text_utils::contains(out, ')') || text_utils::contains(out, '{'))
         return out;
 
     for(int i = 1; i <= maxLines && startY + i < (int)lines.size(); ++i)
@@ -27,9 +27,8 @@ std::string SymbolPopupUtilities::collectSignatureLine(
         if(chunk.empty())
             continue;
         out += " " + chunk;
-        if(chunk.find(')') != std::string::npos ||
-           chunk.find('{') != std::string::npos ||
-           chunk.find(';') != std::string::npos)
+        if(text_utils::contains(chunk, ')') ||
+           text_utils::contains(chunk, '{') || text_utils::contains(chunk, ';'))
         {
             break;
         }
@@ -92,13 +91,14 @@ bool SymbolPopupUtilities::findDeclarationInLines(
     for(int y = 0; y < (int)lines.size(); ++y)
     {
         const std::string& line = lines[y];
-        if(line.find(symbol) == std::string::npos)
+        if(!text_utils::contains(line, symbol))
             continue;
         if(isControlStatement(line))
             continue;
 
+        auto matches = text_utils::find_cursor(line, symbol);
         size_t pos = 0;
-        while((pos = line.find(symbol, pos)) != std::string::npos)
+        while(matches.next(pos))
         {
             bool leftOk = true;
             if(pos > 0)
@@ -116,14 +116,12 @@ bool SymbolPopupUtilities::findDeclarationInLines(
             }
             if(!leftOk)
             {
-                pos += symbol.size();
                 continue;
             }
             size_t after = pos + symbol.size();
             if(after < line.size() &&
                CppNavigationUtilities::isIdent(line[after]))
             {
-                pos += symbol.size();
                 continue;
             }
             while(after < line.size() &&
@@ -133,7 +131,6 @@ bool SymbolPopupUtilities::findDeclarationInLines(
             }
             if(after >= line.size() || line[after] != '(')
             {
-                pos += symbol.size();
                 continue;
             }
             outY = y;
@@ -169,7 +166,7 @@ std::string SymbolPopupUtilities::lastQualifier(std::string_view text)
     while(s.size() >= 2 && s.substr(s.size() - 2) == "::")
         s.resize(s.size() - 2);
     size_t pos = s.rfind("::");
-    if(pos != std::string::npos)
+    if(text_utils::is_found(pos))
         s = s.substr(pos + 2);
     return s;
 }
@@ -180,7 +177,7 @@ std::string SymbolPopupUtilities::extractTypeBeforeName(const std::string& line,
     if(name.empty())
         return "";
     size_t pos = line.find(name);
-    while(pos != std::string::npos)
+    while(text_utils::is_found(pos))
     {
         bool leftOk =
             (pos == 0) || !CppNavigationUtilities::isIdent(line[pos - 1]);
@@ -191,7 +188,7 @@ std::string SymbolPopupUtilities::extractTypeBeforeName(const std::string& line,
             break;
         pos = line.find(name, pos + name.size());
     }
-    if(pos == std::string::npos)
+    if(text_utils::is_not_found(pos))
         return "";
 
     int i = (int)pos - 1;

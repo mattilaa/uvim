@@ -132,7 +132,7 @@ bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
                 continue;
             std::string base = name;
             auto sep = base.rfind("::");
-            if(sep != std::string::npos && sep + 2 < base.size())
+            if(text_utils::is_found(sep) && sep + 2 < base.size())
                 base = base.substr(sep + 2);
             if(name == needle || ascii_lower(name) == needleLower ||
                base == needle || ascii_lower(base) == needleLower)
@@ -148,7 +148,7 @@ bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
     {
         static constexpr std::string_view kPrefix = "extern fn ";
         size_t pos = lineView.find(kPrefix);
-        if(pos == std::string_view::npos)
+        if(text_utils::is_not_found(pos))
             return false;
         pos += kPrefix.size();
         while(pos < lineView.size() && text_utils::is_space(lineView[pos]))

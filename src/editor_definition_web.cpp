@@ -49,17 +49,17 @@ bool cursorInAttributeValue(std::string_view line, int cursorX,
 {
     std::string_view trimmed = trim_view(line);
     size_t pos = trimmed.find(attr);
-    if(pos == std::string_view::npos)
+    if(text_utils::is_not_found(pos))
         return false;
     size_t eq = trimmed.find('=', pos + attr.size());
-    if(eq == std::string_view::npos)
+    if(text_utils::is_not_found(eq))
         return false;
     size_t q = trimmed.find_first_of("\"'", eq + 1);
-    if(q == std::string_view::npos)
+    if(text_utils::is_not_found(q))
         return false;
     char quote = trimmed[q];
     size_t end = trimmed.find(quote, q + 1);
-    if(end == std::string_view::npos || end <= q + 1)
+    if(text_utils::is_not_found(end) || end <= q + 1)
         return false;
     int startX = static_cast<int>(q + 1 + (trimmed.data() - line.data()));
     int endX = static_cast<int>(end + (trimmed.data() - line.data()));
@@ -226,12 +226,12 @@ bool EditorDefinitionController::goToWebDefinition(FileType fileType,
         {
             int x = *editor.cursorX;
             size_t q = lineView.find_first_of("\"'");
-            if(q != std::string_view::npos)
+            if(text_utils::is_found(q))
             {
                 char quote = lineView[q];
                 size_t end = lineView.find(quote, q + 1);
-                if(end != std::string_view::npos &&
-                   x >= static_cast<int>(q) + 1 && x <= static_cast<int>(end))
+                if(text_utils::is_found(end) && x >= static_cast<int>(q) + 1 &&
+                   x <= static_cast<int>(end))
                 {
                     std::string resolved = resolve_js_ts_module(
                         editor.currentBuffer->filename, module);

@@ -90,7 +90,7 @@ std::vector<StatusEntry> parse_status_porcelain_z(const std::string& raw)
             ++i;
 
         size_t end = raw.find('\0', i);
-        if(end == std::string::npos)
+        if(text_utils::is_not_found(end))
             break;
         std::string path = std::string(raw.substr(i, end - i));
         i = end + 1;
@@ -101,7 +101,7 @@ std::vector<StatusEntry> parse_status_porcelain_z(const std::string& raw)
            entry.worktreeStatus == keyCode(typed::TypedKey::KEY_CAP_C))
         {
             size_t end2 = raw.find('\0', i);
-            if(end2 == std::string::npos)
+            if(text_utils::is_not_found(end2))
                 break;
             path = std::string(raw.substr(i, end2 - i));
             i = end2 + 1;
@@ -187,7 +187,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
             size_t start = i;
             size_t end =
                 text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
-            if(end == std::string::npos)
+            if(text_utils::is_not_found(end))
             {
                 tokens.emplace_back(text.substr(start));
                 break;
@@ -779,7 +779,7 @@ void GitStageMode::refreshDiff(Editor& editor)
     while(pos <= raw.size())
     {
         size_t next = raw.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < raw.size())
                 diffLines.push_back(raw.substr(pos));

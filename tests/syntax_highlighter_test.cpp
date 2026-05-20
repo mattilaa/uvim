@@ -77,7 +77,7 @@ TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
                                 (int)editor.currentBuffer->lines[1].size(), 1);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_NE(output.find(memberColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
@@ -95,7 +95,7 @@ TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
                                 (int)editor.currentBuffer->lines[2].size(), 2);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_NE(output.find(memberColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
 }
 
 TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
@@ -119,7 +119,7 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
                                 (int)editor.currentBuffer->lines[1].size(), 1);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_EQ(output.find(memberColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_not_found(output.find(memberColor)));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsTemplateParamsSingleType)
@@ -139,7 +139,7 @@ TEST(SyntaxHighlighterTest, HighlightsTemplateParamsSingleType)
                             inMarkupFence, markupFenceChar, false, false, true);
 
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
 
@@ -162,9 +162,9 @@ TEST(SyntaxHighlighterTest, HighlightsTemplateParamsNestedTypes)
     int fooPos = (int)line.find("Foo");
     int barPos = (int)line.find("Bar");
     int bazPos = (int)line.find("Baz");
-    ASSERT_NE(fooPos, (int)std::string::npos);
-    ASSERT_NE(barPos, (int)std::string::npos);
-    ASSERT_NE(bazPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(barPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(bazPos)));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, barPos, 3, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, bazPos, 3, TOKEN_TYPE));
@@ -209,7 +209,7 @@ TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
                             inMarkupFence, markupFenceChar);
 
     int vecPos = (int)line.find("vector");
-    ASSERT_NE(vecPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(vecPos)));
     EXPECT_TRUE(hasTokenAt(tokens, vecPos, 6, TOKEN_TYPE));
 }
 
@@ -232,8 +232,8 @@ TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
 
     int optionalPos = (int)line.find("optional");
     int summaryPos = (int)line.find("LspDiagnosticSummary");
-    ASSERT_NE(optionalPos, (int)std::string::npos);
-    ASSERT_NE(summaryPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(optionalPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(summaryPos)));
     EXPECT_TRUE(hasTokenAt(tokens, optionalPos, 8, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, summaryPos, 20, TOKEN_TYPE));
 }
@@ -253,8 +253,8 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppTypes)
 
     int uniquePos = (int)line.find("unique_ptr");
     int typePos = (int)line.find("SyntaxHighlighter");
-    ASSERT_NE(uniquePos, (int)std::string::npos);
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(uniquePos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
         {uniquePos, 10, "type", false, false});
@@ -265,7 +265,7 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppTypes)
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
-    EXPECT_NE(output.find(typeColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(typeColor)));
 }
 
 TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
@@ -284,8 +284,8 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
 
     int declPos = (int)line.find("completions");
     int usePos = (int)line.find("completions", declPos + 1);
-    ASSERT_NE(declPos, (int)std::string::npos);
-    ASSERT_NE(usePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(declPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(usePos)));
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
         {declPos, 11, "variable", true, false});
@@ -296,7 +296,7 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_NE(output.find(memberColor + "completions"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(memberColor + "completions")));
 }
 
 TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
@@ -319,7 +319,7 @@ TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
                         bool isDecl, bool isDef)
     {
         int pos = (int)line.find(std::string(text));
-        ASSERT_NE(pos, (int)std::string::npos);
+        ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(pos)));
         editor.currentBuffer->lspSemanticTokens[0].push_back(
             {pos, (int)text.size(), std::string(tokenType), isDecl, isDef});
     };
@@ -336,8 +336,8 @@ TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
 
     const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
     const std::string normalColor = editor.theme.syntax(TOKEN_NORMAL);
-    EXPECT_NE(output.find(typeColor + "member"), std::string::npos);
-    EXPECT_NE(output.find(normalColor + "local"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(typeColor + "member")));
+    EXPECT_TRUE(text_utils::is_found(output.find(normalColor + "local")));
 }
 
 TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
@@ -355,8 +355,8 @@ TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
 
     int fieldPos = (int)line.find("commandBuffer");
     int methodPos = (int)line.find("startCommandPopup");
-    ASSERT_NE(fieldPos, (int)std::string::npos);
-    ASSERT_NE(methodPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fieldPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(methodPos)));
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
         {fieldPos, 13, "field", false, false});
@@ -368,8 +368,10 @@ TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
     const std::string funcColor = editor.theme.syntax(TOKEN_FUNCTION);
-    EXPECT_NE(output.find(memberColor + "commandBuffer"), std::string::npos);
-    EXPECT_NE(output.find(funcColor + "startCommandPopup"), std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(output.find(memberColor + "commandBuffer")));
+    EXPECT_TRUE(
+        text_utils::is_found(output.find(funcColor + "startCommandPopup")));
 }
 
 TEST(SyntaxHighlighterTest, CompletionRowBuildsAndTruncates)
@@ -380,9 +382,9 @@ TEST(SyntaxHighlighterTest, CompletionRowBuildsAndTruncates)
     entry.labelDescription = "int";
 
     std::string full = widgets::buildCompletionRowForTest(entry, 200);
-    EXPECT_NE(full.find("printf"), std::string::npos);
-    EXPECT_NE(full.find("fmt"), std::string::npos);
-    EXPECT_NE(full.find("int"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(full.find("printf")));
+    EXPECT_TRUE(text_utils::is_found(full.find("fmt")));
+    EXPECT_TRUE(text_utils::is_found(full.find("int")));
 
     std::string truncated = widgets::buildCompletionRowForTest(entry, 8);
     EXPECT_LE(text_utils::displayWidth(truncated), 8);
@@ -395,8 +397,8 @@ TEST(SyntaxHighlighterTest, CompletionRowUsesDetailWhenLabelDetailsMissing)
     entry.detail = "builtin type alias (int32_t)";
 
     std::string full = widgets::buildCompletionRowForTest(entry, 200);
-    EXPECT_NE(full.find("int"), std::string::npos);
-    EXPECT_NE(full.find("builtin type alias"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(full.find("int")));
+    EXPECT_TRUE(text_utils::is_found(full.find("builtin type alias")));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
@@ -432,8 +434,8 @@ TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
 
     int start = (int)line.find('<');
     int end = (int)line.find('>');
-    ASSERT_NE(start, (int)std::string::npos);
-    ASSERT_NE(end, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(start)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(end)));
     EXPECT_TRUE(hasTokenAt(tokens, start, end - start + 1, TOKEN_STRING));
 }
 
@@ -497,7 +499,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInFunctionParams)
                             inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokens, typePos, 11, TOKEN_TYPE));
 }
 
@@ -527,7 +529,7 @@ TEST(SyntaxHighlighterTest, NoParamTypeHighlightWhenDisabled)
                             inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_FALSE(hasTokenAt(tokens, typePos, 11, TOKEN_TYPE));
 }
 
@@ -556,7 +558,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInLocalDeclaration)
                             inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokens, typePos, 11, TOKEN_TYPE));
 }
 
@@ -577,7 +579,7 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightParamVariableName)
                             inMarkupFence, markupFenceChar);
 
     int barPos = (int)line.find("bar");
-    ASSERT_NE(barPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(barPos)));
     EXPECT_FALSE(hasTokenAt(tokens, barPos, 3, TOKEN_MEMBER));
 }
 
@@ -674,7 +676,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypePointerInParams)
                             inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("Editor");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokens, typePos, 6, TOKEN_TYPE));
 }
 
@@ -739,7 +741,7 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightParamNameMatchingMember)
                             inMarkupFence, markupFenceChar);
 
     int namePos = (int)line.find("editor)");
-    ASSERT_NE(namePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
     EXPECT_FALSE(hasTokenAt(tokens, namePos, 6, TOKEN_MEMBER));
 }
 
@@ -763,10 +765,10 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBasics)
     int fooPos = (int)line.find("foo");
     int numPos = (int)line.find("42");
     int commentPos = (int)line.find("#");
-    ASSERT_NE(defPos, (int)std::string::npos);
-    ASSERT_NE(fooPos, (int)std::string::npos);
-    ASSERT_NE(numPos, (int)std::string::npos);
-    ASSERT_NE(commentPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(defPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(numPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(commentPos)));
     EXPECT_TRUE(hasTokenAt(tokens, defPos, 3, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_FUNCTION));
     EXPECT_TRUE(hasTokenAt(tokens, numPos, 2, TOKEN_NUMBER));
@@ -792,8 +794,8 @@ TEST(SyntaxHighlighterTest, HighlightsPythonClassName)
 
     int classPos = (int)line.find("class");
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(classPos, (int)std::string::npos);
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(classPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_TRUE(hasTokenAt(tokens, classPos, 5, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
@@ -815,7 +817,7 @@ TEST(SyntaxHighlighterTest, HighlightsPythonSelfMember)
                             inMarkupFence, markupFenceChar);
 
     int childPos = (int)line.find("child");
-    ASSERT_NE(childPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(childPos)));
     EXPECT_TRUE(hasTokenAt(tokens, childPos, 5, TOKEN_MEMBER));
 }
 
@@ -837,8 +839,8 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBuiltinTypes)
 
     int intPos = (int)line.find("int");
     int nonePos = (int)line.find("None");
-    ASSERT_NE(intPos, (int)std::string::npos);
-    ASSERT_NE(nonePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(intPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(nonePos)));
     EXPECT_TRUE(hasTokenAt(tokens, intPos, 3, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, nonePos, 4, TOKEN_TYPE));
 }
@@ -860,7 +862,7 @@ TEST(SyntaxHighlighterTest, HighlightsPythonEnumValue)
                             inMarkupFence, markupFenceChar);
 
     int redPos = (int)line.find("RED");
-    ASSERT_NE(redPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(redPos)));
     EXPECT_TRUE(hasTokenAt(tokens, redPos, 3, TOKEN_MEMBER));
 }
 
@@ -881,7 +883,7 @@ TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
                             inMarkupFence, markupFenceChar);
 
     int valuePos = (int)line.find("value");
-    ASSERT_NE(valuePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(valuePos)));
     EXPECT_TRUE(hasTokenAt(tokens, valuePos, 5, TOKEN_MEMBER));
 }
 
@@ -902,7 +904,7 @@ TEST(SyntaxHighlighterTest, HighlightsMlangTraitNameAsType)
                             inMarkupFence, markupFenceChar);
 
     int namePos = (int)line.find("Summary");
-    ASSERT_NE(namePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
     EXPECT_TRUE(hasTokenAt(tokens, namePos, 7, TOKEN_TYPE));
 }
 
@@ -923,11 +925,11 @@ TEST(SyntaxHighlighterTest, HighlightsMlangUserTypeInAnnotationAndLiteral)
                             inMarkupFence, markupFenceChar);
 
     int firstPos = (int)line.find("SocialPost");
-    ASSERT_NE(firstPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(firstPos)));
     EXPECT_TRUE(hasTokenAt(tokens, firstPos, 10, TOKEN_TYPE));
 
     int secondPos = (int)line.rfind("SocialPost");
-    ASSERT_NE(secondPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(secondPos)));
     EXPECT_TRUE(hasTokenAt(tokens, secondPos, 10, TOKEN_TYPE));
 }
 
@@ -949,7 +951,7 @@ TEST(SyntaxHighlighterTest, HighlightsMlangBuiltinDocTypes)
                             inMarkupFence, markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
 
@@ -971,7 +973,7 @@ TEST(SyntaxHighlighterTest, DisablesMlangBuiltinDocHighlighting)
                             inMarkupFence, markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_FALSE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
 
@@ -993,7 +995,7 @@ TEST(SyntaxHighlighterTest, TogglesMlangTypeHighlighting)
         editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
                             inMarkupFence, markupFenceChar);
     int typePos = (int)line.find("int");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokensOn, typePos, 3, TOKEN_TYPE));
 
     editor.syntaxMlangHighlightTypes = false;
@@ -1024,7 +1026,7 @@ TEST(SyntaxHighlighterTest, HighlightsMlangPlatformKeywords)
         {"aarch64", "linux", "macos", "posix", "windows", "x64"})
     {
         int pos = (int)line.find(word);
-        ASSERT_NE(pos, (int)std::string::npos) << word;
+        ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(pos))) << word;
         EXPECT_TRUE(hasTokenAt(tokens, pos, (int)word.size(), TOKEN_KEYWORD))
             << word;
     }
@@ -1047,7 +1049,7 @@ TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
                             inMarkupFence, markupFenceChar);
 
     int timeoutPos = (int)line.find("TIMEOUT");
-    ASSERT_NE(timeoutPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(timeoutPos)));
     EXPECT_TRUE(hasTokenAt(tokens, timeoutPos, 7, TOKEN_MEMBER));
 }
 
@@ -1070,9 +1072,9 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLambdaParamNames)
     int labelPos = (int)line.find("label");
     int runningPos = (int)line.find("running");
     int activePos = (int)line.find("activeForFile");
-    ASSERT_NE(labelPos, (int)std::string::npos);
-    ASSERT_NE(runningPos, (int)std::string::npos);
-    ASSERT_NE(activePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(labelPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(runningPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(activePos)));
     EXPECT_FALSE(hasTokenAt(tokens, labelPos, 5, TOKEN_MEMBER));
     EXPECT_FALSE(hasTokenAt(tokens, runningPos, 7, TOKEN_MEMBER));
     EXPECT_FALSE(hasTokenAt(tokens, activePos, 13, TOKEN_MEMBER));

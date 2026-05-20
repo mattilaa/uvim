@@ -26,7 +26,7 @@ static std::string normalize_robot_line(const std::string& line, int spaceCount)
     if(line.empty())
         return line;
     auto first_non_ws = line.find_first_not_of(" \t");
-    if(first_non_ws == std::string::npos)
+    if(text_utils::is_not_found(first_non_ws))
         return line;
     std::string_view trimmed(line.c_str() + first_non_ws,
                              line.size() - first_non_ws);
@@ -229,7 +229,7 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
         if(section == Section::Settings)
         {
             size_t firstNonWs = line.find_first_not_of(" \t");
-            if(firstNonWs == std::string_view::npos)
+            if(text_utils::is_not_found(firstNonWs))
                 continue;
             std::string_view lineView(line);
             std::string_view trimmedLine = lineView.substr(firstNonWs);
@@ -289,7 +289,7 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
         if(settingsFirstWidth > 0)
         {
             size_t firstNonWs = line.find_first_not_of("    ");
-            if(firstNonWs != std::string_view::npos)
+            if(text_utils::is_found(firstNonWs))
             {
                 std::string prefix(line.substr(0, firstNonWs));
                 std::string_view lineView(line);
@@ -479,8 +479,8 @@ bool RobotFormatter::operator()(Mode mode)
             return true;
         for(const auto& l : newLines)
         {
-            if(l.find("file reformatted") != std::string::npos ||
-               l.find("files left unchanged") != std::string::npos)
+            if(text_utils::contains(l, "file reformatted") ||
+               text_utils::contains(l, "files left unchanged"))
                 return true;
         }
         return false;

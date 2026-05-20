@@ -54,7 +54,7 @@ std::vector<std::string> splitNul(const std::string& s)
     while(i < s.size())
     {
         size_t j = s.find('\0', i);
-        if(j == std::string::npos)
+        if(text_utils::is_not_found(j))
             j = s.size();
         if(j > i)
             out.push_back(s.substr(i, j - i));
@@ -69,7 +69,7 @@ bool hasHiddenPathComponent(std::string_view path)
     while(start < path.size())
     {
         size_t end = path.find('/', start);
-        if(end == std::string_view::npos)
+        if(text_utils::is_not_found(end))
             end = path.size();
         if(end > start && path[start] == '.')
             return true;
@@ -93,7 +93,7 @@ std::string truncatePathMiddle(std::string path, int width)
     while(!suffix.empty() && text_utils::utf8DisplayWidth(suffix) > suffixWidth)
     {
         size_t slash = suffix.find('/');
-        if(slash == std::string::npos || slash + 1 >= suffix.size())
+        if(text_utils::is_not_found(slash) || slash + 1 >= suffix.size())
         {
             suffix.erase(suffix.begin());
         }

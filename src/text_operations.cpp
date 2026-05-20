@@ -157,10 +157,10 @@ void Editor::insertNewline()
         if(cx > 0 && cx <= (int)currentLine.size())
         {
             size_t gt = currentLine.rfind('>', (size_t)(cx - 1));
-            if(gt != std::string::npos)
+            if(text_utils::is_found(gt))
             {
                 size_t lt = currentLine.rfind('<', gt);
-                if(lt != std::string::npos && lt + 1 < currentLine.size())
+                if(text_utils::is_found(lt) && lt + 1 < currentLine.size())
                 {
                     char next = currentLine[lt + 1];
                     if(next != '/' && next != '!' && next != '?')
@@ -186,7 +186,7 @@ void Editor::insertNewline()
                                 nameStart, nameEnd - nameStart);
                             size_t closeStart =
                                 currentLine.find("</", (size_t)cx);
-                            if(closeStart != std::string::npos)
+                            if(text_utils::is_found(closeStart))
                             {
                                 size_t closeNameStart = closeStart + 2;
                                 size_t closeNameEnd = closeNameStart;
@@ -272,7 +272,7 @@ void Editor::insertNewline()
     {
         remainder = currentLine.substr(*cursorX);
         size_t startPos = remainder.find_first_not_of(" \t");
-        if(startPos != std::string::npos)
+        if(text_utils::is_found(startPos))
         {
             remainder = remainder.substr(startPos);
         }
@@ -299,7 +299,7 @@ void Editor::insertNewline()
                 if(prevIndent < indent)
                 {
                     if(starts_control(prevTrim) &&
-                       prevTrim.find('{') == std::string::npos)
+                       !text_utils::contains(prevTrim, '{'))
                     {
                         indentStr = prevLine.substr(0, prevIndent);
                         adjusted = true;
@@ -335,7 +335,8 @@ void Editor::insertNewline()
     lines->insert(lines->begin() + *cursorY + 1, newLine);
 
     (*cursorY)++;
-    *cursorX = (int)indentStr.length() + (addExtraIndent ? extraIndentWidth : 0);
+    *cursorX =
+        (int)indentStr.length() + (addExtraIndent ? extraIndentWidth : 0);
     *dirty = true;
     needsFullRedraw = true;
 }
@@ -653,7 +654,7 @@ void Editor::pasteAfter()
     if(yankBuffer.empty())
         return;
 
-    bool hasNewline = (yankBuffer.find('\n') != std::string::npos);
+    bool hasNewline = (text_utils::contains(yankBuffer, '\n'));
     if(yankBuffer.back() == '\n')
     {
         lines->insert(lines->begin() + *cursorY + 1, "");
@@ -701,7 +702,7 @@ void Editor::pasteAfter()
         while(start <= yankBuffer.size())
         {
             size_t pos = yankBuffer.find('\n', start);
-            if(pos == std::string::npos)
+            if(text_utils::is_not_found(pos))
             {
                 parts.push_back(yankBuffer.substr(start));
                 break;
@@ -772,7 +773,7 @@ void Editor::pasteBefore()
     if(yankBuffer.empty())
         return;
 
-    bool hasNewline = (yankBuffer.find('\n') != std::string::npos);
+    bool hasNewline = (text_utils::contains(yankBuffer, '\n'));
     if(yankBuffer.back() == '\n')
     {
         std::istringstream ss(yankBuffer);
@@ -798,7 +799,7 @@ void Editor::pasteBefore()
         while(start <= yankBuffer.size())
         {
             size_t pos = yankBuffer.find('\n', start);
-            if(pos == std::string::npos)
+            if(text_utils::is_not_found(pos))
             {
                 parts.push_back(yankBuffer.substr(start));
                 break;

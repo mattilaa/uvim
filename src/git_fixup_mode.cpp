@@ -3,6 +3,7 @@
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -36,7 +37,7 @@ std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
     while(pos <= output.size())
     {
         size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             out.push_back(output.substr(pos));
             break;
@@ -58,7 +59,7 @@ std::vector<GitFixupMode::Entry> load_recent_commits(const std::string& repoDir)
         if(line.empty())
             continue;
         size_t tab = line.find('\t');
-        if(tab == std::string::npos)
+        if(text_utils::is_not_found(tab))
             continue;
         GitFixupMode::Entry entry;
         entry.hash = line.substr(0, tab);

@@ -2,6 +2,7 @@
 #include "json_utils.h"
 #include "log.h"
 #include "os_compat.h"
+#include "text_utils.h"
 #include "theme.h"
 #include <algorithm>
 #include <array>
@@ -17,8 +18,8 @@
 #include <string_view>
 #include <system_error>
 #include <thread>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <filesystem>
@@ -115,8 +116,8 @@ static std::string maybe_windows_to_wsl_path(std::string_view input)
     }
 
     std::string out = "/mnt/";
-    out.push_back(static_cast<char>(std::tolower(
-        static_cast<unsigned char>(input[0]))));
+    out.push_back(
+        static_cast<char>(std::tolower(static_cast<unsigned char>(input[0]))));
     out.push_back('/');
 
     size_t i = 2;
@@ -145,9 +146,9 @@ static std::string rewrite_windows_paths_in_text(std::string_view text)
     size_t i = 0;
     while(i < text.size())
     {
-        const bool maybePath =
-            i + 2 < text.size() && is_ascii_alpha(text[i]) && text[i + 1] == ':' &&
-            (text[i + 2] == '\\' || text[i + 2] == '/');
+        const bool maybePath = i + 2 < text.size() && is_ascii_alpha(text[i]) &&
+                               text[i + 1] == ':' &&
+                               (text[i + 2] == '\\' || text[i + 2] == '/');
         if(!maybePath)
         {
             out.push_back(text[i]);
@@ -216,9 +217,9 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
         if(it == entry.MemberEnd() || !it->value.IsString())
             return;
         std::string value(it->value.GetString(), it->value.GetStringLength());
-        std::string converted =
-            treatAsPath ? maybe_windows_to_wsl_path(value)
-                        : rewrite_windows_paths_in_text(value);
+        std::string converted = treatAsPath
+                                    ? maybe_windows_to_wsl_path(value)
+                                    : rewrite_windows_paths_in_text(value);
         if(converted.empty())
             return;
         it->value.SetString(converted.c_str(),
@@ -257,7 +258,8 @@ static std::string compile_entry_key(const ju::Value& entry)
     auto fileIt = entry.FindMember("file");
     if(fileIt == entry.MemberEnd() || !fileIt->value.IsString())
         return {};
-    std::string file(fileIt->value.GetString(), fileIt->value.GetStringLength());
+    std::string file(fileIt->value.GetString(),
+                     fileIt->value.GetStringLength());
     fs::path filePath(file);
 
     auto dirIt = entry.FindMember("directory");
@@ -306,8 +308,9 @@ find_compile_commands_files_recursively(const fs::path& root)
     return files;
 }
 
-static std::vector<fs::path> discover_compile_commands_sources(
-    const fs::path& sourceRoot, const std::string& ccdir, bool collectAll)
+static std::vector<fs::path>
+discover_compile_commands_sources(const fs::path& sourceRoot,
+                                  const std::string& ccdir, bool collectAll)
 {
     std::vector<fs::path> sourceFiles;
     if(collectAll)
@@ -324,9 +327,10 @@ static std::vector<fs::path> discover_compile_commands_sources(
     return sourceFiles;
 }
 
-static bool regenerate_clangd_compile_commands(
-    const fs::path& outputRoot, const std::vector<fs::path>& sourceFiles,
-    bool windowsToWsl, bool failHard)
+static bool
+regenerate_clangd_compile_commands(const fs::path& outputRoot,
+                                   const std::vector<fs::path>& sourceFiles,
+                                   bool windowsToWsl, bool failHard)
 {
     if(sourceFiles.empty())
     {
@@ -392,7 +396,8 @@ static bool regenerate_clangd_compile_commands(
     if(!out.is_open())
     {
         if(failHard)
-            die("cannot write generated compile_commands.json", outFile.string());
+            die("cannot write generated compile_commands.json",
+                outFile.string());
         return false;
     }
     out << ju::stringify_pretty(merged, 2);
@@ -400,7 +405,8 @@ static bool regenerate_clangd_compile_commands(
     if(!out)
     {
         if(failHard)
-            die("failed writing generated compile_commands.json", outFile.string());
+            die("failed writing generated compile_commands.json",
+                outFile.string());
         return false;
     }
 
@@ -415,9 +421,11 @@ static bool regenerate_clangd_compile_commands(
     return true;
 }
 
-static std::string prepare_clangd_compile_commands(
-    const fs::path& sourceRoot, const fs::path& outputRoot,
-    const std::string& ccdir, bool collectAll, bool windowsToWsl)
+static std::string prepare_clangd_compile_commands(const fs::path& sourceRoot,
+                                                   const fs::path& outputRoot,
+                                                   const std::string& ccdir,
+                                                   bool collectAll,
+                                                   bool windowsToWsl)
 {
     if(!collectAll && !windowsToWsl)
         return ccdir;
@@ -445,12 +453,10 @@ class CompileCommandsSyncer
 {
 public:
     CompileCommandsSyncer(fs::path sourceRoot, fs::path outputRoot,
-                          std::string ccdir,
-                          bool collectAll, bool windowsToWsl)
+                          std::string ccdir, bool collectAll, bool windowsToWsl)
         : sourceRoot_(std::move(sourceRoot)),
-          outputRoot_(std::move(outputRoot)),
-          sourceCcdir_(std::move(ccdir)), collectAll_(collectAll),
-          windowsToWsl_(windowsToWsl)
+          outputRoot_(std::move(outputRoot)), sourceCcdir_(std::move(ccdir)),
+          collectAll_(collectAll), windowsToWsl_(windowsToWsl)
     {
     }
 
@@ -549,7 +555,7 @@ private:
 static bool split_eq(std::string_view s, std::string_view& key,
                      std::string_view& value)
 {
-    if(auto pos = s.find('='); pos != std::string_view::npos)
+    if(auto pos = s.find('='); text_utils::is_found(pos))
     {
         key = s.substr(0, pos);
         value = s.substr(pos + 1);
@@ -675,7 +681,7 @@ static std::string find_in_path(const std::string& exe)
     while(start < pathView.size())
     {
         size_t end = pathView.find(':', start);
-        if(end == std::string_view::npos)
+        if(text_utils::is_not_found(end))
             end = pathView.size();
         if(end > start)
         {
@@ -866,7 +872,8 @@ constexpr std::array<HelpRow, 3> kHelpTsLsp = {{
 
 constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
     {"--enable-log[=info|debug|verbose]",
-     "Enable mlangd-mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, verbose=+VERBOSE"},
+     "Enable mlangd-mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, "
+     "verbose=+VERBOSE"},
     {"--log-level <info|debug|verbose>",
      "Set mlangd-mla log level (implies --enable-log)"},
     {"--log-colors",
@@ -954,8 +961,7 @@ public:
         scan(kHelpMlangLogging);
         scan(kHelpUvimLogging);
 
-        auto print_section =
-            [&](std::string_view title, const auto& rows)
+        auto print_section = [&](std::string_view title, const auto& rows)
         {
             std::cout << "  " << title << "\n";
             for(const auto& row : rows)
@@ -1209,12 +1215,15 @@ public:
                     }
                     else
                     {
-                        die("invalid value for --enable-log (use info|debug|verbose)", val);
+                        die("invalid value for --enable-log (use "
+                            "info|debug|verbose)",
+                            val);
                     }
                 }
                 else if(key == kMlangLogLevel)
                 {
-                    std::string_view lvl = require_value(key, i, argc, argv, val);
+                    std::string_view lvl =
+                        require_value(key, i, argc, argv, val);
                     opts.mlangEnableLog = true;
                     if(lvl == "debug" || lvl == "DEBUG")
                     {
@@ -1230,7 +1239,9 @@ public:
                     }
                     else
                     {
-                        die("invalid value for --log-level (use info|debug|verbose)", lvl);
+                        die("invalid value for --log-level (use "
+                            "info|debug|verbose)",
+                            lvl);
                     }
                     sawOptionValue = true;
                 }
@@ -1368,7 +1379,7 @@ struct EditorSettings
         {
             if(path.empty())
                 return false;
-            if(path.find('/') != std::string::npos)
+            if(text_utils::contains(path, '/'))
             {
                 std::error_code ec;
                 return fs::exists(path, ec) && fs::is_regular_file(path, ec);
@@ -1554,7 +1565,7 @@ struct EditorSettings
                 }
             }
 
-            if(pyPath.find("pyright-langserver") != std::string::npos)
+            if(text_utils::contains(pyPath, "pyright-langserver"))
             {
                 bool hasStdio = false;
                 for(const auto& a : args)
@@ -1624,7 +1635,8 @@ struct EditorSettings
                 {
                     std::error_code ec;
                     fs::path tmpPath = "/tmp/mlangd-mla";
-                    if(fs::exists(tmpPath, ec) && fs::is_regular_file(tmpPath, ec))
+                    if(fs::exists(tmpPath, ec) &&
+                       fs::is_regular_file(tmpPath, ec))
                     {
                         mlangPath = tmpPath.string();
                     }
@@ -1656,12 +1668,12 @@ struct EditorSettings
                     std::error_code ec;
                     std::vector<fs::path> sysCandidates = {
                         "/opt/homebrew/bin/mlangd-mla",
-                        "/usr/local/bin/mlangd-mla",
-                        "/opt/homebrew/bin/mlangd",
+                        "/usr/local/bin/mlangd-mla", "/opt/homebrew/bin/mlangd",
                         "/usr/local/bin/mlangd"};
                     for(const auto& sysPath : sysCandidates)
                     {
-                        if(fs::exists(sysPath, ec) && fs::is_regular_file(sysPath, ec))
+                        if(fs::exists(sysPath, ec) &&
+                           fs::is_regular_file(sysPath, ec))
                         {
                             mlangPath = sysPath.string();
                             break;
@@ -1686,7 +1698,7 @@ struct EditorSettings
                 return false;
             };
 
-            if(mlangEnableLog && mlangPath.find("mlangd-mla") != std::string::npos)
+            if(mlangEnableLog && text_utils::contains(mlangPath, "mlangd-mla"))
             {
                 if(!has_arg("--enable-log"))
                     args.push_back("--enable-log");

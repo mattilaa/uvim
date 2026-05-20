@@ -156,7 +156,7 @@ void append_highlighted(std::string& out, std::string_view text,
     while(pos < text.size())
     {
         size_t found = text.find(query, pos);
-        if(found == std::string_view::npos)
+        if(text_utils::is_not_found(found))
         {
             out += normalSeq;
             out.append(text.data() + pos, text.size() - pos);
@@ -198,7 +198,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
         {
             for(int i = searchIndex + 1; i < (int)lines.size(); ++i)
             {
-                if(lines[i].find(searchQuery) != std::string::npos)
+                if(text_utils::contains(lines[i], searchQuery))
                 {
                     found = i;
                     break;
@@ -208,7 +208,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
             {
                 for(int i = 0; i <= searchIndex; ++i)
                 {
-                    if(lines[i].find(searchQuery) != std::string::npos)
+                    if(text_utils::contains(lines[i], searchQuery))
                     {
                         found = i;
                         break;
@@ -220,7 +220,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
         {
             for(int i = searchIndex - 1; i >= 0; --i)
             {
-                if(lines[i].find(searchQuery) != std::string::npos)
+                if(text_utils::contains(lines[i], searchQuery))
                 {
                     found = i;
                     break;
@@ -230,7 +230,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
             {
                 for(int i = (int)lines.size() - 1; i >= searchIndex; --i)
                 {
-                    if(lines[i].find(searchQuery) != std::string::npos)
+                    if(text_utils::contains(lines[i], searchQuery))
                     {
                         found = i;
                         break;
@@ -292,7 +292,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
                 {
                     for(int i = searchIndex + 1; i < (int)lines.size(); ++i)
                     {
-                        if(lines[i].find(searchQuery) != std::string::npos)
+                        if(text_utils::contains(lines[i], searchQuery))
                         {
                             found = i;
                             break;
@@ -303,7 +303,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
                 {
                     for(int i = searchIndex - 1; i >= 0; --i)
                     {
-                        if(lines[i].find(searchQuery) != std::string::npos)
+                        if(text_utils::contains(lines[i], searchQuery))
                         {
                             found = i;
                             break;

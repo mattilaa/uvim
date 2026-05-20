@@ -1,4 +1,5 @@
 #include "editor_path_utilities.h"
+#include "text_utils.h"
 
 #include <cstdlib>
 #include <mutex>
@@ -52,7 +53,7 @@ std::string EditorPathUtilities::resolveExecutablePath(const std::string& exe)
 #else
         size_t end = pathView.find(':', start);
 #endif
-        if(end == std::string_view::npos)
+        if(text_utils::is_not_found(end))
             end = pathView.size();
         if(end > start)
         {

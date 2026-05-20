@@ -126,7 +126,7 @@ parseYamlMap(const std::string& input)
 
         std::string rest = line.substr(first);
         size_t colon = rest.find(':');
-        if(colon == std::string::npos)
+        if(text_utils::is_not_found(colon))
             continue;
 
         std::string key = rest.substr(0, colon);
@@ -235,11 +235,11 @@ std::vector<std::string> split_csv(std::string_view input)
     while(start <= input.size())
     {
         size_t comma = input.find(',', start);
-        size_t end = (comma == std::string_view::npos) ? input.size() : comma;
+        size_t end = (text_utils::is_not_found(comma)) ? input.size() : comma;
         std::string_view part = trim_view(input.substr(start, end - start));
         if(!part.empty())
             out.emplace_back(part);
-        if(comma == std::string_view::npos)
+        if(text_utils::is_not_found(comma))
             break;
         start = comma + 1;
     }
@@ -259,7 +259,7 @@ std::string_view robot_first_cell(std::string_view line)
 {
     line = trim_view(line);
     size_t space = line.find_first_of(" \t");
-    if(space == std::string_view::npos)
+    if(text_utils::is_not_found(space))
         return line;
     return line.substr(0, space);
 }
@@ -313,7 +313,7 @@ bool robot_is_keyword_def(std::string_view line)
     {
         line = trim_view(line.substr(1));
         size_t bar = line.find('|');
-        if(bar != std::string_view::npos)
+        if(text_utils::is_found(bar))
             line = trim_view(line.substr(0, bar));
     }
     if(line.empty())
@@ -340,7 +340,7 @@ int find_word_pos(std::string_view line, std::string_view word)
     if(word.empty())
         return -1;
     size_t pos = line.find(word);
-    while(pos != std::string_view::npos)
+    while(text_utils::is_found(pos))
     {
         bool leftOk = (pos == 0 || !std::isalnum((unsigned char)line[pos - 1]));
         bool rightOk = (pos + word.size() >= line.size() ||
@@ -562,7 +562,7 @@ std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
     {
         const std::string& pattern = entry.first;
         size_t star = pattern.find('*');
-        if(star == std::string::npos)
+        if(text_utils::is_not_found(star))
         {
             if(pattern == module)
             {
@@ -583,7 +583,7 @@ std::vector<std::string> expand_tsconfig_paths(const TsConfigPaths& cfg,
         for(const auto& target : entry.second)
         {
             size_t tgtStar = target.find('*');
-            if(tgtStar == std::string::npos)
+            if(text_utils::is_not_found(tgtStar))
             {
                 out.push_back(target);
             }
@@ -606,14 +606,14 @@ bool extract_js_ts_module_specifier(std::string_view line,
         return false;
 
     size_t fromPos = trimmed.find(" from ");
-    size_t start = std::string_view::npos;
-    size_t end = std::string_view::npos;
+    size_t start = text_utils::npos();
+    size_t end = text_utils::npos();
     char quote = 0;
 
-    if(fromPos != std::string_view::npos)
+    if(text_utils::is_found(fromPos))
     {
         size_t q = trimmed.find_first_of("\"'", fromPos);
-        if(q == std::string_view::npos)
+        if(text_utils::is_not_found(q))
             return false;
         quote = trimmed[q];
         start = q + 1;
@@ -622,14 +622,14 @@ bool extract_js_ts_module_specifier(std::string_view line,
     else if(trimmed.starts_with("import "))
     {
         size_t q = trimmed.find_first_of("\"'", 6);
-        if(q == std::string_view::npos)
+        if(text_utils::is_not_found(q))
             return false;
         quote = trimmed[q];
         start = q + 1;
         end = trimmed.find(quote, start);
     }
 
-    if(start == std::string_view::npos || end == std::string_view::npos ||
+    if(text_utils::is_not_found(start) || text_utils::is_not_found(end) ||
        end <= start)
     {
         return false;
@@ -650,7 +650,7 @@ parse_js_ts_named_imports(std::string_view list, const std::string& module,
     while(start < list.size())
     {
         size_t comma = list.find(',', start);
-        if(comma == std::string_view::npos)
+        if(text_utils::is_not_found(comma))
             comma = list.size();
         std::string_view item = trim_view(list.substr(start, comma - start));
         if(!item.empty())
@@ -658,7 +658,7 @@ parse_js_ts_named_imports(std::string_view list, const std::string& module,
             if(item.starts_with("type "))
                 item = trim_view(item.substr(5));
             size_t asPos = item.find(" as ");
-            std::string_view name = (asPos == std::string_view::npos)
+            std::string_view name = (text_utils::is_not_found(asPos))
                                         ? item
                                         : trim_view(item.substr(asPos + 4));
             if(!name.empty())
@@ -687,7 +687,7 @@ void collect_js_ts_imports(
         {
             size_t fromPos = trimmed.find(" from ");
             std::string_view head =
-                (fromPos == std::string_view::npos)
+                (text_utils::is_not_found(fromPos))
                     ? trim_view(trimmed.substr(6))
                     : trim_view(trimmed.substr(6, fromPos - 6));
             if(head.starts_with("type "))
@@ -696,7 +696,7 @@ void collect_js_ts_imports(
             if(head.starts_with("{"))
             {
                 size_t end = head.find('}');
-                if(end != std::string_view::npos)
+                if(text_utils::is_found(end))
                 {
                     parse_js_ts_named_imports(head.substr(1, end - 1),
                                               moduleStr, symbolToModule);
@@ -705,7 +705,7 @@ void collect_js_ts_imports(
             else if(head.starts_with("*"))
             {
                 size_t asPos = head.find(" as ");
-                if(asPos != std::string_view::npos)
+                if(text_utils::is_found(asPos))
                 {
                     std::string_view name = trim_view(head.substr(asPos + 4));
                     if(!name.empty())
@@ -718,13 +718,13 @@ void collect_js_ts_imports(
                 std::string_view defaultName = trim_view(head.substr(0, comma));
                 if(!defaultName.empty())
                     symbolToModule.emplace(std::string(defaultName), moduleStr);
-                if(comma != std::string_view::npos)
+                if(text_utils::is_found(comma))
                 {
                     std::string_view rest = trim_view(head.substr(comma + 1));
                     if(rest.starts_with("{"))
                     {
                         size_t end = rest.find('}');
-                        if(end != std::string_view::npos)
+                        if(text_utils::is_found(end))
                         {
                             parse_js_ts_named_imports(rest.substr(1, end - 1),
                                                       moduleStr,
@@ -734,7 +734,7 @@ void collect_js_ts_imports(
                     else if(rest.starts_with("*"))
                     {
                         size_t asPos = rest.find(" as ");
-                        if(asPos != std::string_view::npos)
+                        if(text_utils::is_found(asPos))
                         {
                             std::string_view name =
                                 trim_view(rest.substr(asPos + 4));
@@ -749,7 +749,7 @@ void collect_js_ts_imports(
         else if(trimmed.starts_with("export "))
         {
             size_t fromPos = trimmed.find(" from ");
-            if(fromPos == std::string_view::npos)
+            if(text_utils::is_not_found(fromPos))
                 continue;
             std::string_view head = trim_view(trimmed.substr(6, fromPos - 6));
             if(head.starts_with("type "))
@@ -757,7 +757,7 @@ void collect_js_ts_imports(
             if(head.starts_with("{"))
             {
                 size_t end = head.find('}');
-                if(end != std::string_view::npos)
+                if(text_utils::is_found(end))
                 {
                     parse_js_ts_named_imports(head.substr(1, end - 1),
                                               moduleStr, symbolToModule);
@@ -791,10 +791,10 @@ std::string resolve_node_module(const std::string& fromFile,
     if(moduleStr.starts_with("@"))
     {
         size_t first = moduleStr.find('/');
-        if(first == std::string::npos)
+        if(text_utils::is_not_found(first))
             return {};
         size_t second = moduleStr.find('/', first + 1);
-        if(second == std::string::npos)
+        if(text_utils::is_not_found(second))
         {
             pkg = moduleStr;
         }
@@ -807,7 +807,7 @@ std::string resolve_node_module(const std::string& fromFile,
     else
     {
         size_t slash = moduleStr.find('/');
-        if(slash == std::string::npos)
+        if(text_utils::is_not_found(slash))
         {
             pkg = moduleStr;
         }
@@ -1015,7 +1015,7 @@ std::string parse_ts_type_name(std::string_view text)
     if(head == "Array" || head == "ReadonlyArray")
     {
         size_t lt = text.find('<', i);
-        if(lt != std::string_view::npos)
+        if(text_utils::is_found(lt))
         {
             std::string inner = parse_ts_type_name(text.substr(lt + 1));
             if(!inner.empty())
@@ -1031,15 +1031,15 @@ std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
     for(int y = startY; y >= 0; --y)
     {
         const std::string& line = lines[y];
+        auto matches = text_utils::find_cursor(line, ident);
         size_t pos = 0;
-        while((pos = line.find(ident, pos)) != std::string::npos)
+        while(matches.next(pos))
         {
             bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
             size_t end = pos + ident.size();
             bool rightOk = (end >= line.size()) || !isIdent(line[end]);
             if(!leftOk || !rightOk)
             {
-                pos = end;
                 continue;
             }
 
@@ -1058,8 +1058,6 @@ std::string find_ts_type_for_identifier(const std::vector<std::string>& lines,
                 if(!type.empty())
                     return type;
             }
-
-            pos = end;
         }
     }
     return {};
@@ -1076,8 +1074,9 @@ std::string infer_ts_type_from_array_method_line(
     for(auto method : kMethods)
     {
         std::string needle = "." + std::string(method) + "(";
+        auto matches = text_utils::find_cursor(line, needle);
         size_t pos = 0;
-        while((pos = line.find(needle, pos)) != std::string_view::npos)
+        while(matches.next(pos))
         {
             int dotPos = (int)pos;
             int nameEnd = dotPos - 1;
@@ -1089,7 +1088,6 @@ std::string infer_ts_type_from_array_method_line(
             ++nameStart;
             if(nameStart > nameEnd)
             {
-                pos += needle.size();
                 continue;
             }
 
@@ -1144,7 +1142,7 @@ bool find_ts_type_definition(const std::vector<std::string>& lines,
         for(auto kw : kDecls)
         {
             size_t pos = line.find(kw);
-            while(pos != std::string_view::npos)
+            while(text_utils::is_found(pos))
             {
                 bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
                 size_t end = pos + kw.size();
@@ -1204,15 +1202,15 @@ bool find_ts_member_in_type(const std::vector<std::string>& lines,
         if(!sawOpen)
             continue;
 
+        auto matches = text_utils::find_cursor(line, member);
         size_t pos = 0;
-        while((pos = line.find(member, pos)) != std::string::npos)
+        while(matches.next(pos))
         {
             bool leftOk = (pos == 0) || !isIdent(line[pos - 1]);
             size_t end = pos + member.size();
             bool rightOk = (end >= line.size()) || !isIdent(line[end]);
             if(!leftOk || !rightOk)
             {
-                pos = end;
                 continue;
             }
 
@@ -1228,8 +1226,6 @@ bool find_ts_member_in_type(const std::vector<std::string>& lines,
                 outX = (int)pos;
                 return true;
             }
-
-            pos = end;
         }
     }
     return false;
@@ -1245,17 +1241,17 @@ bool html_path_under_cursor(std::string_view line, int cursorX,
     auto check_attr = [&](std::string_view attr) -> bool
     {
         size_t pos = trimmed.find(attr);
-        if(pos == std::string_view::npos)
+        if(text_utils::is_not_found(pos))
             return false;
         size_t eq = trimmed.find('=', pos + attr.size());
-        if(eq == std::string_view::npos)
+        if(text_utils::is_not_found(eq))
             return false;
         size_t q = trimmed.find_first_of("\"'", eq + 1);
-        if(q == std::string_view::npos)
+        if(text_utils::is_not_found(q))
             return false;
         char quote = trimmed[q];
         size_t end = trimmed.find(quote, q + 1);
-        if(end == std::string_view::npos || end <= q + 1)
+        if(text_utils::is_not_found(end) || end <= q + 1)
             return false;
         int startX = static_cast<int>(q + 1 + (trimmed.data() - line.data()));
         int endX = static_cast<int>(end + (trimmed.data() - line.data()));
@@ -1281,22 +1277,22 @@ extract_html_stylesheets(const std::vector<std::string>& lines)
     for(const auto& line : lines)
     {
         std::string lower = ascii_lower(line);
-        if(lower.find("<link") == std::string::npos)
+        if(!text_utils::contains(lower, "<link"))
             continue;
-        if(lower.find("stylesheet") == std::string::npos)
+        if(!text_utils::contains(lower, "stylesheet"))
             continue;
         size_t hrefPos = lower.find("href");
-        if(hrefPos == std::string::npos)
+        if(text_utils::is_not_found(hrefPos))
             continue;
         size_t eq = line.find('=', hrefPos);
-        if(eq == std::string_view::npos)
+        if(text_utils::is_not_found(eq))
             continue;
         size_t q = line.find_first_of("\"'", eq + 1);
-        if(q == std::string_view::npos)
+        if(text_utils::is_not_found(q))
             continue;
         char quote = line[q];
         size_t end = line.find(quote, q + 1);
-        if(end == std::string_view::npos || end <= q + 1)
+        if(text_utils::is_not_found(end) || end <= q + 1)
             continue;
         std::string path = line.substr(q + 1, end - q - 1);
         if(!path.empty())
@@ -1335,11 +1331,11 @@ bool css_import_path_under_cursor(std::string_view line, int cursorX,
     if(!trimmed.starts_with("@import"))
         return false;
     size_t q = trimmed.find_first_of("\"'");
-    if(q == std::string_view::npos)
+    if(text_utils::is_not_found(q))
         return false;
     char quote = trimmed[q];
     size_t end = trimmed.find(quote, q + 1);
-    if(end == std::string_view::npos || end <= q + 1)
+    if(text_utils::is_not_found(end) || end <= q + 1)
         return false;
     int startX = static_cast<int>(q + 1 + (trimmed.data() - line.data()));
     int endX = static_cast<int>(end + (trimmed.data() - line.data()));
@@ -1454,7 +1450,7 @@ bool locIsTextFile(const std::string& filepath)
 {
     std::string ext;
     size_t dotPos = filepath.find_last_of('.');
-    if(dotPos != std::string::npos)
+    if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
         bool isPythonExt =
@@ -1500,13 +1496,6 @@ bool locIsTextFile(const std::string& filepath)
 LocCommentRules locCommentRulesForPath(std::string_view path)
 {
     LocCommentRules rules;
-    auto basenameView = [&]() -> std::string_view
-    {
-        size_t slash = path.find_last_of("/\\");
-        if(slash == std::string_view::npos)
-            return path;
-        return path.substr(slash + 1);
-    };
     auto lower_ascii = [](std::string_view text)
     {
         std::string out;
@@ -1516,10 +1505,10 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
                 static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
         return out;
     };
-    std::string baseLower = lower_ascii(basenameView());
+    std::string baseLower = lower_ascii(text_utils::basename(path));
     std::string extLower;
     size_t dotPos = baseLower.find_last_of('.');
-    if(dotPos != std::string::npos)
+    if(text_utils::is_found(dotPos))
         extLower = baseLower.substr(dotPos);
 
     if(baseLower.rfind("cmakelists", 0) == 0 ||
@@ -1647,7 +1636,7 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
                 if(!rules.hasBlock)
                     break;
                 size_t end = view.find(rules.blockEnd, pos);
-                if(end == std::string_view::npos)
+                if(text_utils::is_not_found(end))
                 {
                     pos = view.size();
                     break;
@@ -1669,7 +1658,7 @@ int locCountInFile(const std::string& filepath, const LocCommentRules& rules)
             {
                 size_t end =
                     view.find(rules.blockEnd, pos + rules.blockStart.size());
-                if(end == std::string_view::npos)
+                if(text_utils::is_not_found(end))
                 {
                     inBlock = true;
                     pos = view.size();
@@ -1718,7 +1707,7 @@ int locCountInLines(const std::vector<std::string>& lines,
                 if(!rules.hasBlock)
                     break;
                 size_t end = view.find(rules.blockEnd, pos);
-                if(end == std::string_view::npos)
+                if(text_utils::is_not_found(end))
                 {
                     pos = view.size();
                     break;
@@ -1740,7 +1729,7 @@ int locCountInLines(const std::vector<std::string>& lines,
             {
                 size_t end =
                     view.find(rules.blockEnd, pos + rules.blockStart.size());
-                if(end == std::string_view::npos)
+                if(text_utils::is_not_found(end))
                 {
                     inBlock = true;
                     pos = view.size();
@@ -2014,7 +2003,7 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
     }
 
     size_t lastSlash = expandedPartial.find_last_of('/');
-    if(lastSlash != std::string::npos)
+    if(text_utils::is_found(lastSlash))
     {
         dirPath = expandedPartial.substr(0, lastSlash);
         if(dirPath.empty())
@@ -2045,7 +2034,7 @@ std::vector<std::string> getPathCompletions(std::string_view partial)
         if(prefix.empty() || name.substr(0, prefix.length()) == prefix)
         {
             std::string fullPath;
-            if(lastSlash != std::string::npos)
+            if(text_utils::is_found(lastSlash))
             {
                 if(!partial.empty() && partial[0] == '~')
                 {
@@ -2129,7 +2118,7 @@ static void collectRecursiveCompletion(const std::string& dir,
         {
             match = true;
         }
-        else if(prefix.find('/') != std::string_view::npos)
+        else if(text_utils::contains(prefix, '/'))
         {
             match = text_utils::contains(rel, prefix) ||
                     completionSubsequenceMatch(rel, prefix);
@@ -2179,7 +2168,7 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
     std::string dirPath;
     std::string prefix;
     size_t lastSlash = expandedPartial.find_last_of('/');
-    if(lastSlash != std::string::npos)
+    if(text_utils::is_found(lastSlash))
     {
         dirPath = expandedPartial.substr(0, lastSlash);
         if(dirPath.empty())
@@ -2213,7 +2202,7 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
                     if(home)
                         path = std::string(home) + path.substr(1);
                 }
-                std::string fullPath = (lastSlash != std::string::npos)
+                std::string fullPath = (text_utils::is_found(lastSlash))
                                            ? path
                                            : (dirPath + "/" + path);
                 std::error_code statEc;
@@ -2239,7 +2228,7 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
     if(!relMatches.empty())
     {
         std::string basePrefix;
-        if(lastSlash != std::string::npos)
+        if(text_utils::is_found(lastSlash))
         {
             if(!partial.empty() && partial[0] == '~')
             {
@@ -2273,10 +2262,10 @@ std::vector<std::string> getRecursivePathCompletions(std::string_view partial,
 
         std::string_view name = candidate;
         size_t slashPos = candidate.find_last_of('/');
-        if(slashPos != std::string_view::npos)
+        if(text_utils::is_found(slashPos))
             name = candidate.substr(slashPos + 1);
 
-        bool hasSlash = prefix.find('/') != std::string_view::npos;
+        bool hasSlash = text_utils::contains(prefix, '/');
         std::string_view hay = hasSlash ? candidate : name;
 
         if(hay.rfind(prefix, 0) == 0)

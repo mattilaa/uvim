@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <cctype>
 #include <chrono>
 #include <optional>
@@ -1053,13 +1054,9 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         std::string dir = ".";
         if(!ed->filename->empty())
         {
-            size_t lastSlash = ed->filename->find_last_of("/");
-            if(lastSlash != std::string::npos)
-            {
-                dir = ed->filename->substr(0, lastSlash);
-                if(dir.empty())
-                    dir = "/";
-            }
+            std::string_view parent = text_utils::dirname(*ed->filename);
+            if(!parent.empty())
+                dir = parent;
         }
         std::string prev;
         if(ed->currentBuffer != nullptr && ed->filename)

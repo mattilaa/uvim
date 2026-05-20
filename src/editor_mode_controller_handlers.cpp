@@ -479,13 +479,9 @@ void EditorModeController::handleNormalMode(int c)
             std::string dir = ".";
             if(!editor.filename->empty())
             {
-                size_t lastSlash = editor.filename->find_last_of("/");
-                if(lastSlash != std::string::npos)
-                {
-                    dir = editor.filename->substr(0, lastSlash);
-                    if(dir.empty())
-                        dir = "/";
-                }
+                std::string_view parent = text_utils::dirname(*editor.filename);
+                if(!parent.empty())
+                    dir = parent;
             }
             editor.openFileBrowser(dir);
             return;
@@ -1012,12 +1008,12 @@ void EditorModeController::handleNormalMode(int c)
                     std::string& nextLine =
                         (*editor.lines)[*editor.cursorY + 1];
                     size_t endPos = currentLine.find_last_not_of(" \t");
-                    if(endPos != std::string::npos)
+                    if(text_utils::is_found(endPos))
                     {
                         currentLine = currentLine.substr(0, endPos + 1);
                     }
                     size_t startPos = nextLine.find_first_not_of(" \t");
-                    std::string trimmedNext = (startPos != std::string::npos)
+                    std::string trimmedNext = (text_utils::is_found(startPos))
                                                   ? nextLine.substr(startPos)
                                                   : "";
                     currentLine += " " + trimmedNext;

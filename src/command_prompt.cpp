@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 
 namespace editor::statemachine
 {
@@ -57,7 +58,7 @@ bool CommandPrompt::handle(
             else
             {
                 size_t spacePos = inputText.find(' ');
-                if(spacePos != std::string::npos)
+                if(text_utils::is_found(spacePos))
                 {
                     std::string cmd = inputText.substr(0, spacePos);
                     std::string_view pathPart =
@@ -177,7 +178,7 @@ bool CommandPrompt::handle(
             input = locCommand + " " + completions[completionIndex];
             return;
         }
-        if(spacePos != std::string::npos)
+        if(text_utils::is_found(spacePos))
         {
             std::string cmd = originalInput.substr(0, spacePos);
             input = cmd + " " + completions[completionIndex];
@@ -229,8 +230,8 @@ bool CommandPrompt::handle(
                            input.rfind("help ", 0) == 0 ||
                            input.rfind("h ", 0) == 0;
         bool isGitQuery = input == "git" || input.rfind("git ", 0) == 0;
-        if(input.find(' ') != std::string::npos && !isSetQuery &&
-           !isHelpQuery && !isGitQuery)
+        if(text_utils::contains(input, ' ') && !isSetQuery && !isHelpQuery &&
+           !isGitQuery)
         {
             ctx.cancelCommandPopup();
             return;
@@ -384,8 +385,8 @@ bool CommandPrompt::handle(
         {
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(commandToRun.find(' ') == std::string::npos ||
-                   selection->find(' ') != std::string::npos)
+                if(!text_utils::contains(commandToRun, ' ') ||
+                   text_utils::contains(*selection, ' '))
                 {
                     commandToRun = *selection;
                 }

@@ -1,6 +1,7 @@
 #include "editor_status_bar_view.h"
 #include "editor.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include "widgets/status_bar.h"
 
 namespace
@@ -9,12 +10,10 @@ std::string lspLabel(const std::string& path, std::string_view fallback)
 {
     if(path.empty())
         return std::string(fallback);
-    size_t slash = path.find_last_of("/\\");
-    if(slash == std::string::npos)
-        return path;
-    if(slash + 1 >= path.size())
+    std::string_view base = text_utils::basename(path);
+    if(base.empty())
         return std::string(fallback);
-    return path.substr(slash + 1);
+    return std::string(base);
 }
 
 std::string currentLspLabel(Editor& editor)
@@ -51,9 +50,9 @@ void EditorStatusBarView::drawQuick()
 
 void EditorStatusBarView::append(std::string& output)
 {
-    std::string displayName =
-        (editor.filename && !editor.filename->empty()) ? *editor.filename
-                                                       : "[No Name]";
+    std::string displayName = (editor.filename && !editor.filename->empty())
+                                  ? *editor.filename
+                                  : "[No Name]";
     std::string modeLabel = editor.getModeString();
     std::string lspInfo = currentLspLabel(editor);
 

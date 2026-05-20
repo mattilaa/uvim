@@ -120,15 +120,15 @@ bool shouldExpandLeftBraceBlock(const Editor* ed, const std::string& left)
 
     if(ed->isFileType<FileType::Mla>())
     {
-        return trimmed.find("fn ") != std::string::npos ||
+        return text_utils::contains(trimmed, "fn ") ||
                trimmed.rfind("fn", 0) == 0;
     }
 
     if(trimmed.back() != ')')
         return false;
 
-    if(trimmed.find('=') != std::string::npos ||
-       startsKeyword(trimmed, "auto") || startsKeyword(trimmed, "let"))
+    if(text_utils::contains(trimmed, '=') || startsKeyword(trimmed, "auto") ||
+       startsKeyword(trimmed, "let"))
         return false;
 
     return true;
@@ -758,7 +758,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx, int key)
             if(ed->braceNewLineForAutoBraces())
             {
                 bool blankLine =
-                    line.find_first_not_of(" \t") == std::string::npos;
+                    text_utils::is_not_found(line.find_first_not_of(" \t"));
                 if(blankLine)
                 {
                     line = indentStr + "{";
@@ -841,7 +841,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx, int key)
 
             int ltPos = (int)line.rfind(keyCode(command::CommandKey::KEY_LESS),
                                         (size_t)gtPos);
-            if(ltPos == (int)std::string::npos)
+            if(text_utils::is_not_found(static_cast<size_t>(ltPos)))
                 return std::nullopt;
 
             if(ltPos + 1 < (int)line.size())

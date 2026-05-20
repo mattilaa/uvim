@@ -19,7 +19,7 @@ ParsedCommand parseCommandLine(std::string_view commandLine)
 
     ParsedCommand result;
     size_t spacePos = commandLine.find(' ');
-    if(spacePos != std::string_view::npos)
+    if(text_utils::is_found(spacePos))
     {
         result.cmd = std::string(commandLine.substr(0, spacePos));
         std::string_view argsView = commandLine.substr(spacePos + 1);
