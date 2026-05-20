@@ -11,6 +11,8 @@
 #include <string_view>
 #include <unordered_set>
 
+namespace editor::statemachine
+{
 namespace
 {
 struct StatusEntry
@@ -88,7 +90,7 @@ std::vector<StatusEntry> parse_status_porcelain_z(const std::string& raw)
             ++i;
 
         size_t end = raw.find('\0', i);
-        if(end == std::string::npos)
+        if(text_utils::is_not_found(end))
             break;
         std::string path = std::string(raw.substr(i, end - i));
         i = end + 1;
@@ -99,7 +101,7 @@ std::vector<StatusEntry> parse_status_porcelain_z(const std::string& raw)
            entry.worktreeStatus == keyCode(typed::TypedKey::KEY_CAP_C))
         {
             size_t end2 = raw.find('\0', i);
-            if(end2 == std::string::npos)
+            if(text_utils::is_not_found(end2))
                 break;
             path = std::string(raw.substr(i, end2 - i));
             i = end2 + 1;
@@ -185,7 +187,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
             size_t start = i;
             size_t end =
                 text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
-            if(end == std::string::npos)
+            if(text_utils::is_not_found(end))
             {
                 tokens.emplace_back(text.substr(start));
                 break;
@@ -325,8 +327,8 @@ std::optional<ModeState> start_fixup_from_stage(Editor& editor,
         return std::nullopt;
     }
 
-    return GitFixupMode{{}, stage.repoRoot, stage.repoDir, std::move(files),
-                        stage};
+    return GitFixupMode{
+        {}, stage.repoRoot, stage.repoDir, std::move(files), stage};
 }
 
 bool is_ansi_start(std::string_view text, size_t i)
@@ -587,9 +589,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
     rows.clear();
     fileRows.clear();
 
-    std::vector<StatusEntry> entries =
-        parse_status_porcelain_z(
-            run_git_raw({"git", "-C", repoDir, "status", "--porcelain", "-z"}));
+    std::vector<StatusEntry> entries = parse_status_porcelain_z(
+        run_git_raw({"git", "-C", repoDir, "status", "--porcelain", "-z"}));
 
     std::unordered_set<std::string> validPaths;
     for(const auto& entry : entries)
@@ -642,8 +643,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
     if(entries.empty())
     {
         add_row({RowKind::Blank, FileGroup::None, "", ""});
-        add_row(
-            {RowKind::Summary, FileGroup::None, "nothing to commit, working tree clean", ""});
+        add_row({RowKind::Summary, FileGroup::None,
+                 "nothing to commit, working tree clean", ""});
     }
     else
     {
@@ -669,10 +670,12 @@ bool GitStageMode::refreshStatus(Editor& editor)
             add_row({RowKind::Header, FileGroup::None,
                      "Changes not staged for commit:", ""});
             add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git add <file>...\" to update what will be committed)",
+                     "  (use \"git add <file>...\" to update what will be "
+                     "committed)",
                      ""});
             add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git restore <file>...\" to discard changes in working directory)",
+                     "  (use \"git restore <file>...\" to discard changes in "
+                     "working directory)",
                      ""});
             for(const auto& entry : unstagedEntries)
             {
@@ -687,7 +690,8 @@ bool GitStageMode::refreshStatus(Editor& editor)
             add_row({RowKind::Blank, FileGroup::None, "", ""});
             add_row({RowKind::Header, FileGroup::None, "Untracked files:", ""});
             add_row({RowKind::Hint, FileGroup::None,
-                     "  (use \"git add <file>...\" to include in what will be committed)",
+                     "  (use \"git add <file>...\" to include in what will be "
+                     "committed)",
                      ""});
             for(const auto& entry : untrackedEntries)
             {
@@ -775,7 +779,7 @@ void GitStageMode::refreshDiff(Editor& editor)
     while(pos <= raw.size())
     {
         size_t next = raw.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < raw.size())
                 diffLines.push_back(raw.substr(pos));
@@ -894,8 +898,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
             std::vector<std::string> args;
             if(row.group == FileGroup::Staged)
             {
-                args = {"git", "-C", repoDir, "restore", "--staged", "--",
-                        row.path};
+                args = {"git",      "-C", repoDir, "restore",
+                        "--staged", "--", row.path};
             }
             else if(row.group == FileGroup::Unstaged ||
                     row.group == FileGroup::Untracked)
@@ -944,13 +948,12 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
     {
         if(diffVisible)
         {
-            int maxScroll = std::max(0, (int)diffLines.size() -
-                                            git_stage_content_rows(
-                                                ed->screenRows,
-                                                (int)wrap_help(
-                                                    git_stage_help_text(),
-                                                    ed->screenCols)
-                                                    .size()));
+            int maxScroll = std::max(
+                0, (int)diffLines.size() -
+                       git_stage_content_rows(
+                           ed->screenRows,
+                           (int)wrap_help(git_stage_help_text(), ed->screenCols)
+                               .size()));
             if(diffOffset < maxScroll)
                 ++diffOffset;
         }
@@ -974,8 +977,8 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
             if(diffWidth < 20)
                 listWidth = ed->screenCols;
         }
-        listHorizontalOffset =
-            std::min(maxListHorizontalOffset(listWidth), listHorizontalOffset + 1);
+        listHorizontalOffset = std::min(maxListHorizontalOffset(listWidth),
+                                        listHorizontalOffset + 1);
     }
     else if(c == keyCode(control::ControlKey::CTRL_H))
     {
@@ -991,9 +994,9 @@ std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
             if(diffWidth >= 20)
             {
                 int diffViewWidth = std::max(0, diffWidth - 1);
-                int maxDiffOffset =
-                    std::max(0, max_diff_width(diffLines, ed->gitUseDefaultColors) -
-                                    diffViewWidth);
+                int maxDiffOffset = std::max(
+                    0, max_diff_width(diffLines, ed->gitUseDefaultColors) -
+                           diffViewWidth);
                 diffHorizontalOffset =
                     std::min(maxDiffOffset, diffHorizontalOffset + 1);
             }
@@ -1085,8 +1088,9 @@ void GitStageMode::draw(Editor& editor) const
     int listOff = std::min(listHorizontalOffset, maxListOffset);
     self->listHorizontalOffset = listOff;
     int diffViewWidth = std::max(0, diffWidth - 1);
-    int maxDiffOffset = std::max(
-        0, max_diff_width(diffLines, editor.gitUseDefaultColors) - diffViewWidth);
+    int maxDiffOffset =
+        std::max(0, max_diff_width(diffLines, editor.gitUseDefaultColors) -
+                        diffViewWidth);
     int hOff = std::min(diffHorizontalOffset, maxDiffOffset);
     self->diffHorizontalOffset = hOff;
 
@@ -1163,8 +1167,9 @@ void GitStageMode::draw(Editor& editor) const
 
                 int prefixWidth = text_utils::utf8DisplayWidth(prefix);
                 std::string visiblePrefix =
-                    listOff < prefixWidth ? slice_plain(prefix, listOff, listWidth)
-                                          : "";
+                    listOff < prefixWidth
+                        ? slice_plain(prefix, listOff, listWidth)
+                        : "";
                 int used = text_utils::utf8DisplayWidth(visiblePrefix);
                 int remaining = std::max(0, listWidth - used);
                 int pathOffset = std::max(0, listOff - prefixWidth);
@@ -1180,8 +1185,8 @@ void GitStageMode::draw(Editor& editor) const
                     if(isSelected)
                         output += editor.theme.searchMatch();
                     else
-                        output += status_path_bg(row.group) +
-                                  editor.theme.baseFg();
+                        output +=
+                            status_path_bg(row.group) + editor.theme.baseFg();
                     output += visiblePath;
                 }
                 output += editor.theme.base();
@@ -1205,9 +1210,8 @@ void GitStageMode::draw(Editor& editor) const
                 output += " ";
                 if(editor.gitUseDefaultColors)
                 {
-                    std::string clipped =
-                        slice_with_ansi(diffLines[diffIdx], hOff,
-                                              diffViewWidth);
+                    std::string clipped = slice_with_ansi(diffLines[diffIdx],
+                                                          hOff, diffViewWidth);
                     output += clipped;
                     output += editor.theme.reset();
                     output += editor.theme.base();
@@ -1219,8 +1223,7 @@ void GitStageMode::draw(Editor& editor) const
                 {
                     std::string clipped =
                         slice_plain(diffLines[diffIdx], hOff, diffViewWidth);
-                    append_diff_line(output, editor,
-                                     clipped);
+                    append_diff_line(output, editor, clipped);
                     output += editor.theme.base();
                     int visibleWidth = text_utils::utf8DisplayWidth(clipped);
                     if(visibleWidth + 1 < diffWidth)
@@ -1243,8 +1246,7 @@ void GitStageMode::draw(Editor& editor) const
     std::string status = " GIT STAGE";
     if(!repoRoot.empty())
         status += " | " + repoRoot;
-    std::string right =
-        " " + std::to_string(fileRows.size()) + " files ";
+    std::string right = " " + std::to_string(fileRows.size()) + " files ";
     output += status;
     int statusWidth = text_utils::utf8DisplayWidth(status);
     int rightWidth = text_utils::utf8DisplayWidth(right);
@@ -1274,3 +1276,4 @@ int GitStageMode::testContentRows(int screenRows, int screenCols)
         screenRows, (int)wrap_help(git_stage_help_text(), screenCols).size());
 }
 #endif
+} // namespace editor::statemachine

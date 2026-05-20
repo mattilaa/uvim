@@ -287,7 +287,7 @@ struct LspClient::Impl
             {
                 // parse header
                 size_t hdrEnd = buf.find("\r\n\r\n");
-                if(hdrEnd == std::string::npos)
+                if(text_utils::is_not_found(hdrEnd))
                     break;
 
                 std::string header = buf.substr(0, hdrEnd);
@@ -297,7 +297,7 @@ struct LspClient::Impl
                 {
                     const std::string key = "Content-Length:";
                     size_t p = header.find(key);
-                    if(p != std::string::npos)
+                    if(text_utils::is_found(p))
                     {
                         p += key.size();
                         while(p < header.size() && header[p] == ' ')

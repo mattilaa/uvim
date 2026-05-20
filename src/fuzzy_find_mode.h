@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct FuzzyFindMode
 {
     static constexpr const char* name()
@@ -57,3 +59,4 @@ private:
     bool select(Editor& editor);
     bool openSelected(Editor& editor);
 };
+} // namespace editor::statemachine

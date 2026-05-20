@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct InsertMode
 {
     static constexpr const char* name()
@@ -30,3 +32,4 @@ struct InsertMode
 
     std::optional<ModeState> handle(ModeContext& ctx, int key);
 };
+} // namespace editor::statemachine

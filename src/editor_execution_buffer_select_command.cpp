@@ -6,6 +6,7 @@
 #include "file_browser_mode.h"
 #include "gitignore.h"
 #include "mode_state_machine.h"
+#include "text_utils.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -54,7 +55,7 @@ bool BufferSelectCommand::execute(Editor& editor,
     for(size_t i = 0; i < editor.buffers.size(); i++)
     {
         if(editor.buffers[i] &&
-           editor.buffers[i]->filename.find(needle) != std::string::npos)
+           text_utils::contains(editor.buffers[i]->filename, needle))
         {
             editor.switchToBuffer((int)i);
             return true;

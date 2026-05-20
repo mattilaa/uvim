@@ -6,6 +6,8 @@
 // OperatorPendingMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void OperatorPendingMode::on_enter(ModeContext& ctx)
 {
     ctx.setStatusMessage(std::string("Operator: ") + op);
@@ -20,8 +22,7 @@ void OperatorPendingMode::on_exit(ModeContext& ctx)
     ctx.pendingCount = 0;
 }
 
-std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
-                                                     int key)
+std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -55,8 +56,10 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         return NormalMode{};
     }
 
-    // keyCode(typed::TypedKey::KEY_I) or keyCode(typed::TypedKey::KEY_A) enter text object mode
-    if(!awaitingObject && (c == keyCode(typed::TypedKey::KEY_I) || c == keyCode(typed::TypedKey::KEY_A)))
+    // keyCode(typed::TypedKey::KEY_I) or keyCode(typed::TypedKey::KEY_A) enter
+    // text object mode
+    if(!awaitingObject && (c == keyCode(typed::TypedKey::KEY_I) ||
+                           c == keyCode(typed::TypedKey::KEY_A)))
     {
         awaitingObject = true;
         objectType = static_cast<char>(c);
@@ -69,7 +72,11 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
 
     if(awaitingObject)
     {
-        // Expect a text-object specifier (e.g., keyCode(command::CommandKey::KEY_LEFT_PAREN), keyCode(command::CommandKey::KEY_LEFT_BRACE), keyCode(command::CommandKey::KEY_DOUBLE_QUOTE), keyCode(typed::TypedKey::KEY_W), keyCode(typed::TypedKey::KEY_P))
+        // Expect a text-object specifier (e.g.,
+        // keyCode(command::CommandKey::KEY_LEFT_PAREN),
+        // keyCode(command::CommandKey::KEY_LEFT_BRACE),
+        // keyCode(command::CommandKey::KEY_DOUBLE_QUOTE),
+        // keyCode(typed::TypedKey::KEY_W), keyCode(typed::TypedKey::KEY_P))
         char objSpec = static_cast<char>(c);
         bool around = (objectType == keyCode(typed::TypedKey::KEY_A));
         rangeFound =
@@ -257,7 +264,8 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     ctx.repeatCount = 0;
     ctx.commandBuffer.clear();
 
-    // keyCode(typed::TypedKey::KEY_C) operator enters insert mode after deletion
+    // keyCode(typed::TypedKey::KEY_C) operator enters insert mode after
+    // deletion
     if(op == keyCode(typed::TypedKey::KEY_C))
     {
         ed->deferChangeRecordingCommit();
@@ -267,3 +275,4 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     ed->commitChangeRecording();
     return NormalMode{};
 }
+} // namespace editor::statemachine

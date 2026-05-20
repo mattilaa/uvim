@@ -1,5 +1,6 @@
 #include "theme.h"
 #include "terminal.h"
+#include "text_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -55,7 +56,7 @@ parseYamlMap(const std::string& input)
 
         std::string rest = line.substr(first);
         size_t colon = rest.find(':');
-        if(colon == std::string::npos)
+        if(text_utils::is_not_found(colon))
             continue;
 
         std::string key = trim(rest.substr(0, colon));

@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct GrepSearchMode
 {
     static constexpr const char* name()
@@ -64,3 +66,4 @@ private:
     void toggleSelection();
     bool openSelected(Editor& editor);
 };
+} // namespace editor::statemachine

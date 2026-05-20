@@ -15,110 +15,137 @@ void EditorEditingController::insertTab()
 {
     editor.insertTabImpl();
 }
+
 void EditorEditingController::toggleCase()
 {
     editor.toggleCaseImpl();
 }
+
 void EditorEditingController::joinLines()
 {
     editor.joinLinesImpl();
 }
+
 void EditorEditingController::insertLineAbove()
 {
     editor.insertLineAboveImpl();
 }
+
 void EditorEditingController::insertLineBelow()
 {
     editor.insertLineBelowImpl();
 }
+
 void EditorEditingController::deleteCurrentLine()
 {
     editor.deleteCurrentLineImpl();
 }
+
 void EditorEditingController::deleteToLineStart()
 {
     editor.deleteToLineStartImpl();
 }
+
 void EditorEditingController::deleteCharAtCursor()
 {
     editor.deleteCharAtCursorImpl();
 }
+
 void EditorEditingController::deleteCharBeforeCursor()
 {
     editor.deleteCharBeforeCursorImpl();
 }
+
 void EditorEditingController::deleteWordBackward()
 {
     editor.deleteWordBackwardImpl();
 }
+
 void EditorEditingController::deleteWord()
 {
     editor.deleteWordImpl();
 }
+
 void EditorEditingController::yankWord()
 {
     editor.yankWordImpl();
 }
+
 void EditorEditingController::handleBackspace()
 {
     editor.handleBackspaceImpl();
 }
+
 void EditorEditingController::replaceCharAtCursor(char c)
 {
     editor.replaceCharAtCursorImpl(c);
 }
+
 void EditorEditingController::beginChangeRecording(int count)
 {
     editor.beginChangeRecordingImpl(count);
 }
+
 void EditorEditingController::recordChangeKey(int key)
 {
     editor.recordChangeKeyImpl(key);
 }
+
 void EditorEditingController::deferChangeRecordingCommit()
 {
     editor.deferChangeRecordingCommitImpl();
 }
+
 void EditorEditingController::commitChangeRecording()
 {
     editor.commitChangeRecordingImpl();
 }
+
 void EditorEditingController::cancelChangeRecording()
 {
     editor.cancelChangeRecordingImpl();
 }
+
 void EditorEditingController::finishChangeRecordingIfDeferred()
 {
     editor.finishChangeRecordingIfDeferredImpl();
 }
+
 bool EditorEditingController::isRecordingChange() const
 {
     return editor.isRecordingChangeImpl();
 }
+
 bool EditorEditingController::isReplayingChange() const
 {
     return editor.isReplayingChangeImpl();
 }
+
 int EditorEditingController::readKeyRecorded()
 {
     return editor.readKeyRecordedImpl();
 }
+
 void EditorEditingController::repeatLastChange(int times)
 {
     editor.repeatLastChangeImpl(times);
 }
+
 void EditorEditingController::insertUtf8Char(int c)
 {
     editor.insertUtf8CharImpl(c);
 }
+
 void EditorEditingController::indentCurrentLine()
 {
     editor.indentCurrentLineImpl();
 }
+
 void EditorEditingController::dedentCurrentLine()
 {
     editor.dedentCurrentLineImpl();
 }
+
 void EditorEditingController::handleLinewiseOperator(char op, int count)
 {
     editor.handleLinewiseOperatorImpl(op, count);
@@ -256,10 +283,10 @@ void Editor::insertLineAboveImpl()
        (isFileType<FileType::Html>() || isFileType<FileType::Xml>()))
     {
         size_t pos = currentLine.find('<');
-        if(pos != std::string::npos)
+        if(text_utils::is_found(pos))
         {
             size_t gt = currentLine.find('>', pos);
-            if(gt != std::string::npos && pos + 1 < currentLine.size())
+            if(text_utils::is_found(gt) && pos + 1 < currentLine.size())
             {
                 char next = currentLine[pos + 1];
                 if(next != '/' && next != '!' && next != '?')
@@ -317,7 +344,7 @@ void Editor::insertLineAboveImpl()
                 if(prevIndent < indent)
                 {
                     if(starts_control(prevTrim) &&
-                       prevTrim.find('{') == std::string::npos)
+                       !text_utils::contains(prevTrim, '{'))
                     {
                         indentStr = prevLine.substr(0, prevIndent);
                         adjusted = true;
@@ -418,7 +445,7 @@ void Editor::insertLineBelowImpl()
         if(isFileType<FileType::Cpp>())
         {
             size_t lastNonSpace = currentLine.find_last_not_of(" \t");
-            if(lastNonSpace != std::string::npos &&
+            if(text_utils::is_found(lastNonSpace) &&
                currentLine[lastNonSpace] == '{')
             {
                 addExtraIndent = true;
@@ -431,14 +458,14 @@ void Editor::insertLineBelowImpl()
             bool htmlShouldIndent = false;
             size_t lt = currentLine.rfind('<');
             size_t gt = currentLine.rfind('>');
-            if(lt != std::string::npos && gt != std::string::npos && lt < gt &&
-               lt + 1 < currentLine.size())
+            if(text_utils::is_found(lt) && text_utils::is_found(gt) &&
+               lt < gt && lt + 1 < currentLine.size())
             {
                 char next = currentLine[lt + 1];
                 if(next != '/' && next != '!' && next != '?')
                 {
                     size_t selfClose = currentLine.rfind('/');
-                    if(selfClose == std::string::npos || selfClose < lt ||
+                    if(text_utils::is_not_found(selfClose) || selfClose < lt ||
                        selfClose > gt)
                     {
                         bool isVoid = false;
@@ -497,7 +524,7 @@ void Editor::insertLineBelowImpl()
                     if(prevIndent < indent)
                     {
                         if(starts_control(prevTrim) &&
-                           prevTrim.find('{') == std::string::npos)
+                           !text_utils::contains(prevTrim, '{'))
                         {
                             indentStr = prevLine.substr(0, prevIndent);
                             adjusted = true;

@@ -48,9 +48,8 @@ std::string Editor::buildTabBarLine(int width)
     {
         const Buffer* buf = buffers[bi].get();
         std::string name = buf->filename.empty() ? "[No Name]" : buf->filename;
-        size_t slash = name.find_last_of("/\\");
-        if(slash != std::string::npos)
-            name = name.substr(slash + 1);
+        if(!buf->filename.empty())
+            name = text_utils::basename(name);
         if(buf->dirty)
             name += "*";
 
@@ -58,8 +57,7 @@ std::string Editor::buildTabBarLine(int width)
         if(showTabNumbers)
             numberPrefix = std::to_string(bi + 1) + ":";
 
-        int nameMax =
-            std::max(1, maxLabelWidth - 2 - (int)numberPrefix.size());
+        int nameMax = std::max(1, maxLabelWidth - 2 - (int)numberPrefix.size());
         if((int)name.size() > nameMax)
         {
             if(nameMax >= 3)
@@ -1476,12 +1474,10 @@ void Editor::drawSplitFullScreen()
     {
         if(path.empty())
             return std::string(fallback);
-        size_t slash = path.find_last_of("/\\");
-        if(slash == std::string::npos)
-            return path;
-        if(slash + 1 >= path.size())
+        std::string_view base = text_utils::basename(path);
+        if(base.empty())
             return std::string(fallback);
-        return path.substr(slash + 1);
+        return std::string(base);
     };
 
     std::string lspInfo;

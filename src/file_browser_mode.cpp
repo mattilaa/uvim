@@ -23,6 +23,8 @@
 // FileBrowserMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> fileBrowserPrimaryHelpTokens()
@@ -69,7 +71,7 @@ int fileBrowserVisibleRows(int screenRows, int screenCols, size_t selectedCount,
 
 bool isPlainSearchPattern(std::string_view pattern)
 {
-    return pattern.find_first_of(R"(\.^$|()[]{}*+?)") == std::string_view::npos;
+    return text_utils::is_not_found(pattern.find_first_of(R"(\.^$|()[]{}*+?)"));
 }
 
 bool fileBrowserNameMatchesSearch(const std::string& name,
@@ -77,7 +79,7 @@ bool fileBrowserNameMatchesSearch(const std::string& name,
                                   const std::regex* regexPattern)
 {
     if(plainPattern)
-        return name.find(pattern) != std::string::npos;
+        return text_utils::contains(name, pattern);
     return regexPattern && std::regex_search(name, *regexPattern);
 }
 
@@ -95,7 +97,7 @@ std::string truncateToWidth(std::string text, int width)
 std::string firstLine(std::string text)
 {
     size_t newline = text.find_first_of("\r\n");
-    if(newline != std::string::npos)
+    if(text_utils::is_found(newline))
         text.resize(newline);
     return text;
 }
@@ -600,7 +602,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx, int key)
                 const auto& entry = fileList[i];
                 if(entry.name == "..")
                     continue;
-                if(entry.name.find(pattern) != std::string::npos)
+                if(text_utils::contains(entry.name, pattern))
                     matches.push_back(i);
             }
             searchMatchCache[cacheKey] = matches;
@@ -631,7 +633,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx, int key)
                 const auto& entry = fileList[i];
                 if(entry.name == "..")
                     continue;
-                if(entry.name.find(pattern) != std::string::npos)
+                if(text_utils::contains(entry.name, pattern))
                     return i;
             }
             return std::nullopt;
@@ -697,7 +699,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx, int key)
                 std::string folded = name;
                 std::transform(folded.begin(), folded.end(), folded.begin(),
                                lower);
-                if(needle.empty() || folded.find(needle) != std::string::npos)
+                if(needle.empty() || text_utils::contains(folded, needle))
                 {
                     searchTabCandidates.push_back(std::move(name));
                 }
@@ -911,8 +913,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx, int key)
             return false;
         auto shellQuote = [](const std::string& s) -> std::string
         {
-            bool needsQuote =
-                s.find_first_of(" \t'\"\\$`()|&;<>*?[]{}") != std::string::npos;
+            bool needsQuote = s.find_first_of(" \t'\"\\$`()|&;<>*?[]{}") !=
+                              text_utils::npos();
             if(!needsQuote)
                 return s;
             std::string out;
@@ -1326,7 +1328,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx, int key)
     {
         size_t lastSlash = currentDirectory.find_last_of(
             keyCode(command::CommandKey::KEY_SLASH));
-        if(lastSlash != std::string::npos && lastSlash > 0)
+        if(text_utils::is_found(lastSlash) && lastSlash > 0)
         {
             std::string parentDir = currentDirectory.substr(0, lastSlash);
             navigateTo(ctx, std::move(parentDir));
@@ -2953,7 +2955,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     std::string rel;
                     size_t lastSlash = args.find_last_of(
                         keyCode(command::CommandKey::KEY_SLASH));
-                    if(lastSlash != std::string::npos)
+                    if(text_utils::is_found(lastSlash))
                         rel = args.substr(0, lastSlash);
                     else
                         rel = file_utils::path_to_utf8_string(parent);
@@ -3228,3 +3230,4 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             return next;
         });
 }
+} // namespace editor::statemachine

@@ -11,6 +11,8 @@
 // CommandOutputMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> commandOutputHelpTokens()
@@ -675,3 +677,4 @@ void CommandOutputMode::draw(Editor& editor) const
         Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
+} // namespace editor::statemachine

@@ -80,48 +80,52 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
             mask |= file_type_bit(type);
     };
 
-    set_if(FileType::Cpp,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::cpp_suffixes,
-                                  constants::cpp_stdlib_patterns>(pathSv));
-    set_if(FileType::Mla,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::mla_suffixes>(pathSv));
+    set_if(
+        FileType::Cpp,
+        constants::is_filetype<constants::no_pattern, constants::cpp_suffixes,
+                               constants::cpp_stdlib_patterns>(pathSv));
+    set_if(
+        FileType::Mla,
+        constants::is_filetype<constants::no_pattern, constants::mla_suffixes>(
+            pathSv));
     set_if(FileType::Robot,
            constants::is_filetype<constants::no_pattern,
                                   constants::robot_suffixes>(pathSv));
     set_if(FileType::Python,
            constants::is_filetype<constants::no_pattern,
                                   constants::python_suffixes>(pathSv));
-    set_if(FileType::Json,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::json_suffixes>(pathSv));
-    set_if(FileType::Yaml,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::yaml_suffixes>(pathSv));
-    set_if(FileType::Toml,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::toml_suffixes>(pathSv));
-    set_if(FileType::Html,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::html_suffixes>(pathSv));
-    set_if(FileType::Css,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::css_suffixes>(pathSv));
+    set_if(
+        FileType::Json,
+        constants::is_filetype<constants::no_pattern, constants::json_suffixes>(
+            pathSv));
+    set_if(
+        FileType::Yaml,
+        constants::is_filetype<constants::no_pattern, constants::yaml_suffixes>(
+            pathSv));
+    set_if(
+        FileType::Toml,
+        constants::is_filetype<constants::no_pattern, constants::toml_suffixes>(
+            pathSv));
+    set_if(
+        FileType::Html,
+        constants::is_filetype<constants::no_pattern, constants::html_suffixes>(
+            pathSv));
+    set_if(
+        FileType::Css,
+        constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
+            pathSv));
     set_if(FileType::JavaScript,
            constants::is_filetype<constants::no_pattern,
                                   constants::javascript_suffixes>(pathSv));
     set_if(FileType::TypeScript,
            constants::is_filetype<constants::no_pattern,
                                   constants::typescript_suffixes>(pathSv));
-    set_if(FileType::Xml,
-           constants::is_filetype<constants::no_pattern,
-                                  constants::xml_suffixes>(pathSv));
+    set_if(
+        FileType::Xml,
+        constants::is_filetype<constants::no_pattern, constants::xml_suffixes>(
+            pathSv));
 
-    size_t slashPos = pathSv.find_last_of("/\\");
-    std::string_view base =
-        (slashPos == std::string_view::npos) ? pathSv
-                                             : pathSv.substr(slashPos + 1);
+    std::string_view base = text_utils::basename(pathSv);
 
     bool isReadmeMarkup = std::any_of(
         constants::markup_readme_basenames.begin(),
@@ -129,14 +133,13 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
         { return text_utils::iequals_ascii(base, name); });
     auto dot = base.find_last_of('.');
     std::string_view ext =
-        dot == std::string_view::npos ? std::string_view{} : base.substr(dot);
+        text_utils::is_not_found(dot) ? std::string_view{} : base.substr(dot);
 
     bool isMarkup = isReadmeMarkup;
     if(!isMarkup && !ext.empty())
     {
-        bool knownMarkupSuffix =
-            constants::matches_file_patterns(ext,
-                                             constants::markup_text_suffixes);
+        bool knownMarkupSuffix = constants::matches_file_patterns(
+            ext, constants::markup_text_suffixes);
         if(knownMarkupSuffix)
         {
             if(text_utils::iequals_ascii(ext, ".rd") ||
@@ -166,12 +169,12 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
                     {
                         isMarkup = true;
                     }
-                    else if(ln.find("**") != std::string_view::npos ||
-                            ln.find("`") != std::string_view::npos ||
-                            (ln.find("[") != std::string_view::npos &&
-                             ln.find("]") != std::string_view::npos &&
-                             ln.find("(") != std::string_view::npos &&
-                             ln.find(")") != std::string_view::npos))
+                    else if(text_utils::contains(ln, "**") ||
+                            text_utils::contains(ln, "`") ||
+                            (text_utils::contains(ln, "[") &&
+                             text_utils::contains(ln, "]") &&
+                             text_utils::contains(ln, "(") &&
+                             text_utils::contains(ln, ")")))
                     {
                         isMarkup = true;
                     }
@@ -207,15 +210,14 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
         std::string_view first{(*editor.lines)[0]};
         if(first.starts_with("#!"))
         {
-            isShell =
-                std::any_of(constants::shell_shebang_hints.begin(),
-                            constants::shell_shebang_hints.end(),
-                            [&](std::string_view hint)
-                            { return text_utils::contains(first, hint); });
+            isShell = std::any_of(
+                constants::shell_shebang_hints.begin(),
+                constants::shell_shebang_hints.end(), [&](std::string_view hint)
+                { return text_utils::contains(first, hint); });
             if(!isShell)
             {
-                isShell = first.find("/sh") != std::string_view::npos ||
-                          first.find(" sh") != std::string_view::npos;
+                isShell = text_utils::contains(first, "/sh") ||
+                          text_utils::contains(first, " sh");
             }
         }
     }

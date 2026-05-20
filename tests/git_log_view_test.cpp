@@ -3,11 +3,13 @@
 #include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
-#include <gtest/gtest.h>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <string>
+
+using namespace editor::statemachine;
 
 namespace
 {
@@ -15,8 +17,7 @@ std::filesystem::path make_temp_dir(const std::string& prefix)
 {
     auto now = std::chrono::steady_clock::now().time_since_epoch().count();
     std::filesystem::path base =
-        std::filesystem::temp_directory_path() /
-        (prefix + std::to_string(now));
+        std::filesystem::temp_directory_path() / (prefix + std::to_string(now));
     std::filesystem::create_directories(base);
     return base;
 }
@@ -58,10 +59,10 @@ TEST(GitSearchHighlightTest, GitLogHighlightsOnlyMatches)
     std::string normalHash = editor.theme.reset() + editor.theme.uiAccent();
     std::string normalText = editor.theme.reset() + editor.theme.baseFg();
 
-    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalHash),
-              std::string::npos);
-    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalText),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        out.find(matchSeq + std::string("abc") + normalHash)));
+    EXPECT_TRUE(text_utils::is_found(
+        out.find(matchSeq + std::string("abc") + normalText)));
 }
 
 TEST(GitSearchHighlightTest, GitShowHighlightsOnlyMatches)
@@ -69,14 +70,14 @@ TEST(GitSearchHighlightTest, GitShowHighlightsOnlyMatches)
     Editor editor = Editor::createForTests();
     std::string line = "commit abc123";
 
-    std::string out = GitShowCommitMode::testRenderLine(
-        editor.theme, line, "abc", false);
+    std::string out =
+        GitShowCommitMode::testRenderLine(editor.theme, line, "abc", false);
 
     std::string matchSeq = editor.theme.searchMatch();
     std::string normalSeq = editor.theme.reset() + editor.theme.uiDim();
 
-    EXPECT_NE(out.find(matchSeq + std::string("abc") + normalSeq),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        out.find(matchSeq + std::string("abc") + normalSeq)));
 }
 
 TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
@@ -85,7 +86,8 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
     std::string repoStr = repo.string();
 
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" init -q"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.email \"test@example.com\""),
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr +
+                      "\" config user.email \"test@example.com\""),
               0);
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.name \"Test\""),
               0);
@@ -94,14 +96,13 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
     write_file(file, "hello\n");
 
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add README.md"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
-              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"), 0);
 
     Editor editor = Editor::createForTests();
     editor.setProjectRoot(repoStr);
 
-    auto sm = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), FileBrowserMode{repoStr});
+    auto sm = std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                                 FileBrowserMode{repoStr});
     editor.setModeStateMachineForTests(std::move(sm));
     auto* smPtr = editor.getModeStateMachine();
     ASSERT_NE(smPtr, nullptr);
@@ -129,15 +130,14 @@ TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
     write_file(file, "line one\n");
 
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
-              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"), 0);
 
     Editor editor = Editor::createForTests();
     editor.openFile(file.string());
     editor.showGitBlame = true;
 
-    auto sm = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), NormalMode{});
+    auto sm = std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                                 NormalMode{});
     editor.setModeStateMachineForTests(std::move(sm));
     auto* smPtr = editor.getModeStateMachine();
     ASSERT_NE(smPtr, nullptr);
@@ -164,16 +164,14 @@ TEST(GitLogCommandTest, GblOpensGitLogAtBlamedCommit)
     write_file(file, "line one\n");
 
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"first\" -q"),
-              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"first\" -q"), 0);
     std::string firstHash =
         run_cmd_line({"git", "-C", repoStr, "rev-parse", "HEAD"});
     ASSERT_FALSE(firstHash.empty());
 
     write_file(file, "line one\nline two\n");
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"second\" -q"),
-              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"second\" -q"), 0);
 
     Editor editor = Editor::createForTests();
     editor.openFile(file.string());
@@ -182,8 +180,8 @@ TEST(GitLogCommandTest, GblOpensGitLogAtBlamedCommit)
     *editor.cursorY = 0;
     editor.showGitBlame = true;
 
-    auto sm = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), NormalMode{});
+    auto sm = std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                                 NormalMode{});
     editor.setModeStateMachineForTests(std::move(sm));
     auto* smPtr = editor.getModeStateMachine();
     ASSERT_NE(smPtr, nullptr);
@@ -215,8 +213,7 @@ TEST(GitFixupCommandTest, CommandOpensFixupForStagedFiles)
     auto file = repo / "notes.txt";
     write_file(file, "line one\n");
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
-              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"), 0);
 
     write_file(file, "line one\nline two\n");
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
@@ -224,8 +221,8 @@ TEST(GitFixupCommandTest, CommandOpensFixupForStagedFiles)
     Editor editor = Editor::createForTests();
     editor.setProjectRoot(repoStr);
 
-    auto sm = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), NormalMode{});
+    auto sm = std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                                 NormalMode{});
     editor.setModeStateMachineForTests(std::move(sm));
     auto* smPtr = editor.getModeStateMachine();
     ASSERT_NE(smPtr, nullptr);
@@ -252,8 +249,7 @@ TEST(GitFixupCommandTest, StageFReturnsToSameStageOnEscape)
     auto file = repo / "notes.txt";
     write_file(file, "line one\n");
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
-    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"),
-              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" commit -m \"init\" -q"), 0);
 
     write_file(file, "line one\nline two\n");
     ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add notes.txt"), 0);
@@ -264,8 +260,8 @@ TEST(GitFixupCommandTest, StageFReturnsToSameStageOnEscape)
     stage.cursor = 3;
     stage.offset = 2;
 
-    auto sm = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), stage);
+    auto sm =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor), stage);
     editor.setModeStateMachineForTests(std::move(sm));
     auto* smPtr = editor.getModeStateMachine();
     ASSERT_NE(smPtr, nullptr);
@@ -295,10 +291,10 @@ TEST(GitFixupCommandTest, StageFReturnsToSameStageOnEscape)
 TEST(GitFixupCommandTest, SpaceSelectsFixupCommit)
 {
     Editor editor = Editor::createForTests();
-    GitFixupMode mode{{{"abc123", "target commit"}}, "repo", "repo", {},
-                      GitStageMode{}};
-    auto sm = std::make_unique<ModeStateMachine>(
-        createModeContext(&editor), mode);
+    GitFixupMode mode{
+        {{"abc123", "target commit"}}, "repo", "repo", {}, GitStageMode{}};
+    auto sm =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor), mode);
     editor.setModeStateMachineForTests(std::move(sm));
     auto* smPtr = editor.getModeStateMachine();
     ASSERT_NE(smPtr, nullptr);

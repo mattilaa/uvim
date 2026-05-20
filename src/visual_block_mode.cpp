@@ -7,6 +7,8 @@
 // VisualBlockMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void VisualBlockMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -185,3 +187,4 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx, int key)
 
     return std::nullopt;
 }
+} // namespace editor::statemachine

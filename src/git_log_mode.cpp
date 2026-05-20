@@ -13,6 +13,8 @@
 // GitLogMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> gitLogHelpTokens(bool prettyView)
@@ -54,7 +56,7 @@ void append_highlighted(std::string& out, std::string_view text,
     while(pos < text.size())
     {
         size_t found = text.find(query, pos);
-        if(found == std::string_view::npos)
+        if(text_utils::is_not_found(found))
         {
             out += normalSeq;
             out.append(text.data() + pos, text.size() - pos);
@@ -84,7 +86,7 @@ std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
     while(pos <= output.size())
     {
         size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < output.size())
                 out.push_back(output.substr(pos));
@@ -207,7 +209,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         append_colored("commit ", editor.theme.uiAccent());
         std::string hashAndRefs = line.substr(7);
         size_t refsPos = hashAndRefs.find(" (");
-        if(refsPos == std::string::npos)
+        if(text_utils::is_not_found(refsPos))
         {
             append_colored(hashAndRefs, editor.theme.uiWarning());
         }
@@ -224,7 +226,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
        line.rfind("Date:", 0) == 0)
     {
         size_t colon = line.find(keyCode(command::CommandKey::KEY_COLON));
-        if(colon == std::string::npos)
+        if(text_utils::is_not_found(colon))
         {
             append_colored(line, editor.theme.uiAccent());
             return;
@@ -243,7 +245,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         append_colored(prefix, editor.theme.uiAccent());
         std::string rest = line.substr(prefix.size());
         size_t split = rest.find(keyCode(control::ControlKey::SPACE));
-        if(split == std::string::npos)
+        if(text_utils::is_not_found(split))
         {
             append_colored(rest, editor.theme.uiInfo());
             return;
@@ -258,7 +260,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
        line.rfind("Binary files ", 0) == 0)
     {
         size_t space = line.find(keyCode(control::ControlKey::SPACE));
-        if(space == std::string::npos)
+        if(text_utils::is_not_found(space))
         {
             append_colored(line, editor.theme.uiAccent());
             return;
@@ -278,14 +280,14 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         append_colored(line, editor.theme.uiDim());
         return;
     }
-    if(line.find(" | ") != std::string::npos)
+    if(text_utils::contains(line, " | "))
     {
         append_colored(line, editor.theme.uiInfo());
         return;
     }
-    if(line.find(" changed, ") != std::string::npos ||
-       line.find(" insertion") != std::string::npos ||
-       line.find(" deletion") != std::string::npos)
+    if(text_utils::contains(line, " changed, ") ||
+       text_utils::contains(line, " insertion") ||
+       text_utils::contains(line, " deletion"))
     {
         append_colored(line, editor.theme.uiWarning());
         return;
@@ -517,7 +519,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
                 int idx = filtered[i];
                 std::string text =
                     entries[idx].hash + " " + entries[idx].subject;
-                if(text.find(searchQuery) != std::string::npos)
+                if(text_utils::contains(text, searchQuery))
                 {
                     found = i;
                     break;
@@ -530,7 +532,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
                     int idx = filtered[i];
                     std::string text =
                         entries[idx].hash + " " + entries[idx].subject;
-                    if(text.find(searchQuery) != std::string::npos)
+                    if(text_utils::contains(text, searchQuery))
                     {
                         found = i;
                         break;
@@ -545,7 +547,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
                 int idx = filtered[i];
                 std::string text =
                     entries[idx].hash + " " + entries[idx].subject;
-                if(text.find(searchQuery) != std::string::npos)
+                if(text_utils::contains(text, searchQuery))
                 {
                     found = i;
                     break;
@@ -558,7 +560,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
                     int idx = filtered[i];
                     std::string text =
                         entries[idx].hash + " " + entries[idx].subject;
-                    if(text.find(searchQuery) != std::string::npos)
+                    if(text_utils::contains(text, searchQuery))
                     {
                         found = i;
                         break;
@@ -631,7 +633,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
                         int idx = filtered[i];
                         std::string text =
                             entries[idx].hash + " " + entries[idx].subject;
-                        if(text.find(searchQuery) != std::string::npos)
+                        if(text_utils::contains(text, searchQuery))
                         {
                             found = i;
                             break;
@@ -645,7 +647,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
                         int idx = filtered[i];
                         std::string text =
                             entries[idx].hash + " " + entries[idx].subject;
-                        if(text.find(searchQuery) != std::string::npos)
+                        if(text_utils::contains(text, searchQuery))
                         {
                             found = i;
                             break;
@@ -1285,3 +1287,4 @@ std::string GitLogMode::testRenderLine(const Theme& theme, const Entry& entry,
     return output;
 }
 #endif
+} // namespace editor::statemachine

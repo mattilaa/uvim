@@ -11,6 +11,8 @@
 // Help Mode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> helpModeHelpTokens()
@@ -203,8 +205,8 @@ void HelpMode::draw(Editor& editor) const
             output += editor.theme.reset();
         }
         else if(!line.empty() && std::isupper(line[0]) &&
-                line.find(keyCode(command::CommandKey::KEY_COLON)) !=
-                    std::string::npos &&
+                text_utils::contains(line,
+                                     keyCode(command::CommandKey::KEY_COLON)) &&
                 line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
         {
             // Section header (e.g., "COMMANDS:")
@@ -248,7 +250,7 @@ void HelpMode::draw(Editor& editor) const
                     // Code/command in backticks
                     size_t end = line.find(
                         keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
-                    if(end != std::string::npos)
+                    if(text_utils::is_found(end))
                     {
                         processedLine += editor.theme.syntax(TOKEN_FUNCTION);
                         processedLine += line.substr(pos + 1, end - pos - 1);
@@ -1228,3 +1230,4 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
             return true;
         });
 }
+} // namespace editor::statemachine

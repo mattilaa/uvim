@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct BufferBrowserMode
 {
     static constexpr const char* name()
@@ -43,3 +45,4 @@ private:
     void closeSelectedBuffer(Editor& editor);
     void closeMatchedBuffers(Editor& editor);
 };
+} // namespace editor::statemachine

@@ -1,6 +1,8 @@
 #include "mode_context.h"
 #include "editor.h"
 
+namespace editor::statemachine
+{
 void ModeContext::setStatusMessage(const std::string& msg)
 {
     editor->setStatusMessage(msg);
@@ -961,3 +963,4 @@ bool ModeContext::isRobotLspEnabled() const
 {
     return editor->isRobotLspEnabled();
 }
+} // namespace editor::statemachine

@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include "widgets/status_bar.h"
 #include <chrono>
 #include <cstdlib>
@@ -9,6 +10,8 @@
 #include <gtest/gtest.h>
 #include <iterator>
 #include <utility>
+
+using namespace editor::statemachine;
 
 namespace
 {
@@ -1230,14 +1233,15 @@ TEST(RealModeTransitionsTest,
     dispatch_command(sm, "/needle\\.txt");
     state = sm.getState<FileBrowserMode>();
     ASSERT_NE(state, nullptr);
-    EXPECT_NE(editor.statusMessage.find("No match for regex: needle\\.txt"),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.statusMessage.find("No match for regex: needle\\.txt")));
     EXPECT_NE(state->browserCursor, aIndex);
 
     dispatch_command(sm, "/a\\.txt");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.currentBuffer->filename.find("a.txt"), std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(editor.currentBuffer->filename.find("a.txt")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserCommandQuestionRegexSearchesBackward)
@@ -1268,8 +1272,8 @@ TEST(RealModeTransitionsTest, FileBrowserCommandQuestionRegexSearchesBackward)
     dispatch_command(sm, "?^alpha\\.txt$");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.currentBuffer->filename.find("alpha.txt"),
-              std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(editor.currentBuffer->filename.find("alpha.txt")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserSlashKeyRunsLocalRegexSearch)
@@ -1307,8 +1311,8 @@ TEST(RealModeTransitionsTest, FileBrowserSlashKeyRunsLocalRegexSearch)
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.currentBuffer->filename.find("alpha.txt"),
-              std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(editor.currentBuffer->filename.find("alpha.txt")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserQuestionKeyRunsBackwardRegexSearch)
@@ -1346,8 +1350,8 @@ TEST(RealModeTransitionsTest, FileBrowserQuestionKeyRunsBackwardRegexSearch)
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.currentBuffer->filename.find("alpha.txt"),
-              std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(editor.currentBuffer->filename.find("alpha.txt")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
@@ -1402,8 +1406,8 @@ TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
     ASSERT_NE(state, nullptr);
     EXPECT_EQ(state->query, "needle pasted");
     ASSERT_EQ(state->matches.size(), 1u);
-    EXPECT_NE(state->matches.front().filepath.find("match.txt"),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        state->matches.front().filepath.find("match.txt")));
     EXPECT_EQ(state->matches.front().lineNumber, 1);
 }
 
@@ -1467,8 +1471,8 @@ TEST(RealModeTransitionsTest, RegexSearchCtrlSTogglesProjectFiles)
     ASSERT_NE(state, nullptr);
     EXPECT_TRUE(state->allFiles);
     ASSERT_EQ(state->matches.size(), 2u);
-    EXPECT_NE(state->matches[0].filepath.find("a.cpp"), std::string::npos);
-    EXPECT_NE(state->matches[1].filepath.find("b.cpp"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(state->matches[0].filepath.find("a.cpp")));
+    EXPECT_TRUE(text_utils::is_found(state->matches[1].filepath.find("b.cpp")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserNAndNShiftWrapSearchMatches)
@@ -1548,8 +1552,8 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.currentBuffer->filename.find("edit-alpha.txt"),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("edit-alpha.txt")));
 
     Editor editor2 = Editor::createForTests();
     auto sm2 = makeMachine(editor2, FileBrowserMode{root.string()});
@@ -1560,7 +1564,8 @@ TEST(RealModeTransitionsTest, FileBrowserSearchTabCompletionCyclesMatches)
 
     EXPECT_STREQ(sm2.currentStateName(), "NORMAL");
     ASSERT_NE(editor2.currentBuffer, nullptr);
-    EXPECT_NE(editor2.currentBuffer->filename.find("edit-"), std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(editor2.currentBuffer->filename.find("edit-")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserCtrlJKCyclesWhileSearchPromptActive)
@@ -1701,8 +1706,8 @@ TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedFile)
 
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.currentBuffer->filename.find("target.txt"),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("target.txt")));
 }
 
 TEST(RealModeTransitionsTest,
@@ -1731,10 +1736,10 @@ TEST(RealModeTransitionsTest,
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
     EXPECT_EQ(editor.buffers.size(), 2u);
     ASSERT_NE(editor.currentBuffer, nullptr);
-    EXPECT_NE(editor.buffers[0]->filename.find("match-alpha.txt"),
-              std::string::npos);
-    EXPECT_NE(editor.buffers[1]->filename.find("match-beta.txt"),
-              std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.buffers[0]->filename.find("match-alpha.txt")));
+    EXPECT_TRUE(text_utils::is_found(
+        editor.buffers[1]->filename.find("match-beta.txt")));
 }
 
 TEST(RealModeTransitionsTest, FileBrowserSearchEnterOpensMatchedDirectory)

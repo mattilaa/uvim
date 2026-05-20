@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <utility>
 
+namespace editor::statemachine
+{
 namespace
 {
 void replaceVisualLineSelection(Editor* ed, std::string pasteBuffer)
@@ -349,3 +351,4 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
 
     return std::nullopt;
 }
+} // namespace editor::statemachine

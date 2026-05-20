@@ -3,8 +3,11 @@
 #include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> bufferBrowserHelpTokens()
@@ -226,13 +229,10 @@ void BufferBrowserMode::updateMatches(Editor& editor)
         std::string name = editor.buffers[i]->filename.empty()
                                ? "[No Name]"
                                : editor.buffers[i]->filename;
-        std::string base = name;
-        if(!editor.buffers[i]->filename.empty())
-        {
-            size_t lastSlash = editor.buffers[i]->filename.find_last_of("/\\");
-            if(lastSlash != std::string::npos)
-                base = editor.buffers[i]->filename.substr(lastSlash + 1);
-        }
+        std::string base = editor.buffers[i]->filename.empty()
+                               ? name
+                               : std::string(text_utils::basename(
+                                     editor.buffers[i]->filename));
 
         m.display = std::to_string(i + 1);
         if((int)i == editor.currentBufferIndex)
@@ -473,3 +473,4 @@ void BufferBrowserMode::closeMatchedBuffers(Editor& editor)
     if(bufferOffset > bufferCursor)
         bufferOffset = bufferCursor;
 }
+} // namespace editor::statemachine

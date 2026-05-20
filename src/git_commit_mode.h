@@ -20,6 +20,8 @@
 
 #include "git_log_mode.h"
 
+namespace editor::statemachine
+{
 struct GitCommitMode
 {
     static constexpr const char* name()
@@ -69,3 +71,4 @@ struct GitCommitMode
 private:
     void refreshStaged();
 };
+} // namespace editor::statemachine

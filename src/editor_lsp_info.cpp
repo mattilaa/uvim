@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "terminal.h"
+#include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -15,7 +16,7 @@ static bool binaryExists(const std::string& pathOrExe)
     if(pathOrExe.empty())
         return false;
 
-    if(pathOrExe.find('/') != std::string::npos)
+    if(text_utils::contains(pathOrExe, '/'))
     {
         std::error_code ec;
         return fs::exists(pathOrExe, ec) && fs::is_regular_file(pathOrExe, ec);
@@ -30,7 +31,7 @@ static bool binaryExists(const std::string& pathOrExe)
     while(start < pathView.size())
     {
         size_t end = pathView.find(':', start);
-        if(end == std::string_view::npos)
+        if(text_utils::is_not_found(end))
             end = pathView.size();
         if(end > start)
         {
@@ -127,16 +128,16 @@ void Editor::showLspInfo()
     {
         std::string serverName = mlangLspClient->serverName();
         mlangVersion = mlangLspClient->serverVersion();
-        if(serverName.find("mlangd-mla") != std::string::npos ||
-           mlangLspPath.find("mlangd-mla") != std::string::npos)
+        if(text_utils::contains(serverName, "mlangd-mla") ||
+           text_utils::contains(mlangLspPath, "mlangd-mla"))
             mlangLabel = "mlang (MLA)";
     }
     appendLsp(mlangLabel, isMlangLspEnabled(), isFileType<FileType::Mla>(),
               mlangLspPath, false, mlangVersion);
     appendLsp("html", isHtmlLspEnabled(), isFileType<FileType::Html>(),
               htmlLspPath, true);
-    appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(),
-              cssLspPath, true);
+    appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(), cssLspPath,
+              true);
     appendLsp("json", isJsonLspEnabled(), isFileType<FileType::Json>(),
               jsonLspPath, true);
     appendLsp("ts", isTsLspEnabled(),
@@ -221,7 +222,7 @@ void Editor::drawLspInfo()
             output += "runtime:";
             output += theme.reset();
             output += " ";
-            if(value.find("not found") != std::string_view::npos)
+            if(text_utils::contains(value, "not found"))
                 output += theme.uiError();
             else
                 output += theme.uiSuccess();
@@ -236,19 +237,19 @@ void Editor::drawLspInfo()
             output += "status:";
             output += theme.reset();
             output += " ";
-            if(value.find("not found") != std::string_view::npos)
+            if(text_utils::contains(value, "not found"))
                 output += theme.uiError();
             else
                 output += theme.uiWarning();
             output += std::string(value);
             output += theme.reset();
         }
-        else if(line.find(':') != std::string::npos && line.rfind("  ", 0) != 0)
+        else if(text_utils::contains(line, ':') && line.rfind("  ", 0) != 0)
         {
             size_t colon = line.find(':');
             std::string_view label = std::string_view(line).substr(0, colon);
             std::string_view status =
-                colon == std::string::npos
+                text_utils::is_not_found(colon)
                     ? std::string_view{}
                     : std::string_view(line).substr(colon + 1);
 

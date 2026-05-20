@@ -48,10 +48,8 @@ void clampReferencesOffsetToCursor(Editor& editor)
     }
 
     int maxCursor = (int)editor.referencesList.size() - 1;
-    editor.referencesCursor =
-        std::clamp(editor.referencesCursor, 0, maxCursor);
-    editor.referencesOffset =
-        std::clamp(editor.referencesOffset, 0, maxCursor);
+    editor.referencesCursor = std::clamp(editor.referencesCursor, 0, maxCursor);
+    editor.referencesOffset = std::clamp(editor.referencesOffset, 0, maxCursor);
 
     if(editor.referencesCursor < editor.referencesOffset)
         editor.referencesOffset = editor.referencesCursor;
@@ -185,29 +183,30 @@ void EditorReferencesController::findReferences()
     }
 
     // Sort by file then line
-    std::stable_sort(editor.referencesList.begin(), editor.referencesList.end(),
-                     [](const Editor::ReferenceEntry& a,
-                        const Editor::ReferenceEntry& b)
-                     {
-                         if(a.path != b.path)
-                             return a.path < b.path;
-                         return a.line < b.line;
-                     });
+    std::stable_sort(
+        editor.referencesList.begin(), editor.referencesList.end(),
+        [](const Editor::ReferenceEntry& a, const Editor::ReferenceEntry& b)
+        {
+            if(a.path != b.path)
+                return a.path < b.path;
+            return a.line < b.line;
+        });
 
     editor.referencesCursor = 0;
     editor.referencesOffset = 0;
     editor.referencesPreview = true;
 
-    editor.setStatusMessage(label + " references: " +
-                            std::to_string(editor.referencesList.size()) +
-                            " found");
+    editor.setStatusMessage(
+        label + " references: " + std::to_string(editor.referencesList.size()) +
+        " found");
 #else
     editor.setStatusMessage("LSP references: not compiled in");
 #endif
 }
 
-std::string EditorReferencesController::readLineFromFile(const std::string& path,
-                                                         int lineNum)
+std::string
+EditorReferencesController::readLineFromFile(const std::string& path,
+                                             int lineNum)
 {
     std::ifstream file(path);
     if(!file)
@@ -221,7 +220,7 @@ std::string EditorReferencesController::readLineFromFile(const std::string& path
         {
             // Trim leading whitespace for display
             size_t start = line.find_first_not_of(" \t");
-            if(start != std::string::npos)
+            if(text_utils::is_found(start))
                 return line.substr(start);
             return line;
         }
@@ -349,8 +348,8 @@ void EditorReferencesController::referencesLast()
         return;
 
     editor.referencesCursor = (int)editor.referencesList.size() - 1;
-    editor.referencesOffset =
-        std::max(0, editor.referencesCursor - referencesVisibleRows(editor) + 1);
+    editor.referencesOffset = std::max(
+        0, editor.referencesCursor - referencesVisibleRows(editor) + 1);
     clampReferencesOffsetToCursor(editor);
     editor.needsFullRedraw = true;
 }
@@ -467,8 +466,9 @@ void EditorReferencesController::drawReferences()
     // Status bar
     output += editor.theme.statusBar();
 
-    std::string status = " [" + std::to_string(editor.referencesCursor + 1) + "/" +
-                         std::to_string(editor.referencesList.size()) + "]";
+    std::string status = " [" + std::to_string(editor.referencesCursor + 1) +
+                         "/" + std::to_string(editor.referencesList.size()) +
+                         "]";
     status += " <Enter> jump  <q/Esc> close  <j/k> navigate";
 
     if((int)status.length() < editor.screenCols)

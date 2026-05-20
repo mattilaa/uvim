@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+using namespace editor::statemachine;
+
 namespace
 {
 std::string run_git_raw(const std::vector<std::string>& args)
@@ -25,7 +27,7 @@ std::vector<std::string> split_lines(const std::string& s)
     while(pos <= s.size())
     {
         size_t next = s.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < s.size())
                 out.push_back(s.substr(pos));
@@ -75,7 +77,8 @@ int git_status_content_rows(int screenRows, int helpRows)
 
 std::string git_status_help_text()
 {
-    return "  [space: stage/unstage] [j/k: move] [g/G: top/bottom] [q/esc: close]";
+    return "  [space: stage/unstage] [j/k: move] [g/G: top/bottom] [q/esc: "
+           "close]";
 }
 
 std::vector<std::string> wrap_help(std::string_view text, int screenCols)
@@ -92,8 +95,9 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
         if(text[i] == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
         {
             size_t start = i;
-            size_t end = text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
-            if(end == std::string::npos)
+            size_t end =
+                text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
+            if(text_utils::is_not_found(end))
             {
                 tokens.emplace_back(text.substr(start));
                 break;
@@ -203,8 +207,8 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
         previousPath = entries[cursor].path;
 
     entries.clear();
-    std::string raw = run_git_raw({"git", "-C", repoDir, "status",
-                                   "--porcelain"});
+    std::string raw =
+        run_git_raw({"git", "-C", repoDir, "status", "--porcelain"});
     auto lines = split_lines(raw);
     for(const auto& line : lines)
     {
@@ -223,7 +227,7 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
         std::string rawPath = line.substr(pos);
         std::string path;
         size_t arrow = rawPath.find(" -> ");
-        if(arrow != std::string::npos)
+        if(text_utils::is_found(arrow))
             path = decode_git_status_path(rawPath.substr(arrow + 4));
         else
             path = decode_git_status_path(rawPath);
@@ -234,8 +238,8 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
     }
 
     auto helpLines = wrap_help(git_status_help_text(), editor.screenCols);
-    int contentRows = git_status_content_rows(editor.screenRows,
-                                             (int)helpLines.size());
+    int contentRows =
+        git_status_content_rows(editor.screenRows, (int)helpLines.size());
     if(entries.empty())
     {
         cursor = 0;
@@ -246,15 +250,15 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
     cursor = std::clamp(cursor, 0, (int)entries.size() - 1);
     if(!previousPath.empty())
     {
-        auto it = std::find_if(
-            entries.begin(), entries.end(),
-            [&](const Entry& e) { return e.path == previousPath; });
+        auto it =
+            std::find_if(entries.begin(), entries.end(), [&](const Entry& e)
+                         { return e.path == previousPath; });
         if(it != entries.end())
             cursor = (int)std::distance(entries.begin(), it);
     }
 
-    offset = std::clamp(offset, 0,
-                        std::max(0, (int)entries.size() - contentRows));
+    offset =
+        std::clamp(offset, 0, std::max(0, (int)entries.size() - contentRows));
 }
 
 std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx, int key)
@@ -317,14 +321,15 @@ std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx, int key)
             Entry entry = entries[cursor];
             std::vector<std::string> args;
             if(entry.worktreeStatus != keyCode(control::ControlKey::SPACE) ||
-               entry.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION))
+               entry.worktreeStatus ==
+                   keyCode(command::CommandKey::KEY_QUESTION))
             {
                 args = {"git", "-C", repoDir, "add", "--", entry.path};
             }
             else if(entry.indexStatus != keyCode(control::ControlKey::SPACE))
             {
-                args = {"git", "-C", repoDir, "restore", "--staged", "--",
-                        entry.path};
+                args = {"git",      "-C", repoDir,   "restore",
+                        "--staged", "--", entry.path};
             }
             if(!args.empty())
             {
@@ -383,12 +388,14 @@ void GitStatusViewMode::draw(Editor& editor) const
         {
             const Entry& entry = entries[idx];
             bool isSelected = (idx == cursor);
-            bool isUntracked =
-                entry.indexStatus == keyCode(command::CommandKey::KEY_QUESTION) &&
-                entry.worktreeStatus == keyCode(command::CommandKey::KEY_QUESTION);
+            bool isUntracked = entry.indexStatus ==
+                                   keyCode(command::CommandKey::KEY_QUESTION) &&
+                               entry.worktreeStatus ==
+                                   keyCode(command::CommandKey::KEY_QUESTION);
             bool hasUnstaged =
                 entry.worktreeStatus != keyCode(control::ControlKey::SPACE) &&
-                entry.worktreeStatus != keyCode(command::CommandKey::KEY_QUESTION);
+                entry.worktreeStatus !=
+                    keyCode(command::CommandKey::KEY_QUESTION);
             bool hasStaged =
                 entry.indexStatus != keyCode(control::ControlKey::SPACE) &&
                 entry.indexStatus != keyCode(command::CommandKey::KEY_QUESTION);

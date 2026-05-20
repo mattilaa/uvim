@@ -113,6 +113,12 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_write_quit_all_command.cpp
     src/editor_execution_write_quit_command.cpp
     src/editor_cursor_controller.cpp
+    src/editor_definition_controller.cpp
+    src/editor_definition_cpp.cpp
+    src/editor_definition_mlang.cpp
+    src/editor_definition_python.cpp
+    src/editor_definition_robot.cpp
+    src/editor_definition_web.cpp
     src/editor_drawing_controller.cpp
     src/editor_buffer_view.cpp
     src/editor_editing_controller.cpp

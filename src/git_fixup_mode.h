@@ -20,6 +20,8 @@
 
 #include "git_stage_mode.h"
 
+namespace editor::statemachine
+{
 struct GitFixupMode
 {
     static constexpr const char* name()
@@ -60,3 +62,4 @@ struct GitFixupMode
 
     void draw(Editor& editor) const;
 };
+} // namespace editor::statemachine

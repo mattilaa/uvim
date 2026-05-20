@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct GitLogMode
 {
     static constexpr const char* name()
@@ -94,3 +96,4 @@ struct GitLogMode
                                       int screenCols);
 #endif
 };
+} // namespace editor::statemachine

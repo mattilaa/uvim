@@ -10,6 +10,8 @@
 // ReplaceMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void ReplaceMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -105,3 +107,4 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx, int key)
 
     return std::nullopt;
 }
+} // namespace editor::statemachine

@@ -26,12 +26,12 @@ class LspClient;
 #endif
 
 class GitIgnore;
-class ModeStateMachine;
 class SyntaxHighlighter;
 class Formatter;
 class EditorSettingsController;
 class EditorBufferController;
 class EditorCommandController;
+class EditorDefinitionController;
 class EditorDrawingController;
 class EditorEditingController;
 class EditorFileController;
@@ -45,7 +45,12 @@ class EditorOperatorController;
 class EditorReferencesController;
 class EditorSplitController;
 class EditorVisualController;
+
+namespace editor::statemachine
+{
+class ModeStateMachine;
 struct CommandPrompt;
+} // namespace editor::statemachine
 
 struct MlangTokenCache
 {
@@ -214,7 +219,7 @@ public:
     // Modes
     Mode currentMode = NORMAL;
     std::string commandBuffer;
-    std::shared_ptr<CommandPrompt> commandPrompt;
+    std::shared_ptr<editor::statemachine::CommandPrompt> commandPrompt;
     std::string statusMessage;
     bool commandRequestedModeSet = false;
     Mode commandRequestedMode = NORMAL;
@@ -930,6 +935,7 @@ public:
     std::vector<JumpLocation> jumpForwardStack;
 
     bool isFileType(FileType type) const;
+    std::optional<FileType> getFileType() const;
 
     template <FileType Type>
     bool isFileType() const
@@ -971,12 +977,12 @@ public:
         return projectRoot;
     }
 
-    ModeStateMachine* getModeStateMachine()
+    editor::statemachine::ModeStateMachine* getModeStateMachine()
     {
         return modeStateMachine.get();
     }
 
-    const ModeStateMachine* getModeStateMachine() const
+    const editor::statemachine::ModeStateMachine* getModeStateMachine() const
     {
         return modeStateMachine.get();
     }
@@ -985,6 +991,7 @@ private:
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
+    friend class EditorDefinitionController;
     friend class EditorDrawingController;
     friend class EditorEditingController;
     friend class EditorFileController;
@@ -1154,7 +1161,8 @@ private:
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;
-    void setModeStateMachineForTests(std::unique_ptr<ModeStateMachine> sm);
+    void setModeStateMachineForTests(
+        std::unique_ptr<editor::statemachine::ModeStateMachine> sm);
     static std::string
     testInferTsTypeForIdentifier(const std::vector<std::string>& lines,
                                  std::string_view ident, int startY);
@@ -1175,10 +1183,11 @@ public:
 
 private:
 #endif
-    std::unique_ptr<ModeStateMachine> modeStateMachine;
+    std::unique_ptr<editor::statemachine::ModeStateMachine> modeStateMachine;
     std::unique_ptr<EditorSettingsController> settingsController;
     std::unique_ptr<EditorBufferController> bufferController;
     std::unique_ptr<EditorCommandController> commandController;
+    std::unique_ptr<EditorDefinitionController> definitionController;
     std::unique_ptr<EditorDrawingController> drawingController;
     std::unique_ptr<EditorCursorController> cursorController;
     std::unique_ptr<EditorEditingController> editingController;

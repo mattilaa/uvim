@@ -1,7 +1,10 @@
-#include "mode_state_machine.h"
 #include "editor.h"
+#include "mode_state_machine.h"
 #include "terminal.h"
+#include "text_utils.h"
 
+namespace editor::statemachine
+{
 bool CommandPrompt::isActive() const
 {
     return active;
@@ -55,14 +58,13 @@ bool CommandPrompt::handle(
             else
             {
                 size_t spacePos = inputText.find(' ');
-                if(spacePos != std::string::npos)
+                if(text_utils::is_found(spacePos))
                 {
                     std::string cmd = inputText.substr(0, spacePos);
                     std::string_view pathPart =
                         std::string_view(inputText).substr(spacePos + 1);
                     while(!pathPart.empty() &&
-                          (pathPart.front() == ' ' ||
-                           pathPart.front() == '\t'))
+                          (pathPart.front() == ' ' || pathPart.front() == '\t'))
                     {
                         pathPart.remove_prefix(1);
                     }
@@ -77,8 +79,7 @@ bool CommandPrompt::handle(
                     {
                         completions = ctx.getPathCompletionsRecursive(pathPart);
                     }
-                    else if(cmd == "loc" || cmd == "loc!" ||
-                            cmd == "loctotal")
+                    else if(cmd == "loc" || cmd == "loc!" || cmd == "loctotal")
                     {
                         completions = ctx.getLocPathCompletions(pathPart);
                         if(completions.empty())
@@ -96,13 +97,15 @@ bool CommandPrompt::handle(
                            std::string_view("log").rfind(pathPart, 0) == 0)
                             completions.push_back("log");
                         if(pathPart.empty() ||
-                           std::string_view("prettylog").rfind(pathPart, 0) == 0)
+                           std::string_view("prettylog").rfind(pathPart, 0) ==
+                               0)
                             completions.push_back("prettylog");
                         if(pathPart.empty() ||
                            std::string_view("stash").rfind(pathPart, 0) == 0)
                             completions.push_back("stash");
                         if(pathPart.empty() ||
-                           std::string_view("stash pop").rfind(pathPart, 0) == 0)
+                           std::string_view("stash pop").rfind(pathPart, 0) ==
+                               0)
                             completions.push_back("stash pop");
                     }
                 }
@@ -118,8 +121,7 @@ bool CommandPrompt::handle(
                     {
                         completions = ctx.getLocPathCompletions("");
                         if(completions.empty())
-                            completions =
-                                ctx.getPathCompletionsRecursive("");
+                            completions = ctx.getPathCompletionsRecursive("");
                         locCompletion = true;
                         locCommand = inputText;
                     }
@@ -176,7 +178,7 @@ bool CommandPrompt::handle(
             input = locCommand + " " + completions[completionIndex];
             return;
         }
-        if(spacePos != std::string::npos)
+        if(text_utils::is_found(spacePos))
         {
             std::string cmd = originalInput.substr(0, spacePos);
             input = cmd + " " + completions[completionIndex];
@@ -228,8 +230,8 @@ bool CommandPrompt::handle(
                            input.rfind("help ", 0) == 0 ||
                            input.rfind("h ", 0) == 0;
         bool isGitQuery = input == "git" || input.rfind("git ", 0) == 0;
-        if(input.find(' ') != std::string::npos && !isSetQuery &&
-           !isHelpQuery && !isGitQuery)
+        if(text_utils::contains(input, ' ') && !isSetQuery && !isHelpQuery &&
+           !isGitQuery)
         {
             ctx.cancelCommandPopup();
             return;
@@ -300,7 +302,8 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == keyCode(control::ControlKey::CTRL_J) || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        if(key == keyCode(control::ControlKey::CTRL_J) ||
+           key == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             ctx.moveCommandHistorySearchCursor(1);
             ed->needsFullRedraw = true;
@@ -308,7 +311,8 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == keyCode(control::ControlKey::CTRL_K) || key == keyCode(navigation::NavigationKey::ARROW_UP))
+        if(key == keyCode(control::ControlKey::CTRL_K) ||
+           key == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             ctx.moveCommandHistorySearchCursor(-1);
             ed->needsFullRedraw = true;
@@ -316,7 +320,8 @@ bool CommandPrompt::handle(
             return true;
         }
 
-        if(key == keyCode(control::ControlKey::BACKSPACE) || key == keyCode(control::ControlKey::DEL) ||
+        if(key == keyCode(control::ControlKey::BACKSPACE) ||
+           key == keyCode(control::ControlKey::DEL) ||
            key == keyCode(control::ControlKey::CTRL_H))
         {
             std::string query(ctx.commandHistorySearchQuery());
@@ -380,8 +385,8 @@ bool CommandPrompt::handle(
         {
             if(auto selection = ctx.commandPopupSelection())
             {
-                if(commandToRun.find(' ') == std::string::npos ||
-                   selection->find(' ') != std::string::npos)
+                if(!text_utils::contains(commandToRun, ' ') ||
+                   text_utils::contains(*selection, ' '))
                 {
                     commandToRun = *selection;
                 }
@@ -399,7 +404,8 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == keyCode(control::ControlKey::BACKSPACE) || key == keyCode(control::ControlKey::DEL))
+    if(key == keyCode(control::ControlKey::BACKSPACE) ||
+       key == keyCode(control::ControlKey::DEL))
     {
         if(!input.empty())
         {
@@ -440,7 +446,8 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == keyCode(control::ControlKey::CTRL_K) || key == keyCode(navigation::NavigationKey::ARROW_UP))
+    if(key == keyCode(control::ControlKey::CTRL_K) ||
+       key == keyCode(navigation::NavigationKey::ARROW_UP))
     {
         if(auto cmd = ctx.commandHistoryUp())
         {
@@ -453,7 +460,8 @@ bool CommandPrompt::handle(
         return true;
     }
 
-    if(key == keyCode(control::ControlKey::CTRL_J) || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+    if(key == keyCode(control::ControlKey::CTRL_J) ||
+       key == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
         if(auto cmd = ctx.commandHistoryDown())
         {
@@ -477,8 +485,7 @@ bool CommandPrompt::handle(
                        input.rfind("edit", 0) == 0 ||
                        input.rfind("tabe", 0) == 0 ||
                        input.rfind("tabnew", 0) == 0 ||
-                       input.rfind("w", 0) == 0 ||
-                       input.rfind("cd", 0) == 0 ||
+                       input.rfind("w", 0) == 0 || input.rfind("cd", 0) == 0 ||
                        input.rfind("loc", 0) == 0 ||
                        input.rfind("loctotal", 0) == 0;
             };
@@ -499,3 +506,4 @@ bool CommandPrompt::handle(
     nextState.reset();
     return true;
 }
+} // namespace editor::statemachine

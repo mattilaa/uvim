@@ -2,10 +2,14 @@
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "terminal.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <string>
+
+namespace editor::statemachine
+{
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif
@@ -34,7 +38,7 @@ std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
     while(pos <= output.size())
     {
         size_t next = output.find('\n', pos);
-        if(next == std::string::npos)
+        if(text_utils::is_not_found(next))
         {
             if(pos < output.size())
                 out.push_back(output.substr(pos));
@@ -48,12 +52,13 @@ std::vector<std::string> run_git_lines(const std::vector<std::string>& args)
 
 bool reload_git_log_mode(GitLogMode& mode)
 {
-    const std::string repoDir = !mode.repoDir.empty() ? mode.repoDir : mode.repoRoot;
+    const std::string repoDir =
+        !mode.repoDir.empty() ? mode.repoDir : mode.repoRoot;
     if(repoDir.empty())
         return false;
 
-    std::vector<std::string> args = {"git", "-C", repoDir, "--no-pager",
-                                     "log", "--no-color"};
+    std::vector<std::string> args = {"git",        "-C",  repoDir,
+                                     "--no-pager", "log", "--no-color"};
     if(mode.prettyView)
     {
         args.push_back("--date=format:%Y-%m-%d %H:%M %z");
@@ -79,23 +84,23 @@ bool reload_git_log_mode(GitLogMode& mode)
             continue;
         constexpr char sep = '\x1f';
         size_t tab = line.find(sep);
-        if(tab == std::string::npos)
+        if(text_utils::is_not_found(tab))
             continue;
         GitLogMode::Entry entry;
         entry.hash = line.substr(0, tab);
         if(mode.prettyView)
         {
             size_t tab2 = line.find(sep, tab + 1);
-            size_t tab3 = (tab2 == std::string::npos)
-                              ? std::string::npos
+            size_t tab3 = (text_utils::is_not_found(tab2))
+                              ? text_utils::npos()
                               : line.find(sep, tab2 + 1);
-            if(tab2 != std::string::npos)
+            if(text_utils::is_found(tab2))
                 entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-            if(tab2 != std::string::npos && tab3 != std::string::npos)
+            if(text_utils::is_found(tab2) && text_utils::is_found(tab3))
                 entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-            if(tab3 != std::string::npos)
+            if(text_utils::is_found(tab3))
                 entry.subject = line.substr(tab3 + 1);
-            else if(tab2 != std::string::npos)
+            else if(text_utils::is_found(tab2))
                 entry.subject = line.substr(tab2 + 1);
             else
                 entry.subject = line.substr(tab + 1);
@@ -140,8 +145,7 @@ std::string join_lines(const std::vector<std::string>& lines)
 bool is_comment_line(const std::string& line)
 {
     size_t i = 0;
-    while(i < line.size() &&
-          std::isspace(static_cast<unsigned char>(line[i])))
+    while(i < line.size() && std::isspace(static_cast<unsigned char>(line[i])))
         ++i;
     return i < line.size() && line[i] == keyCode(command::CommandKey::KEY_HASH);
 }
@@ -194,30 +198,33 @@ std::string normalize_todo_action(std::string action)
     return {};
 }
 
-std::vector<std::string> build_comment_lines(
-    const std::vector<std::string>& stagedLines, bool hasStagedFiles,
-    const std::string& branch, GitCommitMode::Action action,
-    const std::string& revertHash, const std::string& revertSubject,
-    const std::string& rebaseBaseHash, const std::string& rebaseHeadHash,
-    int rebaseCommandCount)
+std::vector<std::string>
+build_comment_lines(const std::vector<std::string>& stagedLines,
+                    bool hasStagedFiles, const std::string& branch,
+                    GitCommitMode::Action action, const std::string& revertHash,
+                    const std::string& revertSubject,
+                    const std::string& rebaseBaseHash,
+                    const std::string& rebaseHeadHash, int rebaseCommandCount)
 {
     std::vector<std::string> out;
     if(action == GitCommitMode::Action::RebaseTodo)
     {
         out.push_back("# Rebase " + rebaseBaseHash + ".." + rebaseHeadHash +
-                      " (" + std::to_string(rebaseCommandCount) +
-                      " commands)");
+                      " (" + std::to_string(rebaseCommandCount) + " commands)");
         out.push_back("#");
         out.push_back("# Commands:");
         out.push_back("# p, pick <commit> = use commit");
         out.push_back("# r, reword <commit> = use commit, edit message");
         out.push_back("# e, edit <commit> = use commit, stop for amending");
         out.push_back("# s, squash <commit> = meld into previous commit");
-        out.push_back("# f, fixup <commit> = like squash, discard this message");
+        out.push_back(
+            "# f, fixup <commit> = like squash, discard this message");
         out.push_back("# d, drop <commit> = remove commit");
         out.push_back("#");
         out.push_back("# Reorder lines to move commits.");
-        out.push_back("# Lines starting with keyCode(command::CommandKey::KEY_HASH) will be ignored.");
+        out.push_back(
+            "# Lines starting with keyCode(command::CommandKey::KEY_HASH) will "
+            "be ignored.");
         out.push_back("# Remove a line here to drop that commit.");
         out.push_back("#");
         out.push_back("# :wq to run rebase, :q to cancel.");
@@ -226,14 +233,16 @@ std::vector<std::string> build_comment_lines(
 
     out.push_back(
         "# Please enter the commit message for your changes. Lines starting");
-    out.push_back(
-        "# with keyCode(command::CommandKey::KEY_HASH) will be ignored, and an empty message aborts the commit.");
+    out.push_back("# with keyCode(command::CommandKey::KEY_HASH) will be "
+                  "ignored, and an empty message aborts the commit.");
     out.push_back("#");
-    out.push_back("# On branch " + (branch.empty() ? std::string("(unknown)") : branch));
+    out.push_back("# On branch " +
+                  (branch.empty() ? std::string("(unknown)") : branch));
     out.push_back("#");
     if(action == GitCommitMode::Action::RevertCommit)
     {
-        out.push_back("# You are currently reverting commit " + revertHash + ".");
+        out.push_back("# You are currently reverting commit " + revertHash +
+                      ".");
         out.push_back("#");
         out.push_back("# Commit to revert:");
         out.push_back("#   " + revertSubject);
@@ -257,8 +266,10 @@ std::vector<std::string> build_comment_lines(
         {
             size_t tab = line.find('\t');
             size_t splitPos =
-                (tab != std::string::npos) ? tab : line.find(keyCode(control::ControlKey::SPACE));
-            if(splitPos != std::string::npos && splitPos + 1 < line.size())
+                (text_utils::is_found(tab))
+                    ? tab
+                    : line.find(keyCode(control::ControlKey::SPACE));
+            if(text_utils::is_found(splitPos) && splitPos + 1 < line.size())
                 path = line.substr(splitPos + 1);
         }
 
@@ -293,9 +304,8 @@ void GitCommitMode::refreshStaged()
     }
 
     {
-        auto branchLines =
-            run_git_lines({"git", "-C", repoDir, "rev-parse", "--abbrev-ref",
-                           "HEAD"});
+        auto branchLines = run_git_lines(
+            {"git", "-C", repoDir, "rev-parse", "--abbrev-ref", "HEAD"});
         if(!branchLines.empty())
             currentBranch = trim_newline(branchLines.front());
     }
@@ -334,16 +344,15 @@ void GitCommitMode::on_enter(ModeContext& ctx)
        (messageLines.empty() ||
         (messageLines.size() == 1 && messageLines[0].empty())))
     {
-        messageLines = {"Revert \"" + revertSubject + "\"",
-                        "",
+        messageLines = {"Revert \"" + revertSubject + "\"", "",
                         "This reverts commit " + revertHash + "."};
     }
     if(messageLines.empty())
         messageLines.push_back("");
     messageCursorRow = std::clamp(messageCursorRow, 0,
                                   std::max(0, (int)messageLines.size() - 1));
-    messageCursorCol = std::clamp(
-        messageCursorCol, 0, (int)messageLines[messageCursorRow].size());
+    messageCursorCol = std::clamp(messageCursorCol, 0,
+                                  (int)messageLines[messageCursorRow].size());
     ctx.requestFullRedraw();
 }
 
@@ -352,8 +361,7 @@ void GitCommitMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
-                                               int key)
+std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
@@ -363,8 +371,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
     {
         if(messageLines.empty())
             messageLines.push_back("");
-        messageCursorRow = std::clamp(messageCursorRow, 0,
-                                      std::max(0, (int)messageLines.size() - 1));
+        messageCursorRow = std::clamp(
+            messageCursorRow, 0, std::max(0, (int)messageLines.size() - 1));
         messageCursorCol = std::clamp(
             messageCursorCol, 0, (int)messageLines[messageCursorRow].size());
 
@@ -416,8 +424,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                     continue;
                 std::string line = raw.substr(start);
                 size_t sp1 = line.find(keyCode(control::ControlKey::SPACE));
-                std::string actionToken =
-                    (sp1 == std::string::npos) ? line : line.substr(0, sp1);
+                std::string actionToken = (text_utils::is_not_found(sp1))
+                                              ? line
+                                              : line.substr(0, sp1);
                 std::string actionNorm = normalize_todo_action(actionToken);
                 if(actionNorm.empty())
                 {
@@ -426,8 +435,10 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                     return false;
                 }
 
-                size_t pos = (sp1 == std::string::npos) ? line.size() : sp1;
-                while(pos < line.size() && line[pos] == keyCode(control::ControlKey::SPACE))
+                size_t pos =
+                    (text_utils::is_not_found(sp1)) ? line.size() : sp1;
+                while(pos < line.size() &&
+                      line[pos] == keyCode(control::ControlKey::SPACE))
                     ++pos;
                 if(pos >= line.size())
                 {
@@ -435,13 +446,14 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                     return false;
                 }
 
-                size_t sp2 = line.find(keyCode(control::ControlKey::SPACE), pos);
-                std::string hash =
-                    (sp2 == std::string::npos) ? line.substr(pos)
-                                               : line.substr(pos, sp2 - pos);
-                std::string subject =
-                    (sp2 == std::string::npos) ? std::string{}
-                                               : line.substr(sp2 + 1);
+                size_t sp2 =
+                    line.find(keyCode(control::ControlKey::SPACE), pos);
+                std::string hash = (text_utils::is_not_found(sp2))
+                                       ? line.substr(pos)
+                                       : line.substr(pos, sp2 - pos);
+                std::string subject = (text_utils::is_not_found(sp2))
+                                          ? std::string{}
+                                          : line.substr(sp2 + 1);
                 if(hash.empty())
                 {
                     ed->setStatusMessage("git rebase: missing commit hash");
@@ -458,9 +470,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             }
             const std::string oldestHash =
                 rebaseBaseHash.empty() ? todo.front().hash : rebaseBaseHash;
-            auto baseLines =
-                run_git_lines({"git", "-C", repoDir, "rev-parse",
-                               oldestHash + "^"});
+            auto baseLines = run_git_lines(
+                {"git", "-C", repoDir, "rev-parse", oldestHash + "^"});
             std::string base;
             if(!baseLines.empty())
                 base = trim_newline(baseLines.front());
@@ -470,8 +481,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             // (relies on /bin/sh). Not yet ported to Windows.
             (void)todo;
             (void)base;
-            ed->setStatusMessage(
-                "git rebase: interactive autosquash not supported on Windows yet");
+            ed->setStatusMessage("git rebase: interactive autosquash not "
+                                 "supported on Windows yet");
             return false;
 #else
             std::string todoText;
@@ -527,10 +538,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             fclose(scriptFile);
             chmod(scriptPath.c_str(), 0700);
 
-            std::string cmd = "GIT_SEQUENCE_EDITOR=" +
-                              shell_escape_single(scriptPath) +
-                              " git -C \"" + repoDir +
-                              "\" rebase -i --autosquash ";
+            std::string cmd =
+                "GIT_SEQUENCE_EDITOR=" + shell_escape_single(scriptPath) +
+                " git -C \"" + repoDir + "\" rebase -i --autosquash ";
             if(base.empty())
                 cmd += "--root";
             else
@@ -642,7 +652,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+        if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+           c == keyCode(control::ControlKey::CTRL_H))
         {
             if(!commandLine.empty())
                 commandLine.pop_back();
@@ -738,8 +749,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(messageCursorRow + 1 < (int)messageLines.size())
             {
                 messageCursorRow++;
-                messageCursorCol = std::min(
-                    messageCursorCol, (int)messageLines[messageCursorRow].size());
+                messageCursorCol =
+                    std::min(messageCursorCol,
+                             (int)messageLines[messageCursorRow].size());
                 clamp_cursor();
             }
             ed->needsFullRedraw = true;
@@ -750,23 +762,28 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(messageCursorRow > 0)
             {
                 messageCursorRow--;
-                messageCursorCol = std::min(
-                    messageCursorCol, (int)messageLines[messageCursorRow].size());
+                messageCursorCol =
+                    std::min(messageCursorCol,
+                             (int)messageLines[messageCursorRow].size());
                 clamp_cursor();
             }
             ed->needsFullRedraw = true;
             return std::nullopt;
         }
-        if(action == Action::RebaseTodo && (c == keyCode(typed::TypedKey::KEY_CAP_J) || c == keyCode(typed::TypedKey::KEY_CAP_K)))
+        if(action == Action::RebaseTodo &&
+           (c == keyCode(typed::TypedKey::KEY_CAP_J) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_K)))
         {
-            if(c == keyCode(typed::TypedKey::KEY_CAP_J) && messageCursorRow + 1 < (int)messageLines.size())
+            if(c == keyCode(typed::TypedKey::KEY_CAP_J) &&
+               messageCursorRow + 1 < (int)messageLines.size())
             {
                 std::swap(messageLines[messageCursorRow],
                           messageLines[messageCursorRow + 1]);
                 messageCursorRow++;
                 clamp_cursor();
             }
-            else if(c == keyCode(typed::TypedKey::KEY_CAP_K) && messageCursorRow > 0)
+            else if(c == keyCode(typed::TypedKey::KEY_CAP_K) &&
+                    messageCursorRow > 0)
             {
                 std::swap(messageLines[messageCursorRow],
                           messageLines[messageCursorRow - 1]);
@@ -782,8 +799,9 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(next == keyCode(typed::TypedKey::KEY_G))
             {
                 messageCursorRow = 0;
-                messageCursorCol = std::min(
-                    messageCursorCol, (int)messageLines[messageCursorRow].size());
+                messageCursorCol =
+                    std::min(messageCursorCol,
+                             (int)messageLines[messageCursorRow].size());
                 clamp_cursor();
                 ed->needsFullRedraw = true;
             }
@@ -808,19 +826,30 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
         if(action == Action::RebaseTodo &&
-           (c == keyCode(typed::TypedKey::KEY_P) || c == keyCode(typed::TypedKey::KEY_R) || c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(typed::TypedKey::KEY_S) || c == keyCode(typed::TypedKey::KEY_F) ||
-            c == keyCode(typed::TypedKey::KEY_D) || c == keyCode(typed::TypedKey::KEY_CAP_P) || c == keyCode(typed::TypedKey::KEY_CAP_R) || c == keyCode(typed::TypedKey::KEY_CAP_E) || c == keyCode(typed::TypedKey::KEY_CAP_S) ||
-            c == keyCode(typed::TypedKey::KEY_CAP_F) || c == keyCode(typed::TypedKey::KEY_CAP_D)))
+           (c == keyCode(typed::TypedKey::KEY_P) ||
+            c == keyCode(typed::TypedKey::KEY_R) ||
+            c == keyCode(typed::TypedKey::KEY_E) ||
+            c == keyCode(typed::TypedKey::KEY_S) ||
+            c == keyCode(typed::TypedKey::KEY_F) ||
+            c == keyCode(typed::TypedKey::KEY_D) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_P) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_R) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_E) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_S) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_F) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_D)))
         {
             char alias = (char)std::tolower((unsigned char)c);
-            std::string actionWord = normalize_todo_action(std::string(1, alias));
+            std::string actionWord =
+                normalize_todo_action(std::string(1, alias));
             std::string& line = messageLines[messageCursorRow];
             size_t start = 0;
             while(start < line.size() &&
                   std::isspace((unsigned char)line[start]))
                 ++start;
             size_t wordEnd = start;
-            while(wordEnd < line.size() && line[wordEnd] != keyCode(control::ControlKey::SPACE))
+            while(wordEnd < line.size() &&
+                  line[wordEnd] != keyCode(control::ControlKey::SPACE))
                 ++wordEnd;
             if(start < line.size())
             {
@@ -841,22 +870,32 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         }
         auto is_word_char = [](char ch)
         {
-            return std::isalnum((unsigned char)ch) || ch == keyCode(command::CommandKey::KEY_UNDERSCORE);
+            return std::isalnum((unsigned char)ch) ||
+                   ch == keyCode(command::CommandKey::KEY_UNDERSCORE);
         };
-        if(c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(typed::TypedKey::KEY_CAP_B) || c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(typed::TypedKey::KEY_CAP_E))
+        if(c == keyCode(typed::TypedKey::KEY_B) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_B) ||
+           c == keyCode(typed::TypedKey::KEY_E) ||
+           c == keyCode(typed::TypedKey::KEY_CAP_E))
         {
             const std::string& line = messageLines[messageCursorRow];
             if(!line.empty())
             {
                 int pos = messageCursorCol;
                 int n = (int)line.size();
-                bool bigWord = (c == keyCode(typed::TypedKey::KEY_CAP_B) || c == keyCode(typed::TypedKey::KEY_CAP_E));
-                bool endMotion = (c == keyCode(typed::TypedKey::KEY_E) || c == keyCode(typed::TypedKey::KEY_CAP_E));
+                bool bigWord = (c == keyCode(typed::TypedKey::KEY_CAP_B) ||
+                                c == keyCode(typed::TypedKey::KEY_CAP_E));
+                bool endMotion = (c == keyCode(typed::TypedKey::KEY_E) ||
+                                  c == keyCode(typed::TypedKey::KEY_CAP_E));
 
                 auto is_space = [](char ch)
-                { return ch == keyCode(control::ControlKey::SPACE) || ch == '\t'; };
+                {
+                    return ch == keyCode(control::ControlKey::SPACE) ||
+                           ch == '\t';
+                };
 
-                if(c == keyCode(typed::TypedKey::KEY_B) || c == keyCode(typed::TypedKey::KEY_CAP_B))
+                if(c == keyCode(typed::TypedKey::KEY_B) ||
+                   c == keyCode(typed::TypedKey::KEY_CAP_B))
                 {
                     if(pos > 0)
                         --pos;
@@ -918,7 +957,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         }
         if(c == keyCode(typed::TypedKey::KEY_O))
         {
-            messageLines.insert(messageLines.begin() + messageCursorRow + 1, "");
+            messageLines.insert(messageLines.begin() + messageCursorRow + 1,
+                                "");
             messageCursorRow++;
             messageCursorCol = 0;
             insertMode = true;
@@ -936,11 +976,11 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                     messageLines.erase(messageLines.begin() + messageCursorRow);
                     if(messageLines.empty())
                         messageLines.push_back("");
-                    messageCursorRow = std::clamp(
-                        messageCursorRow, 0, (int)messageLines.size() - 1);
-                    messageCursorCol = std::min(
-                        messageCursorCol,
-                        (int)messageLines[messageCursorRow].size());
+                    messageCursorRow = std::clamp(messageCursorRow, 0,
+                                                  (int)messageLines.size() - 1);
+                    messageCursorCol =
+                        std::min(messageCursorCol,
+                                 (int)messageLines[messageCursorRow].size());
                     clamp_cursor();
                 }
                 ed->needsFullRedraw = true;
@@ -957,7 +997,10 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 int start = std::clamp(messageCursorCol, 0, n);
                 int end = start;
                 auto is_space = [](char ch)
-                { return ch == keyCode(control::ControlKey::SPACE) || ch == '\t'; };
+                {
+                    return ch == keyCode(control::ControlKey::SPACE) ||
+                           ch == '\t';
+                };
 
                 if(end < n)
                 {
@@ -1036,7 +1079,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 || c == keyCode(control::ControlKey::CTRL_H))
+    if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+       c == keyCode(control::ControlKey::CTRL_H))
     {
         if(!insertMode)
             return std::nullopt;
@@ -1049,7 +1093,8 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
         else if(messageCursorRow > 0)
         {
             int prevLen = (int)messageLines[messageCursorRow - 1].size();
-            messageLines[messageCursorRow - 1] += messageLines[messageCursorRow];
+            messageLines[messageCursorRow - 1] +=
+                messageLines[messageCursorRow];
             messageLines.erase(messageLines.begin() + messageCursorRow);
             messageCursorRow--;
             messageCursorCol = prevLen;
@@ -1096,12 +1141,12 @@ void GitCommitMode::draw(Editor& editor) const
 
     int messageStartRow = 3;
     int contentRows = std::max(1, editor.screenRows - 2);
-    auto commentLines =
-        build_comment_lines(stagedLines, hasStagedFiles, currentBranch, action,
-                            revertHash, revertSubject, rebaseBaseHash,
-                            rebaseHeadHash, rebaseCommandCount);
+    auto commentLines = build_comment_lines(
+        stagedLines, hasStagedFiles, currentBranch, action, revertHash,
+        revertSubject, rebaseBaseHash, rebaseHeadHash, rebaseCommandCount);
     int totalVirtualRows = (int)messageLines.size() + (int)commentLines.size();
-    int viewTop = std::clamp(messageTopRow, 0, std::max(0, totalVirtualRows - 1));
+    int viewTop =
+        std::clamp(messageTopRow, 0, std::max(0, totalVirtualRows - 1));
 
     output += Terminal::ESC_SHOW_CURSOR;
     output += Terminal::ESC_CURSOR_HOME;
@@ -1150,8 +1195,9 @@ void GitCommitMode::draw(Editor& editor) const
             output += "  ";
             const std::string& line = messageLines[lineIdx];
             int maxW = std::max(0, editor.screenCols - 2);
-            int softLimit =
-                (action == Action::RebaseTodo) ? maxW : std::min(COMMIT_SOFT_LIMIT, maxW);
+            int softLimit = (action == Action::RebaseTodo)
+                                ? maxW
+                                : std::min(COMMIT_SOFT_LIMIT, maxW);
             int normalLen = std::min((int)line.size(), softLimit);
             if(normalLen > 0)
                 output += line.substr(0, normalLen);
@@ -1177,9 +1223,11 @@ void GitCommitMode::draw(Editor& editor) const
                 output += "  #";
 
                 std::string body;
-                if(!line.empty() && line[0] == keyCode(command::CommandKey::KEY_HASH))
+                if(!line.empty() &&
+                   line[0] == keyCode(command::CommandKey::KEY_HASH))
                 {
-                    if(line.size() >= 2 && line[1] == keyCode(control::ControlKey::SPACE))
+                    if(line.size() >= 2 &&
+                       line[1] == keyCode(control::ControlKey::SPACE))
                         body = line.substr(2);
                     else
                         body = line.substr(1);
@@ -1190,13 +1238,12 @@ void GitCommitMode::draw(Editor& editor) const
                 }
 
                 size_t labelPos = body.find(":");
-                bool fileEntry =
-                    body.find("new file:") != std::string::npos ||
-                    body.find("modified:") != std::string::npos ||
-                    body.find("deleted:") != std::string::npos ||
-                    body.find("renamed:") != std::string::npos ||
-                    body.find("copied:") != std::string::npos;
-                if(fileEntry && labelPos != std::string::npos)
+                bool fileEntry = text_utils::contains(body, "new file:") ||
+                                 text_utils::contains(body, "modified:") ||
+                                 text_utils::contains(body, "deleted:") ||
+                                 text_utils::contains(body, "renamed:") ||
+                                 text_utils::contains(body, "copied:");
+                if(fileEntry && text_utils::is_found(labelPos))
                 {
                     output += body.substr(0, labelPos + 1);
                     output += Terminal::FG_GREEN;
@@ -1257,7 +1304,8 @@ void GitCommitMode::draw(Editor& editor) const
     else if(!editor.statusMessage.empty())
     {
         output += editor.statusMessage.substr(
-            0, std::min((size_t)editor.screenCols, editor.statusMessage.size()));
+            0,
+            std::min((size_t)editor.screenCols, editor.statusMessage.size()));
     }
 
     if(commandActive)
@@ -1268,8 +1316,8 @@ void GitCommitMode::draw(Editor& editor) const
     else
     {
         int visualRow = messageStartRow + (messageCursorRow - messageTopRow);
-        visualRow =
-            std::clamp(visualRow, messageStartRow, messageStartRow + contentRows - 1);
+        visualRow = std::clamp(visualRow, messageStartRow,
+                               messageStartRow + contentRows - 1);
         int visualCol = std::clamp(3 + messageCursorCol, 1, editor.screenCols);
         output += Terminal::cursorPos(visualRow, visualCol);
     }
@@ -1277,3 +1325,4 @@ void GitCommitMode::draw(Editor& editor) const
     Terminal::write(output);
     Terminal::flush();
 }
+} // namespace editor::statemachine

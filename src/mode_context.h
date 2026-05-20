@@ -9,8 +9,11 @@
 // ============================================================================
 // Editor Context - Shared state accessible by all mode handlers
 // ============================================================================
-struct CommandPrompt;
 class Editor;
+
+namespace editor::statemachine
+{
+struct CommandPrompt;
 
 struct ModeContext
 {
@@ -276,3 +279,4 @@ struct ModeContext
     bool isPythonLspEnabled() const;
     bool isRobotLspEnabled() const;
 };
+} // namespace editor::statemachine

@@ -6,6 +6,8 @@
 // LspInfoMode Implementation
 // ============================================================================
 
+namespace editor::statemachine
+{
 void LspInfoMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
@@ -19,13 +21,13 @@ void LspInfoMode::on_exit(ModeContext& ctx)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx,
-                                             int key)
+std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx, int key)
 {
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
-    if(c == keyCode(control::ControlKey::ESC) || c == keyCode(typed::TypedKey::KEY_Q))
+    if(c == keyCode(control::ControlKey::ESC) ||
+       c == keyCode(typed::TypedKey::KEY_Q))
     {
         if(c == keyCode(control::ControlKey::ESC))
             ed->noteDoubleEscStatusClear();
@@ -41,3 +43,4 @@ std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx,
 
     return std::nullopt;
 }
+} // namespace editor::statemachine

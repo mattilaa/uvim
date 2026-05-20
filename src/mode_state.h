@@ -4,10 +4,11 @@
 #include <variant>
 
 class Editor;
-struct ModeContext;
 class Theme;
-struct CommandPrompt;
 
+namespace editor::statemachine
+{
+struct ModeContext;
 struct NormalMode;
 struct WelcomeMode;
 struct InsertMode;
@@ -36,14 +37,13 @@ struct GitFixupMode;
 struct GitPatchMode;
 struct CommandOutputMode;
 
-using ModeState =
-    std::variant<WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
-                 VisualLineMode, VisualBlockMode, CommandMode,
-                 SearchForwardMode, SearchBackwardMode, FileBrowserMode,
-                 FuzzyFindMode, BufferBrowserMode, GrepSearchMode,
-                 RegexSearchMode, OperatorPendingMode, ReferencesMode,
-                 LspInfoMode, LocListMode, HelpMode, GitShowCommitMode,
-                 GitLogMode, GitStageMode, GitCommitMode, GitFixupMode,
-                 GitPatchMode, CommandOutputMode>;
+using ModeState = std::variant<
+    WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
+    VisualLineMode, VisualBlockMode, CommandMode, SearchForwardMode,
+    SearchBackwardMode, FileBrowserMode, FuzzyFindMode, BufferBrowserMode,
+    GrepSearchMode, RegexSearchMode, OperatorPendingMode, ReferencesMode,
+    LspInfoMode, LocListMode, HelpMode, GitShowCommitMode, GitLogMode,
+    GitStageMode, GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode>;
 
 ModeState defaultExitMode(const Editor* editor);
+} // namespace editor::statemachine

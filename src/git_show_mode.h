@@ -20,6 +20,8 @@
 
 #include "git_log_mode.h"
 
+namespace editor::statemachine
+{
 struct GitShowCommitMode
 {
     static constexpr const char* name()
@@ -60,3 +62,4 @@ struct GitShowCommitMode
                                       bool useDefaultColors);
 #endif
 };
+} // namespace editor::statemachine

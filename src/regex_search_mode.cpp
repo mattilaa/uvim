@@ -15,6 +15,8 @@
 #include <filesystem>
 #include <fstream>
 
+namespace editor::statemachine
+{
 namespace
 {
 std::vector<std::string> regexSearchHelpTokens(bool allFiles)
@@ -51,19 +53,13 @@ std::vector<std::string> splitNul(const std::string& s)
     while(i < s.size())
     {
         size_t j = s.find('\0', i);
-        if(j == std::string::npos)
+        if(text_utils::is_not_found(j))
             j = s.size();
         if(j > i)
             out.push_back(s.substr(i, j - i));
         i = j + 1;
     }
     return out;
-}
-
-std::string basenameOf(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? path : path.substr(slash + 1);
 }
 
 std::string displayPath(const std::string& path)
@@ -321,7 +317,7 @@ void RegexSearchMode::loadFileIndex(Editor& editor)
                     continue;
 
                 FileEntry entry;
-                entry.name = basenameOf(relPath);
+                entry.name = text_utils::basename(relPath);
                 entry.path = relPath;
                 entry.isDirectory = false;
                 editor.grepProjectFiles.push_back(std::move(entry));
@@ -433,7 +429,7 @@ bool RegexSearchMode::isTextFile(const std::string& filepath) const
 {
     std::string ext;
     size_t dotPos = filepath.find_last_of('.');
-    if(dotPos != std::string::npos)
+    if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
         const bool isPython =
@@ -514,7 +510,7 @@ void RegexSearchMode::addLineMatches(const std::string& filepath,
         if(len > 0)
         {
             RegexSearchMatch entry;
-            entry.filename = basenameOf(filepath);
+            entry.filename = text_utils::basename(filepath);
             entry.filepath = filepath;
             entry.lineNumber = lineNumber;
             entry.lineContent = line;
@@ -639,3 +635,4 @@ bool RegexSearchMode::select(Editor& editor)
     editor.centerScreen();
     return true;
 }
+} // namespace editor::statemachine

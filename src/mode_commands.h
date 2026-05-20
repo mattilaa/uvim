@@ -9,6 +9,8 @@
 #include <string_view>
 #include <vector>
 
+namespace editor::statemachine
+{
 struct ParsedCommand
 {
     std::string cmd;
@@ -51,3 +53,4 @@ private:
     int completionIndex = -1;
     std::string originalInput;
 };
+} // namespace editor::statemachine

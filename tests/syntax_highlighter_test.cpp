@@ -1,6 +1,6 @@
 #include "editor.h"
-#include "widgets/completion_popup.h"
 #include "text_utils.h"
+#include "widgets/completion_popup.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -39,8 +39,7 @@ bool hasTokenAt(const std::vector<Token>& tokens, int start, int length,
 {
     for(const auto& token : tokens)
     {
-        if(token.start == start && token.length == length &&
-           token.type == type)
+        if(token.start == start && token.length == length && token.type == type)
             return true;
     }
     return false;
@@ -70,10 +69,7 @@ TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
 
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "foo.cpp").string();
-    editor.currentBuffer->lines = {
-        "void Foo::method() {",
-        "    bar = 1;",
-        "}"};
+    editor.currentBuffer->lines = {"void Foo::method() {", "    bar = 1;", "}"};
     editor.syntaxCppHighlightImplicitMembers = true;
 
     std::string output;
@@ -81,7 +77,7 @@ TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
                                 (int)editor.currentBuffer->lines[1].size(), 1);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_NE(output.find(memberColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
@@ -99,7 +95,7 @@ TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
                                 (int)editor.currentBuffer->lines[2].size(), 2);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_NE(output.find(memberColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
 }
 
 TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
@@ -115,10 +111,7 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
 
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "foo.cpp").string();
-    editor.currentBuffer->lines = {
-        "void Foo::method() {",
-        "    bar = 1;",
-        "}"};
+    editor.currentBuffer->lines = {"void Foo::method() {", "    bar = 1;", "}"};
     editor.syntaxCppHighlightImplicitMembers = false;
 
     std::string output;
@@ -126,7 +119,7 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
                                 (int)editor.currentBuffer->lines[1].size(), 1);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_EQ(output.find(memberColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_not_found(output.find(memberColor)));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsTemplateParamsSingleType)
@@ -141,12 +134,12 @@ TEST(SyntaxHighlighterTest, HighlightsTemplateParamsSingleType)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar,
-                                      false, false, true);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar, false, false, true);
 
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
 
@@ -162,15 +155,16 @@ TEST(SyntaxHighlighterTest, HighlightsTemplateParamsNestedTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
     int barPos = (int)line.find("Bar");
     int bazPos = (int)line.find("Baz");
-    ASSERT_NE(fooPos, (int)std::string::npos);
-    ASSERT_NE(barPos, (int)std::string::npos);
-    ASSERT_NE(bazPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(barPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(bazPos)));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, barPos, 3, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, bazPos, 3, TOKEN_TYPE));
@@ -188,8 +182,9 @@ TEST(SyntaxHighlighterTest, HighlightsCppPreprocessorLine)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     ASSERT_FALSE(tokens.empty());
     EXPECT_EQ(tokens[0].type, TOKEN_PREPROCESSOR);
@@ -209,11 +204,12 @@ TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int vecPos = (int)line.find("vector");
-    ASSERT_NE(vecPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(vecPos)));
     EXPECT_TRUE(hasTokenAt(tokens, vecPos, 6, TOKEN_TYPE));
 }
 
@@ -230,13 +226,14 @@ TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int optionalPos = (int)line.find("optional");
     int summaryPos = (int)line.find("LspDiagnosticSummary");
-    ASSERT_NE(optionalPos, (int)std::string::npos);
-    ASSERT_NE(summaryPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(optionalPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(summaryPos)));
     EXPECT_TRUE(hasTokenAt(tokens, optionalPos, 8, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, summaryPos, 20, TOKEN_TYPE));
 }
@@ -256,8 +253,8 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppTypes)
 
     int uniquePos = (int)line.find("unique_ptr");
     int typePos = (int)line.find("SyntaxHighlighter");
-    ASSERT_NE(uniquePos, (int)std::string::npos);
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(uniquePos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
         {uniquePos, 10, "type", false, false});
@@ -268,7 +265,7 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppTypes)
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
-    EXPECT_NE(output.find(typeColor), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(typeColor)));
 }
 
 TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
@@ -287,8 +284,8 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
 
     int declPos = (int)line.find("completions");
     int usePos = (int)line.find("completions", declPos + 1);
-    ASSERT_NE(declPos, (int)std::string::npos);
-    ASSERT_NE(usePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(declPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(usePos)));
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
         {declPos, 11, "variable", true, false});
@@ -299,7 +296,7 @@ TEST(SyntaxHighlighterTest, UsesSemanticTokensForCppMembers)
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
-    EXPECT_NE(output.find(memberColor + "completions"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(memberColor + "completions")));
 }
 
 TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
@@ -312,7 +309,8 @@ TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
     editor.syntaxCppMemberToken = TOKEN_TYPE;
 
     const std::string line =
-        "Foo member; void f(Foo param){ Foo local; member=local; this->member=local; local.member=1; }";
+        "Foo member; void f(Foo param){ Foo local; member=local; "
+        "this->member=local; local.member=1; }";
     editor.currentBuffer->lines = {line};
     editor.currentBuffer->lspSemanticTokens.resize(1);
     editor.currentBuffer->lspSemanticTokensValid = true;
@@ -321,25 +319,25 @@ TEST(SyntaxHighlighterTest, SemanticTokensRespectLocalAndMemberColors)
                         bool isDecl, bool isDef)
     {
         int pos = (int)line.find(std::string(text));
-        ASSERT_NE(pos, (int)std::string::npos);
+        ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(pos)));
         editor.currentBuffer->lspSemanticTokens[0].push_back(
             {pos, (int)text.size(), std::string(tokenType), isDecl, isDef});
     };
 
-    addToken("member", "variable", true, false);   // class-scope field
-    addToken("param", "parameter", true, false);   // parameter
-    addToken("local", "variable", true, false);    // local decl
-    addToken("member", "variable", false, false);  // use: member=local
-    addToken("member", "member", false, false);    // this->member
-    addToken("member", "member", false, false);    // local.member
+    addToken("member", "variable", true, false);  // class-scope field
+    addToken("param", "parameter", true, false);  // parameter
+    addToken("local", "variable", true, false);   // local decl
+    addToken("member", "variable", false, false); // use: member=local
+    addToken("member", "member", false, false);   // this->member
+    addToken("member", "member", false, false);   // local.member
 
     std::string output;
     editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
 
     const std::string typeColor = editor.theme.syntax(TOKEN_TYPE);
     const std::string normalColor = editor.theme.syntax(TOKEN_NORMAL);
-    EXPECT_NE(output.find(typeColor + "member"), std::string::npos);
-    EXPECT_NE(output.find(normalColor + "local"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(output.find(typeColor + "member")));
+    EXPECT_TRUE(text_utils::is_found(output.find(normalColor + "local")));
 }
 
 TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
@@ -357,8 +355,8 @@ TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
 
     int fieldPos = (int)line.find("commandBuffer");
     int methodPos = (int)line.find("startCommandPopup");
-    ASSERT_NE(fieldPos, (int)std::string::npos);
-    ASSERT_NE(methodPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fieldPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(methodPos)));
 
     editor.currentBuffer->lspSemanticTokens[0].push_back(
         {fieldPos, 13, "field", false, false});
@@ -370,8 +368,10 @@ TEST(SyntaxHighlighterTest, SemanticTokensDifferentiateMembersAndMethods)
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
     const std::string funcColor = editor.theme.syntax(TOKEN_FUNCTION);
-    EXPECT_NE(output.find(memberColor + "commandBuffer"), std::string::npos);
-    EXPECT_NE(output.find(funcColor + "startCommandPopup"), std::string::npos);
+    EXPECT_TRUE(
+        text_utils::is_found(output.find(memberColor + "commandBuffer")));
+    EXPECT_TRUE(
+        text_utils::is_found(output.find(funcColor + "startCommandPopup")));
 }
 
 TEST(SyntaxHighlighterTest, CompletionRowBuildsAndTruncates)
@@ -382,9 +382,9 @@ TEST(SyntaxHighlighterTest, CompletionRowBuildsAndTruncates)
     entry.labelDescription = "int";
 
     std::string full = widgets::buildCompletionRowForTest(entry, 200);
-    EXPECT_NE(full.find("printf"), std::string::npos);
-    EXPECT_NE(full.find("fmt"), std::string::npos);
-    EXPECT_NE(full.find("int"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(full.find("printf")));
+    EXPECT_TRUE(text_utils::is_found(full.find("fmt")));
+    EXPECT_TRUE(text_utils::is_found(full.find("int")));
 
     std::string truncated = widgets::buildCompletionRowForTest(entry, 8);
     EXPECT_LE(text_utils::displayWidth(truncated), 8);
@@ -397,8 +397,8 @@ TEST(SyntaxHighlighterTest, CompletionRowUsesDetailWhenLabelDetailsMissing)
     entry.detail = "builtin type alias (int32_t)";
 
     std::string full = widgets::buildCompletionRowForTest(entry, 200);
-    EXPECT_NE(full.find("int"), std::string::npos);
-    EXPECT_NE(full.find("builtin type alias"), std::string::npos);
+    EXPECT_TRUE(text_utils::is_found(full.find("int")));
+    EXPECT_TRUE(text_utils::is_found(full.find("builtin type alias")));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
@@ -428,13 +428,14 @@ TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int start = (int)line.find('<');
     int end = (int)line.find('>');
-    ASSERT_NE(start, (int)std::string::npos);
-    ASSERT_NE(end, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(start)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(end)));
     EXPECT_TRUE(hasTokenAt(tokens, start, end - start + 1, TOKEN_STRING));
 }
 
@@ -466,8 +467,9 @@ TEST(SyntaxHighlighterTest, NoSystemIncludeHighlightWhenDisabled)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_STRING));
 }
@@ -492,11 +494,12 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInFunctionParams)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokens, typePos, 11, TOKEN_TYPE));
 }
 
@@ -521,11 +524,12 @@ TEST(SyntaxHighlighterTest, NoParamTypeHighlightWhenDisabled)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_FALSE(hasTokenAt(tokens, typePos, 11, TOKEN_TYPE));
 }
 
@@ -549,11 +553,12 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInLocalDeclaration)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("ModeContext");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokens, typePos, 11, TOKEN_TYPE));
 }
 
@@ -569,11 +574,12 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightParamVariableName)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int barPos = (int)line.find("bar");
-    ASSERT_NE(barPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(barPos)));
     EXPECT_FALSE(hasTokenAt(tokens, barPos, 3, TOKEN_MEMBER));
 }
 
@@ -595,9 +601,9 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableName)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar,
-                                      true, true, false);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar, true, true, false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -613,9 +619,9 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInFreeFunction)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar,
-                                      false, true, false);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar, false, true, false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -638,9 +644,9 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableInMethod)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar,
-                                      true, true, false);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar, true, true, false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -665,11 +671,12 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypePointerInParams)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int typePos = (int)line.find("Editor");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokens, typePos, 6, TOKEN_TYPE));
 }
 
@@ -695,9 +702,9 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLocalVariableMatchingMember)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar,
-                                      true, true, false);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar, true, true, false);
 
     EXPECT_FALSE(hasTokenType(tokens, TOKEN_MEMBER));
 }
@@ -722,17 +729,19 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightParamNameMatchingMember)
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "formatter.cpp").string();
 
-    const std::string line = "Formatter::Formatter(Editor* editor) : editor(editor) {}";
+    const std::string line =
+        "Formatter::Formatter(Editor* editor) : editor(editor) {}";
     bool inBlockComment = false;
     bool inTomlMultiline = false;
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int namePos = (int)line.find("editor)");
-    ASSERT_NE(namePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
     EXPECT_FALSE(hasTokenAt(tokens, namePos, 6, TOKEN_MEMBER));
 }
 
@@ -748,17 +757,18 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBasics)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int defPos = (int)line.find("def");
     int fooPos = (int)line.find("foo");
     int numPos = (int)line.find("42");
     int commentPos = (int)line.find("#");
-    ASSERT_NE(defPos, (int)std::string::npos);
-    ASSERT_NE(fooPos, (int)std::string::npos);
-    ASSERT_NE(numPos, (int)std::string::npos);
-    ASSERT_NE(commentPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(defPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(numPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(commentPos)));
     EXPECT_TRUE(hasTokenAt(tokens, defPos, 3, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_FUNCTION));
     EXPECT_TRUE(hasTokenAt(tokens, numPos, 2, TOKEN_NUMBER));
@@ -778,13 +788,14 @@ TEST(SyntaxHighlighterTest, HighlightsPythonClassName)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int classPos = (int)line.find("class");
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(classPos, (int)std::string::npos);
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(classPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_TRUE(hasTokenAt(tokens, classPos, 5, TOKEN_KEYWORD));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
@@ -801,11 +812,12 @@ TEST(SyntaxHighlighterTest, HighlightsPythonSelfMember)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int childPos = (int)line.find("child");
-    ASSERT_NE(childPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(childPos)));
     EXPECT_TRUE(hasTokenAt(tokens, childPos, 5, TOKEN_MEMBER));
 }
 
@@ -821,13 +833,14 @@ TEST(SyntaxHighlighterTest, HighlightsPythonBuiltinTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int intPos = (int)line.find("int");
     int nonePos = (int)line.find("None");
-    ASSERT_NE(intPos, (int)std::string::npos);
-    ASSERT_NE(nonePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(intPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(nonePos)));
     EXPECT_TRUE(hasTokenAt(tokens, intPos, 3, TOKEN_TYPE));
     EXPECT_TRUE(hasTokenAt(tokens, nonePos, 4, TOKEN_TYPE));
 }
@@ -844,11 +857,12 @@ TEST(SyntaxHighlighterTest, HighlightsPythonEnumValue)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int redPos = (int)line.find("RED");
-    ASSERT_NE(redPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(redPos)));
     EXPECT_TRUE(hasTokenAt(tokens, redPos, 3, TOKEN_MEMBER));
 }
 
@@ -864,11 +878,12 @@ TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int valuePos = (int)line.find("value");
-    ASSERT_NE(valuePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(valuePos)));
     EXPECT_TRUE(hasTokenAt(tokens, valuePos, 5, TOKEN_MEMBER));
 }
 
@@ -884,11 +899,12 @@ TEST(SyntaxHighlighterTest, HighlightsMlangTraitNameAsType)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int namePos = (int)line.find("Summary");
-    ASSERT_NE(namePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
     EXPECT_TRUE(hasTokenAt(tokens, namePos, 7, TOKEN_TYPE));
 }
 
@@ -904,15 +920,16 @@ TEST(SyntaxHighlighterTest, HighlightsMlangUserTypeInAnnotationAndLiteral)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int firstPos = (int)line.find("SocialPost");
-    ASSERT_NE(firstPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(firstPos)));
     EXPECT_TRUE(hasTokenAt(tokens, firstPos, 10, TOKEN_TYPE));
 
     int secondPos = (int)line.rfind("SocialPost");
-    ASSERT_NE(secondPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(secondPos)));
     EXPECT_TRUE(hasTokenAt(tokens, secondPos, 10, TOKEN_TYPE));
 }
 
@@ -929,11 +946,12 @@ TEST(SyntaxHighlighterTest, HighlightsMlangBuiltinDocTypes)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_TRUE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
 
@@ -950,11 +968,12 @@ TEST(SyntaxHighlighterTest, DisablesMlangBuiltinDocHighlighting)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int fooPos = (int)line.find("Foo");
-    ASSERT_NE(fooPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(fooPos)));
     EXPECT_FALSE(hasTokenAt(tokens, fooPos, 3, TOKEN_TYPE));
 }
 
@@ -972,17 +991,17 @@ TEST(SyntaxHighlighterTest, TogglesMlangTypeHighlighting)
     char markupFenceChar = 0;
 
     editor.syntaxMlangHighlightTypes = true;
-    auto tokensOn = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                        tomlQuote, inMarkupFence,
-                                        markupFenceChar);
+    auto tokensOn =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
     int typePos = (int)line.find("int");
-    ASSERT_NE(typePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
     EXPECT_TRUE(hasTokenAt(tokensOn, typePos, 3, TOKEN_TYPE));
 
     editor.syntaxMlangHighlightTypes = false;
-    auto tokensOff = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                         tomlQuote, inMarkupFence,
-                                         markupFenceChar);
+    auto tokensOff =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
     EXPECT_FALSE(hasTokenAt(tokensOff, typePos, 3, TOKEN_TYPE));
 }
 
@@ -992,21 +1011,22 @@ TEST(SyntaxHighlighterTest, HighlightsMlangPlatformKeywords)
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/example.mla";
 
-    const std::string line =
-        "if aarch64!() || linux!() || macos!() || posix!() || windows!() || x64!() { }";
+    const std::string line = "if aarch64!() || linux!() || macos!() || "
+                             "posix!() || windows!() || x64!() { }";
     bool inBlockComment = false;
     bool inTomlMultiline = false;
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     for(std::string_view word :
         {"aarch64", "linux", "macos", "posix", "windows", "x64"})
     {
         int pos = (int)line.find(word);
-        ASSERT_NE(pos, (int)std::string::npos) << word;
+        ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(pos))) << word;
         EXPECT_TRUE(hasTokenAt(tokens, pos, (int)word.size(), TOKEN_KEYWORD))
             << word;
     }
@@ -1024,11 +1044,12 @@ TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int timeoutPos = (int)line.find("TIMEOUT");
-    ASSERT_NE(timeoutPos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(timeoutPos)));
     EXPECT_TRUE(hasTokenAt(tokens, timeoutPos, 7, TOKEN_MEMBER));
 }
 
@@ -1037,22 +1058,23 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLambdaParamNames)
     Editor editor = Editor::createForTests();
     setupEditorBuffer(editor);
     *editor.filename = "/tmp/example.cpp";
-    const std::string line =
-        "auto appendLsp = [&](const std::string& label, bool running, bool activeForFile,";
+    const std::string line = "auto appendLsp = [&](const std::string& label, "
+                             "bool running, bool activeForFile,";
     bool inBlockComment = false;
     bool inTomlMultiline = false;
     char tomlQuote = 0;
     bool inMarkupFence = false;
     char markupFenceChar = 0;
-    auto tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
-                                      tomlQuote, inMarkupFence, markupFenceChar);
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
 
     int labelPos = (int)line.find("label");
     int runningPos = (int)line.find("running");
     int activePos = (int)line.find("activeForFile");
-    ASSERT_NE(labelPos, (int)std::string::npos);
-    ASSERT_NE(runningPos, (int)std::string::npos);
-    ASSERT_NE(activePos, (int)std::string::npos);
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(labelPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(runningPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(activePos)));
     EXPECT_FALSE(hasTokenAt(tokens, labelPos, 5, TOKEN_MEMBER));
     EXPECT_FALSE(hasTokenAt(tokens, runningPos, 7, TOKEN_MEMBER));
     EXPECT_FALSE(hasTokenAt(tokens, activePos, 13, TOKEN_MEMBER));
