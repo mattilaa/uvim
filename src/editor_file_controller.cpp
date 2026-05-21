@@ -4,19 +4,137 @@
 #include "text_utils.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using editor::helper::hash_lines;
+
+namespace fs = std::filesystem;
 
 namespace
 {
 bool isIdent(char c)
 {
     return std::isalnum((unsigned char)c) || c == '_';
+}
+
+template <size_t N>
+bool extensionIn(std::string_view extension,
+                 const std::array<std::string_view, N>& extensions)
+{
+    return std::find(extensions.begin(), extensions.end(), extension) !=
+           extensions.end();
+}
+
+fs::path projectRootFor(const fs::path& file)
+{
+    std::error_code ec;
+    fs::path dir = file.has_parent_path() ? file.parent_path() : fs::path{"."};
+
+    for(fs::path current = fs::absolute(dir, ec); !current.empty();
+        current = current.parent_path())
+    {
+        if(fs::exists(current / ".git", ec) ||
+           fs::exists(current / "CMakeLists.txt", ec))
+            return current;
+
+        if(current == current.parent_path())
+            break;
+    }
+
+    return fs::absolute(dir, ec);
+}
+
+std::string localIncludeFromLine(std::string_view line)
+{
+    size_t pos = line.find_first_not_of(" \t");
+    if(text_utils::is_not_found(pos) || line[pos] != '#')
+        return "";
+
+    ++pos;
+    pos = line.find_first_not_of(" \t", pos);
+    if(text_utils::is_not_found(pos))
+        return "";
+
+    constexpr std::string_view include = "include";
+    if(line.substr(pos, include.size()) != include)
+        return "";
+
+    pos += include.size();
+    pos = line.find_first_not_of(" \t", pos);
+    if(text_utils::is_not_found(pos) || line[pos] != '"')
+        return "";
+
+    const size_t end = line.find('"', pos + 1);
+    if(text_utils::is_not_found(end))
+        return "";
+
+    return std::string(line.substr(pos + 1, end - pos - 1));
+}
+
+fs::path resolveLocalInclude(const fs::path& include, const fs::path& sourceDir,
+                             const fs::path& projectRoot)
+{
+    std::error_code ec;
+    const std::array candidates = {
+        sourceDir / include,
+        projectRoot / include,
+        projectRoot / "include" / include,
+        projectRoot / "src" / include,
+    };
+
+    for(const auto& candidate : candidates)
+    {
+        if(fs::exists(candidate, ec))
+            return candidate.lexically_normal();
+    }
+
+    return {};
+}
+
+bool sameFile(const fs::path& left, const fs::path& right)
+{
+    std::error_code ec;
+    const fs::path leftCanonical = fs::weakly_canonical(left, ec);
+    if(ec)
+        return false;
+
+    const fs::path rightCanonical = fs::weakly_canonical(right, ec);
+    if(ec)
+        return false;
+
+    return leftCanonical == rightCanonical;
+}
+
+bool sourceIncludesHeader(const fs::path& source, const fs::path& header,
+                          const fs::path& projectRoot)
+{
+    std::ifstream in(source);
+    if(!in.is_open())
+        return false;
+
+    std::string line;
+    while(std::getline(in, line))
+    {
+        const std::string include = localIncludeFromLine(line);
+        if(include.empty())
+            continue;
+
+        const fs::path resolved =
+            resolveLocalInclude(include, source.parent_path(), projectRoot);
+        if(!resolved.empty())
+            return sameFile(resolved, header);
+
+        if(fs::path(include).filename() == header.filename())
+            return true;
+    }
+
+    return false;
 }
 } // namespace
 
@@ -277,15 +395,10 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
 
     const std::string extension = currentFile.substr(lastDot);
 
-    bool isHeader = false;
-    for(std::string_view ext : headerExts)
-    {
-        if(extension == ext)
-        {
-            isHeader = true;
-            break;
-        }
-    }
+    const bool isHeader = extensionIn(extension, headerExts);
+    const bool isSource = extensionIn(extension, sourceExts);
+    if(!isHeader && !isSource)
+        return "";
 
     auto checkCandidate = [this](const std::string& candidate) -> std::string
     { return fileExists(candidate) ? candidate : ""; };
@@ -306,6 +419,30 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
         return "";
 
     const std::string baseName = fileName.substr(0, fileDot);
+    const fs::path currentPath(currentFile);
+    const fs::path currentDir =
+        currentPath.has_parent_path() ? currentPath.parent_path() : fs::path{};
+
+    if(isHeader)
+    {
+        for(std::string_view ext : sourceExts)
+        {
+            const fs::path candidate =
+                currentDir / (baseName + std::string(ext));
+            if(auto found = checkCandidate(candidate.string()); !found.empty())
+                return found;
+        }
+    }
+    else
+    {
+        for(std::string_view ext : headerExts)
+        {
+            const fs::path candidate =
+                currentDir / (baseName + std::string(ext));
+            if(auto found = checkCandidate(candidate.string()); !found.empty())
+                return found;
+        }
+    }
 
     if(isHeader)
     {
@@ -363,6 +500,48 @@ EditorFileController::findAlternateFile(const std::string& currentFile)
                         return found;
                 }
             }
+        }
+    }
+
+    const fs::path projectRoot = projectRootFor(currentPath);
+
+    if(isSource)
+    {
+        std::ifstream source(currentFile);
+        std::string line;
+        while(std::getline(source, line))
+        {
+            const std::string include = localIncludeFromLine(line);
+            if(include.empty() ||
+               !extensionIn(fs::path(include).extension().string(), headerExts))
+                continue;
+
+            const fs::path resolved =
+                resolveLocalInclude(include, currentDir, projectRoot);
+            if(!resolved.empty())
+                return resolved.string();
+        }
+    }
+    else
+    {
+        std::error_code ec;
+        for(fs::recursive_directory_iterator it(projectRoot, ec), end;
+            !ec && it != end; it.increment(ec))
+        {
+            if(it->is_directory(ec))
+            {
+                const std::string name = it->path().filename().string();
+                if(name == ".git" || name == ".uvim" || name == "build")
+                    it.disable_recursion_pending();
+                continue;
+            }
+
+            if(!it->is_regular_file(ec) ||
+               !extensionIn(it->path().extension().string(), sourceExts))
+                continue;
+
+            if(sourceIncludesHeader(it->path(), currentPath, projectRoot))
+                return it->path().string();
         }
     }
 
