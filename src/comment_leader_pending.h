@@ -46,6 +46,12 @@ struct CommentLeaderAfterCiiApplied
                                     ModeContext& ctx, int key);
 };
 
+struct CommentLeaderAfterCiiAwaitingSuffix
+{
+    std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
+                                    ModeContext& ctx, int key);
+};
+
 class CommentLeaderPendingMachine
 {
 public:
@@ -55,21 +61,29 @@ public:
 
     bool done() const;
     CommentLeaderOrigin origin() const;
+    int startY() const;
+    int startX() const;
 
     void finish();
+    void cancel(ModeContext& ctx);
+    void rememberCursor(ModeContext& ctx);
     void setAfterCi(ModeContext& ctx);
     void setAfterCiApplied(ModeContext& ctx);
     void setAfterCii(ModeContext& ctx);
     void setAfterCiiApplied(ModeContext& ctx);
+    void setAfterCiiAwaitingSuffix(ModeContext& ctx);
 
 private:
     using PendingState =
         std::variant<CommentLeaderAfterC, CommentLeaderAfterCi,
                      CommentLeaderAfterCiApplied, CommentLeaderAfterCii,
-                     CommentLeaderAfterCiiApplied>;
+                     CommentLeaderAfterCiiApplied,
+                     CommentLeaderAfterCiiAwaitingSuffix>;
 
     PendingState state;
     CommentLeaderOrigin source;
+    int originalY = 0;
+    int originalX = 0;
     bool finished = false;
 };
 } // namespace editor::statemachine

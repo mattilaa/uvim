@@ -15,14 +15,6 @@ bool isEscape(int key)
     return key == keyCode(control::ControlKey::ESC);
 }
 
-void cancelPending(VisualTextObjectPendingMachine& machine, ModeContext& ctx)
-{
-    ctx.commandBuffer.clear();
-    ctx.setStatusMessage("");
-    ctx.repeatCount = 0;
-    machine.finish();
-}
-
 std::optional<ModeState>
 applyTextObject(VisualTextObjectPendingMachine& machine, ModeContext& ctx,
                 int objectKey)
@@ -58,13 +50,14 @@ applyTextObject(VisualTextObjectPendingMachine& machine, ModeContext& ctx,
     machine.finish();
     return std::nullopt;
 }
+} // namespace
 
-std::optional<ModeState> routeDelimiter(VisualTextObjectPendingMachine& machine,
-                                        ModeContext& ctx, int key)
+std::optional<ModeState> VisualTextObjectDelimiterDispatcher::dispatch(
+    VisualTextObjectPendingMachine& machine, ModeContext& ctx, int key)
 {
     if(isEscape(key))
     {
-        cancelPending(machine, ctx);
+        machine.cancel(ctx);
         return std::nullopt;
     }
 
@@ -72,35 +65,34 @@ std::optional<ModeState> routeDelimiter(VisualTextObjectPendingMachine& machine,
     {
     case keyCode(command::CommandKey::KEY_LEFT_PAREN):
         machine.setLeftParen();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_RIGHT_PAREN):
         machine.setRightParen();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_LEFT_BRACKET):
         machine.setLeftBracket();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_RIGHT_BRACKET):
         machine.setRightBracket();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_LEFT_BRACE):
         machine.setLeftBrace();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_RIGHT_BRACE):
         machine.setRightBrace();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_DOUBLE_QUOTE):
         machine.setDoubleQuote();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     case keyCode(command::CommandKey::KEY_APOSTROPHE):
         machine.setSingleQuote();
-        return machine.handle(ctx, key);
+        return machine.redispatch(ctx, key);
     default:
-        cancelPending(machine, ctx);
+        machine.cancel(ctx);
         Terminal::unreadKey(key);
         return std::nullopt;
     }
 }
-} // namespace
 
 VisualTextObjectPendingMachine::VisualTextObjectPendingMachine(
     bool aroundObject)
@@ -130,6 +122,20 @@ bool VisualTextObjectPendingMachine::aroundObject() const
 void VisualTextObjectPendingMachine::finish()
 {
     finished = true;
+}
+
+void VisualTextObjectPendingMachine::cancel(ModeContext& ctx)
+{
+    ctx.commandBuffer.clear();
+    ctx.setStatusMessage("");
+    ctx.repeatCount = 0;
+    finish();
+}
+
+std::optional<ModeState>
+VisualTextObjectPendingMachine::redispatch(ModeContext& ctx, int key)
+{
+    return handle(ctx, key);
 }
 
 void VisualTextObjectPendingMachine::setLeftParen()
@@ -176,14 +182,14 @@ std::optional<ModeState>
 VisualTextObjectAfterI::handle(VisualTextObjectPendingMachine& machine,
                                ModeContext& ctx, int key)
 {
-    return routeDelimiter(machine, ctx, key);
+    return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, key);
 }
 
 std::optional<ModeState>
 VisualTextObjectAfterA::handle(VisualTextObjectPendingMachine& machine,
                                ModeContext& ctx, int key)
 {
-    return routeDelimiter(machine, ctx, key);
+    return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, key);
 }
 
 std::optional<ModeState>

@@ -458,6 +458,8 @@ void Editor::commentLinesImpl(int startY, int endY)
     if(commentTogglePartial && anyCommented)
         allCommented = true;
 
+    saveState();
+
     for(int y = startY; y <= endY && y < (int)lines->size(); ++y)
     {
         std::string& line = (*lines)[y];

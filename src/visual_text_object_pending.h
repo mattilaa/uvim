@@ -9,6 +9,12 @@ namespace editor::statemachine
 {
 class VisualTextObjectPendingMachine;
 
+struct VisualTextObjectDelimiterDispatcher
+{
+    std::optional<ModeState> dispatch(VisualTextObjectPendingMachine& machine,
+                                      ModeContext& ctx, int key);
+};
+
 struct VisualTextObjectAfterI
 {
     std::optional<ModeState> handle(VisualTextObjectPendingMachine& machine,
@@ -80,6 +86,8 @@ public:
     bool aroundObject() const;
 
     void finish();
+    void cancel(ModeContext& ctx);
+    std::optional<ModeState> redispatch(ModeContext& ctx, int key);
     void setLeftParen();
     void setRightParen();
     void setLeftBracket();
