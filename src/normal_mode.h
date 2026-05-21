@@ -1,5 +1,6 @@
 #pragma once
 
+#include "comment_leader_pending.h"
 #include "file_entry.h"
 #include "mode.h"
 #include "mode_commands.h"
@@ -33,6 +34,8 @@ struct NormalMode
     std::optional<ModeState> handle(ModeContext& ctx, int key);
 
 private:
+    std::optional<CommentLeaderPendingMachine> commentLeaderPending;
+
     // Helper methods for complex key sequences
     std::optional<ModeState> handleLeaderKey(ModeContext& ctx, int c);
     std::optional<ModeState> handleGCommand(ModeContext& ctx, int c);

@@ -12,6 +12,8 @@ namespace editor::statemachine
 void VisualMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
+    commentLeaderPending.reset();
+    textObjectPending.reset();
 
     // Initialize visual selection start
     ed->currentBuffer->visualStartX = ctx.cursorX();
@@ -24,6 +26,8 @@ void VisualMode::on_enter(ModeContext& ctx)
 
 void VisualMode::on_exit(ModeContext& ctx)
 {
+    commentLeaderPending.reset();
+    textObjectPending.reset();
     ctx.editor->needsFullRedraw = true;
 }
 
@@ -34,6 +38,22 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
 
     if(ed->handleRenamePopupKey(c))
         return std::nullopt;
+
+    if(commentLeaderPending)
+    {
+        std::optional<ModeState> result = commentLeaderPending->handle(ctx, c);
+        if(commentLeaderPending->done())
+            commentLeaderPending.reset();
+        return result;
+    }
+
+    if(textObjectPending)
+    {
+        std::optional<ModeState> result = textObjectPending->handle(ctx, c);
+        if(textObjectPending->done())
+            textObjectPending.reset();
+        return result;
+    }
 
     if(c == keyCode(control::ControlKey::PASTE))
     {
@@ -142,6 +162,14 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
 
     if(ctx.commandBuffer == " ")
     {
+        if(c == keyCode(typed::TypedKey::KEY_C))
+        {
+            commentLeaderPending.emplace(CommentLeaderOrigin::Visual);
+            ctx.commandBuffer = " c";
+            ctx.setStatusMessage("Leader-c");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
         if(c == keyCode(typed::TypedKey::KEY_F))
         {
             ctx.commandBuffer.clear();
@@ -182,6 +210,17 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
     {
         ctx.commandBuffer = " ";
         ctx.setStatusMessage("Leader");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_I) ||
+       c == keyCode(typed::TypedKey::KEY_A))
+    {
+        const bool around = c == keyCode(typed::TypedKey::KEY_A);
+        textObjectPending.emplace(around);
+        ctx.commandBuffer = around ? "va" : "vi";
+        ctx.setStatusMessage(around ? "Visual-a" : "Visual-i");
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -387,22 +426,10 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
     }
 
     case keyCode(typed::TypedKey::KEY_C):
-    {
-        int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_I))
-        {
-            int startY = std::min(ed->currentBuffer->visualStartY,
-                                  ed->currentBuffer->visualEndY);
-            int endY = std::max(ed->currentBuffer->visualStartY,
-                                ed->currentBuffer->visualEndY);
-            ed->commentLines(startY, endY);
-            return NormalMode{};
-        }
         ed->yankSelection();
         ed->deleteSelection();
         ed->saveState();
         return InsertMode{};
-    }
 
     case keyCode(command::CommandKey::KEY_GREATER):
         ed->indentSelection();

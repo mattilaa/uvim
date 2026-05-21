@@ -67,6 +67,7 @@ void replaceVisualLineSelection(Editor* ed, std::string pasteBuffer)
 void VisualLineMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
+    commentLeaderPending.reset();
 
     // Initialize visual line selection
     ed->currentBuffer->visualStartX = ctx.cursorX();
@@ -79,6 +80,7 @@ void VisualLineMode::on_enter(ModeContext& ctx)
 
 void VisualLineMode::on_exit(ModeContext& ctx)
 {
+    commentLeaderPending.reset();
     ctx.editor->needsFullRedraw = true;
 }
 
@@ -89,6 +91,14 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
 
     if(ed->handleRenamePopupKey(c))
         return std::nullopt;
+
+    if(commentLeaderPending)
+    {
+        std::optional<ModeState> result = commentLeaderPending->handle(ctx, c);
+        if(commentLeaderPending->done())
+            commentLeaderPending.reset();
+        return result;
+    }
 
     if(c == keyCode(control::ControlKey::PASTE))
     {
@@ -137,6 +147,14 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
 
     if(ctx.commandBuffer == " ")
     {
+        if(c == keyCode(typed::TypedKey::KEY_C))
+        {
+            commentLeaderPending.emplace(CommentLeaderOrigin::VisualLine);
+            ctx.commandBuffer = " c";
+            ctx.setStatusMessage("Leader-c");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
         if(c == keyCode(typed::TypedKey::KEY_F))
         {
             ctx.commandBuffer.clear();
@@ -287,22 +305,10 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
     }
 
     case keyCode(typed::TypedKey::KEY_C):
-    {
-        int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_I))
-        {
-            int startY = std::min(ed->currentBuffer->visualStartY,
-                                  ed->currentBuffer->visualEndY);
-            int endY = std::max(ed->currentBuffer->visualStartY,
-                                ed->currentBuffer->visualEndY);
-            ed->commentLines(startY, endY);
-            return NormalMode{};
-        }
         ed->yankLineSelection();
         ed->deleteLineSelection();
         ed->saveState();
         return InsertMode{};
-    }
 
     case keyCode(command::CommandKey::KEY_GREATER):
         ed->indentLineSelection();

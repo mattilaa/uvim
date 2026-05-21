@@ -549,6 +549,360 @@ TEST(RealModeTransitionsTest, EnterAfterCppBraceJumpsToColumn4)
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
+TEST(RealModeTransitionsTest, LeaderCiTogglesCppLineCommentOnCurrentLine)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "// int value = 1;");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, LeaderCiiWrapsCppCurrentLineWithBlockRows)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /**");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    int value = 1;");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "    */");
+    EXPECT_EQ(*editor.cursorY, 1);
+
+    editor.undo();
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    int value = 1;");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 4);
+}
+
+TEST(RealModeTransitionsTest, LeaderCitInsertsTodoLineComment)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    // TODO: ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    int value = 1;");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 13);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, LeaderCiitInsertsTodoBlockComment)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /** TODO: ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "     */");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "    int value = 1;");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 14);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
+TEST(RealModeTransitionsTest, LeaderCommentPendingEscReturnsToNormalAfterCi)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "// int value = 1;");
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualLineLeaderCommentPendingEscStaysVisualLine)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int one = 1;", "int two = 2;"};
+    set_buffer_filename(editor, "main.cpp");
+    auto sm = makeMachine(editor, VisualLineMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 2u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "int one = 1;");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "int two = 2;");
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL LINE");
+}
+
+TEST(RealModeTransitionsTest, VisualLineLeaderCiiWrapsCppRangeWithBlockRows)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int one = 1;", "    int two = 2;"};
+    set_buffer_filename(editor, "main.cpp");
+    auto sm = makeMachine(editor, VisualLineMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 4u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /**");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    int one = 1;");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "    int two = 2;");
+    EXPECT_EQ(editor.currentBuffer->lines[3], "    */");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualLeaderCiiWrapsOnlySelectedText)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"foo(one, two);"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorX = 4;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_L));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_L));
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "foo(/* one */, two);");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualInnerParenSelectsTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"foo(one, two);"};
+    *editor.cursorX = 5;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_RIGHT_PAREN));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 4);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 11);
+    EXPECT_EQ(*editor.cursorX, 11);
+}
+
+TEST(RealModeTransitionsTest, VisualInnerQuoteSelectsTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"auto s = \"hello\";"};
+    *editor.cursorX = 11;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_DOUBLE_QUOTE));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 10);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 14);
+    EXPECT_EQ(*editor.cursorX, 14);
+}
+
+TEST(RealModeTransitionsTest, VisualInnerSingleQuoteSelectsTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"auto c = 'x';"};
+    *editor.cursorX = 10;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_APOSTROPHE));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 10);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 10);
+    EXPECT_EQ(*editor.cursorX, 10);
+}
+
+TEST(RealModeTransitionsTest, VisualInnerLeftBracketSelectsTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"items[index + 1];"};
+    *editor.cursorX = 8;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_LEFT_BRACKET));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 6);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 14);
+    EXPECT_EQ(*editor.cursorX, 14);
+}
+
+TEST(RealModeTransitionsTest, VisualInnerRightBracketSelectsTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"items[index + 1];"};
+    *editor.cursorX = 8;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_RIGHT_BRACKET));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 6);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 14);
+    EXPECT_EQ(*editor.cursorX, 14);
+}
+
+TEST(RealModeTransitionsTest, VisualInnerLeftBraceSelectsMultilineTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {
+        "void f() {",
+        "    int value = 1;",
+        "    value++;",
+        "}",
+    };
+    *editor.cursorY = 1;
+    *editor.cursorX = 8;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_LEFT_BRACE));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartY, 1);
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 0);
+    EXPECT_EQ(editor.currentBuffer->visualEndY, 2);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 11);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 11);
+}
+
+TEST(RealModeTransitionsTest, VisualInnerRightBraceSelectsMultilineTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {
+        "void f() {",
+        "    int value = 1;",
+        "    value++;",
+        "}",
+    };
+    *editor.cursorY = 1;
+    *editor.cursorX = 8;
+    auto sm = makeMachine(editor, VisualMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_RIGHT_BRACE));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartY, 1);
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 0);
+    EXPECT_EQ(editor.currentBuffer->visualEndY, 2);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 11);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 11);
+}
+
+TEST(RealModeTransitionsTest, NormalVisualInnerParenSelectsTextObject)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"foo(one, two);"};
+    *editor.cursorX = 5;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_V));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(command::CommandKey::KEY_RIGHT_PAREN));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 4);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 11);
+    EXPECT_EQ(*editor.cursorX, 11);
+}
+
+TEST(RealModeTransitionsTest, NormalVisualInnerParenEscCancelsPending)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"foo(one, two);"};
+    *editor.cursorX = 5;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_V));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL");
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_EQ(editor.currentBuffer->visualStartX, 5);
+    EXPECT_EQ(editor.currentBuffer->visualEndX, 5);
+    EXPECT_EQ(*editor.cursorX, 5);
+}
+
 TEST(RealModeTransitionsTest, NormalOpenBelowAfterCppBraceUsesIndentWidth)
 {
     Editor editor = Editor::createForTests();

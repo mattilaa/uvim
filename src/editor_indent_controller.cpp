@@ -1,5 +1,6 @@
 #include "editor_indent_controller.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "text_utils.h"
 
 #include <algorithm>
@@ -10,6 +11,32 @@
 
 namespace
 {
+std::string commentRulesPath(const Editor& editor)
+{
+    if(editor.filename && !editor.filename->empty())
+        return *editor.filename;
+    if(editor.currentBuffer && !editor.currentBuffer->filename.empty())
+        return editor.currentBuffer->filename;
+    return {};
+}
+
+std::string leadingWhitespace(std::string_view line)
+{
+    const size_t pos = line.find_first_not_of(" \t");
+    if(text_utils::is_not_found(pos))
+        return std::string(line);
+    return std::string(line.substr(0, pos));
+}
+
+std::string trimAscii(std::string_view value)
+{
+    const size_t start = value.find_first_not_of(" \t");
+    if(text_utils::is_not_found(start))
+        return {};
+    const size_t end = value.find_last_not_of(" \t");
+    return std::string(value.substr(start, end - start + 1));
+}
+
 std::optional<int> parseIndentWidthLine(const std::string& line)
 {
     size_t start = 0;
@@ -143,6 +170,27 @@ bool EditorIndentController::braceNewLineForAutoBraces() const
 void EditorIndentController::commentLines(int startY, int endY)
 {
     editor.commentLinesImpl(startY, endY);
+}
+
+void EditorIndentController::commentBlock(int startY, int endY)
+{
+    editor.commentBlockImpl(startY, endY);
+}
+
+void EditorIndentController::commentBlockRange(int startY, int startX, int endY,
+                                               int endX)
+{
+    editor.commentBlockRangeImpl(startY, startX, endY, endX);
+}
+
+bool EditorIndentController::insertTodoLineComment(int row)
+{
+    return editor.insertTodoLineCommentImpl(row);
+}
+
+bool EditorIndentController::insertTodoBlockComment(int row)
+{
+    return editor.insertTodoBlockCommentImpl(row);
 }
 
 std::string Editor::toLowerCaseImpl(const std::string& str)
@@ -381,13 +429,15 @@ void Editor::commentLinesImpl(int startY, int endY)
 {
     if(!currentBuffer || !lines)
         return;
-    if(!isFileType<FileType::Cpp>() && !isFileType<FileType::Python>())
+    const auto rules =
+        editor::helper::locCommentRulesForPath(commentRulesPath(*this));
+    if(!rules.hasLine)
     {
         setStatusMessage("comment: unsupported filetype");
         return;
     }
 
-    std::string prefix = isFileType<FileType::Python>() ? "#" : "//";
+    std::string prefix(rules.line);
     if(startY > endY)
         std::swap(startY, endY);
 
@@ -435,4 +485,215 @@ void Editor::commentLinesImpl(int startY, int endY)
     saveState();
     currentBuffer->lspSyncNeeded = true;
     needsFullRedraw = true;
+}
+
+void Editor::commentBlockImpl(int startY, int endY)
+{
+    if(!currentBuffer || !lines)
+        return;
+
+    const auto rules =
+        editor::helper::locCommentRulesForPath(commentRulesPath(*this));
+    if(!rules.hasBlock)
+    {
+        setStatusMessage("block comment: unsupported filetype");
+        return;
+    }
+    if(rules.blockStart != "/*" || rules.blockEnd != "*/")
+    {
+        setStatusMessage("block comment: unsupported filetype");
+        return;
+    }
+
+    if(startY > endY)
+        std::swap(startY, endY);
+    startY = std::max(0, startY);
+    endY = std::min(endY, static_cast<int>(lines->size()) - 1);
+    if(startY > endY)
+        return;
+
+    const bool wrapped = startY > 0 &&
+                         endY + 1 < static_cast<int>(lines->size()) &&
+                         trimAscii((*lines)[startY - 1]) == "/**" &&
+                         trimAscii((*lines)[endY + 1]) == "*/";
+
+    saveState();
+
+    if(wrapped)
+    {
+        lines->erase(lines->begin() + endY + 1);
+        lines->erase(lines->begin() + startY - 1);
+        if(cursorY && *cursorY >= startY)
+            *cursorY = std::max(0, *cursorY - 1);
+    }
+    else
+    {
+        int indentLine = startY;
+        while(indentLine <= endY &&
+              text_utils::is_not_found(
+                  (*lines)[indentLine].find_first_not_of(" \t")))
+            ++indentLine;
+
+        const std::string indent =
+            indentLine <= endY ? leadingWhitespace((*lines)[indentLine]) : "";
+        lines->insert(lines->begin() + endY + 1, indent + "*/");
+        lines->insert(lines->begin() + startY, indent + "/**");
+        if(cursorY && *cursorY >= startY)
+            ++(*cursorY);
+    }
+
+    *dirty = true;
+    currentBuffer->lspSyncNeeded = true;
+    needsFullRedraw = true;
+    saveState();
+}
+
+void Editor::commentBlockRangeImpl(int startY, int startX, int endY, int endX)
+{
+    if(!currentBuffer || !lines)
+        return;
+
+    const auto rules =
+        editor::helper::locCommentRulesForPath(commentRulesPath(*this));
+    if(!rules.hasBlock || rules.blockStart != "/*" || rules.blockEnd != "*/")
+    {
+        setStatusMessage("block comment: unsupported filetype");
+        return;
+    }
+
+    if(startY > endY || (startY == endY && startX > endX))
+    {
+        std::swap(startY, endY);
+        std::swap(startX, endX);
+    }
+
+    if(startY < 0 || endY >= static_cast<int>(lines->size()))
+        return;
+
+    startX = std::clamp(startX, 0, static_cast<int>((*lines)[startY].size()));
+    endX = std::clamp(endX, 0, static_cast<int>((*lines)[endY].size()) - 1);
+    if(endX < 0)
+        return;
+
+    saveState();
+
+    if(startY == endY)
+    {
+        std::string& line = (*lines)[startY];
+        const bool selectedHasMarkers =
+            startX + 2 <= static_cast<int>(line.size()) &&
+            line.compare(startX, 2, "/*") == 0 && endX >= 1 &&
+            line.compare(endX - 1, 2, "*/") == 0;
+
+        const bool markersOutside = startX >= 3 &&
+                                    endX + 3 < static_cast<int>(line.size()) &&
+                                    line.compare(startX - 3, 3, "/* ") == 0 &&
+                                    line.compare(endX + 1, 3, " */") == 0;
+
+        if(selectedHasMarkers)
+        {
+            line.erase(endX - 1, 2);
+            if(endX - 2 >= startX + 2 && line[endX - 2] == ' ')
+                line.erase(endX - 2, 1);
+            if(startX + 2 < static_cast<int>(line.size()) &&
+               line[startX + 2] == ' ')
+                line.erase(startX + 2, 1);
+            line.erase(startX, 2);
+        }
+        else if(markersOutside)
+        {
+            line.erase(endX + 1, 3);
+            line.erase(startX - 3, 3);
+        }
+        else
+        {
+            line.insert(endX + 1, " */");
+            line.insert(startX, "/* ");
+        }
+    }
+    else
+    {
+        std::string& firstLine = (*lines)[startY];
+        std::string& lastLine = (*lines)[endY];
+        startX = std::min(startX, static_cast<int>(firstLine.size()));
+        endX = std::min(endX, static_cast<int>(lastLine.size()) - 1);
+        firstLine.insert(startX, "/* ");
+        lastLine.insert(endX + 1, " */");
+    }
+
+    *dirty = true;
+    currentBuffer->lspSyncNeeded = true;
+    needsFullRedraw = true;
+    saveState();
+}
+
+bool Editor::insertTodoLineCommentImpl(int row)
+{
+    if(!currentBuffer || !lines)
+        return false;
+
+    const auto rules =
+        editor::helper::locCommentRulesForPath(commentRulesPath(*this));
+    if(!rules.hasLine)
+    {
+        setStatusMessage("todo comment: unsupported filetype");
+        return false;
+    }
+
+    row = std::clamp(row, 0, static_cast<int>(lines->size()));
+    const std::string indent = row < static_cast<int>(lines->size())
+                                   ? leadingWhitespace((*lines)[row])
+                                   : "";
+    const std::string todoLine = indent + std::string(rules.line) + " TODO: ";
+
+    saveState();
+    lines->insert(lines->begin() + row, todoLine);
+    if(cursorY)
+        *cursorY = row;
+    if(cursorX)
+        *cursorX = static_cast<int>(todoLine.size());
+    if(wantedX)
+        *wantedX = cursorX ? *cursorX : 0;
+
+    *dirty = true;
+    currentBuffer->lspSyncNeeded = true;
+    needsFullRedraw = true;
+    saveState();
+    return true;
+}
+
+bool Editor::insertTodoBlockCommentImpl(int row)
+{
+    if(!currentBuffer || !lines)
+        return false;
+
+    const auto rules =
+        editor::helper::locCommentRulesForPath(commentRulesPath(*this));
+    if(!rules.hasBlock || rules.blockStart != "/*" || rules.blockEnd != "*/")
+    {
+        setStatusMessage("todo block comment: unsupported filetype");
+        return false;
+    }
+
+    row = std::clamp(row, 0, static_cast<int>(lines->size()));
+    const std::string indent = row < static_cast<int>(lines->size())
+                                   ? leadingWhitespace((*lines)[row])
+                                   : "";
+    const std::string todoLine = indent + "/** TODO: ";
+
+    saveState();
+    lines->insert(lines->begin() + row, indent + " */");
+    lines->insert(lines->begin() + row, todoLine);
+    if(cursorY)
+        *cursorY = row;
+    if(cursorX)
+        *cursorX = static_cast<int>(todoLine.size());
+    if(wantedX)
+        *wantedX = cursorX ? *cursorX : 0;
+
+    *dirty = true;
+    currentBuffer->lspSyncNeeded = true;
+    needsFullRedraw = true;
+    saveState();
+    return true;
 }

@@ -88,7 +88,7 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
                                 outEndX = tx;
                                 if(!around)
                                 {
-                                    if(outStartX + 1 <=
+                                    if(outStartX + 1 <
                                        static_cast<int>(
                                            (*lines)[outStartY].length()))
                                     {

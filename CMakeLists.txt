@@ -196,6 +196,8 @@ set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
     src/mode_context.cpp
     src/command_prompt.cpp
+    src/comment_leader_pending.cpp
+    src/visual_text_object_pending.cpp
     src/normal_mode.cpp
     src/replace_mode.cpp
     src/welcome_mode.cpp

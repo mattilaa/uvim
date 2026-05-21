@@ -432,6 +432,10 @@ public:
     int indentWidthForBraces() const;
     bool braceNewLineForAutoBraces() const;
     void commentLines(int startY, int endY);
+    void commentBlock(int startY, int endY);
+    void commentBlockRange(int startY, int startX, int endY, int endX);
+    bool insertTodoLineComment(int row);
+    bool insertTodoBlockComment(int row);
     void toggleGitBlame(bool includeDateTime = false);
     void updateGitBlameForVisibleRange();
     std::string blameDisplayForLine(int row) const;
@@ -1123,6 +1127,10 @@ private:
     int indentWidthForBracesImpl() const;
     bool braceNewLineForAutoBracesImpl() const;
     void commentLinesImpl(int startY, int endY);
+    void commentBlockImpl(int startY, int endY);
+    void commentBlockRangeImpl(int startY, int startX, int endY, int endX);
+    bool insertTodoLineCommentImpl(int row);
+    bool insertTodoBlockCommentImpl(int row);
     void startVisualModeImpl();
     void startVisualLineModeImpl();
     void startVisualBlockModeImpl();
