@@ -322,6 +322,11 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
     {
         loadDirectory(ctx, currentDirectory);
     }
+    if(focusPreviousFile)
+    {
+        focusPreviousFileEntry(ctx);
+        focusPreviousFile = false;
+    }
 
     ctx.requestFullRedraw();
 }
@@ -2248,6 +2253,50 @@ int FileBrowserMode::firstNonDotDotIndex() const
             return i;
     }
     return -1;
+}
+
+void FileBrowserMode::focusPreviousFileEntry(ModeContext& ctx)
+{
+    if(previousFile.empty() || fileList.empty())
+        return;
+
+    std::error_code ec;
+    const std::filesystem::path previousPath =
+        std::filesystem::path(previousFile).lexically_normal();
+    const std::filesystem::path previousCanonical =
+        std::filesystem::weakly_canonical(previousPath, ec);
+
+    for(int i = 0; i < static_cast<int>(fileList.size()); ++i)
+    {
+        const auto& entry = fileList[i];
+        if(entry.name == "..")
+            continue;
+
+        const std::filesystem::path entryPath =
+            std::filesystem::path(entry.path).lexically_normal();
+        bool matches = entryPath == previousPath;
+
+        if(!matches && !previousCanonical.empty())
+        {
+            ec.clear();
+            const std::filesystem::path entryCanonical =
+                std::filesystem::weakly_canonical(entryPath, ec);
+            matches = !ec && entryCanonical == previousCanonical;
+        }
+
+        if(!matches)
+            continue;
+
+        browserCursor = i;
+        const int visible = fileBrowserVisibleRows(
+            ctx.screenRows(), ctx.screenCols(), selectedFiles.size(),
+            copyBuffer.size(), moveMode);
+        if(browserCursor < browserOffset)
+            browserOffset = browserCursor;
+        if(browserCursor >= browserOffset + visible)
+            browserOffset = std::max(0, browserCursor - visible + 1);
+        return;
+    }
 }
 
 void FileBrowserMode::updateVisualSelection()

@@ -198,6 +198,49 @@ TEST(RealModeTransitionsTest, WelcomeLeaderXOpensFileBrowser)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
+TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)
+{
+    const auto root = make_temp_dir("uvim_leader_x_current_");
+    write_file(root / "alpha.txt", "alpha\n");
+    write_file(root / "target.txt", "target\n");
+    write_file(root / "zeta.txt", "zeta\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile((root / "target.txt").string());
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
+
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    auto* fb = sm.getState<FileBrowserMode>();
+    ASSERT_NE(fb, nullptr);
+    ASSERT_GE(fb->browserCursor, 0);
+    ASSERT_LT(fb->browserCursor, static_cast<int>(fb->fileList.size()));
+    EXPECT_EQ(fb->fileList[fb->browserCursor].name, "target.txt");
+}
+
+TEST(RealModeTransitionsTest, LeaderXXOpensFileBrowserAtDirectoryTop)
+{
+    const auto root = make_temp_dir("uvim_leader_xx_top_");
+    write_file(root / "alpha.txt", "alpha\n");
+    write_file(root / "target.txt", "target\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile((root / "target.txt").string());
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_X));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
+
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    auto* fb = sm.getState<FileBrowserMode>();
+    ASSERT_NE(fb, nullptr);
+    ASSERT_FALSE(fb->fileList.empty());
+    EXPECT_EQ(fb->browserCursor, 0);
+}
+
 TEST(RealModeTransitionsTest, LspInfoQuitWithNoBufferReturnsWelcome)
 {
     Editor editor = Editor::createForTests();

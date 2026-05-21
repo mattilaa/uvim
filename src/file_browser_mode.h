@@ -77,14 +77,16 @@ struct FileBrowserMode
     std::vector<std::string> historyForward;
     bool visualMode = false;
     int visualAnchor = 0;
+    bool focusPreviousFile = false;
     std::unordered_set<std::string> preVisualSelected;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
     FileBrowserMode() = default;
 
-    explicit FileBrowserMode(std::string startDir, std::string prevFile = {})
+    explicit FileBrowserMode(std::string startDir, std::string prevFile = {},
+                             bool focusPrevious = false)
         : currentDirectory(std::move(startDir)),
-          previousFile(std::move(prevFile))
+          previousFile(std::move(prevFile)), focusPreviousFile(focusPrevious)
     {
     }
 
@@ -99,6 +101,7 @@ private:
     void loadDirectory(ModeContext& ctx, std::string pathStr);
     void navigateTo(ModeContext& ctx, std::string pathStr);
     int firstNonDotDotIndex() const;
+    void focusPreviousFileEntry(ModeContext& ctx);
     void updateVisualSelection();
     void updateFilter(ModeContext& ctx);
     int listSize() const;

@@ -1586,7 +1586,7 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     //                     std::to_string(lines->size()) + " lines");
 }
 
-void Editor::openFileBrowser(std::string_view path)
+void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
 {
     std::string prev;
     if(currentMode != FILE_BROWSER && currentBuffer != nullptr && filename)
@@ -1597,7 +1597,7 @@ void Editor::openFileBrowser(std::string_view path)
     if(modeStateMachine)
     {
         modeStateMachine->transitionTo(
-            FileBrowserMode{std::string(path), prev});
+            FileBrowserMode{std::string(path), prev, focusCurrentFile});
         modeController->syncModeFromStateMachine();
     }
     else

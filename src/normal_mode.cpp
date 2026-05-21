@@ -1049,10 +1049,11 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
 std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 {
     Editor* ed = ctx.editor;
-    auto openFileBrowser = [&]() -> std::optional<ModeState>
+    auto openFileBrowser =
+        [&](bool focusCurrentFile) -> std::optional<ModeState>
     {
         std::string dir = ".";
-        if(!ed->filename->empty())
+        if(ed->filename && !ed->filename->empty())
         {
             std::string_view parent = text_utils::dirname(*ed->filename);
             if(!parent.empty())
@@ -1063,7 +1064,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         {
             prev = *ed->filename;
         }
-        return FileBrowserMode{dir, prev};
+        return FileBrowserMode{dir, prev, focusCurrentFile};
     };
 
     switch(c)
@@ -1125,7 +1126,14 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     }
 
     case keyCode(typed::TypedKey::KEY_X):
-        return openFileBrowser();
+    {
+        const int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == keyCode(typed::TypedKey::KEY_X))
+            return openFileBrowser(false);
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+        return openFileBrowser(true);
+    }
 
     case keyCode(typed::TypedKey::KEY_E):
     {
@@ -1144,7 +1152,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             ed->openDiagnosticPopupForCursor();
             return std::nullopt;
         }
-        return openFileBrowser();
+        return openFileBrowser(true);
     }
 
     case keyCode(typed::TypedKey::KEY_H):
