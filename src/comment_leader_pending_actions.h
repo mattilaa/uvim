@@ -19,4 +19,6 @@ std::optional<ModeState> applyTodoLineComment(ModeContext& ctx,
                                               CommentLeaderOrigin origin);
 std::optional<ModeState> applyTodoBlockComment(ModeContext& ctx,
                                                CommentLeaderOrigin origin);
+std::optional<ModeState>
+replaceNormalAppliedBlockWithTodoComment(ModeContext& ctx, int row, int column);
 } // namespace editor::statemachine::commentleader

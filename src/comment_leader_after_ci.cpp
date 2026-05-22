@@ -20,6 +20,12 @@ CommentLeaderAfterCi::handle(CommentLeaderPendingMachine& machine,
     if(key == keyCode(typed::TypedKey::KEY_I))
     {
         machine.rememberCursor(ctx);
+        if(machine.origin() == CommentLeaderOrigin::VisualLine)
+        {
+            machine.setAfterCii(ctx);
+            return std::nullopt;
+        }
+
         std::optional<ModeState> result =
             commentleader::applyBlockComment(ctx, machine.origin());
         machine.cancel(ctx);

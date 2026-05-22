@@ -1,12 +1,9 @@
 #include "comment_leader_pending.h"
 
 #include "comment_leader_pending_actions.h"
-#include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
-
-#include <algorithm>
 
 namespace editor::statemachine
 {
@@ -24,17 +21,11 @@ CommentLeaderAfterCiiApplied::handle(CommentLeaderPendingMachine& machine,
     {
         if(machine.origin() == CommentLeaderOrigin::Normal)
         {
-            const int innerRow = std::min(
-                machine.startY() + 1,
-                static_cast<int>(ctx.editor->currentBuffer->lines.size()) - 1);
-            *ctx.editor->cursorY = std::max(0, innerRow);
-            *ctx.editor->cursorX = machine.startX();
-        }
-        commentleader::toggleNormalBlockComment(ctx);
-        if(machine.origin() == CommentLeaderOrigin::Normal)
-        {
-            *ctx.editor->cursorY = machine.startY();
-            *ctx.editor->cursorX = machine.startX();
+            std::optional<ModeState> result =
+                commentleader::replaceNormalAppliedBlockWithTodoComment(
+                    ctx, machine.startY(), machine.startX());
+            machine.cancel(ctx);
+            return result;
         }
         std::optional<ModeState> result =
             commentleader::applyTodoBlockComment(ctx, machine.origin());

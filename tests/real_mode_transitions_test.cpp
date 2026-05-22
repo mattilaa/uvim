@@ -626,7 +626,7 @@ TEST(RealModeTransitionsTest, LeaderCiiWrapsCppCurrentLineWithBlockRows)
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
-    EXPECT_EQ(editor.currentBuffer->lines[0], "    /**");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /*");
     EXPECT_EQ(editor.currentBuffer->lines[1], "    int value = 1;");
     EXPECT_EQ(editor.currentBuffer->lines[2], "    */");
     EXPECT_EQ(*editor.cursorY, 1);
@@ -655,7 +655,7 @@ TEST(RealModeTransitionsTest, LeaderCiiAppliesWithoutEnter)
     sm.dispatch(keyCode(typed::TypedKey::KEY_I));
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
-    EXPECT_EQ(editor.currentBuffer->lines[0], "    /**");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /*");
     EXPECT_EQ(editor.currentBuffer->lines[1], "    int value = 1;");
     EXPECT_EQ(editor.currentBuffer->lines[2], "    */");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
@@ -735,6 +735,31 @@ TEST(RealModeTransitionsTest, LeaderCiitInsertsTodoBlockComment)
     EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
+TEST(RealModeTransitionsTest, LeaderCiitTypedCharsEnterInsertMode)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int value = 1;"};
+    set_buffer_filename(editor, "main.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(' ');
+    sm.dispatch('c');
+    sm.dispatch('i');
+    sm.dispatch('i');
+    sm.dispatch('t');
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /** TODO: ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "     */");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "    int value = 1;");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 14);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
 TEST(RealModeTransitionsTest, LeaderCiiWaitsForTodoSuffix)
 {
     Editor editor = Editor::createForTests();
@@ -751,7 +776,7 @@ TEST(RealModeTransitionsTest, LeaderCiiWaitsForTodoSuffix)
     sm.dispatch(keyCode(typed::TypedKey::KEY_I));
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
-    EXPECT_EQ(editor.currentBuffer->lines[0], "    /**");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /*");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 
     sm.dispatch(keyCode(typed::TypedKey::KEY_T));
@@ -831,6 +856,29 @@ TEST(RealModeTransitionsTest, VisualLineLeaderCommentPendingEscStaysVisualLine)
     EXPECT_STREQ(sm.currentStateName(), "VISUAL LINE");
 }
 
+TEST(RealModeTransitionsTest, VisualLineLeaderCitInsertsTodoLineComment)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int one = 1;", "    int two = 2;"};
+    set_buffer_filename(editor, "main.cpp");
+    auto sm = makeMachine(editor, VisualLineMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 3u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    // TODO: ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    int one = 1;");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "    int two = 2;");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 13);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
+}
+
 TEST(RealModeTransitionsTest, VisualLineLeaderCiiWrapsCppRangeWithBlockRows)
 {
     Editor editor = Editor::createForTests();
@@ -847,11 +895,36 @@ TEST(RealModeTransitionsTest, VisualLineLeaderCiiWrapsCppRangeWithBlockRows)
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     ASSERT_EQ(editor.currentBuffer->lines.size(), 4u);
-    EXPECT_EQ(editor.currentBuffer->lines[0], "    /**");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /*");
     EXPECT_EQ(editor.currentBuffer->lines[1], "    int one = 1;");
     EXPECT_EQ(editor.currentBuffer->lines[2], "    int two = 2;");
     EXPECT_EQ(editor.currentBuffer->lines[3], "    */");
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualLineLeaderCiitInsertsTodoBlockComment)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    int one = 1;", "    int two = 2;"};
+    set_buffer_filename(editor, "main.cpp");
+    auto sm = makeMachine(editor, VisualLineMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_I));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_T));
+
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 4u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "    /** TODO: ");
+    EXPECT_EQ(editor.currentBuffer->lines[1], "    int one = 1;");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "    int two = 2;");
+    EXPECT_EQ(editor.currentBuffer->lines[3], "     */");
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.cursorX, 14);
+    EXPECT_STREQ(sm.currentStateName(), "INSERT");
 }
 
 TEST(RealModeTransitionsTest, VisualLeaderCiiWrapsOnlySelectedText)

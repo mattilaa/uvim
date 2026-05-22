@@ -516,7 +516,8 @@ void Editor::commentBlockImpl(int startY, int endY)
 
     const bool wrapped = startY > 0 &&
                          endY + 1 < static_cast<int>(lines->size()) &&
-                         trimAscii((*lines)[startY - 1]) == "/**" &&
+                         (trimAscii((*lines)[startY - 1]) == "/*" ||
+                          trimAscii((*lines)[startY - 1]) == "/**") &&
                          trimAscii((*lines)[endY + 1]) == "*/";
 
     saveState();
@@ -539,7 +540,7 @@ void Editor::commentBlockImpl(int startY, int endY)
         const std::string indent =
             indentLine <= endY ? leadingWhitespace((*lines)[indentLine]) : "";
         lines->insert(lines->begin() + endY + 1, indent + "*/");
-        lines->insert(lines->begin() + startY, indent + "/**");
+        lines->insert(lines->begin() + startY, indent + "/*");
         if(cursorY && *cursorY >= startY)
             ++(*cursorY);
     }
