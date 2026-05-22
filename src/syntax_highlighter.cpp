@@ -70,22 +70,47 @@ std::string ascii_lower(std::string_view value)
 bool is_asm_keyword(std::string_view word)
 {
     static constexpr std::array keywords = {
-        "add",     "addb",   "addl",   "addq",  "addw",   "and",    "andb",
-        "andl",    "andq",   "andw",   "call",  "callq",  "cmp",    "cmpb",
-        "cmpl",    "cmpq",   "cmpw",   "dec",   "decl",   "decq",   "div",
-        "idiv",    "imul",   "inc",    "incl",  "incq",   "ja",     "jae",
-        "jb",      "jbe",    "je",     "jg",    "jge",    "jl",     "jle",
-        "jmp",     "jne",    "jno",    "jnp",   "jns",    "jo",     "jp",
-        "js",      "lea",    "leal",   "leaq",  "leave",  "leaveq", "mov",
-        "movabsq", "movb",   "movl",   "movq",  "movsbl", "movslq", "movswl",
-        "movw",    "movzbl", "movzwl", "mul",   "neg",    "negl",   "negq",
-        "nop",     "not",    "or",     "orb",   "orl",    "orq",    "orw",
-        "pop",     "popq",   "push",   "pushq", "ret",    "retq",   "sal",
-        "sall",    "salq",   "sar",    "sarl",  "sarq",   "sete",   "setg",
-        "setge",   "setl",   "setle",  "setne", "shl",    "shll",   "shlq",
-        "shr",     "shrl",   "shrq",   "sub",   "subb",   "subl",   "subq",
-        "subw",    "test",   "testb",  "testl", "testq",  "testw",  "xor",
-        "xorb",    "xorl",   "xorq"};
+        "adc",       "adcs",      "add",       "addb",      "addl",
+        "addq",      "adds",      "addw",      "adr",       "adrp",
+        "and",       "andb",      "andl",      "andq",      "ands",
+        "andw",      "asr",       "b",         "b.eq",      "b.ge",
+        "b.gt",      "b.hi",      "b.hs",      "b.le",      "b.lo",
+        "b.ls",      "b.lt",      "b.mi",      "b.ne",      "b.pl",
+        "b.vc",      "b.vs",      "beq",       "bge",       "bgt",
+        "bhi",       "bhs",       "bic",       "bl",        "ble",
+        "blo",       "bls",       "blt",       "bmi",       "bne",
+        "bpl",       "br",        "break",     "bvc",       "bvs",
+        "call",      "callq",     "cbnz",      "cbz",       "cinc",
+        "cisel",     "cmp",       "cmpb",      "cmpl",      "cmpq",
+        "cmpw",      "cmpeq",     "csel",      "cset",      "dec",
+        "decl",      "decq",      "div",       "eor",       "fadd",
+        "fcmp",      "fcsel",     "fcvt",      "fdiv",      "fmadd",
+        "fmov",      "fmsub",     "fmul",      "fneg",      "fsqrt",
+        "fsub",      "idiv",      "imul",      "inc",       "incl",
+        "incq",      "ja",        "jae",       "jb",        "jbe",
+        "je",        "jg",        "jge",       "jl",        "jle",
+        "jmp",       "jne",       "jno",       "jnp",       "jns",
+        "jo",        "jp",        "js",        "ldr",       "ldp",
+        "ldrb",      "ldrh",      "ldrsb",     "ldrsh",     "ldur",
+        "lea",       "leal",      "leaq",      "leave",     "leaveq",
+        "lsl",       "lsr",       "madd",      "mov",       "movabsq",
+        "movb",      "movk",      "movl",      "movn",      "movq",
+        "movsbl",    "movslq",    "movswl",    "movw",      "movz",
+        "movzbl",    "movzwl",    "mrs",       "msr",       "msub",
+        "mul",       "neg",       "negl",      "negq",      "nop",
+        "not",       "orr",       "or",        "orb",       "orl",
+        "orq",       "orw",       "pop",       "popq",      "prfm",
+        "push",      "pushq",     "ret",       "retq",      "ror",
+        "sal",       "sall",      "salq",      "sar",       "sarl",
+        "sarq",      "sbc",       "sbcs",      "sdiv",      "sete",
+        "setg",      "setge",     "setl",      "setle",     "setne",
+        "shl",       "shll",      "shlq",      "shr",       "shrl",
+        "shrq",      "stp",       "str",       "strb",      "strh",
+        "stur",      "sub",       "subb",      "subl",      "subq",
+        "subs",      "subw",      "svc",       "tbnz",      "tbz",
+        "test",      "testb",     "testl",     "testq",     "testw",
+        "udiv",      "umaddl",    "umsubl",    "xor",       "xorb",
+        "xorl",      "xorq"};
 
     static constexpr std::array directives = {"align",
                                               "ascii",
@@ -139,19 +164,38 @@ bool is_asm_register(std::string_view word)
         "r14w", "r15",  "r15b", "r15d", "r15w", "r8"};
 
     static constexpr std::array moreRegisters = {
-        "r8b", "r8d", "r8w", "r9",  "r9b",  "r9d",  "r9w",  "rax",
-        "rbp", "rbx", "rcx", "rdi", "rdx",  "rip",  "rsi",  "rsp",
-        "si",  "sil", "sp",  "spl", "xmm0", "xmm1", "xmm2", "xmm3"};
+        "fp",   "lr",   "nzcv", "r8b", "r8d", "r8w", "r9",  "r9b",
+        "r9d",  "r9w",  "rax",  "rbp", "rbx", "rcx", "rdi", "rdx",
+        "rip",  "rsi",  "rsp",  "si",  "sil", "sp",  "spl", "wzr",
+        "xzr",  "xmm0", "xmm1", "xmm2", "xmm3"};
 
     const std::string lower = ascii_lower(word);
     const std::string_view view(lower);
+    auto numeric_register = [&](std::string_view prefix, int max) -> bool
+    {
+        if(!view.starts_with(prefix) || view.size() == prefix.size())
+            return false;
+        int value = 0;
+        for(char ch : view.substr(prefix.size()))
+        {
+            if(!text_utils::is_digit(ch))
+                return false;
+            value = value * 10 + (ch - '0');
+        }
+        return value >= 0 && value <= max;
+    };
+
     return std::find(registers.begin(), registers.end(), view) !=
                registers.end() ||
            std::find(moreRegisters.begin(), moreRegisters.end(), view) !=
                moreRegisters.end() ||
-           (view.size() >= 4 && view.starts_with("xmm") &&
-            std::all_of(view.begin() + 3, view.end(),
-                        [](char ch) { return text_utils::is_digit(ch); }));
+           numeric_register("r", 15) || numeric_register("x", 30) ||
+           numeric_register("w", 30) || numeric_register("b", 31) ||
+           numeric_register("h", 31) || numeric_register("s", 31) ||
+           numeric_register("d", 31) || numeric_register("q", 31) ||
+           numeric_register("v", 31) || numeric_register("mm", 31) ||
+           numeric_register("st", 7) || numeric_register("xmm", 31) ||
+           numeric_register("ymm", 31) || numeric_register("zmm", 31);
 }
 
 std::vector<std::filesystem::path> default_mlang_stdlib_paths()

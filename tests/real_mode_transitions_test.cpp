@@ -404,6 +404,36 @@ TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsHeaderTypes)
     EXPECT_TRUE(editor.isFileType<FileType::Asm>());
 }
 
+TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsDeclarationOnlyCppSource)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"struct SomeStruct",
+                                   "{",
+                                   "    int value = 42;",
+                                   "};"};
+    set_buffer_filename(editor, "/tmp/uvim_emit_asm_struct_only.cpp");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "emitasm -O2");
+
+    ASSERT_TRUE(editor.currentBuffer);
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(output.find("uvim_emit_asm_anchor")));
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find(
+            "uvim_emit_asm_struct_only.cpp.s")));
+    EXPECT_TRUE(editor.isFileType<FileType::Asm>());
+}
+
 TEST(RealModeTransitionsTest, GsShowsStructSizePopup)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)

@@ -104,30 +104,30 @@ bool isCSource(std::string_view path)
            text_utils::iequals_ascii(path.substr(path.size() - 2), ".c");
 }
 
-bool isCppHeader(std::string_view path)
+struct TopLevelType
 {
-    for(std::string_view suffix : {".h", ".hh", ".hpp", ".hxx", ".tpp", ".inl"})
-    {
-        if(path.size() >= suffix.size() &&
-           text_utils::iequals_ascii(path.substr(path.size() - suffix.size()),
-                                     suffix))
-            return true;
-    }
-    return false;
-}
+    std::string kind;
+    std::string name;
+};
 
-std::vector<std::string>
-collectTopLevelTypeNames(const std::vector<std::string>& lines)
+std::vector<TopLevelType>
+collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
 {
-    std::vector<std::string> names;
+    std::vector<TopLevelType> types;
     int braceDepth = 0;
 
-    auto pushUnique = [&](std::string name)
+    auto pushUnique = [&](std::string kind, std::string name)
     {
         if(name.empty())
             return;
-        if(std::find(names.begin(), names.end(), name) == names.end())
-            names.push_back(std::move(name));
+        const auto found =
+            std::find_if(types.begin(), types.end(),
+                         [&](const TopLevelType& type)
+                         {
+                             return type.kind == kind && type.name == name;
+                         });
+        if(found == types.end())
+            types.push_back({std::move(kind), std::move(name)});
     };
 
     for(const std::string& line : lines)
@@ -141,6 +141,8 @@ collectTopLevelTypeNames(const std::vector<std::string>& lines)
         {
             for(std::string_view keyword : {"struct", "class", "union"})
             {
+                if(!includeClass && keyword == "class")
+                    continue;
                 size_t pos = text.find(keyword);
                 if(text_utils::is_not_found(pos))
                     continue;
@@ -165,9 +167,16 @@ collectTopLevelTypeNames(const std::vector<std::string>& lines)
                        text_utils::is_digit(text[nameEnd]) ||
                        text[nameEnd] == '_'))
                     ++nameEnd;
+                size_t afterName = nameEnd;
+                while(afterName < text.size() &&
+                      text_utils::is_space(text[afterName]))
+                    ++afterName;
+                if(afterName < text.size() && text[afterName] == ';')
+                    continue;
                 if(nameEnd > nameStart)
-                    pushUnique(std::string(
-                        text.substr(nameStart, nameEnd - nameStart)));
+                    pushUnique(std::string(keyword),
+                               std::string(text.substr(nameStart,
+                                                       nameEnd - nameStart)));
             }
         }
 
@@ -180,12 +189,12 @@ collectTopLevelTypeNames(const std::vector<std::string>& lines)
         }
     }
 
-    return names;
+    return types;
 }
 
-std::string headerAnchorForTypes(const std::vector<std::string>& typeNames)
+std::string cppAnchorForTypes(const std::vector<TopLevelType>& types)
 {
-    if(typeNames.empty())
+    if(types.empty())
         return {};
 
     std::string anchor;
@@ -204,8 +213,31 @@ std::string headerAnchorForTypes(const std::vector<std::string>& typeNames)
     anchor +=
         "extern \"C\" __attribute__((used)) void uvim_emit_asm_anchor()\n";
     anchor += "{\n";
-    for(const std::string& typeName : typeNames)
-        anchor += "    uvim_emit_asm_detail::touch<" + typeName + ">(0);\n";
+    for(const TopLevelType& type : types)
+        anchor += "    uvim_emit_asm_detail::touch<" + type.name + ">(0);\n";
+    anchor += "}\n";
+    return anchor;
+}
+
+std::string cAnchorForTypes(const std::vector<TopLevelType>& types)
+{
+    if(types.empty())
+        return {};
+
+    std::string anchor;
+    anchor += "\n__attribute__((used)) void uvim_emit_asm_anchor(void)\n";
+    anchor += "{\n";
+    for(const TopLevelType& type : types)
+    {
+        if(type.kind != "struct" && type.kind != "union")
+            continue;
+        anchor += "    " + type.kind + " " + type.name + " value_" +
+                  type.name + " = {0};\n";
+        anchor += "#if defined(__clang__) || defined(__GNUC__)\n";
+        anchor += "    __asm__ volatile(\"\" : : \"g\"(&value_" + type.name +
+                  ") : \"memory\");\n";
+        anchor += "#endif\n";
+    }
     anchor += "}\n";
     return anchor;
 }
@@ -291,9 +323,10 @@ bool EmitAsmCommand::execute(Editor& editor,
             return true;
         }
         out << bufferText(*editor.lines) << '\n';
-        if(!cSource && isCppHeader(sourcePath))
-            out << headerAnchorForTypes(
-                collectTopLevelTypeNames(*editor.lines));
+        if(cSource)
+            out << cAnchorForTypes(collectTopLevelTypes(*editor.lines, false));
+        else
+            out << cppAnchorForTypes(collectTopLevelTypes(*editor.lines, true));
     }
 
     fs::path sourceDir = ".";
