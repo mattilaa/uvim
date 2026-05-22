@@ -341,6 +341,7 @@ public:
     void openDiagnosticPopupForCursor();
     void closeDiagnosticPopup();
     void openSymbolPopupForCursor();
+    void openSizePopupForCursor();
     void closeSymbolPopup();
     void syncClangdDiagnosticsIfNeeded(bool force);
     void syncMlangSemanticTokensIfNeeded(bool force);
@@ -373,8 +374,10 @@ public:
     int diagnosticPopupFixScroll = 0;
 
     bool symbolPopupActive = false;
+    bool symbolPopupModal = false;
     int symbolPopupCursorX = -1;
     int symbolPopupCursorY = -1;
+    int symbolPopupScroll = 0;
     std::string symbolPopupText;
 
     struct RenameEdit

@@ -1791,15 +1791,62 @@ void Editor::drawSymbolPopup(std::string& output) const
     if(!symbolPopupActive || symbolPopupText.empty())
         return;
 
-    std::string row = symbolPopupText;
-    int innerW = text_utils::displayWidth(row);
+    struct PopupRow
+    {
+        std::string text;
+        bool padding = false;
+        size_t colon = std::string::npos;
+    };
+
+    auto makeRow = [](std::string text)
+    {
+        PopupRow row;
+        row.text = std::move(text);
+        row.colon = row.text.find(':');
+        const size_t firstNonSpace = row.text.find_first_not_of(' ');
+        row.padding = firstNonSpace != std::string::npos &&
+                      row.text.rfind("pad:", firstNonSpace) == firstNonSpace;
+        return row;
+    };
+
+    std::vector<PopupRow> rows;
+    size_t start = 0;
+    while(start <= symbolPopupText.size())
+    {
+        size_t end = symbolPopupText.find('\n', start);
+        if(end == std::string::npos)
+        {
+            rows.push_back(makeRow(symbolPopupText.substr(start)));
+            break;
+        }
+        rows.push_back(makeRow(symbolPopupText.substr(start, end - start)));
+        start = end + 1;
+    }
+    if(rows.empty())
+        return;
+
+    int innerW = 0;
+    for(const PopupRow& row : rows)
+        innerW = std::max(innerW, text_utils::displayWidth(row.text));
+
     int maxInner = std::max(10, screenCols - 4);
     if(innerW > maxInner)
     {
-        int trim = std::max(0, maxInner - 3);
-        if(trim > 0 && trim < (int)row.size())
-            row = row.substr(0, (size_t)trim) + "...";
-        innerW = text_utils::displayWidth(row);
+        for(PopupRow& row : rows)
+        {
+            if(text_utils::displayWidth(row.text) <= maxInner)
+                continue;
+            int trim = std::max(0, maxInner - 3);
+            if(trim > 0 && trim < (int)row.text.size())
+            {
+                row.text = row.text.substr(0, (size_t)trim) + "...";
+                row.colon = std::string::npos;
+                row.padding = false;
+            }
+        }
+        innerW = 0;
+        for(const PopupRow& row : rows)
+            innerW = std::max(innerW, text_utils::displayWidth(row.text));
     }
 
     int totalW = innerW + 4;
@@ -1809,7 +1856,17 @@ void Editor::drawSymbolPopup(std::string& output) const
         innerW = std::max(1, totalW - 4);
     }
 
-    int totalH = 3;
+    int maxRows = std::max(1, screenRows - 2);
+    if(symbolPopupScroll > 0 && (int)rows.size() > maxRows)
+    {
+        const int firstRow =
+            std::min(symbolPopupScroll, (int)rows.size() - maxRows);
+        rows.erase(rows.begin(), rows.begin() + firstRow);
+    }
+    if((int)rows.size() > maxRows)
+        rows.resize((size_t)maxRows);
+
+    int totalH = (int)rows.size() + 2;
     int cy = (*cursorY - *offsetY) + 1 + tabBarRows();
     int cx = (*cursorX - *offsetX) + 1 + gutterWidth();
     if(cy < 1)
@@ -1839,19 +1896,36 @@ void Editor::drawSymbolPopup(std::string& output) const
                                  innerW + 2);
     text_utils::appendU8(output, ascii::BOX_LIGHT_TOP_RIGHT);
 
-    moveTo(top + 1, left);
-    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
-    output += " ";
-    output += theme.panel();
-    output += row;
-    output += theme.reset();
-    int pad = innerW - text_utils::displayWidth(row);
-    if(pad > 0)
-        output.append(pad, ' ');
-    output += " ";
-    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+    for(size_t i = 0; i < rows.size(); ++i)
+    {
+        moveTo(top + 1 + (int)i, left);
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+        output += " ";
+        output += theme.panel();
+        const PopupRow& row = rows[i];
+        if(row.colon != std::string::npos)
+        {
+            output +=
+                row.padding ? theme.uiWarning() : theme.syntax(TOKEN_MEMBER);
+            output += row.text.substr(0, row.colon);
+            output += theme.panel();
+            output += row.text.substr(row.colon, 2);
+            output += theme.baseFg();
+            output += row.text.substr(std::min(row.colon + 2, row.text.size()));
+        }
+        else
+        {
+            output += row.text;
+        }
+        output += theme.reset();
+        int pad = innerW - text_utils::displayWidth(row.text);
+        if(pad > 0)
+            output.append(pad, ' ');
+        output += " ";
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+    }
 
-    moveTo(top + 2, left);
+    moveTo(top + 1 + (int)rows.size(), left);
     text_utils::appendU8(output, ascii::BOX_LIGHT_BOTTOM_LEFT);
     text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
                                  innerW + 2);

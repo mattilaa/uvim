@@ -53,6 +53,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gb` : toggle git blame
 - `gj` : show commit diff for current line when git blame is visible
 - `gbv` : show commit diff for line under cursor
+- `gs` : show C/C++ symbol size and member layout popup
 - `gl` / `glf` : git log (repo / current file)
 - `bd` : close current buffer
 
@@ -119,6 +120,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 \section keys_misc Misc
 - `Ctrl-e` then `Enter` : emoji picker
 - `Space-e` then `m` : emoji picker
+- Size popup (`gs` in C/C++): `j/k` scroll, `q` or `gs` close
 - Diagnostics popup: `Ctrl-j/k` to navigate fixes, `Enter` to apply, `q` to close
 
 */

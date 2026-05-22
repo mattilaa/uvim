@@ -2,6 +2,7 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <optional>
@@ -45,6 +46,58 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
 
     if(ed->handleRenamePopupKey(c))
     {
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    if(ed->symbolPopupActive && ed->symbolPopupModal)
+    {
+        const auto popupLineCount = [&]()
+        {
+            return 1 + (int)std::count(ed->symbolPopupText.begin(),
+                                       ed->symbolPopupText.end(), '\n');
+        };
+
+        if(c == keyCode(typed::TypedKey::KEY_J))
+        {
+            const int maxRows = std::max(1, ed->screenRows - 2);
+            const int maxScroll = std::max(0, popupLineCount() - maxRows);
+            if(ed->symbolPopupScroll < maxScroll)
+            {
+                ++ed->symbolPopupScroll;
+                ed->needsFullRedraw = true;
+            }
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        if(c == keyCode(typed::TypedKey::KEY_K))
+        {
+            if(ed->symbolPopupScroll > 0)
+            {
+                --ed->symbolPopupScroll;
+                ed->needsFullRedraw = true;
+            }
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        if(c == keyCode(typed::TypedKey::KEY_Q))
+        {
+            ed->closeSymbolPopup();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
+        if(c == keyCode(typed::TypedKey::KEY_G))
+        {
+            int nextChar = Terminal::readKey();
+            if(nextChar == keyCode(typed::TypedKey::KEY_S))
+                ed->closeSymbolPopup();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -1274,6 +1327,11 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
     case keyCode(typed::TypedKey::KEY_F):
         // gf - go to file under cursor
         ed->goToFile();
+        break;
+
+    case keyCode(typed::TypedKey::KEY_S):
+        // gs - show clang-computed size for symbol under cursor
+        ed->openSizePopupForCursor();
         break;
 
     case keyCode(typed::TypedKey::KEY_H):

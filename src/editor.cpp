@@ -2611,6 +2611,7 @@ void Editor::openSymbolPopupForCursor()
 
     symbolPopupText = std::move(signature);
     symbolPopupActive = true;
+    symbolPopupModal = false;
     symbolPopupCursorX = *cursorX;
     symbolPopupCursorY = *cursorY;
     needsFullRedraw = true;
@@ -2619,9 +2620,12 @@ void Editor::openSymbolPopupForCursor()
 void Editor::closeSymbolPopup()
 {
     symbolPopupActive = false;
+    symbolPopupModal = false;
     symbolPopupCursorX = -1;
     symbolPopupCursorY = -1;
+    symbolPopupScroll = 0;
     symbolPopupText.clear();
+    needsFullRedraw = true;
 }
 
 void Editor::run()

@@ -13,103 +13,126 @@ std::optional<std::string> EditorCommandController::commandHistoryUp()
 {
     return editor.commandHistoryUpImpl();
 }
+
 std::optional<std::string> EditorCommandController::commandHistoryDown()
 {
     return editor.commandHistoryDownImpl();
 }
+
 void EditorCommandController::startCommandPopup()
 {
     editor.startCommandPopupImpl();
 }
+
 void EditorCommandController::cancelCommandPopup()
 {
     editor.cancelCommandPopupImpl();
 }
+
 void EditorCommandController::updateCommandPopup(std::string_view query)
 {
     editor.updateCommandPopupImpl(query);
 }
+
 void EditorCommandController::moveCommandPopupCursor(int delta)
 {
     editor.moveCommandPopupCursorImpl(delta);
 }
+
 bool EditorCommandController::isCommandPopupActive() const
 {
     return editor.isCommandPopupActiveImpl();
 }
+
 std::optional<std::string>
 EditorCommandController::commandPopupSelection() const
 {
     return editor.commandPopupSelectionImpl();
 }
+
 void EditorCommandController::startCommandHistorySearch(std::string_view seed)
 {
     editor.startCommandHistorySearchImpl(seed);
 }
+
 std::string EditorCommandController::cancelCommandHistorySearch()
 {
     return editor.cancelCommandHistorySearchImpl();
 }
+
 std::string EditorCommandController::acceptCommandHistorySearch()
 {
     return editor.acceptCommandHistorySearchImpl();
 }
+
 void EditorCommandController::updateCommandHistorySearchQuery(
     std::string_view query)
 {
     editor.updateCommandHistorySearchQueryImpl(query);
 }
+
 void EditorCommandController::moveCommandHistorySearchCursor(int delta)
 {
     editor.moveCommandHistorySearchCursorImpl(delta);
 }
+
 bool EditorCommandController::isCommandHistorySearchActive() const
 {
     return editor.isCommandHistorySearchActiveImpl();
 }
+
 const std::string& EditorCommandController::commandHistorySearchQuery() const
 {
     return editor.commandHistorySearchQueryImpl();
 }
+
 void EditorCommandController::drawCommandPopup(std::string& output) const
 {
     editor.drawCommandPopupImpl(output);
 }
+
 void EditorCommandController::drawCommandHistoryPopup(std::string& output) const
 {
     editor.drawCommandHistoryPopupImpl(output);
 }
+
 std::vector<std::string>
 EditorCommandController::getCommandCompletions(std::string_view prefix)
 {
     return editor.getCommandCompletionsImpl(prefix);
 }
+
 std::vector<std::string>
 EditorCommandController::getCommandCompletions(std::string_view prefix,
                                                Mode mode)
 {
     return editor.getCommandCompletionsImpl(prefix, mode);
 }
+
 std::vector<std::string>
 EditorCommandController::getHelpCompletions(std::string_view prefix)
 {
     return editor.getHelpCompletionsImpl(prefix);
 }
+
 std::vector<std::string>
 EditorCommandController::getSetCompletions(std::string_view prefix)
 {
     return editor.getSetCompletionsImpl(prefix);
 }
+
 std::vector<std::string>
 EditorCommandController::getPathCompletions(std::string_view path)
 {
     return editor.getPathCompletionsImpl(path);
 }
+
 std::vector<std::string>
 EditorCommandController::getPathCompletionsRecursive(std::string_view path)
 {
     return editor.getPathCompletionsRecursiveImpl(path);
 }
+
 std::vector<std::string>
 EditorCommandController::getLocPathCompletions(std::string_view path)
 {
@@ -644,8 +667,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "commands",    "modes",       "navigation", "editing", "files",
         "filebrowser", "run",         "buffers",    "windows", "search",
         "regex",       "clipboard",   "git",        "ga",      "gb",
-        "gbb",         "gbl",         "gj",
-        "gbv",
+        "gbb",         "gbl",         "gj",         "gbv",     "gs",
         "lsp",         "diagnostics", "help"};
 
     std::vector<std::string> matches;

@@ -375,6 +375,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help search`      - Searching and replacing",
             "  `:help clipboard`   - Clipboard operations",
             "  `:help git`         - Git integrations",
+            "  `:help gs`          - C/C++ symbol size popup",
             "  `:help lsp`         - LSP setup and troubleshooting",
             "  `:help diagnostics` - Diagnostic env vars",
             "",
@@ -463,6 +464,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gj`      - Show commit diff for line under cursor in blame "
             "mode",
             "  `gbv`     - Show commit diff for line under cursor",
+            "  `gs`      - Show C/C++ symbol size/member layout popup",
             "  `:git blame` - Toggle git blame gutter from command mode",
             "  `gl`      - Show git log (repo)",
             "  `glf`     - Show git log (current file)",
@@ -653,6 +655,28 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:git blame` - Toggle git blame gutter from command mode",
         };
     }
+    else if(topic_lower == "gs")
+    {
+        lines = {
+            "# gs",
+            "",
+            "`gs` opens a modal C/C++ size popup for the symbol under cursor.",
+            "The popup shows total size, member sizes, padding, and nested",
+            "struct/class members where they can be resolved.",
+            "",
+            "Nested structs are indented. Expansion is limited to 3 nested",
+            "levels; deeper resolved members are shown as `...`.",
+            "",
+            "Inside the size popup:",
+            "  `j/k` - Scroll popup content",
+            "  `q`   - Close the popup",
+            "  `gs`  - Close the popup",
+            "",
+            "Notes:",
+            "  Requires C/C++ file type and clang/clang++ for probing.",
+            "  Local quoted includes are scanned for nested struct bodies.",
+        };
+    }
     else if(topic_lower == "modes")
     {
         lines = {
@@ -753,6 +777,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gd`       - Go to definition",
             "  `gr`       - Find references",
             "  `gf`       - Open file under cursor",
+            "  `gs`       - Show C/C++ symbol size/member layout popup",
             "  `ga`       - Open git stage view",
             "",
             "SPLITS / WINDOWS:",
@@ -1181,6 +1206,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help gbl`",
             "  `:help gj`",
             "  `:help gbv`",
+            "  `:help gs`",
             "  `:help lsp`",
             "  `:help diagnostics`",
             "",
