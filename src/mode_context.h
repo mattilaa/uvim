@@ -119,19 +119,6 @@ struct ModeContext
     void createNewFilePrompt();
     void createNewDirectoryPrompt();
 
-    // Formatting and linting
-    /*
-    bool pythonFormatBuffer();
-    void pythonLintBuffer();
-    bool robotFormatBuffer();
-    bool jsonFormatBuffer();
-    bool yamlFormatBuffer();
-    bool clangFormatWithArgs(const std::string& extraArgs,
-                             const std::string& successMessage);
-    void clangFormatVisualSelection();
-    void clangFormatVisualBlockSelection();
-    */
-
     // Search helpers
     void performSearch();
     void performIncrementalSearch(const std::string& query, bool forward);

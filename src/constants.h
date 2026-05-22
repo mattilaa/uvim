@@ -110,6 +110,10 @@ inline constexpr std::array cpp_suffixes = {
 
 inline constexpr std::array mla_suffixes = {std::string_view{".mla"}};
 
+inline constexpr std::array asm_suffixes = {
+    std::string_view{".s"}, std::string_view{".S"}, std::string_view{".asm"},
+    std::string_view{".ASM"}};
+
 inline constexpr std::array robot_suffixes = {
     std::string_view{".robot"},
     std::string_view{".resource"},

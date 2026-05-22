@@ -762,6 +762,7 @@ Editor::Editor(TestTag /* tag */, int rows, int cols)
     settingsController = std::make_unique<EditorSettingsController>(*this);
     bufferController = std::make_unique<EditorBufferController>(*this);
     commandController = std::make_unique<EditorCommandController>(*this);
+    definitionController = std::make_unique<EditorDefinitionController>(*this);
     drawingController = std::make_unique<EditorDrawingController>(*this);
     cursorController = std::make_unique<EditorCursorController>(*this);
     editingController = std::make_unique<EditorEditingController>(*this);
@@ -848,6 +849,10 @@ std::optional<FileType> Editor::getFileType() const
     else if(isFileType<FileType::Mla>())
     {
         return FileType::Mla;
+    }
+    else if(isFileType<FileType::Asm>())
+    {
+        return FileType::Asm;
     }
     else if(isFileType<FileType::Robot>())
     {

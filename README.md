@@ -63,6 +63,74 @@ Install doxygen with your system package manager (e.g., `brew install doxygen`
 on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
 on Fedora).
 
+## Assembly instruction docs
+
+Assembly instruction `gd` support is controlled by the CMake option
+`UVIM_ENABLE_ASM_DOCS`. It is enabled by default.
+
+Build with the default:
+
+```sh
+cmake -S . -B build
+cmake --build build
+```
+
+Or enable it explicitly:
+
+```sh
+cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=ON
+cmake --build build
+```
+
+To disable it:
+
+```sh
+cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=OFF
+cmake --build build
+```
+
+Run uvim:
+
+```sh
+./build/uvim file.s
+```
+
+Usage:
+
+- Open a `.s`, `.S`, `.asm`, or `.ASM` buffer.
+- Put the cursor on an instruction row, for example `movq %rdi, %rax` or
+  `ldr x0, [sp]`.
+- Press `gd`.
+- uvim opens a cached markdown instruction index and jumps to the matching
+  instruction section. The index is generated from documentation text packed
+  into the uvim binary, so this mode does not need network access.
+- Press `Space-ga` to show the current instruction docs in a modal popup.
+  Use `j/k` to scroll the popup and `q` to close it.
+
+To additionally fetch and cache the Compiler Explorer/Godbolt asm
+documentation for each instruction on first `gd`, run:
+
+```sh
+uvim --asm-docs-fetch file.s
+```
+
+This uses `curl` at runtime and calls the Compiler Explorer API, for example
+`https://godbolt.org/api/asm/amd64/mov` or
+`https://godbolt.org/api/asm/aarch64/ldr`. If that fetch fails or `curl` is not
+available, uvim falls back to the packed local documentation index.
+
+The cache is written to `$XDG_CACHE_HOME/uvim/asm-docs` when `XDG_CACHE_HOME`
+is set, otherwise to `~/.cache/uvim/asm-docs`. You can override it with:
+
+```sh
+UVIM_ASM_DOCS_CACHE_DIR=/tmp/uvim-asm-docs uvim file.s
+```
+
+The default cached docs are generated from packed uvim-owned documentation text
+with reference links for x86/x64 and AArch64 instructions. The
+`--asm-docs-fetch` mode stores fetched Compiler Explorer docs separately under
+`asm-docs/fetched/compiler-explorer/`.
+
 ## LSP flags
 
 - `--clangd` enable clangd LSP

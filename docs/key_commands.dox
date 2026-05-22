@@ -46,7 +46,10 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Ctrl-l` : redraw
 
 \subsection keys_normal_g g-commands
-- `gd` : go to definition
+- `gd` : go to definition; in assembly buffers, opens cached x86/x64 or
+  AArch64 instruction docs when built with `UVIM_ENABLE_ASM_DOCS`; run
+  `uvim --asm-docs-fetch` to fetch Compiler Explorer/Godbolt asm docs into
+  the cache on demand
 - `gr` : find references
 - `gf` : go to file under cursor
 - `gh` : alternate file (header/source)
@@ -61,6 +64,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-e` : file browser
 - `Space-s` : grep search
 - `Space-d` : go to definition
+- `Space-g a` : show assembly instruction docs in a scrollable popup
 - `Space-g d` : go to definition
 - `Space-g r` : find references
 - `Space-r r` : find references (LSP)
@@ -86,6 +90,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:` : enter command mode
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
+- `:emitasm [flags]` : emit current C/C++ buffer assembly into a `.s` buffer
 
 \section keys_file_browser File browser
 - `j/k` or arrows : move

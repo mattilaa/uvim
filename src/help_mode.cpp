@@ -376,6 +376,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help clipboard`   - Clipboard operations",
             "  `:help git`         - Git integrations",
             "  `:help gs`          - C/C++ symbol size popup",
+            "  `:help emitasm`     - Emit C/C++ assembly",
             "  `:help lsp`         - LSP setup and troubleshooting",
             "  `:help diagnostics` - Diagnostic env vars",
             "",
@@ -413,6 +414,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:qa`             - Quit all buffers",
             "  `:qa!`            - Force quit all",
             "  `:wqa` or `:xa`   - Write all and quit",
+            "",
+            "C/C++:",
+            "  `:emitasm [flags]` - Emit current buffer assembly into .s "
+            "buffer",
+            "                       Example: `:emitasm -O2`",
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",
@@ -677,6 +683,32 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Local quoted includes are scanned for nested struct bodies.",
         };
     }
+    else if(topic_lower == "emitasm")
+    {
+        lines = {
+            "# :emitasm",
+            "",
+            "`:emitasm` emits assembly for the current C/C++ buffer into a",
+            "new `.s` buffer. The command uses the current in-memory buffer,",
+            "so unsaved edits are included.",
+            "",
+            "Usage:",
+            "  `:emitasm`     - Emit assembly with default clang flags",
+            "  `:emitasm -O2` - Pass compiler flags before emitting assembly",
+            "",
+            "Notes:",
+            "  Uses clang for `.c` files and clang++ for other C/C++ files.",
+            "  The generated `.s` buffer is not marked dirty.",
+            "  Assembly mnemonics, directives, and registers are highlighted.",
+            "  With `UVIM_ENABLE_ASM_DOCS`, `gd` on an instruction opens a",
+            "  cached x86/x64 or AArch64 documentation index generated from",
+            "  text packed into the uvim binary.",
+            "  `Space-ga` shows the current instruction docs in a modal popup;",
+            "  use `j/k` to scroll and `q` to close it.",
+            "  Run with `--asm-docs-fetch` to fetch Compiler Explorer/Godbolt",
+            "  asm docs into that cache on demand. Requires `curl` at runtime.",
+        };
+    }
     else if(topic_lower == "modes")
     {
         lines = {
@@ -775,6 +807,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "CODE NAVIGATION:",
             "  `gd`       - Go to definition",
+            "               In `.s`/`.asm`, opens cached x86/x64 or AArch64 "
+            "instruction docs",
+            "  `Space-ga` - Show asm instruction docs in a scrollable popup",
             "  `gr`       - Find references",
             "  `gf`       - Open file under cursor",
             "  `gs`       - Show C/C++ symbol size/member layout popup",
@@ -1207,6 +1242,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help gj`",
             "  `:help gbv`",
             "  `:help gs`",
+            "  `:help emitasm`",
             "  `:help lsp`",
             "  `:help diagnostics`",
             "",
