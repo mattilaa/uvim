@@ -1139,6 +1139,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     {
         // <leader>g prefix - wait for next char
         // <leader>g alone = grep search (legacy)
+        // <leader>ga = show assembly instruction docs popup
         // <leader>gr = find references
         // <leader>gd = go to definition
         int nextChar = Terminal::readKeyTimeout(500);
@@ -1162,6 +1163,12 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         {
             // <leader>gd - Go to definition
             ed->goToDefinition();
+            return std::nullopt;
+        }
+        else if(nextChar == keyCode(typed::TypedKey::KEY_A))
+        {
+            // <leader>ga - Show assembly instruction documentation popup
+            ed->openAsmDocumentationPopupForCursor();
             return std::nullopt;
         }
         else

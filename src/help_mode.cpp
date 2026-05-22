@@ -703,8 +703,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  With `UVIM_ENABLE_ASM_DOCS`, `gd` on an instruction opens a",
             "  cached x86/x64 or AArch64 documentation index generated from",
             "  text packed into the uvim binary.",
-            "  Run with `--asm-docs-fetch` to fetch original source docs",
-            "  into that cache on demand. Requires `curl` at runtime.",
+            "  `Space-ga` shows the current instruction docs in a modal popup;",
+            "  use `j/k` to scroll and `q` to close it.",
+            "  Run with `--asm-docs-fetch` to fetch Compiler Explorer/Godbolt",
+            "  asm docs into that cache on demand. Requires `curl` at runtime.",
         };
     }
     else if(topic_lower == "modes")
@@ -807,6 +809,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gd`       - Go to definition",
             "               In `.s`/`.asm`, opens cached x86/x64 or AArch64 "
             "instruction docs",
+            "  `Space-ga` - Show asm instruction docs in a scrollable popup",
             "  `gr`       - Find references",
             "  `gf`       - Open file under cursor",
             "  `gs`       - Show C/C++ symbol size/member layout popup",

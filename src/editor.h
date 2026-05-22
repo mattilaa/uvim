@@ -342,6 +342,7 @@ public:
     void closeDiagnosticPopup();
     void openSymbolPopupForCursor();
     void openSizePopupForCursor();
+    void openAsmDocumentationPopupForCursor();
     void closeSymbolPopup();
     void syncClangdDiagnosticsIfNeeded(bool force);
     void syncMlangSemanticTokensIfNeeded(bool force);

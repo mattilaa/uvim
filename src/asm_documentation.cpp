@@ -1,5 +1,6 @@
 #include "asm_documentation.h"
 
+#include "json_utils.h"
 #include "process_pipe.h"
 #include "text_utils.h"
 
@@ -533,8 +534,29 @@ fs::path docsPath(std::string_view arch)
 
 fs::path fetchedDocsPath(std::string_view arch, std::string_view mnemonic)
 {
-    return cacheRoot() / "fetched" / std::string(arch) /
+    return cacheRoot() / "fetched" / "compiler-explorer" / std::string(arch) /
            (std::string(mnemonic) + ".md");
+}
+
+fs::path fallbackFetchedDocsPath(std::string_view arch,
+                                 std::string_view mnemonic)
+{
+    return cacheRoot() / "fetched" / "source" / std::string(arch) /
+           (std::string(mnemonic) + ".md");
+}
+
+std::string compilerExplorerArch(std::string_view arch)
+{
+    if(arch == "x86")
+        return "amd64";
+    return std::string(arch);
+}
+
+std::string compilerExplorerApiUrl(std::string_view arch,
+                                   std::string_view mnemonic)
+{
+    return "https://godbolt.org/api/asm/" + compilerExplorerArch(arch) + "/" +
+           std::string(mnemonic);
 }
 
 std::string decodeHtmlEntity(std::string_view entity)
@@ -689,6 +711,122 @@ std::optional<std::string> fetchUrl(std::string_view url)
     return output;
 }
 
+std::string wrapDocumentationLine(std::string_view line, int width)
+{
+    if(width <= 0 || text_utils::displayWidth(line) <= width)
+        return std::string(line);
+
+    std::string out;
+    std::string current;
+    size_t pos = 0;
+    while(pos < line.size())
+    {
+        while(pos < line.size() && text_utils::is_space(line[pos]))
+            ++pos;
+        size_t start = pos;
+        while(pos < line.size() && !text_utils::is_space(line[pos]))
+            ++pos;
+        if(start == pos)
+            break;
+
+        std::string word(line.substr(start, pos - start));
+        int nextWidth = text_utils::displayWidth(current) +
+                        (current.empty() ? 0 : 1) +
+                        text_utils::displayWidth(word);
+        if(nextWidth > width && !current.empty())
+        {
+            if(!out.empty())
+                out.push_back('\n');
+            out += current;
+            current = "  " + word;
+        }
+        else
+        {
+            if(!current.empty())
+                current.push_back(' ');
+            current += word;
+        }
+    }
+
+    if(!current.empty())
+    {
+        if(!out.empty())
+            out.push_back('\n');
+        out += current;
+    }
+    return out;
+}
+
+std::string wrapDocumentationText(std::string_view text, int width = 96)
+{
+    std::string out;
+    size_t start = 0;
+    while(start <= text.size())
+    {
+        size_t end = text.find('\n', start);
+        std::string_view line =
+            end == std::string_view::npos
+                ? text.substr(start)
+                : text.substr(start, end - start);
+        if(!out.empty())
+            out.push_back('\n');
+        out += wrapDocumentationLine(line, width);
+        if(end == std::string_view::npos)
+            break;
+        start = end + 1;
+    }
+    return out;
+}
+
+std::optional<std::string> fetchJsonUrl(std::string_view url)
+{
+    ProcessPipe pipe({"curl", "-LfsS", "--max-time", "8", "-H",
+                      "Accept: application/json", std::string(url)});
+    if(!pipe)
+        return std::nullopt;
+    std::string output = pipe.readAll();
+    const int status = pipe.close();
+    if(status != 0 || output.empty())
+        return std::nullopt;
+    return output;
+}
+
+struct CompilerExplorerDoc
+{
+    std::string text;
+    std::string sourceUrl;
+};
+
+std::optional<CompilerExplorerDoc>
+parseCompilerExplorerDoc(std::string_view json)
+{
+    json_utils::Document doc;
+    if(!json_utils::parse(doc, json) || !doc.IsObject())
+        return std::nullopt;
+
+    std::string html = json_utils::get_string(doc, "html");
+    std::string tooltip = json_utils::get_string(doc, "tooltip");
+    std::string sourceUrl = json_utils::get_string(doc, "url");
+
+    std::string text = html.empty() ? tooltip : htmlToText(html);
+    if(text.empty())
+        text = htmlToText(tooltip);
+    if(text.empty())
+        return std::nullopt;
+
+    return CompilerExplorerDoc{std::move(text), std::move(sourceUrl)};
+}
+
+std::optional<CompilerExplorerDoc>
+fetchCompilerExplorerDoc(std::string_view arch, const DocEntry& doc)
+{
+    std::optional<std::string> response =
+        fetchJsonUrl(compilerExplorerApiUrl(arch, doc.mnemonic));
+    if(!response)
+        return std::nullopt;
+    return parseCompilerExplorerDoc(*response);
+}
+
 std::optional<fs::path>
 ensureFetchedDoc(std::string_view arch, const DocEntry& doc)
 {
@@ -697,6 +835,31 @@ ensureFetchedDoc(std::string_view arch, const DocEntry& doc)
     if(fs::exists(path, ec))
         return path;
 
+    if(std::optional<CompilerExplorerDoc> ce =
+           fetchCompilerExplorerDoc(arch, doc))
+    {
+        fs::create_directories(path.parent_path(), ec);
+        std::ofstream out(path);
+        if(out)
+        {
+            out << "## " << doc.mnemonic << "\n\n";
+            out << doc.summary << "\n\n";
+            out << "Fetched from Compiler Explorer asm docs API.\n\n";
+            out << "Compiler Explorer documentation:\n\n";
+            out << "```text\n";
+            out << wrapDocumentationText(ce->text) << "\n";
+            out << "```\n\n";
+            if(!ce->sourceUrl.empty())
+                out << "Source: " << ce->sourceUrl << "\n\n";
+            out << "API: " << compilerExplorerApiUrl(arch, doc.mnemonic)
+                << "\n";
+            return path;
+        }
+    }
+
+    path = fallbackFetchedDocsPath(arch, doc.mnemonic);
+    if(fs::exists(path, ec))
+        return path;
     std::optional<std::string> html = fetchUrl(doc.reference);
     if(!html)
         return std::nullopt;
@@ -713,9 +876,9 @@ ensureFetchedDoc(std::string_view arch, const DocEntry& doc)
     out << "## " << doc.mnemonic << "\n\n";
     out << doc.summary << "\n\n";
     out << "Source: " << doc.reference << "\n\n";
-    out << "Original documentation:\n\n";
+    out << "Source documentation fallback:\n\n";
     out << "```text\n";
-    out << original << "\n";
+    out << wrapDocumentationText(original) << "\n";
     out << "```\n";
     return path;
 }
