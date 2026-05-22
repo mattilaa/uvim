@@ -63,6 +63,51 @@ Install doxygen with your system package manager (e.g., `brew install doxygen`
 on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
 on Fedora).
 
+## Assembly instruction docs
+
+Assembly instruction `gd` support is controlled by the CMake option
+`UVIM_ENABLE_ASM_DOCS`. It is enabled by default.
+
+Build with the default:
+
+```sh
+cmake -S . -B build
+cmake --build build
+```
+
+Or enable it explicitly:
+
+```sh
+cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=ON
+cmake --build build
+```
+
+To disable it:
+
+```sh
+cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=OFF
+cmake --build build
+```
+
+Usage:
+
+- Open a `.s`, `.S`, `.asm`, or `.ASM` buffer.
+- Put the cursor on an instruction row, for example `movq %rdi, %rax` or
+  `ldr x0, [sp]`.
+- Press `gd`.
+- uvim opens a cached markdown instruction index and jumps to the matching
+  instruction section.
+
+The cache is written to `$XDG_CACHE_HOME/uvim/asm-docs` when `XDG_CACHE_HOME`
+is set, otherwise to `~/.cache/uvim/asm-docs`. You can override it with:
+
+```sh
+UVIM_ASM_DOCS_CACHE_DIR=/tmp/uvim-asm-docs uvim file.s
+```
+
+The cached docs are a compact local index with reference links for x86/x64 and
+AArch64 instructions, not a full offline copy of architecture manuals.
+
 ## LSP flags
 
 - `--clangd` enable clangd LSP

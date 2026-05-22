@@ -434,6 +434,57 @@ TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsDeclarationOnlyCppSource)
     EXPECT_TRUE(editor.isFileType<FileType::Asm>());
 }
 
+#ifdef UVIM_ENABLE_ASM_DOCS
+TEST(RealModeTransitionsTest, GdOnX86AssemblyInstructionOpensDocs)
+{
+    auto docsRoot = make_temp_dir("uvim_asm_docs_");
+    set_env_var("UVIM_ASM_DOCS_CACHE_DIR", docsRoot.string());
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    movq %rdi, %rax"};
+    set_buffer_filename(editor, "/tmp/uvim_asm_doc_test.s");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    editor.goToDefinition();
+
+    ASSERT_TRUE(editor.currentBuffer);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("x86.md")));
+    ASSERT_GE(*editor.cursorY, 0);
+    ASSERT_LT(*editor.cursorY, (int)editor.currentBuffer->lines.size());
+    EXPECT_EQ(editor.currentBuffer->lines[*editor.cursorY], "## mov");
+    EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("gd (asm x86)")));
+
+    unset_env_var("UVIM_ASM_DOCS_CACHE_DIR");
+}
+
+TEST(RealModeTransitionsTest, GdOnAarch64AssemblyInstructionOpensDocs)
+{
+    auto docsRoot = make_temp_dir("uvim_asm_docs_");
+    set_env_var("UVIM_ASM_DOCS_CACHE_DIR", docsRoot.string());
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    ldr x0, [sp]"};
+    set_buffer_filename(editor, "/tmp/uvim_asm_doc_test.s");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    editor.goToDefinition();
+
+    ASSERT_TRUE(editor.currentBuffer);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("aarch64.md")));
+    ASSERT_GE(*editor.cursorY, 0);
+    ASSERT_LT(*editor.cursorY, (int)editor.currentBuffer->lines.size());
+    EXPECT_EQ(editor.currentBuffer->lines[*editor.cursorY], "## ldr");
+    EXPECT_TRUE(
+        text_utils::is_found(editor.statusMessage.find("gd (asm aarch64)")));
+
+    unset_env_var("UVIM_ASM_DOCS_CACHE_DIR");
+}
+#endif
+
 TEST(RealModeTransitionsTest, GsShowsStructSizePopup)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)

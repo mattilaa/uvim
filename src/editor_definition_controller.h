@@ -33,6 +33,7 @@ private:
     bool goToPythonDefinition(const std::string& symbol);
     bool goToWebDefinition(FileType fileType, const std::string& symbol);
     bool goToMlangDefinition(const std::string& symbol);
+    bool goToAsmDefinition();
     bool goToCppDefinition(const std::string& symbol);
 
 #ifdef UVIM_ENABLE_CLANGD_LSP

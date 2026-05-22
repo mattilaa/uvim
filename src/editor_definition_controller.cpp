@@ -1,6 +1,7 @@
 #include "editor_definition_controller.h"
 
 #include "ascii.h"
+#include "asm_documentation.h"
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
 #include "stdlib_goto.h"
@@ -174,6 +175,40 @@ bool EditorDefinitionController::goToStdSymbol(const std::string& symbol)
     return true;
 }
 
+bool EditorDefinitionController::goToAsmDefinition()
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    editor.setStatusMessage("gd (asm): docs not compiled in");
+    return true;
+#else
+    if(!editor.lines || !editor.cursorY || *editor.cursorY < 0 ||
+       *editor.cursorY >= static_cast<int>(editor.lines->size()))
+    {
+        return false;
+    }
+
+    const std::string& line = (*editor.lines)[*editor.cursorY];
+    std::optional<asm_documentation::Location> loc =
+        asm_documentation::find(line, editor.cursorX ? *editor.cursorX : 0);
+    if(!loc)
+    {
+        editor.setStatusMessage("gd (asm): instruction not found");
+        return true;
+    }
+
+    editor.pushJumpLocation();
+    editor.openFile(loc->path);
+    *editor.cursorY = loc->line;
+    *editor.cursorX = 0;
+    clampCursor();
+    applyViewport();
+    const std::string gdArrow = ascii::utf8(ascii::RIGHT_ARROW_PADDED);
+    editor.setStatusMessage("gd (asm " + loc->arch + ")" + gdArrow +
+                            loc->mnemonic);
+    return true;
+#endif
+}
+
 void EditorDefinitionController::goToDefinition()
 {
     if(!editor.currentBuffer || !editor.lines || !editor.cursorY ||
@@ -186,6 +221,13 @@ void EditorDefinitionController::goToDefinition()
     if(goToInclude())
         return;
 
+    const std::optional<FileType> fileType = editor.getFileType();
+    if(fileType == FileType::Asm)
+    {
+        if(goToAsmDefinition())
+            return;
+    }
+
     std::string symbol = editor.getSymbolUnderCursor();
     if(symbol.empty())
     {
@@ -196,7 +238,6 @@ void EditorDefinitionController::goToDefinition()
     if(goToStdSymbol(symbol))
         return;
 
-    const std::optional<FileType> fileType = editor.getFileType();
     if(fileType == FileType::Robot)
     {
         if(goToRobotDefinition())

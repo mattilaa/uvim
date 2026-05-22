@@ -37,6 +37,7 @@ option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
 option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
+option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
 
 if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
@@ -56,6 +57,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 # Core editor sources
 set(UVIM_CORE_SOURCES
     src/main.cpp
+    src/asm_documentation.cpp
     src/terminal.cpp
     src/editor.cpp
     src/editor_buffer_controller.cpp
@@ -404,6 +406,10 @@ if(UVIM_DEBUG_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_DEBUG_LSP=1)
 endif()
 
+if(UVIM_ENABLE_ASM_DOCS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_ASM_DOCS=1)
+endif()
+
 # ============================================================================
 # Unit Tests
 # ============================================================================
@@ -500,6 +506,9 @@ if(UVIM_BUILD_TESTS)
         target_link_libraries(real_mode_transitions_tests PRIVATE
             Threads::Threads
         )
+    endif()
+    if(UVIM_ENABLE_ASM_DOCS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_ASM_DOCS=1)
     endif()
 
     include(GoogleTest)

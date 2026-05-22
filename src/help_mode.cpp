@@ -700,6 +700,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Uses clang for `.c` files and clang++ for other C/C++ files.",
             "  The generated `.s` buffer is not marked dirty.",
             "  Assembly mnemonics, directives, and registers are highlighted.",
+            "  With `UVIM_ENABLE_ASM_DOCS`, `gd` on an instruction opens a",
+            "  cached x86/x64 or AArch64 documentation index.",
         };
     }
     else if(topic_lower == "modes")
@@ -800,6 +802,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "CODE NAVIGATION:",
             "  `gd`       - Go to definition",
+            "               In `.s`/`.asm`, opens cached x86/x64 or AArch64 "
+            "instruction docs",
             "  `gr`       - Find references",
             "  `gf`       - Open file under cursor",
             "  `gs`       - Show C/C++ symbol size/member layout popup",
