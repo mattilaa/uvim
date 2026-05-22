@@ -701,7 +701,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  The generated `.s` buffer is not marked dirty.",
             "  Assembly mnemonics, directives, and registers are highlighted.",
             "  With `UVIM_ENABLE_ASM_DOCS`, `gd` on an instruction opens a",
-            "  cached x86/x64 or AArch64 documentation index.",
+            "  cached x86/x64 or AArch64 documentation index generated from",
+            "  text packed into the uvim binary.",
+            "  Run with `--asm-docs-fetch` to fetch original source docs",
+            "  into that cache on demand. Requires `curl` at runtime.",
         };
     }
     else if(topic_lower == "modes")

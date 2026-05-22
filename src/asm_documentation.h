@@ -15,4 +15,6 @@ struct Location
 };
 
 std::optional<Location> find(std::string_view line, int cursorX);
+void setFetchOriginalDocs(bool enabled);
+bool fetchOriginalDocs();
 }

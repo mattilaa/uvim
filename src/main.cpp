@@ -1,3 +1,4 @@
+#include "asm_documentation.h"
 #include "editor.h"
 #include "json_utils.h"
 #include "log.h"
@@ -795,6 +796,7 @@ constexpr std::string_view kLogColors = "--log-colors";
 constexpr std::string_view kLogDir = "--log-dir";
 constexpr std::string_view kEnableLog = "--enable-log";
 constexpr std::string_view kMlangLogLevel = "--log-level";
+constexpr std::string_view kAsmDocsFetch = "--asm-docs-fetch";
 
 struct HelpRow
 {
@@ -886,6 +888,10 @@ constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
     {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
 }};
 
+constexpr std::array<HelpRow, 1> kHelpAsmDocs = {{
+    {kAsmDocsFetch, "Fetch original asm instruction docs for gd cache"},
+}};
+
 struct Options
 {
     bool showHelp = false;
@@ -907,6 +913,7 @@ struct Options
     bool ccWindowsToWsl = false;
     bool useGitFileIndex = true;
     bool respectGitignore = true;
+    bool asmDocsFetch = false;
 
     std::string ccdir;
     std::string clangdPath = "clangd";
@@ -960,6 +967,7 @@ public:
         scan(kHelpTsLsp);
         scan(kHelpMlangLogging);
         scan(kHelpUvimLogging);
+        scan(kHelpAsmDocs);
 
         auto print_section = [&](std::string_view title, const auto& rows)
         {
@@ -985,6 +993,7 @@ public:
         print_section("TypeScript/JavaScript LSP:", kHelpTsLsp);
         print_section("mlangd-mla Logging:", kHelpMlangLogging);
         print_section("uvim Debug Logging:", kHelpUvimLogging);
+        print_section("Assembly docs:", kHelpAsmDocs);
     }
 
     static Options parse(int argc, char* argv[])
@@ -1175,6 +1184,10 @@ public:
                 else if(key == kNoGitignore)
                 {
                     opts.respectGitignore = false;
+                }
+                else if(key == kAsmDocsFetch)
+                {
+                    opts.asmDocsFetch = true;
                 }
                 else if(key == kLogFile)
                 {
@@ -1934,6 +1947,7 @@ int main(int argc, char* argv[])
     else
         configView = defaultConfig;
     std::string configPath = std::string(configView);
+    asm_documentation::setFetchOriginalDocs(opts.asmDocsFetch);
 
     // Create editor with flag indicating whether we have files to open
     Editor editor(!opts.args.empty(), configPath, opts.themePath);

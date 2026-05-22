@@ -89,6 +89,12 @@ cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=OFF
 cmake --build build
 ```
 
+Run uvim:
+
+```sh
+./build/uvim file.s
+```
+
 Usage:
 
 - Open a `.s`, `.S`, `.asm`, or `.ASM` buffer.
@@ -96,7 +102,18 @@ Usage:
   `ldr x0, [sp]`.
 - Press `gd`.
 - uvim opens a cached markdown instruction index and jumps to the matching
-  instruction section.
+  instruction section. The index is generated from documentation text packed
+  into the uvim binary, so this mode does not need network access.
+
+To additionally fetch and cache the original source documentation page for each
+instruction on first `gd`, run:
+
+```sh
+uvim --asm-docs-fetch file.s
+```
+
+This uses `curl` at runtime. If fetching fails or `curl` is not available, uvim
+falls back to the packed local documentation index.
 
 The cache is written to `$XDG_CACHE_HOME/uvim/asm-docs` when `XDG_CACHE_HOME`
 is set, otherwise to `~/.cache/uvim/asm-docs`. You can override it with:
@@ -105,8 +122,10 @@ is set, otherwise to `~/.cache/uvim/asm-docs`. You can override it with:
 UVIM_ASM_DOCS_CACHE_DIR=/tmp/uvim-asm-docs uvim file.s
 ```
 
-The cached docs are a compact local index with reference links for x86/x64 and
-AArch64 instructions, not a full offline copy of architecture manuals.
+The default cached docs are generated from packed uvim-owned documentation text
+with reference links for x86/x64 and AArch64 instructions. The
+`--asm-docs-fetch` mode stores fetched source pages separately under
+`asm-docs/fetched/`.
 
 ## LSP flags
 

@@ -1,12 +1,15 @@
 #include "asm_documentation.h"
 
+#include "process_pipe.h"
 #include "text_utils.h"
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -17,6 +20,8 @@ namespace asm_documentation
 {
 namespace
 {
+std::atomic_bool fetchOriginalDocsEnabled{false};
+
 struct DocEntry
 {
     std::string_view mnemonic;
@@ -360,6 +365,138 @@ fs::path cacheRoot()
     return fs::temp_directory_path() / "uvim" / "asm-docs";
 }
 
+std::string embeddedDetails(std::string_view arch, std::string_view mnemonic)
+{
+    if(arch == "x86")
+    {
+        if(mnemonic == "mov")
+            return "Copies the source operand into the destination operand. "
+                   "The source is not modified. Common AT&T forms from clang "
+                   "include `movq src, dst`, `movl src, dst`, and immediate "
+                   "moves such as `movl $1, %eax`.";
+        if(mnemonic == "lea")
+            return "Computes an address expression and writes the resulting "
+                   "integer address to the destination register. It does not "
+                   "load memory; it is often used for pointer arithmetic and "
+                   "some integer arithmetic.";
+        if(mnemonic == "add")
+            return "Adds the source operand to the destination operand and "
+                   "stores the result in the destination. Arithmetic flags are "
+                   "updated.";
+        if(mnemonic == "sub")
+            return "Subtracts the source operand from the destination operand "
+                   "and stores the result in the destination. Arithmetic flags "
+                   "are updated.";
+        if(mnemonic == "cmp")
+            return "Compares operands by subtracting the source from the "
+                   "destination for flags only. The operands are not modified; "
+                   "conditional jumps normally consume the resulting flags.";
+        if(mnemonic == "test")
+            return "Computes a bitwise AND for flags only. The operands are not "
+                   "modified. Commonly used to test whether a register is zero.";
+        if(mnemonic == "xor")
+            return "Bitwise exclusive OR. `xorl %eax, %eax` is a common "
+                   "zeroing idiom because writing a 32-bit register "
+                   "zero-extends to the full 64-bit register.";
+        if(mnemonic == "and")
+            return "Bitwise AND of source and destination, storing the result "
+                   "in the destination and updating flags.";
+        if(mnemonic == "or")
+            return "Bitwise OR of source and destination, storing the result in "
+                   "the destination and updating flags.";
+        if(mnemonic == "call")
+            return "Pushes the return address and branches to the target "
+                   "procedure. The target may be direct or indirect through a "
+                   "register or memory operand.";
+        if(mnemonic == "ret")
+            return "Returns from a procedure by popping the return address from "
+                   "the stack and branching to it.";
+        if(mnemonic == "push")
+            return "Decrements the stack pointer and stores the operand on the "
+                   "stack.";
+        if(mnemonic == "pop")
+            return "Loads a value from the top of the stack into the operand "
+                   "and increments the stack pointer.";
+        if(mnemonic == "jcc")
+            return "Conditional branch family such as `je`, `jne`, `jl`, and "
+                   "`jg`. The branch decision is based on status flags set by "
+                   "earlier instructions such as `cmp` or `test`.";
+        if(mnemonic == "jmp")
+            return "Unconditional branch to a direct label or an indirect "
+                   "register/memory target.";
+        if(mnemonic == "setcc")
+            return "Writes 0 or 1 to an 8-bit destination depending on a "
+                   "condition-code test of the current flags.";
+        if(mnemonic == "nop")
+            return "No operation. Commonly emitted for alignment or patchable "
+                   "instruction space.";
+    }
+    if(arch == "aarch64")
+    {
+        if(mnemonic == "mov")
+            return "Copies or materializes a value into a register. In AArch64 "
+                   "assembly this is often an alias for instructions such as "
+                   "`orr`, `movz`, `movn`, or `movk` depending on operands.";
+        if(mnemonic == "movz")
+            return "Moves a 16-bit immediate into a selected halfword of the "
+                   "destination register and zeros the other bits.";
+        if(mnemonic == "movk")
+            return "Moves a 16-bit immediate into a selected halfword of the "
+                   "destination register while keeping the other bits.";
+        if(mnemonic == "ldr")
+            return "Loads a register from memory. Common forms include base "
+                   "plus immediate addressing such as `ldr x0, [sp, #8]` and "
+                   "literal loads from PC-relative addresses.";
+        if(mnemonic == "str")
+            return "Stores a register to memory using forms such as base plus "
+                   "immediate addressing.";
+        if(mnemonic == "ldp")
+            return "Loads a pair of registers from adjacent memory locations. "
+                   "Often used in function epilogues to restore saved "
+                   "registers.";
+        if(mnemonic == "stp")
+            return "Stores a pair of registers to adjacent memory locations. "
+                   "Often used in function prologues to save registers.";
+        if(mnemonic == "add")
+            return "Adds operands and writes the result to the destination "
+                   "register. Immediate and shifted-register forms are common.";
+        if(mnemonic == "sub")
+            return "Subtracts operands and writes the result to the destination "
+                   "register. `subs` additionally updates condition flags.";
+        if(mnemonic == "cmp")
+            return "Comparison alias that subtracts for flags without keeping "
+                   "the result. Conditional branches or selects consume the "
+                   "flags.";
+        if(mnemonic == "b")
+            return "Unconditional or condition-suffixed branch. Forms such as "
+                   "`b.eq` and `b.ne` branch based on condition flags.";
+        if(mnemonic == "bl")
+            return "Branch with link. Stores the return address in `lr` and "
+                   "branches to the target function.";
+        if(mnemonic == "br")
+            return "Branches to the address held in a register.";
+        if(mnemonic == "ret")
+            return "Returns from a subroutine, normally by branching to the "
+                   "address in `lr`.";
+        if(mnemonic == "cbz")
+            return "Compare a register with zero and branch if it is zero. It "
+                   "does not update condition flags.";
+        if(mnemonic == "cbnz")
+            return "Compare a register with zero and branch if it is nonzero. "
+                   "It does not update condition flags.";
+        if(mnemonic == "csel")
+            return "Conditional select. Chooses between two source registers "
+                   "based on condition flags and writes the chosen value.";
+        if(mnemonic == "adr")
+            return "Computes a PC-relative address within a small range and "
+                   "writes it to a register.";
+        if(mnemonic == "adrp")
+            return "Computes the page address of a PC-relative symbol. Usually "
+                   "paired with an `add` or load/store instruction.";
+    }
+    return {};
+}
+
 int writeDocs(const fs::path& path, std::string_view title, const auto& docs)
 {
     std::error_code ec;
@@ -377,8 +514,14 @@ int writeDocs(const fs::path& path, std::string_view title, const auto& docs)
     {
         out << "## " << doc.mnemonic << "\n\n";
         out << doc.summary << "\n\n";
+        std::string details = embeddedDetails(
+            title == "x86/x64" ? std::string_view{"x86"}
+                               : std::string_view{"aarch64"},
+            doc.mnemonic);
+        if(!details.empty())
+            out << "Documentation: " << details << "\n\n";
         out << "Reference: " << doc.reference << "\n\n";
-        line += 5;
+        line += details.empty() ? 5 : 7;
     }
     return line;
 }
@@ -388,12 +531,209 @@ fs::path docsPath(std::string_view arch)
     return cacheRoot() / (std::string(arch) + ".md");
 }
 
+fs::path fetchedDocsPath(std::string_view arch, std::string_view mnemonic)
+{
+    return cacheRoot() / "fetched" / std::string(arch) /
+           (std::string(mnemonic) + ".md");
+}
+
+std::string decodeHtmlEntity(std::string_view entity)
+{
+    if(entity == "amp")
+        return "&";
+    if(entity == "lt")
+        return "<";
+    if(entity == "gt")
+        return ">";
+    if(entity == "quot")
+        return "\"";
+    if(entity == "apos" || entity == "#39")
+        return "'";
+    if(entity == "nbsp")
+        return " ";
+    return "&" + std::string(entity) + ";";
+}
+
+std::string htmlToText(std::string_view html)
+{
+    std::string text;
+    text.reserve(html.size() / 2);
+    bool inTag = false;
+    bool inScript = false;
+    bool inStyle = false;
+    std::string tag;
+
+    auto starts_case_insensitive = [](std::string_view value,
+                                      std::string_view prefix)
+    {
+        if(value.size() < prefix.size())
+            return false;
+        for(size_t i = 0; i < prefix.size(); ++i)
+        {
+            if(text_utils::ascii_tolower(value[i]) != prefix[i])
+                return false;
+        }
+        return true;
+    };
+
+    for(size_t i = 0; i < html.size(); ++i)
+    {
+        char ch = html[i];
+        if(inTag)
+        {
+            if(ch == '>')
+            {
+                std::string lowerTag = lower(tag);
+                if(starts_case_insensitive(lowerTag, "script"))
+                    inScript = true;
+                else if(starts_case_insensitive(lowerTag, "/script"))
+                    inScript = false;
+                else if(starts_case_insensitive(lowerTag, "style"))
+                    inStyle = true;
+                else if(starts_case_insensitive(lowerTag, "/style"))
+                    inStyle = false;
+                else if(!inScript && !inStyle &&
+                        (starts_case_insensitive(lowerTag, "br") ||
+                         starts_case_insensitive(lowerTag, "p") ||
+                         starts_case_insensitive(lowerTag, "/p") ||
+                         starts_case_insensitive(lowerTag, "div") ||
+                         starts_case_insensitive(lowerTag, "/div") ||
+                         starts_case_insensitive(lowerTag, "h") ||
+                         starts_case_insensitive(lowerTag, "/h") ||
+                         starts_case_insensitive(lowerTag, "li") ||
+                         starts_case_insensitive(lowerTag, "/tr")))
+                {
+                    if(!text.empty() && text.back() != '\n')
+                        text.push_back('\n');
+                }
+                tag.clear();
+                inTag = false;
+            }
+            else
+            {
+                tag.push_back(ch);
+            }
+            continue;
+        }
+
+        if(ch == '<')
+        {
+            inTag = true;
+            tag.clear();
+            continue;
+        }
+        if(inScript || inStyle)
+            continue;
+        if(ch == '&')
+        {
+            size_t semi = html.find(';', i + 1);
+            if(text_utils::is_found(semi) && semi - i <= 12)
+            {
+                text += decodeHtmlEntity(html.substr(i + 1, semi - i - 1));
+                i = semi;
+                continue;
+            }
+        }
+        text.push_back(ch == '\r' ? '\n' : ch);
+    }
+
+    std::string compact;
+    compact.reserve(text.size());
+    bool blankLine = false;
+    bool lineHasText = false;
+    for(char ch : text)
+    {
+        if(ch == '\n')
+        {
+            if(!lineHasText)
+            {
+                if(!blankLine && !compact.empty())
+                {
+                    compact.push_back('\n');
+                    blankLine = true;
+                }
+            }
+            else
+            {
+                compact.push_back('\n');
+                blankLine = false;
+            }
+            lineHasText = false;
+            continue;
+        }
+        if(text_utils::is_space(ch))
+        {
+            if(!compact.empty() && compact.back() != ' ' &&
+               compact.back() != '\n')
+                compact.push_back(' ');
+            continue;
+        }
+        compact.push_back(ch);
+        lineHasText = true;
+    }
+    while(!compact.empty() &&
+          (compact.back() == '\n' || compact.back() == ' '))
+        compact.pop_back();
+    return compact;
+}
+
+std::optional<std::string> fetchUrl(std::string_view url)
+{
+    ProcessPipe pipe({"curl", "-LfsS", "--max-time", "8", std::string(url)});
+    if(!pipe)
+        return std::nullopt;
+    std::string output = pipe.readAll();
+    const int status = pipe.close();
+    if(status != 0 || output.empty())
+        return std::nullopt;
+    return output;
+}
+
+std::optional<fs::path>
+ensureFetchedDoc(std::string_view arch, const DocEntry& doc)
+{
+    fs::path path = fetchedDocsPath(arch, doc.mnemonic);
+    std::error_code ec;
+    if(fs::exists(path, ec))
+        return path;
+
+    std::optional<std::string> html = fetchUrl(doc.reference);
+    if(!html)
+        return std::nullopt;
+
+    std::string original = htmlToText(*html);
+    if(original.empty())
+        return std::nullopt;
+
+    fs::create_directories(path.parent_path(), ec);
+    std::ofstream out(path);
+    if(!out)
+        return std::nullopt;
+
+    out << "## " << doc.mnemonic << "\n\n";
+    out << doc.summary << "\n\n";
+    out << "Source: " << doc.reference << "\n\n";
+    out << "Original documentation:\n\n";
+    out << "```text\n";
+    out << original << "\n";
+    out << "```\n";
+    return path;
+}
+
 int ensureDocs(std::string_view arch, const auto& docs,
                std::string_view mnemonic)
 {
     fs::path path = docsPath(arch);
     std::error_code ec;
-    if(!fs::exists(path, ec))
+    bool needsWrite = !fs::exists(path, ec);
+    if(!needsWrite)
+    {
+        std::ifstream existing(path);
+        std::string contents((std::istreambuf_iterator<char>(existing)),
+                             std::istreambuf_iterator<char>());
+        needsWrite = text_utils::is_not_found(contents.find("Documentation:"));
+    }
+    if(needsWrite)
         writeDocs(path, arch == "x86" ? "x86/x64" : "AArch64", docs);
 
     std::ifstream in(path);
@@ -411,6 +751,21 @@ int ensureDocs(std::string_view arch, const auto& docs,
     return -1;
 }
 } // namespace
+
+void setFetchOriginalDocs(bool enabled)
+{
+    fetchOriginalDocsEnabled.store(enabled);
+}
+
+bool fetchOriginalDocs()
+{
+    if(fetchOriginalDocsEnabled.load())
+        return true;
+    if(const char* env = std::getenv("UVIM_ASM_DOCS_FETCH"))
+        return std::string_view(env) == "1" || std::string_view(env) == "true" ||
+               std::string_view(env) == "TRUE" || std::string_view(env) == "yes";
+    return false;
+}
 
 std::optional<Location> find(std::string_view line, int)
 {
@@ -432,6 +787,17 @@ std::optional<Location> find(std::string_view line, int)
     const bool chooseArm = hasArm && (!hasX86 || lineLooksAarch64(line));
     const std::string_view arch = chooseArm ? "aarch64" : "x86";
     const std::string& mnemonic = chooseArm ? arm : x86;
+    std::optional<DocEntry> doc =
+        chooseArm ? lookup(aarch64Docs, mnemonic) : lookup(x86Docs, mnemonic);
+    if(fetchOriginalDocs() && doc)
+    {
+        if(std::optional<fs::path> fetched = ensureFetchedDoc(arch, *doc))
+        {
+            return Location{fetched->string(), 0, mnemonic,
+                            std::string(arch)};
+        }
+    }
+
     const int lineNo =
         chooseArm ? ensureDocs(arch, aarch64Docs, mnemonic)
                   : ensureDocs(arch, x86Docs, mnemonic);

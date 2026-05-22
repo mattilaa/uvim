@@ -1,3 +1,4 @@
+#include "asm_documentation.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -454,6 +455,14 @@ TEST(RealModeTransitionsTest, GdOnX86AssemblyInstructionOpensDocs)
     ASSERT_GE(*editor.cursorY, 0);
     ASSERT_LT(*editor.cursorY, (int)editor.currentBuffer->lines.size());
     EXPECT_EQ(editor.currentBuffer->lines[*editor.cursorY], "## mov");
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(
+        output.find("Documentation: Copies the source operand")));
     EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("gd (asm x86)")));
 
     unset_env_var("UVIM_ASM_DOCS_CACHE_DIR");
@@ -482,6 +491,60 @@ TEST(RealModeTransitionsTest, GdOnAarch64AssemblyInstructionOpensDocs)
         text_utils::is_found(editor.statusMessage.find("gd (asm aarch64)")));
 
     unset_env_var("UVIM_ASM_DOCS_CACHE_DIR");
+}
+
+TEST(RealModeTransitionsTest, GdOnAssemblyInstructionCanFetchOriginalDocs)
+{
+#ifdef _WIN32
+    GTEST_SKIP() << "fake curl PATH test is POSIX-only";
+#else
+    auto root = make_temp_dir("uvim_asm_docs_fetch_");
+    auto docsRoot = root / "cache";
+    auto binDir = root / "bin";
+    std::filesystem::create_directories(binDir);
+    auto curlPath = binDir / "curl";
+    write_file(curlPath,
+               "#!/bin/sh\n"
+               "printf '%s\\n' '<html><body><h1>MOV</h1><p>Original move "
+               "documentation.</p></body></html>'\n");
+    std::filesystem::permissions(
+        curlPath,
+        std::filesystem::perms::owner_exec |
+            std::filesystem::perms::owner_read |
+            std::filesystem::perms::owner_write,
+        std::filesystem::perm_options::add);
+
+    const char* oldPathEnv = std::getenv("PATH");
+    std::string oldPath = oldPathEnv ? oldPathEnv : "";
+    set_env_var("PATH", binDir.string() + ":" + oldPath);
+    set_env_var("UVIM_ASM_DOCS_CACHE_DIR", docsRoot.string());
+    asm_documentation::setFetchOriginalDocs(true);
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"    movq %rdi, %rax"};
+    set_buffer_filename(editor, "/tmp/uvim_asm_doc_fetch_test.s");
+    *editor.cursorY = 0;
+    *editor.cursorX = 4;
+    editor.goToDefinition();
+
+    ASSERT_TRUE(editor.currentBuffer);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("fetched/x86/mov.md")));
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(output.find("Original documentation:")));
+    EXPECT_TRUE(
+        text_utils::is_found(output.find("Original move documentation.")));
+
+    asm_documentation::setFetchOriginalDocs(false);
+    set_env_var("PATH", oldPath);
+    unset_env_var("UVIM_ASM_DOCS_CACHE_DIR");
+#endif
 }
 #endif
 
