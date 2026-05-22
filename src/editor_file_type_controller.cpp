@@ -88,6 +88,10 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
         FileType::Mla,
         constants::is_filetype<constants::no_pattern, constants::mla_suffixes>(
             pathSv));
+    set_if(
+        FileType::Asm,
+        constants::is_filetype<constants::no_pattern, constants::asm_suffixes>(
+            pathSv));
     set_if(FileType::Robot,
            constants::is_filetype<constants::no_pattern,
                                   constants::robot_suffixes>(pathSv));

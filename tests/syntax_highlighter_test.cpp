@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "syntax_highlighter.h"
 #include "text_utils.h"
 #include "widgets/completion_popup.h"
 #include <chrono>
@@ -96,6 +97,27 @@ TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
 
     const std::string memberColor = editor.theme.syntax(TOKEN_MEMBER);
     EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.s";
+
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    bool inMarkupFence = false;
+    char tomlQuote = 0;
+    char markupFenceChar = 0;
+    const std::string line = "movq %rdi, %rax";
+    const auto tokens = editor.syntaxHighlighter->tokenizeLine(
+        line, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 4, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, 6, 3, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(tokens, 12, 3, TOKEN_TYPE));
 }
 
 TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)

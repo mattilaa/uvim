@@ -1,5 +1,5 @@
-#include "ascii.h"
 #include "widgets/command_popup.h"
+#include "ascii.h"
 
 #include "terminal.h"
 #include "text_utils.h"
@@ -64,6 +64,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Clear search highlights";
     if(cmd == "lspinfo")
         return "Show LSP status and clients";
+    if(cmd == "emitasm")
+        return "Emit assembly for current C/C++ buffer";
     if(cmd == "emoji" || cmd == "em")
         return "Open emoji picker";
     if(cmd == "help" || cmd == "h")
@@ -122,8 +124,7 @@ static std::string format_command_line(std::string_view cmd, int cmdColWidth)
 
 static void build_command_line_parts(std::string_view cmdText, int cmdColWidth,
                                      int innerW, std::string& cmdPart,
-                                     std::string& gapPart,
-                                     std::string& docPart)
+                                     std::string& gapPart, std::string& docPart)
 {
     cmdPart.assign(cmdText.data(), cmdText.size());
     gapPart.clear();

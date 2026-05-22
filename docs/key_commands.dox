@@ -86,6 +86,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:` : enter command mode
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
+- `:emitasm [flags]` : emit current C/C++ buffer assembly into a `.s` buffer
 
 \section keys_file_browser File browser
 - `j/k` or arrows : move

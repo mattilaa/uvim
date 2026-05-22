@@ -337,6 +337,73 @@ TEST(RealModeTransitionsTest, MarkJumpReopensMarkedFile)
     EXPECT_EQ(*editor.cursorX, 3);
 }
 
+TEST(RealModeTransitionsTest, EmitAsmCommandCreatesAssemblyBufferWithFlags)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"#ifndef __OPTIMIZE__",
+                                   "#error expected optimization",
+                                   "#endif",
+                                   "int square(int value)",
+                                   "{",
+                                   "    return value * value;",
+                                   "}"};
+    set_buffer_filename(editor, "/tmp/uvim_emit_asm_test.cpp");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "emitasm -O2");
+
+    ASSERT_TRUE(editor.currentBuffer);
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("uvim_emit_asm_test.cpp.s")));
+    EXPECT_FALSE(editor.currentBuffer->dirty);
+    EXPECT_TRUE(editor.isFileType<FileType::Asm>());
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(output.find("square")));
+    EXPECT_EQ(editor.statusMessage, "emitasm: wrote assembly buffer");
+}
+
+TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsHeaderTypes)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"#include <string>",
+                                   "struct HeaderType",
+                                   "{",
+                                   "    HeaderType() : value(\"ok\") {}",
+                                   "    std::string value;",
+                                   "};"};
+    set_buffer_filename(editor, "/tmp/uvim_emit_asm_header_test.h");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "emitasm -O2");
+
+    ASSERT_TRUE(editor.currentBuffer);
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(output.find("uvim_emit_asm_anchor")));
+    EXPECT_TRUE(text_utils::is_found(output.find("__TEXT,__text")) ||
+                text_utils::is_found(output.find(".text")));
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("uvim_emit_asm_header_test.h.s")));
+    EXPECT_TRUE(editor.isFileType<FileType::Asm>());
+}
+
 TEST(RealModeTransitionsTest, GsShowsStructSizePopup)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)

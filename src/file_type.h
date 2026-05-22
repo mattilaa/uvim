@@ -18,4 +18,5 @@ enum class FileType
     Rdoc,
     CMake,
     Shell,
+    Asm,
 };

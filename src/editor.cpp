@@ -849,6 +849,10 @@ std::optional<FileType> Editor::getFileType() const
     {
         return FileType::Mla;
     }
+    else if(isFileType<FileType::Asm>())
+    {
+        return FileType::Asm;
+    }
     else if(isFileType<FileType::Robot>())
     {
         return FileType::Robot;

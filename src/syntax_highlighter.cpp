@@ -67,6 +67,93 @@ std::string ascii_lower(std::string_view value)
     return out;
 }
 
+bool is_asm_keyword(std::string_view word)
+{
+    static constexpr std::array keywords = {
+        "add",     "addb",   "addl",   "addq",  "addw",   "and",    "andb",
+        "andl",    "andq",   "andw",   "call",  "callq",  "cmp",    "cmpb",
+        "cmpl",    "cmpq",   "cmpw",   "dec",   "decl",   "decq",   "div",
+        "idiv",    "imul",   "inc",    "incl",  "incq",   "ja",     "jae",
+        "jb",      "jbe",    "je",     "jg",    "jge",    "jl",     "jle",
+        "jmp",     "jne",    "jno",    "jnp",   "jns",    "jo",     "jp",
+        "js",      "lea",    "leal",   "leaq",  "leave",  "leaveq", "mov",
+        "movabsq", "movb",   "movl",   "movq",  "movsbl", "movslq", "movswl",
+        "movw",    "movzbl", "movzwl", "mul",   "neg",    "negl",   "negq",
+        "nop",     "not",    "or",     "orb",   "orl",    "orq",    "orw",
+        "pop",     "popq",   "push",   "pushq", "ret",    "retq",   "sal",
+        "sall",    "salq",   "sar",    "sarl",  "sarq",   "sete",   "setg",
+        "setge",   "setl",   "setle",  "setne", "shl",    "shll",   "shlq",
+        "shr",     "shrl",   "shrq",   "sub",   "subb",   "subl",   "subq",
+        "subw",    "test",   "testb",  "testl", "testq",  "testw",  "xor",
+        "xorb",    "xorl",   "xorq"};
+
+    static constexpr std::array directives = {"align",
+                                              "ascii",
+                                              "asciz",
+                                              "balign",
+                                              "byte",
+                                              "cfi_def_cfa",
+                                              "cfi_endproc",
+                                              "cfi_offset",
+                                              "cfi_startproc",
+                                              "comm",
+                                              "data",
+                                              "file",
+                                              "globl",
+                                              "hidden",
+                                              "ident",
+                                              "long",
+                                              "p2align",
+                                              "quad",
+                                              "section",
+                                              "set",
+                                              "short",
+                                              "size",
+                                              "text",
+                                              "type",
+                                              "value",
+                                              "weak",
+                                              "word",
+                                              "zerofill",
+                                              "loc",
+                                              "loc_mark_labels",
+                                              "subsections_via_symbols",
+                                              "private_extern",
+                                              "build_version"};
+
+    const std::string lower = ascii_lower(word);
+    return std::find(keywords.begin(), keywords.end(),
+                     std::string_view(lower)) != keywords.end() ||
+           std::find(directives.begin(), directives.end(),
+                     std::string_view(lower)) != directives.end();
+}
+
+bool is_asm_register(std::string_view word)
+{
+    static constexpr std::array registers = {
+        "ah",   "al",   "ax",   "bh",   "bl",   "bp",   "bpl",  "bx",   "ch",
+        "cl",   "cx",   "dh",   "di",   "dil",  "dl",   "dx",   "eax",  "ebp",
+        "ebx",  "ecx",  "edi",  "edx",  "eip",  "esi",  "esp",  "ip",   "r10",
+        "r10b", "r10d", "r10w", "r11",  "r11b", "r11d", "r11w", "r12",  "r12b",
+        "r12d", "r12w", "r13",  "r13b", "r13d", "r13w", "r14",  "r14b", "r14d",
+        "r14w", "r15",  "r15b", "r15d", "r15w", "r8"};
+
+    static constexpr std::array moreRegisters = {
+        "r8b", "r8d", "r8w", "r9",  "r9b",  "r9d",  "r9w",  "rax",
+        "rbp", "rbx", "rcx", "rdi", "rdx",  "rip",  "rsi",  "rsp",
+        "si",  "sil", "sp",  "spl", "xmm0", "xmm1", "xmm2", "xmm3"};
+
+    const std::string lower = ascii_lower(word);
+    const std::string_view view(lower);
+    return std::find(registers.begin(), registers.end(), view) !=
+               registers.end() ||
+           std::find(moreRegisters.begin(), moreRegisters.end(), view) !=
+               moreRegisters.end() ||
+           (view.size() >= 4 && view.starts_with("xmm") &&
+            std::all_of(view.begin() + 3, view.end(),
+                        [](char ch) { return text_utils::is_digit(ch); }));
+}
+
 std::vector<std::filesystem::path> default_mlang_stdlib_paths()
 {
     std::vector<std::filesystem::path> paths;
@@ -3030,6 +3117,19 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     continue;
                 }
                 if(is_js_type(word))
+                {
+                    push_token(TOKEN_TYPE, start, i - start);
+                    continue;
+                }
+            }
+            if(isFileType<FileType::Asm>())
+            {
+                if(is_asm_keyword(word))
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    continue;
+                }
+                if(is_asm_register(word))
                 {
                     push_token(TOKEN_TYPE, start, i - start);
                     continue;

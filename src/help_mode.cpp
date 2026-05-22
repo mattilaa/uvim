@@ -376,6 +376,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help clipboard`   - Clipboard operations",
             "  `:help git`         - Git integrations",
             "  `:help gs`          - C/C++ symbol size popup",
+            "  `:help emitasm`     - Emit C/C++ assembly",
             "  `:help lsp`         - LSP setup and troubleshooting",
             "  `:help diagnostics` - Diagnostic env vars",
             "",
@@ -413,6 +414,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:qa`             - Quit all buffers",
             "  `:qa!`            - Force quit all",
             "  `:wqa` or `:xa`   - Write all and quit",
+            "",
+            "C/C++:",
+            "  `:emitasm [flags]` - Emit current buffer assembly into .s "
+            "buffer",
+            "                       Example: `:emitasm -O2`",
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",
@@ -675,6 +681,25 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Notes:",
             "  Requires C/C++ file type and clang/clang++ for probing.",
             "  Local quoted includes are scanned for nested struct bodies.",
+        };
+    }
+    else if(topic_lower == "emitasm")
+    {
+        lines = {
+            "# :emitasm",
+            "",
+            "`:emitasm` emits assembly for the current C/C++ buffer into a",
+            "new `.s` buffer. The command uses the current in-memory buffer,",
+            "so unsaved edits are included.",
+            "",
+            "Usage:",
+            "  `:emitasm`     - Emit assembly with default clang flags",
+            "  `:emitasm -O2` - Pass compiler flags before emitting assembly",
+            "",
+            "Notes:",
+            "  Uses clang for `.c` files and clang++ for other C/C++ files.",
+            "  The generated `.s` buffer is not marked dirty.",
+            "  Assembly mnemonics, directives, and registers are highlighted.",
         };
     }
     else if(topic_lower == "modes")
@@ -1207,6 +1232,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help gj`",
             "  `:help gbv`",
             "  `:help gs`",
+            "  `:help emitasm`",
             "  `:help lsp`",
             "  `:help diagnostics`",
             "",

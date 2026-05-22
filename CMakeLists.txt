@@ -72,6 +72,7 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_command_helpers.cpp
     src/editor_execution_commands.cpp
     src/editor_execution_edit_command.cpp
+    src/editor_execution_emit_asm_command.cpp
     src/editor_execution_emoji_command.cpp
     src/editor_execution_explore_command.cpp
     src/editor_execution_format_command.cpp
