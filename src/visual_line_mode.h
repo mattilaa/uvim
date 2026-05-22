@@ -1,5 +1,6 @@
 #pragma once
 
+#include "comment_leader_pending.h"
 #include "file_entry.h"
 #include "mode.h"
 #include "mode_commands.h"
@@ -31,5 +32,8 @@ struct VisualLineMode
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, int key);
+
+private:
+    std::optional<CommentLeaderPendingMachine> commentLeaderPending;
 };
 } // namespace editor::statemachine

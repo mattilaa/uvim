@@ -196,6 +196,15 @@ set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
     src/mode_context.cpp
     src/command_prompt.cpp
+    src/comment_leader_pending.cpp
+    src/comment_leader_pending_actions.cpp
+    src/comment_leader_after_c.cpp
+    src/comment_leader_after_ci.cpp
+    src/comment_leader_after_ci_applied.cpp
+    src/comment_leader_after_cii.cpp
+    src/comment_leader_after_cii_applied.cpp
+    src/comment_leader_after_cii_awaiting_suffix.cpp
+    src/visual_text_object_pending.cpp
     src/normal_mode.cpp
     src/replace_mode.cpp
     src/welcome_mode.cpp

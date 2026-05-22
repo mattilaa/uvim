@@ -1954,6 +1954,26 @@ void Editor::commentLines(int startY, int endY)
     indentController->commentLines(startY, endY);
 }
 
+void Editor::commentBlock(int startY, int endY)
+{
+    indentController->commentBlock(startY, endY);
+}
+
+void Editor::commentBlockRange(int startY, int startX, int endY, int endX)
+{
+    indentController->commentBlockRange(startY, startX, endY, endX);
+}
+
+bool Editor::insertTodoLineComment(int row)
+{
+    return indentController->insertTodoLineComment(row);
+}
+
+bool Editor::insertTodoBlockComment(int row)
+{
+    return indentController->insertTodoBlockComment(row);
+}
+
 void Editor::syncClangdDiagnosticsIfNeeded(bool force)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP

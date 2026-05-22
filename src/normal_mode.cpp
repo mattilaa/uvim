@@ -17,6 +17,7 @@ void NormalMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
     ctx.repeatCount = 0;
     ctx.commandBuffer.clear();
+    commentLeaderPending.reset();
     ctx.pendingOperator = 0;
     ctx.pendingAwaitingObject = false;
     ctx.pendingObjectType = 0;
@@ -34,7 +35,7 @@ void NormalMode::on_enter(ModeContext& ctx)
 
 void NormalMode::on_exit(ModeContext& /* ctx */)
 {
-    // Nothing specific to do on exit
+    commentLeaderPending.reset();
 }
 
 std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
@@ -46,6 +47,14 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
     {
         ctx.repeatCount = 0;
         return std::nullopt;
+    }
+
+    if(commentLeaderPending)
+    {
+        std::optional<ModeState> result = commentLeaderPending->handle(ctx, c);
+        if(commentLeaderPending->done())
+            commentLeaderPending.reset();
+        return result;
     }
 
     if(c == keyCode(control::ControlKey::PASTE))
@@ -1122,6 +1131,15 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
                 return ReferencesMode{};
             }
         }
+        return std::nullopt;
+    }
+
+    case keyCode(typed::TypedKey::KEY_C):
+    {
+        commentLeaderPending.emplace(CommentLeaderOrigin::Normal);
+        ctx.commandBuffer = " c";
+        ctx.setStatusMessage("Leader-c");
+        ctx.repeatCount = 0;
         return std::nullopt;
     }
 

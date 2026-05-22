@@ -1,11 +1,13 @@
 #pragma once
 
+#include "comment_leader_pending.h"
 #include "file_entry.h"
 #include "mode.h"
 #include "mode_commands.h"
 #include "mode_context.h"
 #include "mode_state.h"
 #include "search_types.h"
+#include "visual_text_object_pending.h"
 
 #include <chrono>
 #include <ctime>
@@ -31,5 +33,9 @@ struct VisualMode
     void on_exit(ModeContext& ctx);
 
     std::optional<ModeState> handle(ModeContext& ctx, int key);
+
+private:
+    std::optional<CommentLeaderPendingMachine> commentLeaderPending;
+    std::optional<VisualTextObjectPendingMachine> textObjectPending;
 };
 } // namespace editor::statemachine
