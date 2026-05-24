@@ -181,6 +181,13 @@ void Editor::saveState()
         }
     }
 
+    if(currentBuffer->undoIndex == 0 && currentBuffer->undoStack.size() == 1 &&
+       currentBuffer->savedUndoIndex == 0)
+    {
+        currentBuffer->undoStack[0].cursorX = state.cursorX;
+        currentBuffer->undoStack[0].cursorY = state.cursorY;
+    }
+
     currentBuffer->undoStack.push_back(state);
     currentBuffer->undoIndex++;
     currentBuffer->lspSyncNeeded = true;

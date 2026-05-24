@@ -431,6 +431,29 @@ TEST(RealModeTransitionsTest, VisualLineMoveCanUndoAndRedo)
               (std::vector<std::string>{"a", "d", "b", "c"}));
 }
 
+TEST(RealModeTransitionsTest, UndoToOldestChangeKeepsFirstEditedLine)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one", "two", "three", "four"};
+    set_buffer_filename(editor, "/tmp/uvim_undo_oldest_cursor_test.cpp");
+    *editor.cursorY = 0;
+    *editor.cursorX = 0;
+    editor.saveState();
+    editor.currentBuffer->savedUndoIndex = editor.currentBuffer->undoIndex;
+
+    *editor.cursorY = 2;
+    *editor.cursorX = 1;
+    editor.currentBuffer->lines[2] = "changed";
+    editor.saveState();
+
+    editor.undo();
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"one", "two", "three", "four"}));
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_EQ(*editor.cursorX, 1);
+}
+
 TEST(RealModeTransitionsTest, EmitAsmCommandCreatesAssemblyBufferWithFlags)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)

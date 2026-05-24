@@ -827,6 +827,11 @@ bool Editor::moveLineBlock(int startY, int endY, int delta)
     if(delta > 0 && endY >= (int)lines->size() - 1)
         return false;
 
+    const bool firstContentChange =
+        currentBuffer->undoIndex == 0 && currentBuffer->undoStack.size() == 1;
+    const int originalCursorX = *cursorX;
+    const int originalCursorY = *cursorY;
+
     auto moveRange = [&](auto& values)
     {
         if(delta < 0)
@@ -858,6 +863,11 @@ bool Editor::moveLineBlock(int startY, int endY, int delta)
     currentBuffer->lspSyncNeeded = true;
     currentBuffer->blameValid = false;
     saveState();
+    if(firstContentChange && !currentBuffer->undoStack.empty())
+    {
+        currentBuffer->undoStack[0].cursorX = originalCursorX;
+        currentBuffer->undoStack[0].cursorY = originalCursorY;
+    }
     adjustViewport();
     needsFullRedraw = true;
     return true;
