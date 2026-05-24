@@ -5,6 +5,7 @@
 #include "key_enums.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include <algorithm>
 
 EditorEditingController::EditorEditingController(Editor& editor)
     : editor(editor)
@@ -807,6 +808,59 @@ void Editor::commitChangeRecordingImpl()
     deferChangeCommit = false;
     pendingChangeKeys.clear();
     pendingChangeCount = 1;
+}
+
+bool Editor::moveLineBlock(int startY, int endY, int delta)
+{
+    if(!currentBuffer || !lines || !cursorY || !cursorX || lines->empty())
+        return false;
+    if(delta != -1 && delta != 1)
+        return false;
+
+    if(startY > endY)
+        std::swap(startY, endY);
+    startY = std::clamp(startY, 0, (int)lines->size() - 1);
+    endY = std::clamp(endY, 0, (int)lines->size() - 1);
+
+    if(delta < 0 && startY == 0)
+        return false;
+    if(delta > 0 && endY >= (int)lines->size() - 1)
+        return false;
+
+    auto moveRange = [&](auto& values)
+    {
+        if(delta < 0)
+        {
+            std::rotate(values.begin() + startY - 1, values.begin() + startY,
+                        values.begin() + endY + 1);
+        }
+        else
+        {
+            std::rotate(values.begin() + startY, values.begin() + endY + 1,
+                        values.begin() + endY + 2);
+        }
+    };
+
+    moveRange(*lines);
+    if(currentBuffer->blameEntries.size() == lines->size())
+        moveRange(currentBuffer->blameEntries);
+
+    if(*cursorY >= startY && *cursorY <= endY)
+        *cursorY += delta;
+    else if(delta < 0 && *cursorY == startY - 1)
+        *cursorY = endY;
+    else if(delta > 0 && *cursorY == endY + 1)
+        *cursorY = startY;
+
+    *cursorY = std::clamp(*cursorY, 0, (int)lines->size() - 1);
+    *cursorX = std::clamp(*cursorX, 0, (int)(*lines)[*cursorY].size());
+    *dirty = true;
+    currentBuffer->lspSyncNeeded = true;
+    currentBuffer->blameValid = false;
+    saveState();
+    adjustViewport();
+    needsFullRedraw = true;
+    return true;
 }
 
 void Editor::cancelChangeRecordingImpl()

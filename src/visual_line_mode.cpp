@@ -227,6 +227,30 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx, int key)
     bool didMove = false;
     switch(c)
     {
+    case keyCode(control::ControlKey::CTRL_J):
+    case keyCode(control::ControlKey::CTRL_K):
+    {
+        const int direction =
+            c == keyCode(control::ControlKey::CTRL_J) ? 1 : -1;
+        for(int i = 0; i < count; ++i)
+        {
+            const int startLine = std::min(ed->currentBuffer->visualStartY,
+                                           ed->currentBuffer->visualEndY);
+            const int endLine = std::max(ed->currentBuffer->visualStartY,
+                                         ed->currentBuffer->visualEndY);
+            if(!ed->moveLineBlock(startLine, endLine, direction))
+                break;
+            ed->currentBuffer->visualStartY += direction;
+            ed->currentBuffer->visualEndY += direction;
+            ed->currentBuffer->visualStartY = std::clamp(
+                ed->currentBuffer->visualStartY, 0, (int)ed->lines->size() - 1);
+            ed->currentBuffer->visualEndY = std::clamp(
+                ed->currentBuffer->visualEndY, 0, (int)ed->lines->size() - 1);
+        }
+        ctx.repeatCount = 0;
+        ed->needsFullRedraw = true;
+        return std::nullopt;
+    }
     case keyCode(typed::TypedKey::KEY_J):
     case keyCode(navigation::NavigationKey::ARROW_DOWN):
         ed->moveDown(count);

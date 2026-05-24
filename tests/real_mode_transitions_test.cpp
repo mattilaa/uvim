@@ -338,6 +338,99 @@ TEST(RealModeTransitionsTest, MarkJumpReopensMarkedFile)
     EXPECT_EQ(*editor.cursorX, 3);
 }
 
+TEST(RealModeTransitionsTest, NormalCtrlJAndCtrlKMoveCurrentLineWithUndoRedo)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one", "two", "three"};
+    set_buffer_filename(editor, "/tmp/uvim_move_line_test.cpp");
+    *editor.cursorY = 1;
+    *editor.cursorX = 1;
+    editor.saveState();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"one", "three", "two"}));
+    EXPECT_EQ(*editor.cursorY, 2);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_U));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"one", "two", "three"}));
+    EXPECT_EQ(*editor.cursorY, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_R));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"one", "three", "two"}));
+    EXPECT_EQ(*editor.cursorY, 2);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"one", "two", "three"}));
+    EXPECT_EQ(*editor.cursorY, 1);
+}
+
+TEST(RealModeTransitionsTest, VisualLineCtrlJAndCtrlKMoveSelection)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"a", "b", "c", "d", "e"};
+    set_buffer_filename(editor, "/tmp/uvim_move_visual_line_test.cpp");
+    *editor.cursorY = 1;
+    *editor.cursorX = 0;
+    editor.saveState();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_V));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    ASSERT_STREQ(sm.currentStateName(), "VISUAL LINE");
+    ASSERT_EQ(editor.currentBuffer->visualStartY, 1);
+    ASSERT_EQ(editor.currentBuffer->visualEndY, 2);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"a", "d", "b", "c", "e"}));
+    EXPECT_EQ(editor.currentBuffer->visualStartY, 2);
+    EXPECT_EQ(editor.currentBuffer->visualEndY, 3);
+    EXPECT_EQ(*editor.cursorY, 3);
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL LINE");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"a", "b", "c", "d", "e"}));
+    EXPECT_EQ(editor.currentBuffer->visualStartY, 1);
+    EXPECT_EQ(editor.currentBuffer->visualEndY, 2);
+    EXPECT_EQ(*editor.cursorY, 2);
+    EXPECT_STREQ(sm.currentStateName(), "VISUAL LINE");
+}
+
+TEST(RealModeTransitionsTest, VisualLineMoveCanUndoAndRedo)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"a", "b", "c", "d"};
+    set_buffer_filename(editor, "/tmp/uvim_move_visual_line_undo_test.cpp");
+    *editor.cursorY = 1;
+    *editor.cursorX = 0;
+    editor.saveState();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_V));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"a", "d", "b", "c"}));
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_U));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"a", "b", "c", "d"}));
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_R));
+    EXPECT_EQ(editor.currentBuffer->lines,
+              (std::vector<std::string>{"a", "d", "b", "c"}));
+}
+
 TEST(RealModeTransitionsTest, EmitAsmCommandCreatesAssemblyBufferWithFlags)
 {
     if(std::system("clang++ --version >/dev/null 2>&1") != 0)

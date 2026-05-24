@@ -775,6 +775,7 @@ public:
     void insertTab();
     void toggleCase();
     void joinLines();
+    bool moveLineBlock(int startY, int endY, int delta);
     void insertLineAbove(); // Alias for insertNewlineAbove + position
     void insertLineBelow(); // Alias for insertNewlineBelow + position
     void deleteCurrentLine();

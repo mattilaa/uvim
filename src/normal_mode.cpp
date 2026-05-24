@@ -341,6 +341,20 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx, int key)
         return std::nullopt;
     }
 
+    if(c == keyCode(control::ControlKey::CTRL_J) ||
+       c == keyCode(control::ControlKey::CTRL_K))
+    {
+        const int direction =
+            c == keyCode(control::ControlKey::CTRL_J) ? 1 : -1;
+        for(int i = 0; i < count; ++i)
+        {
+            if(!ed->moveLineBlock(ctx.cursorY(), ctx.cursorY(), direction))
+                break;
+        }
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     if(ed->splitActive)
     {
         if(c == keyCode(control::ControlKey::CTRL_J) ||
