@@ -114,6 +114,45 @@ constexpr bool contains(std::string_view s, char needle) noexcept
 }
 
 /**
+ * Appends multiple string-like parts to `out` without creating intermediate
+ * strings.
+ */
+template <typename... Parts>
+void append_all(std::string& out, const Parts&... parts)
+{
+    (out.append(parts), ...);
+}
+
+/**
+ * Finds `needle` in `haystack` using ASCII case-insensitive comparison.
+ *
+ * Returns text_utils::npos() when no match is found. This is intended for
+ * command/search UI paths where locale-independent ASCII matching is enough.
+ */
+constexpr size_t ifind_ascii(std::string_view haystack,
+                             std::string_view needle,
+                             size_t from = 0) noexcept
+{
+    if(needle.empty())
+        return from <= haystack.size() ? from : npos();
+    if(from > haystack.size() || needle.size() > haystack.size())
+        return npos();
+
+    for(size_t i = from; i + needle.size() <= haystack.size(); ++i)
+    {
+        size_t j = 0;
+        for(; j < needle.size(); ++j)
+        {
+            if(ascii_tolower(haystack[i + j]) != ascii_tolower(needle[j]))
+                break;
+        }
+        if(j == needle.size())
+            return i;
+    }
+    return npos();
+}
+
+/**
  * Returns a lightweight range of every non-overlapping match position.
  *
  * The range stores a view of `text` and owns a copy of `needle`, so temporary

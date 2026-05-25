@@ -3,7 +3,9 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include <fmt/format.h>
 #include <algorithm>
+#include <iterator>
 #include <string>
 #include <string_view>
 
@@ -28,56 +30,82 @@ constexpr const char* HIGHLIGHT_SEQ = "\x1b[48;2;200;200;200m\x1b[38;2;0;0;0m";
 constexpr const char* SELECTED_BG = "\x1b[48;2;24;64;36m";
 constexpr const char* SELECTED_CURSOR_BG = "\x1b[48;2;56;120;72m";
 
-int caseInsensitiveFind(std::string_view haystack, std::string_view needle,
-                        size_t from = 0)
+enum class RowStyle
 {
-    if(needle.empty() || from > haystack.size())
-        return -1;
-    auto tolow = [](unsigned char c) -> unsigned char
-    { return (c >= 'A' && c <= 'Z') ? (unsigned char)(c - 'A' + 'a') : c; };
-    for(size_t i = from; i + needle.size() <= haystack.size(); ++i)
+    Normal,
+    Cursor,
+    Selected,
+    SelectedCursor,
+};
+
+RowStyle rowStyle(bool isCursor, bool selected)
+{
+    if(isCursor && selected)
+        return RowStyle::SelectedCursor;
+    if(isCursor)
+        return RowStyle::Cursor;
+    if(selected)
+        return RowStyle::Selected;
+    return RowStyle::Normal;
+}
+
+bool hasSelectionBackground(RowStyle style)
+{
+    return style == RowStyle::Cursor || style == RowStyle::Selected ||
+           style == RowStyle::SelectedCursor;
+}
+
+void appendRowStyle(std::string& out, const Theme& theme, RowStyle style)
+{
+    switch(style)
     {
-        size_t j = 0;
-        for(; j < needle.size(); ++j)
-        {
-            if(tolow((unsigned char)haystack[i + j]) !=
-               tolow((unsigned char)needle[j]))
-                break;
-        }
-        if(j == needle.size())
-            return (int)i;
+    case RowStyle::Cursor:
+        text_utils::append_all(out, std::string_view(Terminal::ESC_DIM),
+                               theme.selection());
+        break;
+    case RowStyle::Selected:
+        text_utils::append_all(out, std::string_view(SELECTED_BG),
+                               theme.baseFg());
+        break;
+    case RowStyle::SelectedCursor:
+        text_utils::append_all(out, std::string_view(SELECTED_CURSOR_BG),
+                               theme.baseFg());
+        break;
+    case RowStyle::Normal:
+        out += theme.baseFg();
+        break;
     }
-    return -1;
 }
 
 void appendHighlighted(std::string& out, std::string_view text,
-                       std::string_view query, const std::string& normalSeq)
+                       std::string_view query, const Theme& theme,
+                       RowStyle style)
 {
     if(query.empty() || text.empty())
     {
-        out += normalSeq;
+        appendRowStyle(out, theme, style);
         out.append(text.data(), text.size());
         return;
     }
     size_t pos = 0;
     while(pos < text.size())
     {
-        int found = caseInsensitiveFind(text, query, pos);
-        if(found < 0)
+        const size_t found = text_utils::ifind_ascii(text, query, pos);
+        if(text_utils::is_not_found(found))
         {
-            out += normalSeq;
+            appendRowStyle(out, theme, style);
             out.append(text.data() + pos, text.size() - pos);
             break;
         }
-        if((size_t)found > pos)
+        if(found > pos)
         {
-            out += normalSeq;
-            out.append(text.data() + pos, (size_t)found - pos);
+            appendRowStyle(out, theme, style);
+            out.append(text.data() + pos, found - pos);
         }
         out += HIGHLIGHT_SEQ;
         out.append(text.data() + found, query.size());
-        out += normalSeq;
-        pos = (size_t)found + query.size();
+        appendRowStyle(out, theme, style);
+        pos = found + query.size();
     }
 }
 } // namespace
@@ -215,7 +243,8 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
                 int found = -1;
                 for(int i = cursor; i < (int)lines.size(); ++i)
                 {
-                    if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
+                    if(text_utils::is_found(
+                           text_utils::ifind_ascii(lines[i], searchQuery)))
                     {
                         found = i;
                         break;
@@ -225,7 +254,8 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
                 {
                     for(int i = 0; i < cursor; ++i)
                     {
-                        if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
+                        if(text_utils::is_found(text_utils::ifind_ascii(
+                               lines[i], searchQuery)))
                         {
                             found = i;
                             break;
@@ -463,7 +493,8 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
                 for(int step = 1; step <= n; ++step)
                 {
                     int i = (cursor + step) % n;
-                    if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
+                    if(text_utils::is_found(
+                           text_utils::ifind_ascii(lines[i], searchQuery)))
                     {
                         found = i;
                         break;
@@ -475,7 +506,8 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
                 for(int step = 1; step <= n; ++step)
                 {
                     int i = ((cursor - step) % n + n) % n;
-                    if(caseInsensitiveFind(lines[i], searchQuery) >= 0)
+                    if(text_utils::is_found(
+                           text_utils::ifind_ascii(lines[i], searchQuery)))
                     {
                         found = i;
                         break;
@@ -509,18 +541,13 @@ void CommandOutputMode::draw(Editor& editor) const
     std::string output;
     output.reserve((size_t)editor.screenRows * editor.screenCols * 2);
 
-    output += Terminal::ESC_HIDE_CURSOR;
-    output += Terminal::ESC_CURSOR_HOME;
-    output += editor.theme.reset();
-
-    output += Terminal::ESC_CLEAR_LINE;
-    output += editor.theme.uiAccent();
-    output += Terminal::ESC_BOLD;
-    output += "  RUN: ";
-    output += editor.theme.reset();
-    output += editor.theme.uiPrompt();
-    output += command;
-    output += editor.theme.reset();
+    text_utils::append_all(
+        output, std::string_view(Terminal::ESC_HIDE_CURSOR),
+        std::string_view(Terminal::ESC_CURSOR_HOME), editor.theme.reset(),
+        std::string_view(Terminal::ESC_CLEAR_LINE), editor.theme.uiAccent(),
+        std::string_view(Terminal::ESC_BOLD), std::string_view("  RUN: "),
+        editor.theme.reset(), editor.theme.uiPrompt(), command,
+        editor.theme.reset());
 
     HeaderHelp::append(output, editor.theme, editor.screenCols,
                        commandOutputHelpTokens());
@@ -534,23 +561,9 @@ void CommandOutputMode::draw(Editor& editor) const
     while(rowsUsed < rows && idx < (int)lines.size())
     {
         int h = displayHeight(idx, cols);
-        bool selected = selectedLines.count(idx) > 0;
-        bool isCursor = idx == cursor;
-
-        std::string bgPrefix;
-        if(isCursor && selected)
-        {
-            bgPrefix = std::string(SELECTED_CURSOR_BG) + editor.theme.baseFg();
-        }
-        else if(isCursor)
-        {
-            bgPrefix =
-                std::string(Terminal::ESC_DIM) + editor.theme.selection();
-        }
-        else if(selected)
-        {
-            bgPrefix = std::string(SELECTED_BG) + editor.theme.baseFg();
-        }
+        const RowStyle style =
+            rowStyle(idx == cursor, selectedLines.count(idx) > 0);
+        const bool fillSelection = hasSelectionBackground(style);
 
         const std::string& line = lines[idx];
         int consumed = 0;
@@ -559,8 +572,8 @@ void CommandOutputMode::draw(Editor& editor) const
         while(consumed < h && rowsUsed < rows)
         {
             output += Terminal::NEWLINE_CLEAR;
-            if(!bgPrefix.empty())
-                output += bgPrefix;
+            if(fillSelection)
+                appendRowStyle(output, editor.theme, style);
             output += "  ";
 
             // Extract substring covering `usable` display columns starting at
@@ -580,27 +593,22 @@ void CommandOutputMode::draw(Editor& editor) const
             std::string_view chunk =
                 std::string_view(line).substr(startByte, linePos - startByte);
 
-            std::string normalSeq;
-            if(!bgPrefix.empty())
-                normalSeq = bgPrefix;
-            else
-                normalSeq = editor.theme.baseFg();
-
             if(!searchQuery.empty())
-                appendHighlighted(output, chunk, searchQuery, normalSeq);
+                appendHighlighted(output, chunk, searchQuery, editor.theme,
+                                  style);
             else
             {
-                output += normalSeq;
+                appendRowStyle(output, editor.theme, style);
                 output.append(chunk.data(), chunk.size());
             }
 
             // Fill remaining columns with bg so selection color spans the row.
-            if(!bgPrefix.empty())
+            if(fillSelection)
             {
                 int pad = usable - takenWidth;
                 if(pad > 0)
                 {
-                    output += bgPrefix;
+                    appendRowStyle(output, editor.theme, style);
                     output.append(pad, ' ');
                 }
             }
@@ -617,23 +625,26 @@ void CommandOutputMode::draw(Editor& editor) const
 
     while(rowsUsed < rows)
     {
-        output += Terminal::NEWLINE_CLEAR;
-        output += editor.theme.uiGutter();
-        output += "~";
-        output += editor.theme.baseFg();
+        text_utils::append_all(output,
+                               std::string_view(Terminal::NEWLINE_CLEAR),
+                               editor.theme.uiGutter(), std::string_view("~"),
+                               editor.theme.baseFg());
         ++rowsUsed;
     }
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.statusBar();
-    std::string left = visualMode ? " V-RUN" : " RUN";
+    text_utils::append_all(output, std::string_view(Terminal::NEWLINE_CLEAR),
+                           editor.theme.statusBar());
+    std::string left;
+    left.reserve(command.size() + 32);
+    left += visualMode ? " V-RUN" : " RUN";
     if(!selectedLines.empty())
-        left += " (" + std::to_string(selectedLines.size()) + " sel)";
-    left += " | " + command;
-    int total = (int)lines.size();
-    int current = std::min(cursor + 1, total);
-    std::string right =
-        " " + std::to_string(current) + "/" + std::to_string(total) + " ";
+        fmt::format_to(std::back_inserter(left), " ({} sel)",
+                       selectedLines.size());
+    fmt::format_to(std::back_inserter(left), " | {}", command);
+    const int total = (int)lines.size();
+    const int current = std::min(cursor + 1, total);
+    std::string right;
+    fmt::format_to(std::back_inserter(right), " {}/{} ", current, total);
     output += left;
     int padding = editor.screenCols - (int)left.size() - (int)right.size();
     if(padding > 0)
@@ -644,29 +655,27 @@ void CommandOutputMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     if(searchActive)
     {
-        output += editor.theme.baseFg();
-        output += "/";
-        output += searchQuery;
-        output += Terminal::ESC_BLINK;
-        output += "_";
-        output += Terminal::ESC_BLINK_OFF;
-        output += editor.theme.reset();
+        text_utils::append_all(output, editor.theme.baseFg(),
+                               std::string_view("/"), searchQuery,
+                               std::string_view(Terminal::ESC_BLINK),
+                               std::string_view("_"),
+                               std::string_view(Terminal::ESC_BLINK_OFF),
+                               editor.theme.reset());
     }
     else if(!editor.statusMessage.empty())
     {
-        output += editor.theme.baseFg();
-        output += ": ";
-        size_t maxLen =
+        const size_t maxLen =
             editor.screenCols > 2 ? (size_t)editor.screenCols - 2 : 0;
-        output += editor.statusMessage.substr(
-            0, std::min(maxLen, editor.statusMessage.length()));
+        text_utils::append_all(
+            output, editor.theme.baseFg(), std::string_view(": "),
+            std::string_view(editor.statusMessage)
+                .substr(0, std::min(maxLen, editor.statusMessage.length())));
     }
     else if(!searchQuery.empty())
     {
-        output += editor.theme.uiDim();
-        output += " match: ";
-        output += searchQuery;
-        output += editor.theme.baseFg();
+        text_utils::append_all(output, editor.theme.uiDim(),
+                               std::string_view(" match: "), searchQuery,
+                               editor.theme.baseFg());
     }
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
