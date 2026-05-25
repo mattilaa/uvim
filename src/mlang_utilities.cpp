@@ -2,74 +2,19 @@
 #include "text_utils.h"
 
 #include <array>
-#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <unordered_set>
-
-namespace
-{
-std::string ascii_lower(std::string_view value)
-{
-    std::string out;
-    out.reserve(value.size());
-    for(char c : value)
-        out.push_back(
-            static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-    return out;
-}
-
-bool is_ident_char(char c)
-{
-    unsigned char u = static_cast<unsigned char>(c);
-    return std::isalnum(u) || c == '_';
-}
-
-bool find_builtin_marker(std::string_view symbol,
-                         const std::filesystem::path& file,
-                         std::string_view marker, std::string& path, int& line)
-{
-    std::string needle = std::string(symbol);
-    std::string needleLower = ascii_lower(symbol);
-
-    std::error_code ec;
-    if(!std::filesystem::exists(file, ec))
-        return false;
-
-    std::ifstream in(file);
-    if(!in)
-        return false;
-
-    std::string lineStr;
-    int lineNo = 0;
-    while(std::getline(in, lineStr))
-    {
-        ++lineNo;
-        if(lineStr.rfind(marker, 0) != 0)
-            continue;
-        std::string name = lineStr.substr(marker.size());
-        if(name.empty())
-            continue;
-        if(name == needle || ascii_lower(name) == needleLower)
-        {
-            path = file.string();
-            line = lineNo - 1;
-            return true;
-        }
-    }
-
-    return false;
-}
-} // namespace
 
 bool MlangUtilities::findBuiltinType(std::string_view symbol, std::string& path,
                                      int& line)
 {
     for(const auto& root : stdlibRoots())
     {
-        if(!root.empty() && find_builtin_marker(symbol, root / "types.mla",
-                                                "// @builtin ", path, line))
+        if(!root.empty() &&
+           text_utils::find_prefixed_marker_in_file(
+               symbol, root / "types.mla", "// @builtin ", path, line))
             return true;
     }
     return false;
@@ -81,8 +26,8 @@ bool MlangUtilities::findBuiltinMacro(std::string_view symbol,
     for(const auto& root : stdlibRoots())
     {
         if(!root.empty() &&
-           find_builtin_marker(symbol, root / "macros.mla",
-                               "// @builtin_macro ", path, line))
+           text_utils::find_prefixed_marker_in_file(
+               symbol, root / "macros.mla", "// @builtin_macro ", path, line))
             return true;
     }
     return false;
@@ -94,8 +39,9 @@ bool MlangUtilities::findBuiltinAttribute(std::string_view symbol,
     for(const auto& root : stdlibRoots())
     {
         if(!root.empty() &&
-           find_builtin_marker(symbol, root / "attributes.mla",
-                               "// @builtin_attribute ", path, line))
+           text_utils::find_prefixed_marker_in_file(
+               symbol, root / "attributes.mla", "// @builtin_attribute ",
+               path, line))
             return true;
     }
     return false;
@@ -106,7 +52,7 @@ bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
                                          std::string_view contextFilePath)
 {
     std::string needle = std::string(symbol);
-    std::string needleLower = ascii_lower(symbol);
+    std::string needleLower = text_utils::ascii_lower(symbol);
 
     for(const auto& root : stdlibRoots())
     {
@@ -134,8 +80,8 @@ bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
             auto sep = base.rfind("::");
             if(text_utils::is_found(sep) && sep + 2 < base.size())
                 base = base.substr(sep + 2);
-            if(name == needle || ascii_lower(name) == needleLower ||
-               base == needle || ascii_lower(base) == needleLower)
+            if(name == needle || text_utils::ascii_lower(name) == needleLower ||
+               base == needle || text_utils::ascii_lower(base) == needleLower)
             {
                 path = p.string();
                 line = lineNo - 1;
@@ -154,12 +100,12 @@ bool MlangUtilities::findBuiltinFunction(std::string_view symbol,
         while(pos < lineView.size() && text_utils::is_space(lineView[pos]))
             ++pos;
         size_t start = pos;
-        while(pos < lineView.size() && is_ident_char(lineView[pos]))
+        while(pos < lineView.size() && text_utils::isIdent(lineView[pos]))
             ++pos;
         if(pos <= start)
             return false;
         std::string fn(lineView.substr(start, pos - start));
-        return fn == needle || ascii_lower(fn) == needleLower;
+        return fn == needle || text_utils::ascii_lower(fn) == needleLower;
     };
 
     std::vector<std::filesystem::path> searchDirs;
@@ -244,10 +190,10 @@ bool MlangUtilities::findTopLevelDefInLines(
         size_t i = start + kw.size();
         while(i < line.size() && text_utils::is_space(line[i]))
             ++i;
-        if(i >= line.size() || !is_ident_char(line[i]))
+        if(i >= line.size() || !text_utils::isIdent(line[i]))
             return std::nullopt;
         size_t nameStart = i;
-        while(i < line.size() && is_ident_char(line[i]))
+        while(i < line.size() && text_utils::isIdent(line[i]))
             ++i;
         std::string_view name(line.data() + nameStart, i - nameStart);
         if(name == symbol)
@@ -416,10 +362,10 @@ bool MlangUtilities::moduleDeclUnderCursor(std::string_view line, int cursorX,
     bool cursorInSegment = false;
     while(i < line.size())
     {
-        if(!is_ident_char(line[i]))
+        if(!text_utils::isIdent(line[i]))
             return false;
         size_t segStart = i;
-        while(i < line.size() && is_ident_char(line[i]))
+        while(i < line.size() && text_utils::isIdent(line[i]))
             ++i;
         size_t segEnd = i;
         if(cursorX >= (int)segStart && cursorX < (int)segEnd)

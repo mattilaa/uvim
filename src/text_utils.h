@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
+#include <filesystem>
 #include <locale>
 #include <string>
 #include <string_view>
@@ -247,6 +248,18 @@ inline std::string ascii_lower(std::string_view value)
         out.push_back(ascii_tolower(c));
     return out;
 }
+
+/**
+ * Finds a line in `file` that starts with `marker`, then compares the rest of
+ * the line with `symbol` using exact or ASCII case-insensitive matching.
+ *
+ * On success, `path` is set to the file path and `line` is set to the zero-based
+ * line number of the marker.
+ */
+bool find_prefixed_marker_in_file(std::string_view symbol,
+                                  const std::filesystem::path& file,
+                                  std::string_view marker, std::string& path,
+                                  int& line);
 
 // --- UTF-8 appending (runtime; std::string mutation not constexpr in C++20)
 // ---
