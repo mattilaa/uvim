@@ -261,8 +261,10 @@ void GitStatusViewMode::refreshStatus(Editor& editor)
         std::clamp(offset, 0, std::max(0, (int)entries.size() - contentRows));
 }
 
-std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> GitStatusViewMode::handle(ModeContext& ctx,
+                                                   const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

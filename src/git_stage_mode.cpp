@@ -805,8 +805,10 @@ void GitStageMode::refreshDiff(Editor& editor)
     diffDirty = false;
 }
 
-std::optional<ModeState> GitStageMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> GitStageMode::handle(ModeContext& ctx,
+                                              const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

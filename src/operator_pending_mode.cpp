@@ -22,8 +22,10 @@ void OperatorPendingMode::on_exit(ModeContext& ctx)
     ctx.pendingCount = 0;
 }
 
-std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
+                                                     const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

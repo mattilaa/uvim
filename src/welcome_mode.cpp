@@ -20,8 +20,10 @@ void WelcomeMode::on_enter(ModeContext& ctx)
 
 void WelcomeMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
+                                             const ModeKeyEvent& event)
 {
+    const int key = event.key;
     int c = keyCode(key);
 
     std::optional<ModeState> nextState;

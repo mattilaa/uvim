@@ -33,7 +33,7 @@
 
 namespace editor::statemachine
 {
-using ModeStateMachineBase = StateMachine<ModeState, ModeContext, int>;
+using ModeStateMachineBase = StateMachine<ModeState, ModeContext>;
 
 class ModeStateMachine : public ModeStateMachineBase
 {
@@ -52,11 +52,19 @@ public:
 
     void dispatch(char key)
     {
-        ModeStateMachineBase::dispatch(
-            static_cast<int>(static_cast<unsigned char>(key)));
+        dispatch(static_cast<int>(static_cast<unsigned char>(key)));
     }
 
-    using ModeStateMachineBase::dispatch;
+    void dispatch(int key)
+    {
+        ModeStateMachineBase::dispatch(ModeKeyEvent{key});
+    }
+
+    template <typename Event>
+    void dispatch(const Event& event)
+    {
+        ModeStateMachineBase::dispatch(event);
+    }
 };
 
 ModeContext createModeContext(Editor* editor);

@@ -39,8 +39,10 @@ void CommandMode::on_exit(ModeContext& ctx)
     }
 }
 
-std::optional<ModeState> CommandMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
+                                             const ModeKeyEvent& event)
 {
+    const int key = event.key;
     int c = keyCode(key);
     auto updatePopup = [&]()
     {

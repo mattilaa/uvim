@@ -19,37 +19,43 @@ class CommentLeaderPendingMachine;
 struct CommentLeaderAfterC
 {
     std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
-                                    ModeContext& ctx, int key);
+                                    ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 
 struct CommentLeaderAfterCi
 {
     std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
-                                    ModeContext& ctx, int key);
+                                    ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 
 struct CommentLeaderAfterCiApplied
 {
     std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
-                                    ModeContext& ctx, int key);
+                                    ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 
 struct CommentLeaderAfterCii
 {
     std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
-                                    ModeContext& ctx, int key);
+                                    ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 
 struct CommentLeaderAfterCiiApplied
 {
     std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
-                                    ModeContext& ctx, int key);
+                                    ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 
 struct CommentLeaderAfterCiiAwaitingSuffix
 {
     std::optional<ModeState> handle(CommentLeaderPendingMachine& machine,
-                                    ModeContext& ctx, int key);
+                                    ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 
 class CommentLeaderPendingMachine
@@ -57,7 +63,8 @@ class CommentLeaderPendingMachine
 public:
     explicit CommentLeaderPendingMachine(CommentLeaderOrigin origin);
 
-    std::optional<ModeState> handle(ModeContext& ctx, int key);
+    std::optional<ModeState> handle(ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 
     bool done() const;
     CommentLeaderOrigin origin() const;

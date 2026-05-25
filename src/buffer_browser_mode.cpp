@@ -36,8 +36,10 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
 
 void BufferBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
+                                                   const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

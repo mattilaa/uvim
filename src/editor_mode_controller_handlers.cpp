@@ -1097,8 +1097,7 @@ void EditorModeController::handleInsertMode(int c)
     // Delegate to state machine implementation in insert_mode.cpp
     InsertMode state;
     ModeContext ctx = createModeContext(&editor);
-    int key = (c);
-    auto nextState = state.handle(ctx, key);
+    auto nextState = state.handle(ctx, ModeKeyEvent{c});
 
     // Handle state transition if returned
     if(nextState.has_value())
@@ -1126,8 +1125,7 @@ void EditorModeController::handleVisualMode(int c)
     // Delegate to state machine implementation in visual_mode.cpp
     VisualMode state;
     ModeContext ctx = createModeContext(&editor);
-    int key = (c);
-    auto nextState = state.handle(ctx, key);
+    auto nextState = state.handle(ctx, ModeKeyEvent{c});
 
     // Handle state transition if returned
     if(nextState.has_value())
@@ -1161,8 +1159,7 @@ void EditorModeController::handleVisualBlockMode(int c)
     // Delegate to state machine implementation in visual_mode.cpp
     VisualBlockMode state;
     ModeContext ctx = createModeContext(&editor);
-    int key = (c);
-    auto nextState = state.handle(ctx, key);
+    auto nextState = state.handle(ctx, ModeKeyEvent{c});
 
     // Handle state transition if returned
     if(nextState.has_value())
@@ -1237,8 +1234,7 @@ void EditorModeController::handleSearchMode(int c)
     {
         SearchForwardMode state;
         ModeContext ctx = createModeContext(&editor);
-        int key = (c);
-        auto nextState = state.handle(ctx, key);
+        auto nextState = state.handle(ctx, ModeKeyEvent{c});
 
         if(nextState.has_value() &&
            std::holds_alternative<NormalMode>(*nextState))
@@ -1250,8 +1246,7 @@ void EditorModeController::handleSearchMode(int c)
     {
         SearchBackwardMode state;
         ModeContext ctx = createModeContext(&editor);
-        int key = (c);
-        auto nextState = state.handle(ctx, key);
+        auto nextState = state.handle(ctx, ModeKeyEvent{c});
 
         if(nextState.has_value() &&
            std::holds_alternative<NormalMode>(*nextState))

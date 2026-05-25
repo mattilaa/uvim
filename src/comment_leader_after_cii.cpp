@@ -10,8 +10,9 @@ namespace editor::statemachine
 {
 std::optional<ModeState>
 CommentLeaderAfterCii::handle(CommentLeaderPendingMachine& machine,
-                              ModeContext& ctx, int key)
+                              ModeContext& ctx, const ModeKeyEvent& event)
 {
+    const int key = event.key;
     if(commentleader::isEscape(key))
     {
         machine.cancel(ctx);

@@ -3,8 +3,8 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
-#include <fmt/format.h>
 #include <algorithm>
+#include <fmt/format.h>
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -219,8 +219,10 @@ void CommandOutputMode::on_enter(ModeContext& ctx)
 
 void CommandOutputMode::on_exit(ModeContext& /*ctx*/) {}
 
-std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx,
+                                                   const ModeKeyEvent& event)
 {
+    const int key = event.key;
     int c = keyCode(key);
     Editor* ed = ctx.editor;
 
@@ -254,8 +256,8 @@ std::optional<ModeState> CommandOutputMode::handle(ModeContext& ctx, int key)
                 {
                     for(int i = 0; i < cursor; ++i)
                     {
-                        if(text_utils::is_found(text_utils::ifind_ascii(
-                               lines[i], searchQuery)))
+                        if(text_utils::is_found(
+                               text_utils::ifind_ascii(lines[i], searchQuery)))
                         {
                             found = i;
                             break;
@@ -655,12 +657,10 @@ void CommandOutputMode::draw(Editor& editor) const
     output += Terminal::NEWLINE_CLEAR;
     if(searchActive)
     {
-        text_utils::append_all(output, editor.theme.baseFg(),
-                               std::string_view("/"), searchQuery,
-                               std::string_view(Terminal::ESC_BLINK),
-                               std::string_view("_"),
-                               std::string_view(Terminal::ESC_BLINK_OFF),
-                               editor.theme.reset());
+        text_utils::append_all(
+            output, editor.theme.baseFg(), std::string_view("/"), searchQuery,
+            std::string_view(Terminal::ESC_BLINK), std::string_view("_"),
+            std::string_view(Terminal::ESC_BLINK_OFF), editor.theme.reset());
     }
     else if(!editor.statusMessage.empty())
     {

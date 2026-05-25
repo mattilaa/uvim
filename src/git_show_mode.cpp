@@ -185,8 +185,10 @@ void GitShowCommitMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
+                                                   const ModeKeyEvent& event)
 {
+    const int key = event.key;
     int c = keyCode(key);
 
     auto findNextMatch = [&](bool forward)
