@@ -6,7 +6,11 @@
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 #include <string_view>
 
 // ============================================================================
@@ -20,7 +24,7 @@ namespace
 std::vector<std::string> gitLogHelpTokens(bool prettyView)
 {
     if(prettyView)
-        return {"[v: range]",
+        return {"[^V: range]",
                 "[space: select]",
                 "[q: quit]",
                 "[j/k: commit]",
@@ -28,7 +32,7 @@ std::vector<std::string> gitLogHelpTokens(bool prettyView)
                 "[gf: rebase]",
                 "[enter: show]",
                 "[gr: revert]"};
-    return {"[v: range]",       "[space: select]", "[q: quit]",
+    return {"[^V: range]",      "[space: select]", "[q: quit]",
             "[ctrl-j/k: move]", "[gf: rebase]",    "[enter: show]",
             "[gr: revert]",     "[type: filter]"};
 }
@@ -187,6 +191,249 @@ std::string slice_with_ansi(std::string_view text, int startCol, int width)
     return out;
 }
 
+std::string trim_copy(std::string_view value)
+{
+    size_t begin = 0;
+    while(begin < value.size() &&
+          std::isspace(static_cast<unsigned char>(value[begin])))
+        ++begin;
+    size_t end = value.size();
+    while(end > begin &&
+          std::isspace(static_cast<unsigned char>(value[end - 1])))
+        --end;
+    return std::string(value.substr(begin, end - begin));
+}
+
+std::string format_git_refs(std::string_view refs)
+{
+    std::vector<std::string> locals;
+    std::vector<std::string> remotes;
+    std::vector<std::string> tags;
+    size_t pos = 0;
+    while(pos <= refs.size())
+    {
+        size_t comma = refs.find(',', pos);
+        std::string ref = trim_copy(text_utils::is_not_found(comma)
+                                        ? refs.substr(pos)
+                                        : refs.substr(pos, comma - pos));
+        if(!ref.empty() && ref != "HEAD")
+        {
+            if(ref.rfind("HEAD -> ", 0) == 0)
+                ref = ref.substr(8);
+
+            if(ref.rfind("tag: ", 0) == 0)
+                tags.push_back("<" + ref.substr(5) + ">");
+            else if(text_utils::is_found(ref.find('/')))
+                remotes.push_back("{" + ref + "}");
+            else
+                locals.push_back("[" + ref + "]");
+        }
+        if(text_utils::is_not_found(comma))
+            break;
+        pos = comma + 1;
+    }
+
+    std::string out;
+    auto append_group = [&](const std::vector<std::string>& group)
+    {
+        for(const auto& item : group)
+        {
+            if(!out.empty())
+                out += " ";
+            out += item;
+        }
+    };
+    append_group(locals);
+    append_group(remotes);
+    append_group(tags);
+    return out;
+}
+
+bool has_multiple_parents(std::string_view parents)
+{
+    bool seenParent = false;
+    for(char c : parents)
+    {
+        if(std::isspace(static_cast<unsigned char>(c)))
+        {
+            if(seenParent)
+                return true;
+            continue;
+        }
+        seenParent = true;
+    }
+    return false;
+}
+
+std::string render_tig_graph(std::string_view rawGraph, bool merge)
+{
+    (void)merge;
+    std::string out(rawGraph);
+    return out.empty() ? "*" : out;
+}
+
+std::string relative_age(std::string_view date)
+{
+    std::tm tm{};
+    std::istringstream in(std::string(date.substr(0, 16)));
+    in >> std::get_time(&tm, "%Y-%m-%d %H:%M");
+    if(in.fail())
+        return std::string(date);
+
+    std::time_t then = std::mktime(&tm);
+    if(then == -1)
+        return std::string(date);
+
+    auto now = std::chrono::system_clock::now();
+    auto thenTime = std::chrono::system_clock::from_time_t(then);
+    auto seconds =
+        std::chrono::duration_cast<std::chrono::seconds>(now - thenTime)
+            .count();
+    if(seconds < 0)
+        seconds = 0;
+
+    const long long days = seconds / (60 * 60 * 24);
+    if(days < 1)
+        return "(today)";
+    if(days == 1)
+        return "(1 day)";
+    if(days < 14)
+        return "(" + std::to_string(days) + " days)";
+    const long long weeks = days / 7;
+    if(weeks == 1)
+        return "(1 week)";
+    if(weeks < 9)
+        return "(" + std::to_string(weeks) + " weeks)";
+    const long long months = days / 30;
+    if(months <= 1)
+        return "(1 month)";
+    if(months < 24)
+        return "(" + std::to_string(months) + " months)";
+    const long long years = days / 365;
+    return "(" + std::to_string(std::max<long long>(1, years)) + " years)";
+}
+
+std::string entry_search_text(const GitLogMode::Entry& entry)
+{
+    std::string refs = format_git_refs(entry.refs);
+    std::string text = entry.hash + " " + entry.date + " " + entry.author +
+                       " " + entry.graph + " " + refs + " " + entry.subject;
+    return text;
+}
+
+void append_padded_field(std::string& out, std::string_view text, int width,
+                         const std::string& normalSeq,
+                         const std::string& matchSeq, std::string_view query)
+{
+    if(width <= 0)
+        return;
+    std::string clipped = slice_plain(text, 0, width);
+    append_highlighted(out, clipped, query, normalSeq, matchSeq);
+    int pad = width - text_utils::utf8DisplayWidth(clipped);
+    if(pad > 0)
+    {
+        out += normalSeq;
+        out.append(pad, ' ');
+    }
+}
+
+void append_graph_field(std::string& out, const Theme& theme,
+                        std::string_view graph, int width,
+                        const std::string& selectedSeq)
+{
+    if(width <= 0)
+        return;
+
+    std::string clipped = slice_plain(graph, 0, width);
+    int used = 0;
+    for(size_t i = 0; i < clipped.size();)
+    {
+        int next = text_utils::nextUtf8CharStart(clipped, (int)i);
+        std::string_view ch =
+            std::string_view(clipped).substr(i, next - (int)i);
+        if(!selectedSeq.empty())
+            out += selectedSeq;
+        else if(ch == "/" || ch == "\\" || ch == "*")
+            out += theme.reset() + theme.uiError();
+        else if(ch == "|")
+            out += theme.reset() + theme.uiAccent();
+        else
+            out += theme.reset() + theme.uiWarning();
+        out.append(ch.data(), ch.size());
+        used += text_utils::utf8DisplayWidth(ch);
+        i = next;
+    }
+
+    int pad = width - used;
+    if(pad > 0)
+    {
+        out +=
+            selectedSeq.empty() ? theme.reset() + theme.baseFg() : selectedSeq;
+        out.append(pad, ' ');
+    }
+}
+
+void append_git_log_entry_line(std::string& output, const Theme& theme,
+                               const GitLogMode::Entry& entry,
+                               std::string_view query, bool selected,
+                               bool marked, bool inRange, int width)
+{
+    if(width <= 0)
+        return;
+
+    const std::string selectedSeq =
+        selected ? theme.selection()
+                 : (marked ? std::string(Terminal::ESC_DIM) + theme.selection()
+                           : std::string{});
+    auto color = [&](const std::string& seq) -> std::string
+    { return selectedSeq.empty() ? theme.reset() + seq : selectedSeq; };
+
+    const std::string& matchSeq = theme.searchMatch();
+    int used = 0;
+    auto append_fixed =
+        [&](std::string_view text, int fieldWidth, const std::string& seq)
+    {
+        int actualWidth = std::min(fieldWidth, std::max(0, width - used));
+        append_padded_field(output, text, actualWidth, seq, matchSeq, query);
+        used += actualWidth;
+    };
+    auto append_text = [&](std::string_view text, const std::string& seq)
+    {
+        int remain = std::max(0, width - used);
+        if(remain <= 0 || text.empty())
+            return;
+        std::string clipped = slice_plain(text, 0, remain);
+        append_highlighted(output, clipped, query, seq, matchSeq);
+        used += text_utils::utf8DisplayWidth(clipped);
+    };
+
+    std::string mark = marked ? "*" : (inRange ? "+" : " ");
+    append_fixed(mark, 1, color(theme.baseFg()));
+    std::string graph = entry.graph.empty() ? "*" : entry.graph;
+    int graphWidth = std::min(10, std::max(0, width - used));
+    append_graph_field(output, theme, graph, graphWidth, selectedSeq);
+    used += graphWidth;
+    std::string hash =
+        entry.hash.substr(0, std::min<size_t>(8, entry.hash.size()));
+    append_fixed(hash, 9, color(theme.uiWarning()));
+    append_fixed(relative_age(entry.date), 11, color(theme.uiSuccess()));
+    append_fixed("<" + entry.author + ">", 20, color(theme.uiInfo()));
+
+    std::string refs = format_git_refs(entry.refs);
+    if(!refs.empty())
+    {
+        append_text(refs, color(theme.uiWarning()));
+        append_text(" ", color(theme.baseFg()));
+    }
+    append_text(entry.subject, color(theme.baseFg()));
+
+    if(used < width)
+    {
+        output += color(theme.baseFg());
+        output.append(width - used, ' ');
+    }
+}
+
 void append_pretty_diff_line(std::string& output, const Editor& editor,
                              const std::string& line)
 {
@@ -316,6 +563,78 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
 }
 } // namespace
 
+const char* GitLogMode::graphPrettyFormatArg()
+{
+    return "--pretty=format:%x1e%H%x1f%ad%x1f%an%x1f%D%x1f%P%x1f%s";
+}
+
+std::optional<GitLogMode::Entry>
+GitLogMode::parseGraphEntry(std::string_view line)
+{
+    constexpr char recordSep = '\x1e';
+    constexpr char fieldSep = '\x1f';
+
+    size_t marker = line.find(recordSep);
+    std::string graph;
+    std::string_view payload = line;
+    if(text_utils::is_found(marker))
+    {
+        graph = std::string(line.substr(0, marker));
+        payload = line.substr(marker + 1);
+    }
+
+    std::vector<std::string> fields;
+    size_t pos = 0;
+    while(pos <= payload.size())
+    {
+        size_t next = payload.find(fieldSep, pos);
+        if(text_utils::is_not_found(next))
+        {
+            fields.emplace_back(payload.substr(pos));
+            break;
+        }
+        fields.emplace_back(payload.substr(pos, next - pos));
+        pos = next + 1;
+    }
+
+    if(fields.size() < 2 || fields[0].empty())
+        return std::nullopt;
+
+    Entry entry;
+    entry.hash = fields[0];
+    if(fields.size() >= 6)
+    {
+        entry.date = fields[1];
+        entry.author = fields[2];
+        entry.refs = fields[3];
+        entry.merge = has_multiple_parents(fields[4]);
+        entry.subject = fields[5];
+    }
+    else if(fields.size() >= 4)
+    {
+        entry.date = fields[1];
+        entry.author = fields[2];
+        entry.subject = fields[3];
+    }
+    else
+    {
+        entry.subject = fields[1];
+    }
+    entry.graph = render_tig_graph(graph, entry.merge);
+    return entry;
+}
+
+void GitLogMode::applyGraphConnector(Entry& entry,
+                                     std::string_view connectorLine)
+{
+    std::string connector = trim_copy(connectorLine);
+    if(connector.empty() || (text_utils::is_not_found(connector.find('/')) &&
+                             text_utils::is_not_found(connector.find('\\'))))
+        return;
+
+    entry.graph = std::move(connector);
+}
+
 void GitLogMode::rebuildFilter(Editor& editor)
 {
     filtered.clear();
@@ -335,7 +654,7 @@ void GitLogMode::rebuildFilter(Editor& editor)
         std::vector<int> positions;
         for(int i = 0; i < (int)entries.size(); ++i)
         {
-            std::string text = entries[i].hash + " " + entries[i].subject;
+            std::string text = entry_search_text(entries[i]);
             int score =
                 editor::helper::fuzzyScoreWithPositions(query, text, positions);
             if(score >= 0)
@@ -519,8 +838,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             for(int i = start + 1; i < (int)filtered.size(); ++i)
             {
                 int idx = filtered[i];
-                std::string text =
-                    entries[idx].hash + " " + entries[idx].subject;
+                std::string text = entry_search_text(entries[idx]);
                 if(text_utils::contains(text, searchQuery))
                 {
                     found = i;
@@ -532,8 +850,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 for(int i = 0; i <= start; ++i)
                 {
                     int idx = filtered[i];
-                    std::string text =
-                        entries[idx].hash + " " + entries[idx].subject;
+                    std::string text = entry_search_text(entries[idx]);
                     if(text_utils::contains(text, searchQuery))
                     {
                         found = i;
@@ -547,8 +864,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             for(int i = start - 1; i >= 0; --i)
             {
                 int idx = filtered[i];
-                std::string text =
-                    entries[idx].hash + " " + entries[idx].subject;
+                std::string text = entry_search_text(entries[idx]);
                 if(text_utils::contains(text, searchQuery))
                 {
                     found = i;
@@ -560,8 +876,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                 for(int i = (int)filtered.size() - 1; i >= start; --i)
                 {
                     int idx = filtered[i];
-                    std::string text =
-                        entries[idx].hash + " " + entries[idx].subject;
+                    std::string text = entry_search_text(entries[idx]);
                     if(text_utils::contains(text, searchQuery))
                     {
                         found = i;
@@ -633,8 +948,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                     for(int i = start + 1; i < (int)filtered.size(); ++i)
                     {
                         int idx = filtered[i];
-                        std::string text =
-                            entries[idx].hash + " " + entries[idx].subject;
+                        std::string text = entry_search_text(entries[idx]);
                         if(text_utils::contains(text, searchQuery))
                         {
                             found = i;
@@ -647,8 +961,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
                     for(int i = start - 1; i >= 0; --i)
                     {
                         int idx = filtered[i];
-                        std::string text =
-                            entries[idx].hash + " " + entries[idx].subject;
+                        std::string text = entry_search_text(entries[idx]);
                         if(text_utils::contains(text, searchQuery))
                         {
                             found = i;
@@ -875,7 +1188,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             return rebaseMode;
         }
     }
-    else if(c == keyCode(typed::TypedKey::KEY_V))
+    else if(c == keyCode(control::ControlKey::CTRL_V))
     {
         if(filtered.empty())
             return std::nullopt;
@@ -1168,38 +1481,9 @@ void GitLogMode::draw(Editor& editor) const
                     int hi = std::max(rangeSelectAnchor, cursor);
                     inRange = (idx >= lo && idx <= hi);
                 }
-                std::string normalHash =
-                    selected ? editor.theme.selection()
-                             : (editor.theme.reset() + editor.theme.uiAccent());
-                std::string normalText =
-                    selected ? editor.theme.selection()
-                             : (editor.theme.reset() + editor.theme.baseFg());
-                if(!selected && marked)
-                {
-                    std::string markedStyle = std::string(Terminal::ESC_DIM) +
-                                              editor.theme.selection();
-                    normalHash = markedStyle;
-                    normalText = markedStyle;
-                }
-                const std::string& matchSeq = editor.theme.searchMatch();
-                int maxLine = std::max(0, editor.screenCols - 6);
-                std::string hash = entry.hash;
-                if(hash.size() > 12)
-                    hash.resize(12);
-                std::string subject = entry.subject;
-                int keep = maxLine - (int)hash.size() - 3;
-                if(keep < 0)
-                    keep = 0;
-                if((int)subject.size() > keep)
-                    subject.resize(keep);
-                append_highlighted(output, marked ? "*" : (inRange ? "+" : " "),
-                                   searchQuery, normalText, matchSeq);
-                append_highlighted(output, hash, searchQuery, normalHash,
-                                   matchSeq);
-                append_highlighted(output, " ", searchQuery, normalText,
-                                   matchSeq);
-                append_highlighted(output, subject, searchQuery, normalText,
-                                   matchSeq);
+                append_git_log_entry_line(
+                    output, editor.theme, entry, searchQuery, selected, marked,
+                    inRange, std::max(0, editor.screenCols - 2));
                 output += editor.theme.reset();
             }
             else
@@ -1269,22 +1553,8 @@ std::string GitLogMode::testRenderLine(const Theme& theme, const Entry& entry,
 {
     std::string output;
     output.reserve(256);
-    std::string normalHash =
-        selected ? theme.selection() : (theme.reset() + theme.uiAccent());
-    std::string normalText =
-        selected ? theme.selection() : (theme.reset() + theme.baseFg());
-    const std::string& matchSeq = theme.searchMatch();
-    int maxLine = std::max(0, screenCols - 4);
-    std::string hash = entry.hash;
-    std::string subject = entry.subject;
-    int keep = maxLine - (int)hash.size() - 1;
-    if(keep < 0)
-        keep = 0;
-    if((int)subject.size() > keep)
-        subject.resize(keep);
-    append_highlighted(output, hash, query, normalHash, matchSeq);
-    append_highlighted(output, " ", query, normalText, matchSeq);
-    append_highlighted(output, subject, query, normalText, matchSeq);
+    append_git_log_entry_line(output, theme, entry, query, selected, false,
+                              false, std::max(0, screenCols));
     output += theme.reset();
     return output;
 }

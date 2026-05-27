@@ -56,13 +56,63 @@ TEST(GitSearchHighlightTest, GitLogHighlightsOnlyMatches)
         GitLogMode::testRenderLine(editor.theme, entry, "abc", false, 80);
 
     std::string matchSeq = editor.theme.searchMatch();
-    std::string normalHash = editor.theme.reset() + editor.theme.uiAccent();
     std::string normalText = editor.theme.reset() + editor.theme.baseFg();
 
     EXPECT_TRUE(text_utils::is_found(
-        out.find(matchSeq + std::string("abc") + normalHash)));
-    EXPECT_TRUE(text_utils::is_found(
         out.find(matchSeq + std::string("abc") + normalText)));
+}
+
+TEST(GitLogRenderTest, RendersTigStyleColumnsAndRefs)
+{
+    Editor editor = Editor::createForTests();
+    std::string raw = "* ";
+    raw += '\x1e';
+    raw += "abc123";
+    raw += '\x1f';
+    raw += "2026-05-27 16:28 +0300";
+    raw += '\x1f';
+    raw += "Matti Laamanen";
+    raw += '\x1f';
+    raw += "HEAD -> main, origin/main, origin/HEAD";
+    raw += '\x1f';
+    raw += "parent1 parent2";
+    raw += '\x1f';
+    raw += "Merge branch 'feature/refactor_state_machines'";
+    auto entry = GitLogMode::parseGraphEntry(raw);
+    ASSERT_TRUE(entry.has_value());
+
+    std::string out =
+        GitLogMode::testRenderLine(editor.theme, *entry, "", false, 140);
+
+    EXPECT_TRUE(text_utils::is_found(out.find("abc123")));
+    EXPECT_TRUE(text_utils::is_found(out.find("<Matti Laamanen>")));
+    EXPECT_EQ(entry->graph, "* ");
+    EXPECT_TRUE(text_utils::is_found(out.find("[main]")));
+    EXPECT_TRUE(text_utils::is_found(out.find("{origin/main}")));
+    EXPECT_TRUE(text_utils::is_found(out.find("{origin/HEAD}")));
+}
+
+TEST(GitLogRenderTest, AppliesDroppedConnectorRowsToNextCommit)
+{
+    std::string raw = "* ";
+    raw += '\x1e';
+    raw += "abc123";
+    raw += '\x1f';
+    raw += "2026-05-24 19:28 +0300";
+    raw += '\x1f';
+    raw += "Matti Laamanen";
+    raw += '\x1f';
+    raw += "feature/move_code";
+    raw += '\x1f';
+    raw += "parent1";
+    raw += '\x1f';
+    raw += "Keep cursor on first edited line";
+
+    auto entry = GitLogMode::parseGraphEntry(raw);
+    ASSERT_TRUE(entry.has_value());
+    GitLogMode::applyGraphConnector(*entry, "|/  ");
+
+    EXPECT_EQ(entry->graph, "|/");
 }
 
 TEST(GitSearchHighlightTest, GitShowHighlightsOnlyMatches)

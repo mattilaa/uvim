@@ -57,7 +57,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gj` : show commit diff for current line when git blame is visible
 - `gbv` : show commit diff for line under cursor
 - `gs` : show C/C++ symbol size and member layout popup
-- `gl` / `glf` : git log (repo / current file)
+- `gl` / `glf` : git log (repo / current file); `Ctrl-v` range selects
 - `bd` : close current buffer
 
 \subsection keys_normal_leader Leader (Space)

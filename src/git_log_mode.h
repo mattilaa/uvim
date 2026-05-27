@@ -32,7 +32,10 @@ struct GitLogMode
         std::string hash;
         std::string date;
         std::string author;
+        std::string graph;
+        std::string refs;
         std::string subject;
+        bool merge = false;
 
         Entry() = default;
 
@@ -91,6 +94,10 @@ struct GitLogMode
 
     void rebuildFilter(Editor& editor);
     void ensurePrettyPreview(Editor& editor);
+    static const char* graphPrettyFormatArg();
+    static std::optional<Entry> parseGraphEntry(std::string_view line);
+    static void applyGraphConnector(Entry& entry,
+                                    std::string_view connectorLine);
 #ifdef UVIM_TESTING
     static std::string testRenderLine(const Theme& theme, const Entry& entry,
                                       std::string_view query, bool selected,

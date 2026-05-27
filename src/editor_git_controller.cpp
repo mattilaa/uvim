@@ -183,39 +183,30 @@ std::vector<GitLogMode::Entry>
 load_repo_log_entries(const std::string& repoRoot)
 {
     ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "log", "--no-color",
-                      "--date=format:%Y-%m-%d %H:%M %z",
-                      "--pretty=format:%H%x1f%ad%x1f%an%x1f%s"});
+                      "--graph", "--date=format:%Y-%m-%d %H:%M %z",
+                      GitLogMode::graphPrettyFormatArg()});
     if(!pipe)
         return {};
 
     std::vector<GitLogMode::Entry> entries;
+    std::string pendingGraphConnector;
     char buffer[1024];
     while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(line.empty())
             continue;
-        constexpr char sep = '\x1f';
-        size_t tab = line.find(sep);
-        if(text_utils::is_not_found(tab))
-            continue;
-        GitLogMode::Entry entry;
-        size_t tab2 = line.find(sep, tab + 1);
-        size_t tab3 = (text_utils::is_not_found(tab2))
-                          ? text_utils::npos()
-                          : line.find(sep, tab2 + 1);
-        entry.hash = line.substr(0, tab);
-        if(text_utils::is_found(tab2))
-            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-        if(text_utils::is_found(tab2) && text_utils::is_found(tab3))
-            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-        if(text_utils::is_found(tab3))
-            entry.subject = line.substr(tab3 + 1);
-        else if(text_utils::is_found(tab2))
-            entry.subject = line.substr(tab2 + 1);
+        auto entry = GitLogMode::parseGraphEntry(line);
+        if(entry)
+        {
+            GitLogMode::applyGraphConnector(*entry, pendingGraphConnector);
+            entries.push_back(std::move(*entry));
+            pendingGraphConnector.clear();
+        }
         else
-            entry.subject = line.substr(tab + 1);
-        entries.push_back(std::move(entry));
+        {
+            pendingGraphConnector = line;
+        }
     }
     return entries;
 }
@@ -874,7 +865,8 @@ void EditorGitController::openGitLogModeForFile()
         return;
     }
     ProcessPipe pipe({"git", "-C", dir, "--no-pager", "log", "--no-color",
-                      "--pretty=format:%H\t%s", "--",
+                      "--graph", "--date=format:%Y-%m-%d %H:%M %z",
+                      GitLogMode::graphPrettyFormatArg(), "--",
                       editor.currentBuffer->filename});
     if(!pipe)
     {
@@ -883,19 +875,24 @@ void EditorGitController::openGitLogModeForFile()
     }
 
     std::vector<GitLogMode::Entry> entries;
+    std::string pendingGraphConnector;
     char buffer[1024];
     while(fgets(buffer, sizeof(buffer), pipe.get()))
     {
         std::string line = trim_newline(buffer);
         if(line.empty())
             continue;
-        size_t tab = line.find('\t');
-        if(text_utils::is_not_found(tab))
-            continue;
-        GitLogMode::Entry entry;
-        entry.hash = line.substr(0, tab);
-        entry.subject = line.substr(tab + 1);
-        entries.push_back(std::move(entry));
+        auto entry = GitLogMode::parseGraphEntry(line);
+        if(entry)
+        {
+            GitLogMode::applyGraphConnector(*entry, pendingGraphConnector);
+            entries.push_back(std::move(*entry));
+            pendingGraphConnector.clear();
+        }
+        else
+        {
+            pendingGraphConnector = line;
+        }
     }
     if(entries.empty())
     {

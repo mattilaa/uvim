@@ -66,7 +66,9 @@ bool reload_git_log_mode(GitLogMode& mode)
     }
     else
     {
-        args.push_back("--pretty=format:%H%x1f%s");
+        args.push_back("--graph");
+        args.push_back("--date=format:%Y-%m-%d %H:%M %z");
+        args.push_back(GitLogMode::graphPrettyFormatArg());
     }
     if(mode.fileOnly && !mode.filePath.empty())
     {
@@ -77,38 +79,48 @@ bool reload_git_log_mode(GitLogMode& mode)
     auto lines = run_git_lines(args);
     std::vector<GitLogMode::Entry> entries;
     entries.reserve(lines.size());
+    std::string pendingGraphConnector;
     for(const auto& raw : lines)
     {
         std::string line = trim_newline(raw);
         if(line.empty())
             continue;
+        if(!mode.prettyView)
+        {
+            auto entry = GitLogMode::parseGraphEntry(line);
+            if(entry)
+            {
+                GitLogMode::applyGraphConnector(*entry, pendingGraphConnector);
+                entries.push_back(std::move(*entry));
+                pendingGraphConnector.clear();
+            }
+            else
+            {
+                pendingGraphConnector = line;
+            }
+            continue;
+        }
+
         constexpr char sep = '\x1f';
         size_t tab = line.find(sep);
         if(text_utils::is_not_found(tab))
             continue;
         GitLogMode::Entry entry;
         entry.hash = line.substr(0, tab);
-        if(mode.prettyView)
-        {
-            size_t tab2 = line.find(sep, tab + 1);
-            size_t tab3 = (text_utils::is_not_found(tab2))
-                              ? text_utils::npos()
-                              : line.find(sep, tab2 + 1);
-            if(text_utils::is_found(tab2))
-                entry.date = line.substr(tab + 1, tab2 - (tab + 1));
-            if(text_utils::is_found(tab2) && text_utils::is_found(tab3))
-                entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
-            if(text_utils::is_found(tab3))
-                entry.subject = line.substr(tab3 + 1);
-            else if(text_utils::is_found(tab2))
-                entry.subject = line.substr(tab2 + 1);
-            else
-                entry.subject = line.substr(tab + 1);
-        }
+        size_t tab2 = line.find(sep, tab + 1);
+        size_t tab3 = (text_utils::is_not_found(tab2))
+                          ? text_utils::npos()
+                          : line.find(sep, tab2 + 1);
+        if(text_utils::is_found(tab2))
+            entry.date = line.substr(tab + 1, tab2 - (tab + 1));
+        if(text_utils::is_found(tab2) && text_utils::is_found(tab3))
+            entry.author = line.substr(tab2 + 1, tab3 - (tab2 + 1));
+        if(text_utils::is_found(tab3))
+            entry.subject = line.substr(tab3 + 1);
+        else if(text_utils::is_found(tab2))
+            entry.subject = line.substr(tab2 + 1);
         else
-        {
             entry.subject = line.substr(tab + 1);
-        }
         entries.push_back(std::move(entry));
     }
     if(entries.empty())
