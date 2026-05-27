@@ -23,7 +23,7 @@
 //
 // ============================================================================
 
-template <typename StateVariant, typename Context, typename Event>
+template <typename StateVariant, typename Context, typename Event = void>
 class StateMachine
 {
 public:
@@ -38,8 +38,18 @@ public:
                    currentState_);
     }
 
-    // Dispatch an event to the current state
-    void dispatch(const Event& event)
+    // Dispatch an event to the current state.
+    //
+    // The concrete event type is intentionally templated here so a state can
+    // implement focused overloads such as:
+    //
+    //   std::optional<State> handle(Context&, const KeyEvent& event);
+    //   std::optional<State> handle(Context&, const TimerEvent& event);
+    //
+    // This keeps trigger data bundled in the event object instead of leaking
+    // raw primitives through the state-machine API.
+    template <typename DispatchEvent>
+    void dispatch(const DispatchEvent& event)
     {
         auto newState = std::visit(
             [this, &event](auto& state) -> std::optional<StateVariant>
@@ -90,6 +100,7 @@ public:
     {
         return context_;
     }
+
     const Context& context() const
     {
         return context_;
@@ -100,6 +111,7 @@ public:
     {
         return currentState_;
     }
+
     const StateVariant& state() const
     {
         return currentState_;
@@ -183,6 +195,7 @@ protected:
 struct CharEvent
 {
     char ch;
+
     explicit CharEvent(char c) : ch(c) {}
 };
 
@@ -190,12 +203,15 @@ struct CharEvent
 struct EscapeEvent
 {
 };
+
 struct EnterEvent
 {
 };
+
 struct BackspaceEvent
 {
 };
+
 struct TabEvent
 {
 };

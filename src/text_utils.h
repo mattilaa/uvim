@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
+#include <filesystem>
 #include <locale>
 #include <string>
 #include <string_view>
@@ -114,6 +115,45 @@ constexpr bool contains(std::string_view s, char needle) noexcept
 }
 
 /**
+ * Appends multiple string-like parts to `out` without creating intermediate
+ * strings.
+ */
+template <typename... Parts>
+void append_all(std::string& out, const Parts&... parts)
+{
+    (out.append(parts), ...);
+}
+
+/**
+ * Finds `needle` in `haystack` using ASCII case-insensitive comparison.
+ *
+ * Returns text_utils::npos() when no match is found. This is intended for
+ * command/search UI paths where locale-independent ASCII matching is enough.
+ */
+constexpr size_t ifind_ascii(std::string_view haystack,
+                             std::string_view needle,
+                             size_t from = 0) noexcept
+{
+    if(needle.empty())
+        return from <= haystack.size() ? from : npos();
+    if(from > haystack.size() || needle.size() > haystack.size())
+        return npos();
+
+    for(size_t i = from; i + needle.size() <= haystack.size(); ++i)
+    {
+        size_t j = 0;
+        for(; j < needle.size(); ++j)
+        {
+            if(ascii_tolower(haystack[i + j]) != ascii_tolower(needle[j]))
+                break;
+        }
+        if(j == needle.size())
+            return i;
+    }
+    return npos();
+}
+
+/**
  * Returns a lightweight range of every non-overlapping match position.
  *
  * The range stores a view of `text` and owns a copy of `needle`, so temporary
@@ -208,6 +248,18 @@ inline std::string ascii_lower(std::string_view value)
         out.push_back(ascii_tolower(c));
     return out;
 }
+
+/**
+ * Finds a line in `file` that starts with `marker`, then compares the rest of
+ * the line with `symbol` using exact or ASCII case-insensitive matching.
+ *
+ * On success, `path` is set to the file path and `line` is set to the zero-based
+ * line number of the marker.
+ */
+bool find_prefixed_marker_in_file(std::string_view symbol,
+                                  const std::filesystem::path& file,
+                                  std::string_view marker, std::string& path,
+                                  int& line);
 
 // --- UTF-8 appending (runtime; std::string mutation not constexpr in C++20)
 // ---

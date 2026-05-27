@@ -333,8 +333,10 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
 
 void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
+                                                 const ModeKeyEvent& event)
 {
+    const int key = event.key;
     int c = keyCode(key);
 
     if(confirmingDelete)

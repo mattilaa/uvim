@@ -137,8 +137,10 @@ void GitPatchMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
+                                              const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

@@ -52,8 +52,10 @@ void HelpMode::on_enter(ModeContext& ctx)
 
 void HelpMode::on_exit(ModeContext& /* ctx */) {}
 
-std::optional<ModeState> HelpMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
+                                          const ModeKeyEvent& event)
 {
+    const int key = event.key;
     int c = keyCode(key);
     bool needsRedraw = false;
 

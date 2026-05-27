@@ -169,6 +169,7 @@ set(UVIM_CORE_SOURCES
     src/editor_utils.cpp
     src/editor_mode_controller_handlers.cpp
     src/editor_lsp_info.cpp
+    src/text_utils.cpp
     src/text_operations.cpp
     src/search.cpp
     src/formatter.cpp

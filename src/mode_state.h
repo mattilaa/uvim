@@ -1,5 +1,7 @@
 #pragma once
 
+#include "mode_events.h"
+
 #include <optional>
 #include <variant>
 

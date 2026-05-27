@@ -8,8 +8,10 @@
 namespace editor::statemachine
 {
 std::optional<ModeState> CommentLeaderAfterCiiAwaitingSuffix::handle(
-    CommentLeaderPendingMachine& machine, ModeContext& ctx, int key)
+    CommentLeaderPendingMachine& machine, ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
+    const int key = event.key;
     if(commentleader::isEscape(key))
     {
         machine.cancel(ctx);
@@ -18,7 +20,7 @@ std::optional<ModeState> CommentLeaderAfterCiiAwaitingSuffix::handle(
 
     if(key == keyCode(typed::TypedKey::KEY_T))
     {
-        return CommentLeaderAfterCiiApplied{}.handle(machine, ctx, key);
+        return CommentLeaderAfterCiiApplied{}.handle(machine, ctx, event);
     }
 
     machine.cancel(ctx);

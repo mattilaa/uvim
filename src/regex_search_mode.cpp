@@ -103,8 +103,10 @@ void RegexSearchMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> RegexSearchMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> RegexSearchMode::handle(ModeContext& ctx,
+                                                 const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

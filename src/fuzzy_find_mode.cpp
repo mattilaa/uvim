@@ -161,8 +161,10 @@ void FuzzyFindMode::on_exit(ModeContext& /* ctx */)
     Terminal::setCursorBlock();
 }
 
-std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
+                                               const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 

@@ -11,11 +11,11 @@ CommentLeaderPendingMachine::CommentLeaderPendingMachine(
 {
 }
 
-std::optional<ModeState> CommentLeaderPendingMachine::handle(ModeContext& ctx,
-                                                             int key)
+std::optional<ModeState>
+CommentLeaderPendingMachine::handle(ModeContext& ctx, const ModeKeyEvent& event)
 {
     return std::visit([&](auto& pending) -> std::optional<ModeState>
-                      { return pending.handle(*this, ctx, key); }, state);
+                      { return pending.handle(*this, ctx, event); }, state);
 }
 
 bool CommentLeaderPendingMachine::done() const

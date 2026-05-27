@@ -31,8 +31,10 @@ void VisualMode::on_exit(ModeContext& ctx)
     ctx.editor->needsFullRedraw = true;
 }
 
-std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
+                                            const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 
@@ -41,7 +43,8 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
 
     if(commentLeaderPending)
     {
-        std::optional<ModeState> result = commentLeaderPending->handle(ctx, c);
+        std::optional<ModeState> result =
+            commentLeaderPending->handle(ctx, ModeKeyEvent{c});
         if(commentLeaderPending->done())
             commentLeaderPending.reset();
         return result;
@@ -49,7 +52,8 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx, int key)
 
     if(textObjectPending)
     {
-        std::optional<ModeState> result = textObjectPending->handle(ctx, c);
+        std::optional<ModeState> result =
+            textObjectPending->handle(ctx, ModeKeyEvent{c});
         if(textObjectPending->done())
             textObjectPending.reset();
         return result;

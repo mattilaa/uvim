@@ -148,9 +148,9 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
 // ModeStateMachine Implementation
 // ============================================================================
 //
-// Note: ModeStateMachine now inherits from StateMachine<ModeState, ModeContext,
-// std::string_view>, so all dispatch/transition logic is provided by the base
-// class template. Only helpers like createModeContext are implemented here.
+// Note: ModeStateMachine inherits from StateMachine<ModeState, ModeContext>.
+// Mode dispatch wraps raw key codes in ModeKeyEvent so mode handlers receive
+// trigger data through typed event objects.
 //
 // The constructors are defined inline in the header using the base class.
 //

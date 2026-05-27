@@ -457,8 +457,10 @@ void GitLogMode::on_exit(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-std::optional<ModeState> GitLogMode::handle(ModeContext& ctx, int key)
+std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
+                                            const ModeKeyEvent& event)
 {
+    const int key = event.key;
     Editor* ed = ctx.editor;
     if(filtered.empty())
     {

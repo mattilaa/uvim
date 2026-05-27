@@ -30,6 +30,7 @@ struct VisualBlockMode
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
 
-    std::optional<ModeState> handle(ModeContext& ctx, int key);
+    std::optional<ModeState> handle(ModeContext& ctx,
+                                    const ModeKeyEvent& event);
 };
 } // namespace editor::statemachine

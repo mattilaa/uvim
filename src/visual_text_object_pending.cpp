@@ -53,8 +53,10 @@ applyTextObject(VisualTextObjectPendingMachine& machine, ModeContext& ctx,
 } // namespace
 
 std::optional<ModeState> VisualTextObjectDelimiterDispatcher::dispatch(
-    VisualTextObjectPendingMachine& machine, ModeContext& ctx, int key)
+    VisualTextObjectPendingMachine& machine, ModeContext& ctx,
+    const ModeKeyEvent& event)
 {
+    const int key = event.key;
     if(isEscape(key))
     {
         machine.cancel(ctx);
@@ -65,28 +67,28 @@ std::optional<ModeState> VisualTextObjectDelimiterDispatcher::dispatch(
     {
     case keyCode(command::CommandKey::KEY_LEFT_PAREN):
         machine.setLeftParen();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_RIGHT_PAREN):
         machine.setRightParen();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_LEFT_BRACKET):
         machine.setLeftBracket();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_RIGHT_BRACKET):
         machine.setRightBracket();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_LEFT_BRACE):
         machine.setLeftBrace();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_RIGHT_BRACE):
         machine.setRightBrace();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_DOUBLE_QUOTE):
         machine.setDoubleQuote();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     case keyCode(command::CommandKey::KEY_APOSTROPHE):
         machine.setSingleQuote();
-        return machine.redispatch(ctx, key);
+        return machine.redispatch(ctx, event);
     default:
         machine.cancel(ctx);
         Terminal::unreadKey(key);
@@ -103,10 +105,11 @@ VisualTextObjectPendingMachine::VisualTextObjectPendingMachine(
 }
 
 std::optional<ModeState>
-VisualTextObjectPendingMachine::handle(ModeContext& ctx, int key)
+VisualTextObjectPendingMachine::handle(ModeContext& ctx,
+                                       const ModeKeyEvent& event)
 {
     return std::visit([&](auto& activeState) -> std::optional<ModeState>
-                      { return activeState.handle(*this, ctx, key); }, state);
+                      { return activeState.handle(*this, ctx, event); }, state);
 }
 
 bool VisualTextObjectPendingMachine::done() const
@@ -133,9 +136,10 @@ void VisualTextObjectPendingMachine::cancel(ModeContext& ctx)
 }
 
 std::optional<ModeState>
-VisualTextObjectPendingMachine::redispatch(ModeContext& ctx, int key)
+VisualTextObjectPendingMachine::redispatch(ModeContext& ctx,
+                                           const ModeKeyEvent& event)
 {
-    return handle(ctx, key);
+    return handle(ctx, event);
 }
 
 void VisualTextObjectPendingMachine::setLeftParen()
@@ -180,21 +184,21 @@ void VisualTextObjectPendingMachine::setSingleQuote()
 
 std::optional<ModeState>
 VisualTextObjectAfterI::handle(VisualTextObjectPendingMachine& machine,
-                               ModeContext& ctx, int key)
+                               ModeContext& ctx, const ModeKeyEvent& event)
 {
-    return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, key);
+    return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, event);
 }
 
 std::optional<ModeState>
 VisualTextObjectAfterA::handle(VisualTextObjectPendingMachine& machine,
-                               ModeContext& ctx, int key)
+                               ModeContext& ctx, const ModeKeyEvent& event)
 {
-    return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, key);
+    return VisualTextObjectDelimiterDispatcher{}.dispatch(machine, ctx, event);
 }
 
 std::optional<ModeState>
 VisualTextObjectLeftParen::handle(VisualTextObjectPendingMachine& machine,
-                                  ModeContext& ctx, int)
+                                  ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_LEFT_PAREN));
@@ -202,7 +206,7 @@ VisualTextObjectLeftParen::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectRightParen::handle(VisualTextObjectPendingMachine& machine,
-                                   ModeContext& ctx, int)
+                                   ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_RIGHT_PAREN));
@@ -210,7 +214,7 @@ VisualTextObjectRightParen::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectLeftBracket::handle(VisualTextObjectPendingMachine& machine,
-                                    ModeContext& ctx, int)
+                                    ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_LEFT_BRACKET));
@@ -218,7 +222,7 @@ VisualTextObjectLeftBracket::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectRightBracket::handle(VisualTextObjectPendingMachine& machine,
-                                     ModeContext& ctx, int)
+                                     ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_RIGHT_BRACKET));
@@ -226,7 +230,7 @@ VisualTextObjectRightBracket::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectLeftBrace::handle(VisualTextObjectPendingMachine& machine,
-                                  ModeContext& ctx, int)
+                                  ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_LEFT_BRACE));
@@ -234,7 +238,7 @@ VisualTextObjectLeftBrace::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectRightBrace::handle(VisualTextObjectPendingMachine& machine,
-                                   ModeContext& ctx, int)
+                                   ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_RIGHT_BRACE));
@@ -242,7 +246,7 @@ VisualTextObjectRightBrace::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectDoubleQuote::handle(VisualTextObjectPendingMachine& machine,
-                                    ModeContext& ctx, int)
+                                    ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_DOUBLE_QUOTE));
@@ -250,7 +254,7 @@ VisualTextObjectDoubleQuote::handle(VisualTextObjectPendingMachine& machine,
 
 std::optional<ModeState>
 VisualTextObjectSingleQuote::handle(VisualTextObjectPendingMachine& machine,
-                                    ModeContext& ctx, int)
+                                    ModeContext& ctx, const ModeKeyEvent&)
 {
     return applyTextObject(machine, ctx,
                            keyCode(command::CommandKey::KEY_APOSTROPHE));
