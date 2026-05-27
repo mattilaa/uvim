@@ -362,8 +362,9 @@ bool MlangFormatter::operator()(Mode mode)
     return true;
 }
 #else
-bool MlangFormatter::operator()()
+bool MlangFormatter::operator()(Mode mode)
 {
+    (void)mode;
     editor.setStatusMessage("mlang LSP: not compiled");
     return false;
 }

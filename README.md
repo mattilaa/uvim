@@ -63,6 +63,32 @@ Install doxygen with your system package manager (e.g., `brew install doxygen`
 on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
 on Fedora).
 
+## Build configurator
+
+`uvim-config` is a small ccmake-style TUI for choosing common build options.
+
+```sh
+cmake -S . -B build
+cmake --build build --target uvim-config
+./build/uvim-config
+```
+
+Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
+section, `Space`/Enter to toggle or cycle an option, `s` to write
+`build/uvim_config_cache.cmake`, and `q` to quit. Then configure and build uvim
+with the generated cache:
+
+```sh
+cmake -C build/uvim_config_cache.cmake -S . -B build
+cmake --build build
+```
+
+The default release optimization is `-O2`. For very small binaries, choose the
+`vi-min` feature set or tune the options under `Editor Features`,
+`Build Outputs`, and `Size And Link`. The smallest profiles use `Oz`, LTO,
+dead-code sections, and strip while disabling optional docs/LSP/test build
+outputs.
+
 ## Assembly instruction docs
 
 Assembly instruction `gd` support is controlled by the CMake option

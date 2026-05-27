@@ -30,6 +30,11 @@ project(uvim VERSION ${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}.${UVIM_VERSION_
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
 # Build options
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
@@ -38,6 +43,16 @@ option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
 option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
+option(UVIM_ENABLE_GIT_TOOLS "Build git views and git commands" ON)
+option(UVIM_ENABLE_SEARCH_TOOLS "Build fuzzy, grep, and regex search views" ON)
+option(UVIM_ENABLE_FORMATTERS "Build external formatter integrations" ON)
+option(UVIM_ENABLE_SYSTEM_CLIPBOARD "Build system clipboard integration hooks" ON)
+option(UVIM_ENABLE_STRUCT_SIZE_POPUP "Build clang-based struct/variable size popup support" ON)
+option(UVIM_ENABLE_LTO "Enable link-time optimization / IPO for release builds" ON)
+option(UVIM_ENABLE_GC_SECTIONS "Enable function/data sections and linker garbage collection where supported" ON)
+option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it" OFF)
+set(UVIM_OPTIMIZATION_LEVEL "O2" CACHE STRING "Release optimization level: O0, O1, O2, O3, Os, Oz")
+set_property(CACHE UVIM_OPTIMIZATION_LEVEL PROPERTY STRINGS O0 O1 O2 O3 Os Oz)
 
 if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
@@ -49,6 +64,8 @@ set_property(CACHE UVIM_TERMINAL_BACKEND PROPERTY STRINGS AUTO POSIX WIN32)
 
 if(UVIM_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+else()
+    set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 endif()
 
 # Include directories - make headers available to all targets
@@ -57,7 +74,6 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 # Core editor sources
 set(UVIM_CORE_SOURCES
     src/main.cpp
-    src/asm_documentation.cpp
     src/terminal.cpp
     src/editor.cpp
     src/editor_buffer_controller.cpp
@@ -252,10 +268,21 @@ if(UVIM_ENABLE_CLANGD_LSP)
     )
 endif()
 
+if(UVIM_ENABLE_ASM_DOCS)
+    list(APPEND UVIM_SOURCES src/asm_documentation.cpp)
+else()
+    list(APPEND UVIM_SOURCES src/asm_documentation_stub.cpp)
+endif()
+
 add_executable(uvim ${UVIM_SOURCES})
 target_compile_definitions(uvim PRIVATE UVIM_VERSION="${PROJECT_VERSION}")
 add_custom_command(TARGET uvim POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
+)
+
+add_executable(uvim-config src/uvim_configure.cpp)
+target_compile_definitions(uvim-config PRIVATE
+    UVIM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
 # ------------------------------------------------------------------------------
@@ -285,8 +312,10 @@ message(STATUS "uvim terminal backend: ${_backend}")
 # ------------------------------------------------------------------------------
 if(MSVC)
     target_compile_options(uvim PRIVATE /W4 /permissive-)
+    target_compile_options(uvim-config PRIVATE /W4 /permissive-)
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(uvim-config PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -329,18 +358,56 @@ if(MSVC)
         $<$<CONFIG:Release>:/O2>
     )
 else()
+    if(NOT UVIM_OPTIMIZATION_LEVEL MATCHES "^(O0|O1|O2|O3|Os|Oz)$")
+        message(FATAL_ERROR "Invalid UVIM_OPTIMIZATION_LEVEL='${UVIM_OPTIMIZATION_LEVEL}'. Use O0, O1, O2, O3, Os, or Oz.")
+    endif()
     target_compile_options(uvim PRIVATE
-        $<$<CONFIG:Release>:-O3>
-        $<$<CONFIG:Release>:-ffunction-sections>
-        $<$<CONFIG:Release>:-fdata-sections>
+        $<$<CONFIG:Release>:-${UVIM_OPTIMIZATION_LEVEL}>
     )
+    if(UVIM_ENABLE_GC_SECTIONS)
+        target_compile_options(uvim PRIVATE
+            $<$<CONFIG:Release>:-ffunction-sections>
+            $<$<CONFIG:Release>:-fdata-sections>
+        )
+        if(APPLE)
+            target_link_options(uvim PRIVATE
+                $<$<CONFIG:Release>:-Wl,-dead_strip>
+            )
+        else()
+            target_link_options(uvim PRIVATE
+                $<$<CONFIG:Release>:-Wl,--gc-sections>
+            )
+        endif()
+    endif()
 endif()
 
 # Enable LTO / IPO
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
-if(ipo_supported)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+if(UVIM_ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+    if(ipo_supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    else()
+        message(WARNING "UVIM_ENABLE_LTO=ON requested, but IPO is not supported: ${ipo_error}")
+    endif()
+endif()
+
+if(UVIM_STRIP_BINARY)
+    if(CMAKE_STRIP AND NOT MSVC)
+        if(APPLE)
+            add_custom_command(TARGET uvim POST_BUILD
+                COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:uvim>
+                COMMENT "Stripping uvim binary"
+            )
+        else()
+            add_custom_command(TARGET uvim POST_BUILD
+                COMMAND ${CMAKE_STRIP} $<TARGET_FILE:uvim>
+                COMMENT "Stripping uvim binary"
+            )
+        endif()
+    else()
+        message(WARNING "UVIM_STRIP_BINARY=ON requested, but no supported strip tool is available")
+    endif()
 endif()
 
 # rapidjson (JSON parsing) - header-only, avoid subproject CMake
@@ -409,6 +476,26 @@ endif()
 
 if(UVIM_ENABLE_ASM_DOCS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_ASM_DOCS=1)
+endif()
+
+if(UVIM_ENABLE_GIT_TOOLS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_GIT_TOOLS=1)
+endif()
+
+if(UVIM_ENABLE_SEARCH_TOOLS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_SEARCH_TOOLS=1)
+endif()
+
+if(UVIM_ENABLE_FORMATTERS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_FORMATTERS=1)
+endif()
+
+if(UVIM_ENABLE_SYSTEM_CLIPBOARD)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_SYSTEM_CLIPBOARD=1)
+endif()
+
+if(UVIM_ENABLE_STRUCT_SIZE_POPUP)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_STRUCT_SIZE_POPUP=1)
 endif()
 
 # ============================================================================
