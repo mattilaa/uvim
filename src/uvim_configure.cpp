@@ -1,0 +1,1716 @@
+#include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <vector>
+
+#ifdef _WIN32
+#include <conio.h>
+#else
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
+#endif
+
+#ifndef UVIM_SOURCE_DIR
+#define UVIM_SOURCE_DIR "."
+#endif
+
+namespace fs = std::filesystem;
+
+namespace
+{
+constexpr int kKeyEsc = 27;
+constexpr int kKeyUp = 1001;
+constexpr int kKeyDown = 1002;
+constexpr int kKeyResize = 1003;
+
+int gPendingKey = 0;
+
+#ifndef _WIN32
+volatile std::sig_atomic_t gResizePending = 0;
+
+void handle_resize(int)
+{
+    gResizePending = 1;
+}
+#endif
+
+struct TerminalSize
+{
+    int rows = 24;
+    int cols = 80;
+};
+
+struct Layout
+{
+    int titleRows = 1;
+    int keyRows = 1;
+    int spacerRows = 1;
+    int listRows = 1;
+    int docTitleRows = 1;
+    int docRows = 1;
+    int outputRows = 1;
+    int messageRows = 3;
+};
+
+enum class ItemKind
+{
+    FeatureSet,
+    Choice,
+    Text,
+    Toggle,
+};
+
+enum class RowKind
+{
+    Section,
+    Item,
+};
+
+struct Config
+{
+    int featureSet = 4;
+    int buildType = 0;
+    int platform = 0;
+    int optimization = 2;
+    std::string installDir;
+    std::string jobs;
+    bool clangdLsp = false;
+    bool asmDocs = true;
+    bool gitTools = true;
+    bool searchTools = true;
+    bool formatters = true;
+    bool systemClipboard = true;
+    bool structSizePopup = true;
+    bool tests = true;
+    bool compileCommands = true;
+    bool lto = true;
+    bool gcSections = true;
+    bool stripBinary = false;
+    bool autoIncrementBuild = true;
+    bool sanitizers = false;
+    bool debugLogging = false;
+    bool debugLsp = false;
+};
+
+struct CliOptions
+{
+    fs::path sourceDir = fs::absolute(fs::path(UVIM_SOURCE_DIR));
+    fs::path buildDir = sourceDir / "build";
+    std::optional<fs::path> output;
+    bool installAfterBuild = false;
+};
+
+struct Item
+{
+    ItemKind kind;
+    std::string label;
+    std::string cmakeName;
+    bool Config::* flag = nullptr;
+    int Config::* choice = nullptr;
+    std::vector<std::string> choices;
+    std::string help;
+    std::string Config::* text = nullptr;
+};
+
+struct Section
+{
+    std::string label;
+    std::string help;
+    bool open = true;
+    std::vector<Item> items;
+};
+
+struct VisibleRow
+{
+    RowKind kind;
+    size_t section = 0;
+    size_t item = 0;
+};
+
+const std::vector<std::string> kFeatureSets = {"vi-real", "vi-min", "minimal",
+                                               "basic", "full"};
+const std::vector<std::string> kBuildTypes = {"Release", "Debug",
+                                              "RelWithDebInfo", "MinSizeRel"};
+const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
+const std::vector<std::string> kOptimizations = {"O0", "O1", "O2",
+                                                 "O3", "Os", "Oz"};
+
+bool equals_ci(std::string_view lhs, std::string_view rhs)
+{
+    if(lhs.size() != rhs.size())
+        return false;
+    for(size_t i = 0; i < lhs.size(); ++i)
+    {
+        if(std::tolower(static_cast<unsigned char>(lhs[i])) !=
+           std::tolower(static_cast<unsigned char>(rhs[i])))
+            return false;
+    }
+    return true;
+}
+
+std::optional<int> choice_index(std::string_view value,
+                                const std::vector<std::string>& choices)
+{
+    for(size_t i = 0; i < choices.size(); ++i)
+    {
+        if(equals_ci(value, choices[i]))
+            return static_cast<int>(i);
+    }
+    return std::nullopt;
+}
+
+std::string join_choices(const std::vector<std::string>& choices)
+{
+    std::string out;
+    for(size_t i = 0; i < choices.size(); ++i)
+    {
+        if(i > 0)
+            out += ", ";
+        out += choices[i];
+    }
+    return out;
+}
+
+std::string trim(std::string_view value)
+{
+    size_t first = 0;
+    while(first < value.size() &&
+          std::isspace(static_cast<unsigned char>(value[first])))
+        ++first;
+    size_t last = value.size();
+    while(last > first &&
+          std::isspace(static_cast<unsigned char>(value[last - 1])))
+        --last;
+    return std::string(value.substr(first, last - first));
+}
+
+std::string bool_value(bool value)
+{
+    return value ? "ON" : "OFF";
+}
+
+std::optional<bool> parse_bool(std::string_view value)
+{
+    if(equals_ci(value, "on") || equals_ci(value, "true") ||
+       equals_ci(value, "yes") || value == "1")
+        return true;
+    if(equals_ci(value, "off") || equals_ci(value, "false") ||
+       equals_ci(value, "no") || value == "0")
+        return false;
+    return std::nullopt;
+}
+
+std::string default_install_dir()
+{
+#ifdef _WIN32
+    if(const char* localAppData = std::getenv("LOCALAPPDATA"))
+        return std::string(localAppData) + "\\uvim\\bin";
+    return "C:\\uvim\\bin";
+#else
+    return "~/.local/bin";
+#endif
+}
+
+std::string default_jobs()
+{
+    const unsigned int cores = std::thread::hardware_concurrency();
+    return std::to_string(cores == 0 ? 1 : cores);
+}
+
+class TerminalRawMode
+{
+public:
+    TerminalRawMode()
+    {
+#ifndef _WIN32
+        if(::isatty(STDIN_FILENO) && ::tcgetattr(STDIN_FILENO, &original) == 0)
+        {
+            termios raw = original;
+            raw.c_lflag &= ~(ICANON | ECHO);
+            raw.c_cc[VMIN] = 1;
+            raw.c_cc[VTIME] = 0;
+            active = (::tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == 0);
+        }
+#endif
+    }
+
+    TerminalRawMode(const TerminalRawMode&) = delete;
+    TerminalRawMode& operator=(const TerminalRawMode&) = delete;
+
+    ~TerminalRawMode()
+    {
+#ifndef _WIN32
+        if(active)
+            ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
+#endif
+    }
+
+private:
+#ifndef _WIN32
+    termios original{};
+#endif
+    bool active = false;
+};
+
+int read_key()
+{
+    if(gPendingKey != 0)
+    {
+        const int key = gPendingKey;
+        gPendingKey = 0;
+        return key;
+    }
+#ifdef _WIN32
+    int c = _getch();
+    if(c == 0 || c == 224)
+    {
+        int next = _getch();
+        if(next == 72)
+            return kKeyUp;
+        if(next == 80)
+            return kKeyDown;
+    }
+    return c;
+#else
+    unsigned char c = 0;
+    const ssize_t n = ::read(STDIN_FILENO, &c, 1);
+    if(n != 1)
+    {
+        if(n == -1 && errno == EINTR && gResizePending)
+        {
+            gResizePending = 0;
+            return kKeyResize;
+        }
+        return 0;
+    }
+    if(c == 27)
+    {
+        unsigned char seq[2]{};
+#ifndef _WIN32
+        const int flags = ::fcntl(STDIN_FILENO, F_GETFL, 0);
+        if(flags != -1)
+            ::fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+#endif
+        if(::read(STDIN_FILENO, &seq[0], 1) == 1)
+        {
+            if(seq[0] != '[')
+                gPendingKey = seq[0];
+            else if(::read(STDIN_FILENO, &seq[1], 1) == 1)
+            {
+#ifndef _WIN32
+                if(flags != -1)
+                    ::fcntl(STDIN_FILENO, F_SETFL, flags);
+#endif
+                if(seq[1] == 'A')
+                    return kKeyUp;
+                if(seq[1] == 'B')
+                    return kKeyDown;
+            }
+        }
+#ifndef _WIN32
+        if(flags != -1)
+            ::fcntl(STDIN_FILENO, F_SETFL, flags);
+#endif
+        return kKeyEsc;
+    }
+    return c;
+#endif
+}
+
+TerminalSize terminal_size()
+{
+#ifdef _WIN32
+    return {};
+#else
+    winsize size{};
+    if(::ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0)
+    {
+        TerminalSize result;
+        if(size.ws_row > 0)
+            result.rows = size.ws_row;
+        if(size.ws_col > 0)
+            result.cols = size.ws_col;
+        return result;
+    }
+    return {};
+#endif
+}
+
+void apply_feature_set(Config& cfg)
+{
+    cfg.buildType = 0;
+    cfg.sanitizers = false;
+    cfg.debugLogging = false;
+    cfg.debugLsp = false;
+
+    if(cfg.featureSet == 0)
+    {
+        cfg.optimization = 5;
+        cfg.clangdLsp = false;
+        cfg.asmDocs = false;
+        cfg.gitTools = false;
+        cfg.searchTools = false;
+        cfg.formatters = false;
+        cfg.systemClipboard = false;
+        cfg.structSizePopup = false;
+        cfg.tests = false;
+        cfg.compileCommands = false;
+        cfg.lto = true;
+        cfg.gcSections = true;
+        cfg.stripBinary = true;
+        cfg.autoIncrementBuild = false;
+        return;
+    }
+
+    if(cfg.featureSet == 1)
+    {
+        cfg.optimization = 5;
+        cfg.clangdLsp = false;
+        cfg.asmDocs = false;
+        cfg.gitTools = true;
+        cfg.searchTools = true;
+        cfg.formatters = true;
+        cfg.systemClipboard = true;
+        cfg.structSizePopup = false;
+        cfg.tests = false;
+        cfg.compileCommands = false;
+        cfg.lto = true;
+        cfg.gcSections = true;
+        cfg.stripBinary = true;
+        cfg.autoIncrementBuild = false;
+        return;
+    }
+
+    if(cfg.featureSet == 2)
+    {
+        cfg.optimization = 5;
+        cfg.clangdLsp = false;
+        cfg.asmDocs = false;
+        cfg.gitTools = true;
+        cfg.searchTools = true;
+        cfg.formatters = true;
+        cfg.systemClipboard = true;
+        cfg.structSizePopup = false;
+        cfg.tests = false;
+        cfg.compileCommands = false;
+        cfg.lto = true;
+        cfg.gcSections = true;
+        cfg.stripBinary = true;
+        cfg.autoIncrementBuild = false;
+        return;
+    }
+
+    if(cfg.featureSet == 3)
+    {
+        cfg.optimization = 2;
+        cfg.clangdLsp = false;
+        cfg.asmDocs = true;
+        cfg.gitTools = true;
+        cfg.searchTools = true;
+        cfg.formatters = true;
+        cfg.systemClipboard = true;
+        cfg.structSizePopup = true;
+        cfg.tests = true;
+        cfg.compileCommands = true;
+        cfg.lto = true;
+        cfg.gcSections = true;
+        cfg.stripBinary = false;
+        cfg.autoIncrementBuild = true;
+        return;
+    }
+
+    cfg.optimization = 2;
+    cfg.clangdLsp = true;
+    cfg.asmDocs = true;
+    cfg.gitTools = true;
+    cfg.searchTools = true;
+    cfg.formatters = true;
+    cfg.systemClipboard = true;
+    cfg.structSizePopup = true;
+    cfg.tests = true;
+    cfg.compileCommands = true;
+    cfg.lto = true;
+    cfg.gcSections = true;
+    cfg.stripBinary = false;
+    cfg.autoIncrementBuild = true;
+}
+
+std::vector<Section> make_sections()
+{
+    return {
+        {"Presets",
+         "High-level build profiles. vi-real is the strictest vi-style build "
+         "with optional git/search tooling compiled out. vi-min keeps more "
+         "editor conveniences while staying size-oriented.",
+         true,
+         {{ItemKind::FeatureSet,
+           "Feature set",
+           "",
+           nullptr,
+           nullptr,
+           {},
+           "vi-real compiles out git, fuzzy, grep, and regex tools. vi-min is "
+           "small but keeps normal file/search tooling. Minimal keeps the "
+           "normal editor tools but removes docs/tests/LSP. Basic is the "
+           "default developer build. Full also enables LSP."}}},
+        {"Target",
+         "Platform, compiler mode, and build parallelism. Release defaults to "
+         "-O2 unless another optimization level is selected.",
+         true,
+         {{ItemKind::Choice, "Build type", "CMAKE_BUILD_TYPE", nullptr,
+           &Config::buildType, kBuildTypes,
+           "CMake build type. Release is the normal default."},
+          {ItemKind::Choice, "Terminal backend", "UVIM_TERMINAL_BACKEND",
+           nullptr, &Config::platform, kPlatforms,
+           "Select AUTO, POSIX, or WIN32 terminal backend."},
+          {ItemKind::Choice, "Optimization", "UVIM_OPTIMIZATION_LEVEL", nullptr,
+           &Config::optimization, kOptimizations,
+           "Release optimization flag. O2 is the default; Oz is best for "
+           "minimum binary size on Clang-style toolchains."},
+          {ItemKind::Text,
+           "Build jobs",
+           "UVIM_BUILD_JOBS",
+           nullptr,
+           nullptr,
+           {},
+           "Parallel build jobs used in the generated cmake --build command. "
+           "Defaults to the maximum available hardware threads.",
+           &Config::jobs}}},
+        {"Install",
+         "Installation destination. Press Space or Enter on the install dir "
+         "row to edit the executable destination path.",
+         true,
+         {{ItemKind::Text,
+           "Install dir",
+           "UVIM_INSTALL_DIR",
+           nullptr,
+           nullptr,
+           {},
+           "Executable destination directory used by cmake --install. On "
+           "POSIX the default is ~/.local/bin.",
+           &Config::installDir}}},
+        {"Editor Features",
+         "User-facing features that can be disabled for very small builds. "
+         "Some switches are currently compile definitions for the next source "
+         "split pass.",
+         true,
+         {{ItemKind::Toggle,
+           "clangd/LSP support",
+           "UVIM_ENABLE_CLANGD_LSP",
+           &Config::clangdLsp,
+           nullptr,
+           {},
+           "Compiles in the LSP client and language-server integrations."},
+          {ItemKind::Toggle,
+           "Assembly docs",
+           "UVIM_ENABLE_ASM_DOCS",
+           &Config::asmDocs,
+           nullptr,
+           {},
+           "Embeds support for gd and popup documentation on assembly "
+           "instructions."},
+          {ItemKind::Toggle,
+           "Git tools",
+           "UVIM_ENABLE_GIT_TOOLS",
+           &Config::gitTools,
+           nullptr,
+           {},
+           "Build switch for git views and git commands."},
+          {ItemKind::Toggle,
+           "Search tools",
+           "UVIM_ENABLE_SEARCH_TOOLS",
+           &Config::searchTools,
+           nullptr,
+           {},
+           "Build switch for fuzzy, grep, and regex search views."},
+          {ItemKind::Toggle,
+           "Formatters",
+           "UVIM_ENABLE_FORMATTERS",
+           &Config::formatters,
+           nullptr,
+           {},
+           "Build switch for external formatter integrations."},
+          {ItemKind::Toggle,
+           "System clipboard",
+           "UVIM_ENABLE_SYSTEM_CLIPBOARD",
+           &Config::systemClipboard,
+           nullptr,
+           {},
+           "Build switch for platform clipboard integration hooks."},
+          {ItemKind::Toggle,
+           "Struct size popup",
+           "UVIM_ENABLE_STRUCT_SIZE_POPUP",
+           &Config::structSizePopup,
+           nullptr,
+           {},
+           "Build switch for clang-based variable and struct size popups."}}},
+        {"Build Outputs",
+         "Generated files and build-only targets. These are useful for "
+         "development but usually disabled for embedded-style builds.",
+         true,
+         {{ItemKind::Toggle,
+           "Build tests",
+           "UVIM_BUILD_TESTS",
+           &Config::tests,
+           nullptr,
+           {},
+           "Builds uvim unit and mode-transition test binaries."},
+          {ItemKind::Toggle,
+           "compile_commands.json",
+           "UVIM_EXPORT_COMPILE_COMMANDS",
+           &Config::compileCommands,
+           nullptr,
+           {},
+           "Exports compile_commands.json for clangd and external tools."},
+          {ItemKind::Toggle,
+           "Auto build number",
+           "UVIM_AUTO_INCREMENT_BUILD",
+           &Config::autoIncrementBuild,
+           nullptr,
+           {},
+           "Auto-increments the project patch/build number on configure."}}},
+        {"Size And Link",
+         "Advanced binary-size controls. These are the main knobs for a very "
+         "small release binary.",
+         true,
+         {{ItemKind::Toggle,
+           "LTO/IPO",
+           "UVIM_ENABLE_LTO",
+           &Config::lto,
+           nullptr,
+           {},
+           "Enables link-time optimization in release builds."},
+          {ItemKind::Toggle,
+           "Dead-code sections",
+           "UVIM_ENABLE_GC_SECTIONS",
+           &Config::gcSections,
+           nullptr,
+           {},
+           "Builds functions/data into separate sections and asks the linker "
+           "to drop unused sections."},
+          {ItemKind::Toggle,
+           "Strip binary",
+           "UVIM_STRIP_BINARY",
+           &Config::stripBinary,
+           nullptr,
+           {},
+           "Runs the platform strip tool after linking uvim."}}},
+        {"Diagnostics",
+         "Developer diagnostics. Keep these off for size-sensitive builds.",
+         true,
+         {{ItemKind::Toggle,
+           "Sanitizers",
+           "UVIM_ENABLE_SANITIZERS",
+           &Config::sanitizers,
+           nullptr,
+           {},
+           "Adds AddressSanitizer and UndefinedBehaviorSanitizer."},
+          {ItemKind::Toggle,
+           "Debug logging",
+           "UVIM_DEBUG_LOGGING",
+           &Config::debugLogging,
+           nullptr,
+           {},
+           "Enables debug logging to /tmp/uvim_debug.txt."},
+          {ItemKind::Toggle,
+           "LSP debug logging",
+           "UVIM_DEBUG_LSP",
+           &Config::debugLsp,
+           nullptr,
+           {},
+           "Enables verbose LSP logging."}}},
+    };
+}
+
+std::vector<VisibleRow> visible_rows(const std::vector<Section>& sections)
+{
+    std::vector<VisibleRow> rows;
+    for(size_t section = 0; section < sections.size(); ++section)
+    {
+        rows.push_back({RowKind::Section, section, 0});
+        if(!sections[section].open)
+            continue;
+        for(size_t item = 0; item < sections[section].items.size(); ++item)
+            rows.push_back({RowKind::Item, section, item});
+    }
+    return rows;
+}
+
+std::string value_for(const Config& cfg, const Item& item)
+{
+    if(item.kind == ItemKind::FeatureSet)
+        return kFeatureSets[static_cast<size_t>(cfg.featureSet)];
+    if(item.kind == ItemKind::Choice && item.choice && !item.choices.empty())
+        return item.choices[static_cast<size_t>(cfg.*(item.choice))];
+    if(item.kind == ItemKind::Text && item.text)
+        return cfg.*(item.text);
+    return cfg.*(item.flag) ? "ON" : "OFF";
+}
+
+std::string help_for(const std::vector<Section>& sections,
+                     const VisibleRow& row)
+{
+    if(row.kind == RowKind::Section)
+        return sections[row.section].help;
+    return sections[row.section].items[row.item].help;
+}
+
+std::string truncate_line(std::string line, int cols)
+{
+    if(cols <= 0)
+        return {};
+    if(static_cast<int>(line.size()) > cols)
+        line.resize(static_cast<size_t>(cols));
+    return line;
+}
+
+std::string row_text(const Config& cfg, const std::vector<Section>& sections,
+                     const VisibleRow& row, bool selected, bool editing)
+{
+    std::string out = selected ? "> " : "  ";
+
+    if(row.kind == RowKind::Section)
+    {
+        const Section& section = sections[row.section];
+        out += section.open ? "[-] " : "[+] ";
+        out += section.label;
+        return out;
+    }
+
+    const Item& item = sections[row.section].items[row.item];
+    if(item.kind == ItemKind::Toggle)
+    {
+        out += "  [";
+        out += (cfg.*(item.flag)) ? 'x' : ' ';
+        out += "] ";
+    }
+    else if(item.kind == ItemKind::Text)
+        out += "  >   ";
+    else
+        out += "      ";
+    out += item.label;
+    const int pad = std::max(1, 31 - static_cast<int>(item.label.size()));
+    out += std::string(static_cast<size_t>(pad), ' ');
+    if(editing && item.kind == ItemKind::Text)
+    {
+        out += "\x1b[37;40m";
+        out += value_for(cfg, item);
+        out += "\x1b[5m_\x1b[25m";
+        out += "\x1b[0m";
+    }
+    else
+        out += value_for(cfg, item);
+    return out;
+}
+
+std::vector<std::string> wrap_text(std::string_view text, int width)
+{
+    width = std::max(1, width);
+
+    std::vector<std::string> lines;
+    std::string current;
+    size_t pos = 0;
+    while(pos < text.size())
+    {
+        while(pos < text.size() && text[pos] == ' ')
+            ++pos;
+        size_t start = pos;
+        while(pos < text.size() && text[pos] != ' ')
+            ++pos;
+        if(start == pos)
+            break;
+
+        std::string word(text.substr(start, pos - start));
+        while(static_cast<int>(word.size()) > width)
+        {
+            if(!current.empty())
+            {
+                lines.push_back(current);
+                current.clear();
+            }
+            lines.push_back(word.substr(0, static_cast<size_t>(width)));
+            word.erase(0, static_cast<size_t>(width));
+        }
+
+        if(word.empty())
+            continue;
+        const int extra = current.empty() ? 0 : 1;
+        if(static_cast<int>(current.size() + word.size() + extra) > width)
+        {
+            lines.push_back(current);
+            current = std::move(word);
+        }
+        else
+        {
+            if(!current.empty())
+                current += ' ';
+            current += word;
+        }
+    }
+
+    if(!current.empty())
+        lines.push_back(current);
+    if(lines.empty())
+        lines.push_back("");
+    return lines;
+}
+
+int longest_documentation_height(const std::vector<Section>& sections, int cols)
+{
+    int height = 1;
+    for(const auto& section : sections)
+    {
+        height = std::max(
+            height, static_cast<int>(wrap_text(section.help, cols).size()));
+        for(const auto& item : section.items)
+            height = std::max(
+                height, static_cast<int>(wrap_text(item.help, cols).size()));
+    }
+
+    return height;
+}
+
+Layout make_layout(const std::vector<Section>& sections, TerminalSize screen)
+{
+    Layout layout;
+    layout.keyRows = static_cast<int>(
+        wrap_text("j/k/arrows move  h close  l open  space/enter change  "
+                  "s save  q quit",
+                  screen.cols)
+            .size());
+    layout.outputRows = static_cast<int>(
+        wrap_text("Output: build/uvim_config_cache.cmake", screen.cols).size());
+
+    const int fixedWithoutListAndDoc = layout.titleRows + layout.keyRows +
+                                       layout.spacerRows + layout.docTitleRows +
+                                       layout.outputRows;
+    layout.messageRows =
+        std::min(layout.messageRows,
+                 std::max(1, screen.rows - fixedWithoutListAndDoc - 2));
+
+    const int nonDocRows = fixedWithoutListAndDoc + layout.messageRows;
+    const int availableForListAndDoc = std::max(2, screen.rows - nonDocRows);
+    const int longestDoc = longest_documentation_height(sections, screen.cols);
+    const int maxDocRows = std::max(1, availableForListAndDoc / 2);
+
+    layout.docRows = std::clamp(longestDoc, 1, maxDocRows);
+    layout.listRows = std::max(1, availableForListAndDoc - layout.docRows);
+    return layout;
+}
+
+int list_content_rows_for_offset(int scrollOffset, int rowCount, int listHeight)
+{
+    if(rowCount <= 0 || listHeight <= 0)
+        return 0;
+
+    const int topMarkerRows = (scrollOffset > 0 && listHeight > 1) ? 1 : 0;
+    int contentRows = std::max(1, listHeight - topMarkerRows);
+    const bool needsBottomMarker =
+        scrollOffset + contentRows < rowCount && contentRows > 1;
+    if(needsBottomMarker)
+        --contentRows;
+    return std::max(1, contentRows);
+}
+
+int clamp_scroll(int scrollOffset, int cursor, int rowCount, int listHeight)
+{
+    if(rowCount <= 0)
+        return 0;
+
+    scrollOffset = std::clamp(scrollOffset, 0, rowCount - 1);
+    cursor = std::clamp(cursor, 0, rowCount - 1);
+
+    for(int i = 0; i < rowCount + 2; ++i)
+    {
+        const int contentRows =
+            list_content_rows_for_offset(scrollOffset, rowCount, listHeight);
+        if(cursor < scrollOffset)
+            scrollOffset = cursor;
+        else if(cursor >= scrollOffset + contentRows)
+            scrollOffset = cursor - contentRows + 1;
+        else
+            break;
+        scrollOffset = std::clamp(scrollOffset, 0, rowCount - 1);
+    }
+
+    return scrollOffset;
+}
+
+void append_wrapped_fixed(std::vector<std::string>& out, std::string_view text,
+                          int rows, int cols)
+{
+    std::vector<std::string> lines = wrap_text(text, cols);
+    for(int i = 0; i < rows; ++i)
+    {
+        if(i < static_cast<int>(lines.size()))
+            out.push_back(truncate_line(lines[static_cast<size_t>(i)], cols));
+        else
+            out.push_back("");
+    }
+}
+
+void append_documentation(std::vector<std::string>& out,
+                          const std::vector<Section>& sections,
+                          const VisibleRow& row, int docHeight, int cols)
+{
+    out.push_back("\x1b[1mDocumentation\x1b[0m");
+    append_wrapped_fixed(out, help_for(sections, row), docHeight, cols);
+}
+
+void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
+          int scrollOffset, TerminalSize screen, std::string_view message,
+          bool editingText)
+{
+    const std::vector<VisibleRow> rows = visible_rows(sections);
+    const int safeCursor =
+        std::clamp(cursor, 0, std::max(0, static_cast<int>(rows.size()) - 1));
+    const Layout layout = make_layout(sections, screen);
+    const int listHeight = layout.listRows;
+
+    std::vector<std::string> screenLines;
+    screenLines.reserve(static_cast<size_t>(std::max(1, screen.rows)));
+
+    screenLines.push_back(
+        "\x1b[1;36m" + truncate_line("uvim build configurator", screen.cols) +
+        "\x1b[0m");
+    append_wrapped_fixed(screenLines,
+                         "j/k/arrows move  h close  l open  "
+                         "space/enter change  s save  q quit",
+                         layout.keyRows, screen.cols);
+    screenLines.push_back("");
+
+    int listRowsPrinted = 0;
+    const int rowCount = static_cast<int>(rows.size());
+    if(scrollOffset > 0 && listHeight > 1 && listRowsPrinted < listHeight)
+    {
+        screenLines.push_back(truncate_line("  ...", screen.cols));
+        ++listRowsPrinted;
+    }
+
+    int contentRows =
+        list_content_rows_for_offset(scrollOffset, rowCount, listHeight);
+    int endRow = std::min(rowCount, scrollOffset + contentRows);
+    const bool bottomMarker =
+        endRow < rowCount && listRowsPrinted + contentRows < listHeight;
+
+    for(int i = scrollOffset; i < endRow && listRowsPrinted < listHeight; ++i)
+    {
+        std::string line = truncate_line(
+            row_text(cfg, sections, rows[static_cast<size_t>(i)],
+                     i == safeCursor, editingText && i == safeCursor),
+            screen.cols);
+        if(i == safeCursor &&
+           !(editingText && rows[static_cast<size_t>(i)].kind == RowKind::Item))
+            line = "\x1b[7m" + line + "\x1b[0m";
+        screenLines.push_back(std::move(line));
+        ++listRowsPrinted;
+    }
+
+    if(bottomMarker && listRowsPrinted < listHeight)
+    {
+        screenLines.push_back(truncate_line("  ...", screen.cols));
+        ++listRowsPrinted;
+    }
+
+    for(int i = listRowsPrinted; i < listHeight; ++i)
+        screenLines.push_back("");
+
+    if(!rows.empty())
+        append_documentation(screenLines, sections,
+                             rows[static_cast<size_t>(safeCursor)],
+                             layout.docRows, screen.cols);
+    append_wrapped_fixed(screenLines, "Output: build/uvim_config_cache.cmake",
+                         layout.outputRows, screen.cols);
+    if(!message.empty())
+    {
+        std::vector<std::string> lines = wrap_text(message, screen.cols);
+        for(int i = 0; i < layout.messageRows; ++i)
+        {
+            if(i < static_cast<int>(lines.size()))
+            {
+                screenLines.push_back(
+                    "\x1b[1;32m" +
+                    truncate_line(lines[static_cast<size_t>(i)], screen.cols) +
+                    "\x1b[0m");
+            }
+            else
+                screenLines.push_back("");
+        }
+    }
+    else
+    {
+        for(int i = 0; i < layout.messageRows; ++i)
+            screenLines.push_back("");
+    }
+
+    while(static_cast<int>(screenLines.size()) < screen.rows)
+        screenLines.push_back("");
+    if(static_cast<int>(screenLines.size()) > screen.rows)
+        screenLines.resize(static_cast<size_t>(screen.rows));
+
+    std::cout << "\x1b[?25l\x1b[H\x1b[2J";
+    for(size_t i = 0; i < screenLines.size(); ++i)
+    {
+        if(i > 0)
+            std::cout << "\n";
+        std::cout << screenLines[i];
+    }
+    std::cout.flush();
+}
+
+fs::path output_path(const CliOptions& options)
+{
+    if(options.output)
+        return fs::absolute(*options.output);
+    return fs::absolute(options.buildDir / "uvim_config_cache.cmake");
+}
+
+fs::path config_path(const CliOptions& options)
+{
+    return fs::absolute(options.buildDir / "uvim-config.conf");
+}
+
+fs::path expand_user_path(std::string_view path, const fs::path& base)
+{
+    std::string value(path);
+    if(value == "~" || value.rfind("~/", 0) == 0)
+    {
+        if(const char* home = std::getenv("HOME"))
+            value = std::string(home) + value.substr(1);
+    }
+
+    fs::path result(value);
+    if(result.is_relative())
+        result = base / result;
+    return fs::absolute(result).lexically_normal();
+}
+
+std::string install_command_suffix(const CliOptions& options)
+{
+    if(!options.installAfterBuild)
+        return {};
+    return " && cmake --install " + fs::absolute(options.buildDir).string() +
+           " --component uvim";
+}
+
+std::string build_command(const Config& cfg, const CliOptions& options)
+{
+    std::string command =
+        "cmake --build " + fs::absolute(options.buildDir).string();
+    if(!cfg.jobs.empty())
+        command += " --parallel " + cfg.jobs;
+    return command;
+}
+
+bool apply_config_value(Config& cfg, CliOptions& options,
+                        std::string_view rawKey, std::string_view rawValue,
+                        std::string& error)
+{
+    const std::string key = trim(rawKey);
+    const std::string value = trim(rawValue);
+
+    if(key == "preset")
+    {
+        auto index = choice_index(value, kFeatureSets);
+        if(!index)
+        {
+            error = "invalid preset '" + value + "'";
+            return false;
+        }
+        cfg.featureSet = *index;
+        apply_feature_set(cfg);
+    }
+    else if(key == "config")
+    {
+        auto index = choice_index(value, kBuildTypes);
+        if(!index)
+        {
+            error = "invalid config '" + value + "'";
+            return false;
+        }
+        cfg.buildType = *index;
+    }
+    else if(key == "platform")
+    {
+        auto index = choice_index(value, kPlatforms);
+        if(!index)
+        {
+            error = "invalid platform '" + value + "'";
+            return false;
+        }
+        cfg.platform = *index;
+    }
+    else if(key == "optimization")
+    {
+        auto index = choice_index(value, kOptimizations);
+        if(!index)
+        {
+            error = "invalid optimization '" + value + "'";
+            return false;
+        }
+        cfg.optimization = *index;
+    }
+    else if(key == "jobs")
+        cfg.jobs = value;
+    else if(key == "install_dir")
+        cfg.installDir = value;
+    else if(key == "install_after_build")
+    {
+        auto parsed = parse_bool(value);
+        if(!parsed)
+        {
+            error = "invalid install_after_build value '" + value + "'";
+            return false;
+        }
+        options.installAfterBuild = *parsed;
+    }
+    else if(key == "clangd_lsp")
+        cfg.clangdLsp = parse_bool(value).value_or(cfg.clangdLsp);
+    else if(key == "asm_docs")
+        cfg.asmDocs = parse_bool(value).value_or(cfg.asmDocs);
+    else if(key == "git_tools")
+        cfg.gitTools = parse_bool(value).value_or(cfg.gitTools);
+    else if(key == "search_tools")
+        cfg.searchTools = parse_bool(value).value_or(cfg.searchTools);
+    else if(key == "formatters")
+        cfg.formatters = parse_bool(value).value_or(cfg.formatters);
+    else if(key == "system_clipboard")
+        cfg.systemClipboard = parse_bool(value).value_or(cfg.systemClipboard);
+    else if(key == "struct_size_popup")
+        cfg.structSizePopup = parse_bool(value).value_or(cfg.structSizePopup);
+    else if(key == "tests")
+        cfg.tests = parse_bool(value).value_or(cfg.tests);
+    else if(key == "compile_commands")
+        cfg.compileCommands = parse_bool(value).value_or(cfg.compileCommands);
+    else if(key == "auto_increment_build")
+        cfg.autoIncrementBuild =
+            parse_bool(value).value_or(cfg.autoIncrementBuild);
+    else if(key == "lto")
+        cfg.lto = parse_bool(value).value_or(cfg.lto);
+    else if(key == "gc_sections")
+        cfg.gcSections = parse_bool(value).value_or(cfg.gcSections);
+    else if(key == "strip_binary")
+        cfg.stripBinary = parse_bool(value).value_or(cfg.stripBinary);
+    else if(key == "sanitizers")
+        cfg.sanitizers = parse_bool(value).value_or(cfg.sanitizers);
+    else if(key == "debug_logging")
+        cfg.debugLogging = parse_bool(value).value_or(cfg.debugLogging);
+    else if(key == "debug_lsp")
+        cfg.debugLsp = parse_bool(value).value_or(cfg.debugLsp);
+    else
+    {
+        error = "unknown config key '" + key + "'";
+        return false;
+    }
+
+    return true;
+}
+
+bool load_config_file(const fs::path& path, Config& cfg, CliOptions& options,
+                      std::string& error)
+{
+    std::ifstream file(path);
+    if(!file)
+    {
+        error = "cannot read " + path.string();
+        return false;
+    }
+
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(file, line))
+    {
+        ++lineNo;
+        std::string trimmed = trim(line);
+        if(trimmed.empty() || trimmed[0] == '#')
+            continue;
+
+        const size_t equals = trimmed.find('=');
+        if(equals == std::string::npos)
+        {
+            error = path.string() + ":" + std::to_string(lineNo) +
+                    ": expected key=value";
+            return false;
+        }
+
+        if(!apply_config_value(cfg, options, trimmed.substr(0, equals),
+                               trimmed.substr(equals + 1), error))
+        {
+            error = path.string() + ":" + std::to_string(lineNo) + ": " + error;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool try_load_config_file(const fs::path& path, Config& cfg,
+                          CliOptions& options, std::string& message)
+{
+    std::error_code ec;
+    if(!fs::exists(path, ec))
+        return false;
+
+    std::string error;
+    if(!load_config_file(path, cfg, options, error))
+    {
+        message = error;
+        return false;
+    }
+
+    message = "loaded " + path.string();
+    return true;
+}
+
+bool write_config_file(const Config& cfg, const CliOptions& options,
+                       std::string& error)
+{
+    const fs::path path = config_path(options);
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+    if(ec)
+    {
+        error = "cannot create " + path.parent_path().string();
+        return false;
+    }
+
+    std::ofstream file(path);
+    if(!file)
+    {
+        error = "cannot write " + path.string();
+        return false;
+    }
+
+    file << "# Generated by uvim-config.\n";
+    file << "preset=" << kFeatureSets[static_cast<size_t>(cfg.featureSet)]
+         << "\n";
+    file << "config=" << kBuildTypes[static_cast<size_t>(cfg.buildType)]
+         << "\n";
+    file << "platform=" << kPlatforms[static_cast<size_t>(cfg.platform)]
+         << "\n";
+    file << "optimization="
+         << kOptimizations[static_cast<size_t>(cfg.optimization)] << "\n";
+    file << "jobs=" << cfg.jobs << "\n";
+    file << "install_dir=" << cfg.installDir << "\n";
+    file << "install_after_build=" << bool_value(options.installAfterBuild)
+         << "\n";
+    file << "clangd_lsp=" << bool_value(cfg.clangdLsp) << "\n";
+    file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
+    file << "git_tools=" << bool_value(cfg.gitTools) << "\n";
+    file << "search_tools=" << bool_value(cfg.searchTools) << "\n";
+    file << "formatters=" << bool_value(cfg.formatters) << "\n";
+    file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
+    file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
+    file << "tests=" << bool_value(cfg.tests) << "\n";
+    file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
+    file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
+         << "\n";
+    file << "lto=" << bool_value(cfg.lto) << "\n";
+    file << "gc_sections=" << bool_value(cfg.gcSections) << "\n";
+    file << "strip_binary=" << bool_value(cfg.stripBinary) << "\n";
+    file << "sanitizers=" << bool_value(cfg.sanitizers) << "\n";
+    file << "debug_logging=" << bool_value(cfg.debugLogging) << "\n";
+    file << "debug_lsp=" << bool_value(cfg.debugLsp) << "\n";
+    return true;
+}
+
+bool write_cache(const Config& cfg, const std::vector<Section>& sections,
+                 const CliOptions& options, std::string& message)
+{
+    fs::path out = output_path(options);
+    std::error_code ec;
+    fs::create_directories(out.parent_path(), ec);
+    if(ec)
+    {
+        message = "cannot create " + out.parent_path().string();
+        return false;
+    }
+
+    std::ofstream file(out);
+    if(!file)
+    {
+        message = "cannot write " + out.string();
+        return false;
+    }
+
+    file << "# Generated by uvim-config. Pass with: cmake -C " << out.string()
+         << " -S " << fs::absolute(options.sourceDir).string() << " -B "
+         << fs::absolute(options.buildDir).string() << "\n";
+    const fs::path installDir =
+        expand_user_path(cfg.installDir, fs::absolute(options.sourceDir));
+    file << "set(CMAKE_INSTALL_PREFIX \"/\" CACHE PATH \"\" FORCE)\n";
+    file << "set(UVIM_INSTALL_BINDIR \"" << installDir.string()
+         << "\" CACHE STRING \"\" FORCE)\n";
+    for(const auto& section : sections)
+    {
+        for(const auto& item : section.items)
+        {
+            if(item.kind == ItemKind::Choice)
+            {
+                file << "set(" << item.cmakeName << " \""
+                     << item.choices[static_cast<size_t>(cfg.*(item.choice))]
+                     << "\" CACHE STRING \"\" FORCE)\n";
+            }
+            else if(item.kind == ItemKind::Text)
+                continue;
+            else if(item.kind == ItemKind::Toggle)
+            {
+                file << "set(" << item.cmakeName << " "
+                     << ((cfg.*(item.flag)) ? "ON" : "OFF")
+                     << " CACHE BOOL \"\" FORCE)\n";
+            }
+        }
+    }
+
+    message = "saved. Run: cmake -C " + out.string() + " -S " +
+              fs::absolute(options.sourceDir).string() + " -B " +
+              fs::absolute(options.buildDir).string() + " && " +
+              build_command(cfg, options) + install_command_suffix(options);
+    std::string configError;
+    if(!write_config_file(cfg, options, configError))
+    {
+        message += ". " + configError;
+        return false;
+    }
+    message += ". Config: " + config_path(options).string();
+    return true;
+}
+
+void print_help(std::ostream& out)
+{
+    out << "uvim-config [options]\n\n"
+        << "Without options, starts the interactive TUI.\n\n"
+        << "Options:\n"
+        << "  -h, --help                  Show this help.\n"
+        << "  -p, --preset NAME           Build preset: "
+        << join_choices(kFeatureSets) << " (default: full).\n"
+        << "  -c, --config NAME           CMake build type: "
+        << join_choices(kBuildTypes) << " (default: Release).\n"
+        << "      --platform NAME         Terminal backend: "
+        << join_choices(kPlatforms) << " (default: AUTO).\n"
+        << "  -O, --optimization LEVEL    Release optimization: "
+        << join_choices(kOptimizations) << " (default: O2).\n"
+        << "  -j, --jobs N                Parallel build jobs (default: max "
+           "hardware cores).\n"
+        << "  -S, --source-dir DIR        Source directory for the printed "
+           "cmake "
+           "command.\n"
+        << "  -B, --build-dir DIR         Build directory and default cache "
+           "output.\n"
+        << "      --import FILE           Load uvim-config.conf before later "
+           "CLI overrides.\n"
+        << "      --install-dir DIR       Executable install destination "
+           "(default: ~/.local/bin on POSIX).\n"
+        << "  -i, --install               Include cmake --install in the "
+           "printed command.\n"
+        << "  -o, --output FILE           Cache file to write.\n"
+        << "      --enable NAME           Enable a feature option.\n"
+        << "      --disable NAME          Disable a feature option.\n\n"
+        << "Feature names for --enable/--disable:\n"
+        << "  clangd, asm-docs, git, search, formatters, clipboard,\n"
+        << "  struct-size, tests, compile-commands, auto-build-number,\n"
+        << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
+        << "Examples:\n"
+        << "  uvim-config --preset vi-real --config Release -O Oz -j 8\n"
+        << "  uvim-config --import build/uvim-config.conf --disable tests\n"
+        << "  uvim-config -p full -c RelWithDebInfo --enable clangd\n"
+        << "  uvim-config -p vi-real --install-dir ~/.local/bin --install\n";
+}
+
+bool set_feature(Config& cfg, std::string_view name, bool enabled,
+                 std::string& error)
+{
+    if(equals_ci(name, "clangd") || equals_ci(name, "lsp") ||
+       equals_ci(name, "clangd-lsp"))
+        cfg.clangdLsp = enabled;
+    else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
+        cfg.asmDocs = enabled;
+    else if(equals_ci(name, "git") || equals_ci(name, "git-tools"))
+        cfg.gitTools = enabled;
+    else if(equals_ci(name, "search") || equals_ci(name, "search-tools"))
+        cfg.searchTools = enabled;
+    else if(equals_ci(name, "formatters") || equals_ci(name, "formatter"))
+        cfg.formatters = enabled;
+    else if(equals_ci(name, "clipboard") || equals_ci(name, "system-clipboard"))
+        cfg.systemClipboard = enabled;
+    else if(equals_ci(name, "struct-size") ||
+            equals_ci(name, "struct-size-popup"))
+        cfg.structSizePopup = enabled;
+    else if(equals_ci(name, "tests") || equals_ci(name, "test"))
+        cfg.tests = enabled;
+    else if(equals_ci(name, "compile-commands") ||
+            equals_ci(name, "compile-commands-json"))
+        cfg.compileCommands = enabled;
+    else if(equals_ci(name, "auto-build-number") ||
+            equals_ci(name, "auto-increment-build"))
+        cfg.autoIncrementBuild = enabled;
+    else if(equals_ci(name, "lto") || equals_ci(name, "ipo"))
+        cfg.lto = enabled;
+    else if(equals_ci(name, "gc-sections") ||
+            equals_ci(name, "dead-code-sections"))
+        cfg.gcSections = enabled;
+    else if(equals_ci(name, "strip") || equals_ci(name, "strip-binary"))
+        cfg.stripBinary = enabled;
+    else if(equals_ci(name, "sanitizers") || equals_ci(name, "sanitize"))
+        cfg.sanitizers = enabled;
+    else if(equals_ci(name, "debug-logging"))
+        cfg.debugLogging = enabled;
+    else if(equals_ci(name, "debug-lsp") || equals_ci(name, "lsp-debug"))
+        cfg.debugLsp = enabled;
+    else
+    {
+        error = "unknown feature '" + std::string(name) + "'";
+        return false;
+    }
+    return true;
+}
+
+std::optional<std::string_view> next_arg(int& i, int argc, char** argv,
+                                         std::string_view option,
+                                         std::string& error)
+{
+    if(i + 1 >= argc)
+    {
+        error = "missing value for " + std::string(option);
+        return std::nullopt;
+    }
+    ++i;
+    return std::string_view(argv[i]);
+}
+
+bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
+               bool& showHelp, std::string& error)
+{
+    showHelp = false;
+    for(int i = 1; i < argc; ++i)
+    {
+        std::string_view arg(argv[i]);
+        if(arg == "-h" || arg == "--help")
+        {
+            showHelp = true;
+            return true;
+        }
+        if(arg == "-p" || arg == "--preset")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kFeatureSets);
+            if(!index)
+            {
+                error = "invalid preset '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kFeatureSets);
+                return false;
+            }
+            cfg.featureSet = *index;
+            apply_feature_set(cfg);
+        }
+        else if(arg == "-c" || arg == "--config")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kBuildTypes);
+            if(!index)
+            {
+                error = "invalid config '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kBuildTypes);
+                return false;
+            }
+            cfg.buildType = *index;
+        }
+        else if(arg == "--platform")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kPlatforms);
+            if(!index)
+            {
+                error = "invalid platform '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kPlatforms);
+                return false;
+            }
+            cfg.platform = *index;
+        }
+        else if(arg == "-O" || arg == "--optimization")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kOptimizations);
+            if(!index)
+            {
+                error = "invalid optimization '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kOptimizations);
+                return false;
+            }
+            cfg.optimization = *index;
+        }
+        else if(arg == "-j" || arg == "--jobs")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            cfg.jobs = std::string(*value);
+        }
+        else if(arg == "-S" || arg == "--source-dir")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            options.sourceDir = fs::absolute(fs::path(std::string(*value)));
+        }
+        else if(arg == "-B" || arg == "--build-dir")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            options.buildDir = fs::absolute(fs::path(std::string(*value)));
+        }
+        else if(arg == "--import")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            if(!load_config_file(fs::absolute(fs::path(std::string(*value))),
+                                 cfg, options, error))
+                return false;
+        }
+        else if(arg == "--install-dir")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            cfg.installDir = std::string(*value);
+        }
+        else if(arg == "-i" || arg == "--install")
+        {
+            options.installAfterBuild = true;
+        }
+        else if(arg == "-o" || arg == "--output")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            options.output = fs::absolute(fs::path(std::string(*value)));
+        }
+        else if(arg == "--enable" || arg == "--disable")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            if(!set_feature(cfg, *value, arg == "--enable", error))
+                return false;
+        }
+        else
+        {
+            error = "unknown option '" + std::string(arg) + "'";
+            return false;
+        }
+    }
+    return true;
+}
+
+void activate(Config& cfg, const Item& item)
+{
+    if(item.kind == ItemKind::FeatureSet)
+    {
+        cfg.featureSet = (cfg.featureSet + 1) % (int)kFeatureSets.size();
+        apply_feature_set(cfg);
+    }
+    else if(item.kind == ItemKind::Choice && item.choice &&
+            !item.choices.empty())
+    {
+        cfg.*(item.choice) =
+            (cfg.*(item.choice) + 1) % static_cast<int>(item.choices.size());
+    }
+    else if(item.flag)
+    {
+        cfg.*(item.flag) = !(cfg.*(item.flag));
+    }
+}
+
+void open_selected_section(std::vector<Section>& sections,
+                           const VisibleRow& row)
+{
+    if(row.kind == RowKind::Section)
+        sections[row.section].open = true;
+    else
+        sections[row.section].open = true;
+}
+
+void close_selected_section(std::vector<Section>& sections,
+                            const VisibleRow& row)
+{
+    sections[row.section].open = false;
+}
+} // namespace
+
+int main(int argc, char** argv)
+{
+    Config cfg;
+    cfg.installDir = default_install_dir();
+    cfg.jobs = default_jobs();
+    apply_feature_set(cfg);
+    CliOptions options;
+    auto sections = make_sections();
+    std::string startupMessage;
+
+    if(argc > 1)
+    {
+        bool showHelp = false;
+        std::string error;
+        if(!parse_cli(argc, argv, cfg, options, showHelp, error))
+        {
+            std::cerr << "uvim-config: " << error << "\n\n";
+            print_help(std::cerr);
+            return 2;
+        }
+        if(showHelp)
+        {
+            print_help(std::cout);
+            return 0;
+        }
+
+        std::string message;
+        if(!write_cache(cfg, sections, options, message))
+        {
+            std::cerr << "uvim-config: " << message << "\n";
+            return 1;
+        }
+        std::cout << message << "\n";
+        return 0;
+    }
+
+    std::error_code configExistsError;
+    const fs::path persistentConfigPath = config_path(options);
+    const bool hadConfigFile =
+        fs::exists(persistentConfigPath, configExistsError);
+    if(hadConfigFile)
+        try_load_config_file(persistentConfigPath, cfg, options,
+                             startupMessage);
+
+    int cursor = 0;
+    int scrollOffset = 0;
+    std::string message = startupMessage;
+    bool editingText = false;
+    std::string textBeforeEdit;
+    std::string Config::* editingField = nullptr;
+    TerminalRawMode rawMode;
+#ifndef _WIN32
+    std::signal(SIGWINCH, handle_resize);
+#endif
+
+    while(true)
+    {
+        const std::vector<VisibleRow> rows = visible_rows(sections);
+        cursor = std::clamp(cursor, 0,
+                            std::max(0, static_cast<int>(rows.size()) - 1));
+        const TerminalSize screen = terminal_size();
+        scrollOffset =
+            clamp_scroll(scrollOffset, cursor, static_cast<int>(rows.size()),
+                         make_layout(sections, screen).listRows);
+        const std::string drawMessage =
+            editingText ? "editing value: type text, Enter saves, Esc cancels"
+                        : message;
+        draw(cfg, sections, cursor, scrollOffset, screen, drawMessage,
+             editingText);
+
+        int key = read_key();
+        if(key == kKeyResize)
+            continue;
+        if(editingText && editingField)
+        {
+            if(key == kKeyEsc)
+            {
+                cfg.*(editingField) = textBeforeEdit;
+                editingText = false;
+                editingField = nullptr;
+                message = "value unchanged";
+            }
+            else if(key == '\n' || key == '\r')
+            {
+                editingText = false;
+                editingField = nullptr;
+                message = "value set";
+            }
+            else if(key == 127 || key == 8)
+            {
+                if(!(cfg.*(editingField)).empty())
+                    (cfg.*(editingField)).pop_back();
+            }
+            else if(key == 21)
+            {
+                (cfg.*(editingField)).clear();
+            }
+            else if(key >= 32 && key < 127)
+            {
+                (cfg.*(editingField)).push_back(static_cast<char>(key));
+            }
+            continue;
+        }
+        message.clear();
+        if(key == 'q' || key == 'Q' || key == kKeyEsc)
+            break;
+        if(key == 'j' || key == kKeyDown)
+            cursor = std::min(cursor + 1, (int)rows.size() - 1);
+        else if(key == 'k' || key == kKeyUp)
+            cursor = std::max(cursor - 1, 0);
+        else if(key == 'l')
+            open_selected_section(sections, rows[static_cast<size_t>(cursor)]);
+        else if(key == 'h')
+            close_selected_section(sections, rows[static_cast<size_t>(cursor)]);
+        else if(key == ' ' || key == '\n' || key == '\r')
+        {
+            const VisibleRow& row = rows[static_cast<size_t>(cursor)];
+            if(row.kind == RowKind::Section)
+                sections[row.section].open = !sections[row.section].open;
+            else
+            {
+                const Item& item = sections[row.section].items[row.item];
+                if(item.kind == ItemKind::Text && item.text)
+                {
+                    editingText = true;
+                    editingField = item.text;
+                    textBeforeEdit = cfg.*(item.text);
+                }
+                else
+                    activate(cfg, item);
+            }
+        }
+        else if(key == 's' || key == 'S')
+            write_cache(cfg, sections, options, message);
+    }
+
+    bool saveOnExit = hadConfigFile;
+    if(!hadConfigFile)
+    {
+        std::cout << "\x1b[?25h\x1b[0m\nsave default config (y/n)? ";
+        std::cout.flush();
+        int answer = 0;
+        while(answer != 'y' && answer != 'Y' && answer != 'n' && answer != 'N')
+            answer = read_key();
+        saveOnExit = answer == 'y' || answer == 'Y';
+        std::cout << static_cast<char>(answer) << "\n";
+    }
+
+    std::string exitSaveError;
+    if(saveOnExit)
+        write_config_file(cfg, options, exitSaveError);
+    std::cout << "\x1b[?25h\x1b[0m\n";
+    if(!exitSaveError.empty())
+        std::cerr << "uvim-config: " << exitSaveError << "\n";
+    return 0;
+}

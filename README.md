@@ -63,6 +63,74 @@ Install doxygen with your system package manager (e.g., `brew install doxygen`
 on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
 on Fedora).
 
+## Build configurator
+
+`uvim-config` is a small ccmake-style TUI for choosing common build options.
+
+```sh
+./bootstrap.sh
+./build/uvim-config
+./build.sh
+```
+
+On Windows PowerShell, use the matching scripts:
+
+```powershell
+.\bootstrap.ps1
+.\build\uvim-config.exe
+.\build.ps1
+```
+
+Use `./bootstrap.sh --build-dir out/build` to choose another CMake build
+directory. Use `./bootstrap.sh --jobs 8` to set parallel build jobs; when
+`uvim-config.conf` exists in the build directory, bootstrap uses its saved
+`jobs=` value by default.
+After saving from `uvim-config`, run `./build.sh` to import
+`build/uvim-config.conf`, regenerate `build/uvim_config_cache.cmake`, configure
+CMake, and build with the saved jobs value. Use `./build.sh --target uvim` to
+build only one target, or `./build.sh --build-dir out/build` for another build
+directory. `./build.sh --install` installs only the `uvim` component to the
+configured install directory, so dependency install rules are skipped.
+The PowerShell scripts support the same long options, for example
+`.\bootstrap.ps1 --build-dir out\build --jobs 8` and
+`.\build.ps1 --build-dir out\build --target uvim --install`.
+
+Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
+section, `Space`/Enter to toggle or cycle an option, `s` to write
+`build/uvim_config_cache.cmake`, and `q` to quit. Press `Space`/Enter on the
+install dir or build jobs rows to edit the value. On POSIX the install dir
+defaults to `~/.local/bin`, and build jobs defaults to the maximum available
+hardware cores. Then configure and build uvim with the generated cache:
+
+```sh
+cmake -C build/uvim_config_cache.cmake -S . -B build
+cmake --build build --parallel 8
+```
+
+Saving also writes `build/uvim-config.conf`. The TUI imports that file on
+startup when it exists. On first run, when no config exists yet, quitting asks
+`save default config (y/n)?` before creating it.
+
+The same cache can be generated without opening the TUI:
+
+```sh
+./build/uvim-config --preset full --config Release
+./build/uvim-config -p vi-real -c Release -O Oz -j 8 --install-dir ~/.local/bin --install
+./build/uvim-config --import build/uvim-config.conf --disable tests
+cmake -C build/uvim_config_cache.cmake -S . -B build
+cmake --build build --parallel 8
+```
+
+Run `./build/uvim-config --help` for all command-line options, including
+`--platform`, `--jobs`, `--build-dir`, `--import`, `--install-dir`,
+`--install`, `--output`, `--enable`, and `--disable`.
+
+The default release optimization is `-O2`. For very small binaries, choose the
+`vi-real` feature set or tune the options under `Editor Features`,
+`Build Outputs`, and `Size And Link`. `vi-real` compiles out git, fuzzy, grep,
+and regex tooling. The smallest profiles use `Oz`, LTO, dead-code sections,
+and strip while disabling optional docs/LSP/test build outputs.
+
 ## Assembly instruction docs
 
 Assembly instruction `gd` support is controlled by the CMake option
@@ -72,21 +140,21 @@ Build with the default:
 
 ```sh
 cmake -S . -B build
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 Or enable it explicitly:
 
 ```sh
 cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=ON
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 To disable it:
 
 ```sh
 cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=OFF
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 Run uvim:

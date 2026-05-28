@@ -1,4 +1,6 @@
 build*
+!build.sh
+!build.ps1
 *.out
 CMakeLists.txt.user
 CMakeCache.txt

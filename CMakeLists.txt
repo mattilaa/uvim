@@ -30,6 +30,11 @@ project(uvim VERSION ${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}.${UVIM_VERSION_
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
 # Build options
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
@@ -38,6 +43,17 @@ option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
 option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
+option(UVIM_ENABLE_GIT_TOOLS "Build git views and git commands" ON)
+option(UVIM_ENABLE_SEARCH_TOOLS "Build fuzzy, grep, and regex search views" ON)
+option(UVIM_ENABLE_FORMATTERS "Build external formatter integrations" ON)
+option(UVIM_ENABLE_SYSTEM_CLIPBOARD "Build system clipboard integration hooks" ON)
+option(UVIM_ENABLE_STRUCT_SIZE_POPUP "Build clang-based struct/variable size popup support" ON)
+option(UVIM_ENABLE_LTO "Enable link-time optimization / IPO for release builds" ON)
+option(UVIM_ENABLE_GC_SECTIONS "Enable function/data sections and linker garbage collection where supported" ON)
+option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it" OFF)
+set(UVIM_OPTIMIZATION_LEVEL "O2" CACHE STRING "Release optimization level: O0, O1, O2, O3, Os, Oz")
+set_property(CACHE UVIM_OPTIMIZATION_LEVEL PROPERTY STRINGS O0 O1 O2 O3 Os Oz)
+set(UVIM_INSTALL_BINDIR "bin" CACHE STRING "Directory where the uvim executable is installed")
 
 if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
@@ -49,6 +65,8 @@ set_property(CACHE UVIM_TERMINAL_BACKEND PROPERTY STRINGS AUTO POSIX WIN32)
 
 if(UVIM_EXPORT_COMPILE_COMMANDS)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+else()
+    set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 endif()
 
 # Include directories - make headers available to all targets
@@ -57,7 +75,6 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 # Core editor sources
 set(UVIM_CORE_SOURCES
     src/main.cpp
-    src/asm_documentation.cpp
     src/terminal.cpp
     src/editor.cpp
     src/editor_buffer_controller.cpp
@@ -78,16 +95,6 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_emoji_command.cpp
     src/editor_execution_explore_command.cpp
     src/editor_execution_format_command.cpp
-    src/editor_execution_git_add_command.cpp
-    src/editor_execution_git_blame_command.cpp
-    src/editor_execution_git_commit_command.cpp
-    src/editor_execution_git_diff_command.cpp
-    src/editor_execution_git_fixup_command.cpp
-    src/editor_execution_git_log_command.cpp
-    src/editor_execution_git_pretty_log_command.cpp
-    src/editor_execution_git_stage_command.cpp
-    src/editor_execution_git_stash_command.cpp
-    src/editor_execution_git_stash_pop_command.cpp
     src/editor_execution_help_command.cpp
     src/editor_execution_line_jump_command.cpp
     src/editor_execution_loc_command.cpp
@@ -99,7 +106,6 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_quit_all_command.cpp
     src/editor_execution_quit_command.cpp
     src/editor_execution_quit_without_buffer_command.cpp
-    src/editor_execution_refresh_file_search_command.cpp
     src/editor_execution_reload_current_file_command.cpp
     src/editor_execution_requires_buffer_command.cpp
     src/editor_execution_search_command.cpp
@@ -127,7 +133,6 @@ set(UVIM_CORE_SOURCES
     src/editor_editing_controller.cpp
     src/editor_file_controller.cpp
     src/editor_file_type_controller.cpp
-    src/editor_git_controller.cpp
     src/editor_indent_controller.cpp
     src/editor_lsp_controller.cpp
     src/editor_mode_controller.cpp
@@ -142,14 +147,6 @@ set(UVIM_CORE_SOURCES
     src/editor_view_command.cpp
     src/editor_view_command_output.cpp
     src/editor_view_file_browser.cpp
-    src/editor_view_fuzzy_find.cpp
-    src/editor_view_git_commit.cpp
-    src/editor_view_git_fixup.cpp
-    src/editor_view_git_log.cpp
-    src/editor_view_git_patch.cpp
-    src/editor_view_git_show.cpp
-    src/editor_view_git_stage.cpp
-    src/editor_view_grep_search.cpp
     src/editor_view_help.cpp
     src/editor_view_insert.cpp
     src/editor_view_loc_list.cpp
@@ -225,37 +222,90 @@ set(MODE_STATE_MACHINE_SOURCES
     src/lsp_info_mode.cpp
     src/loc_mode.cpp
     src/help_mode.cpp
-    src/git_show_mode.cpp
-    src/git_log_mode.cpp
-    src/git_stage_mode.cpp
-    src/git_commit_mode.cpp
-    src/git_fixup_mode.cpp
-    src/git_patch_mode.cpp
     src/buffer_browser_mode.cpp
-    src/fuzzy_find_mode.cpp
-    src/grep_search_mode.cpp
-    src/regex_search_mode.cpp
     src/file_browser_mode.cpp
     src/command_output_mode.cpp
 )
+
+# Optional feature sources are shared by the main binary and the integration
+# style unit tests so feature-disabled builds link the same stubs everywhere.
+set(UVIM_OPTIONAL_FEATURE_SOURCES)
+
+# LSP client only needed when LSP is enabled
+if(UVIM_ENABLE_CLANGD_LSP)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/lsp_client.cpp
+    )
+endif()
+
+if(UVIM_ENABLE_GIT_TOOLS)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/editor_git_controller.cpp
+        src/editor_execution_git_add_command.cpp
+        src/editor_execution_git_blame_command.cpp
+        src/editor_execution_git_commit_command.cpp
+        src/editor_execution_git_diff_command.cpp
+        src/editor_execution_git_fixup_command.cpp
+        src/editor_execution_git_log_command.cpp
+        src/editor_execution_git_pretty_log_command.cpp
+        src/editor_execution_git_stage_command.cpp
+        src/editor_execution_git_stash_command.cpp
+        src/editor_execution_git_stash_pop_command.cpp
+        src/editor_view_git_commit.cpp
+        src/editor_view_git_fixup.cpp
+        src/editor_view_git_log.cpp
+        src/editor_view_git_patch.cpp
+        src/editor_view_git_show.cpp
+        src/editor_view_git_stage.cpp
+        src/git_show_mode.cpp
+        src/git_log_mode.cpp
+        src/git_stage_mode.cpp
+        src/git_commit_mode.cpp
+        src/git_fixup_mode.cpp
+        src/git_patch_mode.cpp
+    )
+else()
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/editor_git_controller_stub.cpp
+        src/git_modes_stub.cpp
+    )
+endif()
+
+if(UVIM_ENABLE_SEARCH_TOOLS)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/editor_execution_refresh_file_search_command.cpp
+        src/editor_view_fuzzy_find.cpp
+        src/editor_view_grep_search.cpp
+        src/fuzzy_find_mode.cpp
+        src/grep_search_mode.cpp
+        src/regex_search_mode.cpp
+    )
+else()
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/search_modes_stub.cpp)
+endif()
+
+if(UVIM_ENABLE_ASM_DOCS)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/asm_documentation.cpp)
+else()
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/asm_documentation_stub.cpp)
+endif()
 
 # Combine all sources
 set(UVIM_SOURCES
     ${UVIM_CORE_SOURCES}
     ${MODE_STATE_MACHINE_SOURCES}
+    ${UVIM_OPTIONAL_FEATURE_SOURCES}
 )
-
-# LSP client only needed when LSP is enabled
-if(UVIM_ENABLE_CLANGD_LSP)
-    list(APPEND UVIM_SOURCES
-        src/lsp_client.cpp
-    )
-endif()
 
 add_executable(uvim ${UVIM_SOURCES})
 target_compile_definitions(uvim PRIVATE UVIM_VERSION="${PROJECT_VERSION}")
 add_custom_command(TARGET uvim POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
+)
+
+add_executable(uvim-config src/uvim_configure.cpp)
+target_compile_definitions(uvim-config PRIVATE
+    UVIM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
 # ------------------------------------------------------------------------------
@@ -285,8 +335,10 @@ message(STATUS "uvim terminal backend: ${_backend}")
 # ------------------------------------------------------------------------------
 if(MSVC)
     target_compile_options(uvim PRIVATE /W4 /permissive-)
+    target_compile_options(uvim-config PRIVATE /W4 /permissive-)
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(uvim-config PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -329,18 +381,56 @@ if(MSVC)
         $<$<CONFIG:Release>:/O2>
     )
 else()
+    if(NOT UVIM_OPTIMIZATION_LEVEL MATCHES "^(O0|O1|O2|O3|Os|Oz)$")
+        message(FATAL_ERROR "Invalid UVIM_OPTIMIZATION_LEVEL='${UVIM_OPTIMIZATION_LEVEL}'. Use O0, O1, O2, O3, Os, or Oz.")
+    endif()
     target_compile_options(uvim PRIVATE
-        $<$<CONFIG:Release>:-O3>
-        $<$<CONFIG:Release>:-ffunction-sections>
-        $<$<CONFIG:Release>:-fdata-sections>
+        $<$<CONFIG:Release>:-${UVIM_OPTIMIZATION_LEVEL}>
     )
+    if(UVIM_ENABLE_GC_SECTIONS)
+        target_compile_options(uvim PRIVATE
+            $<$<CONFIG:Release>:-ffunction-sections>
+            $<$<CONFIG:Release>:-fdata-sections>
+        )
+        if(APPLE)
+            target_link_options(uvim PRIVATE
+                $<$<CONFIG:Release>:-Wl,-dead_strip>
+            )
+        else()
+            target_link_options(uvim PRIVATE
+                $<$<CONFIG:Release>:-Wl,--gc-sections>
+            )
+        endif()
+    endif()
 endif()
 
 # Enable LTO / IPO
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
-if(ipo_supported)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+if(UVIM_ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+    if(ipo_supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    else()
+        message(WARNING "UVIM_ENABLE_LTO=ON requested, but IPO is not supported: ${ipo_error}")
+    endif()
+endif()
+
+if(UVIM_STRIP_BINARY)
+    if(CMAKE_STRIP AND NOT MSVC)
+        if(APPLE)
+            add_custom_command(TARGET uvim POST_BUILD
+                COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:uvim>
+                COMMENT "Stripping uvim binary"
+            )
+        else()
+            add_custom_command(TARGET uvim POST_BUILD
+                COMMAND ${CMAKE_STRIP} $<TARGET_FILE:uvim>
+                COMMENT "Stripping uvim binary"
+            )
+        endif()
+    else()
+        message(WARNING "UVIM_STRIP_BINARY=ON requested, but no supported strip tool is available")
+    endif()
 endif()
 
 # rapidjson (JSON parsing) - header-only, avoid subproject CMake
@@ -411,6 +501,26 @@ if(UVIM_ENABLE_ASM_DOCS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_ASM_DOCS=1)
 endif()
 
+if(UVIM_ENABLE_GIT_TOOLS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_GIT_TOOLS=1)
+endif()
+
+if(UVIM_ENABLE_SEARCH_TOOLS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_SEARCH_TOOLS=1)
+endif()
+
+if(UVIM_ENABLE_FORMATTERS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_FORMATTERS=1)
+endif()
+
+if(UVIM_ENABLE_SYSTEM_CLIPBOARD)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_SYSTEM_CLIPBOARD=1)
+endif()
+
+if(UVIM_ENABLE_STRUCT_SIZE_POPUP)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_STRUCT_SIZE_POPUP=1)
+endif()
+
 # ============================================================================
 # Unit Tests
 # ============================================================================
@@ -472,20 +582,26 @@ if(UVIM_BUILD_TESTS)
     set(UVIM_TEST_SOURCES
         ${UVIM_CORE_SOURCES}
         ${MODE_STATE_MACHINE_SOURCES}
+        ${UVIM_OPTIONAL_FEATURE_SOURCES}
     )
     list(REMOVE_ITEM UVIM_TEST_SOURCES src/main.cpp)
-    if(UVIM_ENABLE_CLANGD_LSP)
-        list(APPEND UVIM_TEST_SOURCES src/lsp_client.cpp)
-    endif()
 
-    add_executable(real_mode_transitions_tests
+    set(UVIM_REAL_MODE_TEST_FILES
         tests/real_mode_transitions_test.cpp
-        tests/git_log_view_test.cpp
-        tests/git_stage_layout_test.cpp
         tests/editor_filetype_test.cpp
         tests/syntax_highlighter_test.cpp
         tests/js_ts_resolution_test.cpp
         tests/loc_count_test.cpp
+    )
+    if(UVIM_ENABLE_GIT_TOOLS)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES
+            tests/git_log_view_test.cpp
+            tests/git_stage_layout_test.cpp
+        )
+    endif()
+
+    add_executable(real_mode_transitions_tests
+        ${UVIM_REAL_MODE_TEST_FILES}
         ${UVIM_TEST_SOURCES}
     )
     uvim_enable_sanitizers(real_mode_transitions_tests)
@@ -510,6 +626,12 @@ if(UVIM_BUILD_TESTS)
     endif()
     if(UVIM_ENABLE_ASM_DOCS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_ASM_DOCS=1)
+    endif()
+    if(UVIM_ENABLE_GIT_TOOLS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_GIT_TOOLS=1)
+    endif()
+    if(UVIM_ENABLE_SEARCH_TOOLS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_SEARCH_TOOLS=1)
     endif()
 
     include(GoogleTest)
@@ -539,6 +661,6 @@ install(CODE "message(STATUS \"Installing uvim v${PROJECT_VERSION} - build ${PRO
     COMPONENT uvim
 )
 install(TARGETS uvim
-    RUNTIME DESTINATION bin
+    RUNTIME DESTINATION "${UVIM_INSTALL_BINDIR}"
     COMPONENT uvim
 )
