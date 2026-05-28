@@ -1,4 +1,5 @@
 build*
+!build.sh
 *.out
 CMakeLists.txt.user
 CMakeCache.txt

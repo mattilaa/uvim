@@ -70,10 +70,19 @@ on Fedora).
 ```sh
 ./bootstrap.sh
 ./build/uvim-config
+./build.sh
 ```
 
 Use `./bootstrap.sh --build-dir out/build` to choose another CMake build
-directory.
+directory. Use `./bootstrap.sh --jobs 8` to set parallel build jobs; when
+`uvim-config.conf` exists in the build directory, bootstrap uses its saved
+`jobs=` value by default.
+After saving from `uvim-config`, run `./build.sh` to import
+`build/uvim-config.conf`, regenerate `build/uvim_config_cache.cmake`, configure
+CMake, and build with the saved jobs value. Use `./build.sh --target uvim` to
+build only one target, or `./build.sh --build-dir out/build` for another build
+directory. `./build.sh --install` installs only the `uvim` component to the
+configured install directory, so dependency install rules are skipped.
 
 Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
 section, `Space`/Enter to toggle or cycle an option, `s` to write
@@ -84,7 +93,7 @@ hardware cores. Then configure and build uvim with the generated cache:
 
 ```sh
 cmake -C build/uvim_config_cache.cmake -S . -B build
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 Saving also writes `build/uvim-config.conf`. The TUI imports that file on
@@ -98,6 +107,7 @@ The same cache can be generated without opening the TUI:
 ./build/uvim-config -p vi-real -c Release -O Oz -j 8 --install-dir ~/.local/bin --install
 ./build/uvim-config --import build/uvim-config.conf --disable tests
 cmake -C build/uvim_config_cache.cmake -S . -B build
+cmake --build build --parallel 8
 ```
 
 Run `./build/uvim-config --help` for all command-line options, including
@@ -119,21 +129,21 @@ Build with the default:
 
 ```sh
 cmake -S . -B build
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 Or enable it explicitly:
 
 ```sh
 cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=ON
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 To disable it:
 
 ```sh
 cmake -S . -B build -DUVIM_ENABLE_ASM_DOCS=OFF
-cmake --build build
+cmake --build build --parallel 8
 ```
 
 Run uvim:

@@ -1000,7 +1000,8 @@ std::string install_command_suffix(const CliOptions& options)
 {
     if(!options.installAfterBuild)
         return {};
-    return " && cmake --install " + fs::absolute(options.buildDir).string();
+    return " && cmake --install " + fs::absolute(options.buildDir).string() +
+           " --component uvim";
 }
 
 std::string build_command(const Config& cfg, const CliOptions& options)
