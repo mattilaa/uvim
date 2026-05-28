@@ -226,21 +226,19 @@ set(MODE_STATE_MACHINE_SOURCES
     src/command_output_mode.cpp
 )
 
-# Combine all sources
-set(UVIM_SOURCES
-    ${UVIM_CORE_SOURCES}
-    ${MODE_STATE_MACHINE_SOURCES}
-)
+# Optional feature sources are shared by the main binary and the integration
+# style unit tests so feature-disabled builds link the same stubs everywhere.
+set(UVIM_OPTIONAL_FEATURE_SOURCES)
 
 # LSP client only needed when LSP is enabled
 if(UVIM_ENABLE_CLANGD_LSP)
-    list(APPEND UVIM_SOURCES
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
         src/lsp_client.cpp
     )
 endif()
 
 if(UVIM_ENABLE_GIT_TOOLS)
-    list(APPEND UVIM_SOURCES
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
         src/editor_git_controller.cpp
         src/editor_execution_git_add_command.cpp
         src/editor_execution_git_blame_command.cpp
@@ -266,14 +264,14 @@ if(UVIM_ENABLE_GIT_TOOLS)
         src/git_patch_mode.cpp
     )
 else()
-    list(APPEND UVIM_SOURCES
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
         src/editor_git_controller_stub.cpp
         src/git_modes_stub.cpp
     )
 endif()
 
 if(UVIM_ENABLE_SEARCH_TOOLS)
-    list(APPEND UVIM_SOURCES
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
         src/editor_execution_refresh_file_search_command.cpp
         src/editor_view_fuzzy_find.cpp
         src/editor_view_grep_search.cpp
@@ -282,14 +280,21 @@ if(UVIM_ENABLE_SEARCH_TOOLS)
         src/regex_search_mode.cpp
     )
 else()
-    list(APPEND UVIM_SOURCES src/search_modes_stub.cpp)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/search_modes_stub.cpp)
 endif()
 
 if(UVIM_ENABLE_ASM_DOCS)
-    list(APPEND UVIM_SOURCES src/asm_documentation.cpp)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/asm_documentation.cpp)
 else()
-    list(APPEND UVIM_SOURCES src/asm_documentation_stub.cpp)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/asm_documentation_stub.cpp)
 endif()
+
+# Combine all sources
+set(UVIM_SOURCES
+    ${UVIM_CORE_SOURCES}
+    ${MODE_STATE_MACHINE_SOURCES}
+    ${UVIM_OPTIONAL_FEATURE_SOURCES}
+)
 
 add_executable(uvim ${UVIM_SOURCES})
 target_compile_definitions(uvim PRIVATE UVIM_VERSION="${PROJECT_VERSION}")
@@ -576,20 +581,26 @@ if(UVIM_BUILD_TESTS)
     set(UVIM_TEST_SOURCES
         ${UVIM_CORE_SOURCES}
         ${MODE_STATE_MACHINE_SOURCES}
+        ${UVIM_OPTIONAL_FEATURE_SOURCES}
     )
     list(REMOVE_ITEM UVIM_TEST_SOURCES src/main.cpp)
-    if(UVIM_ENABLE_CLANGD_LSP)
-        list(APPEND UVIM_TEST_SOURCES src/lsp_client.cpp)
-    endif()
 
-    add_executable(real_mode_transitions_tests
+    set(UVIM_REAL_MODE_TEST_FILES
         tests/real_mode_transitions_test.cpp
-        tests/git_log_view_test.cpp
-        tests/git_stage_layout_test.cpp
         tests/editor_filetype_test.cpp
         tests/syntax_highlighter_test.cpp
         tests/js_ts_resolution_test.cpp
         tests/loc_count_test.cpp
+    )
+    if(UVIM_ENABLE_GIT_TOOLS)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES
+            tests/git_log_view_test.cpp
+            tests/git_stage_layout_test.cpp
+        )
+    endif()
+
+    add_executable(real_mode_transitions_tests
+        ${UVIM_REAL_MODE_TEST_FILES}
         ${UVIM_TEST_SOURCES}
     )
     uvim_enable_sanitizers(real_mode_transitions_tests)
@@ -614,6 +625,12 @@ if(UVIM_BUILD_TESTS)
     endif()
     if(UVIM_ENABLE_ASM_DOCS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_ASM_DOCS=1)
+    endif()
+    if(UVIM_ENABLE_GIT_TOOLS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_GIT_TOOLS=1)
+    endif()
+    if(UVIM_ENABLE_SEARCH_TOOLS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_SEARCH_TOOLS=1)
     endif()
 
     include(GoogleTest)
