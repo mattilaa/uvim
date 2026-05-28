@@ -72,7 +72,7 @@ enum class RowKind
 
 struct Config
 {
-    int featureSet = 2;
+    int featureSet = 3;
     int buildType = 0;
     int platform = 0;
     int optimization = 2;
@@ -120,8 +120,8 @@ struct VisibleRow
     size_t item = 0;
 };
 
-const std::vector<std::string> kFeatureSets = {"vi-min", "minimal", "basic",
-                                               "full"};
+const std::vector<std::string> kFeatureSets = {"vi-real", "vi-min", "minimal",
+                                               "basic", "full"};
 const std::vector<std::string> kBuildTypes = {"Release", "Debug",
                                               "RelWithDebInfo", "MinSizeRel"};
 const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
@@ -271,6 +271,25 @@ void apply_feature_set(Config& cfg)
 
     if(cfg.featureSet == 2)
     {
+        cfg.optimization = 5;
+        cfg.clangdLsp = false;
+        cfg.asmDocs = false;
+        cfg.gitTools = true;
+        cfg.searchTools = true;
+        cfg.formatters = true;
+        cfg.systemClipboard = true;
+        cfg.structSizePopup = false;
+        cfg.tests = false;
+        cfg.compileCommands = false;
+        cfg.lto = true;
+        cfg.gcSections = true;
+        cfg.stripBinary = true;
+        cfg.autoIncrementBuild = false;
+        return;
+    }
+
+    if(cfg.featureSet == 3)
+    {
         cfg.optimization = 2;
         cfg.clangdLsp = false;
         cfg.asmDocs = true;
@@ -308,8 +327,9 @@ std::vector<Section> make_sections()
 {
     return {
         {"Presets",
-         "High-level build profiles. vi-min aims at embedded-style builds by "
-         "turning off optional tools and choosing size-oriented release flags.",
+         "High-level build profiles. vi-real is the strictest vi-style build "
+         "with optional git/search tooling compiled out. vi-min keeps more "
+         "editor conveniences while staying size-oriented.",
          true,
          {{ItemKind::FeatureSet,
            "Feature set",
@@ -317,9 +337,10 @@ std::vector<Section> make_sections()
            nullptr,
            nullptr,
            {},
-           "vi-min is the smallest profile. Minimal keeps the normal editor "
-           "tools but removes docs/tests/LSP. Basic is the default developer "
-           "build. Full also enables LSP."}}},
+           "vi-real compiles out git, fuzzy, grep, and regex tools. vi-min is "
+           "small but keeps normal file/search tooling. Minimal keeps the "
+           "normal editor tools but removes docs/tests/LSP. Basic is the "
+           "default developer build. Full also enables LSP."}}},
         {"Target",
          "Platform and compiler mode. Release defaults to -O2 unless another "
          "optimization level is selected.",

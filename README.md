@@ -84,10 +84,10 @@ cmake --build build
 ```
 
 The default release optimization is `-O2`. For very small binaries, choose the
-`vi-min` feature set or tune the options under `Editor Features`,
-`Build Outputs`, and `Size And Link`. The smallest profiles use `Oz`, LTO,
-dead-code sections, and strip while disabling optional docs/LSP/test build
-outputs.
+`vi-real` feature set or tune the options under `Editor Features`,
+`Build Outputs`, and `Size And Link`. `vi-real` compiles out git, fuzzy, grep,
+and regex tooling. The smallest profiles use `Oz`, LTO, dead-code sections,
+and strip while disabling optional docs/LSP/test build outputs.
 
 ## Assembly instruction docs
 

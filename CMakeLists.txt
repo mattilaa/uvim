@@ -94,16 +94,6 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_emoji_command.cpp
     src/editor_execution_explore_command.cpp
     src/editor_execution_format_command.cpp
-    src/editor_execution_git_add_command.cpp
-    src/editor_execution_git_blame_command.cpp
-    src/editor_execution_git_commit_command.cpp
-    src/editor_execution_git_diff_command.cpp
-    src/editor_execution_git_fixup_command.cpp
-    src/editor_execution_git_log_command.cpp
-    src/editor_execution_git_pretty_log_command.cpp
-    src/editor_execution_git_stage_command.cpp
-    src/editor_execution_git_stash_command.cpp
-    src/editor_execution_git_stash_pop_command.cpp
     src/editor_execution_help_command.cpp
     src/editor_execution_line_jump_command.cpp
     src/editor_execution_loc_command.cpp
@@ -115,7 +105,6 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_quit_all_command.cpp
     src/editor_execution_quit_command.cpp
     src/editor_execution_quit_without_buffer_command.cpp
-    src/editor_execution_refresh_file_search_command.cpp
     src/editor_execution_reload_current_file_command.cpp
     src/editor_execution_requires_buffer_command.cpp
     src/editor_execution_search_command.cpp
@@ -143,7 +132,6 @@ set(UVIM_CORE_SOURCES
     src/editor_editing_controller.cpp
     src/editor_file_controller.cpp
     src/editor_file_type_controller.cpp
-    src/editor_git_controller.cpp
     src/editor_indent_controller.cpp
     src/editor_lsp_controller.cpp
     src/editor_mode_controller.cpp
@@ -158,14 +146,6 @@ set(UVIM_CORE_SOURCES
     src/editor_view_command.cpp
     src/editor_view_command_output.cpp
     src/editor_view_file_browser.cpp
-    src/editor_view_fuzzy_find.cpp
-    src/editor_view_git_commit.cpp
-    src/editor_view_git_fixup.cpp
-    src/editor_view_git_log.cpp
-    src/editor_view_git_patch.cpp
-    src/editor_view_git_show.cpp
-    src/editor_view_git_stage.cpp
-    src/editor_view_grep_search.cpp
     src/editor_view_help.cpp
     src/editor_view_insert.cpp
     src/editor_view_loc_list.cpp
@@ -241,16 +221,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/lsp_info_mode.cpp
     src/loc_mode.cpp
     src/help_mode.cpp
-    src/git_show_mode.cpp
-    src/git_log_mode.cpp
-    src/git_stage_mode.cpp
-    src/git_commit_mode.cpp
-    src/git_fixup_mode.cpp
-    src/git_patch_mode.cpp
     src/buffer_browser_mode.cpp
-    src/fuzzy_find_mode.cpp
-    src/grep_search_mode.cpp
-    src/regex_search_mode.cpp
     src/file_browser_mode.cpp
     src/command_output_mode.cpp
 )
@@ -266,6 +237,52 @@ if(UVIM_ENABLE_CLANGD_LSP)
     list(APPEND UVIM_SOURCES
         src/lsp_client.cpp
     )
+endif()
+
+if(UVIM_ENABLE_GIT_TOOLS)
+    list(APPEND UVIM_SOURCES
+        src/editor_git_controller.cpp
+        src/editor_execution_git_add_command.cpp
+        src/editor_execution_git_blame_command.cpp
+        src/editor_execution_git_commit_command.cpp
+        src/editor_execution_git_diff_command.cpp
+        src/editor_execution_git_fixup_command.cpp
+        src/editor_execution_git_log_command.cpp
+        src/editor_execution_git_pretty_log_command.cpp
+        src/editor_execution_git_stage_command.cpp
+        src/editor_execution_git_stash_command.cpp
+        src/editor_execution_git_stash_pop_command.cpp
+        src/editor_view_git_commit.cpp
+        src/editor_view_git_fixup.cpp
+        src/editor_view_git_log.cpp
+        src/editor_view_git_patch.cpp
+        src/editor_view_git_show.cpp
+        src/editor_view_git_stage.cpp
+        src/git_show_mode.cpp
+        src/git_log_mode.cpp
+        src/git_stage_mode.cpp
+        src/git_commit_mode.cpp
+        src/git_fixup_mode.cpp
+        src/git_patch_mode.cpp
+    )
+else()
+    list(APPEND UVIM_SOURCES
+        src/editor_git_controller_stub.cpp
+        src/git_modes_stub.cpp
+    )
+endif()
+
+if(UVIM_ENABLE_SEARCH_TOOLS)
+    list(APPEND UVIM_SOURCES
+        src/editor_execution_refresh_file_search_command.cpp
+        src/editor_view_fuzzy_find.cpp
+        src/editor_view_grep_search.cpp
+        src/fuzzy_find_mode.cpp
+        src/grep_search_mode.cpp
+        src/regex_search_mode.cpp
+    )
+else()
+    list(APPEND UVIM_SOURCES src/search_modes_stub.cpp)
 endif()
 
 if(UVIM_ENABLE_ASM_DOCS)
