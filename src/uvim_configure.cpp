@@ -1,17 +1,21 @@
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #ifdef _WIN32
 #include <conio.h>
 #else
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -29,6 +33,8 @@ constexpr int kKeyEsc = 27;
 constexpr int kKeyUp = 1001;
 constexpr int kKeyDown = 1002;
 constexpr int kKeyResize = 1003;
+
+int gPendingKey = 0;
 
 #ifndef _WIN32
 volatile std::sig_atomic_t gResizePending = 0;
@@ -61,6 +67,7 @@ enum class ItemKind
 {
     FeatureSet,
     Choice,
+    Text,
     Toggle,
 };
 
@@ -72,10 +79,12 @@ enum class RowKind
 
 struct Config
 {
-    int featureSet = 3;
+    int featureSet = 4;
     int buildType = 0;
     int platform = 0;
     int optimization = 2;
+    std::string installDir;
+    std::string jobs;
     bool clangdLsp = false;
     bool asmDocs = true;
     bool gitTools = true;
@@ -94,6 +103,14 @@ struct Config
     bool debugLsp = false;
 };
 
+struct CliOptions
+{
+    fs::path sourceDir = fs::absolute(fs::path(UVIM_SOURCE_DIR));
+    fs::path buildDir = sourceDir / "build";
+    std::optional<fs::path> output;
+    bool installAfterBuild = false;
+};
+
 struct Item
 {
     ItemKind kind;
@@ -103,6 +120,7 @@ struct Item
     int Config::* choice = nullptr;
     std::vector<std::string> choices;
     std::string help;
+    std::string Config::* text = nullptr;
 };
 
 struct Section
@@ -127,6 +145,59 @@ const std::vector<std::string> kBuildTypes = {"Release", "Debug",
 const std::vector<std::string> kPlatforms = {"AUTO", "POSIX", "WIN32"};
 const std::vector<std::string> kOptimizations = {"O0", "O1", "O2",
                                                  "O3", "Os", "Oz"};
+
+bool equals_ci(std::string_view lhs, std::string_view rhs)
+{
+    if(lhs.size() != rhs.size())
+        return false;
+    for(size_t i = 0; i < lhs.size(); ++i)
+    {
+        if(std::tolower(static_cast<unsigned char>(lhs[i])) !=
+           std::tolower(static_cast<unsigned char>(rhs[i])))
+            return false;
+    }
+    return true;
+}
+
+std::optional<int> choice_index(std::string_view value,
+                                const std::vector<std::string>& choices)
+{
+    for(size_t i = 0; i < choices.size(); ++i)
+    {
+        if(equals_ci(value, choices[i]))
+            return static_cast<int>(i);
+    }
+    return std::nullopt;
+}
+
+std::string join_choices(const std::vector<std::string>& choices)
+{
+    std::string out;
+    for(size_t i = 0; i < choices.size(); ++i)
+    {
+        if(i > 0)
+            out += ", ";
+        out += choices[i];
+    }
+    return out;
+}
+
+std::string default_install_dir()
+{
+#ifdef _WIN32
+    if(const char* localAppData = std::getenv("LOCALAPPDATA"))
+        return std::string(localAppData) + "\\uvim\\bin";
+    return "C:\\uvim\\bin";
+#else
+    return "~/.local/bin";
+#endif
+}
+
+std::string default_jobs()
+{
+    const unsigned int cores = std::thread::hardware_concurrency();
+    return std::to_string(cores == 0 ? 1 : cores);
+}
 
 class TerminalRawMode
 {
@@ -165,6 +236,12 @@ private:
 
 int read_key()
 {
+    if(gPendingKey != 0)
+    {
+        const int key = gPendingKey;
+        gPendingKey = 0;
+        return key;
+    }
 #ifdef _WIN32
     int c = _getch();
     if(c == 0 || c == 224)
@@ -191,14 +268,31 @@ int read_key()
     if(c == 27)
     {
         unsigned char seq[2]{};
-        if(::read(STDIN_FILENO, &seq[0], 1) == 1 &&
-           ::read(STDIN_FILENO, &seq[1], 1) == 1 && seq[0] == '[')
+#ifndef _WIN32
+        const int flags = ::fcntl(STDIN_FILENO, F_GETFL, 0);
+        if(flags != -1)
+            ::fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+#endif
+        if(::read(STDIN_FILENO, &seq[0], 1) == 1)
         {
-            if(seq[1] == 'A')
-                return kKeyUp;
-            if(seq[1] == 'B')
-                return kKeyDown;
+            if(seq[0] != '[')
+                gPendingKey = seq[0];
+            else if(::read(STDIN_FILENO, &seq[1], 1) == 1)
+            {
+#ifndef _WIN32
+                if(flags != -1)
+                    ::fcntl(STDIN_FILENO, F_SETFL, flags);
+#endif
+                if(seq[1] == 'A')
+                    return kKeyUp;
+                if(seq[1] == 'B')
+                    return kKeyDown;
+            }
         }
+#ifndef _WIN32
+        if(flags != -1)
+            ::fcntl(STDIN_FILENO, F_SETFL, flags);
+#endif
         return kKeyEsc;
     }
     return c;
@@ -342,8 +436,8 @@ std::vector<Section> make_sections()
            "normal editor tools but removes docs/tests/LSP. Basic is the "
            "default developer build. Full also enables LSP."}}},
         {"Target",
-         "Platform and compiler mode. Release defaults to -O2 unless another "
-         "optimization level is selected.",
+         "Platform, compiler mode, and build parallelism. Release defaults to "
+         "-O2 unless another optimization level is selected.",
          true,
          {{ItemKind::Choice, "Build type", "CMAKE_BUILD_TYPE", nullptr,
            &Config::buildType, kBuildTypes,
@@ -354,7 +448,29 @@ std::vector<Section> make_sections()
           {ItemKind::Choice, "Optimization", "UVIM_OPTIMIZATION_LEVEL", nullptr,
            &Config::optimization, kOptimizations,
            "Release optimization flag. O2 is the default; Oz is best for "
-           "minimum binary size on Clang-style toolchains."}}},
+           "minimum binary size on Clang-style toolchains."},
+          {ItemKind::Text,
+           "Build jobs",
+           "UVIM_BUILD_JOBS",
+           nullptr,
+           nullptr,
+           {},
+           "Parallel build jobs used in the generated cmake --build command. "
+           "Defaults to the maximum available hardware threads.",
+           &Config::jobs}}},
+        {"Install",
+         "Installation destination. Press Space or Enter on the install dir "
+         "row to edit the executable destination path.",
+         true,
+         {{ItemKind::Text,
+           "Install dir",
+           "UVIM_INSTALL_DIR",
+           nullptr,
+           nullptr,
+           {},
+           "Executable destination directory used by cmake --install. On "
+           "POSIX the default is ~/.local/bin.",
+           &Config::installDir}}},
         {"Editor Features",
          "User-facing features that can be disabled for very small builds. "
          "Some switches are currently compile definitions for the next source "
@@ -508,6 +624,8 @@ std::string value_for(const Config& cfg, const Item& item)
         return kFeatureSets[static_cast<size_t>(cfg.featureSet)];
     if(item.kind == ItemKind::Choice && item.choice && !item.choices.empty())
         return item.choices[static_cast<size_t>(cfg.*(item.choice))];
+    if(item.kind == ItemKind::Text && item.text)
+        return cfg.*(item.text);
     return cfg.*(item.flag) ? "ON" : "OFF";
 }
 
@@ -529,7 +647,7 @@ std::string truncate_line(std::string line, int cols)
 }
 
 std::string row_text(const Config& cfg, const std::vector<Section>& sections,
-                     const VisibleRow& row, bool selected)
+                     const VisibleRow& row, bool selected, bool editing)
 {
     std::string out = selected ? "> " : "  ";
 
@@ -548,12 +666,22 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
         out += (cfg.*(item.flag)) ? 'x' : ' ';
         out += "] ";
     }
+    else if(item.kind == ItemKind::Text)
+        out += "  >   ";
     else
         out += "      ";
     out += item.label;
     const int pad = std::max(1, 31 - static_cast<int>(item.label.size()));
     out += std::string(static_cast<size_t>(pad), ' ');
-    out += value_for(cfg, item);
+    if(editing && item.kind == ItemKind::Text)
+    {
+        out += "\x1b[37;40m";
+        out += value_for(cfg, item);
+        out += "\x1b[5m_\x1b[25m";
+        out += "\x1b[0m";
+    }
+    else
+        out += value_for(cfg, item);
     return out;
 }
 
@@ -712,7 +840,8 @@ void append_documentation(std::vector<std::string>& out,
 }
 
 void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
-          int scrollOffset, TerminalSize screen, std::string_view message)
+          int scrollOffset, TerminalSize screen, std::string_view message,
+          bool editingText)
 {
     const std::vector<VisibleRow> rows = visible_rows(sections);
     const int safeCursor =
@@ -748,11 +877,12 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
 
     for(int i = scrollOffset; i < endRow && listRowsPrinted < listHeight; ++i)
     {
-        std::string line =
-            truncate_line(row_text(cfg, sections, rows[static_cast<size_t>(i)],
-                                   i == safeCursor),
-                          screen.cols);
-        if(i == safeCursor)
+        std::string line = truncate_line(
+            row_text(cfg, sections, rows[static_cast<size_t>(i)],
+                     i == safeCursor, editingText && i == safeCursor),
+            screen.cols);
+        if(i == safeCursor &&
+           !(editingText && rows[static_cast<size_t>(i)].kind == RowKind::Item))
             line = "\x1b[7m" + line + "\x1b[0m";
         screenLines.push_back(std::move(line));
         ++listRowsPrinted;
@@ -810,20 +940,48 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     std::cout.flush();
 }
 
-fs::path source_dir()
+fs::path output_path(const CliOptions& options)
 {
-    return fs::absolute(fs::path(UVIM_SOURCE_DIR));
+    if(options.output)
+        return fs::absolute(*options.output);
+    return fs::absolute(options.buildDir / "uvim_config_cache.cmake");
 }
 
-fs::path output_path()
+fs::path expand_user_path(std::string_view path, const fs::path& base)
 {
-    return source_dir() / "build" / "uvim_config_cache.cmake";
+    std::string value(path);
+    if(value == "~" || value.rfind("~/", 0) == 0)
+    {
+        if(const char* home = std::getenv("HOME"))
+            value = std::string(home) + value.substr(1);
+    }
+
+    fs::path result(value);
+    if(result.is_relative())
+        result = base / result;
+    return fs::absolute(result).lexically_normal();
+}
+
+std::string install_command_suffix(const CliOptions& options)
+{
+    if(!options.installAfterBuild)
+        return {};
+    return " && cmake --install " + fs::absolute(options.buildDir).string();
+}
+
+std::string build_command(const Config& cfg, const CliOptions& options)
+{
+    std::string command =
+        "cmake --build " + fs::absolute(options.buildDir).string();
+    if(!cfg.jobs.empty())
+        command += " --parallel " + cfg.jobs;
+    return command;
 }
 
 bool write_cache(const Config& cfg, const std::vector<Section>& sections,
-                 std::string& message)
+                 const CliOptions& options, std::string& message)
 {
-    fs::path out = output_path();
+    fs::path out = output_path(options);
     std::error_code ec;
     fs::create_directories(out.parent_path(), ec);
     if(ec)
@@ -840,8 +998,13 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
     }
 
     file << "# Generated by uvim-config. Pass with: cmake -C " << out.string()
-         << " -S " << source_dir().string() << " -B "
-         << out.parent_path().string() << "\n";
+         << " -S " << fs::absolute(options.sourceDir).string() << " -B "
+         << fs::absolute(options.buildDir).string() << "\n";
+    const fs::path installDir =
+        expand_user_path(cfg.installDir, fs::absolute(options.sourceDir));
+    file << "set(CMAKE_INSTALL_PREFIX \"/\" CACHE PATH \"\" FORCE)\n";
+    file << "set(UVIM_INSTALL_BINDIR \"" << installDir.string()
+         << "\" CACHE STRING \"\" FORCE)\n";
     for(const auto& section : sections)
     {
         for(const auto& item : section.items)
@@ -852,6 +1015,8 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
                      << item.choices[static_cast<size_t>(cfg.*(item.choice))]
                      << "\" CACHE STRING \"\" FORCE)\n";
             }
+            else if(item.kind == ItemKind::Text)
+                continue;
             else if(item.kind == ItemKind::Toggle)
             {
                 file << "set(" << item.cmakeName << " "
@@ -861,8 +1026,234 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
         }
     }
 
-    message = "saved. Run: cmake -C build/uvim_config_cache.cmake -S . -B "
-              "build && cmake --build build";
+    message = "saved. Run: cmake -C " + out.string() + " -S " +
+              fs::absolute(options.sourceDir).string() + " -B " +
+              fs::absolute(options.buildDir).string() + " && " +
+              build_command(cfg, options) + install_command_suffix(options);
+    return true;
+}
+
+void print_help(std::ostream& out)
+{
+    out << "uvim-config [options]\n\n"
+        << "Without options, starts the interactive TUI.\n\n"
+        << "Options:\n"
+        << "  -h, --help                  Show this help.\n"
+        << "  -p, --preset NAME           Build preset: "
+        << join_choices(kFeatureSets) << " (default: full).\n"
+        << "  -c, --config NAME           CMake build type: "
+        << join_choices(kBuildTypes) << " (default: Release).\n"
+        << "      --platform NAME         Terminal backend: "
+        << join_choices(kPlatforms) << " (default: AUTO).\n"
+        << "  -O, --optimization LEVEL    Release optimization: "
+        << join_choices(kOptimizations) << " (default: O2).\n"
+        << "  -j, --jobs N                Parallel build jobs (default: max "
+           "hardware cores).\n"
+        << "  -S, --source-dir DIR        Source directory for the printed "
+           "cmake "
+           "command.\n"
+        << "  -B, --build-dir DIR         Build directory and default cache "
+           "output.\n"
+        << "      --install-dir DIR       Executable install destination "
+           "(default: ~/.local/bin on POSIX).\n"
+        << "  -i, --install               Include cmake --install in the "
+           "printed command.\n"
+        << "  -o, --output FILE           Cache file to write.\n"
+        << "      --enable NAME           Enable a feature option.\n"
+        << "      --disable NAME          Disable a feature option.\n\n"
+        << "Feature names for --enable/--disable:\n"
+        << "  clangd, asm-docs, git, search, formatters, clipboard,\n"
+        << "  struct-size, tests, compile-commands, auto-build-number,\n"
+        << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
+        << "Examples:\n"
+        << "  uvim-config --preset vi-real --config Release -O Oz -j 8\n"
+        << "  uvim-config -p full -c RelWithDebInfo --enable clangd\n"
+        << "  uvim-config -p vi-real --install-dir ~/.local/bin --install\n";
+}
+
+bool set_feature(Config& cfg, std::string_view name, bool enabled,
+                 std::string& error)
+{
+    if(equals_ci(name, "clangd") || equals_ci(name, "lsp") ||
+       equals_ci(name, "clangd-lsp"))
+        cfg.clangdLsp = enabled;
+    else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
+        cfg.asmDocs = enabled;
+    else if(equals_ci(name, "git") || equals_ci(name, "git-tools"))
+        cfg.gitTools = enabled;
+    else if(equals_ci(name, "search") || equals_ci(name, "search-tools"))
+        cfg.searchTools = enabled;
+    else if(equals_ci(name, "formatters") || equals_ci(name, "formatter"))
+        cfg.formatters = enabled;
+    else if(equals_ci(name, "clipboard") || equals_ci(name, "system-clipboard"))
+        cfg.systemClipboard = enabled;
+    else if(equals_ci(name, "struct-size") ||
+            equals_ci(name, "struct-size-popup"))
+        cfg.structSizePopup = enabled;
+    else if(equals_ci(name, "tests") || equals_ci(name, "test"))
+        cfg.tests = enabled;
+    else if(equals_ci(name, "compile-commands") ||
+            equals_ci(name, "compile-commands-json"))
+        cfg.compileCommands = enabled;
+    else if(equals_ci(name, "auto-build-number") ||
+            equals_ci(name, "auto-increment-build"))
+        cfg.autoIncrementBuild = enabled;
+    else if(equals_ci(name, "lto") || equals_ci(name, "ipo"))
+        cfg.lto = enabled;
+    else if(equals_ci(name, "gc-sections") ||
+            equals_ci(name, "dead-code-sections"))
+        cfg.gcSections = enabled;
+    else if(equals_ci(name, "strip") || equals_ci(name, "strip-binary"))
+        cfg.stripBinary = enabled;
+    else if(equals_ci(name, "sanitizers") || equals_ci(name, "sanitize"))
+        cfg.sanitizers = enabled;
+    else if(equals_ci(name, "debug-logging"))
+        cfg.debugLogging = enabled;
+    else if(equals_ci(name, "debug-lsp") || equals_ci(name, "lsp-debug"))
+        cfg.debugLsp = enabled;
+    else
+    {
+        error = "unknown feature '" + std::string(name) + "'";
+        return false;
+    }
+    return true;
+}
+
+std::optional<std::string_view> next_arg(int& i, int argc, char** argv,
+                                         std::string_view option,
+                                         std::string& error)
+{
+    if(i + 1 >= argc)
+    {
+        error = "missing value for " + std::string(option);
+        return std::nullopt;
+    }
+    ++i;
+    return std::string_view(argv[i]);
+}
+
+bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
+               bool& showHelp, std::string& error)
+{
+    showHelp = false;
+    for(int i = 1; i < argc; ++i)
+    {
+        std::string_view arg(argv[i]);
+        if(arg == "-h" || arg == "--help")
+        {
+            showHelp = true;
+            return true;
+        }
+        if(arg == "-p" || arg == "--preset")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kFeatureSets);
+            if(!index)
+            {
+                error = "invalid preset '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kFeatureSets);
+                return false;
+            }
+            cfg.featureSet = *index;
+            apply_feature_set(cfg);
+        }
+        else if(arg == "-c" || arg == "--config")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kBuildTypes);
+            if(!index)
+            {
+                error = "invalid config '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kBuildTypes);
+                return false;
+            }
+            cfg.buildType = *index;
+        }
+        else if(arg == "--platform")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kPlatforms);
+            if(!index)
+            {
+                error = "invalid platform '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kPlatforms);
+                return false;
+            }
+            cfg.platform = *index;
+        }
+        else if(arg == "-O" || arg == "--optimization")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            auto index = choice_index(*value, kOptimizations);
+            if(!index)
+            {
+                error = "invalid optimization '" + std::string(*value) +
+                        "'. Expected one of: " + join_choices(kOptimizations);
+                return false;
+            }
+            cfg.optimization = *index;
+        }
+        else if(arg == "-j" || arg == "--jobs")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            cfg.jobs = std::string(*value);
+        }
+        else if(arg == "-S" || arg == "--source-dir")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            options.sourceDir = fs::absolute(fs::path(std::string(*value)));
+        }
+        else if(arg == "-B" || arg == "--build-dir")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            options.buildDir = fs::absolute(fs::path(std::string(*value)));
+        }
+        else if(arg == "--install-dir")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            cfg.installDir = std::string(*value);
+        }
+        else if(arg == "-i" || arg == "--install")
+        {
+            options.installAfterBuild = true;
+        }
+        else if(arg == "-o" || arg == "--output")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            options.output = fs::absolute(fs::path(std::string(*value)));
+        }
+        else if(arg == "--enable" || arg == "--disable")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            if(!set_feature(cfg, *value, arg == "--enable", error))
+                return false;
+        }
+        else
+        {
+            error = "unknown option '" + std::string(arg) + "'";
+            return false;
+        }
+    }
     return true;
 }
 
@@ -901,13 +1292,47 @@ void close_selected_section(std::vector<Section>& sections,
 }
 } // namespace
 
-int main()
+int main(int argc, char** argv)
 {
     Config cfg;
+    cfg.installDir = default_install_dir();
+    cfg.jobs = default_jobs();
+    apply_feature_set(cfg);
+    CliOptions options;
     auto sections = make_sections();
+
+    if(argc > 1)
+    {
+        bool showHelp = false;
+        std::string error;
+        if(!parse_cli(argc, argv, cfg, options, showHelp, error))
+        {
+            std::cerr << "uvim-config: " << error << "\n\n";
+            print_help(std::cerr);
+            return 2;
+        }
+        if(showHelp)
+        {
+            print_help(std::cout);
+            return 0;
+        }
+
+        std::string message;
+        if(!write_cache(cfg, sections, options, message))
+        {
+            std::cerr << "uvim-config: " << message << "\n";
+            return 1;
+        }
+        std::cout << message << "\n";
+        return 0;
+    }
+
     int cursor = 0;
     int scrollOffset = 0;
     std::string message;
+    bool editingText = false;
+    std::string textBeforeEdit;
+    std::string Config::* editingField = nullptr;
     TerminalRawMode rawMode;
 #ifndef _WIN32
     std::signal(SIGWINCH, handle_resize);
@@ -922,11 +1347,45 @@ int main()
         scrollOffset =
             clamp_scroll(scrollOffset, cursor, static_cast<int>(rows.size()),
                          make_layout(sections, screen).listRows);
-        draw(cfg, sections, cursor, scrollOffset, screen, message);
+        const std::string drawMessage =
+            editingText ? "editing value: type text, Enter saves, Esc cancels"
+                        : message;
+        draw(cfg, sections, cursor, scrollOffset, screen, drawMessage,
+             editingText);
 
         int key = read_key();
         if(key == kKeyResize)
             continue;
+        if(editingText && editingField)
+        {
+            if(key == kKeyEsc)
+            {
+                cfg.*(editingField) = textBeforeEdit;
+                editingText = false;
+                editingField = nullptr;
+                message = "value unchanged";
+            }
+            else if(key == '\n' || key == '\r')
+            {
+                editingText = false;
+                editingField = nullptr;
+                message = "value set";
+            }
+            else if(key == 127 || key == 8)
+            {
+                if(!(cfg.*(editingField)).empty())
+                    (cfg.*(editingField)).pop_back();
+            }
+            else if(key == 21)
+            {
+                (cfg.*(editingField)).clear();
+            }
+            else if(key >= 32 && key < 127)
+            {
+                (cfg.*(editingField)).push_back(static_cast<char>(key));
+            }
+            continue;
+        }
         message.clear();
         if(key == 'q' || key == 'Q' || key == kKeyEsc)
             break;
@@ -944,10 +1403,20 @@ int main()
             if(row.kind == RowKind::Section)
                 sections[row.section].open = !sections[row.section].open;
             else
-                activate(cfg, sections[row.section].items[row.item]);
+            {
+                const Item& item = sections[row.section].items[row.item];
+                if(item.kind == ItemKind::Text && item.text)
+                {
+                    editingText = true;
+                    editingField = item.text;
+                    textBeforeEdit = cfg.*(item.text);
+                }
+                else
+                    activate(cfg, item);
+            }
         }
         else if(key == 's' || key == 'S')
-            write_cache(cfg, sections, message);
+            write_cache(cfg, sections, options, message);
     }
 
     std::cout << "\x1b[?25h\x1b[0m\n";

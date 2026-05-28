@@ -53,6 +53,7 @@ option(UVIM_ENABLE_GC_SECTIONS "Enable function/data sections and linker garbage
 option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it" OFF)
 set(UVIM_OPTIMIZATION_LEVEL "O2" CACHE STRING "Release optimization level: O0, O1, O2, O3, Os, Oz")
 set_property(CACHE UVIM_OPTIMIZATION_LEVEL PROPERTY STRINGS O0 O1 O2 O3 Os Oz)
+set(UVIM_INSTALL_BINDIR "bin" CACHE STRING "Directory where the uvim executable is installed")
 
 if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
@@ -660,6 +661,6 @@ install(CODE "message(STATUS \"Installing uvim v${PROJECT_VERSION} - build ${PRO
     COMPONENT uvim
 )
 install(TARGETS uvim
-    RUNTIME DESTINATION bin
+    RUNTIME DESTINATION "${UVIM_INSTALL_BINDIR}"
     COMPONENT uvim
 )

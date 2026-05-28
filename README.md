@@ -75,13 +75,27 @@ cmake --build build --target uvim-config
 
 Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
 section, `Space`/Enter to toggle or cycle an option, `s` to write
-`build/uvim_config_cache.cmake`, and `q` to quit. Then configure and build uvim
-with the generated cache:
+`build/uvim_config_cache.cmake`, and `q` to quit. Press `Space`/Enter on the
+install dir or build jobs rows to edit the value. On POSIX the install dir
+defaults to `~/.local/bin`, and build jobs defaults to the maximum available
+hardware cores. Then configure and build uvim with the generated cache:
 
 ```sh
 cmake -C build/uvim_config_cache.cmake -S . -B build
 cmake --build build
 ```
+
+The same cache can be generated without opening the TUI:
+
+```sh
+./build/uvim-config --preset full --config Release
+./build/uvim-config -p vi-real -c Release -O Oz -j 8 --install-dir ~/.local/bin --install
+cmake -C build/uvim_config_cache.cmake -S . -B build
+```
+
+Run `./build/uvim-config --help` for all command-line options, including
+`--platform`, `--jobs`, `--build-dir`, `--install-dir`, `--install`,
+`--output`, `--enable`, and `--disable`.
 
 The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,
