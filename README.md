@@ -85,17 +85,21 @@ cmake -C build/uvim_config_cache.cmake -S . -B build
 cmake --build build
 ```
 
+Saving also writes `build/uvim-config.conf`. The TUI imports that file on
+startup when it exists.
+
 The same cache can be generated without opening the TUI:
 
 ```sh
 ./build/uvim-config --preset full --config Release
 ./build/uvim-config -p vi-real -c Release -O Oz -j 8 --install-dir ~/.local/bin --install
+./build/uvim-config --import build/uvim-config.conf --disable tests
 cmake -C build/uvim_config_cache.cmake -S . -B build
 ```
 
 Run `./build/uvim-config --help` for all command-line options, including
-`--platform`, `--jobs`, `--build-dir`, `--install-dir`, `--install`,
-`--output`, `--enable`, and `--disable`.
+`--platform`, `--jobs`, `--build-dir`, `--import`, `--install-dir`,
+`--install`, `--output`, `--enable`, and `--disable`.
 
 The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,

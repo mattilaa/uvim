@@ -182,6 +182,35 @@ std::string join_choices(const std::vector<std::string>& choices)
     return out;
 }
 
+std::string trim(std::string_view value)
+{
+    size_t first = 0;
+    while(first < value.size() &&
+          std::isspace(static_cast<unsigned char>(value[first])))
+        ++first;
+    size_t last = value.size();
+    while(last > first &&
+          std::isspace(static_cast<unsigned char>(value[last - 1])))
+        --last;
+    return std::string(value.substr(first, last - first));
+}
+
+std::string bool_value(bool value)
+{
+    return value ? "ON" : "OFF";
+}
+
+std::optional<bool> parse_bool(std::string_view value)
+{
+    if(equals_ci(value, "on") || equals_ci(value, "true") ||
+       equals_ci(value, "yes") || value == "1")
+        return true;
+    if(equals_ci(value, "off") || equals_ci(value, "false") ||
+       equals_ci(value, "no") || value == "0")
+        return false;
+    return std::nullopt;
+}
+
 std::string default_install_dir()
 {
 #ifdef _WIN32
@@ -947,6 +976,11 @@ fs::path output_path(const CliOptions& options)
     return fs::absolute(options.buildDir / "uvim_config_cache.cmake");
 }
 
+fs::path config_path(const CliOptions& options)
+{
+    return fs::absolute(options.buildDir / "uvim-config.conf");
+}
+
 fs::path expand_user_path(std::string_view path, const fs::path& base)
 {
     std::string value(path);
@@ -976,6 +1010,218 @@ std::string build_command(const Config& cfg, const CliOptions& options)
     if(!cfg.jobs.empty())
         command += " --parallel " + cfg.jobs;
     return command;
+}
+
+bool apply_config_value(Config& cfg, CliOptions& options,
+                        std::string_view rawKey, std::string_view rawValue,
+                        std::string& error)
+{
+    const std::string key = trim(rawKey);
+    const std::string value = trim(rawValue);
+
+    if(key == "preset")
+    {
+        auto index = choice_index(value, kFeatureSets);
+        if(!index)
+        {
+            error = "invalid preset '" + value + "'";
+            return false;
+        }
+        cfg.featureSet = *index;
+        apply_feature_set(cfg);
+    }
+    else if(key == "config")
+    {
+        auto index = choice_index(value, kBuildTypes);
+        if(!index)
+        {
+            error = "invalid config '" + value + "'";
+            return false;
+        }
+        cfg.buildType = *index;
+    }
+    else if(key == "platform")
+    {
+        auto index = choice_index(value, kPlatforms);
+        if(!index)
+        {
+            error = "invalid platform '" + value + "'";
+            return false;
+        }
+        cfg.platform = *index;
+    }
+    else if(key == "optimization")
+    {
+        auto index = choice_index(value, kOptimizations);
+        if(!index)
+        {
+            error = "invalid optimization '" + value + "'";
+            return false;
+        }
+        cfg.optimization = *index;
+    }
+    else if(key == "jobs")
+        cfg.jobs = value;
+    else if(key == "install_dir")
+        cfg.installDir = value;
+    else if(key == "install_after_build")
+    {
+        auto parsed = parse_bool(value);
+        if(!parsed)
+        {
+            error = "invalid install_after_build value '" + value + "'";
+            return false;
+        }
+        options.installAfterBuild = *parsed;
+    }
+    else if(key == "clangd_lsp")
+        cfg.clangdLsp = parse_bool(value).value_or(cfg.clangdLsp);
+    else if(key == "asm_docs")
+        cfg.asmDocs = parse_bool(value).value_or(cfg.asmDocs);
+    else if(key == "git_tools")
+        cfg.gitTools = parse_bool(value).value_or(cfg.gitTools);
+    else if(key == "search_tools")
+        cfg.searchTools = parse_bool(value).value_or(cfg.searchTools);
+    else if(key == "formatters")
+        cfg.formatters = parse_bool(value).value_or(cfg.formatters);
+    else if(key == "system_clipboard")
+        cfg.systemClipboard = parse_bool(value).value_or(cfg.systemClipboard);
+    else if(key == "struct_size_popup")
+        cfg.structSizePopup = parse_bool(value).value_or(cfg.structSizePopup);
+    else if(key == "tests")
+        cfg.tests = parse_bool(value).value_or(cfg.tests);
+    else if(key == "compile_commands")
+        cfg.compileCommands = parse_bool(value).value_or(cfg.compileCommands);
+    else if(key == "auto_increment_build")
+        cfg.autoIncrementBuild =
+            parse_bool(value).value_or(cfg.autoIncrementBuild);
+    else if(key == "lto")
+        cfg.lto = parse_bool(value).value_or(cfg.lto);
+    else if(key == "gc_sections")
+        cfg.gcSections = parse_bool(value).value_or(cfg.gcSections);
+    else if(key == "strip_binary")
+        cfg.stripBinary = parse_bool(value).value_or(cfg.stripBinary);
+    else if(key == "sanitizers")
+        cfg.sanitizers = parse_bool(value).value_or(cfg.sanitizers);
+    else if(key == "debug_logging")
+        cfg.debugLogging = parse_bool(value).value_or(cfg.debugLogging);
+    else if(key == "debug_lsp")
+        cfg.debugLsp = parse_bool(value).value_or(cfg.debugLsp);
+    else
+    {
+        error = "unknown config key '" + key + "'";
+        return false;
+    }
+
+    return true;
+}
+
+bool load_config_file(const fs::path& path, Config& cfg, CliOptions& options,
+                      std::string& error)
+{
+    std::ifstream file(path);
+    if(!file)
+    {
+        error = "cannot read " + path.string();
+        return false;
+    }
+
+    std::string line;
+    int lineNo = 0;
+    while(std::getline(file, line))
+    {
+        ++lineNo;
+        std::string trimmed = trim(line);
+        if(trimmed.empty() || trimmed[0] == '#')
+            continue;
+
+        const size_t equals = trimmed.find('=');
+        if(equals == std::string::npos)
+        {
+            error = path.string() + ":" + std::to_string(lineNo) +
+                    ": expected key=value";
+            return false;
+        }
+
+        if(!apply_config_value(cfg, options, trimmed.substr(0, equals),
+                               trimmed.substr(equals + 1), error))
+        {
+            error = path.string() + ":" + std::to_string(lineNo) + ": " + error;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool try_load_config_file(const fs::path& path, Config& cfg,
+                          CliOptions& options, std::string& message)
+{
+    std::error_code ec;
+    if(!fs::exists(path, ec))
+        return false;
+
+    std::string error;
+    if(!load_config_file(path, cfg, options, error))
+    {
+        message = error;
+        return false;
+    }
+
+    message = "loaded " + path.string();
+    return true;
+}
+
+bool write_config_file(const Config& cfg, const CliOptions& options,
+                       std::string& error)
+{
+    const fs::path path = config_path(options);
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+    if(ec)
+    {
+        error = "cannot create " + path.parent_path().string();
+        return false;
+    }
+
+    std::ofstream file(path);
+    if(!file)
+    {
+        error = "cannot write " + path.string();
+        return false;
+    }
+
+    file << "# Generated by uvim-config.\n";
+    file << "preset=" << kFeatureSets[static_cast<size_t>(cfg.featureSet)]
+         << "\n";
+    file << "config=" << kBuildTypes[static_cast<size_t>(cfg.buildType)]
+         << "\n";
+    file << "platform=" << kPlatforms[static_cast<size_t>(cfg.platform)]
+         << "\n";
+    file << "optimization="
+         << kOptimizations[static_cast<size_t>(cfg.optimization)] << "\n";
+    file << "jobs=" << cfg.jobs << "\n";
+    file << "install_dir=" << cfg.installDir << "\n";
+    file << "install_after_build=" << bool_value(options.installAfterBuild)
+         << "\n";
+    file << "clangd_lsp=" << bool_value(cfg.clangdLsp) << "\n";
+    file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
+    file << "git_tools=" << bool_value(cfg.gitTools) << "\n";
+    file << "search_tools=" << bool_value(cfg.searchTools) << "\n";
+    file << "formatters=" << bool_value(cfg.formatters) << "\n";
+    file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
+    file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
+    file << "tests=" << bool_value(cfg.tests) << "\n";
+    file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
+    file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
+         << "\n";
+    file << "lto=" << bool_value(cfg.lto) << "\n";
+    file << "gc_sections=" << bool_value(cfg.gcSections) << "\n";
+    file << "strip_binary=" << bool_value(cfg.stripBinary) << "\n";
+    file << "sanitizers=" << bool_value(cfg.sanitizers) << "\n";
+    file << "debug_logging=" << bool_value(cfg.debugLogging) << "\n";
+    file << "debug_lsp=" << bool_value(cfg.debugLsp) << "\n";
+    return true;
 }
 
 bool write_cache(const Config& cfg, const std::vector<Section>& sections,
@@ -1030,6 +1276,13 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
               fs::absolute(options.sourceDir).string() + " -B " +
               fs::absolute(options.buildDir).string() + " && " +
               build_command(cfg, options) + install_command_suffix(options);
+    std::string configError;
+    if(!write_config_file(cfg, options, configError))
+    {
+        message += ". " + configError;
+        return false;
+    }
+    message += ". Config: " + config_path(options).string();
     return true;
 }
 
@@ -1054,6 +1307,8 @@ void print_help(std::ostream& out)
            "command.\n"
         << "  -B, --build-dir DIR         Build directory and default cache "
            "output.\n"
+        << "      --import FILE           Load uvim-config.conf before later "
+           "CLI overrides.\n"
         << "      --install-dir DIR       Executable install destination "
            "(default: ~/.local/bin on POSIX).\n"
         << "  -i, --install               Include cmake --install in the "
@@ -1067,6 +1322,7 @@ void print_help(std::ostream& out)
         << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
         << "Examples:\n"
         << "  uvim-config --preset vi-real --config Release -O Oz -j 8\n"
+        << "  uvim-config --import build/uvim-config.conf --disable tests\n"
         << "  uvim-config -p full -c RelWithDebInfo --enable clangd\n"
         << "  uvim-config -p vi-real --install-dir ~/.local/bin --install\n";
 }
@@ -1222,6 +1478,15 @@ bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
                 return false;
             options.buildDir = fs::absolute(fs::path(std::string(*value)));
         }
+        else if(arg == "--import")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            if(!load_config_file(fs::absolute(fs::path(std::string(*value))),
+                                 cfg, options, error))
+                return false;
+        }
         else if(arg == "--install-dir")
         {
             auto value = next_arg(i, argc, argv, arg, error);
@@ -1300,6 +1565,7 @@ int main(int argc, char** argv)
     apply_feature_set(cfg);
     CliOptions options;
     auto sections = make_sections();
+    std::string startupMessage;
 
     if(argc > 1)
     {
@@ -1327,9 +1593,11 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    try_load_config_file(config_path(options), cfg, options, startupMessage);
+
     int cursor = 0;
     int scrollOffset = 0;
-    std::string message;
+    std::string message = startupMessage;
     bool editingText = false;
     std::string textBeforeEdit;
     std::string Config::* editingField = nullptr;
