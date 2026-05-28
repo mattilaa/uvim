@@ -1593,7 +1593,13 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    try_load_config_file(config_path(options), cfg, options, startupMessage);
+    std::error_code configExistsError;
+    const fs::path persistentConfigPath = config_path(options);
+    const bool hadConfigFile =
+        fs::exists(persistentConfigPath, configExistsError);
+    if(hadConfigFile)
+        try_load_config_file(persistentConfigPath, cfg, options,
+                             startupMessage);
 
     int cursor = 0;
     int scrollOffset = 0;
@@ -1687,6 +1693,23 @@ int main(int argc, char** argv)
             write_cache(cfg, sections, options, message);
     }
 
+    bool saveOnExit = hadConfigFile;
+    if(!hadConfigFile)
+    {
+        std::cout << "\x1b[?25h\x1b[0m\nsave default config (y/n)? ";
+        std::cout.flush();
+        int answer = 0;
+        while(answer != 'y' && answer != 'Y' && answer != 'n' && answer != 'N')
+            answer = read_key();
+        saveOnExit = answer == 'y' || answer == 'Y';
+        std::cout << static_cast<char>(answer) << "\n";
+    }
+
+    std::string exitSaveError;
+    if(saveOnExit)
+        write_config_file(cfg, options, exitSaveError);
     std::cout << "\x1b[?25h\x1b[0m\n";
+    if(!exitSaveError.empty())
+        std::cerr << "uvim-config: " << exitSaveError << "\n";
     return 0;
 }

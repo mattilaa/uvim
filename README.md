@@ -68,10 +68,12 @@ on Fedora).
 `uvim-config` is a small ccmake-style TUI for choosing common build options.
 
 ```sh
-cmake -S . -B build
-cmake --build build --target uvim-config
+./bootstrap.sh
 ./build/uvim-config
 ```
+
+Use `./bootstrap.sh --build-dir out/build` to choose another CMake build
+directory.
 
 Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
 section, `Space`/Enter to toggle or cycle an option, `s` to write
@@ -86,7 +88,8 @@ cmake --build build
 ```
 
 Saving also writes `build/uvim-config.conf`. The TUI imports that file on
-startup when it exists.
+startup when it exists. On first run, when no config exists yet, quitting asks
+`save default config (y/n)?` before creating it.
 
 The same cache can be generated without opening the TUI:
 
