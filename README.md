@@ -73,6 +73,14 @@ on Fedora).
 ./build.sh
 ```
 
+On Windows PowerShell, use the matching scripts:
+
+```powershell
+.\bootstrap.ps1
+.\build\uvim-config.exe
+.\build.ps1
+```
+
 Use `./bootstrap.sh --build-dir out/build` to choose another CMake build
 directory. Use `./bootstrap.sh --jobs 8` to set parallel build jobs; when
 `uvim-config.conf` exists in the build directory, bootstrap uses its saved
@@ -83,6 +91,9 @@ CMake, and build with the saved jobs value. Use `./build.sh --target uvim` to
 build only one target, or `./build.sh --build-dir out/build` for another build
 directory. `./build.sh --install` installs only the `uvim` component to the
 configured install directory, so dependency install rules are skipped.
+The PowerShell scripts support the same long options, for example
+`.\bootstrap.ps1 --build-dir out\build --jobs 8` and
+`.\build.ps1 --build-dir out\build --target uvim --install`.
 
 Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
 section, `Space`/Enter to toggle or cycle an option, `s` to write
