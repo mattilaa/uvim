@@ -70,8 +70,12 @@ static std::string_view command_doc(std::string_view cmd)
         return "Open emoji picker";
     if(cmd == "colorpicker")
         return "Insert ANSI color escape code";
+    if(cmd == "colorpicker bg")
+        return "Insert ANSI background color escape code";
     if(cmd == "colorselector")
         return "Select RGB ANSI color escape code";
+    if(cmd == "colorselector bg")
+        return "Select RGB ANSI background escape code";
     if(cmd == "help" || cmd == "h")
         return "Open help";
     if(cmd.rfind("help ", 0) == 0 || cmd.rfind("h ", 0) == 0)

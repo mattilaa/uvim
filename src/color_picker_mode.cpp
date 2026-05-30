@@ -1,5 +1,6 @@
 #include "color_picker_mode.h"
 
+#include "ascii.h"
 #include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -61,9 +62,21 @@ constexpr std::array<ColorEntry, 33> kColors = {{
     {"bg bright white", "\\x1b[107m", "\x1b[107m"},
 }};
 
-int totalRows(int columns)
+int colorCount(bool background)
 {
-    return ((int)kColors.size() + columns - 1) / columns;
+    return background ? 17 : (int)kColors.size();
+}
+
+const ColorEntry& colorAt(int index, bool background)
+{
+    if(!background || index == 0)
+        return kColors[index];
+    return kColors[16 + index];
+}
+
+int totalRows(int columns, bool background)
+{
+    return (colorCount(background) + columns - 1) / columns;
 }
 
 int pickerColumns(int width)
@@ -79,7 +92,7 @@ int pickerWidth(int screenCols)
 
 int pickerHeight(int screenRows)
 {
-    return std::min(16, std::max(1, screenRows - 2));
+    return std::min(18, std::max(1, screenRows - 2));
 }
 
 void appendPadded(std::string& out, std::string_view text, int width)
@@ -115,8 +128,59 @@ void appendCell(std::string& out, const Theme& theme, const ColorEntry& entry,
     out += selected ? theme.selection() : theme.baseFg();
     out += "]";
     out += " ";
-    appendPadded(out, entry.name, std::max(0, width - 8));
+    appendPadded(out, entry.name, std::max(0, width - 7));
     out += theme.reset();
+}
+
+std::string actualEscape(std::string_view code)
+{
+    if(code.rfind("\\x1b[", 0) != 0)
+        return std::string(code);
+    std::string out = "\x1b[";
+    out.append(code.substr(5));
+    return out;
+}
+
+bool hasTextPrefix(std::string_view text, std::string_view prefix)
+{
+    return text.size() >= prefix.size() &&
+           text.substr(0, prefix.size()) == prefix;
+}
+
+bool hasWord(std::string_view text, std::string_view word)
+{
+    return text.find(word) != std::string_view::npos;
+}
+
+std::string readablePreviewFg(const ColorEntry& entry)
+{
+    if(hasTextPrefix(entry.name, "fg "))
+        return "\x1b[48;2;32;32;32m";
+    if(hasWord(entry.name, "white") || hasWord(entry.name, "yellow") ||
+       hasWord(entry.name, "cyan"))
+        return "\x1b[38;2;16;16;16m";
+    return "\x1b[38;2;235;235;235m";
+}
+
+void appendPreview(std::string& out, const Theme& theme,
+                   const ColorEntry& entry, int innerWidth)
+{
+    constexpr std::string_view prefix = " preview: ";
+    constexpr std::string_view sampleText = "Example Text";
+    constexpr int previewWidth = 27;
+
+    out += theme.baseFg();
+    out.append(prefix.data(), prefix.size());
+    out += "[ ";
+    out += readablePreviewFg(entry);
+    out += actualEscape(entry.code);
+    out.append(sampleText.data(), sampleText.size());
+    out += theme.reset();
+    out += theme.baseFg();
+    out += " ] ";
+
+    const int codeWidth = std::max(0, innerWidth - previewWidth);
+    appendPadded(out, entry.code, codeWidth);
 }
 
 ModeState exitState(ModeContext& ctx)
@@ -127,7 +191,7 @@ ModeState exitState(ModeContext& ctx)
 
 void ColorPickerMode::on_enter(ModeContext& ctx)
 {
-    cursor = std::clamp(cursor, 0, (int)kColors.size() - 1);
+    cursor = std::clamp(cursor, 0, colorCount(background) - 1);
     rowOffset = 0;
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
@@ -140,14 +204,15 @@ void ColorPickerMode::on_exit(ModeContext& ctx)
 
 void ColorPickerMode::clampToVisible(int columns, int visibleRows)
 {
-    cursor = std::clamp(cursor, 0, (int)kColors.size() - 1);
+    cursor = std::clamp(cursor, 0, colorCount(background) - 1);
     const int cursorRow = cursor / columns;
     if(cursorRow < rowOffset)
         rowOffset = cursorRow;
     else if(cursorRow >= rowOffset + visibleRows)
         rowOffset = cursorRow - visibleRows + 1;
 
-    const int maxOffset = std::max(0, totalRows(columns) - visibleRows);
+    const int maxOffset =
+        std::max(0, totalRows(columns, background) - visibleRows);
     rowOffset = std::clamp(rowOffset, 0, maxOffset);
 }
 
@@ -157,7 +222,7 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
     const int c = keyCode(event.key);
     const int width = pickerWidth(ctx.screenCols());
     const int columns = pickerColumns(width - 4);
-    const int visibleRows = std::max(1, pickerHeight(ctx.screenRows()) - 4);
+    const int visibleRows = std::max(1, pickerHeight(ctx.screenRows()) - 5);
 
     if(c == keyCode(control::ControlKey::ESC) ||
        c == keyCode(typed::TypedKey::KEY_Q))
@@ -178,7 +243,7 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_L) ||
        c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
     {
-        if(cursor + 1 < (int)kColors.size())
+        if(cursor + 1 < colorCount(background))
             ++cursor;
         clampToVisible(columns, visibleRows);
         ctx.requestFullRedraw();
@@ -197,7 +262,7 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        cursor = std::min((int)kColors.size() - 1, cursor + columns);
+        cursor = std::min(colorCount(background) - 1, cursor + columns);
         clampToVisible(columns, visibleRows);
         ctx.requestFullRedraw();
         return std::nullopt;
@@ -208,11 +273,11 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
     {
         if(ctx.editor && ctx.editor->hasBuffer())
         {
-            for(char ch : kColors[cursor].code)
+            const ColorEntry& entry = colorAt(cursor, background);
+            for(char ch : entry.code)
                 ctx.editor->insertChar(ch);
             ctx.editor->saveState();
-            ctx.setStatusMessage("inserted " +
-                                 std::string(kColors[cursor].name));
+            ctx.setStatusMessage("inserted " + std::string(entry.name));
             ctx.requestFullRedraw();
         }
         return exitState(ctx);
@@ -232,8 +297,8 @@ void ColorPickerMode::draw(Editor& editor) const
     const int innerWidth = std::max(1, width - 2);
     const int columns = pickerColumns(innerWidth - 2);
     const int cellWidth = std::max(1, (innerWidth - 2) / columns);
-    const int visibleRows = std::max(1, height - 4);
-    const int rows = totalRows(columns);
+    const int visibleRows = std::max(1, height - 5);
+    const int rows = totalRows(columns, background);
     const int maxOffset = std::max(0, rows - visibleRows);
     const int firstRow = std::clamp(rowOffset, 0, maxOffset);
 
@@ -246,23 +311,26 @@ void ColorPickerMode::draw(Editor& editor) const
 
     moveTo(top, left);
     output += editor.theme.uiDim();
-    output += "+";
-    output.append(innerWidth, '-');
-    output += "+";
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerWidth);
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     moveTo(top + 1, left);
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
-    appendPadded(output, " ANSI colors", innerWidth);
+    appendPadded(output,
+                 background ? " ANSI background colors" : " ANSI colors",
+                 innerWidth);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     for(int r = 0; r < visibleRows; ++r)
     {
         moveTo(top + 2 + r, left);
         output += editor.theme.uiDim();
-        output += "|";
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
         output += editor.theme.baseFg();
         output += " ";
 
@@ -270,9 +338,9 @@ void ColorPickerMode::draw(Editor& editor) const
         for(int col = 0; col < columns; ++col)
         {
             const int index = colorRow * columns + col;
-            if(index < (int)kColors.size())
+            if(index < colorCount(background))
             {
-                appendCell(output, editor.theme, kColors[index],
+                appendCell(output, editor.theme, colorAt(index, background),
                            index == cursor, cellWidth);
             }
             else
@@ -285,25 +353,34 @@ void ColorPickerMode::draw(Editor& editor) const
         if(used < innerWidth)
             output.append(innerWidth - used, ' ');
         output += editor.theme.uiDim();
-        output += "|";
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     }
+
+    moveTo(top + height - 3, left);
+    output += editor.theme.uiDim();
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+    appendPreview(output, editor.theme, colorAt(cursor, background),
+                  innerWidth);
+    output += editor.theme.uiDim();
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 2, left);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiDim();
     char footer[96];
     std::snprintf(footer, sizeof(footer),
                   " h/j/k/l move  Enter insert  q/Esc cancel  %d/%zu",
-                  cursor + 1, kColors.size());
+                  cursor + 1, (size_t)colorCount(background));
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 1, left);
-    output += "+";
-    output.append(innerWidth, '-');
-    output += "+";
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerWidth);
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
 
     Terminal::write(output);

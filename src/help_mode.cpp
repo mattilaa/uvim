@@ -422,8 +422,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "buffer",
             "                       Example: `:emitasm -O2`",
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
+            "  `:colorpicker bg`  - Insert an ANSI background color escape",
             "  `:colorselector`   - Insert a truecolor RGB ANSI escape "
             "sequence",
+            "  `:colorselector bg` - Insert a truecolor RGB background "
+            "escape",
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",
@@ -866,6 +869,12 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "REPEAT:",
             "  `.`     - Repeat last change",
+            "",
+            "COLOR:",
+            "  `Space-cp`  - ANSI color picker",
+            "  `Space-cpb` - ANSI background color picker",
+            "  `Space-cs`  - RGB color selector",
+            "  `Space-csb` - RGB background color selector",
         };
     }
     else if(topic_lower == "files")

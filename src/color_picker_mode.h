@@ -19,6 +19,11 @@ struct ColorPickerMode
 
     int cursor = 0;
     int rowOffset = 0;
+    bool background = false;
+
+    ColorPickerMode() = default;
+
+    explicit ColorPickerMode(bool useBackground) : background(useBackground) {}
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

@@ -46,8 +46,8 @@ int componentValue(const ColorSelectorMode& mode, int index)
 std::string escapeCode(const ColorSelectorMode& mode)
 {
     char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\\x1b[38;2;%d;%d;%dm", mode.red,
-                  mode.green, mode.blue);
+    std::snprintf(buffer, sizeof(buffer), "\\x1b[%d;2;%d;%d;%dm",
+                  mode.background ? 48 : 38, mode.red, mode.green, mode.blue);
     return buffer;
 }
 
@@ -192,7 +192,8 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
             for(char ch : code)
                 ctx.editor->insertChar(ch);
             ctx.editor->saveState();
-            ctx.setStatusMessage("inserted RGB ANSI color");
+            ctx.setStatusMessage(background ? "inserted RGB ANSI background"
+                                            : "inserted RGB ANSI color");
             ctx.requestFullRedraw();
         }
         return exitState(ctx);
@@ -230,7 +231,10 @@ void ColorSelectorMode::draw(Editor& editor) const
     output += "|";
     output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
-    appendPadded(output, " RGB ANSI selector", innerWidth);
+    appendPadded(output,
+                 background ? " RGB ANSI background selector"
+                            : " RGB ANSI selector",
+                 innerWidth);
     output += editor.theme.uiDim();
     output += "|";
 

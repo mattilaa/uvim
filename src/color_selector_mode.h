@@ -21,6 +21,13 @@ struct ColorSelectorMode
     int green = 255;
     int blue = 255;
     int active = 0;
+    bool background = false;
+
+    ColorSelectorMode() = default;
+
+    explicit ColorSelectorMode(bool useBackground) : background(useBackground)
+    {
+    }
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

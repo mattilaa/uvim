@@ -8,7 +8,8 @@ namespace command::execution
 bool ColorSelectorCommand::execute(Editor& editor,
                                    const CommandRequest& request) const
 {
-    if(request.text != "colorselector")
+    if(request.text != "colorselector" && request.text != "colorselector bg" &&
+       request.text != "colorselector background")
         return false;
 
     if(!editor.hasBuffer())
@@ -17,8 +18,11 @@ bool ColorSelectorCommand::execute(Editor& editor,
         return true;
     }
 
+    const bool background = request.text == "colorselector bg" ||
+                            request.text == "colorselector background";
     if(auto* stateMachine = editor.getModeStateMachine())
-        stateMachine->transitionTo(editor::statemachine::ColorSelectorMode{});
+        stateMachine->transitionTo(
+            editor::statemachine::ColorSelectorMode{background});
 
     editor.needsFullRedraw = true;
     return true;
