@@ -37,6 +37,13 @@ endif()
 
 # Build options
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
+option(UVIM_ENABLE_ROBOT_LSP "Build uvim with Robot Framework LSP support" OFF)
+option(UVIM_ENABLE_PYTHON_LSP "Build uvim with Python LSP support" OFF)
+option(UVIM_ENABLE_MLANG_LSP "Build uvim with Mlang LSP support" OFF)
+option(UVIM_ENABLE_HTML_LSP "Build uvim with HTML LSP support" OFF)
+option(UVIM_ENABLE_CSS_LSP "Build uvim with CSS LSP support" OFF)
+option(UVIM_ENABLE_JSON_LSP "Build uvim with JSON LSP support" OFF)
+option(UVIM_ENABLE_TS_LSP "Build uvim with TypeScript/JavaScript LSP support" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
 option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log" OFF)
@@ -54,6 +61,13 @@ option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it
 set(UVIM_OPTIMIZATION_LEVEL "O2" CACHE STRING "Release optimization level: O0, O1, O2, O3, Os, Oz")
 set_property(CACHE UVIM_OPTIMIZATION_LEVEL PROPERTY STRINGS O0 O1 O2 O3 Os Oz)
 set(UVIM_INSTALL_BINDIR "bin" CACHE STRING "Directory where the uvim executable is installed")
+
+set(UVIM_ENABLE_ANY_LSP OFF)
+if(UVIM_ENABLE_CLANGD_LSP OR UVIM_ENABLE_ROBOT_LSP OR UVIM_ENABLE_PYTHON_LSP OR
+   UVIM_ENABLE_MLANG_LSP OR UVIM_ENABLE_HTML_LSP OR UVIM_ENABLE_CSS_LSP OR
+   UVIM_ENABLE_JSON_LSP OR UVIM_ENABLE_TS_LSP)
+    set(UVIM_ENABLE_ANY_LSP ON)
+endif()
 
 if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
@@ -135,6 +149,14 @@ set(UVIM_CORE_SOURCES
     src/editor_file_type_controller.cpp
     src/editor_indent_controller.cpp
     src/editor_lsp_controller.cpp
+    src/editor_lsp_clangd_controller.cpp
+    src/editor_lsp_robot_controller.cpp
+    src/editor_lsp_python_controller.cpp
+    src/editor_lsp_mlang_controller.cpp
+    src/editor_lsp_html_controller.cpp
+    src/editor_lsp_css_controller.cpp
+    src/editor_lsp_json_controller.cpp
+    src/editor_lsp_ts_controller.cpp
     src/editor_mode_controller.cpp
     src/editor_size_probe_controller.cpp
     src/editor_operator_controller.cpp
@@ -231,8 +253,8 @@ set(MODE_STATE_MACHINE_SOURCES
 # style unit tests so feature-disabled builds link the same stubs everywhere.
 set(UVIM_OPTIONAL_FEATURE_SOURCES)
 
-# LSP client only needed when LSP is enabled
-if(UVIM_ENABLE_CLANGD_LSP)
+# LSP client only needed when any language-server integration is enabled.
+if(UVIM_ENABLE_ANY_LSP)
     list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
         src/lsp_client.cpp
     )
@@ -479,13 +501,20 @@ FetchContent_MakeAvailable(fmt)
 
 target_link_libraries(uvim PRIVATE fmt::fmt)
 
-# clangd LSP dependencies
-if(UVIM_ENABLE_CLANGD_LSP)
+# LSP dependencies and compile gates. UVIM_ENABLE_CLANGD_LSP remains the
+# shared client gate for older code paths; the per-server definitions gate
+# individual integrations.
+if(UVIM_ENABLE_ANY_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
-
     find_package(Threads REQUIRED)
     target_link_libraries(uvim PRIVATE Threads::Threads fmt::fmt)
 endif()
+
+foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
+    if(UVIM_ENABLE_${_uvim_lsp}_LSP)
+        target_compile_definitions(uvim PRIVATE UVIM_ENABLE_${_uvim_lsp}_LSP=1)
+    endif()
+endforeach()
 
 # Debug logging
 if(UVIM_DEBUG_LOGGING)
@@ -618,12 +647,17 @@ if(UVIM_BUILD_TESTS)
     else()
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TERMINAL_POSIX=1)
     endif()
-    if(UVIM_ENABLE_CLANGD_LSP)
+    if(UVIM_ENABLE_ANY_LSP)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
         target_link_libraries(real_mode_transitions_tests PRIVATE
             Threads::Threads
         )
     endif()
+    foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
+        if(UVIM_ENABLE_${_uvim_lsp}_LSP)
+            target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_${_uvim_lsp}_LSP=1)
+        endif()
+    endforeach()
     if(UVIM_ENABLE_ASM_DOCS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_ASM_DOCS=1)
     endif()
