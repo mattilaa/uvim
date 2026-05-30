@@ -93,6 +93,13 @@ struct Config
     std::string installDir;
     std::string jobs;
     bool clangdLsp = false;
+    bool robotLsp = false;
+    bool pythonLsp = false;
+    bool mlangLsp = false;
+    bool htmlLsp = false;
+    bool cssLsp = false;
+    bool jsonLsp = false;
+    bool tsLsp = false;
     bool asmDocs = true;
     bool gitTools = true;
     bool searchTools = true;
@@ -365,6 +372,13 @@ void apply_feature_set(Config& cfg)
     {
         cfg.optimization = 5;
         cfg.clangdLsp = false;
+        cfg.robotLsp = false;
+        cfg.pythonLsp = false;
+        cfg.mlangLsp = false;
+        cfg.htmlLsp = false;
+        cfg.cssLsp = false;
+        cfg.jsonLsp = false;
+        cfg.tsLsp = false;
         cfg.asmDocs = false;
         cfg.gitTools = false;
         cfg.searchTools = false;
@@ -384,6 +398,13 @@ void apply_feature_set(Config& cfg)
     {
         cfg.optimization = 5;
         cfg.clangdLsp = false;
+        cfg.robotLsp = false;
+        cfg.pythonLsp = false;
+        cfg.mlangLsp = false;
+        cfg.htmlLsp = false;
+        cfg.cssLsp = false;
+        cfg.jsonLsp = false;
+        cfg.tsLsp = false;
         cfg.asmDocs = false;
         cfg.gitTools = true;
         cfg.searchTools = true;
@@ -403,6 +424,13 @@ void apply_feature_set(Config& cfg)
     {
         cfg.optimization = 5;
         cfg.clangdLsp = false;
+        cfg.robotLsp = false;
+        cfg.pythonLsp = false;
+        cfg.mlangLsp = false;
+        cfg.htmlLsp = false;
+        cfg.cssLsp = false;
+        cfg.jsonLsp = false;
+        cfg.tsLsp = false;
         cfg.asmDocs = false;
         cfg.gitTools = true;
         cfg.searchTools = true;
@@ -422,6 +450,13 @@ void apply_feature_set(Config& cfg)
     {
         cfg.optimization = 2;
         cfg.clangdLsp = false;
+        cfg.robotLsp = false;
+        cfg.pythonLsp = false;
+        cfg.mlangLsp = false;
+        cfg.htmlLsp = false;
+        cfg.cssLsp = false;
+        cfg.jsonLsp = false;
+        cfg.tsLsp = false;
         cfg.asmDocs = true;
         cfg.gitTools = true;
         cfg.searchTools = true;
@@ -439,6 +474,13 @@ void apply_feature_set(Config& cfg)
 
     cfg.optimization = 2;
     cfg.clangdLsp = true;
+    cfg.robotLsp = true;
+    cfg.pythonLsp = true;
+    cfg.mlangLsp = true;
+    cfg.htmlLsp = true;
+    cfg.cssLsp = true;
+    cfg.jsonLsp = true;
+    cfg.tsLsp = true;
     cfg.asmDocs = true;
     cfg.gitTools = true;
     cfg.searchTools = true;
@@ -513,13 +555,6 @@ std::vector<Section> make_sections()
          "split pass.",
          true,
          {{ItemKind::Toggle,
-           "clangd/LSP support",
-           "UVIM_ENABLE_CLANGD_LSP",
-           &Config::clangdLsp,
-           nullptr,
-           {},
-           "Compiles in the LSP client and language-server integrations."},
-          {ItemKind::Toggle,
            "Assembly docs",
            "UVIM_ENABLE_ASM_DOCS",
            &Config::asmDocs,
@@ -562,6 +597,67 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Build switch for clang-based variable and struct size popups."}}},
+        {"Language Servers",
+         "Per-language LSP integrations. Full enables all of these by "
+         "default; smaller presets compile them out unless selected here.",
+         true,
+         {{ItemKind::Toggle,
+           "clangd C/C++",
+           "UVIM_ENABLE_CLANGD_LSP",
+           &Config::clangdLsp,
+           nullptr,
+           {},
+           "Compiles in clangd integration for C and C++."},
+          {ItemKind::Toggle,
+           "Robot Framework",
+           "UVIM_ENABLE_ROBOT_LSP",
+           &Config::robotLsp,
+           nullptr,
+           {},
+           "Compiles in Robot Framework language-server integration."},
+          {ItemKind::Toggle,
+           "Python",
+           "UVIM_ENABLE_PYTHON_LSP",
+           &Config::pythonLsp,
+           nullptr,
+           {},
+           "Compiles in Python language-server integration."},
+          {ItemKind::Toggle,
+           "Mlang",
+           "UVIM_ENABLE_MLANG_LSP",
+           &Config::mlangLsp,
+           nullptr,
+           {},
+           "Compiles in Mlang language-server integration."},
+          {ItemKind::Toggle,
+           "HTML",
+           "UVIM_ENABLE_HTML_LSP",
+           &Config::htmlLsp,
+           nullptr,
+           {},
+           "Compiles in HTML language-server integration."},
+          {ItemKind::Toggle,
+           "CSS",
+           "UVIM_ENABLE_CSS_LSP",
+           &Config::cssLsp,
+           nullptr,
+           {},
+           "Compiles in CSS language-server integration."},
+          {ItemKind::Toggle,
+           "JSON",
+           "UVIM_ENABLE_JSON_LSP",
+           &Config::jsonLsp,
+           nullptr,
+           {},
+           "Compiles in JSON language-server integration."},
+          {ItemKind::Toggle,
+           "TypeScript/JavaScript",
+           "UVIM_ENABLE_TS_LSP",
+           &Config::tsLsp,
+           nullptr,
+           {},
+           "Compiles in TypeScript and JavaScript language-server "
+           "integration."}}},
         {"Build Outputs",
          "Generated files and build-only targets. These are useful for "
          "development but usually disabled for embedded-style builds.",
@@ -1152,6 +1248,20 @@ bool apply_config_value(Config& cfg, CliOptions& options,
     }
     else if(key == "clangd_lsp")
         cfg.clangdLsp = parse_bool(value).value_or(cfg.clangdLsp);
+    else if(key == "robot_lsp")
+        cfg.robotLsp = parse_bool(value).value_or(cfg.robotLsp);
+    else if(key == "python_lsp")
+        cfg.pythonLsp = parse_bool(value).value_or(cfg.pythonLsp);
+    else if(key == "mlang_lsp")
+        cfg.mlangLsp = parse_bool(value).value_or(cfg.mlangLsp);
+    else if(key == "html_lsp")
+        cfg.htmlLsp = parse_bool(value).value_or(cfg.htmlLsp);
+    else if(key == "css_lsp")
+        cfg.cssLsp = parse_bool(value).value_or(cfg.cssLsp);
+    else if(key == "json_lsp")
+        cfg.jsonLsp = parse_bool(value).value_or(cfg.jsonLsp);
+    else if(key == "ts_lsp")
+        cfg.tsLsp = parse_bool(value).value_or(cfg.tsLsp);
     else if(key == "asm_docs")
         cfg.asmDocs = parse_bool(value).value_or(cfg.asmDocs);
     else if(key == "git_tools")
@@ -1281,6 +1391,13 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "install_after_build=" << bool_value(options.installAfterBuild)
          << "\n";
     file << "clangd_lsp=" << bool_value(cfg.clangdLsp) << "\n";
+    file << "robot_lsp=" << bool_value(cfg.robotLsp) << "\n";
+    file << "python_lsp=" << bool_value(cfg.pythonLsp) << "\n";
+    file << "mlang_lsp=" << bool_value(cfg.mlangLsp) << "\n";
+    file << "html_lsp=" << bool_value(cfg.htmlLsp) << "\n";
+    file << "css_lsp=" << bool_value(cfg.cssLsp) << "\n";
+    file << "json_lsp=" << bool_value(cfg.jsonLsp) << "\n";
+    file << "ts_lsp=" << bool_value(cfg.tsLsp) << "\n";
     file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
     file << "git_tools=" << bool_value(cfg.gitTools) << "\n";
     file << "search_tools=" << bool_value(cfg.searchTools) << "\n";
@@ -1393,7 +1510,8 @@ void print_help(std::ostream& out)
         << "      --enable NAME           Enable a feature option.\n"
         << "      --disable NAME          Disable a feature option.\n\n"
         << "Feature names for --enable/--disable:\n"
-        << "  clangd, asm-docs, git, search, formatters, clipboard,\n"
+        << "  clangd, robot-lsp, python-lsp, mlang-lsp, html-lsp,\n"
+        << "  css-lsp, json-lsp, ts-lsp, asm-docs, git, search, formatters, clipboard,\n"
         << "  struct-size, tests, compile-commands, auto-build-number,\n"
         << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
         << "Examples:\n"
@@ -1409,6 +1527,21 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
     if(equals_ci(name, "clangd") || equals_ci(name, "lsp") ||
        equals_ci(name, "clangd-lsp"))
         cfg.clangdLsp = enabled;
+    else if(equals_ci(name, "robot-lsp") || equals_ci(name, "robot"))
+        cfg.robotLsp = enabled;
+    else if(equals_ci(name, "python-lsp") || equals_ci(name, "python"))
+        cfg.pythonLsp = enabled;
+    else if(equals_ci(name, "mlang-lsp") || equals_ci(name, "mlang"))
+        cfg.mlangLsp = enabled;
+    else if(equals_ci(name, "html-lsp") || equals_ci(name, "html"))
+        cfg.htmlLsp = enabled;
+    else if(equals_ci(name, "css-lsp") || equals_ci(name, "css"))
+        cfg.cssLsp = enabled;
+    else if(equals_ci(name, "json-lsp") || equals_ci(name, "json"))
+        cfg.jsonLsp = enabled;
+    else if(equals_ci(name, "ts-lsp") || equals_ci(name, "typescript-lsp") ||
+            equals_ci(name, "typescript") || equals_ci(name, "javascript-lsp"))
+        cfg.tsLsp = enabled;
     else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
         cfg.asmDocs = enabled;
     else if(equals_ci(name, "git") || equals_ci(name, "git-tools"))
