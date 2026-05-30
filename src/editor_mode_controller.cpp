@@ -140,6 +140,10 @@ void EditorModeController::syncModeFromStateMachine()
     {
         editor.currentMode = COMMAND_OUTPUT;
     }
+    else if(std::holds_alternative<ColorPickerMode>(state))
+    {
+        editor.currentMode = COLOR_PICKER;
+    }
 
     if(editor.currentMode != prevMode)
         editor.needsFullRedraw = true;

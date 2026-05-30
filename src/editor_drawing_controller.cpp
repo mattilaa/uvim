@@ -247,6 +247,17 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == COLOR_PICKER)
+    {
+        if(editor.modeStateMachine)
+        {
+            if(auto* state =
+                   editor.modeStateMachine->getState<ColorPickerMode>())
+                state->draw(editor);
+        }
+        return;
+    }
+
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(editor.currentMode != INSERT && !editor.showGitBlame)
     {

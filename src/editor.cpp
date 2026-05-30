@@ -1267,6 +1267,9 @@ void Editor::setMode(Mode mode)
     case COMMAND_OUTPUT:
         modeStateMachine->transitionTo(CommandOutputMode{});
         break;
+    case COLOR_PICKER:
+        modeStateMachine->transitionTo(ColorPickerMode{});
+        break;
     }
 
     modeController->syncModeFromStateMachine();
@@ -1330,6 +1333,8 @@ std::string Editor::getModeString() const
         return "GIT PATCH";
     case COMMAND_OUTPUT:
         return "RUN";
+    case COLOR_PICKER:
+        return "COLOR";
     }
     return "";
 }

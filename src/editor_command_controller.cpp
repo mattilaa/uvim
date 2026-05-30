@@ -597,6 +597,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "emitasm",
         "emoji",
         "em",
+        "colorpicker",
         "help",
         "h",
         "cd",

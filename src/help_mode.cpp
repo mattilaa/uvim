@@ -421,6 +421,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:emitasm [flags]` - Emit current buffer assembly into .s "
             "buffer",
             "                       Example: `:emitasm -O2`",
+            "  `:colorpicker`     - Insert an ANSI color escape sequence",
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",

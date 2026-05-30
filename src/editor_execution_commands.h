@@ -61,6 +61,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class ColorPickerCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class HelpCommand final : public EditorExecutionCommand
 {
 public:

@@ -31,4 +31,5 @@ enum Mode
     GIT_FIXUP,
     GIT_PATCH,
     COMMAND_OUTPUT,
+    COLOR_PICKER,
 };
