@@ -17,15 +17,20 @@ struct ColorSelectorMode
         return "COLOR_SELECTOR";
     }
 
-    int red = 255;
-    int green = 255;
-    int blue = 255;
+    int fgRed = 255;
+    int fgGreen = 255;
+    int fgBlue = 255;
+    int bgRed = 0;
+    int bgGreen = 0;
+    int bgBlue = 0;
     int active = 0;
-    bool background = false;
+    bool bold = false;
+    bool italic = false;
 
     ColorSelectorMode() = default;
 
-    explicit ColorSelectorMode(bool useBackground) : background(useBackground)
+    explicit ColorSelectorMode(bool useBackground)
+        : active(useBackground ? 3 : 0)
     {
     }
 

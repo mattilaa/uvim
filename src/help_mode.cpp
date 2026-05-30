@@ -423,10 +423,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "                       Example: `:emitasm -O2`",
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
             "  `:colorpicker bg`  - Insert an ANSI background color escape",
-            "  `:colorselector`   - Insert a truecolor RGB ANSI escape "
-            "sequence",
-            "  `:colorselector bg` - Insert a truecolor RGB background "
-            "escape",
+            "  `:colorselector`   - Insert truecolor foreground/background "
+            "style",
+            "  `:colorselector bg` - Open RGB selector focused on background",
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",

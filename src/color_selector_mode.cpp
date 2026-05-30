@@ -1,5 +1,6 @@
 #include "color_selector_mode.h"
 
+#include "ascii.h"
 #include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -18,7 +19,8 @@ namespace editor::statemachine
 {
 namespace
 {
-constexpr std::array<std::string_view, 3> kNames = {"R", "G", "B"};
+constexpr std::array<std::string_view, 6> kNames = {"FG R", "FG G", "FG B",
+                                                    "BG R", "BG G", "BG B"};
 
 ModeState exitState(ModeContext& ctx)
 {
@@ -28,33 +30,62 @@ ModeState exitState(ModeContext& ctx)
 int& activeComponent(ColorSelectorMode& mode)
 {
     if(mode.active == 0)
-        return mode.red;
+        return mode.fgRed;
     if(mode.active == 1)
-        return mode.green;
-    return mode.blue;
+        return mode.fgGreen;
+    if(mode.active == 2)
+        return mode.fgBlue;
+    if(mode.active == 3)
+        return mode.bgRed;
+    if(mode.active == 4)
+        return mode.bgGreen;
+    return mode.bgBlue;
 }
 
 int componentValue(const ColorSelectorMode& mode, int index)
 {
     if(index == 0)
-        return mode.red;
+        return mode.fgRed;
     if(index == 1)
-        return mode.green;
-    return mode.blue;
+        return mode.fgGreen;
+    if(index == 2)
+        return mode.fgBlue;
+    if(index == 3)
+        return mode.bgRed;
+    if(index == 4)
+        return mode.bgGreen;
+    return mode.bgBlue;
 }
 
 std::string escapeCode(const ColorSelectorMode& mode)
 {
-    char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\\x1b[%d;2;%d;%d;%dm",
-                  mode.background ? 48 : 38, mode.red, mode.green, mode.blue);
-    return buffer;
+    std::string code;
+    if(mode.bold)
+        code += "\\x1b[1m";
+    if(mode.italic)
+        code += "\\x1b[3m";
+
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer),
+                  "\\x1b[38;2;%d;%d;%dm\\x1b[48;2;%d;%d;%dm", mode.fgRed,
+                  mode.fgGreen, mode.fgBlue, mode.bgRed, mode.bgGreen,
+                  mode.bgBlue);
+    code += buffer;
+    return code;
 }
 
 std::string rgbSample(int red, int green, int blue)
 {
     char buffer[32];
     std::snprintf(buffer, sizeof(buffer), "\x1b[48;2;%d;%d;%dm", red, green,
+                  blue);
+    return buffer;
+}
+
+std::string fgSample(int red, int green, int blue)
+{
+    char buffer[32];
+    std::snprintf(buffer, sizeof(buffer), "\x1b[38;2;%d;%d;%dm", red, green,
                   blue);
     return buffer;
 }
@@ -83,7 +114,9 @@ void appendSlider(std::string& out, const Theme& theme,
 {
     const bool selected = index == mode.active;
     const int value = componentValue(mode, index);
-    const int sliderWidth = std::max(0, width - 10);
+    const int labelWidth = text_utils::utf8DisplayWidth(kNames[index]);
+    const int fixedWidth = 2 + labelWidth + 1 + 4 + 1 + 1;
+    const int sliderWidth = std::max(0, width - fixedWidth);
     const int filled = std::clamp(value * sliderWidth / 255, 0, sliderWidth);
 
     out += selected ? theme.selection() : theme.baseFg();
@@ -100,19 +133,47 @@ void appendSlider(std::string& out, const Theme& theme,
     out += selected ? theme.selection() : theme.baseFg();
     out.append(sliderWidth - filled, ' ');
     out += "]";
-    const int used = 10 + sliderWidth;
+    const int used = fixedWidth + sliderWidth;
     if(used < width)
         out.append(width - used, ' ');
     out += theme.reset();
+}
+
+void appendPreview(std::string& out, const Theme& theme,
+                   const ColorSelectorMode& mode, std::string_view code,
+                   int innerWidth)
+{
+    constexpr std::string_view prefix = " preview: ";
+    constexpr std::string_view sampleText = "Example Text";
+    constexpr int previewWidth = 27;
+
+    out += theme.baseFg();
+    out.append(prefix.data(), prefix.size());
+    out += "[ ";
+    if(mode.bold)
+        out += Terminal::ESC_BOLD;
+    if(mode.italic)
+        out += Terminal::ESC_ITALIC;
+    out += rgbSample(mode.bgRed, mode.bgGreen, mode.bgBlue);
+    out += fgSample(mode.fgRed, mode.fgGreen, mode.fgBlue);
+    out.append(sampleText.data(), sampleText.size());
+    out += theme.reset();
+    out += theme.baseFg();
+    out += " ] ";
+
+    appendPadded(out, code, std::max(0, innerWidth - previewWidth));
 }
 } // namespace
 
 void ColorSelectorMode::on_enter(ModeContext& ctx)
 {
-    active = std::clamp(active, 0, 2);
-    red = std::clamp(red, 0, 255);
-    green = std::clamp(green, 0, 255);
-    blue = std::clamp(blue, 0, 255);
+    active = std::clamp(active, 0, 5);
+    fgRed = std::clamp(fgRed, 0, 255);
+    fgGreen = std::clamp(fgGreen, 0, 255);
+    fgBlue = std::clamp(fgBlue, 0, 255);
+    bgRed = std::clamp(bgRed, 0, 255);
+    bgGreen = std::clamp(bgGreen, 0, 255);
+    bgBlue = std::clamp(bgBlue, 0, 255);
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
 }
@@ -144,7 +205,21 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        active = std::min(2, active + 1);
+        active = std::min(5, active + 1);
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
+    if(c == keyCode(control::ControlKey::CTRL_B))
+    {
+        bold = !bold;
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
+    if(c == keyCode(control::ControlKey::CTRL_I))
+    {
+        italic = !italic;
         ctx.requestFullRedraw();
         return std::nullopt;
     }
@@ -192,8 +267,7 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
             for(char ch : code)
                 ctx.editor->insertChar(ch);
             ctx.editor->saveState();
-            ctx.setStatusMessage(background ? "inserted RGB ANSI background"
-                                            : "inserted RGB ANSI color");
+            ctx.setStatusMessage("inserted RGB ANSI style");
             ctx.requestFullRedraw();
         }
         return exitState(ctx);
@@ -223,60 +297,65 @@ void ColorSelectorMode::draw(Editor& editor) const
 
     moveTo(top, left);
     output += editor.theme.uiDim();
-    output += "+";
-    output.append(innerWidth, '-');
-    output += "+";
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerWidth);
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     moveTo(top + 1, left);
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiAccent();
     output += Terminal::ESC_BOLD;
-    appendPadded(output,
-                 background ? " RGB ANSI background selector"
-                            : " RGB ANSI selector",
-                 innerWidth);
+    appendPadded(output, " RGB ANSI style selector", innerWidth);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
-    for(int i = 0; i < 3; ++i)
+    for(int i = 0; i < 6; ++i)
     {
         moveTo(top + 2 + i, left);
         output += editor.theme.uiDim();
-        output += "| ";
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+        output += " ";
         appendSlider(output, editor.theme, *this, i, sliderWidth);
         output += editor.theme.uiDim();
-        output += "|";
+        text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     }
 
-    moveTo(top + 5, left);
+    moveTo(top + 8, left);
     output += editor.theme.uiDim();
-    output += "| ";
-    output += editor.theme.baseFg();
-    output += "[";
-    output += rgbSample(red, green, blue);
-    output += "      ";
-    output += editor.theme.reset();
-    output += editor.theme.baseFg();
-    output += "] ";
-    appendPadded(output, code, std::max(1, innerWidth - 10));
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+    appendPreview(output, editor.theme, *this, code, innerWidth);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+
+    moveTo(top + 9, left);
+    output += editor.theme.uiDim();
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
+    output += editor.theme.baseFg();
+    std::string styleLine = " styles: ";
+    styleLine += bold ? "[bold]" : "[    ]";
+    styleLine += " ";
+    styleLine += italic ? "[italic]" : "[      ]";
+    appendPadded(output, styleLine, innerWidth);
+    output += editor.theme.uiDim();
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 2, left);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     output += editor.theme.uiDim();
     appendPadded(output,
-                 " j/k select  h/l +/-1  H/L +/-10  Enter insert  q/Esc "
-                 "cancel",
+                 " j/k select  h/l +/-1  H/L +/-10  ^B bold  ^I italic  "
+                 "Enter insert  q/Esc cancel",
                  innerWidth);
     output += editor.theme.uiDim();
-    output += "|";
+    text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
 
     moveTo(top + height - 1, left);
-    output += "+";
-    output.append(innerWidth, '-');
-    output += "+";
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_LEFT);
+    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
+                                 innerWidth);
+    text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
 
     Terminal::write(output);
