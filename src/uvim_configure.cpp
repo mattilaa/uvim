@@ -1750,6 +1750,31 @@ void activate(Config& cfg, const Item& item)
     }
 }
 
+bool toggle_section_items(Config& cfg, const Section& section)
+{
+    bool hasToggle = false;
+    bool anyDisabled = false;
+    for(const auto& item : section.items)
+    {
+        if(item.kind != ItemKind::Toggle || !item.flag)
+            continue;
+        hasToggle = true;
+        if(!(cfg.*(item.flag)))
+            anyDisabled = true;
+    }
+
+    if(!hasToggle)
+        return false;
+
+    const bool enabled = anyDisabled;
+    for(const auto& item : section.items)
+    {
+        if(item.kind == ItemKind::Toggle && item.flag)
+            cfg.*(item.flag) = enabled;
+    }
+    return true;
+}
+
 void open_selected_section(std::vector<Section>& sections,
                            const VisibleRow& row)
 {
@@ -1884,7 +1909,12 @@ int main(int argc, char** argv)
         {
             const VisibleRow& row = rows[static_cast<size_t>(cursor)];
             if(row.kind == RowKind::Section)
-                sections[row.section].open = !sections[row.section].open;
+            {
+                if(toggle_section_items(cfg, sections[row.section]))
+                    message = "section toggled";
+                else
+                    sections[row.section].open = !sections[row.section].open;
+            }
             else
             {
                 const Item& item = sections[row.section].items[row.item];
