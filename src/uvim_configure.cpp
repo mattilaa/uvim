@@ -29,6 +29,13 @@ namespace fs = std::filesystem;
 
 namespace
 {
+constexpr std::string_view kAnsiReset = "\x1b[0m";
+constexpr std::string_view kAnsiFgDefault = "\x1b[39m";
+constexpr std::string_view kAnsiBlue = "\x1b[34m";
+constexpr std::string_view kAnsiGreen = "\x1b[32m";
+constexpr std::string_view kAnsiEditField = "\x1b[37;40m";
+constexpr std::string_view kAnsiCurrentLineBg = "\x1b[48;2;24;64;36m";
+
 constexpr int kKeyEsc = 27;
 constexpr int kKeyUp = 1001;
 constexpr int kKeyDown = 1002;
@@ -670,8 +677,57 @@ std::string truncate_line(std::string line, int cols)
 {
     if(cols <= 0)
         return {};
-    if(static_cast<int>(line.size()) > cols)
-        line.resize(static_cast<size_t>(cols));
+
+    std::string out;
+    out.reserve(line.size());
+    int width = 0;
+    for(size_t i = 0; i < line.size() && width < cols;)
+    {
+        if(line[i] == '\x1b' && i + 1 < line.size() && line[i + 1] == '[')
+        {
+            const size_t start = i;
+            i += 2;
+            while(i < line.size() && line[i] != 'm')
+                ++i;
+            if(i < line.size())
+                ++i;
+            out.append(line, start, i - start);
+            continue;
+        }
+
+        out.push_back(line[i]);
+        ++width;
+        ++i;
+    }
+    return out;
+}
+
+int ansi_visible_width(std::string_view line)
+{
+    int width = 0;
+    for(size_t i = 0; i < line.size();)
+    {
+        if(line[i] == '\x1b' && i + 1 < line.size() && line[i + 1] == '[')
+        {
+            i += 2;
+            while(i < line.size() && line[i] != 'm')
+                ++i;
+            if(i < line.size())
+                ++i;
+            continue;
+        }
+
+        ++width;
+        ++i;
+    }
+    return width;
+}
+
+std::string pad_ansi_line(std::string line, int cols)
+{
+    const int width = ansi_visible_width(line);
+    if(width < cols)
+        line.append(static_cast<size_t>(cols - width), ' ');
     return line;
 }
 
@@ -683,7 +739,10 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     if(row.kind == RowKind::Section)
     {
         const Section& section = sections[row.section];
-        out += section.open ? "[-] " : "[+] ";
+        out += kAnsiBlue;
+        out += section.open ? "[-]" : "[+]";
+        out += kAnsiFgDefault;
+        out += ' ';
         out += section.label;
         return out;
     }
@@ -691,9 +750,20 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     const Item& item = sections[row.section].items[row.item];
     if(item.kind == ItemKind::Toggle)
     {
-        out += "  [";
-        out += (cfg.*(item.flag)) ? 'x' : ' ';
-        out += "] ";
+        out += "  ";
+        out += kAnsiBlue;
+        out += '[';
+        if(cfg.*(item.flag))
+        {
+            out += kAnsiGreen;
+            out += 'X';
+        }
+        else
+            out += ' ';
+        out += kAnsiBlue;
+        out += ']';
+        out += kAnsiFgDefault;
+        out += ' ';
     }
     else if(item.kind == ItemKind::Text)
         out += "  >   ";
@@ -704,10 +774,12 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     out += std::string(static_cast<size_t>(pad), ' ');
     if(editing && item.kind == ItemKind::Text)
     {
-        out += "\x1b[37;40m";
+        out += kAnsiEditField;
         out += value_for(cfg, item);
         out += "\x1b[5m_\x1b[25m";
-        out += "\x1b[0m";
+        out += kAnsiReset;
+        if(selected)
+            out += kAnsiCurrentLineBg;
     }
     else
         out += value_for(cfg, item);
@@ -910,9 +982,12 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
             row_text(cfg, sections, rows[static_cast<size_t>(i)],
                      i == safeCursor, editingText && i == safeCursor),
             screen.cols);
-        if(i == safeCursor &&
-           !(editingText && rows[static_cast<size_t>(i)].kind == RowKind::Item))
-            line = "\x1b[7m" + line + "\x1b[0m";
+        if(i == safeCursor)
+        {
+            line = pad_ansi_line(std::move(line), screen.cols);
+            line = std::string(kAnsiCurrentLineBg) + line +
+                   std::string(kAnsiReset);
+        }
         screenLines.push_back(std::move(line));
         ++listRowsPrinted;
     }
