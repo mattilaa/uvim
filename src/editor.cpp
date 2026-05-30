@@ -1270,6 +1270,9 @@ void Editor::setMode(Mode mode)
     case COLOR_PICKER:
         modeStateMachine->transitionTo(ColorPickerMode{});
         break;
+    case COLOR_SELECTOR:
+        modeStateMachine->transitionTo(ColorSelectorMode{});
+        break;
     }
 
     modeController->syncModeFromStateMachine();
@@ -1335,6 +1338,8 @@ std::string Editor::getModeString() const
         return "RUN";
     case COLOR_PICKER:
         return "COLOR";
+    case COLOR_SELECTOR:
+        return "RGB";
     }
     return "";
 }

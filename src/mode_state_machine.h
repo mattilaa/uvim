@@ -2,6 +2,7 @@
 
 #include "buffer_browser_mode.h"
 #include "color_picker_mode.h"
+#include "color_selector_mode.h"
 #include "command_mode.h"
 #include "command_output_mode.h"
 #include "file_browser_mode.h"

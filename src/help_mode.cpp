@@ -422,6 +422,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "buffer",
             "                       Example: `:emitasm -O2`",
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
+            "  `:colorselector`   - Insert a truecolor RGB ANSI escape "
+            "sequence",
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",

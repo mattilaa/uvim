@@ -32,4 +32,5 @@ enum Mode
     GIT_PATCH,
     COMMAND_OUTPUT,
     COLOR_PICKER,
+    COLOR_SELECTOR,
 };

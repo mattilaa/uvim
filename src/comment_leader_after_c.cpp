@@ -1,5 +1,6 @@
 #include "comment_leader_pending.h"
 
+#include "color_picker_mode.h"
 #include "comment_leader_pending_actions.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -30,6 +31,12 @@ CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
 
         machine.setAfterCi(ctx);
         return std::nullopt;
+    }
+
+    if(key == keyCode(typed::TypedKey::KEY_P))
+    {
+        machine.cancel(ctx);
+        return ColorPickerMode{};
     }
 
     machine.cancel(ctx);

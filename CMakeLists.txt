@@ -105,6 +105,7 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_command_helpers.cpp
     src/editor_execution_commands.cpp
     src/editor_execution_color_picker_command.cpp
+    src/editor_execution_color_selector_command.cpp
     src/editor_execution_edit_command.cpp
     src/editor_execution_emit_asm_command.cpp
     src/editor_execution_emoji_command.cpp
@@ -239,6 +240,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/visual_block_mode.cpp
     src/command_mode.cpp
     src/color_picker_mode.cpp
+    src/color_selector_mode.cpp
     src/search_forward_mode.cpp
     src/search_backward_mode.cpp
     src/operator_pending_mode.cpp

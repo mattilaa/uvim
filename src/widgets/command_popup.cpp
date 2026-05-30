@@ -68,6 +68,10 @@ static std::string_view command_doc(std::string_view cmd)
         return "Emit assembly for current C/C++ buffer";
     if(cmd == "emoji" || cmd == "em")
         return "Open emoji picker";
+    if(cmd == "colorpicker")
+        return "Insert ANSI color escape code";
+    if(cmd == "colorselector")
+        return "Select RGB ANSI color escape code";
     if(cmd == "help" || cmd == "h")
         return "Open help";
     if(cmd.rfind("help ", 0) == 0 || cmd.rfind("h ", 0) == 0)
