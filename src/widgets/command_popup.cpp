@@ -65,7 +65,9 @@ static std::string_view command_doc(std::string_view cmd)
     if(cmd == "lspinfo")
         return "Show LSP status and clients";
     if(cmd == "emitasm")
-        return "Emit assembly for current C/C++ buffer";
+        return "Emit compact assembly for current C/C++ buffer";
+    if(cmd == "emitasm --raw")
+        return "Emit clang's full assembler output";
     if(cmd == "emoji" || cmd == "em")
         return "Open emoji picker";
 #ifdef UVIM_ENABLE_COLOR_TOOLS

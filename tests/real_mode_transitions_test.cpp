@@ -485,6 +485,7 @@ TEST(RealModeTransitionsTest, EmitAsmCommandCreatesAssemblyBufferWithFlags)
         output += '\n';
     }
     EXPECT_TRUE(text_utils::is_found(output.find("square")));
+    EXPECT_TRUE(text_utils::is_not_found(output.find("uvim_emit_asm_anchor")));
     EXPECT_EQ(editor.statusMessage, "emitasm: wrote assembly buffer");
 }
 
@@ -514,8 +515,6 @@ TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsHeaderTypes)
         output += '\n';
     }
     EXPECT_TRUE(text_utils::is_found(output.find("uvim_emit_asm_anchor")));
-    EXPECT_TRUE(text_utils::is_found(output.find("__TEXT,__text")) ||
-                text_utils::is_found(output.find(".text")));
     EXPECT_TRUE(text_utils::is_found(
         editor.currentBuffer->filename.find("uvim_emit_asm_header_test.h.s")));
     EXPECT_TRUE(editor.isFileType<FileType::Asm>());
@@ -571,9 +570,39 @@ TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsStandaloneFunction)
     }
     EXPECT_TRUE(text_utils::is_found(output.find("add")));
     EXPECT_TRUE(
-        text_utils::is_found(output.find("uvim_emit_asm_function_anchor")));
+        text_utils::is_not_found(output.find("uvim_emit_asm_function_anchor")));
+    EXPECT_TRUE(text_utils::is_not_found(output.find(".build_version")));
     EXPECT_TRUE(text_utils::is_found(editor.currentBuffer->filename.find(
         "uvim_emit_asm_function_only.cpp.s")));
+    EXPECT_TRUE(editor.isFileType<FileType::Asm>());
+}
+
+TEST(RealModeTransitionsTest, EmitAsmCommandRawOutputKeepsClangAssembler)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"int add(int a, int b)", "{",
+                                   "    return a + b;", "}"};
+    set_buffer_filename(editor, "/tmp/uvim_emit_asm_raw.cpp");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "emitasm --raw -O2");
+
+    ASSERT_TRUE(editor.currentBuffer);
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(output.find("add")));
+    EXPECT_TRUE(text_utils::is_found(output.find(".globl")) ||
+                text_utils::is_found(output.find(".global")) ||
+                text_utils::is_found(output.find("__TEXT,__text")) ||
+                text_utils::is_found(output.find(".text")));
     EXPECT_TRUE(editor.isFileType<FileType::Asm>());
 }
 

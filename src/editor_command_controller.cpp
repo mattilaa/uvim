@@ -595,6 +595,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "nohlsearch",
         "lspinfo",
         "emitasm",
+        "emitasm --raw",
         "emoji",
         "em",
 #ifdef UVIM_ENABLE_COLOR_TOOLS

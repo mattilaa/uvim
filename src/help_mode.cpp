@@ -421,6 +421,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:emitasm [flags]` - Emit current buffer assembly into .s "
             "buffer",
             "                       Example: `:emitasm -O2`",
+            "                       `--raw` keeps clang's full assembler "
+            "output",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
             "  `:colorpicker bg`  - Insert an ANSI background color escape",
@@ -704,11 +706,15 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "so unsaved edits are included.",
             "",
             "Usage:",
-            "  `:emitasm`     - Emit assembly with default clang flags",
-            "  `:emitasm -O2` - Pass compiler flags before emitting assembly",
+            "  `:emitasm`       - Emit compact Godbolt-style assembly",
+            "  `:emitasm -O2`   - Pass compiler flags before emitting "
+            "assembly",
+            "  `:emitasm --raw` - Keep clang's full assembler output",
             "",
             "Notes:",
             "  Uses clang for `.c` files and clang++ for other C/C++ files.",
+            "  By default clang labels/directives are folded into a compact",
+            "  function view. Use `--raw` for the previous unfiltered output.",
             "  The generated `.s` buffer is not marked dirty.",
             "  Assembly mnemonics, directives, and registers are highlighted.",
             "  With `UVIM_ENABLE_ASM_DOCS`, `gd` on an instruction opens a",

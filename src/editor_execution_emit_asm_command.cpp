@@ -16,6 +16,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -114,6 +115,14 @@ struct TopLevelFunction
 {
     std::string name;
     int count = 0;
+};
+
+struct AssemblyFunctionBlock
+{
+    std::string symbol;
+    std::string label;
+    std::vector<std::string> lines;
+    bool anchor = false;
 };
 
 bool containsKeyword(std::string_view text, std::string_view keyword)
@@ -460,6 +469,227 @@ std::vector<std::string> splitLines(std::string_view text)
     return lines;
 }
 
+std::string trimCopy(std::string_view value)
+{
+    while(!value.empty() && text_utils::is_space(value.front()))
+        value.remove_prefix(1);
+    while(!value.empty() && text_utils::is_space(value.back()))
+        value.remove_suffix(1);
+    return std::string(value);
+}
+
+bool isLabelLine(std::string_view trimmed)
+{
+    if(trimmed.empty() || trimmed.front() == '.' || trimmed.front() == ';' ||
+       trimmed.front() == '#')
+        return false;
+
+    const size_t colon = trimmed.find(':');
+    if(text_utils::is_not_found(colon))
+        return false;
+
+    for(size_t i = 0; i < colon; ++i)
+    {
+        const char ch = trimmed[i];
+        if(!(text_utils::is_alpha(ch) || text_utils::is_digit(ch) ||
+             ch == '_' || ch == '.' || ch == '$'))
+            return false;
+    }
+    return true;
+}
+
+std::string symbolFromLabel(std::string_view trimmed)
+{
+    const size_t colon = trimmed.find(':');
+    if(text_utils::is_not_found(colon))
+        return {};
+    return std::string(trimmed.substr(0, colon));
+}
+
+std::string stripFunctionPrefix(std::string symbol)
+{
+    while(symbol.size() > 1 && symbol.front() == '_' && symbol[1] != 'Z')
+        symbol.erase(symbol.begin());
+    return symbol;
+}
+
+std::string demangleSymbol(std::string symbol,
+                           std::unordered_map<std::string, std::string>& cache)
+{
+    if(symbol.empty())
+        return symbol;
+
+    if(auto it = cache.find(symbol); it != cache.end())
+        return it->second;
+
+    std::string display = stripFunctionPrefix(symbol);
+    if(text_utils::is_found(display.find("_Z")) ||
+       text_utils::is_found(symbol.find("_Z")))
+    {
+        ProcessPipe pipe({"c++filt", symbol});
+        if(pipe)
+        {
+            std::string demangled = pipe.readLine();
+            pipe.close();
+            if(!demangled.empty() && demangled != symbol)
+                display = std::move(demangled);
+        }
+    }
+
+    cache.emplace(symbol, display);
+    return display;
+}
+
+std::string stripAssemblyComment(std::string_view line)
+{
+    size_t end = line.size();
+    const size_t semicolon = line.find(';');
+    if(text_utils::is_found(semicolon))
+        end = std::min(end, semicolon);
+    const size_t slashComment = line.find("//");
+    if(text_utils::is_found(slashComment))
+        end = std::min(end, slashComment);
+    return trimCopy(line.substr(0, end));
+}
+
+bool shouldSkipAsmLine(std::string_view trimmed)
+{
+    if(trimmed.empty())
+        return true;
+    if(trimmed.front() == ';' || trimmed.rfind("//", 0) == 0 ||
+       trimmed.rfind("# %bb", 0) == 0)
+        return true;
+    if(trimmed.front() != '.')
+        return false;
+
+    return !isLabelLine(trimmed);
+}
+
+std::string extractBeginFunctionSymbol(std::string_view line)
+{
+    constexpr std::string_view marker = "-- Begin function ";
+    const size_t pos = line.find(marker);
+    if(text_utils::is_not_found(pos))
+        return {};
+
+    std::string_view symbol = line.substr(pos + marker.size());
+    while(!symbol.empty() && text_utils::is_space(symbol.front()))
+        symbol.remove_prefix(1);
+    size_t end = 0;
+    while(end < symbol.size() && !text_utils::is_space(symbol[end]))
+        ++end;
+    return std::string(symbol.substr(0, end));
+}
+
+std::string compactAssemblyOutput(std::string_view output)
+{
+    std::vector<AssemblyFunctionBlock> blocks;
+    std::unordered_map<std::string, std::string> demangleCache;
+
+    AssemblyFunctionBlock current;
+    bool inFunction = false;
+    bool waitingForLabel = false;
+    std::string pendingSymbol;
+
+    auto finishBlock = [&]()
+    {
+        if(!current.symbol.empty() || !current.lines.empty())
+            blocks.push_back(std::move(current));
+        current = {};
+        inFunction = false;
+        waitingForLabel = false;
+        pendingSymbol.clear();
+    };
+
+    for(const std::string& rawLine : splitLines(output))
+    {
+        if(text_utils::is_found(rawLine.find("-- End function")))
+        {
+            finishBlock();
+            continue;
+        }
+
+        const std::string beginSymbol = extractBeginFunctionSymbol(rawLine);
+        if(!beginSymbol.empty())
+        {
+            if(inFunction)
+                finishBlock();
+            inFunction = true;
+            waitingForLabel = true;
+            pendingSymbol = beginSymbol;
+            current.symbol = beginSymbol;
+            current.anchor =
+                text_utils::is_found(beginSymbol.find("uvim_emit_asm_"));
+            continue;
+        }
+
+        std::string trimmed = trimCopy(rawLine);
+        if(!inFunction && isLabelLine(trimmed))
+        {
+            inFunction = true;
+            waitingForLabel = true;
+        }
+
+        if(!inFunction)
+            continue;
+
+        if(isLabelLine(trimmed))
+        {
+            const std::string symbol = symbolFromLabel(trimmed);
+            if(waitingForLabel)
+            {
+                if(current.symbol.empty())
+                    current.symbol =
+                        !pendingSymbol.empty() ? pendingSymbol : symbol;
+                current.anchor =
+                    text_utils::is_found(current.symbol.find("uvim_emit_asm_"));
+                current.label = demangleSymbol(current.symbol, demangleCache);
+                current.lines.push_back(current.label + ":");
+                waitingForLabel = false;
+            }
+            else if(symbol.rfind("Ltmp", 0) != 0 &&
+                    symbol.rfind("Lfunc_end", 0) != 0)
+            {
+                current.lines.push_back(symbol + ":");
+            }
+            continue;
+        }
+
+        if(shouldSkipAsmLine(trimmed))
+            continue;
+
+        trimmed = stripAssemblyComment(trimmed);
+        if(trimmed.empty())
+            continue;
+        current.lines.push_back("    " + trimmed);
+    }
+
+    if(inFunction)
+        finishBlock();
+
+    const bool hasRealFunction = std::any_of(
+        blocks.begin(), blocks.end(), [](const AssemblyFunctionBlock& block)
+        { return !block.anchor && !block.lines.empty(); });
+
+    std::string compact;
+    for(const AssemblyFunctionBlock& block : blocks)
+    {
+        if(block.lines.empty())
+            continue;
+        if(hasRealFunction && block.anchor)
+            continue;
+        if(!compact.empty())
+            compact += '\n';
+        for(const std::string& line : block.lines)
+        {
+            compact += line;
+            compact += '\n';
+        }
+    }
+
+    return compact.empty() ? std::string(output) : compact;
+}
+
 std::string displayNameForAsmBuffer(const std::string& sourcePath)
 {
     if(sourcePath.empty())
@@ -536,8 +766,16 @@ bool EmitAsmCommand::execute(Editor& editor,
     std::string flags;
     if(request.trimmed.size() > command.size())
         flags = std::string(trim_view(request.trimmed.substr(command.size())));
+    bool rawOutput = false;
     for(std::string& flag : splitCompilerFlags(flags))
+    {
+        if(flag == "--raw")
+        {
+            rawOutput = true;
+            continue;
+        }
         args.push_back(std::move(flag));
+    }
 
     args.push_back("-S");
     args.push_back("-fverbose-asm");
@@ -568,10 +806,12 @@ bool EmitAsmCommand::execute(Editor& editor,
     }
 
     const std::string asmName = displayNameForAsmBuffer(sourcePath);
+    const std::string displayOutput =
+        rawOutput ? output : compactAssemblyOutput(output);
     editor.createNewBuffer();
     if(editor.currentBuffer)
     {
-        editor.currentBuffer->lines = splitLines(output);
+        editor.currentBuffer->lines = splitLines(displayOutput);
         editor.currentBuffer->filename = asmName;
         editor.currentBuffer->dirty = false;
         editor.currentBuffer->fileTypeCacheValid = false;
