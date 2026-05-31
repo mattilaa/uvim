@@ -21,6 +21,10 @@ namespace
 {
 constexpr std::array<std::string_view, 6> kNames = {"FG R", "FG G", "FG B",
                                                     "BG R", "BG G", "BG B"};
+constexpr std::array<std::u8string_view, 8> kPartialBlocks = {
+    u8"", u8"▏", u8"▎", u8"▍", u8"▌", u8"▋", u8"▊", u8"▉"};
+constexpr std::u8string_view kFullBlock = u8"█";
+constexpr std::u8string_view kEmptyBlock = u8"░";
 
 ModeState exitState(ModeContext& ctx)
 {
@@ -90,6 +94,19 @@ std::string fgSample(int red, int green, int blue)
     return buffer;
 }
 
+std::string channelColor(int index)
+{
+    switch(index % 3)
+    {
+    case 0:
+        return fgSample(255, 88, 88);
+    case 1:
+        return fgSample(88, 220, 120);
+    default:
+        return fgSample(112, 168, 255);
+    }
+}
+
 void appendPadded(std::string& out, std::string_view text, int width)
 {
     int used = 0;
@@ -117,21 +134,42 @@ void appendSlider(std::string& out, const Theme& theme,
     const int labelWidth = text_utils::utf8DisplayWidth(kNames[index]);
     const int fixedWidth = 2 + labelWidth + 1 + 4 + 1 + 1;
     const int sliderWidth = std::max(0, width - fixedWidth);
-    const int filled = std::clamp(value * sliderWidth / 255, 0, sliderWidth);
+    const int maxUnits = sliderWidth * 8;
+    int filledUnits = maxUnits > 0 ? (value * maxUnits + 127) / 255 : 0;
+    if(value > 0 && filledUnits == 0)
+        filledUnits = 1;
+    filledUnits = std::clamp(filledUnits, 0, maxUnits);
+    const int filled = filledUnits / 8;
+    const int partial = filledUnits % 8;
+    const bool hasPartial = partial > 0 && filled < sliderWidth;
+    const int empty = std::max(0, sliderWidth - filled - (hasPartial ? 1 : 0));
+    const std::string selectedOrBase =
+        selected ? theme.selection() : theme.baseFg();
+    const std::string channel = channelColor(index);
+    const bool backgroundRow = index >= 3;
+    const std::string backgroundPreview =
+        backgroundRow ? rgbSample(mode.bgRed, mode.bgGreen, mode.bgBlue) : "";
 
-    out += selected ? theme.selection() : theme.baseFg();
+    out += selectedOrBase;
     out += selected ? "> " : "  ";
+    out += channel;
     out.append(kNames[index].data(), kNames[index].size());
+    out += selectedOrBase;
     out += " ";
 
     char valueText[8];
     std::snprintf(valueText, sizeof(valueText), "%3d ", value);
     out += valueText;
     out += "[";
-    out += theme.uiAccent();
-    out.append(filled, '=');
-    out += selected ? theme.selection() : theme.baseFg();
-    out.append(sliderWidth - filled, ' ');
+    out += backgroundPreview;
+    out += channel;
+    text_utils::appendUtf8Repeat(out, kFullBlock, filled);
+    if(hasPartial)
+        text_utils::appendU8(out, kPartialBlocks[partial]);
+    out += backgroundPreview;
+    out += theme.uiDim();
+    text_utils::appendUtf8Repeat(out, kEmptyBlock, empty);
+    out += selectedOrBase;
     out += "]";
     const int used = fixedWidth + sliderWidth;
     if(used < width)
