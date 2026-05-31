@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "syntax_highlighter.h"
+#include "terminal.h"
 #include "text_utils.h"
 #include "widgets/completion_popup.h"
 #include <chrono>
@@ -440,6 +441,56 @@ TEST(SyntaxHighlighterTest, CompletionRowUsesDetailWhenLabelDetailsMissing)
     std::string full = widgets::buildCompletionRowForTest(entry, 200);
     EXPECT_TRUE(text_utils::is_found(full.find("int")));
     EXPECT_TRUE(text_utils::is_found(full.find("builtin type alias")));
+}
+
+TEST(SyntaxHighlighterTest, CompletionPopupPrefersBelowCursorLine)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    editor.currentMode = INSERT;
+    editor.screenRows = 12;
+    editor.screenCols = 80;
+    *editor.cursorY = 2;
+    *editor.cursorX = 4;
+    *editor.offsetY = 0;
+    *editor.offsetX = 0;
+    editor.completionActive = true;
+    editor.completionAll = {CompletionEntry{.label = "printf"}};
+    editor.completionFiltered = {0};
+
+    std::string output;
+    widgets::drawCompletionPopup(output, editor);
+
+    const int cursorRow =
+        (*editor.cursorY - *editor.offsetY) + 1 + editor.tabBarRows();
+    EXPECT_TRUE(text_utils::is_found(output.find(Terminal::cursorPos(
+        cursorRow + 1, 1 + *editor.cursorX + editor.gutterWidth()))));
+}
+
+TEST(SyntaxHighlighterTest, CompletionPopupAboveCursorDoesNotCoverCursorLine)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    editor.currentMode = INSERT;
+    editor.screenRows = 6;
+    editor.screenCols = 80;
+    *editor.cursorY = 4;
+    *editor.cursorX = 4;
+    *editor.offsetY = 0;
+    *editor.offsetX = 0;
+    editor.completionActive = true;
+    editor.completionAll = {CompletionEntry{.label = "printf"},
+                            CompletionEntry{.label = "puts"},
+                            CompletionEntry{.label = "fprintf"}};
+    editor.completionFiltered = {0, 1, 2};
+
+    std::string output;
+    widgets::drawCompletionPopup(output, editor);
+
+    const int cursorRow =
+        (*editor.cursorY - *editor.offsetY) + 1 + editor.tabBarRows();
+    EXPECT_TRUE(text_utils::is_not_found(
+        output.find(Terminal::cursorPos(cursorRow, 1))));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)

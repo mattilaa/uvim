@@ -211,7 +211,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     if(editor.currentMode != INSERT)
         return;
 
-    const int maxRows = std::min(
+    int maxRows = std::min(
         {8, (int)editor.completionFiltered.size(), editor.screenRows - 2});
     if(maxRows <= 0)
         return;
@@ -289,12 +289,42 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         }
     }
 
-    int totalH = maxRows + 2 + docRows;
+    const auto fitPopupRows = [](int available, int& docs, int& rows)
+    {
+        if(available < 3)
+            return false;
+
+        int bodyRows = available - 2;
+        if(docs + rows > bodyRows)
+        {
+            const int reducedDocs = std::max(0, bodyRows - rows);
+            docs = std::min(docs, reducedDocs);
+        }
+        if(docs + rows > bodyRows)
+            rows = std::max(1, bodyRows - docs);
+        return rows > 0;
+    };
+
     int top = cy + 1;
-    if(top + totalH - 1 > editor.screenRows)
-        top = cy - totalH + 1;
-    if(top < 1)
-        top = 1;
+    int totalH = maxRows + 2 + docRows;
+    const int rowsBelowCursor = editor.screenRows - cy;
+    if(fitPopupRows(rowsBelowCursor, docRows, maxRows))
+    {
+        top = cy + 1;
+        totalH = maxRows + 2 + docRows;
+    }
+    else
+    {
+        int aboveDocRows = docRows;
+        int aboveRows = maxRows;
+        const int rowsAboveCursor = cy - 1;
+        if(!fitPopupRows(rowsAboveCursor, aboveDocRows, aboveRows))
+            return;
+        docRows = aboveDocRows;
+        maxRows = aboveRows;
+        totalH = maxRows + 2 + docRows;
+        top = cy - totalH;
+    }
 
     int left = cx;
     if(left + totalW - 1 > editor.screenCols)
