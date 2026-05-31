@@ -55,6 +55,7 @@ option(UVIM_ENABLE_SEARCH_TOOLS "Build fuzzy, grep, and regex search views" ON)
 option(UVIM_ENABLE_FORMATTERS "Build external formatter integrations" ON)
 option(UVIM_ENABLE_SYSTEM_CLIPBOARD "Build system clipboard integration hooks" ON)
 option(UVIM_ENABLE_STRUCT_SIZE_POPUP "Build clang-based struct/variable size popup support" ON)
+option(UVIM_ENABLE_COLOR_TOOLS "Build ANSI color picker and RGB selector tools" ON)
 option(UVIM_ENABLE_LTO "Enable link-time optimization / IPO for release builds" ON)
 option(UVIM_ENABLE_GC_SECTIONS "Enable function/data sections and linker garbage collection where supported" ON)
 option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it" OFF)
@@ -104,8 +105,6 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_cd_root_command.cpp
     src/editor_execution_command_helpers.cpp
     src/editor_execution_commands.cpp
-    src/editor_execution_color_picker_command.cpp
-    src/editor_execution_color_selector_command.cpp
     src/editor_execution_edit_command.cpp
     src/editor_execution_emit_asm_command.cpp
     src/editor_execution_emoji_command.cpp
@@ -239,8 +238,6 @@ set(MODE_STATE_MACHINE_SOURCES
     src/visual_line_mode.cpp
     src/visual_block_mode.cpp
     src/command_mode.cpp
-    src/color_picker_mode.cpp
-    src/color_selector_mode.cpp
     src/search_forward_mode.cpp
     src/search_backward_mode.cpp
     src/operator_pending_mode.cpp
@@ -314,6 +311,15 @@ if(UVIM_ENABLE_ASM_DOCS)
     list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/asm_documentation.cpp)
 else()
     list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/asm_documentation_stub.cpp)
+endif()
+
+if(UVIM_ENABLE_COLOR_TOOLS)
+    list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/editor_execution_color_picker_command.cpp
+        src/editor_execution_color_selector_command.cpp
+        src/color_picker_mode.cpp
+        src/color_selector_mode.cpp
+    )
 endif()
 
 # Combine all sources
@@ -553,6 +559,9 @@ endif()
 if(UVIM_ENABLE_STRUCT_SIZE_POPUP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_STRUCT_SIZE_POPUP=1)
 endif()
+if(UVIM_ENABLE_COLOR_TOOLS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_COLOR_TOOLS=1)
+endif()
 
 # ============================================================================
 # Unit Tests
@@ -670,6 +679,9 @@ if(UVIM_BUILD_TESTS)
     endif()
     if(UVIM_ENABLE_SEARCH_TOOLS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_SEARCH_TOOLS=1)
+    endif()
+    if(UVIM_ENABLE_COLOR_TOOLS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_COLOR_TOOLS=1)
     endif()
 
     include(GoogleTest)

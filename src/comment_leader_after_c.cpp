@@ -1,7 +1,9 @@
 #include "comment_leader_pending.h"
 
+#ifdef UVIM_ENABLE_COLOR_TOOLS
 #include "color_picker_mode.h"
 #include "color_selector_mode.h"
+#endif
 #include "comment_leader_pending_actions.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -36,22 +38,34 @@ CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
 
     if(key == keyCode(typed::TypedKey::KEY_P))
     {
+#ifdef UVIM_ENABLE_COLOR_TOOLS
         const int nextKey = Terminal::readKeyTimeout(300);
         const bool background = nextKey == keyCode(typed::TypedKey::KEY_B);
         if(nextKey != -1 && !background)
             Terminal::unreadKey(nextKey);
         machine.cancel(ctx);
         return ColorPickerMode{background};
+#else
+        machine.cancel(ctx);
+        Terminal::unreadKey(key);
+        return std::nullopt;
+#endif
     }
 
     if(key == keyCode(typed::TypedKey::KEY_S))
     {
+#ifdef UVIM_ENABLE_COLOR_TOOLS
         const int nextKey = Terminal::readKeyTimeout(300);
         const bool background = nextKey == keyCode(typed::TypedKey::KEY_B);
         if(nextKey != -1 && !background)
             Terminal::unreadKey(nextKey);
         machine.cancel(ctx);
         return ColorSelectorMode{background};
+#else
+        machine.cancel(ctx);
+        Terminal::unreadKey(key);
+        return std::nullopt;
+#endif
     }
 
     machine.cancel(ctx);

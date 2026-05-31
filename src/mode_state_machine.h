@@ -1,8 +1,10 @@
 #pragma once
 
 #include "buffer_browser_mode.h"
+#ifdef UVIM_ENABLE_COLOR_TOOLS
 #include "color_picker_mode.h"
 #include "color_selector_mode.h"
+#endif
 #include "command_mode.h"
 #include "command_output_mode.h"
 #include "file_browser_mode.h"

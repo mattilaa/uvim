@@ -421,11 +421,13 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:emitasm [flags]` - Emit current buffer assembly into .s "
             "buffer",
             "                       Example: `:emitasm -O2`",
+#ifdef UVIM_ENABLE_COLOR_TOOLS
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
             "  `:colorpicker bg`  - Insert an ANSI background color escape",
             "  `:colorselector`   - Insert truecolor foreground/background "
             "style",
             "  `:colorselector bg` - Open RGB selector focused on background",
+#endif
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",

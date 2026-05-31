@@ -16,8 +16,10 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<FormatCommand>());
     commands.push_back(std::make_unique<EmitAsmCommand>());
     commands.push_back(std::make_unique<EmojiCommand>());
+#ifdef UVIM_ENABLE_COLOR_TOOLS
     commands.push_back(std::make_unique<ColorPickerCommand>());
     commands.push_back(std::make_unique<ColorSelectorCommand>());
+#endif
     commands.push_back(std::make_unique<HelpCommand>());
 #ifdef UVIM_ENABLE_GIT_TOOLS
     commands.push_back(std::make_unique<GitStageCommand>());

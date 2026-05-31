@@ -140,6 +140,7 @@ void EditorModeController::syncModeFromStateMachine()
     {
         editor.currentMode = COMMAND_OUTPUT;
     }
+#ifdef UVIM_ENABLE_COLOR_TOOLS
     else if(std::holds_alternative<ColorPickerMode>(state))
     {
         editor.currentMode = COLOR_PICKER;
@@ -148,6 +149,7 @@ void EditorModeController::syncModeFromStateMachine()
     {
         editor.currentMode = COLOR_SELECTOR;
     }
+#endif
 
     if(editor.currentMode != prevMode)
         editor.needsFullRedraw = true;

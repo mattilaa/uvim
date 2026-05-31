@@ -247,6 +247,7 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+#ifdef UVIM_ENABLE_COLOR_TOOLS
     if(editor.currentMode == COLOR_PICKER)
     {
         if(editor.modeStateMachine)
@@ -268,6 +269,7 @@ void EditorDrawingController::refreshScreen()
         }
         return;
     }
+#endif
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(editor.currentMode != INSERT && !editor.showGitBlame)

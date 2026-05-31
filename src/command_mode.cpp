@@ -11,7 +11,6 @@ namespace editor::statemachine
 {
 void CommandMode::on_enter(ModeContext& ctx)
 {
-    int a = 10;
     ctx.cancelCompletion();
     ctx.commandBuffer = ":";
     completions.clear();
@@ -262,10 +261,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     return std::get<GitFixupMode>(state);
                 if(std::holds_alternative<GitPatchMode>(state))
                     return std::get<GitPatchMode>(state);
+#ifdef UVIM_ENABLE_COLOR_TOOLS
                 if(std::holds_alternative<ColorPickerMode>(state))
                     return std::get<ColorPickerMode>(state);
                 if(std::holds_alternative<ColorSelectorMode>(state))
                     return std::get<ColorSelectorMode>(state);
+#endif
             }
             Mode mode = NORMAL;
             std::string path;

@@ -1267,12 +1267,19 @@ void Editor::setMode(Mode mode)
     case COMMAND_OUTPUT:
         modeStateMachine->transitionTo(CommandOutputMode{});
         break;
+#ifdef UVIM_ENABLE_COLOR_TOOLS
     case COLOR_PICKER:
         modeStateMachine->transitionTo(ColorPickerMode{});
         break;
     case COLOR_SELECTOR:
         modeStateMachine->transitionTo(ColorSelectorMode{});
         break;
+#else
+    case COLOR_PICKER:
+    case COLOR_SELECTOR:
+        modeStateMachine->transitionTo(NormalMode{});
+        break;
+#endif
     }
 
     modeController->syncModeFromStateMachine();

@@ -68,6 +68,7 @@ static std::string_view command_doc(std::string_view cmd)
         return "Emit assembly for current C/C++ buffer";
     if(cmd == "emoji" || cmd == "em")
         return "Open emoji picker";
+#ifdef UVIM_ENABLE_COLOR_TOOLS
     if(cmd == "colorpicker")
         return "Insert ANSI color escape code";
     if(cmd == "colorpicker bg")
@@ -76,6 +77,7 @@ static std::string_view command_doc(std::string_view cmd)
         return "Select RGB ANSI foreground/background style";
     if(cmd == "colorselector bg")
         return "Select RGB ANSI style starting from background";
+#endif
     if(cmd == "help" || cmd == "h")
         return "Open help";
     if(cmd.rfind("help ", 0) == 0 || cmd.rfind("h ", 0) == 0)

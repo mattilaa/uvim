@@ -106,6 +106,7 @@ struct Config
     bool formatters = true;
     bool systemClipboard = true;
     bool structSizePopup = true;
+    bool colorTools = true;
     bool tests = true;
     bool compileCommands = true;
     bool lto = true;
@@ -385,6 +386,7 @@ void apply_feature_set(Config& cfg)
         cfg.formatters = false;
         cfg.systemClipboard = false;
         cfg.structSizePopup = false;
+        cfg.colorTools = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -411,6 +413,7 @@ void apply_feature_set(Config& cfg)
         cfg.formatters = true;
         cfg.systemClipboard = true;
         cfg.structSizePopup = false;
+        cfg.colorTools = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -437,6 +440,7 @@ void apply_feature_set(Config& cfg)
         cfg.formatters = true;
         cfg.systemClipboard = true;
         cfg.structSizePopup = false;
+        cfg.colorTools = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -463,6 +467,7 @@ void apply_feature_set(Config& cfg)
         cfg.formatters = true;
         cfg.systemClipboard = true;
         cfg.structSizePopup = true;
+        cfg.colorTools = true;
         cfg.tests = true;
         cfg.compileCommands = true;
         cfg.lto = true;
@@ -487,6 +492,7 @@ void apply_feature_set(Config& cfg)
     cfg.formatters = true;
     cfg.systemClipboard = true;
     cfg.structSizePopup = true;
+    cfg.colorTools = true;
     cfg.tests = true;
     cfg.compileCommands = true;
     cfg.lto = true;
@@ -596,7 +602,15 @@ std::vector<Section> make_sections()
            &Config::structSizePopup,
            nullptr,
            {},
-           "Build switch for clang-based variable and struct size popups."}}},
+           "Build switch for clang-based variable and struct size popups."},
+          {ItemKind::Toggle,
+           "ANSI color tools",
+           "UVIM_ENABLE_COLOR_TOOLS",
+           &Config::colorTools,
+           nullptr,
+           {},
+           "Build switch for :colorpicker, :colorselector, and leader-cp/cs "
+           "shortcuts."}}},
         {"Language Servers",
          "Per-language LSP integrations. Full enables all of these by "
          "default; smaller presets compile them out unless selected here.",
@@ -1274,6 +1288,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.systemClipboard = parse_bool(value).value_or(cfg.systemClipboard);
     else if(key == "struct_size_popup")
         cfg.structSizePopup = parse_bool(value).value_or(cfg.structSizePopup);
+    else if(key == "color_tools")
+        cfg.colorTools = parse_bool(value).value_or(cfg.colorTools);
     else if(key == "tests")
         cfg.tests = parse_bool(value).value_or(cfg.tests);
     else if(key == "compile_commands")
@@ -1404,6 +1420,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "formatters=" << bool_value(cfg.formatters) << "\n";
     file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
     file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
+    file << "color_tools=" << bool_value(cfg.colorTools) << "\n";
     file << "tests=" << bool_value(cfg.tests) << "\n";
     file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
     file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
@@ -1511,8 +1528,10 @@ void print_help(std::ostream& out)
         << "      --disable NAME          Disable a feature option.\n\n"
         << "Feature names for --enable/--disable:\n"
         << "  clangd, robot-lsp, python-lsp, mlang-lsp, html-lsp,\n"
-        << "  css-lsp, json-lsp, ts-lsp, asm-docs, git, search, formatters, clipboard,\n"
-        << "  struct-size, tests, compile-commands, auto-build-number,\n"
+        << "  css-lsp, json-lsp, ts-lsp, asm-docs, git, search, formatters, "
+           "clipboard,\n"
+        << "  struct-size, color-tools, tests, compile-commands, "
+           "auto-build-number,\n"
         << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
         << "Examples:\n"
         << "  uvim-config --preset vi-real --config Release -O Oz -j 8\n"
@@ -1555,6 +1574,11 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
     else if(equals_ci(name, "struct-size") ||
             equals_ci(name, "struct-size-popup"))
         cfg.structSizePopup = enabled;
+    else if(equals_ci(name, "color-tools") || equals_ci(name, "color") ||
+            equals_ci(name, "colorpicker") || equals_ci(name, "color-picker") ||
+            equals_ci(name, "colorselector") ||
+            equals_ci(name, "color-selector"))
+        cfg.colorTools = enabled;
     else if(equals_ci(name, "tests") || equals_ci(name, "test"))
         cfg.tests = enabled;
     else if(equals_ci(name, "compile-commands") ||
