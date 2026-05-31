@@ -87,7 +87,7 @@ int pickerColumns(int width)
 
 int pickerWidth(int screenCols)
 {
-    return std::min(78, std::max(1, screenCols - 2));
+    return std::min(96, std::max(1, screenCols - 2));
 }
 
 int pickerHeight(int screenRows)
@@ -193,12 +193,16 @@ void ColorPickerMode::on_enter(ModeContext& ctx)
 {
     cursor = std::clamp(cursor, 0, colorCount(background) - 1);
     rowOffset = 0;
+    backdropDrawn = false;
+    backdropRows = 0;
+    backdropCols = 0;
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
 }
 
 void ColorPickerMode::on_exit(ModeContext& ctx)
 {
+    backdropDrawn = false;
     ctx.requestFullRedraw();
 }
 
@@ -288,7 +292,14 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
 
 void ColorPickerMode::draw(Editor& editor) const
 {
-    editor.drawFullScreenSingle();
+    if(!backdropDrawn || backdropRows != editor.screenRows ||
+       backdropCols != editor.screenCols)
+    {
+        editor.drawFullScreenSingle();
+        backdropDrawn = true;
+        backdropRows = editor.screenRows;
+        backdropCols = editor.screenCols;
+    }
 
     const int width = pickerWidth(editor.screenCols);
     const int height = pickerHeight(editor.screenRows);
@@ -383,7 +394,12 @@ void ColorPickerMode::draw(Editor& editor) const
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 } // namespace editor::statemachine

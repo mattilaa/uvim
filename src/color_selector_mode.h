@@ -41,5 +41,10 @@ struct ColorSelectorMode
                                     const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
+
+private:
+    mutable bool backdropDrawn = false;
+    mutable int backdropRows = 0;
+    mutable int backdropCols = 0;
 };
 } // namespace editor::statemachine

@@ -174,12 +174,16 @@ void ColorSelectorMode::on_enter(ModeContext& ctx)
     bgRed = std::clamp(bgRed, 0, 255);
     bgGreen = std::clamp(bgGreen, 0, 255);
     bgBlue = std::clamp(bgBlue, 0, 255);
+    backdropDrawn = false;
+    backdropRows = 0;
+    backdropCols = 0;
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
 }
 
 void ColorSelectorMode::on_exit(ModeContext& ctx)
 {
+    backdropDrawn = false;
     ctx.requestFullRedraw();
 }
 
@@ -278,9 +282,16 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
 
 void ColorSelectorMode::draw(Editor& editor) const
 {
-    editor.drawFullScreenSingle();
+    if(!backdropDrawn || backdropRows != editor.screenRows ||
+       backdropCols != editor.screenCols)
+    {
+        editor.drawFullScreenSingle();
+        backdropDrawn = true;
+        backdropRows = editor.screenRows;
+        backdropCols = editor.screenCols;
+    }
 
-    const int width = std::min(74, std::max(1, editor.screenCols - 2));
+    const int width = std::min(104, std::max(1, editor.screenCols - 2));
     const int height = std::min(12, std::max(1, editor.screenRows - 2));
     const int left = std::max(1, (editor.screenCols - width) / 2 + 1);
     const int top = std::max(1, (editor.screenRows - height) / 2 + 1);
@@ -358,7 +369,12 @@ void ColorSelectorMode::draw(Editor& editor) const
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
 
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
     Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
     Terminal::flush();
 }
 } // namespace editor::statemachine
