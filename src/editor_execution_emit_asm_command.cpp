@@ -110,6 +110,33 @@ struct TopLevelType
     std::string name;
 };
 
+struct TopLevelFunction
+{
+    std::string name;
+    int count = 0;
+};
+
+bool containsKeyword(std::string_view text, std::string_view keyword)
+{
+    size_t pos = 0;
+    while(text_utils::is_found(pos = text.find(keyword, pos)))
+    {
+        const bool validStart =
+            pos == 0 ||
+            !(text_utils::is_alpha(text[pos - 1]) ||
+              text_utils::is_digit(text[pos - 1]) || text[pos - 1] == '_');
+        const size_t end = pos + keyword.size();
+        const bool validEnd =
+            end >= text.size() ||
+            !(text_utils::is_alpha(text[end]) ||
+              text_utils::is_digit(text[end]) || text[end] == '_');
+        if(validStart && validEnd)
+            return true;
+        pos = end;
+    }
+    return false;
+}
+
 std::vector<TopLevelType>
 collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
 {
@@ -120,12 +147,9 @@ collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
     {
         if(name.empty())
             return;
-        const auto found =
-            std::find_if(types.begin(), types.end(),
-                         [&](const TopLevelType& type)
-                         {
-                             return type.kind == kind && type.name == name;
-                         });
+        const auto found = std::find_if(
+            types.begin(), types.end(), [&](const TopLevelType& type)
+            { return type.kind == kind && type.name == name; });
         if(found == types.end())
             types.push_back({std::move(kind), std::move(name)});
     };
@@ -192,6 +216,116 @@ collectTopLevelTypes(const std::vector<std::string>& lines, bool includeClass)
     return types;
 }
 
+std::vector<TopLevelFunction>
+collectTopLevelFunctions(const std::vector<std::string>& lines)
+{
+    std::vector<TopLevelFunction> functions;
+    int braceDepth = 0;
+    std::string pending;
+
+    auto noteFunction = [&](std::string name)
+    {
+        if(name.empty() || name == "uvim_emit_asm_anchor" ||
+           name == "uvim_emit_asm_function_anchor")
+            return;
+        auto it = std::find_if(functions.begin(), functions.end(),
+                               [&](const TopLevelFunction& function)
+                               { return function.name == name; });
+        if(it == functions.end())
+            functions.push_back({std::move(name), 1});
+        else
+            ++it->count;
+    };
+
+    auto trim = [](std::string_view value)
+    {
+        while(!value.empty() && text_utils::is_space(value.front()))
+            value.remove_prefix(1);
+        while(!value.empty() && text_utils::is_space(value.back()))
+            value.remove_suffix(1);
+        return value;
+    };
+
+    for(const std::string& line : lines)
+    {
+        std::string_view text(line);
+        size_t comment = text.find("//");
+        if(text_utils::is_found(comment))
+            text = text.substr(0, comment);
+
+        if(braceDepth == 0)
+        {
+            std::string_view trimmed = trim(text);
+            if(!trimmed.empty() && trimmed[0] != '#')
+            {
+                if(!pending.empty())
+                    pending.push_back(' ');
+                pending.append(trimmed.data(), trimmed.size());
+            }
+
+            const size_t openBrace = pending.find('{');
+            if(text_utils::is_found(openBrace))
+            {
+                std::string_view signature =
+                    trim(std::string_view(pending).substr(0, openBrace));
+                const size_t closeParen = signature.rfind(')');
+                const size_t openParen = signature.rfind('(', closeParen);
+                const bool skippedContext =
+                    containsKeyword(signature, "struct") ||
+                    containsKeyword(signature, "class") ||
+                    containsKeyword(signature, "union") ||
+                    containsKeyword(signature, "enum") ||
+                    containsKeyword(signature, "namespace") ||
+                    containsKeyword(signature, "if") ||
+                    containsKeyword(signature, "else") ||
+                    containsKeyword(signature, "for") ||
+                    containsKeyword(signature, "while") ||
+                    containsKeyword(signature, "switch") ||
+                    containsKeyword(signature, "catch");
+
+                if(!skippedContext && text_utils::is_found(openParen) &&
+                   text_utils::is_found(closeParen) && openParen < closeParen)
+                {
+                    size_t nameEnd = openParen;
+                    while(nameEnd > 0 &&
+                          text_utils::is_space(signature[nameEnd - 1]))
+                        --nameEnd;
+                    size_t nameStart = nameEnd;
+                    while(nameStart > 0 &&
+                          (text_utils::is_alpha(signature[nameStart - 1]) ||
+                           text_utils::is_digit(signature[nameStart - 1]) ||
+                           signature[nameStart - 1] == '_'))
+                        --nameStart;
+                    if(nameEnd > nameStart)
+                        noteFunction(std::string(
+                            signature.substr(nameStart, nameEnd - nameStart)));
+                }
+                pending.clear();
+            }
+            else if(text_utils::is_found(pending.find(';')))
+            {
+                pending.clear();
+            }
+        }
+
+        for(char ch : text)
+        {
+            if(ch == '{')
+                ++braceDepth;
+            else if(ch == '}' && braceDepth > 0)
+                --braceDepth;
+        }
+        if(braceDepth == 0 && text_utils::is_found(text.find('}')))
+            pending.clear();
+    }
+
+    functions.erase(std::remove_if(functions.begin(), functions.end(),
+                                   [](const TopLevelFunction& function)
+                                   { return function.count != 1; }),
+                    functions.end());
+    return functions;
+}
+
 std::string cppAnchorForTypes(const std::vector<TopLevelType>& types)
 {
     if(types.empty())
@@ -219,6 +353,34 @@ std::string cppAnchorForTypes(const std::vector<TopLevelType>& types)
     return anchor;
 }
 
+std::string
+cppAnchorForFunctions(const std::vector<TopLevelFunction>& functions)
+{
+    if(functions.empty())
+        return {};
+
+    std::string anchor;
+    anchor += "\nnamespace uvim_emit_asm_detail {\n";
+    anchor += "template <typename F>\n";
+    anchor += "void touch_function(F function)\n";
+    anchor += "{\n";
+    anchor += "#if defined(__clang__) || defined(__GNUC__)\n";
+    anchor += "    asm volatile(\"\" : : \"g\"(function) : \"memory\");\n";
+    anchor += "#else\n";
+    anchor += "    (void)function;\n";
+    anchor += "#endif\n";
+    anchor += "}\n";
+    anchor += "}\n";
+    anchor += "extern \"C\" __attribute__((used)) void "
+              "uvim_emit_asm_function_anchor()\n";
+    anchor += "{\n";
+    for(const TopLevelFunction& function : functions)
+        anchor += "    uvim_emit_asm_detail::touch_function(&" + function.name +
+                  ");\n";
+    anchor += "}\n";
+    return anchor;
+}
+
 std::string cAnchorForTypes(const std::vector<TopLevelType>& types)
 {
     if(types.empty())
@@ -231,11 +393,33 @@ std::string cAnchorForTypes(const std::vector<TopLevelType>& types)
     {
         if(type.kind != "struct" && type.kind != "union")
             continue;
-        anchor += "    " + type.kind + " " + type.name + " value_" +
-                  type.name + " = {0};\n";
+        anchor += "    " + type.kind + " " + type.name + " value_" + type.name +
+                  " = {0};\n";
         anchor += "#if defined(__clang__) || defined(__GNUC__)\n";
         anchor += "    __asm__ volatile(\"\" : : \"g\"(&value_" + type.name +
                   ") : \"memory\");\n";
+        anchor += "#endif\n";
+    }
+    anchor += "}\n";
+    return anchor;
+}
+
+std::string cAnchorForFunctions(const std::vector<TopLevelFunction>& functions)
+{
+    if(functions.empty())
+        return {};
+
+    std::string anchor;
+    anchor += "\n__attribute__((used)) void "
+              "uvim_emit_asm_function_anchor(void)\n";
+    anchor += "{\n";
+    for(const TopLevelFunction& function : functions)
+    {
+        anchor += "#if defined(__clang__) || defined(__GNUC__)\n";
+        anchor += "    __asm__ volatile(\"\" : : \"g\"(&" + function.name +
+                  ") : \"memory\");\n";
+        anchor += "#else\n";
+        anchor += "    (void)&" + function.name + ";\n";
         anchor += "#endif\n";
     }
     anchor += "}\n";
@@ -324,9 +508,16 @@ bool EmitAsmCommand::execute(Editor& editor,
         }
         out << bufferText(*editor.lines) << '\n';
         if(cSource)
+        {
             out << cAnchorForTypes(collectTopLevelTypes(*editor.lines, false));
+            out << cAnchorForFunctions(collectTopLevelFunctions(*editor.lines));
+        }
         else
+        {
             out << cppAnchorForTypes(collectTopLevelTypes(*editor.lines, true));
+            out << cppAnchorForFunctions(
+                collectTopLevelFunctions(*editor.lines));
+        }
     }
 
     fs::path sourceDir = ".";

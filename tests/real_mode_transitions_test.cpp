@@ -528,10 +528,8 @@ TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsDeclarationOnlyCppSource)
 
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    editor.currentBuffer->lines = {"struct SomeStruct",
-                                   "{",
-                                   "    int value = 42;",
-                                   "};"};
+    editor.currentBuffer->lines = {"struct SomeStruct", "{",
+                                   "    int value = 42;", "};"};
     set_buffer_filename(editor, "/tmp/uvim_emit_asm_struct_only.cpp");
     auto sm = makeMachine(editor, NormalMode{});
 
@@ -545,9 +543,37 @@ TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsDeclarationOnlyCppSource)
         output += '\n';
     }
     EXPECT_TRUE(text_utils::is_found(output.find("uvim_emit_asm_anchor")));
-    EXPECT_TRUE(text_utils::is_found(
-        editor.currentBuffer->filename.find(
-            "uvim_emit_asm_struct_only.cpp.s")));
+    EXPECT_TRUE(text_utils::is_found(editor.currentBuffer->filename.find(
+        "uvim_emit_asm_struct_only.cpp.s")));
+    EXPECT_TRUE(editor.isFileType<FileType::Asm>());
+}
+
+TEST(RealModeTransitionsTest, EmitAsmCommandAnchorsStandaloneFunction)
+{
+    if(std::system("clang++ --version >/dev/null 2>&1") != 0)
+        GTEST_SKIP() << "clang++ is not available";
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"static inline int add(int a, int b)", "{",
+                                   "    return a + b;", "}"};
+    set_buffer_filename(editor, "/tmp/uvim_emit_asm_function_only.cpp");
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "emitasm -O2");
+
+    ASSERT_TRUE(editor.currentBuffer);
+    std::string output;
+    for(const std::string& line : editor.currentBuffer->lines)
+    {
+        output += line;
+        output += '\n';
+    }
+    EXPECT_TRUE(text_utils::is_found(output.find("add")));
+    EXPECT_TRUE(
+        text_utils::is_found(output.find("uvim_emit_asm_function_anchor")));
+    EXPECT_TRUE(text_utils::is_found(editor.currentBuffer->filename.find(
+        "uvim_emit_asm_function_only.cpp.s")));
     EXPECT_TRUE(editor.isFileType<FileType::Asm>());
 }
 
@@ -566,8 +592,8 @@ TEST(RealModeTransitionsTest, GdOnX86AssemblyInstructionOpensDocs)
     editor.goToDefinition();
 
     ASSERT_TRUE(editor.currentBuffer);
-    EXPECT_TRUE(text_utils::is_found(
-        editor.currentBuffer->filename.find("x86.md")));
+    EXPECT_TRUE(
+        text_utils::is_found(editor.currentBuffer->filename.find("x86.md")));
     ASSERT_GE(*editor.cursorY, 0);
     ASSERT_LT(*editor.cursorY, (int)editor.currentBuffer->lines.size());
     EXPECT_EQ(editor.currentBuffer->lines[*editor.cursorY], "## mov");
@@ -579,7 +605,8 @@ TEST(RealModeTransitionsTest, GdOnX86AssemblyInstructionOpensDocs)
     }
     EXPECT_TRUE(text_utils::is_found(
         output.find("Documentation: Copies the source operand")));
-    EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("gd (asm x86)")));
+    EXPECT_TRUE(
+        text_utils::is_found(editor.statusMessage.find("gd (asm x86)")));
 
     unset_env_var("UVIM_ASM_DOCS_CACHE_DIR");
 }
@@ -624,12 +651,11 @@ TEST(RealModeTransitionsTest, GdOnAssemblyInstructionCanFetchOriginalDocs)
                "printf '%s\\n' '{\"html\":\"<p>Compiler Explorer move "
                "documentation.</p>\",\"tooltip\":\"Move data\","
                "\"url\":\"https://www.felixcloutier.com/x86/mov\"}'\n");
-    std::filesystem::permissions(
-        curlPath,
-        std::filesystem::perms::owner_exec |
-            std::filesystem::perms::owner_read |
-            std::filesystem::perms::owner_write,
-        std::filesystem::perm_options::add);
+    std::filesystem::permissions(curlPath,
+                                 std::filesystem::perms::owner_exec |
+                                     std::filesystem::perms::owner_read |
+                                     std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
 
     const char* oldPathEnv = std::getenv("PATH");
     std::string oldPath = oldPathEnv ? oldPathEnv : "";
@@ -646,9 +672,8 @@ TEST(RealModeTransitionsTest, GdOnAssemblyInstructionCanFetchOriginalDocs)
     editor.goToDefinition();
 
     ASSERT_TRUE(editor.currentBuffer);
-    EXPECT_TRUE(text_utils::is_found(
-        editor.currentBuffer->filename.find(
-            "fetched/compiler-explorer/x86/mov.md")));
+    EXPECT_TRUE(text_utils::is_found(editor.currentBuffer->filename.find(
+        "fetched/compiler-explorer/x86/mov.md")));
     std::string output;
     for(const std::string& line : editor.currentBuffer->lines)
     {
