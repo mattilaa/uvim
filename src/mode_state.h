@@ -38,6 +38,8 @@ struct GitCommitMode;
 struct GitFixupMode;
 struct GitPatchMode;
 struct CommandOutputMode;
+struct ColorPickerMode;
+struct ColorSelectorMode;
 
 using ModeState = std::variant<
     WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
@@ -45,7 +47,8 @@ using ModeState = std::variant<
     SearchBackwardMode, FileBrowserMode, FuzzyFindMode, BufferBrowserMode,
     GrepSearchMode, RegexSearchMode, OperatorPendingMode, ReferencesMode,
     LspInfoMode, LocListMode, HelpMode, GitShowCommitMode, GitLogMode,
-    GitStageMode, GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode>;
+    GitStageMode, GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode,
+    ColorPickerMode, ColorSelectorMode>;
 
 ModeState defaultExitMode(const Editor* editor);
 } // namespace editor::statemachine

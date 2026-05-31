@@ -1,5 +1,7 @@
 #include "comment_leader_pending.h"
 
+#include "color_picker_mode.h"
+#include "color_selector_mode.h"
 #include "comment_leader_pending_actions.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -30,6 +32,26 @@ CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
 
         machine.setAfterCi(ctx);
         return std::nullopt;
+    }
+
+    if(key == keyCode(typed::TypedKey::KEY_P))
+    {
+        const int nextKey = Terminal::readKeyTimeout(300);
+        const bool background = nextKey == keyCode(typed::TypedKey::KEY_B);
+        if(nextKey != -1 && !background)
+            Terminal::unreadKey(nextKey);
+        machine.cancel(ctx);
+        return ColorPickerMode{background};
+    }
+
+    if(key == keyCode(typed::TypedKey::KEY_S))
+    {
+        const int nextKey = Terminal::readKeyTimeout(300);
+        const bool background = nextKey == keyCode(typed::TypedKey::KEY_B);
+        if(nextKey != -1 && !background)
+            Terminal::unreadKey(nextKey);
+        machine.cancel(ctx);
+        return ColorSelectorMode{background};
     }
 
     machine.cancel(ctx);
