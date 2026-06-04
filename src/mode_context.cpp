@@ -60,7 +60,7 @@ int ModeContext::screenCols() const
 
 void ModeContext::requestFullRedraw()
 {
-    needsFullRedraw = true;
+    editor->setNeedsFullRedraw(true);
 }
 
 void ModeContext::forceFullRedraw()

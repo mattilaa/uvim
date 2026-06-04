@@ -81,6 +81,20 @@ struct MlangTokenCache
 class Editor
 {
 public:
+    class RedrawFlag
+    {
+    public:
+        RedrawFlag() = default;
+        explicit RedrawFlag(Editor* editor) : editor(editor) {}
+
+        void bind(Editor* nextEditor) { editor = nextEditor; }
+        RedrawFlag& operator=(bool value);
+        operator bool() const;
+
+    private:
+        Editor* editor = nullptr;
+    };
+
     // Mode enum is now in mode.h
     // JumpLocation struct is now in jump_location.h
 
@@ -207,13 +221,9 @@ public:
     char pendingObjectType = 0; // 'i' or 'a' when awaiting a text object
     int pendingCount = 0;       // support counts like 2dw if present
 
-    // Optimization for drawing
-    bool needsFullRedraw = true;
-    int lastCursorScreenY = -1;
-    int lastCursorScreenX = -1;
-    std::vector<std::string> screenBuffer;
-    std::string lastStatusBar;
-    std::string lastMessageBar;
+    // Drawing state is owned by EditorDrawingController. This forwarding flag
+    // preserves existing call sites while the rest of the editor is migrated.
+    RedrawFlag needsFullRedraw{this};
     std::string projectRoot;
 
     // Modes
@@ -895,6 +905,9 @@ public:
     void goToFile();
     void showFileInfo();
     void forceFullRedraw();
+    void setNeedsFullRedraw(bool value);
+    bool needsFullRedrawValue() const;
+    void setLastCursorScreenPosition(int row, int col);
     void executeOneNormalCommand(int key);
 
     // Command history

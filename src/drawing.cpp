@@ -715,8 +715,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
     if(!hideCursor)
         output += Terminal::ESC_SHOW_CURSOR;
 
-    lastCursorScreenY = cursorRow;
-    lastCursorScreenX = cursorCol;
+    setLastCursorScreenPosition(cursorRow, cursorCol);
 
     Terminal::write(output);
     if(syncOutput)

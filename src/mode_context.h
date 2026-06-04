@@ -37,7 +37,6 @@ struct ModeContext
     bool& searchForward;
     int& savedCursorX;
     int& savedCursorY;
-    bool& needsFullRedraw;
 
     // Status message
     void setStatusMessage(const std::string& msg);

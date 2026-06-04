@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 class Editor;
 class EditorBufferView;
@@ -27,6 +28,11 @@ public:
     void refreshScreen();
     void updateCursorPosition(bool flushNow = true);
     void forceFullRedraw();
+    void setNeedsFullRedraw(bool value);
+    bool needsFullRedraw() const;
+    void setLastCursorScreenPosition(int row, int col);
+    int lastCursorScreenY() const;
+    int lastCursorScreenX() const;
 
 private:
     Editor& editor;
@@ -42,4 +48,11 @@ private:
     Mode lastFrameMode = NORMAL;
     bool lastFrameCommandPopupActive = false;
     bool lastFrameCommandHistoryPopupActive = false;
+
+    bool needsFullRedraw_ = true;
+    int lastCursorScreenY_ = -1;
+    int lastCursorScreenX_ = -1;
+    std::vector<std::string> screenBuffer_;
+    std::string lastStatusBar_;
+    std::string lastMessageBar_;
 };

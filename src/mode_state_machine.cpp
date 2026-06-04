@@ -294,7 +294,6 @@ ModeContext createModeContext(Editor* editor)
         .searchForward = editor->searchForward,
         .savedCursorX = editor->savedCursorX,
         .savedCursorY = editor->savedCursorY,
-        .needsFullRedraw = editor->needsFullRedraw,
     };
 }
 

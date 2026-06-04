@@ -144,6 +144,7 @@ static void handle_sigwinch(int)
 Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                const std::string& themePath)
 {
+    needsFullRedraw.bind(this);
     Terminal::enableRawMode();
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
@@ -750,6 +751,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
 #ifdef UVIM_TESTING
 Editor::Editor(TestTag /* tag */, int rows, int cols)
 {
+    needsFullRedraw.bind(this);
     screenRows = std::max(1, rows - 2);
     screenCols = std::max(1, cols);
     theme = Theme::defaults();
@@ -3023,6 +3025,35 @@ void Editor::showFileInfo()
 void Editor::forceFullRedraw()
 {
     drawingController->forceFullRedraw();
+}
+
+Editor::RedrawFlag& Editor::RedrawFlag::operator=(bool value)
+{
+    if(editor)
+        editor->setNeedsFullRedraw(value);
+    return *this;
+}
+
+Editor::RedrawFlag::operator bool() const
+{
+    return editor && editor->needsFullRedrawValue();
+}
+
+void Editor::setNeedsFullRedraw(bool value)
+{
+    if(drawingController)
+        drawingController->setNeedsFullRedraw(value);
+}
+
+bool Editor::needsFullRedrawValue() const
+{
+    return drawingController && drawingController->needsFullRedraw();
+}
+
+void Editor::setLastCursorScreenPosition(int row, int col)
+{
+    if(drawingController)
+        drawingController->setLastCursorScreenPosition(row, col);
 }
 
 void Editor::executeOneNormalCommand(int key)
