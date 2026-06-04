@@ -1,6 +1,7 @@
 #include "color_selector_mode.h"
 
 #include "ascii.h"
+#include "color_constant.h"
 #include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -65,33 +66,23 @@ std::string escapeCode(const ColorSelectorMode& mode)
 {
     std::string code;
     if(mode.bold)
-        code += "\\x1b[1m";
+        code += color::literal(color::AnsiColor::Bold);
     if(mode.italic)
-        code += "\\x1b[3m";
+        code += color::literal(color::AnsiColor::Italic);
 
-    char buffer[64];
-    std::snprintf(buffer, sizeof(buffer),
-                  "\\x1b[38;2;%d;%d;%dm\\x1b[48;2;%d;%d;%dm", mode.fgRed,
-                  mode.fgGreen, mode.fgBlue, mode.bgRed, mode.bgGreen,
-                  mode.bgBlue);
-    code += buffer;
+    code += color::rgbLiteralFg(mode.fgRed, mode.fgGreen, mode.fgBlue);
+    code += color::rgbLiteralBg(mode.bgRed, mode.bgGreen, mode.bgBlue);
     return code;
 }
 
 std::string rgbSample(int red, int green, int blue)
 {
-    char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\x1b[48;2;%d;%d;%dm", red, green,
-                  blue);
-    return buffer;
+    return color::rgbBg(red, green, blue);
 }
 
 std::string fgSample(int red, int green, int blue)
 {
-    char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "\x1b[38;2;%d;%d;%dm", red, green,
-                  blue);
-    return buffer;
+    return color::rgbFg(red, green, blue);
 }
 
 std::string channelColor(int index)

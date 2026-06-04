@@ -1,7 +1,7 @@
-#include "editor.h"
 #include "ascii.h"
 #include "constants.h"
 #include "cpp_navigation_utilities.h"
+#include "editor.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
@@ -1505,11 +1505,6 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
         }
     }
 #endif
-
-    //    setStatusMessage("Buffer " + std::to_string(currentBufferIndex + 1) +
-    //    "/" +
-    //                     std::to_string(buffers.size()) + " " +
-    //                     std::to_string(lines->size()) + " lines");
 }
 
 void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)

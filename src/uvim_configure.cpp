@@ -1,3 +1,5 @@
+#include "color_constant.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -32,12 +34,16 @@ namespace fs = std::filesystem;
 
 namespace
 {
-constexpr std::string_view kAnsiReset = "\x1b[0m";
-constexpr std::string_view kAnsiFgDefault = "\x1b[39m";
-constexpr std::string_view kAnsiBlue = "\x1b[34m";
-constexpr std::string_view kAnsiGreen = "\x1b[32m";
-constexpr std::string_view kAnsiEditField = "\x1b[37;40m";
-constexpr std::string_view kAnsiCurrentLineBg = "\x1b[48;2;24;64;36m";
+constexpr std::string_view kAnsiReset =
+    color::ansi(color::AnsiColor::Reset);
+constexpr std::string_view kAnsiFgDefault =
+    color::ansi(color::AnsiColor::FgDefault);
+constexpr std::string_view kAnsiBlue = color::ansi(color::AnsiColor::FgBlue);
+constexpr std::string_view kAnsiGreen =
+    color::ansi(color::AnsiColor::FgGreen);
+constexpr std::string_view kAnsiEditField =
+    color::ansi(color::AnsiColor::StyleEditField);
+const std::string kAnsiCurrentLineBg = color::rgbBg(24, 64, 36);
 
 constexpr int kKeyEsc = 27;
 constexpr int kKeyUp = 1001;

@@ -1,6 +1,7 @@
 #include "color_picker_mode.h"
 
 #include "ascii.h"
+#include "color_constant.h"
 #include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -22,44 +23,60 @@ namespace
 struct ColorEntry
 {
     std::string_view name;
-    std::string_view code;
-    std::string_view sample;
+    color::AnsiColor code;
+    color::AnsiColor sample;
 };
 
 constexpr std::array<ColorEntry, 33> kColors = {{
-    {"reset", "\\x1b[0m", "\x1b[0m"},
-    {"fg black", "\\x1b[30m", "\x1b[40m"},
-    {"fg red", "\\x1b[31m", "\x1b[41m"},
-    {"fg green", "\\x1b[32m", "\x1b[42m"},
-    {"fg yellow", "\\x1b[33m", "\x1b[43m"},
-    {"fg blue", "\\x1b[34m", "\x1b[44m"},
-    {"fg magenta", "\\x1b[35m", "\x1b[45m"},
-    {"fg cyan", "\\x1b[36m", "\x1b[46m"},
-    {"fg white", "\\x1b[37m", "\x1b[47m"},
-    {"fg bright black", "\\x1b[90m", "\x1b[100m"},
-    {"fg bright red", "\\x1b[91m", "\x1b[101m"},
-    {"fg bright green", "\\x1b[92m", "\x1b[102m"},
-    {"fg bright yellow", "\\x1b[93m", "\x1b[103m"},
-    {"fg bright blue", "\\x1b[94m", "\x1b[104m"},
-    {"fg bright magenta", "\\x1b[95m", "\x1b[105m"},
-    {"fg bright cyan", "\\x1b[96m", "\x1b[106m"},
-    {"fg bright white", "\\x1b[97m", "\x1b[107m"},
-    {"bg black", "\\x1b[40m", "\x1b[40m"},
-    {"bg red", "\\x1b[41m", "\x1b[41m"},
-    {"bg green", "\\x1b[42m", "\x1b[42m"},
-    {"bg yellow", "\\x1b[43m", "\x1b[43m"},
-    {"bg blue", "\\x1b[44m", "\x1b[44m"},
-    {"bg magenta", "\\x1b[45m", "\x1b[45m"},
-    {"bg cyan", "\\x1b[46m", "\x1b[46m"},
-    {"bg white", "\\x1b[47m", "\x1b[47m"},
-    {"bg bright black", "\\x1b[100m", "\x1b[100m"},
-    {"bg bright red", "\\x1b[101m", "\x1b[101m"},
-    {"bg bright green", "\\x1b[102m", "\x1b[102m"},
-    {"bg bright yellow", "\\x1b[103m", "\x1b[103m"},
-    {"bg bright blue", "\\x1b[104m", "\x1b[104m"},
-    {"bg bright magenta", "\\x1b[105m", "\x1b[105m"},
-    {"bg bright cyan", "\\x1b[106m", "\x1b[106m"},
-    {"bg bright white", "\\x1b[107m", "\x1b[107m"},
+    {"reset", color::AnsiColor::Reset, color::AnsiColor::Reset},
+    {"fg black", color::AnsiColor::FgBlack, color::AnsiColor::BgBlack},
+    {"fg red", color::AnsiColor::FgRed, color::AnsiColor::BgRed},
+    {"fg green", color::AnsiColor::FgGreen, color::AnsiColor::BgGreen},
+    {"fg yellow", color::AnsiColor::FgYellow, color::AnsiColor::BgYellow},
+    {"fg blue", color::AnsiColor::FgBlue, color::AnsiColor::BgBlue},
+    {"fg magenta", color::AnsiColor::FgMagenta, color::AnsiColor::BgMagenta},
+    {"fg cyan", color::AnsiColor::FgCyan, color::AnsiColor::BgCyan},
+    {"fg white", color::AnsiColor::FgWhite, color::AnsiColor::BgWhite},
+    {"fg bright black", color::AnsiColor::FgBrightBlack,
+     color::AnsiColor::BgBrightBlack},
+    {"fg bright red", color::AnsiColor::FgBrightRed,
+     color::AnsiColor::BgBrightRed},
+    {"fg bright green", color::AnsiColor::FgBrightGreen,
+     color::AnsiColor::BgBrightGreen},
+    {"fg bright yellow", color::AnsiColor::FgBrightYellow,
+     color::AnsiColor::BgBrightYellow},
+    {"fg bright blue", color::AnsiColor::FgBrightBlue,
+     color::AnsiColor::BgBrightBlue},
+    {"fg bright magenta", color::AnsiColor::FgBrightMagenta,
+     color::AnsiColor::BgBrightMagenta},
+    {"fg bright cyan", color::AnsiColor::FgBrightCyan,
+     color::AnsiColor::BgBrightCyan},
+    {"fg bright white", color::AnsiColor::FgBrightWhite,
+     color::AnsiColor::BgBrightWhite},
+    {"bg black", color::AnsiColor::BgBlack, color::AnsiColor::BgBlack},
+    {"bg red", color::AnsiColor::BgRed, color::AnsiColor::BgRed},
+    {"bg green", color::AnsiColor::BgGreen, color::AnsiColor::BgGreen},
+    {"bg yellow", color::AnsiColor::BgYellow, color::AnsiColor::BgYellow},
+    {"bg blue", color::AnsiColor::BgBlue, color::AnsiColor::BgBlue},
+    {"bg magenta", color::AnsiColor::BgMagenta, color::AnsiColor::BgMagenta},
+    {"bg cyan", color::AnsiColor::BgCyan, color::AnsiColor::BgCyan},
+    {"bg white", color::AnsiColor::BgWhite, color::AnsiColor::BgWhite},
+    {"bg bright black", color::AnsiColor::BgBrightBlack,
+     color::AnsiColor::BgBrightBlack},
+    {"bg bright red", color::AnsiColor::BgBrightRed,
+     color::AnsiColor::BgBrightRed},
+    {"bg bright green", color::AnsiColor::BgBrightGreen,
+     color::AnsiColor::BgBrightGreen},
+    {"bg bright yellow", color::AnsiColor::BgBrightYellow,
+     color::AnsiColor::BgBrightYellow},
+    {"bg bright blue", color::AnsiColor::BgBrightBlue,
+     color::AnsiColor::BgBrightBlue},
+    {"bg bright magenta", color::AnsiColor::BgBrightMagenta,
+     color::AnsiColor::BgBrightMagenta},
+    {"bg bright cyan", color::AnsiColor::BgBrightCyan,
+     color::AnsiColor::BgBrightCyan},
+    {"bg bright white", color::AnsiColor::BgBrightWhite,
+     color::AnsiColor::BgBrightWhite},
 }};
 
 int colorCount(bool background)
@@ -122,7 +139,7 @@ void appendCell(std::string& out, const Theme& theme, const ColorEntry& entry,
     out += selected ? "> " : "  ";
     out += theme.baseFg();
     out += "[";
-    out.append(entry.sample.data(), entry.sample.size());
+    out += color::ansi(entry.sample);
     out += "  ";
     out += theme.reset();
     out += selected ? theme.selection() : theme.baseFg();
@@ -132,13 +149,9 @@ void appendCell(std::string& out, const Theme& theme, const ColorEntry& entry,
     out += theme.reset();
 }
 
-std::string actualEscape(std::string_view code)
+std::string actualEscape(color::AnsiColor code)
 {
-    if(code.rfind("\\x1b[", 0) != 0)
-        return std::string(code);
-    std::string out = "\x1b[";
-    out.append(code.substr(5));
-    return out;
+    return color::ansi(code);
 }
 
 bool hasTextPrefix(std::string_view text, std::string_view prefix)
@@ -155,11 +168,11 @@ bool hasWord(std::string_view text, std::string_view word)
 std::string readablePreviewFg(const ColorEntry& entry)
 {
     if(hasTextPrefix(entry.name, "fg "))
-        return "\x1b[48;2;32;32;32m";
+        return color::rgbBg(32, 32, 32);
     if(hasWord(entry.name, "white") || hasWord(entry.name, "yellow") ||
        hasWord(entry.name, "cyan"))
-        return "\x1b[38;2;16;16;16m";
-    return "\x1b[38;2;235;235;235m";
+        return color::rgbFg(16, 16, 16);
+    return color::rgbFg(235, 235, 235);
 }
 
 void appendPreview(std::string& out, const Theme& theme,
@@ -180,7 +193,7 @@ void appendPreview(std::string& out, const Theme& theme,
     out += " ] ";
 
     const int codeWidth = std::max(0, innerWidth - previewWidth);
-    appendPadded(out, entry.code, codeWidth);
+    appendPadded(out, color::literal(entry.code), codeWidth);
 }
 
 ModeState exitState(ModeContext& ctx)
@@ -278,7 +291,7 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
         if(ctx.editor && ctx.editor->hasBuffer())
         {
             const ColorEntry& entry = colorAt(cursor, background);
-            for(char ch : entry.code)
+            for(char ch : std::string_view(color::literal(entry.code)))
                 ctx.editor->insertChar(ch);
             ctx.editor->saveState();
             ctx.setStatusMessage("inserted " + std::string(entry.name));

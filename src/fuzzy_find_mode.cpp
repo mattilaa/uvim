@@ -1,3 +1,4 @@
+#include "color_constant.h"
 #include "editor.h"
 #include "editor_utils.h"
 #include "gitignore.h"
@@ -331,7 +332,7 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         if(index == cursor && isSelected)
         {
-            output += "\x1b[48;2;56;120;72m";
+            output += color::rgbBg(56, 120, 72);
             output += editor.theme.baseFg();
         }
         else if(index == cursor)
@@ -340,7 +341,7 @@ void FuzzyFindMode::draw(Editor& editor) const
         }
         else if(isSelected)
         {
-            output += "\x1b[48;2;24;64;36m";
+            output += color::rgbBg(24, 64, 36);
             output += editor.theme.baseFg();
         }
 

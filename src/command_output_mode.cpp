@@ -1,3 +1,4 @@
+#include "color_constant.h"
 #include "editor.h"
 #include "header_help.h"
 #include "mode_state_machine.h"
@@ -23,12 +24,13 @@ std::vector<std::string> commandOutputHelpTokens()
             "[V: visual]", "[y: yank]",     "[/: search]"};
 }
 
-// Grey background with black foreground — used for search highlight.
-constexpr const char* HIGHLIGHT_SEQ = "\x1b[48;2;200;200;200m\x1b[38;2;0;0;0m";
+// Grey background with black foreground, used for search highlight.
+const std::string HIGHLIGHT_SEQ =
+    color::rgbBg(200, 200, 200) + color::rgbFg(0, 0, 0);
 
-// Match file-browser selection colors (see file_browser_mode.cpp:draw).
-constexpr const char* SELECTED_BG = "\x1b[48;2;24;64;36m";
-constexpr const char* SELECTED_CURSOR_BG = "\x1b[48;2;56;120;72m";
+// Match file-browser selection colors.
+const std::string SELECTED_BG = color::rgbBg(24, 64, 36);
+const std::string SELECTED_CURSOR_BG = color::rgbBg(56, 120, 72);
 
 enum class RowStyle
 {
