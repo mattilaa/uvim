@@ -4,6 +4,8 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 
+#include <optional>
+
 using namespace editor::statemachine;
 
 namespace
@@ -11,120 +13,149 @@ namespace
 class ModeChangeRecognizer
 {
 public:
-    bool operator()(ModeContext& ctx, const WelcomeMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const WelcomeMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const NormalMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const NormalMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const InsertMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const InsertMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const ReplaceMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ReplaceMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const VisualMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const VisualMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const VisualLineMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const VisualLineMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const VisualBlockMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const VisualBlockMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const CommandMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const CommandMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const SearchForwardMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const SearchForwardMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const SearchBackwardMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const SearchBackwardMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const FileBrowserMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const FileBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const FuzzyFindMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const FuzzyFindMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const BufferBrowserMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const BufferBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GrepSearchMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GrepSearchMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const RegexSearchMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const RegexSearchMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const OperatorPendingMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const OperatorPendingMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const ReferencesMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ReferencesMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const LspInfoMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const LspInfoMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const LocListMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const LocListMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const HelpMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const HelpMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GitShowCommitMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitShowCommitMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GitLogMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitLogMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GitStageMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitStageMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GitCommitMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitCommitMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GitFixupMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitFixupMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const GitPatchMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitPatchMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const CommandOutputMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const CommandOutputMode& state) const
     {
         return recognize(ctx, state);
     }
 #ifdef UVIM_ENABLE_COLOR_TOOLS
-    bool operator()(ModeContext& ctx, const ColorPickerMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ColorPickerMode& state) const
     {
         return recognize(ctx, state);
     }
-    bool operator()(ModeContext& ctx, const ColorSelectorMode& state) const
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ColorSelectorMode& state) const
     {
         return recognize(ctx, state);
     }
@@ -132,16 +163,12 @@ public:
 
 private:
     template <typename State>
-    bool recognize(ModeContext& ctx, const State& state) const
+    std::optional<Mode> recognize(ModeContext& ctx, const State& state) const
     {
         Mode nextMode = modeForState(ModeState{state});
-        Mode previousMode = ctx.currentMode();
-        ctx.setCurrentMode(nextMode);
-        if(nextMode == previousMode)
-            return false;
-
-        ctx.requestFullRedraw();
-        return true;
+        if(nextMode == ctx.currentMode())
+            return {};
+        return nextMode;
     }
 };
 } // namespace
@@ -172,9 +199,17 @@ void EditorModeController::syncModeFromStateMachine()
 
     const ModeState& state = editor.modeStateMachine->state();
     ModeContext ctx = createModeContext(&editor);
-    std::visit([&ctx](const auto& concreteState)
-               { return ModeChangeRecognizer{}(ctx, concreteState); },
-               state);
+    std::optional<Mode> nextMode =
+        std::visit([&ctx](const auto& concreteState) -> std::optional<Mode>
+                   { return ModeChangeRecognizer{}(ctx, concreteState); },
+                   state);
+    if(!nextMode)
+    {
+        return;
+    }
+
+    ctx.setCurrentMode(*nextMode);
+    ctx.requestFullRedraw();
 }
 
 void EditorModeController::handleKeypress(int c)

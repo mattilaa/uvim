@@ -1,5 +1,5 @@
-#include "mode_state_machine.h"
 #include "editor.h"
+#include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
 
@@ -9,36 +9,150 @@ namespace
 {
 struct ModeStateToMode
 {
-    Mode operator()(const WelcomeMode&) const { return WELCOME; }
-    Mode operator()(const NormalMode&) const { return NORMAL; }
-    Mode operator()(const InsertMode&) const { return INSERT; }
-    Mode operator()(const ReplaceMode&) const { return REPLACE; }
-    Mode operator()(const VisualMode&) const { return VISUAL; }
-    Mode operator()(const VisualLineMode&) const { return VISUAL_LINE; }
-    Mode operator()(const VisualBlockMode&) const { return VISUAL_BLOCK; }
-    Mode operator()(const CommandMode&) const { return COMMAND; }
-    Mode operator()(const SearchForwardMode&) const { return SEARCH_FORWARD; }
-    Mode operator()(const SearchBackwardMode&) const { return SEARCH_BACKWARD; }
-    Mode operator()(const FileBrowserMode&) const { return FILE_BROWSER; }
-    Mode operator()(const FuzzyFindMode&) const { return FUZZY_FIND; }
-    Mode operator()(const BufferBrowserMode&) const { return BUFFER_BROWSER; }
-    Mode operator()(const GrepSearchMode&) const { return GREP_SEARCH; }
-    Mode operator()(const RegexSearchMode&) const { return REGEX_SEARCH; }
-    Mode operator()(const OperatorPendingMode&) const { return OP_PENDING; }
-    Mode operator()(const ReferencesMode&) const { return REFERENCES; }
-    Mode operator()(const LspInfoMode&) const { return LSP_INFO; }
-    Mode operator()(const LocListMode&) const { return LOC_LIST; }
-    Mode operator()(const HelpMode&) const { return HELP; }
-    Mode operator()(const GitShowCommitMode&) const { return GIT_SHOW; }
-    Mode operator()(const GitLogMode&) const { return GIT_LOG; }
-    Mode operator()(const GitStageMode&) const { return GIT_STAGE; }
-    Mode operator()(const GitCommitMode&) const { return GIT_COMMIT; }
-    Mode operator()(const GitFixupMode&) const { return GIT_FIXUP; }
-    Mode operator()(const GitPatchMode&) const { return GIT_PATCH; }
-    Mode operator()(const CommandOutputMode&) const { return COMMAND_OUTPUT; }
+    Mode operator()(const WelcomeMode&) const
+    {
+        return WELCOME;
+    }
+
+    Mode operator()(const NormalMode&) const
+    {
+        return NORMAL;
+    }
+
+    Mode operator()(const InsertMode&) const
+    {
+        return INSERT;
+    }
+
+    Mode operator()(const ReplaceMode&) const
+    {
+        return REPLACE;
+    }
+
+    Mode operator()(const VisualMode&) const
+    {
+        return VISUAL;
+    }
+
+    Mode operator()(const VisualLineMode&) const
+    {
+        return VISUAL_LINE;
+    }
+
+    Mode operator()(const VisualBlockMode&) const
+    {
+        return VISUAL_BLOCK;
+    }
+
+    Mode operator()(const CommandMode&) const
+    {
+        return COMMAND;
+    }
+
+    Mode operator()(const SearchForwardMode&) const
+    {
+        return SEARCH_FORWARD;
+    }
+
+    Mode operator()(const SearchBackwardMode&) const
+    {
+        return SEARCH_BACKWARD;
+    }
+
+    Mode operator()(const FileBrowserMode&) const
+    {
+        return FILE_BROWSER;
+    }
+
+    Mode operator()(const FuzzyFindMode&) const
+    {
+        return FUZZY_FIND;
+    }
+
+    Mode operator()(const BufferBrowserMode&) const
+    {
+        return BUFFER_BROWSER;
+    }
+
+    Mode operator()(const GrepSearchMode&) const
+    {
+        return GREP_SEARCH;
+    }
+
+    Mode operator()(const RegexSearchMode&) const
+    {
+        return REGEX_SEARCH;
+    }
+
+    Mode operator()(const OperatorPendingMode&) const
+    {
+        return OP_PENDING;
+    }
+
+    Mode operator()(const ReferencesMode&) const
+    {
+        return REFERENCES;
+    }
+
+    Mode operator()(const LspInfoMode&) const
+    {
+        return LSP_INFO;
+    }
+
+    Mode operator()(const LocListMode&) const
+    {
+        return LOC_LIST;
+    }
+
+    Mode operator()(const HelpMode&) const
+    {
+        return HELP;
+    }
+
+    Mode operator()(const GitShowCommitMode&) const
+    {
+        return GIT_SHOW;
+    }
+
+    Mode operator()(const GitLogMode&) const
+    {
+        return GIT_LOG;
+    }
+
+    Mode operator()(const GitStageMode&) const
+    {
+        return GIT_STAGE;
+    }
+
+    Mode operator()(const GitCommitMode&) const
+    {
+        return GIT_COMMIT;
+    }
+
+    Mode operator()(const GitFixupMode&) const
+    {
+        return GIT_FIXUP;
+    }
+
+    Mode operator()(const GitPatchMode&) const
+    {
+        return GIT_PATCH;
+    }
+
+    Mode operator()(const CommandOutputMode&) const
+    {
+        return COMMAND_OUTPUT;
+    }
 #ifdef UVIM_ENABLE_COLOR_TOOLS
-    Mode operator()(const ColorPickerMode&) const { return COLOR_PICKER; }
-    Mode operator()(const ColorSelectorMode&) const { return COLOR_SELECTOR; }
+    Mode operator()(const ColorPickerMode&) const
+    {
+        return COLOR_PICKER;
+    }
+
+    Mode operator()(const ColorSelectorMode&) const
+    {
+        return COLOR_SELECTOR;
+    }
 #endif
 };
 } // namespace
