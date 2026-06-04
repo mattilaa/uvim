@@ -69,7 +69,11 @@ public:
     {
         ModeStateMachineBase::dispatch(event);
     }
+
+    void transitionToMode(Mode mode);
 };
 
 ModeContext createModeContext(Editor* editor);
+Mode modeForState(const ModeState& state);
+ModeState stateForMode(ModeContext& ctx, Mode mode);
 } // namespace editor::statemachine

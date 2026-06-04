@@ -37,6 +37,7 @@ struct ModeContext
     bool& searchForward;
     int& savedCursorX;
     int& savedCursorY;
+    bool& needsFullRedraw;
 
     // Status message
     void setStatusMessage(const std::string& msg);
@@ -69,6 +70,7 @@ struct ModeContext
     bool hasFilename() const;
     std::string_view currentFilename() const;
     Mode currentMode() const;
+    void setCurrentMode(Mode mode);
 
     std::chrono::steady_clock::time_point& lastEscTime();
     bool hasSearchMatches() const;
