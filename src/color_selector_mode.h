@@ -1,5 +1,6 @@
 #pragma once
 
+#include "color_constant.h"
 #include "mode_context.h"
 #include "mode_events.h"
 #include "mode_state.h"
@@ -26,6 +27,10 @@ struct ColorSelectorMode
     int active = 0;
     bool bold = false;
     bool italic = false;
+    bool replacing = false;
+    int replaceRow = 0;
+    int replaceStartX = 0;
+    int replaceLength = 0;
 
     ColorSelectorMode() = default;
 
@@ -33,6 +38,11 @@ struct ColorSelectorMode
         : active(useBackground ? 3 : 0)
     {
     }
+
+    static ColorSelectorMode fromAnsiColor(color::AnsiColor ansi,
+                                           bool useBackground);
+    static std::optional<ColorSelectorMode> fromAnsiLiteralAtCursor(
+        const Editor& editor);
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

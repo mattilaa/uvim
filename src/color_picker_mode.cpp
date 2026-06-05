@@ -2,6 +2,7 @@
 
 #include "ascii.h"
 #include "color_constant.h"
+#include "color_selector_mode.h"
 #include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
@@ -300,6 +301,12 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
         return exitState(ctx);
     }
 
+    if(c == keyCode(typed::TypedKey::KEY_S))
+    {
+        const ColorEntry& entry = colorAt(cursor, background);
+        return ColorSelectorMode::fromAnsiColor(entry.code, background);
+    }
+
     return std::nullopt;
 }
 
@@ -394,7 +401,8 @@ void ColorPickerMode::draw(Editor& editor) const
     output += editor.theme.uiDim();
     char footer[96];
     std::snprintf(footer, sizeof(footer),
-                  " h/j/k/l move  Enter insert  q/Esc cancel  %d/%zu",
+                  " h/j/k/l move  s RGB adjust  Enter insert  q/Esc cancel  "
+                  "%d/%zu",
                   cursor + 1, (size_t)colorCount(background));
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
