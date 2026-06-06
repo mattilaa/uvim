@@ -6,6 +6,9 @@
 #include "editor.h"
 #include "stdlib_goto.h"
 #include "text_utils.h"
+#ifdef UVIM_ENABLE_CLANGD_LSP
+#include "lsp_client.h"
+#endif
 
 #include <algorithm>
 #include <filesystem>
@@ -91,6 +94,25 @@ bool EditorDefinitionController::goToInclude()
     if(includePath.empty())
         return false;
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(editor.isClangdLspEnabled() && editor.getFileType() == FileType::Cpp &&
+       editor.lspClient)
+    {
+        editor.lspClient->didChange(editor.currentBuffer->filename,
+                                    bufferText(), "cpp");
+        int includeColumn = *editor.cursorX;
+        const size_t includePos = currentLine.find(includePath);
+        if(text_utils::is_found(includePos))
+            includeColumn = static_cast<int>(includePos);
+        auto loc = editor.lspClient->definition(
+            editor.currentBuffer->filename, *editor.cursorY, includeColumn,
+            currentLine);
+        if(loc)
+            return jumpToLocation(loc->path, loc->line, loc->character,
+                                  "clangd");
+    }
+#endif
+
     std::string resolvedPath;
     if(isSystem)
     {
@@ -99,18 +121,33 @@ bool EditorDefinitionController::goToInclude()
     }
     else
     {
-        std::string currentDir = ".";
+        fs::path currentDir = ".";
         if(!editor.filename->empty())
         {
-            size_t lastSlash = editor.filename->rfind('/');
-            if(text_utils::is_found(lastSlash))
-                currentDir = editor.filename->substr(0, lastSlash);
+            fs::path currentPath(*editor.filename);
+            if(currentPath.has_parent_path())
+                currentDir = currentPath.parent_path();
         }
 
-        std::string tryPath = currentDir + "/" + includePath;
         std::error_code ec;
-        if(fs::exists(tryPath, ec) && !ec)
-            resolvedPath = tryPath;
+        std::vector<fs::path> candidates = {currentDir / includePath};
+        if(!editor.projectRoot.empty())
+        {
+            fs::path root(editor.projectRoot);
+            candidates.push_back(root / includePath);
+            candidates.push_back(root / "include" / includePath);
+            candidates.push_back(root / "src" / includePath);
+        }
+
+        for(const auto& candidate : candidates)
+        {
+            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
+            {
+                resolvedPath = candidate.lexically_normal().string();
+                break;
+            }
+            ec.clear();
+        }
     }
 
     if(resolvedPath.empty())
