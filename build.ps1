@@ -47,6 +47,21 @@ function Get-ConfigValue($Path, $Key) {
     return $match.Substring($prefix.Length)
 }
 
+function Test-Truthy($Value) {
+    return $Value -eq "ON" -or $Value -eq "true" -or $Value -eq "yes" -or $Value -eq "1"
+}
+
+function Test-NinjaAvailable {
+    return $null -ne (Get-Command ninja -ErrorAction SilentlyContinue)
+}
+
+function Stop-IfNativeCommandFailed($CommandName) {
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "$CommandName failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+    }
+}
+
 function Resolve-UvimConfig($Directory) {
     $exe = Join-Path $Directory "uvim-config.exe"
     if (Test-Path -LiteralPath $exe) {
@@ -151,6 +166,7 @@ $UvimConfig = Resolve-UvimConfig $BuildDir
 if ([string]::IsNullOrEmpty($UvimConfig)) {
     Write-Host "build.ps1: uvim-config is missing; bootstrapping uvim-config first"
     & (Join-Path "." "bootstrap.ps1") --build-dir $BuildDir
+    Stop-IfNativeCommandFailed "bootstrap.ps1"
     $UvimConfig = Resolve-UvimConfig $BuildDir
 }
 if ([string]::IsNullOrEmpty($UvimConfig)) {
@@ -176,9 +192,19 @@ if ([string]::IsNullOrEmpty($Install)) {
 
 Write-Host "$UvimConfig --import $ConfigFile --source-dir $SourceDir --build-dir $BuildDir --install-dir $InstallDir --output $CacheFile"
 & $UvimConfig --import $ConfigFile --source-dir $SourceDir --build-dir $BuildDir --install-dir $InstallDir --output $CacheFile
+Stop-IfNativeCommandFailed "uvim-config"
 
-Write-Host "cmake -C $CacheFile -S $SourceDir -B $BuildDir"
-cmake -C $CacheFile -S $SourceDir -B $BuildDir
+$NinjaConfig = Get-ConfigValue $ConfigFile "ninja_generator"
+$UseNinja = ([string]::IsNullOrEmpty($NinjaConfig) -or (Test-Truthy $NinjaConfig)) -and (Test-NinjaAvailable)
+$ConfigureArgs = @("-C", $CacheFile, "-S", $SourceDir, "-B", $BuildDir, "-DUVIM_BOOTSTRAP_CONFIG_ONLY=OFF")
+$ConfigureCommand = "cmake -C $CacheFile -S $SourceDir -B $BuildDir -DUVIM_BOOTSTRAP_CONFIG_ONLY=OFF"
+if ($UseNinja) {
+    $ConfigureArgs += @("-G", "Ninja")
+    $ConfigureCommand += " -G Ninja"
+}
+Write-Host $ConfigureCommand
+cmake @ConfigureArgs
+Stop-IfNativeCommandFailed "cmake configure"
 
 $BuildArgs = @("--build", $BuildDir)
 $BuildCommand = "cmake --build $BuildDir"
@@ -192,9 +218,11 @@ if (![string]::IsNullOrEmpty($Jobs)) {
 }
 Write-Host $BuildCommand
 cmake @BuildArgs
+Stop-IfNativeCommandFailed "cmake build"
 
 if ($Install -eq "true" -or $Install -eq "ON" -or $Install -eq "1") {
     Write-Host "cmake --install $BuildDir --component uvim"
     Write-Host "install destination: $InstallDir"
     cmake --install $BuildDir --component uvim
+    Stop-IfNativeCommandFailed "cmake install"
 }

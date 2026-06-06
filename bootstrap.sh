@@ -63,11 +63,49 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+config_value() {
+    key="$1"
+    file="$2"
+    if [ ! -f "$file" ]; then
+        return 0
+    fi
+    sed -n "s/^$key=//p" "$file" | tail -n 1
+}
+
+is_truthy() {
+    case "$1" in
+        ON|on|true|TRUE|yes|YES|1)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 if [ -z "$jobs" ] && [ -f "$build_dir/uvim-config.conf" ]; then
-    jobs="$(sed -n 's/^jobs=//p' "$build_dir/uvim-config.conf" | tail -n 1)"
+    jobs="$(config_value jobs "$build_dir/uvim-config.conf")"
 fi
 
-cmake -S . -B "$build_dir"
+use_ninja=""
+if command -v ninja >/dev/null 2>&1; then
+    if [ -f "$build_dir/uvim-config.conf" ]; then
+        ninja_config="$(config_value ninja_generator "$build_dir/uvim-config.conf")"
+        if [ -z "$ninja_config" ] || is_truthy "$ninja_config"; then
+            use_ninja="1"
+        fi
+    else
+        use_ninja="1"
+    fi
+fi
+
+if [ -n "$use_ninja" ]; then
+    echo "cmake -S . -B $build_dir -DUVIM_BOOTSTRAP_CONFIG_ONLY=ON -DCMAKE_BUILD_TYPE=Release -G Ninja"
+    cmake -S . -B "$build_dir" -DUVIM_BOOTSTRAP_CONFIG_ONLY=ON -DCMAKE_BUILD_TYPE=Release -G Ninja
+else
+    echo "cmake -S . -B $build_dir -DUVIM_BOOTSTRAP_CONFIG_ONLY=ON -DCMAKE_BUILD_TYPE=Release"
+    cmake -S . -B "$build_dir" -DUVIM_BOOTSTRAP_CONFIG_ONLY=ON -DCMAKE_BUILD_TYPE=Release
+fi
 if [ -n "$jobs" ]; then
     echo "cmake --build $build_dir --target uvim-config --parallel $jobs"
     cmake --build "$build_dir" --target uvim-config --parallel "$jobs"

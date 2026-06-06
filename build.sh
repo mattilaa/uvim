@@ -107,6 +107,26 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+config_value() {
+    key="$1"
+    file="$2"
+    if [ ! -f "$file" ]; then
+        return 0
+    fi
+    sed -n "s/^$key=//p" "$file" | tail -n 1
+}
+
+is_truthy() {
+    case "$1" in
+        ON|on|true|TRUE|yes|YES|1)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 if [ -z "$config_file" ]; then
     config_file="$build_dir/uvim-config.conf"
 fi
@@ -126,23 +146,35 @@ fi
 cache_file="$build_dir/uvim_config_cache.cmake"
 
 if [ -z "$jobs" ]; then
-    jobs="$(sed -n 's/^jobs=//p' "$config_file" | tail -n 1)"
+    jobs="$(config_value jobs "$config_file")"
 fi
 
-install_dir="$(sed -n 's/^install_dir=//p' "$config_file" | tail -n 1)"
+install_dir="$(config_value install_dir "$config_file")"
 if [ -z "$install_dir" ]; then
     install_dir="~/.local/bin"
 fi
 
 if [ -z "$install" ]; then
-    install="$(sed -n 's/^install_after_build=//p' "$config_file" | tail -n 1)"
+    install="$(config_value install_after_build "$config_file")"
 fi
 
 echo "$uvim_config --import $config_file --source-dir $source_dir --build-dir $build_dir --install-dir $install_dir --output $cache_file"
 "$uvim_config" --import "$config_file" --source-dir "$source_dir" --build-dir "$build_dir" --install-dir "$install_dir" --output "$cache_file"
 
-echo "cmake -C $cache_file -S $source_dir -B $build_dir"
-cmake -C "$cache_file" -S "$source_dir" -B "$build_dir"
+ninja_config="$(config_value ninja_generator "$config_file")"
+use_ninja=""
+if command -v ninja >/dev/null 2>&1 &&
+    { [ -z "$ninja_config" ] || is_truthy "$ninja_config"; }; then
+    use_ninja="1"
+fi
+
+if [ -n "$use_ninja" ]; then
+    echo "cmake -C $cache_file -S $source_dir -B $build_dir -DUVIM_BOOTSTRAP_CONFIG_ONLY=OFF -G Ninja"
+    cmake -C "$cache_file" -S "$source_dir" -B "$build_dir" -DUVIM_BOOTSTRAP_CONFIG_ONLY=OFF -G Ninja
+else
+    echo "cmake -C $cache_file -S $source_dir -B $build_dir -DUVIM_BOOTSTRAP_CONFIG_ONLY=OFF"
+    cmake -C "$cache_file" -S "$source_dir" -B "$build_dir" -DUVIM_BOOTSTRAP_CONFIG_ONLY=OFF
+fi
 
 build_cmd="cmake --build $build_dir"
 if [ -n "$target" ]; then
