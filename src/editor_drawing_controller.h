@@ -3,6 +3,7 @@
 #include "mode.h"
 
 #include <memory>
+#include <string>
 
 class Editor;
 class EditorBufferView;
