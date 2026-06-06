@@ -83,6 +83,24 @@ is_truthy() {
     esac
 }
 
+confirm_yes_no() {
+    prompt="$1"
+    while true; do
+        printf "%s " "$prompt"
+        if ! IFS= read -r answer; then
+            return 1
+        fi
+        case "$answer" in
+            y|Y)
+                return 0
+                ;;
+            n|N)
+                return 1
+                ;;
+        esac
+    done
+}
+
 if [ -z "$jobs" ] && [ -f "$build_dir/uvim-config.conf" ]; then
     jobs="$(config_value jobs "$build_dir/uvim-config.conf")"
 fi
@@ -112,4 +130,24 @@ if [ -n "$jobs" ]; then
 else
     echo "cmake --build $build_dir --target uvim-config"
     cmake --build "$build_dir" --target uvim-config
+fi
+
+uvim_config="$build_dir/uvim-config"
+if [ ! -x "$uvim_config" ]; then
+    if [ -x "$build_dir/uvim-config.exe" ]; then
+        uvim_config="$build_dir/uvim-config.exe"
+    else
+        echo "bootstrap.sh: cannot find uvim-config in $build_dir after build" >&2
+        exit 1
+    fi
+fi
+
+if confirm_yes_no "Do you want to run uvim-config? (y/n)"; then
+    echo "$uvim_config"
+    "$uvim_config"
+
+    if confirm_yes_no "Do you want to build uVim? (y/n)"; then
+        echo "./build.sh --build-dir $build_dir"
+        ./build.sh --build-dir "$build_dir"
+    fi
 fi

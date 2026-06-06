@@ -47,6 +47,36 @@ function Test-NinjaAvailable {
     return $null -ne (Get-Command ninja -ErrorAction SilentlyContinue)
 }
 
+function Resolve-UvimConfig($Directory) {
+    $exe = Join-Path $Directory "uvim-config.exe"
+    if (Test-Path -LiteralPath $exe) {
+        return $exe
+    }
+
+    $plain = Join-Path $Directory "uvim-config"
+    if (Test-Path -LiteralPath $plain) {
+        return $plain
+    }
+
+    return ""
+}
+
+function Confirm-YesNo($Prompt) {
+    while ($true) {
+        Write-Host -NoNewline "$Prompt "
+        $answer = [Console]::In.ReadLine()
+        if ($null -eq $answer) {
+            return $false
+        }
+        if ($answer -eq "y" -or $answer -eq "Y") {
+            return $true
+        }
+        if ($answer -eq "n" -or $answer -eq "N") {
+            return $false
+        }
+    }
+}
+
 function Stop-IfNativeCommandFailed($CommandName) {
     if ($LASTEXITCODE -ne 0) {
         Write-Error "$CommandName failed with exit code $LASTEXITCODE"
@@ -122,3 +152,22 @@ if (![string]::IsNullOrEmpty($Jobs)) {
     cmake --build $BuildDir --target uvim-config
 }
 Stop-IfNativeCommandFailed "cmake build"
+
+$UvimConfig = Resolve-UvimConfig $BuildDir
+if ([string]::IsNullOrEmpty($UvimConfig)) {
+    Write-Error "bootstrap.ps1: cannot find uvim-config in $BuildDir after build"
+    exit 1
+}
+
+if (Confirm-YesNo "Do you want to run uvim-config? (y/n)") {
+    Write-Host $UvimConfig
+    & $UvimConfig
+    Stop-IfNativeCommandFailed "uvim-config"
+
+    if (Confirm-YesNo "Do you want to build uVim? (y/n)") {
+        $BuildScript = Join-Path "." "build.ps1"
+        Write-Host "$BuildScript --build-dir $BuildDir"
+        & $BuildScript --build-dir $BuildDir
+        Stop-IfNativeCommandFailed "build.ps1"
+    }
+}
