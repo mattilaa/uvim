@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mode.h"
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <string>
