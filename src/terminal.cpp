@@ -85,20 +85,16 @@ static bool wait_stdin(milliseconds timeout) noexcept
     return WaitForSingleObject(hIn(), ms) == WAIT_OBJECT_0;
 }
 
-static bool read_console_key_event(KEY_EVENT_RECORD& kev) noexcept
+static bool queued_console_input_events(DWORD& count) noexcept
 {
-    INPUT_RECORD rec{};
+    count = 0;
+    return GetNumberOfConsoleInputEvents(hIn(), &count) != 0;
+}
+
+static bool read_console_input_event(INPUT_RECORD& rec) noexcept
+{
     DWORD n = 0;
-    while(true)
-    {
-        if(!ReadConsoleInputW(hIn(), &rec, 1, &n) || n != 1)
-            return false;
-        if(rec.EventType == KEY_EVENT)
-        {
-            kev = rec.Event.KeyEvent;
-            return true;
-        }
-    }
+    return ReadConsoleInputW(hIn(), &rec, 1, &n) && n == 1;
 }
 
 static bool write_console_utf8(std::string_view str) noexcept
@@ -476,14 +472,44 @@ int Terminal::readKeyInternal(int timeoutMs)
     if(!wait_stdin(timeout))
         return -1;
 
-    KEY_EVENT_RECORD kev{};
-    while(read_console_key_event(kev))
+    while(true)
     {
-        const int k = map_windows_key(kev);
+        DWORD queued = 0;
+        if(!queued_console_input_events(queued))
+            return -1;
+        if(queued == 0)
+        {
+            if(timeoutMs >= 0)
+                return -1;
+            if(!wait_stdin(milliseconds(-1)))
+                return -1;
+            continue;
+        }
+
+        INPUT_RECORD rec{};
+        if(!read_console_input_event(rec))
+            return -1;
+        if(rec.EventType != KEY_EVENT)
+        {
+            if(timeoutMs >= 0)
+            {
+                DWORD remaining = 0;
+                if(!queued_console_input_events(remaining) || remaining == 0)
+                    return -1;
+            }
+            continue;
+        }
+
+        const int k = map_windows_key(rec.Event.KeyEvent);
         if(k != -1)
             return k;
+        if(timeoutMs >= 0)
+        {
+            DWORD remaining = 0;
+            if(!queued_console_input_events(remaining) || remaining == 0)
+                return -1;
+        }
     }
-    return -1;
 
 #else
     if(!wait_stdin(timeout))
