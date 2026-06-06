@@ -4,7 +4,9 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -61,6 +63,9 @@ static void enable_vt_and_raw_console()
     {
         g_origOutMode = outMode;
         outMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+#ifdef ENABLE_WRAP_AT_EOL_OUTPUT
+        outMode &= ~ENABLE_WRAP_AT_EOL_OUTPUT;
+#endif
         SetConsoleMode(hOut(), outMode);
     }
 }
@@ -80,20 +85,47 @@ static bool wait_stdin(milliseconds timeout) noexcept
     return WaitForSingleObject(hIn(), ms) == WAIT_OBJECT_0;
 }
 
-static bool read_console_key_event(KEY_EVENT_RECORD& kev) noexcept
+static bool queued_console_input_events(DWORD& count) noexcept
 {
-    INPUT_RECORD rec{};
+    count = 0;
+    return GetNumberOfConsoleInputEvents(hIn(), &count) != 0;
+}
+
+static bool read_console_input_event(INPUT_RECORD& rec) noexcept
+{
     DWORD n = 0;
-    while(true)
-    {
-        if(!ReadConsoleInputW(hIn(), &rec, 1, &n) || n != 1)
-            return false;
-        if(rec.EventType == KEY_EVENT)
-        {
-            kev = rec.Event.KeyEvent;
-            return true;
-        }
-    }
+    return ReadConsoleInputW(hIn(), &rec, 1, &n) && n == 1;
+}
+
+static bool write_console_utf8(std::string_view str) noexcept
+{
+    if(str.empty())
+        return true;
+
+    DWORD mode = 0;
+    HANDLE out = hOut();
+    if(!GetConsoleMode(out, &mode))
+        return false;
+
+    if(str.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
+        return false;
+
+    int wideLen =
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.data(),
+                            static_cast<int>(str.size()), nullptr, 0);
+    if(wideLen <= 0)
+        return false;
+
+    std::wstring wide(static_cast<size_t>(wideLen), L'\0');
+    wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.data(),
+                                  static_cast<int>(str.size()), wide.data(),
+                                  wideLen);
+    if(wideLen <= 0)
+        return false;
+
+    DWORD written = 0;
+    return WriteConsoleW(out, wide.data(), static_cast<DWORD>(wide.size()),
+                         &written, nullptr) != 0;
 }
 
 static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
@@ -357,6 +389,8 @@ void Terminal::getWindowSize(int& rows, int& cols)
 void Terminal::write(const std::string& str)
 {
 #if defined(UVIM_TERMINAL_WIN32)
+    if(write_console_utf8(str))
+        return;
     DWORD written = 0;
     (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), str.data(),
                     static_cast<DWORD>(str.size()), &written, nullptr);
@@ -368,6 +402,9 @@ void Terminal::write(const std::string& str)
 void Terminal::write(char c)
 {
 #if defined(UVIM_TERMINAL_WIN32)
+    char buf[1] = {c};
+    if(write_console_utf8(std::string_view(buf, 1)))
+        return;
     DWORD written = 0;
     (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), &c, 1, &written, nullptr);
 #else
@@ -435,14 +472,44 @@ int Terminal::readKeyInternal(int timeoutMs)
     if(!wait_stdin(timeout))
         return -1;
 
-    KEY_EVENT_RECORD kev{};
-    while(read_console_key_event(kev))
+    while(true)
     {
-        const int k = map_windows_key(kev);
+        DWORD queued = 0;
+        if(!queued_console_input_events(queued))
+            return -1;
+        if(queued == 0)
+        {
+            if(timeoutMs >= 0)
+                return -1;
+            if(!wait_stdin(milliseconds(-1)))
+                return -1;
+            continue;
+        }
+
+        INPUT_RECORD rec{};
+        if(!read_console_input_event(rec))
+            return -1;
+        if(rec.EventType != KEY_EVENT)
+        {
+            if(timeoutMs >= 0)
+            {
+                DWORD remaining = 0;
+                if(!queued_console_input_events(remaining) || remaining == 0)
+                    return -1;
+            }
+            continue;
+        }
+
+        const int k = map_windows_key(rec.Event.KeyEvent);
         if(k != -1)
             return k;
+        if(timeoutMs >= 0)
+        {
+            DWORD remaining = 0;
+            if(!queued_console_input_events(remaining) || remaining == 0)
+                return -1;
+        }
     }
-    return -1;
 
 #else
     if(!wait_stdin(timeout))

@@ -3,13 +3,20 @@
 #ifdef UVIM_ENABLE_CLANGD_LSP
 
 #include <errno.h>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#else
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
+#include <chrono>
 #include <condition_variable>
 #include <cstring>
 #include <filesystem>
@@ -82,13 +89,25 @@ static std::string absPath(const std::string& p)
 
 static std::string pathToFileUri(const std::string& path)
 {
-    // Minimal file:// URI escaping (spaces only).
-    std::string p = absPath(path);
+    std::string p =
+        std::filesystem::path(absPath(path)).lexically_normal().string();
+#ifdef _WIN32
+    std::replace(p.begin(), p.end(), '\\', '/');
+#endif
     std::string out = "file://";
+#ifdef _WIN32
+    if(p.size() >= 2 && std::isalpha(static_cast<unsigned char>(p[0])) &&
+       p[1] == ':')
+        out += "/";
+#endif
     for(char c : p)
     {
         if(c == ' ')
             out += "%20";
+        else if(c == '#')
+            out += "%23";
+        else if(c == '%')
+            out += "%25";
         else
             out.push_back(c);
     }
@@ -131,10 +150,61 @@ static std::string uriToPath(const std::string& uri)
             }
             out.push_back(p[i]);
         }
+#ifdef _WIN32
+        if(out.size() >= 3 && out[0] == '/' &&
+           std::isalpha(static_cast<unsigned char>(out[1])) && out[2] == ':')
+            out.erase(out.begin());
+        std::replace(out.begin(), out.end(), '/', '\\');
+#endif
         return out;
     }
     return uri;
 }
+
+#ifdef _WIN32
+static std::string quote_windows_arg(const std::string& arg)
+{
+    if(arg.empty())
+        return "\"\"";
+
+    bool needsQuotes = false;
+    for(char c : arg)
+    {
+        if(std::isspace(static_cast<unsigned char>(c)) || c == '"')
+        {
+            needsQuotes = true;
+            break;
+        }
+    }
+    if(!needsQuotes)
+        return arg;
+
+    std::string out = "\"";
+    size_t backslashes = 0;
+    for(char c : arg)
+    {
+        if(c == '\\')
+        {
+            ++backslashes;
+            continue;
+        }
+        if(c == '"')
+        {
+            out.append(backslashes * 2 + 1, '\\');
+            out.push_back('"');
+        }
+        else
+        {
+            out.append(backslashes, '\\');
+            out.push_back(c);
+        }
+        backslashes = 0;
+    }
+    out.append(backslashes * 2, '\\');
+    out.push_back('"');
+    return out;
+}
+#endif
 
 static const ju::Value* member_ptr(const ju::Value* obj, const char* key)
 {
@@ -160,9 +230,15 @@ static std::string get_string_member(const ju::Value* obj, const char* key,
 
 struct LspClient::Impl
 {
+#ifdef _WIN32
+    HANDLE inWrite = INVALID_HANDLE_VALUE; // write to server stdin
+    HANDLE outRead = INVALID_HANDLE_VALUE; // read from server stdout
+    HANDLE process = INVALID_HANDLE_VALUE;
+#else
     int inFd = -1;  // write to clangd stdin
     int outFd = -1; // read from clangd stdout
     pid_t pid = -1;
+#endif
 
     std::thread reader;
     std::atomic<bool> alive{false};
@@ -190,19 +266,71 @@ struct LspClient::Impl
     std::mutex applyMutex;
     std::vector<ju::Document> pendingApplyEdits;
 
-    bool sendRaw(const std::string& payload)
+#ifdef _WIN32
+    bool hasInputPipe() const
     {
-        if(inFd < 0)
-            return false;
-        std::string hdr =
-            "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
-        std::string msg = hdr + payload;
+        return inWrite != INVALID_HANDLE_VALUE;
+    }
 
-        const char* p = msg.data();
-        ssize_t left = (ssize_t)msg.size();
+    bool writePipe(const char* data, size_t size)
+    {
+        while(size > 0)
+        {
+            const DWORD chunk =
+                static_cast<DWORD>(std::min<size_t>(size, 64 * 1024));
+            DWORD written = 0;
+            if(!WriteFile(inWrite, data, chunk, &written, nullptr) ||
+               written == 0)
+                return false;
+            data += written;
+            size -= written;
+        }
+        return true;
+    }
+
+    int readPipe(char* data, size_t size)
+    {
+        DWORD read = 0;
+        if(!ReadFile(outRead, data, static_cast<DWORD>(size), &read, nullptr) ||
+           read == 0)
+            return 0;
+        return static_cast<int>(read);
+    }
+
+    void closePipes()
+    {
+        if(inWrite != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(inWrite);
+            inWrite = INVALID_HANDLE_VALUE;
+        }
+        if(outRead != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(outRead);
+            outRead = INVALID_HANDLE_VALUE;
+        }
+    }
+
+    void waitProcess()
+    {
+        if(process == INVALID_HANDLE_VALUE)
+            return;
+        WaitForSingleObject(process, 1000);
+        CloseHandle(process);
+        process = INVALID_HANDLE_VALUE;
+    }
+#else
+    bool hasInputPipe() const
+    {
+        return inFd >= 0;
+    }
+
+    bool writePipe(const char* data, size_t size)
+    {
+        ssize_t left = static_cast<ssize_t>(size);
         while(left > 0)
         {
-            ssize_t n = ::write(inFd, p, left);
+            ssize_t n = ::write(inFd, data, left);
             if(n < 0)
             {
                 if(errno == EINTR)
@@ -210,9 +338,52 @@ struct LspClient::Impl
                 return false;
             }
             left -= n;
-            p += n;
+            data += n;
         }
         return true;
+    }
+
+    int readPipe(char* data, size_t size)
+    {
+        ssize_t n = ::read(outFd, data, size);
+        if(n <= 0)
+            return 0;
+        return static_cast<int>(n);
+    }
+
+    void closePipes()
+    {
+        if(inFd >= 0)
+        {
+            close(inFd);
+            inFd = -1;
+        }
+        if(outFd >= 0)
+        {
+            close(outFd);
+            outFd = -1;
+        }
+    }
+
+    void waitProcess()
+    {
+        if(pid > 0)
+        {
+            int status = 0;
+            waitpid(pid, &status, 0);
+        }
+        pid = -1;
+    }
+#endif
+
+    bool sendRaw(const std::string& payload)
+    {
+        if(!hasInputPipe())
+            return false;
+        std::string hdr =
+            "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
+        std::string msg = hdr + payload;
+        return writePipe(msg.data(), msg.size());
     }
 
     int sendRequest(const std::string& method, const ju::Document& params)
@@ -276,7 +447,7 @@ struct LspClient::Impl
         char tmp[4096];
         while(alive.load())
         {
-            ssize_t n = ::read(outFd, tmp, sizeof(tmp));
+            int n = readPipe(tmp, sizeof(tmp));
             if(n <= 0)
             {
                 break;
@@ -434,6 +605,93 @@ struct LspClient::Impl
     bool startClangd(const std::string& clangdPath,
                      const std::vector<std::string>& extraArgs)
     {
+#ifdef _WIN32
+        SECURITY_ATTRIBUTES security{};
+        security.nLength = sizeof(security);
+        security.bInheritHandle = TRUE;
+
+        HANDLE childStdinRead = INVALID_HANDLE_VALUE;
+        HANDLE parentStdinWrite = INVALID_HANDLE_VALUE;
+        HANDLE parentStdoutRead = INVALID_HANDLE_VALUE;
+        HANDLE childStdoutWrite = INVALID_HANDLE_VALUE;
+        HANDLE childStderr = INVALID_HANDLE_VALUE;
+
+        if(!CreatePipe(&childStdinRead, &parentStdinWrite, &security, 0))
+            return false;
+        if(!SetHandleInformation(parentStdinWrite, HANDLE_FLAG_INHERIT, 0))
+        {
+            CloseHandle(childStdinRead);
+            CloseHandle(parentStdinWrite);
+            return false;
+        }
+        if(!CreatePipe(&parentStdoutRead, &childStdoutWrite, &security, 0))
+        {
+            CloseHandle(childStdinRead);
+            CloseHandle(parentStdinWrite);
+            return false;
+        }
+        if(!SetHandleInformation(parentStdoutRead, HANDLE_FLAG_INHERIT, 0))
+        {
+            CloseHandle(childStdinRead);
+            CloseHandle(parentStdinWrite);
+            CloseHandle(parentStdoutRead);
+            CloseHandle(childStdoutWrite);
+            return false;
+        }
+        HANDLE stderrHandle = GetStdHandle(STD_ERROR_HANDLE);
+        if(stderrHandle != INVALID_HANDLE_VALUE && stderrHandle != nullptr)
+        {
+            DuplicateHandle(GetCurrentProcess(), stderrHandle,
+                            GetCurrentProcess(), &childStderr, 0, TRUE,
+                            DUPLICATE_SAME_ACCESS);
+        }
+        if(childStderr == INVALID_HANDLE_VALUE)
+        {
+            childStderr =
+                CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE, &security,
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        }
+        if(childStderr == INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(childStdinRead);
+            CloseHandle(parentStdinWrite);
+            CloseHandle(parentStdoutRead);
+            CloseHandle(childStdoutWrite);
+            return false;
+        }
+
+        std::string commandLine = quote_windows_arg(clangdPath);
+        for(const auto& arg : extraArgs)
+            commandLine += " " + quote_windows_arg(arg);
+
+        STARTUPINFOA startup{};
+        startup.cb = sizeof(startup);
+        startup.dwFlags = STARTF_USESTDHANDLES;
+        startup.hStdInput = childStdinRead;
+        startup.hStdOutput = childStdoutWrite;
+        startup.hStdError = childStderr;
+
+        PROCESS_INFORMATION processInfo{};
+        BOOL ok = CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr,
+                                 TRUE, CREATE_NO_WINDOW, nullptr, nullptr,
+                                 &startup, &processInfo);
+
+        CloseHandle(childStdinRead);
+        CloseHandle(childStdoutWrite);
+        CloseHandle(childStderr);
+
+        if(!ok)
+        {
+            CloseHandle(parentStdinWrite);
+            CloseHandle(parentStdoutRead);
+            return false;
+        }
+
+        CloseHandle(processInfo.hThread);
+        inWrite = parentStdinWrite;
+        outRead = parentStdoutRead;
+        process = processInfo.hProcess;
+#else
         int inPipe[2];
         int outPipe[2];
         if(pipe(inPipe) != 0)
@@ -469,6 +727,7 @@ struct LspClient::Impl
         close(outPipe[1]);
         inFd = inPipe[1];
         outFd = outPipe[0];
+#endif
 
         // non-blocking read is fine but not required
         alive.store(true);
@@ -481,7 +740,11 @@ struct LspClient::Impl
     {
         ju::Document params(rapidjson::kObjectType);
         auto& alloc = params.GetAllocator();
+#ifdef _WIN32
+        params.AddMember("processId", (int)GetCurrentProcessId(), alloc);
+#else
         params.AddMember("processId", (int)getpid(), alloc);
+#endif
         params.AddMember("rootUri",
                          ju::make_string(pathToFileUri(rootDir), alloc), alloc);
         params.AddMember("rootPath", ju::make_string(absPath(rootDir), alloc),
@@ -673,22 +936,17 @@ void LspClient::stop()
     }
 
     impl->alive.store(false);
-    if(impl->inFd >= 0)
-        close(impl->inFd);
-    if(impl->outFd >= 0)
-        close(impl->outFd);
+    impl->closePipes();
 
     if(impl->reader.joinable())
         impl->reader.join();
 
-    if(impl->pid > 0)
-    {
-        int status = 0;
-        waitpid(impl->pid, &status, 0);
-    }
+    impl->waitProcess();
 
+#ifndef _WIN32
     impl->inFd = impl->outFd = -1;
     impl->pid = -1;
+#endif
     impl->responses.clear();
     impl->docVersion.clear();
     impl->serverName.clear();

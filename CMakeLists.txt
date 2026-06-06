@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
+if(POLICY CMP0177)
+    cmake_policy(SET CMP0177 NEW)
+endif()
 set(UVIM_VERSION_MAJOR 0)
 set(UVIM_VERSION_MINOR 1)
 option(UVIM_AUTO_INCREMENT_BUILD "Auto-increment build number on each CMake configure" ON)
@@ -48,6 +51,7 @@ option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
 option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
+option(UVIM_BOOTSTRAP_CONFIG_ONLY "Configure only uvim-config for bootstrap" OFF)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
 option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
 option(UVIM_ENABLE_GIT_TOOLS "Build git views and git commands" ON)
@@ -74,6 +78,15 @@ if(UVIM_ENABLE_SANITIZERS)
     message(STATUS "UVIM_ENABLE_SANITIZERS=ON (ASan+UBSan)")
 endif()
 
+function(uvim_status_bool label value)
+    if(${value})
+        set(_uvim_status "ON")
+    else()
+        set(_uvim_status "OFF")
+    endif()
+    message(STATUS "  ${label}: ${_uvim_status}")
+endfunction()
+
 # Terminal backend selection (AUTO/POSIX/WIN32)
 set(UVIM_TERMINAL_BACKEND "AUTO" CACHE STRING "Terminal backend: AUTO, POSIX, WIN32")
 set_property(CACHE UVIM_TERMINAL_BACKEND PROPERTY STRINGS AUTO POSIX WIN32)
@@ -86,6 +99,28 @@ endif()
 
 # Include directories - make headers available to all targets
 include_directories(${CMAKE_SOURCE_DIR}/src)
+
+function(uvim_add_config_target)
+    if(TARGET uvim-config)
+        return()
+    endif()
+
+    add_executable(uvim-config src/uvim_configure.cpp)
+    target_compile_definitions(uvim-config PRIVATE
+        UVIM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+    )
+
+    if(MSVC)
+        target_compile_options(uvim-config PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(uvim-config PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+endfunction()
+
+if(UVIM_BOOTSTRAP_CONFIG_ONLY)
+    uvim_add_config_target()
+    return()
+endif()
 
 # Core editor sources
 set(UVIM_CORE_SOURCES
@@ -335,10 +370,7 @@ add_custom_command(TARGET uvim POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
 )
 
-add_executable(uvim-config src/uvim_configure.cpp)
-target_compile_definitions(uvim-config PRIVATE
-    UVIM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-)
+uvim_add_config_target()
 
 # ------------------------------------------------------------------------------
 # Terminal backend selection -> compile definitions
@@ -361,16 +393,45 @@ else()
 endif()
 
 message(STATUS "uvim terminal backend: ${_backend}")
+message(STATUS "uvim compile configuration:")
+message(STATUS "  build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  terminal backend: ${_backend}")
+message(STATUS "  optimization: ${UVIM_OPTIMIZATION_LEVEL}")
+uvim_status_bool("tests" UVIM_BUILD_TESTS)
+uvim_status_bool("compile_commands" UVIM_EXPORT_COMPILE_COMMANDS)
+uvim_status_bool("auto increment build" UVIM_AUTO_INCREMENT_BUILD)
+uvim_status_bool("LTO" UVIM_ENABLE_LTO)
+uvim_status_bool("GC sections" UVIM_ENABLE_GC_SECTIONS)
+uvim_status_bool("strip binary" UVIM_STRIP_BINARY)
+uvim_status_bool("sanitizers" UVIM_ENABLE_SANITIZERS)
+uvim_status_bool("debug logging" UVIM_DEBUG_LOGGING)
+uvim_status_bool("LSP debug logging" UVIM_DEBUG_LSP)
+message(STATUS "uvim compiled features:")
+uvim_status_bool("asm docs" UVIM_ENABLE_ASM_DOCS)
+uvim_status_bool("git tools" UVIM_ENABLE_GIT_TOOLS)
+uvim_status_bool("search tools" UVIM_ENABLE_SEARCH_TOOLS)
+uvim_status_bool("formatters" UVIM_ENABLE_FORMATTERS)
+uvim_status_bool("system clipboard" UVIM_ENABLE_SYSTEM_CLIPBOARD)
+uvim_status_bool("struct size popup" UVIM_ENABLE_STRUCT_SIZE_POPUP)
+uvim_status_bool("color tools" UVIM_ENABLE_COLOR_TOOLS)
+message(STATUS "uvim compiled LSP support:")
+uvim_status_bool("any LSP client code" UVIM_ENABLE_ANY_LSP)
+uvim_status_bool("clangd" UVIM_ENABLE_CLANGD_LSP)
+uvim_status_bool("robot" UVIM_ENABLE_ROBOT_LSP)
+uvim_status_bool("python" UVIM_ENABLE_PYTHON_LSP)
+uvim_status_bool("mlang" UVIM_ENABLE_MLANG_LSP)
+uvim_status_bool("html" UVIM_ENABLE_HTML_LSP)
+uvim_status_bool("css" UVIM_ENABLE_CSS_LSP)
+uvim_status_bool("json" UVIM_ENABLE_JSON_LSP)
+uvim_status_bool("typescript/javascript" UVIM_ENABLE_TS_LSP)
 
 # ------------------------------------------------------------------------------
 # Compiler warnings / options (portable)
 # ------------------------------------------------------------------------------
 if(MSVC)
     target_compile_options(uvim PRIVATE /W4 /permissive-)
-    target_compile_options(uvim-config PRIVATE /W4 /permissive-)
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
-    target_compile_options(uvim-config PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # ------------------------------------------------------------------------------

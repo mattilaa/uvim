@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -13,7 +14,9 @@
 #include <vector>
 
 #ifdef _WIN32
+#define NOMINMAX
 #include <conio.h>
+#include <windows.h>
 #else
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -42,6 +45,83 @@ constexpr int kKeyDown = 1002;
 constexpr int kKeyResize = 1003;
 
 int gPendingKey = 0;
+
+#ifdef _WIN32
+DWORD gOriginalOutMode = 0;
+bool gOriginalOutModeSet = false;
+
+HANDLE stdout_handle() noexcept
+{
+    return GetStdHandle(STD_OUTPUT_HANDLE);
+}
+
+void enable_console_output_mode()
+{
+    DWORD outMode = 0;
+    HANDLE out = stdout_handle();
+    if(GetConsoleMode(out, &outMode))
+    {
+        gOriginalOutMode = outMode;
+        gOriginalOutModeSet = true;
+        outMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+#ifdef ENABLE_WRAP_AT_EOL_OUTPUT
+        outMode &= ~ENABLE_WRAP_AT_EOL_OUTPUT;
+#endif
+        SetConsoleMode(out, outMode);
+    }
+}
+
+void restore_console_output_mode()
+{
+    if(gOriginalOutModeSet)
+        SetConsoleMode(stdout_handle(), gOriginalOutMode);
+}
+
+bool write_console_utf8(std::string_view text) noexcept
+{
+    if(text.empty())
+        return true;
+
+    DWORD mode = 0;
+    HANDLE out = stdout_handle();
+    if(!GetConsoleMode(out, &mode))
+        return false;
+
+    if(text.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
+        return false;
+
+    int wideLen =
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                            static_cast<int>(text.size()), nullptr, 0);
+    if(wideLen <= 0)
+        return false;
+
+    std::wstring wide(static_cast<size_t>(wideLen), L'\0');
+    wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                                  static_cast<int>(text.size()), wide.data(),
+                                  wideLen);
+    if(wideLen <= 0)
+        return false;
+
+    DWORD written = 0;
+    return WriteConsoleW(out, wide.data(), static_cast<DWORD>(wide.size()),
+                         &written, nullptr) != 0;
+}
+#endif
+
+void write_stdout(std::string_view text)
+{
+#ifdef _WIN32
+    if(write_console_utf8(text))
+        return;
+#endif
+    std::cout.write(text.data(), static_cast<std::streamsize>(text.size()));
+}
+
+void flush_stdout()
+{
+    std::cout.flush();
+}
 
 #ifndef _WIN32
 volatile std::sig_atomic_t gResizePending = 0;
@@ -90,6 +170,7 @@ struct Config
     int buildType = 0;
     int platform = 0;
     int optimization = 2;
+    bool ninjaGenerator = true;
     std::string installDir;
     std::string jobs;
     bool clangdLsp = false;
@@ -215,6 +296,19 @@ std::string bool_value(bool value)
     return value ? "ON" : "OFF";
 }
 
+std::string cmake_string_literal(std::string_view value)
+{
+    std::string out;
+    out.reserve(value.size());
+    for(char c : value)
+    {
+        if(c == '\\' || c == '"')
+            out.push_back('\\');
+        out.push_back(c);
+    }
+    return out;
+}
+
 std::optional<bool> parse_bool(std::string_view value)
 {
     if(equals_ci(value, "on") || equals_ci(value, "true") ||
@@ -248,7 +342,9 @@ class TerminalRawMode
 public:
     TerminalRawMode()
     {
-#ifndef _WIN32
+#ifdef _WIN32
+        enable_console_output_mode();
+#else
         if(::isatty(STDIN_FILENO) && ::tcgetattr(STDIN_FILENO, &original) == 0)
         {
             termios raw = original;
@@ -265,7 +361,9 @@ public:
 
     ~TerminalRawMode()
     {
-#ifndef _WIN32
+#ifdef _WIN32
+        restore_console_output_mode();
+#else
         if(active)
             ::tcsetattr(STDIN_FILENO, TCSAFLUSH, &original);
 #endif
@@ -346,6 +444,16 @@ int read_key()
 TerminalSize terminal_size()
 {
 #ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if(GetConsoleScreenBufferInfo(stdout_handle(), &info))
+    {
+        TerminalSize result;
+        result.cols =
+            static_cast<int>(info.srWindow.Right - info.srWindow.Left + 1);
+        result.rows =
+            static_cast<int>(info.srWindow.Bottom - info.srWindow.Top + 1);
+        return result;
+    }
     return {};
 #else
     winsize size{};
@@ -533,6 +641,14 @@ std::vector<Section> make_sections()
            &Config::optimization, kOptimizations,
            "Release optimization flag. O2 is the default; Oz is best for "
            "minimum binary size on Clang-style toolchains."},
+          {ItemKind::Toggle,
+           "Ninja generator",
+           "",
+           &Config::ninjaGenerator,
+           nullptr,
+           {},
+           "Use CMake's Ninja generator when configuring the build. The "
+           "bootstrap and build scripts enable it only when ninja is found."},
           {ItemKind::Text,
            "Build jobs",
            "UVIM_BUILD_JOBS",
@@ -1054,6 +1170,9 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
           int scrollOffset, TerminalSize screen, std::string_view message,
           bool editingText)
 {
+    static std::vector<std::string> previousScreenLines;
+    static TerminalSize previousScreen{};
+
     const std::vector<VisibleRow> rows = visible_rows(sections);
     const int safeCursor =
         std::clamp(cursor, 0, std::max(0, static_cast<int>(rows.size()) - 1));
@@ -1144,14 +1263,47 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     if(static_cast<int>(screenLines.size()) > screen.rows)
         screenLines.resize(static_cast<size_t>(screen.rows));
 
-    std::cout << "\x1b[?25l\x1b[H\x1b[2J";
-    for(size_t i = 0; i < screenLines.size(); ++i)
+    auto cursor_position = [](size_t row) -> std::string
+    { return "\x1b[" + std::to_string(row + 1) + ";1H"; };
+
+    const bool fullRedraw =
+        previousScreenLines.empty() || previousScreen.rows != screen.rows ||
+        previousScreen.cols != screen.cols ||
+        previousScreenLines.size() != screenLines.size();
+
+    std::string output;
+    output.reserve(static_cast<size_t>(std::max(1, screen.rows)) *
+                   static_cast<size_t>(std::max(1, screen.cols + 16)));
+    output += "\x1b[?25l";
+
+    if(fullRedraw)
     {
-        if(i > 0)
-            std::cout << "\n";
-        std::cout << screenLines[i];
+        output += "\x1b[H\x1b[2J";
+        for(size_t i = 0; i < screenLines.size(); ++i)
+        {
+            if(i > 0)
+                output += "\n";
+            output += screenLines[i];
+        }
     }
-    std::cout.flush();
+    else
+    {
+        for(size_t i = 0; i < screenLines.size(); ++i)
+        {
+            if(screenLines[i] == previousScreenLines[i])
+                continue;
+            output += cursor_position(i);
+            output += "\x1b[K";
+            output += screenLines[i];
+        }
+    }
+
+    if(output != "\x1b[?25l")
+        write_stdout(output);
+    flush_stdout();
+
+    previousScreenLines = std::move(screenLines);
+    previousScreen = screen;
 }
 
 fs::path output_path(const CliOptions& options)
@@ -1187,6 +1339,17 @@ std::string install_command_suffix(const CliOptions& options)
         return {};
     return " && cmake --install " + fs::absolute(options.buildDir).string() +
            " --component uvim";
+}
+
+std::string configure_command(const Config& cfg, const CliOptions& options,
+                              const fs::path& cacheFile)
+{
+    std::string command = "cmake -C " + cacheFile.string() + " -S " +
+                          fs::absolute(options.sourceDir).string() + " -B " +
+                          fs::absolute(options.buildDir).string();
+    if(cfg.ninjaGenerator)
+        command += " -G Ninja";
+    return command;
 }
 
 std::string build_command(const Config& cfg, const CliOptions& options)
@@ -1245,6 +1408,16 @@ bool apply_config_value(Config& cfg, CliOptions& options,
             return false;
         }
         cfg.optimization = *index;
+    }
+    else if(key == "ninja_generator")
+    {
+        auto parsed = parse_bool(value);
+        if(!parsed)
+        {
+            error = "invalid ninja_generator value '" + value + "'";
+            return false;
+        }
+        cfg.ninjaGenerator = *parsed;
     }
     else if(key == "jobs")
         cfg.jobs = value;
@@ -1402,6 +1575,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
          << "\n";
     file << "optimization="
          << kOptimizations[static_cast<size_t>(cfg.optimization)] << "\n";
+    file << "ninja_generator=" << bool_value(cfg.ninjaGenerator) << "\n";
     file << "jobs=" << cfg.jobs << "\n";
     file << "install_dir=" << cfg.installDir << "\n";
     file << "install_after_build=" << bool_value(options.installAfterBuild)
@@ -1453,13 +1627,17 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
         return false;
     }
 
-    file << "# Generated by uvim-config. Pass with: cmake -C " << out.string()
-         << " -S " << fs::absolute(options.sourceDir).string() << " -B "
-         << fs::absolute(options.buildDir).string() << "\n";
+    file << "# Generated by uvim-config. Pass with: "
+         << configure_command(cfg, options, out) << "\n";
     const fs::path installDir =
         expand_user_path(cfg.installDir, fs::absolute(options.sourceDir));
-    file << "set(CMAKE_INSTALL_PREFIX \"/\" CACHE PATH \"\" FORCE)\n";
-    file << "set(UVIM_INSTALL_BINDIR \"" << installDir.string()
+    const fs::path installPrefix =
+        fs::absolute(options.buildDir / "install").lexically_normal();
+    file << "set(CMAKE_INSTALL_PREFIX \""
+         << cmake_string_literal(installPrefix.string())
+         << "\" CACHE PATH \"\" FORCE)\n";
+    file << "set(UVIM_INSTALL_BINDIR \""
+         << cmake_string_literal(installDir.string())
          << "\" CACHE STRING \"\" FORCE)\n";
     for(const auto& section : sections)
     {
@@ -1468,10 +1646,14 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
             if(item.kind == ItemKind::Choice)
             {
                 file << "set(" << item.cmakeName << " \""
-                     << item.choices[static_cast<size_t>(cfg.*(item.choice))]
+                     << cmake_string_literal(
+                            item.choices[static_cast<size_t>(
+                                cfg.*(item.choice))])
                      << "\" CACHE STRING \"\" FORCE)\n";
             }
             else if(item.kind == ItemKind::Text)
+                continue;
+            else if(item.cmakeName.empty())
                 continue;
             else if(item.kind == ItemKind::Toggle)
             {
@@ -1482,9 +1664,7 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
         }
     }
 
-    message = "saved. Run: cmake -C " + out.string() + " -S " +
-              fs::absolute(options.sourceDir).string() + " -B " +
-              fs::absolute(options.buildDir).string() + " && " +
+    message = "saved. Run: " + configure_command(cfg, options, out) + " && " +
               build_command(cfg, options) + install_command_suffix(options);
     std::string configError;
     if(!write_config_file(cfg, options, configError))
@@ -1510,6 +1690,9 @@ void print_help(std::ostream& out)
         << join_choices(kPlatforms) << " (default: AUTO).\n"
         << "  -O, --optimization LEVEL    Release optimization: "
         << join_choices(kOptimizations) << " (default: O2).\n"
+        << "      --ninja                 Use CMake's Ninja generator "
+           "(default: on).\n"
+        << "      --no-ninja              Do not request the Ninja generator.\n"
         << "  -j, --jobs N                Parallel build jobs (default: max "
            "hardware cores).\n"
         << "  -S, --source-dir DIR        Source directory for the printed "
@@ -1689,6 +1872,14 @@ bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
                 return false;
             }
             cfg.optimization = *index;
+        }
+        else if(arg == "--ninja")
+        {
+            cfg.ninjaGenerator = true;
+        }
+        else if(arg == "--no-ninja")
+        {
+            cfg.ninjaGenerator = false;
         }
         else if(arg == "-j" || arg == "--jobs")
         {
@@ -1959,19 +2150,20 @@ int main(int argc, char** argv)
     bool saveOnExit = hadConfigFile;
     if(!hadConfigFile)
     {
-        std::cout << "\x1b[?25h\x1b[0m\nsave default config (y/n)? ";
-        std::cout.flush();
+        write_stdout("\x1b[?25h\x1b[0m\nsave default config (y/n)? ");
+        flush_stdout();
         int answer = 0;
         while(answer != 'y' && answer != 'Y' && answer != 'n' && answer != 'N')
             answer = read_key();
         saveOnExit = answer == 'y' || answer == 'Y';
-        std::cout << static_cast<char>(answer) << "\n";
+        char answerText[2] = {static_cast<char>(answer), '\n'};
+        write_stdout(std::string_view(answerText, 2));
     }
 
     std::string exitSaveError;
     if(saveOnExit)
         write_config_file(cfg, options, exitSaveError);
-    std::cout << "\x1b[?25h\x1b[0m\n";
+    write_stdout("\x1b[?25h\x1b[0m\n");
     if(!exitSaveError.empty())
         std::cerr << "uvim-config: " << exitSaveError << "\n";
     return 0;

@@ -39,6 +39,21 @@ function Get-ConfigValue($Path, $Key) {
     return $match.Substring($prefix.Length)
 }
 
+function Test-Truthy($Value) {
+    return $Value -eq "ON" -or $Value -eq "true" -or $Value -eq "yes" -or $Value -eq "1"
+}
+
+function Test-NinjaAvailable {
+    return $null -ne (Get-Command ninja -ErrorAction SilentlyContinue)
+}
+
+function Stop-IfNativeCommandFailed($CommandName) {
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "$CommandName failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+    }
+}
+
 $i = 0
 while ($i -lt $args.Count) {
     $arg = $args[$i]
@@ -80,7 +95,25 @@ if ([string]::IsNullOrEmpty($Jobs) -and (Test-Path -LiteralPath $ConfigFile)) {
     $Jobs = Get-ConfigValue $ConfigFile "jobs"
 }
 
-cmake -S . -B $BuildDir
+$UseNinja = $false
+if (Test-NinjaAvailable) {
+    if (Test-Path -LiteralPath $ConfigFile) {
+        $NinjaConfig = Get-ConfigValue $ConfigFile "ninja_generator"
+        $UseNinja = [string]::IsNullOrEmpty($NinjaConfig) -or (Test-Truthy $NinjaConfig)
+    } else {
+        $UseNinja = $true
+    }
+}
+
+$ConfigureArgs = @("-S", ".", "-B", $BuildDir, "-DUVIM_BOOTSTRAP_CONFIG_ONLY=ON", "-DCMAKE_BUILD_TYPE=Release")
+$ConfigureCommand = "cmake -S . -B $BuildDir -DUVIM_BOOTSTRAP_CONFIG_ONLY=ON -DCMAKE_BUILD_TYPE=Release"
+if ($UseNinja) {
+    $ConfigureArgs += @("-G", "Ninja")
+    $ConfigureCommand += " -G Ninja"
+}
+Write-Host $ConfigureCommand
+cmake @ConfigureArgs
+Stop-IfNativeCommandFailed "cmake configure"
 if (![string]::IsNullOrEmpty($Jobs)) {
     Write-Host "cmake --build $BuildDir --target uvim-config --parallel $Jobs"
     cmake --build $BuildDir --target uvim-config --parallel $Jobs
@@ -88,3 +121,4 @@ if (![string]::IsNullOrEmpty($Jobs)) {
     Write-Host "cmake --build $BuildDir --target uvim-config"
     cmake --build $BuildDir --target uvim-config
 }
+Stop-IfNativeCommandFailed "cmake build"

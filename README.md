@@ -85,6 +85,9 @@ Use `./bootstrap.sh --build-dir out/build` to choose another CMake build
 directory. Use `./bootstrap.sh --jobs 8` to set parallel build jobs; when
 `uvim-config.conf` exists in the build directory, bootstrap uses its saved
 `jobs=` value by default.
+When `ninja` is available, bootstrap uses CMake's Ninja generator by default.
+The saved `ninja_generator=` setting controls this behavior after
+`uvim-config` has written a config file.
 After saving from `uvim-config`, run `./build.sh` to import
 `build/uvim-config.conf`, regenerate `build/uvim_config_cache.cmake`, configure
 CMake, and build with the saved jobs value. Use `./build.sh --target uvim` to
@@ -122,8 +125,8 @@ cmake --build build --parallel 8
 ```
 
 Run `./build/uvim-config --help` for all command-line options, including
-`--platform`, `--jobs`, `--build-dir`, `--import`, `--install-dir`,
-`--install`, `--output`, `--enable`, and `--disable`.
+`--platform`, `--ninja`, `--no-ninja`, `--jobs`, `--build-dir`, `--import`,
+`--install-dir`, `--install`, `--output`, `--enable`, and `--disable`.
 
 The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,
