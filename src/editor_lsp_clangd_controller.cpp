@@ -5,6 +5,22 @@
 #endif
 #include <filesystem>
 #include <memory>
+#include <string>
+#include <vector>
+
+namespace
+{
+std::string path_for_clangd_glob(std::filesystem::path path)
+{
+    std::string out = path.lexically_normal().string();
+    for(char& c : out)
+    {
+        if(c == '\\')
+            c = '/';
+    }
+    return out;
+}
+} // namespace
 
 void Editor::enableClangdLspImpl(bool enable,
                                  const std::string& compileCommandsDir,
@@ -64,6 +80,25 @@ void Editor::enableClangdLspImpl(bool enable,
     std::string qd = clangdLspQueryDriverAllowList;
     if(qd.empty())
     {
+#ifdef _WIN32
+        std::vector<std::string> globs = {
+            "C:/Program Files/LLVM/bin/*clang*.exe",
+            "C:/Program Files/LLVM/bin/clang++.exe",
+            "C:/Program Files/LLVM/bin/clang-cl.exe",
+            "C:/Program Files/Microsoft Visual Studio/*/*/VC/Tools/MSVC/*/bin/*/*/cl.exe",
+            "C:/PROGRA~1/Microsoft Visual Studio/*/*/VC/Tools/MSVC/*/bin/*/*/cl.exe"};
+        std::filesystem::path clangdDir =
+            std::filesystem::path(clangdLspPath).parent_path();
+        if(!clangdDir.empty())
+            globs.push_back(path_for_clangd_glob(clangdDir / "*clang*.exe"));
+
+        for(size_t i = 0; i < globs.size(); ++i)
+        {
+            if(i > 0)
+                qd += ",";
+            qd += globs[i];
+        }
+#else
         // Only allow executing compilers from typical system locations.
         // clangd expects a comma-separated list of globs/paths.
         qd =
@@ -73,6 +108,7 @@ void Editor::enableClangdLspImpl(bool enable,
             "*gcc*,/usr/local/bin/*g++*,"
             "/opt/homebrew/bin/*clang*,/opt/homebrew/bin/*clang++*,/opt/"
             "homebrew/bin/*gcc*,/opt/homebrew/bin/*g++*";
+#endif
     }
 
     lspClient = std::make_unique<LspClient>();

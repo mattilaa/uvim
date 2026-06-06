@@ -673,6 +673,57 @@ static std::vector<std::string> split_args(std::string_view input)
 
 static std::string find_in_path(const std::string& exe)
 {
+    if(exe.empty())
+        return "";
+
+    std::vector<std::string> executableNames{exe};
+#ifdef _WIN32
+    const bool hasExtension = fs::path(exe).has_extension();
+    if(!hasExtension)
+    {
+        const char* pathext = std::getenv("PATHEXT");
+        std::string extensions =
+            (pathext && *pathext) ? pathext : ".COM;.EXE;.BAT;.CMD";
+        size_t extStart = 0;
+        while(extStart <= extensions.size())
+        {
+            size_t extEnd = extensions.find(';', extStart);
+            if(text_utils::is_not_found(extEnd))
+                extEnd = extensions.size();
+            if(extEnd > extStart)
+            {
+                std::string ext =
+                    extensions.substr(extStart, extEnd - extStart);
+                if(!ext.empty() && ext[0] != '.')
+                    ext.insert(ext.begin(), '.');
+                executableNames.push_back(exe + ext);
+            }
+            if(extEnd == extensions.size())
+                break;
+            extStart = extEnd + 1;
+        }
+    }
+#endif
+
+    auto existing_regular_file = [](const fs::path& candidate) -> bool
+    {
+        std::error_code ec;
+        return fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec);
+    };
+
+    fs::path exePath(exe);
+    if(exePath.is_absolute() || text_utils::contains(exe, '/') ||
+       text_utils::contains(exe, '\\'))
+    {
+        for(const auto& name : executableNames)
+        {
+            fs::path candidate = (name == exe) ? exePath : fs::path(name);
+            if(existing_regular_file(candidate))
+                return candidate.string();
+        }
+        return "";
+    }
+
     const char* path = std::getenv("PATH");
     if(!path || !*path)
         return "";
@@ -681,17 +732,22 @@ static std::string find_in_path(const std::string& exe)
     size_t start = 0;
     while(start < pathView.size())
     {
+#ifdef _WIN32
+        size_t end = pathView.find(';', start);
+#else
         size_t end = pathView.find(':', start);
+#endif
         if(text_utils::is_not_found(end))
             end = pathView.size();
         if(end > start)
         {
-            fs::path candidate =
-                fs::path(std::string(pathView.substr(start, end - start))) /
-                exe;
-            std::error_code ec;
-            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
-                return candidate.string();
+            fs::path dir(std::string(pathView.substr(start, end - start)));
+            for(const auto& name : executableNames)
+            {
+                fs::path candidate = dir / name;
+                if(existing_regular_file(candidate))
+                    return candidate.string();
+            }
         }
         start = end + 1;
     }
@@ -1392,7 +1448,8 @@ struct EditorSettings
         {
             if(path.empty())
                 return false;
-            if(text_utils::contains(path, '/'))
+            if(text_utils::contains(path, '/') ||
+               text_utils::contains(path, '\\'))
             {
                 std::error_code ec;
                 return fs::exists(path, ec) && fs::is_regular_file(path, ec);
