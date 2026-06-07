@@ -598,6 +598,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "emitasm --raw",
         "emoji",
         "em",
+        "glyphselect",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
         "ansitools",
         "colorpicker",

@@ -261,6 +261,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     return std::get<GitFixupMode>(state);
                 if(std::holds_alternative<GitPatchMode>(state))
                     return std::get<GitPatchMode>(state);
+                if(std::holds_alternative<GlyphSelectMode>(state))
+                    return std::get<GlyphSelectMode>(state);
 #ifdef UVIM_ENABLE_COLOR_TOOLS
                 if(std::holds_alternative<AnsiToolsMode>(state))
                     return std::get<AnsiToolsMode>(state);

@@ -247,6 +247,17 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == GLYPH_SELECT)
+    {
+        if(editor.modeStateMachine)
+        {
+            if(auto* state =
+                   editor.modeStateMachine->getState<GlyphSelectMode>())
+                state->draw(editor);
+        }
+        return;
+    }
+
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     if(editor.currentMode == ANSI_TOOLS)
     {

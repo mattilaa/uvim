@@ -16,6 +16,7 @@
 #include "git_patch_mode.h"
 #include "git_show_mode.h"
 #include "git_stage_mode.h"
+#include "glyph_select_mode.h"
 #include "grep_search_mode.h"
 #include "help_mode.h"
 #include "insert_mode.h"
