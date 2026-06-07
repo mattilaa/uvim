@@ -29,6 +29,7 @@ constexpr std::array<std::u8string_view, 8> kPartialBlocks = {
 constexpr std::u8string_view kFullBlock = u8"█";
 constexpr std::u8string_view kEmptyBlock = u8"░";
 constexpr std::string_view kAnsiLiteralPrefix = "\\x1b[";
+constexpr std::string_view kAnsiEscapePrefix = "\x1b[";
 
 struct Rgb
 {
@@ -147,15 +148,27 @@ std::optional<std::vector<int>> parseParams(std::string_view body)
 
 std::optional<ParsedSequence> parseSequenceAt(std::string_view line, int start)
 {
-    if(start < 0 || (std::size_t)start + kAnsiLiteralPrefix.size() > line.size())
+    if(start < 0)
         return std::nullopt;
-    if(line.substr((std::size_t)start, kAnsiLiteralPrefix.size()) !=
-       kAnsiLiteralPrefix)
+    std::size_t prefixSize = 0;
+    if((std::size_t)start + kAnsiLiteralPrefix.size() <= line.size() &&
+       line.substr((std::size_t)start, kAnsiLiteralPrefix.size()) ==
+           kAnsiLiteralPrefix)
+    {
+        prefixSize = kAnsiLiteralPrefix.size();
+    }
+    else if((std::size_t)start + kAnsiEscapePrefix.size() <= line.size() &&
+            line.substr((std::size_t)start, kAnsiEscapePrefix.size()) ==
+                kAnsiEscapePrefix)
+    {
+        prefixSize = kAnsiEscapePrefix.size();
+    }
+    else
     {
         return std::nullopt;
     }
 
-    const std::size_t bodyStart = (std::size_t)start + kAnsiLiteralPrefix.size();
+    const std::size_t bodyStart = (std::size_t)start + prefixSize;
     const std::size_t marker = line.find('m', bodyStart);
     if(marker == std::string_view::npos)
         return std::nullopt;
@@ -174,8 +187,12 @@ std::vector<ParsedSequence> parseSequences(std::string_view line)
     std::size_t pos = 0;
     while(pos < line.size())
     {
-        const std::size_t found = line.find(kAnsiLiteralPrefix, pos);
-        if(found == std::string_view::npos)
+        const std::size_t literal = line.find(kAnsiLiteralPrefix, pos);
+        const std::size_t escape = line.find(kAnsiEscapePrefix, pos);
+        const std::size_t found =
+            std::min(literal == std::string_view::npos ? line.size() : literal,
+                     escape == std::string_view::npos ? line.size() : escape);
+        if(found == line.size())
             break;
         std::optional<ParsedSequence> sequence =
             parseSequenceAt(line, (int)found);
@@ -245,9 +262,11 @@ void applyParams(ColorSelectorMode& mode, const std::vector<int>& params)
     }
 }
 
-std::optional<AnsiLiteralSpan> spanAtCursor(
+std::optional<AnsiLiteralSpan> spanAtOrBeforeCursor(
     const std::vector<ParsedSequence>& sequences, int cursorX)
 {
+    std::optional<AnsiLiteralSpan> previous;
+    std::optional<AnsiLiteralSpan> nextSpan;
     for(std::size_t i = 0; i < sequences.size();)
     {
         int start = sequences[i].start;
@@ -261,10 +280,14 @@ std::optional<AnsiLiteralSpan> spanAtCursor(
 
         if(cursorX >= start && cursorX <= end)
             return AnsiLiteralSpan{start, end - start};
+        if(end <= cursorX)
+            previous = AnsiLiteralSpan{start, end - start};
+        else if(start >= cursorX && !nextSpan)
+            nextSpan = AnsiLiteralSpan{start, end - start};
 
         i = next;
     }
-    return std::nullopt;
+    return previous ? previous : nextSpan;
 }
 
 int& activeComponent(ColorSelectorMode& mode)
@@ -453,7 +476,8 @@ std::optional<ColorSelectorMode> ColorSelectorMode::fromAnsiLiteralAtCursor(
     const std::string& line = (*editor.lines)[row];
     const std::vector<ParsedSequence> sequences = parseSequences(line);
     std::optional<AnsiLiteralSpan> span =
-        spanAtCursor(sequences, std::clamp(*editor.cursorX, 0, (int)line.size()));
+        spanAtOrBeforeCursor(sequences,
+                             std::clamp(*editor.cursorX, 0, (int)line.size()));
     if(!span)
         return std::nullopt;
 
@@ -471,6 +495,33 @@ std::optional<ColorSelectorMode> ColorSelectorMode::fromAnsiLiteralAtCursor(
     mode.replaceRow = row;
     mode.replaceStartX = span->start;
     mode.replaceLength = span->length;
+    return mode;
+}
+
+std::optional<ColorSelectorMode>
+ColorSelectorMode::fromAnsiLiteralAtCursorAndRemove(Editor& editor)
+{
+    std::optional<ColorSelectorMode> mode = fromAnsiLiteralAtCursor(editor);
+    if(!mode || !editor.lines || !editor.cursorX || !editor.cursorY ||
+       mode->replaceRow < 0 ||
+       mode->replaceRow >= (int)editor.lines->size())
+    {
+        return std::nullopt;
+    }
+
+    std::string& line = (*editor.lines)[mode->replaceRow];
+    const int start = std::clamp(mode->replaceStartX, 0, (int)line.size());
+    const int length =
+        std::clamp(mode->replaceLength, 0, (int)line.size() - start);
+    line.erase((std::size_t)start, (std::size_t)length);
+    *editor.cursorY = mode->replaceRow;
+    *editor.cursorX = start;
+    if(editor.dirty)
+        *editor.dirty = true;
+    editor.saveState();
+
+    mode->replaceStartX = start;
+    mode->replaceLength = 0;
     return mode;
 }
 

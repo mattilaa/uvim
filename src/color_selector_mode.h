@@ -43,6 +43,8 @@ struct ColorSelectorMode
                                            bool useBackground);
     static std::optional<ColorSelectorMode> fromAnsiLiteralAtCursor(
         const Editor& editor);
+    static std::optional<ColorSelectorMode> fromAnsiLiteralAtCursorAndRemove(
+        Editor& editor);
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

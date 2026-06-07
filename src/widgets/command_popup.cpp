@@ -75,6 +75,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Insert ANSI color escape code";
     if(cmd == "colorpicker bg")
         return "Insert ANSI background color escape code";
+    if(cmd == "colorselect")
+        return "Edit ANSI color escape code under cursor";
     if(cmd == "colorselector")
         return "Select RGB ANSI foreground/background style";
     if(cmd == "colorselector bg")

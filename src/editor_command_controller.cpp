@@ -601,6 +601,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
 #ifdef UVIM_ENABLE_COLOR_TOOLS
         "colorpicker",
         "colorpicker bg",
+        "colorselect",
         "colorselector",
         "colorselector bg",
 #endif
