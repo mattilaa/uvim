@@ -2,6 +2,7 @@
 
 #include "buffer_browser_mode.h"
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+#include "ansi_tools_mode.h"
 #include "color_picker_mode.h"
 #include "color_selector_mode.h"
 #endif

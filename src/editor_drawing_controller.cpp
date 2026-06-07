@@ -248,6 +248,17 @@ void EditorDrawingController::refreshScreen()
     }
 
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+    if(editor.currentMode == ANSI_TOOLS)
+    {
+        if(editor.modeStateMachine)
+        {
+            if(auto* state =
+                   editor.modeStateMachine->getState<AnsiToolsMode>())
+                state->draw(editor);
+        }
+        return;
+    }
+
     if(editor.currentMode == COLOR_PICKER)
     {
         if(editor.modeStateMachine)

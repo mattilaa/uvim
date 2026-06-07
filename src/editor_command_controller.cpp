@@ -599,6 +599,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "emoji",
         "em",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+        "ansitools",
         "colorpicker",
         "colorselect",
 #endif

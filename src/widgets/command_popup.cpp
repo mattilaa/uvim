@@ -71,6 +71,8 @@ static std::string_view command_doc(std::string_view cmd)
     if(cmd == "emoji" || cmd == "em")
         return "Open emoji picker";
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+    if(cmd == "ansitools")
+        return "Insert common ANSI control escape code";
     if(cmd == "colorpicker")
         return "Insert ANSI color escape code";
     if(cmd == "colorselect")

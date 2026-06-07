@@ -424,6 +424,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "                       `--raw` keeps clang's full assembler "
             "output",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+            "  `:ansitools`       - Insert common ANSI control escape",
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
             "  `:colorselect`     - Select or edit RGB ANSI color style",
 #endif

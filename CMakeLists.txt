@@ -350,8 +350,10 @@ endif()
 
 if(UVIM_ENABLE_COLOR_TOOLS)
     list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/editor_execution_ansi_tools_command.cpp
         src/editor_execution_color_picker_command.cpp
         src/editor_execution_color_selector_command.cpp
+        src/ansi_tools_mode.cpp
         src/color_picker_mode.cpp
         src/color_selector_mode.cpp
     )

@@ -1247,6 +1247,8 @@ std::string Editor::getModeString() const
         return "GIT PATCH";
     case COMMAND_OUTPUT:
         return "RUN";
+    case ANSI_TOOLS:
+        return "ANSI";
     case COLOR_PICKER:
         return "COLOR";
     case COLOR_SELECTOR:

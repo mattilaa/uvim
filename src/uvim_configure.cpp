@@ -731,8 +731,8 @@ std::vector<Section> make_sections()
            &Config::colorTools,
            nullptr,
            {},
-           "Build switch for :colorpicker, :colorselect, and leader-cp/cs "
-           "shortcuts."}}},
+           "Build switch for :ansitools, :colorpicker, :colorselect, and "
+           "leader-cp/cs shortcuts."}}},
         {"Language Servers",
          "Per-language LSP integrations. Full enables all of these by "
          "default; smaller presets compile them out unless selected here.",
@@ -1764,6 +1764,7 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
             equals_ci(name, "struct-size-popup"))
         cfg.structSizePopup = enabled;
     else if(equals_ci(name, "color-tools") || equals_ci(name, "color") ||
+            equals_ci(name, "ansitools") || equals_ci(name, "ansi-tools") ||
             equals_ci(name, "colorpicker") || equals_ci(name, "color-picker") ||
             equals_ci(name, "colorselect") ||
             equals_ci(name, "color-selector"))
