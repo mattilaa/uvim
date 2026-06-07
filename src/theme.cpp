@@ -1,4 +1,5 @@
 #include "theme.h"
+#include "color_constant.h"
 #include "terminal.h"
 #include "text_utils.h"
 
@@ -338,18 +339,14 @@ std::string Theme::fgSeq(const Color& c)
 {
     if(!c.set)
         return "";
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "\x1b[38;2;%d;%d;%dm", c.r, c.g, c.b);
-    return std::string(buf);
+    return color::rgbFg(c.r, c.g, c.b);
 }
 
 std::string Theme::bgSeq(const Color& c)
 {
     if(!c.set)
         return "";
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm", c.r, c.g, c.b);
-    return std::string(buf);
+    return color::rgbBg(c.r, c.g, c.b);
 }
 
 bool Theme::parseHexColor(std::string_view value, Color& out)

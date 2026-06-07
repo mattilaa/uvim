@@ -1,3 +1,6 @@
+#ifdef UVIM_ENABLE_COLOR_TOOLS
+#include "color_selector_mode.h"
+#endif
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -1345,6 +1348,13 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_D):
         // gd - go to definition
+#ifdef UVIM_ENABLE_COLOR_TOOLS
+        if(std::optional<ColorSelectorMode> selector =
+               ColorSelectorMode::fromAnsiLiteralAtCursor(*ed))
+        {
+            return *selector;
+        }
+#endif
         ed->goToDefinition();
         break;
 

@@ -1,4 +1,5 @@
 #include "asm_documentation.h"
+#include "color_constant.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -3466,6 +3467,58 @@ TEST(RealModeTransitionsTest, BufferBrowserCtrlShiftXAllMatchesReturnsWelcome)
     EXPECT_EQ(editor.currentMode, WELCOME);
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
+
+#ifdef UVIM_ENABLE_COLOR_TOOLS
+TEST(RealModeTransitionsTest, ColorPickerCanJumpToRgbSelector)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto sm = makeMachine(editor, ColorPickerMode{});
+    sm.dispatch('l');
+    sm.dispatch('l');
+    sm.dispatch('s');
+
+    ASSERT_STREQ(sm.currentStateName(), "COLOR_SELECTOR");
+    auto* selector = sm.getState<ColorSelectorMode>();
+    ASSERT_NE(selector, nullptr);
+    EXPECT_EQ(selector->fgRed, 170);
+    EXPECT_EQ(selector->fgGreen, 0);
+    EXPECT_EQ(selector->fgBlue, 0);
+    EXPECT_EQ(selector->active, 0);
+}
+
+TEST(RealModeTransitionsTest, GdOnAnsiLiteralOpensSelectorAndReplacesLiteral)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"a \\x1b[31m text"};
+    *editor.cursorX = 2;
+    *editor.cursorY = 0;
+    editor.saveState();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    Terminal::unreadKey('d');
+    sm.dispatch('g');
+
+    ASSERT_STREQ(sm.currentStateName(), "COLOR_SELECTOR");
+    auto* selector = sm.getState<ColorSelectorMode>();
+    ASSERT_NE(selector, nullptr);
+    EXPECT_TRUE(selector->replacing);
+    EXPECT_EQ(selector->replaceStartX, 2);
+    EXPECT_EQ(selector->replaceLength, 8);
+
+    sm.dispatch('L');
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    const std::string expected =
+        std::string("a ") + color::rgbLiteralFg(180, 0, 0) +
+        color::rgbLiteralBg(0, 0, 0) + " text";
+    EXPECT_EQ(editor.currentBuffer->lines[0], expected);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+#endif
 
 TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirty)
 {

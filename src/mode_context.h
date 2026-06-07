@@ -69,6 +69,7 @@ struct ModeContext
     bool hasFilename() const;
     std::string_view currentFilename() const;
     Mode currentMode() const;
+    void setCurrentMode(Mode mode);
 
     std::chrono::steady_clock::time_point& lastEscTime();
     bool hasSearchMatches() const;

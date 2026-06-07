@@ -4,7 +4,174 @@
 #include "mode_state_machine.h"
 #include "terminal.h"
 
+#include <optional>
+
 using namespace editor::statemachine;
+
+namespace
+{
+class ModeChangeRecognizer
+{
+public:
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const WelcomeMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const NormalMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const InsertMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ReplaceMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const VisualMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const VisualLineMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const VisualBlockMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const CommandMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const SearchForwardMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const SearchBackwardMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const FileBrowserMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const FuzzyFindMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const BufferBrowserMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GrepSearchMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const RegexSearchMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const OperatorPendingMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ReferencesMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const LspInfoMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const LocListMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const HelpMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitShowCommitMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitLogMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitStageMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitCommitMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitFixupMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GitPatchMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const CommandOutputMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+#ifdef UVIM_ENABLE_COLOR_TOOLS
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ColorPickerMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ColorSelectorMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+#endif
+
+private:
+    template <typename State>
+    std::optional<Mode> recognize(ModeContext& ctx, const State& state) const
+    {
+        Mode nextMode = modeForState(ModeState{state});
+        if(nextMode == ctx.currentMode())
+            return {};
+        return nextMode;
+    }
+};
+} // namespace
 
 EditorModeController::EditorModeController(Editor& editor) : editor(editor) {}
 
@@ -30,129 +197,19 @@ void EditorModeController::syncModeFromStateMachine()
         return;
     }
 
-    Mode prevMode = editor.currentMode;
     const ModeState& state = editor.modeStateMachine->state();
-    if(std::holds_alternative<WelcomeMode>(state))
+    ModeContext ctx = createModeContext(&editor);
+    std::optional<Mode> nextMode =
+        std::visit([&ctx](const auto& concreteState) -> std::optional<Mode>
+                   { return ModeChangeRecognizer{}(ctx, concreteState); },
+                   state);
+    if(!nextMode)
     {
-        editor.currentMode = WELCOME;
+        return;
     }
-    else if(std::holds_alternative<NormalMode>(state))
-    {
-        editor.currentMode = NORMAL;
-    }
-    else if(std::holds_alternative<InsertMode>(state))
-    {
-        editor.currentMode = INSERT;
-    }
-    else if(std::holds_alternative<ReplaceMode>(state))
-    {
-        editor.currentMode = REPLACE;
-    }
-    else if(std::holds_alternative<VisualMode>(state))
-    {
-        editor.currentMode = VISUAL;
-    }
-    else if(std::holds_alternative<VisualLineMode>(state))
-    {
-        editor.currentMode = VISUAL_LINE;
-    }
-    else if(std::holds_alternative<VisualBlockMode>(state))
-    {
-        editor.currentMode = VISUAL_BLOCK;
-    }
-    else if(std::holds_alternative<CommandMode>(state))
-    {
-        editor.currentMode = COMMAND;
-    }
-    else if(std::holds_alternative<SearchForwardMode>(state))
-    {
-        editor.currentMode = SEARCH_FORWARD;
-    }
-    else if(std::holds_alternative<SearchBackwardMode>(state))
-    {
-        editor.currentMode = SEARCH_BACKWARD;
-    }
-    else if(std::holds_alternative<FileBrowserMode>(state))
-    {
-        editor.currentMode = FILE_BROWSER;
-    }
-    else if(std::holds_alternative<FuzzyFindMode>(state))
-    {
-        editor.currentMode = FUZZY_FIND;
-    }
-    else if(std::holds_alternative<BufferBrowserMode>(state))
-    {
-        editor.currentMode = BUFFER_BROWSER;
-    }
-    else if(std::holds_alternative<GrepSearchMode>(state))
-    {
-        editor.currentMode = GREP_SEARCH;
-    }
-    else if(std::holds_alternative<RegexSearchMode>(state))
-    {
-        editor.currentMode = REGEX_SEARCH;
-    }
-    else if(std::holds_alternative<OperatorPendingMode>(state))
-    {
-        editor.currentMode = OP_PENDING;
-    }
-    else if(std::holds_alternative<ReferencesMode>(state))
-    {
-        editor.currentMode = REFERENCES;
-    }
-    else if(std::holds_alternative<LspInfoMode>(state))
-    {
-        editor.currentMode = LSP_INFO;
-    }
-    else if(std::holds_alternative<LocListMode>(state))
-    {
-        editor.currentMode = LOC_LIST;
-    }
-    else if(std::holds_alternative<HelpMode>(state))
-    {
-        editor.currentMode = HELP;
-    }
-    else if(std::holds_alternative<GitShowCommitMode>(state))
-    {
-        editor.currentMode = GIT_SHOW;
-    }
-    else if(std::holds_alternative<GitLogMode>(state))
-    {
-        editor.currentMode = GIT_LOG;
-    }
-    else if(std::holds_alternative<GitStageMode>(state))
-    {
-        editor.currentMode = GIT_STAGE;
-    }
-    else if(std::holds_alternative<GitCommitMode>(state))
-    {
-        editor.currentMode = GIT_COMMIT;
-    }
-    else if(std::holds_alternative<GitFixupMode>(state))
-    {
-        editor.currentMode = GIT_FIXUP;
-    }
-    else if(std::holds_alternative<GitPatchMode>(state))
-    {
-        editor.currentMode = GIT_PATCH;
-    }
-    else if(std::holds_alternative<CommandOutputMode>(state))
-    {
-        editor.currentMode = COMMAND_OUTPUT;
-    }
-#ifdef UVIM_ENABLE_COLOR_TOOLS
-    else if(std::holds_alternative<ColorPickerMode>(state))
-    {
-        editor.currentMode = COLOR_PICKER;
-    }
-    else if(std::holds_alternative<ColorSelectorMode>(state))
-    {
-        editor.currentMode = COLOR_SELECTOR;
-    }
-#endif
 
-    if(editor.currentMode != prevMode)
-        editor.needsFullRedraw = true;
+    ctx.setCurrentMode(*nextMode);
+    ctx.requestFullRedraw();
 }
 
 void EditorModeController::handleKeypress(int c)

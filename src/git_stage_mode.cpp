@@ -1,4 +1,5 @@
 #include "ascii.h"
+#include "color_constant.h"
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
@@ -282,9 +283,7 @@ std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
 
 std::string bg_rgb(int r, int g, int b)
 {
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm", r, g, b);
-    return buf;
+    return color::rgbBg(r, g, b);
 }
 
 std::string status_path_bg(GitStageMode::FileGroup group)

@@ -165,7 +165,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == HELP)
     {
-        if(!editor.needsFullRedraw)
+        if(!needsFullRedraw())
             return;
         if(editor.modeStateMachine)
         {
@@ -286,7 +286,7 @@ void EditorDrawingController::refreshScreen()
             {
                 editor.currentBuffer->lspDiagnosticsSeenRevision = revision;
                 editor.currentBuffer->lspDiagnosticsSeenValid = true;
-                editor.needsFullRedraw = true;
+                setNeedsFullRedraw(true);
             }
         }
         editor.syncClangdDiagnosticsIfNeeded(false);
@@ -305,7 +305,7 @@ void EditorDrawingController::refreshScreen()
         lastFrameCursorY = *editor.cursorY;
         lastFrameCommandPopupActive = editor.commandPopupActive;
         lastFrameCommandHistoryPopupActive = editor.commandHistorySearchActive;
-        editor.needsFullRedraw = false;
+        setNeedsFullRedraw(false);
         return;
     }
 
@@ -351,7 +351,7 @@ void EditorDrawingController::refreshScreen()
                                 *editor.offsetX == lastFrameOffsetX &&
                                 !visualChanged && !commandPopupChanged;
 
-    if(modeChanged || (editor.needsFullRedraw && !commandOverlayStable) ||
+    if(modeChanged || (needsFullRedraw() && !commandOverlayStable) ||
        *editor.offsetX != lastFrameOffsetX ||
        std::abs(scrollDelta) > editor.screenRows / 2 || visualChanged ||
        (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
@@ -404,7 +404,7 @@ void EditorDrawingController::refreshScreen()
     lastFrameCursorY = *editor.cursorY;
     lastFrameCommandPopupActive = editor.commandPopupActive;
     lastFrameCommandHistoryPopupActive = editor.commandHistorySearchActive;
-    editor.needsFullRedraw = false;
+    setNeedsFullRedraw(false);
 }
 
 void EditorDrawingController::updateCursorPosition(bool flushNow)
@@ -455,17 +455,42 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     if(flushNow)
         Terminal::flush();
 
-    editor.lastCursorScreenY = cursorRow;
-    editor.lastCursorScreenX = cursorCol;
+    setLastCursorScreenPosition(cursorRow, cursorCol);
 }
 
 void EditorDrawingController::draw()
 {
     refreshScreen();
-    editor.needsFullRedraw = false;
+    setNeedsFullRedraw(false);
 }
 
 void EditorDrawingController::forceFullRedraw()
 {
-    editor.needsFullRedraw = true;
+    setNeedsFullRedraw(true);
+}
+
+void EditorDrawingController::setNeedsFullRedraw(bool value)
+{
+    needsFullRedraw_ = value;
+}
+
+bool EditorDrawingController::needsFullRedraw() const
+{
+    return needsFullRedraw_;
+}
+
+void EditorDrawingController::setLastCursorScreenPosition(int row, int col)
+{
+    lastCursorScreenY_ = row;
+    lastCursorScreenX_ = col;
+}
+
+int EditorDrawingController::lastCursorScreenY() const
+{
+    return lastCursorScreenY_;
+}
+
+int EditorDrawingController::lastCursorScreenX() const
+{
+    return lastCursorScreenX_;
 }

@@ -60,7 +60,7 @@ int ModeContext::screenCols() const
 
 void ModeContext::requestFullRedraw()
 {
-    editor->needsFullRedraw = true;
+    editor->setNeedsFullRedraw(true);
 }
 
 void ModeContext::forceFullRedraw()
@@ -93,6 +93,11 @@ std::string_view ModeContext::currentFilename() const
 Mode ModeContext::currentMode() const
 {
     return editor->currentMode;
+}
+
+void ModeContext::setCurrentMode(Mode mode)
+{
+    editor->currentMode = mode;
 }
 
 std::chrono::steady_clock::time_point& ModeContext::lastEscTime()

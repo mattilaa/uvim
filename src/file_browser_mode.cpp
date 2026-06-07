@@ -1,4 +1,5 @@
 #include "ascii.h"
+#include "color_constant.h"
 #include "editor.h"
 #include "file_utils.h"
 #include "gitignore.h"
@@ -1979,7 +1980,7 @@ void FileBrowserMode::draw(Editor& editor) const
 
         if(index == browserCursor && isSelected)
         {
-            output += "\x1b[48;2;56;120;72m";
+            output += color::rgbBg(56, 120, 72);
             output += editor.theme.baseFg();
         }
         else if(index == browserCursor)
@@ -1990,7 +1991,7 @@ void FileBrowserMode::draw(Editor& editor) const
         }
         else if(isSelected)
         {
-            output += "\x1b[48;2;24;64;36m";
+            output += color::rgbBg(24, 64, 36);
             output += editor.theme.baseFg();
         }
         else if(searchVisualActive)

@@ -1,7 +1,7 @@
-#include "editor.h"
 #include "ascii.h"
 #include "constants.h"
 #include "cpp_navigation_utilities.h"
+#include "editor.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
@@ -144,6 +144,7 @@ static void handle_sigwinch(int)
 Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                const std::string& themePath)
 {
+    needsFullRedraw.bind(this);
     Terminal::enableRawMode();
     Terminal::getWindowSize(screenRows, screenCols);
     screenRows -= 2; // Status bar and message bar
@@ -750,6 +751,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
 #ifdef UVIM_TESTING
 Editor::Editor(TestTag /* tag */, int rows, int cols)
 {
+    needsFullRedraw.bind(this);
     screenRows = std::max(1, rows - 2);
     screenCols = std::max(1, cols);
     theme = Theme::defaults();
@@ -1183,105 +1185,7 @@ void Editor::setMode(Mode mode)
         return;
     }
 
-    switch(mode)
-    {
-    case WELCOME:
-        modeStateMachine->transitionTo(WelcomeMode{});
-        break;
-    case NORMAL:
-        modeStateMachine->transitionTo(NormalMode{});
-        break;
-    case INSERT:
-        modeStateMachine->transitionTo(InsertMode{});
-        break;
-    case REPLACE:
-        modeStateMachine->transitionTo(ReplaceMode{});
-        break;
-    case VISUAL:
-        modeStateMachine->transitionTo(VisualMode{});
-        break;
-    case VISUAL_LINE:
-        modeStateMachine->transitionTo(VisualLineMode{});
-        break;
-    case VISUAL_BLOCK:
-        modeStateMachine->transitionTo(VisualBlockMode{});
-        break;
-    case COMMAND:
-        modeStateMachine->transitionTo(CommandMode{});
-        break;
-    case SEARCH_FORWARD:
-        modeStateMachine->transitionTo(SearchForwardMode{});
-        break;
-    case SEARCH_BACKWARD:
-        modeStateMachine->transitionTo(SearchBackwardMode{});
-        break;
-    case FILE_BROWSER:
-        modeStateMachine->transitionTo(FileBrowserMode{});
-        break;
-    case FUZZY_FIND:
-        modeStateMachine->transitionTo(FuzzyFindMode{});
-        break;
-    case BUFFER_BROWSER:
-        modeStateMachine->transitionTo(BufferBrowserMode{});
-        break;
-    case GREP_SEARCH:
-        modeStateMachine->transitionTo(GrepSearchMode{});
-        break;
-    case REGEX_SEARCH:
-        modeStateMachine->transitionTo(RegexSearchMode{});
-        break;
-    case OP_PENDING:
-        modeStateMachine->transitionTo(
-            OperatorPendingMode{pendingOperator, pendingCount});
-        break;
-    case REFERENCES:
-        modeStateMachine->transitionTo(ReferencesMode{});
-        break;
-    case LSP_INFO:
-        modeStateMachine->transitionTo(LspInfoMode{});
-        break;
-    case LOC_LIST:
-        modeStateMachine->transitionTo(LocListMode{});
-        break;
-    case HELP:
-        modeStateMachine->transitionTo(HelpMode{});
-        break;
-    case GIT_SHOW:
-        modeStateMachine->transitionTo(GitShowCommitMode{});
-        break;
-    case GIT_LOG:
-        modeStateMachine->transitionTo(GitLogMode{});
-        break;
-    case GIT_STAGE:
-        modeStateMachine->transitionTo(GitStageMode{});
-        break;
-    case GIT_COMMIT:
-        modeStateMachine->transitionTo(GitCommitMode{});
-        break;
-    case GIT_FIXUP:
-        modeStateMachine->transitionTo(GitFixupMode{});
-        break;
-    case GIT_PATCH:
-        modeStateMachine->transitionTo(GitPatchMode{});
-        break;
-    case COMMAND_OUTPUT:
-        modeStateMachine->transitionTo(CommandOutputMode{});
-        break;
-#ifdef UVIM_ENABLE_COLOR_TOOLS
-    case COLOR_PICKER:
-        modeStateMachine->transitionTo(ColorPickerMode{});
-        break;
-    case COLOR_SELECTOR:
-        modeStateMachine->transitionTo(ColorSelectorMode{});
-        break;
-#else
-    case COLOR_PICKER:
-    case COLOR_SELECTOR:
-        modeStateMachine->transitionTo(NormalMode{});
-        break;
-#endif
-    }
-
+    modeStateMachine->transitionToMode(mode);
     modeController->syncModeFromStateMachine();
 }
 
@@ -1601,11 +1505,6 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
         }
     }
 #endif
-
-    //    setStatusMessage("Buffer " + std::to_string(currentBufferIndex + 1) +
-    //    "/" +
-    //                     std::to_string(buffers.size()) + " " +
-    //                     std::to_string(lines->size()) + " lines");
 }
 
 void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
@@ -3121,6 +3020,35 @@ void Editor::showFileInfo()
 void Editor::forceFullRedraw()
 {
     drawingController->forceFullRedraw();
+}
+
+Editor::RedrawFlag& Editor::RedrawFlag::operator=(bool value)
+{
+    if(editor)
+        editor->setNeedsFullRedraw(value);
+    return *this;
+}
+
+Editor::RedrawFlag::operator bool() const
+{
+    return editor && editor->needsFullRedrawValue();
+}
+
+void Editor::setNeedsFullRedraw(bool value)
+{
+    if(drawingController)
+        drawingController->setNeedsFullRedraw(value);
+}
+
+bool Editor::needsFullRedrawValue() const
+{
+    return drawingController && drawingController->needsFullRedraw();
+}
+
+void Editor::setLastCursorScreenPosition(int row, int col)
+{
+    if(drawingController)
+        drawingController->setLastCursorScreenPosition(row, col);
 }
 
 void Editor::executeOneNormalCommand(int key)
