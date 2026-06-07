@@ -73,14 +73,8 @@ static std::string_view command_doc(std::string_view cmd)
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     if(cmd == "colorpicker")
         return "Insert ANSI color escape code";
-    if(cmd == "colorpicker bg")
-        return "Insert ANSI background color escape code";
     if(cmd == "colorselect")
-        return "Edit ANSI color escape code under cursor";
-    if(cmd == "colorselector")
-        return "Select RGB ANSI foreground/background style";
-    if(cmd == "colorselector bg")
-        return "Select RGB ANSI style starting from background";
+        return "Select or edit RGB ANSI color style";
 #endif
     if(cmd == "help" || cmd == "h")
         return "Open help";

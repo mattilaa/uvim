@@ -4,58 +4,29 @@
 #include "mode_state_machine.h"
 
 #include <optional>
-#include <string>
 
 namespace command::execution
 {
 bool ColorSelectorCommand::execute(Editor& editor,
                                    const CommandRequest& request) const
 {
-    const bool editExisting = request.text == "colorselect";
-    const bool plainSelector = request.text == "colorselector";
-    if(editExisting || plainSelector)
-    {
-        if(!editor.hasBuffer())
-        {
-            editor.setStatusMessage(std::string(request.text) + ": no buffer");
-            return true;
-        }
-
-        std::optional<editor::statemachine::ColorSelectorMode> mode =
-            editor::statemachine::ColorSelectorMode::
-                fromAnsiLiteralAtCursorAndRemove(editor);
-        if(mode)
-        {
-            if(auto* stateMachine = editor.getModeStateMachine())
-                stateMachine->transitionTo(*mode);
-
-            editor.needsFullRedraw = true;
-            return true;
-        }
-
-        if(editExisting)
-        {
-            editor.setStatusMessage(
-                "colorselect: no ANSI color literal under cursor");
-            return true;
-        }
-    }
-
-    if(request.text != "colorselector" && request.text != "colorselector bg" &&
-       request.text != "colorselector background")
+    if(request.text != "colorselect")
         return false;
 
     if(!editor.hasBuffer())
     {
-        editor.setStatusMessage("colorselector: no buffer");
+        editor.setStatusMessage("colorselect: no buffer");
         return true;
     }
 
-    const bool background = request.text == "colorselector bg" ||
-                            request.text == "colorselector background";
+    std::optional<editor::statemachine::ColorSelectorMode> mode =
+        editor::statemachine::ColorSelectorMode::
+            fromAnsiLiteralAtCursorAndRemove(editor);
     if(auto* stateMachine = editor.getModeStateMachine())
+    {
         stateMachine->transitionTo(
-            editor::statemachine::ColorSelectorMode{background});
+            mode.value_or(editor::statemachine::ColorSelectorMode{false}));
+    }
 
     editor.needsFullRedraw = true;
     return true;

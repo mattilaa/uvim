@@ -8,8 +8,7 @@ namespace command::execution
 bool ColorPickerCommand::execute(Editor& editor,
                                  const CommandRequest& request) const
 {
-    if(request.text != "colorpicker" && request.text != "colorpicker bg" &&
-       request.text != "colorpicker background")
+    if(request.text != "colorpicker")
         return false;
 
     if(!editor.hasBuffer())
@@ -18,11 +17,9 @@ bool ColorPickerCommand::execute(Editor& editor,
         return true;
     }
 
-    const bool background = request.text == "colorpicker bg" ||
-                            request.text == "colorpicker background";
     if(auto* stateMachine = editor.getModeStateMachine())
         stateMachine->transitionTo(
-            editor::statemachine::ColorPickerMode{background});
+            editor::statemachine::ColorPickerMode{false});
 
     editor.needsFullRedraw = true;
     return true;

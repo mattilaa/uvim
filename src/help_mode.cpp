@@ -425,11 +425,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "output",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
-            "  `:colorpicker bg`  - Insert an ANSI background color escape",
-            "  `:colorselect`     - Edit ANSI color escape under cursor",
-            "  `:colorselector`   - Insert truecolor foreground/background "
-            "style",
-            "  `:colorselector bg` - Open RGB selector focused on background",
+            "  `:colorselect`     - Select or edit RGB ANSI color style",
 #endif
             "",
             "BUFFER MANAGEMENT:",

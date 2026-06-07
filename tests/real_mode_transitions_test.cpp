@@ -3505,7 +3505,7 @@ TEST(RealModeTransitionsTest,
                                            NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
-    dispatch_command(*sm, "colorselector");
+    dispatch_command(*sm, "colorselect");
 
     ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
     auto* selector = sm->getState<ColorSelectorMode>();
@@ -3540,7 +3540,7 @@ TEST(RealModeTransitionsTest, ColorSelectorCommandReadsRgbPairAtCursor)
                                            NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
-    dispatch_command(*sm, "colorselector");
+    dispatch_command(*sm, "colorselect");
 
     ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
     auto* selector = sm->getState<ColorSelectorMode>();
@@ -3569,7 +3569,7 @@ TEST(RealModeTransitionsTest, ColorSelectorCommandReadsRgbPairAfterCursor)
                                            NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
-    dispatch_command(*sm, "colorselector");
+    dispatch_command(*sm, "colorselect");
 
     ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
     auto* selector = sm->getState<ColorSelectorMode>();
@@ -3598,7 +3598,7 @@ TEST(RealModeTransitionsTest, ColorSelectorCommandReadsActualEscRgbPair)
                                            NormalMode{});
     ModeStateMachine* sm = smPtr.get();
     editor.setModeStateMachineForTests(std::move(smPtr));
-    dispatch_command(*sm, "colorselector");
+    dispatch_command(*sm, "colorselect");
 
     ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
     auto* selector = sm->getState<ColorSelectorMode>();
