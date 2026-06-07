@@ -11,6 +11,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iterator>
+#include <memory>
 #include <utility>
 
 using namespace editor::statemachine;
@@ -3489,34 +3490,151 @@ TEST(RealModeTransitionsTest, ColorPickerCanJumpToRgbSelector)
     EXPECT_EQ(selector->active, 0);
 }
 
-TEST(RealModeTransitionsTest, GdOnAnsiLiteralOpensSelectorAndReplacesLiteral)
+TEST(RealModeTransitionsTest,
+     ColorSelectorCommandRemovesAndReinsertsAnsiLiteralBeforeCursor)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     editor.currentBuffer->lines = {"a \\x1b[31m text"};
-    *editor.cursorX = 2;
+    *editor.cursorX = 12;
     *editor.cursorY = 0;
     editor.saveState();
 
-    auto sm = makeMachine(editor, NormalMode{});
-    Terminal::unreadKey('d');
-    sm.dispatch('g');
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "colorselect");
 
-    ASSERT_STREQ(sm.currentStateName(), "COLOR_SELECTOR");
-    auto* selector = sm.getState<ColorSelectorMode>();
+    ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
+    auto* selector = sm->getState<ColorSelectorMode>();
     ASSERT_NE(selector, nullptr);
     EXPECT_TRUE(selector->replacing);
     EXPECT_EQ(selector->replaceStartX, 2);
-    EXPECT_EQ(selector->replaceLength, 8);
+    EXPECT_EQ(selector->replaceLength, 0);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "a  text");
 
-    sm.dispatch('L');
-    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    sm->dispatch('L');
+    sm->dispatch(keyCode(control::ControlKey::ENTER));
 
     const std::string expected =
         std::string("a ") + color::rgbLiteralFg(180, 0, 0) +
         color::rgbLiteralBg(0, 0, 0) + " text";
     EXPECT_EQ(editor.currentBuffer->lines[0], expected);
-    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_STREQ(sm->currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, ColorSelectorCommandReadsRgbPairAtCursor)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {
+        "\"\\x1b[38;2;255;255;85m\\x1b[48;2;41;66;0m\""};
+    *editor.cursorX = 1;
+    *editor.cursorY = 0;
+    editor.saveState();
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "colorselect");
+
+    ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
+    auto* selector = sm->getState<ColorSelectorMode>();
+    ASSERT_NE(selector, nullptr);
+    EXPECT_EQ(selector->fgRed, 255);
+    EXPECT_EQ(selector->fgGreen, 255);
+    EXPECT_EQ(selector->fgBlue, 85);
+    EXPECT_EQ(selector->bgRed, 41);
+    EXPECT_EQ(selector->bgGreen, 66);
+    EXPECT_EQ(selector->bgBlue, 0);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"\"");
+}
+
+TEST(RealModeTransitionsTest, ColorSelectorCommandReadsRgbPairAfterCursor)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {
+        "\"\\x1b[38;2;255;255;85m\\x1b[48;2;41;66;0m\""};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+    editor.saveState();
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "colorselect");
+
+    ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
+    auto* selector = sm->getState<ColorSelectorMode>();
+    ASSERT_NE(selector, nullptr);
+    EXPECT_EQ(selector->fgRed, 255);
+    EXPECT_EQ(selector->fgGreen, 255);
+    EXPECT_EQ(selector->fgBlue, 85);
+    EXPECT_EQ(selector->bgRed, 41);
+    EXPECT_EQ(selector->bgGreen, 66);
+    EXPECT_EQ(selector->bgBlue, 0);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\"\"");
+}
+
+TEST(RealModeTransitionsTest, ColorSelectorCommandReadsActualEscRgbPair)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {
+        std::string("\x1b[38;2;255;255;85m\x1b[48;2;41;66;0mtext")};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+    editor.saveState();
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "colorselect");
+
+    ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
+    auto* selector = sm->getState<ColorSelectorMode>();
+    ASSERT_NE(selector, nullptr);
+    EXPECT_EQ(selector->fgRed, 255);
+    EXPECT_EQ(selector->fgGreen, 255);
+    EXPECT_EQ(selector->fgBlue, 85);
+    EXPECT_EQ(selector->bgRed, 41);
+    EXPECT_EQ(selector->bgGreen, 66);
+    EXPECT_EQ(selector->bgBlue, 0);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "text");
+}
+
+TEST(RealModeTransitionsTest, ColorSelectCommandEscLeavesAnsiLiteralRemoved)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"a \\x1b[31m text"};
+    *editor.cursorX = 12;
+    *editor.cursorY = 0;
+    editor.saveState();
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "colorselect");
+
+    ASSERT_STREQ(sm->currentStateName(), "COLOR_SELECTOR");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "a  text");
+
+    sm->dispatch(keyCode(control::ControlKey::ESC));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "a  text");
+    EXPECT_STREQ(sm->currentStateName(), "NORMAL");
 }
 #endif
 
