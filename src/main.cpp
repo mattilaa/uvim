@@ -2003,12 +2003,13 @@ int main(int argc, char* argv[])
 
         return 0;
     }
-    // Set custom log file path if provided
-#ifdef UVIM_DEBUG_LOGGING
+    // Error logging is always enabled; debug/info logging depends on
+    // UVIM_DEBUG_LOGGING.
     if(!opts.logFile.empty())
     {
         mla::log::setLogFilePath(opts.logFile);
     }
+#ifdef UVIM_DEBUG_LOGGING
     if(opts.logColors)
     {
         mla::log::setUseColors(true);

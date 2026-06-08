@@ -118,6 +118,9 @@ void Editor::enableClangdLspImpl(bool enable,
     if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
     {
         std::string error = lspClient->lastError();
+        LOG_ERROR(LOG, "clangd LSP failed to start. path='{}' root='{}' ccdir='{}' error='{}'",
+                  clangdLspPath, rootDir, ccdir,
+                  error.empty() ? std::string{"failed to start"} : error);
         lspClient.reset();
         if(error.empty())
         {

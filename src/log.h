@@ -55,10 +55,11 @@ static constexpr const char* resetColor()
     return "\x1b[0m";
 }
 
-// Global log file path - defaults to /tmp/uvim_debug.log
+// Global log file path. Error logs are always enabled; debug/info logs are
+// gated by UVIM_DEBUG_LOGGING below.
 inline std::string& getLogFilePath()
 {
-    static std::string path = "/tmp/uvim_debug.log";
+    static std::string path = "uvim.log";
     return path;
 }
 
@@ -187,6 +188,7 @@ using StdLogger = FileLogger;
 #define LOG_ERROR(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
+        logger.log(mla::log::LogLevel::ERROR, std::format(__VA_ARGS__));       \
     } while(0)
 
 #endif
