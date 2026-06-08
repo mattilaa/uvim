@@ -40,6 +40,19 @@ std::optional<ModeState> LspInfoMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_R))
     {
         ed->showLspInfo();
+        ed->needsFullRedraw = true;
+        return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_J))
+    {
+        ed->scrollLspInfo(1);
+        return std::nullopt;
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_K))
+    {
+        ed->scrollLspInfo(-1);
         return std::nullopt;
     }
 

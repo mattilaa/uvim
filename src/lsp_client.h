@@ -80,6 +80,7 @@ public:
     bool running() const;
     std::string serverName() const;
     std::string serverVersion() const;
+    std::string lastError() const;
 
     // Document sync
     void didOpen(const std::string& filePath, const std::string& languageId,

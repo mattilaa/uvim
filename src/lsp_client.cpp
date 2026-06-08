@@ -18,8 +18,8 @@
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
-#include <cwctype>
 #include <cstring>
+#include <cwctype>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -183,6 +183,67 @@ static std::wstring utf8_to_wide(std::string_view text)
     return wide;
 }
 
+static std::string wide_to_utf8(std::wstring_view text)
+{
+    if(text.empty())
+        return {};
+
+    int len = WideCharToMultiByte(CP_UTF8, 0, text.data(),
+                                  static_cast<int>(text.size()), nullptr, 0,
+                                  nullptr, nullptr);
+    if(len <= 0)
+        return {};
+
+    std::string out(static_cast<size_t>(len), '\0');
+    len = WideCharToMultiByte(CP_UTF8, 0, text.data(),
+                              static_cast<int>(text.size()), out.data(), len,
+                              nullptr, nullptr);
+    if(len <= 0)
+        return {};
+    return out;
+}
+
+static std::string windows_error_message(DWORD error)
+{
+    LPWSTR buffer = nullptr;
+    DWORD len = FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr, error, 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
+
+    std::string message;
+    if(len > 0 && buffer)
+    {
+        message = wide_to_utf8(std::wstring_view(buffer, len));
+        while(!message.empty() &&
+              (message.back() == '\r' || message.back() == '\n' ||
+               message.back() == ' '))
+        {
+            message.pop_back();
+        }
+    }
+    if(buffer)
+        LocalFree(buffer);
+
+    if(message.empty())
+        return "Windows error " + std::to_string(error);
+    return message + " (" + std::to_string(error) + ")";
+}
+
+static std::string strip_surrounding_quotes(std::string path)
+{
+    while(path.size() >= 2)
+    {
+        const char first = path.front();
+        const char last = path.back();
+        if((first == '"' && last == '"') || (first == '\'' && last == '\''))
+            path = path.substr(1, path.size() - 2);
+        else
+            break;
+    }
+    return path;
+}
+
 static std::wstring quote_windows_arg(std::wstring_view arg)
 {
     if(arg.empty())
@@ -254,14 +315,17 @@ struct LspClient::Impl
 #ifdef _WIN32
     HANDLE inWrite = INVALID_HANDLE_VALUE; // write to server stdin
     HANDLE outRead = INVALID_HANDLE_VALUE; // read from server stdout
+    HANDLE errRead = INVALID_HANDLE_VALUE; // read from server stderr
     HANDLE process = INVALID_HANDLE_VALUE;
 #else
     int inFd = -1;  // write to clangd stdin
     int outFd = -1; // read from clangd stdout
+    int errFd = -1; // read from clangd stderr
     pid_t pid = -1;
 #endif
 
     std::thread reader;
+    std::thread stderrReader;
     std::atomic<bool> alive{false};
 
     std::mutex m;
@@ -273,6 +337,9 @@ struct LspClient::Impl
     std::string rootDir;
     std::string serverName;
     std::string serverVersion;
+    std::string lastError;
+    mutable std::mutex stderrMutex;
+    std::string stderrBuffer;
     std::unordered_map<std::string, int> docVersion;
     mutable std::mutex diagMutex;
     std::unordered_map<std::string, std::vector<LspClient::Diagnostic>>
@@ -318,6 +385,15 @@ struct LspClient::Impl
         return static_cast<int>(read);
     }
 
+    int readErrorPipe(char* data, size_t size)
+    {
+        DWORD read = 0;
+        if(!ReadFile(errRead, data, static_cast<DWORD>(size), &read, nullptr) ||
+           read == 0)
+            return 0;
+        return static_cast<int>(read);
+    }
+
     void closePipes()
     {
         if(inWrite != INVALID_HANDLE_VALUE)
@@ -330,6 +406,11 @@ struct LspClient::Impl
             CloseHandle(outRead);
             outRead = INVALID_HANDLE_VALUE;
         }
+        if(errRead != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(errRead);
+            errRead = INVALID_HANDLE_VALUE;
+        }
     }
 
     void waitProcess()
@@ -339,6 +420,54 @@ struct LspClient::Impl
         WaitForSingleObject(process, 1000);
         CloseHandle(process);
         process = INVALID_HANDLE_VALUE;
+    }
+
+    bool processHasExited() const
+    {
+        if(process == INVALID_HANDLE_VALUE)
+            return true;
+
+        DWORD exitCode = 0;
+        return GetExitCodeProcess(process, &exitCode) &&
+               exitCode != STILL_ACTIVE;
+    }
+
+    std::string capturedStderr() const
+    {
+        std::string text;
+        {
+            std::lock_guard<std::mutex> lk(stderrMutex);
+            text = stderrBuffer;
+        }
+        while(!text.empty() && (text.back() == '\r' || text.back() == '\n' ||
+                                text.back() == ' ' || text.back() == '\t'))
+        {
+            text.pop_back();
+        }
+        return text;
+    }
+
+    std::string withCapturedStderr(std::string status) const
+    {
+        std::string err = capturedStderr();
+        if(!err.empty())
+            status += ": " + err;
+        return status;
+    }
+
+    std::string processExitStatus() const
+    {
+        if(process == INVALID_HANDLE_VALUE)
+            return withCapturedStderr("server stdout closed");
+
+        DWORD exitCode = 0;
+        if(GetExitCodeProcess(process, &exitCode) && exitCode != STILL_ACTIVE)
+        {
+            return withCapturedStderr("server process exited with code " +
+                                      std::to_string(exitCode));
+        }
+        return withCapturedStderr(
+            "server stdout closed while process is still active");
     }
 #else
     bool hasInputPipe() const
@@ -372,6 +501,14 @@ struct LspClient::Impl
         return static_cast<int>(n);
     }
 
+    int readErrorPipe(char* data, size_t size)
+    {
+        ssize_t n = ::read(errFd, data, size);
+        if(n <= 0)
+            return 0;
+        return static_cast<int>(n);
+    }
+
     void closePipes()
     {
         if(inFd >= 0)
@@ -384,6 +521,11 @@ struct LspClient::Impl
             close(outFd);
             outFd = -1;
         }
+        if(errFd >= 0)
+        {
+            close(errFd);
+            errFd = -1;
+        }
     }
 
     void waitProcess()
@@ -395,7 +537,69 @@ struct LspClient::Impl
         }
         pid = -1;
     }
+
+    bool processHasExited() const
+    {
+        return false;
+    }
+
+    std::string capturedStderr() const
+    {
+        std::string text;
+        {
+            std::lock_guard<std::mutex> lk(stderrMutex);
+            text = stderrBuffer;
+        }
+        while(!text.empty() && (text.back() == '\r' || text.back() == '\n' ||
+                                text.back() == ' ' || text.back() == '\t'))
+        {
+            text.pop_back();
+        }
+        return text;
+    }
+
+    std::string withCapturedStderr(std::string status) const
+    {
+        std::string err = capturedStderr();
+        if(!err.empty())
+            status += ": " + err;
+        return status;
+    }
+
+    std::string processExitStatus() const
+    {
+        return withCapturedStderr("server stdout closed");
+    }
 #endif
+
+    void appendStderr(const char* data, size_t size)
+    {
+        constexpr size_t kMaxStderrBytes = 8192;
+        std::lock_guard<std::mutex> lk(stderrMutex);
+        stderrBuffer.append(data, size);
+        if(stderrBuffer.size() > kMaxStderrBytes)
+            stderrBuffer.erase(0, stderrBuffer.size() - kMaxStderrBytes);
+    }
+
+    void stderrLoop()
+    {
+        char tmp[1024];
+        while(true)
+        {
+            int n = readErrorPipe(tmp, sizeof(tmp));
+            if(n <= 0)
+                break;
+            appendStderr(tmp, static_cast<size_t>(n));
+        }
+    }
+
+    void joinReaderThreads()
+    {
+        if(reader.joinable())
+            reader.join();
+        if(stderrReader.joinable())
+            stderrReader.join();
+    }
 
     bool sendRaw(const std::string& payload)
     {
@@ -619,6 +823,8 @@ struct LspClient::Impl
             }
         }
 
+        if(lastError.empty())
+            lastError = processExitStatus();
         alive.store(false);
         cv.notify_all();
     }
@@ -626,7 +832,13 @@ struct LspClient::Impl
     bool startClangd(const std::string& clangdPath,
                      const std::vector<std::string>& extraArgs)
     {
+        lastError.clear();
+        {
+            std::lock_guard<std::mutex> lk(stderrMutex);
+            stderrBuffer.clear();
+        }
 #ifdef _WIN32
+        const std::string executableUtf8 = strip_surrounding_quotes(clangdPath);
         SECURITY_ATTRIBUTES security{};
         security.nLength = sizeof(security);
         security.bInheritHandle = TRUE;
@@ -635,60 +847,74 @@ struct LspClient::Impl
         HANDLE parentStdinWrite = INVALID_HANDLE_VALUE;
         HANDLE parentStdoutRead = INVALID_HANDLE_VALUE;
         HANDLE childStdoutWrite = INVALID_HANDLE_VALUE;
-        HANDLE childStderr = INVALID_HANDLE_VALUE;
+        HANDLE parentStderrRead = INVALID_HANDLE_VALUE;
+        HANDLE childStderrWrite = INVALID_HANDLE_VALUE;
 
         if(!CreatePipe(&childStdinRead, &parentStdinWrite, &security, 0))
+        {
+            lastError = "CreatePipe(stdin) failed: " +
+                        windows_error_message(GetLastError());
             return false;
+        }
         if(!SetHandleInformation(parentStdinWrite, HANDLE_FLAG_INHERIT, 0))
         {
+            lastError = "SetHandleInformation(stdin) failed: " +
+                        windows_error_message(GetLastError());
             CloseHandle(childStdinRead);
             CloseHandle(parentStdinWrite);
             return false;
         }
         if(!CreatePipe(&parentStdoutRead, &childStdoutWrite, &security, 0))
         {
+            lastError = "CreatePipe(stdout) failed: " +
+                        windows_error_message(GetLastError());
             CloseHandle(childStdinRead);
             CloseHandle(parentStdinWrite);
             return false;
         }
         if(!SetHandleInformation(parentStdoutRead, HANDLE_FLAG_INHERIT, 0))
         {
+            lastError = "SetHandleInformation(stdout) failed: " +
+                        windows_error_message(GetLastError());
             CloseHandle(childStdinRead);
             CloseHandle(parentStdinWrite);
             CloseHandle(parentStdoutRead);
             CloseHandle(childStdoutWrite);
             return false;
         }
-        HANDLE stderrHandle = GetStdHandle(STD_ERROR_HANDLE);
-        if(stderrHandle != INVALID_HANDLE_VALUE && stderrHandle != nullptr)
+        if(!CreatePipe(&parentStderrRead, &childStderrWrite, &security, 0))
         {
-            DuplicateHandle(GetCurrentProcess(), stderrHandle,
-                            GetCurrentProcess(), &childStderr, 0, TRUE,
-                            DUPLICATE_SAME_ACCESS);
-        }
-        if(childStderr == INVALID_HANDLE_VALUE)
-        {
-            childStderr =
-                CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE, &security,
-                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        }
-        if(childStderr == INVALID_HANDLE_VALUE)
-        {
+            lastError = "CreatePipe(stderr) failed: " +
+                        windows_error_message(GetLastError());
             CloseHandle(childStdinRead);
             CloseHandle(parentStdinWrite);
             CloseHandle(parentStdoutRead);
             CloseHandle(childStdoutWrite);
+            return false;
+        }
+        if(!SetHandleInformation(parentStderrRead, HANDLE_FLAG_INHERIT, 0))
+        {
+            lastError = "SetHandleInformation(stderr) failed: " +
+                        windows_error_message(GetLastError());
+            CloseHandle(childStdinRead);
+            CloseHandle(parentStdinWrite);
+            CloseHandle(parentStdoutRead);
+            CloseHandle(childStdoutWrite);
+            CloseHandle(parentStderrRead);
+            CloseHandle(childStderrWrite);
             return false;
         }
 
-        std::wstring executablePath = utf8_to_wide(clangdPath);
+        std::wstring executablePath = utf8_to_wide(executableUtf8);
         if(executablePath.empty())
         {
+            lastError = "clangd path is not valid UTF-8: " + clangdPath;
             CloseHandle(childStdinRead);
             CloseHandle(parentStdinWrite);
             CloseHandle(parentStdoutRead);
             CloseHandle(childStdoutWrite);
-            CloseHandle(childStderr);
+            CloseHandle(parentStderrRead);
+            CloseHandle(childStderrWrite);
             return false;
         }
 
@@ -698,11 +924,13 @@ struct LspClient::Impl
             std::wstring wideArg = utf8_to_wide(arg);
             if(wideArg.empty() && !arg.empty())
             {
+                lastError = "clangd argument is not valid UTF-8: " + arg;
                 CloseHandle(childStdinRead);
                 CloseHandle(parentStdinWrite);
                 CloseHandle(parentStdoutRead);
                 CloseHandle(childStdoutWrite);
-                CloseHandle(childStderr);
+                CloseHandle(parentStderrRead);
+                CloseHandle(childStderrWrite);
                 return false;
             }
             commandLine += L" " + quote_windows_arg(wideArg);
@@ -713,12 +941,12 @@ struct LspClient::Impl
         startup.dwFlags = STARTF_USESTDHANDLES;
         startup.hStdInput = childStdinRead;
         startup.hStdOutput = childStdoutWrite;
-        startup.hStdError = childStderr;
+        startup.hStdError = childStderrWrite;
 
         PROCESS_INFORMATION processInfo{};
         const bool hasPathSeparator =
-            clangdPath.find('/') != std::string::npos ||
-            clangdPath.find('\\') != std::string::npos;
+            executableUtf8.find('/') != std::string::npos ||
+            executableUtf8.find('\\') != std::string::npos;
         const wchar_t* applicationName =
             hasPathSeparator ? executablePath.c_str() : nullptr;
         BOOL ok = CreateProcessW(applicationName, commandLine.data(), nullptr,
@@ -727,39 +955,78 @@ struct LspClient::Impl
 
         CloseHandle(childStdinRead);
         CloseHandle(childStdoutWrite);
-        CloseHandle(childStderr);
+        CloseHandle(childStderrWrite);
 
         if(!ok)
         {
+            lastError = "CreateProcessW failed for clangd path '" +
+                        executableUtf8 +
+                        "': " + windows_error_message(GetLastError());
             CloseHandle(parentStdinWrite);
             CloseHandle(parentStdoutRead);
+            CloseHandle(parentStderrRead);
             return false;
         }
 
         CloseHandle(processInfo.hThread);
         inWrite = parentStdinWrite;
         outRead = parentStdoutRead;
+        errRead = parentStderrRead;
         process = processInfo.hProcess;
 #else
         int inPipe[2];
         int outPipe[2];
+        int errPipe[2];
         if(pipe(inPipe) != 0)
+        {
+            lastError =
+                "pipe(stdin) failed: " + std::string(std::strerror(errno));
             return false;
+        }
         if(pipe(outPipe) != 0)
+        {
+            lastError =
+                "pipe(stdout) failed: " + std::string(std::strerror(errno));
+            close(inPipe[0]);
+            close(inPipe[1]);
             return false;
+        }
+        if(pipe(errPipe) != 0)
+        {
+            lastError =
+                "pipe(stderr) failed: " + std::string(std::strerror(errno));
+            close(inPipe[0]);
+            close(inPipe[1]);
+            close(outPipe[0]);
+            close(outPipe[1]);
+            return false;
+        }
 
         pid = fork();
+        if(pid < 0)
+        {
+            lastError = "fork failed: " + std::string(std::strerror(errno));
+            close(inPipe[0]);
+            close(inPipe[1]);
+            close(outPipe[0]);
+            close(outPipe[1]);
+            close(errPipe[0]);
+            close(errPipe[1]);
+            return false;
+        }
         if(pid == 0)
         {
             // child
             dup2(inPipe[0], STDIN_FILENO);
             dup2(outPipe[1], STDOUT_FILENO);
-            dup2(outPipe[1], STDERR_FILENO); // send logs to stdout for now
+            dup2(errPipe[1], STDERR_FILENO);
 
             close(inPipe[0]);
             close(inPipe[1]);
             close(outPipe[0]);
             close(outPipe[1]);
+            close(errPipe[0]);
+            close(errPipe[1]);
 
             std::vector<char*> argv;
             argv.push_back(const_cast<char*>(clangdPath.c_str()));
@@ -774,12 +1041,15 @@ struct LspClient::Impl
         // parent
         close(inPipe[0]);
         close(outPipe[1]);
+        close(errPipe[1]);
         inFd = inPipe[1];
         outFd = outPipe[0];
+        errFd = errPipe[0];
 #endif
 
         // non-blocking read is fine but not required
         alive.store(true);
+        stderrReader = std::thread([this] { stderrLoop(); });
         reader = std::thread([this] { readerLoop(); });
 
         return true;
@@ -840,7 +1110,11 @@ struct LspClient::Impl
         int id = sendRequest("initialize", params);
         auto resp = waitResponse(id, 5000);
         if(!resp)
+        {
+            lastError = withCapturedStderr(
+                "LSP server started but did not answer initialize");
             return false;
+        }
         if(resp->IsObject())
         {
             const ju::Value* result = ju::find(*resp, "result");
@@ -920,6 +1194,20 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
     // log can be tuned; keep quiet by default
     // args.push_back("--log=verbose");
 
+#ifdef _WIN32
+    // VS-bundled clangd builds can be memory-sensitive on larger compile
+    // databases. Keep the project-wide index enabled, but reduce the memory
+    // spike from concurrent background work and in-memory preambles.
+    unsigned int workerCount = std::thread::hardware_concurrency() / 2;
+    if(workerCount == 0)
+        workerCount = 1;
+    // Reduce worker usage on Windows to max 4
+    workerCount = std::min(workerCount, 4u);
+    args.push_back("-j=" + std::to_string(workerCount));
+    args.push_back("--background-index-priority=background");
+    args.push_back("--pch-storage=disk");
+#endif
+
     if(!compileCommandsDir.empty())
     {
         args.push_back("--compile-commands-dir=" + absPath(compileCommandsDir));
@@ -935,6 +1223,10 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
 
     if(!impl->initialize(impl->rootDir))
     {
+        if(!impl->alive.load() && impl->processHasExited())
+            impl->joinReaderThreads();
+        if(impl->lastError.empty())
+            impl->lastError = "LSP initialize failed";
         stop();
         return false;
     }
@@ -956,6 +1248,10 @@ bool LspClient::startServer(const std::string& serverPath,
 
     if(!impl->initialize(impl->rootDir))
     {
+        if(!impl->alive.load() && impl->processHasExited())
+            impl->joinReaderThreads();
+        if(impl->lastError.empty())
+            impl->lastError = "LSP initialize failed";
         stop();
         return false;
     }
@@ -987,13 +1283,12 @@ void LspClient::stop()
     impl->alive.store(false);
     impl->closePipes();
 
-    if(impl->reader.joinable())
-        impl->reader.join();
+    impl->joinReaderThreads();
 
     impl->waitProcess();
 
 #ifndef _WIN32
-    impl->inFd = impl->outFd = -1;
+    impl->inFd = impl->outFd = impl->errFd = -1;
     impl->pid = -1;
 #endif
     impl->responses.clear();
@@ -1004,7 +1299,19 @@ void LspClient::stop()
 
 bool LspClient::running() const
 {
-    return impl && impl->alive.load();
+    if(!impl || !impl->alive.load())
+        return false;
+
+    if(impl->processHasExited())
+    {
+        if(impl->lastError.empty())
+            impl->lastError = impl->processExitStatus();
+        impl->alive.store(false);
+        impl->cv.notify_all();
+        return false;
+    }
+
+    return true;
 }
 
 std::string LspClient::serverName() const
@@ -1019,6 +1326,21 @@ std::string LspClient::serverVersion() const
     if(!impl)
         return {};
     return impl->serverVersion;
+}
+
+std::string LspClient::lastError() const
+{
+    if(!impl)
+        return {};
+    std::string error = impl->lastError;
+    std::string stderrText = impl->capturedStderr();
+    if(!stderrText.empty() && error.find(stderrText) == std::string::npos)
+    {
+        if(error.empty())
+            return stderrText;
+        error += ": " + stderrText;
+    }
+    return error;
 }
 
 void LspClient::didOpen(const std::string& filePath,
@@ -2264,6 +2586,11 @@ std::string LspClient::serverName() const
 }
 
 std::string LspClient::serverVersion() const
+{
+    return {};
+}
+
+std::string LspClient::lastError() const
 {
     return {};
 }

@@ -210,6 +210,7 @@ public:
 
     // LSP info panel
     std::vector<std::string> lspInfoLines;
+    int lspInfoScrollOffset = 0;
 
     // Screen
     int screenRows;
@@ -245,6 +246,8 @@ public:
     std::string clangdLspCompileCommandsDir;
     std::string clangdLspPath = "clangd";
     std::string clangdLspQueryDriverAllowList;
+    bool clangdLspStartupAttempted = false;
+    std::string clangdLspLastError;
     bool robotLspEnabled = false;
     std::string robotLspPath = "robotframework-lsp";
     std::vector<std::string> robotLspArgs;
@@ -684,6 +687,7 @@ public:
     // LSP info panel
     void showLspInfo();
     void clearLspInfo();
+    void scrollLspInfo(int delta);
     void drawLspInfo();
 
     // Movement commands

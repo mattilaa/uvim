@@ -31,6 +31,8 @@ void Editor::enableClangdLspImpl(bool enable,
     clangdLspCompileCommandsDir = compileCommandsDir;
     clangdLspPath = clangdPath;
     clangdLspQueryDriverAllowList = queryDriverAllowList;
+    clangdLspStartupAttempted = enable;
+    clangdLspLastError.clear();
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(!enable)
@@ -40,6 +42,7 @@ void Editor::enableClangdLspImpl(bool enable,
             lspClient->stop();
             lspClient.reset();
         }
+        clangdLspStartupAttempted = false;
         return;
     }
 
@@ -114,13 +117,24 @@ void Editor::enableClangdLspImpl(bool enable,
     lspClient = std::make_unique<LspClient>();
     if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
     {
+        std::string error = lspClient->lastError();
         lspClient.reset();
-        setStatusMessage("clangd LSP: failed to start");
+        if(error.empty())
+        {
+            clangdLspLastError = "failed to start";
+            setStatusMessage("clangd LSP: failed to start");
+        }
+        else
+        {
+            clangdLspLastError = error;
+            setStatusMessage("clangd LSP failed; see :lspinfo");
+        }
         return;
     }
 
     clangdLspEnabled = true;
     clangdLspCompileCommandsDir = ccdir;
+    clangdLspLastError.clear();
 #else
     (void)enable;
     (void)compileCommandsDir;

@@ -671,6 +671,20 @@ static std::vector<std::string> split_args(std::string_view input)
     return out;
 }
 
+static std::string strip_surrounding_quotes(std::string path)
+{
+    while(path.size() >= 2)
+    {
+        const char first = path.front();
+        const char last = path.back();
+        if((first == '"' && last == '"') || (first == '\'' && last == '\''))
+            path = path.substr(1, path.size() - 2);
+        else
+            break;
+    }
+    return path;
+}
+
 static std::string find_in_path(const std::string& exe)
 {
     if(exe.empty())
@@ -1446,20 +1460,22 @@ struct EditorSettings
         const bool autoDetect = editor.autoDetectLsps;
         auto binary_exists = [&](const std::string& path) -> bool
         {
-            if(path.empty())
+            std::string normalized = strip_surrounding_quotes(path);
+            if(normalized.empty())
                 return false;
-            if(text_utils::contains(path, '/') ||
-               text_utils::contains(path, '\\'))
+            if(text_utils::contains(normalized, '/') ||
+               text_utils::contains(normalized, '\\'))
             {
                 std::error_code ec;
-                return fs::exists(path, ec) && fs::is_regular_file(path, ec);
+                return fs::exists(normalized, ec) &&
+                       fs::is_regular_file(normalized, ec);
             }
-            return !find_in_path(path).empty();
+            return !find_in_path(normalized).empty();
         };
 
         if(useClangd || autoDetect)
         {
-            std::string resolved = clangdPath;
+            std::string resolved = strip_surrounding_quotes(clangdPath);
             if(resolved == "clangd")
             {
                 std::string found = find_in_path("clangd");
@@ -1472,6 +1488,11 @@ struct EditorSettings
             }
             else if(autoDetect && !useClangd)
             {
+                editor.clangdLspEnabled = false;
+                editor.clangdLspPath = resolved;
+                editor.clangdLspStartupAttempted = false;
+                editor.clangdLspLastError =
+                    "startup skipped: binary not found";
                 editor.setStatusMessage("clangd: not found");
             }
         }

@@ -7,19 +7,31 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <optional>
 #include <string_view>
 
 namespace fs = std::filesystem;
 
 static bool binaryExists(const std::string& pathOrExe)
 {
-    if(pathOrExe.empty())
+    std::string path = pathOrExe;
+    while(path.size() >= 2)
+    {
+        const char first = path.front();
+        const char last = path.back();
+        if((first == '"' && last == '"') || (first == '\'' && last == '\''))
+            path = path.substr(1, path.size() - 2);
+        else
+            break;
+    }
+
+    if(path.empty())
         return false;
 
-    if(text_utils::contains(pathOrExe, '/'))
+    if(text_utils::contains(path, '/') || text_utils::contains(path, '\\'))
     {
         std::error_code ec;
-        return fs::exists(pathOrExe, ec) && fs::is_regular_file(pathOrExe, ec);
+        return fs::exists(path, ec) && fs::is_regular_file(path, ec);
     }
 
     const char* envPath = std::getenv("PATH");
@@ -30,14 +42,18 @@ static bool binaryExists(const std::string& pathOrExe)
     size_t start = 0;
     while(start < pathView.size())
     {
+#ifdef _WIN32
+        size_t end = pathView.find(';', start);
+#else
         size_t end = pathView.find(':', start);
+#endif
         if(text_utils::is_not_found(end))
             end = pathView.size();
         if(end > start)
         {
             fs::path candidate =
                 fs::path(std::string(pathView.substr(start, end - start))) /
-                pathOrExe;
+                path;
             std::error_code ec;
             if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
                 return true;
@@ -78,9 +94,41 @@ static std::string filetypeLabel(const Editor& ed)
     return "text";
 }
 
+static void appendStatusLines(std::vector<std::string>& lines,
+                              const std::string& status)
+{
+    size_t start = 0;
+    bool first = true;
+    while(start <= status.size())
+    {
+        size_t end = status.find('\n', start);
+        if(text_utils::is_not_found(end))
+            end = status.size();
+
+        std::string line = status.substr(start, end - start);
+        while(!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        if(!line.empty())
+        {
+            lines.push_back(std::string(first ? "  status: " : "          ") +
+                            line);
+            first = false;
+        }
+
+        if(end == status.size())
+            break;
+        start = end + 1;
+    }
+
+    if(first)
+        lines.push_back("  status: ");
+}
+
 void Editor::clearLspInfo()
 {
     lspInfoLines.clear();
+    lspInfoScrollOffset = 0;
 }
 
 void Editor::showLspInfo()
@@ -96,7 +144,9 @@ void Editor::showLspInfo()
     auto appendLsp = [&](const std::string& label, bool running,
                          bool activeForFile, const std::string& path,
                          bool requiresNode = false,
-                         const std::string& version = std::string())
+                         const std::string& version = std::string(),
+                         const std::string& error = std::string(),
+                         std::optional<bool> startupAttempted = std::nullopt)
     {
         std::string status =
             running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
@@ -105,6 +155,12 @@ void Editor::showLspInfo()
 
         lspInfoLines.push_back(label + ": " + status);
         lspInfoLines.push_back("  binary: " + path);
+        if(startupAttempted.has_value())
+        {
+            lspInfoLines.push_back(
+                std::string("  startup: ") +
+                (startupAttempted.value() ? "attempted" : "not attempted"));
+        }
         if(requiresNode)
             lspInfoLines.push_back(std::string("  runtime: node ") +
                                    (hasNode ? "found" : "not found"));
@@ -114,10 +170,22 @@ void Editor::showLspInfo()
             lspInfoLines.push_back("  status: node runtime not found");
         if(!version.empty())
             lspInfoLines.push_back("  version: " + version);
+        if(!error.empty())
+            appendStatusLines(lspInfoLines, error);
     };
 
-    appendLsp("clangd", isClangdLspEnabled(), isFileType<FileType::Cpp>(),
-              clangdLspPath);
+    const bool clangdRunning = isClangdLspEnabled();
+    std::string clangdError = clangdLspLastError;
+    if(clangdError.empty() && clangdLspStartupAttempted && !clangdRunning)
+    {
+        if(lspClient)
+            clangdError = lspClient->lastError();
+        if(clangdError.empty())
+            clangdError = "startup attempted but server is not running";
+    }
+    appendLsp("clangd", clangdRunning, isFileType<FileType::Cpp>(),
+              clangdLspPath, false, std::string(), clangdError,
+              clangdLspStartupAttempted);
     appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(),
               pythonLspPath);
     appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
@@ -154,6 +222,19 @@ void Editor::showLspInfo()
     lspInfoLines.push_back("json: not compiled");
     lspInfoLines.push_back("ts: not compiled");
 #endif
+
+    int visibleRows = std::max(0, screenRows - 3);
+    int maxOffset = std::max(0, (int)lspInfoLines.size() - visibleRows);
+    lspInfoScrollOffset = std::clamp(lspInfoScrollOffset, 0, maxOffset);
+}
+
+void Editor::scrollLspInfo(int delta)
+{
+    int visibleRows = std::max(0, screenRows - 3);
+    int maxOffset = std::max(0, (int)lspInfoLines.size() - visibleRows);
+    lspInfoScrollOffset =
+        std::clamp(lspInfoScrollOffset + delta, 0, maxOffset);
+    needsFullRedraw = true;
 }
 
 void Editor::drawLspInfo()
@@ -172,9 +253,11 @@ void Editor::drawLspInfo()
     output += header;
     output += theme.reset();
 
-    int visibleRows = screenRows - 3;
+    int visibleRows = std::max(0, screenRows - 3);
+    int maxOffset = std::max(0, (int)lspInfoLines.size() - visibleRows);
+    lspInfoScrollOffset = std::clamp(lspInfoScrollOffset, 0, maxOffset);
     int row = 0;
-    int idx = 0;
+    int idx = lspInfoScrollOffset;
 
     auto renderLine = [&](const std::string& line)
     {
@@ -303,7 +386,10 @@ void Editor::drawLspInfo()
     // Status bar
     output += Terminal::cursorPos(screenRows - 1, 1);
     output += theme.statusBar();
-    std::string status = " <q/Esc> close  <r> refresh ";
+    std::string status = " <j/k> scroll  <q/Esc> close  <r> refresh ";
+    if(maxOffset > 0)
+        status += " " + std::to_string(lspInfoScrollOffset + 1) + "/" +
+                  std::to_string(maxOffset + 1) + " ";
     if((int)status.length() < screenCols)
         status += std::string(screenCols - status.length(), ' ');
     output += status;
