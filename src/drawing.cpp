@@ -32,6 +32,52 @@ void appendGitBlameField(std::string& output, const Theme& theme,
     output += theme.uiGutter();
     ascii::append(output, ascii::BOX_HEAVY_VERTICAL);
 }
+
+struct VisibleTextRange
+{
+    int start = 0;
+    int len = 0;
+    int width = 0;
+};
+
+VisibleTextRange visibleTextRange(std::string_view line, int requestedStart,
+                                  int maxWidth, bool utf8Mode)
+{
+    VisibleTextRange range;
+    range.start = std::clamp(requestedStart, 0, (int)line.size());
+    if(maxWidth <= 0 || range.start >= (int)line.size())
+        return range;
+
+    if(!utf8Mode)
+    {
+        range.len = std::min(maxWidth, (int)line.size() - range.start);
+        range.width = range.len;
+        return range;
+    }
+
+    if(range.start > 0)
+    {
+        const unsigned char byte =
+            static_cast<unsigned char>(line[(std::size_t)range.start]);
+        if((byte & 0xC0) == 0x80)
+            range.start = text_utils::prevUtf8CharStart(line, range.start);
+    }
+
+    int pos = range.start;
+    while(pos < (int)line.size() && range.width < maxWidth)
+    {
+        const int next = text_utils::nextUtf8CharStart(line, pos);
+        const std::string_view ch =
+            line.substr((std::size_t)pos, (std::size_t)(next - pos));
+        const int chWidth = std::max(0, text_utils::utf8DisplayWidth(ch));
+        if(range.width + chWidth > maxWidth)
+            break;
+        range.width += chWidth;
+        pos = next;
+    }
+    range.len = pos - range.start;
+    return range;
+}
 } // namespace
 
 std::string Editor::buildTabBarLine(int width)
@@ -923,18 +969,14 @@ void Editor::drawFullScreenSingle()
         {
             appendGutter(fileRow);
             const std::string& line = (*lines)[fileRow];
-            int start = *offsetX;
-            int len = (int)line.length() - start;
-            if(len < 0)
-                len = 0;
-            int visibleLen = 0;
+            VisibleTextRange visible =
+                visibleTextRange(line, *offsetX, textCols, utf8Mode);
+            int start = visible.start;
+            int len = visible.len;
+            int visibleLen = visible.width;
 
             if(len > 0)
             {
-                if(len > textCols)
-                    len = textCols;
-                visibleLen = len;
-
                 bool hasHighlighting = false;
 
                 if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
@@ -1266,18 +1308,14 @@ void Editor::drawSplitFullScreen()
 
         appendGutter(fileRow);
         const std::string& line = (*lines)[fileRow];
-        int start = *offsetX;
-        int len = (int)line.length() - start;
-        if(len < 0)
-            len = 0;
-        int visibleLen = 0;
+        VisibleTextRange visible =
+            visibleTextRange(line, *offsetX, textCols, utf8Mode);
+        int start = visible.start;
+        int len = visible.len;
+        int visibleLen = visible.width;
 
         if(len > 0)
         {
-            if(len > textCols)
-                len = textCols;
-            visibleLen = len;
-
             bool hasHighlighting = false;
             if(currentMode == VISUAL || currentMode == VISUAL_LINE ||
                currentMode == VISUAL_BLOCK || !searchMatches.empty())

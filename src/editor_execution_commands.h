@@ -61,7 +61,19 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class GlyphSelectCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class ColorPickerCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
+class AnsiToolsCommand final : public EditorExecutionCommand
 {
 public:
     bool execute(Editor& editor, const CommandRequest& request) const override;

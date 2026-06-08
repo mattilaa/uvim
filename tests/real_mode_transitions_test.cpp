@@ -3469,7 +3469,111 @@ TEST(RealModeTransitionsTest, BufferBrowserCtrlShiftXAllMatchesReturnsWelcome)
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
 
+TEST(RealModeTransitionsTest, GlyphSelectCommandOpensPopup)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "glyphselect");
+
+    EXPECT_STREQ(sm->currentStateName(), "GLYPH_SELECT");
+}
+
+TEST(RealModeTransitionsTest, GlyphSelectEnterInsertsSelectedGlyph)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto sm = makeMachine(editor, GlyphSelectMode{});
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\xE2\x86\x92");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, GlyphSelectJumpsRowsWithJAndK)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto sm = makeMachine(editor, GlyphSelectMode{});
+    sm.dispatch('j');
+    sm.dispatch('k');
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\xE2\x86\x92");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, GlyphSelectEscCancelsWithoutInsert)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto sm = makeMachine(editor, GlyphSelectMode{});
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+TEST(RealModeTransitionsTest, AnsiToolsCommandOpensPopup)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           NormalMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+    dispatch_command(*sm, "ansitools");
+
+    EXPECT_STREQ(sm->currentStateName(), "ANSI_TOOLS");
+}
+
+TEST(RealModeTransitionsTest, AnsiToolsEnterInsertsSelectedLiteral)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto sm = makeMachine(editor, AnsiToolsMode{});
+    sm.dispatch('j');
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "\\x1b[39m");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, AnsiToolsEscCancelsWithoutInsert)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {""};
+
+    auto sm = makeMachine(editor, AnsiToolsMode{});
+    sm.dispatch('j');
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0], "");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
 TEST(RealModeTransitionsTest, ColorPickerCanJumpToRgbSelector)
 {
     Editor editor = Editor::createForTests();

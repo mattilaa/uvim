@@ -38,7 +38,9 @@ struct GitCommitMode;
 struct GitFixupMode;
 struct GitPatchMode;
 struct CommandOutputMode;
+struct GlyphSelectMode;
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+struct AnsiToolsMode;
 struct ColorPickerMode;
 struct ColorSelectorMode;
 #endif
@@ -49,10 +51,11 @@ using ModeState = std::variant<
     SearchBackwardMode, FileBrowserMode, FuzzyFindMode, BufferBrowserMode,
     GrepSearchMode, RegexSearchMode, OperatorPendingMode, ReferencesMode,
     LspInfoMode, LocListMode, HelpMode, GitShowCommitMode, GitLogMode,
-    GitStageMode, GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode
+    GitStageMode, GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode,
+    GlyphSelectMode
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     ,
-    ColorPickerMode, ColorSelectorMode
+    AnsiToolsMode, ColorPickerMode, ColorSelectorMode
 #endif
     >;
 

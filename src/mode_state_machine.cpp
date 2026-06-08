@@ -143,7 +143,17 @@ struct ModeStateToMode
     {
         return COMMAND_OUTPUT;
     }
+
+    Mode operator()(const GlyphSelectMode&) const
+    {
+        return GLYPH_SELECT;
+    }
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+    Mode operator()(const AnsiToolsMode&) const
+    {
+        return ANSI_TOOLS;
+    }
+
     Mode operator()(const ColorPickerMode&) const
     {
         return COLOR_PICKER;
@@ -240,6 +250,16 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
             return std::get<GitFixupMode>(state);
         if(std::holds_alternative<GitPatchMode>(state))
             return std::get<GitPatchMode>(state);
+        if(std::holds_alternative<GlyphSelectMode>(state))
+            return std::get<GlyphSelectMode>(state);
+#ifdef UVIM_ENABLE_COLOR_TOOLS
+        if(std::holds_alternative<AnsiToolsMode>(state))
+            return std::get<AnsiToolsMode>(state);
+        if(std::holds_alternative<ColorPickerMode>(state))
+            return std::get<ColorPickerMode>(state);
+        if(std::holds_alternative<ColorSelectorMode>(state))
+            return std::get<ColorSelectorMode>(state);
+#endif
     }
 
     Mode mode = NORMAL;
@@ -375,12 +395,17 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return GitPatchMode{};
     case COMMAND_OUTPUT:
         return CommandOutputMode{};
+    case GLYPH_SELECT:
+        return GlyphSelectMode{};
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+    case ANSI_TOOLS:
+        return AnsiToolsMode{};
     case COLOR_PICKER:
         return ColorPickerMode{};
     case COLOR_SELECTOR:
         return ColorSelectorMode{};
 #else
+    case ANSI_TOOLS:
     case COLOR_PICKER:
     case COLOR_SELECTOR:
         return NormalMode{};

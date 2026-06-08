@@ -145,6 +145,7 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_emoji_command.cpp
     src/editor_execution_explore_command.cpp
     src/editor_execution_format_command.cpp
+    src/editor_execution_glyph_select_command.cpp
     src/editor_execution_help_command.cpp
     src/editor_execution_line_jump_command.cpp
     src/editor_execution_loc_command.cpp
@@ -282,6 +283,7 @@ set(MODE_STATE_MACHINE_SOURCES
     src/help_mode.cpp
     src/buffer_browser_mode.cpp
     src/file_browser_mode.cpp
+    src/glyph_select_mode.cpp
     src/command_output_mode.cpp
 )
 
@@ -350,8 +352,10 @@ endif()
 
 if(UVIM_ENABLE_COLOR_TOOLS)
     list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES
+        src/editor_execution_ansi_tools_command.cpp
         src/editor_execution_color_picker_command.cpp
         src/editor_execution_color_selector_command.cpp
+        src/ansi_tools_mode.cpp
         src/color_picker_mode.cpp
         src/color_selector_mode.cpp
     )

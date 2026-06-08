@@ -423,7 +423,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "                       Example: `:emitasm -O2`",
             "                       `--raw` keeps clang's full assembler "
             "output",
+            "  `:glyphselect`     - Open glyph selector",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+            "  `:ansitools`       - Insert common ANSI control escape",
             "  `:colorpicker`     - Insert an ANSI color escape sequence",
             "  `:colorselect`     - Select or edit RGB ANSI color style",
 #endif

@@ -2,6 +2,7 @@
 
 #include "buffer_browser_mode.h"
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+#include "ansi_tools_mode.h"
 #include "color_picker_mode.h"
 #include "color_selector_mode.h"
 #endif
@@ -15,6 +16,7 @@
 #include "git_patch_mode.h"
 #include "git_show_mode.h"
 #include "git_stage_mode.h"
+#include "glyph_select_mode.h"
 #include "grep_search_mode.h"
 #include "help_mode.h"
 #include "insert_mode.h"

@@ -148,7 +148,17 @@ public:
     {
         return recognize(ctx, state);
     }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const GlyphSelectMode& state) const
+    {
+        return recognize(ctx, state);
+    }
 #ifdef UVIM_ENABLE_COLOR_TOOLS
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const AnsiToolsMode& state) const
+    {
+        return recognize(ctx, state);
+    }
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ColorPickerMode& state) const
     {
