@@ -186,6 +186,21 @@ void Editor::showLspInfo()
     appendLsp("clangd", clangdRunning, isFileType<FileType::Cpp>(),
               clangdLspPath, false, std::string(), clangdError,
               clangdLspStartupAttempted);
+    if(lspClient)
+    {
+        int workers = lspClient->workerCount();
+        if(workers > 0)
+            lspInfoLines.push_back("  workers: " + std::to_string(workers));
+        if(clangdRunning)
+        {
+            std::string indexing =
+                lspClient->indexingInProgress() ? "active" : "idle";
+            std::string detail = lspClient->indexingStatus();
+            if(!detail.empty())
+                indexing += " (" + detail + ")";
+            lspInfoLines.push_back("  indexing: " + indexing);
+        }
+    }
     appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(),
               pythonLspPath);
     appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
@@ -309,6 +324,26 @@ void Editor::drawLspInfo()
                 output += theme.uiError();
             else
                 output += theme.uiSuccess();
+            output += std::string(value);
+            output += theme.reset();
+        }
+        else if(line.rfind("  workers:", 0) == 0)
+        {
+            output += "  ";
+            renderKeyValue("workers:", std::string_view(line).substr(10),
+                           theme.uiDim());
+        }
+        else if(line.rfind("  indexing:", 0) == 0)
+        {
+            output += "  ";
+            std::string_view value = std::string_view(line).substr(11);
+            output += theme.uiDim();
+            output += "indexing:";
+            output += theme.reset();
+            output += " ";
+            output += text_utils::contains(value, "active")
+                          ? theme.uiInfo()
+                          : theme.uiDim();
             output += std::string(value);
             output += theme.reset();
         }

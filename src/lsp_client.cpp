@@ -310,6 +310,14 @@ static std::string get_string_member(const ju::Value* obj, const char* key,
     return ju::get_string(*obj, key, def);
 }
 
+static std::string lowercase_copy(std::string text)
+{
+    for(char& c : text)
+        c = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(c)));
+    return text;
+}
+
 struct LspClient::Impl
 {
 #ifdef _WIN32
@@ -338,6 +346,10 @@ struct LspClient::Impl
     std::string serverName;
     std::string serverVersion;
     std::string lastError;
+    int launchedWorkerCount = 0;
+    mutable std::mutex progressMutex;
+    bool indexingActive = false;
+    std::string indexingMessage;
     mutable std::mutex stderrMutex;
     std::string stderrBuffer;
     std::unordered_map<std::string, int> docVersion;
@@ -601,6 +613,78 @@ struct LspClient::Impl
             stderrReader.join();
     }
 
+    bool isIndexingProgress(const ju::Value* token,
+                            const ju::Value* value) const
+    {
+        std::string haystack;
+        if(token)
+        {
+            if(token->IsString())
+                haystack.append(token->GetString(), token->GetStringLength());
+            else
+                haystack += ju::stringify(*token);
+            haystack.push_back(' ');
+        }
+        if(value && value->IsObject())
+        {
+            haystack += get_string_member(value, "title");
+            haystack.push_back(' ');
+            haystack += get_string_member(value, "message");
+        }
+
+        haystack = lowercase_copy(std::move(haystack));
+        return text_utils::contains(haystack, "index");
+    }
+
+    void handleProgressNotification(const ju::Value* params)
+    {
+        if(!params || !params->IsObject())
+            return;
+
+        const ju::Value* token = ju::find(*params, "token");
+        const ju::Value* value = ju::find(*params, "value");
+        if(!isIndexingProgress(token, value))
+            return;
+
+        std::string kind = get_string_member(value, "kind");
+        std::string message;
+        if(value && value->IsObject())
+        {
+            message = get_string_member(value, "message");
+            if(message.empty())
+                message = get_string_member(value, "title");
+        }
+
+        std::lock_guard<std::mutex> lk(progressMutex);
+        if(kind == "end")
+        {
+            indexingActive = false;
+            indexingMessage = message.empty() ? "complete" : message;
+        }
+        else
+        {
+            indexingActive = true;
+            if(!message.empty())
+                indexingMessage = message;
+            else if(indexingMessage.empty())
+                indexingMessage = "in progress";
+        }
+    }
+
+    void sendNullResultResponse(const ju::Value& id)
+    {
+        ju::Document resp(rapidjson::kObjectType);
+        auto& alloc = resp.GetAllocator();
+        resp.AddMember("jsonrpc", "2.0", alloc);
+        ju::Value idCopy;
+        idCopy.CopyFrom(id, alloc);
+        resp.AddMember("id", idCopy, alloc);
+        ju::Value result;
+        result.SetNull();
+        resp.AddMember("result", result, alloc);
+        sendRaw(ju::stringify(resp));
+    }
+
     bool sendRaw(const std::string& payload)
     {
         if(!hasInputPipe())
@@ -721,6 +805,14 @@ struct LspClient::Impl
 
                 if(const ju::Value* idVal = ju::find(msg, "id"))
                 {
+                    const ju::Value* requestMethod =
+                        ju::find(msg, "method");
+                    if(requestMethod && requestMethod->IsString())
+                    {
+                        sendNullResultResponse(*idVal);
+                        continue;
+                    }
+
                     int id = -1;
                     if(idVal->IsInt())
                         id = idVal->GetInt();
@@ -819,6 +911,10 @@ struct LspClient::Impl
                             sendRaw(ju::stringify(resp));
                         }
                     }
+                    else if(method == "$/progress")
+                    {
+                        handleProgressNotification(ju::find(msg, "params"));
+                    }
                 }
             }
         }
@@ -833,6 +929,11 @@ struct LspClient::Impl
                      const std::vector<std::string>& extraArgs)
     {
         lastError.clear();
+        {
+            std::lock_guard<std::mutex> lk(progressMutex);
+            indexingActive = false;
+            indexingMessage.clear();
+        }
         {
             std::lock_guard<std::mutex> lk(stderrMutex);
             stderrBuffer.clear();
@@ -1103,8 +1204,11 @@ struct LspClient::Impl
 
         ju::Value textDocument(rapidjson::kObjectType);
         textDocument.AddMember("semanticTokens", semCaps, alloc);
+        ju::Value window(rapidjson::kObjectType);
+        window.AddMember("workDoneProgress", true, alloc);
         ju::Value capabilities(rapidjson::kObjectType);
         capabilities.AddMember("textDocument", textDocument, alloc);
+        capabilities.AddMember("window", window, alloc);
         params.AddMember("capabilities", capabilities, alloc);
 
         int id = sendRequest("initialize", params);
@@ -1204,8 +1308,11 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
     // Reduce worker usage on Windows to max 4
     workerCount = std::min(workerCount, 4u);
     args.push_back("-j=" + std::to_string(workerCount));
+    impl->launchedWorkerCount = static_cast<int>(workerCount);
     args.push_back("--background-index-priority=background");
     args.push_back("--pch-storage=disk");
+#else
+    impl->launchedWorkerCount = 0;
 #endif
 
     if(!compileCommandsDir.empty())
@@ -1242,6 +1349,20 @@ bool LspClient::startServer(const std::string& serverPath,
         return true;
 
     impl->rootDir = absPath(rootDir);
+    impl->launchedWorkerCount = 0;
+    for(const std::string& arg : args)
+    {
+        if(arg.rfind("-j=", 0) != 0)
+            continue;
+        try
+        {
+            impl->launchedWorkerCount = std::stoi(arg.substr(3));
+        }
+        catch(...)
+        {
+            impl->launchedWorkerCount = 0;
+        }
+    }
 
     if(!impl->startClangd(serverPath, args))
         return false;
@@ -1341,6 +1462,29 @@ std::string LspClient::lastError() const
         error += ": " + stderrText;
     }
     return error;
+}
+
+bool LspClient::indexingInProgress() const
+{
+    if(!impl)
+        return false;
+    std::lock_guard<std::mutex> lk(impl->progressMutex);
+    return impl->indexingActive;
+}
+
+std::string LspClient::indexingStatus() const
+{
+    if(!impl)
+        return {};
+    std::lock_guard<std::mutex> lk(impl->progressMutex);
+    return impl->indexingMessage;
+}
+
+int LspClient::workerCount() const
+{
+    if(!impl)
+        return 0;
+    return impl->launchedWorkerCount;
 }
 
 void LspClient::didOpen(const std::string& filePath,
@@ -2593,6 +2737,21 @@ std::string LspClient::serverVersion() const
 std::string LspClient::lastError() const
 {
     return {};
+}
+
+bool LspClient::indexingInProgress() const
+{
+    return false;
+}
+
+std::string LspClient::indexingStatus() const
+{
+    return {};
+}
+
+int LspClient::workerCount() const
+{
+    return 0;
 }
 
 void LspClient::didOpen(const std::string&, const std::string&,

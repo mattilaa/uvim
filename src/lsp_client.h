@@ -81,6 +81,9 @@ public:
     std::string serverName() const;
     std::string serverVersion() const;
     std::string lastError() const;
+    bool indexingInProgress() const;
+    std::string indexingStatus() const;
+    int workerCount() const;
 
     // Document sync
     void didOpen(const std::string& filePath, const std::string& languageId,
