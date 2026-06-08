@@ -182,6 +182,28 @@ void insertSelectedGlyph(ModeContext& ctx, const GlyphEntry& entry,
     ctx.setStatusMessage("inserted glyph " + std::string(entry.glyph));
 }
 
+bool moveEditorCursorForPopup(ModeContext& ctx, int c)
+{
+    if(!ctx.editor || !ctx.editor->hasBuffer())
+        return false;
+
+    Editor& editor = *ctx.editor;
+    if(c == keyCode(control::ControlKey::CTRL_H))
+        editor.moveLeft();
+    else if(c == keyCode(control::ControlKey::CTRL_L))
+        editor.moveRight();
+    else if(c == keyCode(control::ControlKey::CTRL_K))
+        editor.moveUp();
+    else if(c == keyCode(control::ControlKey::CTRL_J))
+        editor.moveDown();
+    else
+        return false;
+
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    return true;
+}
+
 void appendCell(std::string& out, const Theme& theme, const GlyphEntry& entry,
                 bool selected, int width)
 {
@@ -234,6 +256,13 @@ std::optional<ModeState> GlyphSelectMode::handle(ModeContext& ctx,
     const int width = popupWidth(ctx.screenCols());
     const int columns = popupColumns(std::max(1, width - 4));
     const int visibleRows = std::max(1, popupHeight(ctx.screenRows()) - 4);
+
+    if(moveEditorCursorForPopup(ctx, c))
+    {
+        backdropDrawn = false;
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
 
     if(c == keyCode(control::ControlKey::ESC) ||
        c == keyCode(typed::TypedKey::KEY_Q))
@@ -405,9 +434,9 @@ void GlyphSelectMode::draw(Editor& editor) const
     moveTo(top + height - 2, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
-    char footer[88];
+    char footer[112];
     std::snprintf(footer, sizeof(footer),
-                  " h/j/k/l move  a insert  Enter insert+close  q/Esc cancel  %d/%zu",
+                  " h/j/k/l select  C-h/j/k/l cursor  a insert  Enter insert+close  q/Esc cancel  %d/%zu",
                   cursor + 1, kGlyphs.size());
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();

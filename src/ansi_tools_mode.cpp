@@ -109,6 +109,59 @@ std::pair<int, int> editorCursorScreenPosition(const Editor& editor)
             std::clamp(col, 1, editor.screenCols)};
 }
 
+bool moveEditorCursorForPopup(ModeContext& ctx, int c)
+{
+    if(!ctx.editor || !ctx.editor->hasBuffer())
+        return false;
+
+    Editor& editor = *ctx.editor;
+    if(c == keyCode(control::ControlKey::CTRL_H))
+        editor.moveLeft();
+    else if(c == keyCode(control::ControlKey::CTRL_L))
+        editor.moveRight();
+    else if(c == keyCode(control::ControlKey::CTRL_K))
+        editor.moveUp();
+    else if(c == keyCode(control::ControlKey::CTRL_J))
+        editor.moveDown();
+    else
+        return false;
+
+    editor.adjustViewport();
+    editor.needsFullRedraw = true;
+    return true;
+}
+
+void insertSelectedAnsiTool(ModeContext& ctx, const AnsiToolEntry& entry,
+                            bool& insertedDuringSession)
+{
+    if(!ctx.editor || !ctx.editor->hasBuffer())
+        return;
+
+    Editor& editor = *ctx.editor;
+    if(!insertedDuringSession)
+        editor.saveState();
+    insertedDuringSession = true;
+
+    if(*editor.cursorY >= (int)editor.lines->size())
+        editor.lines->push_back("");
+
+    std::string& line = (*editor.lines)[*editor.cursorY];
+    int insertAt = std::clamp(*editor.cursorX, 0, (int)line.size());
+    if(editor.utf8Mode && insertAt > 0 && insertAt < (int)line.size())
+    {
+        const unsigned char byte =
+            static_cast<unsigned char>(line[(std::size_t)insertAt]);
+        if((byte & 0xC0) == 0x80)
+            insertAt = text_utils::prevUtf8CharStart(line, insertAt);
+    }
+    line.insert((std::size_t)insertAt, entry.literal.data(),
+                entry.literal.size());
+    *editor.cursorX = insertAt + (int)entry.literal.size();
+    *editor.dirty = true;
+    editor.needsFullRedraw = true;
+    ctx.setStatusMessage("inserted ANSI tool escape");
+}
+
 void appendEntry(std::string& out, const Theme& theme,
                  const AnsiToolEntry& entry, bool selected, int width)
 {
@@ -126,6 +179,7 @@ void AnsiToolsMode::on_enter(ModeContext& ctx)
 {
     cursor = std::clamp(cursor, 0, toolCount() - 1);
     rowOffset = 0;
+    insertedDuringSession = false;
     backdropDrawn = false;
     backdropRows = 0;
     backdropCols = 0;
@@ -135,6 +189,8 @@ void AnsiToolsMode::on_enter(ModeContext& ctx)
 
 void AnsiToolsMode::on_exit(ModeContext& ctx)
 {
+    if(insertedDuringSession && ctx.editor && ctx.editor->hasBuffer())
+        ctx.editor->saveState();
     backdropDrawn = false;
     ctx.requestFullRedraw();
 }
@@ -156,6 +212,13 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
 {
     const int c = keyCode(event.key);
     const int visibleRows = std::max(1, popupHeight(ctx.screenRows()) - 4);
+
+    if(moveEditorCursorForPopup(ctx, c))
+    {
+        backdropDrawn = false;
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
 
     if(c == keyCode(control::ControlKey::ESC) ||
        c == keyCode(typed::TypedKey::KEY_Q))
@@ -183,18 +246,21 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == keyCode(typed::TypedKey::KEY_A))
+    {
+        insertSelectedAnsiTool(ctx, kAnsiTools[(std::size_t)cursor],
+                               insertedDuringSession);
+        backdropDrawn = false;
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
     if(c == keyCode(control::ControlKey::ENTER) ||
        c == keyCode(control::ControlKey::CTRL_M))
     {
-        if(ctx.editor && ctx.editor->hasBuffer())
-        {
-            const AnsiToolEntry& entry = kAnsiTools[(std::size_t)cursor];
-            for(char ch : entry.literal)
-                ctx.editor->insertChar(ch);
-            ctx.editor->saveState();
-            ctx.setStatusMessage("inserted ANSI tool escape");
-            ctx.requestFullRedraw();
-        }
+        insertSelectedAnsiTool(ctx, kAnsiTools[(std::size_t)cursor],
+                               insertedDuringSession);
+        ctx.requestFullRedraw();
         return exitState(ctx);
     }
 
@@ -295,10 +361,10 @@ void AnsiToolsMode::draw(Editor& editor) const
     moveTo(top + height - 2, left);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
-    char footer[80];
+    char footer[112];
     std::snprintf(footer, sizeof(footer),
-                  " j/k move  Enter insert  q/Esc cancel  %d/%zu", cursor + 1,
-                  kAnsiTools.size());
+                  " j/k select  C-h/j/k/l cursor  a insert  Enter insert+close  q/Esc cancel  %d/%zu",
+                  cursor + 1, kAnsiTools.size());
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);

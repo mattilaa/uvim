@@ -34,5 +34,6 @@ private:
     mutable bool backdropDrawn = false;
     mutable int backdropRows = 0;
     mutable int backdropCols = 0;
+    bool insertedDuringSession = false;
 };
 } // namespace editor::statemachine
