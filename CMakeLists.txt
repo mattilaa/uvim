@@ -3,7 +3,7 @@ if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
 set(UVIM_VERSION_MAJOR 0)
-set(UVIM_VERSION_MINOR 1)
+set(UVIM_VERSION_MINOR 2)
 option(UVIM_AUTO_INCREMENT_BUILD "Auto-increment build number on each CMake configure" ON)
 set(UVIM_VERSION_BUILD 0 CACHE STRING "Build number")
 set(UVIM_BUILD_NUMBER_FILE "${CMAKE_BINARY_DIR}/.uvim_build_number" CACHE FILEPATH
