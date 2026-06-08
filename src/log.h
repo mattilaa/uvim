@@ -7,6 +7,8 @@
 #include <string>
 #include <string_view>
 
+#include <fmt/format.h>
+
 namespace mla::log
 {
 
@@ -150,25 +152,25 @@ using StdLogger = FileLogger;
 #define LOG_INFO(logger, ...)                                                  \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::INFO, std::format(__VA_ARGS__));        \
+        logger.log(mla::log::LogLevel::INFO, fmt::format(__VA_ARGS__));        \
     } while(0)
 
 #define LOG_DEBUG(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::DEBUG, std::format(__VA_ARGS__));       \
+        logger.log(mla::log::LogLevel::DEBUG, fmt::format(__VA_ARGS__));       \
     } while(0)
 
 #define LOG_WARNING(logger, ...)                                               \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::WARNING, std::format(__VA_ARGS__));     \
+        logger.log(mla::log::LogLevel::WARNING, fmt::format(__VA_ARGS__));     \
     } while(0)
 
 #define LOG_ERROR(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::ERROR, std::format(__VA_ARGS__));       \
+        logger.log(mla::log::LogLevel::ERROR, fmt::format(__VA_ARGS__));       \
     } while(0)
 
 #else
@@ -188,7 +190,7 @@ using StdLogger = FileLogger;
 #define LOG_ERROR(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::ERROR, std::format(__VA_ARGS__));       \
+        logger.log(mla::log::LogLevel::ERROR, fmt::format(__VA_ARGS__));       \
     } while(0)
 
 #endif
