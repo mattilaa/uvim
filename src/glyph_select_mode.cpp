@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace editor::statemachine
 {
@@ -128,6 +129,59 @@ ModeState exitState(ModeContext& ctx)
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
 }
 
+std::pair<int, int> editorCursorScreenPosition(const Editor& editor)
+{
+    Editor::PaneLayout layout = editor.getPaneLayout(editor.activePane);
+    int row = layout.y + (*editor.cursorY - *editor.offsetY) + 1 +
+              editor.tabBarRows();
+    int col = layout.x + (*editor.cursorX - *editor.offsetX) + 1 +
+              editor.gutterWidth();
+    if(editor.utf8Mode && *editor.cursorY >= 0 &&
+       *editor.cursorY < (int)editor.lines->size())
+    {
+        const std::string& line = (*editor.lines)[*editor.cursorY];
+        int start = std::clamp(*editor.offsetX, 0, (int)line.size());
+        int end = std::clamp(*editor.cursorX, 0, (int)line.size());
+        if(end < start)
+            std::swap(start, end);
+        col = text_utils::utf8DisplayWidth(
+                  std::string_view(line).substr(start, end - start)) +
+              1 + editor.gutterWidth() + layout.x;
+    }
+    return {std::clamp(row, 1, editor.screenRows),
+            std::clamp(col, 1, editor.screenCols)};
+}
+
+void insertSelectedGlyph(ModeContext& ctx, const GlyphEntry& entry,
+                         bool& insertedDuringSession)
+{
+    if(!ctx.editor || !ctx.editor->hasBuffer())
+        return;
+
+    Editor& editor = *ctx.editor;
+    if(!insertedDuringSession)
+        editor.saveState();
+    insertedDuringSession = true;
+
+    if(*editor.cursorY >= (int)editor.lines->size())
+        editor.lines->push_back("");
+
+    std::string& line = (*editor.lines)[*editor.cursorY];
+    int insertAt = std::clamp(*editor.cursorX, 0, (int)line.size());
+    if(editor.utf8Mode && insertAt > 0 && insertAt < (int)line.size())
+    {
+        const unsigned char byte =
+            static_cast<unsigned char>(line[(std::size_t)insertAt]);
+        if((byte & 0xC0) == 0x80)
+            insertAt = text_utils::prevUtf8CharStart(line, insertAt);
+    }
+    line.insert((std::size_t)insertAt, entry.glyph.data(), entry.glyph.size());
+    *editor.cursorX = insertAt + (int)entry.glyph.size();
+    *editor.dirty = true;
+    editor.needsFullRedraw = true;
+    ctx.setStatusMessage("inserted glyph " + std::string(entry.glyph));
+}
+
 void appendCell(std::string& out, const Theme& theme, const GlyphEntry& entry,
                 bool selected, int width)
 {
@@ -144,6 +198,7 @@ void GlyphSelectMode::on_enter(ModeContext& ctx)
 {
     cursor = std::clamp(cursor, 0, glyphCount() - 1);
     rowOffset = 0;
+    insertedDuringSession = false;
     backdropDrawn = false;
     backdropRows = 0;
     backdropCols = 0;
@@ -153,6 +208,8 @@ void GlyphSelectMode::on_enter(ModeContext& ctx)
 
 void GlyphSelectMode::on_exit(ModeContext& ctx)
 {
+    if(insertedDuringSession && ctx.editor && ctx.editor->hasBuffer())
+        ctx.editor->saveState();
     backdropDrawn = false;
     ctx.requestFullRedraw();
 }
@@ -222,18 +279,21 @@ std::optional<ModeState> GlyphSelectMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == keyCode(typed::TypedKey::KEY_A))
+    {
+        insertSelectedGlyph(ctx, kGlyphs[(std::size_t)cursor],
+                            insertedDuringSession);
+        backdropDrawn = false;
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
     if(c == keyCode(control::ControlKey::ENTER) ||
        c == keyCode(control::ControlKey::CTRL_M))
     {
-        if(ctx.editor && ctx.editor->hasBuffer())
-        {
-            const GlyphEntry& entry = kGlyphs[(std::size_t)cursor];
-            for(char ch : entry.glyph)
-                ctx.editor->insertChar(ch);
-            ctx.editor->saveState();
-            ctx.setStatusMessage("inserted glyph " + std::string(entry.glyph));
-            ctx.requestFullRedraw();
-        }
+        insertSelectedGlyph(ctx, kGlyphs[(std::size_t)cursor],
+                            insertedDuringSession);
+        ctx.requestFullRedraw();
         return exitState(ctx);
     }
 
@@ -252,9 +312,37 @@ void GlyphSelectMode::draw(Editor& editor) const
     }
 
     const int width = popupWidth(editor.screenCols);
-    const int height = popupHeight(editor.screenRows);
-    const int left = std::max(1, (editor.screenCols - width) / 2 + 1);
-    const int top = std::max(1, (editor.screenRows - height) / 2 + 1);
+    int height = popupHeight(editor.screenRows);
+    const auto [cursorRow, cursorCol] = editorCursorScreenPosition(editor);
+    int left = std::max(1, (editor.screenCols - width) / 2 + 1);
+    int top = std::max(1, (editor.screenRows - height) / 2 + 1);
+    const int bottomSpace = editor.screenRows - cursorRow;
+    const int topSpace = cursorRow - 1;
+    constexpr int minPopupHeight = 6;
+    if(bottomSpace >= minPopupHeight)
+    {
+        height = std::min(height, bottomSpace);
+        top = cursorRow + 1;
+    }
+    else if(topSpace >= minPopupHeight)
+    {
+        height = std::min(height, topSpace);
+        top = cursorRow - height;
+    }
+    const bool overlapsCursorRow =
+        cursorRow >= top && cursorRow < top + height;
+    if(overlapsCursorRow && cursorCol >= left && cursorCol < left + width)
+    {
+        const int rightLeft = cursorCol + 2;
+        if(rightLeft + width - 1 <= editor.screenCols)
+            left = rightLeft;
+        else
+        {
+            const int leftLeft = cursorCol - width - 1;
+            if(leftLeft >= 1)
+                left = leftLeft;
+        }
+    }
     const int innerWidth = std::max(1, width - 2);
     const int columns = popupColumns(innerWidth - 2);
     const int cellWidth = std::max(1, (innerWidth - 2) / columns);
@@ -319,7 +407,7 @@ void GlyphSelectMode::draw(Editor& editor) const
     text_utils::appendU8(output, ascii::BOX_LIGHT_VERTICAL);
     char footer[88];
     std::snprintf(footer, sizeof(footer),
-                  " h/j/k/l move  Enter insert  q/Esc cancel  %d/%zu",
+                  " h/j/k/l move  a insert  Enter insert+close  q/Esc cancel  %d/%zu",
                   cursor + 1, kGlyphs.size());
     appendPadded(output, footer, innerWidth);
     output += editor.theme.uiDim();
@@ -331,6 +419,8 @@ void GlyphSelectMode::draw(Editor& editor) const
                                  innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
+    output += Terminal::cursorPos(cursorRow, cursorCol);
+    output += Terminal::ESC_SHOW_CURSOR;
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)

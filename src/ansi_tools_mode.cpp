@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace editor::statemachine
 {
@@ -83,6 +84,29 @@ void appendPadded(std::string& out, std::string_view text, int width)
 ModeState exitState(ModeContext& ctx)
 {
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
+}
+
+std::pair<int, int> editorCursorScreenPosition(const Editor& editor)
+{
+    Editor::PaneLayout layout = editor.getPaneLayout(editor.activePane);
+    int row = layout.y + (*editor.cursorY - *editor.offsetY) + 1 +
+              editor.tabBarRows();
+    int col = layout.x + (*editor.cursorX - *editor.offsetX) + 1 +
+              editor.gutterWidth();
+    if(editor.utf8Mode && *editor.cursorY >= 0 &&
+       *editor.cursorY < (int)editor.lines->size())
+    {
+        const std::string& line = (*editor.lines)[*editor.cursorY];
+        int start = std::clamp(*editor.offsetX, 0, (int)line.size());
+        int end = std::clamp(*editor.cursorX, 0, (int)line.size());
+        if(end < start)
+            std::swap(start, end);
+        col = text_utils::utf8DisplayWidth(
+                  std::string_view(line).substr(start, end - start)) +
+              1 + editor.gutterWidth() + layout.x;
+    }
+    return {std::clamp(row, 1, editor.screenRows),
+            std::clamp(col, 1, editor.screenCols)};
 }
 
 void appendEntry(std::string& out, const Theme& theme,
@@ -189,9 +213,37 @@ void AnsiToolsMode::draw(Editor& editor) const
     }
 
     const int width = popupWidth(editor.screenCols);
-    const int height = popupHeight(editor.screenRows);
-    const int left = std::max(1, (editor.screenCols - width) / 2 + 1);
-    const int top = std::max(1, (editor.screenRows - height) / 2 + 1);
+    int height = popupHeight(editor.screenRows);
+    const auto [cursorRow, cursorCol] = editorCursorScreenPosition(editor);
+    int left = std::max(1, (editor.screenCols - width) / 2 + 1);
+    int top = std::max(1, (editor.screenRows - height) / 2 + 1);
+    const int bottomSpace = editor.screenRows - cursorRow;
+    const int topSpace = cursorRow - 1;
+    constexpr int minPopupHeight = 6;
+    if(bottomSpace >= minPopupHeight)
+    {
+        height = std::min(height, bottomSpace);
+        top = cursorRow + 1;
+    }
+    else if(topSpace >= minPopupHeight)
+    {
+        height = std::min(height, topSpace);
+        top = cursorRow - height;
+    }
+    const bool overlapsCursorRow =
+        cursorRow >= top && cursorRow < top + height;
+    if(overlapsCursorRow && cursorCol >= left && cursorCol < left + width)
+    {
+        const int rightLeft = cursorCol + 2;
+        if(rightLeft + width - 1 <= editor.screenCols)
+            left = rightLeft;
+        else
+        {
+            const int leftLeft = cursorCol - width - 1;
+            if(leftLeft >= 1)
+                left = leftLeft;
+        }
+    }
     const int innerWidth = std::max(1, width - 2);
     const int visibleRows = std::max(1, height - 4);
     const int maxOffset = std::max(0, toolCount() - visibleRows);
@@ -257,6 +309,8 @@ void AnsiToolsMode::draw(Editor& editor) const
                                  innerWidth);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
     output += editor.theme.reset();
+    output += Terminal::cursorPos(cursorRow, cursorCol);
+    output += Terminal::ESC_SHOW_CURSOR;
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)
