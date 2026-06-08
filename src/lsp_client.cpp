@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "json_utils.h"
+#include "enablelog.h"
 #include "text_utils.h"
 
 namespace ju = json_utils;
@@ -463,7 +464,11 @@ struct LspClient::Impl
     {
         std::string err = capturedStderr();
         if(!err.empty())
-            status += ": " + err;
+        {
+            LOG_ERROR(LOG, "LSP server stderr after '{}':\n{}", status, err);
+            status += " (details logged to " + mla::log::getLogFilePath() +
+                      ")";
+        }
         return status;
     }
 
@@ -574,7 +579,11 @@ struct LspClient::Impl
     {
         std::string err = capturedStderr();
         if(!err.empty())
-            status += ": " + err;
+        {
+            LOG_ERROR(LOG, "LSP server stderr after '{}':\n{}", status, err);
+            status += " (details logged to " + mla::log::getLogFilePath() +
+                      ")";
+        }
         return status;
     }
 
@@ -1453,15 +1462,7 @@ std::string LspClient::lastError() const
 {
     if(!impl)
         return {};
-    std::string error = impl->lastError;
-    std::string stderrText = impl->capturedStderr();
-    if(!stderrText.empty() && error.find(stderrText) == std::string::npos)
-    {
-        if(error.empty())
-            return stderrText;
-        error += ": " + stderrText;
-    }
-    return error;
+    return impl->lastError;
 }
 
 bool LspClient::indexingInProgress() const
