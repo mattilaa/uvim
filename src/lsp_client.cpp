@@ -18,6 +18,7 @@
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
+#include <cwctype>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -162,46 +163,66 @@ static std::string uriToPath(const std::string& uri)
 }
 
 #ifdef _WIN32
-static std::string quote_windows_arg(const std::string& arg)
+static std::wstring utf8_to_wide(std::string_view text)
+{
+    if(text.empty())
+        return {};
+
+    int wideLen =
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                            static_cast<int>(text.size()), nullptr, 0);
+    if(wideLen <= 0)
+        return {};
+
+    std::wstring wide(static_cast<size_t>(wideLen), L'\0');
+    wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                                  static_cast<int>(text.size()), wide.data(),
+                                  wideLen);
+    if(wideLen <= 0)
+        return {};
+    return wide;
+}
+
+static std::wstring quote_windows_arg(std::wstring_view arg)
 {
     if(arg.empty())
-        return "\"\"";
+        return L"\"\"";
 
     bool needsQuotes = false;
-    for(char c : arg)
+    for(wchar_t c : arg)
     {
-        if(std::isspace(static_cast<unsigned char>(c)) || c == '"')
+        if(std::iswspace(c) || c == L'"')
         {
             needsQuotes = true;
             break;
         }
     }
     if(!needsQuotes)
-        return arg;
+        return std::wstring(arg);
 
-    std::string out = "\"";
+    std::wstring out = L"\"";
     size_t backslashes = 0;
-    for(char c : arg)
+    for(wchar_t c : arg)
     {
-        if(c == '\\')
+        if(c == L'\\')
         {
             ++backslashes;
             continue;
         }
-        if(c == '"')
+        if(c == L'"')
         {
-            out.append(backslashes * 2 + 1, '\\');
-            out.push_back('"');
+            out.append(backslashes * 2 + 1, L'\\');
+            out.push_back(L'"');
         }
         else
         {
-            out.append(backslashes, '\\');
+            out.append(backslashes, L'\\');
             out.push_back(c);
         }
         backslashes = 0;
     }
-    out.append(backslashes * 2, '\\');
-    out.push_back('"');
+    out.append(backslashes * 2, L'\\');
+    out.push_back(L'"');
     return out;
 }
 #endif
@@ -660,11 +681,34 @@ struct LspClient::Impl
             return false;
         }
 
-        std::string commandLine = quote_windows_arg(clangdPath);
-        for(const auto& arg : extraArgs)
-            commandLine += " " + quote_windows_arg(arg);
+        std::wstring executablePath = utf8_to_wide(clangdPath);
+        if(executablePath.empty())
+        {
+            CloseHandle(childStdinRead);
+            CloseHandle(parentStdinWrite);
+            CloseHandle(parentStdoutRead);
+            CloseHandle(childStdoutWrite);
+            CloseHandle(childStderr);
+            return false;
+        }
 
-        STARTUPINFOA startup{};
+        std::wstring commandLine = quote_windows_arg(executablePath);
+        for(const auto& arg : extraArgs)
+        {
+            std::wstring wideArg = utf8_to_wide(arg);
+            if(wideArg.empty() && !arg.empty())
+            {
+                CloseHandle(childStdinRead);
+                CloseHandle(parentStdinWrite);
+                CloseHandle(parentStdoutRead);
+                CloseHandle(childStdoutWrite);
+                CloseHandle(childStderr);
+                return false;
+            }
+            commandLine += L" " + quote_windows_arg(wideArg);
+        }
+
+        STARTUPINFOW startup{};
         startup.cb = sizeof(startup);
         startup.dwFlags = STARTF_USESTDHANDLES;
         startup.hStdInput = childStdinRead;
@@ -672,9 +716,14 @@ struct LspClient::Impl
         startup.hStdError = childStderr;
 
         PROCESS_INFORMATION processInfo{};
-        BOOL ok = CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr,
-                                 TRUE, CREATE_NO_WINDOW, nullptr, nullptr,
-                                 &startup, &processInfo);
+        const bool hasPathSeparator =
+            clangdPath.find('/') != std::string::npos ||
+            clangdPath.find('\\') != std::string::npos;
+        const wchar_t* applicationName =
+            hasPathSeparator ? executablePath.c_str() : nullptr;
+        BOOL ok = CreateProcessW(applicationName, commandLine.data(), nullptr,
+                                 nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
+                                 nullptr, &startup, &processInfo);
 
         CloseHandle(childStdinRead);
         CloseHandle(childStdoutWrite);
