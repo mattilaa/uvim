@@ -256,6 +256,7 @@ set(UVIM_CORE_SOURCES
 set(MODE_STATE_MACHINE_SOURCES
     src/mode_state_machine.cpp
     src/mode_context.cpp
+    src/popup_base.cpp
     src/command_prompt.cpp
     src/comment_leader_pending.cpp
     src/comment_leader_pending_actions.cpp

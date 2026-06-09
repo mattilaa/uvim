@@ -2,6 +2,7 @@
 #include "ascii.h"
 
 #include "editor.h"
+#include "popup_base.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "theme.h"
@@ -216,10 +217,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     if(maxRows <= 0)
         return;
 
-    int cy = (*editor.cursorY - *editor.offsetY) + 1 + editor.tabBarRows();
-    int cx = (*editor.cursorX - *editor.offsetX) + 1 + editor.gutterWidth();
-    cy = std::clamp(cy, 1, editor.screenRows);
-    cx = std::clamp(cx, 1, editor.screenCols);
+    const auto [cy, cx] =
+        editor::statemachine::editorCursorScreenPosition(editor);
 
     int maxLeftW = 0;
     int maxBriefW = 0;
@@ -305,15 +304,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
         return rows > 0;
     };
 
-    int top = cy + 1;
-    int totalH = maxRows + 2 + docRows;
     const int rowsBelowCursor = editor.screenRows - cy;
-    if(fitPopupRows(rowsBelowCursor, docRows, maxRows))
-    {
-        top = cy + 1;
-        totalH = maxRows + 2 + docRows;
-    }
-    else
+    if(!fitPopupRows(rowsBelowCursor, docRows, maxRows))
     {
         int aboveDocRows = docRows;
         int aboveRows = maxRows;
@@ -322,13 +314,14 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             return;
         docRows = aboveDocRows;
         maxRows = aboveRows;
-        totalH = maxRows + 2 + docRows;
-        top = cy - totalH;
     }
 
-    int left = cx;
-    if(left + totalW - 1 > editor.screenCols)
-        left = std::max(1, editor.screenCols - totalW + 1);
+    const int totalH = maxRows + 2 + docRows;
+    const editor::statemachine::PopupPlacement placement =
+        editor::statemachine::placePopupNearEditorCursor(
+            editor, totalW, totalH, totalH, false);
+    const int top = placement.top;
+    const int left = placement.left;
 
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
