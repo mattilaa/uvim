@@ -5,8 +5,9 @@
 #include <utility>
 
 class Editor;
+class Theme;
 
-namespace editor::statemachine
+namespace widgets
 {
 struct PopupPlacement
 {
@@ -18,6 +19,13 @@ struct PopupPlacement
     int cursorCol = 1;
 };
 
+struct PopupFrameView
+{
+    const Theme& theme;
+    int screenRows = 0;
+    int screenCols = 0;
+};
+
 std::pair<int, int> editorCursorScreenPosition(const Editor& editor);
 
 PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
@@ -25,13 +33,20 @@ PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
                                           int minHeight = 6,
                                           bool centerHorizontally = true);
 
-bool moveEditorCursorForPopup(ModeContext& ctx, int c);
+PopupPlacement placeBottomLeftPopup(int screenRows, int screenCols, int width,
+                                    int height, int preferredLeft = 2);
+
+int visibleRowsForCursorPopup(editor::statemachine::ModeContext& ctx,
+                              int width, int preferredHeight,
+                              int chromeRows);
+
+bool moveEditorCursorForPopup(editor::statemachine::ModeContext& ctx, int c);
 
 class PopupBase
 {
 public:
     void resetBackdrop() const;
-    void requestBackdropRedraw(ModeContext& ctx) const;
+    void requestBackdropRedraw(editor::statemachine::ModeContext& ctx) const;
     void drawBackdropIfNeeded(Editor& editor) const;
 
 protected:
@@ -39,4 +54,4 @@ protected:
     mutable int backdropRows = 0;
     mutable int backdropCols = 0;
 };
-} // namespace editor::statemachine
+} // namespace widgets

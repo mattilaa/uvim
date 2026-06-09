@@ -1,4 +1,4 @@
-#include "popup_base.h"
+#include "widgets/popup_base.h"
 
 #include "editor.h"
 #include "key_enums.h"
@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <string_view>
 
-namespace editor::statemachine
+namespace widgets
 {
 std::pair<int, int> editorCursorScreenPosition(const Editor& editor)
 {
@@ -90,7 +90,34 @@ PopupPlacement placePopupNearEditorCursor(const Editor& editor, int width,
     return placement;
 }
 
-bool moveEditorCursorForPopup(ModeContext& ctx, int c)
+PopupPlacement placeBottomLeftPopup(int screenRows, int screenCols, int width,
+                                    int height, int preferredLeft)
+{
+    PopupPlacement placement;
+    placement.width = std::clamp(width, 1, std::max(1, screenCols));
+    placement.height = std::clamp(height, 1, std::max(1, screenRows));
+    placement.top = screenRows - placement.height + 1;
+    if(placement.top < 1)
+        placement.top = 1;
+    placement.left = std::max(1, preferredLeft);
+    if(placement.left + placement.width - 1 > screenCols)
+        placement.left = std::max(1, screenCols - placement.width + 1);
+    return placement;
+}
+
+int visibleRowsForCursorPopup(editor::statemachine::ModeContext& ctx,
+                              int width, int preferredHeight, int chromeRows)
+{
+    if(ctx.editor)
+    {
+        const PopupPlacement placement =
+            placePopupNearEditorCursor(*ctx.editor, width, preferredHeight);
+        return std::max(1, placement.height - chromeRows);
+    }
+    return std::max(1, preferredHeight - chromeRows);
+}
+
+bool moveEditorCursorForPopup(editor::statemachine::ModeContext& ctx, int c)
 {
     if(!ctx.editor || !ctx.editor->hasBuffer())
         return false;
@@ -117,7 +144,8 @@ void PopupBase::resetBackdrop() const
     backdropDrawn = false;
 }
 
-void PopupBase::requestBackdropRedraw(ModeContext& ctx) const
+void PopupBase::requestBackdropRedraw(
+    editor::statemachine::ModeContext& ctx) const
 {
     resetBackdrop();
     ctx.requestFullRedraw();
@@ -134,4 +162,4 @@ void PopupBase::drawBackdropIfNeeded(Editor& editor) const
         backdropCols = editor.screenCols;
     }
 }
-} // namespace editor::statemachine
+} // namespace widgets

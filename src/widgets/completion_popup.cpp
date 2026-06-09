@@ -2,7 +2,7 @@
 #include "ascii.h"
 
 #include "editor.h"
-#include "popup_base.h"
+#include "widgets/popup_base.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "theme.h"
@@ -217,8 +217,7 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     if(maxRows <= 0)
         return;
 
-    const auto [cy, cx] =
-        editor::statemachine::editorCursorScreenPosition(editor);
+    const auto [cy, cx] = widgets::editorCursorScreenPosition(editor);
 
     int maxLeftW = 0;
     int maxBriefW = 0;
@@ -317,9 +316,9 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
     }
 
     const int totalH = maxRows + 2 + docRows;
-    const editor::statemachine::PopupPlacement placement =
-        editor::statemachine::placePopupNearEditorCursor(
-            editor, totalW, totalH, totalH, false);
+    const widgets::PopupPlacement placement =
+        widgets::placePopupNearEditorCursor(editor, totalW, totalH, totalH,
+                                            false);
     const int top = placement.top;
     const int left = placement.left;
 

@@ -1,17 +1,15 @@
 #pragma once
 
+#include "widgets/popup_base.h"
+
 #include <string>
 #include <vector>
-
-class Theme;
 
 namespace widgets
 {
 struct CommandPopupView
 {
-    const Theme& theme;
-    int screenRows = 0;
-    int screenCols = 0;
+    PopupFrameView frame;
     const std::vector<std::string>& entries;
     const std::vector<int>& filtered;
     int offset = 0;

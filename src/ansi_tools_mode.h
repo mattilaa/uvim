@@ -3,7 +3,7 @@
 #include "mode_context.h"
 #include "mode_events.h"
 #include "mode_state.h"
-#include "popup_base.h"
+#include "widgets/popup_base.h"
 
 #include <optional>
 
@@ -11,7 +11,7 @@ class Editor;
 
 namespace editor::statemachine
 {
-struct AnsiToolsMode : PopupBase
+struct AnsiToolsMode : widgets::PopupBase
 {
     static constexpr const char* name()
     {

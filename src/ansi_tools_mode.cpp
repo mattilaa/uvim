@@ -163,10 +163,15 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
                                                const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
-    const int visibleRows = std::max(1, popupHeight(ctx.screenRows()) - 4);
+    const int width = popupWidth(ctx.screenCols());
+    const int visibleRows =
+        widgets::visibleRowsForCursorPopup(ctx, width,
+                                           popupHeight(ctx.screenRows()), 4);
 
-    if(moveEditorCursorForPopup(ctx, c))
+    if(widgets::moveEditorCursorForPopup(ctx, c))
     {
+        clampToVisible(widgets::visibleRowsForCursorPopup(
+            ctx, width, popupHeight(ctx.screenRows()), 4));
         requestBackdropRedraw(ctx);
         return std::nullopt;
     }
@@ -222,8 +227,9 @@ void AnsiToolsMode::draw(Editor& editor) const
     drawBackdropIfNeeded(editor);
 
     const int width = popupWidth(editor.screenCols);
-    const PopupPlacement placement =
-        placePopupNearEditorCursor(editor, width, popupHeight(editor.screenRows));
+    const widgets::PopupPlacement placement =
+        widgets::placePopupNearEditorCursor(editor, width,
+                                            popupHeight(editor.screenRows));
     const int height = placement.height;
     const int top = placement.top;
     const int left = placement.left;

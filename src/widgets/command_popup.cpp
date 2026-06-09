@@ -176,9 +176,10 @@ static void build_command_line_parts(std::string_view cmdText, int cmdColWidth,
 
 void drawCommandPopup(std::string& output, const CommandPopupView& view)
 {
-    output += view.theme.baseFg();
+    const PopupFrameView& frame = view.frame;
+    output += frame.theme.baseFg();
 
-    int rows = std::min(8, std::max(1, view.screenRows - 2));
+    int rows = std::min(8, std::max(1, frame.screenRows - 2));
     if(rows <= 0)
         return;
 
@@ -205,19 +206,18 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
     int innerW = std::max(48, maxContent);
     int totalW = innerW + 4;
-    if(totalW > view.screenCols)
+    if(totalW > frame.screenCols)
     {
-        totalW = view.screenCols;
+        totalW = frame.screenCols;
         innerW = std::max(4, totalW - 4);
     }
 
     int totalH = rows + 2;
-    int top = view.screenRows - totalH + 1;
-    if(top < 1)
-        top = 1;
-    int left = 2;
-    if(left + totalW - 1 > view.screenCols)
-        left = std::max(1, view.screenCols - totalW + 1);
+    const PopupPlacement placement =
+        placeBottomLeftPopup(frame.screenRows, frame.screenCols, totalW,
+                             totalH);
+    int top = placement.top;
+    int left = placement.left;
 
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
@@ -265,30 +265,30 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
            (i + view.offset) < (int)view.filtered.size() &&
            (i + view.offset) == view.cursor)
         {
-            output += view.theme.selection();
+            output += frame.theme.selection();
             output.append(line);
-            output += view.theme.reset();
+            output += frame.theme.reset();
         }
         else
         {
             if(!cmdPart.empty())
             {
-                output += view.theme.uiAccent();
+                output += frame.theme.uiAccent();
                 output += cmdPart;
-                output += view.theme.baseFg();
+                output += frame.theme.baseFg();
                 output += gapPart;
                 if(!docPart.empty())
                 {
-                    output += view.theme.uiDim();
+                    output += frame.theme.uiDim();
                     output += docPart;
                 }
             }
             else
             {
-                output += view.theme.syntax(TOKEN_FUNCTION);
+                output += frame.theme.syntax(TOKEN_FUNCTION);
                 output += line;
             }
-            output += view.theme.reset();
+            output += frame.theme.reset();
         }
 
         int pad = innerW - text_utils::displayWidth(line);
