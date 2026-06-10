@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
-#include <utility>
 
 namespace editor::statemachine
 {
@@ -86,51 +85,6 @@ ModeState exitState(ModeContext& ctx)
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
 }
 
-std::pair<int, int> editorCursorScreenPosition(const Editor& editor)
-{
-    Editor::PaneLayout layout = editor.getPaneLayout(editor.activePane);
-    int row = layout.y + (*editor.cursorY - *editor.offsetY) + 1 +
-              editor.tabBarRows();
-    int col = layout.x + (*editor.cursorX - *editor.offsetX) + 1 +
-              editor.gutterWidth();
-    if(editor.utf8Mode && *editor.cursorY >= 0 &&
-       *editor.cursorY < (int)editor.lines->size())
-    {
-        const std::string& line = (*editor.lines)[*editor.cursorY];
-        int start = std::clamp(*editor.offsetX, 0, (int)line.size());
-        int end = std::clamp(*editor.cursorX, 0, (int)line.size());
-        if(end < start)
-            std::swap(start, end);
-        col = text_utils::utf8DisplayWidth(
-                  std::string_view(line).substr(start, end - start)) +
-              1 + editor.gutterWidth() + layout.x;
-    }
-    return {std::clamp(row, 1, editor.screenRows),
-            std::clamp(col, 1, editor.screenCols)};
-}
-
-bool moveEditorCursorForPopup(ModeContext& ctx, int c)
-{
-    if(!ctx.editor || !ctx.editor->hasBuffer())
-        return false;
-
-    Editor& editor = *ctx.editor;
-    if(c == keyCode(control::ControlKey::CTRL_H))
-        editor.moveLeft();
-    else if(c == keyCode(control::ControlKey::CTRL_L))
-        editor.moveRight();
-    else if(c == keyCode(control::ControlKey::CTRL_K))
-        editor.moveUp();
-    else if(c == keyCode(control::ControlKey::CTRL_J))
-        editor.moveDown();
-    else
-        return false;
-
-    editor.adjustViewport();
-    editor.needsFullRedraw = true;
-    return true;
-}
-
 void insertSelectedAnsiTool(ModeContext& ctx, const AnsiToolEntry& entry,
                             bool& insertedDuringSession)
 {
@@ -180,9 +134,7 @@ void AnsiToolsMode::on_enter(ModeContext& ctx)
     cursor = std::clamp(cursor, 0, toolCount() - 1);
     rowOffset = 0;
     insertedDuringSession = false;
-    backdropDrawn = false;
-    backdropRows = 0;
-    backdropCols = 0;
+    resetBackdrop();
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
 }
@@ -191,7 +143,7 @@ void AnsiToolsMode::on_exit(ModeContext& ctx)
 {
     if(insertedDuringSession && ctx.editor && ctx.editor->hasBuffer())
         ctx.editor->saveState();
-    backdropDrawn = false;
+    resetBackdrop();
     ctx.requestFullRedraw();
 }
 
@@ -211,12 +163,16 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
                                                const ModeKeyEvent& event)
 {
     const int c = keyCode(event.key);
-    const int visibleRows = std::max(1, popupHeight(ctx.screenRows()) - 4);
+    const int width = popupWidth(ctx.screenCols());
+    const int visibleRows =
+        widgets::visibleRowsForCursorPopup(ctx, width,
+                                           popupHeight(ctx.screenRows()), 4);
 
-    if(moveEditorCursorForPopup(ctx, c))
+    if(widgets::moveEditorCursorForPopup(ctx, c))
     {
-        backdropDrawn = false;
-        ctx.requestFullRedraw();
+        clampToVisible(widgets::visibleRowsForCursorPopup(
+            ctx, width, popupHeight(ctx.screenRows()), 4));
+        requestBackdropRedraw(ctx);
         return std::nullopt;
     }
 
@@ -250,8 +206,7 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
     {
         insertSelectedAnsiTool(ctx, kAnsiTools[(std::size_t)cursor],
                                insertedDuringSession);
-        backdropDrawn = false;
-        ctx.requestFullRedraw();
+        requestBackdropRedraw(ctx);
         return std::nullopt;
     }
 
@@ -269,47 +224,17 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
 
 void AnsiToolsMode::draw(Editor& editor) const
 {
-    if(!backdropDrawn || backdropRows != editor.screenRows ||
-       backdropCols != editor.screenCols)
-    {
-        editor.drawFullScreenSingle();
-        backdropDrawn = true;
-        backdropRows = editor.screenRows;
-        backdropCols = editor.screenCols;
-    }
+    drawBackdropIfNeeded(editor);
 
     const int width = popupWidth(editor.screenCols);
-    int height = popupHeight(editor.screenRows);
-    const auto [cursorRow, cursorCol] = editorCursorScreenPosition(editor);
-    int left = std::max(1, (editor.screenCols - width) / 2 + 1);
-    int top = std::max(1, (editor.screenRows - height) / 2 + 1);
-    const int bottomSpace = editor.screenRows - cursorRow;
-    const int topSpace = cursorRow - 1;
-    constexpr int minPopupHeight = 6;
-    if(bottomSpace >= minPopupHeight)
-    {
-        height = std::min(height, bottomSpace);
-        top = cursorRow + 1;
-    }
-    else if(topSpace >= minPopupHeight)
-    {
-        height = std::min(height, topSpace);
-        top = cursorRow - height;
-    }
-    const bool overlapsCursorRow =
-        cursorRow >= top && cursorRow < top + height;
-    if(overlapsCursorRow && cursorCol >= left && cursorCol < left + width)
-    {
-        const int rightLeft = cursorCol + 2;
-        if(rightLeft + width - 1 <= editor.screenCols)
-            left = rightLeft;
-        else
-        {
-            const int leftLeft = cursorCol - width - 1;
-            if(leftLeft >= 1)
-                left = leftLeft;
-        }
-    }
+    const widgets::PopupPlacement placement =
+        widgets::placePopupNearEditorCursor(editor, width,
+                                            popupHeight(editor.screenRows));
+    const int height = placement.height;
+    const int top = placement.top;
+    const int left = placement.left;
+    const int cursorRow = placement.cursorRow;
+    const int cursorCol = placement.cursorCol;
     const int innerWidth = std::max(1, width - 2);
     const int visibleRows = std::max(1, height - 4);
     const int maxOffset = std::max(0, toolCount() - visibleRows);

@@ -10,9 +10,10 @@ namespace widgets
 void drawCommandHistoryPopup(std::string& output,
                              const CommandHistoryPopupView& view)
 {
-    output += view.theme.baseFg();
+    const PopupFrameView& frame = view.frame;
+    output += frame.theme.baseFg();
 
-    int rows = std::min(8, std::max(1, view.screenRows - 2));
+    int rows = std::min(8, std::max(1, frame.screenRows - 2));
     if(rows <= 0)
         return;
 
@@ -32,19 +33,18 @@ void drawCommandHistoryPopup(std::string& output,
 
     int innerW = std::max(24, maxContent);
     int totalW = innerW + 4;
-    if(totalW > view.screenCols)
+    if(totalW > frame.screenCols)
     {
-        totalW = view.screenCols;
+        totalW = frame.screenCols;
         innerW = std::max(4, totalW - 4);
     }
 
     int totalH = rows + 2;
-    int top = view.screenRows - totalH + 1;
-    if(top < 1)
-        top = 1;
-    int left = 2;
-    if(left + totalW - 1 > view.screenCols)
-        left = std::max(1, view.screenCols - totalW + 1);
+    const PopupPlacement placement =
+        placeBottomLeftPopup(frame.screenRows, frame.screenCols, totalW,
+                             totalH);
+    int top = placement.top;
+    int left = placement.left;
 
     auto moveTo = [&](int r, int c) { output += Terminal::cursorPos(r, c); };
 
@@ -81,9 +81,9 @@ void drawCommandHistoryPopup(std::string& output,
            (i + view.offset) < (int)view.matches.size() &&
            (i + view.offset) == view.cursor)
         {
-            output += view.theme.selection();
+            output += frame.theme.selection();
             output.append(line);
-            output += view.theme.reset();
+            output += frame.theme.reset();
         }
         else
         {

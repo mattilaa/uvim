@@ -506,9 +506,9 @@ void Editor::drawCommandPopupImpl(std::string& output) const
     }
 
     widgets::CommandPopupView view{
-        .theme = theme,
-        .screenRows = screenRows,
-        .screenCols = screenCols,
+        .frame = {.theme = theme,
+                  .screenRows = screenRows,
+                  .screenCols = screenCols},
         .entries = commandPopupAll,
         .filtered = commandPopupFiltered,
         .offset = commandPopupOffset,
@@ -522,9 +522,9 @@ void Editor::drawCommandHistoryPopupImpl(std::string& output) const
     if(!commandHistorySearchActive)
         return;
     widgets::CommandHistoryPopupView view{
-        .theme = theme,
-        .screenRows = screenRows,
-        .screenCols = screenCols,
+        .frame = {.theme = theme,
+                  .screenRows = screenRows,
+                  .screenCols = screenCols},
         .history = commandHistory,
         .matches = commandHistorySearchMatches,
         .offset = commandHistorySearchOffset,

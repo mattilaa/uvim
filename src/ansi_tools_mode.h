@@ -3,6 +3,7 @@
 #include "mode_context.h"
 #include "mode_events.h"
 #include "mode_state.h"
+#include "widgets/popup_base.h"
 
 #include <optional>
 
@@ -10,7 +11,7 @@ class Editor;
 
 namespace editor::statemachine
 {
-struct AnsiToolsMode
+struct AnsiToolsMode : widgets::PopupBase
 {
     static constexpr const char* name()
     {
@@ -31,9 +32,6 @@ struct AnsiToolsMode
 private:
     void clampToVisible(int visibleRows);
 
-    mutable bool backdropDrawn = false;
-    mutable int backdropRows = 0;
-    mutable int backdropCols = 0;
     bool insertedDuringSession = false;
 };
 } // namespace editor::statemachine
