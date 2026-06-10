@@ -1237,6 +1237,39 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  - If npm global binaries are not found, add npm's bin directory",
             "    to PATH and restart your shell/editor.",
             "  - In uvim config, set explicit `*LspPath` values if needed.",
+            "  - Build with `-DUVIM_DEBUG_LSP=ON` to write LSP startup and",
+            "    stderr details to uvim.log instead of `:lspinfo`.",
+            "  - Log paths: POSIX `/tmp/uvim.log`; Windows",
+            "    `%USERPROFILE%\\Documents\\uvim\\uvim.log`.",
+            "  - Override with `uvim --log-file <path>` in logging-enabled",
+            "    builds.",
+        };
+    }
+    else if(topic_lower == "logging" || topic_lower == "logs" ||
+            topic_lower == "uvimlog")
+    {
+        lines = {
+            "# uvim Logging",
+            "",
+            "BUILD OPTIONS:",
+            "  `-DUVIM_DEBUG_LSP=ON`     - Enable LSP startup/stderr/debug",
+            "                              logging.",
+            "  `-DUVIM_DEBUG_LOGGING=ON` - Enable broader editor debug",
+            "                              logging.",
+            "",
+            "DEFAULT LOG FILE:",
+            "  POSIX:   `/tmp/uvim.log`",
+            "  Windows: `%USERPROFILE%\\Documents\\uvim\\uvim.log`",
+            "",
+            "RUNTIME OVERRIDE:",
+            "  `uvim --log-file <path> file.cpp`",
+            "",
+            "NOTES:",
+            "  - Logging is compiled out by default.",
+            "  - `--log-file` is accepted in normal builds, but no uvim log",
+            "    rows are written unless logging was enabled at CMake time.",
+            "  - LSP rows include a server signature after the timestamp,",
+            "    for example `[CLANGD]`, `[PYTHON]`, `[ROBOT]`, `[TS]`.",
         };
     }
     else
@@ -1266,6 +1299,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help gs`",
             "  `:help emitasm`",
             "  `:help lsp`",
+            "  `:help logging`",
             "  `:help diagnostics`",
             "",
             "Type `:help` to see the main help page.",

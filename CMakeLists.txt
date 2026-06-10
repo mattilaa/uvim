@@ -48,8 +48,8 @@ option(UVIM_ENABLE_CSS_LSP "Build uvim with CSS LSP support" OFF)
 option(UVIM_ENABLE_JSON_LSP "Build uvim with JSON LSP support" OFF)
 option(UVIM_ENABLE_TS_LSP "Build uvim with TypeScript/JavaScript LSP support" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
-option(UVIM_DEBUG_LOGGING "Enable debug logging to /tmp/uvim_debug.txt" OFF)
-option(UVIM_DEBUG_LSP "Enable LSP debug logging to /tmp/uvim_lsp_codeactions.log" OFF)
+option(UVIM_DEBUG_LOGGING "Enable general uvim debug logging" OFF)
+option(UVIM_DEBUG_LSP "Enable uvim LSP logging" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
 option(UVIM_BOOTSTRAP_CONFIG_ONLY "Configure only uvim-config for bootstrap" OFF)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
@@ -687,6 +687,17 @@ if(UVIM_BUILD_TESTS)
     target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     uvim_target_include_rapidjson(constants_tests)
 
+    add_executable(logging_tests
+        tests/logging_test.cpp
+    )
+    uvim_enable_sanitizers(logging_tests)
+    target_link_libraries(logging_tests
+        GTest::gtest_main
+        fmt::fmt
+    )
+    target_include_directories(logging_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(logging_tests PRIVATE UVIM_DEBUG_LSP=1)
+
     set(UVIM_TEST_SOURCES
         ${UVIM_CORE_SOURCES}
         ${MODE_STATE_MACHINE_SOURCES}
@@ -754,6 +765,7 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(state_machine_tests)
     gtest_discover_tests(mode_state_machine_tests)
     gtest_discover_tests(constants_tests)
+    gtest_discover_tests(logging_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
@@ -766,7 +778,7 @@ if(UVIM_BUILD_TESTS)
 
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS state_machine_tests mode_state_machine_tests constants_tests real_mode_transitions_tests
+        DEPENDS state_machine_tests mode_state_machine_tests constants_tests logging_tests real_mode_transitions_tests
     )
 endif()
 

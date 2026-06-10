@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("JSON");
+}
+
 void Editor::enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
                                const std::vector<std::string>& jsonLspArgs)
 {
@@ -42,21 +47,22 @@ void Editor::enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
         args.push_back("--stdio");
 
     jsonLspClient = std::make_unique<LspClient>();
+    jsonLspClient->setLogSignature("JSON");
     if(!jsonLspClient->startServer(this->jsonLspPath, rootDir, args))
     {
         jsonLspClient.reset();
-        LOG_ERROR(LOG, "JSON LSP failed to start. LSP path: {}",
+        LOG_ERROR(LSP_LOG, "JSON LSP failed to start. LSP path: {}",
                   this->jsonLspPath);
         return;
     }
 
     jsonLspEnabled = true;
-    LOG_DEBUG(LOG, "JSON LSP enabled");
+    LOG_DEBUG(LSP_LOG, "JSON LSP enabled");
 #else
     (void)enable;
     (void)jsonLspPath;
     (void)jsonLspArgs;
-    LOG_ERROR(LOG, "JSON LSP is not compiled");
+    LOG_ERROR(LSP_LOG, "JSON LSP is not compiled");
 #endif
 }
 

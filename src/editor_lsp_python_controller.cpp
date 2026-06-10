@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("PYTHON");
+}
+
 void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
                                  const std::vector<std::string>& pythonLspArgs)
 {
@@ -40,22 +45,23 @@ void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
     std::vector<std::string> args = this->pythonLspArgs;
 
     pythonLspClient = std::make_unique<LspClient>();
+    pythonLspClient->setLogSignature("PYTHON");
     if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
     {
         pythonLspClient.reset();
 
-        LOG_ERROR(LOG, "Python LSP failed to start. Python LSP path: {}",
+        LOG_ERROR(LSP_LOG, "Python LSP failed to start. Python LSP path: {}",
                   this->pythonLspPath);
         return;
     }
 
     pythonLspEnabled = true;
-    LOG_DEBUG(LOG, "Python LSP enabled");
+    LOG_DEBUG(LSP_LOG, "Python LSP enabled");
 #else
     (void)enable;
     (void)pythonLspPath;
     (void)pythonLspArgs;
-    LOG_ERROR(LOG, "python LSP support is not compiled");
+    LOG_ERROR(LSP_LOG, "python LSP support is not compiled");
 #endif
 }
 

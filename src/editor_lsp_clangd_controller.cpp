@@ -10,6 +10,8 @@
 
 namespace
 {
+mla::log::FileLogger LSP_LOG("CLANGD");
+
 std::string path_for_clangd_glob(std::filesystem::path path)
 {
     std::string out = path.lexically_normal().string();
@@ -115,10 +117,12 @@ void Editor::enableClangdLspImpl(bool enable,
     }
 
     lspClient = std::make_unique<LspClient>();
+    lspClient->setLogSignature("CLANGD");
     if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
     {
         std::string error = lspClient->lastError();
-        LOG_ERROR(LOG, "clangd LSP failed to start. path='{}' root='{}' ccdir='{}' error='{}'",
+        LOG_ERROR(LSP_LOG,
+                  "clangd LSP failed to start. path='{}' root='{}' ccdir='{}' error='{}'",
                   clangdLspPath, rootDir, ccdir,
                   error.empty() ? std::string{"failed to start"} : error);
         lspClient.reset();

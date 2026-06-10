@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "enablelog.h"
 #include "terminal.h"
 #include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -7,10 +8,14 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
-#include <optional>
 #include <string_view>
 
 namespace fs = std::filesystem;
+
+namespace
+{
+mla::log::FileLogger CLANGD_LOG("CLANGD");
+}
 
 static bool binaryExists(const std::string& pathOrExe)
 {
@@ -94,35 +99,13 @@ static std::string filetypeLabel(const Editor& ed)
     return "text";
 }
 
-static void appendStatusLines(std::vector<std::string>& lines,
-                              const std::string& status)
+static std::string lspLogDetailSuffix()
 {
-    size_t start = 0;
-    bool first = true;
-    while(start <= status.size())
-    {
-        size_t end = status.find('\n', start);
-        if(text_utils::is_not_found(end))
-            end = status.size();
-
-        std::string line = status.substr(start, end - start);
-        while(!line.empty() && line.back() == '\r')
-            line.pop_back();
-
-        if(!line.empty())
-        {
-            lines.push_back(std::string(first ? "  status: " : "          ") +
-                            line);
-            first = false;
-        }
-
-        if(end == status.size())
-            break;
-        start = end + 1;
-    }
-
-    if(first)
-        lines.push_back("  status: ");
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
+    return " (details logged to " + mla::log::getLogFilePath() + ")";
+#else
+    return {};
+#endif
 }
 
 void Editor::clearLspInfo()
@@ -145,8 +128,7 @@ void Editor::showLspInfo()
                          bool activeForFile, const std::string& path,
                          bool requiresNode = false,
                          const std::string& version = std::string(),
-                         const std::string& error = std::string(),
-                         std::optional<bool> startupAttempted = std::nullopt)
+                         const std::string& statusDetail = std::string())
     {
         std::string status =
             running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
@@ -155,12 +137,6 @@ void Editor::showLspInfo()
 
         lspInfoLines.push_back(label + ": " + status);
         lspInfoLines.push_back("  binary: " + path);
-        if(startupAttempted.has_value())
-        {
-            lspInfoLines.push_back(
-                std::string("  startup: ") +
-                (startupAttempted.value() ? "attempted" : "not attempted"));
-        }
         if(requiresNode)
             lspInfoLines.push_back(std::string("  runtime: node ") +
                                    (hasNode ? "found" : "not found"));
@@ -170,8 +146,8 @@ void Editor::showLspInfo()
             lspInfoLines.push_back("  status: node runtime not found");
         if(!version.empty())
             lspInfoLines.push_back("  version: " + version);
-        if(!error.empty())
-            appendStatusLines(lspInfoLines, error);
+        if(!statusDetail.empty())
+            lspInfoLines.push_back("  status: " + statusDetail);
     };
 
     const bool clangdRunning = isClangdLspEnabled();
@@ -181,11 +157,17 @@ void Editor::showLspInfo()
         if(lspClient)
             clangdError = lspClient->lastError();
         if(clangdError.empty())
-            clangdError = "startup attempted but server is not running";
+            clangdError = "server is not running after startup request";
     }
+    if(!clangdError.empty())
+    {
+        LOG_ERROR(CLANGD_LOG, "clangd LSP status detail: {}", clangdError);
+    }
+    const std::string clangdStatusDetail =
+        clangdError.empty() ? std::string{}
+                            : "startup failed" + lspLogDetailSuffix();
     appendLsp("clangd", clangdRunning, isFileType<FileType::Cpp>(),
-              clangdLspPath, false, std::string(), clangdError,
-              clangdLspStartupAttempted);
+              clangdLspPath, false, std::string(), clangdStatusDetail);
     if(lspClient)
     {
         int workers = lspClient->workerCount();

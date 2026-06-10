@@ -955,7 +955,7 @@ constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
 }};
 
 constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
-    {"--log-file <path>", "Debug log file (UVIM_DEBUG_LOGGING)"},
+    {"--log-file <path>", "uvim log file (requires logging-enabled build)"},
 }};
 
 constexpr std::array<HelpRow, 1> kHelpAsmDocs = {{
@@ -2003,8 +2003,8 @@ int main(int argc, char* argv[])
 
         return 0;
     }
-    // Error logging is always enabled; debug/info logging depends on
-    // UVIM_DEBUG_LOGGING.
+    // Logging is compiled in only for UVIM_DEBUG_LOGGING or UVIM_DEBUG_LSP
+    // builds.
     if(!opts.logFile.empty())
     {
         mla::log::setLogFilePath(opts.logFile);

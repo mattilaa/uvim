@@ -1,5 +1,7 @@
 #pragma once
 #include <chrono>
+#include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -57,11 +59,26 @@ static constexpr const char* resetColor()
     return "\x1b[0m";
 }
 
-// Global log file path. Error logs are always enabled; debug/info logs are
-// gated by UVIM_DEBUG_LOGGING below.
+inline std::string defaultLogFilePath()
+{
+#ifdef _WIN32
+    const char* userProfile = std::getenv("USERPROFILE");
+    const char* userName = std::getenv("USERNAME");
+    std::filesystem::path base =
+        userProfile ? std::filesystem::path(userProfile)
+                    : std::filesystem::path("/Users") /
+                          (userName ? userName : "Default");
+    return (base / "Documents" / "uvim" / "uvim.log").string();
+#else
+    return "/tmp/uvim.log";
+#endif
+}
+
+// Global log file path. Logging is compiled in only for UVIM_DEBUG_LOGGING or
+// UVIM_DEBUG_LSP builds.
 inline std::string& getLogFilePath()
 {
-    static std::string path = "uvim.log";
+    static std::string path = defaultLogFilePath();
     return path;
 }
 
@@ -110,8 +127,9 @@ public:
         localtime_r(&tt, &tm);
 #endif
 
-        return std::format("{:02d}:{:02d}:{:02d}.{:06d}", tm.tm_hour, tm.tm_min,
-                           tm.tm_sec, ms);
+        return std::format("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}",
+                           tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+                           tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
     }
 
     void log(LogLevel level, std::string_view msg)
@@ -123,15 +141,24 @@ public:
                                : static_cast<int>(level) == 2 ? "ERROR"
                                                               : "DEBUG";
 
-        std::string formatted =
-            std::format("{}{}{} {} {}{}\n", use_color ? toColor(level) : "",
-                        levelStr, use_color ? resetColor() : "", timestamp(),
-                        ctx.empty() ? "" : ctx + " ", msg);
+        const std::string signature =
+            ctx.empty() ? "" : std::format("[{}] ", ctx);
+
+        std::string formatted = std::format(
+            "{}{}{} {} {}{}\n", use_color ? toColor(level) : "", levelStr,
+            use_color ? resetColor() : "", timestamp(), signature, msg);
 
         static std::mutex log_mutex;
         std::lock_guard<std::mutex> lock(log_mutex);
 
-        std::ofstream file(getLogFilePath(), std::ios::app);
+        const std::filesystem::path path(getLogFilePath());
+        if(path.has_parent_path())
+        {
+            std::error_code ec;
+            std::filesystem::create_directories(path.parent_path(), ec);
+        }
+
+        std::ofstream file(path, std::ios::app);
         if(file.is_open())
         {
             file << formatted;
@@ -147,7 +174,7 @@ using StdLogger = FileLogger;
 
 } // namespace mla::log
 
-#ifdef UVIM_DEBUG_LOGGING
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
 
 #define LOG_INFO(logger, ...)                                                  \
     do                                                                         \
@@ -190,7 +217,6 @@ using StdLogger = FileLogger;
 #define LOG_ERROR(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::ERROR, fmt::format(__VA_ARGS__));       \
     } while(0)
 
 #endif

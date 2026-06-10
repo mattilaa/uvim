@@ -75,6 +75,7 @@ public:
                const std::string& queryDriverAllowList = "");
     bool startServer(const std::string& serverPath, const std::string& rootDir,
                      const std::vector<std::string>& args = {});
+    void setLogSignature(const std::string& signature);
 
     void stop();
     bool running() const;

@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("ROBOT");
+}
+
 void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
                                 const std::vector<std::string>& robotLspArgs)
 {
@@ -44,21 +49,22 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
     }
 
     robotLspClient = std::make_unique<LspClient>();
+    robotLspClient->setLogSignature("ROBOT");
     if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
     {
-        LOG_ERROR(LOG, "Robot LSP failed to start, LSP path: {}",
+        LOG_ERROR(LSP_LOG, "Robot LSP failed to start, LSP path: {}",
                   this->robotLspPath.c_str());
         robotLspClient.reset();
         return;
     }
 
     robotLspEnabled = true;
-    LOG_DEBUG(LOG, "Robot LSP enabled");
+    LOG_DEBUG(LSP_LOG, "Robot LSP enabled");
 #else
     (void)enable;
     (void)robotLspPath;
     (void)robotLspArgs;
-    LOG_ERROR(LOG, "Robot LSP is not compiled in");
+    LOG_ERROR(LSP_LOG, "Robot LSP is not compiled in");
 #endif
 }
 

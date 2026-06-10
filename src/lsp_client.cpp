@@ -34,15 +34,11 @@
 namespace ju = json_utils;
 
 #ifdef UVIM_DEBUG_LSP
-static void logLspDebug(const std::string& tag, const ju::Value& payload)
+static void logLspDebug(mla::log::FileLogger logger, const std::string& tag,
+                        const ju::Value& payload)
 {
-    static std::mutex logMutex;
-    std::lock_guard<std::mutex> lk(logMutex);
-    std::ofstream out("/tmp/uvim_lsp_codeactions.log", std::ios::app);
-    if(!out.is_open())
-        return;
-    out << "=== " << tag << " ===\n";
-    out << ju::stringify_pretty(payload) << "\n";
+    logger.log(mla::log::LogLevel::DEBUG,
+               fmt::format("{}\n{}", tag, ju::stringify_pretty(payload)));
 }
 #endif
 
@@ -347,6 +343,7 @@ struct LspClient::Impl
     std::string serverName;
     std::string serverVersion;
     std::string lastError;
+    mla::log::FileLogger logger{"LSP"};
     int launchedWorkerCount = 0;
     mutable std::mutex progressMutex;
     bool indexingActive = false;
@@ -465,7 +462,8 @@ struct LspClient::Impl
         std::string err = capturedStderr();
         if(!err.empty())
         {
-            LOG_ERROR(LOG, "LSP server stderr after '{}':\n{}", status, err);
+            LOG_ERROR(logger, "LSP server stderr after '{}':\n{}", status,
+                      err);
             status += " (details logged to " + mla::log::getLogFilePath() +
                       ")";
         }
@@ -580,7 +578,8 @@ struct LspClient::Impl
         std::string err = capturedStderr();
         if(!err.empty())
         {
-            LOG_ERROR(LOG, "LSP server stderr after '{}':\n{}", status, err);
+            LOG_ERROR(logger, "LSP server stderr after '{}':\n{}", status,
+                      err);
             status += " (details logged to " + mla::log::getLogFilePath() +
                       ")";
         }
@@ -1292,6 +1291,12 @@ LspClient::~LspClient()
 {
     stop();
     delete impl;
+}
+
+void LspClient::setLogSignature(const std::string& signature)
+{
+    if(impl)
+        impl->logger = mla::log::FileLogger(signature);
 }
 
 bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
@@ -2362,7 +2367,7 @@ LspClient::codeActions(const std::string& filePath, int line,
         ju::Value respCopy;
         respCopy.CopyFrom(*resp, logAlloc);
         logPayload.AddMember("response", respCopy, logAlloc);
-        logLspDebug("codeAction", logPayload);
+        logLspDebug(impl->logger, "codeAction", logPayload);
     }
 #endif
     if(!resp || !resp->IsObject())
@@ -2400,7 +2405,7 @@ LspClient::codeActions(const std::string& filePath, int line,
                 ju::Value respCopy;
                 respCopy.CopyFrom(*resolved, logAlloc);
                 logPayload.AddMember("response", respCopy, logAlloc);
-                logLspDebug("codeActionResolve", logPayload);
+                logLspDebug(impl->logger, "codeActionResolve", logPayload);
             }
 #endif
             if(resolved && resolved->IsObject() && !ju::has(*resolved, "error"))
@@ -2717,6 +2722,8 @@ bool LspClient::startServer(const std::string&, const std::string&,
 {
     return false;
 }
+
+void LspClient::setLogSignature(const std::string&) {}
 
 void LspClient::stop() {}
 
