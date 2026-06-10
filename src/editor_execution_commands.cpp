@@ -11,8 +11,10 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<SearchCommand>());
     commands.push_back(std::make_unique<SetCommand>());
     commands.push_back(std::make_unique<ReloadCurrentFileCommand>());
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     commands.push_back(std::make_unique<LspInfoCommand>());
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     commands.push_back(std::make_unique<ExploreCommand>());
 #endif
 #ifdef UVIM_ENABLE_FORMATTERS
@@ -21,7 +23,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
 #ifdef UVIM_ENABLE_ASM_DOCS
     commands.push_back(std::make_unique<EmitAsmCommand>());
 #endif
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     commands.push_back(std::make_unique<EmojiCommand>());
     commands.push_back(std::make_unique<GlyphSelectCommand>());
 #endif
@@ -30,7 +32,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<ColorPickerCommand>());
     commands.push_back(std::make_unique<ColorSelectorCommand>());
 #endif
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     commands.push_back(std::make_unique<HelpCommand>());
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
@@ -50,13 +52,13 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<GitStashPopCommand>());
     commands.push_back(std::make_unique<GitStashCommand>());
 #endif
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     commands.push_back(std::make_unique<LocTotalCommand>());
     commands.push_back(std::make_unique<LocCommand>());
 #endif
     commands.push_back(std::make_unique<QuitWithoutBufferCommand>());
     commands.push_back(std::make_unique<NoBufferOnlyCommand>());
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     commands.push_back(std::make_unique<SplitExplorerCommand>());
 #endif
     commands.push_back(std::make_unique<NewBufferCommand>());

@@ -129,12 +129,22 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_P))
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         return FuzzyFindMode{};
+#else
+        ctx.setStatusMessage("search tools are not compiled in");
+        return std::nullopt;
+#endif
     }
     else if(c == keyCode(control::ControlKey::CTRL_S) ||
             c == keyCode(command::CommandKey::KEY_SLASH))
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         return GrepSearchMode{};
+#else
+        ctx.setStatusMessage("search tools are not compiled in");
+        return std::nullopt;
+#endif
     }
     else if(c >= 32 && c < 127)
     {

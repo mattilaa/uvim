@@ -1281,10 +1281,10 @@ void Editor::rebuildCompletionFilter()
 
 void Editor::drawCompletionPopup(std::string& output) const
 {
-#ifdef UVIM_MINIMAL
-    (void)output;
-#else
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     widgets::drawCompletionPopup(output, *this);
+#else
+    (void)output;
 #endif
 }
 

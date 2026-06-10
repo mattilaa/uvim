@@ -50,7 +50,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
         ctx.setStatusMessage("");
         if(c == keyCode(typed::TypedKey::KEY_X))
         {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
             return FileBrowserMode{"."};
 #else
             return std::nullopt;
@@ -74,7 +74,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_E))
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         return FileBrowserMode{"."};
 #else
         return std::nullopt;
@@ -95,7 +95,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     }
 #endif
 
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     if(c == keyCode(typed::TypedKey::KEY_B) ||
        c == keyCode(control::ControlKey::CTRL_W))
     {
@@ -127,7 +127,7 @@ WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         {
             if(command.cmd == "help" || command.cmd == "h")
             {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
                 nextState = HelpMode{command.args, previousFile};
                 return true;
 #else

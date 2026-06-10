@@ -40,6 +40,8 @@ endif()
 
 # Build options
 option(UVIM_MINIMAL "Build a vi-style minimal uvim: no optional popups, LSP, tool views, git, fzf/rg search, help, or external integrations" OFF)
+option(UVIM_ENABLE_BROWSER_TOOLS "Build file and buffer browser views" ON)
+option(UVIM_ENABLE_AUXILIARY_VIEWS "Build auxiliary views and popup tools such as help, loc, lspinfo, glyph select, references, and command output" ON)
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 option(UVIM_ENABLE_ROBOT_LSP "Build uvim with Robot Framework LSP support" OFF)
 option(UVIM_ENABLE_PYTHON_LSP "Build uvim with Python LSP support" OFF)
@@ -84,6 +86,8 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_SYSTEM_CLIPBOARD OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_STRUCT_SIZE_POPUP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_COLOR_TOOLS OFF CACHE BOOL "" FORCE)
+    set(UVIM_ENABLE_BROWSER_TOOLS OFF CACHE BOOL "" FORCE)
+    set(UVIM_ENABLE_AUXILIARY_VIEWS OFF CACHE BOOL "" FORCE)
 endif()
 
 set(UVIM_ENABLE_ANY_LSP OFF)
@@ -248,18 +252,23 @@ set(UVIM_CORE_SOURCES
     src/widgets/status_bar.cpp
 )
 
-if(NOT UVIM_MINIMAL)
+if(UVIM_ENABLE_BROWSER_TOOLS)
+    list(APPEND UVIM_CORE_SOURCES
+        src/editor_execution_explore_command.cpp
+        src/editor_view_buffer_browser.cpp
+        src/editor_view_file_browser.cpp
+    )
+endif()
+
+if(UVIM_ENABLE_AUXILIARY_VIEWS)
     list(APPEND UVIM_CORE_SOURCES
         src/editor_execution_emoji_command.cpp
-        src/editor_execution_explore_command.cpp
         src/editor_execution_glyph_select_command.cpp
         src/editor_execution_help_command.cpp
         src/editor_execution_loc_command.cpp
         src/editor_execution_loc_total_command.cpp
         src/editor_execution_lsp_info_command.cpp
-        src/editor_view_buffer_browser.cpp
         src/editor_view_command_output.cpp
-        src/editor_view_file_browser.cpp
         src/editor_view_help.cpp
         src/editor_view_loc_list.cpp
         src/editor_view_lsp_info.cpp
@@ -316,14 +325,19 @@ set(MODE_STATE_MACHINE_SOURCES
     src/operator_pending_mode.cpp
 )
 
-if(NOT UVIM_MINIMAL)
+if(UVIM_ENABLE_BROWSER_TOOLS)
+    list(APPEND MODE_STATE_MACHINE_SOURCES
+        src/buffer_browser_mode.cpp
+        src/file_browser_mode.cpp
+    )
+endif()
+
+if(UVIM_ENABLE_AUXILIARY_VIEWS)
     list(APPEND MODE_STATE_MACHINE_SOURCES
         src/references_mode.cpp
         src/lsp_info_mode.cpp
         src/loc_mode.cpp
         src/help_mode.cpp
-        src/buffer_browser_mode.cpp
-        src/file_browser_mode.cpp
         src/glyph_select_mode.cpp
         src/command_output_mode.cpp
     )
@@ -455,6 +469,8 @@ uvim_status_bool("debug logging" UVIM_DEBUG_LOGGING)
 uvim_status_bool("LSP debug logging" UVIM_DEBUG_LSP)
 message(STATUS "uvim compiled features:")
 uvim_status_bool("asm docs" UVIM_ENABLE_ASM_DOCS)
+uvim_status_bool("browser tools" UVIM_ENABLE_BROWSER_TOOLS)
+uvim_status_bool("auxiliary views" UVIM_ENABLE_AUXILIARY_VIEWS)
 uvim_status_bool("git tools" UVIM_ENABLE_GIT_TOOLS)
 uvim_status_bool("search tools" UVIM_ENABLE_SEARCH_TOOLS)
 uvim_status_bool("formatters" UVIM_ENABLE_FORMATTERS)
@@ -646,6 +662,12 @@ endif()
 
 if(UVIM_MINIMAL)
     target_compile_definitions(uvim PRIVATE UVIM_MINIMAL=1)
+endif()
+if(UVIM_ENABLE_BROWSER_TOOLS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_BROWSER_TOOLS=1)
+endif()
+if(UVIM_ENABLE_AUXILIARY_VIEWS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_AUXILIARY_VIEWS=1)
 endif()
 
 if(UVIM_ENABLE_ASM_DOCS)

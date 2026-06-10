@@ -90,7 +90,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == FILE_BROWSER)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state =
@@ -115,7 +115,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == BUFFER_BROWSER)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state =
@@ -154,7 +154,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == LOC_LIST)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<LocListMode>())
@@ -166,14 +166,14 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == REFERENCES)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         editor.drawReferences();
 #endif
         return;
     }
     if(editor.currentMode == LSP_INFO)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         editor.drawLspInfo();
 #endif
         return;
@@ -181,7 +181,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == HELP)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         if(!needsFullRedraw())
             return;
         if(editor.modeStateMachine)
@@ -195,7 +195,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GIT_SHOW)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state =
@@ -208,7 +208,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GIT_LOG)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitLogMode>())
@@ -220,7 +220,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GIT_STAGE)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitStageMode>())
@@ -232,7 +232,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GIT_COMMIT)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitCommitMode>())
@@ -244,7 +244,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GIT_FIXUP)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitFixupMode>())
@@ -256,7 +256,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GIT_PATCH)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitPatchMode>())
@@ -268,7 +268,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == COMMAND_OUTPUT)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         if(editor.modeStateMachine)
         {
             if(auto* state =
@@ -281,7 +281,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == GLYPH_SELECT)
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         if(editor.modeStateMachine)
         {
             if(auto* state =

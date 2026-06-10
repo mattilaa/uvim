@@ -180,6 +180,8 @@ struct Config
     std::string installDir;
     std::string jobs;
     bool minimal = false;
+    bool browserTools = true;
+    bool auxiliaryViews = true;
     bool clangdLsp = false;
     bool robotLsp = false;
     bool pythonLsp = false;
@@ -484,10 +486,14 @@ void apply_feature_set(Config& cfg)
     cfg.debugLogging = false;
     cfg.debugLsp = false;
     cfg.minimal = false;
+    cfg.browserTools = true;
+    cfg.auxiliaryViews = true;
 
     if(cfg.featureSet == 0)
     {
         cfg.minimal = true;
+        cfg.browserTools = false;
+        cfg.auxiliaryViews = false;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
         cfg.robotLsp = false;
@@ -515,6 +521,8 @@ void apply_feature_set(Config& cfg)
 
     if(cfg.featureSet == 1)
     {
+        cfg.browserTools = true;
+        cfg.auxiliaryViews = false;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
         cfg.robotLsp = false;
@@ -525,10 +533,10 @@ void apply_feature_set(Config& cfg)
         cfg.jsonLsp = false;
         cfg.tsLsp = false;
         cfg.asmDocs = false;
-        cfg.gitTools = true;
-        cfg.searchTools = true;
-        cfg.formatters = true;
-        cfg.systemClipboard = true;
+        cfg.gitTools = false;
+        cfg.searchTools = false;
+        cfg.formatters = false;
+        cfg.systemClipboard = false;
         cfg.structSizePopup = false;
         cfg.colorTools = false;
         cfg.tests = false;
@@ -542,6 +550,8 @@ void apply_feature_set(Config& cfg)
 
     if(cfg.featureSet == 2)
     {
+        cfg.browserTools = true;
+        cfg.auxiliaryViews = true;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
         cfg.robotLsp = false;
@@ -569,6 +579,8 @@ void apply_feature_set(Config& cfg)
 
     if(cfg.featureSet == 3)
     {
+        cfg.browserTools = true;
+        cfg.auxiliaryViews = true;
         cfg.optimization = 2;
         cfg.clangdLsp = false;
         cfg.robotLsp = false;
@@ -595,6 +607,8 @@ void apply_feature_set(Config& cfg)
     }
 
     cfg.optimization = 2;
+    cfg.browserTools = true;
+    cfg.auxiliaryViews = true;
     cfg.clangdLsp = true;
     cfg.robotLsp = true;
     cfg.pythonLsp = true;
@@ -624,7 +638,8 @@ std::vector<Section> make_sections()
         {"Presets",
          "High-level build profiles. vi-real is the strictest vi-style build: "
          "only the editor core, welcome screen, and tabs are kept. vi-min "
-         "keeps more editor conveniences while staying size-oriented.",
+         "adds the built-in file and buffer browser but keeps external tools "
+         "and optional views out.",
          true,
          {{ItemKind::FeatureSet,
            "Feature set",
@@ -634,10 +649,11 @@ std::vector<Section> make_sections()
            {},
            "vi-real compiles out optional popups, help views, LSP, git, "
            "fzf/rg-style search views, formatters, clipboard, color tools, "
-           "and struct-size probes. vi-min is small but keeps normal "
-           "file/search tooling. Minimal keeps the normal editor tools but "
-           "removes docs/tests/LSP. Basic is the default developer build. "
-           "Full also enables LSP."}}},
+           "and struct-size probes. vi-min keeps file/buffer browser and tabs "
+           "but compiles out git, fzf/rg-style search views, formatters, "
+           "clipboard, color tools, struct-size probes, docs, tests, and LSP. "
+           "Minimal keeps the normal editor tools but removes docs/tests/LSP. "
+           "Basic is the default developer build. Full also enables LSP."}}},
         {"Target",
          "Platform, compiler mode, and build parallelism. Release defaults to "
          "-O2 unless another optimization level is selected.",
@@ -1651,6 +1667,12 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
          << cmake_string_literal(installDir.string())
          << "\" CACHE STRING \"\" FORCE)\n";
     file << "set(UVIM_MINIMAL " << (cfg.minimal ? "ON" : "OFF")
+         << " CACHE BOOL \"\" FORCE)\n";
+    file << "set(UVIM_ENABLE_BROWSER_TOOLS "
+         << (cfg.browserTools ? "ON" : "OFF")
+         << " CACHE BOOL \"\" FORCE)\n";
+    file << "set(UVIM_ENABLE_AUXILIARY_VIEWS "
+         << (cfg.auxiliaryViews ? "ON" : "OFF")
          << " CACHE BOOL \"\" FORCE)\n";
     for(const auto& section : sections)
     {

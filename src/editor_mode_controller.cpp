@@ -63,7 +63,7 @@ public:
     {
         return recognize(ctx, state);
     }
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const FileBrowserMode& state) const
     {
@@ -77,7 +77,7 @@ public:
         return recognize(ctx, state);
     }
 #endif
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const BufferBrowserMode& state) const
     {
@@ -101,7 +101,7 @@ public:
     {
         return recognize(ctx, state);
     }
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ReferencesMode& state) const
     {
@@ -122,6 +122,8 @@ public:
     {
         return recognize(ctx, state);
     }
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GitShowCommitMode& state) const
     {
@@ -152,6 +154,8 @@ public:
     {
         return recognize(ctx, state);
     }
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const CommandOutputMode& state) const
     {

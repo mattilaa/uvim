@@ -551,7 +551,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return FuzzyFindMode{};
     }
 #endif
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     if(c == keyCode(control::ControlKey::CTRL_W))
     {
         ctx.repeatCount = 0;
@@ -1136,7 +1136,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 {
     Editor* ed = ctx.editor;
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     auto openFileBrowser =
         [&](bool focusCurrentFile) -> std::optional<ModeState>
     {
@@ -1186,7 +1186,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         else if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
             // <leader>gr - Find all references
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             ed->findReferences();
             if(ed->hasReferences())
             {
@@ -1230,7 +1230,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         int nextChar = Terminal::readKeyTimeout(500);
         if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             ed->findReferences();
             if(ed->hasReferences())
             {
@@ -1252,7 +1252,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_X):
     {
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         const int nextChar = Terminal::readKeyTimeout(300);
         if(nextChar == keyCode(typed::TypedKey::KEY_X))
             return openFileBrowser(false);
@@ -1266,7 +1266,8 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_E):
     {
-#ifndef UVIM_MINIMAL
+#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_AUXILIARY_VIEWS)
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         int nextChar = Terminal::readKeyTimeout(300);
         if(nextChar == keyCode(typed::TypedKey::KEY_M))
         {
@@ -1282,7 +1283,12 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             ed->openDiagnosticPopupForCursor();
             return std::nullopt;
         }
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         return openFileBrowser(true);
+#else
+        return std::nullopt;
+#endif
 #else
         return std::nullopt;
 #endif
@@ -1467,7 +1473,7 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_R):
         // gr - find references
-#ifndef UVIM_MINIMAL
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         ed->findReferences();
         if(ed->hasReferences())
         {
