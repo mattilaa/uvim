@@ -241,14 +241,19 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             cmd.remove_prefix(
                 1); // Remove leading keyCode(command::CommandKey::KEY_COLON)
             ctx.executeCommand(cmd);
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             if(ctx.currentMode() == LSP_INFO)
             {
                 return LspInfoMode{};
             }
+#endif
             if(ctx.editor && ctx.editor->getModeStateMachine())
             {
+#if defined(UVIM_ENABLE_GIT_TOOLS) || defined(UVIM_ENABLE_AUXILIARY_VIEWS) || defined(UVIM_ENABLE_COLOR_TOOLS)
                 const ModeState& state =
                     ctx.editor->getModeStateMachine()->state();
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
                 if(std::holds_alternative<GitLogMode>(state))
                     return std::get<GitLogMode>(state);
                 if(std::holds_alternative<GitShowCommitMode>(state))
@@ -261,8 +266,11 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     return std::get<GitFixupMode>(state);
                 if(std::holds_alternative<GitPatchMode>(state))
                     return std::get<GitPatchMode>(state);
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
                 if(std::holds_alternative<GlyphSelectMode>(state))
                     return std::get<GlyphSelectMode>(state);
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
                 if(std::holds_alternative<AnsiToolsMode>(state))
                     return std::get<AnsiToolsMode>(state);
@@ -276,6 +284,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string path;
             if(ctx.takeCommandRequest(mode, path))
             {
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
                 if(mode == FILE_BROWSER)
                 {
                     std::string prev;
@@ -285,6 +294,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     }
                     return FileBrowserMode{path, prev};
                 }
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
                 if(mode == LSP_INFO)
                 {
                     return LspInfoMode{};
@@ -302,6 +313,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     }
                     return HelpMode{path, prev}; // path contains the topic
                 }
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
                 if(mode == GIT_STAGE)
                 {
                     GitStageMode stage;
@@ -326,6 +339,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 {
                     return GitCommitMode{};
                 }
+#endif
             }
         }
         return ctx.hasBuffer() ? ModeState{NormalMode{}}

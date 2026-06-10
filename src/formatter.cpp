@@ -43,11 +43,59 @@ Formatter::FormatterVariant Formatter::formatterFor(FileType type)
 
 bool Formatter::format(FileType type, Mode mode)
 {
+#ifdef UVIM_ENABLE_FORMATTERS
     return std::visit([mode](auto formatter) { return formatter.get()(mode); },
                       formatterFor(type));
+#else
+    (void)type;
+    (void)mode;
+    return false;
+#endif
 }
 
 void Formatter::pythonLintBuffer()
 {
+#ifdef UVIM_ENABLE_FORMATTERS
     pythonFormatter.lintBuffer();
+#endif
 }
+
+#ifndef UVIM_ENABLE_FORMATTERS
+bool ClangFormatter::operator()(Mode mode)
+{
+    (void)mode;
+    return false;
+}
+
+bool PythonFormatter::operator()(Mode mode)
+{
+    (void)mode;
+    return false;
+}
+
+void PythonFormatter::lintBuffer() {}
+
+bool RobotFormatter::operator()(Mode mode)
+{
+    (void)mode;
+    return false;
+}
+
+bool JsonFormatter::operator()(Mode mode)
+{
+    (void)mode;
+    return false;
+}
+
+bool YamlFormatter::operator()(Mode mode)
+{
+    (void)mode;
+    return false;
+}
+
+bool MlangFormatter::operator()(Mode mode)
+{
+    (void)mode;
+    return false;
+}
+#endif

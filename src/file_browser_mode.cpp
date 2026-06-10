@@ -1256,7 +1256,11 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_A))
         {
+#ifdef UVIM_ENABLE_GIT_TOOLS
             ctx.editor->openGitStageMode();
+#else
+            ctx.setStatusMessage("git tools are not compiled in");
+#endif
             return std::nullopt;
         }
     }
@@ -1851,7 +1855,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     else if(c == keyCode(control::ControlKey::CTRL_P) ||
             c == keyCode(typed::TypedKey::KEY_F))
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         return FuzzyFindMode{};
+#else
+        ctx.setStatusMessage("search tools are not compiled in");
+        return std::nullopt;
+#endif
     }
     else if(c == keyCode(control::ControlKey::CTRL_W) ||
             c == keyCode(typed::TypedKey::KEY_B))
@@ -1860,7 +1869,12 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_S))
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         return GrepSearchMode{};
+#else
+        ctx.setStatusMessage("search tools are not compiled in");
+        return std::nullopt;
+#endif
     }
 
     if((c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
@@ -3241,10 +3255,14 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 if(outputLines.empty())
                     outputLines.push_back("(no output)");
 
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
                 CommandOutputMode co(args, std::move(outputLines),
                                      currentDirectory, browserCursor,
                                      browserOffset, previousFile);
                 nextState = ModeState{std::move(co)};
+#else
+                ctx.setStatusMessage("command output view is not compiled in");
+#endif
                 return true;
             }
 
@@ -3253,7 +3271,11 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
             // =================================================================
             if(cmd == "help" || cmd == "h")
             {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
                 nextState = HelpMode{args, previousFile};
+#else
+                ctx.setStatusMessage("help is not compiled in");
+#endif
                 return true;
             }
             if(cmd == "?")
@@ -3270,6 +3292,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         [&](ModeContext& ctx, std::string_view line) -> std::optional<ModeState>
         {
             auto next = dispatchEditorCommand(ctx, line, previousFile, false);
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             if(next && std::holds_alternative<LocListMode>(*next))
             {
                 LocListMode loc = std::get<LocListMode>(*next);
@@ -3279,6 +3302,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 loc.returnBrowseDirectory = currentDirectory;
                 return std::optional<ModeState>(ModeState{loc});
             }
+#endif
             return next;
         });
 }

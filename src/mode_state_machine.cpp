@@ -59,21 +59,27 @@ struct ModeStateToMode
         return SEARCH_BACKWARD;
     }
 
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     Mode operator()(const FileBrowserMode&) const
     {
         return FILE_BROWSER;
     }
-
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     Mode operator()(const FuzzyFindMode&) const
     {
         return FUZZY_FIND;
     }
+#endif
 
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     Mode operator()(const BufferBrowserMode&) const
     {
         return BUFFER_BROWSER;
     }
+#endif
 
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     Mode operator()(const GrepSearchMode&) const
     {
         return GREP_SEARCH;
@@ -83,12 +89,14 @@ struct ModeStateToMode
     {
         return REGEX_SEARCH;
     }
+#endif
 
     Mode operator()(const OperatorPendingMode&) const
     {
         return OP_PENDING;
     }
 
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     Mode operator()(const ReferencesMode&) const
     {
         return REFERENCES;
@@ -108,7 +116,9 @@ struct ModeStateToMode
     {
         return HELP;
     }
+#endif
 
+#ifdef UVIM_ENABLE_GIT_TOOLS
     Mode operator()(const GitShowCommitMode&) const
     {
         return GIT_SHOW;
@@ -138,7 +148,9 @@ struct ModeStateToMode
     {
         return GIT_PATCH;
     }
+#endif
 
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     Mode operator()(const CommandOutputMode&) const
     {
         return COMMAND_OUTPUT;
@@ -148,6 +160,7 @@ struct ModeStateToMode
     {
         return GLYPH_SELECT;
     }
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     Mode operator()(const AnsiToolsMode&) const
     {
@@ -231,13 +244,18 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
 {
     ctx.executeCommand(commandLine);
 
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     if(ctx.currentMode() == LSP_INFO)
     {
         return LspInfoMode{};
     }
+#endif
     if(ctx.editor && ctx.editor->getModeStateMachine())
     {
+#if defined(UVIM_ENABLE_GIT_TOOLS) || defined(UVIM_ENABLE_AUXILIARY_VIEWS)
         const ModeState& state = ctx.editor->getModeStateMachine()->state();
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(std::holds_alternative<GitLogMode>(state))
             return std::get<GitLogMode>(state);
         if(std::holds_alternative<GitShowCommitMode>(state))
@@ -250,8 +268,11 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
             return std::get<GitFixupMode>(state);
         if(std::holds_alternative<GitPatchMode>(state))
             return std::get<GitPatchMode>(state);
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         if(std::holds_alternative<GlyphSelectMode>(state))
             return std::get<GlyphSelectMode>(state);
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
         if(std::holds_alternative<AnsiToolsMode>(state))
             return std::get<AnsiToolsMode>(state);
@@ -266,10 +287,13 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     std::string path;
     if(ctx.takeCommandRequest(mode, path))
     {
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(mode == FILE_BROWSER)
         {
             return FileBrowserMode{path, std::string(previousFile)};
         }
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         if(mode == LSP_INFO)
         {
             return LspInfoMode{};
@@ -282,6 +306,8 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         {
             return HelpMode{path, std::string(previousFile)};
         }
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
         if(mode == GIT_STAGE)
         {
             GitStageMode stage;
@@ -306,6 +332,9 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         {
             return GitCommitMode{};
         }
+#else
+        (void)path;
+#endif
     }
 
     if(returnToNormalIfBuffer && ctx.hasBuffer())
@@ -361,18 +390,40 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return SearchForwardMode{};
     case SEARCH_BACKWARD:
         return SearchBackwardMode{};
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     case FILE_BROWSER:
         return FileBrowserMode{};
+#else
+    case FILE_BROWSER:
+        return NormalMode{};
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     case FUZZY_FIND:
         return FuzzyFindMode{};
+#else
+    case FUZZY_FIND:
+        return NormalMode{};
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     case BUFFER_BROWSER:
         return BufferBrowserMode{};
+#else
+    case BUFFER_BROWSER:
+        return NormalMode{};
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     case GREP_SEARCH:
         return GrepSearchMode{};
     case REGEX_SEARCH:
         return RegexSearchMode{};
+#else
+    case GREP_SEARCH:
+    case REGEX_SEARCH:
+        return NormalMode{};
+#endif
     case OP_PENDING:
         return OperatorPendingMode{ctx.pendingOperator, ctx.pendingCount};
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     case REFERENCES:
         return ReferencesMode{};
     case LSP_INFO:
@@ -381,6 +432,14 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return LocListMode{};
     case HELP:
         return HelpMode{};
+#else
+    case REFERENCES:
+    case LSP_INFO:
+    case LOC_LIST:
+    case HELP:
+        return NormalMode{};
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
     case GIT_SHOW:
         return GitShowCommitMode{};
     case GIT_LOG:
@@ -393,10 +452,25 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return GitFixupMode{};
     case GIT_PATCH:
         return GitPatchMode{};
+#else
+    case GIT_SHOW:
+    case GIT_LOG:
+    case GIT_STAGE:
+    case GIT_COMMIT:
+    case GIT_FIXUP:
+    case GIT_PATCH:
+        return NormalMode{};
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     case COMMAND_OUTPUT:
         return CommandOutputMode{};
     case GLYPH_SELECT:
         return GlyphSelectMode{};
+#else
+    case COMMAND_OUTPUT:
+    case GLYPH_SELECT:
+        return NormalMode{};
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     case ANSI_TOOLS:
         return AnsiToolsMode{};

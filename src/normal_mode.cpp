@@ -316,7 +316,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             }
             else if(ed->formatOnDoubleEscPending && ed->formatOnInsertLeave)
             {
+#ifdef UVIM_ENABLE_FORMATTERS
                 ed->formatBuffer();
+#endif
             }
             ctx.setStatusMessage("");
             ed->needsFullRedraw = true;
@@ -542,16 +544,21 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
 
     // Quick mode switching
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     if(c == keyCode(control::ControlKey::CTRL_P))
     {
         ctx.repeatCount = 0;
         return FuzzyFindMode{};
     }
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     if(c == keyCode(control::ControlKey::CTRL_W))
     {
         ctx.repeatCount = 0;
         return BufferBrowserMode{};
     }
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     if(c == keyCode(control::ControlKey::CTRL_S))
     {
         ctx.repeatCount = 0;
@@ -562,6 +569,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return RegexSearchMode{};
     }
+#endif
 
     // Search modes
     if(c == keyCode(command::CommandKey::KEY_SLASH))
@@ -1128,6 +1136,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 {
     Editor* ed = ctx.editor;
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
     auto openFileBrowser =
         [&](bool focusCurrentFile) -> std::optional<ModeState>
     {
@@ -1145,11 +1154,16 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
         return FileBrowserMode{dir, prev, focusCurrentFile};
     };
+#endif
 
     switch(c)
     {
     case keyCode(typed::TypedKey::KEY_F):
+#ifdef UVIM_ENABLE_FORMATTERS
         ed->formatBuffer();
+#else
+        ed->setStatusMessage("formatters are not compiled in");
+#endif
         return std::nullopt;
 
     case keyCode(typed::TypedKey::KEY_G):
@@ -1163,16 +1177,22 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         if(nextChar == -1 || nextChar == keyCode(control::ControlKey::ESC))
         {
             // Timeout or cancel - default to grep search
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
             return GrepSearchMode{};
+#else
+            return std::nullopt;
+#endif
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
             // <leader>gr - Find all references
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             ed->findReferences();
             if(ed->hasReferences())
             {
                 return ReferencesMode{};
             }
+#endif
             // No references found, stay in normal mode
             return std::nullopt;
         }
@@ -1185,13 +1205,21 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         else if(nextChar == keyCode(typed::TypedKey::KEY_A))
         {
             // <leader>ga - Show assembly instruction documentation popup
+#ifdef UVIM_ENABLE_ASM_DOCS
             ed->openAsmDocumentationPopupForCursor();
+#else
+            ed->setStatusMessage("assembly docs are not compiled in");
+#endif
             return std::nullopt;
         }
         else
         {
             // Unknown <leader>g command - default to grep
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
             return GrepSearchMode{};
+#else
+            return std::nullopt;
+#endif
         }
     }
 
@@ -1202,11 +1230,13 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         int nextChar = Terminal::readKeyTimeout(500);
         if(nextChar == keyCode(typed::TypedKey::KEY_R))
         {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             ed->findReferences();
             if(ed->hasReferences())
             {
                 return ReferencesMode{};
             }
+#endif
         }
         return std::nullopt;
     }
@@ -1222,16 +1252,22 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_X):
     {
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         const int nextChar = Terminal::readKeyTimeout(300);
         if(nextChar == keyCode(typed::TypedKey::KEY_X))
             return openFileBrowser(false);
         if(nextChar != -1)
             Terminal::unreadKey(nextChar);
         return openFileBrowser(true);
+#else
+        return std::nullopt;
+#endif
     }
 
     case keyCode(typed::TypedKey::KEY_E):
     {
+#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_AUXILIARY_VIEWS)
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         int nextChar = Terminal::readKeyTimeout(300);
         if(nextChar == keyCode(typed::TypedKey::KEY_M))
         {
@@ -1247,7 +1283,15 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             ed->openDiagnosticPopupForCursor();
             return std::nullopt;
         }
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         return openFileBrowser(true);
+#else
+        return std::nullopt;
+#endif
+#else
+        return std::nullopt;
+#endif
     }
 
     case keyCode(typed::TypedKey::KEY_H):
@@ -1269,7 +1313,11 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_P):
         // Paste from system clipboard
+#ifdef UVIM_ENABLE_SYSTEM_CLIPBOARD
         ed->pasteFromSystemClipboard();
+#else
+        ed->setStatusMessage("system clipboard is not compiled in");
+#endif
         break;
 
     case keyCode(typed::TypedKey::KEY_L):
@@ -1299,7 +1347,11 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case keyCode(command::CommandKey::KEY_SLASH):
         // Project-wide search
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         return GrepSearchMode{};
+#else
+        return std::nullopt;
+#endif
 
     case keyCode(typed::TypedKey::KEY_D):
         // <leader>d - Go to definition (alternative)
@@ -1421,11 +1473,13 @@ std::optional<ModeState> NormalMode::handleGCommand(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_R):
         // gr - find references
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         ed->findReferences();
         if(ed->hasReferences())
         {
             return ReferencesMode{};
         }
+#endif
         break;
 
     default:
