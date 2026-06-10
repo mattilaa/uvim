@@ -1,11 +1,14 @@
 #pragma once
 
+#include "log.h"
 #include "text_utils.h"
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <initializer_list>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -80,19 +83,27 @@ public:
         if(args.empty())
             return false;
 
+        commandName = args.front();
+        commandLine = joinArgsForLog(args);
+
 #ifdef _WIN32
         return openShell(commandLineFromArgs(args), mode);
 #else
         const bool writeMode = mode && mode[0] == 'w';
         int pipefd[2];
         if(::pipe(pipefd) != 0)
+        {
+            logLaunchFailure("pipe", errno);
             return false;
+        }
 
         pid_t child = ::fork();
         if(child == -1)
         {
+            const int err = errno;
             ::close(pipefd[0]);
             ::close(pipefd[1]);
+            logLaunchFailure("fork", err);
             return false;
         }
 
@@ -147,6 +158,7 @@ public:
         if(!file)
         {
             waitForChild();
+            logLaunchFailure("fdopen", errno);
             return false;
         }
         return true;
@@ -156,11 +168,21 @@ public:
     bool openShell(const std::string& shellCommand, const char* mode)
     {
         close();
+        commandName = shellCommand;
+        commandLine = shellCommand;
 #ifdef _WIN32
         file = _popen(shellCommand.c_str(), mode);
+        if(!file)
+            logLaunchFailure("_popen", errno);
 #else
         std::vector<std::string> args = {"/bin/sh", "-c", shellCommand};
-        return open(args, mode);
+        bool opened = open(args, mode);
+        if(opened)
+        {
+            commandName = shellCommand;
+            commandLine = shellCommand;
+        }
+        return opened;
 #endif
         return file != nullptr;
     }
@@ -232,6 +254,7 @@ public:
 #ifdef _WIN32
             result = _pclose(file);
             file = nullptr;
+            logExitFailure(result);
             return result;
 #else
             result = std::fclose(file);
@@ -241,6 +264,7 @@ public:
 
 #ifndef _WIN32
         const int status = waitForChild();
+        logExitFailure(status);
         return result == 0 ? status : result;
 #else
         return result;
@@ -248,6 +272,65 @@ public:
     }
 
 private:
+    bool shouldLogToolFailure() const
+    {
+        std::string_view name = commandName;
+        size_t slash = name.find_last_of("/\\");
+        if(text_utils::is_found(slash))
+            name.remove_prefix(slash + 1);
+#ifdef _WIN32
+        if(name.size() > 4 && name.substr(name.size() - 4) == ".exe")
+            name.remove_suffix(4);
+#endif
+        return name == "fzf" || name == "rg" || name == "ripgrep" ||
+               name.rfind("fzf ", 0) == 0 || name.rfind("rg ", 0) == 0 ||
+               name.rfind("ripgrep ", 0) == 0 ||
+               text_utils::contains(name, "fzf") ||
+               text_utils::contains(name, "ripgrep");
+    }
+
+    static std::string joinArgsForLog(const std::vector<std::string>& args)
+    {
+        std::string out;
+        for(size_t i = 0; i < args.size(); ++i)
+        {
+            if(i > 0)
+                out += ' ';
+            out += args[i];
+        }
+        return out;
+    }
+
+    void logLaunchFailure(const char* stage, int err) const
+    {
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
+        if(!shouldLogToolFailure())
+            return;
+        static mla::log::FileLogger logger("uvim");
+        LOG_ERROR(logger,
+                  "external tool '{}' failed to launch at {}: errno={} ({}) command='{}'",
+                  commandName, stage, err, std::strerror(err), commandLine);
+#else
+        (void)stage;
+        (void)err;
+#endif
+    }
+
+    void logExitFailure(int status) const
+    {
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
+        if(!shouldLogToolFailure() || status == 0)
+            return;
+        if(status != 126 && status != 127)
+            return;
+        static mla::log::FileLogger logger("uvim");
+        LOG_ERROR(logger, "external tool '{}' exited with status {} command='{}'",
+                  commandName, status, commandLine);
+#else
+        (void)status;
+#endif
+    }
+
 #ifdef _WIN32
     static std::string quoteArg(const std::string& arg)
     {
@@ -303,6 +386,8 @@ private:
     {
         file = other.file;
         other.file = nullptr;
+        commandName = std::move(other.commandName);
+        commandLine = std::move(other.commandLine);
 #ifndef _WIN32
         pid = other.pid;
         other.pid = -1;
@@ -310,6 +395,8 @@ private:
     }
 
     FILE* file = nullptr;
+    std::string commandName;
+    std::string commandLine;
 #ifndef _WIN32
     pid_t pid = -1;
 #endif
