@@ -63,21 +63,28 @@ public:
     {
         return recognize(ctx, state);
     }
+#ifndef UVIM_MINIMAL
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const FileBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const FuzzyFindMode& state) const
     {
         return recognize(ctx, state);
     }
+#endif
+#ifndef UVIM_MINIMAL
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const BufferBrowserMode& state) const
     {
         return recognize(ctx, state);
     }
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GrepSearchMode& state) const
     {
@@ -88,11 +95,13 @@ public:
     {
         return recognize(ctx, state);
     }
+#endif
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const OperatorPendingMode& state) const
     {
         return recognize(ctx, state);
     }
+#ifndef UVIM_MINIMAL
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ReferencesMode& state) const
     {
@@ -153,6 +162,7 @@ public:
     {
         return recognize(ctx, state);
     }
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const AnsiToolsMode& state) const

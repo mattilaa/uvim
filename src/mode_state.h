@@ -21,12 +21,21 @@ struct VisualBlockMode;
 struct CommandMode;
 struct SearchForwardMode;
 struct SearchBackwardMode;
+#ifndef UVIM_MINIMAL
 struct FileBrowserMode;
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
 struct FuzzyFindMode;
+#endif
+#ifndef UVIM_MINIMAL
 struct BufferBrowserMode;
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
 struct GrepSearchMode;
 struct RegexSearchMode;
+#endif
 struct OperatorPendingMode;
+#ifndef UVIM_MINIMAL
 struct ReferencesMode;
 struct LspInfoMode;
 struct LocListMode;
@@ -39,6 +48,7 @@ struct GitFixupMode;
 struct GitPatchMode;
 struct CommandOutputMode;
 struct GlyphSelectMode;
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
 struct AnsiToolsMode;
 struct ColorPickerMode;
@@ -48,11 +58,26 @@ struct ColorSelectorMode;
 using ModeState = std::variant<
     WelcomeMode, NormalMode, InsertMode, ReplaceMode, VisualMode,
     VisualLineMode, VisualBlockMode, CommandMode, SearchForwardMode,
-    SearchBackwardMode, FileBrowserMode, FuzzyFindMode, BufferBrowserMode,
-    GrepSearchMode, RegexSearchMode, OperatorPendingMode, ReferencesMode,
-    LspInfoMode, LocListMode, HelpMode, GitShowCommitMode, GitLogMode,
+    SearchBackwardMode,
+#ifndef UVIM_MINIMAL
+    FileBrowserMode,
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    FuzzyFindMode,
+#endif
+#ifndef UVIM_MINIMAL
+    BufferBrowserMode,
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    GrepSearchMode, RegexSearchMode,
+#endif
+    OperatorPendingMode
+#ifndef UVIM_MINIMAL
+    ,
+    ReferencesMode, LspInfoMode, LocListMode, HelpMode, GitShowCommitMode, GitLogMode,
     GitStageMode, GitCommitMode, GitFixupMode, GitPatchMode, CommandOutputMode,
     GlyphSelectMode
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     ,
     AnsiToolsMode, ColorPickerMode, ColorSelectorMode

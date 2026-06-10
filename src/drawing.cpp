@@ -1624,12 +1624,14 @@ void Editor::drawSplitFullScreen()
             output += ":";
     }
 
+#ifndef UVIM_MINIMAL
     drawCompletionPopup(output);
     drawEmojiPopup(output);
     drawDiagnosticPopup(output);
     drawSymbolPopup(output);
     drawCommandHistoryPopup(output);
     drawCommandPopup(output);
+#endif
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)

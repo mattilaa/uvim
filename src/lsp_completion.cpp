@@ -1281,7 +1281,11 @@ void Editor::rebuildCompletionFilter()
 
 void Editor::drawCompletionPopup(std::string& output) const
 {
+#ifdef UVIM_MINIMAL
+    (void)output;
+#else
     widgets::drawCompletionPopup(output, *this);
+#endif
 }
 
 void Editor::openEmojiPopup()

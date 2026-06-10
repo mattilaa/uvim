@@ -179,6 +179,7 @@ struct Config
     bool ninjaGenerator = true;
     std::string installDir;
     std::string jobs;
+    bool minimal = false;
     bool clangdLsp = false;
     bool robotLsp = false;
     bool pythonLsp = false;
@@ -482,9 +483,11 @@ void apply_feature_set(Config& cfg)
     cfg.sanitizers = false;
     cfg.debugLogging = false;
     cfg.debugLsp = false;
+    cfg.minimal = false;
 
     if(cfg.featureSet == 0)
     {
+        cfg.minimal = true;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
         cfg.robotLsp = false;
@@ -619,9 +622,9 @@ std::vector<Section> make_sections()
 {
     return {
         {"Presets",
-         "High-level build profiles. vi-real is the strictest vi-style build "
-         "with optional git/search tooling compiled out. vi-min keeps more "
-         "editor conveniences while staying size-oriented.",
+         "High-level build profiles. vi-real is the strictest vi-style build: "
+         "only the editor core, welcome screen, and tabs are kept. vi-min "
+         "keeps more editor conveniences while staying size-oriented.",
          true,
          {{ItemKind::FeatureSet,
            "Feature set",
@@ -629,10 +632,12 @@ std::vector<Section> make_sections()
            nullptr,
            nullptr,
            {},
-           "vi-real compiles out git, fuzzy, grep, and regex tools. vi-min is "
-           "small but keeps normal file/search tooling. Minimal keeps the "
-           "normal editor tools but removes docs/tests/LSP. Basic is the "
-           "default developer build. Full also enables LSP."}}},
+           "vi-real compiles out optional popups, help views, LSP, git, "
+           "fzf/rg-style search views, formatters, clipboard, color tools, "
+           "and struct-size probes. vi-min is small but keeps normal "
+           "file/search tooling. Minimal keeps the normal editor tools but "
+           "removes docs/tests/LSP. Basic is the default developer build. "
+           "Full also enables LSP."}}},
         {"Target",
          "Platform, compiler mode, and build parallelism. Release defaults to "
          "-O2 unless another optimization level is selected.",
@@ -1645,6 +1650,8 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
     file << "set(UVIM_INSTALL_BINDIR \""
          << cmake_string_literal(installDir.string())
          << "\" CACHE STRING \"\" FORCE)\n";
+    file << "set(UVIM_MINIMAL " << (cfg.minimal ? "ON" : "OFF")
+         << " CACHE BOOL \"\" FORCE)\n";
     for(const auto& section : sections)
     {
         for(const auto& item : section.items)

@@ -1,15 +1,22 @@
 #pragma once
 
+#ifndef UVIM_MINIMAL
 #include "buffer_browser_mode.h"
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
 #include "ansi_tools_mode.h"
 #include "color_picker_mode.h"
 #include "color_selector_mode.h"
 #endif
 #include "command_mode.h"
+#ifndef UVIM_MINIMAL
 #include "command_output_mode.h"
 #include "file_browser_mode.h"
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
 #include "fuzzy_find_mode.h"
+#endif
+#ifndef UVIM_MINIMAL
 #include "git_commit_mode.h"
 #include "git_fixup_mode.h"
 #include "git_log_mode.h"
@@ -17,17 +24,28 @@
 #include "git_show_mode.h"
 #include "git_stage_mode.h"
 #include "glyph_select_mode.h"
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
 #include "grep_search_mode.h"
+#endif
+#ifndef UVIM_MINIMAL
 #include "help_mode.h"
+#endif
 #include "insert_mode.h"
+#ifndef UVIM_MINIMAL
 #include "loc_mode.h"
 #include "lsp_info_mode.h"
+#endif
 #include "mode_commands.h"
 #include "mode_state.h"
 #include "normal_mode.h"
 #include "operator_pending_mode.h"
+#ifndef UVIM_MINIMAL
 #include "references_mode.h"
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
 #include "regex_search_mode.h"
+#endif
 #include "replace_mode.h"
 #include "search_backward_mode.h"
 #include "search_forward_mode.h"

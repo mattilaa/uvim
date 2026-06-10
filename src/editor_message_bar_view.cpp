@@ -7,6 +7,7 @@ namespace
 {
 void appendPopups(Editor& editor, std::string& output)
 {
+#ifndef UVIM_MINIMAL
     editor.drawCompletionPopup(output);
     editor.drawEmojiPopup(output);
     editor.drawDiagnosticPopup(output);
@@ -14,6 +15,10 @@ void appendPopups(Editor& editor, std::string& output)
     editor.drawRenamePopup(output);
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
+#else
+    (void)editor;
+    (void)output;
+#endif
 }
 } // namespace
 

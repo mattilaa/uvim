@@ -241,6 +241,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             cmd.remove_prefix(
                 1); // Remove leading keyCode(command::CommandKey::KEY_COLON)
             ctx.executeCommand(cmd);
+#ifndef UVIM_MINIMAL
             if(ctx.currentMode() == LSP_INFO)
             {
                 return LspInfoMode{};
@@ -263,6 +264,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     return std::get<GitPatchMode>(state);
                 if(std::holds_alternative<GlyphSelectMode>(state))
                     return std::get<GlyphSelectMode>(state);
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
                 if(std::holds_alternative<AnsiToolsMode>(state))
                     return std::get<AnsiToolsMode>(state);
@@ -271,6 +273,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(std::holds_alternative<ColorSelectorMode>(state))
                     return std::get<ColorSelectorMode>(state);
 #endif
+#ifndef UVIM_MINIMAL
             }
             Mode mode = NORMAL;
             std::string path;
@@ -327,6 +330,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     return GitCommitMode{};
                 }
             }
+#endif
         }
         return ctx.hasBuffer() ? ModeState{NormalMode{}}
                                : ModeState{WelcomeMode{}};

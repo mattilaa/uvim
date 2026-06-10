@@ -50,7 +50,11 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
         ctx.setStatusMessage("");
         if(c == keyCode(typed::TypedKey::KEY_X))
         {
+#ifndef UVIM_MINIMAL
             return FileBrowserMode{"."};
+#else
+            return std::nullopt;
+#endif
         }
         return std::nullopt;
     }
@@ -70,19 +74,18 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_E))
     {
+#ifndef UVIM_MINIMAL
         return FileBrowserMode{"."};
+#else
+        return std::nullopt;
+#endif
     }
 
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
     if(c == keyCode(typed::TypedKey::KEY_F) ||
        c == keyCode(control::ControlKey::CTRL_P))
     {
         return FuzzyFindMode{};
-    }
-
-    if(c == keyCode(typed::TypedKey::KEY_B) ||
-       c == keyCode(control::ControlKey::CTRL_W))
-    {
-        return BufferBrowserMode{};
     }
 
     if(c == keyCode(command::CommandKey::KEY_SLASH) ||
@@ -90,6 +93,15 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     {
         return GrepSearchMode{};
     }
+#endif
+
+#ifndef UVIM_MINIMAL
+    if(c == keyCode(typed::TypedKey::KEY_B) ||
+       c == keyCode(control::ControlKey::CTRL_W))
+    {
+        return BufferBrowserMode{};
+    }
+#endif
 
     if(c == keyCode(typed::TypedKey::KEY_Q))
     {
@@ -115,8 +127,12 @@ WelcomeMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
         {
             if(command.cmd == "help" || command.cmd == "h")
             {
+#ifndef UVIM_MINIMAL
                 nextState = HelpMode{command.args, previousFile};
                 return true;
+#else
+                return false;
+#endif
             }
             return false;
         },

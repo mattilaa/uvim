@@ -1513,6 +1513,12 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 
 void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
 {
+#ifdef UVIM_MINIMAL
+    (void)path;
+    (void)focusCurrentFile;
+    setStatusMessage("file browser is not compiled in");
+    needsFullRedraw = true;
+#else
     std::string prev;
     if(currentMode != FILE_BROWSER && currentBuffer != nullptr && filename)
     {
@@ -1529,6 +1535,7 @@ void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
     {
         setMode(FILE_BROWSER);
     }
+#endif
 }
 
 bool Editor::formatBufferForSave()
@@ -2138,6 +2145,13 @@ void Editor::executeCommand(std::string_view cmd)
 
 void Editor::refreshFileSearchCaches()
 {
+#ifndef UVIM_ENABLE_SEARCH_TOOLS
+    grepProjectFiles.clear();
+    grepFileIndexInitialized = false;
+    setStatusMessage("file search tools are not compiled in");
+    needsFullRedraw = true;
+    return;
+#else
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
 
@@ -2153,6 +2167,7 @@ void Editor::refreshFileSearchCaches()
 
     setStatusMessage("File search cache refreshed");
     needsFullRedraw = true;
+#endif
 }
 
 void Editor::forceQuit()

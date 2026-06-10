@@ -90,81 +90,98 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == FILE_BROWSER)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<FileBrowserMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == FUZZY_FIND)
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<FuzzyFindMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == BUFFER_BROWSER)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<BufferBrowserMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GREP_SEARCH)
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<GrepSearchMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == REGEX_SEARCH)
     {
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<RegexSearchMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == LOC_LIST)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<LocListMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == REFERENCES)
     {
+#ifndef UVIM_MINIMAL
         editor.drawReferences();
+#endif
         return;
     }
     if(editor.currentMode == LSP_INFO)
     {
+#ifndef UVIM_MINIMAL
         editor.drawLspInfo();
+#endif
         return;
     }
 
     if(editor.currentMode == HELP)
     {
+#ifndef UVIM_MINIMAL
         if(!needsFullRedraw())
             return;
         if(editor.modeStateMachine)
@@ -172,89 +189,106 @@ void EditorDrawingController::refreshScreen()
             if(auto* state = editor.modeStateMachine->getState<HelpMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GIT_SHOW)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<GitShowCommitMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GIT_LOG)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitLogMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GIT_STAGE)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitStageMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GIT_COMMIT)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitCommitMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GIT_FIXUP)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitFixupMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GIT_PATCH)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state = editor.modeStateMachine->getState<GitPatchMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == COMMAND_OUTPUT)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<CommandOutputMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
     if(editor.currentMode == GLYPH_SELECT)
     {
+#ifndef UVIM_MINIMAL
         if(editor.modeStateMachine)
         {
             if(auto* state =
                    editor.modeStateMachine->getState<GlyphSelectMode>())
                 state->draw(editor);
         }
+#endif
         return;
     }
 
