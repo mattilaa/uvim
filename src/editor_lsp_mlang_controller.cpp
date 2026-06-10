@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("MLANG");
+}
+
 void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
                                 const std::vector<std::string>& mlangLspArgs)
 {
@@ -42,21 +47,22 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
         args.push_back("--stdio");
 
     mlangLspClient = std::make_unique<LspClient>();
+    mlangLspClient->setLogSignature("MLANG");
     if(!mlangLspClient->startServer(this->mlangLspPath, rootDir, args))
     {
         mlangLspClient.reset();
-        LOG_ERROR(LOG, "Mlang LSP failed to start. LSP path: {}",
+        LOG_ERROR(LSP_LOG, "Mlang LSP failed to start. LSP path: {}",
                   this->mlangLspPath);
         return;
     }
 
     mlangLspEnabled = true;
-    LOG_DEBUG(LOG, "Mlang LSP enabled");
+    LOG_DEBUG(LSP_LOG, "Mlang LSP enabled");
 #else
     (void)enable;
     (void)mlangLspPath;
     (void)mlangLspArgs;
-    LOG_ERROR(LOG, "Mlang LSP is not compiled");
+    LOG_ERROR(LSP_LOG, "Mlang LSP is not compiled");
 #endif
 }
 

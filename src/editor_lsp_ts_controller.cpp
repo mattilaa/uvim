@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("TS");
+}
+
 void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
                              const std::vector<std::string>& tsLspArgs)
 {
@@ -42,21 +47,22 @@ void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
         args.push_back("--stdio");
 
     tsLspClient = std::make_unique<LspClient>();
+    tsLspClient->setLogSignature("TS");
     if(!tsLspClient->startServer(this->tsLspPath, rootDir, args))
     {
         tsLspClient.reset();
-        LOG_ERROR(LOG, "TypeScript LSP failed to start. LSP path: {}",
+        LOG_ERROR(LSP_LOG, "TypeScript LSP failed to start. LSP path: {}",
                   this->tsLspPath);
         return;
     }
 
     tsLspEnabled = true;
-    LOG_DEBUG(LOG, "TypeScript LSP enabled");
+    LOG_DEBUG(LSP_LOG, "TypeScript LSP enabled");
 #else
     (void)enable;
     (void)tsLspPath;
     (void)tsLspArgs;
-    LOG_ERROR(LOG, "TypeScript LSP is not compiled");
+    LOG_ERROR(LSP_LOG, "TypeScript LSP is not compiled");
 #endif
 }
 

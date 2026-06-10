@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("CSS");
+}
+
 void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
                               const std::vector<std::string>& cssLspArgs)
 {
@@ -42,21 +47,22 @@ void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
         args.push_back("--stdio");
 
     cssLspClient = std::make_unique<LspClient>();
+    cssLspClient->setLogSignature("CSS");
     if(!cssLspClient->startServer(this->cssLspPath, rootDir, args))
     {
         cssLspClient.reset();
-        LOG_ERROR(LOG, "CSS LSP failed to start. LSP path: {}",
+        LOG_ERROR(LSP_LOG, "CSS LSP failed to start. LSP path: {}",
                   this->cssLspPath);
         return;
     }
 
     cssLspEnabled = true;
-    LOG_DEBUG(LOG, "CSS LSP enabled");
+    LOG_DEBUG(LSP_LOG, "CSS LSP enabled");
 #else
     (void)enable;
     (void)cssLspPath;
     (void)cssLspArgs;
-    LOG_ERROR(LOG, "CSS LSP is not compiled");
+    LOG_ERROR(LSP_LOG, "CSS LSP is not compiled");
 #endif
 }
 

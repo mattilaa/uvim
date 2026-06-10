@@ -6,6 +6,11 @@
 #include <filesystem>
 #include <memory>
 
+namespace
+{
+mla::log::FileLogger LSP_LOG("HTML");
+}
+
 void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
                                const std::vector<std::string>& htmlLspArgs)
 {
@@ -42,21 +47,22 @@ void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
         args.push_back("--stdio");
 
     htmlLspClient = std::make_unique<LspClient>();
+    htmlLspClient->setLogSignature("HTML");
     if(!htmlLspClient->startServer(this->htmlLspPath, rootDir, args))
     {
         htmlLspClient.reset();
-        LOG_ERROR(LOG, "HTML LSP failed to start. LSP path: {}",
+        LOG_ERROR(LSP_LOG, "HTML LSP failed to start. LSP path: {}",
                   this->htmlLspPath);
         return;
     }
 
     htmlLspEnabled = true;
-    LOG_DEBUG(LOG, "HTML LSP enabled");
+    LOG_DEBUG(LSP_LOG, "HTML LSP enabled");
 #else
     (void)enable;
     (void)htmlLspPath;
     (void)htmlLspArgs;
-    LOG_ERROR(LOG, "HTML LSP is not compiled");
+    LOG_ERROR(LSP_LOG, "HTML LSP is not compiled");
 #endif
 }
 

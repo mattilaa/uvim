@@ -861,7 +861,7 @@ std::vector<Section> make_sections()
            &Config::debugLogging,
            nullptr,
            {},
-           "Enables debug logging to /tmp/uvim_debug.txt."},
+           "Enables uvim logging to the default uvim.log path."},
           {ItemKind::Toggle,
            "LSP debug logging",
            "UVIM_DEBUG_LSP",
