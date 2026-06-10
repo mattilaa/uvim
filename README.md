@@ -232,6 +232,35 @@ Startup note:
 - this keeps directory launch fast while preserving `autodetectlsps: true` for
   normal editing
 
+### uvim logging
+
+uvim logging is compiled out by default. Build with one of these CMake options
+to enable it:
+
+```sh
+cmake -S . -B build -DUVIM_DEBUG_LSP=ON
+cmake --build build --parallel 8
+```
+
+Use `UVIM_DEBUG_LSP` for LSP startup/stderr/debug logging, or
+`UVIM_DEBUG_LOGGING` for broader editor debug logging. LSP log rows include the
+server signature after the timestamp, for example `[CLANGD]`, `[PYTHON]`, or
+`[TS]`.
+
+Default log locations:
+
+- POSIX: `/tmp/uvim.log`
+- Windows: `%USERPROFILE%\Documents\uvim\uvim.log`
+
+Override the log file at runtime with:
+
+```sh
+uvim --log-file /path/to/uvim.log file.cpp
+```
+
+When logging is not enabled in the build, `--log-file` is accepted but no uvim
+log rows are written.
+
 ### Optional: mlangd-mla logging (private builds)
 
 When uvim launches `mlangd-mla`, you can enable server logging directly from
