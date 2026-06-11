@@ -48,7 +48,9 @@ const std::string kAnsiCurrentLineBg = color::rgbBg(24, 64, 36);
 constexpr int kKeyEsc = 27;
 constexpr int kKeyUp = 1001;
 constexpr int kKeyDown = 1002;
-constexpr int kKeyResize = 1003;
+constexpr int kKeyLeft = 1003;
+constexpr int kKeyRight = 1004;
+constexpr int kKeyResize = 1005;
 
 int gPendingKey = 0;
 
@@ -179,6 +181,7 @@ struct Config
     bool ninjaGenerator = true;
     std::string installDir;
     std::string jobs;
+    std::string logFile;
     bool minimal = false;
     bool browserTools = true;
     bool auxiliaryViews = true;
@@ -340,6 +343,17 @@ std::string default_install_dir()
 #endif
 }
 
+std::string default_log_file()
+{
+#ifdef _WIN32
+    if(const char* userProfile = std::getenv("USERPROFILE"))
+        return std::string(userProfile) + "\\Documents\\uvim\\uvim.log";
+    return "uvim.log";
+#else
+    return "/tmp/uvim.log";
+#endif
+}
+
 std::string default_jobs()
 {
     const unsigned int cores = std::thread::hardware_concurrency();
@@ -402,6 +416,10 @@ int read_key()
             return kKeyUp;
         if(next == 80)
             return kKeyDown;
+        if(next == 75)
+            return kKeyLeft;
+        if(next == 77)
+            return kKeyRight;
     }
     return c;
 #else
@@ -438,6 +456,10 @@ int read_key()
                     return kKeyUp;
                 if(seq[1] == 'B')
                     return kKeyDown;
+                if(seq[1] == 'D')
+                    return kKeyLeft;
+                if(seq[1] == 'C')
+                    return kKeyRight;
             }
         }
 #ifndef _WIN32
@@ -889,7 +911,18 @@ std::vector<Section> make_sections()
            &Config::debugLsp,
            nullptr,
            {},
-           "Enables verbose LSP logging."}}},
+           "Enables verbose LSP logging."},
+          {ItemKind::Text,
+           "Log file",
+           "",
+           nullptr,
+           nullptr,
+           {},
+           "Runtime uvim.log location used by the editor logging defaults. "
+           "POSIX defaults to /tmp/uvim.log; Windows defaults to "
+           "%USERPROFILE%\\Documents\\uvim\\uvim.log. Use uvim --log-file "
+           "PATH to override it when launching uvim.",
+           &Config::logFile}}},
     };
 }
 
@@ -918,11 +951,57 @@ std::string value_for(const Config& cfg, const Item& item)
     return cfg.*(item.flag) ? "ON" : "OFF";
 }
 
-std::string help_for(const std::vector<Section>& sections,
+std::string preset_help(const Config& cfg)
+{
+    const std::string_view preset =
+        kFeatureSets[static_cast<size_t>(cfg.featureSet)];
+    if(cfg.featureSet == 0)
+    {
+        return std::string(preset) +
+               " keeps the strict core editor only: welcome screen, editing, "
+               "basic commands, and tabs. It compiles out file/browser tools, "
+               "auxiliary views, popups, help item views, LSP, git, search "
+               "tools, formatters, clipboard, color tools, struct-size probes, "
+               "docs/tests, and compile_commands.json.";
+    }
+    if(cfg.featureSet == 1)
+    {
+        return std::string(preset) +
+               " keeps the core editor plus built-in file and buffer browser "
+               "support. It still compiles out auxiliary views and popups, "
+               "LSP, git, search tools, formatters, clipboard, color tools, "
+               "struct-size probes, docs/tests, and compile_commands.json.";
+    }
+    if(cfg.featureSet == 2)
+    {
+        return std::string(preset) +
+               " keeps normal editor tools, browser tools, git, search, "
+               "formatters, and clipboard, while disabling LSP, docs/tests, "
+               "compile_commands.json, color tools, and struct-size probes.";
+    }
+    if(cfg.featureSet == 3)
+    {
+        return std::string(preset) +
+               " is the normal non-LSP developer build: editor tools, browser "
+               "tools, auxiliary views, git, search, formatters, clipboard, "
+               "color tools, struct-size probes, tests, and "
+               "compile_commands.json are enabled, but language servers are "
+               "off.";
+    }
+    return std::string(preset) +
+           " enables the complete build profile, including all language "
+           "servers, editor/browser tools, auxiliary views, git, search, "
+           "formatters, clipboard, color tools, struct-size probes, tests, and "
+           "compile_commands.json.";
+}
+
+std::string help_for(const Config& cfg, const std::vector<Section>& sections,
                      const VisibleRow& row)
 {
     if(row.kind == RowKind::Section)
         return sections[row.section].help;
+    if(sections[row.section].items[row.item].kind == ItemKind::FeatureSet)
+        return preset_help(cfg);
     return sections[row.section].items[row.item].help;
 }
 
@@ -1185,12 +1264,12 @@ void append_wrapped_fixed(std::vector<std::string>& out, std::string_view text,
     }
 }
 
-void append_documentation(std::vector<std::string>& out,
+void append_documentation(std::vector<std::string>& out, const Config& cfg,
                           const std::vector<Section>& sections,
                           const VisibleRow& row, int docHeight, int cols)
 {
     out.push_back("\x1b[1mDocumentation\x1b[0m");
-    append_wrapped_fixed(out, help_for(sections, row), docHeight, cols);
+    append_wrapped_fixed(out, help_for(cfg, sections, row), docHeight, cols);
 }
 
 void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
@@ -1213,7 +1292,7 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
         "\x1b[1;36m" + truncate_line("uvim build configurator", screen.cols) +
         "\x1b[0m");
     append_wrapped_fixed(screenLines,
-                         "j/k/arrows move  h close  l open  "
+                         "j/k/arrows move  h/left close  l/right open  "
                          "space/enter change  s save  q quit",
                          layout.keyRows, screen.cols);
     screenLines.push_back("");
@@ -1258,7 +1337,7 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
         screenLines.push_back("");
 
     if(!rows.empty())
-        append_documentation(screenLines, sections,
+        append_documentation(screenLines, cfg, sections,
                              rows[static_cast<size_t>(safeCursor)],
                              layout.docRows, screen.cols);
     append_wrapped_fixed(screenLines, "Output: build/uvim_config_cache.cmake",
@@ -1450,6 +1529,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.jobs = value;
     else if(key == "install_dir")
         cfg.installDir = value;
+    else if(key == "log_file")
+        cfg.logFile = value;
     else if(key == "install_after_build")
     {
         auto parsed = parse_bool(value);
@@ -1605,6 +1686,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "ninja_generator=" << bool_value(cfg.ninjaGenerator) << "\n";
     file << "jobs=" << cfg.jobs << "\n";
     file << "install_dir=" << cfg.installDir << "\n";
+    file << "log_file=" << cfg.logFile << "\n";
     file << "install_after_build=" << bool_value(options.installAfterBuild)
          << "\n";
     file << "clangd_lsp=" << bool_value(cfg.clangdLsp) << "\n";
@@ -1656,6 +1738,7 @@ bool write_cache(const Config& cfg, const std::vector<Section>& sections,
 
     file << "# Generated by uvim-config. Pass with: "
          << configure_command(cfg, options, out) << "\n";
+    file << "# Runtime uvim log file: " << cfg.logFile << "\n";
     const fs::path installDir =
         expand_user_path(cfg.installDir, fs::absolute(options.sourceDir));
     const fs::path installPrefix =
@@ -1739,6 +1822,8 @@ void print_help(std::ostream& out)
            "CLI overrides.\n"
         << "      --install-dir DIR       Executable install destination "
            "(default: ~/.local/bin on POSIX).\n"
+        << "      --log-file FILE         Runtime uvim log path shown in the "
+           "generated config (default: platform uvim.log path).\n"
         << "  -i, --install               Include cmake --install in the "
            "printed command.\n"
         << "  -o, --output FILE           Cache file to write.\n"
@@ -1954,6 +2039,13 @@ bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
                 return false;
             cfg.installDir = std::string(*value);
         }
+        else if(arg == "--log-file")
+        {
+            auto value = next_arg(i, argc, argv, arg, error);
+            if(!value)
+                return false;
+            cfg.logFile = std::string(*value);
+        }
         else if(arg == "-i" || arg == "--install")
         {
             options.installAfterBuild = true;
@@ -2047,6 +2139,7 @@ int main(int argc, char** argv)
     Config cfg;
     cfg.installDir = default_install_dir();
     cfg.jobs = default_jobs();
+    cfg.logFile = default_log_file();
     apply_feature_set(cfg);
     CliOptions options;
     auto sections = make_sections();
@@ -2152,9 +2245,9 @@ int main(int argc, char** argv)
             cursor = std::min(cursor + 1, (int)rows.size() - 1);
         else if(key == 'k' || key == kKeyUp)
             cursor = std::max(cursor - 1, 0);
-        else if(key == 'l')
+        else if(key == 'l' || key == kKeyRight)
             open_selected_section(sections, rows[static_cast<size_t>(cursor)]);
-        else if(key == 'h')
+        else if(key == 'h' || key == kKeyLeft)
             close_selected_section(sections, rows[static_cast<size_t>(cursor)]);
         else if(key == ' ' || key == '\n' || key == '\r')
         {
