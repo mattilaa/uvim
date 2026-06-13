@@ -1278,6 +1278,8 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             Terminal::unreadKey(nextChar);
 
         // Diagnostics popup for current line
+        ed->syncClangdDiagnosticsIfNeeded(true);
+        ed->syncMlangSemanticTokensIfNeeded(true);
         if(ed->getClangdDiagnosticForLine(*ed->cursorY))
         {
             ed->openDiagnosticPopupForCursor();

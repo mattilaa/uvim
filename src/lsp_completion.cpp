@@ -1571,13 +1571,22 @@ Editor::getClangdDiagnosticsByLine() const
         return out;
     if(currentMode == INSERT)
         return out;
-    if(!isClangdLspEnabled() || !lspClient || !currentBuffer)
+    if(!currentBuffer)
         return out;
     if(currentBuffer->filename.empty())
         return out;
 
+    const LspClient* client = nullptr;
+    if(isFileType<FileType::Cpp>() && isClangdLspEnabled() && lspClient)
+        client = lspClient.get();
+    else if(isFileType<FileType::Mla>() && isMlangLspEnabled() &&
+            mlangLspClient)
+        client = mlangLspClient.get();
+    if(!client)
+        return out;
+
     std::vector<LspClient::Diagnostic> diagnostics =
-        lspClient->diagnostics(currentBuffer->filename);
+        client->diagnostics(currentBuffer->filename);
     for(const auto& diag : diagnostics)
     {
         if(diag.severity <= 0 || diag.severity > 2)
@@ -1951,6 +1960,7 @@ void Editor::openDiagnosticPopupForCursor()
         return;
 
     syncClangdDiagnosticsIfNeeded(true);
+    syncMlangSemanticTokensIfNeeded(true);
 
     std::optional<LspDiagnosticSummary> diag =
         getClangdDiagnosticForLine(*cursorY);
@@ -1968,11 +1978,23 @@ void Editor::openDiagnosticPopupForCursor()
     diagnosticPopupData = *diag;
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(isClangdLspEnabled() && lspClient && currentBuffer &&
-       !currentBuffer->filename.empty())
+    LspClient* client = nullptr;
+    std::string languageId = "cpp";
+    if(isFileType<FileType::Cpp>() && isClangdLspEnabled() && lspClient)
+    {
+        client = lspClient.get();
+        languageId = "cpp";
+    }
+    else if(isFileType<FileType::Mla>() && isMlangLspEnabled() &&
+            mlangLspClient)
+    {
+        client = mlangLspClient.get();
+        languageId = "mlang";
+    }
+    if(client && currentBuffer && !currentBuffer->filename.empty())
     {
         std::vector<LspClient::Diagnostic> diags =
-            lspClient->diagnostics(currentBuffer->filename);
+            client->diagnostics(currentBuffer->filename);
         std::vector<LspClient::Diagnostic> lineDiags;
         for(const auto& d : diags)
         {
@@ -1984,7 +2006,8 @@ void Editor::openDiagnosticPopupForCursor()
             std::string_view lineText;
             if(*cursorY >= 0 && *cursorY < (int)lines->size())
                 lineText = (*lines)[*cursorY];
-            std::vector<LspClient::CodeAction> actions = lspClient->codeActions(
+            (void)languageId;
+            std::vector<LspClient::CodeAction> actions = client->codeActions(
                 currentBuffer->filename, *cursorY, lineText, lineDiags);
             for(const auto& action : actions)
             {

@@ -2090,6 +2090,20 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
         }
     }
 
+    if(diagnosticPopupActive)
+    {
+        std::optional<LspDiagnosticSummary> diag =
+            getClangdDiagnosticForLine(diagnosticPopupLine);
+        if(!diag || diag->severity <= 0 || diag->severity > 2)
+        {
+            closeDiagnosticPopup();
+        }
+        else
+        {
+            diagnosticPopupData = *diag;
+        }
+    }
+
     currentBuffer->lspSyncNeeded = false;
 #else
     (void)force;

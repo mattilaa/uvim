@@ -330,12 +330,17 @@ void EditorDrawingController::refreshScreen()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(editor.currentMode != INSERT && !editor.showGitBlame)
     {
-        if(editor.currentBuffer && editor.isClangdLspEnabled() &&
-           editor.isFileType<FileType::Cpp>() &&
-           !editor.isFileType<FileType::Mla>() && editor.lspClient &&
-           !editor.currentBuffer->filename.empty())
+        LspClient* diagnosticsClient = nullptr;
+        if(editor.currentBuffer && editor.isFileType<FileType::Cpp>() &&
+           editor.isClangdLspEnabled() && editor.lspClient)
+            diagnosticsClient = editor.lspClient.get();
+        else if(editor.currentBuffer && editor.isFileType<FileType::Mla>() &&
+                editor.isMlangLspEnabled() && editor.mlangLspClient)
+            diagnosticsClient = editor.mlangLspClient.get();
+
+        if(diagnosticsClient && !editor.currentBuffer->filename.empty())
         {
-            size_t revision = editor.lspClient->diagnosticsRevision(
+            size_t revision = diagnosticsClient->diagnosticsRevision(
                 editor.currentBuffer->filename);
             if(!editor.currentBuffer->lspDiagnosticsSeenValid ||
                revision != editor.currentBuffer->lspDiagnosticsSeenRevision)
