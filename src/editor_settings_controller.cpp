@@ -1,6 +1,9 @@
 #include "editor_settings_controller.h"
 #include "editor.h"
 #include "editor_utils.h"
+#ifdef UVIM_ENABLE_CLANGD_LSP
+#include "lsp_client.h"
+#endif
 
 using editor::helper::ascii_lower;
 using editor::helper::parse_token_type;
@@ -114,6 +117,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     {
         setStatusMessage(std::string("autodetectlsps=") +
                          (autoDetectLsps ? "true" : "false"));
+        return true;
+    }
+    if(opt == "emitlsp?")
+    {
+        setStatusMessage(std::string("emitlsp=") +
+                         (emitLspDiagnostics ? "true" : "false"));
         return true;
     }
     if(opt == "filebrowser.fuzzy?")
@@ -237,6 +246,34 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         gdCenterScreen = value;
         setStatusMessage(std::string("gdcenter=") +
                          (gdCenterScreen ? "true" : "false"));
+    };
+
+    auto set_emit_lsp = [&](bool value)
+    {
+        emitLspDiagnostics = value;
+#ifdef UVIM_ENABLE_CLANGD_LSP
+        if(lspClient)
+            lspClient->setDiagnosticsEnabled(value);
+        if(robotLspClient)
+            robotLspClient->setDiagnosticsEnabled(value);
+        if(pythonLspClient)
+            pythonLspClient->setDiagnosticsEnabled(value);
+        if(mlangLspClient)
+            mlangLspClient->setDiagnosticsEnabled(value);
+        if(htmlLspClient)
+            htmlLspClient->setDiagnosticsEnabled(value);
+        if(cssLspClient)
+            cssLspClient->setDiagnosticsEnabled(value);
+        if(jsonLspClient)
+            jsonLspClient->setDiagnosticsEnabled(value);
+        if(tsLspClient)
+            tsLspClient->setDiagnosticsEnabled(value);
+#endif
+        if(!value)
+            closeDiagnosticPopup();
+        needsFullRedraw = true;
+        setStatusMessage(std::string("emitlsp=") +
+                         (emitLspDiagnostics ? "true" : "false"));
     };
 
     if(opt == "autobraces")
@@ -378,6 +415,16 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "noautotags")
     {
         set_autotags(false);
+        return true;
+    }
+    if(opt == "emitlsp")
+    {
+        set_emit_lsp(true);
+        return true;
+    }
+    if(opt == "noemitlsp")
+    {
+        set_emit_lsp(false);
         return true;
     }
     if(opt == "gitblameinfo")
@@ -557,6 +604,23 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("autodetectlsps: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("emitlsp=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("emitlsp=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_emit_lsp(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_emit_lsp(false);
+        }
+        else
+        {
+            setStatusMessage("emitlsp: expected true/false");
         }
         return true;
     }

@@ -61,7 +61,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `bd` : close current buffer
 
 \subsection keys_normal_leader Leader (Space)
-- `Space-e` : file browser
+- `Space-e` : diagnostic popup on an LSP diagnostic row; otherwise file browser
 - `Space-s` : grep search
 - `Space-d` : go to definition
 - `Space-g a` : show assembly instruction docs in a scrollable popup

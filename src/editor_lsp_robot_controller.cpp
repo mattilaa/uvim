@@ -50,6 +50,7 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
 
     robotLspClient = std::make_unique<LspClient>();
     robotLspClient->setLogSignature("ROBOT");
+    robotLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
     {
         LOG_ERROR(LSP_LOG, "Robot LSP failed to start, LSP path: {}",

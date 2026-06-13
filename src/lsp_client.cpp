@@ -352,6 +352,7 @@ struct LspClient::Impl
     std::string stderrBuffer;
     std::unordered_map<std::string, int> docVersion;
     mutable std::mutex diagMutex;
+    bool diagnosticsEnabled = true;
     std::unordered_map<std::string, std::vector<LspClient::Diagnostic>>
         diagnosticsByFile;
     std::unordered_map<std::string, size_t> diagnosticsRevision;
@@ -843,6 +844,15 @@ struct LspClient::Impl
                         if(!uri.empty())
                         {
                             std::string path = absPath(uriToPath(uri));
+                            {
+                                std::lock_guard<std::mutex> lk(diagMutex);
+                                if(!diagnosticsEnabled)
+                                {
+                                    diagnosticsByFile.erase(path);
+                                    diagnosticsRevision[path]++;
+                                    continue;
+                                }
+                            }
                             std::vector<LspClient::Diagnostic> diags;
                             const ju::Value* diagnostics =
                                 member_ptr(params, "diagnostics");
@@ -2053,6 +2063,18 @@ LspClient::references(const std::string& filePath, int line,
     return out;
 }
 
+void LspClient::setDiagnosticsEnabled(bool enabled)
+{
+    if(!impl)
+        return;
+    std::lock_guard<std::mutex> lk(impl->diagMutex);
+    if(impl->diagnosticsEnabled == enabled)
+        return;
+    impl->diagnosticsEnabled = enabled;
+    impl->diagnosticsByFile.clear();
+    impl->diagnosticsRevision.clear();
+}
+
 std::vector<LspClient::Diagnostic>
 LspClient::diagnostics(const std::string& filePath) const
 {
@@ -2811,6 +2833,8 @@ LspClient::diagnostics(const std::string&) const
 {
     return {};
 }
+
+void LspClient::setDiagnosticsEnabled(bool) {}
 
 void LspClient::clearDiagnostics(const std::string&) {}
 

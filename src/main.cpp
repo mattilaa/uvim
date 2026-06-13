@@ -588,6 +588,7 @@ static std::string_view default_config_contents()
   filebrowser:
     fuzzy: false
   autodetectlsps: true
+  emitlsp: true
   formatonsave: true
   status:
     lspgap: 7

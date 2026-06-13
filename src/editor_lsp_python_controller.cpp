@@ -46,6 +46,7 @@ void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
 
     pythonLspClient = std::make_unique<LspClient>();
     pythonLspClient->setLogSignature("PYTHON");
+    pythonLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
     {
         pythonLspClient.reset();

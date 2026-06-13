@@ -48,6 +48,7 @@ void Editor::enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
 
     jsonLspClient = std::make_unique<LspClient>();
     jsonLspClient->setLogSignature("JSON");
+    jsonLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!jsonLspClient->startServer(this->jsonLspPath, rootDir, args))
     {
         jsonLspClient.reset();

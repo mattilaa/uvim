@@ -118,6 +118,7 @@ void Editor::enableClangdLspImpl(bool enable,
 
     lspClient = std::make_unique<LspClient>();
     lspClient->setLogSignature("CLANGD");
+    lspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
     {
         std::string error = lspClient->lastError();

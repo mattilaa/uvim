@@ -454,6 +454,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     autoDetectLsps = false;
             }
+            auto itemitlsp = values.find("editor.emitlsp");
+            if(itemitlsp == values.end())
+                itemitlsp = values.find("settings.emitlsp");
+            if(itemitlsp == values.end())
+                itemitlsp = values.find("emitlsp");
+            if(itemitlsp != values.end())
+            {
+                std::string v = itemitlsp->second;
+                if(v == "true" || v == "1" || v == "on")
+                    emitLspDiagnostics = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    emitLspDiagnostics = false;
+            }
             auto itfs = values.find("editor.formatonsave");
             if(itfs == values.end())
                 itfs = values.find("settings.formatonsave");

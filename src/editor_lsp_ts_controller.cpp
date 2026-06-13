@@ -48,6 +48,7 @@ void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
 
     tsLspClient = std::make_unique<LspClient>();
     tsLspClient->setLogSignature("TS");
+    tsLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!tsLspClient->startServer(this->tsLspPath, rootDir, args))
     {
         tsLspClient.reset();

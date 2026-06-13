@@ -231,6 +231,11 @@ Startup note:
   auto-detected LSP startup is deferred until you open a file
 - this keeps directory launch fast while preserving `autodetectlsps: true` for
   normal editing
+- LSP diagnostics from servers are shown as row markers and can be opened with
+  `Space-e` when the cursor is on a diagnostic row. `Space-e` otherwise opens
+  the file browser.
+- Use `:set emitlsp=false` or config `editor.emitlsp: false` to suppress
+  LSP-emitted warning/error diagnostics without disabling other LSP features.
 
 ### uvim logging
 
@@ -457,7 +462,9 @@ Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
 
 ## File browser
 
-Open with `Space-e` (leader-e) or `:Ex` / `:Explore`.
+Open with `Space-e` (leader-e) or `:Ex` / `:Explore`. When the cursor is on a
+row with an LSP diagnostic and `emitlsp` is enabled, `Space-e` opens the
+diagnostic popup instead.
 
 Navigation:
 

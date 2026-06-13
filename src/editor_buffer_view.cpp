@@ -12,7 +12,8 @@
 void EditorBufferView::draw()
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    if(editor.currentMode != INSERT && !editor.showGitBlame)
+    if(editor.currentMode != INSERT && !editor.showGitBlame &&
+       editor.emitLspDiagnostics)
     {
         LspClient* diagnosticsClient = nullptr;
         if(editor.currentBuffer && editor.isFileType<FileType::Cpp>() &&

@@ -132,6 +132,7 @@ public:
                int triggerKind = 1, char triggerCharacter = '\0');
 
     // Latest diagnostics for a file path (from publishDiagnostics).
+    void setDiagnosticsEnabled(bool enabled);
     std::vector<Diagnostic> diagnostics(const std::string& filePath) const;
     void clearDiagnostics(const std::string& filePath);
     size_t diagnosticsRevision(const std::string& filePath) const;

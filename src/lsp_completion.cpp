@@ -1569,6 +1569,8 @@ Editor::getClangdDiagnosticsByLine() const
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(showGitBlame)
         return out;
+    if(!emitLspDiagnostics)
+        return out;
     if(currentMode == INSERT)
         return out;
     if(!currentBuffer)
@@ -1958,6 +1960,12 @@ void Editor::openDiagnosticPopupForCursor()
 
     if(!currentBuffer)
         return;
+    if(!emitLspDiagnostics)
+    {
+        setStatusMessage("emitlsp=false");
+        needsFullRedraw = true;
+        return;
+    }
 
     syncClangdDiagnosticsIfNeeded(true);
     syncMlangSemanticTokensIfNeeded(true);

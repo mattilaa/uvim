@@ -534,6 +534,7 @@ public:
     bool formatOnInsertLeave = true;
     bool formatOnSave = true;
     bool autoDetectLsps = true;
+    bool emitLspDiagnostics = true;
     bool fileBrowserFuzzy = false;
     bool commandLineMessagePrefix = false;
     int lspStatusGap = 7;

@@ -1278,6 +1278,11 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
             Terminal::unreadKey(nextChar);
 
         // Diagnostics popup for current line
+        if(!ed->emitLspDiagnostics)
+        {
+            ed->setStatusMessage("emitlsp=false");
+            return std::nullopt;
+        }
         ed->syncClangdDiagnosticsIfNeeded(true);
         ed->syncMlangSemanticTokensIfNeeded(true);
         if(ed->getClangdDiagnosticForLine(*ed->cursorY))
