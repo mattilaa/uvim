@@ -1025,6 +1025,56 @@ TEST(SyntaxHighlighterTest, HighlightsMlangUserTypeInAnnotationAndLiteral)
     EXPECT_TRUE(hasTokenAt(tokens, secondPos, 10, TOKEN_TYPE));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangAliasNameAsType)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+
+    const std::string aliasLine = "alias Distance = f32;";
+    auto aliasTokens =
+        editor.tokenizeLine(aliasLine, inBlockComment, inTomlMultiline,
+                            tomlQuote, inMarkupFence, markupFenceChar);
+    int aliasNamePos = (int)aliasLine.find("Distance");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(aliasNamePos)));
+    EXPECT_TRUE(hasTokenAt(aliasTokens, aliasNamePos, 8, TOKEN_TYPE));
+
+    const std::string useLine = "let d1: Distance = 10.0f;";
+    auto useTokens =
+        editor.tokenizeLine(useLine, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+    int useNamePos = (int)useLine.find("Distance");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(useNamePos)));
+    EXPECT_TRUE(hasTokenAt(useTokens, useNamePos, 8, TOKEN_TYPE));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsMlangUseTypeAliasNameAsType)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "use type Distance = f32;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    int namePos = (int)line.find("Distance");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namePos)));
+    EXPECT_TRUE(hasTokenAt(tokens, namePos, 8, TOKEN_TYPE));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsMlangBuiltinDocTypes)
 {
     Editor editor = Editor::createForTests();

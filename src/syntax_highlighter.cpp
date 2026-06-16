@@ -3628,8 +3628,26 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 if(is_mlang_keyword(word))
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
-                    if(syntaxMlangHighlightTypes &&
-                       (word == "struct" || word == "trait" || word == "impl"))
+                    bool colorsNextTypeName =
+                        word == "struct" || word == "trait" ||
+                        word == "impl" || word == "alias";
+                    if(!colorsNextTypeName && word == "type")
+                    {
+                        int p = start - 1;
+                        while(p >= 0 && text_utils::is_space(sv[p]))
+                            --p;
+                        int prevEnd = p + 1;
+                        while(p >= 0 &&
+                              (text_utils::is_alpha(sv[p]) ||
+                               text_utils::is_digit(sv[p]) || sv[p] == '_'))
+                        {
+                            --p;
+                        }
+                        std::string_view prev =
+                            sv.substr(p + 1, prevEnd - (p + 1));
+                        colorsNextTypeName = prev == "use";
+                    }
+                    if(syntaxMlangHighlightTypes && colorsNextTypeName)
                     {
                         int j = i;
                         while(j < len && text_utils::is_space(sv[j]))
