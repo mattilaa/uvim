@@ -493,6 +493,62 @@ TEST(SyntaxHighlighterTest, CompletionPopupAboveCursorDoesNotCoverCursorLine)
         output.find(Terminal::cursorPos(cursorRow, 1))));
 }
 
+TEST(SyntaxHighlighterTest, CompletionPopupShowsAliasDocumentation)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    editor.currentMode = INSERT;
+    editor.screenRows = 12;
+    editor.screenCols = 90;
+    *editor.cursorY = 2;
+    *editor.cursorX = 4;
+    *editor.offsetY = 0;
+    *editor.offsetX = 0;
+    editor.completionActive = true;
+    CompletionEntry alias;
+    alias.label = "Distance";
+    alias.kind = 7;
+    alias.detail = "type alias: f32";
+    alias.documentation =
+        "Distance stores meters as a single-precision floating point value.";
+    editor.completionAll = {alias};
+    editor.completionFiltered = {0};
+
+    std::string output;
+    widgets::drawCompletionPopup(output, editor);
+
+    EXPECT_TRUE(text_utils::is_found(output.find("Distance stores meters")));
+}
+
+TEST(SyntaxHighlighterTest, CompletionPopupTruncatesLongDocumentation)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    editor.currentMode = INSERT;
+    editor.screenRows = 20;
+    editor.screenCols = 100;
+    *editor.cursorY = 2;
+    *editor.cursorX = 4;
+    *editor.offsetY = 0;
+    *editor.offsetX = 0;
+    editor.completionActive = true;
+
+    CompletionEntry alias;
+    alias.label = "Distance";
+    alias.kind = 7;
+    alias.detail = "type alias: f32";
+    alias.documentation.assign(700, 'a');
+    alias.documentation += " tail-marker";
+    editor.completionAll = {alias};
+    editor.completionFiltered = {0};
+
+    std::string output;
+    widgets::drawCompletionPopup(output, editor);
+
+    EXPECT_TRUE(text_utils::is_found(output.find("...")));
+    EXPECT_TRUE(text_utils::is_not_found(output.find("tail-marker")));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
 {
     Editor editor = Editor::createForTests();

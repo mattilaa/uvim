@@ -12,6 +12,8 @@
 
 namespace widgets
 {
+static constexpr int kMaxCompletionDocumentationChars = 420;
+
 static std::string buildCompletionExtras(const CompletionEntry& entry)
 {
     std::string extra;
@@ -73,6 +75,37 @@ static std::string trimAndCollapse(std::string text)
         out.erase(out.begin());
 
     return out;
+}
+
+static std::string limitCompletionDocumentation(std::string text)
+{
+    if((int)text.size() <= kMaxCompletionDocumentationChars)
+        return text;
+
+    text.resize(kMaxCompletionDocumentationChars);
+    while(!text.empty() &&
+          (static_cast<unsigned char>(text.back()) & 0xc0) == 0x80)
+    {
+        text.pop_back();
+    }
+    while(!text.empty() && std::isspace((unsigned char)text.back()))
+        text.pop_back();
+    text += "...";
+    return text;
+}
+
+static void markLastDocLineTruncated(std::vector<std::string>& lines, int width)
+{
+    if(lines.empty())
+        return;
+
+    std::string& last = lines.back();
+    const int markerW = 3;
+    if(width > markerW && text_utils::displayWidth(last) > width - markerW)
+        last = truncateToWidth(last, width - markerW);
+    while(!last.empty() && std::isspace((unsigned char)last.back()))
+        last.pop_back();
+    last += "...";
 }
 
 static std::string buildCompletionBrief(const CompletionEntry& entry)
@@ -273,9 +306,13 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             const auto& selEntry =
                 editor.completionAll[editor.completionFiltered[sel]];
             std::string docText;
+            bool docWasTruncated = false;
             if(!selEntry.documentation.empty())
             {
-                docText = selEntry.documentation;
+                docWasTruncated =
+                    (int)selEntry.documentation.size() >
+                    kMaxCompletionDocumentationChars;
+                docText = limitCompletionDocumentation(selEntry.documentation);
             }
             else if(!selEntry.detail.empty())
             {
@@ -283,6 +320,8 @@ void drawCompletionPopup(std::string& output, const Editor& editor)
             }
             int maxDocRows = std::clamp(editor.screenRows / 4, 1, 6);
             docLines = wrapTextLines(docText, innerW, maxDocRows);
+            if(docWasTruncated)
+                markLastDocLineTruncated(docLines, innerW);
             docRows = (int)docLines.size();
         }
     }
