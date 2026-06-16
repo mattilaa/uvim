@@ -777,7 +777,20 @@ if(UVIM_BUILD_TESTS)
     list(REMOVE_ITEM UVIM_TEST_SOURCES src/main.cpp)
 
     set(UVIM_REAL_MODE_TEST_FILES
+        tests/editor_alternate_file_test.cpp
+        tests/real_mode_assembly_test.cpp
+        tests/real_mode_browser_test.cpp
+        tests/real_mode_clipboard_paste_test.cpp
+        tests/real_mode_comment_test.cpp
+        tests/real_mode_completion_format_test.cpp
+        tests/real_mode_insert_test.cpp
+        tests/real_mode_lsp_rename_test.cpp
+        tests/real_mode_search_test.cpp
+        tests/real_mode_struct_size_test.cpp
+        tests/real_mode_tool_popup_test.cpp
         tests/real_mode_transitions_test.cpp
+        tests/real_mode_undo_test.cpp
+        tests/real_mode_visual_text_object_test.cpp
         tests/editor_filetype_test.cpp
         tests/syntax_highlighter_test.cpp
         tests/js_ts_resolution_test.cpp
