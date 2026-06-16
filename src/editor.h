@@ -562,6 +562,10 @@ public:
     bool syntaxCppSemanticTokens = true;
     TokenType syntaxCppLocalToken = TOKEN_NORMAL;
     TokenType syntaxCppMemberToken = TOKEN_MEMBER;
+#ifndef UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT
+#define UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT 1
+#endif
+    bool syntaxMlangSemanticTokens = UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT != 0;
     bool syntaxMlangHighlightTypes = true;
     bool syntaxMlangHighlightBuiltinDocs = true;
     std::unordered_set<std::string> robotKeywordSet;

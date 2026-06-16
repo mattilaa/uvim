@@ -189,6 +189,7 @@ struct Config
     bool robotLsp = false;
     bool pythonLsp = false;
     bool mlangLsp = false;
+    bool mlangSemanticTokens = true;
     bool htmlLsp = false;
     bool cssLsp = false;
     bool jsonLsp = false;
@@ -808,6 +809,14 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Compiles in Mlang language-server integration."},
+          {ItemKind::Toggle,
+           "Mlang semantic tokens",
+           "UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT",
+           &Config::mlangSemanticTokens,
+           nullptr,
+           {},
+           "Default-on Mlang LSP semantic-token coloring. Only used when "
+           "Mlang LSP is compiled and enabled."},
           {ItemKind::Toggle,
            "HTML",
            "UVIM_ENABLE_HTML_LSP",
@@ -1549,6 +1558,9 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.pythonLsp = parse_bool(value).value_or(cfg.pythonLsp);
     else if(key == "mlang_lsp")
         cfg.mlangLsp = parse_bool(value).value_or(cfg.mlangLsp);
+    else if(key == "mlang_semantic_tokens")
+        cfg.mlangSemanticTokens =
+            parse_bool(value).value_or(cfg.mlangSemanticTokens);
     else if(key == "html_lsp")
         cfg.htmlLsp = parse_bool(value).value_or(cfg.htmlLsp);
     else if(key == "css_lsp")
@@ -1693,6 +1705,8 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "robot_lsp=" << bool_value(cfg.robotLsp) << "\n";
     file << "python_lsp=" << bool_value(cfg.pythonLsp) << "\n";
     file << "mlang_lsp=" << bool_value(cfg.mlangLsp) << "\n";
+    file << "mlang_semantic_tokens=" << bool_value(cfg.mlangSemanticTokens)
+         << "\n";
     file << "html_lsp=" << bool_value(cfg.htmlLsp) << "\n";
     file << "css_lsp=" << bool_value(cfg.cssLsp) << "\n";
     file << "json_lsp=" << bool_value(cfg.jsonLsp) << "\n";
@@ -1830,7 +1844,8 @@ void print_help(std::ostream& out)
         << "      --enable NAME           Enable a feature option.\n"
         << "      --disable NAME          Disable a feature option.\n\n"
         << "Feature names for --enable/--disable:\n"
-        << "  clangd, robot-lsp, python-lsp, mlang-lsp, html-lsp,\n"
+        << "  clangd, robot-lsp, python-lsp, mlang-lsp, "
+           "mlang-semantic-tokens, html-lsp,\n"
         << "  css-lsp, json-lsp, ts-lsp, asm-docs, git, search, formatters, "
            "clipboard,\n"
         << "  struct-size, color-tools, tests, compile-commands, "
@@ -1855,6 +1870,9 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
         cfg.pythonLsp = enabled;
     else if(equals_ci(name, "mlang-lsp") || equals_ci(name, "mlang"))
         cfg.mlangLsp = enabled;
+    else if(equals_ci(name, "mlang-semantic-tokens") ||
+            equals_ci(name, "mlang-semantic"))
+        cfg.mlangSemanticTokens = enabled;
     else if(equals_ci(name, "html-lsp") || equals_ci(name, "html"))
         cfg.htmlLsp = enabled;
     else if(equals_ci(name, "css-lsp") || equals_ci(name, "css"))

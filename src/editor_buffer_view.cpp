@@ -36,8 +36,9 @@ void EditorBufferView::draw()
             }
         }
         editor.syncClangdDiagnosticsIfNeeded(false);
-        editor.syncMlangSemanticTokensIfNeeded(false);
     }
+    if(editor.currentMode != INSERT && !editor.showGitBlame)
+        editor.syncMlangSemanticTokensIfNeeded(false);
 #endif
 
     editor.adjustViewport();

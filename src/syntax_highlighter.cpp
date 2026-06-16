@@ -436,11 +436,11 @@ std::optional<TokenType> parse_token_type(std::string_view value)
 
 bool is_mlang_keyword(std::string_view word)
 {
-    static constexpr std::array<std::string_view, 22> kKeywords = {
-        "break", "continue", "else", "enum",   "extern", "fn",
-        "for",   "if",       "impl", "in",     "let",    "match",
-        "mod",   "mut",      "pub",  "return", "struct", "trait",
-        "type",  "use",      "var",  "while"};
+    static constexpr std::array<std::string_view, 23> kKeywords = {
+        "alias", "break", "continue", "else",  "enum",   "extern",
+        "fn",    "for",   "if",       "impl",  "in",     "let",
+        "match", "mod",   "mut",      "pub",   "return", "struct",
+        "trait", "type",  "use",      "var",   "while"};
     return std::ranges::any_of(kKeywords,
                                [&](std::string_view kw) { return kw == word; });
 }
@@ -4251,7 +4251,8 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
 
     if(editor &&
        ((isFileType<FileType::Cpp>() && editor->syntaxCppSemanticTokens) ||
-        (isFileType<FileType::Mla>() && editor->isMlangLspEnabled())))
+        (isFileType<FileType::Mla>() && editor->isMlangLspEnabled() &&
+         editor->syntaxMlangSemanticTokens)))
     {
         Buffer* buffer = editor->currentBuffer;
         if(buffer && buffer->lspSemanticTokensValid && fileRow >= 0 &&

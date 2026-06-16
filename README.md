@@ -211,6 +211,9 @@ with reference links for x86/x64 and AArch64 instructions. The
 - `--robot-lsp` enable Robot Framework LSP
 - `--python-lsp` enable Python LSP
 - `--mlang-lsp` enable Mlang LSP (optional; not distributed yet)
+- Mlang LSP semantic-token coloring is on by default when Mlang LSP is built
+  and enabled; disable it with `editor.syntax.mlang.semantic_tokens: false`
+  or `:set nosyntax.mlang.semantic_tokens`.
 - `--html-lsp` enable HTML LSP
 - `--css-lsp` enable CSS LSP
 - `--json-lsp` enable JSON LSP

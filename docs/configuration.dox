@@ -85,6 +85,7 @@ editor:
       highlight_system_includes: true
       semantic_tokens: true
     mlang:
+      semantic_tokens: true
       highlight_types: true
       highlight_builtin_docs: true
 \endcode
@@ -238,6 +239,10 @@ Valid values: `normal`, `keyword`, `type`, `string`, `char`, `comment`,
 
 \par editor.syntax.mlang.highlight_types
 Boolean. Default: true. Highlight Mlang types.
+
+\par editor.syntax.mlang.semantic_tokens
+Boolean. Default: true. Use Mlang LSP semantic tokens for keywords, types,
+functions, and related symbols. Requires Mlang LSP support.
 
 \par editor.syntax.mlang.highlight_builtin_docs
 Boolean. Default: true. Highlight Mlang builtin docs.

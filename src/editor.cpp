@@ -626,6 +626,15 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 syntaxCppSemanticTokens =
                     !(v == "false" || v == "0" || v == "off");
             }
+            auto itmst = values.find("editor.syntax.mlang.semantic_tokens");
+            if(itmst == values.end())
+                itmst = values.find("syntax.mlang.semantic_tokens");
+            if(itmst != values.end())
+            {
+                std::string v = ascii_lower(itmst->second);
+                syntaxMlangSemanticTokens =
+                    !(v == "false" || v == "0" || v == "off");
+            }
             auto itmt = values.find("editor.syntax.mlang.highlight_types");
             if(itmt == values.end())
                 itmt = values.find("syntax.mlang.highlight_types");
@@ -2029,7 +2038,16 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
        !mlangLspClient)
         return;
 
-    bool wantSemantic = !currentBuffer->lspSemanticTokensValid;
+    if(!syntaxMlangSemanticTokens && currentBuffer->lspSemanticTokensValid)
+    {
+        currentBuffer->lspSemanticTokens.clear();
+        currentBuffer->lspSemanticTokensValid = false;
+        currentBuffer->lspSemanticTokensRevision = 0;
+        needsFullRedraw = true;
+    }
+
+    bool wantSemantic =
+        syntaxMlangSemanticTokens && !currentBuffer->lspSemanticTokensValid;
     bool shouldCheck = force || currentBuffer->lspSyncNeeded || *dirty;
     if(!shouldCheck && !wantSemantic)
         return;
@@ -2054,7 +2072,7 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
         currentBuffer->lspHashValid = true;
     }
 
-    if(wantSemantic || shouldCheck)
+    if(syntaxMlangSemanticTokens && (wantSemantic || shouldCheck))
     {
         bool refreshSemantic =
             force || !currentBuffer->lspSemanticTokensValid ||

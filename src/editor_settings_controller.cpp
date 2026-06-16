@@ -188,6 +188,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (syntaxCppSemanticTokens ? "true" : "false"));
         return true;
     }
+    if(opt == "syntax.mlang.semantic_tokens?")
+    {
+        setStatusMessage(std::string("syntax.mlang.semantic_tokens=") +
+                         (syntaxMlangSemanticTokens ? "true" : "false"));
+        return true;
+    }
     if(opt == "syntax.cpp.locals_color?")
     {
         setStatusMessage("syntax.cpp.locals_color=" +
@@ -346,6 +352,28 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             currentBuffer->lspSemanticTokensValid = false;
         needsFullRedraw = true;
         setStatusMessage("syntax.cpp.semantic_tokens=false");
+        return true;
+    }
+    if(opt == "syntax.mlang.semantic_tokens")
+    {
+        syntaxMlangSemanticTokens = true;
+        if(currentBuffer)
+            currentBuffer->lspSemanticTokensValid = false;
+        needsFullRedraw = true;
+        setStatusMessage("syntax.mlang.semantic_tokens=true");
+        return true;
+    }
+    if(opt == "nosyntax.mlang.semantic_tokens")
+    {
+        syntaxMlangSemanticTokens = false;
+        if(currentBuffer)
+        {
+            currentBuffer->lspSemanticTokens.clear();
+            currentBuffer->lspSemanticTokensValid = false;
+            currentBuffer->lspSemanticTokensRevision = 0;
+        }
+        needsFullRedraw = true;
+        setStatusMessage("syntax.mlang.semantic_tokens=false");
         return true;
     }
     if(opt.rfind("syntax.cpp.locals_color=", 0) == 0)

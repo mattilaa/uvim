@@ -600,6 +600,10 @@ static std::string_view default_config_contents()
       semantic_tokens: true
       locals_color: "normal"
       member_color: "member"
+    mlang:
+      semantic_tokens: true
+      highlight_types: true
+      highlight_builtin_docs: true
     robot:
       keywords: "if, else, end, for, while, try, except, finally, return, break, continue, skip, fail, run, keyword, library, resource, variables, documentation, tags, metadata, setup, teardown, suite, test, task, template, timeout, default, force"
       highlight_titles: true

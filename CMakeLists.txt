@@ -46,6 +46,7 @@ option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
 option(UVIM_ENABLE_ROBOT_LSP "Build uvim with Robot Framework LSP support" OFF)
 option(UVIM_ENABLE_PYTHON_LSP "Build uvim with Python LSP support" OFF)
 option(UVIM_ENABLE_MLANG_LSP "Build uvim with Mlang LSP support" OFF)
+option(UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT "Enable Mlang LSP semantic token coloring by default" ON)
 option(UVIM_ENABLE_HTML_LSP "Build uvim with HTML LSP support" OFF)
 option(UVIM_ENABLE_CSS_LSP "Build uvim with CSS LSP support" OFF)
 option(UVIM_ENABLE_JSON_LSP "Build uvim with JSON LSP support" OFF)
@@ -483,6 +484,7 @@ uvim_status_bool("clangd" UVIM_ENABLE_CLANGD_LSP)
 uvim_status_bool("robot" UVIM_ENABLE_ROBOT_LSP)
 uvim_status_bool("python" UVIM_ENABLE_PYTHON_LSP)
 uvim_status_bool("mlang" UVIM_ENABLE_MLANG_LSP)
+uvim_status_bool("mlang semantic token default" UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT)
 uvim_status_bool("html" UVIM_ENABLE_HTML_LSP)
 uvim_status_bool("css" UVIM_ENABLE_CSS_LSP)
 uvim_status_bool("json" UVIM_ENABLE_JSON_LSP)
@@ -530,6 +532,7 @@ uvim_enable_sanitizers(uvim)
 # Release optimizations (portable)
 target_compile_definitions(uvim PRIVATE
     $<$<CONFIG:Release>:NDEBUG>
+    UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT=$<IF:$<BOOL:${UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT}>,1,0>
 )
 
 if(MSVC)
@@ -800,6 +803,9 @@ if(UVIM_BUILD_TESTS)
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     uvim_target_include_rapidjson(real_mode_transitions_tests)
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
+    target_compile_definitions(real_mode_transitions_tests PRIVATE
+        UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT=$<IF:$<BOOL:${UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT}>,1,0>
+    )
     if(_backend STREQUAL "WIN32")
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TERMINAL_WIN32=1)
     else()
