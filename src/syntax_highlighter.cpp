@@ -4382,7 +4382,14 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                 {
                     int visiblePos = pos - start;
                     if(visiblePos >= 0 && visiblePos < len)
+                    {
+                        if(!isCppSemantics && effectiveType == TOKEN_NORMAL &&
+                           charColors[visiblePos] == TOKEN_TYPE)
+                        {
+                            continue;
+                        }
                         charColors[visiblePos] = effectiveType;
+                    }
                 }
             }
         }
