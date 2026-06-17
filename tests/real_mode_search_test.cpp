@@ -174,3 +174,29 @@ TEST(RealModeTransitionsTest, GrepSearchCtrlSEntersBeforeIndexing)
     ASSERT_EQ(state->matches.size(), 1u);
     EXPECT_TRUE(text_utils::is_found(state->matches[0].filepath.find("a.txt")));
 }
+
+TEST(RealModeTransitionsTest, GrepSearchBatchesQueuedPrintableInput)
+{
+    auto root = make_temp_dir("uvim_grep_batch_");
+    write_file(root / "a.txt", "needle\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    Terminal::unreadKey('e');
+    Terminal::unreadKey('l');
+    Terminal::unreadKey('d');
+    Terminal::unreadKey('e');
+    Terminal::unreadKey('e');
+
+    sm.dispatch('n');
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->query, "needle");
+    ASSERT_EQ(state->matches.size(), 1u);
+    EXPECT_FALSE(Terminal::hasBufferedKeys());
+}
