@@ -16,23 +16,23 @@ namespace mla::log
 
 enum class LogLevel
 {
-    INFO,
-    WARNING,
-    ERROR,
-    DEBUG
+    Info,
+    Warning,
+    Error,
+    Debug
 };
 
-static std::ostream& operator<<(std::ostream& oss, LogLevel level)
+inline std::ostream& operator<<(std::ostream& oss, LogLevel level)
 {
     switch(level)
     {
-    case LogLevel::INFO:
+    case LogLevel::Info:
         return oss << "INFO";
-    case LogLevel::WARNING:
+    case LogLevel::Warning:
         return oss << "WARNING";
-    case LogLevel::ERROR:
+    case LogLevel::Error:
         return oss << "ERROR";
-    case LogLevel::DEBUG:
+    case LogLevel::Debug:
         return oss << "DEBUG";
     }
     return oss; // Because of some stupid compilers
@@ -42,13 +42,13 @@ static std::string toColor(LogLevel level)
 {
     switch(level)
     {
-    case LogLevel::INFO:
+    case LogLevel::Info:
         return "\x1b[32;1m";
-    case LogLevel::WARNING:
+    case LogLevel::Warning:
         return "\x1b[33;1m";
-    case LogLevel::ERROR:
+    case LogLevel::Error:
         return "\x1b[31;1m";
-    case LogLevel::DEBUG:
+    case LogLevel::Debug:
         return "\x1b[36;1m";
     }
     return ""; // Because of some stupid compilers
@@ -136,10 +136,10 @@ public:
     {
         bool use_color = getUseColors();
 
-        std::string levelStr = static_cast<int>(level) == 0   ? "INFO"
-                               : static_cast<int>(level) == 1 ? "WARNING"
-                               : static_cast<int>(level) == 2 ? "ERROR"
-                                                              : "DEBUG";
+        const char* levelStr = level == LogLevel::Info      ? "INFO"
+                               : level == LogLevel::Warning ? "WARNING"
+                               : level == LogLevel::Error   ? "ERROR"
+                                                            : "DEBUG";
 
         const std::string signature =
             ctx.empty() ? "" : std::format("[{}] ", ctx);
@@ -179,25 +179,25 @@ using StdLogger = FileLogger;
 #define LOG_INFO(logger, ...)                                                  \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::INFO, fmt::format(__VA_ARGS__));        \
+        logger.log(mla::log::LogLevel::Info, fmt::format(__VA_ARGS__));        \
     } while(0)
 
 #define LOG_DEBUG(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::DEBUG, fmt::format(__VA_ARGS__));       \
+        logger.log(mla::log::LogLevel::Debug, fmt::format(__VA_ARGS__));       \
     } while(0)
 
 #define LOG_WARNING(logger, ...)                                               \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::WARNING, fmt::format(__VA_ARGS__));     \
+        logger.log(mla::log::LogLevel::Warning, fmt::format(__VA_ARGS__));     \
     } while(0)
 
 #define LOG_ERROR(logger, ...)                                                 \
     do                                                                         \
     {                                                                          \
-        logger.log(mla::log::LogLevel::ERROR, fmt::format(__VA_ARGS__));       \
+        logger.log(mla::log::LogLevel::Error, fmt::format(__VA_ARGS__));       \
     } while(0)
 
 #else

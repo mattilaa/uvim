@@ -37,7 +37,7 @@ namespace ju = json_utils;
 static void logLspDebug(mla::log::FileLogger logger, const std::string& tag,
                         const ju::Value& payload)
 {
-    logger.log(mla::log::LogLevel::DEBUG,
+    logger.log(mla::log::LogLevel::Debug,
                fmt::format("{}\n{}", tag, ju::stringify_pretty(payload)));
 }
 #endif
