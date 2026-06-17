@@ -137,8 +137,10 @@ static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
     const WORD vk = k.wVirtualKeyCode;
     const WCHAR wc = k.uChar.UnicodeChar;
     const DWORD mods = k.dwControlKeyState;
+    const bool ctrl = (mods & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
+    const bool shift = (mods & SHIFT_PRESSED) != 0;
 
-    if(vk == VK_TAB && (mods & SHIFT_PRESSED))
+    if(vk == VK_TAB && shift)
         return keyCode(control::ControlKey::SHIFT_TAB);
 
     switch(vk)
@@ -169,6 +171,20 @@ static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
         return keyCode(control::ControlKey::BACKSPACE);
     default:
         break;
+    }
+
+    if(ctrl && vk >= 'A' && vk <= 'Z')
+    {
+        if(shift)
+        {
+            if(vk == 'H')
+                return keyCode(control::ControlKey::SHIFT_CTRL_H);
+            if(vk == 'L')
+                return keyCode(control::ControlKey::SHIFT_CTRL_L);
+            if(vk == 'X')
+                return keyCode(control::ControlKey::SHIFT_CTRL_X);
+        }
+        return vk - 'A' + 1;
     }
 
     if(wc != 0)

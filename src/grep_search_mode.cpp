@@ -858,6 +858,19 @@ void GrepSearchMode::resultHalfPageDown(Editor& editor)
 void GrepSearchMode::searchAddChar(Editor& editor, char c)
 {
     query += c;
+    while(true)
+    {
+        const int next = Terminal::readKeyTimeout(0);
+        if(next < 0)
+            break;
+        if(next >= 32 && next < 127)
+        {
+            query += static_cast<char>(next);
+            continue;
+        }
+        Terminal::unreadKey(next);
+        break;
+    }
     performSearch(editor);
     cursor = 0;
     offset = 0;
