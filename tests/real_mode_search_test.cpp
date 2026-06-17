@@ -149,3 +149,28 @@ TEST(RealModeTransitionsTest, RegexSearchCtrlSTogglesProjectFiles)
     EXPECT_TRUE(text_utils::is_found(state->matches[0].filepath.find("a.cpp")));
     EXPECT_TRUE(text_utils::is_found(state->matches[1].filepath.find("b.cpp")));
 }
+
+TEST(RealModeTransitionsTest, GrepSearchCtrlSEntersBeforeIndexing)
+{
+    auto root = make_temp_dir("uvim_grep_lazy_");
+    write_file(root / "a.txt", "needle\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
+    EXPECT_FALSE(editor.grepFileIndexInitialized);
+
+    for(char c : std::string("needle"))
+        sm.dispatch(c);
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_EQ(state->matches.size(), 1u);
+    EXPECT_TRUE(text_utils::is_found(state->matches[0].filepath.find("a.txt")));
+}

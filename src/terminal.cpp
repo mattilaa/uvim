@@ -50,7 +50,8 @@ static void enable_vt_and_raw_console()
     if(GetConsoleMode(hIn(), &inMode))
     {
         g_origInMode = inMode;
-        inMode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT);
+        inMode &= ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT |
+                    ENABLE_PROCESSED_INPUT);
         inMode &= ~(ENABLE_MOUSE_INPUT);
         inMode |= ENABLE_EXTENDED_FLAGS;
         inMode &= ~(ENABLE_QUICK_EDIT_MODE);

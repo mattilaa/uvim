@@ -49,6 +49,7 @@ private:
     void loadFileIndex(Editor& editor);
     void initialize(Editor& editor);
     void performSearch(Editor& editor);
+    bool performRipgrepSearch(Editor& editor);
     void searchInFile(const std::string& filepath, std::string_view query);
     bool isTextFile(const std::string& filepath) const;
     bool isBinaryFile(const std::string& filepath) const;

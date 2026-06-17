@@ -54,6 +54,14 @@ std::string runCmd(const std::vector<std::string>& args)
     return pipe.readAll();
 }
 
+bool ripgrepAvailable()
+{
+    static const bool available = [] {
+        return !runCmd({"rg", "--version"}).empty();
+    }();
+    return available;
+}
+
 std::vector<std::string> splitNul(const std::string& s)
 {
     std::vector<std::string> out;
@@ -492,7 +500,7 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
 
 void GrepSearchMode::initialize(Editor& editor)
 {
-    loadFileIndex(editor);
+    (void)editor;
     searchClear();
     searching = false;
 }
@@ -526,6 +534,18 @@ void GrepSearchMode::performSearch(Editor& editor)
         return;
     }
 
+    if(performRipgrepSearch(editor))
+    {
+        searching = false;
+        if(cursor >= (int)matches.size())
+        {
+            cursor = 0;
+            offset = 0;
+        }
+        return;
+    }
+
+    loadFileIndex(editor);
     for(const auto& file : editor.grepProjectFiles)
     {
         if(file.isDirectory)
@@ -544,6 +564,81 @@ void GrepSearchMode::performSearch(Editor& editor)
         cursor = 0;
         offset = 0;
     }
+}
+
+bool GrepSearchMode::performRipgrepSearch(Editor& editor)
+{
+    if(!ripgrepAvailable())
+        return false;
+
+    std::vector<std::string> args = {
+        "rg",
+        "--fixed-strings",
+        "--line-number",
+        "--no-heading",
+        "--color",
+        "never",
+        "--field-match-separator",
+        "\t",
+        "--hidden",
+        "--glob",
+        "!.git/*",
+        "--max-count",
+        "1000",
+    };
+    args.push_back(caseSensitive ? "--case-sensitive" : "--ignore-case");
+    if(!editor.respectGitignore)
+        args.push_back("--no-ignore");
+    args.push_back("--");
+    args.push_back(query);
+    args.push_back(".");
+
+    ProcessPipe pipe(args);
+    if(!pipe)
+        return false;
+
+    std::string line;
+    while(matches.size() < 1000 && !(line = pipe.readLine(64 * 1024)).empty())
+    {
+        const size_t pathEnd = line.find('\t');
+        if(text_utils::is_not_found(pathEnd))
+            continue;
+        const size_t lineEnd = line.find('\t', pathEnd + 1);
+        if(text_utils::is_not_found(lineEnd))
+            continue;
+
+        int lineNumber = 0;
+        try
+        {
+            lineNumber =
+                std::stoi(line.substr(pathEnd + 1, lineEnd - pathEnd - 1));
+        }
+        catch(...)
+        {
+            continue;
+        }
+
+        std::string path = line.substr(0, pathEnd);
+        if(path.rfind("./", 0) == 0 || path.rfind(".\\", 0) == 0)
+            path.erase(0, 2);
+
+        GrepMatch match;
+        match.filepath = path;
+        match.filename = text_utils::basename(path);
+        match.lineNumber = lineNumber;
+        match.lineContent = trimString(line.substr(lineEnd + 1));
+
+        std::string haystack = caseSensitive ? match.lineContent
+                                             : toLower(match.lineContent);
+        std::string needle = caseSensitive ? query : toLower(query);
+        if(auto pos = haystack.find(needle); text_utils::is_found(pos))
+            match.highlightRanges.push_back(
+                std::make_pair((int)pos, (int)query.length()));
+
+        matches.push_back(std::move(match));
+    }
+
+    return true;
 }
 
 void GrepSearchMode::searchInFile(const std::string& filepath,
@@ -805,7 +900,17 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
         return;
     editor.respectGitignore = !editor.respectGitignore;
     editor.grepFileIndexInitialized = false;
-    initialize(editor);
+    editor.grepProjectFiles.clear();
+    cursor = 0;
+    offset = 0;
+    selectedMatches.clear();
+    if(query.empty())
+    {
+        matches.clear();
+        searching = false;
+        return;
+    }
+    performSearch(editor);
 }
 
 void GrepSearchMode::togglePreview()
