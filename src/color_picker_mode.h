@@ -3,6 +3,7 @@
 #include "mode_context.h"
 #include "mode_events.h"
 #include "mode_state.h"
+#include "visual_color_range.h"
 
 #include <optional>
 
@@ -20,10 +21,14 @@ struct ColorPickerMode
     int cursor = 0;
     int rowOffset = 0;
     bool background = false;
+    std::optional<VisualColorRange> visualTarget;
 
     ColorPickerMode() = default;
 
     explicit ColorPickerMode(bool useBackground) : background(useBackground) {}
+
+    static ColorPickerMode forVisualRange(VisualColorRange range,
+                                          bool useBackground = false);
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

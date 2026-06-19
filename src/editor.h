@@ -9,6 +9,7 @@
 #include "search_types.h"
 #include "theme.h"
 #include "token_type.h"
+#include "visual_color_range.h"
 #include <chrono>
 #include <ctime>
 #include <functional>
@@ -844,6 +845,8 @@ public:
     void pasteFromSystemClipboard();
 
     // Visual mode
+    std::optional<VisualColorRange> pendingVisualColorRange;
+
     void startVisualMode();
     void startVisualLineMode();
     void startVisualBlockMode();
@@ -853,6 +856,8 @@ public:
     bool isInVisualBlock(int row, int col);
     void getSelectionBounds(int& startY, int& startX, int& endY, int& endX);
     void getVisualBlockBounds(int& startY, int& startX, int& endY, int& endX);
+    void rememberVisualColorRange();
+    std::optional<VisualColorRange> takeVisualColorRange();
     void deleteVisualBlock();
     void changeVisualBlock();
     void yankVisualBlock();

@@ -218,6 +218,13 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == keyCode(command::CommandKey::KEY_COLON))
+    {
+        ed->rememberVisualColorRange();
+        ctx.repeatCount = 0;
+        return CommandMode{};
+    }
+
     if(c == keyCode(typed::TypedKey::KEY_I) ||
        c == keyCode(typed::TypedKey::KEY_A))
     {

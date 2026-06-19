@@ -201,6 +201,13 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == keyCode(command::CommandKey::KEY_COLON))
+    {
+        ed->rememberVisualColorRange();
+        ctx.repeatCount = 0;
+        return CommandMode{};
+    }
+
     // ========================================================================
     // Exit / Switch Modes
     // ========================================================================

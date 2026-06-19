@@ -4,6 +4,7 @@
 #include "mode_context.h"
 #include "mode_events.h"
 #include "mode_state.h"
+#include "visual_color_range.h"
 
 #include <optional>
 
@@ -31,6 +32,7 @@ struct ColorSelectorMode
     int replaceRow = 0;
     int replaceStartX = 0;
     int replaceLength = 0;
+    std::optional<VisualColorRange> visualTarget;
 
     ColorSelectorMode() = default;
 
@@ -45,6 +47,8 @@ struct ColorSelectorMode
         const Editor& editor);
     static std::optional<ColorSelectorMode> fromAnsiLiteralAtCursorAndRemove(
         Editor& editor);
+    static ColorSelectorMode forVisualRange(VisualColorRange range,
+                                            bool useBackground = false);
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

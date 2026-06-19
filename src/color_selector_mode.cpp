@@ -333,6 +333,36 @@ std::string escapeCode(const ColorSelectorMode& mode)
     return code;
 }
 
+bool applyVisualColorRange(Editor& editor, VisualColorRange range,
+                           const std::string& code)
+{
+    if(!editor.lines || editor.lines->empty())
+        return false;
+
+    range.startY = std::clamp(range.startY, 0, (int)editor.lines->size() - 1);
+    range.endY = std::clamp(range.endY, 0, (int)editor.lines->size() - 1);
+    if(range.startY > range.endY)
+        std::swap(range.startY, range.endY);
+
+    range.startX =
+        std::clamp(range.startX, 0, (int)(*editor.lines)[range.startY].size());
+    range.endX =
+        std::clamp(range.endX, 0, (int)(*editor.lines)[range.endY].size());
+
+    const std::string reset = color::literal(color::AnsiColor::Reset);
+    (*editor.lines)[range.endY].insert((std::size_t)range.endX, reset);
+    (*editor.lines)[range.startY].insert((std::size_t)range.startX, code);
+
+    if(editor.cursorY)
+        *editor.cursorY = range.startY;
+    if(editor.cursorX)
+        *editor.cursorX = range.startX;
+    if(editor.dirty)
+        *editor.dirty = true;
+    editor.needsFullRedraw = true;
+    return true;
+}
+
 std::string rgbSample(int red, int green, int blue)
 {
     return color::rgbBg(red, green, blue);
@@ -460,6 +490,14 @@ ColorSelectorMode ColorSelectorMode::fromAnsiColor(color::AnsiColor ansi,
     if(std::optional<ParsedSequence> sequence = parseSequenceAt(literal, 0))
         applyParams(mode, sequence->params);
     mode.active = useBackground ? 3 : 0;
+    return mode;
+}
+
+ColorSelectorMode ColorSelectorMode::forVisualRange(VisualColorRange range,
+                                                    bool useBackground)
+{
+    ColorSelectorMode mode{useBackground};
+    mode.visualTarget = range;
     return mode;
 }
 
@@ -631,7 +669,16 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
         if(ctx.editor && ctx.editor->hasBuffer())
         {
             const std::string code = escapeCode(*this);
-            if(replacing && ctx.editor->lines && ctx.editor->cursorX &&
+            if(visualTarget)
+            {
+                if(applyVisualColorRange(*ctx.editor, *visualTarget, code))
+                {
+                    ctx.setStatusMessage("colored selected text");
+                    ctx.editor->saveState();
+                }
+                visualTarget.reset();
+            }
+            else if(replacing && ctx.editor->lines && ctx.editor->cursorX &&
                ctx.editor->cursorY && replaceRow >= 0 &&
                replaceRow < (int)ctx.editor->lines->size())
             {

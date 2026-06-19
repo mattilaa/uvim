@@ -240,6 +240,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string_view cmd(ctx.commandBuffer);
             cmd.remove_prefix(
                 1); // Remove leading keyCode(command::CommandKey::KEY_COLON)
+            if(ctx.editor && cmd != "colorselect" && cmd != "colorpicker")
+                ctx.editor->takeVisualColorRange();
             ctx.executeCommand(cmd);
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
             if(ctx.currentMode() == LSP_INFO)

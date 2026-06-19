@@ -19,8 +19,13 @@ bool ColorSelectorCommand::execute(Editor& editor,
         return true;
     }
 
-    std::optional<editor::statemachine::ColorSelectorMode> mode =
-        editor::statemachine::ColorSelectorMode::
+    std::optional<VisualColorRange> visualRange = editor.takeVisualColorRange();
+    std::optional<editor::statemachine::ColorSelectorMode> mode;
+    if(visualRange)
+        mode = editor::statemachine::ColorSelectorMode::forVisualRange(
+            *visualRange);
+    else
+        mode = editor::statemachine::ColorSelectorMode::
             fromAnsiLiteralAtCursorAndRemove(editor);
     if(auto* stateMachine = editor.getModeStateMachine())
     {

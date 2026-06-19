@@ -4384,9 +4384,12 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
     }
 
     TokenType currentColor = TOKEN_NORMAL;
-    for(int x = 0; x < len; x++)
+    for(int x = 0; x < len;)
     {
         int col = x + start;
+        int nextCol = text_utils::nextUtf8CharStart(line, col);
+        nextCol = std::clamp(nextCol, col + 1, start + len);
+        int charLen = nextCol - col;
 
         bool highlighted = false;
         bool showCursor =
@@ -4415,13 +4418,14 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             output += getColorCode(currentColor);
         }
 
-        output += line[col];
+        output.append(line, col, charLen);
 
         if(highlighted)
         {
             output += theme.reset();
             currentColor = TOKEN_NORMAL;
         }
+        x += charLen;
     }
 
     if(currentColor != TOKEN_NORMAL)

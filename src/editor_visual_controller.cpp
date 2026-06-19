@@ -1,5 +1,6 @@
 #include "editor_visual_controller.h"
 #include "editor.h"
+#include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <string>
@@ -210,6 +211,58 @@ void Editor::getSelectionBoundsImpl(int& startY, int& startX, int& endY,
         endY = currentBuffer->visualStartY;
         endX = currentBuffer->visualStartX;
     }
+}
+
+void Editor::rememberVisualColorRange()
+{
+    if(!currentBuffer)
+        return;
+
+    VisualColorRange range;
+    if(currentMode == VISUAL_LINE)
+    {
+        range.startY =
+            std::min(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        range.endY =
+            std::max(currentBuffer->visualStartY, currentBuffer->visualEndY);
+        range.startY = std::clamp(range.startY, 0, (int)lines->size() - 1);
+        range.endY = std::clamp(range.endY, 0, (int)lines->size() - 1);
+        range.startX = 0;
+        range.endX = range.endY >= 0 && range.endY < (int)lines->size()
+                         ? (int)(*lines)[range.endY].size()
+                         : 0;
+    }
+    else
+    {
+        getSelectionBounds(range.startY, range.startX, range.endY, range.endX);
+        range.startY = std::clamp(range.startY, 0, (int)lines->size() - 1);
+        range.endY = std::clamp(range.endY, 0, (int)lines->size() - 1);
+        range.startX =
+            std::clamp(range.startX, 0, (int)(*lines)[range.startY].size());
+        range.endX = std::clamp(range.endX, 0,
+                                 (int)(*lines)[range.endY].size());
+
+        const std::string& startLine = (*lines)[range.startY];
+        const std::string& endLine = (*lines)[range.endY];
+        if(range.startX > 0)
+        {
+            const unsigned char byte =
+                static_cast<unsigned char>(startLine[(std::size_t)range.startX]);
+            if((byte & 0xC0) == 0x80)
+                range.startX =
+                    text_utils::prevUtf8CharStart(startLine, range.startX);
+        }
+        range.endX = text_utils::nextUtf8CharStart(endLine, range.endX);
+    }
+
+    pendingVisualColorRange = range;
+}
+
+std::optional<VisualColorRange> Editor::takeVisualColorRange()
+{
+    std::optional<VisualColorRange> range = pendingVisualColorRange;
+    pendingVisualColorRange.reset();
+    return range;
 }
 
 void Editor::setVisualRangeImpl()

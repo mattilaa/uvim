@@ -201,7 +201,46 @@ ModeState exitState(ModeContext& ctx)
 {
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
 }
+
+bool applyVisualColorRange(Editor& editor, VisualColorRange range,
+                           std::string_view code)
+{
+    if(!editor.lines || editor.lines->empty())
+        return false;
+
+    range.startY = std::clamp(range.startY, 0, (int)editor.lines->size() - 1);
+    range.endY = std::clamp(range.endY, 0, (int)editor.lines->size() - 1);
+    if(range.startY > range.endY)
+        std::swap(range.startY, range.endY);
+
+    range.startX =
+        std::clamp(range.startX, 0, (int)(*editor.lines)[range.startY].size());
+    range.endX =
+        std::clamp(range.endX, 0, (int)(*editor.lines)[range.endY].size());
+
+    const std::string reset = color::literal(color::AnsiColor::Reset);
+    (*editor.lines)[range.endY].insert((std::size_t)range.endX, reset);
+    (*editor.lines)[range.startY].insert((std::size_t)range.startX,
+                                         std::string(code));
+
+    if(editor.cursorY)
+        *editor.cursorY = range.startY;
+    if(editor.cursorX)
+        *editor.cursorX = range.startX;
+    if(editor.dirty)
+        *editor.dirty = true;
+    editor.needsFullRedraw = true;
+    return true;
+}
 } // namespace
+
+ColorPickerMode ColorPickerMode::forVisualRange(VisualColorRange range,
+                                                bool useBackground)
+{
+    ColorPickerMode mode{useBackground};
+    mode.visualTarget = range;
+    return mode;
+}
 
 void ColorPickerMode::on_enter(ModeContext& ctx)
 {
@@ -292,10 +331,23 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
         if(ctx.editor && ctx.editor->hasBuffer())
         {
             const ColorEntry& entry = colorAt(cursor, background);
-            for(char ch : std::string_view(color::literal(entry.code)))
-                ctx.editor->insertChar(ch);
-            ctx.editor->saveState();
-            ctx.setStatusMessage("inserted " + std::string(entry.name));
+            if(visualTarget)
+            {
+                if(applyVisualColorRange(*ctx.editor, *visualTarget,
+                                         color::literal(entry.code)))
+                {
+                    ctx.editor->saveState();
+                    ctx.setStatusMessage("colored selected text");
+                }
+                visualTarget.reset();
+            }
+            else
+            {
+                for(char ch : std::string_view(color::literal(entry.code)))
+                    ctx.editor->insertChar(ch);
+                ctx.editor->saveState();
+                ctx.setStatusMessage("inserted " + std::string(entry.name));
+            }
             ctx.requestFullRedraw();
         }
         return exitState(ctx);
@@ -304,7 +356,10 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_S))
     {
         const ColorEntry& entry = colorAt(cursor, background);
-        return ColorSelectorMode::fromAnsiColor(entry.code, background);
+        ColorSelectorMode mode =
+            ColorSelectorMode::fromAnsiColor(entry.code, background);
+        mode.visualTarget = visualTarget;
+        return mode;
     }
 
     return std::nullopt;

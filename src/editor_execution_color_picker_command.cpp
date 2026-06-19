@@ -3,6 +3,8 @@
 #include "editor_execution_commands.h"
 #include "mode_state_machine.h"
 
+#include <optional>
+
 namespace command::execution
 {
 bool ColorPickerCommand::execute(Editor& editor,
@@ -17,9 +19,17 @@ bool ColorPickerCommand::execute(Editor& editor,
         return true;
     }
 
+    std::optional<VisualColorRange> visualRange = editor.takeVisualColorRange();
     if(auto* stateMachine = editor.getModeStateMachine())
-        stateMachine->transitionTo(
-            editor::statemachine::ColorPickerMode{false});
+    {
+        if(visualRange)
+            stateMachine->transitionTo(
+                editor::statemachine::ColorPickerMode::forVisualRange(
+                    *visualRange));
+        else
+            stateMachine->transitionTo(
+                editor::statemachine::ColorPickerMode{false});
+    }
 
     editor.needsFullRedraw = true;
     return true;

@@ -5,12 +5,27 @@
 #include "color_selector_mode.h"
 #endif
 #include "comment_leader_pending_actions.h"
+#include "editor.h"
 #include "key_enums.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 
 namespace editor::statemachine
 {
+namespace
+{
+#ifdef UVIM_ENABLE_COLOR_TOOLS
+std::optional<VisualColorRange> visualColorRangeFor(CommentLeaderOrigin origin,
+                                                    ModeContext& ctx)
+{
+    if(origin == CommentLeaderOrigin::Normal || !ctx.editor)
+        return std::nullopt;
+    ctx.editor->rememberVisualColorRange();
+    return ctx.editor->takeVisualColorRange();
+}
+#endif
+} // namespace
+
 std::optional<ModeState>
 CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
                             ModeContext& ctx, const ModeKeyEvent& event)
@@ -43,7 +58,11 @@ CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
         const bool background = nextKey == keyCode(typed::TypedKey::KEY_B);
         if(nextKey != -1 && !background)
             Terminal::unreadKey(nextKey);
+        std::optional<VisualColorRange> range =
+            visualColorRangeFor(machine.origin(), ctx);
         machine.cancel(ctx);
+        if(range)
+            return ColorPickerMode::forVisualRange(*range, background);
         return ColorPickerMode{background};
 #else
         machine.cancel(ctx);
@@ -59,7 +78,11 @@ CommentLeaderAfterC::handle(CommentLeaderPendingMachine& machine,
         const bool background = nextKey == keyCode(typed::TypedKey::KEY_B);
         if(nextKey != -1 && !background)
             Terminal::unreadKey(nextKey);
+        std::optional<VisualColorRange> range =
+            visualColorRangeFor(machine.origin(), ctx);
         machine.cancel(ctx);
+        if(range)
+            return ColorSelectorMode::forVisualRange(*range, background);
         return ColorSelectorMode{background};
 #else
         machine.cancel(ctx);

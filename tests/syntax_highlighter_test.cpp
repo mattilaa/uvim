@@ -100,6 +100,33 @@ TEST(SyntaxHighlighterTest, HighlightsMemberDeclarationsInHeader)
     EXPECT_TRUE(text_utils::is_found(output.find(memberColor)));
 }
 
+TEST(SyntaxHighlighterTest, VisualSelectionKeepsUtf8GlyphBytesContiguous)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.currentBuffer->filename = *editor.filename;
+    editor.currentBuffer->fileTypeCacheValid = false;
+
+    const std::string line =
+        "std::cout << \"┌──────────────────────────────────┐\\n\";";
+    editor.currentBuffer->lines = {line};
+    editor.currentMode = VISUAL;
+    editor.currentBuffer->visualStartY = 0;
+    editor.currentBuffer->visualEndY = 0;
+    editor.currentBuffer->visualStartX = (int)line.find("┌");
+    editor.currentBuffer->visualEndX = (int)line.find("┐");
+    *editor.cursorY = 0;
+    *editor.cursorX = editor.currentBuffer->visualStartX;
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    EXPECT_TRUE(text_utils::is_found(output.find("┌")));
+    EXPECT_TRUE(text_utils::is_found(output.find("─")));
+    EXPECT_TRUE(text_utils::is_found(output.find("┐")));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
 {
     Editor editor = Editor::createForTests();

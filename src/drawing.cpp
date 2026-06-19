@@ -78,6 +78,28 @@ VisibleTextRange visibleTextRange(std::string_view line, int requestedStart,
     range.len = pos - range.start;
     return range;
 }
+
+int nextVisibleCharStart(std::string_view line, int col, int end,
+                         bool utf8Mode)
+{
+    if(!utf8Mode)
+        return std::min(col + 1, end);
+    int next = text_utils::nextUtf8CharStart(line, col);
+    return std::clamp(next, col + 1, end);
+}
+
+int displayColumnFromByteRange(std::string_view line, int start, int end,
+                               bool utf8Mode)
+{
+    start = std::clamp(start, 0, (int)line.size());
+    end = std::clamp(end, 0, (int)line.size());
+    if(end < start)
+        return 0;
+    if(!utf8Mode)
+        return end - start;
+    return text_utils::utf8DisplayWidth(line.substr((std::size_t)start,
+                                                    (std::size_t)(end - start)));
+}
 } // namespace
 
 std::string Editor::buildTabBarLine(int width)
@@ -287,10 +309,21 @@ void Editor::drawRows()
 
             renderGutter(fileRow);
 
-            for(int x = 0; x < textCols; x++)
+            for(int x = 0, fileCol = *offsetX; x < textCols;)
             {
-                int fileCol = x + *offsetX;
-                char ch = (fileCol < line.length()) ? line[fileCol] : ' ';
+                const bool hasChar = fileCol < (int)line.length();
+                int nextCol =
+                    hasChar ? nextVisibleCharStart(line, fileCol,
+                                                   (int)line.length(), utf8Mode)
+                            : fileCol + 1;
+                std::string ch =
+                    hasChar ? line.substr((std::size_t)fileCol,
+                                          (std::size_t)(nextCol - fileCol))
+                            : std::string(1, ' ');
+                int chWidth =
+                    hasChar && utf8Mode
+                        ? std::max(1, text_utils::utf8DisplayWidth(ch))
+                        : 1;
 
                 bool isCursor = (fileRow == *cursorY && fileCol == *cursorX);
 
@@ -332,6 +365,8 @@ void Editor::drawRows()
                 }
 
                 Terminal::write(theme.reset());
+                fileCol = nextCol;
+                x += chWidth;
             }
         }
 
@@ -455,13 +490,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 appendGutter(fileRow);
 
                 const std::string& line = (*lines)[fileRow];
-                int start = *offsetX;
-                int len = (int)line.length() - start;
-                if(len < 0)
-                    len = 0;
-                if(len > textCols)
-                    len = textCols;
-                int visibleLen = (len > 0) ? len : 0;
+                VisibleTextRange visible =
+                    visibleTextRange(line, *offsetX, textCols, utf8Mode);
+                int start = visible.start;
+                int len = visible.len;
+                int visibleLen = visible.width;
                 bool showCursor =
                     (currentMode == VISUAL || currentMode == VISUAL_LINE ||
                      currentMode == VISUAL_BLOCK);
@@ -494,13 +527,13 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         bool needsHighlight = false;
                         if(showCursor && fileRow == *cursorY)
                         {
-                            int cursorCol = *cursorX - *offsetX;
+                            int cursorCol = *cursorX - start;
                             if(cursorCol >= 0 && cursorCol < len)
                                 needsHighlight = true;
                         }
-                        for(int x = 0; x < len; x++)
+                        for(int x = 0; x < len;)
                         {
-                            int col = x + *offsetX;
+                            int col = x + start;
                             if(isInSelection(fileRow, col) ||
                                isInVisualBlock(fileRow, col) ||
                                isInSearchMatch(fileRow, col))
@@ -508,6 +541,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 needsHighlight = true;
                                 break;
                             }
+                            x += nextVisibleCharStart(line, col, start + len,
+                                                      utf8Mode) -
+                                 col;
                         }
 
                         if(!needsHighlight)
@@ -516,9 +552,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         }
                         else
                         {
-                            for(int x = 0; x < len; x++)
+                            for(int x = 0; x < len;)
                             {
-                                int col = x + *offsetX;
+                                int col = x + start;
+                                int nextCol = nextVisibleCharStart(
+                                    line, col, start + len, utf8Mode);
+                                int charLen = nextCol - col;
                                 bool highlighted = false;
                                 bool isCursor =
                                     showCursor &&
@@ -540,12 +579,13 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                     highlighted = true;
                                 }
 
-                                output += line[col];
+                                output.append(line, col, charLen);
 
                                 if(highlighted)
                                 {
                                     output += theme.reset();
                                 }
+                                x += charLen;
                             }
                         }
                     }
@@ -553,8 +593,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(showCursor && fileRow == *cursorY)
                 {
-                    int cursorCol = *cursorX - *offsetX;
-                    if(cursorCol >= visibleLen && cursorCol < textCols)
+                    int cursorCol =
+                        displayColumnFromByteRange(line, start, *cursorX,
+                                                   utf8Mode);
+                    if(*cursorX >= start + len && cursorCol < textCols)
                     {
                         output += theme.reset();
                         int pad = cursorCol - visibleLen;
@@ -602,13 +644,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
                 appendGutter(fileRow);
 
                 const std::string& line = (*lines)[fileRow];
-                int start = *offsetX;
-                int len = (int)line.length() - start;
-                if(len < 0)
-                    len = 0;
-                if(len > textCols)
-                    len = textCols;
-                int visibleLen = (len > 0) ? len : 0;
+                VisibleTextRange visible =
+                    visibleTextRange(line, *offsetX, textCols, utf8Mode);
+                int start = visible.start;
+                int len = visible.len;
+                int visibleLen = visible.width;
                 bool showCursor =
                     (currentMode == VISUAL || currentMode == VISUAL_LINE ||
                      currentMode == VISUAL_BLOCK);
@@ -638,13 +678,13 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         bool needsHighlight = false;
                         if(showCursor && fileRow == *cursorY)
                         {
-                            int cursorCol = *cursorX - *offsetX;
+                            int cursorCol = *cursorX - start;
                             if(cursorCol >= 0 && cursorCol < len)
                                 needsHighlight = true;
                         }
-                        for(int x = 0; x < len; x++)
+                        for(int x = 0; x < len;)
                         {
-                            int col = x + *offsetX;
+                            int col = x + start;
                             if(isInSelection(fileRow, col) ||
                                isInVisualBlock(fileRow, col) ||
                                isInSearchMatch(fileRow, col))
@@ -652,6 +692,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 needsHighlight = true;
                                 break;
                             }
+                            x += nextVisibleCharStart(line, col, start + len,
+                                                      utf8Mode) -
+                                 col;
                         }
 
                         if(!needsHighlight)
@@ -660,9 +703,12 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         }
                         else
                         {
-                            for(int x = 0; x < len; x++)
+                            for(int x = 0; x < len;)
                             {
-                                int col = x + *offsetX;
+                                int col = x + start;
+                                int nextCol = nextVisibleCharStart(
+                                    line, col, start + len, utf8Mode);
+                                int charLen = nextCol - col;
                                 bool highlighted = false;
                                 bool isCursor =
                                     showCursor &&
@@ -684,12 +730,13 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                     highlighted = true;
                                 }
 
-                                output += line[col];
+                                output.append(line, col, charLen);
 
                                 if(highlighted)
                                 {
                                     output += theme.reset();
                                 }
+                                x += charLen;
                             }
                         }
                     }
@@ -697,8 +744,10 @@ void Editor::drawScrollUpdate(int scrollDelta)
 
                 if(showCursor && fileRow == *cursorY)
                 {
-                    int cursorCol = *cursorX - *offsetX;
-                    if(cursorCol >= visibleLen && cursorCol < textCols)
+                    int cursorCol =
+                        displayColumnFromByteRange(line, start, *cursorX,
+                                                   utf8Mode);
+                    if(*cursorX >= start + len && cursorCol < textCols)
                     {
                         output += theme.reset();
                         int pad = cursorCol - visibleLen;
@@ -986,13 +1035,13 @@ void Editor::drawFullScreenSingle()
                         currentMode == VISUAL_BLOCK) &&
                        fileRow == *cursorY)
                     {
-                        int cursorCol = *cursorX - *offsetX;
+                        int cursorCol = *cursorX - start;
                         if(cursorCol >= 0 && cursorCol < len)
                             hasHighlighting = true;
                     }
-                    for(int x = 0; x < len; x++)
+                    for(int x = 0; x < len;)
                     {
-                        int col = x + *offsetX;
+                        int col = x + start;
                         if(isInSelection(fileRow, col) ||
                            isInVisualBlock(fileRow, col) ||
                            isInSearchMatch(fileRow, col))
@@ -1000,6 +1049,9 @@ void Editor::drawFullScreenSingle()
                             hasHighlighting = true;
                             break;
                         }
+                        x += nextVisibleCharStart(line, col, start + len,
+                                                  utf8Mode) -
+                             col;
                     }
                 }
 
@@ -1033,9 +1085,13 @@ void Editor::drawFullScreenSingle()
                 else
                 {
                     // Handle selection/search highlighting for non-C++ files
-                    for(int x = 0; x < len; x++)
+                    for(int x = 0; x < len;)
                     {
-                        int col = x + *offsetX;
+                        int col = x + start;
+                        int nextCol =
+                            nextVisibleCharStart(line, col, start + len,
+                                                 utf8Mode);
+                        int charLen = nextCol - col;
                         bool highlighted = false;
                         bool showCursor = (currentMode == VISUAL ||
                                            currentMode == VISUAL_LINE ||
@@ -1059,12 +1115,13 @@ void Editor::drawFullScreenSingle()
                             highlighted = true;
                         }
 
-                        output += line[col];
+                        output.append(line, col, charLen);
 
                         if(highlighted)
                         {
                             output += theme.reset();
                         }
+                        x += charLen;
                     }
                 }
             }
@@ -1073,8 +1130,9 @@ void Editor::drawFullScreenSingle()
                 currentMode == VISUAL_BLOCK) &&
                fileRow == *cursorY)
             {
-                int cursorCol = *cursorX - *offsetX;
-                if(cursorCol >= visibleLen && cursorCol < textCols)
+                int cursorCol =
+                    displayColumnFromByteRange(line, start, *cursorX, utf8Mode);
+                if(*cursorX >= start + len && cursorCol < textCols)
                 {
                     output += theme.reset();
                     int pad = cursorCol - visibleLen;
@@ -1324,13 +1382,13 @@ void Editor::drawSplitFullScreen()
                     currentMode == VISUAL_BLOCK) &&
                    fileRow == *cursorY)
                 {
-                    int cursorCol = *cursorX - *offsetX;
+                    int cursorCol = *cursorX - start;
                     if(cursorCol >= 0 && cursorCol < len)
                         hasHighlighting = true;
                 }
-                for(int x = 0; x < len; x++)
+                for(int x = 0; x < len;)
                 {
-                    int col = x + *offsetX;
+                    int col = x + start;
                     if(isInSelection(fileRow, col) ||
                        isInVisualBlock(fileRow, col) ||
                        isInSearchMatch(fileRow, col))
@@ -1338,6 +1396,9 @@ void Editor::drawSplitFullScreen()
                         hasHighlighting = true;
                         break;
                     }
+                    x += nextVisibleCharStart(line, col, start + len,
+                                              utf8Mode) -
+                         col;
                 }
             }
 
@@ -1364,9 +1425,12 @@ void Editor::drawSplitFullScreen()
             }
             else
             {
-                for(int x = 0; x < len; x++)
+                for(int x = 0; x < len;)
                 {
-                    int col = x + *offsetX;
+                    int col = x + start;
+                    int nextCol =
+                        nextVisibleCharStart(line, col, start + len, utf8Mode);
+                    int charLen = nextCol - col;
                     bool highlighted = false;
                     bool showCursor =
                         (currentMode == VISUAL || currentMode == VISUAL_LINE ||
@@ -1390,12 +1454,13 @@ void Editor::drawSplitFullScreen()
                         highlighted = true;
                     }
 
-                    row += line[col];
+                    row.append(line, col, charLen);
 
                     if(highlighted)
                     {
                         row += theme.reset();
                     }
+                    x += charLen;
                 }
             }
         }
@@ -1404,8 +1469,9 @@ void Editor::drawSplitFullScreen()
             currentMode == VISUAL_BLOCK) &&
            fileRow == *cursorY)
         {
-            int cursorCol = *cursorX - *offsetX;
-            if(cursorCol >= visibleLen && cursorCol < textCols)
+            int cursorCol =
+                displayColumnFromByteRange(line, start, *cursorX, utf8Mode);
+            if(*cursorX >= start + len && cursorCol < textCols)
             {
                 row += theme.reset();
                 int pad = cursorCol - visibleLen;

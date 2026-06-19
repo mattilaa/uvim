@@ -128,6 +128,91 @@ TEST(RealModeTransitionsTest, ColorPickerCanJumpToRgbSelector)
     EXPECT_EQ(selector->active, 0);
 }
 
+TEST(RealModeTransitionsTest, VisualLeaderColorSelectWrapsSelection)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"hello"};
+    *editor.cursorX = 1;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualMode{});
+    sm.dispatch('l');
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch('c');
+    sm.dispatch('s');
+
+    ASSERT_STREQ(sm.currentStateName(), "COLOR_SELECTOR");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    const std::string code =
+        color::rgbLiteralFg(255, 255, 255) + color::rgbLiteralBg(0, 0, 0);
+    EXPECT_EQ(editor.currentBuffer->lines[0],
+              std::string("h") + code + "ell" +
+                  color::literal(color::AnsiColor::Reset) + "o");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualLeaderColorSelectWrapsUtf8Glyphs)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"std::cout << \"┌────┐\\n\";"};
+    editor.utf8Mode = true;
+    *editor.cursorX = (int)editor.currentBuffer->lines[0].find("┌");
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, VisualMode{});
+    sm.dispatch('l');
+    sm.dispatch('l');
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch('c');
+    sm.dispatch('s');
+
+    ASSERT_STREQ(sm.currentStateName(), "COLOR_SELECTOR");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    const std::string code =
+        color::rgbLiteralFg(255, 255, 255) + color::rgbLiteralBg(0, 0, 0);
+    EXPECT_EQ(editor.currentBuffer->lines[0],
+              std::string("std::cout << \"") + code + "┌───" +
+                  color::literal(color::AnsiColor::Reset) + "─┐\\n\";");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualCommandColorPickerWrapsSelection)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"hello"};
+    *editor.cursorX = 1;
+    *editor.cursorY = 0;
+
+    auto smPtr =
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           VisualMode{});
+    ModeStateMachine* sm = smPtr.get();
+    editor.setModeStateMachineForTests(std::move(smPtr));
+
+    sm->dispatch('l');
+    sm->dispatch('l');
+    sm->dispatch(':');
+    for(char ch : std::string("colorpicker"))
+        sm->dispatch(ch);
+    sm->dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_STREQ(sm->currentStateName(), "COLOR_PICKER");
+    sm->dispatch('l');
+    sm->dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(editor.currentBuffer->lines[0],
+              std::string("h") + color::literal(color::AnsiColor::FgBlack) +
+                  "ell" + color::literal(color::AnsiColor::Reset) + "o");
+    EXPECT_STREQ(sm->currentStateName(), "NORMAL");
+}
+
 TEST(RealModeTransitionsTest,
      ColorSelectorCommandRemovesAndReinsertsAnsiLiteralBeforeCursor)
 {
