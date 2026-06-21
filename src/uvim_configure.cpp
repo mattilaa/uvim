@@ -201,6 +201,7 @@ struct Config
     bool systemClipboard = true;
     bool structSizePopup = true;
     bool colorTools = true;
+    bool terminalColors = true;
     bool tests = true;
     bool compileCommands = true;
     bool lto = true;
@@ -533,6 +534,7 @@ void apply_feature_set(Config& cfg)
         cfg.systemClipboard = false;
         cfg.structSizePopup = false;
         cfg.colorTools = false;
+        cfg.terminalColors = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -561,7 +563,8 @@ void apply_feature_set(Config& cfg)
         cfg.formatters = false;
         cfg.systemClipboard = false;
         cfg.structSizePopup = false;
-        cfg.colorTools = false;
+        cfg.colorTools = true;
+        cfg.terminalColors = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -590,7 +593,8 @@ void apply_feature_set(Config& cfg)
         cfg.formatters = true;
         cfg.systemClipboard = true;
         cfg.structSizePopup = false;
-        cfg.colorTools = false;
+        cfg.colorTools = true;
+        cfg.terminalColors = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -620,6 +624,7 @@ void apply_feature_set(Config& cfg)
         cfg.systemClipboard = true;
         cfg.structSizePopup = true;
         cfg.colorTools = true;
+        cfg.terminalColors = true;
         cfg.tests = true;
         cfg.compileCommands = true;
         cfg.lto = true;
@@ -647,6 +652,7 @@ void apply_feature_set(Config& cfg)
     cfg.systemClipboard = true;
     cfg.structSizePopup = true;
     cfg.colorTools = true;
+    cfg.terminalColors = true;
     cfg.tests = true;
     cfg.compileCommands = true;
     cfg.lto = true;
@@ -670,13 +676,14 @@ std::vector<Section> make_sections()
            nullptr,
            nullptr,
            {},
-           "vi-real compiles out optional popups, help views, LSP, git, "
-           "fzf/rg-style search views, formatters, clipboard, color tools, "
-           "and struct-size probes. vi-min keeps file/buffer browser and tabs "
-           "but compiles out git, fzf/rg-style search views, formatters, "
-           "clipboard, color tools, struct-size probes, docs, tests, and LSP. "
-           "Minimal keeps the normal editor tools but removes docs/tests/LSP. "
-           "Basic is the default developer build. Full also enables LSP."}}},
+           "vi-real is a hard minimal build that compiles out optional popups, "
+           "help views, LSP, git, fzf/rg-style search views, formatters, "
+           "clipboard, color tools, terminal colors, and struct-size probes. "
+           "vi-min keeps file/buffer browser, tabs, and color tools but "
+           "compiles out git, fzf/rg-style search views, formatters, "
+           "clipboard, struct-size probes, docs, tests, and LSP. Minimal keeps "
+           "the normal editor tools but removes docs/tests/LSP. Basic is the "
+           "default developer build. Full also enables LSP."}}},
         {"Target",
          "Platform, compiler mode, and build parallelism. Release defaults to "
          "-O2 unless another optimization level is selected.",
@@ -776,7 +783,15 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Build switch for :ansitools, :colorpicker, :colorselect, and "
-           "leader-cp/cs shortcuts."}}},
+           "leader-cp/cs shortcuts."},
+          {ItemKind::Toggle,
+           "Terminal colors",
+           "UVIM_ENABLE_TERMINAL_COLORS",
+           &Config::terminalColors,
+           nullptr,
+           {},
+           "Build switch for ANSI UI and syntax coloring. vi-real disables "
+           "this for a plain terminal editor."}}},
         {"Language Servers",
          "Per-language LSP integrations. Full enables all of these by "
          "default; smaller presets compile them out unless selected here.",
@@ -968,25 +983,28 @@ std::string preset_help(const Config& cfg)
     {
         return std::string(preset) +
                " keeps the strict core editor only: welcome screen, editing, "
-               "basic commands, and tabs. It compiles out file/browser tools, "
-               "auxiliary views, popups, help item views, LSP, git, search "
-               "tools, formatters, clipboard, color tools, struct-size probes, "
-               "docs/tests, and compile_commands.json.";
+               "basic commands, and tabs. It is a hard minimal build and "
+               "compiles out file/browser tools, auxiliary views, popups, help "
+               "item views, LSP, git, search tools, formatters, clipboard, "
+               "color tools, struct-size probes, docs/tests, terminal colors, "
+               "and compile_commands.json.";
     }
     if(cfg.featureSet == 1)
     {
         return std::string(preset) +
                " keeps the core editor plus built-in file and buffer browser "
                "support. It still compiles out auxiliary views and popups, "
-               "LSP, git, search tools, formatters, clipboard, color tools, "
-               "struct-size probes, docs/tests, and compile_commands.json.";
+               "LSP, git, search tools, formatters, clipboard, struct-size "
+               "probes, docs/tests, and compile_commands.json. Color tools "
+               "are enabled by default.";
     }
     if(cfg.featureSet == 2)
     {
         return std::string(preset) +
                " keeps normal editor tools, browser tools, git, search, "
                "formatters, and clipboard, while disabling LSP, docs/tests, "
-               "compile_commands.json, color tools, and struct-size probes.";
+               "compile_commands.json and struct-size probes. Color tools are "
+               "enabled by default.";
     }
     if(cfg.featureSet == 3)
     {
@@ -1583,6 +1601,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.structSizePopup = parse_bool(value).value_or(cfg.structSizePopup);
     else if(key == "color_tools")
         cfg.colorTools = parse_bool(value).value_or(cfg.colorTools);
+    else if(key == "terminal_colors")
+        cfg.terminalColors = parse_bool(value).value_or(cfg.terminalColors);
     else if(key == "tests")
         cfg.tests = parse_bool(value).value_or(cfg.tests);
     else if(key == "compile_commands")
@@ -1718,6 +1738,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
     file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
     file << "color_tools=" << bool_value(cfg.colorTools) << "\n";
+    file << "terminal_colors=" << bool_value(cfg.terminalColors) << "\n";
     file << "tests=" << bool_value(cfg.tests) << "\n";
     file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
     file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
@@ -1848,7 +1869,7 @@ void print_help(std::ostream& out)
            "mlang-semantic-tokens, html-lsp,\n"
         << "  css-lsp, json-lsp, ts-lsp, asm-docs, git, search, formatters, "
            "clipboard,\n"
-        << "  struct-size, color-tools, tests, compile-commands, "
+        << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
            "auto-build-number,\n"
         << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
         << "Examples:\n"
@@ -1901,6 +1922,11 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
             equals_ci(name, "colorselect") ||
             equals_ci(name, "color-selector"))
         cfg.colorTools = enabled;
+    else if(equals_ci(name, "terminal-colors") ||
+            equals_ci(name, "terminal-color") ||
+            equals_ci(name, "ui-colors") || equals_ci(name, "syntax-colors") ||
+            equals_ci(name, "colors"))
+        cfg.terminalColors = enabled;
     else if(equals_ci(name, "tests") || equals_ci(name, "test"))
         cfg.tests = enabled;
     else if(equals_ci(name, "compile-commands") ||

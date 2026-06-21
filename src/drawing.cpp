@@ -118,6 +118,10 @@ std::string Editor::buildTabBarLine(int width)
         std::string name = buf->filename.empty() ? "[No Name]" : buf->filename;
         if(!buf->filename.empty())
             name = text_utils::basename(name);
+#ifndef UVIM_ENABLE_TERMINAL_COLORS
+        if(static_cast<int>(bi) == currentBufferIndex)
+            name += "+";
+#endif
         if(buf->dirty)
             name += "*";
 

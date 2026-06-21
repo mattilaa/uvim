@@ -1535,7 +1535,7 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 
 void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
 {
-#ifdef UVIM_MINIMAL
+#ifndef UVIM_ENABLE_BROWSER_TOOLS
     (void)path;
     (void)focusCurrentFile;
     setStatusMessage("file browser is not compiled in");

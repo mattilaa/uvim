@@ -64,6 +64,7 @@ option(UVIM_ENABLE_FORMATTERS "Build external formatter integrations" ON)
 option(UVIM_ENABLE_SYSTEM_CLIPBOARD "Build system clipboard integration hooks" ON)
 option(UVIM_ENABLE_STRUCT_SIZE_POPUP "Build clang-based struct/variable size popup support" ON)
 option(UVIM_ENABLE_COLOR_TOOLS "Build ANSI color picker and RGB selector tools" ON)
+option(UVIM_ENABLE_TERMINAL_COLORS "Build ANSI terminal coloring for UI and syntax highlighting" ON)
 option(UVIM_ENABLE_LTO "Enable link-time optimization / IPO for release builds" ON)
 option(UVIM_ENABLE_GC_SECTIONS "Enable function/data sections and linker garbage collection where supported" ON)
 option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it" OFF)
@@ -87,6 +88,7 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_SYSTEM_CLIPBOARD OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_STRUCT_SIZE_POPUP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_COLOR_TOOLS OFF CACHE BOOL "" FORCE)
+    set(UVIM_ENABLE_TERMINAL_COLORS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_BROWSER_TOOLS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_AUXILIARY_VIEWS OFF CACHE BOOL "" FORCE)
 endif()
@@ -247,11 +249,16 @@ set(UVIM_CORE_SOURCES
     src/cpp_constants.cpp
     src/stdlib_goto.cpp
     src/theme.cpp
-    src/widgets/command_popup.cpp
-    src/widgets/command_history_popup.cpp
-    src/widgets/popup_base.cpp
     src/widgets/status_bar.cpp
 )
+
+if(NOT UVIM_MINIMAL)
+    list(APPEND UVIM_CORE_SOURCES
+        src/widgets/command_popup.cpp
+        src/widgets/command_history_popup.cpp
+        src/widgets/popup_base.cpp
+    )
+endif()
 
 if(UVIM_ENABLE_BROWSER_TOOLS)
     list(APPEND UVIM_CORE_SOURCES
@@ -478,6 +485,7 @@ uvim_status_bool("formatters" UVIM_ENABLE_FORMATTERS)
 uvim_status_bool("system clipboard" UVIM_ENABLE_SYSTEM_CLIPBOARD)
 uvim_status_bool("struct size popup" UVIM_ENABLE_STRUCT_SIZE_POPUP)
 uvim_status_bool("color tools" UVIM_ENABLE_COLOR_TOOLS)
+uvim_status_bool("terminal colors" UVIM_ENABLE_TERMINAL_COLORS)
 message(STATUS "uvim compiled LSP support:")
 uvim_status_bool("any LSP client code" UVIM_ENABLE_ANY_LSP)
 uvim_status_bool("clangd" UVIM_ENABLE_CLANGD_LSP)
@@ -699,6 +707,9 @@ endif()
 if(UVIM_ENABLE_COLOR_TOOLS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_COLOR_TOOLS=1)
 endif()
+if(UVIM_ENABLE_TERMINAL_COLORS)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_TERMINAL_COLORS=1)
+endif()
 
 # ============================================================================
 # Unit Tests
@@ -855,6 +866,9 @@ if(UVIM_BUILD_TESTS)
     endif()
     if(UVIM_ENABLE_COLOR_TOOLS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_COLOR_TOOLS=1)
+    endif()
+    if(UVIM_ENABLE_TERMINAL_COLORS)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_TERMINAL_COLORS=1)
     endif()
     if(UVIM_ENABLE_FORMATTERS)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_FORMATTERS=1)

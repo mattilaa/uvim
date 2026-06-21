@@ -130,9 +130,11 @@ Run `./build/uvim-config --help` for all command-line options, including
 
 The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,
-`Build Outputs`, and `Size And Link`. `vi-real` compiles out git, fuzzy, grep,
-and regex tooling. The smallest profiles use `Oz`, LTO, dead-code sections,
-and strip while disabling optional docs/LSP/test build outputs.
+`Build Outputs`, and `Size And Link`. `vi-real` is a hard minimal build that
+compiles out terminal colors, color tools, popups, git, fuzzy, grep, regex
+tooling, docs/LSP/test build outputs, and other optional integrations. The
+other presets enable terminal colors and color tools by default. The smallest
+profiles use `Oz`, LTO, dead-code sections, and strip.
 
 ## Assembly instruction docs
 

@@ -1,8 +1,10 @@
 #include "editor_command_controller.h"
 #include "editor.h"
 #include "editor_utils.h"
+#ifndef UVIM_MINIMAL
 #include "widgets/command_history_popup.h"
 #include "widgets/command_popup.h"
+#endif
 
 EditorCommandController::EditorCommandController(Editor& editor)
     : editor(editor)
@@ -173,12 +175,21 @@ std::optional<std::string> Editor::commandHistoryDownImpl()
 
 void Editor::startCommandPopupImpl()
 {
+#ifdef UVIM_MINIMAL
+    commandPopupActive = false;
+    commandPopupQuery.clear();
+    commandPopupFiltered.clear();
+    commandPopupCursor = 0;
+    commandPopupOffset = 0;
+    return;
+#else
     commandPopupActive = true;
     commandPopupQuery.clear();
     commandPopupCursor = 0;
     commandPopupOffset = 0;
     commandPopupAll = getCommandCompletions("");
     updateCommandPopup("");
+#endif
 }
 
 void Editor::cancelCommandPopupImpl()
@@ -474,6 +485,10 @@ const std::string& Editor::commandHistorySearchQueryImpl() const
 
 void Editor::drawCommandPopupImpl(std::string& output) const
 {
+#ifdef UVIM_MINIMAL
+    (void)output;
+    return;
+#else
     if(!commandPopupActive)
         return;
     if(commandHistorySearchActive)
@@ -515,10 +530,15 @@ void Editor::drawCommandPopupImpl(std::string& output) const
         .cursor = commandPopupCursor,
     };
     widgets::drawCommandPopup(output, view);
+#endif
 }
 
 void Editor::drawCommandHistoryPopupImpl(std::string& output) const
 {
+#ifdef UVIM_MINIMAL
+    (void)output;
+    return;
+#else
     if(!commandHistorySearchActive)
         return;
     widgets::CommandHistoryPopupView view{
@@ -531,6 +551,7 @@ void Editor::drawCommandHistoryPopupImpl(std::string& output) const
         .cursor = commandHistorySearchCursor,
     };
     widgets::drawCommandHistoryPopup(output, view);
+#endif
 }
 
 std::vector<std::string>

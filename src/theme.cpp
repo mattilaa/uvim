@@ -306,6 +306,31 @@ const std::string& Theme::syntax(TokenType type) const
 
 void Theme::rebuildSequences()
 {
+#ifndef UVIM_ENABLE_TERMINAL_COLORS
+    base_fg_seq_.clear();
+    base_seq_.clear();
+    reset_seq_.clear();
+    selection_seq_.clear();
+    cursor_seq_.clear();
+    search_seq_.clear();
+    status_bar_seq_.clear();
+    tab_bar_seq_.clear();
+    panel_seq_.clear();
+    ui_dim_seq_.clear();
+    ui_accent_seq_.clear();
+    ui_info_seq_.clear();
+    ui_warning_seq_.clear();
+    ui_success_seq_.clear();
+    ui_error_seq_.clear();
+    ui_directory_seq_.clear();
+    ui_gutter_seq_.clear();
+    ui_prompt_seq_.clear();
+    match_highlight_seq_.clear();
+    for(auto& seq : syntax_seq_)
+        seq.clear();
+    return;
+#endif
+
     base_fg_seq_ = fgSeq(base_fg_);
     base_seq_ = fgSeq(base_fg_) + bgSeq(base_bg_);
     reset_seq_ = std::string(Terminal::ESC_RESET_ALL) + base_seq_;
