@@ -4,6 +4,7 @@ if(POLICY CMP0177)
 endif()
 set(UVIM_VERSION_MAJOR 0)
 set(UVIM_VERSION_MINOR 2)
+set(UVIM_DISPLAY_VERSION "${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}")
 option(UVIM_AUTO_INCREMENT_BUILD "Auto-increment build number on each CMake configure" ON)
 set(UVIM_VERSION_BUILD 0 CACHE STRING "Build number")
 set(UVIM_BUILD_NUMBER_FILE "${CMAKE_BINARY_DIR}/.uvim_build_number" CACHE FILEPATH
@@ -433,7 +434,10 @@ set(UVIM_SOURCES
 )
 
 add_executable(uvim ${UVIM_SOURCES})
-target_compile_definitions(uvim PRIVATE UVIM_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(uvim PRIVATE
+    UVIM_VERSION="${PROJECT_VERSION}"
+    UVIM_DISPLAY_VERSION="${UVIM_DISPLAY_VERSION}"
+)
 add_custom_command(TARGET uvim POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
 )

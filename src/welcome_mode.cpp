@@ -172,7 +172,11 @@ void WelcomeMode::draw(Editor& editor) const
     std::vector<std::string> lines;
     lines.reserve(32);
 
+#ifdef UVIM_DISPLAY_VERSION
+    lines.push_back(std::string("uVim v") + UVIM_DISPLAY_VERSION);
+#else
     lines.push_back("uVim");
+#endif
     lines.push_back("");
     lines.push_back("Author: Matti Laamanen");
     lines.push_back("");
