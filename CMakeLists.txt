@@ -69,9 +69,14 @@ option(UVIM_ENABLE_TERMINAL_COLORS "Build ANSI terminal coloring for UI and synt
 option(UVIM_ENABLE_LTO "Enable link-time optimization / IPO for release builds" ON)
 option(UVIM_ENABLE_GC_SECTIONS "Enable function/data sections and linker garbage collection where supported" ON)
 option(UVIM_STRIP_BINARY "Strip uvim after linking when the platform supports it" OFF)
+option(UVIM_STATIC_LINK "Request static runtime/library linking where supported by the platform toolchain" OFF)
 set(UVIM_OPTIMIZATION_LEVEL "O2" CACHE STRING "Release optimization level: O0, O1, O2, O3, Os, Oz")
 set_property(CACHE UVIM_OPTIMIZATION_LEVEL PROPERTY STRINGS O0 O1 O2 O3 Os Oz)
 set(UVIM_INSTALL_BINDIR "bin" CACHE STRING "Directory where the uvim executable is installed")
+
+if(UVIM_STATIC_LINK)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+endif()
 
 if(UVIM_MINIMAL)
     set(UVIM_ENABLE_CLANGD_LSP OFF CACHE BOOL "" FORCE)
@@ -442,6 +447,21 @@ add_custom_command(TARGET uvim POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
 )
 
+if(UVIM_STATIC_LINK)
+    if(APPLE)
+        message(WARNING "UVIM_STATIC_LINK=ON requested, but fully static executables are not supported on macOS. The build will still link system libraries dynamically.")
+    elseif(MSVC)
+        set_property(TARGET uvim PROPERTY
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    elseif(MINGW)
+        target_link_options(uvim PRIVATE -static -static-libgcc -static-libstdc++)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_link_options(uvim PRIVATE -static -static-libgcc -static-libstdc++)
+    else()
+        message(WARNING "UVIM_STATIC_LINK=ON requested, but no static link flags are known for compiler '${CMAKE_CXX_COMPILER_ID}'.")
+    endif()
+endif()
+
 uvim_add_config_target()
 
 # ------------------------------------------------------------------------------
@@ -476,6 +496,7 @@ uvim_status_bool("auto increment build" UVIM_AUTO_INCREMENT_BUILD)
 uvim_status_bool("LTO" UVIM_ENABLE_LTO)
 uvim_status_bool("GC sections" UVIM_ENABLE_GC_SECTIONS)
 uvim_status_bool("strip binary" UVIM_STRIP_BINARY)
+uvim_status_bool("static link" UVIM_STATIC_LINK)
 uvim_status_bool("sanitizers" UVIM_ENABLE_SANITIZERS)
 uvim_status_bool("debug logging" UVIM_DEBUG_LOGGING)
 uvim_status_bool("LSP debug logging" UVIM_DEBUG_LSP)

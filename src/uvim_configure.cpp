@@ -41,6 +41,7 @@ constexpr std::string_view kAnsiFgDefault =
 constexpr std::string_view kAnsiBlue = color::ansi(color::AnsiColor::FgBlue);
 constexpr std::string_view kAnsiGreen =
     color::ansi(color::AnsiColor::FgGreen);
+constexpr std::string_view kAnsiDim = color::ansi(color::AnsiColor::Dim);
 constexpr std::string_view kAnsiEditField =
     color::ansi(color::AnsiColor::StyleEditField);
 const std::string kAnsiCurrentLineBg = color::rgbBg(24, 64, 36);
@@ -172,6 +173,12 @@ enum class RowKind
     Item,
 };
 
+#if defined(__APPLE__)
+constexpr bool kStaticLinkAvailable = false;
+#else
+constexpr bool kStaticLinkAvailable = true;
+#endif
+
 struct Config
 {
     int featureSet = 4;
@@ -207,6 +214,7 @@ struct Config
     bool lto = true;
     bool gcSections = true;
     bool stripBinary = false;
+    bool staticLink = false;
     bool autoIncrementBuild = true;
     bool sanitizers = false;
     bool debugLogging = false;
@@ -911,7 +919,16 @@ std::vector<Section> make_sections()
            &Config::stripBinary,
            nullptr,
            {},
-           "Runs the platform strip tool after linking uvim."}}},
+           "Runs the platform strip tool after linking uvim."},
+          {ItemKind::Toggle,
+           "Static link",
+           "UVIM_STATIC_LINK",
+           &Config::staticLink,
+           nullptr,
+           {},
+           "Requests static runtime/library linking where the platform "
+           "toolchain supports it. macOS still links system libraries "
+           "dynamically."}}},
         {"Diagnostics",
          "Developer diagnostics. Keep these off for size-sensitive builds.",
          true,
@@ -1107,12 +1124,19 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     }
 
     const Item& item = sections[row.section].items[row.item];
+    const bool disabled = item.flag == &Config::staticLink && !kStaticLinkAvailable;
     if(item.kind == ItemKind::Toggle)
     {
         out += "  ";
         out += kAnsiBlue;
         out += '[';
-        if(cfg.*(item.flag))
+        if(disabled)
+        {
+            out += kAnsiDim;
+            out += '-';
+            out += kAnsiReset;
+        }
+        else if(cfg.*(item.flag))
         {
             out += kAnsiGreen;
             out += 'X';
@@ -1128,6 +1152,8 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
         out += "  >   ";
     else
         out += "      ";
+    if(disabled)
+        out += kAnsiDim;
     out += item.label;
     const int pad = std::max(1, 31 - static_cast<int>(item.label.size()));
     out += std::string(static_cast<size_t>(pad), ' ');
@@ -1142,6 +1168,8 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     }
     else
         out += value_for(cfg, item);
+    if(disabled)
+        out += kAnsiReset;
     return out;
 }
 
@@ -1616,6 +1644,12 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.gcSections = parse_bool(value).value_or(cfg.gcSections);
     else if(key == "strip_binary")
         cfg.stripBinary = parse_bool(value).value_or(cfg.stripBinary);
+    else if(key == "static_link")
+    {
+        cfg.staticLink =
+            kStaticLinkAvailable &&
+            parse_bool(value).value_or(cfg.staticLink);
+    }
     else if(key == "sanitizers")
         cfg.sanitizers = parse_bool(value).value_or(cfg.sanitizers);
     else if(key == "debug_logging")
@@ -1746,6 +1780,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "lto=" << bool_value(cfg.lto) << "\n";
     file << "gc_sections=" << bool_value(cfg.gcSections) << "\n";
     file << "strip_binary=" << bool_value(cfg.stripBinary) << "\n";
+    file << "static_link=" << bool_value(cfg.staticLink) << "\n";
     file << "sanitizers=" << bool_value(cfg.sanitizers) << "\n";
     file << "debug_logging=" << bool_value(cfg.debugLogging) << "\n";
     file << "debug_lsp=" << bool_value(cfg.debugLsp) << "\n";
@@ -1871,7 +1906,8 @@ void print_help(std::ostream& out)
            "clipboard,\n"
         << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
            "auto-build-number,\n"
-        << "  lto, gc-sections, strip, sanitizers, debug-logging, debug-lsp\n\n"
+        << "  lto, gc-sections, strip, static, static-link, sanitizers, "
+           "debug-logging, debug-lsp\n\n"
         << "Examples:\n"
         << "  uvim-config --preset vi-real --config Release -O Oz -j 8\n"
         << "  uvim-config --import build/uvim-config.conf --disable tests\n"
@@ -1942,6 +1978,18 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
         cfg.gcSections = enabled;
     else if(equals_ci(name, "strip") || equals_ci(name, "strip-binary"))
         cfg.stripBinary = enabled;
+    else if(equals_ci(name, "static") || equals_ci(name, "static-link") ||
+            equals_ci(name, "static-runtime") ||
+            equals_ci(name, "static-libs") ||
+            equals_ci(name, "static-libraries"))
+    {
+        if(enabled && !kStaticLinkAvailable)
+        {
+            error = "static linking is not available on this platform";
+            return false;
+        }
+        cfg.staticLink = enabled;
+    }
     else if(equals_ci(name, "sanitizers") || equals_ci(name, "sanitize"))
         cfg.sanitizers = enabled;
     else if(equals_ci(name, "debug-logging"))
@@ -2120,6 +2168,9 @@ bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
 
 void activate(Config& cfg, const Item& item)
 {
+    if(item.flag == &Config::staticLink && !kStaticLinkAvailable)
+        return;
+
     if(item.kind == ItemKind::FeatureSet)
     {
         cfg.featureSet = (cfg.featureSet + 1) % (int)kFeatureSets.size();
@@ -2145,6 +2196,8 @@ bool toggle_section_items(Config& cfg, const Section& section)
     {
         if(item.kind != ItemKind::Toggle || !item.flag)
             continue;
+        if(item.flag == &Config::staticLink && !kStaticLinkAvailable)
+            continue;
         hasToggle = true;
         if(!(cfg.*(item.flag)))
             anyDisabled = true;
@@ -2157,7 +2210,11 @@ bool toggle_section_items(Config& cfg, const Section& section)
     for(const auto& item : section.items)
     {
         if(item.kind == ItemKind::Toggle && item.flag)
+        {
+            if(item.flag == &Config::staticLink && !kStaticLinkAvailable)
+                continue;
             cfg.*(item.flag) = enabled;
+        }
     }
     return true;
 }
