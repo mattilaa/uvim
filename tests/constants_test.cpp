@@ -1,4 +1,5 @@
 #include "constants.h"
+#include "json_utils.h"
 #include <gtest/gtest.h>
 
 TEST(ConstantsTest, MatchesFilePatternsSuffixCaseInsensitive)
@@ -49,4 +50,18 @@ TEST(ConstantsTest, IsCppFileMatchesStdlibPatterns)
     EXPECT_TRUE(is_cpp("/usr/include/c++/v1/vector"));
     EXPECT_TRUE(is_cpp("/usr/include/bits/std_abs.h"));
     EXPECT_FALSE(is_cpp("/usr/include/python3.12/Python.pyi"));
+}
+
+TEST(JsonUtilsTest, ParsedPositiveIntegersKeepSignedCompatibility)
+{
+    json_utils::Document doc;
+    ASSERT_TRUE(json_utils::parse(doc, R"({"id":1})"));
+
+    const json_utils::Value* id = json_utils::find(doc, "id");
+    ASSERT_NE(id, nullptr);
+    EXPECT_TRUE(id->IsInt());
+    EXPECT_TRUE(id->IsUint());
+    EXPECT_TRUE(id->IsInt64());
+    EXPECT_TRUE(id->IsUint64());
+    EXPECT_EQ(id->GetInt(), 1);
 }

@@ -224,7 +224,7 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
         if(converted.empty())
             return;
         it->value.SetString(converted.c_str(),
-                            static_cast<rapidjson::SizeType>(converted.size()),
+                            static_cast<ju::SizeType>(converted.size()),
                             alloc);
     };
 
@@ -247,7 +247,7 @@ static void maybe_rewrite_entry_for_wsl(ju::Value& entry, ju::Alloc& alloc)
         if(converted.empty())
             continue;
         arg.SetString(converted.c_str(),
-                      static_cast<rapidjson::SizeType>(converted.size()),
+                      static_cast<ju::SizeType>(converted.size()),
                       alloc);
     }
 }
@@ -365,7 +365,7 @@ regenerate_clangd_compile_commands(const fs::path& outputRoot,
         {
             if(!item.IsObject())
                 continue;
-            ju::Value outItem(rapidjson::kObjectType);
+            ju::Value outItem(ju::kObjectType);
             outItem.CopyFrom(item, alloc);
             if(windowsToWsl)
                 maybe_rewrite_entry_for_wsl(outItem, alloc);
@@ -1912,18 +1912,16 @@ struct EditorSettings
         }
     }
 
-    void apply(Editor& editor, bool deferAutoDetectForDirectory = false) const
+    void apply(Editor& editor, bool skipAutoDetectStartup = false) const
     {
         editor.useGitFileIndex = useGitFileIndex;
         editor.respectGitignore = respectGitignore;
         editor.gitFileIndexLockedOff = !useGitFileIndex;
         editor.gitignoreLockedOff = !respectGitignore;
 
-        if(deferAutoDetectForDirectory && editor.autoDetectLsps &&
+        if(skipAutoDetectStartup && editor.autoDetectLsps &&
            !hasExplicitLspRequest())
         {
-            editor.deferredStartupAction = [settings = *this](Editor& ed)
-            { settings.applyLspSettings(ed); };
             return;
         }
 
@@ -2053,9 +2051,7 @@ int main(int argc, char* argv[])
                                    settings.ccCollectAll,
                                    settings.ccWindowsToWsl);
     ccSyncer.start();
-    const bool deferAutoDetectForDirectory =
-        opts.args.size() == 1 && is_directory(opts.args[0]);
-    settings.apply(editor, deferAutoDetectForDirectory);
+    settings.apply(editor);
 
     if(!opts.args.empty())
     {

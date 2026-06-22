@@ -625,33 +625,18 @@ if(UVIM_STRIP_BINARY)
     endif()
 endif()
 
-# rapidjson (JSON parsing) - header-only, avoid subproject CMake
-include(FetchContent)
-FetchContent_Declare(
-  rapidjson
-  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-  GIT_TAG v1.1.0
-  GIT_PROGRESS TRUE
-)
-FetchContent_GetProperties(rapidjson)
-if(rapidjson_POPULATED)
-    message(STATUS "Using cached RapidJSON at: ${rapidjson_SOURCE_DIR}")
-else()
-    message(STATUS "Fetching RapidJSON (v1.1.0) ...")
-    if(POLICY CMP0169)
-        cmake_policy(SET CMP0169 OLD)
-    endif()
-    FetchContent_Populate(rapidjson)
-endif()
-set(RAPIDJSON_INCLUDE_DIR ${rapidjson_SOURCE_DIR}/include)
+# yyjson (JSON parsing)
+add_library(yyjson STATIC third_party/yyjson/yyjson.c)
+target_include_directories(yyjson PUBLIC ${CMAKE_SOURCE_DIR}/third_party/yyjson)
 
-function(uvim_target_include_rapidjson target_name)
-    target_include_directories(${target_name} SYSTEM PRIVATE ${RAPIDJSON_INCLUDE_DIR})
+function(uvim_target_link_yyjson target_name)
+    target_link_libraries(${target_name} PRIVATE yyjson)
 endfunction()
 
-uvim_target_include_rapidjson(uvim)
+uvim_target_link_yyjson(uvim)
 
 #fmt (formatting library)
+include(FetchContent)
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -766,9 +751,9 @@ if(UVIM_BUILD_TESTS)
         GTest::gtest_main
         GTest::gmock
         fmt::fmt
+        yyjson
     )
     target_include_directories(state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    uvim_target_include_rapidjson(state_machine_tests)
 
     add_executable(mode_state_machine_tests
         tests/mode_state_machine_test.cpp
@@ -778,9 +763,9 @@ if(UVIM_BUILD_TESTS)
         GTest::gtest_main
         GTest::gmock
         fmt::fmt
+        yyjson
     )
     target_include_directories(mode_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    uvim_target_include_rapidjson(mode_state_machine_tests)
 
     add_executable(constants_tests
         tests/constants_test.cpp
@@ -790,9 +775,9 @@ if(UVIM_BUILD_TESTS)
         GTest::gtest_main
         GTest::gmock
         fmt::fmt
+        yyjson
     )
     target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    uvim_target_include_rapidjson(constants_tests)
 
     add_executable(logging_tests
         tests/logging_test.cpp
@@ -848,9 +833,9 @@ if(UVIM_BUILD_TESTS)
         GTest::gtest_main
         GTest::gmock
         fmt::fmt
+        yyjson
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    uvim_target_include_rapidjson(real_mode_transitions_tests)
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
     target_compile_definitions(real_mode_transitions_tests PRIVATE
         UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT=$<IF:$<BOOL:${UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT}>,1,0>

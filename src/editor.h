@@ -179,8 +179,6 @@ public:
     bool useGitFileIndex = true;
     bool gitignoreLockedOff = false;
     bool gitFileIndexLockedOff = false;
-    std::function<void(Editor&)> deferredStartupAction;
-
     // References browser (LSP find references)
     struct ReferenceEntry
     {
