@@ -20,12 +20,12 @@ Generate the default config:
 uvim --init-config
 ```
 
-This writes to `~/.config/uvim/config.yaml` (or `$XDG_CONFIG_HOME/uvim/config.yaml`
+This writes to `~/.config/uvim/config.toml` (or `$XDG_CONFIG_HOME/uvim/config.toml`
 if `XDG_CONFIG_HOME` is set). It also copies bundled themes into
 `~/.config/uvim/themes/`. You can also provide a custom path:
 
 ```sh
-uvim --init-config /path/to/uvim.yaml
+uvim --init-config /path/to/uvim.toml
 ```
 
 ## Themes
@@ -35,15 +35,15 @@ Built-in theme examples are in `themes/`. To use a theme:
 - Copy a theme file to `~/.config/uvim/themes/` (or `$XDG_CONFIG_HOME/uvim/themes/`).
 - Reference it in your config:
 
-```yaml
-theme:
-  name: "solarized-dark"
+```toml
+[theme]
+name = "solarized-dark"
 ```
 
 You can also load a custom theme directly:
 
 ```sh
-uvim --theme /path/to/theme.yaml
+uvim --theme /path/to/theme.toml
 ```
 
 ## Documentation (Doxygen)

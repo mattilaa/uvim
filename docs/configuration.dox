@@ -2,114 +2,121 @@
 \page configuration Configuration
 
 This page documents all configuration parameters that can be set in
-`config.yaml` (see `uvim --init-config`). The init command also copies
+`config.toml` (see `uvim --init-config`). The init command also copies
 bundled themes into `~/.config/uvim/themes/`.
 
 \section config_layout Layout
 
-Configuration is a YAML map. Most editor settings use the canonical
+Configuration is a TOML document. Most editor settings use the canonical
 `editor.*` keys, but for many options the parser also accepts
 `settings.*` and a bare key without a prefix.
 
 Boolean values accept: `true/false`, `1/0`, or `on/off`.
 
 Example:
-\code{.yaml}
-editor:
-  tabspaces: 4
-  autobraces: true
-  status:
-    lspgap: 7
-  syntax:
-    cpp:
-      semantic_tokens: true
-  filebrowser:
-    fuzzy: false
+\code{.toml}
+[editor]
+tabspaces = 4
+autobraces = true
 
-theme:
-  base:
-    fg: "#e0def4"
-    bg: "#1f1d2e"
-  syntax:
-    type: "#9ccfd8"
+[editor.status]
+lspgap = 7
+
+[editor.syntax.cpp]
+semantic_tokens = true
+
+[editor.filebrowser]
+fuzzy = false
+
+[theme.base]
+fg = "#e0def4"
+bg = "#1f1d2e"
+
+[theme.syntax]
+type = "#9ccfd8"
 \endcode
 
 \section config_examples Examples
 
 \subsection config_examples_editor Editor example
-\code{.yaml}
-editor:
-  tabspaces: 2
-  autobraces: true
-  autoquotes: true
-  autobracesinstrings: true
-  autotags: true
-  autocomplete: true
-  completionautoparens: true
-  usesystemclipboard: true
-  utf8: true
-  showtabs: false
-  relativenumber: true
-  gitdefaultcolors: true
-  commenttogglepartial: false
-  formatoninsertleave: true
-  formatonsave: true
-  formatondoubleesctimeoutms: 300
-  gdcenter: true
-  autodetectlsps: true
-  filebrowser:
-    fuzzy: false
-  commandline:
-    messageprefix: false
-  status:
-    lspgap: 7
+\code{.toml}
+[editor]
+tabspaces = 2
+autobraces = true
+autoquotes = true
+autobracesinstrings = true
+autotags = true
+autocomplete = true
+completionautoparens = true
+usesystemclipboard = true
+utf8 = true
+showtabs = false
+relativenumber = true
+gitdefaultcolors = true
+commenttogglepartial = false
+formatoninsertleave = true
+formatonsave = true
+formatondoubleesctimeoutms = 300
+gdcenter = true
+autodetectlsps = true
+
+[editor.filebrowser]
+fuzzy = false
+
+[editor.commandline]
+messageprefix = false
+
+[editor.status]
+lspgap = 7
 \endcode
 
 \subsection config_examples_syntax Syntax example
-\code{.yaml}
-editor:
-  syntax:
-    json: true
-    yaml: true
-    robot:
-      keywords: "if, else, end"
-      highlight_titles: true
-      highlight_calls: true
-      custom_keywords: "My Keyword, Another One"
-      settings: "library, resource"
-    cpp:
-      highlight_members: true
-      highlight_type_names: true
-      highlight_implicit_members: true
-      highlight_param_types: true
-      highlight_system_includes: true
-      semantic_tokens: true
-    mlang:
-      semantic_tokens: true
-      highlight_types: true
-      highlight_builtin_docs: true
+\code{.toml}
+[editor.syntax]
+json = true
+yaml = true
+
+[editor.syntax.robot]
+keywords = "if, else, end"
+highlight_titles = true
+highlight_calls = true
+custom_keywords = "My Keyword, Another One"
+settings = "library, resource"
+
+[editor.syntax.cpp]
+highlight_members = true
+highlight_type_names = true
+highlight_implicit_members = true
+highlight_param_types = true
+highlight_system_includes = true
+semantic_tokens = true
+
+[editor.syntax.mlang]
+semantic_tokens = true
+highlight_types = true
+highlight_builtin_docs = true
 \endcode
 
 \subsection config_examples_python Python formatting example
-\code{.yaml}
-editor:
-  python:
-    formatter: "ruff"
+\code{.toml}
+[editor.python]
+formatter = "ruff"
 \endcode
 
 \subsection config_examples_theme Theme example
-\code{.yaml}
-theme:
-  base:
-    fg: "#e0def4"
-    bg: "#1f1d2e"
-  ui:
-    accent: "#c4a7e7"
-    info: "#9ccfd8"
-  syntax:
-    type: "#9ccfd8"
-    function: "#6b86c9"
-    member: "#89dceb"
+\code{.toml}
+[theme.base]
+fg = "#e0def4"
+bg = "#1f1d2e"
+
+[theme.ui]
+accent = "#c4a7e7"
+info = "#9ccfd8"
+
+[theme.syntax]
+type = "#9ccfd8"
+function = "#6b86c9"
+member = "#89dceb"
 \endcode
 
 \section config_editor Editor settings
@@ -257,12 +264,12 @@ String. Default: `ruff`. Supported values: `ruff`, `black`.
 Theme colors accept hex RGB strings like `"#RRGGBB"`.
 
 \par theme.name
-String. When set, load a theme from `~/.config/uvim/themes/<name>.yaml`
+String. When set, load a theme from `~/.config/uvim/themes/<name>.toml`
 (`$XDG_CONFIG_HOME/uvim/themes/` if set). If the name has no extension,
-`.yaml` is appended.
+`.toml` is appended.
 
 \par theme.file
-String. Absolute or relative path to a theme YAML file to load.
+String. Absolute or relative path to a theme TOML file to load.
 
 \par theme.path
 Alias for `theme.file`.

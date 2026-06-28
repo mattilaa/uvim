@@ -34,13 +34,6 @@ size_t hash_lines(const std::vector<std::string>& src);
 /// @return Token type name.
 std::string_view token_type_name(TokenType value);
 
-/// @brief Parses a simple YAML mapping into flattened dotted keys.
-/// @param input YAML text.
-/// @return Key-value map of parsed entries.
-std::unordered_map<std::string, std::string>
-
-parseYamlMap(const std::string& input);
-
 /// @brief Returns a view trimmed of leading and trailing whitespace.
 /// @param value Input text view.
 /// @return Trimmed text view.

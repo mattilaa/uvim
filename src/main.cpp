@@ -578,82 +578,95 @@ static std::string_view require_value(std::string_view opt, int& i, int argc,
 
 static std::string_view default_config_contents()
 {
-    static constexpr char kDefaultConfig[] = R"(editor:
-  tabspaces: 4
-  autobraces: true
-  autoquotes: true
-  autobracesinstrings: true
-  autotags: true
-  autocomplete: true
-  filebrowser:
-    fuzzy: false
-  autodetectlsps: true
-  emitlsp: true
-  formatonsave: true
-  status:
-    lspgap: 7
-  gdcenter: true
-  syntax:
-    json: true
-    yaml: true
-    cpp:
-      semantic_tokens: true
-      locals_color: "normal"
-      member_color: "member"
-    mlang:
-      semantic_tokens: true
-      highlight_types: true
-      highlight_builtin_docs: true
-    robot:
-      keywords: "if, else, end, for, while, try, except, finally, return, break, continue, skip, fail, run, keyword, library, resource, variables, documentation, tags, metadata, setup, teardown, suite, test, task, template, timeout, default, force"
-      highlight_titles: true
-      highlight_calls: true
-      custom_keywords: ""
-      settings: "resource, library, variables, documentation, metadata, suite setup, suite teardown, test setup, test teardown, task setup, task teardown, test template, task template, test timeout, task timeout, force tags, default tags"
-  python:
-    formatter: "ruff"
+    static constexpr char kDefaultConfig[] = R"([editor]
+tabspaces = 4
+autobraces = true
+autoquotes = true
+autobracesinstrings = true
+autotags = true
+autocomplete = true
+autodetectlsps = true
+emitlsp = true
+formatonsave = true
+gdcenter = true
 
-theme:
-  base:
-    fg: "#e0def4"
-    bg: "#1f1d2e"
-  ui:
-    dim: "#6e6a86"
-    accent: "#c4a7e7"
-    info: "#9ccfd8"
-    warning: "#f6c177"
-    success: "#9ece6a"
-    error: "#eb6f92"
-    directory: "#3e8fb0"
-    gutter: "#3e8fb0"
-    prompt: "#9ece6a"
-  statusline:
-    fg: "#e0def4"
-    bg: "#26233a"
-  selection:
-    fg: "#e0def4"
-    bg: "#403d52"
-  cursor:
-    fg: "#1f1d2e"
-    bg: "#f6c177"
-  search:
-    fg: "#1f1d2e"
-    bg: "#ebbcba"
-  panel:
-    fg: "#e0def4"
-    bg: "#2a283e"
-  syntax:
-    normal: "#e0def4"
-    keyword: "#c4a7e7"
-    type: "#9ccfd8"
-    string: "#9ece6a"
-    char: "#9ece6a"
-    comment: "#6e6a86"
-    preprocessor: "#f6c177"
-    number: "#eb6f92"
-    operator: "#f6c177"
-    function: "#6b86c9"
-    member: "#89dceb"
+[editor.filebrowser]
+fuzzy = false
+
+[editor.status]
+lspgap = 7
+
+[editor.syntax]
+json = true
+yaml = true
+
+[editor.syntax.cpp]
+semantic_tokens = true
+locals_color = "normal"
+member_color = "member"
+
+[editor.syntax.mlang]
+semantic_tokens = true
+highlight_types = true
+highlight_builtin_docs = true
+
+[editor.syntax.robot]
+keywords = "if, else, end, for, while, try, except, finally, return, break, continue, skip, fail, run, keyword, library, resource, variables, documentation, tags, metadata, setup, teardown, suite, test, task, template, timeout, default, force"
+highlight_titles = true
+highlight_calls = true
+custom_keywords = ""
+settings = "resource, library, variables, documentation, metadata, suite setup, suite teardown, test setup, test teardown, task setup, task teardown, test template, task template, test timeout, task timeout, force tags, default tags"
+
+[editor.python]
+formatter = "ruff"
+
+[theme.base]
+fg = "#e0def4"
+bg = "#1f1d2e"
+
+[theme.ui]
+dim = "#6e6a86"
+accent = "#c4a7e7"
+info = "#9ccfd8"
+warning = "#f6c177"
+success = "#9ece6a"
+error = "#eb6f92"
+directory = "#3e8fb0"
+gutter = "#3e8fb0"
+prompt = "#9ece6a"
+
+[theme.statusline]
+fg = "#e0def4"
+bg = "#26233a"
+
+[theme.selection]
+fg = "#e0def4"
+bg = "#403d52"
+
+[theme.cursor]
+fg = "#1f1d2e"
+bg = "#f6c177"
+
+[theme.search]
+fg = "#1f1d2e"
+bg = "#ebbcba"
+
+[theme.panel]
+fg = "#e0def4"
+bg = "#2a283e"
+
+[theme.syntax]
+normal = "#e0def4"
+keyword = "#c4a7e7"
+type = "#9ccfd8"
+string = "#9ece6a"
+char = "#9ece6a"
+comment = "#6e6a86"
+preprocessor = "#f6c177"
+number = "#eb6f92"
+operator = "#f6c177"
+function = "#6b86c9"
+member = "#89dceb"
 )";
     return std::string_view{kDefaultConfig, sizeof(kDefaultConfig) - 1};
 }
@@ -814,8 +827,7 @@ static void prepend_env_path(const char* key, const std::string& value)
 
 static std::string find_project_config()
 {
-    std::vector<std::string> names = {"uvim.yaml", ".uvim.yaml", "uvim.yml",
-                                      ".uvim.yml"};
+    std::vector<std::string> names = {"uvim.toml", ".uvim.toml"};
     std::error_code ec;
     fs::path cwd = fs::current_path(ec);
     if(ec)
@@ -887,9 +899,9 @@ constexpr std::array<HelpRow, 2> kHelpGeneral = {{
 constexpr std::array<HelpRow, 5> kHelpConfig = {{
     {"--config <path>", "Use custom config path"},
     {"--init-config [path]",
-     "Write default config to $XDG_CONFIG_HOME/uvim/config.yaml (defaults to "
-     "~/.config/uvim/config.yaml) and exit"},
-    {"--theme <path>", "Load theme YAML from path"},
+     "Write default config to $XDG_CONFIG_HOME/uvim/config.toml (defaults to "
+     "~/.config/uvim/config.toml) and exit"},
+    {"--theme <path>", "Load theme TOML from path"},
     {kNoGitIndex, "Disable git-backed file indexing for fuzzy find and grep"},
     {kNoGitignore, "Disable .gitignore filtering at startup"},
 }};
@@ -1984,7 +1996,7 @@ int main(int argc, char* argv[])
                 if(!entry.is_regular_file(ec))
                     continue;
                 auto ext = entry.path().extension().string();
-                if(ext != ".yaml" && ext != ".yml")
+                if(ext != ".toml")
                     continue;
                 fs::path dest = themesDir / entry.path().filename();
                 if(fs::exists(dest, ec))

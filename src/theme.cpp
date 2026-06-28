@@ -1,118 +1,12 @@
 #include "theme.h"
 #include "color_constant.h"
+#include "config_parser.h"
 #include "terminal.h"
 #include "text_utils.h"
 
-#include <algorithm>
-#include <cctype>
-#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
-#include <vector>
-
-namespace
-{
-static std::string trim(const std::string& s)
-{
-    size_t start = 0;
-    while(start < s.size() && std::isspace((unsigned char)s[start]))
-        ++start;
-    size_t end = s.size();
-    while(end > start && std::isspace((unsigned char)s[end - 1]))
-        --end;
-    return s.substr(start, end - start);
-}
-
-static std::unordered_map<std::string, std::string>
-parseYamlMap(const std::string& input)
-{
-    std::unordered_map<std::string, std::string> out;
-    std::vector<std::pair<int, std::string>> stack;
-
-    std::istringstream stream(input);
-    std::string line;
-    while(std::getline(stream, line))
-    {
-        if(!line.empty() && line.back() == '\r')
-            line.pop_back();
-
-        size_t first = 0;
-        while(first < line.size() &&
-              (line[first] == ' ' || line[first] == '\t'))
-        {
-            ++first;
-        }
-
-        if(first >= line.size())
-            continue;
-        if(line[first] == '#')
-            continue;
-
-        int indent = 0;
-        for(size_t i = 0; i < first; ++i)
-        {
-            indent += (line[i] == '\t') ? 4 : 1;
-        }
-
-        std::string rest = line.substr(first);
-        size_t colon = rest.find(':');
-        if(text_utils::is_not_found(colon))
-            continue;
-
-        std::string key = trim(rest.substr(0, colon));
-        std::string value = trim(rest.substr(colon + 1));
-
-        if(value.empty())
-        {
-            while(!stack.empty() && indent <= stack.back().first)
-                stack.pop_back();
-            stack.emplace_back(indent, key);
-            continue;
-        }
-
-        if(!value.empty() && value[0] != '#')
-        {
-            for(size_t i = 0; i < value.size(); ++i)
-            {
-                if(value[i] == '#' &&
-                   (i == 0 || std::isspace((unsigned char)value[i - 1])))
-                {
-                    value = trim(value.substr(0, i));
-                    break;
-                }
-            }
-        }
-
-        if(value.size() >= 2)
-        {
-            char q = value.front();
-            if((q == '"' || q == '\'') && value.back() == q)
-            {
-                value = value.substr(1, value.size() - 2);
-            }
-        }
-
-        while(!stack.empty() && indent <= stack.back().first)
-            stack.pop_back();
-
-        std::string full;
-        for(const auto& part : stack)
-        {
-            if(!full.empty())
-                full += '.';
-            full += part.second;
-        }
-        if(!full.empty())
-            full += '.';
-        full += key;
-
-        out[full] = value;
-    }
-
-    return out;
-}
-} // namespace
 
 Theme::Theme() = default;
 
@@ -181,7 +75,7 @@ std::string Theme::defaultConfigPath()
     else
         return "";
 
-    return base + "/uvim/config.yaml";
+    return base + "/uvim/config.toml";
 }
 
 bool Theme::loadFromFile(const std::string& path, std::string* err)
@@ -195,7 +89,7 @@ bool Theme::loadFromFile(const std::string& path, std::string* err)
 
     std::ostringstream buf;
     buf << in.rdbuf();
-    auto values = parseYamlMap(buf.str());
+    auto values = editor::config::parseTomlMap(buf.str());
     applyOverrides(values);
     rebuildSequences();
     return true;

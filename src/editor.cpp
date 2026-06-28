@@ -1,4 +1,5 @@
 #include "ascii.h"
+#include "config_parser.h"
 #include "constants.h"
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
@@ -116,7 +117,7 @@ using editor::helper::longestCommonPrefix;
 using editor::helper::parse_int;
 using editor::helper::parse_token_type;
 using editor::helper::parse_ts_type_name;
-using editor::helper::parseYamlMap;
+using editor::config::parseTomlMap;
 using editor::helper::python_def_line;
 using editor::helper::resolve_js_ts_from_dir;
 using editor::helper::resolve_js_ts_module;
@@ -162,7 +163,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
         {
             std::ostringstream buf;
             buf << in.rdbuf();
-            auto values = parseYamlMap(buf.str());
+            auto values = parseTomlMap(buf.str());
             std::string resolvedThemePath = themePath;
             if(resolvedThemePath.empty())
             {
@@ -178,10 +179,9 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                     if(!name.empty())
                     {
                         bool hasExt = name.size() >= 5 &&
-                                      (name.rfind(".yaml") == name.size() - 5 ||
-                                       name.rfind(".yml") == name.size() - 4);
+                                      name.rfind(".toml") == name.size() - 5;
                         if(!hasExt)
-                            name += ".yaml";
+                            name += ".toml";
                         std::string dir =
                             EditorPathUtilities::defaultThemeDir();
                         if(!dir.empty())

@@ -52,16 +52,16 @@ Help Flag
     Should Contain    ${result.stdout}    Usage:
 
 Init Config Writes File
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    uvim.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    uvim.toml
     Run Uvim    --init-config    ${config_path}
     File Should Exist    ${config_path}
     ${size} =    Get File Size    ${config_path}
     Should Be True    ${size} > 0
     ${config_contents} =    Get File    ${config_path}
-    Should Contain    ${config_contents}    editor:
+    Should Contain    ${config_contents}    [editor]
 
 Init Config Fails When File Exists
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    uvim_existing.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    uvim_existing.toml
     Create File    ${config_path}    existing
     ${result} =    Run Uvim Expect Rc    2    --init-config    ${config_path}
     Should Contain    ${result.stderr}    config already exists

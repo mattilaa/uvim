@@ -158,6 +158,7 @@ endif()
 set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
+    src/config_parser.cpp
     src/editor.cpp
     src/editor_buffer_controller.cpp
     src/editor_command_controller.cpp
@@ -769,6 +770,7 @@ if(UVIM_BUILD_TESTS)
 
     add_executable(constants_tests
         tests/constants_test.cpp
+        src/config_parser.cpp
     )
     uvim_enable_sanitizers(constants_tests)
     target_link_libraries(constants_tests

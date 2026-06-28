@@ -1,4 +1,5 @@
 #include "constants.h"
+#include "config_parser.h"
 #include "json_utils.h"
 #include <gtest/gtest.h>
 
@@ -64,4 +65,21 @@ TEST(JsonUtilsTest, ParsedPositiveIntegersKeepSignedCompatibility)
     EXPECT_TRUE(id->IsInt64());
     EXPECT_TRUE(id->IsUint64());
     EXPECT_EQ(id->GetInt(), 1);
+}
+
+TEST(ConfigParserTest, ParsesTomlSectionsAndValues)
+{
+    const auto values = editor::config::parseTomlMap(
+        "[editor]\n"
+        "tabspaces = 2\n"
+        "autobraces = true # keep this on\n"
+        "[editor.syntax.cpp]\n"
+        "locals_color = \"normal\"\n"
+        "[theme.base]\n"
+        "fg = \"#e0def4\"\n");
+
+    EXPECT_EQ(values.at("editor.tabspaces"), "2");
+    EXPECT_EQ(values.at("editor.autobraces"), "true");
+    EXPECT_EQ(values.at("editor.syntax.cpp.locals_color"), "normal");
+    EXPECT_EQ(values.at("theme.base.fg"), "#e0def4");
 }

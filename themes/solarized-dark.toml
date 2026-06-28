@@ -1,0 +1,51 @@
+[theme.base]
+fg = "#839496"
+bg = "#002b36"
+
+[theme.ui]
+dim = "#586e75"
+accent = "#b58900"
+info = "#268bd2"
+warning = "#cb4b16"
+success = "#859900"
+error = "#dc322f"
+directory = "#2aa198"
+gutter = "#073642"
+prompt = "#93a1a1"
+
+[theme.statusline]
+fg = "#93a1a1"
+bg = "#073642"
+
+[theme.tabbar]
+fg = "#93a1a1"
+bg = "#073642"
+
+[theme.selection]
+fg = "#93a1a1"
+bg = "#073642"
+
+[theme.cursor]
+fg = "#002b36"
+bg = "#b58900"
+
+[theme.search]
+fg = "#002b36"
+bg = "#b58900"
+
+[theme.panel]
+fg = "#93a1a1"
+bg = "#073642"
+
+[theme.syntax]
+normal = "#839496"
+keyword = "#cb4b16"
+type = "#b58900"
+string = "#859900"
+char = "#859900"
+comment = "#586e75"
+preprocessor = "#6c71c4"
+number = "#d33682"
+operator = "#268bd2"
+function = "#268bd2"
+member = "#2aa198"

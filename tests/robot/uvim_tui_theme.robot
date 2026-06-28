@@ -7,26 +7,24 @@ Suite Teardown      Cleanup Uvim Tui
 
 *** Test Cases ***
 Theme Statusline Colors Apply
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme.toml
     ${config} =    Catenate
     ...    SEPARATOR=\n
-    ...    theme:
-    ...    ${SPACE}statusline:
-    ...    ${SPACE}${SPACE}fg: "#010203"
-    ...    ${SPACE}${SPACE}bg: "#040506"
+    ...    [theme.statusline]
+    ...    fg = "#010203"
+    ...    bg = "#040506"
     Create File    ${config_path}    ${config}
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    --config    ${config_path}    ${SAMPLE_FILE}
     Expect Raw Text    \x1b[38;2;1;2;3m\x1b[48;2;4;5;6m
     Quit Uvim
 
 Theme Cursor Colors Apply
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_cursor.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_cursor.toml
     ${config} =    Catenate
     ...    SEPARATOR=\n
-    ...    theme:
-    ...    ${SPACE}cursor:
-    ...    ${SPACE}${SPACE}fg: "#111213"
-    ...    ${SPACE}${SPACE}bg: "#141516"
+    ...    [theme.cursor]
+    ...    fg = "#111213"
+    ...    bg = "#141516"
     Create File    ${config_path}    ${config}
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    --config    ${config_path}    ${SAMPLE_FILE}
     Expect Mode    NORMAL
@@ -37,13 +35,12 @@ Theme Cursor Colors Apply
     Force Quit Uvim
 
 Theme Selection Colors Apply
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_selection.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_selection.toml
     ${config} =    Catenate
     ...    SEPARATOR=\n
-    ...    theme:
-    ...    ${SPACE}selection:
-    ...    ${SPACE}${SPACE}fg: "#212223"
-    ...    ${SPACE}${SPACE}bg: "#242526"
+    ...    [theme.selection]
+    ...    fg = "#212223"
+    ...    bg = "#242526"
     Create File    ${config_path}    ${config}
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    --config    ${config_path}    ${SAMPLE_FILE}
     Expect Mode    NORMAL
@@ -55,13 +52,12 @@ Theme Selection Colors Apply
     Force Quit Uvim
 
 Theme Search Colors Apply
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_search.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_search.toml
     ${config} =    Catenate
     ...    SEPARATOR=\n
-    ...    theme:
-    ...    ${SPACE}search:
-    ...    ${SPACE}${SPACE}fg: "#313233"
-    ...    ${SPACE}${SPACE}bg: "#343536"
+    ...    [theme.search]
+    ...    fg = "#313233"
+    ...    bg = "#343536"
     Create File    ${config_path}    ${config}
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    --config    ${config_path}    ${SAMPLE_FILE}
     Expect Mode    NORMAL
@@ -72,13 +68,12 @@ Theme Search Colors Apply
     Quit Uvim
 
 Theme Panel Colors Apply
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_panel.yaml
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_panel.toml
     ${config} =    Catenate
     ...    SEPARATOR=\n
-    ...    theme:
-    ...    ${SPACE}panel:
-    ...    ${SPACE}${SPACE}fg: "#414243"
-    ...    ${SPACE}${SPACE}bg: "#444546"
+    ...    [theme.panel]
+    ...    fg = "#414243"
+    ...    bg = "#444546"
     Create File    ${config_path}    ${config}
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    --config    ${config_path}    ${SAMPLE_FILE}
     Expect Mode    NORMAL
@@ -90,8 +85,8 @@ Theme Panel Colors Apply
     Quit Uvim
 
 Theme Syntax String Colors Apply
-    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_syntax.yaml
-    ${config} =    Catenate    SEPARATOR=\n    theme:    ${SPACE}syntax:    ${SPACE}${SPACE}string: "#515253"
+    ${config_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    theme_syntax.toml
+    ${config} =    Catenate    SEPARATOR=\n    [theme.syntax]    string = "#515253"
     Create File    ${config_path}    ${config}
     ${cpp_path} =    Catenate    SEPARATOR=/    ${TEMP_DIR}    sample.cpp
     Create File    ${cpp_path}    const char* s = "hi";
