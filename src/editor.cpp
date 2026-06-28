@@ -1283,13 +1283,6 @@ std::string Editor::getModeString() const
 
 void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 {
-    if(deferredStartupAction)
-    {
-        auto action = std::move(deferredStartupAction);
-        deferredStartupAction = {};
-        action(*this);
-    }
-
     locMessage.clear();
     // Normalize path (CRITICAL for buffer matching). Resolve relative paths
     // against the editor's logical working directory instead of changing the

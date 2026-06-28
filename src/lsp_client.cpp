@@ -8,6 +8,7 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -343,7 +344,7 @@ struct LspClient::Impl
     std::string serverName;
     std::string serverVersion;
     std::string lastError;
-    mla::log::FileLogger logger{"LSP"};
+    mutable mla::log::FileLogger logger{"LSP"};
     int launchedWorkerCount = 0;
     mutable std::mutex progressMutex;
     bool indexingActive = false;
@@ -549,14 +550,49 @@ struct LspClient::Impl
         if(pid > 0)
         {
             int status = 0;
-            waitpid(pid, &status, 0);
+            constexpr int kWaitIterations = 100;
+            for(int i = 0; i < kWaitIterations; ++i)
+            {
+                pid_t r = waitpid(pid, &status, WNOHANG);
+                if(r == pid || (r < 0 && errno == ECHILD))
+                {
+                    pid = -1;
+                    return;
+                }
+                if(r < 0 && errno != EINTR)
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+
+            kill(pid, SIGTERM);
+            for(int i = 0; i < kWaitIterations; ++i)
+            {
+                pid_t r = waitpid(pid, &status, WNOHANG);
+                if(r == pid || (r < 0 && errno == ECHILD))
+                {
+                    pid = -1;
+                    return;
+                }
+                if(r < 0 && errno != EINTR)
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+
+            kill(pid, SIGKILL);
+            while(waitpid(pid, &status, 0) < 0 && errno == EINTR)
+            {
+            }
         }
         pid = -1;
     }
 
     bool processHasExited() const
     {
-        return false;
+        if(pid <= 0)
+            return true;
+        int status = 0;
+        pid_t r = waitpid(pid, &status, WNOHANG);
+        return r == pid || (r < 0 && errno == ECHILD);
     }
 
     std::string capturedStderr() const
@@ -682,7 +718,7 @@ struct LspClient::Impl
 
     void sendNullResultResponse(const ju::Value& id)
     {
-        ju::Document resp(rapidjson::kObjectType);
+        ju::Document resp(ju::kObjectType);
         auto& alloc = resp.GetAllocator();
         resp.AddMember("jsonrpc", "2.0", alloc);
         ju::Value idCopy;
@@ -712,7 +748,7 @@ struct LspClient::Impl
             id = nextId++;
         }
 
-        ju::Document req(rapidjson::kObjectType);
+        ju::Document req(ju::kObjectType);
         auto& alloc = req.GetAllocator();
         req.AddMember("jsonrpc", "2.0", alloc);
         req.AddMember("id", id, alloc);
@@ -727,7 +763,7 @@ struct LspClient::Impl
 
     void sendNotification(const std::string& method, const ju::Document& params)
     {
-        ju::Document n(rapidjson::kObjectType);
+        ju::Document n(ju::kObjectType);
         auto& alloc = n.GetAllocator();
         n.AddMember("jsonrpc", "2.0", alloc);
         n.AddMember("method", ju::make_string(method, alloc), alloc);
@@ -917,13 +953,13 @@ struct LspClient::Impl
                         }
                         if(const ju::Value* reqId = ju::find(msg, "id"))
                         {
-                            ju::Document resp(rapidjson::kObjectType);
+                            ju::Document resp(ju::kObjectType);
                             auto& alloc = resp.GetAllocator();
                             resp.AddMember("jsonrpc", "2.0", alloc);
                             ju::Value idCopy;
                             idCopy.CopyFrom(*reqId, alloc);
                             resp.AddMember("id", idCopy, alloc);
-                            ju::Value result(rapidjson::kObjectType);
+                            ju::Value result(ju::kObjectType);
                             result.AddMember("applied", true, alloc);
                             resp.AddMember("result", result, alloc);
                             sendRaw(ju::stringify(resp));
@@ -1176,7 +1212,7 @@ struct LspClient::Impl
 
     bool initialize(const std::string& rootDir)
     {
-        ju::Document params(rapidjson::kObjectType);
+        ju::Document params(ju::kObjectType);
         auto& alloc = params.GetAllocator();
 #ifdef _WIN32
         params.AddMember("processId", (int)GetCurrentProcessId(), alloc);
@@ -1187,8 +1223,8 @@ struct LspClient::Impl
                          ju::make_string(pathToFileUri(rootDir), alloc), alloc);
         params.AddMember("rootPath", ju::make_string(absPath(rootDir), alloc),
                          alloc);
-        ju::Value workspaceFolders(rapidjson::kArrayType);
-        ju::Value workspaceFolder(rapidjson::kObjectType);
+        ju::Value workspaceFolders(ju::kArrayType);
+        ju::Value workspaceFolder(ju::kObjectType);
         workspaceFolder.AddMember(
             "uri", ju::make_string(pathToFileUri(rootDir), alloc), alloc);
         workspaceFolder.AddMember(
@@ -1202,29 +1238,29 @@ struct LspClient::Impl
             semanticTokenTypes = defaultSemanticTokenTypes();
         if(semanticTokenModifiers.empty())
             semanticTokenModifiers = defaultSemanticTokenModifiers();
-        ju::Value semCaps(rapidjson::kObjectType);
+        ju::Value semCaps(ju::kObjectType);
         semCaps.AddMember("dynamicRegistration", false, alloc);
-        ju::Value requests(rapidjson::kObjectType);
+        ju::Value requests(ju::kObjectType);
         requests.AddMember("range", false, alloc);
         requests.AddMember("full", true, alloc);
         semCaps.AddMember("requests", requests, alloc);
-        ju::Value tokenTypes(rapidjson::kArrayType);
+        ju::Value tokenTypes(ju::kArrayType);
         for(const auto& t : semanticTokenTypes)
             tokenTypes.PushBack(ju::make_string(t, alloc), alloc);
         semCaps.AddMember("tokenTypes", tokenTypes, alloc);
-        ju::Value tokenModifiers(rapidjson::kArrayType);
+        ju::Value tokenModifiers(ju::kArrayType);
         for(const auto& m : semanticTokenModifiers)
             tokenModifiers.PushBack(ju::make_string(m, alloc), alloc);
         semCaps.AddMember("tokenModifiers", tokenModifiers, alloc);
-        ju::Value formats(rapidjson::kArrayType);
+        ju::Value formats(ju::kArrayType);
         formats.PushBack("relative", alloc);
         semCaps.AddMember("formats", formats, alloc);
 
-        ju::Value textDocument(rapidjson::kObjectType);
+        ju::Value textDocument(ju::kObjectType);
         textDocument.AddMember("semanticTokens", semCaps, alloc);
-        ju::Value window(rapidjson::kObjectType);
+        ju::Value window(ju::kObjectType);
         window.AddMember("workDoneProgress", true, alloc);
-        ju::Value capabilities(rapidjson::kObjectType);
+        ju::Value capabilities(ju::kObjectType);
         capabilities.AddMember("textDocument", textDocument, alloc);
         capabilities.AddMember("window", window, alloc);
         params.AddMember("capabilities", capabilities, alloc);
@@ -1289,7 +1325,7 @@ struct LspClient::Impl
         }
 
         // Send initialized notification
-        ju::Document initParams(rapidjson::kObjectType);
+        ju::Document initParams(ju::kObjectType);
         sendNotification("initialized", initParams);
         return true;
     }
@@ -1414,10 +1450,10 @@ void LspClient::stop()
         // best-effort shutdown
         try
         {
-            ju::Document params(rapidjson::kObjectType);
+            ju::Document params(ju::kObjectType);
             int id = impl->sendRequest("shutdown", params);
             (void)impl->waitResponse(id, 1000);
-            ju::Document exitParams(rapidjson::kObjectType);
+            ju::Document exitParams(ju::kObjectType);
             impl->sendNotification("exit", exitParams);
         }
         catch(...)
@@ -1428,9 +1464,12 @@ void LspClient::stop()
     impl->alive.store(false);
     impl->closePipes();
 
-    impl->joinReaderThreads();
-
+    // On POSIX, closing a file descriptor from another thread does not
+    // reliably interrupt a blocking read on that descriptor. Stop the child
+    // before joining the reader threads so stdout/stderr reach EOF.
     impl->waitProcess();
+
+    impl->joinReaderThreads();
 
 #ifndef _WIN32
     impl->inFd = impl->outFd = impl->errFd = -1;
@@ -1514,9 +1553,9 @@ void LspClient::didOpen(const std::string& filePath,
     int ver = 1;
     impl->docVersion[abs] = ver;
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     textDoc.AddMember("languageId", ju::make_string(languageId, alloc), alloc);
     textDoc.AddMember("version", ver, alloc);
@@ -1548,15 +1587,15 @@ void LspClient::didChange(const std::string& filePath, const std::string& text,
 
     int ver = ++it0->second;
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     textDoc.AddMember("version", ver, alloc);
     params.AddMember("textDocument", textDoc, alloc);
     // Full-text sync
-    ju::Value changes(rapidjson::kArrayType);
-    ju::Value change(rapidjson::kObjectType);
+    ju::Value changes(ju::kArrayType);
+    ju::Value change(ju::kObjectType);
     change.AddMember("text", ju::make_string(text, alloc), alloc);
     changes.PushBack(change, alloc);
     params.AddMember("contentChanges", changes, alloc);
@@ -1569,9 +1608,9 @@ void LspClient::didSave(const std::string& filePath)
         return;
 
     std::string abs = absPath(filePath);
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
     impl->sendNotification("textDocument/didSave", params);
@@ -1676,12 +1715,12 @@ LspClient::definition(const std::string& filePath, int line,
         }
     }
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value pos(rapidjson::kObjectType);
+    ju::Value pos(ju::kObjectType);
     pos.AddMember("line", line, alloc);
     pos.AddMember("character", utf16ch, alloc);
     params.AddMember("position", pos, alloc);
@@ -1738,12 +1777,12 @@ LspClient::declaration(const std::string& filePath, int line,
         }
     }
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value pos(rapidjson::kObjectType);
+    ju::Value pos(ju::kObjectType);
     pos.AddMember("line", line, alloc);
     pos.AddMember("character", utf16ch, alloc);
     params.AddMember("position", pos, alloc);
@@ -1800,12 +1839,12 @@ LspClient::typeDefinition(const std::string& filePath, int line,
         }
     }
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value pos(rapidjson::kObjectType);
+    ju::Value pos(ju::kObjectType);
     pos.AddMember("line", line, alloc);
     pos.AddMember("character", utf16ch, alloc);
     params.AddMember("position", pos, alloc);
@@ -1864,17 +1903,17 @@ LspClient::completion(const std::string& filePath, int line,
         }
     }
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value pos(rapidjson::kObjectType);
+    ju::Value pos(ju::kObjectType);
     pos.AddMember("line", line, alloc);
     pos.AddMember("character", utf16ch, alloc);
     params.AddMember("position", pos, alloc);
     // Minimal context; clangd is fine without it, but it helps some servers.
-    ju::Value ctx(rapidjson::kObjectType);
+    ju::Value ctx(ju::kObjectType);
     ctx.AddMember("triggerKind", triggerKind, alloc);
     if(triggerCharacter != '\0')
     {
@@ -2010,16 +2049,16 @@ LspClient::references(const std::string& filePath, int line,
         }
     }
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value pos(rapidjson::kObjectType);
+    ju::Value pos(ju::kObjectType);
     pos.AddMember("line", line, alloc);
     pos.AddMember("character", utf16ch, alloc);
     params.AddMember("position", pos, alloc);
-    ju::Value ctx(rapidjson::kObjectType);
+    ju::Value ctx(ju::kObjectType);
     ctx.AddMember("includeDeclaration", includeDeclaration, alloc);
     params.AddMember("context", ctx, alloc);
 
@@ -2314,21 +2353,21 @@ LspClient::codeActions(const std::string& filePath, int line,
     int endCharUtf16 = text_utils::utf8ByteOffsetToUtf16(std::string(lineText),
                                                          (int)lineText.size());
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value diagArray(rapidjson::kArrayType);
+    ju::Value diagArray(ju::kArrayType);
     for(const auto& d : diagnostics)
     {
-        ju::Value range(rapidjson::kObjectType);
-        ju::Value start(rapidjson::kObjectType);
+        ju::Value range(ju::kObjectType);
+        ju::Value start(ju::kObjectType);
         start.AddMember("line", d.line, alloc);
         start.AddMember("character", d.character, alloc);
-        ju::Value end(rapidjson::kObjectType);
+        ju::Value end(ju::kObjectType);
         end.AddMember("line", d.endLine, alloc);
         end.AddMember("character", d.endCharacter, alloc);
         range.AddMember("start", start, alloc);
         range.AddMember("end", end, alloc);
-        ju::Value jd(rapidjson::kObjectType);
+        ju::Value jd(ju::kObjectType);
         jd.AddMember("range", range, alloc);
         if(d.severity > 0)
             jd.AddMember("severity", d.severity, alloc);
@@ -2359,20 +2398,20 @@ LspClient::codeActions(const std::string& filePath, int line,
         diagArray.PushBack(jd, alloc);
     }
 
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value range(rapidjson::kObjectType);
-    ju::Value rangeStart(rapidjson::kObjectType);
+    ju::Value range(ju::kObjectType);
+    ju::Value rangeStart(ju::kObjectType);
     rangeStart.AddMember("line", line, alloc);
     rangeStart.AddMember("character", 0, alloc);
-    ju::Value rangeEnd(rapidjson::kObjectType);
+    ju::Value rangeEnd(ju::kObjectType);
     rangeEnd.AddMember("line", line, alloc);
     rangeEnd.AddMember("character", endCharUtf16, alloc);
     range.AddMember("start", rangeStart, alloc);
     range.AddMember("end", rangeEnd, alloc);
     params.AddMember("range", range, alloc);
-    ju::Value ctx(rapidjson::kObjectType);
+    ju::Value ctx(ju::kObjectType);
     ctx.AddMember("diagnostics", diagArray, alloc);
     params.AddMember("context", ctx, alloc);
 
@@ -2381,7 +2420,7 @@ LspClient::codeActions(const std::string& filePath, int line,
 #ifdef UVIM_DEBUG_LSP
     if(resp && resp->IsObject())
     {
-        ju::Document logPayload(rapidjson::kObjectType);
+        ju::Document logPayload(ju::kObjectType);
         auto& logAlloc = logPayload.GetAllocator();
         ju::Value reqCopy;
         reqCopy.CopyFrom(params, logAlloc);
@@ -2419,7 +2458,7 @@ LspClient::codeActions(const std::string& filePath, int line,
 #ifdef UVIM_DEBUG_LSP
             if(resolved && resolved->IsObject())
             {
-                ju::Document logPayload(rapidjson::kObjectType);
+                ju::Document logPayload(ju::kObjectType);
                 auto& logAlloc = logPayload.GetAllocator();
                 ju::Value reqCopy;
                 reqCopy.CopyFrom(item, logAlloc);
@@ -2457,12 +2496,12 @@ LspClient::formatting(const std::string& filePath, int tabSize,
         return out;
 
     std::string abs = absPath(filePath);
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value options(rapidjson::kObjectType);
+    ju::Value options(ju::kObjectType);
     options.AddMember("tabSize", tabSize, alloc);
     options.AddMember("insertSpaces", insertSpaces, alloc);
     params.AddMember("options", options, alloc);
@@ -2519,12 +2558,12 @@ LspClient::renameSymbol(const std::string& filePath, int line,
         }
     }
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
-    ju::Value pos(rapidjson::kObjectType);
+    ju::Value pos(ju::kObjectType);
     pos.AddMember("line", line, alloc);
     pos.AddMember("character", utf16ch, alloc);
     params.AddMember("position", pos, alloc);
@@ -2548,10 +2587,10 @@ LspClient::executeCommand(const std::string& command,
     if(!running())
         return out;
 
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
     params.AddMember("command", ju::make_string(command, alloc), alloc);
-    ju::Value args(rapidjson::kArrayType);
+    ju::Value args(ju::kArrayType);
     for(const auto& arg : argumentsJson)
     {
         ju::Document argDoc;
@@ -2602,9 +2641,9 @@ bool LspClient::requestSemanticTokens(const std::string& filePath)
         return false;
 
     std::string abs = absPath(filePath);
-    ju::Document params(rapidjson::kObjectType);
+    ju::Document params(ju::kObjectType);
     auto& alloc = params.GetAllocator();
-    ju::Value textDoc(rapidjson::kObjectType);
+    ju::Value textDoc(ju::kObjectType);
     textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
     params.AddMember("textDocument", textDoc, alloc);
 
