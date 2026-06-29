@@ -89,7 +89,7 @@ TEST(RealModeTransitionsTest, DoubleEscClearsStatusMessageInWelcome)
     EXPECT_TRUE(editor.statusMessage.empty());
 }
 
-TEST(RealModeTransitionsTest, LeaderBdClosesCurrentBuffer)
+TEST(RealModeTransitionsTest, BdClosesCurrentBuffer)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -99,12 +99,28 @@ TEST(RealModeTransitionsTest, LeaderBdClosesCurrentBuffer)
 
     auto sm = makeMachine(editor, NormalMode{});
 
-    sm.dispatch(' ');
     sm.dispatch('b');
     sm.dispatch('d');
 
     EXPECT_EQ(editor.buffers.size(), 1u);
     EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, BThenOtherKeyKeepsWordBackwardMotion)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one two three"};
+    *editor.cursorY = 0;
+    *editor.cursorX = 8;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch('b');
+    sm.dispatch('x');
+
+    EXPECT_EQ(*editor.cursorX, 4);
     EXPECT_TRUE(editor.commandBuffer.empty());
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }

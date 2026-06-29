@@ -1,5 +1,6 @@
 #pragma once
 
+#include "buffer_command_pending.h"
 #include "comment_leader_pending.h"
 #include "file_entry.h"
 #include "mode.h"
@@ -35,6 +36,7 @@ struct NormalMode
                                     const ModeKeyEvent& event);
 
 private:
+    std::optional<BufferCommandPendingMachine> bufferCommandPending;
     std::optional<CommentLeaderPendingMachine> commentLeaderPending;
 
     // Helper methods for complex key sequences

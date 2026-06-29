@@ -18,6 +18,7 @@ void NormalMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
     ctx.repeatCount = 0;
     ctx.commandBuffer.clear();
+    bufferCommandPending.reset();
     commentLeaderPending.reset();
     ctx.pendingOperator = 0;
     ctx.pendingAwaitingObject = false;
@@ -36,6 +37,7 @@ void NormalMode::on_enter(ModeContext& ctx)
 
 void NormalMode::on_exit(ModeContext& /* ctx */)
 {
+    bufferCommandPending.reset();
     commentLeaderPending.reset();
 }
 
@@ -110,6 +112,15 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             commentLeaderPending->handle(ctx, ModeKeyEvent{c});
         if(commentLeaderPending->done())
             commentLeaderPending.reset();
+        return result;
+    }
+
+    if(bufferCommandPending)
+    {
+        std::optional<ModeState> result =
+            bufferCommandPending->handle(ctx, ModeKeyEvent{c});
+        if(bufferCommandPending->done())
+            bufferCommandPending.reset();
         return result;
     }
 
@@ -428,22 +439,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(ctx.commandBuffer == " b")
-    {
-        if(c == keyCode(typed::TypedKey::KEY_D))
-        {
-            ctx.commandBuffer.clear();
-            ed->closeCurrentBuffer();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-
-        ctx.commandBuffer.clear();
-        ctx.setStatusMessage("");
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
     if(c == keyCode(control::ControlKey::SPACE))
     {
         ctx.commandBuffer = " ";
@@ -655,8 +650,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == keyCode(typed::TypedKey::KEY_B))
     {
-        for(int i = 0; i < count; i++)
-            ed->moveWordBackward();
+        bufferCommandPending.emplace(count);
+        ctx.commandBuffer = "b";
+        ctx.setStatusMessage("b");
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -1305,13 +1301,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         // Move current buffer left in the tab bar.
         ed->moveBufferLeft();
         break;
-
-    case keyCode(typed::TypedKey::KEY_B):
-        // <leader>b prefix - buffer commands.
-        ctx.commandBuffer = " b";
-        ctx.setStatusMessage("Leader-b");
-        ctx.repeatCount = 0;
-        return std::nullopt;
 
     case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard

@@ -429,14 +429,6 @@ void EditorModeController::handleNormalMode(int c)
             editor.repeatCount = 0;
             return;
         }
-        else if(c == keyCode(typed::TypedKey::KEY_B))
-        {
-            // Leader + b: start buffer command sequence
-            editor.commandBuffer = " b";
-            editor.setStatusMessage("Leader-b");
-            editor.repeatCount = 0;
-            return;
-        }
         else if(c == keyCode(typed::TypedKey::KEY_Y))
         {
             // Leader + y: yank to system clipboard
@@ -501,25 +493,6 @@ void EditorModeController::handleNormalMode(int c)
         else
         {
             // Unknown leader command - cancel
-            editor.commandBuffer.clear();
-            editor.setStatusMessage("");
-        }
-    }
-
-    // ----- Leader-b (buffer) commands -----
-    if(editor.commandBuffer == " b")
-    {
-        if(c == keyCode(typed::TypedKey::KEY_D))
-        {
-            // Leader + bd: close current buffer
-            editor.commandBuffer.clear();
-            editor.closeCurrentBuffer();
-            editor.repeatCount = 0;
-            return;
-        }
-        else
-        {
-            // Unknown buffer command - cancel
             editor.commandBuffer.clear();
             editor.setStatusMessage("");
         }
