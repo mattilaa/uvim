@@ -24,40 +24,62 @@ static std::string_view command_doc(std::string_view cmd)
         return "Write current buffer";
     if(cmd == "wq" || cmd == "x" || cmd == "qw")
         return "Write and quit";
+    if(cmd == "qw!" || cmd == "wqa!" || cmd == "wqall!")
+        return "Force write all buffers and quit";
     if(cmd == "wa" || cmd == "wall")
         return "Write all modified buffers";
+    if(cmd == "wa!")
+        return "Force write all modified buffers";
     if(cmd == "wqa" || cmd == "wqall" || cmd == "xa")
         return "Write all buffers and quit";
     if(cmd == "e" || cmd == "edit")
         return "Open file";
     if(cmd == "e%" || cmd == "edit%")
         return "Reload current file";
+    if(cmd == "enew")
+        return "Create empty buffer";
     if(cmd == "new")
         return "Open horizontal split";
     if(cmd == "vnew")
         return "Open vertical split";
     if(cmd == "bn" || cmd == "bnext")
         return "Next buffer";
-    if(cmd == "bp" || cmd == "bprev")
+    if(cmd == "bp" || cmd == "bprev" || cmd == "bprevious")
         return "Previous buffer";
     if(cmd == "bd" || cmd == "bdelete")
         return "Close current buffer";
+    if(cmd == "bd!")
+        return "Force close current buffer";
+    if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
+        return "Switch to buffer";
     if(cmd == "ls" || cmd == "buffers")
         return "List open buffers";
     if(cmd == "sp" || cmd == "split" || cmd == "hs" || cmd == "hsplit")
         return "Split horizontally";
     if(cmd == "vs" || cmd == "vsplit" || cmd == "vh")
         return "Split vertically";
+    if(cmd == "Sex" || cmd == "Sexplore")
+        return "Split file browser horizontally";
+    if(cmd == "Vex" || cmd == "Vexplore")
+        return "Split file browser vertically";
     if(cmd == "only")
         return "Close other splits";
     if(cmd == "tabnew")
         return "Open new tab";
+    if(cmd == "tabe")
+        return "Open file in new tab";
+    if(cmd == "tabn" || cmd == "tabnext")
+        return "Next tab";
+    if(cmd == "tabp" || cmd == "tabprev")
+        return "Previous tab";
     if(cmd == "tabc" || cmd == "tabclose")
         return "Close current tab";
     if(cmd == "set")
         return "Configure editor options";
     if(cmd.rfind("set ", 0) == 0)
         return "Set option value";
+    if(cmd == "format" || cmd == "fmt")
+        return "Format current buffer";
     if(cmd == "syntax")
         return "Syntax highlighting options";
     if(cmd == "noh" || cmd == "nohlsearch")
@@ -88,12 +110,16 @@ static std::string_view command_doc(std::string_view cmd)
         return "Change working directory";
     if(cmd == "cdr")
         return "Change directory to project root";
+    if(cmd == "pwd")
+        return "Show working directory";
     if(cmd == "rfs")
         return "Refresh fuzzy find and grep file cache";
     if(cmd == "loc" || cmd == "loc!" || cmd == "loc%" || cmd == "loctotal")
         return "Count lines of code";
     if(cmd == "git stage")
         return "Open interactive git stage";
+    if(cmd == "git add")
+        return "Stage current buffer";
     if(cmd == "git blame")
         return "Toggle git blame gutter";
     if(cmd == "git log")

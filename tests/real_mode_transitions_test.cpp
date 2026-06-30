@@ -1,6 +1,18 @@
 #include "real_mode_test_utils.h"
 
+#include <algorithm>
+
 using namespace uvim_test;
+
+namespace
+{
+bool contains_command(const std::vector<std::string>& commands,
+                      const std::string& expected)
+{
+    return std::find(commands.begin(), commands.end(), expected) !=
+           commands.end();
+}
+} // namespace
 
 TEST(RealModeTransitionsTest, WelcomeEscStaysInWelcome)
 {
@@ -21,6 +33,24 @@ TEST(RealModeTransitionsTest, WelcomeLeaderXOpensFileBrowser)
     sm.dispatch('x');
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
+{
+    Editor editor = Editor::createForTests();
+
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("pw"), "pwd"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("ene"), "enew"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("fmt"), "fmt"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("format"), "format"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("bd!"), "bd!"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("tabn"), "tabnext"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("tabp"), "tabprev"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("git a"), "git add"));
 }
 
 TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)
