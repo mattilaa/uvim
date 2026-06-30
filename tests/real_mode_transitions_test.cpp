@@ -51,6 +51,99 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("tabp"), "tabprev"));
     EXPECT_TRUE(
         contains_command(editor.getCommandCompletions("git a"), "git add"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("Hex"), "Hex"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("Hex"), "Hexplore"));
+}
+
+TEST(RealModeTransitionsTest, VexOpensFileBrowserInVerticalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "Vex");
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_TRUE(editor.splitVertical);
+    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "Hex");
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_FALSE(editor.splitVertical);
+    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, CtrlHLCyclesVerticalSplitPanes)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    editor.enableSplit(true);
+    editor.switchPaneDirection(1, 0);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_TRUE(editor.splitVertical);
+    ASSERT_EQ(editor.activePane, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_H));
+    EXPECT_EQ(editor.activePane, 0);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_L));
+    EXPECT_EQ(editor.activePane, 1);
+}
+
+TEST(RealModeTransitionsTest, CtrlJKCyclesHorizontalSplitPanes)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    editor.enableSplit(false);
+    editor.switchPaneDirection(0, 1);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_FALSE(editor.splitVertical);
+    ASSERT_EQ(editor.activePane, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(editor.activePane, 0);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.activePane, 1);
+}
+
+TEST(RealModeTransitionsTest, SplitPanesKeepSeparateSelectedBuffers)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"left"};
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"right"};
+    editor.switchToBuffer(0);
+    editor.enableSplit(true);
+    editor.switchPaneDirection(1, 0);
+    editor.switchToBufferInActivePane(1);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_H));
+    EXPECT_EQ(editor.activePane, 0);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "left");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_L));
+    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "right");
 }
 
 TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)
@@ -151,6 +244,30 @@ TEST(RealModeTransitionsTest, BThenOtherKeyKeepsWordBackwardMotion)
     sm.dispatch('x');
 
     EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, WxClosesSelectedPane)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    editor.switchToBuffer(0);
+    editor.enableSplit(true);
+    editor.switchPaneDirection(1, 0);
+    editor.switchToBufferInActivePane(1);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.activePane, 1);
+    ASSERT_EQ(editor.currentBufferIndex, 1);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch('w');
+    sm.dispatch('x');
+
+    EXPECT_FALSE(editor.splitActive);
+    EXPECT_EQ(editor.activePane, 0);
+    EXPECT_EQ(editor.currentBufferIndex, 1);
     EXPECT_TRUE(editor.commandBuffer.empty());
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }

@@ -31,9 +31,15 @@ bool SplitExplorerCommand::execute(Editor& editor,
                                    const CommandRequest& request) const
 {
     if(request.text != "Sex" && request.text != "Sexplore" &&
+       request.text != "Hex" && request.text != "Hexplore" &&
        request.text != "Vex" && request.text != "Vexplore")
         return false;
-    editor.setStatusMessage("Split explorer not yet implemented");
+
+    const bool vertical =
+        request.text == "Vex" || request.text == "Vexplore";
+    editor.enableSplit(vertical);
+    if(editor.splitActive)
+        editor.switchPaneDirection(vertical ? 1 : 0, vertical ? 0 : 1);
     requestMode(editor, FILE_BROWSER, ".");
     return true;
 }

@@ -1761,6 +1761,11 @@ void Editor::switchPane()
     splitController->switchPane();
 }
 
+void Editor::switchPaneDirection(int dx, int dy)
+{
+    splitController->switchPaneDirection(dx, dy);
+}
+
 void Editor::syncBufferStateFromActivePane()
 {
     splitController->syncBufferStateFromActivePane();

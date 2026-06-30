@@ -20,6 +20,7 @@ void NormalMode::on_enter(ModeContext& ctx)
     ctx.commandBuffer.clear();
     bufferCommandPending.reset();
     commentLeaderPending.reset();
+    windowCommandPending.reset();
     ctx.pendingOperator = 0;
     ctx.pendingAwaitingObject = false;
     ctx.pendingObjectType = 0;
@@ -39,6 +40,7 @@ void NormalMode::on_exit(ModeContext& /* ctx */)
 {
     bufferCommandPending.reset();
     commentLeaderPending.reset();
+    windowCommandPending.reset();
 }
 
 std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
@@ -121,6 +123,15 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             bufferCommandPending->handle(ctx, ModeKeyEvent{c});
         if(bufferCommandPending->done())
             bufferCommandPending.reset();
+        return result;
+    }
+
+    if(windowCommandPending)
+    {
+        std::optional<ModeState> result =
+            windowCommandPending->handle(ctx, ModeKeyEvent{c});
+        if(windowCommandPending->done())
+            windowCommandPending.reset();
         return result;
     }
 
@@ -357,6 +368,34 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(ed->splitActive)
+    {
+        if(c == keyCode(control::ControlKey::CTRL_H))
+        {
+            ed->switchPaneDirection(-1, 0);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::CTRL_L))
+        {
+            ed->switchPaneDirection(1, 0);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::CTRL_K))
+        {
+            ed->switchPaneDirection(0, -1);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::CTRL_J))
+        {
+            ed->switchPaneDirection(0, 1);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+    }
+
     if(c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(control::ControlKey::CTRL_K))
     {
@@ -369,29 +408,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         }
         ctx.repeatCount = 0;
         return std::nullopt;
-    }
-
-    if(ed->splitActive)
-    {
-        if(c == keyCode(control::ControlKey::CTRL_J) ||
-           c == keyCode(control::ControlKey::CTRL_K))
-        {
-            ed->switchPane();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(c == keyCode(control::ControlKey::CTRL_H))
-        {
-            ed->previousBuffer();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(c == keyCode(control::ControlKey::CTRL_L))
-        {
-            ed->nextBuffer();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
     }
 
     if(ed->showTabs && (c == keyCode(control::ControlKey::CTRL_H) ||
@@ -636,8 +652,9 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_W))
     {
-        for(int i = 0; i < count; i++)
-            ed->moveWordForward();
+        windowCommandPending.emplace(count);
+        ctx.commandBuffer = "w";
+        ctx.setStatusMessage("w");
         ctx.repeatCount = 0;
         return std::nullopt;
     }

@@ -60,6 +60,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Split vertically";
     if(cmd == "Sex" || cmd == "Sexplore")
         return "Split file browser horizontally";
+    if(cmd == "Hex" || cmd == "Hexplore")
+        return "Split file browser horizontally";
     if(cmd == "Vex" || cmd == "Vexplore")
         return "Split file browser vertically";
     if(cmd == "only")

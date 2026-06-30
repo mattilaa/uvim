@@ -14,6 +14,7 @@ public:
     void enableSplit(bool vertical);
     void closeSplit();
     void switchPane();
+    void switchPaneDirection(int dx, int dy);
     void syncBufferStateFromActivePane();
     void initSplitPanesFromBuffer();
     void switchToBufferInActivePane(int index);

@@ -8,6 +8,7 @@
 #include "mode_context.h"
 #include "mode_state.h"
 #include "search_types.h"
+#include "window_command_pending.h"
 
 #include <chrono>
 #include <ctime>
@@ -38,6 +39,7 @@ struct NormalMode
 private:
     std::optional<BufferCommandPendingMachine> bufferCommandPending;
     std::optional<CommentLeaderPendingMachine> commentLeaderPending;
+    std::optional<WindowCommandPendingMachine> windowCommandPending;
 
     // Helper methods for complex key sequences
     std::optional<ModeState> handleLeaderKey(ModeContext& ctx, int c);

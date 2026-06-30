@@ -39,6 +39,11 @@ void EditorSplitController::switchPane()
     editor.switchPaneImpl();
 }
 
+void EditorSplitController::switchPaneDirection(int dx, int dy)
+{
+    editor.switchPaneDirectionImpl(dx, dy);
+}
+
 void EditorSplitController::syncBufferStateFromActivePane()
 {
     editor.syncBufferStateFromActivePaneImpl();
@@ -179,9 +184,36 @@ void Editor::switchPaneImpl()
 {
     if(!splitActive)
         return;
+    switchPaneDirectionImpl(activePane == 0 ? 1 : -1, activePane == 0 ? 1 : -1);
+}
+
+void Editor::switchPaneDirectionImpl(int dx, int dy)
+{
+    if(!splitActive)
+        return;
+
+    int nextPane = activePane;
+    if(splitVertical)
+    {
+        if(dx < 0)
+            nextPane = 0;
+        else if(dx > 0)
+            nextPane = 1;
+    }
+    else
+    {
+        if(dy < 0)
+            nextPane = 0;
+        else if(dy > 0)
+            nextPane = 1;
+    }
+
+    if(nextPane == activePane)
+        return;
+
     syncBufferStateFromActivePane();
     splitTabBarOffset[activePane] = tabBarOffset;
-    activePane = (activePane == 0) ? 1 : 0;
+    activePane = nextPane;
     tabBarOffset = splitTabBarOffset[activePane];
     currentBufferIndex = splitPanes[activePane].bufferIndex;
     updateCurrentBufferPointers();

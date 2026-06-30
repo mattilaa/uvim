@@ -78,6 +78,19 @@ void EditorDrawingController::refreshScreen()
         editor.closeSymbolPopup();
     }
 
+    if(editor.splitActive)
+    {
+        editor.drawFullScreen();
+        lastFrameOffsetY = *editor.offsetY;
+        lastFrameOffsetX = *editor.offsetX;
+        lastFrameMode = editor.currentMode;
+        lastFrameCursorY = *editor.cursorY;
+        lastFrameCommandPopupActive = editor.commandPopupActive;
+        lastFrameCommandHistoryPopupActive = editor.commandHistorySearchActive;
+        setNeedsFullRedraw(false);
+        return;
+    }
+
     if(editor.currentMode == WELCOME)
     {
         if(editor.modeStateMachine)
@@ -358,19 +371,6 @@ void EditorDrawingController::refreshScreen()
 #endif
 
     editor.adjustViewport();
-
-    if(editor.splitActive)
-    {
-        editor.drawFullScreen();
-        lastFrameOffsetY = *editor.offsetY;
-        lastFrameOffsetX = *editor.offsetX;
-        lastFrameMode = editor.currentMode;
-        lastFrameCursorY = *editor.cursorY;
-        lastFrameCommandPopupActive = editor.commandPopupActive;
-        lastFrameCommandHistoryPopupActive = editor.commandHistorySearchActive;
-        setNeedsFullRedraw(false);
-        return;
-    }
 
     bool modeChanged = (editor.currentMode != lastFrameMode);
     int scrollDelta = *editor.offsetY - lastFrameOffsetY;

@@ -1,6 +1,10 @@
 #include "ascii.h"
 #include "editor.h"
 #include "editor_drawing_controller.h"
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+#include "file_browser_mode.h"
+#endif
+#include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/status_bar.h"
@@ -100,6 +104,102 @@ int displayColumnFromByteRange(std::string_view line, int start, int end,
     return text_utils::utf8DisplayWidth(line.substr((std::size_t)start,
                                                     (std::size_t)(end - start)));
 }
+
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+std::string fitToWidth(std::string text, int width)
+{
+    if(width <= 0)
+        return {};
+
+    while(text_utils::displayWidth(text) > width && !text.empty())
+        text.pop_back();
+
+    int visible = text_utils::displayWidth(text);
+    if(visible < width)
+        text.append(width - visible, ' ');
+    return text;
+}
+
+std::string renderFileBrowserPaneRow(
+    const editor::statemachine::FileBrowserMode& browser, const Theme& theme,
+    int localRow, int paneWidth)
+{
+    std::string row;
+    row.reserve(std::max(1, paneWidth) * 2);
+
+    if(paneWidth <= 0)
+        return row;
+
+    if(localRow == 0)
+    {
+        row += theme.uiInfo();
+        row += fitToWidth("  " + browser.currentDirectory, paneWidth);
+        row += theme.reset();
+        return row;
+    }
+
+    const int index = browser.browserOffset + localRow - 1;
+    const int count = browser.filterActive
+                          ? static_cast<int>(browser.filterMatches.size())
+                          : static_cast<int>(browser.fileList.size());
+
+    if(index < 0 || index >= count)
+    {
+        row += theme.uiGutter();
+        row += "~";
+        row += theme.baseFg();
+        if(paneWidth > 1)
+            row.append(paneWidth - 1, ' ');
+        return row;
+    }
+
+    int fileIndex = index;
+    if(browser.filterActive)
+        fileIndex = browser.filterMatches[index];
+    if(fileIndex < 0 || fileIndex >= static_cast<int>(browser.fileList.size()))
+    {
+        row.append(paneWidth, ' ');
+        return row;
+    }
+
+    const FileEntry& entry = browser.fileList[fileIndex];
+    const bool selected =
+        entry.name != ".." && browser.selectedFiles.count(entry.path) > 0;
+    const bool cursor = index == browser.browserCursor;
+
+    if(cursor && selected)
+    {
+        row += color::rgbBg(56, 120, 72);
+        row += theme.baseFg();
+    }
+    else if(cursor)
+    {
+        row += theme.selection();
+    }
+    else if(selected)
+    {
+        row += color::rgbBg(24, 64, 36);
+        row += theme.baseFg();
+    }
+    else if(entry.isDirectory)
+    {
+        row += theme.uiDirectory();
+    }
+    else
+    {
+        row += theme.baseFg();
+    }
+
+    std::string label = entry.isDirectory ? "  [D] " : "      ";
+    label += entry.name;
+    if(entry.isDirectory && entry.name != "..")
+        label += "/";
+
+    row += fitToWidth(std::move(label), paneWidth);
+    row += theme.reset();
+    return row;
+}
+#endif
 } // namespace
 
 std::string Editor::buildTabBarLine(int width)
@@ -1299,6 +1399,19 @@ void Editor::drawSplitFullScreen()
             row += theme.reset();
             return row;
         }
+
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        if(currentMode == FILE_BROWSER && pane == activePane &&
+           modeStateMachine)
+        {
+            if(auto* browser = modeStateMachine->getState<
+                   editor::statemachine::FileBrowserMode>())
+            {
+                return renderFileBrowserPaneRow(*browser, theme,
+                                                localRow - tabRows, paneWidth);
+            }
+        }
+#endif
 
         BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
         PanePointerGuard guard(this, pane);
