@@ -399,7 +399,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "               otherwise file browser",
             "  `Space-hs` - Horizontal split",
             "  `Space-vs` - Vertical split",
-            "  `Ctrl-j/k` - Switch split pane (when split is open)",
+            "  `Ctrl-h/j/k/l` - Switch split pane by direction",
             "",
             "Press `q` to close this help window.",
         };
@@ -939,7 +939,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-Shift-H`    - Move current buffer LEFT in tab bar",
             "  `Ctrl-Shift-L`    - Move current buffer RIGHT in tab bar",
             "  `Ctrl-^`          - Alternate buffer",
-            "  `Ctrl-j`/`Ctrl-k` - Switch split pane (when split is open)",
+            "  `Ctrl-h/j/k/l`    - Switch split pane by direction",
             "",
             "TAB BAR:",
             "  Tabs show `N:filename` (N = buffer index, 1-based).",
@@ -972,8 +972,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-vs`                     - Vertical split",
             "",
             "PANE NAVIGATION (NORMAL MODE):",
-            "  `Ctrl-j` or `Ctrl-k` - Switch to the other split pane",
-            "  `Ctrl-h` or `Ctrl-l` - Previous/next buffer (pane-aware)",
+            "  `Ctrl-h` - Focus pane to the left",
+            "  `Ctrl-l` - Focus pane to the right",
+            "  `Ctrl-k` - Focus pane above",
+            "  `Ctrl-j` - Focus pane below",
             "",
             "TABS:",
             "  `:tabnew`            - New tab",
@@ -983,8 +985,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:tabp`/`:tabprev`   - Previous tab",
             "",
             "TIP:",
-            "  In a vertical split, use `Ctrl-j`/`Ctrl-k` to jump to the",
-            "  other side quickly.",
+            "  Splitting a pane divides only the active pane, so vertical and",
+            "  horizontal panes can be nested.",
         };
     }
     else if(topic_lower == "search")
@@ -1195,7 +1197,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "CONFIG:",
             "  `editor.emitlsp: false` disables LSP diagnostic markers and",
-            "  popup at startup without disabling completion, go-to-definition,",
+            "  popup at startup without disabling completion, "
+            "go-to-definition,",
             "  formatting, semantic tokens, or other LSP features.",
             "",
             "ENVIRONMENT VARIABLES:",
@@ -1258,7 +1261,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "    to PATH and restart your shell/editor.",
             "  - In uvim config, set explicit `*LspPath` values if needed.",
             "  - `:set emitlsp=false` hides LSP warning/error diagnostics and",
-            "    disables the `Space-e` diagnostic popup without stopping LSPs.",
+            "    disables the `Space-e` diagnostic popup without stopping "
+            "LSPs.",
             "  - Build with `-DUVIM_DEBUG_LSP=ON` to write LSP startup and",
             "    stderr details to uvim.log instead of `:lspinfo`.",
             "  - Log paths: POSIX `/tmp/uvim.log`; Windows",

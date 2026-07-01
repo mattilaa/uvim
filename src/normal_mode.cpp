@@ -1327,7 +1327,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
         if(nextChar != -1)
             Terminal::unreadKey(nextChar);
-
         ctx.setStatusMessage("Unknown leader command");
         break;
     }
@@ -1345,7 +1344,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
         if(nextChar != -1)
             Terminal::unreadKey(nextChar);
-
         ctx.setStatusMessage("Unknown leader command");
         break;
     }

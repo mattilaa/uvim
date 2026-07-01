@@ -253,9 +253,9 @@ void Editor::moveBufferLeftImpl()
     updateCurrentBufferPointers();
     if(splitActive)
     {
-        for(int i = 0; i < 2; i++)
+        for(auto& pane : splitPanes)
         {
-            int& p = splitPanes[i].bufferIndex;
+            int& p = pane.bufferIndex;
             if(p == a)
                 p = b;
             else if(p == b)
@@ -276,9 +276,9 @@ void Editor::moveBufferRightImpl()
     updateCurrentBufferPointers();
     if(splitActive)
     {
-        for(int i = 0; i < 2; i++)
+        for(auto& pane : splitPanes)
         {
-            int& p = splitPanes[i].bufferIndex;
+            int& p = pane.bufferIndex;
             if(p == a)
                 p = b;
             else if(p == b)
@@ -302,6 +302,11 @@ void Editor::closeCurrentBufferImpl()
         currentBufferIndex = -1;
         clearCurrentBufferPointers();
         splitActive = false;
+        splitPanes.clear();
+        splitTabBarOffset.clear();
+        splitNodes.clear();
+        splitRoot = -1;
+        splitPaneLayouts.clear();
         setMode(WELCOME);
     }
     else
@@ -315,9 +320,9 @@ void Editor::closeCurrentBufferImpl()
         updateCurrentBufferPointers();
         if(splitActive)
         {
-            for(int i = 0; i < 2; i++)
+            for(auto& pane : splitPanes)
             {
-                int& paneIndex = splitPanes[i].bufferIndex;
+                int& paneIndex = pane.bufferIndex;
                 if(paneIndex == removedIndex)
                 {
                     paneIndex = currentBufferIndex;

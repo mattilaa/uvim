@@ -1,6 +1,8 @@
 #include "editor_split_controller.h"
 
 #include <algorithm>
+#include <limits>
+#include <vector>
 
 EditorSplitController::EditorSplitController(Editor& editor) : editor(editor) {}
 
@@ -81,63 +83,25 @@ int Editor::contentRowsImpl() const
 
 Editor::PaneLayout Editor::getPaneLayoutImpl(int pane) const
 {
-    PaneLayout layout;
-    layout.x = 0;
-    layout.y = 0;
-    layout.rows = screenRows;
-    layout.cols = screenCols;
+    PaneLayout full;
+    full.x = 0;
+    full.y = 0;
+    full.rows = screenRows;
+    full.cols = screenCols;
 
     if(!splitActive)
-        return layout;
+        return full;
 
-    if(splitVertical)
-    {
-        if(screenCols < 2)
-            return layout;
-        int leftCols = screenCols / 2;
-        int rightCols = screenCols - leftCols;
-        if(rightCols > 1)
-            rightCols -= 1; // avoid auto-wrap at last column
-        if(pane == 0)
-        {
-            layout.x = 0;
-            layout.cols = leftCols;
-        }
-        else
-        {
-            layout.x = leftCols;
-            layout.cols = rightCols;
-        }
-        layout.y = 0;
-        layout.rows = screenRows;
-    }
-    else
-    {
-        if(screenRows < 2)
-            return layout;
-        int topRows = screenRows / 2;
-        int bottomRows = screenRows - topRows;
-        layout.x = 0;
-        layout.cols = screenCols;
-        if(pane == 0)
-        {
-            layout.y = 0;
-            layout.rows = topRows;
-        }
-        else
-        {
-            layout.y = topRows;
-            layout.rows = bottomRows;
-        }
-    }
-
-    layout.rows = std::max(1, layout.rows);
-    layout.cols = std::max(1, layout.cols);
-    return layout;
+    rebuildSplitPaneLayouts();
+    if(pane >= 0 && pane < static_cast<int>(splitPaneLayouts.size()))
+        return splitPaneLayouts[pane];
+    return full;
 }
 
 void Editor::setPanePointersImpl(int pane)
 {
+    if(pane < 0 || pane >= static_cast<int>(splitPanes.size()))
+        return;
     cursorX = &splitPanes[pane].cursorX;
     cursorY = &splitPanes[pane].cursorY;
     wantedX = &splitPanes[pane].wantedX;
@@ -156,13 +120,47 @@ void Editor::enableSplitImpl(bool vertical)
     {
         syncBufferStateFromActivePane();
     }
-    splitActive = true;
+
+    if(!splitActive || splitPanes.empty() || splitRoot < 0)
+    {
+        initSplitPanesFromBufferImpl();
+    }
+
+    const int activeNode = findSplitLeafNode(splitRoot, activePane);
+    if(activeNode < 0)
+        return;
+
+    PaneState newState = splitPanes[activePane];
+    const int newPane = static_cast<int>(splitPanes.size());
+    splitPanes.push_back(newState);
+    splitTabBarOffset.push_back(tabBarOffset);
+
+    SplitNode oldLeaf;
+    oldLeaf.leaf = true;
+    oldLeaf.pane = activePane;
+    const int oldLeafIndex = static_cast<int>(splitNodes.size());
+    splitNodes.push_back(oldLeaf);
+
+    SplitNode newLeaf;
+    newLeaf.leaf = true;
+    newLeaf.pane = newPane;
+    const int newLeafIndex = static_cast<int>(splitNodes.size());
+    splitNodes.push_back(newLeaf);
+
+    splitNodes[activeNode].leaf = false;
+    splitNodes[activeNode].vertical = vertical;
+    splitNodes[activeNode].pane = -1;
+    splitNodes[activeNode].first = oldLeafIndex;
+    splitNodes[activeNode].second = newLeafIndex;
+
+    splitActive = splitPanes.size() > 1;
     splitVertical = vertical;
-    activePane = 0;
-    splitTabBarOffset[0] = tabBarOffset;
-    splitTabBarOffset[1] = tabBarOffset;
-    initSplitPanesFromBuffer();
+    activePane = newPane;
+    currentBufferIndex = splitPanes[activePane].bufferIndex;
+    tabBarOffset = splitTabBarOffset[activePane];
+    updateCurrentBufferPointers();
     setPanePointers(activePane);
+    splitPaneLayouts.clear();
     needsFullRedraw = true;
 }
 
@@ -173,9 +171,16 @@ void Editor::closeSplitImpl()
     syncBufferStateFromActivePane();
     int paneIndex = activePane;
     splitActive = false;
-    currentBufferIndex = splitPanes[paneIndex].bufferIndex;
-    tabBarOffset = splitTabBarOffset[paneIndex];
+    if(paneIndex >= 0 && paneIndex < static_cast<int>(splitPanes.size()))
+        currentBufferIndex = splitPanes[paneIndex].bufferIndex;
+    if(paneIndex >= 0 && paneIndex < static_cast<int>(splitTabBarOffset.size()))
+        tabBarOffset = splitTabBarOffset[paneIndex];
     activePane = 0;
+    splitPanes.clear();
+    splitTabBarOffset.clear();
+    splitNodes.clear();
+    splitRoot = -1;
+    splitPaneLayouts.clear();
     updateCurrentBufferPointers();
     needsFullRedraw = true;
 }
@@ -184,7 +189,7 @@ void Editor::switchPaneImpl()
 {
     if(!splitActive)
         return;
-    switchPaneDirectionImpl(activePane == 0 ? 1 : -1, activePane == 0 ? 1 : -1);
+    switchPaneDirectionImpl(1, 0);
 }
 
 void Editor::switchPaneDirectionImpl(int dx, int dy)
@@ -192,23 +197,91 @@ void Editor::switchPaneDirectionImpl(int dx, int dy)
     if(!splitActive)
         return;
 
-    int nextPane = activePane;
-    if(splitVertical)
+    rebuildSplitPaneLayouts();
+    if(activePane < 0 ||
+       activePane >= static_cast<int>(splitPaneLayouts.size()))
+        return;
+
+    const PaneLayout current = splitPaneLayouts[activePane];
+    const int currentLeft = current.x;
+    const int currentRight = current.x + current.cols;
+    const int currentTop = current.y;
+    const int currentBottom = current.y + current.rows;
+    const int currentCx = current.x + current.cols / 2;
+    const int currentCy = current.y + current.rows / 2;
+
+    int nextPane = -1;
+    int bestPrimary = std::numeric_limits<int>::max();
+    int bestSecondary = std::numeric_limits<int>::max();
+
+    for(int pane = 0; pane < static_cast<int>(splitPaneLayouts.size()); ++pane)
     {
+        if(pane == activePane)
+            continue;
+        const PaneLayout other = splitPaneLayouts[pane];
+        if(other.rows <= 0 || other.cols <= 0)
+            continue;
+
+        const int otherLeft = other.x;
+        const int otherRight = other.x + other.cols;
+        const int otherTop = other.y;
+        const int otherBottom = other.y + other.rows;
+        const int otherCx = other.x + other.cols / 2;
+        const int otherCy = other.y + other.rows / 2;
+
+        int primary = 0;
+        int secondary = 0;
         if(dx < 0)
-            nextPane = 0;
+        {
+            if(otherRight > currentLeft)
+                continue;
+            primary = currentLeft - otherRight;
+            const int overlap = std::min(currentBottom, otherBottom) -
+                                std::max(currentTop, otherTop);
+            secondary = overlap > 0 ? 0 : std::abs(otherCy - currentCy);
+        }
         else if(dx > 0)
-            nextPane = 1;
-    }
-    else
-    {
-        if(dy < 0)
-            nextPane = 0;
+        {
+            if(otherLeft < currentRight)
+                continue;
+            primary = otherLeft - currentRight;
+            const int overlap = std::min(currentBottom, otherBottom) -
+                                std::max(currentTop, otherTop);
+            secondary = overlap > 0 ? 0 : std::abs(otherCy - currentCy);
+        }
+        else if(dy < 0)
+        {
+            if(otherBottom > currentTop)
+                continue;
+            primary = currentTop - otherBottom;
+            const int overlap = std::min(currentRight, otherRight) -
+                                std::max(currentLeft, otherLeft);
+            secondary = overlap > 0 ? 0 : std::abs(otherCx - currentCx);
+        }
         else if(dy > 0)
-            nextPane = 1;
+        {
+            if(otherTop < currentBottom)
+                continue;
+            primary = otherTop - currentBottom;
+            const int overlap = std::min(currentRight, otherRight) -
+                                std::max(currentLeft, otherLeft);
+            secondary = overlap > 0 ? 0 : std::abs(otherCx - currentCx);
+        }
+        else
+        {
+            continue;
+        }
+
+        if(primary < bestPrimary ||
+           (primary == bestPrimary && secondary < bestSecondary))
+        {
+            bestPrimary = primary;
+            bestSecondary = secondary;
+            nextPane = pane;
+        }
     }
 
-    if(nextPane == activePane)
+    if(nextPane < 0 || nextPane == activePane)
         return;
 
     syncBufferStateFromActivePane();
@@ -223,7 +296,8 @@ void Editor::switchPaneDirectionImpl(int dx, int dy)
 
 void Editor::syncBufferStateFromActivePaneImpl()
 {
-    if(!currentBuffer)
+    if(!currentBuffer || activePane < 0 ||
+       activePane >= static_cast<int>(splitPanes.size()))
         return;
     currentBuffer->cursorX = splitPanes[activePane].cursorX;
     currentBuffer->cursorY = splitPanes[activePane].cursorY;
@@ -243,8 +317,18 @@ void Editor::initSplitPanesFromBufferImpl()
     state.wantedX = currentBuffer->wantedX;
     state.offsetX = currentBuffer->offsetX;
     state.offsetY = currentBuffer->offsetY;
-    splitPanes[0] = state;
-    splitPanes[1] = state;
+    splitPanes.clear();
+    splitPanes.push_back(state);
+    splitTabBarOffset.clear();
+    splitTabBarOffset.push_back(tabBarOffset);
+    splitNodes.clear();
+    SplitNode root;
+    root.leaf = true;
+    root.pane = 0;
+    splitNodes.push_back(root);
+    splitRoot = 0;
+    activePane = 0;
+    splitPaneLayouts.clear();
 }
 
 void Editor::switchToBufferInActivePaneImpl(int index)
@@ -265,7 +349,85 @@ bool Editor::canSplitImpl() const
 {
     if(!splitActive)
         return false;
-    if(splitVertical)
-        return screenCols >= 2;
-    return screenRows >= 2;
+    return screenCols >= 2 && screenRows >= 2;
+}
+
+void Editor::collectSplitLeafPanes(int node, std::vector<int>& panes) const
+{
+    if(node < 0 || node >= static_cast<int>(splitNodes.size()))
+        return;
+    const SplitNode& n = splitNodes[node];
+    if(n.leaf)
+    {
+        if(n.pane >= 0)
+            panes.push_back(n.pane);
+        return;
+    }
+    collectSplitLeafPanes(n.first, panes);
+    collectSplitLeafPanes(n.second, panes);
+}
+
+int Editor::findSplitLeafNode(int node, int pane) const
+{
+    if(node < 0 || node >= static_cast<int>(splitNodes.size()))
+        return -1;
+    const SplitNode& n = splitNodes[node];
+    if(n.leaf)
+        return n.pane == pane ? node : -1;
+    int found = findSplitLeafNode(n.first, pane);
+    if(found >= 0)
+        return found;
+    return findSplitLeafNode(n.second, pane);
+}
+
+void Editor::rebuildSplitPaneLayouts() const
+{
+    splitPaneLayouts.assign(splitPanes.size(), PaneLayout{});
+    if(!splitActive || splitRoot < 0 ||
+       splitRoot >= static_cast<int>(splitNodes.size()))
+        return;
+
+    auto assignNode = [&](auto&& self, int node, PaneLayout layout) -> void
+    {
+        if(node < 0 || node >= static_cast<int>(splitNodes.size()))
+            return;
+        layout.rows = std::max(1, layout.rows);
+        layout.cols = std::max(1, layout.cols);
+        const SplitNode& n = splitNodes[node];
+        if(n.leaf)
+        {
+            if(n.pane >= 0 &&
+               n.pane < static_cast<int>(splitPaneLayouts.size()))
+                splitPaneLayouts[n.pane] = layout;
+            return;
+        }
+
+        PaneLayout first = layout;
+        PaneLayout second = layout;
+        if(n.vertical)
+        {
+            int leftCols = std::max(1, layout.cols / 2);
+            int rightCols = std::max(1, layout.cols - leftCols);
+            first.cols = leftCols;
+            second.x = layout.x + leftCols;
+            second.cols = rightCols;
+        }
+        else
+        {
+            int topRows = std::max(1, layout.rows / 2);
+            int bottomRows = std::max(1, layout.rows - topRows);
+            first.rows = topRows;
+            second.y = layout.y + topRows;
+            second.rows = bottomRows;
+        }
+        self(self, n.first, first);
+        self(self, n.second, second);
+    };
+
+    PaneLayout root;
+    root.x = 0;
+    root.y = 0;
+    root.rows = screenRows;
+    root.cols = screenCols;
+    assignNode(assignNode, splitRoot, root);
 }

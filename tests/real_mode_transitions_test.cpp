@@ -100,36 +100,6 @@ TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
-TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
-{
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    auto sm = makeMachine(editor, NormalMode{});
-
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_H));
-
-    EXPECT_TRUE(editor.splitActive);
-    EXPECT_FALSE(editor.splitVertical);
-    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
-}
-
-TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
-{
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    auto sm = makeMachine(editor, NormalMode{});
-
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_V));
-
-    EXPECT_TRUE(editor.splitActive);
-    EXPECT_TRUE(editor.splitVertical);
-    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
-}
-
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
 {
     Editor editor = Editor::createForTests();
@@ -216,6 +186,91 @@ TEST(RealModeTransitionsTest, SplitPanesKeepSeparateSelectedBuffers)
     EXPECT_EQ(editor.currentBufferIndex, 1);
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "right");
+}
+
+TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_H));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_FALSE(editor.splitVertical);
+    EXPECT_EQ(editor.splitPanes.size(), 2u);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_V));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_TRUE(editor.splitVertical);
+    EXPECT_EQ(editor.splitPanes.size(), 2u);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, SplittingActivePaneCreatesNestedLayout)
+{
+    Editor editor = Editor::createForTests();
+    editor.screenRows = 24;
+    editor.screenCols = 80;
+    editor.createNewBuffer();
+
+    editor.enableSplit(true);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.splitPanes.size(), 2u);
+    ASSERT_EQ(editor.activePane, 1);
+
+    editor.switchPaneDirection(-1, 0);
+    ASSERT_EQ(editor.activePane, 0);
+    editor.enableSplit(false);
+
+    ASSERT_EQ(editor.splitPanes.size(), 3u);
+    EXPECT_EQ(editor.activePane, 2);
+
+    Editor::PaneLayout topLeft = editor.getPaneLayout(0);
+    Editor::PaneLayout right = editor.getPaneLayout(1);
+    Editor::PaneLayout bottomLeft = editor.getPaneLayout(2);
+
+    EXPECT_EQ(topLeft.x, 0);
+    EXPECT_EQ(bottomLeft.x, 0);
+    EXPECT_GT(bottomLeft.y, topLeft.y);
+    EXPECT_GT(right.x, topLeft.x);
+    EXPECT_EQ(right.y, 0);
+    EXPECT_EQ(right.rows, editor.screenRows);
+}
+
+TEST(RealModeTransitionsTest, DirectionalPaneJumpUsesNestedLayout)
+{
+    Editor editor = Editor::createForTests();
+    editor.screenRows = 24;
+    editor.screenCols = 80;
+    editor.createNewBuffer();
+
+    editor.enableSplit(true);
+    editor.switchPaneDirection(-1, 0);
+    editor.enableSplit(false);
+    ASSERT_EQ(editor.activePane, 2);
+
+    editor.switchPaneDirection(0, -1);
+    EXPECT_EQ(editor.activePane, 0);
+
+    editor.switchPaneDirection(1, 0);
+    EXPECT_EQ(editor.activePane, 1);
+
+    editor.switchPaneDirection(-1, 0);
+    EXPECT_EQ(editor.activePane, 0);
 }
 
 TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)

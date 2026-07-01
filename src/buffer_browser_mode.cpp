@@ -355,6 +355,11 @@ void BufferBrowserMode::closeSelectedBuffer(Editor& editor)
         editor.currentBufferIndex = -1;
         editor.clearCurrentBufferPointers();
         editor.splitActive = false;
+        editor.splitPanes.clear();
+        editor.splitTabBarOffset.clear();
+        editor.splitNodes.clear();
+        editor.splitRoot = -1;
+        editor.splitPaneLayouts.clear();
         editor.currentMode = WELCOME;
         editor.needsFullRedraw = true;
         bufferMatches.clear();
@@ -378,9 +383,9 @@ void BufferBrowserMode::closeSelectedBuffer(Editor& editor)
 
         if(editor.splitActive)
         {
-            for(int i = 0; i < 2; i++)
+            for(auto& pane : editor.splitPanes)
             {
-                int& paneIndex = editor.splitPanes[i].bufferIndex;
+                int& paneIndex = pane.bufferIndex;
                 if(paneIndex == idx)
                     paneIndex = editor.currentBufferIndex;
                 else if(paneIndex > idx)
@@ -442,6 +447,11 @@ void BufferBrowserMode::closeMatchedBuffers(Editor& editor)
             editor.currentBufferIndex = -1;
             editor.clearCurrentBufferPointers();
             editor.splitActive = false;
+            editor.splitPanes.clear();
+            editor.splitTabBarOffset.clear();
+            editor.splitNodes.clear();
+            editor.splitRoot = -1;
+            editor.splitPaneLayouts.clear();
             editor.currentMode = WELCOME;
             editor.needsFullRedraw = true;
             bufferMatches.clear();
@@ -463,9 +473,9 @@ void BufferBrowserMode::closeMatchedBuffers(Editor& editor)
 
         if(editor.splitActive)
         {
-            for(int i = 0; i < 2; i++)
+            for(auto& pane : editor.splitPanes)
             {
-                int& paneIndex = editor.splitPanes[i].bufferIndex;
+                int& paneIndex = pane.bufferIndex;
                 if(paneIndex == idx)
                     paneIndex = editor.currentBufferIndex;
                 else if(paneIndex > idx)
