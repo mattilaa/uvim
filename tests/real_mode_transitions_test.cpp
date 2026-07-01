@@ -126,6 +126,7 @@ TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromHorizontalSplit)
     EXPECT_STREQ(sm.currentStateName(), "GREP");
 }
 
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
 TEST(RealModeTransitionsTest, CtrlHLCyclesVerticalSplitPanes)
 {
     Editor editor = Editor::createForTests();
@@ -254,6 +255,7 @@ TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
     EXPECT_GT(editor.getPaneLayout(1).y, editor.getPaneLayout(0).y);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
+#endif
 
 TEST(RealModeTransitionsTest, SplittingActivePaneCreatesNestedLayout)
 {

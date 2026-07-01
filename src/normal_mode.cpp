@@ -368,6 +368,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
     if(ed->splitActive)
     {
         if(c == keyCode(control::ControlKey::CTRL_H))
@@ -395,6 +396,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
     }
+#endif
 
     if(c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(control::ControlKey::CTRL_K))
@@ -1303,6 +1305,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 #endif
     }
 
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
     case keyCode(typed::TypedKey::KEY_H):
     {
         const int nextChar = Terminal::readKeyTimeout(300);
@@ -1348,6 +1351,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         ctx.setStatusMessage("Unknown leader command");
         break;
     }
+#endif
 
     case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard

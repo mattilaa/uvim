@@ -397,10 +397,12 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-x`   - Regex search view",
             "  `Space-e`  - Diagnostic popup on LSP diagnostic row;",
             "               otherwise file browser",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Space-h`/`Space-l` - Prev/next buffer",
             "  `Space-hs` - Horizontal split",
             "  `Space-vs` - Vertical split",
             "  `Ctrl-h/j/k/l` - Switch split pane by direction",
+#endif
             "",
             "Press `q` to close this help window.",
         };
@@ -838,8 +840,12 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `ga`       - Open git stage view",
             "",
             "SPLITS / WINDOWS:",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Ctrl-h/j/k/l` - Switch active split pane by direction",
             "  `Space-h`/`Space-l` - Prev/next buffer",
+#else
+            "  Use `:split`, `:vsplit`, and window commands for splits.",
+#endif
         };
     }
     else if(topic_lower == "editing")
@@ -936,11 +942,15 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "NORMAL MODE:",
             "  `Ctrl-w`          - Buffer browser",
             "  `bd`              - Close current buffer",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Space-h`/`Space-l` - Prev / next buffer",
+#endif
             "  `Ctrl-Shift-H`    - Move current buffer LEFT in tab bar",
             "  `Ctrl-Shift-L`    - Move current buffer RIGHT in tab bar",
             "  `Ctrl-^`          - Alternate buffer",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Ctrl-h/j/k/l`    - Switch split pane by direction",
+#endif
             "",
             "TAB BAR:",
             "  Tabs show `N:filename` (N = buffer index, 1-based).",
@@ -969,6 +979,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:sp`/`:split`/`:hs`/`:hsplit` - Horizontal split",
             "  `:vs`/`:vsplit`/`:vh`          - Vertical split",
             "  `:only`                        - Close all other splits",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Space-hs`                     - Horizontal split",
             "  `Space-vs`                     - Vertical split",
             "",
@@ -977,6 +988,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-l` - Focus pane to the right",
             "  `Ctrl-k` - Focus pane above",
             "  `Ctrl-j` - Focus pane below",
+#else
+            "",
+            "PANE NAVIGATION (NORMAL MODE):",
+            "  Modern pane-focus keybindings are disabled in this build.",
+#endif
             "",
             "TABS:",
             "  `:tabnew`            - New tab",

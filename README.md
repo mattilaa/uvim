@@ -131,10 +131,18 @@ Run `./build/uvim-config --help` for all command-line options, including
 The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,
 `Build Outputs`, and `Size And Link`. `vi-real` is a hard minimal build that
-compiles out terminal colors, color tools, popups, git, fuzzy, grep, regex
-tooling, docs/LSP/test build outputs, and other optional integrations. The
-other presets enable terminal colors and color tools by default. The smallest
-profiles use `Oz`, LTO, dead-code sections, and strip.
+compiles out terminal colors, color tools, modern convenience keybindings,
+popups, git, fuzzy, grep, regex tooling, docs/LSP/test build outputs, and other
+optional integrations. The other presets enable terminal colors, color tools,
+and modern keybindings by default. The smallest profiles use `Oz`, LTO,
+dead-code sections, and strip.
+
+Useful `uvim-config --disable` names for very small vi-style builds include
+`modern-keybindings`, `browser-tools`, `auxiliary-views`, `asm-docs`, `git`,
+`search`, `formatters`, `clipboard`, `struct-size`, `color-tools`,
+`terminal-colors`, `tests`, and `compile-commands`. The corresponding CMake
+option for the split/buffer convenience key layer is
+`UVIM_ENABLE_MODERN_KEYBINDINGS`.
 
 ## Assembly instruction docs
 

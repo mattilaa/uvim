@@ -64,6 +64,10 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-e` : diagnostic popup on an LSP diagnostic row; otherwise file browser
 - `Space-s` : grep search
 - `Space-d` : go to definition
+- `Space-h` / `Space-l` : previous / next buffer when built with
+  `UVIM_ENABLE_MODERN_KEYBINDINGS`
+- `Space-hs` / `Space-vs` : horizontal / vertical split shortcuts when built
+  with `UVIM_ENABLE_MODERN_KEYBINDINGS`
 - `Space-g a` : show assembly instruction docs in a scrollable popup
 - `Space-g d` : go to definition
 - `Space-g r` : find references
@@ -74,6 +78,16 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-q` : force quit
 - `Space-x` : file browser
 - `Space-e m` : emoji picker
+
+\subsection keys_normal_splits Splits
+- `:sp` / `:split` / `:hs` / `:hsplit` : horizontal split
+- `:vs` / `:vsplit` / `:vh` : vertical split
+- `wx` : close the selected pane
+- `Ctrl-h/j/k/l` : focus pane left/down/up/right when built with
+  `UVIM_ENABLE_MODERN_KEYBINDINGS`
+- Disable the convenience split/buffer key layer in `uvim-config` by turning
+  off `Modern keybindings`, or from CLI with
+  `uvim-config --disable modern-keybindings`.
 
 \section keys_insert Insert mode
 - Type text to insert
