@@ -1315,9 +1315,40 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     }
 
     case keyCode(typed::TypedKey::KEY_H):
-        // Move current buffer left in the tab bar.
-        ed->moveBufferLeft();
+    {
+        const int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == keyCode(typed::TypedKey::KEY_S))
+        {
+            ed->enableSplit(false);
+            ctx.commandBuffer.clear();
+            ctx.setStatusMessage("");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+
+        ctx.setStatusMessage("Unknown leader command");
         break;
+    }
+
+    case keyCode(typed::TypedKey::KEY_V):
+    {
+        const int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == keyCode(typed::TypedKey::KEY_S))
+        {
+            ed->enableSplit(true);
+            ctx.commandBuffer.clear();
+            ctx.setStatusMessage("");
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+
+        ctx.setStatusMessage("Unknown leader command");
+        break;
+    }
 
     case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard
@@ -1331,11 +1362,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 #else
         ed->setStatusMessage("system clipboard is not compiled in");
 #endif
-        break;
-
-    case keyCode(typed::TypedKey::KEY_L):
-        // Move current buffer right in the tab bar.
-        ed->moveBufferRight();
         break;
 
     case keyCode(typed::TypedKey::KEY_W):

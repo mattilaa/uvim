@@ -100,6 +100,36 @@ TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
+TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_H));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_FALSE(editor.splitVertical);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_V));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_TRUE(editor.splitVertical);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
 {
     Editor editor = Editor::createForTests();
