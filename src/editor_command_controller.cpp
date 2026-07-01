@@ -613,6 +613,8 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "hsplit",
         "Sex",
         "Sexplore",
+        "Hex",
+        "Hexplore",
         "Vex",
         "Vexplore",
         "only",

@@ -1,6 +1,10 @@
 #include "ascii.h"
 #include "editor.h"
 #include "editor_drawing_controller.h"
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+#include "file_browser_mode.h"
+#endif
+#include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include "widgets/status_bar.h"
@@ -100,6 +104,102 @@ int displayColumnFromByteRange(std::string_view line, int start, int end,
     return text_utils::utf8DisplayWidth(line.substr((std::size_t)start,
                                                     (std::size_t)(end - start)));
 }
+
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+std::string fitToWidth(std::string text, int width)
+{
+    if(width <= 0)
+        return {};
+
+    while(text_utils::displayWidth(text) > width && !text.empty())
+        text.pop_back();
+
+    int visible = text_utils::displayWidth(text);
+    if(visible < width)
+        text.append(width - visible, ' ');
+    return text;
+}
+
+std::string renderFileBrowserPaneRow(
+    const editor::statemachine::FileBrowserMode& browser, const Theme& theme,
+    int localRow, int paneWidth)
+{
+    std::string row;
+    row.reserve(std::max(1, paneWidth) * 2);
+
+    if(paneWidth <= 0)
+        return row;
+
+    if(localRow == 0)
+    {
+        row += theme.uiInfo();
+        row += fitToWidth("  " + browser.currentDirectory, paneWidth);
+        row += theme.reset();
+        return row;
+    }
+
+    const int index = browser.browserOffset + localRow - 1;
+    const int count = browser.filterActive
+                          ? static_cast<int>(browser.filterMatches.size())
+                          : static_cast<int>(browser.fileList.size());
+
+    if(index < 0 || index >= count)
+    {
+        row += theme.uiGutter();
+        row += "~";
+        row += theme.baseFg();
+        if(paneWidth > 1)
+            row.append(paneWidth - 1, ' ');
+        return row;
+    }
+
+    int fileIndex = index;
+    if(browser.filterActive)
+        fileIndex = browser.filterMatches[index];
+    if(fileIndex < 0 || fileIndex >= static_cast<int>(browser.fileList.size()))
+    {
+        row.append(paneWidth, ' ');
+        return row;
+    }
+
+    const FileEntry& entry = browser.fileList[fileIndex];
+    const bool selected =
+        entry.name != ".." && browser.selectedFiles.count(entry.path) > 0;
+    const bool cursor = index == browser.browserCursor;
+
+    if(cursor && selected)
+    {
+        row += color::rgbBg(56, 120, 72);
+        row += theme.baseFg();
+    }
+    else if(cursor)
+    {
+        row += theme.selection();
+    }
+    else if(selected)
+    {
+        row += color::rgbBg(24, 64, 36);
+        row += theme.baseFg();
+    }
+    else if(entry.isDirectory)
+    {
+        row += theme.uiDirectory();
+    }
+    else
+    {
+        row += theme.baseFg();
+    }
+
+    std::string label = entry.isDirectory ? "  [D] " : "      ";
+    label += entry.name;
+    if(entry.isDirectory && entry.name != "..")
+        label += "/";
+
+    row += fitToWidth(std::move(label), paneWidth);
+    row += theme.reset();
+    return row;
+}
+#endif
 } // namespace
 
 std::string Editor::buildTabBarLine(int width)
@@ -1167,33 +1267,30 @@ void Editor::drawFullScreenSingle()
 
 void Editor::drawSplitFullScreen()
 {
-    PaneLayout layout0 = getPaneLayout(0);
-    PaneLayout layout1 = getPaneLayout(1);
-
-    int rows0 = std::max(1, layout0.rows - tabBarRows());
-    int rows1 = std::max(1, layout1.rows - tabBarRows());
-    int cols0 = std::max(1, layout0.cols - gutterWidth());
-    int cols1 = std::max(1, layout1.cols - gutterWidth());
     int blameWidth = gitBlameWidth();
-    adjustViewportForPane(splitPanes[0], rows0, cols0);
-    adjustViewportForPane(splitPanes[1], rows1, cols1);
-
     int tabRows = tabBarRows();
 
-    std::string tabLine0;
-    std::string tabLine1;
+    std::vector<PaneLayout> layouts(splitPanes.size());
+    std::vector<std::string> tabLines(splitPanes.size());
+    for(int pane = 0; pane < static_cast<int>(splitPanes.size()); ++pane)
+    {
+        layouts[pane] = getPaneLayout(pane);
+        int rows = std::max(1, layouts[pane].rows - tabRows);
+        int cols = std::max(1, layouts[pane].cols - gutterWidth());
+        adjustViewportForPane(splitPanes[pane], rows, cols);
+    }
+
     if(tabRows > 0)
     {
         int savedIndex = currentBufferIndex;
         int savedTabOffset = tabBarOffset;
-        currentBufferIndex = splitPanes[0].bufferIndex;
-        tabBarOffset = splitTabBarOffset[0];
-        tabLine0 = buildTabBarLine(layout0.cols);
-        splitTabBarOffset[0] = tabBarOffset;
-        currentBufferIndex = splitPanes[1].bufferIndex;
-        tabBarOffset = splitTabBarOffset[1];
-        tabLine1 = buildTabBarLine(layout1.cols);
-        splitTabBarOffset[1] = tabBarOffset;
+        for(int pane = 0; pane < static_cast<int>(splitPanes.size()); ++pane)
+        {
+            currentBufferIndex = splitPanes[pane].bufferIndex;
+            tabBarOffset = splitTabBarOffset[pane];
+            tabLines[pane] = buildTabBarLine(layouts[pane].cols);
+            splitTabBarOffset[pane] = tabBarOffset;
+        }
         currentBufferIndex = savedIndex;
         tabBarOffset = savedTabOffset;
     }
@@ -1284,7 +1381,7 @@ void Editor::drawSplitFullScreen()
 
         if(tabRows > 0 && localRow == 0)
         {
-            const std::string& tabLine = (pane == 0) ? tabLine0 : tabLine1;
+            const std::string& tabLine = tabLines[pane];
             row += theme.tabBar();
             row += tabLine;
             if(paneWidth == screenCols)
@@ -1299,6 +1396,19 @@ void Editor::drawSplitFullScreen()
             row += theme.reset();
             return row;
         }
+
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        if(currentMode == FILE_BROWSER && pane == activePane &&
+           modeStateMachine)
+        {
+            if(auto* browser = modeStateMachine->getState<
+                   editor::statemachine::FileBrowserMode>())
+            {
+                return renderFileBrowserPaneRow(*browser, theme,
+                                                localRow - tabRows, paneWidth);
+            }
+        }
+#endif
 
         BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
         PanePointerGuard guard(this, pane);
@@ -1504,39 +1614,40 @@ void Editor::drawSplitFullScreen()
     if(!Terminal::isTmux())
         output += Terminal::ESC_CLEAR_SCREEN;
 
-    if(splitVertical)
+    for(int row = 0; row < screenRows; row++)
     {
-        for(int row = 0; row < screenRows; row++)
-        {
-            if(row > 0)
-                output += "\r\n";
-            output += theme.reset();
-            output += Terminal::ESC_CLEAR_LINE;
-            output += renderPaneRow(0, row - layout0.y, layout0.cols);
-            output += renderPaneRow(1, row - layout1.y, layout1.cols);
-        }
-    }
-    else
-    {
-        for(int row = 0; row < layout0.rows; row++)
-        {
-            if(row > 0)
-                output += "\r\n";
-            output += theme.reset();
-            output += Terminal::ESC_CLEAR_LINE;
-            output += renderPaneRow(0, row, layout0.cols);
-            if(layout0.cols < screenCols)
-                output.append(screenCols - layout0.cols, ' ');
-        }
-        for(int row = 0; row < layout1.rows; row++)
-        {
+        if(row > 0)
             output += "\r\n";
-            output += theme.reset();
-            output += Terminal::ESC_CLEAR_LINE;
-            output += renderPaneRow(1, row, layout1.cols);
-            if(layout1.cols < screenCols)
-                output.append(screenCols - layout1.cols, ' ');
+        output += theme.reset();
+        output += Terminal::ESC_CLEAR_LINE;
+
+        std::vector<int> panesOnRow;
+        panesOnRow.reserve(splitPanes.size());
+        for(int pane = 0; pane < static_cast<int>(layouts.size()); ++pane)
+        {
+            const PaneLayout& layout = layouts[pane];
+            if(row >= layout.y && row < layout.y + layout.rows)
+                panesOnRow.push_back(pane);
         }
+        std::sort(panesOnRow.begin(), panesOnRow.end(),
+                  [&](int a, int b)
+                  {
+                      if(layouts[a].x != layouts[b].x)
+                          return layouts[a].x < layouts[b].x;
+                      return a < b;
+                  });
+
+        int col = 0;
+        for(int pane : panesOnRow)
+        {
+            const PaneLayout& layout = layouts[pane];
+            if(layout.x > col)
+                output.append(layout.x - col, ' ');
+            output += renderPaneRow(pane, row - layout.y, layout.cols);
+            col = std::max(col, layout.x + layout.cols);
+        }
+        if(col < screenCols)
+            output.append(screenCols - col, ' ');
     }
 
     // Status bar

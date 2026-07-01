@@ -519,10 +519,23 @@ public:
         int cols = 0;
     };
 
+    struct SplitNode
+    {
+        bool leaf = true;
+        bool vertical = true;
+        int pane = -1;
+        int first = -1;
+        int second = -1;
+    };
+
     bool splitActive = false;
     bool splitVertical = true;
     int activePane = 0;
-    PaneState splitPanes[2];
+    std::vector<PaneState> splitPanes;
+    std::vector<int> splitTabBarOffset;
+    std::vector<SplitNode> splitNodes;
+    int splitRoot = -1;
+    mutable std::vector<PaneLayout> splitPaneLayouts;
     bool useSystemClipboard = true;
     bool showRelativeLineNumbers = true;
     bool showGitBlame = false;
@@ -545,7 +558,6 @@ public:
     bool showTabNumbers = true;
     bool utf8Mode = true;
     int tabBarOffset = 0;
-    int splitTabBarOffset[2] = {0, 0};
     mutable int maxLineCountSeen = 1;
     std::string configPath;
     bool syntaxJson = true;
@@ -609,6 +621,7 @@ public:
     void enableSplit(bool vertical);
     void closeSplit();
     void switchPane();
+    void switchPaneDirection(int dx, int dy);
     void syncBufferStateFromActivePane();
     void initSplitPanesFromBuffer();
     void switchToBufferInActivePane(int index);
@@ -1193,10 +1206,16 @@ private:
     void enableSplitImpl(bool vertical);
     void closeSplitImpl();
     void switchPaneImpl();
+    void switchPaneDirectionImpl(int dx, int dy);
     void syncBufferStateFromActivePaneImpl();
     void initSplitPanesFromBufferImpl();
     void switchToBufferInActivePaneImpl(int index);
     bool canSplitImpl() const;
+    void rebuildSplitPaneLayouts() const;
+    void collectSplitLeafPanes(int node, std::vector<int>& panes) const;
+    int findSplitLeafNode(int node, int pane) const;
+    int findSplitParentNode(int node, int child) const;
+    int firstSplitLeafPane(int node) const;
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;

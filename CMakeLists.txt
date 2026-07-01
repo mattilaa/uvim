@@ -160,6 +160,7 @@ set(UVIM_CORE_SOURCES
     src/terminal.cpp
     src/buffer_command_pending.cpp
     src/config_parser.cpp
+    src/window_command_pending.cpp
     src/editor.cpp
     src/editor_buffer_controller.cpp
     src/editor_command_controller.cpp

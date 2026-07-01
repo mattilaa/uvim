@@ -78,6 +78,19 @@ void EditorDrawingController::refreshScreen()
         editor.closeSymbolPopup();
     }
 
+    if(editor.splitActive && editor.currentMode == FILE_BROWSER)
+    {
+        editor.drawFullScreen();
+        lastFrameOffsetY = *editor.offsetY;
+        lastFrameOffsetX = *editor.offsetX;
+        lastFrameMode = editor.currentMode;
+        lastFrameCursorY = *editor.cursorY;
+        lastFrameCommandPopupActive = editor.commandPopupActive;
+        lastFrameCommandHistoryPopupActive = editor.commandHistorySearchActive;
+        setNeedsFullRedraw(false);
+        return;
+    }
+
     if(editor.currentMode == WELCOME)
     {
         if(editor.modeStateMachine)
