@@ -410,17 +410,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(ed->showTabs && (c == keyCode(control::ControlKey::CTRL_H) ||
-                        c == keyCode(control::ControlKey::CTRL_L)))
-    {
-        if(c == keyCode(control::ControlKey::CTRL_H))
-            ed->previousBuffer();
-        else
-            ed->nextBuffer();
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
     if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))
     {
         ed->moveBufferLeft();
@@ -1327,8 +1316,20 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
         if(nextChar != -1)
             Terminal::unreadKey(nextChar);
-        ctx.setStatusMessage("Unknown leader command");
-        break;
+        ed->previousBuffer();
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    case keyCode(typed::TypedKey::KEY_L):
+    {
+        ed->nextBuffer();
+        ctx.commandBuffer.clear();
+        ctx.setStatusMessage("");
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 
     case keyCode(typed::TypedKey::KEY_V):

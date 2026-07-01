@@ -397,6 +397,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-x`   - Regex search view",
             "  `Space-e`  - Diagnostic popup on LSP diagnostic row;",
             "               otherwise file browser",
+            "  `Space-h`/`Space-l` - Prev/next buffer",
             "  `Space-hs` - Horizontal split",
             "  `Space-vs` - Vertical split",
             "  `Ctrl-h/j/k/l` - Switch split pane by direction",
@@ -837,8 +838,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `ga`       - Open git stage view",
             "",
             "SPLITS / WINDOWS:",
-            "  `Ctrl-j`/`Ctrl-k` - Switch active split pane",
-            "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer (split-aware)",
+            "  `Ctrl-h/j/k/l` - Switch active split pane by direction",
+            "  `Space-h`/`Space-l` - Prev/next buffer",
         };
     }
     else if(topic_lower == "editing")
@@ -935,7 +936,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "NORMAL MODE:",
             "  `Ctrl-w`          - Buffer browser",
             "  `bd`              - Close current buffer",
-            "  `Ctrl-h`/`Ctrl-l` - Prev / next buffer",
+            "  `Space-h`/`Space-l` - Prev / next buffer",
             "  `Ctrl-Shift-H`    - Move current buffer LEFT in tab bar",
             "  `Ctrl-Shift-L`    - Move current buffer RIGHT in tab bar",
             "  `Ctrl-^`          - Alternate buffer",

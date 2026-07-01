@@ -188,6 +188,39 @@ TEST(RealModeTransitionsTest, SplitPanesKeepSeparateSelectedBuffers)
     EXPECT_EQ(editor.currentBuffer->lines[0], "right");
 }
 
+TEST(RealModeTransitionsTest, LeaderHLNavigateBuffers)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    ASSERT_EQ(editor.currentBufferIndex, 2);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_H));
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_L));
+    EXPECT_EQ(editor.currentBufferIndex, 2);
+}
+
+TEST(RealModeTransitionsTest, CtrlHLDoNotNavigateBuffersWithoutSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    ASSERT_EQ(editor.currentBufferIndex, 1);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_H));
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_L));
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+}
+
 TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
 {
     Editor editor = Editor::createForTests();
