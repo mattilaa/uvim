@@ -81,7 +81,7 @@ TEST(RealModeTransitionsTest, VexOpensFileBrowserInVerticalSplit)
     dispatch_command(sm, "Vex");
 
     EXPECT_TRUE(editor.splitActive);
-    EXPECT_TRUE(editor.splitVertical);
+    EXPECT_FALSE(editor.splitVertical);
     EXPECT_EQ(editor.activePane, 1);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
@@ -95,7 +95,7 @@ TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
     dispatch_command(sm, "Hex");
 
     EXPECT_TRUE(editor.splitActive);
-    EXPECT_FALSE(editor.splitVertical);
+    EXPECT_TRUE(editor.splitVertical);
     EXPECT_EQ(editor.activePane, 1);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
@@ -199,8 +199,9 @@ TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
     sm.dispatch(keyCode(typed::TypedKey::KEY_H));
 
     EXPECT_TRUE(editor.splitActive);
-    EXPECT_FALSE(editor.splitVertical);
+    EXPECT_TRUE(editor.splitVertical);
     EXPECT_EQ(editor.splitPanes.size(), 2u);
+    EXPECT_GT(editor.getPaneLayout(1).x, editor.getPaneLayout(0).x);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
@@ -215,8 +216,9 @@ TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
     sm.dispatch(keyCode(typed::TypedKey::KEY_V));
 
     EXPECT_TRUE(editor.splitActive);
-    EXPECT_TRUE(editor.splitVertical);
+    EXPECT_FALSE(editor.splitVertical);
     EXPECT_EQ(editor.splitPanes.size(), 2u);
+    EXPECT_GT(editor.getPaneLayout(1).y, editor.getPaneLayout(0).y);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
@@ -271,6 +273,31 @@ TEST(RealModeTransitionsTest, DirectionalPaneJumpUsesNestedLayout)
 
     editor.switchPaneDirection(-1, 0);
     EXPECT_EQ(editor.activePane, 0);
+}
+
+TEST(RealModeTransitionsTest, WxClosesOnlyActiveNestedPane)
+{
+    Editor editor = Editor::createForTests();
+    editor.screenRows = 24;
+    editor.screenCols = 80;
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    editor.enableSplit(true);
+    editor.switchPaneDirection(-1, 0);
+    editor.enableSplit(false);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.splitPanes.size(), 3u);
+    ASSERT_EQ(editor.activePane, 2);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_W));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_EQ(editor.splitPanes.size(), 2u);
+    EXPECT_EQ(editor.activePane, 0);
+    EXPECT_EQ(editor.getPaneLayout(0).x, 0);
+    EXPECT_GT(editor.getPaneLayout(1).x, editor.getPaneLayout(0).x);
 }
 
 TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)
@@ -394,7 +421,7 @@ TEST(RealModeTransitionsTest, WxClosesSelectedPane)
 
     EXPECT_FALSE(editor.splitActive);
     EXPECT_EQ(editor.activePane, 0);
-    EXPECT_EQ(editor.currentBufferIndex, 1);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
     EXPECT_TRUE(editor.commandBuffer.empty());
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }

@@ -37,9 +37,9 @@ bool SplitExplorerCommand::execute(Editor& editor,
 
     const bool vertical =
         request.text == "Vex" || request.text == "Vexplore";
-    editor.enableSplit(vertical);
+    editor.enableSplit(!vertical);
     if(editor.splitActive)
-        editor.switchPaneDirection(vertical ? 1 : 0, vertical ? 0 : 1);
+        editor.switchPaneDirection(vertical ? 0 : 1, vertical ? 1 : 0);
     requestMode(editor, FILE_BROWSER, ".");
     return true;
 }

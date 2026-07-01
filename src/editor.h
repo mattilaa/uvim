@@ -1214,6 +1214,8 @@ private:
     void rebuildSplitPaneLayouts() const;
     void collectSplitLeafPanes(int node, std::vector<int>& panes) const;
     int findSplitLeafNode(int node, int pane) const;
+    int findSplitParentNode(int node, int child) const;
+    int firstSplitLeafPane(int node) const;
 #ifdef UVIM_TESTING
 public:
     std::function<bool()> formatOnSaveTestHook;

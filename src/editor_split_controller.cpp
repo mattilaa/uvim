@@ -169,19 +169,78 @@ void Editor::closeSplitImpl()
     if(!splitActive)
         return;
     syncBufferStateFromActivePane();
-    int paneIndex = activePane;
-    splitActive = false;
-    if(paneIndex >= 0 && paneIndex < static_cast<int>(splitPanes.size()))
-        currentBufferIndex = splitPanes[paneIndex].bufferIndex;
-    if(paneIndex >= 0 && paneIndex < static_cast<int>(splitTabBarOffset.size()))
-        tabBarOffset = splitTabBarOffset[paneIndex];
-    activePane = 0;
-    splitPanes.clear();
-    splitTabBarOffset.clear();
-    splitNodes.clear();
-    splitRoot = -1;
+
+    const int paneIndex = activePane;
+    const int activeNode = findSplitLeafNode(splitRoot, activePane);
+    const int parentNode = findSplitParentNode(splitRoot, activeNode);
+    if(activeNode < 0 || parentNode < 0 || paneIndex < 0 ||
+       paneIndex >= static_cast<int>(splitPanes.size()))
+    {
+        splitActive = false;
+        if(paneIndex >= 0 && paneIndex < static_cast<int>(splitPanes.size()))
+            currentBufferIndex = splitPanes[paneIndex].bufferIndex;
+        if(paneIndex >= 0 &&
+           paneIndex < static_cast<int>(splitTabBarOffset.size()))
+            tabBarOffset = splitTabBarOffset[paneIndex];
+        activePane = 0;
+        splitPanes.clear();
+        splitTabBarOffset.clear();
+        splitNodes.clear();
+        splitRoot = -1;
+        splitPaneLayouts.clear();
+        updateCurrentBufferPointers();
+        needsFullRedraw = true;
+        return;
+    }
+
+    const SplitNode& parent = splitNodes[parentNode];
+    const int siblingNode =
+        parent.first == activeNode ? parent.second : parent.first;
+    int nextPane = firstSplitLeafPane(siblingNode);
+
+    splitNodes[parentNode] = splitNodes[siblingNode];
+
+    splitPanes.erase(splitPanes.begin() + paneIndex);
+    if(paneIndex < static_cast<int>(splitTabBarOffset.size()))
+        splitTabBarOffset.erase(splitTabBarOffset.begin() + paneIndex);
+    for(auto& node : splitNodes)
+    {
+        if(!node.leaf)
+            continue;
+        if(node.pane == paneIndex)
+            node.pane = -1;
+        else if(node.pane > paneIndex)
+            --node.pane;
+    }
+    if(nextPane > paneIndex)
+        --nextPane;
+
+    splitActive = splitPanes.size() > 1;
+    if(!splitActive)
+    {
+        splitActive = false;
+        activePane = 0;
+        splitNodes.clear();
+        SplitNode root;
+        root.leaf = true;
+        root.pane = 0;
+        splitNodes.push_back(root);
+        splitRoot = 0;
+    }
+    else
+    {
+        activePane = std::max(0, nextPane);
+    }
+
+    if(activePane >= 0 && activePane < static_cast<int>(splitPanes.size()))
+    {
+        currentBufferIndex = splitPanes[activePane].bufferIndex;
+        if(activePane < static_cast<int>(splitTabBarOffset.size()))
+            tabBarOffset = splitTabBarOffset[activePane];
+    }
     splitPaneLayouts.clear();
     updateCurrentBufferPointers();
+    setPanePointers(activePane);
     needsFullRedraw = true;
 }
 
@@ -378,6 +437,34 @@ int Editor::findSplitLeafNode(int node, int pane) const
     if(found >= 0)
         return found;
     return findSplitLeafNode(n.second, pane);
+}
+
+int Editor::findSplitParentNode(int node, int child) const
+{
+    if(node < 0 || node >= static_cast<int>(splitNodes.size()) || child < 0)
+        return -1;
+    const SplitNode& n = splitNodes[node];
+    if(n.leaf)
+        return -1;
+    if(n.first == child || n.second == child)
+        return node;
+    int found = findSplitParentNode(n.first, child);
+    if(found >= 0)
+        return found;
+    return findSplitParentNode(n.second, child);
+}
+
+int Editor::firstSplitLeafPane(int node) const
+{
+    if(node < 0 || node >= static_cast<int>(splitNodes.size()))
+        return -1;
+    const SplitNode& n = splitNodes[node];
+    if(n.leaf)
+        return n.pane;
+    int pane = firstSplitLeafPane(n.first);
+    if(pane >= 0)
+        return pane;
+    return firstSplitLeafPane(n.second);
 }
 
 void Editor::rebuildSplitPaneLayouts() const

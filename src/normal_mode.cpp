@@ -1319,7 +1319,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         const int nextChar = Terminal::readKeyTimeout(300);
         if(nextChar == keyCode(typed::TypedKey::KEY_S))
         {
-            ed->enableSplit(false);
+            ed->enableSplit(true);
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
             ctx.repeatCount = 0;
@@ -1336,7 +1336,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         const int nextChar = Terminal::readKeyTimeout(300);
         if(nextChar == keyCode(typed::TypedKey::KEY_S))
         {
-            ed->enableSplit(true);
+            ed->enableSplit(false);
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
             ctx.repeatCount = 0;
