@@ -1,4 +1,5 @@
 #include "real_mode_test_utils.h"
+#include "widgets/command_popup.h"
 
 #include <algorithm>
 
@@ -56,6 +57,21 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("Hex"), "Hexplore"));
 }
 
+TEST(RealModeTransitionsTest, CommandPopupDocumentsVhAsHorizontalSplit)
+{
+    Editor editor = Editor::createForTests();
+    std::vector<std::string> entries = {"vh"};
+    std::vector<int> filtered = {0};
+    widgets::CommandPopupView view{
+        widgets::PopupFrameView{editor.theme, 20, 80}, entries, filtered, 0, 0};
+
+    std::string output;
+    widgets::drawCommandPopup(output, view);
+
+    EXPECT_TRUE(text_utils::is_found(output.find("Split horizontally")));
+    EXPECT_FALSE(text_utils::is_found(output.find("Split vertically")));
+}
+
 TEST(RealModeTransitionsTest, VexOpensFileBrowserInVerticalSplit)
 {
     Editor editor = Editor::createForTests();
@@ -82,6 +98,32 @@ TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
     EXPECT_FALSE(editor.splitVertical);
     EXPECT_EQ(editor.activePane, 1);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    editor.enableSplit(true);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
+}
+
+TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromHorizontalSplit)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    editor.enableSplit(false);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
 }
 
 TEST(RealModeTransitionsTest, CtrlHLCyclesVerticalSplitPanes)

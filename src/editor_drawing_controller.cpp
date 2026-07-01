@@ -78,7 +78,7 @@ void EditorDrawingController::refreshScreen()
         editor.closeSymbolPopup();
     }
 
-    if(editor.splitActive)
+    if(editor.splitActive && editor.currentMode == FILE_BROWSER)
     {
         editor.drawFullScreen();
         lastFrameOffsetY = *editor.offsetY;
@@ -371,6 +371,19 @@ void EditorDrawingController::refreshScreen()
 #endif
 
     editor.adjustViewport();
+
+    if(editor.splitActive)
+    {
+        editor.drawFullScreen();
+        lastFrameOffsetY = *editor.offsetY;
+        lastFrameOffsetX = *editor.offsetX;
+        lastFrameMode = editor.currentMode;
+        lastFrameCursorY = *editor.cursorY;
+        lastFrameCommandPopupActive = editor.commandPopupActive;
+        lastFrameCommandHistoryPopupActive = editor.commandHistorySearchActive;
+        setNeedsFullRedraw(false);
+        return;
+    }
 
     bool modeChanged = (editor.currentMode != lastFrameMode);
     int scrollDelta = *editor.offsetY - lastFrameOffsetY;
