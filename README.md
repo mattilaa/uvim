@@ -131,10 +131,20 @@ Run `./build/uvim-config --help` for all command-line options, including
 The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,
 `Build Outputs`, and `Size And Link`. `vi-real` is a hard minimal build that
-compiles out terminal colors, color tools, popups, git, fuzzy, grep, regex
-tooling, docs/LSP/test build outputs, and other optional integrations. The
-other presets enable terminal colors and color tools by default. The smallest
-profiles use `Oz`, LTO, dead-code sections, and strip.
+compiles out terminal colors, color tools, modern convenience keybindings,
+multi-pane splits, popups, git, fuzzy, grep, regex tooling, docs/LSP/test
+build outputs, and other optional integrations. The other presets enable
+terminal colors, color tools, modern keybindings, and multi-pane splits by
+default. The smallest profiles use `Oz`, LTO,
+dead-code sections, and strip.
+
+Useful `uvim-config --disable` names for very small vi-style builds include
+`modern-keybindings`, `multi-pane-splits`, `browser-tools`,
+`auxiliary-views`, `asm-docs`, `git`, `search`, `formatters`, `clipboard`,
+`struct-size`, `color-tools`, `terminal-colors`, `tests`, and
+`compile-commands`. The corresponding CMake options are
+`UVIM_ENABLE_MODERN_KEYBINDINGS` for the split/buffer convenience key layer and
+`UVIM_ENABLE_MULTI_PANE_SPLITS` for nested pane trees.
 
 ## Assembly instruction docs
 
@@ -558,7 +568,9 @@ cursor movement and selection.
 - `:set showtabs` / `:set noshowtabs` - show/hide the tab bar entirely.
 - `Space-h` / `Space-l` - move the current buffer left / right in the
   tab bar.
-- `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above, no leader needed.
+- `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above when no split is active.
+  When multi-pane splits are enabled and a split is active,
+  `Ctrl-Shift-H/J/K/L` jumps between panes.
   Requires a terminal that supports either xterm `modifyOtherKeys=2` or
   the kitty keyboard protocol (kitty, ghostty, wezterm, alacritty,
   iTerm2 with "Report modifiers using CSI u" enabled, recent xterm,

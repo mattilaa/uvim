@@ -397,10 +397,16 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-x`   - Regex search view",
             "  `Space-e`  - Diagnostic popup on LSP diagnostic row;",
             "               otherwise file browser",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Space-h`/`Space-l` - Prev/next buffer",
             "  `Space-hs` - Horizontal split",
             "  `Space-vs` - Vertical split",
-            "  `Ctrl-h/j/k/l` - Switch split pane by direction",
+#ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
+            "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
+#else
+            "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
+#endif
+#endif
             "",
             "Press `q` to close this help window.",
         };
@@ -838,8 +844,16 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `ga`       - Open git stage view",
             "",
             "SPLITS / WINDOWS:",
-            "  `Ctrl-h/j/k/l` - Switch active split pane by direction",
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+            "  `Ctrl-Shift-h/j/k/l` - Switch active split pane by direction",
             "  `Space-h`/`Space-l` - Prev/next buffer",
+#elif defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
+            "  `Space-h`/`Space-l` - Prev/next buffer",
+            "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
+            "  Splits use the older single split pair.",
+#else
+            "  Use `:split`, `:vsplit`, and window commands for splits.",
+#endif
         };
     }
     else if(topic_lower == "editing")
@@ -908,7 +922,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gf`             - Go to file under cursor",
             "  `gh`             - Alternate file (header/source)",
             "  `:vs`/`:split`   - Open split view",
-            "  `Ctrl-j/k`       - Switch active split pane",
+            "  `Ctrl-Shift-h/j/k/l` - Switch active split pane",
             "",
             "FILE BROWSER:",
             "  `Enter` - Open file/directory",
@@ -936,11 +950,18 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "NORMAL MODE:",
             "  `Ctrl-w`          - Buffer browser",
             "  `bd`              - Close current buffer",
+            "  `Ctrl-h`/`Ctrl-l` - Prev / next buffer",
+#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Space-h`/`Space-l` - Prev / next buffer",
-            "  `Ctrl-Shift-H`    - Move current buffer LEFT in tab bar",
-            "  `Ctrl-Shift-L`    - Move current buffer RIGHT in tab bar",
+#endif
+            "  `Ctrl-Shift-H`    - Move buffer left when no split is active",
+            "  `Ctrl-Shift-L`    - Move buffer right when no split is active",
             "  `Ctrl-^`          - Alternate buffer",
-            "  `Ctrl-h/j/k/l`    - Switch split pane by direction",
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+            "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
+#elif !defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+            "  `Ctrl-h`/`Ctrl-l`    - Prev / next buffer",
+#endif
             "",
             "TAB BAR:",
             "  Tabs show `N:filename` (N = buffer index, 1-based).",
@@ -969,14 +990,29 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:sp`/`:split`/`:hs`/`:hsplit` - Horizontal split",
             "  `:vs`/`:vsplit`/`:vh`          - Vertical split",
             "  `:only`                        - Close all other splits",
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
             "  `Space-hs`                     - Horizontal split",
             "  `Space-vs`                     - Vertical split",
+#endif
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
             "PANE NAVIGATION (NORMAL MODE):",
-            "  `Ctrl-h` - Focus pane to the left",
-            "  `Ctrl-l` - Focus pane to the right",
-            "  `Ctrl-k` - Focus pane above",
-            "  `Ctrl-j` - Focus pane below",
+            "  `Ctrl-Shift-h` - Focus pane to the left",
+            "  `Ctrl-Shift-l` - Focus pane to the right",
+            "  `Ctrl-Shift-k` - Focus pane above",
+            "  `Ctrl-Shift-j` - Focus pane below",
+            "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
+#elif !defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+            "",
+            "PANE NAVIGATION (NORMAL MODE):",
+            "  `Ctrl-h` - Previous buffer",
+            "  `Ctrl-l` - Next buffer",
+            "  Splits use the older single split pair.",
+#else
+            "",
+            "PANE NAVIGATION (NORMAL MODE):",
+            "  Modern pane-focus keybindings are disabled in this build.",
+#endif
             "",
             "TABS:",
             "  `:tabnew`            - New tab",
@@ -986,8 +1022,13 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:tabp`/`:tabprev`   - Previous tab",
             "",
             "TIP:",
+#ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
             "  Splitting a pane divides only the active pane, so vertical and",
             "  horizontal panes can be nested.",
+#else
+            "  Multi-pane splits are disabled; opening another split keeps",
+            "  the older single split pair layout.",
+#endif
         };
     }
     else if(topic_lower == "search")

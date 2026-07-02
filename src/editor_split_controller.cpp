@@ -116,6 +116,44 @@ void Editor::enableSplitImpl(bool vertical)
         setStatusMessage("No buffer");
         return;
     }
+#ifndef UVIM_ENABLE_MULTI_PANE_SPLITS
+    if(splitActive)
+    {
+        syncBufferStateFromActivePane();
+        PaneState state;
+        if(!splitPanes.empty())
+        {
+            const int paneIndex =
+                std::clamp(activePane, 0,
+                           static_cast<int>(splitPanes.size()) - 1);
+            state = splitPanes[paneIndex];
+        }
+        int restoredTabBarOffset = tabBarOffset;
+        if(activePane >= 0 &&
+           activePane < static_cast<int>(splitTabBarOffset.size()))
+            restoredTabBarOffset = splitTabBarOffset[activePane];
+
+        splitActive = false;
+        splitPanes.clear();
+        splitTabBarOffset.clear();
+        splitNodes.clear();
+        splitRoot = -1;
+        splitPaneLayouts.clear();
+        activePane = 0;
+        currentBufferIndex = std::clamp(
+            state.bufferIndex, 0, static_cast<int>(buffers.size()) - 1);
+        tabBarOffset = restoredTabBarOffset;
+        updateCurrentBufferPointers();
+        if(currentBuffer)
+        {
+            currentBuffer->cursorX = state.cursorX;
+            currentBuffer->cursorY = state.cursorY;
+            currentBuffer->wantedX = state.wantedX;
+            currentBuffer->offsetX = state.offsetX;
+            currentBuffer->offsetY = state.offsetY;
+        }
+    }
+#endif
     if(splitActive)
     {
         syncBufferStateFromActivePane();
@@ -169,6 +207,29 @@ void Editor::closeSplitImpl()
     if(!splitActive)
         return;
     syncBufferStateFromActivePane();
+
+#ifndef UVIM_ENABLE_MULTI_PANE_SPLITS
+    {
+        const int paneIndex =
+            std::clamp(activePane, 0, static_cast<int>(splitPanes.size()) - 1);
+        if(paneIndex >= 0 && paneIndex < static_cast<int>(splitPanes.size()))
+            currentBufferIndex = splitPanes[paneIndex].bufferIndex;
+        if(paneIndex >= 0 &&
+           paneIndex < static_cast<int>(splitTabBarOffset.size()))
+            tabBarOffset = splitTabBarOffset[paneIndex];
+        splitActive = false;
+        activePane = 0;
+        splitPanes.clear();
+        splitTabBarOffset.clear();
+        splitNodes.clear();
+        splitRoot = -1;
+        splitPaneLayouts.clear();
+        updateCurrentBufferPointers();
+        restoreBufferState();
+        needsFullRedraw = true;
+        return;
+    }
+#endif
 
     const int paneIndex = activePane;
     const int activeNode = findSplitLeafNode(splitRoot, activePane);

@@ -209,6 +209,8 @@ struct Config
     bool structSizePopup = true;
     bool colorTools = true;
     bool terminalColors = true;
+    bool modernKeybindings = true;
+    bool multiPaneSplits = true;
     bool tests = true;
     bool compileCommands = true;
     bool lto = true;
@@ -543,6 +545,8 @@ void apply_feature_set(Config& cfg)
         cfg.structSizePopup = false;
         cfg.colorTools = false;
         cfg.terminalColors = false;
+        cfg.modernKeybindings = false;
+        cfg.multiPaneSplits = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -573,6 +577,8 @@ void apply_feature_set(Config& cfg)
         cfg.structSizePopup = false;
         cfg.colorTools = true;
         cfg.terminalColors = true;
+        cfg.modernKeybindings = true;
+        cfg.multiPaneSplits = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -603,6 +609,8 @@ void apply_feature_set(Config& cfg)
         cfg.structSizePopup = false;
         cfg.colorTools = true;
         cfg.terminalColors = true;
+        cfg.modernKeybindings = true;
+        cfg.multiPaneSplits = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -633,6 +641,8 @@ void apply_feature_set(Config& cfg)
         cfg.structSizePopup = true;
         cfg.colorTools = true;
         cfg.terminalColors = true;
+        cfg.modernKeybindings = true;
+        cfg.multiPaneSplits = true;
         cfg.tests = true;
         cfg.compileCommands = true;
         cfg.lto = true;
@@ -661,6 +671,8 @@ void apply_feature_set(Config& cfg)
     cfg.structSizePopup = true;
     cfg.colorTools = true;
     cfg.terminalColors = true;
+    cfg.modernKeybindings = true;
+    cfg.multiPaneSplits = true;
     cfg.tests = true;
     cfg.compileCommands = true;
     cfg.lto = true;
@@ -687,6 +699,7 @@ std::vector<Section> make_sections()
            "vi-real is a hard minimal build that compiles out optional popups, "
            "help views, LSP, git, fzf/rg-style search views, formatters, "
            "clipboard, color tools, terminal colors, and struct-size probes. "
+           "It also disables modern convenience keybindings. "
            "vi-min keeps file/buffer browser, tabs, and color tools but "
            "compiles out git, fzf/rg-style search views, formatters, "
            "clipboard, struct-size probes, docs, tests, and LSP. Minimal keeps "
@@ -742,6 +755,21 @@ std::vector<Section> make_sections()
          "split pass.",
          true,
          {{ItemKind::Toggle,
+           "Browser tools",
+           "",
+           &Config::browserTools,
+           nullptr,
+           {},
+           "Build switch for the built-in file browser and buffer browser."},
+          {ItemKind::Toggle,
+           "Auxiliary views",
+           "",
+           &Config::auxiliaryViews,
+           nullptr,
+           {},
+           "Build switch for help, loc, lspinfo, glyph select, references, "
+           "command output, and other auxiliary views."},
+          {ItemKind::Toggle,
            "Assembly docs",
            "UVIM_ENABLE_ASM_DOCS",
            &Config::asmDocs,
@@ -790,7 +818,7 @@ std::vector<Section> make_sections()
            &Config::colorTools,
            nullptr,
            {},
-           "Build switch for :ansitools, :colorpicker, :colorselect, and "
+          "Build switch for :ansitools, :colorpicker, :colorselect, and "
            "leader-cp/cs shortcuts."},
           {ItemKind::Toggle,
            "Terminal colors",
@@ -799,7 +827,25 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Build switch for ANSI UI and syntax coloring. vi-real disables "
-           "this for a plain terminal editor."}}},
+           "this for a plain terminal editor."},
+          {ItemKind::Toggle,
+           "Modern keybindings",
+           "UVIM_ENABLE_MODERN_KEYBINDINGS",
+           &Config::modernKeybindings,
+           nullptr,
+           {},
+           "Build switch for non-vi convenience keys: Space-h/l buffer "
+           "navigation, Space-hs/vs split shortcuts, and Ctrl-Shift-h/j/k/l "
+           "pane focus. Disable for a smaller, stricter vi-style keyset."},
+          {ItemKind::Toggle,
+           "Multi-pane splits",
+           "UVIM_ENABLE_MULTI_PANE_SPLITS",
+           &Config::multiPaneSplits,
+           nullptr,
+           {},
+           "Build switch for nested split panes. Disable to keep the older "
+           "single split pair behavior and normal-mode Ctrl-h/l buffer "
+           "navigation."}}},
         {"Language Servers",
          "Per-language LSP integrations. Full enables all of these by "
          "default; smaller presets compile them out unless selected here.",
@@ -1004,7 +1050,7 @@ std::string preset_help(const Config& cfg)
                "compiles out file/browser tools, auxiliary views, popups, help "
                "item views, LSP, git, search tools, formatters, clipboard, "
                "color tools, struct-size probes, docs/tests, terminal colors, "
-               "and compile_commands.json.";
+               "modern convenience keybindings, and compile_commands.json.";
     }
     if(cfg.featureSet == 1)
     {
@@ -1617,6 +1663,10 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.tsLsp = parse_bool(value).value_or(cfg.tsLsp);
     else if(key == "asm_docs")
         cfg.asmDocs = parse_bool(value).value_or(cfg.asmDocs);
+    else if(key == "browser_tools")
+        cfg.browserTools = parse_bool(value).value_or(cfg.browserTools);
+    else if(key == "auxiliary_views")
+        cfg.auxiliaryViews = parse_bool(value).value_or(cfg.auxiliaryViews);
     else if(key == "git_tools")
         cfg.gitTools = parse_bool(value).value_or(cfg.gitTools);
     else if(key == "search_tools")
@@ -1631,6 +1681,11 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.colorTools = parse_bool(value).value_or(cfg.colorTools);
     else if(key == "terminal_colors")
         cfg.terminalColors = parse_bool(value).value_or(cfg.terminalColors);
+    else if(key == "modern_keybindings")
+        cfg.modernKeybindings =
+            parse_bool(value).value_or(cfg.modernKeybindings);
+    else if(key == "multi_pane_splits")
+        cfg.multiPaneSplits = parse_bool(value).value_or(cfg.multiPaneSplits);
     else if(key == "tests")
         cfg.tests = parse_bool(value).value_or(cfg.tests);
     else if(key == "compile_commands")
@@ -1766,6 +1821,8 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "json_lsp=" << bool_value(cfg.jsonLsp) << "\n";
     file << "ts_lsp=" << bool_value(cfg.tsLsp) << "\n";
     file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
+    file << "browser_tools=" << bool_value(cfg.browserTools) << "\n";
+    file << "auxiliary_views=" << bool_value(cfg.auxiliaryViews) << "\n";
     file << "git_tools=" << bool_value(cfg.gitTools) << "\n";
     file << "search_tools=" << bool_value(cfg.searchTools) << "\n";
     file << "formatters=" << bool_value(cfg.formatters) << "\n";
@@ -1773,6 +1830,8 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
     file << "color_tools=" << bool_value(cfg.colorTools) << "\n";
     file << "terminal_colors=" << bool_value(cfg.terminalColors) << "\n";
+    file << "modern_keybindings=" << bool_value(cfg.modernKeybindings) << "\n";
+    file << "multi_pane_splits=" << bool_value(cfg.multiPaneSplits) << "\n";
     file << "tests=" << bool_value(cfg.tests) << "\n";
     file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
     file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
@@ -1902,10 +1961,12 @@ void print_help(std::ostream& out)
         << "Feature names for --enable/--disable:\n"
         << "  clangd, robot-lsp, python-lsp, mlang-lsp, "
            "mlang-semantic-tokens, html-lsp,\n"
-        << "  css-lsp, json-lsp, ts-lsp, asm-docs, git, search, formatters, "
-           "clipboard,\n"
+        << "  css-lsp, json-lsp, ts-lsp, browser-tools, auxiliary-views, "
+           "asm-docs,\n"
+        << "  git, search, formatters, clipboard,\n"
         << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
-           "auto-build-number,\n"
+           "modern-keybindings, multi-pane-splits,\n"
+        << "  auto-build-number,\n"
         << "  lto, gc-sections, strip, static, static-link, sanitizers, "
            "debug-logging, debug-lsp\n\n"
         << "Examples:\n"
@@ -1941,6 +2002,17 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
         cfg.tsLsp = enabled;
     else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
         cfg.asmDocs = enabled;
+    else if(equals_ci(name, "browser-tools") ||
+            equals_ci(name, "browser") ||
+            equals_ci(name, "file-browser") ||
+            equals_ci(name, "buffer-browser"))
+        cfg.browserTools = enabled;
+    else if(equals_ci(name, "auxiliary-views") ||
+            equals_ci(name, "aux-views") ||
+            equals_ci(name, "auxiliary") ||
+            equals_ci(name, "popups") ||
+            equals_ci(name, "help"))
+        cfg.auxiliaryViews = enabled;
     else if(equals_ci(name, "git") || equals_ci(name, "git-tools"))
         cfg.gitTools = enabled;
     else if(equals_ci(name, "search") || equals_ci(name, "search-tools"))
@@ -1963,6 +2035,17 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
             equals_ci(name, "ui-colors") || equals_ci(name, "syntax-colors") ||
             equals_ci(name, "colors"))
         cfg.terminalColors = enabled;
+    else if(equals_ci(name, "modern-keybindings") ||
+            equals_ci(name, "modern-keys") ||
+            equals_ci(name, "convenience-keys") ||
+            equals_ci(name, "pane-keys") ||
+            equals_ci(name, "split-keys"))
+        cfg.modernKeybindings = enabled;
+    else if(equals_ci(name, "multi-pane-splits") ||
+            equals_ci(name, "multi-panes") ||
+            equals_ci(name, "nested-splits") ||
+            equals_ci(name, "pane-tree"))
+        cfg.multiPaneSplits = enabled;
     else if(equals_ci(name, "tests") || equals_ci(name, "test"))
         cfg.tests = enabled;
     else if(equals_ci(name, "compile-commands") ||
