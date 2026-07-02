@@ -132,17 +132,19 @@ The default release optimization is `-O2`. For very small binaries, choose the
 `vi-real` feature set or tune the options under `Editor Features`,
 `Build Outputs`, and `Size And Link`. `vi-real` is a hard minimal build that
 compiles out terminal colors, color tools, modern convenience keybindings,
-popups, git, fuzzy, grep, regex tooling, docs/LSP/test build outputs, and other
-optional integrations. The other presets enable terminal colors, color tools,
-and modern keybindings by default. The smallest profiles use `Oz`, LTO,
+multi-pane splits, popups, git, fuzzy, grep, regex tooling, docs/LSP/test
+build outputs, and other optional integrations. The other presets enable
+terminal colors, color tools, modern keybindings, and multi-pane splits by
+default. The smallest profiles use `Oz`, LTO,
 dead-code sections, and strip.
 
 Useful `uvim-config --disable` names for very small vi-style builds include
-`modern-keybindings`, `browser-tools`, `auxiliary-views`, `asm-docs`, `git`,
-`search`, `formatters`, `clipboard`, `struct-size`, `color-tools`,
-`terminal-colors`, `tests`, and `compile-commands`. The corresponding CMake
-option for the split/buffer convenience key layer is
-`UVIM_ENABLE_MODERN_KEYBINDINGS`.
+`modern-keybindings`, `multi-pane-splits`, `browser-tools`,
+`auxiliary-views`, `asm-docs`, `git`, `search`, `formatters`, `clipboard`,
+`struct-size`, `color-tools`, `terminal-colors`, `tests`, and
+`compile-commands`. The corresponding CMake options are
+`UVIM_ENABLE_MODERN_KEYBINDINGS` for the split/buffer convenience key layer and
+`UVIM_ENABLE_MULTI_PANE_SPLITS` for nested pane trees.
 
 ## Assembly instruction docs
 

@@ -368,7 +368,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
     if(ed->splitActive)
     {
         if(c == keyCode(control::ControlKey::CTRL_H))
@@ -395,6 +395,21 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             ctx.repeatCount = 0;
             return std::nullopt;
         }
+    }
+#endif
+
+#ifndef UVIM_ENABLE_MULTI_PANE_SPLITS
+    if(c == keyCode(control::ControlKey::CTRL_H))
+    {
+        ed->previousBuffer();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+    if(c == keyCode(control::ControlKey::CTRL_L))
+    {
+        ed->nextBuffer();
+        ctx.repeatCount = 0;
+        return std::nullopt;
     }
 #endif
 

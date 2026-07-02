@@ -127,6 +127,7 @@ TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromHorizontalSplit)
 }
 
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
+#ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
 TEST(RealModeTransitionsTest, CtrlHLCyclesVerticalSplitPanes)
 {
     Editor editor = Editor::createForTests();
@@ -188,6 +189,7 @@ TEST(RealModeTransitionsTest, SplitPanesKeepSeparateSelectedBuffers)
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "right");
 }
+#endif
 
 TEST(RealModeTransitionsTest, LeaderHLNavigateBuffers)
 {
@@ -207,6 +209,7 @@ TEST(RealModeTransitionsTest, LeaderHLNavigateBuffers)
     EXPECT_EQ(editor.currentBufferIndex, 2);
 }
 
+#ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
 TEST(RealModeTransitionsTest, CtrlHLDoNotNavigateBuffersWithoutSplit)
 {
     Editor editor = Editor::createForTests();
@@ -221,6 +224,7 @@ TEST(RealModeTransitionsTest, CtrlHLDoNotNavigateBuffersWithoutSplit)
     sm.dispatch(keyCode(control::ControlKey::CTRL_L));
     EXPECT_EQ(editor.currentBufferIndex, 1);
 }
+#endif
 
 TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
 {
@@ -257,6 +261,7 @@ TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
 }
 #endif
 
+#ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
 TEST(RealModeTransitionsTest, SplittingActivePaneCreatesNestedLayout)
 {
     Editor editor = Editor::createForTests();
@@ -334,6 +339,46 @@ TEST(RealModeTransitionsTest, WxClosesOnlyActiveNestedPane)
     EXPECT_EQ(editor.getPaneLayout(0).x, 0);
     EXPECT_GT(editor.getPaneLayout(1).x, editor.getPaneLayout(0).x);
 }
+#else
+TEST(RealModeTransitionsTest, SplitDoesNotCreateNestedLayoutWhenDisabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.screenRows = 24;
+    editor.screenCols = 80;
+    editor.createNewBuffer();
+
+    editor.enableSplit(true);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.splitPanes.size(), 2u);
+    ASSERT_EQ(editor.activePane, 1);
+
+    editor.enableSplit(false);
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_EQ(editor.splitPanes.size(), 2u);
+    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_GT(editor.getPaneLayout(1).y, editor.getPaneLayout(0).y);
+}
+
+TEST(RealModeTransitionsTest, CtrlHLNavigateBuffersWhenMultiPaneSplitsDisabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    ASSERT_EQ(editor.currentBufferIndex, 2);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    editor.enableSplit(true);
+    ASSERT_TRUE(editor.splitActive);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_H));
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_L));
+    EXPECT_EQ(editor.currentBufferIndex, 2);
+}
+#endif
 
 TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)
 {

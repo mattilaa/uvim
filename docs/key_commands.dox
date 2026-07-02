@@ -84,10 +84,14 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:vs` / `:vsplit` / `:vh` : vertical split
 - `wx` : close the selected pane
 - `Ctrl-h/j/k/l` : focus pane left/down/up/right when built with
-  `UVIM_ENABLE_MODERN_KEYBINDINGS`
+  `UVIM_ENABLE_MODERN_KEYBINDINGS` and `UVIM_ENABLE_MULTI_PANE_SPLITS`
 - Disable the convenience split/buffer key layer in `uvim-config` by turning
   off `Modern keybindings`, or from CLI with
   `uvim-config --disable modern-keybindings`.
+- Disable nested pane trees in `uvim-config` by turning off
+  `Multi-pane splits`, or from CLI with
+  `uvim-config --disable multi-pane-splits`. In that build, splits use the
+  older single split pair and normal-mode `Ctrl-h` / `Ctrl-l` navigate buffers.
 
 \section keys_insert Insert mode
 - Type text to insert

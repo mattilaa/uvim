@@ -210,6 +210,7 @@ struct Config
     bool colorTools = true;
     bool terminalColors = true;
     bool modernKeybindings = true;
+    bool multiPaneSplits = true;
     bool tests = true;
     bool compileCommands = true;
     bool lto = true;
@@ -545,6 +546,7 @@ void apply_feature_set(Config& cfg)
         cfg.colorTools = false;
         cfg.terminalColors = false;
         cfg.modernKeybindings = false;
+        cfg.multiPaneSplits = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -576,6 +578,7 @@ void apply_feature_set(Config& cfg)
         cfg.colorTools = true;
         cfg.terminalColors = true;
         cfg.modernKeybindings = true;
+        cfg.multiPaneSplits = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -607,6 +610,7 @@ void apply_feature_set(Config& cfg)
         cfg.colorTools = true;
         cfg.terminalColors = true;
         cfg.modernKeybindings = true;
+        cfg.multiPaneSplits = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -638,6 +642,7 @@ void apply_feature_set(Config& cfg)
         cfg.colorTools = true;
         cfg.terminalColors = true;
         cfg.modernKeybindings = true;
+        cfg.multiPaneSplits = true;
         cfg.tests = true;
         cfg.compileCommands = true;
         cfg.lto = true;
@@ -667,6 +672,7 @@ void apply_feature_set(Config& cfg)
     cfg.colorTools = true;
     cfg.terminalColors = true;
     cfg.modernKeybindings = true;
+    cfg.multiPaneSplits = true;
     cfg.tests = true;
     cfg.compileCommands = true;
     cfg.lto = true;
@@ -830,7 +836,16 @@ std::vector<Section> make_sections()
            {},
            "Build switch for non-vi convenience keys: Space-h/l buffer "
            "navigation, Space-hs/vs split shortcuts, and Ctrl-h/j/k/l pane "
-           "focus. Disable for a smaller, stricter vi-style keyset."}}},
+           "focus. Disable for a smaller, stricter vi-style keyset."},
+          {ItemKind::Toggle,
+           "Multi-pane splits",
+           "UVIM_ENABLE_MULTI_PANE_SPLITS",
+           &Config::multiPaneSplits,
+           nullptr,
+           {},
+           "Build switch for nested split panes. Disable to keep the older "
+           "single split pair behavior and normal-mode Ctrl-h/l buffer "
+           "navigation."}}},
         {"Language Servers",
          "Per-language LSP integrations. Full enables all of these by "
          "default; smaller presets compile them out unless selected here.",
@@ -1669,6 +1684,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
     else if(key == "modern_keybindings")
         cfg.modernKeybindings =
             parse_bool(value).value_or(cfg.modernKeybindings);
+    else if(key == "multi_pane_splits")
+        cfg.multiPaneSplits = parse_bool(value).value_or(cfg.multiPaneSplits);
     else if(key == "tests")
         cfg.tests = parse_bool(value).value_or(cfg.tests);
     else if(key == "compile_commands")
@@ -1814,6 +1831,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "color_tools=" << bool_value(cfg.colorTools) << "\n";
     file << "terminal_colors=" << bool_value(cfg.terminalColors) << "\n";
     file << "modern_keybindings=" << bool_value(cfg.modernKeybindings) << "\n";
+    file << "multi_pane_splits=" << bool_value(cfg.multiPaneSplits) << "\n";
     file << "tests=" << bool_value(cfg.tests) << "\n";
     file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
     file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
@@ -1947,7 +1965,7 @@ void print_help(std::ostream& out)
            "asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
         << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
-           "modern-keybindings,\n"
+           "modern-keybindings, multi-pane-splits,\n"
         << "  auto-build-number,\n"
         << "  lto, gc-sections, strip, static, static-link, sanitizers, "
            "debug-logging, debug-lsp\n\n"
@@ -2023,6 +2041,11 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
             equals_ci(name, "pane-keys") ||
             equals_ci(name, "split-keys"))
         cfg.modernKeybindings = enabled;
+    else if(equals_ci(name, "multi-pane-splits") ||
+            equals_ci(name, "multi-panes") ||
+            equals_ci(name, "nested-splits") ||
+            equals_ci(name, "pane-tree"))
+        cfg.multiPaneSplits = enabled;
     else if(equals_ci(name, "tests") || equals_ci(name, "test"))
         cfg.tests = enabled;
     else if(equals_ci(name, "compile-commands") ||
