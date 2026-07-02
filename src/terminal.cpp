@@ -179,6 +179,10 @@ static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
         {
             if(vk == 'H')
                 return keyCode(control::ControlKey::SHIFT_CTRL_H);
+            if(vk == 'J')
+                return keyCode(control::ControlKey::SHIFT_CTRL_J);
+            if(vk == 'K')
+                return keyCode(control::ControlKey::SHIFT_CTRL_K);
             if(vk == 'L')
                 return keyCode(control::ControlKey::SHIFT_CTRL_L);
             if(vk == 'X')
@@ -606,6 +610,12 @@ int Terminal::readKeyInternal(int timeoutMs)
                         if(lower == 'h')
                             return keyCode(
                                 control::ControlKey::SHIFT_CTRL_H);
+                        if(lower == 'j')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_J);
+                        if(lower == 'k')
+                            return keyCode(
+                                control::ControlKey::SHIFT_CTRL_K);
                         if(lower == 'l')
                             return keyCode(
                                 control::ControlKey::SHIFT_CTRL_L);

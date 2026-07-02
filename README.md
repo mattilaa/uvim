@@ -568,7 +568,9 @@ cursor movement and selection.
 - `:set showtabs` / `:set noshowtabs` - show/hide the tab bar entirely.
 - `Space-h` / `Space-l` - move the current buffer left / right in the
   tab bar.
-- `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above, no leader needed.
+- `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above when no split is active.
+  When multi-pane splits are enabled and a split is active,
+  `Ctrl-Shift-H/J/K/L` jumps between panes.
   Requires a terminal that supports either xterm `modifyOtherKeys=2` or
   the kitty keyboard protocol (kitty, ghostty, wezterm, alacritty,
   iTerm2 with "Report modifiers using CSI u" enabled, recent xterm,

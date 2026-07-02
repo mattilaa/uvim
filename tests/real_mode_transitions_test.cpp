@@ -128,7 +128,7 @@ TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromHorizontalSplit)
 
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
-TEST(RealModeTransitionsTest, CtrlHLCyclesVerticalSplitPanes)
+TEST(RealModeTransitionsTest, ShiftCtrlHLCyclesVerticalSplitPanes)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -139,14 +139,14 @@ TEST(RealModeTransitionsTest, CtrlHLCyclesVerticalSplitPanes)
     ASSERT_TRUE(editor.splitVertical);
     ASSERT_EQ(editor.activePane, 1);
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_H));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
     EXPECT_EQ(editor.activePane, 0);
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_L));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
     EXPECT_EQ(editor.activePane, 1);
 }
 
-TEST(RealModeTransitionsTest, CtrlJKCyclesHorizontalSplitPanes)
+TEST(RealModeTransitionsTest, ShiftCtrlJKCyclesHorizontalSplitPanes)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -157,10 +157,10 @@ TEST(RealModeTransitionsTest, CtrlJKCyclesHorizontalSplitPanes)
     ASSERT_FALSE(editor.splitVertical);
     ASSERT_EQ(editor.activePane, 1);
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
     EXPECT_EQ(editor.activePane, 0);
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
     EXPECT_EQ(editor.activePane, 1);
 }
 
@@ -177,13 +177,13 @@ TEST(RealModeTransitionsTest, SplitPanesKeepSeparateSelectedBuffers)
     editor.switchToBufferInActivePane(1);
     auto sm = makeMachine(editor, NormalMode{});
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_H));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
     EXPECT_EQ(editor.activePane, 0);
     EXPECT_EQ(editor.currentBufferIndex, 0);
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
     EXPECT_EQ(editor.currentBuffer->lines[0], "left");
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_L));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
     EXPECT_EQ(editor.activePane, 1);
     EXPECT_EQ(editor.currentBufferIndex, 1);
     ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
@@ -210,7 +210,7 @@ TEST(RealModeTransitionsTest, LeaderHLNavigateBuffers)
 }
 
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
-TEST(RealModeTransitionsTest, CtrlHLDoNotNavigateBuffersWithoutSplit)
+TEST(RealModeTransitionsTest, CtrlHLNavigateBuffersWithoutSplit)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -219,7 +219,7 @@ TEST(RealModeTransitionsTest, CtrlHLDoNotNavigateBuffersWithoutSplit)
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_H));
-    EXPECT_EQ(editor.currentBufferIndex, 1);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
 
     sm.dispatch(keyCode(control::ControlKey::CTRL_L));
     EXPECT_EQ(editor.currentBufferIndex, 1);

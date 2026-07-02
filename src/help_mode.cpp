@@ -402,7 +402,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-hs` - Horizontal split",
             "  `Space-vs` - Vertical split",
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
-            "  `Ctrl-h/j/k/l` - Switch split pane by direction",
+            "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
 #else
             "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
 #endif
@@ -845,7 +845,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "SPLITS / WINDOWS:",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
-            "  `Ctrl-h/j/k/l` - Switch active split pane by direction",
+            "  `Ctrl-Shift-h/j/k/l` - Switch active split pane by direction",
             "  `Space-h`/`Space-l` - Prev/next buffer",
 #elif defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
             "  `Space-h`/`Space-l` - Prev/next buffer",
@@ -922,7 +922,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gf`             - Go to file under cursor",
             "  `gh`             - Alternate file (header/source)",
             "  `:vs`/`:split`   - Open split view",
-            "  `Ctrl-j/k`       - Switch active split pane",
+            "  `Ctrl-Shift-h/j/k/l` - Switch active split pane",
             "",
             "FILE BROWSER:",
             "  `Enter` - Open file/directory",
@@ -950,14 +950,15 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "NORMAL MODE:",
             "  `Ctrl-w`          - Buffer browser",
             "  `bd`              - Close current buffer",
+            "  `Ctrl-h`/`Ctrl-l` - Prev / next buffer",
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
             "  `Space-h`/`Space-l` - Prev / next buffer",
 #endif
-            "  `Ctrl-Shift-H`    - Move current buffer LEFT in tab bar",
-            "  `Ctrl-Shift-L`    - Move current buffer RIGHT in tab bar",
+            "  `Ctrl-Shift-H`    - Move buffer left when no split is active",
+            "  `Ctrl-Shift-L`    - Move buffer right when no split is active",
             "  `Ctrl-^`          - Alternate buffer",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
-            "  `Ctrl-h/j/k/l`    - Switch split pane by direction",
+            "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
 #elif !defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "  `Ctrl-h`/`Ctrl-l`    - Prev / next buffer",
 #endif
@@ -996,10 +997,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
             "PANE NAVIGATION (NORMAL MODE):",
-            "  `Ctrl-h` - Focus pane to the left",
-            "  `Ctrl-l` - Focus pane to the right",
-            "  `Ctrl-k` - Focus pane above",
-            "  `Ctrl-j` - Focus pane below",
+            "  `Ctrl-Shift-h` - Focus pane to the left",
+            "  `Ctrl-Shift-l` - Focus pane to the right",
+            "  `Ctrl-Shift-k` - Focus pane above",
+            "  `Ctrl-Shift-j` - Focus pane below",
+            "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
 #elif !defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
             "PANE NAVIGATION (NORMAL MODE):",

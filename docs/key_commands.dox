@@ -83,7 +83,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:sp` / `:split` / `:hs` / `:hsplit` : horizontal split
 - `:vs` / `:vsplit` / `:vh` : vertical split
 - `wx` : close the selected pane
-- `Ctrl-h/j/k/l` : focus pane left/down/up/right when built with
+- `Ctrl-Shift-h/j/k/l` : focus pane left/down/up/right when built with
   `UVIM_ENABLE_MODERN_KEYBINDINGS` and `UVIM_ENABLE_MULTI_PANE_SPLITS`
 - Disable the convenience split/buffer key layer in `uvim-config` by turning
   off `Modern keybindings`, or from CLI with

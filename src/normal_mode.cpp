@@ -371,25 +371,25 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
     if(ed->splitActive)
     {
-        if(c == keyCode(control::ControlKey::CTRL_H))
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))
         {
             ed->switchPaneDirection(-1, 0);
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_L))
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_L))
         {
             ed->switchPaneDirection(1, 0);
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_K))
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_K))
         {
             ed->switchPaneDirection(0, -1);
             ctx.repeatCount = 0;
             return std::nullopt;
         }
-        if(c == keyCode(control::ControlKey::CTRL_J))
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_J))
         {
             ed->switchPaneDirection(0, 1);
             ctx.repeatCount = 0;
@@ -398,7 +398,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
 #endif
 
-#ifndef UVIM_ENABLE_MULTI_PANE_SPLITS
     if(c == keyCode(control::ControlKey::CTRL_H))
     {
         ed->previousBuffer();
@@ -411,7 +410,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ctx.repeatCount = 0;
         return std::nullopt;
     }
-#endif
 
     if(c == keyCode(control::ControlKey::CTRL_J) ||
        c == keyCode(control::ControlKey::CTRL_K))
