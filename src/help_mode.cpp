@@ -1025,6 +1025,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
             "  Splitting a pane divides only the active pane, so vertical and",
             "  horizontal panes can be nested.",
+#ifdef UVIM_ENABLE_PER_PANE_LSP
+            "  Each visible pane refreshes and draws its own LSP diagnostics.",
+#else
+            "  Per-pane LSP refresh is disabled in this build.",
+#endif
 #else
             "  Multi-pane splits are disabled; opening another split keeps",
             "  the older single split pair layout.",

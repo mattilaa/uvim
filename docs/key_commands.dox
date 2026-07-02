@@ -92,6 +92,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   `Multi-pane splits`, or from CLI with
   `uvim-config --disable multi-pane-splits`. In that build, splits use the
   older single split pair and normal-mode `Ctrl-h` / `Ctrl-l` navigate buffers.
+- Split panes refresh and draw their own LSP diagnostics by default. Disable
+  that in `uvim-config` by turning off `Per-pane LSP`, or from CLI with
+  `uvim-config --disable per-pane-lsp`.
 
 \section keys_insert Insert mode
 - Type text to insert

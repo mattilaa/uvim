@@ -1295,11 +1295,6 @@ void Editor::drawSplitFullScreen()
         tabBarOffset = savedTabOffset;
     }
 
-    int numberWidth = lineNumberWidth();
-    bool showNumbers = numberWidth > 0;
-    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
-        getClangdDiagnosticsByLine();
-
     struct PanePointerGuard
     {
         Editor* editor;
@@ -1366,6 +1361,29 @@ void Editor::drawSplitFullScreen()
         }
     };
 
+#ifdef UVIM_ENABLE_PER_PANE_LSP
+    std::vector<std::unordered_map<int, LspDiagnosticSummary>>
+        paneDiagnosticsByLine(splitPanes.size());
+    if(currentMode != INSERT && !showGitBlame)
+    {
+        for(int pane = 0; pane < static_cast<int>(splitPanes.size()); ++pane)
+        {
+            BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
+            PanePointerGuard paneGuard(this, pane);
+            syncClangdDiagnosticsIfNeeded(false, pane == activePane);
+            syncMlangSemanticTokensIfNeeded(false, pane == activePane);
+            paneDiagnosticsByLine[pane] = getClangdDiagnosticsByLine();
+        }
+    }
+#endif
+
+    int numberWidth = lineNumberWidth();
+    bool showNumbers = numberWidth > 0;
+#ifndef UVIM_ENABLE_PER_PANE_LSP
+    std::unordered_map<int, LspDiagnosticSummary> diagnosticsByLine =
+        getClangdDiagnosticsByLine();
+#endif
+
     auto renderPaneRow = [&](int pane, int localRow,
                              int paneWidth) -> std::string
     {
@@ -1412,6 +1430,9 @@ void Editor::drawSplitFullScreen()
 
         BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
         PanePointerGuard guard(this, pane);
+#ifdef UVIM_ENABLE_PER_PANE_LSP
+        const auto& diagnosticsByLine = paneDiagnosticsByLine[pane];
+#endif
 
         int textCols = std::max(1, paneWidth - gutterWidth());
         int fileRow = (localRow - tabRows) + *offsetY;

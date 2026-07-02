@@ -134,17 +134,18 @@ The default release optimization is `-O2`. For very small binaries, choose the
 compiles out terminal colors, color tools, modern convenience keybindings,
 multi-pane splits, popups, git, fuzzy, grep, regex tooling, docs/LSP/test
 build outputs, and other optional integrations. The other presets enable
-terminal colors, color tools, modern keybindings, and multi-pane splits by
-default. The smallest profiles use `Oz`, LTO,
+terminal colors, color tools, modern keybindings, multi-pane splits, and
+per-pane LSP refresh by default. The smallest profiles use `Oz`, LTO,
 dead-code sections, and strip.
 
 Useful `uvim-config --disable` names for very small vi-style builds include
-`modern-keybindings`, `multi-pane-splits`, `browser-tools`,
+`modern-keybindings`, `multi-pane-splits`, `per-pane-lsp`, `browser-tools`,
 `auxiliary-views`, `asm-docs`, `git`, `search`, `formatters`, `clipboard`,
 `struct-size`, `color-tools`, `terminal-colors`, `tests`, and
 `compile-commands`. The corresponding CMake options are
 `UVIM_ENABLE_MODERN_KEYBINDINGS` for the split/buffer convenience key layer and
-`UVIM_ENABLE_MULTI_PANE_SPLITS` for nested pane trees.
+`UVIM_ENABLE_MULTI_PANE_SPLITS` for nested pane trees. Split panes refresh and
+draw their own LSP diagnostics by default with `UVIM_ENABLE_PER_PANE_LSP`.
 
 ## Assembly instruction docs
 

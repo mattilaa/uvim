@@ -211,6 +211,7 @@ struct Config
     bool terminalColors = true;
     bool modernKeybindings = true;
     bool multiPaneSplits = true;
+    bool perPaneLsp = true;
     bool tests = true;
     bool compileCommands = true;
     bool lto = true;
@@ -547,6 +548,7 @@ void apply_feature_set(Config& cfg)
         cfg.terminalColors = false;
         cfg.modernKeybindings = false;
         cfg.multiPaneSplits = false;
+        cfg.perPaneLsp = false;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -579,6 +581,7 @@ void apply_feature_set(Config& cfg)
         cfg.terminalColors = true;
         cfg.modernKeybindings = true;
         cfg.multiPaneSplits = true;
+        cfg.perPaneLsp = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -611,6 +614,7 @@ void apply_feature_set(Config& cfg)
         cfg.terminalColors = true;
         cfg.modernKeybindings = true;
         cfg.multiPaneSplits = true;
+        cfg.perPaneLsp = true;
         cfg.tests = false;
         cfg.compileCommands = false;
         cfg.lto = true;
@@ -643,6 +647,7 @@ void apply_feature_set(Config& cfg)
         cfg.terminalColors = true;
         cfg.modernKeybindings = true;
         cfg.multiPaneSplits = true;
+        cfg.perPaneLsp = true;
         cfg.tests = true;
         cfg.compileCommands = true;
         cfg.lto = true;
@@ -673,6 +678,7 @@ void apply_feature_set(Config& cfg)
     cfg.terminalColors = true;
     cfg.modernKeybindings = true;
     cfg.multiPaneSplits = true;
+    cfg.perPaneLsp = true;
     cfg.tests = true;
     cfg.compileCommands = true;
     cfg.lto = true;
@@ -843,9 +849,18 @@ std::vector<Section> make_sections()
            &Config::multiPaneSplits,
            nullptr,
            {},
-           "Build switch for nested split panes. Disable to keep the older "
+          "Build switch for nested split panes. Disable to keep the older "
            "single split pair behavior and normal-mode Ctrl-h/l buffer "
-           "navigation."}}},
+           "navigation."},
+          {ItemKind::Toggle,
+           "Per-pane LSP",
+           "UVIM_ENABLE_PER_PANE_LSP",
+           &Config::perPaneLsp,
+           nullptr,
+           {},
+           "Refresh and draw LSP diagnostics and semantic-token state for "
+           "each visible split pane. Disable for lower LSP work in large "
+           "split layouts."}}},
         {"Language Servers",
          "Per-language LSP integrations. Full enables all of these by "
          "default; smaller presets compile them out unless selected here.",
@@ -1686,6 +1701,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
             parse_bool(value).value_or(cfg.modernKeybindings);
     else if(key == "multi_pane_splits")
         cfg.multiPaneSplits = parse_bool(value).value_or(cfg.multiPaneSplits);
+    else if(key == "per_pane_lsp")
+        cfg.perPaneLsp = parse_bool(value).value_or(cfg.perPaneLsp);
     else if(key == "tests")
         cfg.tests = parse_bool(value).value_or(cfg.tests);
     else if(key == "compile_commands")
@@ -1832,6 +1849,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "terminal_colors=" << bool_value(cfg.terminalColors) << "\n";
     file << "modern_keybindings=" << bool_value(cfg.modernKeybindings) << "\n";
     file << "multi_pane_splits=" << bool_value(cfg.multiPaneSplits) << "\n";
+    file << "per_pane_lsp=" << bool_value(cfg.perPaneLsp) << "\n";
     file << "tests=" << bool_value(cfg.tests) << "\n";
     file << "compile_commands=" << bool_value(cfg.compileCommands) << "\n";
     file << "auto_increment_build=" << bool_value(cfg.autoIncrementBuild)
@@ -1965,7 +1983,7 @@ void print_help(std::ostream& out)
            "asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
         << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
-           "modern-keybindings, multi-pane-splits,\n"
+           "modern-keybindings, multi-pane-splits, per-pane-lsp,\n"
         << "  auto-build-number,\n"
         << "  lto, gc-sections, strip, static, static-link, sanitizers, "
            "debug-logging, debug-lsp\n\n"
@@ -2046,6 +2064,11 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
             equals_ci(name, "nested-splits") ||
             equals_ci(name, "pane-tree"))
         cfg.multiPaneSplits = enabled;
+    else if(equals_ci(name, "per-pane-lsp") ||
+            equals_ci(name, "pane-lsp") ||
+            equals_ci(name, "split-lsp") ||
+            equals_ci(name, "lsp-per-pane"))
+        cfg.perPaneLsp = enabled;
     else if(equals_ci(name, "tests") || equals_ci(name, "test"))
         cfg.tests = enabled;
     else if(equals_ci(name, "compile-commands") ||

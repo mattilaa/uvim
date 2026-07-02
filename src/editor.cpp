@@ -1926,7 +1926,8 @@ bool Editor::insertTodoBlockComment(int row)
     return indentController->insertTodoBlockComment(row);
 }
 
-void Editor::syncClangdDiagnosticsIfNeeded(bool force)
+void Editor::syncClangdDiagnosticsIfNeeded(bool force,
+                                           bool updateDiagnosticPopup)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(!currentBuffer || !isClangdLspEnabled() ||
@@ -2009,7 +2010,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
         }
     }
 
-    if(diagnosticPopupActive)
+    if(updateDiagnosticPopup && diagnosticPopupActive)
     {
         std::optional<LspDiagnosticSummary> diag =
             getClangdDiagnosticForLine(diagnosticPopupLine);
@@ -2026,10 +2027,12 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force)
     currentBuffer->lspSyncNeeded = false;
 #else
     (void)force;
+    (void)updateDiagnosticPopup;
 #endif
 }
 
-void Editor::syncMlangSemanticTokensIfNeeded(bool force)
+void Editor::syncMlangSemanticTokensIfNeeded(bool force,
+                                             bool updateDiagnosticPopup)
 {
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(!currentBuffer || !isMlangLspEnabled() || !isFileType<FileType::Mla>() ||
@@ -2119,7 +2122,7 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
         }
     }
 
-    if(diagnosticPopupActive)
+    if(updateDiagnosticPopup && diagnosticPopupActive)
     {
         std::optional<LspDiagnosticSummary> diag =
             getClangdDiagnosticForLine(diagnosticPopupLine);
@@ -2136,6 +2139,7 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force)
     currentBuffer->lspSyncNeeded = false;
 #else
     (void)force;
+    (void)updateDiagnosticPopup;
 #endif
 }
 
