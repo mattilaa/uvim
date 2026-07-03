@@ -1033,7 +1033,11 @@ public:
     static void print_help(const char* exe)
     {
         std::cout << "Usage:\n"
-                  << "  " << exe << " [options] [file|dir]\n"
+                  << "  " << exe << " [options] [file"
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+                  << "|dir"
+#endif
+                  << "]\n"
                   << "\nOptions:\n";
 
         size_t maxOptLen = 0;
@@ -2018,6 +2022,12 @@ int main(int argc, char* argv[])
 
         return 0;
     }
+
+#ifndef UVIM_ENABLE_BROWSER_TOOLS
+    if(!opts.args.empty() && is_directory(opts.args[0]))
+        die("directory arguments require file browser support", opts.args[0]);
+#endif
+
     // Logging is compiled in only for UVIM_DEBUG_LOGGING or UVIM_DEBUG_LSP
     // builds.
     if(!opts.logFile.empty())
@@ -2067,10 +2077,12 @@ int main(int argc, char* argv[])
 
     if(!opts.args.empty())
     {
-        // If first argument is a directory, open file browser
+        // If first argument is a directory, open file browser when compiled in.
         if(is_directory(opts.args[0]))
         {
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
             editor.openFileBrowser(opts.args[0]);
+#endif
         }
         else
         {
