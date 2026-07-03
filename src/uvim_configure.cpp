@@ -54,7 +54,6 @@ constexpr int kKeyRight = 1004;
 constexpr int kKeyResize = 1005;
 
 int gPendingKey = 0;
-bool gForceFullRedraw = false;
 
 #ifdef _WIN32
 DWORD gOriginalOutMode = 0;
@@ -539,30 +538,6 @@ int read_key()
     }
     return c;
 #endif
-}
-
-bool prompt_yes_default(std::string_view prompt)
-{
-    gForceFullRedraw = true;
-    write_stdout("\x1b[?25h\x1b[0m\n");
-    write_stdout(prompt);
-    write_stdout(" (Y/n)? ");
-    flush_stdout();
-
-    while(true)
-    {
-        const int answer = read_key();
-        if(answer == '\n' || answer == '\r' || answer == 'y' || answer == 'Y')
-        {
-            write_stdout("Y\n");
-            return true;
-        }
-        if(answer == 'n' || answer == 'N' || answer == kKeyEsc)
-        {
-            write_stdout("n\n");
-            return false;
-        }
-    }
 }
 
 TerminalSize terminal_size()
@@ -1569,11 +1544,9 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     { return "\x1b[" + std::to_string(row + 1) + ";1H"; };
 
     const bool fullRedraw =
-        gForceFullRedraw || previousScreenLines.empty() ||
-        previousScreen.rows != screen.rows ||
+        previousScreenLines.empty() || previousScreen.rows != screen.rows ||
         previousScreen.cols != screen.cols ||
         previousScreenLines.size() != screenLines.size();
-    gForceFullRedraw = false;
 
     std::string output;
     output.reserve(static_cast<size_t>(std::max(1, screen.rows)) *
@@ -2496,6 +2469,12 @@ int main(int argc, char** argv)
     bool editingText = false;
     std::string textBeforeEdit;
     std::string Config::* editingField = nullptr;
+    enum class PendingConfirm
+    {
+        Save,
+        Quit,
+    };
+    std::optional<PendingConfirm> pendingConfirm;
     TerminalRawMode rawMode;
 #ifndef _WIN32
     std::signal(SIGWINCH, handle_resize);
@@ -2510,15 +2489,43 @@ int main(int argc, char** argv)
         scrollOffset =
             clamp_scroll(scrollOffset, cursor, static_cast<int>(rows.size()),
                          make_layout(sections, screen).listRows);
-        const std::string drawMessage =
-            editingText ? "editing value: type text, Enter saves, Esc cancels"
-                        : message;
+        std::string drawMessage;
+        if(pendingConfirm == PendingConfirm::Save)
+            drawMessage = "Save file (Y/n)?";
+        else if(pendingConfirm == PendingConfirm::Quit)
+            drawMessage = "Save file before quit (Y/n)?";
+        else if(editingText)
+            drawMessage = "editing value: type text, Enter saves, Esc cancels";
+        else
+            drawMessage = message;
         draw(cfg, sections, cursor, scrollOffset, screen, drawMessage,
              editingText);
 
         int key = read_key();
         if(key == kKeyResize)
             continue;
+        if(pendingConfirm)
+        {
+            const bool yes =
+                key == '\n' || key == '\r' || key == 'y' || key == 'Y';
+            const bool no = key == 'n' || key == 'N' || key == kKeyEsc;
+            if(!yes && !no)
+                continue;
+
+            const PendingConfirm confirmedAction = *pendingConfirm;
+            pendingConfirm.reset();
+            if(yes)
+            {
+                if(saveCurrentConfig() &&
+                   confirmedAction == PendingConfirm::Quit)
+                    break;
+            }
+            else if(confirmedAction == PendingConfirm::Save)
+                message = "save cancelled";
+            else
+                break;
+            continue;
+        }
         if(editingText && editingField)
         {
             if(key == kKeyEsc)
@@ -2553,14 +2560,10 @@ int main(int argc, char** argv)
         if(key == 'q' || key == 'Q' || key == kKeyEsc)
         {
             if(hasUnsavedChanges())
-            {
-                if(prompt_yes_default("Save file before quit"))
-                {
-                    if(!saveCurrentConfig())
-                        continue;
-                }
-            }
-            break;
+                pendingConfirm = PendingConfirm::Quit;
+            else
+                break;
+            continue;
         }
         if(key == 'j' || key == kKeyDown)
             cursor = std::min(cursor + 1, (int)rows.size() - 1);
@@ -2594,12 +2597,7 @@ int main(int argc, char** argv)
             }
         }
         else if(key == 's' || key == 'S')
-        {
-            if(prompt_yes_default("Save file"))
-                saveCurrentConfig();
-            else
-                message = "save cancelled";
-        }
+            pendingConfirm = PendingConfirm::Save;
     }
 
     write_stdout("\x1b[?25h\x1b[0m\n");
