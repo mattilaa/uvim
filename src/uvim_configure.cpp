@@ -54,6 +54,7 @@ constexpr int kKeyRight = 1004;
 constexpr int kKeyResize = 1005;
 
 int gPendingKey = 0;
+bool gForceFullRedraw = false;
 
 #ifdef _WIN32
 DWORD gOriginalOutMode = 0;
@@ -224,6 +225,49 @@ struct Config
     bool debugLsp = false;
 };
 
+bool operator==(const Config& lhs, const Config& rhs)
+{
+    return lhs.featureSet == rhs.featureSet &&
+           lhs.buildType == rhs.buildType && lhs.platform == rhs.platform &&
+           lhs.optimization == rhs.optimization &&
+           lhs.ninjaGenerator == rhs.ninjaGenerator &&
+           lhs.installDir == rhs.installDir && lhs.jobs == rhs.jobs &&
+           lhs.logFile == rhs.logFile && lhs.minimal == rhs.minimal &&
+           lhs.browserTools == rhs.browserTools &&
+           lhs.auxiliaryViews == rhs.auxiliaryViews &&
+           lhs.clangdLsp == rhs.clangdLsp &&
+           lhs.robotLsp == rhs.robotLsp &&
+           lhs.pythonLsp == rhs.pythonLsp &&
+           lhs.mlangLsp == rhs.mlangLsp &&
+           lhs.mlangSemanticTokens == rhs.mlangSemanticTokens &&
+           lhs.htmlLsp == rhs.htmlLsp && lhs.cssLsp == rhs.cssLsp &&
+           lhs.jsonLsp == rhs.jsonLsp && lhs.tsLsp == rhs.tsLsp &&
+           lhs.asmDocs == rhs.asmDocs &&
+           lhs.gitTools == rhs.gitTools &&
+           lhs.searchTools == rhs.searchTools &&
+           lhs.formatters == rhs.formatters &&
+           lhs.systemClipboard == rhs.systemClipboard &&
+           lhs.structSizePopup == rhs.structSizePopup &&
+           lhs.colorTools == rhs.colorTools &&
+           lhs.terminalColors == rhs.terminalColors &&
+           lhs.modernKeybindings == rhs.modernKeybindings &&
+           lhs.multiPaneSplits == rhs.multiPaneSplits &&
+           lhs.perPaneLsp == rhs.perPaneLsp && lhs.tests == rhs.tests &&
+           lhs.compileCommands == rhs.compileCommands &&
+           lhs.lto == rhs.lto && lhs.gcSections == rhs.gcSections &&
+           lhs.stripBinary == rhs.stripBinary &&
+           lhs.staticLink == rhs.staticLink &&
+           lhs.autoIncrementBuild == rhs.autoIncrementBuild &&
+           lhs.sanitizers == rhs.sanitizers &&
+           lhs.debugLogging == rhs.debugLogging &&
+           lhs.debugLsp == rhs.debugLsp;
+}
+
+bool operator!=(const Config& lhs, const Config& rhs)
+{
+    return !(lhs == rhs);
+}
+
 struct CliOptions
 {
     fs::path sourceDir = fs::absolute(fs::path(UVIM_SOURCE_DIR));
@@ -231,6 +275,18 @@ struct CliOptions
     std::optional<fs::path> output;
     bool installAfterBuild = false;
 };
+
+bool operator==(const CliOptions& lhs, const CliOptions& rhs)
+{
+    return lhs.sourceDir == rhs.sourceDir && lhs.buildDir == rhs.buildDir &&
+           lhs.output == rhs.output &&
+           lhs.installAfterBuild == rhs.installAfterBuild;
+}
+
+bool operator!=(const CliOptions& lhs, const CliOptions& rhs)
+{
+    return !(lhs == rhs);
+}
 
 struct Item
 {
@@ -483,6 +539,30 @@ int read_key()
     }
     return c;
 #endif
+}
+
+bool prompt_yes_default(std::string_view prompt)
+{
+    gForceFullRedraw = true;
+    write_stdout("\x1b[?25h\x1b[0m\n");
+    write_stdout(prompt);
+    write_stdout(" (Y/n)? ");
+    flush_stdout();
+
+    while(true)
+    {
+        const int answer = read_key();
+        if(answer == '\n' || answer == '\r' || answer == 'y' || answer == 'Y')
+        {
+            write_stdout("Y\n");
+            return true;
+        }
+        if(answer == 'n' || answer == 'N' || answer == kKeyEsc)
+        {
+            write_stdout("n\n");
+            return false;
+        }
+    }
 }
 
 TerminalSize terminal_size()
@@ -1306,7 +1386,7 @@ Layout make_layout(const std::vector<Section>& sections, TerminalSize screen)
     Layout layout;
     layout.keyRows = static_cast<int>(
         wrap_text("j/k/arrows move  h close  l open  space/enter change  "
-                  "s save  q quit",
+                  "s save (Y/n)  q quit",
                   screen.cols)
             .size());
     layout.outputRows = static_cast<int>(
@@ -1409,7 +1489,7 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
         "\x1b[0m");
     append_wrapped_fixed(screenLines,
                          "j/k/arrows move  h/left close  l/right open  "
-                         "space/enter change  s save  q quit",
+                         "space/enter change  s save (Y/n)  q quit",
                          layout.keyRows, screen.cols);
     screenLines.push_back("");
 
@@ -1489,9 +1569,11 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     { return "\x1b[" + std::to_string(row + 1) + ";1H"; };
 
     const bool fullRedraw =
-        previousScreenLines.empty() || previousScreen.rows != screen.rows ||
+        gForceFullRedraw || previousScreenLines.empty() ||
+        previousScreen.rows != screen.rows ||
         previousScreen.cols != screen.cols ||
         previousScreenLines.size() != screenLines.size();
+    gForceFullRedraw = false;
 
     std::string output;
     output.reserve(static_cast<size_t>(std::max(1, screen.rows)) *
@@ -2385,10 +2467,32 @@ int main(int argc, char** argv)
     if(hadConfigFile)
         try_load_config_file(persistentConfigPath, cfg, options,
                              startupMessage);
-
     int cursor = 0;
     int scrollOffset = 0;
     std::string message = startupMessage;
+    std::optional<Config> savedConfig;
+    std::optional<CliOptions> savedOptions;
+    if(hadConfigFile && startupMessage.rfind("loaded ", 0) == 0)
+    {
+        savedConfig = cfg;
+        savedOptions = options;
+    }
+
+    auto hasUnsavedChanges = [&]() -> bool
+    {
+        return !savedConfig || !savedOptions || cfg != *savedConfig ||
+               options != *savedOptions;
+    };
+
+    auto saveCurrentConfig = [&]() -> bool
+    {
+        if(!write_cache(cfg, sections, options, message))
+            return false;
+        savedConfig = cfg;
+        savedOptions = options;
+        return true;
+    };
+
     bool editingText = false;
     std::string textBeforeEdit;
     std::string Config::* editingField = nullptr;
@@ -2447,7 +2551,17 @@ int main(int argc, char** argv)
         }
         message.clear();
         if(key == 'q' || key == 'Q' || key == kKeyEsc)
+        {
+            if(hasUnsavedChanges())
+            {
+                if(prompt_yes_default("Save file before quit"))
+                {
+                    if(!saveCurrentConfig())
+                        continue;
+                }
+            }
             break;
+        }
         if(key == 'j' || key == kKeyDown)
             cursor = std::min(cursor + 1, (int)rows.size() - 1);
         else if(key == 'k' || key == kKeyUp)
@@ -2480,27 +2594,14 @@ int main(int argc, char** argv)
             }
         }
         else if(key == 's' || key == 'S')
-            write_cache(cfg, sections, options, message);
+        {
+            if(prompt_yes_default("Save file"))
+                saveCurrentConfig();
+            else
+                message = "save cancelled";
+        }
     }
 
-    bool saveOnExit = hadConfigFile;
-    if(!hadConfigFile)
-    {
-        write_stdout("\x1b[?25h\x1b[0m\nsave default config (y/n)? ");
-        flush_stdout();
-        int answer = 0;
-        while(answer != 'y' && answer != 'Y' && answer != 'n' && answer != 'N')
-            answer = read_key();
-        saveOnExit = answer == 'y' || answer == 'Y';
-        char answerText[2] = {static_cast<char>(answer), '\n'};
-        write_stdout(std::string_view(answerText, 2));
-    }
-
-    std::string exitSaveError;
-    if(saveOnExit)
-        write_config_file(cfg, options, exitSaveError);
     write_stdout("\x1b[?25h\x1b[0m\n");
-    if(!exitSaveError.empty())
-        std::cerr << "uvim-config: " << exitSaveError << "\n";
     return 0;
 }
