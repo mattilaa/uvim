@@ -896,17 +896,20 @@ constexpr std::array<HelpRow, 2> kHelpGeneral = {{
     {kVersion, "Show version and exit"},
 }};
 
-constexpr std::array<HelpRow, 5> kHelpConfig = {{
+constexpr std::array<HelpRow, 3> kHelpConfig = {{
     {"--config <path>", "Use custom config path"},
     {"--init-config [path]",
      "Write default config to $XDG_CONFIG_HOME/uvim/config.toml (defaults to "
      "~/.config/uvim/config.toml) and exit"},
     {"--theme <path>", "Load theme TOML from path"},
+}};
+
+[[maybe_unused]] constexpr std::array<HelpRow, 2> kHelpFileIndex = {{
     {kNoGitIndex, "Disable git-backed file indexing for fuzzy find and grep"},
     {kNoGitignore, "Disable .gitignore filtering at startup"},
 }};
 
-constexpr std::array<HelpRow, 6> kHelpClangdLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 6> kHelpClangdLsp = {{
     {kClangd, "Enable clangd LSP"},
     {"--ccdir <dir>", "Compile commands dir for clangd"},
     {"--cc-collect-all",
@@ -917,49 +920,49 @@ constexpr std::array<HelpRow, 6> kHelpClangdLsp = {{
     {"--query-driver <list>", "clangd query-driver allowlist"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpRobotLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpRobotLsp = {{
     {kRobotLsp, "Enable Robot Framework LSP"},
     {"--robot-lsp-path <path>", "Path to Robot LSP server"},
     {"--robot-lsp-args <args>", "Extra args for Robot LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpPythonLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpPythonLsp = {{
     {kPythonLsp, "Enable Python LSP"},
     {"--python-lsp-path <path>", "Path to Python LSP server"},
     {"--python-lsp-args <args>", "Extra args for Python LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpMlangLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpMlangLsp = {{
     {kMlangLsp, "Enable Mlang LSP"},
     {"--mlang-lsp-path <path>", "Path to Mlang LSP server"},
     {"--mlang-lsp-args <args>", "Extra args for Mlang LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpHtmlLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpHtmlLsp = {{
     {kHtmlLsp, "Enable HTML LSP"},
     {"--html-lsp-path <path>", "Path to HTML LSP server"},
     {"--html-lsp-args <args>", "Extra args for HTML LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpCssLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpCssLsp = {{
     {kCssLsp, "Enable CSS LSP"},
     {"--css-lsp-path <path>", "Path to CSS LSP server"},
     {"--css-lsp-args <args>", "Extra args for CSS LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpJsonLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpJsonLsp = {{
     {kJsonLsp, "Enable JSON LSP"},
     {"--json-lsp-path <path>", "Path to JSON LSP server"},
     {"--json-lsp-args <args>", "Extra args for JSON LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 3> kHelpTsLsp = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpTsLsp = {{
     {kTsLsp, "Enable TypeScript/JavaScript LSP"},
     {"--ts-lsp-path <path>", "Path to TS/JS LSP server"},
     {"--ts-lsp-args <args>", "Extra args for TS/JS LSP (space-separated)"},
 }};
 
-constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
     {"--enable-log[=info|debug|verbose]",
      "Enable mlangd-mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, "
      "verbose=+VERBOSE"},
@@ -971,11 +974,11 @@ constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
      "Set mlangd-mla log directory (default file: /tmp/mlangd-mla.log)"},
 }};
 
-constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 1> kHelpUvimLogging = {{
     {"--log-file <path>", "uvim log file (requires logging-enabled build)"},
 }};
 
-constexpr std::array<HelpRow, 1> kHelpAsmDocs = {{
+[[maybe_unused]] constexpr std::array<HelpRow, 1> kHelpAsmDocs = {{
     {kAsmDocsFetch, "Fetch original asm instruction docs for gd cache"},
 }};
 
@@ -1048,17 +1051,43 @@ public:
         };
         scan(kHelpGeneral);
         scan(kHelpConfig);
+#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_SEARCH_TOOLS) ||  \
+    defined(UVIM_ENABLE_AUXILIARY_VIEWS)
+        scan(kHelpFileIndex);
+#endif
+#ifdef UVIM_ENABLE_CLANGD_SERVER_LSP
         scan(kHelpClangdLsp);
+#endif
+#ifdef UVIM_ENABLE_ROBOT_LSP
         scan(kHelpRobotLsp);
+#endif
+#ifdef UVIM_ENABLE_PYTHON_LSP
         scan(kHelpPythonLsp);
+#endif
+#ifdef UVIM_ENABLE_MLANG_LSP
         scan(kHelpMlangLsp);
+#endif
+#ifdef UVIM_ENABLE_HTML_LSP
         scan(kHelpHtmlLsp);
+#endif
+#ifdef UVIM_ENABLE_CSS_LSP
         scan(kHelpCssLsp);
+#endif
+#ifdef UVIM_ENABLE_JSON_LSP
         scan(kHelpJsonLsp);
+#endif
+#ifdef UVIM_ENABLE_TS_LSP
         scan(kHelpTsLsp);
+#endif
+#ifdef UVIM_ENABLE_MLANG_LSP
         scan(kHelpMlangLogging);
+#endif
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
         scan(kHelpUvimLogging);
+#endif
+#ifdef UVIM_ENABLE_ASM_DOCS
         scan(kHelpAsmDocs);
+#endif
 
         auto print_section = [&](std::string_view title, const auto& rows)
         {
@@ -1074,17 +1103,43 @@ public:
 
         print_section("General:", kHelpGeneral);
         print_section("Config:", kHelpConfig);
+#if defined(UVIM_ENABLE_BROWSER_TOOLS) || defined(UVIM_ENABLE_SEARCH_TOOLS) ||  \
+    defined(UVIM_ENABLE_AUXILIARY_VIEWS)
+        print_section("File indexing:", kHelpFileIndex);
+#endif
+#ifdef UVIM_ENABLE_CLANGD_SERVER_LSP
         print_section("clangd LSP:", kHelpClangdLsp);
+#endif
+#ifdef UVIM_ENABLE_ROBOT_LSP
         print_section("Robot LSP:", kHelpRobotLsp);
+#endif
+#ifdef UVIM_ENABLE_PYTHON_LSP
         print_section("Python LSP:", kHelpPythonLsp);
+#endif
+#ifdef UVIM_ENABLE_MLANG_LSP
         print_section("Mlang LSP:", kHelpMlangLsp);
+#endif
+#ifdef UVIM_ENABLE_HTML_LSP
         print_section("HTML LSP:", kHelpHtmlLsp);
+#endif
+#ifdef UVIM_ENABLE_CSS_LSP
         print_section("CSS LSP:", kHelpCssLsp);
+#endif
+#ifdef UVIM_ENABLE_JSON_LSP
         print_section("JSON LSP:", kHelpJsonLsp);
+#endif
+#ifdef UVIM_ENABLE_TS_LSP
         print_section("TypeScript/JavaScript LSP:", kHelpTsLsp);
+#endif
+#ifdef UVIM_ENABLE_MLANG_LSP
         print_section("mlangd-mla Logging:", kHelpMlangLogging);
+#endif
+#if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
         print_section("uvim Debug Logging:", kHelpUvimLogging);
+#endif
+#ifdef UVIM_ENABLE_ASM_DOCS
         print_section("Assembly docs:", kHelpAsmDocs);
+#endif
     }
 
     static Options parse(int argc, char* argv[])

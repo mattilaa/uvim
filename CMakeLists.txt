@@ -682,6 +682,9 @@ foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
         target_compile_definitions(uvim PRIVATE UVIM_ENABLE_${_uvim_lsp}_LSP=1)
     endif()
 endforeach()
+if(UVIM_ENABLE_CLANGD_LSP)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_SERVER_LSP=1)
+endif()
 
 # Debug logging
 if(UVIM_DEBUG_LOGGING)
