@@ -8,6 +8,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -324,17 +325,50 @@ std::string EditorFileController::getSymbolUnderCursor()
         return "";
 
     const std::string& line = (*lines)[*cursorY];
-    int x = *cursorX;
+    int x = std::clamp(*cursorX, 0, (int)line.size());
 
-    if(x >= line.size() || !isIdent(line[x]))
-        return "";
+    auto identifierToRight = [&]() -> std::optional<int>
+    {
+        int right = x;
+        while(right < (int)line.size() &&
+              !std::isspace(static_cast<unsigned char>(line[right])) &&
+              !isIdent(line[right]))
+        {
+            ++right;
+        }
+        if(right < (int)line.size() && isIdent(line[right]))
+            return right;
+        return std::nullopt;
+    };
+
+    if(x >= (int)line.size() || !isIdent(line[x]))
+    {
+        if(x < (int)line.size() && line[x] == ':')
+        {
+            if(auto right = identifierToRight())
+                x = *right;
+            else if(x > 0 && isIdent(line[x - 1]))
+                --x;
+            else
+                return "";
+        }
+        else if(x > 0 && isIdent(line[x - 1]))
+            --x;
+        else
+        {
+            if(auto right = identifierToRight())
+                x = *right;
+            else
+                return "";
+        }
+    }
 
     int l = x;
     int r = x;
 
     while(l > 0 && isIdent(line[l - 1]))
         l--;
-    while(r < line.size() && isIdent(line[r]))
+    while(r < (int)line.size() && isIdent(line[r]))
         r++;
 
     symbolPrefix.clear();

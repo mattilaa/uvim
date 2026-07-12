@@ -45,13 +45,13 @@ bool moveEditorCursorForPopup(editor::statemachine::ModeContext& ctx, int c);
 class PopupBase
 {
 public:
-    void resetBackdrop() const;
-    void requestBackdropRedraw(editor::statemachine::ModeContext& ctx) const;
-    void drawBackdropIfNeeded(Editor& editor) const;
+    void resetBackdrop();
+    void requestBackdropRedraw(editor::statemachine::ModeContext& ctx);
+    void drawBackdropIfNeeded(Editor& editor);
 
 protected:
-    mutable bool backdropDrawn = false;
-    mutable int backdropRows = 0;
-    mutable int backdropCols = 0;
+    bool backdropDrawn = false;
+    int backdropRows = 0;
+    int backdropCols = 0;
 };
 } // namespace widgets

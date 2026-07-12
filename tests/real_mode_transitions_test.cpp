@@ -57,6 +57,23 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("Hex"), "Hexplore"));
 }
 
+TEST(RealModeTransitionsTest, SymbolUnderCursorToleratesQualifiedBoundaries)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    std::string line = "struct AnsiToolsMode : widgets::PopupBase";
+    editor.currentBuffer->lines = {line};
+    *editor.cursorY = 0;
+
+    *editor.cursorX = static_cast<int>(line.find("::"));
+    EXPECT_EQ(editor.getSymbolUnderCursor(), "PopupBase");
+    EXPECT_EQ(editor.symbolPrefix, "widgets::");
+
+    *editor.cursorX = static_cast<int>(line.find("PopupBase") + 9);
+    EXPECT_EQ(editor.getSymbolUnderCursor(), "PopupBase");
+    EXPECT_EQ(editor.symbolPrefix, "widgets::");
+}
+
 TEST(RealModeTransitionsTest, CommandPopupDocumentsVhAsHorizontalSplit)
 {
     Editor editor = Editor::createForTests();

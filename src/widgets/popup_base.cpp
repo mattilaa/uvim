@@ -139,19 +139,19 @@ bool moveEditorCursorForPopup(editor::statemachine::ModeContext& ctx, int c)
     return true;
 }
 
-void PopupBase::resetBackdrop() const
+void PopupBase::resetBackdrop()
 {
     backdropDrawn = false;
 }
 
 void PopupBase::requestBackdropRedraw(
-    editor::statemachine::ModeContext& ctx) const
+    editor::statemachine::ModeContext& ctx)
 {
     resetBackdrop();
     ctx.requestFullRedraw();
 }
 
-void PopupBase::drawBackdropIfNeeded(Editor& editor) const
+void PopupBase::drawBackdropIfNeeded(Editor& editor)
 {
     if(!backdropDrawn || backdropRows != editor.screenRows ||
        backdropCols != editor.screenCols)
