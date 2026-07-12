@@ -246,16 +246,14 @@ void ColorPickerMode::on_enter(ModeContext& ctx)
 {
     cursor = std::clamp(cursor, 0, colorCount(background) - 1);
     rowOffset = 0;
-    backdropDrawn = false;
-    backdropRows = 0;
-    backdropCols = 0;
+    resetBackdrop();
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
 }
 
 void ColorPickerMode::on_exit(ModeContext& ctx)
 {
-    backdropDrawn = false;
+    resetBackdrop();
     ctx.requestFullRedraw();
 }
 
@@ -365,16 +363,9 @@ std::optional<ModeState> ColorPickerMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-void ColorPickerMode::draw(Editor& editor) const
+void ColorPickerMode::draw(Editor& editor)
 {
-    if(!backdropDrawn || backdropRows != editor.screenRows ||
-       backdropCols != editor.screenCols)
-    {
-        editor.drawFullScreenSingle();
-        backdropDrawn = true;
-        backdropRows = editor.screenRows;
-        backdropCols = editor.screenCols;
-    }
+    drawBackdropIfNeeded(editor);
 
     const int width = pickerWidth(editor.screenCols);
     const int height = pickerHeight(editor.screenRows);

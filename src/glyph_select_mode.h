@@ -27,7 +27,7 @@ struct GlyphSelectMode : widgets::PopupBase
     std::optional<ModeState> handle(ModeContext& ctx,
                                     const ModeKeyEvent& event);
 
-    void draw(Editor& editor) const;
+    void draw(Editor& editor);
 
 private:
     void clampToVisible(int columns, int visibleRows);

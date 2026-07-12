@@ -5,6 +5,7 @@
 #include "mode_events.h"
 #include "mode_state.h"
 #include "visual_color_range.h"
+#include "widgets/popup_base.h"
 
 #include <optional>
 
@@ -12,7 +13,7 @@ class Editor;
 
 namespace editor::statemachine
 {
-struct ColorSelectorMode
+struct ColorSelectorMode : widgets::PopupBase
 {
     static constexpr const char* name()
     {
@@ -56,11 +57,7 @@ struct ColorSelectorMode
     std::optional<ModeState> handle(ModeContext& ctx,
                                     const ModeKeyEvent& event);
 
-    void draw(Editor& editor) const;
+    void draw(Editor& editor);
 
-private:
-    mutable bool backdropDrawn = false;
-    mutable int backdropRows = 0;
-    mutable int backdropCols = 0;
 };
 } // namespace editor::statemachine

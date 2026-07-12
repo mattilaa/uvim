@@ -575,16 +575,14 @@ void ColorSelectorMode::on_enter(ModeContext& ctx)
     replaceRow = std::max(0, replaceRow);
     replaceStartX = std::max(0, replaceStartX);
     replaceLength = std::max(0, replaceLength);
-    backdropDrawn = false;
-    backdropRows = 0;
-    backdropCols = 0;
+    resetBackdrop();
     ctx.requestFullRedraw();
     Terminal::setCursorBlock();
 }
 
 void ColorSelectorMode::on_exit(ModeContext& ctx)
 {
-    backdropDrawn = false;
+    resetBackdrop();
     ctx.requestFullRedraw();
 }
 
@@ -709,16 +707,9 @@ std::optional<ModeState> ColorSelectorMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-void ColorSelectorMode::draw(Editor& editor) const
+void ColorSelectorMode::draw(Editor& editor)
 {
-    if(!backdropDrawn || backdropRows != editor.screenRows ||
-       backdropCols != editor.screenCols)
-    {
-        editor.drawFullScreenSingle();
-        backdropDrawn = true;
-        backdropRows = editor.screenRows;
-        backdropCols = editor.screenCols;
-    }
+    drawBackdropIfNeeded(editor);
 
     const int width = std::min(104, std::max(1, editor.screenCols - 2));
     const int height = std::min(12, std::max(1, editor.screenRows - 2));

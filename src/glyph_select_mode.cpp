@@ -284,7 +284,7 @@ std::optional<ModeState> GlyphSelectMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-void GlyphSelectMode::draw(Editor& editor) const
+void GlyphSelectMode::draw(Editor& editor)
 {
     drawBackdropIfNeeded(editor);
 

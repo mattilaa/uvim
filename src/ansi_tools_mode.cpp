@@ -222,7 +222,7 @@ std::optional<ModeState> AnsiToolsMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-void AnsiToolsMode::draw(Editor& editor) const
+void AnsiToolsMode::draw(Editor& editor)
 {
     drawBackdropIfNeeded(editor);
 
