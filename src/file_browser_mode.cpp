@@ -1274,20 +1274,59 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_Q))
+    auto leaveBrowserFallback = [&]() -> std::optional<ModeState>
     {
         if(!previousFile.empty())
         {
             ctx.openFile(std::string_view(previousFile));
+            if(ctx.hasBuffer())
+                return ModeState{NormalMode{}};
         }
-        else if(!ctx.hasFilename())
-        {
-            return ModeState{WelcomeMode{}};
-        }
-        if(ctx.hasBuffer())
+        if(ctx.hasFilename())
             return ModeState{NormalMode{}};
-        ctx.forceQuit();
-        return std::nullopt;
+        if(ctx.hasCurrentBuffer() && ctx.editor && ctx.editor->currentBuffer)
+        {
+            const Buffer& buffer = *ctx.editor->currentBuffer;
+            const bool emptyScratch = buffer.filename.empty() && !buffer.dirty &&
+                                      buffer.lines.size() == 1 &&
+                                      buffer.lines.front().empty();
+            if(!emptyScratch)
+                return ModeState{NormalMode{}};
+        }
+        return ModeState{WelcomeMode{}};
+    };
+
+    if(c == keyCode(typed::TypedKey::KEY_CAP_Q))
+    {
+        if(ctx.editor && ctx.editor->splitActive)
+        {
+            while(ctx.editor->splitActive)
+                ctx.editor->closeSplit();
+        }
+        return leaveBrowserFallback();
+    }
+
+    if(c == keyCode(typed::TypedKey::KEY_Q))
+    {
+        if(ctx.editor && ctx.editor->splitActive)
+        {
+            const int closingPane = ctx.editor->activePane;
+            paneStates.erase(closingPane);
+            ctx.editor->closeSplit();
+            std::unordered_map<int, PaneBrowserState> remapped;
+            for(auto& [pane, state] : paneStates)
+                remapped.emplace(pane > closingPane ? pane - 1 : pane,
+                                 std::move(state));
+            paneStates = std::move(remapped);
+            if(isBrowserPane(ctx.editor->activePane))
+            {
+                restorePaneState(ctx.editor->activePane);
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+            return leaveBrowserFallback();
+        }
+        return leaveBrowserFallback();
     }
 
     // ========================================================================

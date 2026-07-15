@@ -301,6 +301,93 @@ TEST(RealModeTransitionsTest, SexKeepsCursorVisibleInShorterPane)
     EXPECT_LT(browser->browserCursor, browser->browserOffset + visibleRows);
 }
 
+TEST(RealModeTransitionsTest, FileBrowserQClosesOnlyActiveSplitPane)
+{
+    const auto root = make_temp_dir("uvim_browser_q_split_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    dispatch_command(sm, "Vex");
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.activePane, 1);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_Q));
+
+    EXPECT_FALSE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    EXPECT_EQ(editor.activePane, 0);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserQFinalPaneReturnsWelcomeWithoutBuffer)
+{
+    const auto root = make_temp_dir("uvim_browser_q_welcome_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_Q));
+
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
+TEST(RealModeTransitionsTest, FileBrowserQFinalPaneReturnsNormalWithBuffer)
+{
+    const auto root = make_temp_dir("uvim_browser_q_normal_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    set_buffer_filename(editor, (root / "alpha.txt").string());
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_Q));
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToWelcome)
+{
+    const auto root = make_temp_dir("uvim_browser_cap_q_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    dispatch_command(sm, "Vex");
+    ASSERT_TRUE(editor.splitActive);
+    dispatch_command(sm, "Vex");
+    ASSERT_TRUE(editor.splitActive);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_Q));
+
+    EXPECT_FALSE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
+TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToNormal)
+{
+    const auto root = make_temp_dir("uvim_browser_cap_q_normal_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile((root / "alpha.txt").string());
+    auto sm = makeMachine(editor, FileBrowserMode{root.string(),
+                                                  (root / "alpha.txt").string()});
+
+    dispatch_command(sm, "Vex");
+    ASSERT_TRUE(editor.splitActive);
+    dispatch_command(sm, "Vex");
+    ASSERT_TRUE(editor.splitActive);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_Q));
+
+    EXPECT_FALSE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
 TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
 {
     Editor editor = Editor::createForTests();
