@@ -60,6 +60,8 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
 TEST(RealModeTransitionsTest, SymbolUnderCursorToleratesQualifiedBoundaries)
 {
     Editor editor = Editor::createForTests();
+    editor.screenRows = 8;
+    editor.screenCols = 100;
     editor.createNewBuffer();
     std::string line = "struct AnsiToolsMode : widgets::PopupBase";
     editor.currentBuffer->lines = {line};
@@ -120,6 +122,8 @@ TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
 TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
 {
     Editor editor = Editor::createForTests();
+    editor.screenRows = 8;
+    editor.screenCols = 100;
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
 
@@ -159,12 +163,56 @@ TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
     ASSERT_NE(help, nullptr);
     EXPECT_TRUE(help->searchActive);
 
+    for(int i = 0; i < 8; ++i)
+        sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_GT(help->searchCursor, 0);
+    EXPECT_GT(help->searchOffset, 0);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_GT(help->searchCursor, 0);
+
+    for(char c : std::string("key"))
+        sm.dispatch(c);
+
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->searchQuery, "key");
+
+    while(!help->searchQuery.empty())
+    {
+        sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+        help = sm.getState<HelpMode>();
+        ASSERT_NE(help, nullptr);
+    }
+
     for(char c : std::string("git stage"))
         sm.dispatch(c);
 
     help = sm.getState<HelpMode>();
     ASSERT_NE(help, nullptr);
     ASSERT_FALSE(help->searchMatches.empty());
+    EXPECT_TRUE(std::any_of(help->searchMatches.begin(),
+                            help->searchMatches.end(),
+                            [](const HelpMode::HelpSearchMatch& match)
+                            { return !match.topicOnly; }));
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_I));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_FALSE(help->searchDocumentation);
+    EXPECT_TRUE(std::none_of(help->searchMatches.begin(),
+                             help->searchMatches.end(),
+                             [](const HelpMode::HelpSearchMatch& match)
+                             { return !match.topicOnly; }));
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_I));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_TRUE(help->searchDocumentation);
 
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
@@ -173,6 +221,17 @@ TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
     EXPECT_FALSE(help->searchActive);
     EXPECT_FALSE(help->lines.empty());
     EXPECT_GE(help->scrollOffset, 0);
+    EXPECT_TRUE(help->jumpHighlight);
+    EXPECT_GE(help->selectedLine, help->scrollOffset);
+    const int jumpedLine = help->selectedLine;
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->selectedLine, jumpedLine + 1);
+    sm.dispatch(keyCode(typed::TypedKey::KEY_K));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->selectedLine, jumpedLine);
 
     bool visibleMatch = false;
     const int last =
@@ -217,6 +276,33 @@ TEST(RealModeTransitionsTest, HelpCommandPopupSelectsPlainHelpFirst)
     auto* help = sm.getState<HelpMode>();
     ASSERT_NE(help, nullptr);
     EXPECT_TRUE(help->topic.empty());
+}
+
+TEST(RealModeTransitionsTest, TopicHelpStartsAtTopAndBrowsesRows)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "h commands");
+
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+    auto* help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->topic, "commands");
+    EXPECT_EQ(help->selectedLine, 0);
+    ASSERT_FALSE(help->lines.empty());
+    EXPECT_EQ(help->lines.front(), "# Command Reference");
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->selectedLine, 1);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_K));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->selectedLine, 0);
 }
 
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)

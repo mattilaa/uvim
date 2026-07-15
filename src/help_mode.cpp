@@ -19,7 +19,8 @@ namespace
 std::vector<std::string> helpModeHelpTokens()
 {
     return {"[Enter: open]", "[q: quit]", "[j/k: navigate]",
-            "[gg/G: top/bottom]", "[/: fuzzy help]", "[:help <topic>]"};
+            "[gg/G: top/bottom]", "[/: fuzzy help]",
+            "[Ctrl-I: doc rows]", "[:help <topic>]"};
 }
 
 int helpModeContentRows(const Editor& editor)
@@ -56,6 +57,11 @@ int helpSearchVisibleRows(const Editor& editor)
     constexpr int messageRows = 1;
     return std::max(1, editor.screenRows - headerRows - statusRows -
                            messageRows);
+}
+
+int helpSearchVisibleMatches(const Editor& editor)
+{
+    return std::max(1, helpSearchVisibleRows(editor) - 1);
 }
 
 std::string trimSearchDisplayLine(std::string line)
@@ -140,6 +146,52 @@ std::string helpTopicDescription(const std::string& topic)
         return "Logging";
     return "Help topic";
 }
+
+std::string helpLower(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+    return value;
+}
+
+bool isMainHelpTopic(const std::string& topic)
+{
+    const std::string lowered = helpLower(topic);
+    return lowered.empty() || lowered == "index" || lowered == "help";
+}
+
+std::string helpDisplayLine(const std::string& line, bool preserveCodeColumns)
+{
+    std::string out;
+    const bool isHeading =
+        !line.empty() && line[0] == keyCode(command::CommandKey::KEY_HASH);
+    const size_t start = isHeading ? 1 : 0;
+    out.reserve(line.size());
+    for(size_t i = start; i < line.size(); ++i)
+    {
+        const char ch = line[i];
+        if(ch == keyCode(command::CommandKey::KEY_BACKTICK))
+        {
+            if(preserveCodeColumns)
+                out += ' ';
+        }
+        else
+        {
+            out += ch;
+        }
+    }
+    return out;
+}
+
+bool helpPreservesCodeColumns(const std::string& line)
+{
+    size_t rowStart = 0;
+    while(rowStart < line.size() &&
+          (line[rowStart] == ' ' || line[rowStart] == '\t'))
+        ++rowStart;
+    return rowStart < line.size() &&
+           line[rowStart] == keyCode(command::CommandKey::KEY_BACKTICK) &&
+           text_utils::is_found(line.find(" - ", rowStart));
+}
 } // namespace
 
 void HelpMode::on_enter(ModeContext& ctx)
@@ -151,7 +203,7 @@ void HelpMode::on_enter(ModeContext& ctx)
     }
 
     loadHelpContent(topic);
-    if(topicForLine(selectedLine).has_value() == false)
+    if(isMainHelpTopic(topic) && topicForLine(selectedLine).has_value() == false)
     {
         for(int i = 0; i < (int)lines.size(); ++i)
         {
@@ -203,14 +255,14 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
             cancelSearch(*ctx.editor);
             return std::nullopt;
         }
-        if(c == keyCode(typed::TypedKey::KEY_J) ||
-           c == keyCode(control::ControlKey::CTRL_N) ||
+        if(c == keyCode(control::ControlKey::CTRL_N) ||
+           c == keyCode(control::ControlKey::CTRL_J) ||
            c == keyCode(navigation::NavigationKey::ARROW_DOWN))
         {
             searchMoveDown(*ctx.editor);
         }
-        else if(c == keyCode(typed::TypedKey::KEY_K) ||
-                c == keyCode(control::ControlKey::CTRL_P) ||
+        else if(c == keyCode(control::ControlKey::CTRL_P) ||
+                c == keyCode(control::ControlKey::CTRL_K) ||
                 c == keyCode(navigation::NavigationKey::ARROW_UP))
         {
             searchMoveUp();
@@ -224,6 +276,13 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         {
             searchQuery.clear();
             updateSearchMatches(*ctx.editor);
+        }
+        else if(c == keyCode(control::ControlKey::CTRL_I))
+        {
+            searchDocumentation = !searchDocumentation;
+            updateSearchMatches(*ctx.editor);
+            ctx.setStatusMessage(std::string("Help documentation search ") +
+                                 (searchDocumentation ? "on" : "off"));
         }
         else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
         {
@@ -260,6 +319,12 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         }
         else if(c >= 32 && c < 127)
         {
+            if(c == keyCode(command::CommandKey::KEY_SLASH) &&
+               searchQuery.empty())
+            {
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
             searchQuery += static_cast<char>(c);
             updateSearchMatches(*ctx.editor);
         }
@@ -369,6 +434,13 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         startSearch(*ctx.editor);
         needsRedraw = true;
     }
+    else if(c == keyCode(control::ControlKey::CTRL_I))
+    {
+        searchDocumentation = !searchDocumentation;
+        ctx.setStatusMessage(std::string("Help documentation search ") +
+                             (searchDocumentation ? "on" : "off"));
+        needsRedraw = true;
+    }
     else if(c == keyCode(control::ControlKey::ENTER) ||
             c == keyCode(typed::TypedKey::KEY_L) ||
             c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
@@ -424,9 +496,22 @@ void HelpMode::draw(Editor& editor) const
         const int lineIndex = i + scrollOffset;
         const std::string& line = lines[i + scrollOffset];
         const bool isSelected =
-            lineIndex == selectedLine && topicForLine(lineIndex).has_value();
+            lineIndex == selectedLine &&
+            (jumpHighlight || !isMainHelpTopic(topic) ||
+             topicForLine(lineIndex).has_value());
         if(isSelected)
+        {
+            const std::string displayLine =
+                helpDisplayLine(line, helpPreservesCodeColumns(line));
             output += editor.theme.selection();
+            output += "  ";
+            output += displayLine;
+            const int usedCols = 2 + text_utils::utf8DisplayWidth(displayLine);
+            if(usedCols < editor.screenCols)
+                output += std::string(editor.screenCols - usedCols, ' ');
+            output += editor.theme.reset();
+            continue;
+        }
 
         // Apply syntax highlighting to the line
         output += "  ";
@@ -488,9 +573,15 @@ void HelpMode::draw(Editor& editor) const
                         keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
                     if(text_utils::is_found(end))
                     {
+                        const bool preserveCodeColumns =
+                            helpPreservesCodeColumns(line);
+                        if(preserveCodeColumns)
+                            processedLine += ' ';
                         processedLine += editor.theme.syntax(TOKEN_FUNCTION);
                         processedLine += line.substr(pos + 1, end - pos - 1);
                         processedLine += editor.theme.reset();
+                        if(preserveCodeColumns)
+                            processedLine += ' ';
                         pos = end + 1;
                     }
                     else
@@ -642,6 +733,18 @@ bool HelpMode::moveSelection(Editor& editor, int delta)
     if(lines.empty())
         return false;
 
+    if(!isMainHelpTopic(topic))
+    {
+        selectedLine =
+            std::clamp(selectedLine + delta, 0, (int)lines.size() - 1);
+        const int visibleRows = helpModeContentRows(editor);
+        if(selectedLine < scrollOffset)
+            scrollOffset = selectedLine;
+        else if(selectedLine >= scrollOffset + visibleRows)
+            scrollOffset = selectedLine - visibleRows + 1;
+        return true;
+    }
+
     std::vector<int> selectable;
     for(int i = 0; i < (int)lines.size(); ++i)
     {
@@ -683,6 +786,7 @@ bool HelpMode::acceptSelection(Editor& editor)
     topic = *selectedTopic;
     scrollOffset = 0;
     selectedLine = 0;
+    jumpHighlight = false;
     loadHelpContent(topic);
     editor.needsFullRedraw = true;
     return true;
@@ -701,7 +805,6 @@ void HelpMode::startSearch(Editor& editor)
 
 void HelpMode::updateSearchMatches(Editor& editor)
 {
-    (void)editor;
     searchMatches.clear();
     searchCursor = 0;
     searchOffset = 0;
@@ -719,6 +822,7 @@ void HelpMode::updateSearchMatches(Editor& editor)
         match.topic = searchTopic;
         match.line = 0;
         match.content = display;
+        match.topicOnly = true;
 
         if(searchQuery.empty())
         {
@@ -735,6 +839,41 @@ void HelpMode::updateSearchMatches(Editor& editor)
             match.score = score;
             match.matchPositions = positions;
             scored.emplace_back(std::move(match), (int)scored.size());
+        }
+    }
+
+    if(searchDocumentation && !searchQuery.empty())
+    {
+        for(const std::string& searchTopic : helpSearchTopics())
+        {
+            HelpMode page(searchTopic);
+            page.searchDocumentation = searchDocumentation;
+            page.loadHelpContent(searchTopic);
+
+            for(int i = 0; i < (int)page.lines.size(); ++i)
+            {
+                if(page.topicForLine(i).has_value())
+                    continue;
+
+                std::string display = trimSearchDisplayLine(page.lines[i]);
+                if(display.empty())
+                    continue;
+
+                positions.clear();
+                int score = editor::helper::fuzzyScoreWithPositions(
+                    searchQuery, display, positions);
+                if(score < 0)
+                    continue;
+
+                HelpSearchMatch match;
+                match.topic = searchTopic;
+                match.line = i;
+                match.score = score;
+                match.content = display;
+                match.matchPositions = positions;
+                match.topicOnly = false;
+                scored.emplace_back(std::move(match), (int)scored.size());
+            }
         }
     }
 
@@ -772,11 +911,13 @@ bool HelpMode::acceptSearch(Editor& editor)
     searchMatches.clear();
     searchCursor = 0;
     searchOffset = 0;
-    topic = match.topic == "index" ? "" : match.topic;
+    topic = match.topic;
     loadHelpContent(topic);
     const int visibleRows = helpModeContentRows(editor);
     const int maxScroll = std::max(0, (int)lines.size() - visibleRows);
     scrollOffset = std::clamp(match.line, 0, maxScroll);
+    selectedLine = std::clamp(match.line, 0, std::max(0, (int)lines.size() - 1));
+    jumpHighlight = true;
     Terminal::setCursorBlock();
     editor.needsFullRedraw = true;
     return true;
@@ -790,7 +931,7 @@ void HelpMode::searchMoveDown(Editor& editor)
     if(searchCursor < (int)searchMatches.size() - 1)
     {
         ++searchCursor;
-        const int visible = helpSearchVisibleRows(editor);
+        const int visible = helpSearchVisibleMatches(editor);
         if(searchCursor >= searchOffset + visible)
             searchOffset = searchCursor - visible + 1;
     }
@@ -814,7 +955,7 @@ void HelpMode::searchHalfPageDown(Editor& editor)
     if(searchMatches.empty())
         return;
 
-    const int visible = helpSearchVisibleRows(editor);
+    const int visible = helpSearchVisibleMatches(editor);
     searchCursor = std::min((int)searchMatches.size() - 1,
                             searchCursor + std::max(1, visible / 2));
     if(searchCursor >= searchOffset + visible)
@@ -826,7 +967,7 @@ void HelpMode::searchHalfPageUp(Editor& editor)
     if(searchMatches.empty())
         return;
 
-    const int visible = helpSearchVisibleRows(editor);
+    const int visible = helpSearchVisibleMatches(editor);
     searchCursor = std::max(0, searchCursor - std::max(1, visible / 2));
     if(searchCursor < searchOffset)
         searchOffset = searchCursor;
@@ -880,30 +1021,53 @@ void HelpMode::drawSearch(Editor& editor) const
         if(isSelected)
             output += editor.theme.selection();
 
-        std::string lineNum = std::to_string(match.line + 1);
-        while(lineNum.length() < 5)
-            lineNum = " " + lineNum;
+        std::string prefix = helpTopicLabel(match.topic);
+        if(!match.topicOnly)
+            prefix += ":" + std::to_string(match.line + 1);
 
-        output += editor.theme.uiWarning();
-        if(isSelected)
-            output += editor.theme.selection();
-        output += lineNum;
+        output += editor.theme.uiInfo();
+        output += Terminal::ESC_BOLD;
+        output += " " + prefix;
         output += editor.theme.reset();
 
-        if(isSelected)
-            output += editor.theme.selection();
-        output += " ";
-
         std::string content = match.content;
-        const int maxContentLen = std::max(1, editor.screenCols - 8);
+        const int prefixWidth = 1 + text_utils::utf8DisplayWidth(prefix) + 2;
+        const int maxContentLen = std::max(1, editor.screenCols - prefixWidth);
         if((int)content.length() > maxContentLen)
             content = content.substr(0, std::max(0, maxContentLen - 3)) + "...";
-        output += content;
+
+        if(isSelected)
+            output += editor.theme.selection();
+        output += "  ";
+        output += editor.theme.baseFg();
+        if(!searchQuery.empty() && !match.matchPositions.empty())
+        {
+            size_t lastPos = 0;
+            for(int pos : match.matchPositions)
+            {
+                if(pos < 0 || pos >= (int)content.size())
+                    continue;
+                if((size_t)pos > lastPos)
+                    output += content.substr(lastPos, pos - lastPos);
+                if(!isSelected)
+                    output += editor.theme.matchHighlight();
+                output += content[pos];
+                if(!isSelected)
+                    output += editor.theme.baseFg();
+                lastPos = (size_t)pos + 1;
+            }
+            if(lastPos < content.size())
+                output += content.substr(lastPos);
+        }
+        else
+        {
+            output += content;
+        }
 
         if(isSelected)
             output += editor.theme.reset();
 
-        const int usedCols = 6 + 1 + (int)content.length();
+        const int usedCols = prefixWidth + text_utils::utf8DisplayWidth(content);
         if(usedCols < editor.screenCols)
             output += std::string(editor.screenCols - usedCols, ' ');
         output += "\r\n";
@@ -927,7 +1091,8 @@ void HelpMode::drawSearch(Editor& editor) const
     {
         status = " [" + std::to_string(searchCursor + 1) + "/" +
                  std::to_string(searchMatches.size()) +
-                 "] <Enter> jump  <Esc> close  <j/k> navigate";
+                 "] <Enter> jump  <Esc> close  <j/k> navigate  <Ctrl-I> docs:";
+        status += searchDocumentation ? "on" : "off";
     }
     if((int)status.length() < editor.screenCols)
         status += std::string(editor.screenCols - status.length(), ' ');
@@ -958,6 +1123,7 @@ void HelpMode::drawSearch(Editor& editor) const
 void HelpMode::loadHelpContent(const std::string& helpTopic)
 {
     lines.clear();
+    jumpHighlight = false;
 
     // Convert topic to lowercase for matching
     std::string topic_lower = helpTopic;
@@ -1984,12 +2150,15 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     }
 
     selectedLine = 0;
-    for(int i = 0; i < (int)lines.size(); ++i)
+    if(isMainHelpTopic(topic_lower))
     {
-        if(topicForLine(i).has_value())
+        for(int i = 0; i < (int)lines.size(); ++i)
         {
-            selectedLine = i;
-            break;
+            if(topicForLine(i).has_value())
+            {
+                selectedLine = i;
+                break;
+            }
         }
     }
 }

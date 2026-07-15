@@ -33,6 +33,7 @@ struct HelpMode
     std::vector<std::string> lines;
     int scrollOffset = 0;
     int selectedLine = 0;
+    bool jumpHighlight = false;
     std::string previousFile;
     std::shared_ptr<CommandPrompt> commandPrompt;
     struct HelpSearchMatch
@@ -42,9 +43,11 @@ struct HelpMode
         int score = 0;
         std::string content;
         std::vector<int> matchPositions;
+        bool topicOnly = false;
     };
 
     bool searchActive = false;
+    bool searchDocumentation = true;
     std::string searchQuery;
     std::vector<HelpSearchMatch> searchMatches;
     int searchCursor = 0;
