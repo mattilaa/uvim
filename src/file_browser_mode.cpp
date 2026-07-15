@@ -1151,6 +1151,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             loadDirectory(ctx, currentDirectory);
             ctx.setStatusMessage("Move cancelled");
         }
+        if(previousFile.empty() && !ctx.hasFilename())
+            return ModeState{WelcomeMode{}};
         ctx.requestFullRedraw();
         return std::nullopt;
     }
@@ -1160,6 +1162,10 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(!previousFile.empty())
         {
             ctx.openFile(std::string_view(previousFile));
+        }
+        else if(!ctx.hasFilename())
+        {
+            return ModeState{WelcomeMode{}};
         }
         if(ctx.hasBuffer())
             return ModeState{NormalMode{}};

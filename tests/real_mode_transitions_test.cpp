@@ -369,6 +369,36 @@ TEST(RealModeTransitionsTest, HelpModeRunsEditorCommandsAndKeepsHelpCommands)
     EXPECT_EQ(help->topic, "commands");
 }
 
+TEST(RealModeTransitionsTest, HelpToFileBrowserEscWithoutFileReturnsWelcome)
+{
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, WelcomeMode{});
+
+    dispatch_command(sm, "help");
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+
+    dispatch_command(sm, "e .");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
+TEST(RealModeTransitionsTest, HelpToFileBrowserQWithoutFileReturnsWelcome)
+{
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, WelcomeMode{});
+
+    dispatch_command(sm, "help");
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+
+    dispatch_command(sm, "e .");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_Q));
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
 {
     Editor editor = Editor::createForTests();
