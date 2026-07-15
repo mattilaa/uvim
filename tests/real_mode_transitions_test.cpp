@@ -336,6 +336,50 @@ TEST(RealModeTransitionsTest, HorizontalBrowserPaneSwitchKeepsCursorVisible)
     EXPECT_LT(browser->browserCursor, browser->browserOffset + visibleRows);
 }
 
+TEST(RealModeTransitionsTest, FileBrowserOpenSeparatesEditorAndBrowserPanes)
+{
+    const auto root = make_temp_dir("uvim_browser_editor_panes_separate_");
+    write_file(root / "alpha.txt", "alpha\n");
+    write_file(root / "beta.txt", "beta\n");
+
+    Editor editor = Editor::createForTests();
+    editor.screenRows = 16;
+    editor.screenCols = 80;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    dispatch_command(sm, "Vex");
+    dispatch_command(sm, "Sex");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_GE(editor.splitPanes.size(), 3u);
+
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    for(int i = 0; i < static_cast<int>(browser->fileList.size()); ++i)
+    {
+        if(browser->fileList[i].name == "alpha.txt")
+        {
+            browser->browserCursor = i;
+            browser->browserOffset = 0;
+            break;
+        }
+    }
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_FALSE(editor.splitActive);
+    ASSERT_TRUE(editor.currentBuffer != nullptr);
+    EXPECT_EQ(std::filesystem::weakly_canonical(editor.currentBuffer->filename),
+              std::filesystem::weakly_canonical(root / "alpha.txt"));
+
+    dispatch_command(sm, "E " + root.string());
+
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_GE(editor.splitPanes.size(), 3u);
+}
+
 TEST(RealModeTransitionsTest, FileBrowserQClosesOnlyActiveSplitPane)
 {
     const auto root = make_temp_dir("uvim_browser_q_split_");
