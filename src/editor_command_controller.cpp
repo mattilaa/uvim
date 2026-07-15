@@ -677,7 +677,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
                 fileBrowserCommands.push_back(extra);
         }
 
-        const std::vector<std::string> notApplicable = {"wq", "x"};
+        const std::vector<std::string> notApplicable = {"wq", "x", "se", "ve"};
         fileBrowserCommands.erase(
             std::remove_if(
                 fileBrowserCommands.begin(), fileBrowserCommands.end(),

@@ -582,7 +582,7 @@ void apply_feature_set(Config& cfg)
     if(cfg.featureSet == 0)
     {
         cfg.minimal = true;
-        cfg.browserTools = false;
+        cfg.browserTools = true;
         cfg.auxiliaryViews = false;
         cfg.optimization = 5;
         cfg.clangdLsp = false;
@@ -747,9 +747,10 @@ std::vector<Section> make_sections()
     return {
         {"Presets",
          "High-level build profiles. vi-real is the strictest vi-style build: "
-         "only the editor core, welcome screen, and tabs are kept. vi-min "
-         "adds the built-in file and buffer browser but keeps external tools "
-         "and optional views out.",
+         "the editor core, welcome screen, tabs, and built-in file/buffer "
+         "browser are kept. vi-min keeps the same browser tools while adding "
+         "a few small conveniences, but keeps external tools and optional "
+         "views out.",
          true,
          {{ItemKind::FeatureSet,
            "Feature set",
@@ -757,10 +758,11 @@ std::vector<Section> make_sections()
            nullptr,
            nullptr,
            {},
-           "vi-real is a hard minimal build that compiles out optional popups, "
-           "help views, LSP, git, fzf/rg-style search views, formatters, "
-           "clipboard, color tools, terminal colors, and struct-size probes. "
-           "It also disables modern convenience keybindings. "
+           "vi-real is a hard minimal build that keeps file/buffer browser "
+           "support but compiles out optional popups, help views, LSP, git, "
+           "fzf/rg-style search views, formatters, clipboard, color tools, "
+           "terminal colors, and struct-size probes. It also disables modern "
+           "convenience keybindings. "
            "vi-min keeps file/buffer browser, tabs, and color tools but "
            "compiles out git, fzf/rg-style search views, formatters, "
            "clipboard, struct-size probes, docs, tests, and LSP. Minimal keeps "
@@ -1116,10 +1118,11 @@ std::string preset_help(const Config& cfg)
     {
         return std::string(preset) +
                " keeps the strict core editor only: welcome screen, editing, "
-               "basic commands, and tabs. It is a hard minimal build and "
-               "compiles out file/browser tools, auxiliary views, popups, help "
-               "item views, LSP, git, search tools, formatters, clipboard, "
-               "color tools, struct-size probes, docs/tests, terminal colors, "
+               "basic commands, tabs, and built-in file/buffer browser. It "
+               "is a hard minimal build and compiles out auxiliary views, "
+               "popups, help item views, LSP, git, search tools, formatters, "
+               "clipboard, color tools, struct-size probes, docs/tests, "
+               "terminal colors, "
                "modern convenience keybindings, and compile_commands.json.";
     }
     if(cfg.featureSet == 1)

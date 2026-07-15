@@ -64,6 +64,12 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("se"), "se"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("ve"), "ve"));
     EXPECT_FALSE(
+        contains_command(editor.getCommandCompletions("se", FILE_BROWSER),
+                         "se"));
+    EXPECT_FALSE(
+        contains_command(editor.getCommandCompletions("ve", FILE_BROWSER),
+                         "ve"));
+    EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("vsplit"), "vsplit"));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("hsplit"), "hsplit"));
@@ -133,19 +139,25 @@ TEST(RealModeTransitionsTest, SeOpensFileBrowserInHorizontalSplit)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
-TEST(RealModeTransitionsTest, EditorSplitCommandsDoNotSplitFileBrowser)
+TEST(RealModeTransitionsTest, VsSplitsFileBrowserVertically)
 {
-    const auto root = make_temp_dir("uvim_browser_reject_editor_split_");
+    const auto root = make_temp_dir("uvim_browser_vs_split_");
     write_file(root / "alpha.txt", "alpha\n");
 
     Editor editor = Editor::createForTests();
-    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
 
     dispatch_command(sm, "vs");
 
-    EXPECT_FALSE(editor.splitActive);
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_TRUE(editor.splitVertical);
+    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
-    EXPECT_EQ(editor.statusMessage, "Use :ve or :se in file browser");
 }
 
 TEST(RealModeTransitionsTest, VeWithoutNamedBufferOpensBrowserWithoutSplit)
@@ -159,42 +171,156 @@ TEST(RealModeTransitionsTest, VeWithoutNamedBufferOpensBrowserWithoutSplit)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
-TEST(RealModeTransitionsTest, VeFromStartupBrowserCreatesVerticalSplit)
+TEST(RealModeTransitionsTest, VsFromStartupBrowserCreatesVerticalSplit)
 {
     const auto root = make_temp_dir("uvim_ve_start_browser_");
     write_file(root / "alpha.txt", "alpha\n");
 
     Editor editor = Editor::createForTests();
-    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_TRUE(editor.splitVertical);
     EXPECT_EQ(editor.activePane, 1);
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
     auto* browser = sm.getState<FileBrowserMode>();
     ASSERT_NE(browser, nullptr);
     EXPECT_EQ(browser->currentDirectory, root.string());
 }
 
-TEST(RealModeTransitionsTest, SeFromStartupBrowserCreatesHorizontalSplit)
+TEST(RealModeTransitionsTest, HsFromStartupBrowserCreatesHorizontalSplit)
 {
     const auto root = make_temp_dir("uvim_se_start_browser_");
     write_file(root / "alpha.txt", "alpha\n");
 
     Editor editor = Editor::createForTests();
-    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
 
-    dispatch_command(sm, "se");
+    dispatch_command(sm, "hs");
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_FALSE(editor.splitVertical);
     EXPECT_EQ(editor.activePane, 1);
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
     auto* browser = sm.getState<FileBrowserMode>();
     ASSERT_NE(browser, nullptr);
     EXPECT_EQ(browser->currentDirectory, root.string());
+}
+
+TEST(RealModeTransitionsTest, BrowserHsDoesNotFallBackToEditorSplitCommand)
+{
+    const auto root = make_temp_dir("uvim_browser_hs_local_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
+
+    dispatch_command(sm, "hs");
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    EXPECT_EQ(editor.currentMode, FILE_BROWSER);
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_FALSE(editor.splitVertical);
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    EXPECT_TRUE(browser->isBrowserPane(0));
+    EXPECT_TRUE(browser->isBrowserPane(1));
+}
+
+TEST(RealModeTransitionsTest, BrowserSplitCommandsWorkAfterBrowserIsSplit)
+{
+    const auto root = make_temp_dir("uvim_ve_se_split_browser_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
+
+    dispatch_command(sm, "vs");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.splitPanes.size(), 2u);
+    auto* splitBrowser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(splitBrowser, nullptr);
+    ASSERT_TRUE(splitBrowser->isBrowserPane(0));
+    ASSERT_TRUE(splitBrowser->isBrowserPane(1));
+
+    editor.drawFullScreen();
+    dispatch_command(sm, "hs");
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_EQ(editor.splitPanes.size(), 3u);
+    EXPECT_EQ(editor.activePane, 2);
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
+}
+
+TEST(RealModeTransitionsTest, BrowserSplitDrawsWithoutCreatingBuffer)
+{
+    const auto root = make_temp_dir("uvim_browser_split_draw_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
+
+    dispatch_command(sm, "vs");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_TRUE(editor.buffers.empty());
+
+    editor.drawFullScreen();
+
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, BrowserSplitCommandWorksAfterDraw)
+{
+    const auto root = make_temp_dir("uvim_browser_split_after_draw_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto smPtr = std::make_unique<ModeStateMachine>(
+        createModeContext(&editor), FileBrowserMode{root.string()});
+    auto& sm = *smPtr;
+    editor.setModeStateMachineForTests(std::move(smPtr));
+
+    dispatch_command(sm, "vs");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    ASSERT_TRUE(editor.splitActive);
+
+    editor.drawFullScreen();
+    dispatch_command(sm, "hs");
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_EQ(editor.splitPanes.size(), 3u);
+    EXPECT_TRUE(editor.buffers.empty());
+    EXPECT_EQ(editor.currentBuffer, nullptr);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
 TEST(RealModeTransitionsTest, StartupBrowserSplitPanesKeepSeparateCursors)
@@ -207,7 +333,7 @@ TEST(RealModeTransitionsTest, StartupBrowserSplitPanesKeepSeparateCursors)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     auto* browser = sm.getState<FileBrowserMode>();
     ASSERT_NE(browser, nullptr);
@@ -235,7 +361,7 @@ TEST(RealModeTransitionsTest, StartupBrowserSplitPanesKeepSeparateSelections)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     auto* browser = sm.getState<FileBrowserMode>();
     ASSERT_NE(browser, nullptr);
@@ -265,7 +391,7 @@ TEST(RealModeTransitionsTest, StartupBrowserSplitPaneScrollsActivePane)
     editor.screenCols = 80;
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     auto* browser = sm.getState<FileBrowserMode>();
     ASSERT_NE(browser, nullptr);
@@ -278,7 +404,7 @@ TEST(RealModeTransitionsTest, StartupBrowserSplitPaneScrollsActivePane)
     EXPECT_GT(browser->browserOffset, 0);
 }
 
-TEST(RealModeTransitionsTest, SeKeepsCursorVisibleInShorterPane)
+TEST(RealModeTransitionsTest, HsKeepsCursorVisibleInShorterPane)
 {
     const auto root = make_temp_dir("uvim_browser_sex_visible_");
     for(int i = 0; i < 24; ++i)
@@ -295,7 +421,7 @@ TEST(RealModeTransitionsTest, SeKeepsCursorVisibleInShorterPane)
     browser->browserOffset = 0;
     browser->savePaneState(editor.activePane);
 
-    dispatch_command(sm, "se");
+    dispatch_command(sm, "hs");
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     ASSERT_TRUE(editor.splitActive);
     ASSERT_FALSE(editor.splitVertical);
@@ -317,7 +443,7 @@ TEST(RealModeTransitionsTest, HorizontalBrowserPaneSwitchKeepsCursorVisible)
     editor.screenCols = 80;
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "se");
+    dispatch_command(sm, "hs");
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     ASSERT_TRUE(editor.splitActive);
     ASSERT_FALSE(editor.splitVertical);
@@ -352,8 +478,8 @@ TEST(RealModeTransitionsTest, FileBrowserOpenSeparatesEditorAndBrowserPanes)
     editor.screenCols = 80;
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "ve");
-    dispatch_command(sm, "se");
+    dispatch_command(sm, "vs");
+    dispatch_command(sm, "hs");
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     ASSERT_TRUE(editor.splitActive);
     ASSERT_GE(editor.splitPanes.size(), 3u);
@@ -393,7 +519,7 @@ TEST(RealModeTransitionsTest, FileBrowserQClosesOnlyActiveSplitPane)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_TRUE(editor.splitActive);
     ASSERT_EQ(editor.activePane, 1);
 
@@ -440,9 +566,9 @@ TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToWelcome)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_TRUE(editor.splitActive);
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_TRUE(editor.splitActive);
 
     sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_Q));
@@ -461,9 +587,9 @@ TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToNormal)
     auto sm = makeMachine(editor, FileBrowserMode{root.string(),
                                                   (root / "alpha.txt").string()});
 
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_TRUE(editor.splitActive);
-    dispatch_command(sm, "ve");
+    dispatch_command(sm, "vs");
     ASSERT_TRUE(editor.splitActive);
 
     sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_Q));
@@ -691,7 +817,7 @@ TEST(RealModeTransitionsTest, HelpCommandReferenceMatchesCurrentCommands)
     ASSERT_NE(filebrowser, nullptr);
     EXPECT_FALSE(contains_help_text(filebrowser->lines, ":Ex"));
     EXPECT_FALSE(contains_help_text(filebrowser->lines, ":Explore"));
-    EXPECT_TRUE(contains_help_text(filebrowser->lines, ":ve"));
+    EXPECT_TRUE(contains_help_text(filebrowser->lines, ":vs"));
 }
 
 TEST(RealModeTransitionsTest, HelpModeRunsEditorCommandsAndKeepsHelpCommands)

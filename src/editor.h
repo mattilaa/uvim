@@ -621,6 +621,7 @@ public:
     PaneLayout getPaneLayout(int pane) const;
     void setPanePointers(int pane);
     void enableSplit(bool vertical);
+    void enableBrowserSplit(bool vertical);
     void closeSplit();
     void switchPane();
     void switchPaneDirection(int dx, int dy);
@@ -1206,6 +1207,7 @@ private:
     PaneLayout getPaneLayoutImpl(int pane) const;
     void setPanePointersImpl(int pane);
     void enableSplitImpl(bool vertical);
+    void enableBrowserSplitImpl(bool vertical);
     void closeSplitImpl();
     void switchPaneImpl();
     void switchPaneDirectionImpl(int dx, int dy);

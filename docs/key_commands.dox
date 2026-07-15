@@ -82,8 +82,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 \subsection keys_normal_splits Splits
 - `:hs` : horizontal split
 - `:vs` : vertical split
-- `:se` : file browser in a horizontal split
-- `:ve` : file browser in a vertical split
+- in file browser, `:hs` : horizontal browser split
+- in file browser, `:vs` : vertical browser split
 - `wx` : close the selected pane
 - `Ctrl-Shift-h/j/k/l` : focus pane left/down/up/right when built with
   `UVIM_ENABLE_MODERN_KEYBINDINGS` and `UVIM_ENABLE_MULTI_PANE_SPLITS`

@@ -40,7 +40,7 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Build options
-option(UVIM_MINIMAL "Build a vi-style minimal uvim: no optional popups, LSP, tool views, git, fzf/rg search, help, or external integrations" OFF)
+option(UVIM_MINIMAL "Build a vi-style minimal uvim: no optional popups, LSP, git, fzf/rg search, help, or external integrations; browser tools remain controlled separately" OFF)
 option(UVIM_ENABLE_BROWSER_TOOLS "Build file and buffer browser views" ON)
 option(UVIM_ENABLE_AUXILIARY_VIEWS "Build auxiliary views and popup tools such as help, loc, lspinfo, glyph select, references, and command output" ON)
 option(UVIM_ENABLE_CLANGD_LSP "Build uvim with clangd LSP support" OFF)
@@ -101,7 +101,6 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_MODERN_KEYBINDINGS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_MULTI_PANE_SPLITS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_PER_PANE_LSP OFF CACHE BOOL "" FORCE)
-    set(UVIM_ENABLE_BROWSER_TOOLS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_AUXILIARY_VIEWS OFF CACHE BOOL "" FORCE)
 endif()
 

@@ -501,31 +501,53 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     else
     {
         Editor::PaneLayout layout = editor.getPaneLayout(editor.activePane);
-        cursorRow = layout.y + (*editor.cursorY - *editor.offsetY) + 1 +
-                    editor.tabBarRows();
-        if(editor.utf8Mode && *editor.cursorY >= 0 &&
-           *editor.cursorY < (int)editor.lines->size())
+        const bool fileBrowserState =
+            editor.modeStateMachine &&
+            editor.modeStateMachine->getState<FileBrowserMode>() != nullptr;
+        if(editor.currentMode == FILE_BROWSER || fileBrowserState)
         {
-            const std::string& line = (*editor.lines)[*editor.cursorY];
-            int start = std::clamp(*editor.offsetX, 0, (int)line.size());
-            int end = std::clamp(*editor.cursorX, 0, (int)line.size());
-            if(end < start)
-                std::swap(start, end);
-            cursorCol = text_utils::utf8DisplayWidth(
-                            std::string_view(line).substr(start, end - start)) +
-                        1 + editor.gutterWidth() + layout.x;
+            cursorRow = layout.y + 1;
+            cursorCol = layout.x + 1;
+        }
+        else if(editor.cursorY && editor.cursorX && editor.offsetY &&
+                editor.offsetX && editor.lines)
+        {
+            cursorRow = layout.y + (*editor.cursorY - *editor.offsetY) + 1 +
+                        editor.tabBarRows();
+            if(editor.utf8Mode && *editor.cursorY >= 0 &&
+               *editor.cursorY < (int)editor.lines->size())
+            {
+                const std::string& line = (*editor.lines)[*editor.cursorY];
+                int start = std::clamp(*editor.offsetX, 0, (int)line.size());
+                int end = std::clamp(*editor.cursorX, 0, (int)line.size());
+                if(end < start)
+                    std::swap(start, end);
+                cursorCol =
+                    text_utils::utf8DisplayWidth(
+                        std::string_view(line).substr(start, end - start)) +
+                    1 + editor.gutterWidth() + layout.x;
+            }
+            else
+            {
+                cursorCol = layout.x + (*editor.cursorX - *editor.offsetX) + 1 +
+                            editor.gutterWidth();
+            }
         }
         else
         {
-            cursorCol = layout.x + (*editor.cursorX - *editor.offsetX) + 1 +
-                        editor.gutterWidth();
+            cursorRow = layout.y + 1;
+            cursorCol = layout.x + 1;
         }
     }
 
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
+    const bool fileBrowserState =
+        editor.modeStateMachine &&
+        editor.modeStateMachine->getState<FileBrowserMode>() != nullptr;
     bool hideCursor =
         (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
-         editor.currentMode == VISUAL_BLOCK || editor.currentMode == FILE_BROWSER);
+         editor.currentMode == VISUAL_BLOCK || editor.currentMode == FILE_BROWSER ||
+         fileBrowserState);
     Terminal::write(hideCursor ? Terminal::ESC_HIDE_CURSOR
                                : Terminal::ESC_SHOW_CURSOR);
     if(flushNow)
