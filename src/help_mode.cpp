@@ -1252,8 +1252,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `uvim .`              - Start in file browser (defers auto-LSP)",
             "",
             "WINDOWS / TABS:",
-            "  `:sp`/`:split`/`:hs`/`:hsplit` - Horizontal split",
-            "  `:vs`/`:vsplit`/`:vh`          - Vertical split",
+            "  `:hs`                          - Horizontal split",
+            "  `:vs`                          - Vertical split",
             "  `:tabnew`/`:tabe <file>`       - New tab / open in tab",
             "  `:tabn`/`:tabnext`             - Next tab",
             "  `:tabp`/`:tabprev`             - Previous tab",
@@ -1652,7 +1652,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
             "  Splits use the older single split pair.",
 #else
-            "  Use `:split`, `:vsplit`, and window commands for splits.",
+            "  Use `:hs`, `:vs`, and window commands for splits.",
 #endif
         };
     }
@@ -1722,7 +1722,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-e`        - Diagnostic popup on LSP diagnostic row",
             "  `gf`             - Go to file under cursor",
             "  `gh`             - Alternate file (header/source)",
-            "  `:vs`/`:split`   - Open split view",
+            "  `:vs`/`:hs`      - Open split view",
             "  `Ctrl-Shift-h/j/k/l` - Switch active split pane",
             "",
             "FILE BROWSER:",
@@ -1788,8 +1788,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "# Windows And Splits",
             "",
             "COMMANDS:",
-            "  `:sp`/`:split`/`:hs`/`:hsplit` - Horizontal split",
-            "  `:vs`/`:vsplit`/`:vh`          - Vertical split",
+            "  `:hs`                          - Horizontal split",
+            "  `:vs`                          - Vertical split",
             "  `:se`                          - File browser in horizontal split",
             "  `:ve`                          - File browser in vertical split",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS)

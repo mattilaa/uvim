@@ -59,8 +59,14 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("tabp"), "tabprev"));
     EXPECT_TRUE(
         contains_command(editor.getCommandCompletions("git a"), "git add"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("vs"), "vs"));
+    EXPECT_TRUE(contains_command(editor.getCommandCompletions("hs"), "hs"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("se"), "se"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("ve"), "ve"));
+    EXPECT_FALSE(
+        contains_command(editor.getCommandCompletions("vsplit"), "vsplit"));
+    EXPECT_FALSE(
+        contains_command(editor.getCommandCompletions("hsplit"), "hsplit"));
 }
 
 TEST(RealModeTransitionsTest, SymbolUnderCursorToleratesQualifiedBoundaries)
@@ -82,10 +88,10 @@ TEST(RealModeTransitionsTest, SymbolUnderCursorToleratesQualifiedBoundaries)
     EXPECT_EQ(editor.symbolPrefix, "widgets::");
 }
 
-TEST(RealModeTransitionsTest, CommandPopupDocumentsVhAsHorizontalSplit)
+TEST(RealModeTransitionsTest, CommandPopupDocumentsHsAsHorizontalSplit)
 {
     Editor editor = Editor::createForTests();
-    std::vector<std::string> entries = {"vh"};
+    std::vector<std::string> entries = {"hs"};
     std::vector<int> filtered = {0};
     widgets::CommandPopupView view{
         widgets::PopupFrameView{editor.theme, 20, 80}, entries, filtered, 0, 0};

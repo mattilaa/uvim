@@ -3510,9 +3510,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 }
                 return true;
             }
-            if(cmd == "vs" || cmd == "vsplit" || cmd == "sp" ||
-               cmd == "split" || cmd == "vh" || cmd == "hs" ||
-               cmd == "hsplit")
+            if(cmd == "vs" || cmd == "hs")
             {
                 ctx.setStatusMessage("Use :ve or :se in file browser");
                 return true;

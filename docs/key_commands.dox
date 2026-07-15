@@ -80,8 +80,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-e m` : emoji picker
 
 \subsection keys_normal_splits Splits
-- `:sp` / `:split` / `:hs` / `:hsplit` : horizontal split
-- `:vs` / `:vsplit` / `:vh` : vertical split
+- `:hs` : horizontal split
+- `:vs` : vertical split
 - `:se` : file browser in a horizontal split
 - `:ve` : file browser in a vertical split
 - `wx` : close the selected pane

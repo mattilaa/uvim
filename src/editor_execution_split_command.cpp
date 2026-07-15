@@ -29,12 +29,12 @@ using namespace detail;
 
 bool SplitCommand::execute(Editor& editor, const CommandRequest& request) const
 {
-    if(request.text == "vs" || request.text == "vsplit")
+    if(request.text == "vs")
     {
         editor.enableSplit(false);
         return true;
     }
-    if(request.text == "vh" || request.text == "hs" || request.text == "hsplit")
+    if(request.text == "hs")
     {
         editor.enableSplit(true);
         return true;

@@ -54,10 +54,9 @@ static std::string_view command_doc(std::string_view cmd)
         return "Switch to buffer";
     if(cmd == "ls" || cmd == "buffers")
         return "List open buffers";
-    if(cmd == "sp" || cmd == "split" || cmd == "vh" || cmd == "hs" ||
-       cmd == "hsplit")
+    if(cmd == "hs")
         return "Split horizontally";
-    if(cmd == "vs" || cmd == "vsplit")
+    if(cmd == "vs")
         return "Split vertically";
     if(cmd == "se")
         return "Split file browser horizontally";
