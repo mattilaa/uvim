@@ -111,10 +111,16 @@ std::string fitToWidth(std::string text, int width)
     if(width <= 0)
         return {};
 
-    while(text_utils::displayWidth(text) > width && !text.empty())
-        text.pop_back();
+    while(text_utils::utf8DisplayWidth(text) > width && !text.empty())
+    {
+        int nextSize = text_utils::prevUtf8CharStart(text, (int)text.size());
+        if(nextSize >= (int)text.size())
+            text.pop_back();
+        else
+            text.resize((std::size_t)nextSize);
+    }
 
-    int visible = text_utils::displayWidth(text);
+    int visible = text_utils::utf8DisplayWidth(text);
     if(visible < width)
         text.append(width - visible, ' ');
     return text;
@@ -122,7 +128,7 @@ std::string fitToWidth(std::string text, int width)
 
 std::string renderFileBrowserPaneRow(
     const editor::statemachine::FileBrowserMode& browser, const Theme& theme,
-    int localRow, int paneWidth)
+    int localRow, int paneWidth, bool activePane)
 {
     std::string row;
     row.reserve(std::max(1, paneWidth) * 2);
@@ -165,7 +171,7 @@ std::string renderFileBrowserPaneRow(
     const FileEntry& entry = browser.fileList[fileIndex];
     const bool selected =
         entry.name != ".." && browser.selectedFiles.count(entry.path) > 0;
-    const bool cursor = index == browser.browserCursor;
+    const bool cursor = activePane && index == browser.browserCursor;
 
     if(cursor && selected)
     {
@@ -190,11 +196,16 @@ std::string renderFileBrowserPaneRow(
         row += theme.baseFg();
     }
 
-    std::string label = entry.isDirectory ? "  [D] " : "      ";
+    std::string label = "  ";
+    label += ascii::utf8(entry.isDirectory ? ascii::FOLDER_ICON
+                                           : ascii::FILE_ICON);
+
     label += entry.name;
     if(entry.isDirectory && entry.name != "..")
         label += "/";
 
+    if(entry.isDirectory)
+        row += Terminal::ESC_BOLD;
     row += fitToWidth(std::move(label), paneWidth);
     row += theme.reset();
     return row;
@@ -1384,6 +1395,18 @@ void Editor::drawSplitFullScreen()
         getClangdDiagnosticsByLine();
 #endif
 
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    if(currentMode == FILE_BROWSER && modeStateMachine)
+    {
+        if(auto* browser = modeStateMachine->getState<
+               editor::statemachine::FileBrowserMode>())
+        {
+            if(browser->isBrowserPane(activePane))
+                browser->savePaneState(activePane);
+        }
+    }
+#endif
+
     auto renderPaneRow = [&](int pane, int localRow,
                              int paneWidth) -> std::string
     {
@@ -1396,6 +1419,36 @@ void Editor::drawSplitFullScreen()
             row.append(paneWidth, ' ');
             return row;
         }
+
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        if(currentMode == FILE_BROWSER && modeStateMachine)
+        {
+            if(auto* browser = modeStateMachine->getState<
+                   editor::statemachine::FileBrowserMode>())
+            {
+                if(pane == activePane && browser->isBrowserPane(pane))
+                {
+                    return renderFileBrowserPaneRow(*browser, theme, localRow,
+                                                    paneWidth, true);
+                }
+                if(const auto* state = browser->browserPaneState(pane))
+                {
+                    auto paneBrowser = *browser;
+                    paneBrowser.fileList = state->fileList;
+                    paneBrowser.currentDirectory = state->currentDirectory;
+                    paneBrowser.browserCursor = state->browserCursor;
+                    paneBrowser.browserOffset = state->browserOffset;
+                    paneBrowser.filterActive = state->filterActive;
+                    paneBrowser.filterQuery = state->filterQuery;
+                    paneBrowser.filterMatches = state->filterMatches;
+                    paneBrowser.selectedFiles = state->selectedFiles;
+                    return renderFileBrowserPaneRow(paneBrowser, theme,
+                                                    localRow, paneWidth,
+                                                    false);
+                }
+            }
+        }
+#endif
 
         if(tabRows > 0 && localRow == 0)
         {
@@ -1414,19 +1467,6 @@ void Editor::drawSplitFullScreen()
             row += theme.reset();
             return row;
         }
-
-#ifdef UVIM_ENABLE_BROWSER_TOOLS
-        if(currentMode == FILE_BROWSER && pane == activePane &&
-           modeStateMachine)
-        {
-            if(auto* browser = modeStateMachine->getState<
-                   editor::statemachine::FileBrowserMode>())
-            {
-                return renderFileBrowserPaneRow(*browser, theme,
-                                                localRow - tabRows, paneWidth);
-            }
-        }
-#endif
 
         BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
         PanePointerGuard guard(this, pane);
@@ -1663,12 +1703,19 @@ void Editor::drawSplitFullScreen()
         {
             const PaneLayout& layout = layouts[pane];
             if(layout.x > col)
+            {
+                output += theme.reset();
                 output.append(layout.x - col, ' ');
+            }
             output += renderPaneRow(pane, row - layout.y, layout.cols);
+            output += theme.reset();
             col = std::max(col, layout.x + layout.cols);
         }
         if(col < screenCols)
+        {
+            output += theme.reset();
             output.append(screenCols - col, ' ');
+        }
     }
 
     // Status bar
@@ -1683,14 +1730,43 @@ void Editor::drawSplitFullScreen()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    int lineCount = std::max(1, lines ? (int)lines->size() : 0);
-    int lineNumber = std::clamp(*cursorY + 1, 1, lineCount);
-    int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
+    std::string displayName = filename->empty() ? "[No Name]" : *filename;
+    std::string rightStatus;
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    if(currentMode == FILE_BROWSER && modeStateMachine)
+    {
+        if(auto* browser = modeStateMachine->getState<
+               editor::statemachine::FileBrowserMode>())
+        {
+            const int count = browser->filterActive
+                                  ? static_cast<int>(
+                                        browser->filterMatches.size())
+                                  : static_cast<int>(browser->fileList.size());
+            const int index =
+                std::clamp(browser->browserCursor + 1, 1, std::max(1, count));
+            const int progress =
+                std::clamp((index * 100) / std::max(1, count), 0, 100);
+            char rightStatusBuf[48];
+            snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ",
+                     progress, index, std::max(1, count));
+            rightStatus = rightStatusBuf;
+            displayName = browser->currentDirectory.empty()
+                              ? std::string(".")
+                              : browser->currentDirectory;
+        }
+    }
+#endif
+    if(rightStatus.empty())
+    {
+        int lineCount = std::max(1, lines ? (int)lines->size() : 0);
+        int lineNumber = std::clamp(*cursorY + 1, 1, lineCount);
+        int progress = std::clamp((lineNumber * 100) / lineCount, 0, 100);
 
-    char rightStatusBuf[48];
-    snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ", progress,
-             lineNumber, *cursorX + 1);
-    std::string rightStatus = rightStatusBuf;
+        char rightStatusBuf[48];
+        snprintf(rightStatusBuf, sizeof(rightStatusBuf), " %d%%/%d/%d ",
+                 progress, lineNumber, *cursorX + 1);
+        rightStatus = rightStatusBuf;
+    }
     const int rightFieldWidth = 12;
     int rightStatusWidth = text_utils::displayWidth(rightStatus);
     if(rightStatusWidth < rightFieldWidth)
@@ -1754,7 +1830,6 @@ void Editor::drawSplitFullScreen()
     int rightLen = text_utils::displayWidth(rightBlock);
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
 
-    std::string displayName = filename->empty() ? "[No Name]" : *filename;
     if(*dirty)
         displayName += " [+]";
 

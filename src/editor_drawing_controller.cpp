@@ -525,7 +525,7 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     Terminal::write(Terminal::cursorPos(cursorRow, cursorCol));
     bool hideCursor =
         (editor.currentMode == VISUAL || editor.currentMode == VISUAL_LINE ||
-         editor.currentMode == VISUAL_BLOCK);
+         editor.currentMode == VISUAL_BLOCK || editor.currentMode == FILE_BROWSER);
     Terminal::write(hideCursor ? Terminal::ESC_HIDE_CURSOR
                                : Terminal::ESC_SHOW_CURSOR);
     if(flushNow)

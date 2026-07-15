@@ -37,10 +37,40 @@ bool SplitExplorerCommand::execute(Editor& editor,
 
     const bool vertical =
         request.text == "Vex" || request.text == "Vexplore";
-    editor.enableSplit(!vertical);
+    std::string browsePath = ".";
+    if(editor.currentMode == FILE_BROWSER && editor.getModeStateMachine())
+    {
+        if(auto* browser = editor.getModeStateMachine()
+                               ->getState<editor::statemachine::FileBrowserMode>())
+        {
+            if(!browser->currentDirectory.empty())
+                browsePath = browser->currentDirectory;
+        }
+    }
+
+    const bool hasNamedBuffer =
+        editor.currentBuffer && !editor.currentBuffer->filename.empty();
+    if(!hasNamedBuffer && editor.currentMode == FILE_BROWSER)
+    {
+        if(!editor.currentBuffer)
+            editor.createNewBuffer();
+        editor.enableSplit(vertical);
+        if(editor.splitActive)
+            editor.switchPaneDirection(vertical ? 1 : 0, vertical ? 0 : 1);
+        requestMode(editor, FILE_BROWSER, browsePath);
+        return true;
+    }
+
+    if(!hasNamedBuffer)
+    {
+        requestMode(editor, FILE_BROWSER, browsePath);
+        return true;
+    }
+
+    editor.enableSplit(vertical);
     if(editor.splitActive)
-        editor.switchPaneDirection(vertical ? 0 : 1, vertical ? 1 : 0);
-    requestMode(editor, FILE_BROWSER, ".");
+        editor.switchPaneDirection(vertical ? 1 : 0, vertical ? 0 : 1);
+    requestMode(editor, FILE_BROWSER, browsePath);
     return true;
 }
 } // namespace command::execution

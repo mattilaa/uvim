@@ -81,6 +81,51 @@ struct FileBrowserMode
     std::unordered_set<std::string> preVisualSelected;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
+    struct PaneBrowserState
+    {
+        std::vector<FileEntry> fileList;
+        std::string currentDirectory;
+        int browserCursor = 0;
+        int browserOffset = 0;
+        bool filterActive = false;
+        std::string filterQuery;
+        std::vector<int> filterMatches;
+        std::unordered_set<std::string> selectedFiles;
+    };
+
+    struct EditorPaneWorkspace
+    {
+        struct PaneState
+        {
+            int bufferIndex = -1;
+            int cursorX = 0;
+            int cursorY = 0;
+            int wantedX = 0;
+            int offsetX = 0;
+            int offsetY = 0;
+        };
+        struct SplitNode
+        {
+            bool leaf = true;
+            bool vertical = true;
+            int pane = -1;
+            int first = -1;
+            int second = -1;
+        };
+        bool splitActive = false;
+        bool splitVertical = true;
+        int activePane = 0;
+        int currentBufferIndex = -1;
+        int tabBarOffset = 0;
+        std::vector<PaneState> splitPanes;
+        std::vector<int> splitTabBarOffset;
+        std::vector<SplitNode> splitNodes;
+        int splitRoot = -1;
+    };
+
+    std::unordered_map<int, PaneBrowserState> paneStates;
+    std::optional<EditorPaneWorkspace> editorWorkspaceBeforeBrowser;
+
     FileBrowserMode() = default;
 
     explicit FileBrowserMode(std::string startDir, std::string prevFile = {},
@@ -92,6 +137,13 @@ struct FileBrowserMode
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
+    PaneBrowserState currentPaneState() const;
+    void savePaneState(int pane);
+    void restorePaneState(int pane);
+    bool isBrowserPane(int pane) const;
+    const PaneBrowserState* browserPaneState(int pane) const;
+    void ensureCursorVisibleInRows(int visibleRows);
+    void prepareEditorPanesForOpen(Editor& editor);
 
     std::optional<ModeState> handle(ModeContext& ctx,
                                     const ModeKeyEvent& event);
