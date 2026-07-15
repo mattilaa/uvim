@@ -13,6 +13,13 @@ bool contains_command(const std::vector<std::string>& commands,
     return std::find(commands.begin(), commands.end(), expected) !=
            commands.end();
 }
+
+bool contains_help_text(const std::vector<std::string>& lines,
+                        std::string_view expected)
+{
+    return std::any_of(lines.begin(), lines.end(), [&](const std::string& line)
+                       { return line.find(expected) != std::string::npos; });
+}
 } // namespace
 
 TEST(RealModeTransitionsTest, WelcomeEscStaysInWelcome)
@@ -303,6 +310,42 @@ TEST(RealModeTransitionsTest, TopicHelpStartsAtTopAndBrowsesRows)
     help = sm.getState<HelpMode>();
     ASSERT_NE(help, nullptr);
     EXPECT_EQ(help->selectedLine, 0);
+}
+
+TEST(RealModeTransitionsTest, HelpCommandReferenceMatchesCurrentCommands)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "h commands");
+    auto* commands = sm.getState<HelpMode>();
+    ASSERT_NE(commands, nullptr);
+
+    EXPECT_FALSE(contains_help_text(commands->lines, ":Ex"));
+    EXPECT_FALSE(contains_help_text(commands->lines, ":Explore"));
+    EXPECT_FALSE(contains_help_text(commands->lines, ":only"));
+    EXPECT_FALSE(contains_help_text(commands->lines, ":tabc"));
+    EXPECT_FALSE(contains_help_text(commands->lines, ":tabclose"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":e ."));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":Sex"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":format"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":lspinfo"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":git stash pop"));
+
+    dispatch_command(sm, "h files");
+    auto* files = sm.getState<HelpMode>();
+    ASSERT_NE(files, nullptr);
+    EXPECT_FALSE(contains_help_text(files->lines, ":Ex"));
+    EXPECT_FALSE(contains_help_text(files->lines, ":Explore"));
+    EXPECT_TRUE(contains_help_text(files->lines, ":e ."));
+
+    dispatch_command(sm, "h filebrowser");
+    auto* filebrowser = sm.getState<HelpMode>();
+    ASSERT_NE(filebrowser, nullptr);
+    EXPECT_FALSE(contains_help_text(filebrowser->lines, ":Ex"));
+    EXPECT_FALSE(contains_help_text(filebrowser->lines, ":Explore"));
+    EXPECT_TRUE(contains_help_text(filebrowser->lines, ":Vex"));
 }
 
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
