@@ -265,6 +265,8 @@ void Editor::updateCommandPopupImpl(std::string_view query)
         }
         auto topics = getHelpCompletions(topicPrefix);
         commandPopupAll.clear();
+        if(topicPrefix.empty())
+            commandPopupAll.push_back(cmd);
         for(const auto& topic : topics)
             commandPopupAll.push_back(cmd + " " + topic);
     }
@@ -717,7 +719,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "filebrowser", "run",       "buffers",     "windows", "search",
         "regex",       "clipboard", "git",         "ga",      "gb",
         "gbb",         "gbl",       "gj",          "gbv",     "gs",
-        "emitasm",     "lsp",       "diagnostics", "help"};
+        "emitasm",     "lsp",       "diagnostics", "logging", "help"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)

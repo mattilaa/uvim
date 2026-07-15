@@ -220,7 +220,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 bool shouldReplace = query.empty();
                 if(!hasSpace && !shouldReplace)
                 {
-                    shouldReplace = starts_with_ci(*selection, query);
+                    shouldReplace =
+                        !text_utils::contains(
+                            *selection, keyCode(control::ControlKey::SPACE)) &&
+                        starts_with_ci(*selection, query);
                 }
                 else if(hasSpace &&
                         text_utils::contains(
@@ -725,6 +728,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                 if(input == "help" || input == "h")
                 {
                     completions = ctx.getHelpCompletions("");
+                    completions.insert(completions.begin(), input);
                     helpCompletion = true;
                 }
                 else if(input == "loc" || input == "loc!" ||
@@ -779,11 +783,17 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
         return;
     }
 
-    if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
-       originalInput.rfind("h", 0) == 0)
-    {
-        std::string cmd = (originalInput.rfind("h", 0) == 0 &&
-                           originalInput.rfind("help", 0) != 0)
+        if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
+           originalInput.rfind("h", 0) == 0)
+        {
+            if(completions[completionIndex] == "help" ||
+               completions[completionIndex] == "h")
+            {
+                input = completions[completionIndex];
+                return;
+            }
+            std::string cmd = (originalInput.rfind("h", 0) == 0 &&
+                               originalInput.rfind("help", 0) != 0)
                               ? "h"
                               : "help";
         ctx.commandBuffer = ":" + cmd + " " + completions[completionIndex];

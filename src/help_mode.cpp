@@ -1,5 +1,6 @@
 #include "ascii.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -17,8 +18,9 @@ namespace
 {
 std::vector<std::string> helpModeHelpTokens()
 {
-    return {"[q: quit]", "[j/k: scroll]", "[gg/G: top/bottom]",
-            "[:help <topic>: navigate]"};
+    return {"[Enter: open]", "[q: quit]", "[j/k: navigate]",
+            "[gg/G: top/bottom]", "[/: fuzzy help]",
+            "[Ctrl-I: doc rows]", "[:help <topic>]"};
 }
 
 int helpModeContentRows(const Editor& editor)
@@ -36,6 +38,160 @@ int helpModeContentRows(const ModeContext& ctx)
     constexpr int footerRows = 1;
     return std::max(1, ctx.screenRows() - headerRows - footerRows);
 }
+
+std::vector<std::string> helpSearchTopics()
+{
+    return {"",          "commands",    "modes",       "navigation",
+            "editing",   "files",       "filebrowser", "run",
+            "buffers",   "windows",     "search",      "regex",
+            "clipboard", "git",         "ga",          "gb",
+            "gbb",       "gbl",         "gj",          "gbv",
+            "gs",        "emitasm",     "lsp",         "diagnostics",
+            "logging"};
+}
+
+int helpSearchVisibleRows(const Editor& editor)
+{
+    constexpr int headerRows = 1;
+    constexpr int statusRows = 1;
+    constexpr int messageRows = 1;
+    return std::max(1, editor.screenRows - headerRows - statusRows -
+                           messageRows);
+}
+
+int helpSearchVisibleMatches(const Editor& editor)
+{
+    return std::max(1, helpSearchVisibleRows(editor) - 1);
+}
+
+std::string trimSearchDisplayLine(std::string line)
+{
+    while(!line.empty() && text_utils::is_space(line.front()))
+        line.erase(line.begin());
+    while(!line.empty() && text_utils::is_space(line.back()))
+        line.pop_back();
+    if(!line.empty() && line.front() == '#')
+    {
+        line.erase(line.begin());
+        while(!line.empty() && text_utils::is_space(line.front()))
+            line.erase(line.begin());
+    }
+    return line;
+}
+
+std::string singleLineHelpPasteText(std::string text)
+{
+    text.erase(std::remove_if(text.begin(), text.end(),
+                              [](char ch) { return ch == '\n' || ch == '\r'; }),
+               text.end());
+    return text;
+}
+
+std::string helpTopicLabel(const std::string& topic)
+{
+    return topic.empty() ? ":help" : ":help " + topic;
+}
+
+std::string helpTopicDescription(const std::string& topic)
+{
+    if(topic.empty())
+        return "Main help index";
+    if(topic == "commands")
+        return "List of all commands";
+    if(topic == "modes")
+        return "Editor modes";
+    if(topic == "navigation")
+        return "Moving around";
+    if(topic == "editing")
+        return "Editing text";
+    if(topic == "files")
+        return "File operations";
+    if(topic == "filebrowser")
+        return "File browser keys and commands";
+    if(topic == "run")
+        return ":run command and output view";
+    if(topic == "buffers")
+        return "Buffer management and tab bar";
+    if(topic == "windows")
+        return "Splits and tabs";
+    if(topic == "search")
+        return "Searching and replacing";
+    if(topic == "regex")
+        return "Regex search view";
+    if(topic == "clipboard")
+        return "Clipboard operations";
+    if(topic == "git")
+        return "Git integrations";
+    if(topic == "ga")
+        return "Git stage view";
+    if(topic == "gb")
+        return "Git blame";
+    if(topic == "gbb")
+        return "Git blame with date/time";
+    if(topic == "gbl")
+        return "Git log for blamed commit";
+    if(topic == "gj")
+        return "Show git commit diff";
+    if(topic == "gbv")
+        return "Show blamed commit diff";
+    if(topic == "gs")
+        return "C/C++ symbol size popup";
+    if(topic == "emitasm")
+        return "Emit C/C++ assembly";
+    if(topic == "lsp")
+        return "LSP setup and troubleshooting";
+    if(topic == "diagnostics")
+        return "Diagnostic env vars";
+    if(topic == "logging")
+        return "Logging";
+    return "Help topic";
+}
+
+std::string helpLower(std::string value)
+{
+    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+    return value;
+}
+
+bool isMainHelpTopic(const std::string& topic)
+{
+    const std::string lowered = helpLower(topic);
+    return lowered.empty() || lowered == "index" || lowered == "help";
+}
+
+std::string helpDisplayLine(const std::string& line, bool preserveCodeColumns)
+{
+    std::string out;
+    const bool isHeading =
+        !line.empty() && line[0] == keyCode(command::CommandKey::KEY_HASH);
+    const size_t start = isHeading ? 1 : 0;
+    out.reserve(line.size());
+    for(size_t i = start; i < line.size(); ++i)
+    {
+        const char ch = line[i];
+        if(ch == keyCode(command::CommandKey::KEY_BACKTICK))
+        {
+            if(preserveCodeColumns)
+                out += ' ';
+        }
+        else
+        {
+            out += ch;
+        }
+    }
+    return out;
+}
+
+bool helpPreservesCodeColumns(const std::string& line)
+{
+    size_t rowStart = 0;
+    while(rowStart < line.size() &&
+          (line[rowStart] == ' ' || line[rowStart] == '\t'))
+        ++rowStart;
+    return rowStart < line.size() &&
+           line[rowStart] == keyCode(command::CommandKey::KEY_BACKTICK) &&
+           text_utils::is_found(line.find(" - ", rowStart));
+}
 } // namespace
 
 void HelpMode::on_enter(ModeContext& ctx)
@@ -47,6 +203,17 @@ void HelpMode::on_enter(ModeContext& ctx)
     }
 
     loadHelpContent(topic);
+    if(isMainHelpTopic(topic) && topicForLine(selectedLine).has_value() == false)
+    {
+        for(int i = 0; i < (int)lines.size(); ++i)
+        {
+            if(topicForLine(i).has_value())
+            {
+                selectedLine = i;
+                break;
+            }
+        }
+    }
     ctx.requestFullRedraw();
 }
 
@@ -61,11 +228,109 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
 
     std::optional<ModeState> nextState;
     if(commandPrompt &&
+       (commandPrompt->isActive() ||
+        c == keyCode(command::CommandKey::KEY_COLON)) &&
        commandPrompt->handle(
            ctx, c, [&](std::string_view commandLine)
            { return executeCommand(ctx, commandLine); }, nextState))
     {
         return nextState;
+    }
+
+    if(searchActive)
+    {
+        if(c == keyCode(control::ControlKey::ESC))
+        {
+            ctx.editor->noteDoubleEscStatusClear();
+            cancelSearch(*ctx.editor);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::ENTER))
+        {
+            acceptSearch(*ctx.editor);
+            return std::nullopt;
+        }
+        if(c == keyCode(typed::TypedKey::KEY_Q) && searchQuery.empty())
+        {
+            cancelSearch(*ctx.editor);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::CTRL_N) ||
+           c == keyCode(control::ControlKey::CTRL_J) ||
+           c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        {
+            searchMoveDown(*ctx.editor);
+        }
+        else if(c == keyCode(control::ControlKey::CTRL_P) ||
+                c == keyCode(control::ControlKey::CTRL_K) ||
+                c == keyCode(navigation::NavigationKey::ARROW_UP))
+        {
+            searchMoveUp();
+        }
+        else if(c == keyCode(control::ControlKey::CTRL_D) ||
+                c == keyCode(navigation::NavigationKey::PAGE_DOWN))
+        {
+            searchHalfPageDown(*ctx.editor);
+        }
+        else if(c == keyCode(control::ControlKey::CTRL_U))
+        {
+            searchQuery.clear();
+            updateSearchMatches(*ctx.editor);
+        }
+        else if(c == keyCode(control::ControlKey::CTRL_I))
+        {
+            searchDocumentation = !searchDocumentation;
+            updateSearchMatches(*ctx.editor);
+            ctx.setStatusMessage(std::string("Help documentation search ") +
+                                 (searchDocumentation ? "on" : "off"));
+        }
+        else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
+        {
+            searchHalfPageUp(*ctx.editor);
+        }
+        else if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
+                c == keyCode(control::ControlKey::CTRL_H))
+        {
+            if(!searchQuery.empty())
+            {
+                searchQuery.pop_back();
+                updateSearchMatches(*ctx.editor);
+            }
+        }
+        else if(c == keyCode(control::ControlKey::CTRL_W))
+        {
+            while(!searchQuery.empty() &&
+                  searchQuery.back() == keyCode(control::ControlKey::SPACE))
+                searchQuery.pop_back();
+            while(!searchQuery.empty() &&
+                  searchQuery.back() != keyCode(control::ControlKey::SPACE))
+                searchQuery.pop_back();
+            updateSearchMatches(*ctx.editor);
+        }
+        else if(c == keyCode(control::ControlKey::PASTE))
+        {
+            std::string text =
+                singleLineHelpPasteText(Terminal::takeLastPasteText());
+            if(!text.empty())
+            {
+                searchQuery += text;
+                updateSearchMatches(*ctx.editor);
+            }
+        }
+        else if(c >= 32 && c < 127)
+        {
+            if(c == keyCode(command::CommandKey::KEY_SLASH) &&
+               searchQuery.empty())
+            {
+                ctx.requestFullRedraw();
+                return std::nullopt;
+            }
+            searchQuery += static_cast<char>(c);
+            updateSearchMatches(*ctx.editor);
+        }
+
+        ctx.requestFullRedraw();
+        return std::nullopt;
     }
 
     // ========================================================================
@@ -92,18 +357,29 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
     {
-        int maxScroll =
-            std::max(0, (int)lines.size() - helpModeContentRows(ctx));
-        if(scrollOffset < maxScroll)
+        if(moveSelection(*ctx.editor, 1))
         {
-            scrollOffset++;
             needsRedraw = true;
+        }
+        else
+        {
+            int maxScroll =
+                std::max(0, (int)lines.size() - helpModeContentRows(ctx));
+            if(scrollOffset < maxScroll)
+            {
+                scrollOffset++;
+                needsRedraw = true;
+            }
         }
     }
     else if(c == keyCode(typed::TypedKey::KEY_K) ||
             c == keyCode(navigation::NavigationKey::ARROW_UP))
     {
-        if(scrollOffset > 0)
+        if(moveSelection(*ctx.editor, -1))
+        {
+            needsRedraw = true;
+        }
+        else if(scrollOffset > 0)
         {
             scrollOffset--;
             needsRedraw = true;
@@ -153,6 +429,25 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
         if(scrollOffset != oldOffset)
             needsRedraw = true;
     }
+    else if(c == keyCode(command::CommandKey::KEY_SLASH))
+    {
+        startSearch(*ctx.editor);
+        needsRedraw = true;
+    }
+    else if(c == keyCode(control::ControlKey::CTRL_I))
+    {
+        searchDocumentation = !searchDocumentation;
+        ctx.setStatusMessage(std::string("Help documentation search ") +
+                             (searchDocumentation ? "on" : "off"));
+        needsRedraw = true;
+    }
+    else if(c == keyCode(control::ControlKey::ENTER) ||
+            c == keyCode(typed::TypedKey::KEY_L) ||
+            c == keyCode(navigation::NavigationKey::ARROW_RIGHT))
+    {
+        if(acceptSelection(*ctx.editor))
+            needsRedraw = true;
+    }
 
     if(needsRedraw)
         ctx.requestFullRedraw();
@@ -161,6 +456,12 @@ std::optional<ModeState> HelpMode::handle(ModeContext& ctx,
 
 void HelpMode::draw(Editor& editor) const
 {
+    if(searchActive)
+    {
+        drawSearch(editor);
+        return;
+    }
+
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)
         Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
@@ -192,7 +493,25 @@ void HelpMode::draw(Editor& editor) const
     {
         output += Terminal::NEWLINE_CLEAR;
 
+        const int lineIndex = i + scrollOffset;
         const std::string& line = lines[i + scrollOffset];
+        const bool isSelected =
+            lineIndex == selectedLine &&
+            (jumpHighlight || !isMainHelpTopic(topic) ||
+             topicForLine(lineIndex).has_value());
+        if(isSelected)
+        {
+            const std::string displayLine =
+                helpDisplayLine(line, helpPreservesCodeColumns(line));
+            output += editor.theme.selection();
+            output += "  ";
+            output += displayLine;
+            const int usedCols = 2 + text_utils::utf8DisplayWidth(displayLine);
+            if(usedCols < editor.screenCols)
+                output += std::string(editor.screenCols - usedCols, ' ');
+            output += editor.theme.reset();
+            continue;
+        }
 
         // Apply syntax highlighting to the line
         output += "  ";
@@ -254,9 +573,15 @@ void HelpMode::draw(Editor& editor) const
                         keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
                     if(text_utils::is_found(end))
                     {
+                        const bool preserveCodeColumns =
+                            helpPreservesCodeColumns(line);
+                        if(preserveCodeColumns)
+                            processedLine += ' ';
                         processedLine += editor.theme.syntax(TOKEN_FUNCTION);
                         processedLine += line.substr(pos + 1, end - pos - 1);
                         processedLine += editor.theme.reset();
+                        if(preserveCodeColumns)
+                            processedLine += ' ';
                         pos = end + 1;
                     }
                     else
@@ -273,7 +598,18 @@ void HelpMode::draw(Editor& editor) const
             output += processedLine;
         }
 
-        output += editor.theme.reset();
+        if(isSelected)
+        {
+            const int usedCols = 2 + text_utils::utf8DisplayWidth(line);
+            if(usedCols < editor.screenCols)
+                output += std::string(editor.screenCols - usedCols, ' ');
+            output += editor.theme.reset();
+        }
+        else
+        {
+            output += editor.theme.reset();
+        }
+
     }
 
     // Fill remaining lines
@@ -321,14 +657,23 @@ void HelpMode::draw(Editor& editor) const
             0,
             std::min((size_t)editor.screenCols, editor.statusMessage.length()));
     }
+    else if(!editor.locMessage.empty())
+    {
+        output += editor.locMessage.substr(
+            0,
+            std::min((size_t)editor.screenCols, editor.locMessage.length()));
+    }
 
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
+    output += Terminal::cursorPos(editor.screenRows + 2, 1);
+    output += Terminal::ESC_CLEAR_LINE;
+
     if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
-        int row = editor.screenRows + 2;
+        int row = editor.screenRows + 1;
         int col = 2 + (int)commandPrompt->getInput().size();
         output += Terminal::cursorPos(row, col);
     }
@@ -343,9 +688,451 @@ void HelpMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
+std::optional<std::string> HelpMode::topicForLine(int lineIndex) const
+{
+    if(lineIndex < 0 || lineIndex >= (int)lines.size())
+        return std::nullopt;
+
+    const std::string& line = lines[lineIndex];
+    size_t rowStart = 0;
+    while(rowStart < line.size() &&
+          (line[rowStart] == ' ' || line[rowStart] == '\t'))
+        ++rowStart;
+    if(rowStart >= line.size() || line[rowStart] != '`')
+        return std::nullopt;
+
+    size_t pos = line.find(":help", rowStart);
+    if(text_utils::is_not_found(pos))
+        return std::nullopt;
+    if(pos != rowStart + 1)
+        return std::nullopt;
+
+    size_t topicStart = pos + 5;
+    if(topicStart >= line.size())
+        return std::string{};
+
+    if(line[topicStart] == '`' || line[topicStart] == ' ' ||
+       line[topicStart] == '\t')
+    {
+        while(topicStart < line.size() &&
+              (line[topicStart] == ' ' || line[topicStart] == '\t'))
+            ++topicStart;
+        if(topicStart >= line.size() || line[topicStart] == '`')
+            return std::string{};
+    }
+    else
+    {
+        return std::nullopt;
+    }
+
+    size_t topicEnd = topicStart;
+    while(topicEnd < line.size() && line[topicEnd] != '`' &&
+          line[topicEnd] != ' ' && line[topicEnd] != '\t')
+    {
+        ++topicEnd;
+    }
+
+    if(topicEnd <= topicStart)
+        return std::string{};
+    return line.substr(topicStart, topicEnd - topicStart);
+}
+
+bool HelpMode::moveSelection(Editor& editor, int delta)
+{
+    if(lines.empty())
+        return false;
+
+    if(!isMainHelpTopic(topic))
+    {
+        selectedLine =
+            std::clamp(selectedLine + delta, 0, (int)lines.size() - 1);
+        const int visibleRows = helpModeContentRows(editor);
+        if(selectedLine < scrollOffset)
+            scrollOffset = selectedLine;
+        else if(selectedLine >= scrollOffset + visibleRows)
+            scrollOffset = selectedLine - visibleRows + 1;
+        return true;
+    }
+
+    std::vector<int> selectable;
+    for(int i = 0; i < (int)lines.size(); ++i)
+    {
+        if(topicForLine(i).has_value())
+            selectable.push_back(i);
+    }
+    if(selectable.empty())
+        return false;
+
+    int pos = 0;
+    for(int i = 0; i < (int)selectable.size(); ++i)
+    {
+        if(selectable[i] == selectedLine)
+        {
+            pos = i;
+            break;
+        }
+        if(selectable[i] < selectedLine)
+            pos = i;
+    }
+
+    const int next = std::clamp(pos + delta, 0, (int)selectable.size() - 1);
+    selectedLine = selectable[next];
+
+    const int visibleRows = helpModeContentRows(editor);
+    if(selectedLine < scrollOffset)
+        scrollOffset = selectedLine;
+    else if(selectedLine >= scrollOffset + visibleRows)
+        scrollOffset = selectedLine - visibleRows + 1;
+    return true;
+}
+
+bool HelpMode::acceptSelection(Editor& editor)
+{
+    auto selectedTopic = topicForLine(selectedLine);
+    if(!selectedTopic)
+        return false;
+
+    topic = *selectedTopic;
+    scrollOffset = 0;
+    selectedLine = 0;
+    jumpHighlight = false;
+    loadHelpContent(topic);
+    editor.needsFullRedraw = true;
+    return true;
+}
+
+void HelpMode::startSearch(Editor& editor)
+{
+    searchActive = true;
+    searchQuery.clear();
+    searchCursor = 0;
+    searchOffset = 0;
+    updateSearchMatches(editor);
+    Terminal::setCursorBarBlinking();
+    editor.needsFullRedraw = true;
+}
+
+void HelpMode::updateSearchMatches(Editor& editor)
+{
+    searchMatches.clear();
+    searchCursor = 0;
+    searchOffset = 0;
+
+    std::vector<std::pair<HelpSearchMatch, int>> scored;
+    std::vector<int> positions;
+
+    for(const std::string& searchTopic : helpSearchTopics())
+    {
+        const std::string label = helpTopicLabel(searchTopic);
+        const std::string display =
+            label + " - " + helpTopicDescription(searchTopic);
+
+        HelpSearchMatch match;
+        match.topic = searchTopic;
+        match.line = 0;
+        match.content = display;
+        match.topicOnly = true;
+
+        if(searchQuery.empty())
+        {
+            match.score = 0;
+            scored.emplace_back(std::move(match), (int)scored.size());
+            continue;
+        }
+
+        positions.clear();
+        int score = editor::helper::fuzzyScoreWithPositions(
+            searchQuery, display, positions);
+        if(score >= 0)
+        {
+            match.score = score;
+            match.matchPositions = positions;
+            scored.emplace_back(std::move(match), (int)scored.size());
+        }
+    }
+
+    if(searchDocumentation && !searchQuery.empty())
+    {
+        for(const std::string& searchTopic : helpSearchTopics())
+        {
+            HelpMode page(searchTopic);
+            page.searchDocumentation = searchDocumentation;
+            page.loadHelpContent(searchTopic);
+
+            for(int i = 0; i < (int)page.lines.size(); ++i)
+            {
+                if(page.topicForLine(i).has_value())
+                    continue;
+
+                std::string display = trimSearchDisplayLine(page.lines[i]);
+                if(display.empty())
+                    continue;
+
+                positions.clear();
+                int score = editor::helper::fuzzyScoreWithPositions(
+                    searchQuery, display, positions);
+                if(score < 0)
+                    continue;
+
+                HelpSearchMatch match;
+                match.topic = searchTopic;
+                match.line = i;
+                match.score = score;
+                match.content = display;
+                match.matchPositions = positions;
+                match.topicOnly = false;
+                scored.emplace_back(std::move(match), (int)scored.size());
+            }
+        }
+    }
+
+    std::stable_sort(scored.begin(), scored.end(),
+                     [](const auto& left, const auto& right)
+                     {
+                         if(left.first.score != right.first.score)
+                             return left.first.score > right.first.score;
+                         return left.second < right.second;
+                     });
+
+    for(auto& entry : scored)
+        searchMatches.push_back(std::move(entry.first));
+}
+
+void HelpMode::cancelSearch(Editor& editor)
+{
+    searchActive = false;
+    searchQuery.clear();
+    searchMatches.clear();
+    searchCursor = 0;
+    searchOffset = 0;
+    Terminal::setCursorBlock();
+    editor.needsFullRedraw = true;
+}
+
+bool HelpMode::acceptSearch(Editor& editor)
+{
+    if(searchCursor < 0 || searchCursor >= (int)searchMatches.size())
+        return false;
+
+    const HelpSearchMatch match = searchMatches[searchCursor];
+    searchActive = false;
+    searchQuery.clear();
+    searchMatches.clear();
+    searchCursor = 0;
+    searchOffset = 0;
+    topic = match.topic;
+    loadHelpContent(topic);
+    const int visibleRows = helpModeContentRows(editor);
+    const int maxScroll = std::max(0, (int)lines.size() - visibleRows);
+    scrollOffset = std::clamp(match.line, 0, maxScroll);
+    selectedLine = std::clamp(match.line, 0, std::max(0, (int)lines.size() - 1));
+    jumpHighlight = true;
+    Terminal::setCursorBlock();
+    editor.needsFullRedraw = true;
+    return true;
+}
+
+void HelpMode::searchMoveDown(Editor& editor)
+{
+    if(searchMatches.empty())
+        return;
+
+    if(searchCursor < (int)searchMatches.size() - 1)
+    {
+        ++searchCursor;
+        const int visible = helpSearchVisibleMatches(editor);
+        if(searchCursor >= searchOffset + visible)
+            searchOffset = searchCursor - visible + 1;
+    }
+}
+
+void HelpMode::searchMoveUp()
+{
+    if(searchMatches.empty())
+        return;
+
+    if(searchCursor > 0)
+    {
+        --searchCursor;
+        if(searchCursor < searchOffset)
+            searchOffset = searchCursor;
+    }
+}
+
+void HelpMode::searchHalfPageDown(Editor& editor)
+{
+    if(searchMatches.empty())
+        return;
+
+    const int visible = helpSearchVisibleMatches(editor);
+    searchCursor = std::min((int)searchMatches.size() - 1,
+                            searchCursor + std::max(1, visible / 2));
+    if(searchCursor >= searchOffset + visible)
+        searchOffset = searchCursor - visible + 1;
+}
+
+void HelpMode::searchHalfPageUp(Editor& editor)
+{
+    if(searchMatches.empty())
+        return;
+
+    const int visible = helpSearchVisibleMatches(editor);
+    searchCursor = std::max(0, searchCursor - std::max(1, visible / 2));
+    if(searchCursor < searchOffset)
+        searchOffset = searchCursor;
+}
+
+void HelpMode::drawSearch(Editor& editor) const
+{
+    std::string output;
+    output.reserve(editor.screenRows * editor.screenCols * 2);
+
+    output += Terminal::ESC_HIDE_CURSOR;
+    output += Terminal::cursorPos(1, 1);
+    output += editor.theme.reset();
+
+    output += editor.theme.panel();
+    const std::string headerPrefix =
+        " Help Search (" + std::to_string(searchMatches.size()) + ") /";
+    std::string header = headerPrefix + searchQuery;
+    if((int)header.length() < editor.screenCols)
+        header += std::string(editor.screenCols - header.length(), ' ');
+    else if((int)header.length() > editor.screenCols)
+        header = header.substr(0, std::max(0, editor.screenCols - 3)) + "...";
+    output += header;
+    output += editor.theme.reset();
+    output += "\r\n";
+
+    const int visibleRows = helpSearchVisibleRows(editor);
+    bool drewGroupHeader = false;
+    int row = 0;
+    int idx = searchOffset;
+
+    while(row < visibleRows && idx < (int)searchMatches.size())
+    {
+        const auto& match = searchMatches[idx];
+        if(!drewGroupHeader)
+        {
+            output += Terminal::ESC_CLEAR_LINE;
+            output += editor.theme.uiInfo();
+            output += Terminal::ESC_BOLD;
+            output += " Help Topics";
+            output += editor.theme.reset();
+            output += "\r\n";
+            drewGroupHeader = true;
+            ++row;
+            if(row >= visibleRows)
+                break;
+        }
+
+        output += Terminal::ESC_CLEAR_LINE;
+        const bool isSelected = idx == searchCursor;
+        if(isSelected)
+            output += editor.theme.selection();
+
+        std::string prefix = helpTopicLabel(match.topic);
+        if(!match.topicOnly)
+            prefix += ":" + std::to_string(match.line + 1);
+
+        output += editor.theme.uiInfo();
+        output += Terminal::ESC_BOLD;
+        output += " " + prefix;
+        output += editor.theme.reset();
+
+        std::string content = match.content;
+        const int prefixWidth = 1 + text_utils::utf8DisplayWidth(prefix) + 2;
+        const int maxContentLen = std::max(1, editor.screenCols - prefixWidth);
+        if((int)content.length() > maxContentLen)
+            content = content.substr(0, std::max(0, maxContentLen - 3)) + "...";
+
+        if(isSelected)
+            output += editor.theme.selection();
+        output += "  ";
+        output += editor.theme.baseFg();
+        if(!searchQuery.empty() && !match.matchPositions.empty())
+        {
+            size_t lastPos = 0;
+            for(int pos : match.matchPositions)
+            {
+                if(pos < 0 || pos >= (int)content.size())
+                    continue;
+                if((size_t)pos > lastPos)
+                    output += content.substr(lastPos, pos - lastPos);
+                if(!isSelected)
+                    output += editor.theme.matchHighlight();
+                output += content[pos];
+                if(!isSelected)
+                    output += editor.theme.baseFg();
+                lastPos = (size_t)pos + 1;
+            }
+            if(lastPos < content.size())
+                output += content.substr(lastPos);
+        }
+        else
+        {
+            output += content;
+        }
+
+        if(isSelected)
+            output += editor.theme.reset();
+
+        const int usedCols = prefixWidth + text_utils::utf8DisplayWidth(content);
+        if(usedCols < editor.screenCols)
+            output += std::string(editor.screenCols - usedCols, ' ');
+        output += "\r\n";
+        ++row;
+        ++idx;
+    }
+
+    for(; row < visibleRows; ++row)
+    {
+        output += Terminal::ESC_CLEAR_LINE;
+        output += "~\r\n";
+    }
+
+    output += editor.theme.statusBar();
+    std::string status;
+    if(searchMatches.empty())
+    {
+        status = " [0/0] type to search  <Esc> close";
+    }
+    else
+    {
+        status = " [" + std::to_string(searchCursor + 1) + "/" +
+                 std::to_string(searchMatches.size()) +
+                 "] <Enter> jump  <Esc> close  <j/k> navigate  <Ctrl-I> docs:";
+        status += searchDocumentation ? "on" : "off";
+    }
+    if((int)status.length() < editor.screenCols)
+        status += std::string(editor.screenCols - status.length(), ' ');
+    output += status;
+    output += editor.theme.reset();
+
+    output += "\r\n";
+    output += Terminal::ESC_CLEAR_LINE;
+    if(!editor.statusMessage.empty())
+        output += editor.statusMessage.substr(
+            0,
+            std::min((size_t)editor.screenCols, editor.statusMessage.length()));
+
+    output += Terminal::ESC_SHOW_CURSOR;
+    output += Terminal::cursorPos(
+        1, std::min(editor.screenCols,
+                    (int)headerPrefix.size() + (int)searchQuery.size() + 1));
+
+    const bool syncOutput = Terminal::useSynchronizedOutput();
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_BEGIN);
+    Terminal::write(output);
+    if(syncOutput)
+        Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
+    Terminal::flush();
+}
+
 void HelpMode::loadHelpContent(const std::string& helpTopic)
 {
     lines.clear();
+    jumpHighlight = false;
 
     // Convert topic to lowercase for matching
     std::string topic_lower = helpTopic;
@@ -363,24 +1150,16 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "# uvim Help",
             "",
             "Welcome to uvim! Type `:help <topic>` for specific help.",
+            "Press `/` to fuzzy-find across help topics and jump to a row.",
             "",
             "AVAILABLE TOPICS:",
-            "  `:help commands`    - List of all commands",
-            "  `:help modes`       - Editor modes",
-            "  `:help navigation`  - Moving around",
-            "  `:help editing`     - Editing text",
-            "  `:help files`       - File operations",
-            "  `:help filebrowser` - File browser keys and commands",
-            "  `:help run`         - :run command and output view",
-            "  `:help windows`     - Splits and tabs",
-            "  `:help buffers`     - Buffer management and tab bar",
-            "  `:help search`      - Searching and replacing",
-            "  `:help clipboard`   - Clipboard operations",
-            "  `:help git`         - Git integrations",
-            "  `:help gs`          - C/C++ symbol size popup",
-            "  `:help emitasm`     - Emit C/C++ assembly",
-            "  `:help lsp`         - LSP setup and troubleshooting",
-            "  `:help diagnostics` - Diagnostic env vars",
+        };
+        for(const std::string& topicName : helpSearchTopics())
+        {
+            lines.push_back("  `" + helpTopicLabel(topicName) + "` - " +
+                            helpTopicDescription(topicName));
+        }
+        lines.insert(lines.end(), {
             "",
             "QUICK START:",
             "  `i`        - Enter insert mode",
@@ -409,7 +1188,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 #endif
             "",
             "Press `q` to close this help window.",
-        };
+        });
     }
     else if(topic_lower == "commands")
     {
@@ -417,15 +1196,23 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "# Command Reference",
             "",
             "FILE OPERATIONS:",
-            "  `:w`              - Write (save) current file",
+            "  `:w`              - Write current file",
             "  `:w <file>`       - Save to specific file",
+            "  `:e <file>`       - Open file",
+            "  `:edit <file>`    - Open file",
+            "  `:e .`            - Open file browser for current directory",
+            "  `:e%` or `:edit%` - Reload current file",
+            "  `:e!%`            - Force reload current file",
             "  `:q`              - Quit (fails if unsaved changes)",
             "  `:q!`             - Force quit without saving",
             "  `:wq` or `:x`     - Save and quit",
             "  `:wa`             - Write all buffers",
+            "  `:wall`           - Write all buffers",
             "  `:qa`             - Quit all buffers",
+            "  `:qall`           - Quit all buffers",
             "  `:qa!`            - Force quit all",
             "  `:wqa` or `:xa`   - Write all and quit",
+            "  `:wqall`          - Write all and quit",
             "",
             "C/C++:",
             "  `:emitasm [flags]` - Emit current buffer assembly into .s "
@@ -433,6 +1220,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "                       Example: `:emitasm -O2`",
             "                       `--raw` keeps clang's full assembler "
             "output",
+            "  `:format` or `:fmt` - Format current buffer",
+            "  `:lspinfo`          - Show LSP status and diagnostics info",
+            "  `:emoji` or `:em`   - Open emoji picker",
             "  `:glyphselect`     - Open glyph selector",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
             "  `:ansitools`       - Insert common ANSI control escape",
@@ -442,16 +1232,21 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "BUFFER MANAGEMENT:",
             "  `:bn` or `:bnext`     - Next buffer",
-            "  `:bp` or `:bprev`     - Previous buffer",
+            "  `:bp`/`:bprev`/`:bprevious` - Previous buffer",
             "  `:bd` or `:bdelete`   - Delete buffer",
             "  `:bd!`                - Force delete buffer",
             "  `:ls` or `:buffers`   - List buffers",
             "  `:b <n>`              - Switch to buffer n",
+            "  `:buffer <n>`         - Switch to buffer n",
             "  `:enew`               - Create new buffer",
             "",
             "FILE BROWSER:",
-            "  `:Ex` or `:Explore`   - Open file browser",
+            "  `:e .`                - Open file browser",
+            "  `:Sex`/`:Sexplore`    - Open file browser in split",
+            "  `:Hex`/`:Hexplore`    - Open file browser in horizontal split",
+            "  `:Vex`/`:Vexplore`    - Open file browser in vertical split",
             "  `:cd <path>`          - Change directory",
+            "  `:cd`                 - Change directory to home",
             "  `:cdr`                - Change to project root",
             "  `:pwd`                - Print working directory",
             "  `:rfs`                - Refresh fuzzy find and grep file cache",
@@ -460,15 +1255,16 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "WINDOWS / TABS:",
             "  `:sp`/`:split`/`:hs`/`:hsplit` - Horizontal split",
             "  `:vs`/`:vsplit`/`:vh`          - Vertical split",
-            "  `:only`                        - Close other splits",
             "  `:tabnew`/`:tabe <file>`       - New tab / open in tab",
-            "  `:tabc`/`:tabclose`            - Close current tab",
             "  `:tabn`/`:tabnext`             - Next tab",
             "  `:tabp`/`:tabprev`             - Previous tab",
             "",
             "LOC:",
             "  `:loc <path>`         - Count LOC (non-empty, non-comment)",
             "  `:loc! <path>`        - Show LOC list view",
+            "  `:loc -l <path>`      - Show LOC list view",
+            "  `:loc --list <path>`  - Show LOC list view",
+            "  `:loc list <path>`    - Show LOC list view",
             "  `:loc%`               - Count LOC in current buffer",
             "  `:loctotal <path>`    - Count total LOC (respects .gitignore)",
             "  In LOC view: `s` sort asc/desc, `Esc` reset sort",
@@ -492,12 +1288,17 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `gbv`     - Show commit diff for line under cursor",
             "  `gs`      - Show C/C++ symbol size/member layout popup",
             "  `:git blame` - Toggle git blame gutter from command mode",
+            "  `:git add`   - Stage current buffer",
             "  `gl`      - Show git log (repo)",
             "  `glf`     - Show git log (current file)",
             "  `:git stage` - Open git staging view",
+            "  `:git log`   - Show git log",
+            "  `:git prettylog` - Show formatted git log",
             "  `:git diff`  - Show repository diff",
             "  `:git commit` - Commit staged files",
             "  `:git fixup` - Fixup staged files into selected commit",
+            "  `:git stash` - Stash changes",
+            "  `:git stash pop` - Pop latest stash",
             "  Git log: `ctrl-v` range select, `space` mark commit",
             "  Git stage: `j/k` move, `h/l` pan list, `d` toggle diff split",
             "  Git stage: `space` stage/unstage, `ctrl-j/k` scroll diff",
@@ -522,8 +1323,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `--no-gitignore`      - Disable .gitignore filtering",
             "",
             "HELP:",
-            "  `:help`           - Show this help",
-            "  `:help <topic>`   - Show help for topic",
+            "  `:help` or `:h`       - Show this help",
+            "  `:help <topic>`       - Show help for topic",
+            "  `:h <topic>`          - Show help for topic",
         };
     }
     else if(topic_lower == "git")
@@ -916,7 +1718,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:wq`/`:x`  - Save and quit",
             "",
             "NORMAL MODE:",
-            "  `:Ex`/`:Explore` - File browser",
+            "  `:e .`           - File browser",
+            "  `:Sex`/`:Vex`    - File browser in split",
             "  `Space-e`        - Diagnostic popup on LSP diagnostic row;",
             "                     otherwise file browser",
             "  `gf`             - Go to file under cursor",
@@ -989,7 +1792,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "COMMANDS:",
             "  `:sp`/`:split`/`:hs`/`:hsplit` - Horizontal split",
             "  `:vs`/`:vsplit`/`:vh`          - Vertical split",
-            "  `:only`                        - Close all other splits",
+            "  `:Sex`/`:Sexplore`             - File browser in split",
+            "  `:Hex`/`:Hexplore`             - File browser in horizontal split",
+            "  `:Vex`/`:Vexplore`             - File browser in vertical split",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
             "  `Space-hs`                     - Horizontal split",
             "  `Space-vs`                     - Vertical split",
@@ -1017,7 +1822,6 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "TABS:",
             "  `:tabnew`            - New tab",
             "  `:tabe <file>`       - Open file in new tab",
-            "  `:tabc`/`:tabclose`  - Close current tab",
             "  `:tabn`/`:tabnext`   - Next tab",
             "  `:tabp`/`:tabprev`   - Previous tab",
             "",
@@ -1130,7 +1934,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "OPEN:",
             "  `Space-e`              - Diagnostic popup on diagnostic row;",
             "                           otherwise file browser at file's dir",
-            "  `:Ex` / `:Explore`     - Open file browser",
+            "  `:e .`                 - Open file browser",
+            "  `:Sex`/`:Sexplore`     - Open file browser in split",
+            "  `:Hex`/`:Hexplore`     - Open browser in horizontal split",
+            "  `:Vex`/`:Vexplore`     - Open browser in vertical split",
             "  `uvim .`               - Start in browser (defers auto-LSP)",
             "",
             "NAVIGATION:",
@@ -1378,6 +2185,19 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Type `:help` to see the main help page.",
         };
     }
+
+    selectedLine = 0;
+    if(isMainHelpTopic(topic_lower))
+    {
+        for(int i = 0; i < (int)lines.size(); ++i)
+        {
+            if(topicForLine(i).has_value())
+            {
+                selectedLine = i;
+                break;
+            }
+        }
+    }
 }
 
 std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
@@ -1417,8 +2237,9 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
             }
 
             // Unknown command
-            ctx.setStatusMessage("Unknown command: :" + command.cmd);
-            return true;
-        });
+            return false;
+        },
+        [&](ModeContext& ctx, std::string_view line)
+        { return dispatchEditorCommand(ctx, line, previousFile, false); });
 }
 } // namespace editor::statemachine
