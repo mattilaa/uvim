@@ -348,6 +348,27 @@ TEST(RealModeTransitionsTest, HelpCommandReferenceMatchesCurrentCommands)
     EXPECT_TRUE(contains_help_text(filebrowser->lines, ":Vex"));
 }
 
+TEST(RealModeTransitionsTest, HelpModeRunsEditorCommandsAndKeepsHelpCommands)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "help");
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+
+    dispatch_command(sm, "loctotal");
+    EXPECT_TRUE(text_utils::is_found(editor.locMessage.find("LOC total ")));
+    EXPECT_TRUE(editor.statusMessage.empty());
+    EXPECT_STREQ(sm.currentStateName(), "HELP");
+
+    dispatch_command(sm, "h commands");
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+    auto* help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->topic, "commands");
+}
+
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
 {
     Editor editor = Editor::createForTests();

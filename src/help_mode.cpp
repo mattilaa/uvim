@@ -657,14 +657,23 @@ void HelpMode::draw(Editor& editor) const
             0,
             std::min((size_t)editor.screenCols, editor.statusMessage.length()));
     }
+    else if(!editor.locMessage.empty())
+    {
+        output += editor.locMessage.substr(
+            0,
+            std::min((size_t)editor.screenCols, editor.locMessage.length()));
+    }
 
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
+    output += Terminal::cursorPos(editor.screenRows + 2, 1);
+    output += Terminal::ESC_CLEAR_LINE;
+
     if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
-        int row = editor.screenRows + 2;
+        int row = editor.screenRows + 1;
         int col = 2 + (int)commandPrompt->getInput().size();
         output += Terminal::cursorPos(row, col);
     }
@@ -2228,8 +2237,9 @@ std::optional<ModeState> HelpMode::executeCommand(ModeContext& ctx,
             }
 
             // Unknown command
-            ctx.setStatusMessage("Unknown command: :" + command.cmd);
-            return true;
-        });
+            return false;
+        },
+        [&](ModeContext& ctx, std::string_view line)
+        { return dispatchEditorCommand(ctx, line, previousFile, false); });
 }
 } // namespace editor::statemachine
