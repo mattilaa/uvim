@@ -277,7 +277,6 @@ endif()
 
 if(UVIM_ENABLE_BROWSER_TOOLS)
     list(APPEND UVIM_CORE_SOURCES
-        src/editor_execution_explore_command.cpp
         src/editor_view_buffer_browser.cpp
         src/editor_view_file_browser.cpp
     )

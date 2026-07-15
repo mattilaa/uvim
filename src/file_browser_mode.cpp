@@ -3510,10 +3510,16 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 }
                 return true;
             }
-            if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Hex" ||
-               cmd == "Hexplore" || cmd == "Vex" || cmd == "Vexplore")
+            if(cmd == "vs" || cmd == "vsplit" || cmd == "sp" ||
+               cmd == "split" || cmd == "vh" || cmd == "hs" ||
+               cmd == "hsplit")
             {
-                const bool vertical = cmd == "Vex" || cmd == "Vexplore";
+                ctx.setStatusMessage("Use :ve or :se in file browser");
+                return true;
+            }
+            if(cmd == "se" || cmd == "ve")
+            {
+                const bool vertical = cmd == "ve";
                 const int sourcePane = ctx.editor->activePane;
                 savePaneState(sourcePane);
                 if(!ctx.editor->currentBuffer)

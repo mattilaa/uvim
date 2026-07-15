@@ -248,8 +248,7 @@ Startup note:
 - this keeps directory launch fast while preserving `autodetectlsps: true` for
   normal editing
 - LSP diagnostics from servers are shown as row markers and can be opened with
-  `Space-e` when the cursor is on a diagnostic row. `Space-e` otherwise opens
-  the file browser.
+  `Space-e` when the cursor is on a diagnostic row.
 - Use `:set emitlsp=false` or config `editor.emitlsp: false` to suppress
   LSP-emitted warning/error diagnostics without disabling other LSP features.
 
@@ -478,9 +477,8 @@ Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
 
 ## File browser
 
-Open with `Space-e` (leader-e) or `:Ex` / `:Explore`. When the cursor is on a
-row with an LSP diagnostic and `emitlsp` is enabled, `Space-e` opens the
-diagnostic popup instead.
+Open with `Space-x` (leader-x) or `:e .`. Use `:se` for a horizontal browser
+split and `:ve` for a vertical browser split.
 
 Navigation:
 

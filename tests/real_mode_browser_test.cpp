@@ -38,53 +38,56 @@ TEST(RealModeTransitionsTest, LocListReturnsToFileBrowserWithCursorState)
     EXPECT_EQ(fb->browserOffset, 0);
 }
 
-TEST(RealModeTransitionsTest, ExCommandOpensFileBrowser)
+TEST(RealModeTransitionsTest, EditDotCommandOpensFileBrowser)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch(':');
-    sm.dispatch('E');
-    sm.dispatch('x');
-    sm.dispatch(keyCode(control::ControlKey::ENTER));
-
-    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
-}
-
-TEST(RealModeTransitionsTest, ExCommandWithPathOpensFileBrowser)
-{
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    auto sm = makeMachine(editor, NormalMode{});
-
-    sm.dispatch(':');
-    sm.dispatch('E');
-    sm.dispatch('x');
+    sm.dispatch('e');
     sm.dispatch(' ');
-    sm.dispatch('s');
-    sm.dispatch('r');
-    sm.dispatch('c');
+    sm.dispatch('.');
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
-TEST(RealModeTransitionsTest, ExCommandFromCommandModeOpensFileBrowser)
+TEST(RealModeTransitionsTest, EditCommandWithPathOpensFileBrowser)
+{
+    const auto root = make_temp_dir("uvim_edit_path_browser_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+    sm.dispatch('e');
+    sm.dispatch(' ');
+    for(char ch : root.string())
+        sm.dispatch(ch);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+}
+
+TEST(RealModeTransitionsTest, EditDotCommandFromCommandModeOpensFileBrowser)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch(':');
-    sm.dispatch('E');
-    sm.dispatch('x');
+    sm.dispatch('e');
+    sm.dispatch(' ');
+    sm.dispatch('.');
     sm.dispatch(keyCode(control::ControlKey::ENTER));
 
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
-TEST(RealModeTransitionsTest, ExLineNumberInputSuppressesCommandPopup)
+TEST(RealModeTransitionsTest, CommandLineNumberInputSuppressesCommandPopup)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();

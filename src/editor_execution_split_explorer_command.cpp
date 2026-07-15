@@ -30,13 +30,10 @@ using namespace detail;
 bool SplitExplorerCommand::execute(Editor& editor,
                                    const CommandRequest& request) const
 {
-    if(request.text != "Sex" && request.text != "Sexplore" &&
-       request.text != "Hex" && request.text != "Hexplore" &&
-       request.text != "Vex" && request.text != "Vexplore")
+    if(request.text != "se" && request.text != "ve")
         return false;
 
-    const bool vertical =
-        request.text == "Vex" || request.text == "Vexplore";
+    const bool vertical = request.text == "ve";
     std::string browsePath = ".";
     if(editor.currentMode == FILE_BROWSER && editor.getModeStateMachine())
     {
