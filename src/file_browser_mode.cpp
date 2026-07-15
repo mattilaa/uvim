@@ -1151,7 +1151,13 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             savePaneState(ctx.editor->activePane);
             ctx.editor->switchPaneDirection(dx, dy);
             if(isBrowserPane(ctx.editor->activePane))
+            {
                 restorePaneState(ctx.editor->activePane);
+                const auto layout =
+                    ctx.editor->getPaneLayout(ctx.editor->activePane);
+                ensureCursorVisibleInRows(layout.rows - 1);
+                savePaneState(ctx.editor->activePane);
+            }
             ctx.requestFullRedraw();
         };
         if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))

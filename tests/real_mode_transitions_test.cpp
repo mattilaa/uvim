@@ -301,6 +301,41 @@ TEST(RealModeTransitionsTest, SexKeepsCursorVisibleInShorterPane)
     EXPECT_LT(browser->browserCursor, browser->browserOffset + visibleRows);
 }
 
+TEST(RealModeTransitionsTest, HorizontalBrowserPaneSwitchKeepsCursorVisible)
+{
+    const auto root = make_temp_dir("uvim_browser_horizontal_switch_visible_");
+    for(int i = 0; i < 24; ++i)
+        write_file(root / ("file_" + std::to_string(i) + ".txt"), "x\n");
+
+    Editor editor = Editor::createForTests();
+    editor.screenRows = 10;
+    editor.screenCols = 80;
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    dispatch_command(sm, "Sex");
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_FALSE(editor.splitVertical);
+    ASSERT_EQ(editor.activePane, 1);
+
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    browser->browserCursor = 2;
+    browser->browserOffset = 18;
+    browser->savePaneState(0);
+    browser->browserCursor = 18;
+    browser->browserOffset = 18;
+    browser->savePaneState(1);
+
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
+
+    ASSERT_EQ(editor.activePane, 0);
+    const auto layout = editor.getPaneLayout(editor.activePane);
+    const int visibleRows = std::max(1, layout.rows - 1);
+    EXPECT_GE(browser->browserCursor, browser->browserOffset);
+    EXPECT_LT(browser->browserCursor, browser->browserOffset + visibleRows);
+}
+
 TEST(RealModeTransitionsTest, FileBrowserQClosesOnlyActiveSplitPane)
 {
     const auto root = make_temp_dir("uvim_browser_q_split_");

@@ -111,10 +111,16 @@ std::string fitToWidth(std::string text, int width)
     if(width <= 0)
         return {};
 
-    while(text_utils::displayWidth(text) > width && !text.empty())
-        text.pop_back();
+    while(text_utils::utf8DisplayWidth(text) > width && !text.empty())
+    {
+        int nextSize = text_utils::prevUtf8CharStart(text, (int)text.size());
+        if(nextSize >= (int)text.size())
+            text.pop_back();
+        else
+            text.resize((std::size_t)nextSize);
+    }
 
-    int visible = text_utils::displayWidth(text);
+    int visible = text_utils::utf8DisplayWidth(text);
     if(visible < width)
         text.append(width - visible, ' ');
     return text;
@@ -190,7 +196,9 @@ std::string renderFileBrowserPaneRow(
         row += theme.baseFg();
     }
 
-    std::string label = entry.isDirectory ? "  > " : "  - ";
+    std::string label = "  ";
+    label += ascii::utf8(entry.isDirectory ? ascii::FOLDER_ICON
+                                           : ascii::FILE_ICON);
 
     label += entry.name;
     if(entry.isDirectory && entry.name != "..")
