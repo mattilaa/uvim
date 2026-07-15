@@ -180,23 +180,24 @@ void WelcomeMode::draw(Editor& editor) const
     lines.push_back("");
     lines.push_back("Author: Matti Laamanen");
     lines.push_back("");
-    lines.push_back("Welcome to uVim");
-    lines.push_back("");
     lines.push_back("Getting started:");
 
     std::vector<Item> commands = {
-        {":e <file><Enter>", "open a file"},
-        {":Ex<Enter>", "open file browser"},
-        {":q<Enter>", "quit"},
-        {":q!<Enter>", "quit without saving"},
-        {":wa<Enter>", "save all buffers"},
-        {":qw<Enter>", "save all buffers and quit"},
+        {":e <file><Enter>", "Open a file / start editing a new file"},
+        {":q<Enter>", "Quit"},
+        {":q!<Enter>", "Quit without saving"},
+        {":wa<Enter>", "Save all buffers"},
+        {":qw<Enter>", "Save all buffers and quit"},
+        {":help", "Open help page (supports fuzzy find)"},
     };
 
     std::vector<Item> keys = {
-        {"i", "enter insert mode"},     {":", "command mode"},
-        {"Ctrl-P", "fuzzy find files"}, {"Ctrl-W", "buffer browser"},
-        {"Ctrl-S", "search in files"},
+        {"<Leader>x", "Open file browser"},
+        {"i", "Enter insert mode / start editing an empty file"},
+        {":", "Command mode"},
+        {"Ctrl-P", "Fuzzy find files"},
+        {"Ctrl-W", "Buffer browser"},
+        {"Ctrl-S", "Search in files (grep)"},
     };
 
     auto append_items = [&](const std::vector<Item>& items)
@@ -220,8 +221,6 @@ void WelcomeMode::draw(Editor& editor) const
     lines.push_back("");
     lines.push_back("Quick keys:");
     append_items(keys);
-    lines.push_back("");
-    lines.push_back("Press <Enter> or Esc to start editing");
 
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
