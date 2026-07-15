@@ -328,11 +328,88 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
         focusPreviousFileEntry(ctx);
         focusPreviousFile = false;
     }
+    if(ctx.editor && ctx.editor->splitActive &&
+       !isBrowserPane(ctx.editor->activePane))
+    {
+        savePaneState(ctx.editor->activePane);
+    }
 
     ctx.requestFullRedraw();
 }
 
 void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
+
+FileBrowserMode::PaneBrowserState FileBrowserMode::currentPaneState() const
+{
+    PaneBrowserState state;
+    state.fileList = fileList;
+    state.currentDirectory = currentDirectory;
+    state.browserCursor = browserCursor;
+    state.browserOffset = browserOffset;
+    state.filterActive = filterActive;
+    state.filterQuery = filterQuery;
+    state.filterMatches = filterMatches;
+    state.selectedFiles = selectedFiles;
+    return state;
+}
+
+void FileBrowserMode::savePaneState(int pane)
+{
+    if(pane < 0)
+        return;
+    paneStates[pane] = currentPaneState();
+}
+
+void FileBrowserMode::restorePaneState(int pane)
+{
+    auto it = paneStates.find(pane);
+    if(it == paneStates.end())
+        return;
+    const PaneBrowserState& state = it->second;
+    fileList = state.fileList;
+    currentDirectory = state.currentDirectory;
+    browserCursor = state.browserCursor;
+    browserOffset = state.browserOffset;
+    filterActive = state.filterActive;
+    filterQuery = state.filterQuery;
+    filterMatches = state.filterMatches;
+    selectedFiles = state.selectedFiles;
+}
+
+bool FileBrowserMode::isBrowserPane(int pane) const
+{
+    return paneStates.find(pane) != paneStates.end();
+}
+
+const FileBrowserMode::PaneBrowserState*
+FileBrowserMode::browserPaneState(int pane) const
+{
+    auto it = paneStates.find(pane);
+    if(it == paneStates.end())
+        return nullptr;
+    return &it->second;
+}
+
+void FileBrowserMode::ensureCursorVisibleInRows(int visibleRows)
+{
+    visibleRows = std::max(1, visibleRows);
+    const int count = listSize();
+    if(count <= 0)
+    {
+        browserCursor = 0;
+        browserOffset = 0;
+        return;
+    }
+
+    browserCursor = std::clamp(browserCursor, 0, count - 1);
+    const int maxOffset = std::max(0, count - visibleRows);
+    browserOffset = std::clamp(browserOffset, 0, maxOffset);
+    if(browserCursor < browserOffset)
+        browserOffset = browserCursor;
+    if(browserCursor >= browserOffset + visibleRows)
+        browserOffset = std::clamp(browserCursor - visibleRows + 1, 0,
+                                   maxOffset);
+}
 
 std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
                                                  const ModeKeyEvent& event)
@@ -544,15 +621,21 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         ctx.setStatusMessage("");
     };
 
+    const auto visibleRows = [&]() -> int
+    {
+        if(ctx.editor && ctx.editor->splitActive)
+        {
+            const auto layout = ctx.editor->getPaneLayout(ctx.editor->activePane);
+            return std::max(1, layout.rows - 1);
+        }
+        return fileBrowserVisibleRows(ctx.screenRows(), ctx.screenCols(),
+                                      selectedFiles.size(), copyBuffer.size(),
+                                      moveMode);
+    };
+
     const auto moveToVisibleCursor = [&]()
     {
-        int visible = fileBrowserVisibleRows(ctx.screenRows(), ctx.screenCols(),
-                                             selectedFiles.size(),
-                                             copyBuffer.size(), moveMode);
-        if(browserCursor < browserOffset)
-            browserOffset = browserCursor;
-        if(browserCursor >= browserOffset + visible)
-            browserOffset = browserCursor - visible + 1;
+        ensureCursorVisibleInRows(visibleRows());
     };
 
     auto openSelectedFiles = [&]() -> std::optional<ModeState>
@@ -1060,6 +1143,40 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+#if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
+    if(ctx.editor && ctx.editor->splitActive)
+    {
+        auto switchBrowserPane = [&](int dx, int dy)
+        {
+            savePaneState(ctx.editor->activePane);
+            ctx.editor->switchPaneDirection(dx, dy);
+            if(isBrowserPane(ctx.editor->activePane))
+                restorePaneState(ctx.editor->activePane);
+            ctx.requestFullRedraw();
+        };
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_H))
+        {
+            switchBrowserPane(-1, 0);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_L))
+        {
+            switchBrowserPane(1, 0);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_K))
+        {
+            switchBrowserPane(0, -1);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::SHIFT_CTRL_J))
+        {
+            switchBrowserPane(0, 1);
+            return std::nullopt;
+        }
+    }
+#endif
+
     if(!ctx.editor->fileBrowserFuzzy && filterActive)
     {
         filterActive = false;
@@ -1185,9 +1302,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         if(browserCursor < count - 1)
         {
             browserCursor++;
-            int visible = fileBrowserVisibleRows(
-                ctx.screenRows(), ctx.screenCols(), selectedFiles.size(),
-                copyBuffer.size(), moveMode);
+            int visible = visibleRows();
             if(browserCursor >= browserOffset + visible)
                 browserOffset = browserCursor - visible + 1;
         }
@@ -1207,9 +1322,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         int count = listSize();
         browserCursor = std::max(0, count - 1);
-        int visible = fileBrowserVisibleRows(ctx.screenRows(), ctx.screenCols(),
-                                             selectedFiles.size(),
-                                             copyBuffer.size(), moveMode);
+        int visible = visibleRows();
         if(browserCursor >= visible)
             browserOffset = browserCursor - visible + 1;
     }
@@ -1272,26 +1385,18 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = (fileBrowserVisibleRows(ctx.screenRows(), ctx.screenCols(),
-                                           selectedFiles.size(),
-                                           copyBuffer.size(), moveMode)) /
-                   2;
+        int half = visibleRows() / 2;
         browserCursor += half;
         int count = listSize();
         if(browserCursor >= count)
             browserCursor = std::max(0, count - 1);
-        int visible = fileBrowserVisibleRows(ctx.screenRows(), ctx.screenCols(),
-                                             selectedFiles.size(),
-                                             copyBuffer.size(), moveMode);
+        int visible = visibleRows();
         if(browserCursor >= browserOffset + visible)
             browserOffset = browserCursor - visible + 1;
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = (fileBrowserVisibleRows(ctx.screenRows(), ctx.screenCols(),
-                                           selectedFiles.size(),
-                                           copyBuffer.size(), moveMode)) /
-                   2;
+        int half = visibleRows() / 2;
         browserCursor -= half;
         if(browserCursor < 0)
             browserCursor = 0;
@@ -1897,6 +2002,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             }
             updateFilter(ctx);
         }
+        if(ctx.editor && ctx.editor->splitActive)
+            savePaneState(ctx.editor->activePane);
         ctx.requestFullRedraw();
         return std::nullopt;
     }
@@ -1911,6 +2018,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             filterActive = true;
             filterQuery.push_back(static_cast<char>(c));
             updateFilter(ctx);
+            if(ctx.editor && ctx.editor->splitActive)
+                savePaneState(ctx.editor->activePane);
             ctx.requestFullRedraw();
             return std::nullopt;
         }
@@ -1918,6 +2027,8 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
 
     if(visualMode)
         updateVisualSelection();
+    if(ctx.editor && ctx.editor->splitActive)
+        savePaneState(ctx.editor->activePane);
     ctx.requestFullRedraw();
     return std::nullopt;
 }
@@ -3188,6 +3299,30 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     if(!cwdEc)
                         ctx.setStatusMessage(cwd.string());
                 }
+                return true;
+            }
+            if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Hex" ||
+               cmd == "Hexplore" || cmd == "Vex" || cmd == "Vexplore")
+            {
+                const bool vertical = cmd == "Vex" || cmd == "Vexplore";
+                const int sourcePane = ctx.editor->activePane;
+                savePaneState(sourcePane);
+                if(!ctx.editor->currentBuffer)
+                    ctx.editor->createNewBuffer();
+                ctx.editor->enableSplit(vertical);
+                if(ctx.editor->splitActive)
+                    ctx.editor->switchPaneDirection(vertical ? 1 : 0,
+                                                    vertical ? 0 : 1);
+                paneStates[ctx.editor->activePane] = paneStates[sourcePane];
+                restorePaneState(ctx.editor->activePane);
+                if(ctx.editor->splitActive)
+                {
+                    const auto layout =
+                        ctx.editor->getPaneLayout(ctx.editor->activePane);
+                    ensureCursorVisibleInRows(layout.rows - 1);
+                    savePaneState(ctx.editor->activePane);
+                }
+                nextState = ModeState{*this};
                 return true;
             }
 

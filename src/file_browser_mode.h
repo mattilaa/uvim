@@ -81,6 +81,20 @@ struct FileBrowserMode
     std::unordered_set<std::string> preVisualSelected;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
+    struct PaneBrowserState
+    {
+        std::vector<FileEntry> fileList;
+        std::string currentDirectory;
+        int browserCursor = 0;
+        int browserOffset = 0;
+        bool filterActive = false;
+        std::string filterQuery;
+        std::vector<int> filterMatches;
+        std::unordered_set<std::string> selectedFiles;
+    };
+
+    std::unordered_map<int, PaneBrowserState> paneStates;
+
     FileBrowserMode() = default;
 
     explicit FileBrowserMode(std::string startDir, std::string prevFile = {},
@@ -92,6 +106,12 @@ struct FileBrowserMode
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
+    PaneBrowserState currentPaneState() const;
+    void savePaneState(int pane);
+    void restorePaneState(int pane);
+    bool isBrowserPane(int pane) const;
+    const PaneBrowserState* browserPaneState(int pane) const;
+    void ensureCursorVisibleInRows(int visibleRows);
 
     std::optional<ModeState> handle(ModeContext& ctx,
                                     const ModeKeyEvent& event);
