@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+class Editor;
+
 namespace editor::statemachine
 {
 struct HelpMode
@@ -30,8 +32,23 @@ struct HelpMode
     std::string topic;
     std::vector<std::string> lines;
     int scrollOffset = 0;
+    int selectedLine = 0;
     std::string previousFile;
     std::shared_ptr<CommandPrompt> commandPrompt;
+    struct HelpSearchMatch
+    {
+        std::string topic;
+        int line = 0;
+        int score = 0;
+        std::string content;
+        std::vector<int> matchPositions;
+    };
+
+    bool searchActive = false;
+    std::string searchQuery;
+    std::vector<HelpSearchMatch> searchMatches;
+    int searchCursor = 0;
+    int searchOffset = 0;
 
     HelpMode() = default;
 
@@ -50,6 +67,18 @@ struct HelpMode
 
 private:
     void loadHelpContent(const std::string& helpTopic);
+    std::optional<std::string> topicForLine(int lineIndex) const;
+    bool moveSelection(Editor& editor, int delta);
+    bool acceptSelection(Editor& editor);
+    void startSearch(Editor& editor);
+    void updateSearchMatches(Editor& editor);
+    void cancelSearch(Editor& editor);
+    bool acceptSearch(Editor& editor);
+    void searchMoveDown(Editor& editor);
+    void searchMoveUp();
+    void searchHalfPageDown(Editor& editor);
+    void searchHalfPageUp(Editor& editor);
+    void drawSearch(Editor& editor) const;
     std::optional<ModeState> executeCommand(ModeContext& ctx,
                                             std::string_view commandLine);
 };

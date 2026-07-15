@@ -114,6 +114,7 @@ bool CommandPrompt::handle(
                     if(inputText == "help" || inputText == "h")
                     {
                         completions = ctx.getHelpCompletions("");
+                        completions.insert(completions.begin(), inputText);
                         helpCompletion = true;
                     }
                     else if(inputText == "loc" || inputText == "loc!" ||
@@ -164,6 +165,12 @@ bool CommandPrompt::handle(
         if(helpCompletion || originalInput.rfind("help", 0) == 0 ||
            originalInput.rfind("h", 0) == 0)
         {
+            if(completions[completionIndex] == "help" ||
+               completions[completionIndex] == "h")
+            {
+                input = completions[completionIndex];
+                return;
+            }
             std::string cmd = (originalInput.rfind("h", 0) == 0 &&
                                originalInput.rfind("help", 0) != 0)
                                   ? "h"
@@ -388,7 +395,13 @@ bool CommandPrompt::handle(
                 if(!text_utils::contains(commandToRun, ' ') ||
                    text_utils::contains(*selection, ' '))
                 {
-                    commandToRun = *selection;
+                    const bool selectionHasSpace =
+                        text_utils::contains(*selection, ' ');
+                    if(text_utils::contains(commandToRun, ' ') ||
+                       !selectionHasSpace)
+                    {
+                        commandToRun = *selection;
+                    }
                 }
             }
         }

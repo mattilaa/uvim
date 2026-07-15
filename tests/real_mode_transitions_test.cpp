@@ -117,6 +117,108 @@ TEST(RealModeTransitionsTest, HexOpensFileBrowserInHorizontalSplit)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
+TEST(RealModeTransitionsTest, BareHelpOpensIndexAndFuzzySearchJumpsToRow)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "help");
+
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+    auto* help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_TRUE(help->topic.empty());
+    ASSERT_FALSE(help->lines.empty());
+    EXPECT_EQ(help->lines.front(), "# uvim Help");
+    ASSERT_GE(help->selectedLine, 0);
+    ASSERT_LT(help->selectedLine, (int)help->lines.size());
+    EXPECT_TRUE(text_utils::is_found(help->lines[help->selectedLine].find(
+        "`:help`")));
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_J));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    ASSERT_GE(help->selectedLine, 0);
+    ASSERT_LT(help->selectedLine, (int)help->lines.size());
+    EXPECT_TRUE(text_utils::is_found(help->lines[help->selectedLine].find(
+        "`:help commands`")));
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_EQ(help->topic, "commands");
+
+    dispatch_command(sm, "help");
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_TRUE(help->topic.empty());
+
+    sm.dispatch(keyCode(command::CommandKey::KEY_SLASH));
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_TRUE(help->searchActive);
+
+    for(char c : std::string("git stage"))
+        sm.dispatch(c);
+
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    ASSERT_FALSE(help->searchMatches.empty());
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_FALSE(help->searchActive);
+    EXPECT_FALSE(help->lines.empty());
+    EXPECT_GE(help->scrollOffset, 0);
+
+    bool visibleMatch = false;
+    const int last =
+        std::min((int)help->lines.size(), help->scrollOffset + 8);
+    for(int i = help->scrollOffset; i < last; ++i)
+    {
+        if(text_utils::is_found(help->lines[i].find("git stage")) ||
+           text_utils::is_found(help->lines[i].find("Git stage")) ||
+           text_utils::is_found(help->lines[i].find(":git stage")))
+        {
+            visibleMatch = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(visibleMatch);
+}
+
+TEST(RealModeTransitionsTest, HelpCommandPopupSelectsPlainHelpFirst)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(':');
+    for(char c : std::string("help"))
+        sm.dispatch(c);
+
+    ASSERT_TRUE(editor.isCommandPopupActive());
+    auto selection = editor.commandPopupSelection();
+    ASSERT_TRUE(selection.has_value());
+    EXPECT_EQ(*selection, "help");
+
+    editor.moveCommandPopupCursor(1);
+    selection = editor.commandPopupSelection();
+    ASSERT_TRUE(selection.has_value());
+    EXPECT_EQ(*selection, "help commands");
+    editor.moveCommandPopupCursor(-1);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_STREQ(sm.currentStateName(), "HELP");
+    auto* help = sm.getState<HelpMode>();
+    ASSERT_NE(help, nullptr);
+    EXPECT_TRUE(help->topic.empty());
+}
+
 TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
 {
     Editor editor = Editor::createForTests();
