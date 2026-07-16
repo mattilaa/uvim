@@ -4392,16 +4392,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         int charLen = nextCol - col;
 
         bool highlighted = false;
-        bool showCursor =
-            (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-             currentMode == VISUAL_BLOCK);
-        bool isCursor = showCursor && (fileRow == *cursorY && col == *cursorX);
-        if(isCursor)
-        {
-            output += theme.cursor();
-            highlighted = true;
-        }
-        else if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
+        if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
         {
             output += theme.selection();
             highlighted = true;

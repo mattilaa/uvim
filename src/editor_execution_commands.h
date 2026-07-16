@@ -34,15 +34,6 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
-class ExploreCommand final : public EditorExecutionCommand
-{
-public:
-    bool execute(Editor& editor, const CommandRequest& request) const override;
-
-private:
-    static bool parse(std::string_view command, std::string& outPath);
-};
-
 class FormatCommand final : public EditorExecutionCommand
 {
 public:

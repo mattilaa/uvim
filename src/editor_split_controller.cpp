@@ -202,6 +202,107 @@ void Editor::enableSplitImpl(bool vertical)
     needsFullRedraw = true;
 }
 
+void Editor::enableBrowserSplit(bool vertical)
+{
+    enableBrowserSplitImpl(vertical);
+}
+
+void Editor::enableBrowserSplitImpl(bool vertical)
+{
+#ifndef UVIM_ENABLE_MULTI_PANE_SPLITS
+    if(splitActive)
+    {
+        PaneState state;
+        if(!splitPanes.empty())
+        {
+            const int paneIndex =
+                std::clamp(activePane, 0,
+                           static_cast<int>(splitPanes.size()) - 1);
+            state = splitPanes[paneIndex];
+        }
+        int restoredTabBarOffset = tabBarOffset;
+        if(activePane >= 0 &&
+           activePane < static_cast<int>(splitTabBarOffset.size()))
+            restoredTabBarOffset = splitTabBarOffset[activePane];
+
+        splitActive = false;
+        splitPanes.clear();
+        splitTabBarOffset.clear();
+        splitNodes.clear();
+        splitRoot = -1;
+        splitPaneLayouts.clear();
+        activePane = 0;
+        currentBufferIndex = state.bufferIndex;
+        tabBarOffset = restoredTabBarOffset;
+        updateCurrentBufferPointers();
+    }
+#endif
+    syncBufferStateFromActivePane();
+
+    if(!splitActive || splitPanes.empty() || splitRoot < 0)
+    {
+        PaneState state;
+        state.bufferIndex = currentBufferIndex;
+        if(currentBuffer)
+        {
+            state.cursorX = currentBuffer->cursorX;
+            state.cursorY = currentBuffer->cursorY;
+            state.wantedX = currentBuffer->wantedX;
+            state.offsetX = currentBuffer->offsetX;
+            state.offsetY = currentBuffer->offsetY;
+        }
+        splitPanes.clear();
+        splitPanes.push_back(state);
+        splitTabBarOffset.clear();
+        splitTabBarOffset.push_back(tabBarOffset);
+        splitNodes.clear();
+        SplitNode root;
+        root.leaf = true;
+        root.pane = 0;
+        splitNodes.push_back(root);
+        splitRoot = 0;
+        activePane = 0;
+        splitPaneLayouts.clear();
+    }
+
+    const int activeNode = findSplitLeafNode(splitRoot, activePane);
+    if(activeNode < 0)
+        return;
+
+    PaneState newState = splitPanes[activePane];
+    const int newPane = static_cast<int>(splitPanes.size());
+    splitPanes.push_back(newState);
+    splitTabBarOffset.push_back(tabBarOffset);
+
+    SplitNode oldLeaf;
+    oldLeaf.leaf = true;
+    oldLeaf.pane = activePane;
+    const int oldLeafIndex = static_cast<int>(splitNodes.size());
+    splitNodes.push_back(oldLeaf);
+
+    SplitNode newLeaf;
+    newLeaf.leaf = true;
+    newLeaf.pane = newPane;
+    const int newLeafIndex = static_cast<int>(splitNodes.size());
+    splitNodes.push_back(newLeaf);
+
+    splitNodes[activeNode].leaf = false;
+    splitNodes[activeNode].vertical = vertical;
+    splitNodes[activeNode].pane = -1;
+    splitNodes[activeNode].first = oldLeafIndex;
+    splitNodes[activeNode].second = newLeafIndex;
+
+    splitActive = splitPanes.size() > 1;
+    splitVertical = vertical;
+    activePane = newPane;
+    currentBufferIndex = splitPanes[activePane].bufferIndex;
+    tabBarOffset = splitTabBarOffset[activePane];
+    updateCurrentBufferPointers();
+    setPanePointers(activePane);
+    splitPaneLayouts.clear();
+    needsFullRedraw = true;
+}
+
 void Editor::closeSplitImpl()
 {
     if(!splitActive)

@@ -1,9 +1,7 @@
 #include "ascii.h"
 #include "editor.h"
 #include "editor_drawing_controller.h"
-#ifdef UVIM_ENABLE_BROWSER_TOOLS
 #include "file_browser_mode.h"
-#endif
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -105,7 +103,6 @@ int displayColumnFromByteRange(std::string_view line, int start, int end,
                                                     (std::size_t)(end - start)));
 }
 
-#ifdef UVIM_ENABLE_BROWSER_TOOLS
 std::string fitToWidth(std::string text, int width)
 {
     if(width <= 0)
@@ -210,7 +207,6 @@ std::string renderFileBrowserPaneRow(
     row += theme.reset();
     return row;
 }
-#endif
 } // namespace
 
 std::string Editor::buildTabBarLine(int width)
@@ -674,16 +670,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                     line, col, start + len, utf8Mode);
                                 int charLen = nextCol - col;
                                 bool highlighted = false;
-                                bool isCursor =
-                                    showCursor &&
-                                    (fileRow == *cursorY && col == *cursorX);
-                                if(isCursor)
-                                {
-                                    output += theme.cursor();
-                                    highlighted = true;
-                                }
-                                else if(isInSelection(fileRow, col) ||
-                                        isInVisualBlock(fileRow, col))
+                                if(isInSelection(fileRow, col) ||
+                                   isInVisualBlock(fileRow, col))
                                 {
                                     output += theme.selection();
                                     highlighted = true;
@@ -717,7 +705,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         int pad = cursorCol - visibleLen;
                         if(pad > 0)
                             output.append(pad, ' ');
-                        output += theme.cursor();
+                        output += theme.selection();
                         output += ' ';
                         output += theme.reset();
                     }
@@ -825,16 +813,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                     line, col, start + len, utf8Mode);
                                 int charLen = nextCol - col;
                                 bool highlighted = false;
-                                bool isCursor =
-                                    showCursor &&
-                                    (fileRow == *cursorY && col == *cursorX);
-                                if(isCursor)
-                                {
-                                    output += theme.cursor();
-                                    highlighted = true;
-                                }
-                                else if(isInSelection(fileRow, col) ||
-                                        isInVisualBlock(fileRow, col))
+                                if(isInSelection(fileRow, col) ||
+                                   isInVisualBlock(fileRow, col))
                                 {
                                     output += theme.selection();
                                     highlighted = true;
@@ -868,7 +848,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         int pad = cursorCol - visibleLen;
                         if(pad > 0)
                             output.append(pad, ' ');
-                        output += theme.cursor();
+                        output += theme.selection();
                         output += ' ';
                         output += theme.reset();
                     }
@@ -1208,18 +1188,8 @@ void Editor::drawFullScreenSingle()
                                                  utf8Mode);
                         int charLen = nextCol - col;
                         bool highlighted = false;
-                        bool showCursor = (currentMode == VISUAL ||
-                                           currentMode == VISUAL_LINE ||
-                                           currentMode == VISUAL_BLOCK);
-                        bool isCursor = showCursor && (fileRow == *cursorY &&
-                                                       col == *cursorX);
-                        if(isCursor)
-                        {
-                            output += theme.cursor();
-                            highlighted = true;
-                        }
-                        else if(isInSelection(fileRow, col) ||
-                                isInVisualBlock(fileRow, col))
+                        if(isInSelection(fileRow, col) ||
+                           isInVisualBlock(fileRow, col))
                         {
                             output += theme.selection();
                             highlighted = true;
@@ -1253,7 +1223,7 @@ void Editor::drawFullScreenSingle()
                     int pad = cursorCol - visibleLen;
                     if(pad > 0)
                         output.append(pad, ' ');
-                    output += theme.cursor();
+                    output += theme.selection();
                     output += ' ';
                     output += theme.reset();
                 }
@@ -1288,7 +1258,18 @@ void Editor::drawSplitFullScreen()
         layouts[pane] = getPaneLayout(pane);
         int rows = std::max(1, layouts[pane].rows - tabRows);
         int cols = std::max(1, layouts[pane].cols - gutterWidth());
-        adjustViewportForPane(splitPanes[pane], rows, cols);
+        bool browserPane = false;
+        if(modeStateMachine)
+        {
+            if(auto* browser = modeStateMachine->getState<
+                   editor::statemachine::FileBrowserMode>())
+            {
+                browserPane = browser->isBrowserPane(pane) ||
+                              splitPanes[pane].bufferIndex < 0;
+            }
+        }
+        if(!browserPane)
+            adjustViewportForPane(splitPanes[pane], rows, cols);
     }
 
     if(tabRows > 0)
@@ -1372,6 +1353,28 @@ void Editor::drawSplitFullScreen()
         }
     };
 
+    struct PaneRenderModeGuard
+    {
+        Editor* editor;
+        Mode savedMode;
+
+        PaneRenderModeGuard(Editor* ed, bool activePane) : editor(ed)
+        {
+            savedMode = ed->currentMode;
+            if(!activePane &&
+               (ed->currentMode == VISUAL || ed->currentMode == VISUAL_LINE ||
+                ed->currentMode == VISUAL_BLOCK))
+            {
+                ed->currentMode = NORMAL;
+            }
+        }
+
+        ~PaneRenderModeGuard()
+        {
+            editor->currentMode = savedMode;
+        }
+    };
+
 #ifdef UVIM_ENABLE_PER_PANE_LSP
     std::vector<std::unordered_map<int, LspDiagnosticSummary>>
         paneDiagnosticsByLine(splitPanes.size());
@@ -1395,8 +1398,7 @@ void Editor::drawSplitFullScreen()
         getClangdDiagnosticsByLine();
 #endif
 
-#ifdef UVIM_ENABLE_BROWSER_TOOLS
-    if(currentMode == FILE_BROWSER && modeStateMachine)
+    if(modeStateMachine)
     {
         if(auto* browser = modeStateMachine->getState<
                editor::statemachine::FileBrowserMode>())
@@ -1405,7 +1407,6 @@ void Editor::drawSplitFullScreen()
                 browser->savePaneState(activePane);
         }
     }
-#endif
 
     auto renderPaneRow = [&](int pane, int localRow,
                              int paneWidth) -> std::string
@@ -1420,8 +1421,7 @@ void Editor::drawSplitFullScreen()
             return row;
         }
 
-#ifdef UVIM_ENABLE_BROWSER_TOOLS
-        if(currentMode == FILE_BROWSER && modeStateMachine)
+        if(modeStateMachine)
         {
             if(auto* browser = modeStateMachine->getState<
                    editor::statemachine::FileBrowserMode>())
@@ -1446,9 +1446,13 @@ void Editor::drawSplitFullScreen()
                                                     localRow, paneWidth,
                                                     false);
                 }
+                if(splitPanes[pane].bufferIndex < 0)
+                {
+                    return renderFileBrowserPaneRow(*browser, theme, localRow,
+                                                    paneWidth, false);
+                }
             }
         }
-#endif
 
         if(tabRows > 0 && localRow == 0)
         {
@@ -1470,6 +1474,7 @@ void Editor::drawSplitFullScreen()
 
         BufferPointerGuard bufferGuard(this, splitPanes[pane].bufferIndex);
         PanePointerGuard guard(this, pane);
+        PaneRenderModeGuard modeGuard(this, pane == activePane);
 #ifdef UVIM_ENABLE_PER_PANE_LSP
         const auto& diagnosticsByLine = paneDiagnosticsByLine[pane];
 #endif
@@ -1607,18 +1612,8 @@ void Editor::drawSplitFullScreen()
                         nextVisibleCharStart(line, col, start + len, utf8Mode);
                     int charLen = nextCol - col;
                     bool highlighted = false;
-                    bool showCursor =
-                        (currentMode == VISUAL || currentMode == VISUAL_LINE ||
-                         currentMode == VISUAL_BLOCK);
-                    bool isCursor =
-                        showCursor && (fileRow == *cursorY && col == *cursorX);
-                    if(isCursor)
-                    {
-                        row += theme.cursor();
-                        highlighted = true;
-                    }
-                    else if(isInSelection(fileRow, col) ||
-                            isInVisualBlock(fileRow, col))
+                    if(isInSelection(fileRow, col) ||
+                       isInVisualBlock(fileRow, col))
                     {
                         row += theme.selection();
                         highlighted = true;
@@ -1652,7 +1647,7 @@ void Editor::drawSplitFullScreen()
                 int pad = cursorCol - visibleLen;
                 if(pad > 0)
                     row.append(pad, ' ');
-                row += theme.cursor();
+                row += theme.selection();
                 row += ' ';
                 row += theme.reset();
                 visibleLen = cursorCol + 1;
@@ -1730,10 +1725,10 @@ void Editor::drawSplitFullScreen()
                       std::to_string(buffers.size()) + "] ";
     }
 
-    std::string displayName = filename->empty() ? "[No Name]" : *filename;
+    std::string displayName =
+        (filename && !filename->empty()) ? *filename : "[No Name]";
     std::string rightStatus;
-#ifdef UVIM_ENABLE_BROWSER_TOOLS
-    if(currentMode == FILE_BROWSER && modeStateMachine)
+    if(modeStateMachine)
     {
         if(auto* browser = modeStateMachine->getState<
                editor::statemachine::FileBrowserMode>())
@@ -1755,7 +1750,6 @@ void Editor::drawSplitFullScreen()
                               : browser->currentDirectory;
         }
     }
-#endif
     if(rightStatus.empty())
     {
         int lineCount = std::max(1, lines ? (int)lines->size() : 0);
@@ -1830,7 +1824,7 @@ void Editor::drawSplitFullScreen()
     int rightLen = text_utils::displayWidth(rightBlock);
     int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
 
-    if(*dirty)
+    if(dirty && *dirty)
         displayName += " [+]";
 
     if((int)displayName.length() > availableForFile && availableForFile > 4)
@@ -1867,7 +1861,7 @@ void Editor::drawSplitFullScreen()
         else
             output += ":" + commandBuffer;
     }
-    else if(showGitBlame && showGitBlameInfo)
+    else if(showGitBlame && showGitBlameInfo && cursorY)
     {
         std::string blame = blameFullForLine(*cursorY);
         if(!blame.empty())

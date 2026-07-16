@@ -3510,15 +3510,13 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 }
                 return true;
             }
-            if(cmd == "Sex" || cmd == "Sexplore" || cmd == "Hex" ||
-               cmd == "Hexplore" || cmd == "Vex" || cmd == "Vexplore")
+            if(cmd == "vs" || cmd == "hs")
             {
-                const bool vertical = cmd == "Vex" || cmd == "Vexplore";
+                const bool vertical = cmd == "vs";
                 const int sourcePane = ctx.editor->activePane;
                 savePaneState(sourcePane);
-                if(!ctx.editor->currentBuffer)
-                    ctx.editor->createNewBuffer();
-                ctx.editor->enableSplit(vertical);
+                ctx.editor->enableBrowserSplit(vertical);
+                ctx.editor->currentMode = FILE_BROWSER;
                 if(ctx.editor->splitActive)
                     ctx.editor->switchPaneDirection(vertical ? 1 : 0,
                                                     vertical ? 0 : 1);
@@ -3531,7 +3529,8 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                     ensureCursorVisibleInRows(layout.rows - 1);
                     savePaneState(ctx.editor->activePane);
                 }
-                nextState = ModeState{*this};
+                ctx.requestFullRedraw();
+                nextState.reset();
                 return true;
             }
 

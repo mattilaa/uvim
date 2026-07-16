@@ -606,19 +606,10 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "buffer ",
         "ls",
         "buffers",
-        "sp",
-        "split",
         "vs",
-        "vsplit",
-        "vh",
         "hs",
-        "hsplit",
-        "Sex",
-        "Sexplore",
-        "Hex",
-        "Hexplore",
-        "Vex",
-        "Vexplore",
+        "se",
+        "ve",
         "only",
         "tabnew",
         "tabe",
@@ -686,7 +677,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
                 fileBrowserCommands.push_back(extra);
         }
 
-        const std::vector<std::string> notApplicable = {"wq", "x"};
+        const std::vector<std::string> notApplicable = {"wq", "x", "se", "ve"};
         fileBrowserCommands.erase(
             std::remove_if(
                 fileBrowserCommands.begin(), fileBrowserCommands.end(),
