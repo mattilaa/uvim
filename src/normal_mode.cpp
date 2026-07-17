@@ -1240,24 +1240,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         }
     }
 
-    case keyCode(typed::TypedKey::KEY_R):
-    {
-        // <leader>r prefix - LSP commands
-        // <leader>rr = find references (alternative binding)
-        int nextChar = Terminal::readKeyTimeout(500);
-        if(nextChar == keyCode(typed::TypedKey::KEY_R))
-        {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-            ed->findReferences();
-            if(ed->hasReferences())
-            {
-                return ReferencesMode{};
-            }
-#endif
-        }
-        return std::nullopt;
-    }
-
     case keyCode(typed::TypedKey::KEY_C):
     {
         commentLeaderPending.emplace(CommentLeaderOrigin::Normal);
@@ -1318,54 +1300,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 #endif
     }
 
-#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
-    case keyCode(typed::TypedKey::KEY_H):
-    {
-        const int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_S))
-        {
-            ed->enableSplit(true);
-            ctx.commandBuffer.clear();
-            ctx.setStatusMessage("");
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(nextChar != -1)
-            Terminal::unreadKey(nextChar);
-        ed->previousBuffer();
-        ctx.commandBuffer.clear();
-        ctx.setStatusMessage("");
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
-    case keyCode(typed::TypedKey::KEY_L):
-    {
-        ed->nextBuffer();
-        ctx.commandBuffer.clear();
-        ctx.setStatusMessage("");
-        ctx.repeatCount = 0;
-        return std::nullopt;
-    }
-
-    case keyCode(typed::TypedKey::KEY_V):
-    {
-        const int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_S))
-        {
-            ed->enableSplit(false);
-            ctx.commandBuffer.clear();
-            ctx.setStatusMessage("");
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        if(nextChar != -1)
-            Terminal::unreadKey(nextChar);
-        ctx.setStatusMessage("Unknown leader command");
-        break;
-    }
-#endif
-
     case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard
         ed->yankToSystemClipboard();
@@ -1381,9 +1315,21 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         break;
 
     case keyCode(typed::TypedKey::KEY_W):
-        // Save file
-        ed->saveFile();
+    {
+        const int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == keyCode(typed::TypedKey::KEY_C))
+        {
+            if(ed->splitActive)
+                ed->closeSplit();
+            else
+                ed->setStatusMessage("No split");
+            ctx.commandBuffer.clear();
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
+        ed->setStatusMessage("Unknown leader command");
         break;
+    }
 
     case keyCode(typed::TypedKey::KEY_S):
         // Show signature popup for symbol under cursor
@@ -1399,14 +1345,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         // Clear search highlight
         ed->clearSearch();
         break;
-
-    case keyCode(command::CommandKey::KEY_SLASH):
-        // Project-wide search
-#ifdef UVIM_ENABLE_SEARCH_TOOLS
-        return GrepSearchMode{};
-#else
-        return std::nullopt;
-#endif
 
     case keyCode(typed::TypedKey::KEY_D):
         // <leader>d - Go to definition (alternative)

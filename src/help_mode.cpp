@@ -1177,9 +1177,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-e`  - Diagnostic popup on LSP diagnostic row",
             "  `Space-x`  - File browser",
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
-            "  `Space-h`/`Space-l` - Prev/next buffer",
-            "  `Space-hs` - Horizontal split",
-            "  `Space-vs` - Vertical split",
+            "  `Space-wc` - Close active split pane",
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
             "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
 #else
@@ -1586,7 +1584,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `i`       - Toggle gitignore",
             "  `ga`      - Open git stage view",
             "  `:`       - Enter command mode in browser",
-            "  `q`       - Quit file browser",
+            "  `q`       - Close active browser pane",
+            "  `Q`       - Exit browser and save pane layout",
         };
     }
     else if(topic_lower == "navigation")
@@ -1625,7 +1624,6 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-x` - File browser",
             "  `Space-b` - Buffer browser",
             "  `Ctrl-s`  - Grep search",
-            "  `Space-/` - Grep search",
             "",
             "MARKS & JUMPS:",
             "  `m{a-z}`   - Set mark",
@@ -1646,9 +1644,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "SPLITS / WINDOWS:",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "  `Ctrl-Shift-h/j/k/l` - Switch active split pane by direction",
-            "  `Space-h`/`Space-l` - Prev/next buffer",
 #elif defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
-            "  `Space-h`/`Space-l` - Prev/next buffer",
             "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
             "  Splits use the older single split pair.",
 #else
@@ -1731,7 +1727,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `.`     - Toggle hidden files",
             "  `i`     - Toggle gitignore",
             "  `:`     - Command mode",
-            "  `q`     - Quit browser",
+            "  `q`     - Close active browser pane",
+            "  `Q`     - Exit browser and save pane layout",
         };
     }
     else if(topic_lower == "buffers")
@@ -1752,9 +1749,6 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-w`          - Buffer browser",
             "  `bd`              - Close current buffer",
             "  `Ctrl-h`/`Ctrl-l` - Prev / next buffer",
-#ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
-            "  `Space-h`/`Space-l` - Prev / next buffer",
-#endif
             "  `Ctrl-Shift-H`    - Move buffer left when no split is active",
             "  `Ctrl-Shift-L`    - Move buffer right when no split is active",
             "  `Ctrl-^`          - Alternate buffer",
@@ -1791,8 +1785,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:hs`                          - Horizontal split",
             "  `:vs`                          - Vertical split",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS)
-            "  `Space-hs`                     - Horizontal split",
-            "  `Space-vs`                     - Vertical split",
+            "  `Space-wc`                     - Close active split pane",
 #endif
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
@@ -1854,7 +1847,6 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Regex view: `Ctrl-s` toggles current buffer / project files",
             "  Regex view: `Enter` opens the selected match",
             "  `Ctrl-s`  - Grep search",
-            "  `Space-/` - Grep search",
             "  `:/...`   - Regex search forward (command mode)",
             "  `:? ...`  - Regex search backward (command mode)",
         };
@@ -1944,7 +1936,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `.`                    - Toggle hidden files",
             "  `Ctrl-g`               - Toggle .gitignore filtering",
             "  `r` / `Ctrl-l`         - Refresh",
-            "  `q`                    - Quit browser",
+            "  `q`                    - Close active browser pane; final pane exits",
+            "  `Q`                    - Exit browser and save pane layout",
             "",
             "SELECTION (multi-file):",
             "  `Space`                - Toggle current row's selection",

@@ -494,6 +494,8 @@ Navigation:
 - `.` - toggle hidden files
 - `Ctrl-g` - toggle `.gitignore` filtering
 - `r` / `Ctrl-l` - refresh
+- `q` - close the active browser pane; the final pane exits to editor/welcome
+- `Q` - exit browser and save the current browser pane layout
 
 Selection (multi-file):
 
@@ -567,8 +569,6 @@ cursor movement and selection.
   `:set tabnumbers` / `:set notabnumbers` (default on). Persists in
   config under `editor.tabnumbers`.
 - `:set showtabs` / `:set noshowtabs` - show/hide the tab bar entirely.
-- `Space-h` / `Space-l` - move the current buffer left / right in the
-  tab bar.
 - `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above when no split is active.
   When multi-pane splits are enabled and a split is active,
   `Ctrl-Shift-H/J/K/L` jumps between panes.

@@ -421,15 +421,7 @@ void EditorModeController::handleNormalMode(int c)
     // ----- Leader (space) prefixed commands (MUST be early) -----
     if(editor.commandBuffer == " ")
     {
-        if(c == keyCode(typed::TypedKey::KEY_H))
-        {
-            // Leader + h: jump to alternate file (header/source)
-            editor.jumpToAlternateFile();
-            editor.commandBuffer.clear();
-            editor.repeatCount = 0;
-            return;
-        }
-        else if(c == keyCode(typed::TypedKey::KEY_Y))
+        if(c == keyCode(typed::TypedKey::KEY_Y))
         {
             // Leader + y: yank to system clipboard
             editor.yankToSystemClipboard();
@@ -441,6 +433,26 @@ void EditorModeController::handleNormalMode(int c)
         {
             // Leader + p: paste from system clipboard
             editor.pasteFromSystemClipboard();
+            editor.commandBuffer.clear();
+            editor.repeatCount = 0;
+            return;
+        }
+        else if(c == keyCode(typed::TypedKey::KEY_W))
+        {
+            const int nextChar = Terminal::readKeyTimeout(300);
+            if(nextChar == keyCode(typed::TypedKey::KEY_C))
+            {
+                if(editor.splitActive)
+                    editor.closeSplit();
+                else
+                    editor.setStatusMessage("No split");
+                editor.commandBuffer.clear();
+                editor.repeatCount = 0;
+                return;
+            }
+            if(nextChar != -1)
+                Terminal::unreadKey(nextChar);
+            editor.saveFile();
             editor.commandBuffer.clear();
             editor.repeatCount = 0;
             return;

@@ -577,6 +577,55 @@ TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToWelcome)
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
 
+TEST(RealModeTransitionsTest, FileBrowserCapitalQSavesBrowserPaneLayout)
+{
+    const auto root = make_temp_dir("uvim_browser_cap_q_save_panes_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    dispatch_command(sm, "vs");
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.splitPanes.size(), 2u);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_Q));
+
+    EXPECT_FALSE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+
+    auto sm2 = makeMachine(editor, FileBrowserMode{root.string()});
+
+    EXPECT_STREQ(sm2.currentStateName(), "BROWSE");
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_EQ(editor.splitPanes.size(), 2u);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserQSavesRemovedPaneLayout)
+{
+    const auto root = make_temp_dir("uvim_browser_q_save_removed_pane_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    dispatch_command(sm, "vs");
+    ASSERT_TRUE(editor.splitActive);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_Q));
+
+    EXPECT_FALSE(editor.splitActive);
+    EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_CAP_Q));
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+
+    auto sm2 = makeMachine(editor, FileBrowserMode{root.string()});
+
+    EXPECT_STREQ(sm2.currentStateName(), "BROWSE");
+    EXPECT_FALSE(editor.splitActive);
+}
+
 TEST(RealModeTransitionsTest, FileBrowserCapitalQClosesAllSplitPanesToNormal)
 {
     const auto root = make_temp_dir("uvim_browser_cap_q_normal_");
@@ -982,24 +1031,6 @@ TEST(RealModeTransitionsTest, SplitPanesKeepSeparateSelectedBuffers)
 }
 #endif
 
-TEST(RealModeTransitionsTest, LeaderHLNavigateBuffers)
-{
-    Editor editor = Editor::createForTests();
-    editor.createNewBuffer();
-    editor.createNewBuffer();
-    editor.createNewBuffer();
-    ASSERT_EQ(editor.currentBufferIndex, 2);
-    auto sm = makeMachine(editor, NormalMode{});
-
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_H));
-    EXPECT_EQ(editor.currentBufferIndex, 1);
-
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_L));
-    EXPECT_EQ(editor.currentBufferIndex, 2);
-}
-
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
 TEST(RealModeTransitionsTest, CtrlHLNavigateBuffersWithoutSplit)
 {
@@ -1016,16 +1047,15 @@ TEST(RealModeTransitionsTest, CtrlHLNavigateBuffersWithoutSplit)
     EXPECT_EQ(editor.currentBufferIndex, 1);
 }
 #endif
+#endif
 
-TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
+TEST(RealModeTransitionsTest, VsOpensVerticalEditorSplit)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
 
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_H));
+    dispatch_command(sm, "vs");
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_TRUE(editor.splitVertical);
@@ -1034,15 +1064,13 @@ TEST(RealModeTransitionsTest, LeaderHsOpensHorizontalSplit)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
+TEST(RealModeTransitionsTest, HsOpensHorizontalEditorSplit)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
 
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_S));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_V));
+    dispatch_command(sm, "hs");
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_FALSE(editor.splitVertical);
@@ -1050,7 +1078,6 @@ TEST(RealModeTransitionsTest, LeaderVsOpensVerticalSplit)
     EXPECT_GT(editor.getPaneLayout(1).y, editor.getPaneLayout(0).y);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
-#endif
 
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
 TEST(RealModeTransitionsTest, SplittingActivePaneCreatesNestedLayout)
@@ -1106,7 +1133,7 @@ TEST(RealModeTransitionsTest, DirectionalPaneJumpUsesNestedLayout)
     EXPECT_EQ(editor.activePane, 0);
 }
 
-TEST(RealModeTransitionsTest, WxClosesOnlyActiveNestedPane)
+TEST(RealModeTransitionsTest, LeaderWcClosesOnlyActiveNestedPane)
 {
     Editor editor = Editor::createForTests();
     editor.screenRows = 24;
@@ -1121,8 +1148,9 @@ TEST(RealModeTransitionsTest, WxClosesOnlyActiveNestedPane)
     ASSERT_EQ(editor.splitPanes.size(), 3u);
     ASSERT_EQ(editor.activePane, 2);
 
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_C));
     sm.dispatch(keyCode(typed::TypedKey::KEY_W));
-    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_EQ(editor.splitPanes.size(), 2u);
@@ -1273,7 +1301,7 @@ TEST(RealModeTransitionsTest, BThenOtherKeyKeepsWordBackwardMotion)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, WxClosesSelectedPane)
+TEST(RealModeTransitionsTest, BareWxDoesNotCloseSelectedPane)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1289,6 +1317,30 @@ TEST(RealModeTransitionsTest, WxClosesSelectedPane)
 
     sm.dispatch('w');
     sm.dispatch('x');
+
+    EXPECT_TRUE(editor.splitActive);
+    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, LeaderWcClosesSelectedPane)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    editor.switchToBuffer(0);
+    editor.enableSplit(true);
+    editor.switchPaneDirection(1, 0);
+    editor.switchToBufferInActivePane(1);
+    ASSERT_TRUE(editor.splitActive);
+    ASSERT_EQ(editor.activePane, 1);
+    ASSERT_EQ(editor.currentBufferIndex, 1);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_C));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_W));
 
     EXPECT_FALSE(editor.splitActive);
     EXPECT_EQ(editor.activePane, 0);

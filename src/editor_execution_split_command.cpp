@@ -31,12 +31,12 @@ bool SplitCommand::execute(Editor& editor, const CommandRequest& request) const
 {
     if(request.text == "vs")
     {
-        editor.enableSplit(false);
+        editor.enableSplit(true);
         return true;
     }
     if(request.text == "hs")
     {
-        editor.enableSplit(true);
+        editor.enableSplit(false);
         return true;
     }
     return false;

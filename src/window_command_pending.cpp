@@ -56,18 +56,6 @@ WindowCommandAfterW::handle(WindowCommandPendingMachine& machine,
         return std::nullopt;
     }
 
-    if(c == keyCode(typed::TypedKey::KEY_X))
-    {
-        if(ctx.editor->splitActive)
-            ctx.editor->closeSplit();
-        else
-            ctx.setStatusMessage("No split");
-        ctx.commandBuffer.clear();
-        ctx.repeatCount = 0;
-        machine.finish();
-        return std::nullopt;
-    }
-
     Terminal::unreadKey(c);
 
     for(int i = 0; i < machine.count(); ++i)

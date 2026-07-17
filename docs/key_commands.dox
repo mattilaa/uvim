@@ -64,17 +64,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-e` : diagnostic popup on an LSP diagnostic row
 - `Space-s` : grep search
 - `Space-d` : go to definition
-- `Space-h` / `Space-l` : previous / next buffer when built with
-  `UVIM_ENABLE_MODERN_KEYBINDINGS`
-- `Space-hs` / `Space-vs` : horizontal / vertical split shortcuts when built
-  with `UVIM_ENABLE_MODERN_KEYBINDINGS`
 - `Space-g a` : show assembly instruction docs in a scrollable popup
 - `Space-g d` : go to definition
 - `Space-g r` : find references
-- `Space-r r` : find references (LSP)
-- `Space-l i` : LSP info
 - `Space-y` / `Space-p` : yank/paste system clipboard
-- `Space-w` : save file
+- `Space-wc` : close the selected editor pane
 - `Space-q` : force quit
 - `Space-x` : file browser
 - `Space-e m` : emoji picker
@@ -84,7 +78,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:vs` : vertical split
 - in file browser, `:hs` : horizontal browser split
 - in file browser, `:vs` : vertical browser split
-- `wx` : close the selected pane
+- `Space-wc` : close the selected editor pane
 - `Ctrl-Shift-h/j/k/l` : focus pane left/down/up/right when built with
   `UVIM_ENABLE_MODERN_KEYBINDINGS` and `UVIM_ENABLE_MULTI_PANE_SPLITS`
 - Disable the convenience split/buffer key layer in `uvim-config` by turning
@@ -122,7 +116,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `.` : toggle hidden files
 - `i` : toggle gitignore
 - `:` : command mode in browser
-- `q` : quit browser
+- `q` : close active browser pane; the final pane exits to editor/welcome
+- `Q` : exit browser and save the current browser pane layout
 
 \section keys_cli Startup flags
 - `--no-git-index` : disable git-backed indexing for fuzzy find and grep

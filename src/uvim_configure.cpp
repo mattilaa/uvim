@@ -897,8 +897,7 @@ std::vector<Section> make_sections()
            &Config::modernKeybindings,
            nullptr,
            {},
-           "Build switch for non-vi convenience keys: Space-h/l buffer "
-           "navigation, Space-hs/vs split shortcuts, and Ctrl-Shift-h/j/k/l "
+           "Build switch for non-vi convenience keys: Ctrl-Shift-h/j/k/l "
            "pane focus. Disable for a smaller, stricter vi-style keyset."},
           {ItemKind::Toggle,
            "Multi-pane splits",

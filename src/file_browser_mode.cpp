@@ -1462,14 +1462,77 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
         return ModeState{WelcomeMode{}};
     };
 
+    auto restoreEditorWorkspace = [&]()
+    {
+        if(!ctx.editor || !editorWorkspaceBeforeBrowser.has_value())
+            return;
+
+        const auto& workspace = *editorWorkspaceBeforeBrowser;
+        ctx.editor->splitActive = workspace.splitActive;
+        ctx.editor->splitVertical = workspace.splitVertical;
+        ctx.editor->activePane = workspace.activePane;
+        ctx.editor->currentBufferIndex = workspace.currentBufferIndex;
+        ctx.editor->tabBarOffset = workspace.tabBarOffset;
+        ctx.editor->splitTabBarOffset = workspace.splitTabBarOffset;
+        ctx.editor->splitRoot = workspace.splitRoot;
+        ctx.editor->splitPanes.clear();
+        ctx.editor->splitPanes.reserve(workspace.splitPanes.size());
+        for(const auto& pane : workspace.splitPanes)
+        {
+            ctx.editor->splitPanes.push_back(Editor::PaneState{
+                pane.bufferIndex, pane.cursorX, pane.cursorY, pane.wantedX,
+                pane.offsetX, pane.offsetY});
+        }
+        ctx.editor->splitNodes.clear();
+        ctx.editor->splitNodes.reserve(workspace.splitNodes.size());
+        for(const auto& node : workspace.splitNodes)
+        {
+            ctx.editor->splitNodes.push_back(Editor::SplitNode{
+                node.leaf, node.vertical, node.pane, node.first, node.second});
+        }
+        ctx.editor->splitPaneLayouts.clear();
+        if(ctx.editor->currentBufferIndex >= 0)
+            ctx.editor->updateCurrentBufferPointers();
+        if(ctx.editor->splitActive && !ctx.editor->splitPanes.empty())
+            ctx.editor->setPanePointers(ctx.editor->activePane);
+        ctx.editor->needsFullRedraw = true;
+    };
+
+    auto saveBrowserWorkspace = [&]()
+    {
+        auto& saved = savedBrowserWorkspace();
+        if(!ctx.editor)
+        {
+            saved.valid = false;
+            return;
+        }
+        if(ctx.editor->splitActive && isBrowserPane(ctx.editor->activePane))
+            savePaneState(ctx.editor->activePane);
+        saved.valid = true;
+        saved.currentDirectory = currentDirectory;
+        saved.splitActive = ctx.editor->splitActive;
+        saved.splitVertical = ctx.editor->splitVertical;
+        saved.activePane = ctx.editor->activePane;
+        saved.currentBufferIndex = ctx.editor->currentBufferIndex;
+        saved.tabBarOffset = ctx.editor->tabBarOffset;
+        saved.splitPanes = ctx.editor->splitPanes;
+        saved.splitTabBarOffset = ctx.editor->splitTabBarOffset;
+        saved.splitNodes = ctx.editor->splitNodes;
+        saved.splitRoot = ctx.editor->splitRoot;
+        saved.paneStates = paneStates;
+        saved.activeState = currentPaneState();
+    };
+
+    auto exitBrowser = [&]() -> std::optional<ModeState>
+    {
+        restoreEditorWorkspace();
+        return leaveBrowserFallback();
+    };
+
     if(c == keyCode(typed::TypedKey::KEY_CAP_Q))
     {
-        if(ctx.editor && ctx.editor->splitActive)
-        {
-            while(ctx.editor->splitActive)
-                ctx.editor->closeSplit();
-        }
-        return leaveBrowserFallback();
+        saveBrowserWorkspace();
+        return exitBrowser();
     }
 
     if(c == keyCode(typed::TypedKey::KEY_Q))
@@ -1487,12 +1550,15 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             if(isBrowserPane(ctx.editor->activePane))
             {
                 restorePaneState(ctx.editor->activePane);
+                saveBrowserWorkspace();
                 ctx.requestFullRedraw();
                 return std::nullopt;
             }
-            return leaveBrowserFallback();
+            savedBrowserWorkspace().valid = false;
+            return exitBrowser();
         }
-        return leaveBrowserFallback();
+        savedBrowserWorkspace().valid = false;
+        return exitBrowser();
     }
 
     // ========================================================================
