@@ -1266,11 +1266,13 @@ struct LspClient::Impl
         params.AddMember("capabilities", capabilities, alloc);
 
         int id = sendRequest("initialize", params);
-        auto resp = waitResponse(id, 5000);
+        constexpr int kInitializeTimeoutMs = 20000;
+        auto resp = waitResponse(id, kInitializeTimeoutMs);
         if(!resp)
         {
             lastError = withCapturedStderr(
-                "LSP server started but did not answer initialize");
+                "LSP server started but did not answer initialize within " +
+                std::to_string(kInitializeTimeoutMs / 1000) + "s");
             return false;
         }
         if(resp->IsObject())

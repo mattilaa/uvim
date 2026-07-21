@@ -3868,10 +3868,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
 
     auto* lines = editor->lines;
     auto* buffer = editor->currentBuffer;
-    auto* cursorX = editor->cursorX;
-    auto* cursorY = editor->cursorY;
     const auto& theme = editor->theme;
-    const auto currentMode = editor->currentMode;
     auto isInSelection = [&](int row, int col)
     { return editor->isInSelection(row, col); };
     auto isInVisualBlock = [&](int row, int col)
@@ -4055,7 +4052,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         }
     };
 
-    if(buffer && !buffer->dirty)
+    if(buffer)
     {
         if((int)buffer->syntaxCache.size() != (int)lines->size())
         {

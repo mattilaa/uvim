@@ -88,6 +88,8 @@ void Editor::insertChar(char c)
     (*lines)[*cursorY].insert(*cursorX, 1, c);
     (*cursorX)++;
     *dirty = true;
+    if(currentBuffer)
+        currentBuffer->invalidateSyntaxCache();
 }
 
 void Editor::insertNewline()
@@ -98,6 +100,8 @@ void Editor::insertNewline()
         (*cursorY)++;
         *cursorX = 0;
         *dirty = true;
+        if(currentBuffer)
+            currentBuffer->invalidateSyntaxCache();
         needsFullRedraw = true;
         return;
     }
@@ -338,6 +342,8 @@ void Editor::insertNewline()
     *cursorX =
         (int)indentStr.length() + (addExtraIndent ? extraIndentWidth : 0);
     *dirty = true;
+    if(currentBuffer)
+        currentBuffer->invalidateSyntaxCache();
     needsFullRedraw = true;
 }
 
@@ -384,6 +390,8 @@ void Editor::deleteChar()
         needsFullRedraw = true;
     }
     *dirty = true;
+    if(currentBuffer)
+        currentBuffer->invalidateSyntaxCache();
 }
 
 void Editor::deleteCharForward()
@@ -431,6 +439,8 @@ void Editor::deleteCharForward()
         needsFullRedraw = true;
     }
     *dirty = true;
+    if(currentBuffer)
+        currentBuffer->invalidateSyntaxCache();
 }
 
 void Editor::deleteLine()
@@ -456,6 +466,8 @@ void Editor::deleteLine()
 
     *cursorX = 0;
     *dirty = true;
+    if(currentBuffer)
+        currentBuffer->invalidateSyntaxCache();
     needsFullRedraw = true;
 }
 

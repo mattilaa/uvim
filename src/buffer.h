@@ -106,6 +106,12 @@ struct Buffer
     std::vector<SyntaxCacheLine> syntaxCache;
     int syntaxCacheComputedUpTo = -1;
 
+    void invalidateSyntaxCache()
+    {
+        syntaxCache.clear();
+        syntaxCacheComputedUpTo = -1;
+    }
+
     struct SemanticTokenRange
     {
         int start = 0;
