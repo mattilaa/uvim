@@ -123,6 +123,7 @@ void Editor::saveState()
     if(!currentBuffer)
         return;
 
+    currentBuffer->invalidateSyntaxCache();
     clearRenameUndoSnapshot();
 
     if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
@@ -258,6 +259,7 @@ void Editor::undo()
         }
         *dirty = !(isSaved || hashSaved);
         currentBuffer->lspSyncNeeded = true;
+        currentBuffer->invalidateSyntaxCache();
 
         needsFullRedraw = true;
     }
@@ -313,6 +315,7 @@ void Editor::redo()
         }
         *dirty = !(isSaved || hashSaved);
         currentBuffer->lspSyncNeeded = true;
+        currentBuffer->invalidateSyntaxCache();
 
         needsFullRedraw = true;
     }

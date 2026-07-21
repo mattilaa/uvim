@@ -1304,3 +1304,25 @@ TEST(SyntaxHighlighterTest, DoesNotHighlightLambdaParamNames)
     EXPECT_FALSE(hasTokenAt(tokens, runningPos, 7, TOKEN_MEMBER));
     EXPECT_FALSE(hasTokenAt(tokens, activePos, 13, TOKEN_MEMBER));
 }
+
+TEST(SyntaxHighlighterTest, DirtyLargeBufferUsesIncrementalSyntaxCache)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/large.cpp";
+    editor.currentBuffer->lines.clear();
+    for(int i = 0; i < 12000; ++i)
+        editor.currentBuffer->lines.push_back("int value_" + std::to_string(i) +
+                                              " = " + std::to_string(i) + ";");
+    editor.currentBuffer->dirty = true;
+
+    std::string output;
+    const int row = 11950;
+    const std::string& line = editor.currentBuffer->lines[row];
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), row);
+
+    EXPECT_GE(editor.currentBuffer->syntaxCacheComputedUpTo, row);
+    EXPECT_EQ(editor.currentBuffer->syntaxCache.size(),
+              editor.currentBuffer->lines.size());
+    EXPECT_FALSE(output.empty());
+}

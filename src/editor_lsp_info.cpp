@@ -164,8 +164,9 @@ void Editor::showLspInfo()
         LOG_ERROR(CLANGD_LOG, "clangd LSP status detail: {}", clangdError);
     }
     const std::string clangdStatusDetail =
-        clangdError.empty() ? std::string{}
-                            : "startup failed" + lspLogDetailSuffix();
+        clangdError.empty()
+            ? std::string{}
+            : "startup failed: " + clangdError + lspLogDetailSuffix();
     appendLsp("clangd", clangdRunning, isFileType<FileType::Cpp>(),
               clangdLspPath, false, std::string(), clangdStatusDetail);
     if(lspClient)
