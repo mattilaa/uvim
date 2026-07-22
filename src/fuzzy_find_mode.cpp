@@ -23,21 +23,28 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> fuzzyFindHelpTokens()
+std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst)
 {
-    return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
-            "[Ctrl+J/K: navigate]", "[Ctrl+I: gitignore]"};
+    return {"[Enter: open]",
+            "[Esc: cancel]",
+            "[Ctrl+N: select]",
+            "[Ctrl+J/K: navigate]",
+            "[Ctrl+I: gitignore]",
+            filenameFirst ? "[Ctrl+O: filename first]"
+                          : "[Ctrl+O: path first]"};
 }
 
-int fuzzyFindHeaderRows(int screenCols)
+int fuzzyFindHeaderRows(int screenCols, bool filenameFirst)
 {
-    return 2 + HeaderHelp::lineCount(fuzzyFindHelpTokens(), screenCols);
+    return 2 +
+           HeaderHelp::lineCount(fuzzyFindHelpTokens(filenameFirst), screenCols);
 }
 
-int fuzzyFindVisibleRows(const Editor& editor)
+int fuzzyFindVisibleRows(const Editor& editor, bool filenameFirst)
 {
     return std::max(1,
-                    editor.screenRows - fuzzyFindHeaderRows(editor.screenCols));
+                    editor.screenRows -
+                        fuzzyFindHeaderRows(editor.screenCols, filenameFirst));
 }
 
 std::string runCmd(const std::vector<std::string>& args)
@@ -112,6 +119,18 @@ std::string singleLinePasteText(std::string text)
                               [](char ch) { return ch == '\n' || ch == '\r'; }),
                text.end());
     return text;
+}
+
+std::vector<int> positionsForFileNameInPath(const std::string& path,
+                                            const std::vector<int>& positions)
+{
+    size_t nameStart = path.find_last_of('/');
+    nameStart = text_utils::is_found(nameStart) ? nameStart + 1 : 0;
+    std::vector<int> adjusted;
+    adjusted.reserve(positions.size());
+    for(int pos : positions)
+        adjusted.push_back(static_cast<int>(nameStart) + pos);
+    return adjusted;
 }
 } // namespace
 
@@ -221,6 +240,10 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         clearQuery(*ed);
     }
+    else if(c == keyCode(control::ControlKey::CTRL_O))
+    {
+        toggleFilenameFirst(*ed);
+    }
     else if(c == keyCode(control::ControlKey::CTRL_I))
     {
         toggleGitignore(*ed);
@@ -275,7 +298,7 @@ void FuzzyFindMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       fuzzyFindHelpTokens());
+                       fuzzyFindHelpTokens(filenameFirst));
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -318,9 +341,11 @@ void FuzzyFindMode::draw(Editor& editor) const
     {
         output += " (" + std::to_string(selectedFiles.size()) + " selected)";
     }
+    output += " ";
+    output += filenameFirst ? "[filename first]" : "[path first]";
     output += editor.theme.baseFg();
 
-    int availableRows = fuzzyFindVisibleRows(editor);
+    int availableRows = fuzzyFindVisibleRows(editor, filenameFirst);
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
@@ -523,7 +548,7 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
     projectFilesInitialized = true;
 }
 
-void FuzzyFindMode::updateMatches(Editor& editor)
+void FuzzyFindMode::updateMatches(Editor& /* editor */)
 {
     matches.clear();
     selectedFiles.clear();
@@ -560,22 +585,49 @@ void FuzzyFindMode::updateMatches(Editor& editor)
             int nameScore = editor::helper::fuzzyScoreWithPositions(
                 query, file.name, namePositions);
 
-            int finalScore = std::max(pathScore, nameScore * 2);
+            const bool nameMatched = nameScore > 0;
+            const bool pathMatched = pathScore > 0;
+            int finalScore = -1;
+            bool useNamePositions = false;
+
+            if(filenameFirst)
+            {
+                if(nameMatched)
+                {
+                    finalScore = 100000 + nameScore * 4;
+                    useNamePositions = true;
+                }
+                else if(pathMatched)
+                {
+                    finalScore = pathScore;
+                }
+            }
+            else
+            {
+                finalScore = std::max(pathScore, nameScore * 2);
+                useNamePositions = nameScore * 2 > pathScore;
+            }
 
             if(finalScore > 0)
             {
                 FuzzyMatch match;
                 match.file = file;
                 match.score = finalScore;
-                match.matchPositions =
-                    (nameScore * 2 > pathScore) ? namePositions : positions;
+                match.matchPositions = useNamePositions
+                                           ? positionsForFileNameInPath(
+                                                 file.path, namePositions)
+                                           : positions;
                 matches.push_back(match);
             }
         }
 
         std::sort(matches.begin(), matches.end(),
                   [](const FuzzyMatch& a, const FuzzyMatch& b)
-                  { return a.score > b.score; });
+                  {
+                      if(a.score != b.score)
+                          return a.score > b.score;
+                      return a.file.path < b.file.path;
+                  });
     }
 
     if(cursor >= (int)matches.size())
@@ -593,7 +645,7 @@ void FuzzyFindMode::moveDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = fuzzyFindVisibleRows(editor);
+        int visible = fuzzyFindVisibleRows(editor, filenameFirst);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -617,11 +669,11 @@ void FuzzyFindMode::halfPageDown(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = fuzzyFindVisibleRows(editor) / 2;
+    int half = fuzzyFindVisibleRows(editor, filenameFirst) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = (int)matches.size() - 1;
-    int visible = fuzzyFindVisibleRows(editor);
+    int visible = fuzzyFindVisibleRows(editor, filenameFirst);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
 }
@@ -631,7 +683,7 @@ void FuzzyFindMode::halfPageUp(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = fuzzyFindVisibleRows(editor) / 2;
+    int half = fuzzyFindVisibleRows(editor, filenameFirst) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;
@@ -675,6 +727,16 @@ void FuzzyFindMode::clearQuery(Editor& editor)
     updateMatches(editor);
     cursor = 0;
     offset = 0;
+}
+
+void FuzzyFindMode::toggleFilenameFirst(Editor& editor)
+{
+    filenameFirst = !filenameFirst;
+    updateMatches(editor);
+    cursor = 0;
+    offset = 0;
+    editor.setStatusMessage(filenameFirst ? "Fuzzy: filename first"
+                                          : "Fuzzy: path first");
 }
 
 void FuzzyFindMode::toggleGitignore(Editor& editor)

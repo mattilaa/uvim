@@ -135,6 +135,16 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Ctrl-d` / `Ctrl-u` : half page down/up
 - `Esc` : exit
 
+\section keys_fuzzy Fuzzy file finder
+- Type to search files
+- `Enter` : open selected file
+- `Ctrl-j` / `Ctrl-k` : move results
+- `Ctrl-d` / `Ctrl-u` : half page down/up
+- `Ctrl-n` : select/unselect current file for multi-open
+- `Ctrl-o` : toggle filename-first ranking
+- `Ctrl-i` : toggle `.gitignore` filtering
+- `Esc` : exit
+
 \section keys_buffer_browser Buffer browser
 - `j/k` : navigate
 - `Enter` : open

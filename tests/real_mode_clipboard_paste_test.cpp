@@ -270,6 +270,39 @@ TEST(RealModeTransitionsTest, FuzzyFindAcceptsBracketedPaste)
     EXPECT_EQ(state->matches.front().file.name, "alpha-pasted.txt");
 }
 
+TEST(RealModeTransitionsTest, FuzzyFindCtrlOTogglesFilenameFirstRanking)
+{
+    auto root = make_temp_dir("uvim_fuzzy_filename_first_");
+    write_file(root / "foo" / "bar.txt", "a\n");
+    write_file(root / "nested" / "foo_target.txt", "b\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+
+    sm.dispatch('f');
+    sm.dispatch('o');
+    sm.dispatch('o');
+
+    auto* state = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(state, nullptr);
+    ASSERT_FALSE(state->matches.empty());
+    EXPECT_FALSE(state->filenameFirst);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_O));
+
+    ASSERT_FALSE(state->matches.empty());
+    EXPECT_TRUE(state->filenameFirst);
+    EXPECT_EQ(state->matches.front().file.name, "foo_target.txt");
+    ASSERT_FALSE(state->matches.front().matchPositions.empty());
+    const size_t filenameOffset =
+        state->matches.front().file.path.find("foo_target.txt");
+    ASSERT_TRUE(text_utils::is_found(filenameOffset));
+    EXPECT_GE(state->matches.front().matchPositions.front(),
+              (int)filenameOffset);
+}
+
 TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
 {
     auto root = make_temp_dir("uvim_grep_paste_");

@@ -595,6 +595,11 @@ Press the key, quit, then `cat /tmp/uvim_keys.log`. ESC is written as
 
 ## Search examples
 
+Fuzzy file finder:
+
+- `Ctrl-p` - open fuzzy file finder
+- `Ctrl-o` - inside fuzzy finder, toggle filename-first ranking
+
 In normal mode:
 
 - `/foo.*bar` - regex search forward

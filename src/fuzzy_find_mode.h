@@ -33,6 +33,7 @@ struct FuzzyFindMode
     int cursor = 0;
     int offset = 0;
     bool projectFilesInitialized = false;
+    bool filenameFirst = false;
     std::unordered_set<std::string> selectedFiles;
 
     void on_enter(ModeContext& ctx);
@@ -55,6 +56,7 @@ private:
     void backspace(Editor& editor);
     void deleteWord(Editor& editor);
     void clearQuery(Editor& editor);
+    void toggleFilenameFirst(Editor& editor);
     void toggleGitignore(Editor& editor);
     void toggleSelection();
     bool select(Editor& editor);
