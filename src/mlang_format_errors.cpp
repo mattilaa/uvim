@@ -6,13 +6,16 @@
 #include "lsp_client.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <regex>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -109,6 +112,87 @@ void copyFileOrBuffer(const fs::path& source, const fs::path& target,
     fs::copy_file(source, target, fs::copy_options::overwrite_existing, ec);
 }
 
+std::string readFileOrCurrentBuffer(const fs::path& file, const Editor& editor)
+{
+    if(editor.currentBuffer && !editor.currentBuffer->filename.empty())
+    {
+        std::error_code ec;
+        fs::path current =
+            fs::canonical(EditorPathUtilities::resolveEditorPath(
+                              editor.currentBuffer->filename),
+                          ec);
+        ec.clear();
+        fs::path candidate = fs::canonical(file, ec);
+        if(!ec && current == candidate && editor.lines)
+        {
+            std::string text;
+            text.reserve(editor.lines->size() * 80);
+            for(size_t i = 0; i < editor.lines->size(); ++i)
+            {
+                text += (*editor.lines)[i];
+                if(i + 1 < editor.lines->size())
+                    text.push_back('\n');
+            }
+            return text;
+        }
+    }
+
+    std::ifstream in(file);
+    std::string text;
+    std::string line;
+    while(std::getline(in, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        text += line;
+        if(!in.eof())
+            text.push_back('\n');
+    }
+    return text;
+}
+
+void refreshProjectMlangDiagnostics(Editor& editor, const fs::path& root)
+{
+#ifdef UVIM_ENABLE_MLANG_LSP
+    if(!editor.mlangLspClient)
+        return;
+
+    const std::vector<fs::path> files = collectMlaFiles(root);
+    std::unordered_map<std::string, size_t> previousRevisions;
+    previousRevisions.reserve(files.size());
+
+    for(const fs::path& file : files)
+    {
+        const std::string path = dc::normalizedPathString(file);
+        previousRevisions[path] =
+            editor.mlangLspClient->diagnosticsRevision(path);
+        editor.mlangLspClient->didChange(path, readFileOrCurrentBuffer(file, editor),
+                                         "mlang");
+    }
+
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+    while(std::chrono::steady_clock::now() < deadline)
+    {
+        bool allUpdated = true;
+        for(const auto& [path, previous] : previousRevisions)
+        {
+            if(editor.mlangLspClient->diagnosticsRevision(path) == previous)
+            {
+                allUpdated = false;
+                break;
+            }
+        }
+        if(allUpdated)
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+#else
+    (void)editor;
+    (void)root;
+#endif
+}
+
 std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
                                                               int severity)
 {
@@ -122,6 +206,7 @@ std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
         root = fs::current_path(ec);
     }
     root = EditorPathUtilities::resolveEditorPath(root);
+    refreshProjectMlangDiagnostics(editor, root);
 
     auto all = editor.mlangLspClient->allDiagnostics();
     for(const auto& [path, diagnostics] : all)
