@@ -6,16 +6,13 @@
 #include "lsp_client.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <regex>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -151,46 +148,76 @@ std::string readFileOrCurrentBuffer(const fs::path& file, const Editor& editor)
     return text;
 }
 
-void refreshProjectMlangDiagnostics(Editor& editor, const fs::path& root)
+std::vector<MlangFormatErrorEntry>
+entriesFromMlangDiagnostics(const std::string& path,
+                            const std::vector<LspClient::Diagnostic>& diagnostics,
+                            const fs::path& root, int severity)
 {
+    std::vector<MlangFormatErrorEntry> results;
+    for(const auto& diag : diagnostics)
+    {
+        if(diag.severity != severity)
+            continue;
+        MlangFormatErrorEntry entry;
+        entry.path = path;
+        entry.displayPath = dc::relativeDisplayPath(path, root);
+        entry.line = std::max(0, diag.line);
+        entry.col = std::max(0, diag.character);
+        entry.rangeText = "[" + std::to_string(diag.line + 1) + ":" +
+                          std::to_string(diag.character + 1) + ", " +
+                          std::to_string(diag.endLine + 1) + ":" +
+                          std::to_string(diag.endCharacter + 1) + ")";
+        entry.message = diag.message;
+        if(!diag.source.empty())
+            entry.message = diag.source + ": " + entry.message;
+        results.push_back(std::move(entry));
+    }
+    return results;
+}
+
+void sortDiagnostics(std::vector<MlangFormatErrorEntry>& results)
+{
+    std::sort(results.begin(), results.end(),
+              [](const MlangFormatErrorEntry& a,
+                 const MlangFormatErrorEntry& b)
+              {
+                  if(a.displayPath != b.displayPath)
+                      return a.displayPath < b.displayPath;
+                  if(a.line != b.line)
+                      return a.line < b.line;
+                  return a.col < b.col;
+              });
+}
+
+std::vector<MlangFormatErrorEntry>
+collectProjectMlangDiagnostics(Editor& editor, const fs::path& root,
+                               int severity)
+{
+    std::vector<MlangFormatErrorEntry> results;
 #ifdef UVIM_ENABLE_MLANG_LSP
     if(!editor.mlangLspClient)
-        return;
+        return results;
 
-    const std::vector<fs::path> files = collectMlaFiles(root);
-    std::unordered_map<std::string, size_t> previousRevisions;
-    previousRevisions.reserve(files.size());
-
-    for(const fs::path& file : files)
+    for(const fs::path& file : collectMlaFiles(root))
     {
         const std::string path = dc::normalizedPathString(file);
-        previousRevisions[path] =
-            editor.mlangLspClient->diagnosticsRevision(path);
-        editor.mlangLspClient->didChange(path, readFileOrCurrentBuffer(file, editor),
+        editor.mlangLspClient->didChange(path,
+                                         readFileOrCurrentBuffer(file, editor),
                                          "mlang");
+        std::vector<MlangFormatErrorEntry> diagnostics =
+            entriesFromMlangDiagnostics(
+                path, editor.mlangLspClient->pullDiagnostics(path), root,
+                severity);
+        results.insert(results.end(), diagnostics.begin(), diagnostics.end());
     }
 
-    const auto deadline =
-        std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
-    while(std::chrono::steady_clock::now() < deadline)
-    {
-        bool allUpdated = true;
-        for(const auto& [path, previous] : previousRevisions)
-        {
-            if(editor.mlangLspClient->diagnosticsRevision(path) == previous)
-            {
-                allUpdated = false;
-                break;
-            }
-        }
-        if(allUpdated)
-            break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    }
+    sortDiagnostics(results);
 #else
     (void)editor;
     (void)root;
+    (void)severity;
 #endif
+    return results;
 }
 
 std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
@@ -206,42 +233,7 @@ std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
         root = fs::current_path(ec);
     }
     root = EditorPathUtilities::resolveEditorPath(root);
-    refreshProjectMlangDiagnostics(editor, root);
-
-    auto all = editor.mlangLspClient->allDiagnostics();
-    for(const auto& [path, diagnostics] : all)
-    {
-        for(const auto& diag : diagnostics)
-        {
-            if(diag.severity != severity)
-                continue;
-            MlangFormatErrorEntry entry;
-            entry.path = path;
-            entry.displayPath = dc::relativeDisplayPath(path, root);
-            entry.line = std::max(0, diag.line);
-            entry.col = std::max(0, diag.character);
-            entry.rangeText = "[" + std::to_string(diag.line + 1) + ":" +
-                              std::to_string(diag.character + 1) + ", " +
-                              std::to_string(diag.endLine + 1) + ":" +
-                              std::to_string(diag.endCharacter + 1) + ")";
-            entry.message = diag.message;
-            if(!diag.source.empty())
-                entry.message = diag.source + ": " + entry.message;
-            results.push_back(std::move(entry));
-        }
-    }
-
-    std::sort(results.begin(), results.end(),
-              [](const MlangFormatErrorEntry& a,
-                 const MlangFormatErrorEntry& b)
-              {
-                  if(a.displayPath != b.displayPath)
-                      return a.displayPath < b.displayPath;
-                  if(a.line != b.line)
-                      return a.line < b.line;
-                  return a.col < b.col;
-              });
-    return results;
+    return collectProjectMlangDiagnostics(editor, root, severity);
 }
 } // namespace
 

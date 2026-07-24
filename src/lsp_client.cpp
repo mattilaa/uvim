@@ -308,6 +308,39 @@ static std::string get_string_member(const ju::Value* obj, const char* key,
     return ju::get_string(*obj, key, def);
 }
 
+static std::vector<LspClient::Diagnostic>
+parseDiagnosticsArray(const ju::Value* diagnostics)
+{
+    std::vector<LspClient::Diagnostic> diags;
+    if(!diagnostics || !diagnostics->IsArray())
+        return diags;
+
+    diags.reserve(diagnostics->Size());
+    for(const auto& item : diagnostics->GetArray())
+    {
+        if(!item.IsObject())
+            continue;
+        const ju::Value* range = ju::find(item, "range");
+        const ju::Value* start = member_ptr(range, "start");
+        const ju::Value* end = member_ptr(range, "end");
+        LspClient::Diagnostic diag;
+        diag.line = get_int_member(start, "line", 0);
+        diag.character = get_int_member(start, "character", 0);
+        diag.endLine = get_int_member(end, "line", diag.line);
+        diag.endCharacter =
+            get_int_member(end, "character", diag.character);
+        diag.severity = get_int_member(&item, "severity", 0);
+        diag.message = get_string_member(&item, "message");
+        diag.source = get_string_member(&item, "source");
+        if(const ju::Value* code = ju::find(item, "code"))
+            diag.codeJson = ju::stringify(*code);
+        if(const ju::Value* data = ju::find(item, "data"))
+            diag.dataJson = ju::stringify(*data);
+        diags.push_back(std::move(diag));
+    }
+    return diags;
+}
+
 static std::string lowercase_copy(std::string text)
 {
     for(char& c : text)
@@ -889,50 +922,10 @@ struct LspClient::Impl
                                     continue;
                                 }
                             }
-                            std::vector<LspClient::Diagnostic> diags;
                             const ju::Value* diagnostics =
                                 member_ptr(params, "diagnostics");
-                            if(diagnostics && diagnostics->IsArray())
-                            {
-                                diags.reserve(diagnostics->Size());
-                                for(const auto& item : diagnostics->GetArray())
-                                {
-                                    if(!item.IsObject())
-                                        continue;
-                                    const ju::Value* range =
-                                        ju::find(item, "range");
-                                    const ju::Value* start =
-                                        member_ptr(range, "start");
-                                    const ju::Value* end =
-                                        member_ptr(range, "end");
-                                    LspClient::Diagnostic diag;
-                                    diag.line =
-                                        get_int_member(start, "line", 0);
-                                    diag.character =
-                                        get_int_member(start, "character", 0);
-                                    diag.endLine =
-                                        get_int_member(end, "line", diag.line);
-                                    diag.endCharacter = get_int_member(
-                                        end, "character", diag.character);
-                                    diag.severity =
-                                        get_int_member(&item, "severity", 0);
-                                    diag.message =
-                                        get_string_member(&item, "message");
-                                    diag.source =
-                                        get_string_member(&item, "source");
-                                    if(const ju::Value* code =
-                                           ju::find(item, "code"))
-                                    {
-                                        diag.codeJson = ju::stringify(*code);
-                                    }
-                                    if(const ju::Value* data =
-                                           ju::find(item, "data"))
-                                    {
-                                        diag.dataJson = ju::stringify(*data);
-                                    }
-                                    diags.push_back(std::move(diag));
-                                }
-                            }
+                            std::vector<LspClient::Diagnostic> diags =
+                                parseDiagnosticsArray(diagnostics);
                             {
                                 std::lock_guard<std::mutex> lk(diagMutex);
                                 diagnosticsByFile[path] = std::move(diags);
@@ -2129,6 +2122,44 @@ LspClient::diagnostics(const std::string& filePath) const
     return it->second;
 }
 
+std::vector<LspClient::Diagnostic>
+LspClient::pullDiagnostics(const std::string& filePath)
+{
+    if(!running())
+        return {};
+
+    std::string abs = absPath(filePath);
+    ju::Document params(ju::kObjectType);
+    auto& alloc = params.GetAllocator();
+    ju::Value textDoc(ju::kObjectType);
+    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
+    params.AddMember("textDocument", textDoc, alloc);
+
+    int id = impl->sendRequest("textDocument/diagnostic", params);
+    auto resp = impl->waitResponse(id, 5000);
+    if(!resp || !resp->IsObject() || ju::has(*resp, "error"))
+        return diagnostics(abs);
+
+    const ju::Value* result = ju::find(*resp, "result");
+    if(!result || !result->IsObject())
+        return diagnostics(abs);
+
+    const std::string kind = get_string_member(result, "kind");
+    if(kind == "unchanged")
+        return diagnostics(abs);
+
+    std::vector<Diagnostic> diags =
+        parseDiagnosticsArray(member_ptr(result, "items"));
+    {
+        std::lock_guard<std::mutex> lk(impl->diagMutex);
+        if(!impl->diagnosticsEnabled)
+            return {};
+        impl->diagnosticsByFile[abs] = diags;
+        impl->diagnosticsRevision[abs]++;
+    }
+    return diags;
+}
+
 std::vector<std::pair<std::string, std::vector<LspClient::Diagnostic>>>
 LspClient::allDiagnostics() const
 {
@@ -2884,6 +2915,12 @@ std::vector<LspClient::Location> LspClient::references(const std::string&, int,
 
 std::vector<LspClient::Diagnostic>
 LspClient::diagnostics(const std::string&) const
+{
+    return {};
+}
+
+std::vector<LspClient::Diagnostic>
+LspClient::pullDiagnostics(const std::string&)
 {
     return {};
 }

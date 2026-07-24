@@ -135,6 +135,7 @@ public:
     // Latest diagnostics for a file path (from publishDiagnostics).
     void setDiagnosticsEnabled(bool enabled);
     std::vector<Diagnostic> diagnostics(const std::string& filePath) const;
+    std::vector<Diagnostic> pullDiagnostics(const std::string& filePath);
     std::vector<std::pair<std::string, std::vector<Diagnostic>>>
     allDiagnostics() const;
     void clearDiagnostics(const std::string& filePath);
