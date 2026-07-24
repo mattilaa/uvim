@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 namespace editor::statemachine
 {
@@ -33,15 +34,76 @@ void clampView(const Editor& editor, int& cursor, int& offset)
         offset = cursor - rows + 1;
     offset = std::clamp(offset, 0, std::max(0, total - rows));
 }
+
+bool isWarningSource(MlangFormatErrorsSource source)
+{
+    return source == MlangFormatErrorsSource::LspWarnings;
+}
+
+std::string collectingMessage(MlangFormatErrorsSource source)
+{
+    switch(source)
+    {
+    case MlangFormatErrorsSource::FormatErrors:
+        return "Collecting mlang format errors...";
+    case MlangFormatErrorsSource::LspErrors:
+        return "Collecting LSP errors...";
+    case MlangFormatErrorsSource::LspWarnings:
+        return "Collecting LSP warnings...";
+    }
+    return "Collecting diagnostics...";
+}
+
+std::vector<MlangFormatErrorEntry> collectForSource(Editor& editor,
+                                                    MlangFormatErrorsSource source)
+{
+    switch(source)
+    {
+    case MlangFormatErrorsSource::FormatErrors:
+        return collectMlangFormatErrors(editor);
+    case MlangFormatErrorsSource::LspErrors:
+        return collectActiveLspDiagnostics(editor, 1);
+    case MlangFormatErrorsSource::LspWarnings:
+        return collectActiveLspDiagnostics(editor, 2);
+    }
+    return {};
+}
+
+std::string jumpPrefix(MlangFormatErrorsSource source)
+{
+    switch(source)
+    {
+    case MlangFormatErrorsSource::FormatErrors:
+        return "mlang format error -> ";
+    case MlangFormatErrorsSource::LspErrors:
+        return "lsp error -> ";
+    case MlangFormatErrorsSource::LspWarnings:
+        return "lsp warning -> ";
+    }
+    return "diagnostic -> ";
+}
+
+std::string headerForSource(MlangFormatErrorsSource source)
+{
+    switch(source)
+    {
+    case MlangFormatErrorsSource::FormatErrors:
+        return " Mlang Format Errors (";
+    case MlangFormatErrorsSource::LspErrors:
+        return " LSP Errors (";
+    case MlangFormatErrorsSource::LspWarnings:
+        return " LSP Warnings (";
+    }
+    return " Diagnostics (";
+}
 } // namespace
 
 void MlangFormatErrorsMode::on_enter(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
-    ed->setStatusMessage(warnings ? "Collecting mlang warnings..."
-                                  : "Collecting mlang format errors...");
-    ed->mlangFormatErrors =
-        warnings ? collectMlangWarnings(*ed) : collectMlangFormatErrors(*ed);
+    warnings = isWarningSource(source);
+    ed->setStatusMessage(collectingMessage(source));
+    ed->mlangFormatErrors = collectForSource(*ed, source);
     cursor = 0;
     offset = 0;
     clampView(*ed, cursor, offset);
@@ -86,10 +148,8 @@ MlangFormatErrorsMode::handle(ModeContext& ctx, const ModeKeyEvent& event)
                                (int)(*ed->lines)[*ed->cursorY].size());
                 ed->adjustViewport();
             }
-            ed->setStatusMessage(
-                std::string(warnings ? "mlang warning -> "
-                                     : "mlang format error -> ") +
-                entry.displayPath + ":" + std::to_string(entry.line + 1));
+            ed->setStatusMessage(jumpPrefix(source) + entry.displayPath + ":" +
+                                 std::to_string(entry.line + 1));
             return NormalMode{};
         }
         return std::nullopt;
@@ -97,9 +157,7 @@ MlangFormatErrorsMode::handle(ModeContext& ctx, const ModeKeyEvent& event)
 
     if(c == keyCode(typed::TypedKey::KEY_R))
     {
-        ed->mlangFormatErrors =
-            warnings ? collectMlangWarnings(*ed)
-                     : collectMlangFormatErrors(*ed);
+        ed->mlangFormatErrors = collectForSource(*ed, source);
         cursor = 0;
         offset = 0;
     }
@@ -154,8 +212,7 @@ void MlangFormatErrorsMode::draw(Editor& editor) const
     output += editor.theme.reset();
 
     output += editor.theme.panel();
-    std::string header = warnings ? " Mlang Warnings ("
-                                  : " Mlang Format Errors (";
+    std::string header = headerForSource(source);
     header += std::to_string(editor.mlangFormatErrors.size()) + ")";
     if((int)header.length() < editor.screenCols)
         header += std::string(editor.screenCols - header.length(), ' ');

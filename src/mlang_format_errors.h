@@ -1,19 +1,14 @@
 #pragma once
 
-#include <string>
+#include "diagnostic_entries.h"
+
 #include <vector>
 
 class Editor;
 
-struct MlangFormatErrorEntry
-{
-    std::string path;
-    std::string displayPath;
-    int line = 0;
-    int col = 0;
-    std::string rangeText;
-    std::string message;
-};
+using MlangFormatErrorEntry = DiagnosticEntry;
 
 std::vector<MlangFormatErrorEntry> collectMlangFormatErrors(Editor& editor);
+std::vector<MlangFormatErrorEntry> collectActiveLspDiagnostics(Editor& editor,
+                                                               int severity);
 std::vector<MlangFormatErrorEntry> collectMlangWarnings(Editor& editor);
