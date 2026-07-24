@@ -251,6 +251,10 @@ Startup note:
   normal editing
 - LSP diagnostics from servers are shown as row markers and can be opened with
   `Space-e` when the cursor is on a diagnostic row.
+- Mlang formatter errors can be collected into a jump list with `Space-m f`.
+  Press Enter on a row to jump to the file and range.
+- Mlangd warnings can be collected into the same kind of jump list with
+  `Space-m w`.
 - Use `:set emitlsp=false` or config `editor.emitlsp: false` to suppress
   LSP-emitted warning/error diagnostics without disabling other LSP features.
 

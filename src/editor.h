@@ -5,6 +5,7 @@
 #include "file_type.h"
 #include "formatter.h"
 #include "jump_location.h"
+#include "mlang_format_errors.h"
 #include "mode.h"
 #include "search_types.h"
 #include "theme.h"
@@ -206,6 +207,9 @@ public:
     int locListTotal = 0;
     std::string locListRoot;
     std::string locMessage;
+
+    // Mlang formatter error browser
+    std::vector<MlangFormatErrorEntry> mlangFormatErrors;
 
     // LSP info panel
     std::vector<std::string> lspInfoLines;

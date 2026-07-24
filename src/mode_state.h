@@ -39,6 +39,7 @@ struct OperatorPendingMode;
 struct ReferencesMode;
 struct LspInfoMode;
 struct LocListMode;
+struct MlangFormatErrorsMode;
 struct HelpMode;
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
@@ -78,7 +79,7 @@ using ModeState = std::variant<
     OperatorPendingMode
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
-    ReferencesMode, LspInfoMode, LocListMode, HelpMode
+    ReferencesMode, LspInfoMode, LocListMode, MlangFormatErrorsMode, HelpMode
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS
     ,

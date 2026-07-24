@@ -1300,6 +1300,39 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 #endif
     }
 
+    case keyCode(typed::TypedKey::KEY_M):
+    {
+        const int nextChar = Terminal::readKeyTimeout(300);
+        if(nextChar == keyCode(typed::TypedKey::KEY_F))
+        {
+#if defined(UVIM_ENABLE_AUXILIARY_VIEWS) && defined(UVIM_ENABLE_FORMATTERS)
+            return MlangFormatErrorsMode{};
+#elif defined(UVIM_ENABLE_FORMATTERS)
+            ed->setStatusMessage("auxiliary views are not compiled in");
+            return std::nullopt;
+#else
+            ed->setStatusMessage("formatters are not compiled in");
+            return std::nullopt;
+#endif
+        }
+        if(nextChar == keyCode(typed::TypedKey::KEY_W))
+        {
+#if defined(UVIM_ENABLE_AUXILIARY_VIEWS) && defined(UVIM_ENABLE_MLANG_LSP)
+            return MlangFormatErrorsMode{true};
+#elif defined(UVIM_ENABLE_MLANG_LSP)
+            ed->setStatusMessage("auxiliary views are not compiled in");
+            return std::nullopt;
+#else
+            ed->setStatusMessage("mlang LSP is not compiled in");
+            return std::nullopt;
+#endif
+        }
+        if(nextChar != -1)
+            Terminal::unreadKey(nextChar);
+        ed->setStatusMessage("Unknown leader command");
+        return std::nullopt;
+    }
+
     case keyCode(typed::TypedKey::KEY_Y):
         // Yank to system clipboard
         ed->yankToSystemClipboard();

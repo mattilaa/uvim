@@ -112,6 +112,11 @@ struct ModeStateToMode
         return LOC_LIST;
     }
 
+    Mode operator()(const MlangFormatErrorsMode&) const
+    {
+        return MLANG_FORMAT_ERRORS;
+    }
+
     Mode operator()(const HelpMode&) const
     {
         return HELP;
@@ -302,6 +307,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         {
             return LocListMode{};
         }
+        if(mode == MLANG_FORMAT_ERRORS)
+        {
+            return MlangFormatErrorsMode{};
+        }
         if(mode == HELP)
         {
             return HelpMode{path, std::string(previousFile)};
@@ -430,12 +439,15 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return LspInfoMode{};
     case LOC_LIST:
         return LocListMode{};
+    case MLANG_FORMAT_ERRORS:
+        return MlangFormatErrorsMode{};
     case HELP:
         return HelpMode{};
 #else
     case REFERENCES:
     case LSP_INFO:
     case LOC_LIST:
+    case MLANG_FORMAT_ERRORS:
     case HELP:
         return NormalMode{};
 #endif

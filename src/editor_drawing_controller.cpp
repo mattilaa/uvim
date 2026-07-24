@@ -177,6 +177,19 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == MLANG_FORMAT_ERRORS)
+    {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(editor.modeStateMachine)
+        {
+            if(auto* state =
+                   editor.modeStateMachine->getState<MlangFormatErrorsMode>())
+                state->draw(editor);
+        }
+#endif
+        return;
+    }
+
     if(editor.currentMode == REFERENCES)
     {
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS

@@ -23,6 +23,7 @@ enum Mode
     REFERENCES,
     LSP_INFO,
     LOC_LIST,
+    MLANG_FORMAT_ERRORS,
     HELP,
     GIT_SHOW,
     GIT_LOG,

@@ -296,6 +296,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/editor_view_references.cpp
         src/editor_lsp_info.cpp
         src/editor_references_controller.cpp
+        src/mlang_format_errors.cpp
         src/widgets/completion_popup.cpp
     )
 else()
@@ -358,6 +359,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/references_mode.cpp
         src/lsp_info_mode.cpp
         src/loc_mode.cpp
+        src/mlang_format_errors_mode.cpp
         src/help_mode.cpp
         src/glyph_select_mode.cpp
         src/command_output_mode.cpp

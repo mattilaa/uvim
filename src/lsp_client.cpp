@@ -2129,6 +2129,19 @@ LspClient::diagnostics(const std::string& filePath) const
     return it->second;
 }
 
+std::vector<std::pair<std::string, std::vector<LspClient::Diagnostic>>>
+LspClient::allDiagnostics() const
+{
+    if(!impl)
+        return {};
+    std::lock_guard<std::mutex> lk(impl->diagMutex);
+    std::vector<std::pair<std::string, std::vector<Diagnostic>>> out;
+    out.reserve(impl->diagnosticsByFile.size());
+    for(const auto& [path, diagnostics] : impl->diagnosticsByFile)
+        out.push_back({path, diagnostics});
+    return out;
+}
+
 void LspClient::clearDiagnostics(const std::string& filePath)
 {
     if(!impl)
@@ -2871,6 +2884,12 @@ std::vector<LspClient::Location> LspClient::references(const std::string&, int,
 
 std::vector<LspClient::Diagnostic>
 LspClient::diagnostics(const std::string&) const
+{
+    return {};
+}
+
+std::vector<std::pair<std::string, std::vector<LspClient::Diagnostic>>>
+LspClient::allDiagnostics() const
 {
     return {};
 }

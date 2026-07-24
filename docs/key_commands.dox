@@ -67,6 +67,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-g a` : show assembly instruction docs in a scrollable popup
 - `Space-g d` : go to definition
 - `Space-g r` : find references
+- `Space-m f` : collect mlang formatter errors and open a jump list
+- `Space-m w` : collect mlangd warnings and open a jump list
 - `Space-y` / `Space-p` : yank/paste system clipboard
 - `Space-wc` : close the selected editor pane
 - `Space-q` : force quit

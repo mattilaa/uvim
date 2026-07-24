@@ -39,6 +39,7 @@
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 #include "loc_mode.h"
 #include "lsp_info_mode.h"
+#include "mlang_format_errors_mode.h"
 #endif
 #include "mode_commands.h"
 #include "mode_state.h"

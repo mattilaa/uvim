@@ -1251,6 +1251,8 @@ std::string Editor::getModeString() const
         return "REFERENCES";
     case LOC_LIST:
         return "LOC";
+    case MLANG_FORMAT_ERRORS:
+        return "MLANG FORMAT";
     case OP_PENDING:
         return "OP_PENDING";
     case HELP:

@@ -118,6 +118,11 @@ public:
         return recognize(ctx, state);
     }
     std::optional<Mode> operator()(ModeContext& ctx,
+                                   const MlangFormatErrorsMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
                                    const HelpMode& state) const
     {
         return recognize(ctx, state);
