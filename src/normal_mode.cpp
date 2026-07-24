@@ -1303,27 +1303,27 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     case keyCode(typed::TypedKey::KEY_M):
     {
         const int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_F))
+        if(nextChar == keyCode(typed::TypedKey::KEY_E))
         {
-#if defined(UVIM_ENABLE_AUXILIARY_VIEWS) && defined(UVIM_ENABLE_FORMATTERS)
-            return MlangFormatErrorsMode{};
-#elif defined(UVIM_ENABLE_FORMATTERS)
+#if defined(UVIM_ENABLE_AUXILIARY_VIEWS) && defined(UVIM_ENABLE_CLANGD_LSP)
+            return MlangFormatErrorsMode{MlangFormatErrorsSource::LspErrors};
+#elif defined(UVIM_ENABLE_CLANGD_LSP)
             ed->setStatusMessage("auxiliary views are not compiled in");
             return std::nullopt;
 #else
-            ed->setStatusMessage("formatters are not compiled in");
+            ed->setStatusMessage("LSP is not compiled in");
             return std::nullopt;
 #endif
         }
         if(nextChar == keyCode(typed::TypedKey::KEY_W))
         {
-#if defined(UVIM_ENABLE_AUXILIARY_VIEWS) && defined(UVIM_ENABLE_MLANG_LSP)
-            return MlangFormatErrorsMode{true};
-#elif defined(UVIM_ENABLE_MLANG_LSP)
+#if defined(UVIM_ENABLE_AUXILIARY_VIEWS) && defined(UVIM_ENABLE_CLANGD_LSP)
+            return MlangFormatErrorsMode{MlangFormatErrorsSource::LspWarnings};
+#elif defined(UVIM_ENABLE_CLANGD_LSP)
             ed->setStatusMessage("auxiliary views are not compiled in");
             return std::nullopt;
 #else
-            ed->setStatusMessage("mlang LSP is not compiled in");
+            ed->setStatusMessage("LSP is not compiled in");
             return std::nullopt;
 #endif
         }

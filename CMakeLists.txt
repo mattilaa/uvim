@@ -296,6 +296,8 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/editor_view_references.cpp
         src/editor_lsp_info.cpp
         src/editor_references_controller.cpp
+        src/clang_diagnostics.cpp
+        src/diagnostics_common.cpp
         src/mlang_format_errors.cpp
         src/widgets/completion_popup.cpp
     )

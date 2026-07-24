@@ -8,6 +8,13 @@
 
 namespace editor::statemachine
 {
+enum class MlangFormatErrorsSource
+{
+    FormatErrors,
+    LspErrors,
+    LspWarnings,
+};
+
 struct MlangFormatErrorsMode
 {
     static constexpr const char* name()
@@ -17,10 +24,16 @@ struct MlangFormatErrorsMode
 
     int cursor = 0;
     int offset = 0;
-    bool warnings = false;
+    MlangFormatErrorsSource source = MlangFormatErrorsSource::FormatErrors;
 
     MlangFormatErrorsMode() = default;
-    explicit MlangFormatErrorsMode(bool warnings) : warnings(warnings) {}
+    explicit MlangFormatErrorsMode(MlangFormatErrorsSource source)
+        : source(source),
+          warnings(source == MlangFormatErrorsSource::LspWarnings)
+    {
+    }
+
+    bool warnings = false;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
