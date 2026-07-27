@@ -34,6 +34,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class ToolInfoCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class FormatCommand final : public EditorExecutionCommand
 {
 public:

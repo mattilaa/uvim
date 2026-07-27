@@ -204,6 +204,13 @@ void EditorDrawingController::refreshScreen()
 #endif
         return;
     }
+    if(editor.currentMode == TOOL_INFO)
+    {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        editor.drawToolInfo();
+#endif
+        return;
+    }
 
     if(editor.currentMode == HELP)
     {

@@ -289,12 +289,16 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/editor_execution_loc_command.cpp
         src/editor_execution_loc_total_command.cpp
         src/editor_execution_lsp_info_command.cpp
+        src/editor_execution_tool_info_command.cpp
+        src/executable_lookup.cpp
         src/editor_view_command_output.cpp
         src/editor_view_help.cpp
         src/editor_view_loc_list.cpp
         src/editor_view_lsp_info.cpp
+        src/editor_view_tool_info.cpp
         src/editor_view_references.cpp
         src/editor_lsp_info.cpp
+        src/editor_tool_info.cpp
         src/editor_references_controller.cpp
         src/clang_diagnostics.cpp
         src/diagnostics_common.cpp
@@ -360,6 +364,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
     list(APPEND MODE_STATE_MACHINE_SOURCES
         src/references_mode.cpp
         src/lsp_info_mode.cpp
+        src/tool_info_mode.cpp
         src/loc_mode.cpp
         src/mlang_format_errors_mode.cpp
         src/help_mode.cpp

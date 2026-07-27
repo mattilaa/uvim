@@ -22,6 +22,7 @@ enum Mode
     OP_PENDING,
     REFERENCES,
     LSP_INFO,
+    TOOL_INFO,
     LOC_LIST,
     MLANG_FORMAT_ERRORS,
     HELP,

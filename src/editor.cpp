@@ -1247,6 +1247,8 @@ std::string Editor::getModeString() const
         return "REGEX";
     case LSP_INFO:
         return "LSP INFO";
+    case TOOL_INFO:
+        return "TOOL INFO";
     case REFERENCES:
         return "REFERENCES";
     case LOC_LIST:

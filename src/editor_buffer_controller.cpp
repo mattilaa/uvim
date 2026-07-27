@@ -155,6 +155,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
     case REGEX_SEARCH:
     case REFERENCES:
     case LSP_INFO:
+    case TOOL_INFO:
     case LOC_LIST:
     case GIT_STAGE:
     case GIT_COMMIT:

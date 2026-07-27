@@ -626,6 +626,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "noh",
         "nohlsearch",
         "lspinfo",
+        "toolinfo",
         "emitasm",
         "emitasm --raw",
         "emoji",

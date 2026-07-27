@@ -215,6 +215,10 @@ public:
     std::vector<std::string> lspInfoLines;
     int lspInfoScrollOffset = 0;
 
+    // External tool info panel
+    std::vector<std::string> toolInfoLines;
+    int toolInfoScrollOffset = 0;
+
     // Screen
     int screenRows;
     int screenCols;
@@ -713,6 +717,12 @@ public:
     void clearLspInfo();
     void scrollLspInfo(int delta);
     void drawLspInfo();
+
+    // External tool info panel
+    void showToolInfo();
+    void clearToolInfo();
+    void scrollToolInfo(int delta);
+    void drawToolInfo();
 
     // Movement commands
     void moveCursor(int key);

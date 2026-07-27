@@ -1,12 +1,12 @@
 #include "editor.h"
 #include "enablelog.h"
+#include "executable_lookup.h"
 #include "terminal.h"
 #include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
 #include <string_view>
 
@@ -15,57 +15,6 @@ namespace fs = std::filesystem;
 namespace
 {
 mla::log::FileLogger CLANGD_LOG("CLANGD");
-}
-
-static bool binaryExists(const std::string& pathOrExe)
-{
-    std::string path = pathOrExe;
-    while(path.size() >= 2)
-    {
-        const char first = path.front();
-        const char last = path.back();
-        if((first == '"' && last == '"') || (first == '\'' && last == '\''))
-            path = path.substr(1, path.size() - 2);
-        else
-            break;
-    }
-
-    if(path.empty())
-        return false;
-
-    if(text_utils::contains(path, '/') || text_utils::contains(path, '\\'))
-    {
-        std::error_code ec;
-        return fs::exists(path, ec) && fs::is_regular_file(path, ec);
-    }
-
-    const char* envPath = std::getenv("PATH");
-    if(!envPath || !*envPath)
-        return false;
-
-    std::string_view pathView{envPath};
-    size_t start = 0;
-    while(start < pathView.size())
-    {
-#ifdef _WIN32
-        size_t end = pathView.find(';', start);
-#else
-        size_t end = pathView.find(':', start);
-#endif
-        if(text_utils::is_not_found(end))
-            end = pathView.size();
-        if(end > start)
-        {
-            fs::path candidate =
-                fs::path(std::string(pathView.substr(start, end - start))) /
-                path;
-            std::error_code ec;
-            if(fs::exists(candidate, ec) && fs::is_regular_file(candidate, ec))
-                return true;
-        }
-        start = end + 1;
-    }
-    return false;
 }
 
 static std::string filetypeLabel(const Editor& ed)
@@ -132,14 +81,17 @@ void Editor::showLspInfo()
     {
         std::string status =
             running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
-        bool hasBinary = binaryExists(path);
-        bool hasNode = !requiresNode || binaryExists("node");
+        const executable_lookup::Result binary = executable_lookup::find(path);
+        const executable_lookup::Result node = executable_lookup::find("node");
+        bool hasBinary = binary.found;
+        bool hasNode = !requiresNode || node.found;
 
         lspInfoLines.push_back(label + ": " + status);
-        lspInfoLines.push_back("  binary: " + path);
+        lspInfoLines.push_back("  binary: " +
+                               (binary.found ? binary.path : path));
         if(requiresNode)
-            lspInfoLines.push_back(std::string("  runtime: node ") +
-                                   (hasNode ? "found" : "not found"));
+            lspInfoLines.push_back("  runtime: node " +
+                                   (node.found ? node.path : "not found"));
         if(!hasBinary)
             lspInfoLines.push_back("  status: binary not found");
         if(requiresNode && !hasNode)

@@ -46,8 +46,8 @@ std::vector<std::string> helpSearchTopics()
             "buffers",   "windows",     "search",      "regex",
             "clipboard", "git",         "ga",          "gb",
             "gbb",       "gbl",         "gj",          "gbv",
-            "gs",        "emitasm",     "lsp",         "diagnostics",
-            "logging"};
+            "gs",        "emitasm",     "lsp",         "toolinfo",
+            "diagnostics", "logging"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -140,6 +140,8 @@ std::string helpTopicDescription(const std::string& topic)
         return "Emit C/C++ assembly";
     if(topic == "lsp")
         return "LSP setup and troubleshooting";
+    if(topic == "toolinfo")
+        return "External tool setup";
     if(topic == "diagnostics")
         return "Diagnostic env vars";
     if(topic == "logging")
@@ -1221,6 +1223,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "output",
             "  `:format` or `:fmt` - Format current buffer",
             "  `:lspinfo`          - Show LSP status and diagnostics info",
+            "  `:toolinfo`         - Show external tool status and paths",
             "  `:emoji` or `:em`   - Open emoji picker",
             "  `:glyphselect`     - Open glyph selector",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
@@ -2113,6 +2116,28 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "    `%USERPROFILE%\\Documents\\uvim\\uvim.log`.",
             "  - Override with `uvim --log-file <path>` in logging-enabled",
             "    builds.",
+        };
+    }
+    else if(topic_lower == "toolinfo")
+    {
+        lines = {
+            "# External Tool Info",
+            "",
+            "`:toolinfo` shows whether uvim can find external search tools.",
+            "",
+            "TOOLS:",
+            "  `fzf`        - Fuzzy finder executable",
+            "  `rg/ripgrep` - Ripgrep executable used by grep-style search",
+            "",
+            "The view reports FOUND or MISSING and prints the resolved binary "
+            "path when available.",
+            "On Windows, uvim also checks common executable suffixes like "
+            "`.exe`, `.cmd`, `.bat`, and `.com`.",
+            "",
+            "KEYS:",
+            "  `j`/`k`   - Scroll",
+            "  `r`       - Refresh",
+            "  `q`/`Esc` - Close",
         };
     }
     else if(topic_lower == "logging" || topic_lower == "logs" ||

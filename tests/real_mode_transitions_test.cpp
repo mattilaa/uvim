@@ -852,6 +852,7 @@ TEST(RealModeTransitionsTest, HelpCommandReferenceMatchesCurrentCommands)
     EXPECT_TRUE(contains_help_text(commands->lines, ":se"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":format"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":lspinfo"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":toolinfo"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":git stash pop"));
 
     dispatch_command(sm, "h files");
@@ -1246,6 +1247,23 @@ TEST(RealModeTransitionsTest, LspInfoQuitWithNoBufferReturnsWelcome)
 {
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, LspInfoMode{});
+
+    sm.dispatch('q');
+
+    EXPECT_STREQ(sm.currentStateName(), "WELCOME");
+}
+
+TEST(RealModeTransitionsTest, ToolInfoCommandOpensViewAndQuitReturnsWelcome)
+{
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, WelcomeMode{});
+
+    dispatch_command(sm, "toolinfo");
+
+    EXPECT_STREQ(sm.currentStateName(), "TOOL INFO");
+    EXPECT_FALSE(editor.toolInfoLines.empty());
+    EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "fzf:"));
+    EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "rg/ripgrep:"));
 
     sm.dispatch('q');
 

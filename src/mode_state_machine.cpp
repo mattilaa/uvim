@@ -107,6 +107,11 @@ struct ModeStateToMode
         return LSP_INFO;
     }
 
+    Mode operator()(const ToolInfoMode&) const
+    {
+        return TOOL_INFO;
+    }
+
     Mode operator()(const LocListMode&) const
     {
         return LOC_LIST;
@@ -254,6 +259,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     {
         return LspInfoMode{};
     }
+    if(ctx.currentMode() == TOOL_INFO)
+    {
+        return ToolInfoMode{};
+    }
 #endif
     if(ctx.editor && ctx.editor->getModeStateMachine())
     {
@@ -302,6 +311,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         if(mode == LSP_INFO)
         {
             return LspInfoMode{};
+        }
+        if(mode == TOOL_INFO)
+        {
+            return ToolInfoMode{};
         }
         if(mode == LOC_LIST)
         {
@@ -437,6 +450,8 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return ReferencesMode{};
     case LSP_INFO:
         return LspInfoMode{};
+    case TOOL_INFO:
+        return ToolInfoMode{};
     case LOC_LIST:
         return LocListMode{};
     case MLANG_FORMAT_ERRORS:
@@ -446,6 +461,7 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
 #else
     case REFERENCES:
     case LSP_INFO:
+    case TOOL_INFO:
     case LOC_LIST:
     case MLANG_FORMAT_ERRORS:
     case HELP:

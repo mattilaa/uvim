@@ -86,6 +86,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Clear search highlights";
     if(cmd == "lspinfo")
         return "Show LSP status and clients";
+    if(cmd == "toolinfo")
+        return "Show external tool status";
     if(cmd == "emitasm")
         return "Emit compact assembly for current C/C++ buffer";
     if(cmd == "emitasm --raw")

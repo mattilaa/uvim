@@ -251,6 +251,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
                 return LspInfoMode{};
             }
+            if(ctx.currentMode() == TOOL_INFO)
+            {
+                return ToolInfoMode{};
+            }
 #endif
             if(ctx.editor && ctx.editor->getModeStateMachine())
             {
@@ -304,6 +308,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(mode == LSP_INFO)
                 {
                     return LspInfoMode{};
+                }
+                if(mode == TOOL_INFO)
+                {
+                    return ToolInfoMode{};
                 }
                 if(mode == LOC_LIST)
                 {

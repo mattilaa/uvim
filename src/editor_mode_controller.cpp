@@ -113,6 +113,11 @@ public:
         return recognize(ctx, state);
     }
     std::optional<Mode> operator()(ModeContext& ctx,
+                                   const ToolInfoMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+    std::optional<Mode> operator()(ModeContext& ctx,
                                    const LocListMode& state) const
     {
         return recognize(ctx, state);
