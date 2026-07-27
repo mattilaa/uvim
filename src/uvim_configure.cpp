@@ -218,7 +218,7 @@ struct Config
     bool gcSections = true;
     bool stripBinary = false;
     bool staticLink = false;
-    bool autoIncrementBuild = true;
+    bool autoIncrementBuild = false;
     bool sanitizers = false;
     bool debugLogging = false;
     bool debugLsp = false;
@@ -708,7 +708,7 @@ void apply_feature_set(Config& cfg)
         cfg.lto = true;
         cfg.gcSections = true;
         cfg.stripBinary = false;
-        cfg.autoIncrementBuild = true;
+        cfg.autoIncrementBuild = false;
         return;
     }
 
@@ -739,7 +739,7 @@ void apply_feature_set(Config& cfg)
     cfg.lto = true;
     cfg.gcSections = true;
     cfg.stripBinary = false;
-    cfg.autoIncrementBuild = true;
+    cfg.autoIncrementBuild = false;
 }
 
 std::vector<Section> make_sections()
