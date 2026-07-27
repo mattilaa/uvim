@@ -34,17 +34,48 @@ namespace fs = std::filesystem;
 
 namespace
 {
-constexpr std::string_view kAnsiReset =
-    color::ansi(color::AnsiColor::Reset);
-constexpr std::string_view kAnsiFgDefault =
-    color::ansi(color::AnsiColor::FgDefault);
-constexpr std::string_view kAnsiBlue = color::ansi(color::AnsiColor::FgBlue);
-constexpr std::string_view kAnsiGreen =
-    color::ansi(color::AnsiColor::FgGreen);
-constexpr std::string_view kAnsiDim = color::ansi(color::AnsiColor::Dim);
-constexpr std::string_view kAnsiEditField =
-    color::ansi(color::AnsiColor::StyleEditField);
-const std::string kAnsiCurrentLineBg = color::rgbBg(24, 64, 36);
+bool color_enabled();
+
+std::string_view ansi_reset()
+{
+    return color_enabled() ? color::ansi(color::AnsiColor::Reset)
+                           : std::string_view{};
+}
+
+std::string_view ansi_fg_default()
+{
+    return color_enabled() ? color::ansi(color::AnsiColor::FgDefault)
+                           : std::string_view{};
+}
+
+std::string_view ansi_blue()
+{
+    return color_enabled() ? color::ansi(color::AnsiColor::FgBlue)
+                           : std::string_view{};
+}
+
+std::string_view ansi_green()
+{
+    return color_enabled() ? color::ansi(color::AnsiColor::FgGreen)
+                           : std::string_view{};
+}
+
+std::string_view ansi_dim()
+{
+    return color_enabled() ? color::ansi(color::AnsiColor::Dim)
+                           : std::string_view{};
+}
+
+std::string_view ansi_edit_field()
+{
+    return color_enabled() ? color::ansi(color::AnsiColor::StyleEditField)
+                           : std::string_view{};
+}
+
+std::string ansi_current_line_bg()
+{
+    return color_enabled() ? color::rgbBg(24, 64, 36) : std::string{};
+}
 
 constexpr int kKeyEsc = 27;
 constexpr int kKeyUp = 1001;
@@ -117,6 +148,33 @@ bool write_console_utf8(std::string_view text) noexcept
                          &written, nullptr) != 0;
 }
 #endif
+
+bool color_enabled()
+{
+    if(const char* noColor = std::getenv("NO_COLOR"))
+    {
+        if(*noColor)
+            return false;
+    }
+    if(const char* term = std::getenv("TERM"))
+    {
+        if(std::string_view(term) == "dumb")
+            return false;
+    }
+    else
+    {
+#ifndef _WIN32
+        return false;
+#endif
+    }
+
+#ifdef _WIN32
+    DWORD mode = 0;
+    return GetConsoleMode(stdout_handle(), &mode) != 0;
+#else
+    return ::isatty(STDOUT_FILENO);
+#endif
+}
 
 void write_stdout(std::string_view text)
 {
@@ -1233,9 +1291,9 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     if(row.kind == RowKind::Section)
     {
         const Section& section = sections[row.section];
-        out += kAnsiBlue;
+        out += ansi_blue();
         out += section.open ? "[-]" : "[+]";
-        out += kAnsiFgDefault;
+        out += ansi_fg_default();
         out += ' ';
         out += section.label;
         return out;
@@ -1246,24 +1304,24 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     if(item.kind == ItemKind::Toggle)
     {
         out += "  ";
-        out += kAnsiBlue;
+        out += ansi_blue();
         out += '[';
         if(disabled)
         {
-            out += kAnsiDim;
+            out += ansi_dim();
             out += '-';
-            out += kAnsiReset;
+            out += ansi_reset();
         }
         else if(cfg.*(item.flag))
         {
-            out += kAnsiGreen;
+            out += ansi_green();
             out += 'X';
         }
         else
             out += ' ';
-        out += kAnsiBlue;
+        out += ansi_blue();
         out += ']';
-        out += kAnsiFgDefault;
+        out += ansi_fg_default();
         out += ' ';
     }
     else if(item.kind == ItemKind::Text)
@@ -1271,23 +1329,23 @@ std::string row_text(const Config& cfg, const std::vector<Section>& sections,
     else
         out += "      ";
     if(disabled)
-        out += kAnsiDim;
+        out += ansi_dim();
     out += item.label;
     const int pad = std::max(1, 31 - static_cast<int>(item.label.size()));
     out += std::string(static_cast<size_t>(pad), ' ');
     if(editing && item.kind == ItemKind::Text)
     {
-        out += kAnsiEditField;
+        out += ansi_edit_field();
         out += value_for(cfg, item);
-        out += "\x1b[5m_\x1b[25m";
-        out += kAnsiReset;
+        out += color_enabled() ? "\x1b[5m_\x1b[25m" : "_";
+        out += ansi_reset();
         if(selected)
-            out += kAnsiCurrentLineBg;
+            out += ansi_current_line_bg();
     }
     else
         out += value_for(cfg, item);
     if(disabled)
-        out += kAnsiReset;
+        out += ansi_reset();
     return out;
 }
 
@@ -1441,7 +1499,8 @@ void append_documentation(std::vector<std::string>& out, const Config& cfg,
                           const std::vector<Section>& sections,
                           const VisibleRow& row, int docHeight, int cols)
 {
-    out.push_back("\x1b[1mDocumentation\x1b[0m");
+    out.push_back(color_enabled() ? "\x1b[1mDocumentation\x1b[0m"
+                                  : "Documentation");
     append_wrapped_fixed(out, help_for(cfg, sections, row), docHeight, cols);
 }
 
@@ -1462,8 +1521,9 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
     screenLines.reserve(static_cast<size_t>(std::max(1, screen.rows)));
 
     screenLines.push_back(
-        "\x1b[1;36m" + truncate_line("uvim build configurator", screen.cols) +
-        "\x1b[0m");
+        std::string(color_enabled() ? "\x1b[1;36m" : "") +
+        truncate_line("uvim build configurator", screen.cols) +
+        std::string(color_enabled() ? "\x1b[0m" : ""));
     append_wrapped_fixed(screenLines,
                          "j/k/arrows move  h/left close  l/right open  "
                          "space/enter change  s save (Y/n)  q quit",
@@ -1493,8 +1553,7 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
         if(i == safeCursor)
         {
             line = pad_ansi_line(std::move(line), screen.cols);
-            line = std::string(kAnsiCurrentLineBg) + line +
-                   std::string(kAnsiReset);
+            line = ansi_current_line_bg() + line + std::string(ansi_reset());
         }
         screenLines.push_back(std::move(line));
         ++listRowsPrinted;
@@ -1523,9 +1582,9 @@ void draw(const Config& cfg, const std::vector<Section>& sections, int cursor,
             if(i < static_cast<int>(lines.size()))
             {
                 screenLines.push_back(
-                    "\x1b[1;32m" +
+                    std::string(color_enabled() ? "\x1b[1;32m" : "") +
                     truncate_line(lines[static_cast<size_t>(i)], screen.cols) +
-                    "\x1b[0m");
+                    std::string(color_enabled() ? "\x1b[0m" : ""));
             }
             else
                 screenLines.push_back("");

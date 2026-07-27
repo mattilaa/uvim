@@ -2,6 +2,9 @@ $ErrorActionPreference = "Stop"
 
 $BuildDir = "build"
 $Jobs = ""
+$NoColorRequested = $false
+$HadNoColor = Test-Path Env:NO_COLOR
+$OldNoColor = $env:NO_COLOR
 
 function Show-Usage {
     @"
@@ -12,8 +15,20 @@ Options:
   --build-dir=DIR    Same as --build-dir DIR
   -j, --jobs N       Parallel build jobs
   --jobs=N           Same as --jobs N
+  --no-color         Disable colored prompts and child tool output
   -h, --help         Show this help
 "@
+}
+
+function Restore-NoColor {
+    if (!$NoColorRequested) {
+        return
+    }
+    if ($HadNoColor) {
+        $env:NO_COLOR = $OldNoColor
+    } else {
+        Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
+    }
 }
 
 function Need-Value($ArgsList, $Index, $Option) {
@@ -47,6 +62,30 @@ function Test-NinjaAvailable {
     return $null -ne (Get-Command ninja -ErrorAction SilentlyContinue)
 }
 
+function Test-ColorAvailable {
+    if ([Console]::IsOutputRedirected) {
+        return $false
+    }
+    if (![string]::IsNullOrEmpty($env:NO_COLOR)) {
+        return $false
+    }
+    if ($env:TERM -eq "dumb") {
+        return $false
+    }
+    return $true
+}
+
+function Write-YesNoPrompt($Prompt) {
+    if (Test-ColorAvailable) {
+        Write-Host -NoNewline $Prompt -ForegroundColor Cyan
+        Write-Host -NoNewline " "
+        Write-Host -NoNewline "(Y/n)" -ForegroundColor Green
+        Write-Host -NoNewline " "
+    } else {
+        Write-Host -NoNewline "$Prompt (Y/n) "
+    }
+}
+
 function Resolve-UvimConfig($Directory) {
     $exe = Join-Path $Directory "uvim-config.exe"
     if (Test-Path -LiteralPath $exe) {
@@ -63,12 +102,12 @@ function Resolve-UvimConfig($Directory) {
 
 function Confirm-YesNo($Prompt) {
     while ($true) {
-        Write-Host -NoNewline "$Prompt "
+        Write-YesNoPrompt $Prompt
         $answer = [Console]::In.ReadLine()
         if ($null -eq $answer) {
             return $false
         }
-        if ($answer -eq "y" -or $answer -eq "Y") {
+        if ($answer -eq "" -or $answer -eq "y" -or $answer -eq "Y") {
             return $true
         }
         if ($answer -eq "n" -or $answer -eq "N") {
@@ -80,6 +119,7 @@ function Confirm-YesNo($Prompt) {
 function Stop-IfNativeCommandFailed($CommandName) {
     if ($LASTEXITCODE -ne 0) {
         Write-Error "$CommandName failed with exit code $LASTEXITCODE"
+        Restore-NoColor
         exit $LASTEXITCODE
     }
 }
@@ -112,9 +152,16 @@ while ($i -lt $args.Count) {
             $i += 1
             continue
         }
+        '^--no-color$' {
+            $NoColorRequested = $true
+            $env:NO_COLOR = "1"
+            $i += 1
+            continue
+        }
         default {
             Write-Error "bootstrap.ps1: unknown option: $arg"
             Show-Usage | Write-Error
+            Restore-NoColor
             exit 2
         }
     }
@@ -159,15 +206,17 @@ if ([string]::IsNullOrEmpty($UvimConfig)) {
     exit 1
 }
 
-if (Confirm-YesNo "Do you want to run uvim-config? (y/n)") {
+if (Confirm-YesNo "Do you want to run uvim-config?") {
     Write-Host $UvimConfig
     & $UvimConfig
     Stop-IfNativeCommandFailed "uvim-config"
 
-    if (Confirm-YesNo "Do you want to build uVim? (y/n)") {
+    if (Confirm-YesNo "Do you want to build uVim?") {
         $BuildScript = Join-Path "." "build.ps1"
         Write-Host "$BuildScript --build-dir $BuildDir"
         & $BuildScript --build-dir $BuildDir
         Stop-IfNativeCommandFailed "build.ps1"
     }
 }
+
+Restore-NoColor

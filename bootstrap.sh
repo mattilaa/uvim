@@ -3,6 +3,12 @@ set -eu
 
 build_dir="build"
 jobs=""
+no_color_requested=0
+old_no_color="${NO_COLOR-}"
+had_no_color=0
+if [ "${NO_COLOR+x}" = "x" ]; then
+    had_no_color=1
+fi
 
 usage() {
     cat <<EOF
@@ -13,9 +19,23 @@ Options:
   --build-dir=DIR    Same as --build-dir DIR
   -j, --jobs N       Parallel build jobs
   --jobs=N           Same as --jobs N
+  --no-color         Disable colored prompts and child tool output
   -h, --help         Show this help
 EOF
 }
+
+restore_no_color() {
+    if [ "$no_color_requested" = "1" ]; then
+        if [ "$had_no_color" = "1" ]; then
+            NO_COLOR="$old_no_color"
+            export NO_COLOR
+        else
+            unset NO_COLOR
+        fi
+    fi
+}
+
+trap restore_no_color EXIT
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -55,6 +75,12 @@ while [ "$#" -gt 0 ]; do
             fi
             shift
             ;;
+        --no-color)
+            no_color_requested=1
+            NO_COLOR=1
+            export NO_COLOR
+            shift
+            ;;
         *)
             echo "bootstrap.sh: unknown option: $1" >&2
             usage >&2
@@ -83,15 +109,33 @@ is_truthy() {
     esac
 }
 
+supports_color() {
+    [ -t 1 ] || return 1
+    [ -z "${NO_COLOR:-}" ] || return 1
+    [ "${TERM:-}" != "dumb" ] || return 1
+    [ -n "${TERM:-}" ] || return 1
+    return 0
+}
+
+prompt_yes_no() {
+    message="$1"
+    suffix="(Y/n)"
+    if supports_color; then
+        printf "\033[1;36m%s\033[0m \033[1;32m%s\033[0m " "$message" "$suffix"
+    else
+        printf "%s %s " "$message" "$suffix"
+    fi
+}
+
 confirm_yes_no() {
     prompt="$1"
     while true; do
-        printf "%s " "$prompt"
+        prompt_yes_no "$prompt"
         if ! IFS= read -r answer; then
             return 1
         fi
         case "$answer" in
-            y|Y)
+            ""|y|Y)
                 return 0
                 ;;
             n|N)
@@ -142,11 +186,11 @@ if [ ! -x "$uvim_config" ]; then
     fi
 fi
 
-if confirm_yes_no "Do you want to run uvim-config? (y/n)"; then
+if confirm_yes_no "Do you want to run uvim-config?"; then
     echo "$uvim_config"
     "$uvim_config"
 
-    if confirm_yes_no "Do you want to build uVim? (y/n)"; then
+    if confirm_yes_no "Do you want to build uVim?"; then
         echo "./build.sh --build-dir $build_dir"
         ./build.sh --build-dir "$build_dir"
     fi
