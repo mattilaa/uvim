@@ -1113,6 +1113,54 @@ TEST(SyntaxHighlighterTest, HighlightsMlangMemberAccess)
     EXPECT_TRUE(hasTokenAt(tokens, valuePos, 5, TOKEN_MEMBER));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsMlangQualifiedNamespaceSegments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+
+    const std::string line = "use std::esc::bold_on;";
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    EXPECT_TRUE(hasTokenAt(tokens, 4, 3, TOKEN_NAMESPACE_1));
+    EXPECT_TRUE(hasTokenAt(tokens, 7, 2, TOKEN_OPERATOR));
+    EXPECT_TRUE(hasTokenAt(tokens, 9, 3, TOKEN_NAMESPACE_2));
+    EXPECT_TRUE(hasTokenAt(tokens, 12, 2, TOKEN_OPERATOR));
+    EXPECT_TRUE(hasTokenAt(tokens, 14, 7, TOKEN_NAMESPACE_4));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsMlangQualifiedTypeFinalSegment)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "let value: namespace::SomeClass;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    int namespacePos = (int)line.find("namespace");
+    int someClassPos = (int)line.find("SomeClass");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(namespacePos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(someClassPos)));
+    EXPECT_TRUE(hasTokenAt(tokens, namespacePos, 9, TOKEN_NAMESPACE_1));
+    EXPECT_TRUE(hasTokenAt(tokens, someClassPos, 9, TOKEN_NAMESPACE_4));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsMlangTraitNameAsType)
 {
     Editor editor = Editor::createForTests();

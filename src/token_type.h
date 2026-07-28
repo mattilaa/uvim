@@ -13,7 +13,11 @@ enum TokenType
     TOKEN_NUMBER,
     TOKEN_OPERATOR,
     TOKEN_FUNCTION,
-    TOKEN_MEMBER
+    TOKEN_MEMBER,
+    TOKEN_NAMESPACE_1,
+    TOKEN_NAMESPACE_2,
+    TOKEN_NAMESPACE_3,
+    TOKEN_NAMESPACE_4
 };
 
 // Token structure for syntax highlighting

@@ -417,6 +417,16 @@ std::optional<TokenType> parse_token_type(std::string_view value)
         return TOKEN_OPERATOR;
     if(type == "function" || type == "builtin")
         return TOKEN_FUNCTION;
+    if(type == "member")
+        return TOKEN_MEMBER;
+    if(type == "namespace1" || type == "namespace_1")
+        return TOKEN_NAMESPACE_1;
+    if(type == "namespace2" || type == "namespace_2")
+        return TOKEN_NAMESPACE_2;
+    if(type == "namespace3" || type == "namespace_3")
+        return TOKEN_NAMESPACE_3;
+    if(type == "namespace4" || type == "namespace_4" || type == "namespace")
+        return TOKEN_NAMESPACE_4;
     if(type == "constant" || type == "literal" || type == "bool")
         return TOKEN_KEYWORD;
     return std::nullopt;
@@ -2922,6 +2932,68 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     auto push_token = [&](TokenType type, int start, int length)
     { tokens.push_back({type, start, length}); };
 
+    auto namespace_token_for_segment = [](int segment, int total) -> TokenType
+    {
+        if(segment == total - 1)
+            return TOKEN_NAMESPACE_4;
+        if(total <= 2)
+            return TOKEN_NAMESPACE_1;
+        if(total == 3)
+            return segment == 0 ? TOKEN_NAMESPACE_1 : TOKEN_NAMESPACE_2;
+        if(segment == 0)
+            return TOKEN_NAMESPACE_1;
+        if(segment == 1)
+            return TOKEN_NAMESPACE_2;
+        return TOKEN_NAMESPACE_3;
+    };
+
+    auto try_push_mlang_qualified_chain = [&](int chainStart, int& chainEnd)
+    {
+        struct Segment
+        {
+            int start = 0;
+            int end = 0;
+        };
+
+        std::vector<Segment> segments;
+        std::vector<int> separators;
+        int j = chainStart;
+
+        while(j < len && (text_utils::is_alpha(sv[j]) || sv[j] == '_'))
+        {
+            int segmentStart = j++;
+            while(j < len &&
+                  (text_utils::is_alpha(sv[j]) || text_utils::is_digit(sv[j]) ||
+                   sv[j] == '_'))
+            {
+                ++j;
+            }
+            segments.push_back({segmentStart, j});
+
+            if(j + 1 >= len || sv[j] != ':' || sv[j + 1] != ':')
+                break;
+
+            separators.push_back(j);
+            j += 2;
+        }
+
+        if(segments.size() < 2)
+            return false;
+
+        const int total = static_cast<int>(segments.size());
+        for(int segment = 0; segment < total; ++segment)
+        {
+            const auto& part = segments[segment];
+            push_token(namespace_token_for_segment(segment, total), part.start,
+                       part.end - part.start);
+            if(segment < static_cast<int>(separators.size()))
+                push_token(TOKEN_OPERATOR, separators[segment], 2);
+        }
+
+        chainEnd = j;
+        return true;
+    };
+
     if(inBlockComment)
     {
         size_t end = sv.find("*/");
@@ -3520,6 +3592,12 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             }
             else if(isFileType<FileType::Mla>())
             {
+                int chainEnd = i;
+                if(try_push_mlang_qualified_chain(start, chainEnd))
+                {
+                    i = chainEnd;
+                    continue;
+                }
                 if(is_mlang_platform_keyword(word))
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
@@ -4373,7 +4451,11 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     if(visiblePos >= 0 && visiblePos < len)
                     {
                         if(!isCppSemantics && effectiveType == TOKEN_NORMAL &&
-                           charColors[visiblePos] == TOKEN_TYPE)
+                           (charColors[visiblePos] == TOKEN_TYPE ||
+                            charColors[visiblePos] == TOKEN_NAMESPACE_1 ||
+                            charColors[visiblePos] == TOKEN_NAMESPACE_2 ||
+                            charColors[visiblePos] == TOKEN_NAMESPACE_3 ||
+                            charColors[visiblePos] == TOKEN_NAMESPACE_4))
                         {
                             continue;
                         }

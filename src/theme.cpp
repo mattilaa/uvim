@@ -58,6 +58,10 @@ Theme Theme::defaults()
     t.syntax_[TOKEN_OPERATOR] = {0xF6, 0xC1, 0x77, true};
     t.syntax_[TOKEN_FUNCTION] = {0x6B, 0x86, 0xC9, true};
     t.syntax_[TOKEN_MEMBER] = {0x89, 0xDC, 0xEB, true};
+    t.syntax_[TOKEN_NAMESPACE_1] = {0x9B, 0x7F, 0xBF, true};
+    t.syntax_[TOKEN_NAMESPACE_2] = {0xAA, 0x8D, 0xCE, true};
+    t.syntax_[TOKEN_NAMESPACE_3] = {0xB7, 0x9A, 0xDC, true};
+    t.syntax_[TOKEN_NAMESPACE_4] = t.syntax_[TOKEN_KEYWORD];
 
     t.rebuildSequences();
     return t;
@@ -377,4 +381,12 @@ void Theme::applyOverrides(
     set_color("theme.syntax.operator", syntax_[TOKEN_OPERATOR]);
     set_color("theme.syntax.function", syntax_[TOKEN_FUNCTION]);
     set_color("theme.syntax.member", syntax_[TOKEN_MEMBER]);
+    set_color("theme.syntax.namespace1", syntax_[TOKEN_NAMESPACE_1]);
+    set_color("theme.syntax.namespace2", syntax_[TOKEN_NAMESPACE_2]);
+    set_color("theme.syntax.namespace3", syntax_[TOKEN_NAMESPACE_3]);
+    set_color("theme.syntax.namespace4", syntax_[TOKEN_NAMESPACE_4]);
+    set_color("theme.syntax.namespace_1", syntax_[TOKEN_NAMESPACE_1]);
+    set_color("theme.syntax.namespace_2", syntax_[TOKEN_NAMESPACE_2]);
+    set_color("theme.syntax.namespace_3", syntax_[TOKEN_NAMESPACE_3]);
+    set_color("theme.syntax.namespace_4", syntax_[TOKEN_NAMESPACE_4]);
 }
