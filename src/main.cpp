@@ -181,6 +181,9 @@ static std::string rewrite_windows_paths_in_text(std::string_view text)
     return out;
 }
 
+static std::vector<fs::path>
+find_compile_commands_files_recursively(const fs::path& root);
+
 static fs::path detect_compile_commands_file(const fs::path& sourceRoot,
                                              const std::string& ccdir)
 {
@@ -191,9 +194,25 @@ static fs::path detect_compile_commands_file(const fs::path& sourceRoot,
         fs::path direct = dir / "compile_commands.json";
         if(fs::exists(direct, ec) && fs::is_regular_file(direct, ec))
             return direct;
-        fs::path nested = dir / "build" / "compile_commands.json";
-        if(fs::exists(nested, ec) && fs::is_regular_file(nested, ec))
-            return nested;
+        const std::vector<fs::path> buildDirs = {
+            "build",
+            "build-debug",
+            "build-release",
+            "build_Debug",
+            "build_Release",
+            "Debug",
+            "Release",
+            "cmake-build-debug",
+            "cmake-build-release",
+            fs::path("out") / "build",
+        };
+        for(const fs::path& buildDir : buildDirs)
+        {
+            fs::path nested = dir / buildDir / "compile_commands.json";
+            if(fs::exists(nested, ec) && fs::is_regular_file(nested, ec))
+                return nested;
+            ec.clear();
+        }
         return {};
     };
 
@@ -429,7 +448,26 @@ static std::string prepare_clangd_compile_commands(const fs::path& sourceRoot,
                                                    bool windowsToWsl)
 {
     if(!collectAll && !windowsToWsl)
+    {
+        fs::path single = detect_compile_commands_file(sourceRoot, ccdir);
+        if(!single.empty())
+            return single.parent_path().string();
+
+        if(ccdir.empty())
+        {
+            std::vector<fs::path> sourceFiles =
+                find_compile_commands_files_recursively(sourceRoot);
+            if(sourceFiles.size() == 1)
+                return sourceFiles.front().parent_path().string();
+            if(sourceFiles.size() > 1 &&
+               regenerate_clangd_compile_commands(outputRoot, sourceFiles,
+                                                  false, false))
+            {
+                return (outputRoot / ".uvim" / "clangd").string();
+            }
+        }
         return ccdir;
+    }
 
     std::vector<fs::path> sourceFiles =
         discover_compile_commands_sources(sourceRoot, ccdir, collectAll);

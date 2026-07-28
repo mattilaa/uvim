@@ -131,6 +131,19 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (fileBrowserFuzzy ? "true" : "false"));
         return true;
     }
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(opt == "rgcache?")
+    {
+        setStatusMessage(std::string("rgcache=") +
+                         (rgCacheEnabled ? "true" : "false"));
+        return true;
+    }
+    if(opt == "rgupdate?")
+    {
+        setStatusMessage("rgupdate=" + std::to_string(rgUpdateMs));
+        return true;
+    }
+#endif
     if(opt == "status.lspgap?")
     {
         setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
@@ -494,12 +507,22 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "gitignore")
     {
         respectGitignore = true;
+#ifdef UVIM_ENABLE_RG_CACHE
+        rgCacheLoaded = false;
+        rgCachedFiles.clear();
+        rgCacheLineIndex.clear();
+#endif
         setStatusMessage("gitignore=true");
         return true;
     }
     if(opt == "nogitignore")
     {
         respectGitignore = false;
+#ifdef UVIM_ENABLE_RG_CACHE
+        rgCacheLoaded = false;
+        rgCachedFiles.clear();
+        rgCacheLineIndex.clear();
+#endif
         setStatusMessage("gitignore=false");
         return true;
     }
@@ -549,6 +572,71 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         setStatusMessage("filebrowser.fuzzy=false");
         return true;
     }
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(opt == "rgcache")
+    {
+        rgCacheEnabled = true;
+        rgCacheLoaded = false;
+        rgCacheLineIndex.clear();
+        setStatusMessage("rgcache=true");
+        return true;
+    }
+    if(opt == "norgcache")
+    {
+        rgCacheEnabled = false;
+        rgCacheLoaded = false;
+        rgCachedFiles.clear();
+        rgCacheLineIndex.clear();
+        setStatusMessage("rgcache=false");
+        return true;
+    }
+    if(opt.rfind("rgcache=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("rgcache=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            rgCacheEnabled = true;
+            rgCacheLoaded = false;
+            rgCacheLineIndex.clear();
+            setStatusMessage("rgcache=true");
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            rgCacheEnabled = false;
+            rgCacheLoaded = false;
+            rgCachedFiles.clear();
+            rgCacheLineIndex.clear();
+            setStatusMessage("rgcache=false");
+        }
+        else
+        {
+            setStatusMessage("rgcache: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("rgupdate=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("rgupdate=").length());
+        try
+        {
+            int ms = std::stoi(value);
+            if(ms >= 0 && ms <= 5000)
+            {
+                rgUpdateMs = ms;
+                setStatusMessage("rgupdate=" + std::to_string(rgUpdateMs));
+            }
+            else
+            {
+                setStatusMessage("rgupdate: expected 0-5000");
+            }
+        }
+        catch(...)
+        {
+            setStatusMessage("rgupdate: expected number");
+        }
+        return true;
+    }
+#endif
     if(opt == "commandline.messageprefix")
     {
         commandLineMessagePrefix = true;

@@ -12,6 +12,7 @@ namespace
 {
 mla::log::FileLogger LSP_LOG("CLANGD");
 
+#ifdef _WIN32
 std::string path_for_clangd_glob(std::filesystem::path path)
 {
     std::string out = path.lexically_normal().string();
@@ -21,6 +22,63 @@ std::string path_for_clangd_glob(std::filesystem::path path)
             c = '/';
     }
     return out;
+}
+#endif
+
+std::string detect_compile_commands_dir(const std::string& rootDir)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path root(rootDir);
+    fs::path direct = root / "compile_commands.json";
+    if(fs::exists(direct, ec) && fs::is_regular_file(direct, ec))
+        return root.string();
+
+    const std::vector<fs::path> buildDirs = {
+        "build",
+        "build-debug",
+        "build-release",
+        "build_Debug",
+        "build_Release",
+        "Debug",
+        "Release",
+        "cmake-build-debug",
+        "cmake-build-release",
+        fs::path("out") / "build",
+    };
+    for(const fs::path& buildDir : buildDirs)
+    {
+        fs::path cc = root / buildDir / "compile_commands.json";
+        if(fs::exists(cc, ec) && fs::is_regular_file(cc, ec))
+            return cc.parent_path().string();
+        ec.clear();
+    }
+
+    fs::recursive_directory_iterator it(
+        root, fs::directory_options::skip_permission_denied, ec);
+    fs::recursive_directory_iterator end;
+    for(; it != end; it.increment(ec))
+    {
+        if(ec)
+        {
+            ec.clear();
+            continue;
+        }
+        const fs::path p = it->path();
+        if(it->is_directory(ec))
+        {
+            const std::string name = p.filename().string();
+            if(name == ".git" || name == ".uvim")
+                it.disable_recursion_pending();
+            continue;
+        }
+        if(!it->is_regular_file(ec))
+            continue;
+        if(p.filename() == "compile_commands.json")
+            return p.parent_path().string();
+    }
+
+    return {};
 }
 } // namespace
 
@@ -63,18 +121,9 @@ void Editor::enableClangdLspImpl(bool enable,
 
     // Auto-detect compile_commands.json if caller didn't specify --ccdir
     std::string ccdir = clangdLspCompileCommandsDir;
-    auto exists = [](const std::string& p)
-    {
-        std::error_code ec;
-        return std::filesystem::exists(p, ec);
-    };
-
     if(ccdir.empty())
     {
-        if(exists(rootDir + "/compile_commands.json"))
-            ccdir = rootDir;
-        else if(exists(rootDir + "/build/compile_commands.json"))
-            ccdir = rootDir + "/build";
+        ccdir = detect_compile_commands_dir(rootDir);
     }
 
     // If not provided, use a conservative default query-driver allowlist so

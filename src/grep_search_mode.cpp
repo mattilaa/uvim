@@ -15,6 +15,9 @@
 #include <filesystem>
 #include <fstream>
 #include <limits.h>
+#include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace editor::statemachine
 {
@@ -62,6 +65,14 @@ bool ripgrepAvailable()
     return available;
 }
 
+bool isRgCachePath(std::string_view path)
+{
+    return path == ".rg" || path.rfind(".rg/", 0) == 0 ||
+           path.rfind(".rg\\", 0) == 0 ||
+           text_utils::is_found(path.find("/.rg/")) ||
+           text_utils::is_found(path.find("\\.rg\\"));
+}
+
 std::vector<std::string> splitNul(const std::string& s)
 {
     std::vector<std::string> out;
@@ -101,6 +112,70 @@ std::string truncatePathMiddle(std::string path, int width)
     return prefix + suffix;
 }
 
+bool isAsciiText(std::string_view text)
+{
+    return std::all_of(text.begin(), text.end(), [](unsigned char ch)
+                       { return ch < 0x80; });
+}
+
+std::string truncateDisplayText(std::string_view text, int width)
+{
+    if(width <= 0)
+        return "";
+
+    if(isAsciiText(text))
+    {
+        if((int)text.size() <= width)
+            return std::string(text);
+        if(width <= 3)
+            return std::string(width, '.');
+        std::string out(text.substr(0, width - 3));
+        out += "...";
+        return out;
+    }
+
+    if(text_utils::utf8DisplayWidth(text) <= width)
+        return std::string(text);
+    if(width <= 3)
+        return std::string(width, '.');
+
+    const int targetWidth = width - 3;
+    std::string out;
+    out.reserve(std::min<size_t>(text.size(), (size_t)width));
+
+    std::mbstate_t state{};
+    const char* cursor = text.data();
+    size_t remaining = text.size();
+    int outWidth = 0;
+
+    while(remaining > 0)
+    {
+        wchar_t wc = 0;
+        size_t n = std::mbrtowc(&wc, cursor, remaining, &state);
+        if(n == 0)
+            break;
+        if(n == static_cast<size_t>(-1) || n == static_cast<size_t>(-2))
+        {
+            n = 1;
+            std::mbstate_t reset{};
+            state = reset;
+        }
+
+        const int charWidth =
+            text_utils::utf8DisplayWidth(std::string_view(cursor, n));
+        if(outWidth + charWidth > targetWidth)
+            break;
+
+        out.append(cursor, n);
+        outWidth += charWidth;
+        cursor += n;
+        remaining -= n;
+    }
+
+    out += "...";
+    return out;
+}
+
 std::string singleLinePasteText(std::string text)
 {
     text.erase(std::remove_if(text.begin(), text.end(),
@@ -108,6 +183,180 @@ std::string singleLinePasteText(std::string text)
                text.end());
     return text;
 }
+
+#ifdef UVIM_ENABLE_RG_CACHE
+struct RgCacheMeta
+{
+    uintmax_t size = 0;
+    long long mtime = 0;
+    std::string cacheName;
+};
+
+std::string fnv1aHex(std::string_view input)
+{
+    uint64_t hash = 1469598103934665603ull;
+    for(unsigned char c : input)
+    {
+        hash ^= c;
+        hash *= 1099511628211ull;
+    }
+    std::ostringstream out;
+    out << std::hex << hash;
+    return out.str();
+}
+
+long long fileMtimeCount(const std::filesystem::path& path)
+{
+    std::error_code ec;
+    auto time = std::filesystem::last_write_time(path, ec);
+    if(ec)
+        return 0;
+    return static_cast<long long>(time.time_since_epoch().count());
+}
+
+std::filesystem::path rgCacheRoot()
+{
+    std::error_code ec;
+    auto cwd = std::filesystem::current_path(ec);
+    if(ec)
+        return {};
+    return cwd / ".rg";
+}
+
+std::unordered_map<std::string, RgCacheMeta>
+loadRgCacheIndex(const std::filesystem::path& indexPath)
+{
+    std::unordered_map<std::string, RgCacheMeta> out;
+    std::ifstream file(indexPath);
+    if(!file)
+        return out;
+
+    std::string line;
+    while(std::getline(file, line))
+    {
+        std::stringstream ss(line);
+        std::string path;
+        std::string sizeText;
+        std::string mtimeText;
+        std::string cacheName;
+        if(!std::getline(ss, path, '\t') || !std::getline(ss, sizeText, '\t') ||
+           !std::getline(ss, mtimeText, '\t') ||
+           !std::getline(ss, cacheName, '\t'))
+        {
+            continue;
+        }
+        try
+        {
+            RgCacheMeta meta;
+            meta.size = static_cast<uintmax_t>(std::stoull(sizeText));
+            meta.mtime = std::stoll(mtimeText);
+            meta.cacheName = cacheName;
+            out[path] = std::move(meta);
+        }
+        catch(...)
+        {
+        }
+    }
+    return out;
+}
+
+bool readCachedLines(const std::filesystem::path& path,
+                     std::vector<std::string>& lines)
+{
+    std::ifstream file(path);
+    if(!file)
+        return false;
+    lines.clear();
+    std::string line;
+    while(std::getline(file, line))
+        lines.push_back(line);
+    return true;
+}
+
+bool copyFileToCache(const std::filesystem::path& source,
+                     const std::filesystem::path& target)
+{
+    std::error_code ec;
+    std::filesystem::copy_file(
+        source, target, std::filesystem::copy_options::overwrite_existing, ec);
+    return !ec;
+}
+
+std::vector<std::string> makeLowerLines(const std::vector<std::string>& lines)
+{
+    std::vector<std::string> lowered;
+    lowered.reserve(lines.size());
+    for(const auto& line : lines)
+        lowered.push_back(toLower(line));
+    return lowered;
+}
+
+void addRgCacheLineTokens(Editor& editor, std::string_view line, int fileIndex,
+                          int lineIndex)
+{
+    std::unordered_set<std::string> seen;
+    for(size_t i = 0; i < line.size(); ++i)
+    {
+        const size_t maxLen = std::min<size_t>(3, line.size() - i);
+        for(size_t len = 1; len <= maxLen; ++len)
+        {
+            std::string token(line.substr(i, len));
+            if(seen.insert(token).second)
+            {
+                editor.rgCacheLineIndex[std::move(token)].push_back(
+                    Editor::RgCacheLineRef{fileIndex, lineIndex});
+            }
+        }
+    }
+}
+
+void rebuildRgCacheLineIndex(Editor& editor)
+{
+    editor.rgCacheLineIndex.clear();
+    for(size_t fileIndex = 0; fileIndex < editor.rgCachedFiles.size();
+        ++fileIndex)
+    {
+        const auto& cached = editor.rgCachedFiles[fileIndex];
+        for(size_t lineIndex = 0; lineIndex < cached.lowerLines.size();
+            ++lineIndex)
+        {
+            addRgCacheLineTokens(editor, cached.lowerLines[lineIndex],
+                                 static_cast<int>(fileIndex),
+                                 static_cast<int>(lineIndex));
+        }
+    }
+}
+
+std::string rgCacheLookupToken(const Editor& editor, std::string_view needle)
+{
+    if(needle.size() <= 3)
+        return std::string(needle);
+
+    std::string best(needle.substr(0, 3));
+    size_t bestSize = std::numeric_limits<size_t>::max();
+    for(size_t i = 0; i + 3 <= needle.size(); ++i)
+    {
+        std::string token(needle.substr(i, 3));
+        auto it = editor.rgCacheLineIndex.find(token);
+        const size_t size =
+            it == editor.rgCacheLineIndex.end() ? 0 : it->second.size();
+        if(size < bestSize)
+        {
+            best = std::move(token);
+            bestSize = size;
+            if(bestSize == 0)
+                break;
+        }
+    }
+    return best;
+}
+
+void clearGrepCachedQueryState(GrepSearchMode& mode)
+{
+    mode.lastCachedQuery.clear();
+    mode.lastCachedMatches.clear();
+}
+#endif
 } // namespace
 
 // ============================================================================
@@ -122,6 +371,13 @@ void GrepSearchMode::on_enter(ModeContext& ctx)
 
     // Set cursor to bar for input
     Terminal::setCursorBarBlinking();
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(ed->rgCacheEnabled)
+    {
+        draw(*ed);
+        syncRgCache(*ed, false);
+    }
+#endif
 }
 
 void GrepSearchMode::on_exit(ModeContext& /* ctx */)
@@ -152,6 +408,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 
     if(c == keyCode(control::ControlKey::ENTER))
     {
+        flushPendingSearch(*ed);
         if(!selectedMatches.empty() ? openSelected(*ed) : selectMatch(*ed))
         {
             return defaultExitMode(ed);
@@ -209,7 +466,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
         if(!text.empty())
         {
             query += text;
-            performSearch(*ed);
+            scheduleSearch(*ed);
             cursor = 0;
             offset = 0;
         }
@@ -249,8 +506,10 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     return std::nullopt;
 }
 
-void GrepSearchMode::draw(Editor& editor) const
+void GrepSearchMode::draw(Editor& editor)
 {
+    processIdle(editor);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
@@ -269,7 +528,13 @@ void GrepSearchMode::draw(Editor& editor) const
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    if(searching)
+    if(searchPending)
+    {
+        output += editor.theme.uiWarning();
+        output += " (typing...)";
+        output += editor.theme.baseFg();
+    }
+    else if(searching)
     {
         output += editor.theme.uiWarning();
         output += " (searching...)";
@@ -297,6 +562,40 @@ void GrepSearchMode::draw(Editor& editor) const
     {
         output += " [gitignore]";
     }
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(editor.rgCacheEnabled)
+    {
+        output += " [rgcache ";
+        if(rgCacheIndexing)
+        {
+            const int percent =
+                rgCacheTotal > 0 ? (rgCacheIndexed * 100) / rgCacheTotal : 0;
+            output += "indexing " + std::to_string(percent) + "%";
+            output += " active jobs " + std::to_string(rgCacheJobs);
+            if(rgCacheTotal > 0)
+            {
+                output += " files " + std::to_string(rgCacheIndexed) + "/" +
+                          std::to_string(rgCacheTotal);
+            }
+            else
+            {
+                output += " discovering";
+            }
+            if(rgCacheUpdated > 0)
+                output += " updated " + std::to_string(rgCacheUpdated);
+            if(rgCacheRemoved > 0)
+                output += " removed " + std::to_string(rgCacheRemoved);
+        }
+        else
+        {
+            output += "idle active jobs 0 indexed files " +
+                      std::to_string(editor.rgCachedFiles.size());
+            if(rgCacheTotal > 0)
+                output += "/" + std::to_string(rgCacheTotal);
+        }
+        output += "]";
+    }
+#endif
     if(!selectedMatches.empty())
     {
         output += " (" + std::to_string(selectedMatches.size()) + " selected)";
@@ -304,6 +603,20 @@ void GrepSearchMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     int availableRows = grepSearchVisibleRows(editor);
+    const std::string lowerQuery = toLower(query);
+
+    std::string cwdPrefix;
+    std::error_code cwdEc;
+    auto cwd = std::filesystem::current_path(cwdEc);
+    if(!cwdEc)
+    {
+        cwdPrefix = cwd.string();
+        if(!cwdPrefix.empty() && cwdPrefix.back() != '/' &&
+           cwdPrefix.back() != '\\')
+        {
+            cwdPrefix += std::filesystem::path::preferred_separator;
+        }
+    }
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
@@ -332,14 +645,8 @@ void GrepSearchMode::draw(Editor& editor) const
 
         output += editor.theme.uiInfo();
         std::string displayName = match.filepath;
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-        {
-            const std::string cwdStr = cwd.string();
-            if(displayName.find(cwdStr) == 0)
-                displayName = displayName.substr(cwdStr.length() + 1);
-        }
+        if(!cwdPrefix.empty() && displayName.rfind(cwdPrefix, 0) == 0)
+            displayName = displayName.substr(cwdPrefix.length());
 
         const std::string lineNumber = std::to_string(match.lineNumber);
         const int rowPrefixWidth = 2;
@@ -354,6 +661,7 @@ void GrepSearchMode::draw(Editor& editor) const
                                 separatorsWidth - (int)lineNumber.length());
 
         displayName = truncatePathMiddle(displayName, pathWidth);
+        const int displayNameWidth = text_utils::utf8DisplayWidth(displayName);
         output += displayName;
         output += editor.theme.baseFg();
 
@@ -363,30 +671,18 @@ void GrepSearchMode::draw(Editor& editor) const
         output += editor.theme.baseFg();
         output += ": ";
 
-        std::string content = match.lineContent;
         int maxContentLen = editor.screenCols - rowPrefixWidth -
-                            text_utils::utf8DisplayWidth(displayName) -
-                            separatorsWidth - (int)lineNumber.length();
+                            displayNameWidth - separatorsWidth -
+                            (int)lineNumber.length();
         if(maxContentLen < 0)
             maxContentLen = 0;
 
-        if(text_utils::utf8DisplayWidth(content) > maxContentLen)
-        {
-            if(maxContentLen <= 3)
-                content = std::string(std::max(0, maxContentLen), '.');
-            else
-            {
-                while(!content.empty() &&
-                      text_utils::utf8DisplayWidth(content) > maxContentLen - 3)
-                    content.pop_back();
-                content += "...";
-            }
-        }
+        std::string content =
+            truncateDisplayText(match.lineContent, maxContentLen);
 
         if(!match.highlightRanges.empty() && index != cursor)
         {
             std::string lowerContent = toLower(content);
-            std::string lowerQuery = toLower(query);
 
             size_t pos = lowerContent.find(lowerQuery);
             if(text_utils::is_found(pos))
@@ -422,6 +718,19 @@ void GrepSearchMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
+bool GrepSearchMode::processIdle(Editor& editor)
+{
+    if(!searchPending)
+        return false;
+
+    const auto now = std::chrono::steady_clock::now();
+    if(now < searchDueAt)
+        return false;
+
+    flushPendingSearch(editor);
+    return true;
+}
+
 void GrepSearchMode::loadFileIndex(Editor& editor)
 {
     if(!editor.grepFileIndexInitialized)
@@ -447,6 +756,8 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
                     for(const auto& relPath : relPaths)
                     {
                         if(relPath.empty())
+                            continue;
+                        if(isRgCachePath(relPath))
                             continue;
 
                         const std::string fullPath = cwdStr + "/" + relPath;
@@ -492,6 +803,12 @@ void GrepSearchMode::loadFileIndex(Editor& editor)
                 }
                 editor::helper::collectProjectFileEntries(
                     cwdStr, 0, gitignore, editor.grepProjectFiles);
+                editor.grepProjectFiles.erase(
+                    std::remove_if(editor.grepProjectFiles.begin(),
+                                   editor.grepProjectFiles.end(),
+                                   [](const FileEntry& entry)
+                                   { return isRgCachePath(entry.path); }),
+                    editor.grepProjectFiles.end());
             }
         }
         editor.grepFileIndexInitialized = true;
@@ -509,6 +826,13 @@ void GrepSearchMode::refreshFileIndex(Editor& editor)
 {
     editor.grepFileIndexInitialized = false;
     editor.grepProjectFiles.clear();
+#ifdef UVIM_ENABLE_RG_CACHE
+    editor.rgCacheLoaded = false;
+    editor.rgCachedFiles.clear();
+    editor.rgCacheLineIndex.clear();
+    clearGrepCachedQueryState(*this);
+    lastRgCacheIndexRefresh = {};
+#endif
     loadFileIndex(editor);
     cursor = 0;
     offset = 0;
@@ -524,6 +848,7 @@ void GrepSearchMode::refreshFileIndex(Editor& editor)
 
 void GrepSearchMode::performSearch(Editor& editor)
 {
+    searchPending = false;
     matches.clear();
     selectedMatches.clear();
     searching = true;
@@ -533,6 +858,19 @@ void GrepSearchMode::performSearch(Editor& editor)
         searching = false;
         return;
     }
+
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(performCachedSearch(editor))
+    {
+        searching = false;
+        if(cursor >= (int)matches.size())
+        {
+            cursor = 0;
+            offset = 0;
+        }
+        return;
+    }
+#endif
 
     if(performRipgrepSearch(editor))
     {
@@ -550,6 +888,8 @@ void GrepSearchMode::performSearch(Editor& editor)
     {
         if(file.isDirectory)
             continue;
+        if(isRgCachePath(file.path))
+            continue;
 
         searchInFile(file.path, query);
 
@@ -566,8 +906,341 @@ void GrepSearchMode::performSearch(Editor& editor)
     }
 }
 
+void GrepSearchMode::scheduleSearch(Editor& editor)
+{
+    if(query.empty())
+    {
+        performSearch(editor);
+        editor.needsFullRedraw = true;
+        return;
+    }
+    searchPending = true;
+    searching = false;
+    searchDueAt = std::chrono::steady_clock::now() +
+                  std::chrono::milliseconds(std::max(0, editor.rgUpdateMs));
+    editor.needsFullRedraw = true;
+}
+
+void GrepSearchMode::flushPendingSearch(Editor& editor)
+{
+    if(!searchPending)
+        return;
+    performSearch(editor);
+    cursor = 0;
+    offset = 0;
+    editor.needsFullRedraw = true;
+}
+
+#ifdef UVIM_ENABLE_RG_CACHE
+bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
+{
+    if(!editor.rgCacheEnabled)
+        return false;
+
+    auto cacheRoot = rgCacheRoot();
+    if(cacheRoot.empty())
+        return false;
+    const auto filesDir = cacheRoot / "files";
+    const auto indexPath = cacheRoot / "index.tsv";
+
+    const bool refreshFileIndex =
+        force || !editor.grepFileIndexInitialized || !editor.rgCacheLoaded;
+
+    if(editor.rgCacheLoaded && !refreshFileIndex)
+        return true;
+
+    rgCacheIndexing = true;
+    rgCacheIndexed = 0;
+    rgCacheTotal = 0;
+    rgCacheUpdated = 0;
+    rgCacheRemoved = 0;
+    rgCacheJobs = 1;
+    draw(editor);
+    Terminal::flush();
+
+    if(refreshFileIndex)
+    {
+        editor.grepFileIndexInitialized = false;
+        editor.grepProjectFiles.clear();
+        lastRgCacheIndexRefresh = std::chrono::steady_clock::now();
+    }
+    loadFileIndex(editor);
+
+    std::error_code ec;
+    std::filesystem::create_directories(filesDir, ec);
+    if(ec)
+        return false;
+
+    auto oldIndex = loadRgCacheIndex(indexPath);
+    std::unordered_map<std::string, const Editor::RgCachedFile*> existing;
+    for(const auto& cached : editor.rgCachedFiles)
+        existing[cached.path] = &cached;
+
+    std::vector<Editor::RgCachedFile> cachedFiles;
+    std::vector<std::pair<std::string, RgCacheMeta>> newIndex;
+    std::unordered_set<std::string> liveCacheNames;
+
+    struct PendingFile
+    {
+        std::string path;
+        std::filesystem::path sourcePath;
+        std::filesystem::path cacheFile;
+        uintmax_t size = 0;
+        long long mtime = 0;
+        std::string cacheName;
+    };
+
+    std::vector<PendingFile> pendingFiles;
+    for(const auto& file : editor.grepProjectFiles)
+    {
+        if(file.isDirectory || isRgCachePath(file.path) || !isTextFile(file.path))
+            continue;
+
+        const std::filesystem::path displayPath(file.path);
+        std::filesystem::path sourcePath = displayPath;
+        if(sourcePath.is_relative())
+            sourcePath = std::filesystem::current_path() / sourcePath;
+
+        std::error_code stEc;
+        const auto status = std::filesystem::status(sourcePath, stEc);
+        if(stEc || !std::filesystem::is_regular_file(status))
+            continue;
+
+        std::error_code sizeEc;
+        const uintmax_t size = std::filesystem::file_size(sourcePath, sizeEc);
+        if(sizeEc)
+            continue;
+        const long long mtime = fileMtimeCount(sourcePath);
+        const std::string cacheName = fnv1aHex(file.path) + ".txt";
+        const std::filesystem::path cacheFile = filesDir / cacheName;
+
+        pendingFiles.push_back(
+            PendingFile{file.path, sourcePath, cacheFile, size, mtime, cacheName});
+    }
+
+    rgCacheIndexed = 0;
+    rgCacheTotal = static_cast<int>(pendingFiles.size());
+    rgCacheJobs = rgCacheTotal > 0 ? 1 : 0;
+    draw(editor);
+    Terminal::flush();
+    auto lastProgressDraw = std::chrono::steady_clock::now();
+
+    for(const auto& pending : pendingFiles)
+    {
+        rgCacheIndexed++;
+
+        Editor::RgCachedFile cached;
+        cached.path = pending.path;
+        cached.size = pending.size;
+        cached.mtime = pending.mtime;
+
+        bool loaded = false;
+        auto current = existing.find(pending.path);
+        if(current != existing.end() && current->second->size == pending.size &&
+           current->second->mtime == pending.mtime)
+        {
+            cached.lines = current->second->lines;
+            cached.lowerLines = current->second->lowerLines;
+            loaded = true;
+        }
+
+        auto old = oldIndex.find(pending.path);
+        if(!loaded && old != oldIndex.end() && old->second.size == pending.size &&
+           old->second.mtime == pending.mtime &&
+           old->second.cacheName == pending.cacheName)
+        {
+            loaded = readCachedLines(pending.cacheFile, cached.lines);
+        }
+
+        if(!loaded)
+        {
+            if(!readCachedLines(pending.sourcePath, cached.lines))
+                continue;
+            copyFileToCache(pending.sourcePath, pending.cacheFile);
+            rgCacheUpdated++;
+        }
+        if(cached.lowerLines.size() != cached.lines.size())
+            cached.lowerLines = makeLowerLines(cached.lines);
+
+        RgCacheMeta meta;
+        meta.size = pending.size;
+        meta.mtime = pending.mtime;
+        meta.cacheName = pending.cacheName;
+        newIndex.emplace_back(pending.path, meta);
+        liveCacheNames.insert(pending.cacheName);
+        cachedFiles.push_back(std::move(cached));
+
+        const auto drawNow = std::chrono::steady_clock::now();
+        if(rgCacheIndexed == rgCacheTotal ||
+           drawNow - lastProgressDraw >= std::chrono::seconds(1))
+        {
+            draw(editor);
+            Terminal::flush();
+            lastProgressDraw = drawNow;
+        }
+    }
+
+    std::ofstream indexOut(indexPath, std::ios::trunc);
+    if(indexOut)
+    {
+        for(const auto& [path, meta] : newIndex)
+        {
+            indexOut << path << '\t' << meta.size << '\t' << meta.mtime << '\t'
+                     << meta.cacheName << '\n';
+        }
+    }
+
+    std::error_code iterEc;
+    for(const auto& entry : std::filesystem::directory_iterator(filesDir, iterEc))
+    {
+        if(iterEc)
+            break;
+        if(!entry.is_regular_file())
+            continue;
+        const std::string name = entry.path().filename().string();
+        if(liveCacheNames.find(name) == liveCacheNames.end())
+        {
+            std::error_code removeEc;
+            std::filesystem::remove(entry.path(), removeEc);
+            if(!removeEc)
+                rgCacheRemoved++;
+        }
+    }
+
+    editor.rgCachedFiles = std::move(cachedFiles);
+    rebuildRgCacheLineIndex(editor);
+    editor.rgCacheLoaded = true;
+    rgCacheIndexing = false;
+    rgCacheJobs = 0;
+    draw(editor);
+    Terminal::flush();
+
+    return true;
+}
+
+bool GrepSearchMode::performCachedSearch(Editor& editor)
+{
+    if(!syncRgCache(editor, false))
+        return false;
+
+    if(query.size() < 2)
+    {
+        matches.clear();
+        lastCachedQuery = query;
+        lastCachedCaseSensitive = caseSensitive;
+        lastCachedMatches.clear();
+        return true;
+    }
+
+    std::string loweredNeedle;
+    std::string_view searchNeedle = query;
+    if(!caseSensitive)
+    {
+        loweredNeedle = toLower(query);
+        searchNeedle = loweredNeedle;
+    }
+
+    if(lastCachedCaseSensitive == caseSensitive &&
+       query.size() > lastCachedQuery.size() &&
+       query.rfind(lastCachedQuery, 0) == 0 && !lastCachedMatches.empty())
+    {
+        std::vector<GrepMatch> filtered;
+        filtered.reserve(std::min<size_t>(lastCachedMatches.size(), 1000));
+        for(auto match : lastCachedMatches)
+        {
+            std::string haystack =
+                caseSensitive ? match.lineContent : toLower(match.lineContent);
+            const size_t pos = haystack.find(searchNeedle);
+            if(text_utils::is_not_found(pos))
+                continue;
+
+            match.highlightRanges.clear();
+            match.highlightRanges.push_back(
+                std::make_pair(static_cast<int>(pos), (int)query.length()));
+            filtered.push_back(std::move(match));
+            if(filtered.size() >= 1000)
+                break;
+        }
+        matches = std::move(filtered);
+        lastCachedQuery = query;
+        lastCachedCaseSensitive = caseSensitive;
+        lastCachedMatches = matches;
+        return true;
+    }
+
+    auto addLineMatches = [&](const auto& cached, int lineIndex,
+                              std::string_view haystack) {
+        const std::string& line = cached.lines[static_cast<size_t>(lineIndex)];
+        auto foundPositions = text_utils::find_cursor(haystack, searchNeedle);
+        size_t pos = 0;
+        while(foundPositions.next(pos))
+        {
+            GrepMatch match;
+            match.filepath = cached.path;
+            match.filename = text_utils::basename(cached.path);
+            match.lineNumber = lineIndex + 1;
+            match.lineContent = trimString(line);
+            match.highlightRanges.push_back(
+                std::make_pair((int)pos, (int)query.length()));
+            matches.push_back(std::move(match));
+            if(matches.size() >= 1000)
+                return false;
+        }
+        return true;
+    };
+
+    const std::string lookupToken = rgCacheLookupToken(editor, searchNeedle);
+    auto indexed = editor.rgCacheLineIndex.find(lookupToken);
+    if(indexed != editor.rgCacheLineIndex.end())
+    {
+        for(const auto& ref : indexed->second)
+        {
+            if(ref.fileIndex < 0 ||
+               ref.fileIndex >= static_cast<int>(editor.rgCachedFiles.size()))
+                continue;
+            const auto& cached =
+                editor.rgCachedFiles[static_cast<size_t>(ref.fileIndex)];
+            if(ref.lineIndex < 0 ||
+               ref.lineIndex >= static_cast<int>(cached.lines.size()))
+                continue;
+
+            std::string_view haystack =
+                caseSensitive
+                    ? std::string_view(cached.lines[static_cast<size_t>(
+                          ref.lineIndex)])
+                    : std::string_view(cached.lowerLines[static_cast<size_t>(
+                          ref.lineIndex)]);
+            if(!addLineMatches(cached, ref.lineIndex, haystack))
+            {
+                lastCachedQuery = query;
+                lastCachedCaseSensitive = caseSensitive;
+                lastCachedMatches = matches;
+                return true;
+            }
+        }
+        lastCachedQuery = query;
+        lastCachedCaseSensitive = caseSensitive;
+        lastCachedMatches = matches;
+        return true;
+    }
+
+    lastCachedQuery = query;
+    lastCachedCaseSensitive = caseSensitive;
+    lastCachedMatches.clear();
+    return true;
+}
+#endif
+
 bool GrepSearchMode::performRipgrepSearch(Editor& editor)
 {
+#ifdef _WIN32
+    // Windows _popen waits for the child process in _pclose. Because ripgrep's
+    // --max-count is per file, uvim can stop reading after 1000 matches while
+    // rg keeps scanning the rest of the tree, making interactive Ctrl-S appear
+    // frozen. The in-process fallback has a real global match cap.
+    (void)editor;
+    return false;
+#else
     if(!ripgrepAvailable())
         return false;
 
@@ -583,6 +1256,8 @@ bool GrepSearchMode::performRipgrepSearch(Editor& editor)
         "--hidden",
         "--glob",
         "!.git/*",
+        "--glob",
+        "!.rg/*",
         "--max-count",
         "1000",
     };
@@ -639,6 +1314,7 @@ bool GrepSearchMode::performRipgrepSearch(Editor& editor)
     }
 
     return true;
+#endif
 }
 
 void GrepSearchMode::searchInFile(const std::string& filepath,
@@ -871,7 +1547,7 @@ void GrepSearchMode::searchAddChar(Editor& editor, char c)
         Terminal::unreadKey(next);
         break;
     }
-    performSearch(editor);
+    scheduleSearch(editor);
     cursor = 0;
     offset = 0;
 }
@@ -881,7 +1557,7 @@ void GrepSearchMode::searchBackspace(Editor& editor)
     if(!query.empty())
     {
         query.pop_back();
-        performSearch(editor);
+        scheduleSearch(editor);
         cursor = 0;
         offset = 0;
     }
@@ -893,18 +1569,22 @@ void GrepSearchMode::searchDeleteWord(Editor& editor)
         query.pop_back();
     while(!query.empty() && query.back() != keyCode(control::ControlKey::SPACE))
         query.pop_back();
-    performSearch(editor);
+    scheduleSearch(editor);
     cursor = 0;
     offset = 0;
 }
 
 void GrepSearchMode::searchClear()
 {
+    searchPending = false;
     query.clear();
     matches.clear();
     selectedMatches.clear();
     cursor = 0;
     offset = 0;
+#ifdef UVIM_ENABLE_RG_CACHE
+    clearGrepCachedQueryState(*this);
+#endif
 }
 
 void GrepSearchMode::toggleGitignore(Editor& editor)
@@ -914,6 +1594,13 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
     editor.respectGitignore = !editor.respectGitignore;
     editor.grepFileIndexInitialized = false;
     editor.grepProjectFiles.clear();
+#ifdef UVIM_ENABLE_RG_CACHE
+    editor.rgCacheLoaded = false;
+    editor.rgCachedFiles.clear();
+    editor.rgCacheLineIndex.clear();
+    clearGrepCachedQueryState(*this);
+    lastRgCacheIndexRefresh = {};
+#endif
     cursor = 0;
     offset = 0;
     selectedMatches.clear();

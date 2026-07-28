@@ -175,6 +175,27 @@ public:
     // Grep file index
     std::vector<FileEntry> grepProjectFiles; // All files in project
     bool grepFileIndexInitialized = false;
+#ifdef UVIM_ENABLE_RG_CACHE
+    struct RgCachedFile
+    {
+        std::string path;
+        uintmax_t size = 0;
+        long long mtime = 0;
+        std::vector<std::string> lines;
+        std::vector<std::string> lowerLines;
+    };
+    struct RgCacheLineRef
+    {
+        int fileIndex = 0;
+        int lineIndex = 0;
+    };
+    bool rgCacheEnabled = true;
+    int rgUpdateMs = 300;
+    bool rgCacheLoaded = false;
+    std::vector<RgCachedFile> rgCachedFiles;
+    std::unordered_map<std::string, std::vector<RgCacheLineRef>>
+        rgCacheLineIndex;
+#endif
 
     bool respectGitignore = true;
     bool useGitFileIndex = true;

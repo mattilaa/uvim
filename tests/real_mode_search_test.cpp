@@ -1,6 +1,17 @@
 #include "real_mode_test_utils.h"
 
+#include <thread>
+
 using namespace uvim_test;
+
+namespace
+{
+void flushGrepDebounce(GrepSearchMode& state, Editor& editor)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(310));
+    state.draw(editor);
+}
+} // namespace
 
 TEST(RealModeTransitionsTest, SearchPromptShowsFullTypedPattern)
 {
@@ -164,13 +175,14 @@ TEST(RealModeTransitionsTest, GrepSearchCtrlSEntersBeforeIndexing)
     sm.dispatch(keyCode(control::ControlKey::CTRL_S));
 
     EXPECT_STREQ(sm.currentStateName(), "GREP");
-    EXPECT_FALSE(editor.grepFileIndexInitialized);
+    EXPECT_TRUE(editor.grepFileIndexInitialized);
 
     for(char c : std::string("needle"))
         sm.dispatch(c);
 
     auto* state = sm.getState<GrepSearchMode>();
     ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
     ASSERT_EQ(state->matches.size(), 1u);
     EXPECT_TRUE(text_utils::is_found(state->matches[0].filepath.find("a.txt")));
 }
@@ -197,6 +209,40 @@ TEST(RealModeTransitionsTest, GrepSearchBatchesQueuedPrintableInput)
     auto* state = sm.getState<GrepSearchMode>();
     ASSERT_NE(state, nullptr);
     EXPECT_EQ(state->query, "needle");
+    flushGrepDebounce(*state, editor);
     ASSERT_EQ(state->matches.size(), 1u);
     EXPECT_FALSE(Terminal::hasBufferedKeys());
 }
+
+#ifdef UVIM_ENABLE_RG_CACHE
+TEST(RealModeTransitionsTest, GrepSearchBuildsAndUpdatesRgCache)
+{
+    auto root = make_temp_dir("uvim_rg_cache_");
+    write_file(root / "a.txt", "alpha needle\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    for(char c : std::string("needle"))
+        sm.dispatch(c);
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+    ASSERT_EQ(state->matches.size(), 1u);
+    EXPECT_TRUE(std::filesystem::exists(root / ".rg" / "index.tsv"));
+
+    write_file(root / "a.txt", "alpha\n");
+    state->refreshFileIndex(editor);
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    sm.dispatch('e');
+
+    state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+    EXPECT_TRUE(state->matches.empty());
+}
+#endif

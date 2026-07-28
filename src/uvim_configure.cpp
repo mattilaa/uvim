@@ -262,6 +262,7 @@ struct Config
     bool asmDocs = true;
     bool gitTools = true;
     bool searchTools = true;
+    bool rgCache = true;
     bool formatters = true;
     bool systemClipboard = true;
     bool structSizePopup = true;
@@ -302,6 +303,7 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.asmDocs == rhs.asmDocs &&
            lhs.gitTools == rhs.gitTools &&
            lhs.searchTools == rhs.searchTools &&
+           lhs.rgCache == rhs.rgCache &&
            lhs.formatters == rhs.formatters &&
            lhs.systemClipboard == rhs.systemClipboard &&
            lhs.structSizePopup == rhs.structSizePopup &&
@@ -654,6 +656,7 @@ void apply_feature_set(Config& cfg)
         cfg.asmDocs = false;
         cfg.gitTools = false;
         cfg.searchTools = false;
+        cfg.rgCache = false;
         cfg.formatters = false;
         cfg.systemClipboard = false;
         cfg.structSizePopup = false;
@@ -687,6 +690,7 @@ void apply_feature_set(Config& cfg)
         cfg.asmDocs = false;
         cfg.gitTools = false;
         cfg.searchTools = false;
+        cfg.rgCache = false;
         cfg.formatters = false;
         cfg.systemClipboard = false;
         cfg.structSizePopup = false;
@@ -720,6 +724,7 @@ void apply_feature_set(Config& cfg)
         cfg.asmDocs = false;
         cfg.gitTools = true;
         cfg.searchTools = true;
+        cfg.rgCache = true;
         cfg.formatters = true;
         cfg.systemClipboard = true;
         cfg.structSizePopup = false;
@@ -753,6 +758,7 @@ void apply_feature_set(Config& cfg)
         cfg.asmDocs = true;
         cfg.gitTools = true;
         cfg.searchTools = true;
+        cfg.rgCache = true;
         cfg.formatters = true;
         cfg.systemClipboard = true;
         cfg.structSizePopup = true;
@@ -784,6 +790,7 @@ void apply_feature_set(Config& cfg)
     cfg.asmDocs = true;
     cfg.gitTools = true;
     cfg.searchTools = true;
+    cfg.rgCache = true;
     cfg.formatters = true;
     cfg.systemClipboard = true;
     cfg.structSizePopup = true;
@@ -912,6 +919,14 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Build switch for fuzzy, grep, and regex search views."},
+          {ItemKind::Toggle,
+           "Ripgrep cache",
+           "UVIM_ENABLE_RG_CACHE",
+           &Config::rgCache,
+           nullptr,
+           {},
+           "Build persistent project-local grep cache support under .rg. "
+           "Runtime can still toggle it with :set rgcache/norgcache."},
           {ItemKind::Toggle,
            "Formatters",
            "UVIM_ENABLE_FORMATTERS",
@@ -1802,6 +1817,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.gitTools = parse_bool(value).value_or(cfg.gitTools);
     else if(key == "search_tools")
         cfg.searchTools = parse_bool(value).value_or(cfg.searchTools);
+    else if(key == "rg_cache")
+        cfg.rgCache = parse_bool(value).value_or(cfg.rgCache);
     else if(key == "formatters")
         cfg.formatters = parse_bool(value).value_or(cfg.formatters);
     else if(key == "system_clipboard")
@@ -1958,6 +1975,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "auxiliary_views=" << bool_value(cfg.auxiliaryViews) << "\n";
     file << "git_tools=" << bool_value(cfg.gitTools) << "\n";
     file << "search_tools=" << bool_value(cfg.searchTools) << "\n";
+    file << "rg_cache=" << bool_value(cfg.rgCache) << "\n";
     file << "formatters=" << bool_value(cfg.formatters) << "\n";
     file << "system_clipboard=" << bool_value(cfg.systemClipboard) << "\n";
     file << "struct_size_popup=" << bool_value(cfg.structSizePopup) << "\n";
@@ -2151,6 +2169,9 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
         cfg.gitTools = enabled;
     else if(equals_ci(name, "search") || equals_ci(name, "search-tools"))
         cfg.searchTools = enabled;
+    else if(equals_ci(name, "rg-cache") || equals_ci(name, "ripgrep-cache") ||
+            equals_ci(name, "grep-cache"))
+        cfg.rgCache = enabled;
     else if(equals_ci(name, "formatters") || equals_ci(name, "formatter"))
         cfg.formatters = enabled;
     else if(equals_ci(name, "clipboard") || equals_ci(name, "system-clipboard"))

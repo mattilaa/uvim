@@ -796,6 +796,15 @@ std::vector<std::string> Editor::getSetCompletionsImpl(std::string_view prefix)
         "set nofilebrowser.fuzzy",
         "set filebrowser.fuzzy?",
         "set filebrowser.fuzzy=",
+#ifdef UVIM_ENABLE_RG_CACHE
+        "set rgcache",
+        "set norgcache",
+        "set rgcache?",
+        "set rgcache=",
+        "set rgupdate?",
+        "set rgupdate=",
+        "set rgupdate=300",
+#endif
         "set status.lspgap",
         "set status.lspgap?",
         "set status.lspgap=",

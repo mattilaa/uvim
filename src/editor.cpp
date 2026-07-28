@@ -410,6 +410,38 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     fileBrowserFuzzy = false;
             }
+#ifdef UVIM_ENABLE_RG_CACHE
+            auto itrgc = values.find("editor.rgcache");
+            if(itrgc == values.end())
+                itrgc = values.find("settings.rgcache");
+            if(itrgc == values.end())
+                itrgc = values.find("rgcache");
+            if(itrgc != values.end())
+            {
+                std::string v = itrgc->second;
+                if(v == "true" || v == "1" || v == "on")
+                    rgCacheEnabled = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    rgCacheEnabled = false;
+            }
+            auto itrgu = values.find("editor.rgupdate");
+            if(itrgu == values.end())
+                itrgu = values.find("settings.rgupdate");
+            if(itrgu == values.end())
+                itrgu = values.find("rgupdate");
+            if(itrgu != values.end())
+            {
+                try
+                {
+                    int ms = std::stoi(itrgu->second);
+                    if(ms >= 0 && ms <= 5000)
+                        rgUpdateMs = ms;
+                }
+                catch(...)
+                {
+                }
+            }
+#endif
             auto itlspg = values.find("editor.status.lspgap");
             if(itlspg == values.end())
                 itlspg = values.find("settings.status.lspgap");
@@ -2209,6 +2241,11 @@ void Editor::refreshFileSearchCaches()
 #else
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
+#ifdef UVIM_ENABLE_RG_CACHE
+    rgCacheLoaded = false;
+    rgCachedFiles.clear();
+    rgCacheLineIndex.clear();
+#endif
 
     if(modeStateMachine)
     {
@@ -2636,6 +2673,16 @@ void Editor::run()
         {
             // No key pressed, check if file has changed externally
             checkFileChanges();
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+            if(modeStateMachine)
+            {
+                if(auto* grep = modeStateMachine->getState<GrepSearchMode>())
+                {
+                    if(grep->processIdle(*this))
+                        needsFullRedraw = true;
+                }
+            }
+#endif
             if(needsFullRedraw)
                 draw();
             continue;
