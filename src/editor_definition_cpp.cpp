@@ -3,6 +3,7 @@
 #include "ascii.h"
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
+#include "editor_utils.h"
 #include "text_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -19,11 +20,27 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
         const bool clangdIndexing = editor.lspClient->indexingInProgress();
         if(!clangdIndexing)
         {
-            editor.lspClient->didChange(editor.currentBuffer->filename,
-                                        bufferText(), "cpp");
+            size_t currentHash = editor::helper::hash_lines(*editor.lines);
+            if(!editor.currentBuffer->lspHashValid ||
+               editor.currentBuffer->lspSyncNeeded || *editor.dirty ||
+               currentHash != editor.currentBuffer->lspContentHash)
+            {
+                editor.lspClient->didChange(editor.currentBuffer->filename,
+                                            bufferText(), "cpp");
+                editor.currentBuffer->lspContentHash = currentHash;
+                editor.currentBuffer->lspHashValid = true;
+                editor.currentBuffer->lspSyncNeeded = false;
+            }
+
+            std::string_view lineText;
+            if(*editor.cursorY >= 0 &&
+               *editor.cursorY < static_cast<int>(editor.lines->size()))
+            {
+                lineText = (*editor.lines)[*editor.cursorY];
+            }
             auto loc = editor.lspClient->definition(
                 editor.currentBuffer->filename, *editor.cursorY,
-                *editor.cursorX);
+                *editor.cursorX, lineText);
             if(loc)
             {
                 editor.pushJumpLocation();
