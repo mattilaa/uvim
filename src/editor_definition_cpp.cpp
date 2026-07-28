@@ -16,33 +16,38 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
     if(editor.isClangdLspEnabled() && editor.getFileType() == FileType::Cpp &&
        editor.lspClient)
     {
-        editor.lspClient->didChange(editor.currentBuffer->filename,
-                                    bufferText(), "cpp");
-        auto loc = editor.lspClient->definition(
-            editor.currentBuffer->filename, *editor.cursorY, *editor.cursorX);
-        if(loc)
+        const bool clangdIndexing = editor.lspClient->indexingInProgress();
+        if(!clangdIndexing)
         {
-            editor.pushJumpLocation();
-            editor.openFile(loc->path);
-            *editor.cursorY = loc->line;
-            *editor.cursorX = loc->character;
-            clampCursor();
-            applyViewport();
-
-            std::string displayPath = loc->path;
-            bool isSystemHeader = loc->path.find("/usr/") == 0 ||
-                                  loc->path.find("/opt/") == 0 ||
-                                  loc->path.find("/Library/") == 0 ||
-                                  loc->path.find("/Applications/") == 0;
-            if(isSystemHeader)
+            editor.lspClient->didChange(editor.currentBuffer->filename,
+                                        bufferText(), "cpp");
+            auto loc = editor.lspClient->definition(
+                editor.currentBuffer->filename, *editor.cursorY,
+                *editor.cursorX);
+            if(loc)
             {
-                displayPath =
-                    "<sys>/" + std::string(text_utils::basename(loc->path));
+                editor.pushJumpLocation();
+                editor.openFile(loc->path);
+                *editor.cursorY = loc->line;
+                *editor.cursorX = loc->character;
+                clampCursor();
+                applyViewport();
+
+                std::string displayPath = loc->path;
+                bool isSystemHeader = loc->path.find("/usr/") == 0 ||
+                                      loc->path.find("/opt/") == 0 ||
+                                      loc->path.find("/Library/") == 0 ||
+                                      loc->path.find("/Applications/") == 0;
+                if(isSystemHeader)
+                {
+                    displayPath = "<sys>/" +
+                                  std::string(text_utils::basename(loc->path));
+                }
+                editor.setStatusMessage(std::string("gd (clangd)") + gdArrow +
+                                        displayPath + ":" +
+                                        std::to_string(loc->line + 1));
+                return true;
             }
-            editor.setStatusMessage(std::string("gd (clangd)") + gdArrow +
-                                    displayPath + ":" +
-                                    std::to_string(loc->line + 1));
-            return true;
         }
     }
 #endif
@@ -108,6 +113,19 @@ bool EditorDefinitionController::goToCppDefinition(const std::string& symbol)
         editor.setStatusMessage("gd (same file)");
         return true;
     }
+
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(editor.isClangdLspEnabled() && editor.getFileType() == FileType::Cpp &&
+       editor.lspClient && editor.lspClient->indexingInProgress())
+    {
+        std::string detail = editor.lspClient->indexingStatus();
+        if(detail.empty())
+            detail = "in progress";
+        editor.setStatusMessage("gd: clangd indexing (" + detail +
+                                "), try again");
+        return true;
+    }
+#endif
 
     return false;
 }
