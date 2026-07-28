@@ -329,8 +329,79 @@ TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
                             inMarkupFence, markupFenceChar);
 
     int vecPos = (int)line.find("vector");
+    int stdPos = (int)line.find("std");
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(vecPos)));
-    EXPECT_TRUE(hasTokenAt(tokens, vecPos, 6, TOKEN_TYPE));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(stdPos)));
+    EXPECT_TRUE(hasTokenAt(tokens, stdPos, 3, TOKEN_NAMESPACE_1));
+    EXPECT_TRUE(hasTokenAt(tokens, vecPos, 6, TOKEN_NAMESPACE_4));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsCppQualifiedNamespaceSegments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+
+    const std::string line = "std::algorithm::fft(values);";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 3, TOKEN_NAMESPACE_1));
+    EXPECT_TRUE(hasTokenAt(tokens, 3, 2, TOKEN_OPERATOR));
+    EXPECT_TRUE(hasTokenAt(tokens, 5, 9, TOKEN_NAMESPACE_2));
+    EXPECT_TRUE(hasTokenAt(tokens, 14, 2, TOKEN_OPERATOR));
+    EXPECT_TRUE(hasTokenAt(tokens, 16, 3, TOKEN_NAMESPACE_4));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsCppStaticCallQualifiedSegments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+
+    const std::string line = "SomeObject::someFunction();";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 10, TOKEN_NAMESPACE_1));
+    EXPECT_TRUE(hasTokenAt(tokens, 10, 2, TOKEN_OPERATOR));
+    EXPECT_TRUE(hasTokenAt(tokens, 12, 12, TOKEN_NAMESPACE_4));
+}
+
+TEST(SyntaxHighlighterTest, CppSemanticTokensPreserveQualifiedSegments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+
+    const std::string line = "namespace::SomeClass value;";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+
+    int someClassPos = (int)line.find("SomeClass");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(someClassPos)));
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {someClassPos, 9, "class", false, false});
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    const std::string namespaceColor = editor.theme.syntax(TOKEN_NAMESPACE_4);
+    EXPECT_TRUE(text_utils::is_found(output.find(namespaceColor + "SomeClass")));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
@@ -1159,6 +1230,30 @@ TEST(SyntaxHighlighterTest, HighlightsMlangQualifiedTypeFinalSegment)
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(someClassPos)));
     EXPECT_TRUE(hasTokenAt(tokens, namespacePos, 9, TOKEN_NAMESPACE_1));
     EXPECT_TRUE(hasTokenAt(tokens, someClassPos, 9, TOKEN_NAMESPACE_4));
+}
+
+TEST(SyntaxHighlighterTest, HighlightsMlangModQualifiedNamespaceSegments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "mod std::esc;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    int stdPos = (int)line.find("std");
+    int escPos = (int)line.find("esc");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(stdPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(escPos)));
+    EXPECT_TRUE(hasTokenAt(tokens, stdPos, 3, TOKEN_NAMESPACE_1));
+    EXPECT_TRUE(hasTokenAt(tokens, escPos, 3, TOKEN_NAMESPACE_4));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsMlangTraitNameAsType)

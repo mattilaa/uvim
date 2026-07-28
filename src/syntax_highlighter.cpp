@@ -2947,7 +2947,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         return TOKEN_NAMESPACE_3;
     };
 
-    auto try_push_mlang_qualified_chain = [&](int chainStart, int& chainEnd)
+    auto try_push_qualified_chain = [&](int chainStart, int& chainEnd)
     {
         struct Segment
         {
@@ -3245,6 +3245,12 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             }
             if(isFileType<FileType::Cpp>())
             {
+                int chainEnd = i;
+                if(try_push_qualified_chain(start, chainEnd))
+                {
+                    i = chainEnd;
+                    continue;
+                }
                 if(cpp_constants::is_keyword(word))
                 {
                     push_token(TOKEN_KEYWORD, start, i - start);
@@ -3593,7 +3599,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             else if(isFileType<FileType::Mla>())
             {
                 int chainEnd = i;
-                if(try_push_mlang_qualified_chain(start, chainEnd))
+                if(try_push_qualified_chain(start, chainEnd))
                 {
                     i = chainEnd;
                     continue;
@@ -4450,12 +4456,15 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     int visiblePos = pos - start;
                     if(visiblePos >= 0 && visiblePos < len)
                     {
+                        if(charColors[visiblePos] == TOKEN_NAMESPACE_1 ||
+                           charColors[visiblePos] == TOKEN_NAMESPACE_2 ||
+                           charColors[visiblePos] == TOKEN_NAMESPACE_3 ||
+                           charColors[visiblePos] == TOKEN_NAMESPACE_4)
+                        {
+                            continue;
+                        }
                         if(!isCppSemantics && effectiveType == TOKEN_NORMAL &&
-                           (charColors[visiblePos] == TOKEN_TYPE ||
-                            charColors[visiblePos] == TOKEN_NAMESPACE_1 ||
-                            charColors[visiblePos] == TOKEN_NAMESPACE_2 ||
-                            charColors[visiblePos] == TOKEN_NAMESPACE_3 ||
-                            charColors[visiblePos] == TOKEN_NAMESPACE_4))
+                           charColors[visiblePos] == TOKEN_TYPE)
                         {
                             continue;
                         }
