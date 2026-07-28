@@ -391,10 +391,25 @@ void Editor::listBuffersImpl()
 
 int Editor::findBufferByFilenameImpl(const std::string& fname)
 {
+    auto cached = bufferIndexByFilename.find(fname);
+    if(cached != bufferIndexByFilename.end())
+    {
+        int index = cached->second;
+        if(index >= 0 && index < (int)buffers.size() && buffers[index] &&
+           buffers[index]->filename == fname)
+        {
+            return index;
+        }
+        bufferIndexByFilename.erase(cached);
+    }
+
     for(int i = 0; i < buffers.size(); i++)
     {
         if(buffers[i]->filename == fname)
+        {
+            bufferIndexByFilename[fname] = i;
             return i;
+        }
     }
     return -1;
 }

@@ -87,6 +87,7 @@ private:
     void toggleGitignore(Editor& editor);
     void togglePreview();
     void toggleSelection();
+    void prewarmAroundCursor(Editor& editor) const;
     bool openSelected(Editor& editor);
 };
 } // namespace editor::statemachine

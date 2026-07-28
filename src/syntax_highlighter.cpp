@@ -980,6 +980,16 @@ MlangConfig parse_mlangd(const std::filesystem::path& path)
 
 SyntaxHighlighter::SyntaxHighlighter(Editor* editor) : editor(editor) {}
 
+bool SyntaxHighlighter::isCppMemberIndexLoaded() const
+{
+    return cppMemberIndexLoaded;
+}
+
+void SyntaxHighlighter::ensureCppMemberIndexLoaded() const
+{
+    ensureCppMemberIndex();
+}
+
 void SyntaxHighlighter::ensureCppMemberIndex() const
 {
     if(cppMemberIndexLoaded)
@@ -1788,9 +1798,6 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     const bool isJs = isFileType<FileType::JavaScript>() ||
                       isFileType<FileType::TypeScript>();
     const bool isCss = isFileType<FileType::Css>();
-
-    if(isFileType<FileType::Cpp>() && syntaxCppHighlightTypeNames)
-        ensureCppMemberIndex();
 
     int paramListStart = -1;
     int paramListEnd = -1;
@@ -3450,6 +3457,8 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 }
                 auto is_user_type = [&](std::string_view name) -> bool
                 {
+                    if(!cppMemberIndexLoaded)
+                        return false;
                     if(cppClassNames.empty())
                         return false;
                     return cppClassNames.find(std::string(name)) !=
@@ -3589,6 +3598,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                    !inParamList &&
                    localDeclNames.find(std::string(word)) ==
                        localDeclNames.end() &&
+                   cppMemberIndexLoaded &&
                    cppMemberNames.find(std::string(word)) !=
                        cppMemberNames.end())
                 {
@@ -4148,9 +4158,6 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             buffer->syntaxCacheComputedUpTo = -1;
         }
 
-        if(isFileType<FileType::Cpp>())
-            ensureCppMemberIndex();
-
         auto compute_to = [&](int target)
         {
             int startLine = buffer->syntaxCacheComputedUpTo + 1;
@@ -4276,10 +4283,9 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             inCppParamListContext =
                 inParamListAtLineStart || lineHasParamListStart;
         }
-        if(isFileType<FileType::Cpp>() &&
+        if(isFileType<FileType::Cpp>() && cppMemberIndexLoaded &&
            editor->syntaxCppHighlightImplicitMembers)
         {
-            ensureCppMemberIndex();
             CppMethodScanState methodState;
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {

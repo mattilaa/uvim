@@ -169,6 +169,7 @@ void FuzzyFindMode::on_enter(ModeContext& ctx)
     offset = 0;
     selectedFiles.clear();
     updateMatches(*ed);
+    prewarmAroundCursor(*ed);
     ed->needsFullRedraw = true;
 
     // Set cursor to bar for input
@@ -265,6 +266,7 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
             updateMatches(*ed);
             cursor = 0;
             offset = 0;
+            prewarmAroundCursor(*ed);
         }
     }
     else if(c >= 32 && c < 127)
@@ -649,9 +651,10 @@ void FuzzyFindMode::moveDown(Editor& editor)
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
+    prewarmAroundCursor(editor);
 }
 
-void FuzzyFindMode::moveUp(Editor& /* editor */)
+void FuzzyFindMode::moveUp(Editor& editor)
 {
     if(matches.empty())
         return;
@@ -662,6 +665,7 @@ void FuzzyFindMode::moveUp(Editor& /* editor */)
         if(cursor < offset)
             offset = cursor;
     }
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::halfPageDown(Editor& editor)
@@ -676,6 +680,7 @@ void FuzzyFindMode::halfPageDown(Editor& editor)
     int visible = fuzzyFindVisibleRows(editor, filenameFirst);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::halfPageUp(Editor& editor)
@@ -689,6 +694,7 @@ void FuzzyFindMode::halfPageUp(Editor& editor)
         cursor = 0;
     if(cursor < offset)
         offset = cursor;
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::addChar(Editor& editor, char c)
@@ -697,6 +703,7 @@ void FuzzyFindMode::addChar(Editor& editor, char c)
     updateMatches(editor);
     cursor = 0;
     offset = 0;
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::backspace(Editor& editor)
@@ -707,6 +714,7 @@ void FuzzyFindMode::backspace(Editor& editor)
         updateMatches(editor);
         cursor = 0;
         offset = 0;
+        prewarmAroundCursor(editor);
     }
 }
 
@@ -719,6 +727,7 @@ void FuzzyFindMode::deleteWord(Editor& editor)
     updateMatches(editor);
     cursor = 0;
     offset = 0;
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::clearQuery(Editor& editor)
@@ -727,6 +736,7 @@ void FuzzyFindMode::clearQuery(Editor& editor)
     updateMatches(editor);
     cursor = 0;
     offset = 0;
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::toggleFilenameFirst(Editor& editor)
@@ -735,6 +745,7 @@ void FuzzyFindMode::toggleFilenameFirst(Editor& editor)
     updateMatches(editor);
     cursor = 0;
     offset = 0;
+    prewarmAroundCursor(editor);
     editor.setStatusMessage(filenameFirst ? "Fuzzy: filename first"
                                           : "Fuzzy: path first");
 }
@@ -750,6 +761,7 @@ void FuzzyFindMode::toggleGitignore(Editor& editor)
     cursor = 0;
     offset = 0;
     updateMatches(editor);
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::refreshFileIndex(Editor& editor)
@@ -760,6 +772,7 @@ void FuzzyFindMode::refreshFileIndex(Editor& editor)
     offset = 0;
     selectedFiles.clear();
     updateMatches(editor);
+    prewarmAroundCursor(editor);
 }
 
 void FuzzyFindMode::toggleSelection()
@@ -775,11 +788,32 @@ void FuzzyFindMode::toggleSelection()
         selectedFiles.insert(path);
 }
 
+void FuzzyFindMode::prewarmAroundCursor(Editor& editor) const
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return;
+
+    std::vector<std::string> paths;
+    paths.reserve(21);
+    paths.push_back(matches[cursor].file.path);
+    for(int distance = 1; distance <= 10; ++distance)
+    {
+        const int next = cursor + distance;
+        if(next < (int)matches.size())
+            paths.push_back(matches[next].file.path);
+        const int prev = cursor - distance;
+        if(prev >= 0)
+            paths.push_back(matches[prev].file.path);
+    }
+    editor.prewarmColdOpenFiles(paths);
+}
+
 bool FuzzyFindMode::select(Editor& editor)
 {
     if(cursor < 0 || cursor >= (int)matches.size())
         return false;
 
+    prewarmAroundCursor(editor);
     const FuzzyMatch& match = matches[cursor];
     editor.openFile(std::string_view(match.file.path));
     return true;
@@ -792,6 +826,7 @@ bool FuzzyFindMode::openSelected(Editor& editor)
 
     std::vector<std::string> paths(selectedFiles.begin(), selectedFiles.end());
     std::sort(paths.begin(), paths.end());
+    editor.prewarmColdOpenFiles(paths);
     for(size_t i = 0; i < paths.size(); ++i)
     {
         bool notifyLsp = (i + 1 == paths.size());

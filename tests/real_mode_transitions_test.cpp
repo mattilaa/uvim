@@ -80,6 +80,51 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
 #endif
 }
 
+TEST(RealModeTransitionsTest, ReopeningFileUsesExistingBufferCache)
+{
+    const auto root = make_temp_dir("uvim_open_cache_");
+    const auto file = root / "alpha.txt";
+    write_file(file, "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile(file.string());
+
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    const std::string canonical = std::filesystem::canonical(file).string();
+    ASSERT_EQ(editor.bufferIndexByFilename[canonical], 0);
+
+    editor.openFile((root / "." / "alpha.txt").string());
+
+    EXPECT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBufferIndex, 0);
+    EXPECT_EQ(editor.currentBuffer->filename, canonical);
+}
+
+TEST(RealModeTransitionsTest, OpenFilePromotesColdOpenCache)
+{
+    const auto root = make_temp_dir("uvim_cold_open_cache_");
+    const auto file = root / "cached.txt";
+    write_file(file, "first\nsecond\n");
+
+    Editor editor = Editor::createForTests();
+    const std::string canonical = std::filesystem::canonical(file).string();
+
+    editor.prewarmColdOpenFile(file.string());
+
+    ASSERT_EQ(editor.buffers.size(), 0u);
+    ASSERT_EQ(editor.coldOpenCache.size(), 1u);
+    ASSERT_NE(editor.coldOpenCache.find(canonical), editor.coldOpenCache.end());
+
+    editor.openFile((root / "." / "cached.txt").string(), false);
+
+    ASSERT_EQ(editor.buffers.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->filename, canonical);
+    ASSERT_EQ(editor.lines->size(), 2u);
+    EXPECT_EQ((*editor.lines)[0], "first");
+    EXPECT_EQ((*editor.lines)[1], "second");
+    EXPECT_TRUE(editor.coldOpenCache.empty());
+}
+
 #ifdef UVIM_ENABLE_RG_CACHE
 TEST(RealModeTransitionsTest, SetRgUpdateChangesGrepDelay)
 {

@@ -868,6 +868,7 @@ void GrepSearchMode::performSearch(Editor& editor)
             cursor = 0;
             offset = 0;
         }
+        prewarmAroundCursor(editor);
         return;
     }
 #endif
@@ -880,6 +881,7 @@ void GrepSearchMode::performSearch(Editor& editor)
             cursor = 0;
             offset = 0;
         }
+        prewarmAroundCursor(editor);
         return;
     }
 
@@ -904,6 +906,7 @@ void GrepSearchMode::performSearch(Editor& editor)
         cursor = 0;
         offset = 0;
     }
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::scheduleSearch(Editor& editor)
@@ -928,6 +931,7 @@ void GrepSearchMode::flushPendingSearch(Editor& editor)
     performSearch(editor);
     cursor = 0;
     offset = 0;
+    prewarmAroundCursor(editor);
     editor.needsFullRedraw = true;
 }
 
@@ -1123,7 +1127,7 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
     if(!syncRgCache(editor, false))
         return false;
 
-    if(query.size() < 2)
+    if(query.size() < 3)
     {
         matches.clear();
         lastCachedQuery = query;
@@ -1193,8 +1197,18 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
     auto indexed = editor.rgCacheLineIndex.find(lookupToken);
     if(indexed != editor.rgCacheLineIndex.end())
     {
+        constexpr size_t kMaxCachedCandidates = 50000;
+        constexpr auto kMaxCachedSearchTime = std::chrono::milliseconds(40);
+        const auto startTime = std::chrono::steady_clock::now();
+        size_t scanned = 0;
         for(const auto& ref : indexed->second)
         {
+            if(++scanned > kMaxCachedCandidates ||
+               std::chrono::steady_clock::now() - startTime >
+                   kMaxCachedSearchTime)
+            {
+                break;
+            }
             if(ref.fileIndex < 0 ||
                ref.fileIndex >= static_cast<int>(editor.rgCachedFiles.size()))
                 continue;
@@ -1472,6 +1486,7 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     const GrepMatch& match = matches[cursor];
 
+    prewarmAroundCursor(editor);
     editor.openFile(std::string_view(match.filepath));
 
     *editor.cursorY = match.lineNumber - 1;
@@ -1497,6 +1512,7 @@ void GrepSearchMode::resultUp(Editor& editor)
         if(cursor < offset)
             offset = cursor;
     }
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::resultDown(Editor& editor)
@@ -1508,6 +1524,7 @@ void GrepSearchMode::resultDown(Editor& editor)
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::resultHalfPageUp(Editor& editor)
@@ -1518,6 +1535,7 @@ void GrepSearchMode::resultHalfPageUp(Editor& editor)
         cursor = 0;
     if(cursor < offset)
         offset = cursor;
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::resultHalfPageDown(Editor& editor)
@@ -1529,6 +1547,7 @@ void GrepSearchMode::resultHalfPageDown(Editor& editor)
     int visible = grepSearchVisibleRows(editor);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::searchAddChar(Editor& editor, char c)
@@ -1630,6 +1649,33 @@ void GrepSearchMode::toggleSelection()
         selectedMatches.insert(cursor);
 }
 
+void GrepSearchMode::prewarmAroundCursor(Editor& editor) const
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return;
+
+    std::vector<std::string> paths;
+    std::unordered_set<std::string> seen;
+    paths.reserve(21);
+
+    auto addPath = [&](int index) {
+        if(index < 0 || index >= (int)matches.size())
+            return;
+        const std::string& path = matches[index].filepath;
+        if(seen.insert(path).second)
+            paths.push_back(path);
+    };
+
+    addPath(cursor);
+    for(int distance = 1; distance <= 10; ++distance)
+    {
+        addPath(cursor + distance);
+        addPath(cursor - distance);
+    }
+
+    editor.prewarmColdOpenFiles(paths);
+}
+
 bool GrepSearchMode::openSelected(Editor& editor)
 {
     if(selectedMatches.empty())
@@ -1666,6 +1712,7 @@ bool GrepSearchMode::openSelected(Editor& editor)
     }
     openedPaths.push_back(finalMatch.filepath);
 
+    editor.prewarmColdOpenFiles(openedPaths);
     for(size_t i = 0; i < openedPaths.size(); ++i)
     {
         bool notifyLsp = (i + 1 == openedPaths.size());
