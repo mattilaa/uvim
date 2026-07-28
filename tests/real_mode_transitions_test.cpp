@@ -73,7 +73,27 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("vsplit"), "vsplit"));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("hsplit"), "hsplit"));
+#ifdef UVIM_ENABLE_RG_CACHE
+    EXPECT_TRUE(
+        contains_command(editor.getSetCompletions("set rgup"),
+                         "set rgupdate=300"));
+#endif
 }
+
+#ifdef UVIM_ENABLE_RG_CACHE
+TEST(RealModeTransitionsTest, SetRgUpdateChangesGrepDelay)
+{
+    Editor editor = Editor::createForTests();
+
+    EXPECT_EQ(editor.rgUpdateMs, 300);
+    EXPECT_TRUE(editor.handleSetCommand("set rgupdate=125"));
+    EXPECT_EQ(editor.rgUpdateMs, 125);
+    EXPECT_TRUE(editor.handleSetCommand("set rgupdate=0"));
+    EXPECT_EQ(editor.rgUpdateMs, 0);
+    EXPECT_TRUE(editor.handleSetCommand("set rgupdate=6000"));
+    EXPECT_EQ(editor.rgUpdateMs, 0);
+}
+#endif
 
 TEST(RealModeTransitionsTest, SymbolUnderCursorToleratesQualifiedBoundaries)
 {

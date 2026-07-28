@@ -138,6 +138,11 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (rgCacheEnabled ? "true" : "false"));
         return true;
     }
+    if(opt == "rgupdate?")
+    {
+        setStatusMessage("rgupdate=" + std::to_string(rgUpdateMs));
+        return true;
+    }
 #endif
     if(opt == "status.lspgap?")
     {
@@ -606,6 +611,28 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("rgcache: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("rgupdate=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("rgupdate=").length());
+        try
+        {
+            int ms = std::stoi(value);
+            if(ms >= 0 && ms <= 5000)
+            {
+                rgUpdateMs = ms;
+                setStatusMessage("rgupdate=" + std::to_string(rgUpdateMs));
+            }
+            else
+            {
+                setStatusMessage("rgupdate: expected 0-5000");
+            }
+        }
+        catch(...)
+        {
+            setStatusMessage("rgupdate: expected number");
         }
         return true;
     }

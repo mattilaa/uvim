@@ -424,6 +424,23 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     rgCacheEnabled = false;
             }
+            auto itrgu = values.find("editor.rgupdate");
+            if(itrgu == values.end())
+                itrgu = values.find("settings.rgupdate");
+            if(itrgu == values.end())
+                itrgu = values.find("rgupdate");
+            if(itrgu != values.end())
+            {
+                try
+                {
+                    int ms = std::stoi(itrgu->second);
+                    if(ms >= 0 && ms <= 5000)
+                        rgUpdateMs = ms;
+                }
+                catch(...)
+                {
+                }
+            }
 #endif
             auto itlspg = values.find("editor.status.lspgap");
             if(itlspg == values.end())

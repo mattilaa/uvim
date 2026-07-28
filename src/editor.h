@@ -190,6 +190,7 @@ public:
         int lineIndex = 0;
     };
     bool rgCacheEnabled = true;
+    int rgUpdateMs = 300;
     bool rgCacheLoaded = false;
     std::vector<RgCachedFile> rgCachedFiles;
     std::unordered_map<std::string, std::vector<RgCacheLineRef>>

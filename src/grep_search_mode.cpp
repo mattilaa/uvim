@@ -917,7 +917,7 @@ void GrepSearchMode::scheduleSearch(Editor& editor)
     searchPending = true;
     searching = false;
     searchDueAt = std::chrono::steady_clock::now() +
-                  std::chrono::milliseconds(300);
+                  std::chrono::milliseconds(std::max(0, editor.rgUpdateMs));
     editor.needsFullRedraw = true;
 }
 
