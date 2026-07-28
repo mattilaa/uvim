@@ -1,6 +1,17 @@
 #include "real_mode_test_utils.h"
 
+#include <thread>
+
 using namespace uvim_test;
+
+namespace
+{
+void flushGrepDebounce(GrepSearchMode& state, Editor& editor)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(310));
+    state.draw(editor);
+}
+} // namespace
 
 TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
 {
@@ -320,6 +331,7 @@ TEST(RealModeTransitionsTest, GrepSearchAcceptsBracketedPaste)
     auto* state = sm.getState<GrepSearchMode>();
     ASSERT_NE(state, nullptr);
     EXPECT_EQ(state->query, "needle pasted");
+    flushGrepDebounce(*state, editor);
     ASSERT_EQ(state->matches.size(), 1u);
     EXPECT_TRUE(text_utils::is_found(
         state->matches.front().filepath.find("match.txt")));

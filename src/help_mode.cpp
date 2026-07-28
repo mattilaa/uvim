@@ -1315,6 +1315,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set nonumber` or `:set nonu` - Hide line numbers",
             "  `:set ignorecase` or `:set ic` - Case insensitive search",
             "  `:set smartcase` or `:set scs` - Smart case search",
+#ifdef UVIM_ENABLE_RG_CACHE
+            "  `:set rgcache`               - Use persistent .rg grep cache",
+            "  `:set norgcache`             - Disable persistent grep cache",
+#endif
             "  `:set gdcenter`               - Center view after gd",
             "  `:set nogdcenter`             - Keep view steady after gd",
             "  `:set nocommandline.messageprefix` - Hide "
@@ -1855,6 +1859,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Regex view: `Ctrl-s` toggles current buffer / project files",
             "  Regex view: `Enter` opens the selected match",
             "  `Ctrl-s`  - Grep search",
+#ifdef UVIM_ENABLE_RG_CACHE
+            "  Grep cache: `:set rgcache`/`:set norgcache` (default on)",
+            "  Cache files are stored under the project `.rg/` directory.",
+#endif
             "  `:/...`   - Regex search forward (command mode)",
             "  `:? ...`  - Regex search backward (command mode)",
         };

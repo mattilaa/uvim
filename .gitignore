@@ -16,6 +16,7 @@ _deps
 CMakeUserPresets.json
 .DS_Store
 .cache
+.rg
 *xml
 *html
 tests/robot/output
