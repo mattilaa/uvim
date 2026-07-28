@@ -8,6 +8,7 @@ enum class FileType
     Python,
     Json,
     Yaml,
+    FormatterConfig,
     Toml,
     Html,
     Css,

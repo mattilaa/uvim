@@ -2737,9 +2737,11 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         return tokens;
     }
 
-    if(isFileType<FileType::Yaml>())
+    const bool isYaml = isFileType<FileType::Yaml>();
+    const bool isFormatterConfig = isFileType<FileType::FormatterConfig>();
+    if(isYaml || isFormatterConfig)
     {
-        if(!syntaxYaml)
+        if(isYaml && !syntaxYaml)
             return {};
         std::vector<Token> tokens;
         std::string_view sv{line};
@@ -2753,7 +2755,9 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                 continue;
             }
 
-            if(sv[i] == '#')
+            if(sv[i] == '#' ||
+               (isFormatterConfig && sv[i] == '/' && i + 1 < len &&
+                sv[i + 1] == '/'))
             {
                 tokens.push_back({TOKEN_COMMENT, i, len - i});
                 break;

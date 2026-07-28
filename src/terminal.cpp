@@ -247,6 +247,13 @@ static bool read_byte(char& c) noexcept
     return true;
 }
 
+static bool read_byte_timeout(char& c, milliseconds timeout) noexcept
+{
+    if(!wait_stdin(timeout))
+        return false;
+    return read_byte(c);
+}
+
 static bool read_byte_blocking(char& c) noexcept
 {
     if(!wait_stdin(milliseconds(-1)))
@@ -546,9 +553,9 @@ int Terminal::readKeyInternal(int timeoutMs)
             return keyCode(control::ControlKey::ESC);
 
         std::array<char, 5> seq{};
-        if(!read_byte(seq[0]))
+        if(!read_byte_timeout(seq[0], milliseconds(50)))
             return keyCode(control::ControlKey::ESC);
-        if(!read_byte(seq[1]))
+        if(!read_byte_timeout(seq[1], milliseconds(50)))
             return keyCode(control::ControlKey::ESC);
 
         if(seq[0] == '[')
@@ -565,7 +572,7 @@ int Terminal::readKeyInternal(int timeoutMs)
                 for(int i = 0; i < 32; ++i)
                 {
                     char b = 0;
-                    if(!read_byte(b))
+                    if(!read_byte_timeout(b, milliseconds(50)))
                         return keyCode(control::ControlKey::ESC);
                     if((b >= '0' && b <= '9') || b == ';' || b == ':')
                     {

@@ -167,6 +167,57 @@ TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
         rendered.find(editor.theme.syntax(TOKEN_KEYWORD))));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsFormatterConfigsLikeYaml)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/.mlang-format";
+    editor.currentBuffer->filename = *editor.filename;
+    editor.currentBuffer->fileTypeCacheValid = false;
+
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    bool inMarkupFence = false;
+    char tomlQuote = 0;
+    char markupFenceChar = 0;
+
+    const std::string indentLine = "ContinuationIndentWidth: 8";
+    const auto indentTokens = editor.syntaxHighlighter->tokenizeLine(
+        indentLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(indentTokens, 0, 23, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(indentTokens, 23, 1, TOKEN_OPERATOR));
+
+    const std::string styleLine = "BasedOnStyle: \"LLVM\"";
+    const auto styleTokens = editor.syntaxHighlighter->tokenizeLine(
+        styleLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(styleTokens, 0, 12, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(styleTokens, 14, 6, TOKEN_STRING));
+
+    const std::string boolLine = "IndentFunctionSignatureClosingParen: true";
+    const auto boolTokens = editor.syntaxHighlighter->tokenizeLine(
+        boolLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(boolTokens, 0, 35, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(boolTokens, 37, 4, TOKEN_KEYWORD));
+
+    const std::string commentLine = "// ignored config comment";
+    const auto commentTokens = editor.syntaxHighlighter->tokenizeLine(
+        commentLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(commentTokens, 0, 25, TOKEN_COMMENT));
+
+    *editor.filename = "/tmp/.clang-format";
+    editor.currentBuffer->filename = *editor.filename;
+    editor.currentBuffer->fileTypeCacheValid = false;
+    const auto clangFormatTokens = editor.syntaxHighlighter->tokenizeLine(
+        styleLine, inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(clangFormatTokens, 0, 12, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(clangFormatTokens, 14, 6, TOKEN_STRING));
+}
+
 TEST(SyntaxHighlighterTest, DoesNotHighlightImplicitMembersWhenDisabled)
 {
     Editor editor = Editor::createForTests();

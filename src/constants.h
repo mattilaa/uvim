@@ -172,6 +172,9 @@ inline constexpr std::array json_suffixes = {std::string_view{".json"},
 inline constexpr std::array yaml_suffixes = {std::string_view{".yaml"},
                                              std::string_view{".yml"}};
 
+inline constexpr std::array formatter_config_basenames = {
+    std::string_view{".clang-format"}, std::string_view{".mlang-format"}};
+
 inline constexpr std::array toml_suffixes = {std::string_view{".toml"}};
 
 inline constexpr std::array rust_suffixes = {std::string_view{".rs"}};

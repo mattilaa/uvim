@@ -894,6 +894,10 @@ std::optional<FileType> Editor::getFileType() const
     {
         return FileType::Yaml;
     }
+    else if(isFileType<FileType::FormatterConfig>())
+    {
+        return FileType::FormatterConfig;
+    }
     else if(isFileType<FileType::Toml>())
     {
         return FileType::Toml;

@@ -35,4 +35,12 @@ TEST(EditorFileTypeTest, DispatchMatchesSpecificHelpers)
     *editor.filename = "/tmp/layout.xml";
     EXPECT_TRUE(editor.isFileType<FileType::Xml>());
     EXPECT_FALSE(editor.isFileType<FileType::Cpp>());
+
+    *editor.filename = "/tmp/.clang-format";
+    EXPECT_TRUE(editor.isFileType<FileType::FormatterConfig>());
+    EXPECT_FALSE(editor.isFileType<FileType::Yaml>());
+
+    *editor.filename = "/tmp/.mlang-format";
+    EXPECT_TRUE(editor.isFileType<FileType::FormatterConfig>());
+    EXPECT_FALSE(editor.isFileType<FileType::Toml>());
 }

@@ -131,6 +131,12 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
 
     std::string_view base = text_utils::basename(pathSv);
 
+    bool isFormatterConfig = std::any_of(
+        constants::formatter_config_basenames.begin(),
+        constants::formatter_config_basenames.end(), [&](std::string_view name)
+        { return text_utils::iequals_ascii(base, name); });
+    set_if(FileType::FormatterConfig, isFormatterConfig);
+
     bool isReadmeMarkup = std::any_of(
         constants::markup_readme_basenames.begin(),
         constants::markup_readme_basenames.end(), [&](std::string_view name)

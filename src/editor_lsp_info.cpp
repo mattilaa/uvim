@@ -39,6 +39,8 @@ static std::string filetypeLabel(const Editor& ed)
         return "json";
     if(ed.isFileType<FileType::Yaml>())
         return "yaml";
+    if(ed.isFileType<FileType::FormatterConfig>())
+        return "format";
     if(ed.isFileType<FileType::Toml>())
         return "toml";
     if(ed.isFileType<FileType::Xml>())

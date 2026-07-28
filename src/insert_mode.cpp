@@ -140,6 +140,9 @@ void InsertMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
     ed->needsFullRedraw = true;
 
+    if(ed->completionActive)
+        ed->cancelCompletion();
+
     // Set cursor to bar for insert mode
     Terminal::setCursorBarBlinking();
 
@@ -150,10 +153,8 @@ void InsertMode::on_exit(ModeContext& ctx)
 {
     Editor* ed = ctx.editor;
 
-    // Cancel any active completion
     if(ed->completionActive)
-    {
-    }
+        ed->cancelCompletion();
 
     ed->finishChangeRecordingIfDeferred();
 
@@ -386,55 +387,18 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     if(c == keyCode(control::ControlKey::BACKSPACE) || c == 127 ||
        c == keyCode(control::ControlKey::CTRL_H))
     {
-        auto& lines = ctx.lines();
-        int& cursorX = ctx.cursorX();
-        int& cursorY = ctx.cursorY();
-
-        if(cursorX > 0)
+        int beforeX = ctx.cursorX();
+        int beforeY = ctx.cursorY();
+        ed->deleteChar();
+        if(ctx.cursorX() != beforeX || ctx.cursorY() != beforeY)
         {
-            if(cursorY < (int)lines.size())
-            {
-                if(ed->utf8Mode)
-                {
-                    int start =
-                        text_utils::prevUtf8CharStart(lines[cursorY], cursorX);
-                    int len = cursorX - start;
-                    if(len > 0)
-                    {
-                        lines[cursorY].erase(start, len);
-                        cursorX = start;
-                    }
-                }
-                else
-                {
-                    cursorX--;
-                    lines[cursorY].erase(cursorX, 1);
-                }
-            }
-            *ed->dirty = true;
-
-            // Update completion filter if active
-            if(ed->completionActive)
-            {
-                ed->rebuildCompletionFilter();
-            }
+            ed->saveState();
+            ed->needsFullRedraw = true;
+            if(ed->currentBuffer)
+                ed->currentBuffer->lspSyncNeeded = true;
         }
-        else if(cursorY > 0)
-        {
-            // Join with previous line
-            int prevLen = lines[cursorY - 1].length();
-            lines[cursorY - 1] += lines[cursorY];
-            lines.erase(lines.begin() + cursorY);
-            cursorY--;
-            cursorX = prevLen;
-            *ed->dirty = true;
-
-            // Cancel completion if joining lines
-            if(ed->completionActive)
-            {
-                ed->cancelCompletion();
-            }
-        }
+        if(ed->completionActive)
+            ed->rebuildCompletionFilter();
         return std::nullopt;
     }
 
@@ -914,8 +878,12 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         // Update completion filter if active
         if(ed->completionActive)
         {
-            if(ed->completionFromLsp && ed->autoCompletion &&
-               ed->shouldTriggerCompletion() && !isMarkup)
+            if(inString)
+            {
+                ed->cancelCompletion();
+            }
+            else if(ed->completionFromLsp && ed->autoCompletion &&
+                    ed->shouldTriggerCompletion() && !isMarkup)
             {
                 ed->requestCompletion();
             }
@@ -926,25 +894,26 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
         // Auto-trigger completion after keyCode(command::CommandKey::KEY_DOT),
         // '::', or '->'
-        else if(c == keyCode(command::CommandKey::KEY_DOT) && !isMarkup)
+        else if(c == keyCode(command::CommandKey::KEY_DOT) && !isMarkup &&
+                !inString)
         {
             ed->triggerCompletion();
         }
         else if(c == keyCode(command::CommandKey::KEY_COLON) && !isMarkup &&
-                cursorX >= 2 &&
+                !inString && cursorX >= 2 &&
                 lines[cursorY][cursorX - 2] ==
                     keyCode(command::CommandKey::KEY_COLON))
         {
             ed->triggerCompletion();
         }
         else if(c == keyCode(command::CommandKey::KEY_GREATER) && !isMarkup &&
-                cursorX >= 2 &&
+                !inString && cursorX >= 2 &&
                 lines[cursorY][cursorX - 2] ==
                     keyCode(command::CommandKey::KEY_MINUS))
         {
             ed->triggerCompletion();
         }
-        else if(ed->autoCompletion && ed->shouldTriggerCompletion())
+        else if(ed->autoCompletion && !inString && ed->shouldTriggerCompletion())
         {
             bool canAuto = true;
             if(ed->isFileType<FileType::Cpp>())

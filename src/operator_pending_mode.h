@@ -31,6 +31,7 @@ struct OperatorPendingMode
     int count = 1;
     bool awaitingObject = false;
     char objectType = 0;
+    char pendingCharMotion = 0;
 
     explicit OperatorPendingMode(char pendingOp = 0, int cnt = 1)
         : op(pendingOp), count(cnt)

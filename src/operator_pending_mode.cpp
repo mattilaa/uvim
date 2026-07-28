@@ -22,6 +22,29 @@ void OperatorPendingMode::on_exit(ModeContext& ctx)
     ctx.pendingCount = 0;
 }
 
+namespace
+{
+std::optional<ModeState>
+applyResolvedOperatorRange(ModeContext& ctx, char op, int startY, int startX,
+                           int endY, int endX)
+{
+    Editor* ed = ctx.editor;
+    ed->applyOperatorToRange(op, startY, startX, endY, endX);
+
+    ctx.repeatCount = 0;
+    ctx.commandBuffer.clear();
+
+    if(op == keyCode(typed::TypedKey::KEY_C))
+    {
+        ed->deferChangeRecordingCommit();
+        return InsertMode{};
+    }
+
+    ed->commitChangeRecording();
+    return NormalMode{};
+}
+} // namespace
+
 std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
                                                      const ModeKeyEvent& event)
 {
@@ -41,6 +64,49 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     if(ed->isRecordingChange() && !ed->isReplayingChange())
     {
         ed->recordChangeKey(c);
+    }
+
+    if(pendingCharMotion != 0)
+    {
+        int saveX = ctx.cursorX();
+        int saveY = ctx.cursorY();
+        int saveWanted = ctx.wantedX();
+        int saveOffsetY = ctx.offsetY();
+        int saveOffsetX = ctx.offsetX();
+        char motion = pendingCharMotion;
+        pendingCharMotion = 0;
+
+        if(motion == keyCode(typed::TypedKey::KEY_F))
+            ed->findCharForward(static_cast<char>(c));
+        else if(motion == keyCode(typed::TypedKey::KEY_CAP_F))
+            ed->findCharBackward(static_cast<char>(c));
+        else if(motion == keyCode(typed::TypedKey::KEY_T))
+            ed->findCharForwardBefore(static_cast<char>(c));
+        else if(motion == keyCode(typed::TypedKey::KEY_CAP_T))
+            ed->findCharBackwardAfter(static_cast<char>(c));
+
+        int destX = ctx.cursorX();
+        int destY = ctx.cursorY();
+
+        ctx.cursorX() = saveX;
+        ctx.cursorY() = saveY;
+        ctx.wantedX() = saveWanted;
+        ctx.offsetY() = saveOffsetY;
+        ctx.offsetX() = saveOffsetX;
+
+        int startY = saveY;
+        int startX = saveX;
+        int endY = destY;
+        int endX = destX;
+        if(saveY > destY || (saveY == destY && saveX > destX))
+        {
+            startY = destY;
+            startX = destX;
+            endY = saveY;
+            endX = saveX;
+        }
+
+        return applyResolvedOperatorRange(ctx, op, startY, startX, endY, endX);
     }
 
     // Double operator (dd/cc/yy/>>/<< etc.) -> linewise operation
@@ -175,20 +241,10 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
         case keyCode(typed::TypedKey::KEY_T):
         case keyCode(typed::TypedKey::KEY_CAP_T):
         {
-            int targetChar = ed->isRecordingChange() ? ed->readKeyRecorded()
-                                                     : Terminal::readKey();
-            if(targetChar != keyCode(control::ControlKey::ESC))
-            {
-                if(c == keyCode(typed::TypedKey::KEY_F))
-                    ed->findCharForward(static_cast<char>(targetChar));
-                else if(c == keyCode(typed::TypedKey::KEY_CAP_F))
-                    ed->findCharBackward(static_cast<char>(targetChar));
-                else if(c == keyCode(typed::TypedKey::KEY_T))
-                    ed->findCharForwardBefore(static_cast<char>(targetChar));
-                else if(c == keyCode(typed::TypedKey::KEY_CAP_T))
-                    ed->findCharBackwardAfter(static_cast<char>(targetChar));
-            }
-            break;
+            pendingCharMotion = static_cast<char>(c);
+            ctx.setStatusMessage(std::string("Operator: ") + op + " " +
+                                 static_cast<char>(c));
+            return std::nullopt;
         }
         default:
             validMotion = false;
@@ -261,20 +317,6 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
     }
 
     // Apply the operator to the range
-    ed->applyOperatorToRange(op, startY, startX, endY, endX);
-
-    ctx.repeatCount = 0;
-    ctx.commandBuffer.clear();
-
-    // keyCode(typed::TypedKey::KEY_C) operator enters insert mode after
-    // deletion
-    if(op == keyCode(typed::TypedKey::KEY_C))
-    {
-        ed->deferChangeRecordingCommit();
-        return InsertMode{};
-    }
-
-    ed->commitChangeRecording();
-    return NormalMode{};
+    return applyResolvedOperatorRange(ctx, op, startY, startX, endY, endX);
 }
 } // namespace editor::statemachine

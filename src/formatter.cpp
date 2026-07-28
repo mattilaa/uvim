@@ -34,9 +34,22 @@ Formatter::FormatterVariant Formatter::formatterFor(FileType type)
     case FileType::Json:
         return std::ref(jsonFormatter);
     case FileType::Yaml:
+    case FileType::FormatterConfig:
         return std::ref(yamlFormatter);
     case FileType::Mla:
         return std::ref(mlangFormatter);
+    case FileType::Toml:
+    case FileType::Html:
+    case FileType::Css:
+    case FileType::JavaScript:
+    case FileType::TypeScript:
+    case FileType::Xml:
+    case FileType::MarkupText:
+    case FileType::Rdoc:
+    case FileType::CMake:
+    case FileType::Shell:
+    case FileType::Asm:
+        return std::ref(clangFormatter);
     }
     return std::ref(clangFormatter);
 }

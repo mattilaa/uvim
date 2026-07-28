@@ -628,6 +628,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                        isFileType<FileType::Rdoc>() ||
                        (isFileType<FileType::Json>() && syntaxJson) ||
                        (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                       isFileType<FileType::FormatterConfig>() ||
                        isFileType<FileType::Toml>())
                     {
                         // Use syntax highlighting for supported files
@@ -771,6 +772,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                        isFileType<FileType::Rdoc>() ||
                        (isFileType<FileType::Json>() && syntaxJson) ||
                        (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                       isFileType<FileType::FormatterConfig>() ||
                        isFileType<FileType::Toml>())
                     {
                         // Use syntax highlighting for supported files
@@ -1166,6 +1168,7 @@ void Editor::drawFullScreenSingle()
                    isFileType<FileType::Rdoc>() ||
                    (isFileType<FileType::Json>() && syntaxJson) ||
                    (isFileType<FileType::Yaml>() && syntaxYaml) ||
+                   isFileType<FileType::FormatterConfig>() ||
                    isFileType<FileType::Toml>())
                 {
                     // Use syntax highlighting for supported files (handles
@@ -1595,6 +1598,7 @@ void Editor::drawSplitFullScreen()
                isFileType<FileType::Rdoc>() ||
                (isFileType<FileType::Json>() && syntaxJson) ||
                (isFileType<FileType::Yaml>() && syntaxYaml) ||
+               isFileType<FileType::FormatterConfig>() ||
                isFileType<FileType::Toml>())
             {
                 renderLineWithSyntax(row, line, start, len, fileRow);
