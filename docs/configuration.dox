@@ -388,4 +388,16 @@ Default: `#6b86c9`.
 Default: `#89dceb`.
 Configure this separately to make members lighter/darker than functions.
 
+\par theme.syntax.namespace1
+Default: `#9b7fbf`. First and darkest qualified namespace segment.
+
+\par theme.syntax.namespace2
+Default: `#aa8dce`. Intermediate qualified namespace segment.
+
+\par theme.syntax.namespace3
+Default: `#b79adc`. Brighter qualified namespace segment.
+
+\par theme.syntax.namespace4
+Default: `#c4a7e7`. Final and brightest qualified namespace segment.
+
 */

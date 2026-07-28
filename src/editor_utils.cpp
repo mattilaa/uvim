@@ -44,6 +44,14 @@ TokenType parse_token_type(std::string_view value, TokenType fallback)
         return TOKEN_FUNCTION;
     if(v == "member")
         return TOKEN_MEMBER;
+    if(v == "namespace1" || v == "namespace_1")
+        return TOKEN_NAMESPACE_1;
+    if(v == "namespace2" || v == "namespace_2")
+        return TOKEN_NAMESPACE_2;
+    if(v == "namespace3" || v == "namespace_3")
+        return TOKEN_NAMESPACE_3;
+    if(v == "namespace4" || v == "namespace_4" || v == "namespace")
+        return TOKEN_NAMESPACE_4;
     return fallback;
 }
 
@@ -89,6 +97,14 @@ std::string_view token_type_name(TokenType value)
         return "function";
     case TOKEN_MEMBER:
         return "member";
+    case TOKEN_NAMESPACE_1:
+        return "namespace1";
+    case TOKEN_NAMESPACE_2:
+        return "namespace2";
+    case TOKEN_NAMESPACE_3:
+        return "namespace3";
+    case TOKEN_NAMESPACE_4:
+        return "namespace4";
     }
     return "normal";
 }
