@@ -17,6 +17,7 @@ void Editor::findAllMatches()
 {
     searchMatches.clear();
     searchRegexError = false;
+    searchMatchesPartial = false;
     if(searchQuery.empty())
         return;
 
@@ -148,6 +149,15 @@ void Editor::performSearch()
 
 void Editor::searchNext()
 {
+    if(searchMatchesPartial && !searchQuery.empty())
+    {
+        savedCursorY = *cursorY;
+        savedCursorX = *cursorX + 1;
+        searchForward = true;
+        performSearch();
+        return;
+    }
+
     if(searchMatches.empty())
     {
         if(!searchQuery.empty())
@@ -174,6 +184,15 @@ void Editor::searchNext()
 
 void Editor::searchPrevious()
 {
+    if(searchMatchesPartial && !searchQuery.empty())
+    {
+        savedCursorY = *cursorY;
+        savedCursorX = *cursorX - 1;
+        searchForward = false;
+        performSearch();
+        return;
+    }
+
     if(searchMatches.empty())
     {
         if(!searchQuery.empty())
@@ -205,6 +224,7 @@ void Editor::clearSearch()
 {
     searchQuery.clear();
     searchMatches.clear();
+    searchMatchesPartial = false;
     currentMatchIndex = -1;
     savedCursorX = *cursorX;
     savedCursorY = *cursorY;
@@ -213,6 +233,7 @@ void Editor::clearSearch()
 void Editor::cancelSearch()
 {
     searchMatches.clear();
+    searchMatchesPartial = false;
     currentMatchIndex = -1;
     *cursorX = savedCursorX;
     *cursorY = savedCursorY;

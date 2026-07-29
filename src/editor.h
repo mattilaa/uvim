@@ -517,6 +517,7 @@ public:
     std::string searchQuery;
     bool searchForward = true;
     bool searchRegexError = false;
+    bool searchMatchesPartial = false;
     std::vector<SearchMatch> searchMatches;
     int currentMatchIndex = -1;
     int savedCursorX = 0;

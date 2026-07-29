@@ -357,6 +357,45 @@ void clearGrepCachedQueryState(GrepSearchMode& mode)
     mode.lastCachedMatches.clear();
 }
 #endif
+
+void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
+                                   std::string_view query)
+{
+    editor.searchQuery = std::string(query);
+    editor.searchRegexError = false;
+    editor.searchMatches.clear();
+    editor.searchMatchesPartial = true;
+    editor.currentMatchIndex = -1;
+
+    if(!editor.lines || match.lineNumber <= 0)
+        return;
+
+    const int row = match.lineNumber - 1;
+    if(row < 0 || row >= (int)editor.lines->size())
+        return;
+
+    const std::string& line = (*editor.lines)[row];
+    int col = -1;
+    if(!query.empty())
+    {
+        std::string lowerLine = toLower(line);
+        std::string lowerQuery = toLower(query);
+        size_t found = lowerLine.find(lowerQuery);
+        if(text_utils::is_found(found))
+            col = static_cast<int>(found);
+    }
+    if(col < 0 && !match.highlightRanges.empty())
+        col = std::max(0, match.highlightRanges.front().first);
+    if(col < 0)
+        col = 0;
+
+    SearchMatch seeded;
+    seeded.row = row;
+    seeded.col = std::min(col, (int)line.size());
+    seeded.len = std::max<int>(1, query.size());
+    editor.searchMatches.push_back(seeded);
+    editor.currentMatchIndex = 0;
+}
 } // namespace
 
 // ============================================================================
@@ -1497,8 +1536,7 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     *editor.cursorX = 0;
 
-    editor.searchQuery = query;
-    editor.findAllMatches();
+    seedEditorSearchFromGrepMatch(editor, match, query);
     editor.centerScreen();
 
     return true;
@@ -1725,8 +1763,7 @@ bool GrepSearchMode::openSelected(Editor& editor)
     if(*editor.cursorY < 0)
         *editor.cursorY = 0;
     *editor.cursorX = 0;
-    editor.searchQuery = query;
-    editor.findAllMatches();
+    seedEditorSearchFromGrepMatch(editor, finalMatch, query);
     editor.centerScreen();
 
     selectedMatches.clear();

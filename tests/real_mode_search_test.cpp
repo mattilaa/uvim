@@ -214,6 +214,42 @@ TEST(RealModeTransitionsTest, GrepSearchBatchesQueuedPrintableInput)
     EXPECT_FALSE(Terminal::hasBufferedKeys());
 }
 
+TEST(RealModeTransitionsTest, GrepOpenSeedsSingleSearchMatchLazily)
+{
+    auto root = make_temp_dir("uvim_grep_open_seed_");
+    write_file(root / "a.txt", "needle one\nother\nneedle two\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    for(char c : std::string("needle"))
+        sm.dispatch(c);
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+    ASSERT_EQ(state->matches.size(), 2u);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_TRUE(text_utils::is_found(editor.currentBuffer->filename.find("a.txt")));
+    EXPECT_EQ(*editor.cursorY, 0);
+    ASSERT_EQ(editor.searchMatches.size(), 1u);
+    EXPECT_TRUE(editor.searchMatchesPartial);
+    EXPECT_EQ(editor.searchMatches[0].row, 0);
+    EXPECT_EQ(editor.searchMatches[0].col, 0);
+
+    sm.dispatch(keyCode(typed::TypedKey::KEY_N));
+
+    EXPECT_FALSE(editor.searchMatchesPartial);
+    ASSERT_EQ(editor.searchMatches.size(), 2u);
+    EXPECT_EQ(*editor.cursorY, 2);
+}
+
 #ifdef UVIM_ENABLE_RG_CACHE
 TEST(RealModeTransitionsTest, GrepSearchBuildsAndUpdatesRgCache)
 {
