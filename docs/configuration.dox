@@ -172,7 +172,7 @@ Integer. Default: 300. Range: 1-5000. Timeout (ms) for double-ESC format.
 
 \par editor.rgupdate
 Integer. Default: 300. Range: 0-5000. Delay (ms) before grep search updates
-after typing in the `Ctrl-s` grep view. Use 0 for immediate updates.
+after typing in the `Ctrl-a` grep view. Use 0 for immediate updates.
 
 \par editor.gdcenter
 Boolean. Default: true. Center screen on `gd` navigation.

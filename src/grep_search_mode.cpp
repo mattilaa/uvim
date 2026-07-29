@@ -1302,7 +1302,7 @@ bool GrepSearchMode::performRipgrepSearch(Editor& editor)
 #ifdef _WIN32
     // Windows _popen waits for the child process in _pclose. Because ripgrep's
     // --max-count is per file, uvim can stop reading after 1000 matches while
-    // rg keeps scanning the rest of the tree, making interactive Ctrl-S appear
+    // rg keeps scanning the rest of the tree, making interactive grep appear
     // frozen. The in-process fallback has a real global match cap.
     (void)editor;
     return false;

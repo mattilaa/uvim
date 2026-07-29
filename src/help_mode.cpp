@@ -1635,7 +1635,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-m e/w` - Active-LSP error/warning jump list",
             "  `Space-x` - File browser",
             "  `Space-b` - Buffer browser",
-            "  `Ctrl-s`  - Grep search",
+            "  `Ctrl-a`  - Grep search",
             "",
             "MARKS & JUMPS:",
             "  `m{a-z}`   - Set mark",
@@ -1859,7 +1859,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-x`  - Regex search view for the current buffer",
             "  Regex view: `Ctrl-s` toggles current buffer / project files",
             "  Regex view: `Enter` opens the selected match",
-            "  `Ctrl-s`  - Grep search",
+            "  `Ctrl-a`  - Grep search",
 #ifdef UVIM_ENABLE_RG_CACHE
             "  Grep cache: `:set rgcache`/`:set norgcache` (default on)",
             "  Grep update delay: `:set rgupdate=300` (default 300 ms)",

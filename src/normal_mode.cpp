@@ -574,7 +574,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    if(c == keyCode(control::ControlKey::CTRL_S))
+    if(c == keyCode(control::ControlKey::CTRL_A))
     {
         ctx.repeatCount = 0;
         return GrepSearchMode{};

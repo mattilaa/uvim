@@ -253,7 +253,7 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         return BufferBrowserMode{};
     }
-    else if(c == keyCode(control::ControlKey::CTRL_S))
+    else if(c == keyCode(control::ControlKey::CTRL_A))
     {
         return GrepSearchMode{};
     }

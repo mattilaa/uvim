@@ -241,7 +241,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
     }
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    if(c == keyCode(control::ControlKey::CTRL_S))
+    if(c == keyCode(control::ControlKey::CTRL_A))
     {
         return GrepSearchMode{};
     }

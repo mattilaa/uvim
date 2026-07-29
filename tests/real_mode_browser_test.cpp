@@ -277,7 +277,7 @@ TEST(RealModeTransitionsTest, FileBrowserQuestionKeyRunsBackwardRegexSearch)
         text_utils::is_found(editor.currentBuffer->filename.find("alpha.txt")));
 }
 
-TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
+TEST(RealModeTransitionsTest, FileBrowserCtrlAStillOpensGrepSearch)
 {
     auto root = make_temp_dir("uvim_browse_ctrls_");
     write_file(root / "a.txt", "a\n");
@@ -285,7 +285,7 @@ TEST(RealModeTransitionsTest, FileBrowserCtrlSStillOpensGrepSearch)
     Editor editor = Editor::createForTests();
     auto sm = makeMachine(editor, FileBrowserMode{root.string()});
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_A));
 
     EXPECT_STREQ(sm.currentStateName(), "GREP");
 }

@@ -36,7 +36,7 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
     Editor* ed = ctx.editor;
     int c = keyCode(key);
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    if(c == keyCode(control::ControlKey::CTRL_S))
+    if(c == keyCode(control::ControlKey::CTRL_A))
     {
         return GrepSearchMode{};
     }

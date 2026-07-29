@@ -1,5 +1,5 @@
-#include "editor_mode_controller.h"
 #include "editor.h"
+#include "editor_mode_controller.h"
 #include "enablelog.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -18,46 +18,55 @@ public:
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const NormalMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const InsertMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ReplaceMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const VisualMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const VisualLineMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const VisualBlockMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const CommandMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const SearchForwardMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const SearchBackwardMode& state) const
     {
@@ -90,6 +99,7 @@ public:
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const RegexSearchMode& state) const
     {
@@ -107,26 +117,31 @@ public:
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const LspInfoMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ToolInfoMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const LocListMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const MlangFormatErrorsMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const HelpMode& state) const
     {
@@ -139,26 +154,31 @@ public:
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GitLogMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GitStageMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GitCommitMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GitFixupMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GitPatchMode& state) const
     {
@@ -171,6 +191,7 @@ public:
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GlyphSelectMode& state) const
     {
@@ -183,11 +204,13 @@ public:
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ColorPickerMode& state) const
     {
         return recognize(ctx, state);
     }
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const ColorSelectorMode& state) const
     {
@@ -233,10 +256,9 @@ void EditorModeController::syncModeFromStateMachine()
 
     const ModeState& state = editor.modeStateMachine->state();
     ModeContext ctx = createModeContext(&editor);
-    std::optional<Mode> nextMode =
-        std::visit([&ctx](const auto& concreteState) -> std::optional<Mode>
-                   { return ModeChangeRecognizer{}(ctx, concreteState); },
-                   state);
+    std::optional<Mode> nextMode = std::visit(
+        [&ctx](const auto& concreteState) -> std::optional<Mode>
+        { return ModeChangeRecognizer{}(ctx, concreteState); }, state);
     if(!nextMode)
     {
         return;
@@ -259,7 +281,7 @@ void EditorModeController::handleKeypress(int c)
         return;
 
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
-    if(c == keyCode(control::ControlKey::CTRL_S) &&
+    if(c == keyCode(control::ControlKey::CTRL_A) &&
        editor.currentMode != REGEX_SEARCH && editor.currentMode != GREP_SEARCH)
     {
         if(editor.modeStateMachine)

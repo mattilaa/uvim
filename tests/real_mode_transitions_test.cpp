@@ -986,27 +986,27 @@ TEST(RealModeTransitionsTest, HelpToFileBrowserQWithoutFileReturnsWelcome)
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
 }
 
-TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromVerticalSplit)
+TEST(RealModeTransitionsTest, CtrlAOpensGrepSearchFromVerticalSplit)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
     editor.enableSplit(true);
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_A));
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_STREQ(sm.currentStateName(), "GREP");
 }
 
-TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromHorizontalSplit)
+TEST(RealModeTransitionsTest, CtrlAOpensGrepSearchFromHorizontalSplit)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
     auto sm = makeMachine(editor, NormalMode{});
     editor.enableSplit(false);
 
-    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_A));
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_STREQ(sm.currentStateName(), "GREP");
