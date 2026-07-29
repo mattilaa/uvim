@@ -13,6 +13,7 @@
 #include "visual_color_range.h"
 #include <chrono>
 #include <ctime>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -150,6 +151,8 @@ public:
 
     void run();
     void openFile(std::string_view filename, bool notifyLspOnOpen = true);
+    bool prewarmColdOpenFile(std::string_view filename);
+    void prewarmColdOpenFiles(const std::vector<std::string>& filenames);
 
     // Buffer struct is now in buffer.h
     // JumpLocation struct is now in jump_location.h
@@ -159,6 +162,16 @@ public:
     std::unique_ptr<Formatter> formatter;
     // Buffer management
     std::vector<std::unique_ptr<Buffer>> buffers;
+    std::unordered_map<std::string, int> bufferIndexByFilename;
+    struct ColdOpenCacheEntry
+    {
+        std::vector<std::string> lines;
+        std::filesystem::file_time_type lastModificationTime{};
+        uintmax_t size = 0;
+        std::chrono::steady_clock::time_point lastTouched{};
+    };
+    std::unordered_map<std::string, ColdOpenCacheEntry> coldOpenCache;
+    size_t coldOpenCacheMaxEntries = 32;
     int currentBufferIndex = -1;
     Buffer* currentBuffer = nullptr;
 
@@ -504,6 +517,7 @@ public:
     std::string searchQuery;
     bool searchForward = true;
     bool searchRegexError = false;
+    bool searchMatchesPartial = false;
     std::vector<SearchMatch> searchMatches;
     int currentMatchIndex = -1;
     int savedCursorX = 0;

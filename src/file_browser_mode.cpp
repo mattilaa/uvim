@@ -2251,7 +2251,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     {
         return BufferBrowserMode{};
     }
-    else if(c == keyCode(control::ControlKey::CTRL_S))
+    else if(c == keyCode(control::ControlKey::CTRL_A))
     {
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
         return GrepSearchMode{};

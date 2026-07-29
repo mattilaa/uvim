@@ -2,6 +2,7 @@
 
 #include "syntax_state.h"
 #include "token_type.h"
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -74,6 +75,8 @@ struct Buffer
     int visualBlockEndY = 0;
     std::string visualBlockInsertText; // Text to insert in visual block mode
     bool lspSyncNeeded = false;
+    bool lspOpenDeferred = false;
+    std::chrono::steady_clock::time_point lspOpenDeferUntil{};
     bool lspHashValid = false;
     size_t lspContentHash = 0;
     bool lspDiagnosticsSeenValid = false;
@@ -82,6 +85,8 @@ struct Buffer
     int clangIndentWidth = -1;
     bool clangBraceStyleValid = false;
     bool clangBraceNewLine = false;
+    bool cppSyntaxIndexPrewarmDeferred = false;
+    std::chrono::steady_clock::time_point cppSyntaxIndexPrewarmUntil{};
     std::vector<BlameEntry> blameEntries;
     int blameStart = -1;
     int blameEnd = -1;

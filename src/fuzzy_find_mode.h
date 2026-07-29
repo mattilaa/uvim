@@ -59,6 +59,7 @@ private:
     void toggleFilenameFirst(Editor& editor);
     void toggleGitignore(Editor& editor);
     void toggleSelection();
+    void prewarmAroundCursor(Editor& editor) const;
     bool select(Editor& editor);
     bool openSelected(Editor& editor);
 };

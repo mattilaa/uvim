@@ -45,6 +45,7 @@ struct GrepSearchMode
     int rgCacheUpdated = 0;
     int rgCacheRemoved = 0;
     int rgCacheJobs = 0;
+    bool rgCacheSyncPending = false;
     std::string lastCachedQuery;
     bool lastCachedCaseSensitive = false;
     std::vector<GrepMatch> lastCachedMatches;
@@ -87,6 +88,7 @@ private:
     void toggleGitignore(Editor& editor);
     void togglePreview();
     void toggleSelection();
+    void prewarmAroundCursor(Editor& editor) const;
     bool openSelected(Editor& editor);
 };
 } // namespace editor::statemachine

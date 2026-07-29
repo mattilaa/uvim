@@ -357,6 +357,45 @@ void clearGrepCachedQueryState(GrepSearchMode& mode)
     mode.lastCachedMatches.clear();
 }
 #endif
+
+void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
+                                   std::string_view query)
+{
+    editor.searchQuery = std::string(query);
+    editor.searchRegexError = false;
+    editor.searchMatches.clear();
+    editor.searchMatchesPartial = true;
+    editor.currentMatchIndex = -1;
+
+    if(!editor.lines || match.lineNumber <= 0)
+        return;
+
+    const int row = match.lineNumber - 1;
+    if(row < 0 || row >= (int)editor.lines->size())
+        return;
+
+    const std::string& line = (*editor.lines)[row];
+    int col = -1;
+    if(!query.empty())
+    {
+        std::string lowerLine = toLower(line);
+        std::string lowerQuery = toLower(query);
+        size_t found = lowerLine.find(lowerQuery);
+        if(text_utils::is_found(found))
+            col = static_cast<int>(found);
+    }
+    if(col < 0 && !match.highlightRanges.empty())
+        col = std::max(0, match.highlightRanges.front().first);
+    if(col < 0)
+        col = 0;
+
+    SearchMatch seeded;
+    seeded.row = row;
+    seeded.col = std::min(col, (int)line.size());
+    seeded.len = std::max<int>(1, query.size());
+    editor.searchMatches.push_back(seeded);
+    editor.currentMatchIndex = 0;
+}
 } // namespace
 
 // ============================================================================
@@ -372,11 +411,7 @@ void GrepSearchMode::on_enter(ModeContext& ctx)
     // Set cursor to bar for input
     Terminal::setCursorBarBlinking();
 #ifdef UVIM_ENABLE_RG_CACHE
-    if(ed->rgCacheEnabled)
-    {
-        draw(*ed);
-        syncRgCache(*ed, false);
-    }
+    rgCacheSyncPending = ed->rgCacheEnabled;
 #endif
 }
 
@@ -508,8 +543,6 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 
 void GrepSearchMode::draw(Editor& editor)
 {
-    processIdle(editor);
-
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
@@ -720,12 +753,23 @@ void GrepSearchMode::draw(Editor& editor)
 
 bool GrepSearchMode::processIdle(Editor& editor)
 {
+    bool didWork = false;
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(rgCacheSyncPending)
+    {
+        rgCacheSyncPending = false;
+        syncRgCache(editor, false);
+        editor.needsFullRedraw = true;
+        didWork = true;
+    }
+#endif
+
     if(!searchPending)
-        return false;
+        return didWork;
 
     const auto now = std::chrono::steady_clock::now();
     if(now < searchDueAt)
-        return false;
+        return didWork;
 
     flushPendingSearch(editor);
     return true;
@@ -868,6 +912,7 @@ void GrepSearchMode::performSearch(Editor& editor)
             cursor = 0;
             offset = 0;
         }
+        prewarmAroundCursor(editor);
         return;
     }
 #endif
@@ -880,6 +925,7 @@ void GrepSearchMode::performSearch(Editor& editor)
             cursor = 0;
             offset = 0;
         }
+        prewarmAroundCursor(editor);
         return;
     }
 
@@ -904,6 +950,7 @@ void GrepSearchMode::performSearch(Editor& editor)
         cursor = 0;
         offset = 0;
     }
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::scheduleSearch(Editor& editor)
@@ -928,6 +975,7 @@ void GrepSearchMode::flushPendingSearch(Editor& editor)
     performSearch(editor);
     cursor = 0;
     offset = 0;
+    prewarmAroundCursor(editor);
     editor.needsFullRedraw = true;
 }
 
@@ -958,6 +1006,11 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     draw(editor);
     Terminal::flush();
 
+    auto finishIndexing = [&] {
+        rgCacheIndexing = false;
+        rgCacheJobs = 0;
+    };
+
     if(refreshFileIndex)
     {
         editor.grepFileIndexInitialized = false;
@@ -969,7 +1022,11 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     std::error_code ec;
     std::filesystem::create_directories(filesDir, ec);
     if(ec)
+    {
+        finishIndexing();
+        editor.needsFullRedraw = true;
         return false;
+    }
 
     auto oldIndex = loadRgCacheIndex(indexPath);
     std::unordered_map<std::string, const Editor::RgCachedFile*> existing;
@@ -1110,8 +1167,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     editor.rgCachedFiles = std::move(cachedFiles);
     rebuildRgCacheLineIndex(editor);
     editor.rgCacheLoaded = true;
-    rgCacheIndexing = false;
-    rgCacheJobs = 0;
+    finishIndexing();
     draw(editor);
     Terminal::flush();
 
@@ -1123,7 +1179,7 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
     if(!syncRgCache(editor, false))
         return false;
 
-    if(query.size() < 2)
+    if(query.size() < 3)
     {
         matches.clear();
         lastCachedQuery = query;
@@ -1193,8 +1249,18 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
     auto indexed = editor.rgCacheLineIndex.find(lookupToken);
     if(indexed != editor.rgCacheLineIndex.end())
     {
+        constexpr size_t kMaxCachedCandidates = 50000;
+        constexpr auto kMaxCachedSearchTime = std::chrono::milliseconds(40);
+        const auto startTime = std::chrono::steady_clock::now();
+        size_t scanned = 0;
         for(const auto& ref : indexed->second)
         {
+            if(++scanned > kMaxCachedCandidates ||
+               std::chrono::steady_clock::now() - startTime >
+                   kMaxCachedSearchTime)
+            {
+                break;
+            }
             if(ref.fileIndex < 0 ||
                ref.fileIndex >= static_cast<int>(editor.rgCachedFiles.size()))
                 continue;
@@ -1236,7 +1302,7 @@ bool GrepSearchMode::performRipgrepSearch(Editor& editor)
 #ifdef _WIN32
     // Windows _popen waits for the child process in _pclose. Because ripgrep's
     // --max-count is per file, uvim can stop reading after 1000 matches while
-    // rg keeps scanning the rest of the tree, making interactive Ctrl-S appear
+    // rg keeps scanning the rest of the tree, making interactive grep appear
     // frozen. The in-process fallback has a real global match cap.
     (void)editor;
     return false;
@@ -1472,6 +1538,7 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     const GrepMatch& match = matches[cursor];
 
+    prewarmAroundCursor(editor);
     editor.openFile(std::string_view(match.filepath));
 
     *editor.cursorY = match.lineNumber - 1;
@@ -1482,8 +1549,7 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     *editor.cursorX = 0;
 
-    editor.searchQuery = query;
-    editor.findAllMatches();
+    seedEditorSearchFromGrepMatch(editor, match, query);
     editor.centerScreen();
 
     return true;
@@ -1497,6 +1563,7 @@ void GrepSearchMode::resultUp(Editor& editor)
         if(cursor < offset)
             offset = cursor;
     }
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::resultDown(Editor& editor)
@@ -1508,6 +1575,7 @@ void GrepSearchMode::resultDown(Editor& editor)
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::resultHalfPageUp(Editor& editor)
@@ -1518,6 +1586,7 @@ void GrepSearchMode::resultHalfPageUp(Editor& editor)
         cursor = 0;
     if(cursor < offset)
         offset = cursor;
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::resultHalfPageDown(Editor& editor)
@@ -1529,6 +1598,7 @@ void GrepSearchMode::resultHalfPageDown(Editor& editor)
     int visible = grepSearchVisibleRows(editor);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
+    prewarmAroundCursor(editor);
 }
 
 void GrepSearchMode::searchAddChar(Editor& editor, char c)
@@ -1630,6 +1700,33 @@ void GrepSearchMode::toggleSelection()
         selectedMatches.insert(cursor);
 }
 
+void GrepSearchMode::prewarmAroundCursor(Editor& editor) const
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return;
+
+    std::vector<std::string> paths;
+    std::unordered_set<std::string> seen;
+    paths.reserve(21);
+
+    auto addPath = [&](int index) {
+        if(index < 0 || index >= (int)matches.size())
+            return;
+        const std::string& path = matches[index].filepath;
+        if(seen.insert(path).second)
+            paths.push_back(path);
+    };
+
+    addPath(cursor);
+    for(int distance = 1; distance <= 10; ++distance)
+    {
+        addPath(cursor + distance);
+        addPath(cursor - distance);
+    }
+
+    editor.prewarmColdOpenFiles(paths);
+}
+
 bool GrepSearchMode::openSelected(Editor& editor)
 {
     if(selectedMatches.empty())
@@ -1666,6 +1763,7 @@ bool GrepSearchMode::openSelected(Editor& editor)
     }
     openedPaths.push_back(finalMatch.filepath);
 
+    editor.prewarmColdOpenFiles(openedPaths);
     for(size_t i = 0; i < openedPaths.size(); ++i)
     {
         bool notifyLsp = (i + 1 == openedPaths.size());
@@ -1678,8 +1776,7 @@ bool GrepSearchMode::openSelected(Editor& editor)
     if(*editor.cursorY < 0)
         *editor.cursorY = 0;
     *editor.cursorX = 0;
-    editor.searchQuery = query;
-    editor.findAllMatches();
+    seedEditorSearchFromGrepMatch(editor, finalMatch, query);
     editor.centerScreen();
 
     selectedMatches.clear();

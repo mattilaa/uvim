@@ -344,7 +344,7 @@ FuzzyFindMode::handle(TestModeContext& ctx, const int& event)
         return NormalMode{};
     if(c == 2) // Ctrl-B
         return BufferBrowserMode{};
-    if(c == 19) // Ctrl-S
+    if(c == 1) // Ctrl-A
         return GrepSearchMode{};
 
     return std::nullopt;
@@ -556,7 +556,7 @@ TEST_F(ModeStateMachineTest, FuzzyFindSwitchesToGrepSearch)
     mode_test::TestModeStateMachine local(ctx, mode_test::FuzzyFindMode{});
     EXPECT_TRUE(local.isIn<mode_test::FuzzyFindMode>());
 
-    local.dispatch(19); // Ctrl-S
+    local.dispatch(1); // Ctrl-A
     EXPECT_TRUE(local.isIn<mode_test::GrepSearchMode>());
 }
 

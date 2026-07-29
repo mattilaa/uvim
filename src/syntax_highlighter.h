@@ -34,6 +34,8 @@ public:
                                     bool inCppParamListContext = false) const;
     void renderLineWithSyntax(std::string& output, const std::string& line,
                               int start, int len, int fileRow) const;
+    bool isCppMemberIndexLoaded() const;
+    void ensureCppMemberIndexLoaded() const;
 
 private:
     Editor* editor;

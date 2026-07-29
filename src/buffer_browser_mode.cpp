@@ -136,7 +136,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         return std::nullopt;
 #endif
     }
-    else if(c == keyCode(control::ControlKey::CTRL_S) ||
+    else if(c == keyCode(control::ControlKey::CTRL_A) ||
             c == keyCode(command::CommandKey::KEY_SLASH))
     {
 #ifdef UVIM_ENABLE_SEARCH_TOOLS

@@ -910,7 +910,7 @@ void EditorModeController::handleNormalMode(int c)
         editor.setMode(BUFFER_BROWSER);
         break;
     case keyCode(
-        control::ControlKey::CTRL_S): // Ctrl+S for grep search (find in files)
+        control::ControlKey::CTRL_A): // Ctrl+A for grep search (find in files)
         editor.setMode(GREP_SEARCH);
         break;
     case keyCode(control::ControlKey::CTRL_X):

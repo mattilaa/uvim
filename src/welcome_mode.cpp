@@ -89,7 +89,7 @@ std::optional<ModeState> WelcomeMode::handle(ModeContext& ctx,
     }
 
     if(c == keyCode(command::CommandKey::KEY_SLASH) ||
-       c == keyCode(control::ControlKey::CTRL_S))
+       c == keyCode(control::ControlKey::CTRL_A))
     {
         return GrepSearchMode{};
     }
@@ -197,7 +197,7 @@ void WelcomeMode::draw(Editor& editor) const
         {":", "Command mode"},
         {"Ctrl-P", "Fuzzy find files"},
         {"Ctrl-W", "Buffer browser"},
-        {"Ctrl-S", "Search in files (grep)"},
+        {"Ctrl-A", "Search in files (grep)"},
     };
 
     auto append_items = [&](const std::vector<Item>& items)

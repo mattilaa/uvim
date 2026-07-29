@@ -133,6 +133,35 @@ using editor::helper::trim_ascii_ws;
 using editor::helper::trim_view;
 using editor::helper::TsConfigPaths;
 
+namespace
+{
+constexpr uintmax_t kColdOpenCacheMaxFileSize = 8ull * 1024ull * 1024ull;
+
+std::string coldOpenCacheKeyForPath(const fs::path& requestedPath)
+{
+    fs::path normalized = requestedPath.lexically_normal();
+    std::string path = normalized.string();
+    try
+    {
+        path = fs::canonical(requestedPath).string();
+    }
+    catch(...)
+    {
+        std::error_code ec;
+        fs::path absolutePath = fs::absolute(requestedPath, ec);
+        if(!ec)
+            path = absolutePath.lexically_normal().string();
+    }
+    return path;
+}
+
+long long fileTimeCount(const fs::file_time_type& time)
+{
+    return static_cast<long long>(time.time_since_epoch().count());
+}
+
+} // namespace
+
 #if defined(UVIM_TERMINAL_POSIX)
 static volatile sig_atomic_t g_pending_resize = 0;
 
@@ -1321,6 +1350,97 @@ std::string Editor::getModeString() const
     return "";
 }
 
+bool Editor::prewarmColdOpenFile(std::string_view fname)
+{
+    fs::path requestedPath =
+        EditorPathUtilities::resolveEditorPath(fs::path(std::string(fname)));
+    const std::string path = coldOpenCacheKeyForPath(requestedPath);
+
+    if(findBufferByFilename(path) >= 0)
+        return false;
+
+    std::error_code ec;
+    auto status = fs::status(path, ec);
+    if(ec || !fs::is_regular_file(status))
+    {
+        coldOpenCache.erase(path);
+        return false;
+    }
+
+    const uintmax_t size = fs::file_size(path, ec);
+    if(ec || size > kColdOpenCacheMaxFileSize)
+    {
+        coldOpenCache.erase(path);
+        return false;
+    }
+
+    const auto ftime = fs::last_write_time(path, ec);
+    if(ec)
+    {
+        coldOpenCache.erase(path);
+        return false;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    auto cached = coldOpenCache.find(path);
+    if(cached != coldOpenCache.end() &&
+       cached->second.lastModificationTime == ftime &&
+       cached->second.size == size)
+    {
+        cached->second.lastTouched = now;
+        return false;
+    }
+
+    std::ifstream file(path);
+    if(!file.is_open())
+    {
+        coldOpenCache.erase(path);
+        return false;
+    }
+
+    ColdOpenCacheEntry entry;
+    entry.size = size;
+    entry.lastModificationTime = ftime;
+    entry.lastTouched = now;
+
+    std::string line;
+    while(std::getline(file, line))
+    {
+        if(!line.empty() && line.back() == '\r')
+            line.pop_back();
+        entry.lines.push_back(line);
+    }
+    if(entry.lines.empty())
+        entry.lines.push_back("");
+
+    coldOpenCache[path] = std::move(entry);
+
+    while(coldOpenCache.size() > coldOpenCacheMaxEntries)
+    {
+        auto oldest = std::min_element(
+            coldOpenCache.begin(), coldOpenCache.end(),
+            [](const auto& a, const auto& b)
+            { return a.second.lastTouched < b.second.lastTouched; });
+        if(oldest == coldOpenCache.end())
+            break;
+        coldOpenCache.erase(oldest);
+    }
+    return true;
+}
+
+void Editor::prewarmColdOpenFiles(const std::vector<std::string>& filenames)
+{
+    constexpr int kMaxNewReadsPerPrewarm = 6;
+    int newReads = 0;
+    for(const auto& fname : filenames)
+    {
+        if(prewarmColdOpenFile(fname) && ++newReads >= kMaxNewReadsPerPrewarm)
+        {
+            break;
+        }
+    }
+}
+
 void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 {
     locMessage.clear();
@@ -1329,7 +1449,14 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     // process-wide current directory.
     fs::path requestedPath =
         EditorPathUtilities::resolveEditorPath(fs::path(std::string(fname)));
-    std::string path = requestedPath.string();
+    std::string path = requestedPath.lexically_normal().string();
+    int existing = findBufferByFilename(path);
+    if(existing >= 0)
+    {
+        switchToBuffer(existing);
+        return;
+    }
+
     try
     {
         path = fs::canonical(requestedPath).string();
@@ -1343,7 +1470,7 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     }
 
     // Check if file already open
-    int existing = findBufferByFilename(path);
+    existing = findBufferByFilename(path);
     if(existing >= 0)
     {
         switchToBuffer(existing);
@@ -1370,19 +1497,66 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
         createNewBuffer();
 
     *filename = path;
+    bufferIndexByFilename[path] = currentBufferIndex;
     lines->clear();
 
-    std::ifstream file(path);
-    if(file.is_open())
+    std::optional<std::filesystem::file_time_type> loadedModificationTime;
+    bool loadedFromColdCache = false;
+    std::error_code metaEc;
+    const uintmax_t currentSize = std::filesystem::file_size(path, metaEc);
+    std::error_code timeEc;
+    const auto currentFtime = std::filesystem::last_write_time(path, timeEc);
+    auto cached = coldOpenCache.find(path);
+    if(cached != coldOpenCache.end())
     {
-        std::string line;
-        while(std::getline(file, line))
+        if(!metaEc && !timeEc && cached->second.size == currentSize &&
+           cached->second.lastModificationTime == currentFtime)
         {
-            if(!line.empty() && line.back() == '\r')
-                line.pop_back();
-            lines->push_back(line);
+            *lines = std::move(cached->second.lines);
+            loadedModificationTime = cached->second.lastModificationTime;
+            loadedFromColdCache = true;
         }
-        file.close();
+        coldOpenCache.erase(cached);
+    }
+
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(!loadedFromColdCache && rgCacheLoaded && !metaEc && !timeEc)
+    {
+        const long long currentMtime = fileTimeCount(currentFtime);
+        for(const auto& rgCached : rgCachedFiles)
+        {
+            if(rgCached.size != currentSize || rgCached.mtime != currentMtime)
+                continue;
+
+            fs::path cachedPath = EditorPathUtilities::resolveEditorPath(
+                fs::path(rgCached.path));
+            if(coldOpenCacheKeyForPath(cachedPath) != path)
+                continue;
+
+            *lines = rgCached.lines;
+            loadedModificationTime = currentFtime;
+            loadedFromColdCache = true;
+            break;
+        }
+    }
+#endif
+
+    if(!loadedFromColdCache)
+    {
+        std::ifstream file(path);
+        if(file.is_open())
+        {
+            std::string line;
+            while(std::getline(file, line))
+            {
+                if(!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                lines->push_back(line);
+            }
+            file.close();
+        }
+        if(!timeEc)
+            loadedModificationTime = currentFtime;
     }
 
     if(lines->empty())
@@ -1391,7 +1565,13 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     *dirty = false;
     *cursorX = *cursorY = 0;
     *offsetX = *offsetY = 0;
-    currentBuffer->lspSyncNeeded = !notifyLspOnOpen;
+    currentBuffer->lspSyncNeeded = notifyLspOnOpen;
+    currentBuffer->lspOpenDeferred = notifyLspOnOpen;
+    currentBuffer->lspOpenDeferUntil =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+    currentBuffer->cppSyntaxIndexPrewarmDeferred = true;
+    currentBuffer->cppSyntaxIndexPrewarmUntil =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
     currentBuffer->lspHashValid = false;
     currentBuffer->lspDiagnosticsSeenValid = false;
     currentBuffer->lspDiagnosticsSeenRevision = 0;
@@ -1431,11 +1611,9 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 #endif
 
     // Record file modification time for external change detection
-    std::error_code ec;
-    auto ftime = std::filesystem::last_write_time(path, ec);
-    if(!ec)
+    if(loadedModificationTime)
     {
-        currentBuffer->lastModificationTime = ftime;
+        currentBuffer->lastModificationTime = *loadedModificationTime;
     }
 
     // Reset undo state cleanly
@@ -1446,124 +1624,6 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 
     needsFullRedraw = true;
 
-#ifdef UVIM_ENABLE_CLANGD_LSP
-    if(notifyLspOnOpen)
-    {
-        // Notify LSP about the newly opened file so gd works from system
-        // headers.
-        if(isClangdLspEnabled() && isFileType<FileType::Cpp>() &&
-           !isFileType<FileType::Mla>() && lspClient)
-        {
-            // Build text content from loaded lines
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            // didChange will call didOpen if needed
-            lspClient->didChange(path, text, "cpp");
-            currentBuffer->lspSyncNeeded = false;
-            if(syntaxCppSemanticTokens)
-                lspClient->requestSemanticTokens(path);
-        }
-        if(isRobotLspEnabled() && isFileType<FileType::Robot>() &&
-           robotLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            robotLspClient->didChange(path, text, "robotframework");
-        }
-        if(isPythonLspEnabled() && isFileType<FileType::Python>() &&
-           pythonLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            pythonLspClient->didChange(path, text, "python");
-        }
-        if(isMlangLspEnabled() && isFileType<FileType::Mla>() && mlangLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            mlangLspClient->didChange(path, text, "mlang");
-            mlangLspClient->requestSemanticTokens(path);
-        }
-        if(isHtmlLspEnabled() && isFileType<FileType::Html>() && htmlLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            htmlLspClient->didChange(path, text, "html");
-        }
-        if(isCssLspEnabled() && isFileType<FileType::Css>() && cssLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            cssLspClient->didChange(path, text, "css");
-        }
-        if(isJsonLspEnabled() && isFileType<FileType::Json>() && jsonLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            jsonLspClient->didChange(path, text, "json");
-        }
-        if(isTsLspEnabled() &&
-           (isFileType<FileType::JavaScript>() ||
-            isFileType<FileType::TypeScript>()) &&
-           tsLspClient)
-        {
-            std::string text;
-            text.reserve(lines->size() * 80);
-            for(size_t i = 0; i < lines->size(); ++i)
-            {
-                text += (*lines)[i];
-                if(i + 1 < lines->size())
-                    text.push_back('\n');
-            }
-            const char* lang = isFileType<FileType::TypeScript>()
-                                   ? "typescript"
-                                   : "javascript";
-            tsLspClient->didChange(path, text, lang);
-        }
-    }
-#endif
 }
 
 void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
@@ -1973,6 +2033,12 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     if(!currentBuffer || !isClangdLspEnabled() ||
        !isFileType<FileType::Cpp>() || !lspClient)
         return;
+    if(!force && currentBuffer->lspOpenDeferred)
+    {
+        if(std::chrono::steady_clock::now() < currentBuffer->lspOpenDeferUntil)
+            return;
+        currentBuffer->lspOpenDeferred = false;
+    }
 
     bool wantSemantic =
         syntaxCppSemanticTokens && !currentBuffer->lspSemanticTokensValid;
@@ -2078,6 +2144,12 @@ void Editor::syncMlangSemanticTokensIfNeeded(bool force,
     if(!currentBuffer || !isMlangLspEnabled() || !isFileType<FileType::Mla>() ||
        !mlangLspClient)
         return;
+    if(!force && currentBuffer->lspOpenDeferred)
+    {
+        if(std::chrono::steady_clock::now() < currentBuffer->lspOpenDeferUntil)
+            return;
+        currentBuffer->lspOpenDeferred = false;
+    }
 
     if(!syntaxMlangSemanticTokens && currentBuffer->lspSemanticTokensValid)
     {
@@ -2683,6 +2755,24 @@ void Editor::run()
                 }
             }
 #endif
+#ifdef UVIM_ENABLE_CLANGD_LSP
+            if(currentMode != INSERT && !showGitBlame)
+            {
+                syncClangdDiagnosticsIfNeeded(false);
+                syncMlangSemanticTokensIfNeeded(false);
+            }
+#endif
+            if(currentBuffer && syntaxHighlighter &&
+               currentBuffer->cppSyntaxIndexPrewarmDeferred &&
+               isFileType<FileType::Cpp>() &&
+               !syntaxHighlighter->isCppMemberIndexLoaded() &&
+               std::chrono::steady_clock::now() >=
+                   currentBuffer->cppSyntaxIndexPrewarmUntil)
+            {
+                currentBuffer->cppSyntaxIndexPrewarmDeferred = false;
+                syntaxHighlighter->ensureCppMemberIndexLoaded();
+                needsFullRedraw = true;
+            }
             if(needsFullRedraw)
                 draw();
             continue;

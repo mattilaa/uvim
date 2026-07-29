@@ -31,6 +31,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `.` : repeat last change
 
 \subsection keys_normal_search Search
+- `Ctrl-a` : project grep search
 - `/` : project grep search
 - `n` / `N` : next / previous match
 - `*` / `#` : search word under cursor forward / backward
@@ -62,7 +63,6 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \subsection keys_normal_leader Leader (Space)
 - `Space-e` : diagnostic popup on an LSP diagnostic row
-- `Space-s` : grep search
 - `Space-d` : go to definition
 - `Space-g a` : show assembly instruction docs in a scrollable popup
 - `Space-g d` : go to definition
