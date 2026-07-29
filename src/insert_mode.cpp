@@ -240,6 +240,12 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
     }
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    if(c == keyCode(control::ControlKey::CTRL_S))
+    {
+        return GrepSearchMode{};
+    }
+#endif
     if(ed->isRecordingChange() && !ed->isReplayingChange())
     {
         ed->recordChangeKey(c);

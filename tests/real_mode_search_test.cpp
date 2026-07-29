@@ -1,4 +1,5 @@
 #include "real_mode_test_utils.h"
+#include "editor_mode_controller.h"
 
 #include <thread>
 
@@ -9,6 +10,7 @@ namespace
 void flushGrepDebounce(GrepSearchMode& state, Editor& editor)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(310));
+    state.processIdle(editor);
     state.draw(editor);
 }
 } // namespace
@@ -175,7 +177,7 @@ TEST(RealModeTransitionsTest, GrepSearchCtrlSEntersBeforeIndexing)
     sm.dispatch(keyCode(control::ControlKey::CTRL_S));
 
     EXPECT_STREQ(sm.currentStateName(), "GREP");
-    EXPECT_TRUE(editor.grepFileIndexInitialized);
+    EXPECT_FALSE(editor.grepFileIndexInitialized);
 
     for(char c : std::string("needle"))
         sm.dispatch(c);
@@ -185,6 +187,99 @@ TEST(RealModeTransitionsTest, GrepSearchCtrlSEntersBeforeIndexing)
     flushGrepDebounce(*state, editor);
     ASSERT_EQ(state->matches.size(), 1u);
     EXPECT_TRUE(text_utils::is_found(state->matches[0].filepath.find("a.txt")));
+}
+
+TEST(RealModeTransitionsTest, GrepSearchCtrlSReentersWithFreshVisibleState)
+{
+    auto root = make_temp_dir("uvim_grep_reenter_");
+    write_file(root / "a.txt", "needle\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+    ASSERT_STREQ(sm.currentStateName(), "GREP");
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    ASSERT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_TRUE(state->query.empty());
+    EXPECT_TRUE(state->matches.empty());
+    EXPECT_TRUE(editor.needsFullRedraw);
+}
+
+TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromInsertMode)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"abc"};
+    *editor.cursorX = 3;
+
+    auto sm = makeMachine(editor, InsertMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+
+    sm.dispatch('v');
+
+    EXPECT_EQ(state->query, "v");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "abc");
+}
+
+TEST(RealModeTransitionsTest, CtrlSOpensGrepSearchFromReplaceMode)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"abc"};
+    *editor.cursorX = 1;
+
+    auto sm = makeMachine(editor, ReplaceMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_S));
+
+    EXPECT_STREQ(sm.currentStateName(), "GREP");
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+
+    sm.dispatch('v');
+
+    EXPECT_EQ(state->query, "v");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "abc");
+}
+
+TEST(RealModeTransitionsTest, ControllerCtrlSOpensGrepEvenWithStaleModeState)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"abc"};
+    *editor.cursorX = 3;
+    editor.setModeStateMachineForTests(
+        std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                           InsertMode{}));
+    editor.currentMode = NORMAL;
+    EditorModeController controller(editor);
+
+    controller.handleKeypress(keyCode(control::ControlKey::CTRL_S));
+
+    auto* sm = editor.getModeStateMachine();
+    ASSERT_NE(sm, nullptr);
+    EXPECT_STREQ(sm->currentStateName(), "GREP");
+    EXPECT_EQ(editor.currentMode, GREP_SEARCH);
+
+    controller.handleKeypress('v');
+
+    auto* state = sm->getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->query, "v");
+    EXPECT_EQ(editor.currentBuffer->lines[0], "abc");
 }
 
 TEST(RealModeTransitionsTest, GrepSearchBatchesQueuedPrintableInput)
@@ -251,6 +346,37 @@ TEST(RealModeTransitionsTest, GrepOpenSeedsSingleSearchMatchLazily)
 }
 
 #ifdef UVIM_ENABLE_RG_CACHE
+TEST(RealModeTransitionsTest, OpenFilePromotesMatchingRgCacheLines)
+{
+    auto root = make_temp_dir("uvim_rg_cache_open_");
+    write_file(root / "a.txt", "disk line\n");
+    ScopedCurrentPath cwd(root);
+
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(root / "a.txt", ec);
+    ASSERT_FALSE(ec);
+    const auto mtime = std::filesystem::last_write_time(root / "a.txt", ec);
+    ASSERT_FALSE(ec);
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.rgCacheLoaded = true;
+
+    Editor::RgCachedFile cached;
+    cached.path = "a.txt";
+    cached.size = size;
+    cached.mtime = static_cast<long long>(mtime.time_since_epoch().count());
+    cached.lines = {"rg cached"};
+    cached.lowerLines = {"rg cached"};
+    editor.rgCachedFiles.push_back(std::move(cached));
+
+    editor.openFile("a.txt", false);
+
+    ASSERT_NE(editor.currentBuffer, nullptr);
+    ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+    EXPECT_EQ(editor.currentBuffer->lines[0], "rg cached");
+}
+
 TEST(RealModeTransitionsTest, GrepSearchBuildsAndUpdatesRgCache)
 {
     auto root = make_temp_dir("uvim_rg_cache_");

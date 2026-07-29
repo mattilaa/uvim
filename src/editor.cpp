@@ -155,6 +155,11 @@ std::string coldOpenCacheKeyForPath(const fs::path& requestedPath)
     return path;
 }
 
+long long fileTimeCount(const fs::file_time_type& time)
+{
+    return static_cast<long long>(time.time_since_epoch().count());
+}
+
 } // namespace
 
 #if defined(UVIM_TERMINAL_POSIX)
@@ -1513,6 +1518,28 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
         }
         coldOpenCache.erase(cached);
     }
+
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(!loadedFromColdCache && rgCacheLoaded && !metaEc && !timeEc)
+    {
+        const long long currentMtime = fileTimeCount(currentFtime);
+        for(const auto& rgCached : rgCachedFiles)
+        {
+            if(rgCached.size != currentSize || rgCached.mtime != currentMtime)
+                continue;
+
+            fs::path cachedPath = EditorPathUtilities::resolveEditorPath(
+                fs::path(rgCached.path));
+            if(coldOpenCacheKeyForPath(cachedPath) != path)
+                continue;
+
+            *lines = rgCached.lines;
+            loadedModificationTime = currentFtime;
+            loadedFromColdCache = true;
+            break;
+        }
+    }
+#endif
 
     if(!loadedFromColdCache)
     {

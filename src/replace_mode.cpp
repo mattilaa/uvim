@@ -35,6 +35,12 @@ std::optional<ModeState> ReplaceMode::handle(ModeContext& ctx,
     const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    if(c == keyCode(control::ControlKey::CTRL_S))
+    {
+        return GrepSearchMode{};
+    }
+#endif
     if(ed->isRecordingChange() && !ed->isReplayingChange())
     {
         ed->recordChangeKey(c);

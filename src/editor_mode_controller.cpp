@@ -258,6 +258,24 @@ void EditorModeController::handleKeypress(int c)
     if(handleEmojiPopupKey(c))
         return;
 
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
+    if(c == keyCode(control::ControlKey::CTRL_S) &&
+       editor.currentMode != REGEX_SEARCH && editor.currentMode != GREP_SEARCH)
+    {
+        if(editor.modeStateMachine)
+        {
+            editor.modeStateMachine->transitionTo(GrepSearchMode{});
+            syncModeFromStateMachine();
+            editor.ensureBufferForMode(editor.currentMode);
+        }
+        else
+        {
+            editor.setMode(GREP_SEARCH);
+        }
+        return;
+    }
+#endif
+
     if(dispatchModeKey(c))
     {
         return;

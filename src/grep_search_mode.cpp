@@ -411,11 +411,7 @@ void GrepSearchMode::on_enter(ModeContext& ctx)
     // Set cursor to bar for input
     Terminal::setCursorBarBlinking();
 #ifdef UVIM_ENABLE_RG_CACHE
-    if(ed->rgCacheEnabled)
-    {
-        draw(*ed);
-        syncRgCache(*ed, false);
-    }
+    rgCacheSyncPending = ed->rgCacheEnabled;
 #endif
 }
 
@@ -547,8 +543,6 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 
 void GrepSearchMode::draw(Editor& editor)
 {
-    processIdle(editor);
-
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
@@ -759,12 +753,23 @@ void GrepSearchMode::draw(Editor& editor)
 
 bool GrepSearchMode::processIdle(Editor& editor)
 {
+    bool didWork = false;
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(rgCacheSyncPending)
+    {
+        rgCacheSyncPending = false;
+        syncRgCache(editor, false);
+        editor.needsFullRedraw = true;
+        didWork = true;
+    }
+#endif
+
     if(!searchPending)
-        return false;
+        return didWork;
 
     const auto now = std::chrono::steady_clock::now();
     if(now < searchDueAt)
-        return false;
+        return didWork;
 
     flushPendingSearch(editor);
     return true;
@@ -1001,6 +1006,11 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     draw(editor);
     Terminal::flush();
 
+    auto finishIndexing = [&] {
+        rgCacheIndexing = false;
+        rgCacheJobs = 0;
+    };
+
     if(refreshFileIndex)
     {
         editor.grepFileIndexInitialized = false;
@@ -1012,7 +1022,11 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     std::error_code ec;
     std::filesystem::create_directories(filesDir, ec);
     if(ec)
+    {
+        finishIndexing();
+        editor.needsFullRedraw = true;
         return false;
+    }
 
     auto oldIndex = loadRgCacheIndex(indexPath);
     std::unordered_map<std::string, const Editor::RgCachedFile*> existing;
@@ -1153,8 +1167,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     editor.rgCachedFiles = std::move(cachedFiles);
     rebuildRgCacheLineIndex(editor);
     editor.rgCacheLoaded = true;
-    rgCacheIndexing = false;
-    rgCacheJobs = 0;
+    finishIndexing();
     draw(editor);
     Terminal::flush();
 
