@@ -20,4 +20,6 @@ enum class FileType
     CMake,
     Shell,
     Asm,
+    Flex,
+    Bison,
 };

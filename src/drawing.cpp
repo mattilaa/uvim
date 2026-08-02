@@ -617,6 +617,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
                        isFileType<FileType::Robot>() ||
                        isFileType<FileType::Python>() ||
                        isFileType<FileType::Asm>() ||
+                       isFileType<FileType::Flex>() ||
+                       isFileType<FileType::Bison>() ||
                        isFileType<FileType::CMake>() ||
                        isFileType<FileType::Shell>() ||
                        isFileType<FileType::Html>() ||
@@ -764,6 +766,8 @@ void Editor::drawScrollUpdate(int scrollDelta)
                        isFileType<FileType::Robot>() ||
                        isFileType<FileType::Python>() ||
                        isFileType<FileType::Asm>() ||
+                       isFileType<FileType::Flex>() ||
+                       isFileType<FileType::Bison>() ||
                        isFileType<FileType::CMake>() ||
                        isFileType<FileType::Shell>() ||
                        isFileType<FileType::Html>() ||
@@ -1157,6 +1161,8 @@ void Editor::drawFullScreenSingle()
                    isFileType<FileType::Robot>() ||
                    isFileType<FileType::Python>() ||
                    isFileType<FileType::Asm>() ||
+                   isFileType<FileType::Flex>() ||
+                   isFileType<FileType::Bison>() ||
                    isFileType<FileType::CMake>() ||
                    isFileType<FileType::Shell>() ||
                    isFileType<FileType::Html>() ||
@@ -1589,6 +1595,7 @@ void Editor::drawSplitFullScreen()
                isFileType<FileType::Robot>() ||
                isFileType<FileType::Python>() ||
                isFileType<FileType::Asm>() ||
+               isFileType<FileType::Flex>() || isFileType<FileType::Bison>() ||
                isFileType<FileType::CMake>() || isFileType<FileType::Shell>() ||
                isFileType<FileType::Html>() || isFileType<FileType::Css>() ||
                isFileType<FileType::JavaScript>() ||

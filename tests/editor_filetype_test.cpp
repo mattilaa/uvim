@@ -43,4 +43,12 @@ TEST(EditorFileTypeTest, DispatchMatchesSpecificHelpers)
     *editor.filename = "/tmp/.mlang-format";
     EXPECT_TRUE(editor.isFileType<FileType::FormatterConfig>());
     EXPECT_FALSE(editor.isFileType<FileType::Toml>());
+
+    *editor.filename = "/tmp/scanner.l";
+    EXPECT_TRUE(editor.isFileType<FileType::Flex>());
+    EXPECT_FALSE(editor.isFileType<FileType::Bison>());
+
+    *editor.filename = "/tmp/parser.y";
+    EXPECT_TRUE(editor.isFileType<FileType::Bison>());
+    EXPECT_FALSE(editor.isFileType<FileType::Flex>());
 }

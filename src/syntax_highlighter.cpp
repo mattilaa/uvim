@@ -1798,11 +1798,14 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     const bool isJs = isFileType<FileType::JavaScript>() ||
                       isFileType<FileType::TypeScript>();
     const bool isCss = isFileType<FileType::Css>();
+    const bool isFlex = isFileType<FileType::Flex>();
+    const bool isBison = isFileType<FileType::Bison>();
+    const bool isCppLike = isFileType<FileType::Cpp>() || isFlex || isBison;
 
     int paramListStart = -1;
     int paramListEnd = -1;
     bool paramListOpen = false;
-    if(isFileType<FileType::Cpp>() &&
+    if(isCppLike &&
        (syntaxCppHighlightParamTypes || syntaxCppHighlightTypeNames))
     {
         bool inString = false;
@@ -1920,7 +1923,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             paramListOpen = true;
     }
 
-    if(isFileType<FileType::Cpp>())
+    if(isCppLike)
     {
         size_t first = 0;
         while(first < line.size() && text_utils::is_space(line[first]))
@@ -3087,6 +3090,25 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
     {
         char c = sv[i];
 
+        if((isFlex || isBison) && c == '%' && i + 1 < len &&
+           text_utils::is_alpha(sv[i + 1]))
+        {
+            int start = i++;
+            while(i < len && (text_utils::is_alpha(sv[i]) ||
+                              text_utils::is_digit(sv[i]) || sv[i] == '_'))
+                ++i;
+            push_token(TOKEN_KEYWORD, start, i - start);
+            continue;
+        }
+
+        if((isFlex || isBison) && c == '%' && i + 1 < len &&
+           sv[i + 1] == '%')
+        {
+            push_token(TOKEN_KEYWORD, i, 2);
+            i += 2;
+            continue;
+        }
+
         if(c == '/' && i + 1 < len)
         {
             if(sv[i + 1] == '/')
@@ -3250,7 +3272,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     continue;
                 }
             }
-            if(isFileType<FileType::Cpp>())
+            if(isCppLike)
             {
                 int chainEnd = i;
                 if(try_push_qualified_chain(start, chainEnd))
@@ -3870,7 +3892,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             int lookahead = i;
             while(lookahead < len && text_utils::is_space(sv[lookahead]))
                 ++lookahead;
-            if(isFileType<FileType::Cpp>() && syntaxCppHighlightTypeNames &&
+            if(isCppLike && syntaxCppHighlightTypeNames &&
                lookahead + 1 < len && sv[lookahead] == ':' &&
                sv[lookahead + 1] == ':')
             {
@@ -3886,7 +3908,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
 
         if(std::ispunct(static_cast<unsigned char>(c)))
         {
-            if(isFileType<FileType::Cpp>() && syntaxCppHighlightMembers)
+            if(isCppLike && syntaxCppHighlightMembers)
             {
                 if(c == '.')
                 {
@@ -3976,6 +3998,9 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
 
     // fileRow is already the absolute line index in the buffer
     int absoluteLineNum = fileRow;
+    const bool isCppLike = isFileType<FileType::Cpp>() ||
+                           isFileType<FileType::Flex>() ||
+                           isFileType<FileType::Bison>();
 
     // Helper function to scan a line and update block comment state
     // This needs to be careful about string literals and character literals
@@ -4194,7 +4219,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                 bool functionBefore = lineState.functionState.inFunction;
                 bool paramBefore = lineState.paramState.inParamList;
 
-                if(isFileType<FileType::Cpp>())
+                if(isCppLike)
                 {
                     scan_line_for_cpp_method_context(curLine, cppClassNames,
                                                      lineState.methodState,
@@ -4210,7 +4235,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     functionBefore || functionStart;
                 lineState.inCppParamListContext = paramBefore || paramStart;
 
-                if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
+                if(isCppLike || isFileType<FileType::Mla>())
                     scanLineForBlockComments(curLine, lineState.inBlockComment);
 
                 if(isFileType<FileType::Toml>())
@@ -4248,14 +4273,14 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
     }
     else
     {
-        if(isFileType<FileType::Cpp>() || isFileType<FileType::Mla>())
+        if(isCppLike || isFileType<FileType::Mla>())
         {
             for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
             {
                 scanLineForBlockComments((*lines)[i], blockCommentState);
             }
         }
-        if(isFileType<FileType::Cpp>())
+        if(isCppLike)
         {
             CppFunctionScanState functionState;
             CppParamListScanState paramState;
@@ -4283,7 +4308,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             inCppParamListContext =
                 inParamListAtLineStart || lineHasParamListStart;
         }
-        if(isFileType<FileType::Cpp>() && cppMemberIndexLoaded &&
+        if(isCppLike && cppMemberIndexLoaded &&
            editor->syntaxCppHighlightImplicitMembers)
         {
             CppMethodScanState methodState;
@@ -4330,7 +4355,7 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
     for(const auto& token : tokens)
     {
         TokenType effectiveType = token.type;
-        if(isFileType<FileType::Cpp>() && editor)
+        if(isCppLike && editor)
         {
             if(token.type == TOKEN_MEMBER)
                 effectiveType = editor->syntaxCppMemberToken;

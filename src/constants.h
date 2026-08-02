@@ -114,6 +114,13 @@ inline constexpr std::array asm_suffixes = {
     std::string_view{".s"}, std::string_view{".S"}, std::string_view{".asm"},
     std::string_view{".ASM"}};
 
+inline constexpr std::array flex_suffixes = {std::string_view{".l"},
+                                             std::string_view{".lex"}};
+
+inline constexpr std::array bison_suffixes = {std::string_view{".y"},
+                                              std::string_view{".yy"},
+                                              std::string_view{".yacc"}};
+
 inline constexpr std::array robot_suffixes = {
     std::string_view{".robot"},
     std::string_view{".resource"},

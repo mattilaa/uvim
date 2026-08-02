@@ -939,6 +939,14 @@ std::optional<FileType> Editor::getFileType() const
     {
         return FileType::Asm;
     }
+    else if(isFileType<FileType::Flex>())
+    {
+        return FileType::Flex;
+    }
+    else if(isFileType<FileType::Bison>())
+    {
+        return FileType::Bison;
+    }
     else if(isFileType<FileType::Robot>())
     {
         return FileType::Robot;

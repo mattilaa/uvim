@@ -49,6 +49,8 @@ Formatter::FormatterVariant Formatter::formatterFor(FileType type)
     case FileType::CMake:
     case FileType::Shell:
     case FileType::Asm:
+    case FileType::Flex:
+    case FileType::Bison:
         return std::ref(clangFormatter);
     }
     return std::ref(clangFormatter);

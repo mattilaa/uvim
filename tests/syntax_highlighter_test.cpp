@@ -167,6 +167,39 @@ TEST(SyntaxHighlighterTest, HighlightsAssemblyKeywordsAndRegisters)
         rendered.find(editor.theme.syntax(TOKEN_KEYWORD))));
 }
 
+TEST(SyntaxHighlighterTest, HighlightsFlexAndBisonDirectives)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/scanner.l";
+    editor.currentBuffer->filename = *editor.filename;
+    editor.currentBuffer->fileTypeCacheValid = false;
+
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    bool inMarkupFence = false;
+    char tomlQuote = 0;
+    char markupFenceChar = 0;
+
+    auto flexTokens = editor.syntaxHighlighter->tokenizeLine(
+        "%option noyywrap", inBlockComment, inTomlMultiline, tomlQuote,
+        inMarkupFence, markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(flexTokens, 0, 7, TOKEN_KEYWORD));
+
+    *editor.filename = "/tmp/parser.y";
+    editor.currentBuffer->filename = *editor.filename;
+    editor.currentBuffer->fileTypeCacheValid = false;
+    auto bisonTokens = editor.syntaxHighlighter->tokenizeLine(
+        "%token NUMBER", inBlockComment, inTomlMultiline, tomlQuote,
+        inMarkupFence, markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(bisonTokens, 0, 6, TOKEN_KEYWORD));
+
+    auto separatorTokens = editor.syntaxHighlighter->tokenizeLine(
+        "%%", inBlockComment, inTomlMultiline, tomlQuote, inMarkupFence,
+        markupFenceChar);
+    EXPECT_TRUE(hasTokenAt(separatorTokens, 0, 2, TOKEN_KEYWORD));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsFormatterConfigsLikeYaml)
 {
     Editor editor = Editor::createForTests();
