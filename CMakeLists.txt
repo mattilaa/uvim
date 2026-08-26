@@ -237,6 +237,7 @@ set(UVIM_CORE_SOURCES
     src/editor_lsp_css_controller.cpp
     src/editor_lsp_json_controller.cpp
     src/editor_lsp_ts_controller.cpp
+    src/project_lsp_discovery.cpp
     src/editor_mode_controller.cpp
     src/editor_size_probe_controller.cpp
     src/editor_operator_controller.cpp

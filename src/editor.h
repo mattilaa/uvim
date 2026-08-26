@@ -282,6 +282,7 @@ public:
     // preserves existing call sites while the rest of the editor is migrated.
     RedrawFlag needsFullRedraw{this};
     std::string projectRoot;
+    bool fileBrowserFollowsWorkingDirectory = false;
 
     // Modes
     Mode currentMode = NORMAL;
@@ -302,6 +303,7 @@ public:
     std::string clangdLspCompileCommandsDir;
     std::string clangdLspPath = "clangd";
     std::string clangdLspQueryDriverAllowList;
+    std::string clangdLspActiveProjectRoot;
     bool clangdLspStartupAttempted = false;
     std::string clangdLspLastError;
     bool robotLspEnabled = false;
@@ -313,6 +315,7 @@ public:
     bool mlangLspEnabled = false;
     std::string mlangLspPath = "mlangd-mla";
     std::vector<std::string> mlangLspArgs;
+    std::string mlangLspActiveProjectRoot;
     bool htmlLspEnabled = false;
     std::string htmlLspPath = "vscode-html-language-server";
     std::vector<std::string> htmlLspArgs;
@@ -1093,6 +1096,12 @@ public:
         return projectRoot;
     }
 
+    std::string fileBrowserStartDirectory() const;
+    void followWorkingDirectoryInFileBrowser()
+    {
+        fileBrowserFollowsWorkingDirectory = true;
+    }
+
     editor::statemachine::ModeStateMachine* getModeStateMachine()
     {
         return modeStateMachine.get();
@@ -1131,7 +1140,8 @@ private:
     bool formatBufferForSave();
     void enableClangdLspImpl(bool enable, const std::string& compileCommandsDir,
                              const std::string& clangdPath,
-                             const std::string& queryDriverAllowList);
+                             const std::string& queryDriverAllowList,
+                             const std::string& projectRootOverride = {});
     bool isClangdLspEnabledImpl() const;
     void enableRobotLspImpl(bool enable, const std::string& robotLspPath,
                             const std::vector<std::string>& robotLspArgs);
@@ -1140,7 +1150,8 @@ private:
                              const std::vector<std::string>& pythonLspArgs);
     bool isPythonLspEnabledImpl() const;
     void enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
-                            const std::vector<std::string>& mlangLspArgs);
+                            const std::vector<std::string>& mlangLspArgs,
+                            const std::string& projectRootOverride = {});
     bool isMlangLspEnabledImpl() const;
     void enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
                            const std::vector<std::string>& htmlLspArgs);
@@ -1161,6 +1172,7 @@ private:
     bool hasBufferImpl() const;
     void ensureBufferForModeImpl(Mode mode);
     void switchToBufferImpl(int index);
+    void activateProjectLspForCurrentBuffer();
     void nextBufferImpl();
     void previousBufferImpl();
     void moveBufferLeftImpl();

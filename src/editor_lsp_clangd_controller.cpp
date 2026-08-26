@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "enablelog.h"
+#include "project_lsp_discovery.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
 #endif
@@ -85,7 +86,8 @@ std::string detect_compile_commands_dir(const std::string& rootDir)
 void Editor::enableClangdLspImpl(bool enable,
                                  const std::string& compileCommandsDir,
                                  const std::string& clangdPath,
-                                 const std::string& queryDriverAllowList)
+                                 const std::string& queryDriverAllowList,
+                                 const std::string& projectRootOverride)
 {
     clangdLspEnabled = false;
     clangdLspCompileCommandsDir = compileCommandsDir;
@@ -103,11 +105,16 @@ void Editor::enableClangdLspImpl(bool enable,
             lspClient.reset();
         }
         clangdLspStartupAttempted = false;
+        clangdLspActiveProjectRoot.clear();
         return;
     }
 
     std::string rootDir = ".";
-    if(!projectRoot.empty())
+    if(!projectRootOverride.empty())
+    {
+        rootDir = projectRootOverride;
+    }
+    else if(!projectRoot.empty())
     {
         rootDir = projectRoot;
     }
@@ -191,12 +198,56 @@ void Editor::enableClangdLspImpl(bool enable,
 
     clangdLspEnabled = true;
     clangdLspCompileCommandsDir = ccdir;
+    clangdLspActiveProjectRoot = rootDir;
     clangdLspLastError.clear();
 #else
     (void)enable;
     (void)compileCommandsDir;
     (void)clangdPath;
+    (void)queryDriverAllowList;
+    (void)projectRootOverride;
     setStatusMessage("clangd LSP: not compiled in");
+#endif
+}
+
+void Editor::activateProjectLspForCurrentBuffer()
+{
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    if(!currentBuffer || !filename || filename->empty())
+        return;
+
+    if(isFileType<FileType::Cpp>() && isClangdLspEnabled())
+    {
+        auto config = project_lsp::findCompileCommandsForFile(*filename);
+        if(config)
+        {
+            const std::string root = config->root.string();
+            const std::string commandsDirectory =
+                config->commandsDirectory.string();
+            if(root != clangdLspActiveProjectRoot ||
+               commandsDirectory != clangdLspCompileCommandsDir)
+            {
+                enableClangdLspImpl(true, commandsDirectory, clangdLspPath,
+                                   clangdLspQueryDriverAllowList, root);
+            }
+        }
+        return;
+    }
+
+#ifdef UVIM_ENABLE_MLANG_LSP
+    if(isFileType<FileType::Mla>() && isMlangLspEnabled())
+    {
+        auto config = project_lsp::findMlangCommandsForFile(*filename);
+        if(config)
+        {
+            const std::string root = config->root.string();
+            if(root != mlangLspActiveProjectRoot)
+            {
+                enableMlangLspImpl(true, mlangLspPath, mlangLspArgs, root);
+            }
+        }
+    }
+#endif
 #endif
 }
 

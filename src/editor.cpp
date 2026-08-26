@@ -1637,8 +1637,28 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     saveState();
     currentBuffer->savedUndoIndex = currentBuffer->undoIndex;
 
+    activateProjectLspForCurrentBuffer();
+
     needsFullRedraw = true;
 
+}
+
+std::string Editor::fileBrowserStartDirectory() const
+{
+    if(fileBrowserFollowsWorkingDirectory)
+    {
+        fs::path cwd = EditorPathUtilities::currentWorkingDirectory();
+        if(!cwd.empty())
+            return cwd.string();
+    }
+
+    if(filename && !filename->empty())
+    {
+        std::string_view parent = text_utils::dirname(*filename);
+        if(!parent.empty())
+            return std::string(parent);
+    }
+    return ".";
 }
 
 void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile,

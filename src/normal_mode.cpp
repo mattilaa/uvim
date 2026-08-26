@@ -1161,13 +1161,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         [&](bool focusCurrentFile,
             bool acceptSecondLeaderX = false) -> std::optional<ModeState>
     {
-        std::string dir = ".";
-        if(ed->filename && !ed->filename->empty())
-        {
-            std::string_view parent = text_utils::dirname(*ed->filename);
-            if(!parent.empty())
-                dir = parent;
-        }
+        std::string dir = ed->fileBrowserStartDirectory();
         std::string prev;
         if(ed->currentBuffer != nullptr && ed->filename)
         {

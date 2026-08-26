@@ -3,6 +3,7 @@
 #include "asm_documentation.h"
 #include "color_constant.h"
 #include "editor.h"
+#include "editor_path_utilities.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
 #include "text_utils.h"
@@ -101,6 +102,28 @@ public:
         std::error_code ec;
         if(!previous.empty())
             std::filesystem::current_path(previous, ec);
+    }
+
+private:
+    std::filesystem::path previous;
+};
+
+class ScopedEditorWorkingDirectory
+{
+public:
+    ScopedEditorWorkingDirectory()
+        : previous(EditorPathUtilities::currentWorkingDirectory())
+    {
+    }
+
+    ~ScopedEditorWorkingDirectory()
+    {
+        if(previous.empty())
+            return;
+        std::string displayPath;
+        std::string errorMessage;
+        EditorPathUtilities::setWorkingDirectory(previous, displayPath,
+                                                 errorMessage);
     }
 
 private:

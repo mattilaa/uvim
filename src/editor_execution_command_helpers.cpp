@@ -117,7 +117,10 @@ bool setCwd(Editor& editor, std::string path)
     std::string errorMessage;
     if(EditorPathUtilities::setWorkingDirectory(path, displayPath,
                                                 errorMessage))
+    {
+        editor.followWorkingDirectoryInFileBrowser();
         editor.setStatusMessage(displayPath);
+    }
     else
         editor.setStatusMessage("Cannot change to: " + path + " (" +
                                 errorMessage + ")");

@@ -196,6 +196,7 @@ void Editor::switchToBufferImpl(int index)
 
         // Check if the file has been modified externally
         checkFileChanges();
+        activateProjectLspForCurrentBuffer();
 
         std::string msg = "Buffer " + std::to_string(currentBufferIndex + 1) +
                           "/" + std::to_string(buffers.size());

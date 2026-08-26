@@ -12,7 +12,8 @@ mla::log::FileLogger LSP_LOG("MLANG");
 }
 
 void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
-                                const std::vector<std::string>& mlangLspArgs)
+                                const std::vector<std::string>& mlangLspArgs,
+                                const std::string& projectRootOverride)
 {
     mlangLspEnabled = false;
     this->mlangLspPath = mlangLspPath;
@@ -26,11 +27,16 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
             mlangLspClient->stop();
             mlangLspClient.reset();
         }
+        mlangLspActiveProjectRoot.clear();
         return;
     }
 
     std::string rootDir = ".";
-    if(!projectRoot.empty())
+    if(!projectRootOverride.empty())
+    {
+        rootDir = projectRootOverride;
+    }
+    else if(!projectRoot.empty())
     {
         rootDir = projectRoot;
     }
@@ -58,11 +64,13 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
     }
 
     mlangLspEnabled = true;
+    mlangLspActiveProjectRoot = rootDir;
     LOG_DEBUG(LSP_LOG, "Mlang LSP enabled");
 #else
     (void)enable;
     (void)mlangLspPath;
     (void)mlangLspArgs;
+    (void)projectRootOverride;
     LOG_ERROR(LSP_LOG, "Mlang LSP is not compiled");
 #endif
 }

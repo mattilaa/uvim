@@ -480,13 +480,7 @@ void EditorModeController::handleNormalMode(int c)
         }
         else if(c == keyCode(typed::TypedKey::KEY_X))
         {
-            std::string dir = ".";
-            if(editor.filename && !editor.filename->empty())
-            {
-                std::string_view parent = text_utils::dirname(*editor.filename);
-                if(!parent.empty())
-                    dir = parent;
-            }
+            std::string dir = editor.fileBrowserStartDirectory();
             editor.openFileBrowser(dir, true, true);
             return;
         }

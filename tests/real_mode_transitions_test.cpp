@@ -1,5 +1,6 @@
 #include "real_mode_test_utils.h"
 #include "widgets/command_popup.h"
+#include "project_lsp_discovery.h"
 
 #include <algorithm>
 
@@ -1288,6 +1289,55 @@ TEST(RealModeTransitionsTest, LeaderXOpensFileBrowserAtCurrentFile)
     ASSERT_GE(fb->browserCursor, 0);
     ASSERT_LT(fb->browserCursor, static_cast<int>(fb->fileList.size()));
     EXPECT_EQ(fb->fileList[fb->browserCursor].name, "target.txt");
+}
+
+TEST(RealModeTransitionsTest, LeaderXUsesPwdAfterCd)
+{
+    ScopedEditorWorkingDirectory restoreWorkingDirectory;
+    const auto root = make_temp_dir("uvim_leader_x_cd_");
+    const auto sourceDirectory = root / "source";
+    const auto browseDirectory = root / "browse";
+    write_file(sourceDirectory / "current.txt", "current\n");
+    write_file(browseDirectory / "other.txt", "other\n");
+
+    Editor editor = Editor::createForTests();
+    editor.openFile((sourceDirectory / "current.txt").string());
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "cd " + browseDirectory.string());
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
+
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    EXPECT_EQ(std::filesystem::weakly_canonical(browser->currentDirectory),
+              std::filesystem::weakly_canonical(browseDirectory));
+}
+
+TEST(ProjectLspDiscoveryTest, FindsNearestCommandsFromBufferDirectory)
+{
+    const auto root = make_temp_dir("uvim_project_lsp_");
+    const auto outer = root / "outer";
+    const auto inner = outer / "nested";
+    const auto cppFile = inner / "src" / "main.cpp";
+    const auto mlaFile = inner / "lib" / "main.mla";
+    write_file(outer / "compile_commands.json", "[]\n");
+    write_file(inner / "build" / "compile_commands.json", "[]\n");
+    write_file(outer / "mlang_commands.json", "[]\n");
+    write_file(inner / "build" / "mlang_commands.json", "[]\n");
+    write_file(cppFile, "int main() {}\n");
+    write_file(mlaFile, "module main\n");
+
+    auto cpp = project_lsp::findCompileCommandsForFile(cppFile);
+    ASSERT_TRUE(cpp.has_value());
+    EXPECT_EQ(cpp->root, inner);
+    EXPECT_EQ(cpp->commandsDirectory, inner / "build");
+
+    auto mlang = project_lsp::findMlangCommandsForFile(mlaFile);
+    ASSERT_TRUE(mlang.has_value());
+    EXPECT_EQ(mlang->root, inner);
+    EXPECT_EQ(mlang->commandsDirectory, inner / "build");
 }
 
 TEST(RealModeTransitionsTest, LeaderXXOpensFileBrowserAtDirectoryTop)
