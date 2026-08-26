@@ -1752,6 +1752,7 @@ void collectProjectFileEntries(const std::string& dir, int depth,
                 ftime - decltype(ftime)::clock::now() + system_clock::now());
             fileEntry.modTime = system_clock::to_time_t(sctp);
         }
+        fileEntry.metadataLoaded = true;
 
         out.push_back(fileEntry);
 

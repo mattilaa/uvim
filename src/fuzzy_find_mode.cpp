@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <limits.h>
 #include <sstream>
+#include <unordered_set>
 
 // ============================================================================
 // FuzzyFindMode Implementation
@@ -176,8 +177,14 @@ void FuzzyFindMode::on_enter(ModeContext& ctx)
     Terminal::setCursorBarBlinking();
 }
 
-void FuzzyFindMode::on_exit(ModeContext& /* ctx */)
+void FuzzyFindMode::on_exit(ModeContext& ctx)
 {
+    if(projectFilesInitialized)
+    {
+        ctx.editor->fuzzyProjectFiles = std::move(projectFiles);
+        ctx.editor->fuzzyFileIndexInitialized = true;
+    }
+
     // Restore block cursor
     Terminal::setCursorBlock();
 }
@@ -388,7 +395,7 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         std::string sizeStr;
         int pathWidth = std::max(1, editor.screenCols - 2);
-        if(editor.screenCols > 60)
+        if(editor.screenCols > 60 && match.file.metadataLoaded)
         {
             sizeStr = formatFileSizeShort(match.file.size);
             pathWidth =
@@ -473,13 +480,31 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
     if(projectFilesInitialized)
         return;
 
-    projectFiles.clear();
-
     std::error_code cwdEc;
     auto cwd = std::filesystem::current_path(cwdEc);
+    const std::string cwdStr = cwdEc ? std::string{} : cwd.string();
+    const bool cacheMatches =
+        editor.fuzzyFileIndexInitialized &&
+        editor.fuzzyFileIndexCwd == cwdStr &&
+        editor.fuzzyFileIndexRespectGitignore == editor.respectGitignore &&
+        editor.fuzzyFileIndexUseGit == editor.useGitFileIndex;
+    if(cacheMatches)
+    {
+        projectFiles = std::move(editor.fuzzyProjectFiles);
+        editor.fuzzyFileIndexInitialized = false;
+        projectFilesInitialized = true;
+        return;
+    }
+
+    editor.fuzzyProjectFiles.clear();
+    editor.fuzzyFileIndexInitialized = false;
+    editor.fuzzyFileIndexCwd = cwdStr;
+    editor.fuzzyFileIndexRespectGitignore = editor.respectGitignore;
+    editor.fuzzyFileIndexUseGit = editor.useGitFileIndex;
+    projectFiles.clear();
+
     if(!cwdEc)
     {
-        const std::string cwdStr = cwd.string();
         if(editor.useGitFileIndex)
         {
             std::string repoRoot =
@@ -491,6 +516,12 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                     runCmd({"git", "-C", cwdStr, "ls-files", "-z", "--cached",
                             "--others", "--exclude-standard"});
                 const auto relPaths = splitNul(raw);
+#ifdef _WIN32
+                const auto deletedPathsList = splitNul(runCmd(
+                    {"git", "-C", cwdStr, "ls-files", "-z", "--deleted"}));
+                const std::unordered_set<std::string> deletedPaths(
+                    deletedPathsList.begin(), deletedPathsList.end());
+#endif
 
                 for(const auto& relPath : relPaths)
                 {
@@ -498,20 +529,27 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                         continue;
                     if(hasHiddenPathComponent(relPath))
                         continue;
+#ifdef _WIN32
+                    if(deletedPaths.count(relPath) != 0)
+                        continue;
+#endif
 
                     const std::string fullPath = cwdStr + "/" + relPath;
+#ifndef _WIN32
                     std::error_code stEc;
                     auto status = std::filesystem::status(fullPath, stEc);
                     if(stEc)
                         continue;
                     if(std::filesystem::is_directory(status))
                         continue;
+#endif
 
                     FileEntry entry;
                     std::filesystem::path fullFs(fullPath);
                     entry.name = fullFs.filename().string();
                     entry.path = relPath;
                     entry.isDirectory = false;
+#ifndef _WIN32
                     std::error_code szEc;
                     entry.size =
                         (uintmax_t)std::filesystem::file_size(fullPath, szEc);
@@ -528,10 +566,15 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                             system_clock::now());
                         entry.modTime = system_clock::to_time_t(sctp);
                     }
+                    entry.metadataLoaded = true;
+#endif
                     projectFiles.push_back(std::move(entry));
                 }
                 if(!projectFiles.empty())
                 {
+                    std::sort(projectFiles.begin(), projectFiles.end(),
+                              [](const FileEntry& a, const FileEntry& b)
+                              { return a.path < b.path; });
                     projectFilesInitialized = true;
                     return;
                 }
@@ -547,12 +590,16 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
                                                   projectFiles);
     }
 
+    std::sort(projectFiles.begin(), projectFiles.end(),
+              [](const FileEntry& a, const FileEntry& b)
+              { return a.path < b.path; });
     projectFilesInitialized = true;
 }
 
 void FuzzyFindMode::updateMatches(Editor& /* editor */)
 {
     matches.clear();
+    matches.reserve(projectFiles.size());
     selectedFiles.clear();
 
     if(query.empty())
@@ -567,10 +614,6 @@ void FuzzyFindMode::updateMatches(Editor& /* editor */)
                 matches.push_back(match);
             }
         }
-
-        std::sort(matches.begin(), matches.end(),
-                  [](const FuzzyMatch& a, const FuzzyMatch& b)
-                  { return a.file.path < b.file.path; });
     }
     else
     {
@@ -755,6 +798,8 @@ void FuzzyFindMode::toggleGitignore(Editor& editor)
     if(editor.gitignoreLockedOff)
         return;
     editor.respectGitignore = !editor.respectGitignore;
+    editor.fuzzyProjectFiles.clear();
+    editor.fuzzyFileIndexInitialized = false;
     projectFilesInitialized = false;
     initializeFiles(editor);
     query.clear();
@@ -766,6 +811,8 @@ void FuzzyFindMode::toggleGitignore(Editor& editor)
 
 void FuzzyFindMode::refreshFileIndex(Editor& editor)
 {
+    editor.fuzzyProjectFiles.clear();
+    editor.fuzzyFileIndexInitialized = false;
     projectFilesInitialized = false;
     initializeFiles(editor);
     cursor = 0;
@@ -816,6 +863,9 @@ bool FuzzyFindMode::select(Editor& editor)
     prewarmAroundCursor(editor);
     const FuzzyMatch& match = matches[cursor];
     editor.openFile(std::string_view(match.file.path));
+#ifdef _WIN32
+    Terminal::discardPendingInput();
+#endif
     return true;
 }
 
@@ -832,6 +882,9 @@ bool FuzzyFindMode::openSelected(Editor& editor)
         bool notifyLsp = (i + 1 == paths.size());
         editor.openFile(std::string_view(paths[i]), notifyLsp);
     }
+#ifdef _WIN32
+    Terminal::discardPendingInput();
+#endif
     selectedFiles.clear();
     return true;
 }

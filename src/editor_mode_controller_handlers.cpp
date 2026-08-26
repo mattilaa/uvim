@@ -480,7 +480,6 @@ void EditorModeController::handleNormalMode(int c)
         }
         else if(c == keyCode(typed::TypedKey::KEY_X))
         {
-            const int nextChar = Terminal::readKeyTimeout(300);
             std::string dir = ".";
             if(editor.filename && !editor.filename->empty())
             {
@@ -488,10 +487,7 @@ void EditorModeController::handleNormalMode(int c)
                 if(!parent.empty())
                     dir = parent;
             }
-            if(nextChar != -1 && nextChar != keyCode(typed::TypedKey::KEY_X))
-                Terminal::unreadKey(nextChar);
-            editor.openFileBrowser(dir,
-                                   nextChar != keyCode(typed::TypedKey::KEY_X));
+            editor.openFileBrowser(dir, true, true);
             return;
         }
         else if(c == keyCode(control::ControlKey::SPACE))

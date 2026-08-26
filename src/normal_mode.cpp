@@ -30,7 +30,10 @@ void NormalMode::on_enter(ModeContext& ctx)
     Terminal::setCursorBlock();
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    ed->syncClangdDiagnosticsIfNeeded(true);
+    // New files already carry a short deferred-open deadline, and Insert mode
+    // synchronizes edits on exit. Do not force a duplicate full-document sync
+    // every time Normal mode is entered.
+    ed->syncClangdDiagnosticsIfNeeded(false);
 #endif
 
     ed->needsFullRedraw = true;
@@ -1155,7 +1158,8 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     Editor* ed = ctx.editor;
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
     auto openFileBrowser =
-        [&](bool focusCurrentFile) -> std::optional<ModeState>
+        [&](bool focusCurrentFile,
+            bool acceptSecondLeaderX = false) -> std::optional<ModeState>
     {
         std::string dir = ".";
         if(ed->filename && !ed->filename->empty())
@@ -1169,7 +1173,8 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         {
             prev = *ed->filename;
         }
-        return FileBrowserMode{dir, prev, focusCurrentFile};
+        return FileBrowserMode{dir, prev, focusCurrentFile,
+                               acceptSecondLeaderX};
     };
 #endif
 
@@ -1252,12 +1257,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
     case keyCode(typed::TypedKey::KEY_X):
     {
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-        const int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_X))
-            return openFileBrowser(false);
-        if(nextChar != -1)
-            Terminal::unreadKey(nextChar);
-        return openFileBrowser(true);
+        return openFileBrowser(true, true);
 #else
         return std::nullopt;
 #endif

@@ -159,7 +159,8 @@ public:
     std::vector<TextEdit> formatting(const std::string& filePath,
                                      int tabSize = 4, bool insertSpaces = true);
 
-    // Semantic tokens (textDocument/semanticTokens/full)
+    // Semantic tokens (textDocument/semanticTokens/full). This sends or polls
+    // the request without blocking the editor thread.
     bool requestSemanticTokens(const std::string& filePath);
     std::vector<SemanticToken>
     semanticTokens(const std::string& filePath) const;

@@ -156,8 +156,12 @@ TEST(RealModeTransitionsTest, LeaderMeOpensLspErrorsList)
 
 TEST(RealModeTransitionsTest, ClangFormatUndoRestoresSavedBuffer)
 {
+#ifdef _WIN32
+    if(std::system("clang-format --version >NUL 2>&1") != 0)
+#else
     if(std::system("/opt/homebrew/bin/clang-format --version >/dev/null 2>&1 "
                    "|| clang-format --version >/dev/null 2>&1") != 0)
+#endif
         GTEST_SKIP() << "clang-format is not available";
 
     auto root = make_temp_dir("uvim_clang_format_undo_");

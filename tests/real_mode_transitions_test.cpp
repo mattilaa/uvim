@@ -172,6 +172,9 @@ TEST(RealModeTransitionsTest, CommandPopupDocumentsHsAsHorizontalSplit)
 
     EXPECT_TRUE(text_utils::is_found(output.find("Split horizontally")));
     EXPECT_FALSE(text_utils::is_found(output.find("Split vertically")));
+    EXPECT_TRUE(text_utils::is_found(output.find("\xE2\x95\xAD")));
+    EXPECT_TRUE(text_utils::is_found(output.find("\xE2\x94\x80")));
+    EXPECT_TRUE(text_utils::is_found(output.find("\xE2\x95\xAE")));
 }
 
 TEST(RealModeTransitionsTest, VeOpensFileBrowserInVerticalSplit)
@@ -1298,7 +1301,8 @@ TEST(RealModeTransitionsTest, LeaderXXOpensFileBrowserAtDirectoryTop)
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_X));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     sm.dispatch(keyCode(typed::TypedKey::KEY_X));
 
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");

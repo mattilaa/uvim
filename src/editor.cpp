@@ -1438,6 +1438,12 @@ bool Editor::prewarmColdOpenFile(std::string_view fname)
 
 void Editor::prewarmColdOpenFiles(const std::vector<std::string>& filenames)
 {
+#ifdef _WIN32
+    // Avoid adding synchronous path and file I/O for nearby search results on
+    // Windows. Opening only the selected file keeps the transition responsive.
+    (void)filenames;
+    return;
+#else
     constexpr int kMaxNewReadsPerPrewarm = 6;
     int newReads = 0;
     for(const auto& fname : filenames)
@@ -1447,6 +1453,7 @@ void Editor::prewarmColdOpenFiles(const std::vector<std::string>& filenames)
             break;
         }
     }
+#endif
 }
 
 void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
@@ -1634,11 +1641,13 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 
 }
 
-void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
+void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile,
+                             bool acceptSecondLeaderX)
 {
 #ifndef UVIM_ENABLE_BROWSER_TOOLS
     (void)path;
     (void)focusCurrentFile;
+    (void)acceptSecondLeaderX;
     setStatusMessage("file browser is not compiled in");
     needsFullRedraw = true;
 #else
@@ -1651,7 +1660,8 @@ void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
     if(modeStateMachine)
     {
         modeStateMachine->transitionTo(
-            FileBrowserMode{std::string(path), prev, focusCurrentFile});
+            FileBrowserMode{std::string(path), prev, focusCurrentFile,
+                            acceptSecondLeaderX});
         modeController->syncModeFromStateMachine();
     }
     else
@@ -2041,9 +2051,11 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     if(!currentBuffer || !isClangdLspEnabled() ||
        !isFileType<FileType::Cpp>() || !lspClient)
         return;
-    if(!force && currentBuffer->lspOpenDeferred)
+    if(currentBuffer->lspOpenDeferred)
     {
-        if(std::chrono::steady_clock::now() < currentBuffer->lspOpenDeferUntil)
+        if(!force &&
+           std::chrono::steady_clock::now() <
+               currentBuffer->lspOpenDeferUntil)
             return;
         currentBuffer->lspOpenDeferred = false;
     }
@@ -2059,7 +2071,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     {
         newHash = hash_lines(*lines);
     }
-    if(shouldCheck && (force || !currentBuffer->lspHashValid ||
+    if(shouldCheck && (!currentBuffer->lspHashValid ||
                        newHash != currentBuffer->lspContentHash))
     {
         std::string text;
@@ -2078,7 +2090,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     if(syntaxCppSemanticTokens && (wantSemantic || shouldCheck))
     {
         bool refreshSemantic =
-            force || !currentBuffer->lspSemanticTokensValid ||
+            !currentBuffer->lspSemanticTokensValid ||
             (newHash != 0 && newHash != currentBuffer->lspSemanticTokensHash);
         if(refreshSemantic)
             lspClient->requestSemanticTokens(currentBuffer->filename);
@@ -2313,12 +2325,16 @@ void Editor::executeCommand(std::string_view cmd)
 void Editor::refreshFileSearchCaches()
 {
 #ifndef UVIM_ENABLE_SEARCH_TOOLS
+    fuzzyProjectFiles.clear();
+    fuzzyFileIndexInitialized = false;
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
     setStatusMessage("file search tools are not compiled in");
     needsFullRedraw = true;
     return;
 #else
+    fuzzyProjectFiles.clear();
+    fuzzyFileIndexInitialized = false;
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
 #ifdef UVIM_ENABLE_RG_CACHE

@@ -185,6 +185,21 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
+    // In-memory fuzzy file index retained across transient Ctrl-P modes.
+    std::vector<FileEntry> fuzzyProjectFiles;
+    bool fuzzyFileIndexInitialized = false;
+    std::string fuzzyFileIndexCwd;
+    bool fuzzyFileIndexRespectGitignore = true;
+    bool fuzzyFileIndexUseGit = true;
+
+    // Hot file-browser listing. The active browser takes ownership of this
+    // vector and returns it on exit, avoiding an O(n) filename copy each time
+    // leader-x reopens the same directory.
+    std::vector<FileEntry> fileBrowserHotListing;
+    bool fileBrowserHotListingInitialized = false;
+    std::string fileBrowserHotListingKey;
+    std::filesystem::file_time_type fileBrowserHotListingModTime{};
+
     // Grep file index
     std::vector<FileEntry> grepProjectFiles; // All files in project
     bool grepFileIndexInitialized = false;
@@ -710,7 +725,8 @@ public:
 
     // File browser functions
     void openFileBrowser(std::string_view path = ".",
-                         bool focusCurrentFile = false);
+                         bool focusCurrentFile = false,
+                         bool acceptSecondLeaderX = false);
     std::string getFilePermissions(const std::string& path);
     std::string getRelativePath(const std::string& path);
     void createNewFile();

@@ -215,6 +215,56 @@ TEST(RealModeTransitionsTest, GrepSearchCtrlAReentersWithFreshVisibleState)
     EXPECT_TRUE(editor.needsFullRedraw);
 }
 
+TEST(RealModeTransitionsTest, DiscardPendingInputClearsBufferedKeys)
+{
+    Terminal::unreadKey('x');
+    ASSERT_TRUE(Terminal::hasBufferedKeys());
+
+    Terminal::discardPendingInput();
+
+    EXPECT_FALSE(Terminal::hasBufferedKeys());
+}
+
+TEST(RealModeTransitionsTest, FuzzyFindReusesInMemoryFileIndexUntilRefresh)
+{
+    auto root = make_temp_dir("uvim_fuzzy_memory_cache_");
+    auto otherRoot = make_temp_dir("uvim_fuzzy_other_project_");
+    write_file(root / "alpha.txt", "alpha\n");
+    write_file(otherRoot / "gamma.txt", "gamma\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    auto* fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->projectFiles.size(), 1u);
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    ASSERT_TRUE(editor.fuzzyFileIndexInitialized);
+    ASSERT_EQ(editor.fuzzyProjectFiles.size(), 1u);
+
+    write_file(root / "beta.txt", "beta\n");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    EXPECT_EQ(fuzzy->projectFiles.size(), 1u);
+
+    fuzzy->refreshFileIndex(editor);
+    EXPECT_EQ(fuzzy->projectFiles.size(), 2u);
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    std::filesystem::current_path(otherRoot);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->projectFiles.size(), 1u);
+    EXPECT_EQ(fuzzy->projectFiles.front().name, "gamma.txt");
+}
+
 TEST(RealModeTransitionsTest, CtrlAOpensGrepSearchFromInsertMode)
 {
     Editor editor = Editor::createForTests();
@@ -432,5 +482,33 @@ TEST(RealModeTransitionsTest, GrepSearchBuildsAndUpdatesRgCache)
     ASSERT_NE(state, nullptr);
     flushGrepDebounce(*state, editor);
     EXPECT_TRUE(state->matches.empty());
+}
+
+TEST(RealModeTransitionsTest, GrepSearchIndexesMultipleFilesConsistently)
+{
+    auto root = make_temp_dir("uvim_rg_cache_workers_");
+    constexpr int fileCount = 24;
+    for(int i = 0; i < fileCount; ++i)
+    {
+        write_file(root / ("file_" + std::to_string(i) + ".txt"),
+                   "parallel needle " + std::to_string(i) + "\n");
+    }
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    for(char c : std::string("needle"))
+        sm.dispatch(c);
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+
+    EXPECT_EQ(state->matches.size(), static_cast<size_t>(fileCount));
+    EXPECT_EQ(editor.rgCachedFiles.size(), static_cast<size_t>(fileCount));
+    EXPECT_TRUE(std::filesystem::exists(root / ".rg" / "index.tsv"));
 }
 #endif

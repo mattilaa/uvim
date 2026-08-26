@@ -117,6 +117,7 @@ public:
 
     static void unreadKey(int key);
     static bool hasBufferedKeys();
+    static void discardPendingInput();
     static std::string takeLastPasteText();
 #ifdef UVIM_TESTING
     static void setLastPasteTextForTests(std::string text);

@@ -72,6 +72,55 @@ TEST(RealModeTransitionsTest, EditCommandWithPathOpensFileBrowser)
     EXPECT_STREQ(sm.currentStateName(), "BROWSE");
 }
 
+TEST(RealModeTransitionsTest, FileBrowserReusesHotListingWithoutCopying)
+{
+    const auto root = make_temp_dir("uvim_browser_hot_cache_");
+    write_file(root / "alpha.txt", "alpha\n");
+    write_file(root / "beta.txt", "beta\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+
+    auto* firstBrowser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(firstBrowser, nullptr);
+    ASSERT_FALSE(firstBrowser->fileList.empty());
+    const FileEntry* firstStorage = firstBrowser->fileList.data();
+
+    sm.transitionTo(NormalMode{});
+    EXPECT_TRUE(editor.fileBrowserHotListingInitialized);
+
+    sm.transitionTo(FileBrowserMode{root.string()});
+    auto* secondBrowser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(secondBrowser, nullptr);
+    EXPECT_EQ(secondBrowser->fileList.data(), firstStorage);
+    EXPECT_FALSE(editor.fileBrowserHotListingInitialized);
+}
+
+TEST(RealModeTransitionsTest, FileBrowserRejectsChangedHotListing)
+{
+    const auto root = make_temp_dir("uvim_browser_stale_hot_cache_");
+    write_file(root / "alpha.txt", "alpha\n");
+
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, FileBrowserMode{root.string()});
+    sm.transitionTo(NormalMode{});
+
+    write_file(root / "beta.txt", "beta\n");
+    std::error_code ec;
+    const auto oldTime = std::filesystem::last_write_time(root, ec);
+    ASSERT_FALSE(ec);
+    std::filesystem::last_write_time(root, oldTime + std::chrono::seconds(1),
+                                     ec);
+    ASSERT_FALSE(ec);
+
+    sm.transitionTo(FileBrowserMode{root.string()});
+    auto* browser = sm.getState<FileBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    EXPECT_TRUE(std::any_of(browser->fileList.begin(), browser->fileList.end(),
+                            [](const FileEntry& entry)
+                            { return entry.name == "beta.txt"; }));
+}
+
 TEST(RealModeTransitionsTest, EditDotCommandFromCommandModeOpensFileBrowser)
 {
     Editor editor = Editor::createForTests();

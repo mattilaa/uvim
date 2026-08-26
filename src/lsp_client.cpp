@@ -361,6 +361,14 @@ struct LspClient::Impl
     std::unordered_map<std::string, std::vector<LspClient::SemanticToken>>
         semanticTokensByFile;
     std::unordered_map<std::string, size_t> semanticTokensRevision;
+    struct PendingSemanticRequest
+    {
+        int id = 0;
+        int documentVersion = 0;
+        std::chrono::steady_clock::time_point startedAt{};
+    };
+    std::unordered_map<std::string, PendingSemanticRequest>
+        pendingSemanticRequests;
     std::vector<std::string> semanticTokenTypes;
     std::vector<std::string> semanticTokenModifiers;
     std::mutex applyMutex;
@@ -785,6 +793,17 @@ struct LspClient::Impl
         {
             return std::nullopt;
         }
+        auto it = responses.find(id);
+        if(it == responses.end())
+            return std::nullopt;
+        ju::Document resp = std::move(it->second);
+        responses.erase(it);
+        return resp;
+    }
+
+    std::optional<ju::Document> takeResponse(int id)
+    {
+        std::lock_guard<std::mutex> lk(m);
         auto it = responses.find(id);
         if(it == responses.end())
             return std::nullopt;
@@ -1479,6 +1498,7 @@ void LspClient::stop()
 #endif
     impl->responses.clear();
     impl->docVersion.clear();
+    impl->pendingSemanticRequests.clear();
     impl->serverName.clear();
     impl->serverVersion.clear();
 }
@@ -2656,14 +2676,50 @@ bool LspClient::requestSemanticTokens(const std::string& filePath)
         return false;
 
     std::string abs = absPath(filePath);
-    ju::Document params(ju::kObjectType);
-    auto& alloc = params.GetAllocator();
-    ju::Value textDoc(ju::kObjectType);
-    textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc), alloc);
-    params.AddMember("textDocument", textDoc, alloc);
+    auto pending = impl->pendingSemanticRequests.find(abs);
+    if(pending == impl->pendingSemanticRequests.end())
+    {
+        ju::Document params(ju::kObjectType);
+        auto& alloc = params.GetAllocator();
+        ju::Value textDoc(ju::kObjectType);
+        textDoc.AddMember("uri", ju::make_string(pathToFileUri(abs), alloc),
+                          alloc);
+        params.AddMember("textDocument", textDoc, alloc);
 
-    int id = impl->sendRequest("textDocument/semanticTokens/full", params);
-    auto resp = impl->waitResponse(id, 5000);
+        const int id =
+            impl->sendRequest("textDocument/semanticTokens/full", params);
+        int documentVersion = 0;
+        auto version = impl->docVersion.find(abs);
+        if(version != impl->docVersion.end())
+            documentVersion = version->second;
+        impl->pendingSemanticRequests.emplace(
+            abs, Impl::PendingSemanticRequest{
+                     id, documentVersion, std::chrono::steady_clock::now()});
+        return true;
+    }
+
+    auto resp = impl->takeResponse(pending->second.id);
+    if(!resp)
+    {
+        if(std::chrono::steady_clock::now() - pending->second.startedAt <
+           std::chrono::seconds(5))
+        {
+            return true;
+        }
+        impl->pendingSemanticRequests.erase(pending);
+        clearSemanticTokens(abs);
+        return false;
+    }
+
+    int currentVersion = 0;
+    auto version = impl->docVersion.find(abs);
+    if(version != impl->docVersion.end())
+        currentVersion = version->second;
+    const bool stale = currentVersion != pending->second.documentVersion;
+    impl->pendingSemanticRequests.erase(pending);
+    if(stale)
+        return requestSemanticTokens(abs);
+
     if(!resp || !resp->IsObject() || ju::has(*resp, "error"))
     {
         clearSemanticTokens(abs);
