@@ -114,6 +114,48 @@ std::string truncatePathMiddle(std::string path, int width)
     return prefix + suffix;
 }
 
+std::string grepResultBackground(const GrepMatch& match,
+                                 std::string_view lowerQuery,
+                                 bool explicitlySelected)
+{
+    size_t occurrences = 0;
+    if(!lowerQuery.empty())
+    {
+        const std::string lowerLine = toLower(match.lineContent);
+        size_t pos = 0;
+        while((pos = lowerLine.find(lowerQuery, pos)) != std::string::npos)
+        {
+            ++occurrences;
+            pos += std::max<size_t>(1, lowerQuery.size());
+        }
+    }
+
+    const double matchedBytes =
+        static_cast<double>(occurrences * lowerQuery.size());
+    const double contentBytes = static_cast<double>(
+        std::max<size_t>(1, match.lineContent.size()));
+    const double coverage = std::min(1.0, matchedBytes / contentBytes);
+    const double repetition =
+        std::min(1.0, static_cast<double>(occurrences > 0 ? occurrences - 1
+                                                         : 0) /
+                          3.0);
+    const double strength =
+        std::clamp(0.15 + coverage * 0.65 + repetition * 0.20, 0.0, 1.0);
+
+    // Keep every relevance shade well below the cursor's light green
+    // (56,120,72), while retaining a useful gradient among non-cursor rows.
+    int red = 3 + static_cast<int>(15.0 * strength);
+    int green = 24 + static_cast<int>(38.0 * strength);
+    int blue = 8 + static_cast<int>(18.0 * strength);
+    if(explicitlySelected)
+    {
+        red = std::min(255, red + 3);
+        green = std::min(255, green + 7);
+        blue = std::min(255, blue + 3);
+    }
+    return color::rgbBg(red, green, blue);
+}
+
 bool isAsciiText(std::string_view text)
 {
     return std::all_of(text.begin(), text.end(), [](unsigned char ch)
@@ -661,18 +703,16 @@ void GrepSearchMode::draw(Editor& editor)
         const GrepMatch& match = matches[index];
         bool isSelected = selectedMatches.count(index) > 0;
 
-        if(index == cursor && isSelected)
+        // The cursor is always the strongest selection. Other results use a
+        // dark-green relevance gradient based on match density and repetition.
+        if(index == cursor)
         {
             output += color::rgbBg(56, 120, 72);
             output += editor.theme.baseFg();
         }
-        else if(index == cursor)
+        else
         {
-            output += editor.theme.selection();
-        }
-        else if(isSelected)
-        {
-            output += color::rgbBg(24, 64, 36);
+            output += grepResultBackground(match, lowerQuery, isSelected);
             output += editor.theme.baseFg();
         }
 
@@ -737,6 +777,13 @@ void GrepSearchMode::draw(Editor& editor)
         {
             output += content;
         }
+
+        const int renderedWidth = rowPrefixWidth + displayNameWidth +
+                                  separatorsWidth +
+                                  static_cast<int>(lineNumber.length()) +
+                                  text_utils::utf8DisplayWidth(content);
+        if(renderedWidth < editor.screenCols)
+            output.append(editor.screenCols - renderedWidth, ' ');
 
         output += editor.theme.reset();
     }
