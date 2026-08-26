@@ -2048,9 +2048,11 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     if(!currentBuffer || !isClangdLspEnabled() ||
        !isFileType<FileType::Cpp>() || !lspClient)
         return;
-    if(!force && currentBuffer->lspOpenDeferred)
+    if(currentBuffer->lspOpenDeferred)
     {
-        if(std::chrono::steady_clock::now() < currentBuffer->lspOpenDeferUntil)
+        if(!force &&
+           std::chrono::steady_clock::now() <
+               currentBuffer->lspOpenDeferUntil)
             return;
         currentBuffer->lspOpenDeferred = false;
     }
@@ -2066,7 +2068,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     {
         newHash = hash_lines(*lines);
     }
-    if(shouldCheck && (force || !currentBuffer->lspHashValid ||
+    if(shouldCheck && (!currentBuffer->lspHashValid ||
                        newHash != currentBuffer->lspContentHash))
     {
         std::string text;
@@ -2085,7 +2087,7 @@ void Editor::syncClangdDiagnosticsIfNeeded(bool force,
     if(syntaxCppSemanticTokens && (wantSemantic || shouldCheck))
     {
         bool refreshSemantic =
-            force || !currentBuffer->lspSemanticTokensValid ||
+            !currentBuffer->lspSemanticTokensValid ||
             (newHash != 0 && newHash != currentBuffer->lspSemanticTokensHash);
         if(refreshSemantic)
             lspClient->requestSemanticTokens(currentBuffer->filename);

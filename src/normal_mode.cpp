@@ -30,7 +30,10 @@ void NormalMode::on_enter(ModeContext& ctx)
     Terminal::setCursorBlock();
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
-    ed->syncClangdDiagnosticsIfNeeded(true);
+    // New files already carry a short deferred-open deadline, and Insert mode
+    // synchronizes edits on exit. Do not force a duplicate full-document sync
+    // every time Normal mode is entered.
+    ed->syncClangdDiagnosticsIfNeeded(false);
 #endif
 
     ed->needsFullRedraw = true;
