@@ -1380,17 +1380,17 @@ bool LspClient::start(const std::string& clangdPath, const std::string& rootDir,
     // args.push_back("--log=verbose");
 
 #ifdef _WIN32
-    // VS-bundled clangd builds can be memory-sensitive on larger compile
-    // databases. Keep the project-wide index enabled, but reduce the memory
-    // spike from concurrent background work and in-memory preambles.
-    unsigned int workerCount = std::thread::hardware_concurrency() / 2;
+    // clangd's -j controls its async worker pool, including background-index
+    // workers. Use all available logical CPUs on typical systems, with a
+    // memory-conscious ceiling for very large projects such as llvm-project.
+    // Disk-backed preambles further contain peak memory usage on Windows.
+    unsigned int workerCount = std::thread::hardware_concurrency();
     if(workerCount == 0)
         workerCount = 1;
-    // Reduce worker usage on Windows to max 4
-    workerCount = std::min(workerCount, 4u);
+    workerCount = std::min(workerCount, 8u);
     args.push_back("-j=" + std::to_string(workerCount));
     impl->launchedWorkerCount = static_cast<int>(workerCount);
-    args.push_back("--background-index-priority=background");
+    args.push_back("--background-index-priority=low");
     args.push_back("--pch-storage=disk");
 #else
     impl->launchedWorkerCount = 0;
