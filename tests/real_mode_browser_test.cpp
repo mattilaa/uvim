@@ -706,6 +706,26 @@ TEST(RealModeTransitionsTest, BufferBrowserSelectionCanJumpBackAndForward)
     EXPECT_EQ(editor.currentBufferIndex, 1);
 }
 
+TEST(RealModeTransitionsTest, BufferBrowserStartsOnCurrentBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "one.txt";
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "two.txt";
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "three.txt";
+    editor.switchToBuffer(1);
+
+    auto sm = makeMachine(editor, BufferBrowserMode{});
+    auto* browser = sm.getState<BufferBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    ASSERT_GE(browser->bufferCursor, 0);
+    ASSERT_LT(browser->bufferCursor,
+              static_cast<int>(browser->bufferMatches.size()));
+    EXPECT_EQ(browser->bufferMatches[browser->bufferCursor].bufferIndex, 1);
+}
+
 TEST(RealModeTransitionsTest, BufferBrowserCtrlXClosesSelectedBuffer)
 {
     Editor editor = Editor::createForTests();

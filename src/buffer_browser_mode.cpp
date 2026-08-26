@@ -1,3 +1,4 @@
+#include "color_constant.h"
 #include "editor.h"
 #include "editor_utils.h"
 #include "header_help.h"
@@ -23,6 +24,66 @@ int bufferBrowserVisibleRows(const Editor& editor)
         2 + HeaderHelp::lineCount(bufferBrowserHelpTokens(), editor.screenCols);
     return std::max(1, editor.screenRows - headerRows);
 }
+
+int decimalWidth(size_t value)
+{
+    int width = 1;
+    while(value >= 10)
+    {
+        value /= 10;
+        ++width;
+    }
+    return width;
+}
+
+std::string utf8PrefixByWidth(std::string_view text, int maxWidth)
+{
+    if(maxWidth <= 0)
+        return "";
+    int width = 0;
+    int pos = 0;
+    while(pos < static_cast<int>(text.size()))
+    {
+        int next = text_utils::nextUtf8CharStart(text, pos);
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
+        if(width + charWidth > maxWidth)
+            break;
+        width += charWidth;
+        pos = next;
+    }
+    return std::string(text.substr(0, pos));
+}
+
+std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
+{
+    if(maxWidth <= 0)
+        return "";
+    int width = 0;
+    int pos = static_cast<int>(text.size());
+    while(pos > 0)
+    {
+        int prev = text_utils::prevUtf8CharStart(text, pos);
+        int charWidth =
+            text_utils::utf8DisplayWidth(text.substr(prev, pos - prev));
+        if(width + charWidth > maxWidth)
+            break;
+        width += charWidth;
+        pos = prev;
+    }
+    return std::string(text.substr(pos));
+}
+
+std::string truncatePathFromFront(std::string_view path, int maxWidth)
+{
+    if(maxWidth <= 0)
+        return "";
+    if(text_utils::utf8DisplayWidth(path) <= maxWidth)
+        return std::string(path);
+    if(maxWidth == 1)
+        return "…";
+    return "…" + utf8SuffixByWidth(path, maxWidth - 1);
+}
 } // namespace
 
 void BufferBrowserMode::on_enter(ModeContext& ctx)
@@ -31,6 +92,17 @@ void BufferBrowserMode::on_enter(ModeContext& ctx)
     bufferCursor = 0;
     bufferOffset = 0;
     updateMatches(*ctx.editor);
+
+    auto current = std::find_if(
+        bufferMatches.begin(), bufferMatches.end(), [&](const BufferMatch& m)
+        { return m.bufferIndex == ctx.editor->currentBufferIndex; });
+    if(current != bufferMatches.end())
+    {
+        bufferCursor = static_cast<int>(current - bufferMatches.begin());
+        const int visible = bufferBrowserVisibleRows(*ctx.editor);
+        if(bufferCursor >= visible)
+            bufferOffset = bufferCursor - visible + 1;
+    }
     ctx.editor->needsFullRedraw = true;
 }
 
@@ -197,6 +269,7 @@ void BufferBrowserMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     int availableRows = bufferBrowserVisibleRows(editor);
+    const int numberWidth = decimalWidth(editor.buffers.size());
 
     for(int i = 0;
         i < availableRows && i + bufferOffset < (int)bufferMatches.size(); i++)
@@ -204,15 +277,58 @@ void BufferBrowserMode::draw(Editor& editor) const
         output += Terminal::NEWLINE_CLEAR;
         int idx = i + bufferOffset;
         const BufferMatch& m = bufferMatches[idx];
+        if(m.bufferIndex < 0 ||
+           m.bufferIndex >= static_cast<int>(editor.buffers.size()))
+            continue;
+
+        const Buffer& buffer = *editor.buffers[m.bufferIndex];
+        const bool isCurrent = m.bufferIndex == editor.currentBufferIndex;
 
         if(idx == bufferCursor)
-            output += editor.theme.selection();
+        {
+            output += color::rgbBg(56, 120, 72);
+            output += editor.theme.baseFg();
+        }
+        else if(isCurrent)
+        {
+            output += color::rgbBg(24, 64, 36);
+            output += editor.theme.baseFg();
+        }
 
-        std::string line = "  " + m.display;
-        if((int)line.length() > editor.screenCols)
-            line = line.substr(0, editor.screenCols);
+        const std::string number = std::to_string(m.bufferIndex + 1);
+        std::string prefix = "  ";
+        prefix.append(std::max(0, numberWidth - static_cast<int>(number.size())),
+                      ' ');
+        prefix += number;
+        prefix += " ";
 
-        output += line;
+        const std::string filename =
+            buffer.filename.empty()
+                ? "[No Name]"
+                : std::string(text_utils::basename(buffer.filename));
+        std::string status;
+        if(isCurrent)
+            status += " *";
+        if(buffer.dirty)
+            status += " [+]";
+
+        int remaining = editor.screenCols - text_utils::displayWidth(prefix);
+        std::string nameAndStatus = filename + status;
+        if(text_utils::utf8DisplayWidth(nameAndStatus) > remaining)
+            nameAndStatus = utf8PrefixByWidth(nameAndStatus, remaining);
+
+        output += prefix;
+        output += nameAndStatus;
+
+        const bool hasPath = !buffer.filename.empty() &&
+                             filename != buffer.filename;
+        remaining -= text_utils::utf8DisplayWidth(nameAndStatus);
+        if(hasPath && remaining > 2)
+        {
+            output += "  ";
+            output += editor.theme.uiDim();
+            output += truncatePathFromFront(buffer.filename, remaining - 2);
+        }
         output += editor.theme.reset();
     }
 
