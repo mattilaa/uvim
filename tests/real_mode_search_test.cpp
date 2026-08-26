@@ -215,6 +215,16 @@ TEST(RealModeTransitionsTest, GrepSearchCtrlAReentersWithFreshVisibleState)
     EXPECT_TRUE(editor.needsFullRedraw);
 }
 
+TEST(RealModeTransitionsTest, DiscardPendingInputClearsBufferedKeys)
+{
+    Terminal::unreadKey('x');
+    ASSERT_TRUE(Terminal::hasBufferedKeys());
+
+    Terminal::discardPendingInput();
+
+    EXPECT_FALSE(Terminal::hasBufferedKeys());
+}
+
 TEST(RealModeTransitionsTest, CtrlAOpensGrepSearchFromInsertMode)
 {
     Editor editor = Editor::createForTests();

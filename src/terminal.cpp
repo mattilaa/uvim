@@ -477,6 +477,15 @@ bool Terminal::hasBufferedKeys()
     return !keyBuffer.empty();
 }
 
+void Terminal::discardPendingInput()
+{
+    keyBuffer.clear();
+    lastPasteText.clear();
+#if defined(UVIM_TERMINAL_WIN32)
+    FlushConsoleInputBuffer(hIn());
+#endif
+}
+
 std::string Terminal::takeLastPasteText()
 {
     std::string text = std::move(lastPasteText);

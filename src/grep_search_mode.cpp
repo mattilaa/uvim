@@ -1551,6 +1551,9 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     seedEditorSearchFromGrepMatch(editor, match, query);
     editor.centerScreen();
+#ifdef _WIN32
+    Terminal::discardPendingInput();
+#endif
 
     return true;
 }
@@ -1778,6 +1781,9 @@ bool GrepSearchMode::openSelected(Editor& editor)
     *editor.cursorX = 0;
     seedEditorSearchFromGrepMatch(editor, finalMatch, query);
     editor.centerScreen();
+#ifdef _WIN32
+    Terminal::discardPendingInput();
+#endif
 
     selectedMatches.clear();
     return true;

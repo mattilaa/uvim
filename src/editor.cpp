@@ -1438,6 +1438,12 @@ bool Editor::prewarmColdOpenFile(std::string_view fname)
 
 void Editor::prewarmColdOpenFiles(const std::vector<std::string>& filenames)
 {
+#ifdef _WIN32
+    // Avoid adding synchronous path and file I/O for nearby search results on
+    // Windows. Opening only the selected file keeps the transition responsive.
+    (void)filenames;
+    return;
+#else
     constexpr int kMaxNewReadsPerPrewarm = 6;
     int newReads = 0;
     for(const auto& fname : filenames)
@@ -1447,6 +1453,7 @@ void Editor::prewarmColdOpenFiles(const std::vector<std::string>& filenames)
             break;
         }
     }
+#endif
 }
 
 void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)

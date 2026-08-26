@@ -816,6 +816,9 @@ bool FuzzyFindMode::select(Editor& editor)
     prewarmAroundCursor(editor);
     const FuzzyMatch& match = matches[cursor];
     editor.openFile(std::string_view(match.file.path));
+#ifdef _WIN32
+    Terminal::discardPendingInput();
+#endif
     return true;
 }
 
@@ -832,6 +835,9 @@ bool FuzzyFindMode::openSelected(Editor& editor)
         bool notifyLsp = (i + 1 == paths.size());
         editor.openFile(std::string_view(paths[i]), notifyLsp);
     }
+#ifdef _WIN32
+    Terminal::discardPendingInput();
+#endif
     selectedFiles.clear();
     return true;
 }
