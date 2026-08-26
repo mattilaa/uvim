@@ -9,7 +9,8 @@
 struct FuzzyMatch
 {
     FileEntry file;
-    int score;
+    int score = 0;
+    double quality = 0.0;
     std::vector<int> matchPositions; // Character positions that matched
 };
 

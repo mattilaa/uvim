@@ -139,14 +139,18 @@ std::string grepResultBackground(const GrepMatch& match,
         std::min(1.0, static_cast<double>(occurrences > 0 ? occurrences - 1
                                                          : 0) /
                           3.0);
+    // Use the same absolute-quality curve as fuzzy find. A short occurrence
+    // buried in a long line stays dark even when it is the first result;
+    // dense and repeated occurrences progressively increase the green.
+    const double rawQuality = coverage * 0.65 + 0.35;
     const double strength =
-        std::clamp(0.15 + coverage * 0.65 + repetition * 0.20, 0.0, 1.0);
+        std::clamp(rawQuality * rawQuality + repetition * 0.20, 0.0, 1.0);
 
-    // Keep every relevance shade well below the cursor's light green
-    // (56,120,72), while retaining a useful gradient among non-cursor rows.
-    int red = 3 + static_cast<int>(15.0 * strength);
-    int green = 24 + static_cast<int>(38.0 * strength);
-    int blue = 8 + static_cast<int>(18.0 * strength);
+    // Match fuzzy find's darker palette. The cursor remains the only row that
+    // uses the light selection green (56,120,72).
+    int red = 2 + static_cast<int>(16.0 * strength);
+    int green = 12 + static_cast<int>(50.0 * strength);
+    int blue = 5 + static_cast<int>(21.0 * strength);
     if(explicitlySelected)
     {
         red = std::min(255, red + 3);

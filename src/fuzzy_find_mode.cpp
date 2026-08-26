@@ -114,22 +114,45 @@ std::string truncatePathMiddle(std::string path, int width)
     return prefix + suffix;
 }
 
-std::string fuzzyResultBackground(int score, int minScore, int maxScore,
-                                  bool explicitlySelected)
+double fuzzyMatchQuality(std::string_view query, std::string_view target,
+                         const std::vector<int>& positions)
 {
-    double strength = 0.5;
+    if(query.empty() || target.empty() || positions.empty())
+        return 0.0;
+
+    const int span = std::max(1, positions.back() - positions.front() + 1);
+    const double compactness =
+        std::min(1.0, static_cast<double>(positions.size()) / span);
+    const double coverage =
+        std::min(1.0, static_cast<double>(query.size()) / target.size());
+
+    // Coverage prevents a single incidental character in a long path from
+    // looking like a strong match. Compactness rewards adjacent characters.
+    const double raw = coverage * 0.65 + compactness * 0.35;
+    return std::clamp(raw * raw, 0.0, 1.0);
+}
+
+std::string fuzzyResultBackground(int score, int minScore, int maxScore,
+                                  double quality, bool explicitlySelected)
+{
+    double relativeStrength = 0.0;
     if(maxScore > minScore)
     {
-        strength = static_cast<double>(score - minScore) /
-                   static_cast<double>(maxScore - minScore);
+        relativeStrength = static_cast<double>(score - minScore) /
+                           static_cast<double>(maxScore - minScore);
     }
-    strength = std::clamp(strength, 0.0, 1.0);
+    relativeStrength = std::clamp(relativeStrength, 0.0, 1.0);
+    quality = std::clamp(quality, 0.0, 1.0);
 
-    // Match grep's dark relevance range. The cursor uses (56,120,72), so even
-    // the strongest non-cursor match remains clearly secondary.
-    int red = 3 + static_cast<int>(15.0 * strength);
-    int green = 24 + static_cast<int>(38.0 * strength);
-    int blue = 8 + static_cast<int>(18.0 * strength);
+    // Relative rank only separates results that are already good matches. A
+    // weak result remains dark even when it happens to be the best result.
+    const double strength = quality * (0.35 + relativeStrength * 0.65);
+
+    // Keep weak matches close to the editor background. The cursor uses
+    // (56,120,72), so even a strong non-cursor result remains secondary.
+    int red = 2 + static_cast<int>(16.0 * strength);
+    int green = 12 + static_cast<int>(50.0 * strength);
+    int blue = 5 + static_cast<int>(21.0 * strength);
     if(explicitlySelected)
     {
         red = std::min(255, red + 3);
@@ -404,7 +427,7 @@ void FuzzyFindMode::draw(Editor& editor) const
         else if(!query.empty())
         {
             output += fuzzyResultBackground(match.score, minScore, maxScore,
-                                            isSelected);
+                                            match.quality, isSelected);
             output += editor.theme.baseFg();
         }
         else if(isSelected)
@@ -651,6 +674,7 @@ void FuzzyFindMode::updateMatches(Editor& /* editor */)
                 FuzzyMatch match;
                 match.file = file;
                 match.score = 0;
+                match.quality = 0.0;
                 matches.push_back(match);
             }
         }
@@ -702,6 +726,13 @@ void FuzzyFindMode::updateMatches(Editor& /* editor */)
                                            ? positionsForFileNameInPath(
                                                  file.path, namePositions)
                                            : positions;
+                const std::string_view qualityTarget =
+                    useNamePositions ? std::string_view(file.name)
+                                     : std::string_view(file.path);
+                const std::vector<int>& qualityPositions =
+                    useNamePositions ? namePositions : positions;
+                match.quality = fuzzyMatchQuality(query, qualityTarget,
+                                                  qualityPositions);
                 matches.push_back(match);
             }
         }
