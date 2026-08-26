@@ -1,3 +1,4 @@
+#include "diagnostics_common.h"
 #include "editor.h"
 #include "formatter.h"
 #include "process_pipe.h"
@@ -90,8 +91,8 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
     const int savedY = editor.cursorY ? *editor.cursorY : 0;
     const int savedX = editor.cursorX ? *editor.cursorX : 0;
 
-    std::string tempPath =
-        "/tmp/uvim_format_" + std::to_string(getpid()) + ".tmp";
+    const std::filesystem::path tempPath =
+        diagnostics_common::makeTempPath("uvim_format", ".tmp");
     std::ofstream tempFile(tempPath);
     if(!tempFile.is_open())
     {
@@ -103,14 +104,11 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
         tempFile << (*editor.lines)[i] << '\n';
     tempFile.close();
 
-    std::string absFilename = *editor.filename;
-    if(!absFilename.empty() && absFilename[0] != '/')
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-            absFilename = cwd.string() + "/" + *editor.filename;
-    }
+    std::error_code absoluteEc;
+    const auto absoluteFilename =
+        std::filesystem::absolute(*editor.filename, absoluteEc);
+    const std::string absFilename =
+        absoluteEc ? *editor.filename : absoluteFilename.string();
 
     const std::string styleFile = findClangFormatFile(absFilename);
 
@@ -128,17 +126,23 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
             while(iss >> arg)
                 args.push_back(arg);
         }
-        args.push_back(tempPath);
+        args.push_back(tempPath.string());
         return args;
     };
 
-    ProcessPipe pipe(buildArgs("/opt/homebrew/bin/clang-format"));
-    if(!pipe)
-        pipe.open(buildArgs("clang-format"));
+    std::string clangFormat = "clang-format";
+#ifdef __APPLE__
+    std::error_code clangFormatEc;
+    if(std::filesystem::is_regular_file("/opt/homebrew/bin/clang-format",
+                                       clangFormatEc))
+        clangFormat = "/opt/homebrew/bin/clang-format";
+#endif
+    ProcessPipe pipe(buildArgs(clangFormat));
 
     if(!pipe)
     {
-        unlink(tempPath.c_str());
+        std::error_code removeEc;
+        std::filesystem::remove(tempPath, removeEc);
         editor.setStatusMessage("clang-format: failed to run");
         return false;
     }
@@ -147,7 +151,8 @@ bool ClangFormatter::formatWithArgs(const std::string& extraArgs,
 
     int status = pipe.close();
     (void)status;
-    unlink(tempPath.c_str());
+    std::error_code removeEc;
+    std::filesystem::remove(tempPath, removeEc);
 
     if(formatted.empty())
     {

@@ -170,6 +170,7 @@ set(UVIM_CORE_SOURCES
     src/terminal.cpp
     src/buffer_command_pending.cpp
     src/config_parser.cpp
+    src/diagnostics_common.cpp
     src/window_command_pending.cpp
     src/editor.cpp
     src/editor_buffer_controller.cpp
@@ -306,7 +307,6 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/editor_tool_info.cpp
         src/editor_references_controller.cpp
         src/clang_diagnostics.cpp
-        src/diagnostics_common.cpp
         src/mlang_format_errors.cpp
         src/widgets/completion_popup.cpp
     )
