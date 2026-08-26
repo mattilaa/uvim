@@ -284,10 +284,14 @@ void BufferBrowserMode::draw(Editor& editor) const
         const Buffer& buffer = *editor.buffers[m.bufferIndex];
         const bool isCurrent = m.bufferIndex == editor.currentBufferIndex;
 
-        if(idx == bufferCursor)
+        if(idx == bufferCursor && isCurrent)
         {
             output += color::rgbBg(56, 120, 72);
             output += editor.theme.baseFg();
+        }
+        else if(idx == bufferCursor)
+        {
+            output += editor.theme.selection();
         }
         else if(isCurrent)
         {
@@ -317,7 +321,9 @@ void BufferBrowserMode::draw(Editor& editor) const
         if(text_utils::utf8DisplayWidth(nameAndStatus) > remaining)
             nameAndStatus = utf8PrefixByWidth(nameAndStatus, remaining);
 
+        output += editor.theme.uiDim();
         output += prefix;
+        output += editor.theme.uiInfo();
         output += nameAndStatus;
 
         const bool hasPath = !buffer.filename.empty() &&
