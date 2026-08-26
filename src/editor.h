@@ -192,6 +192,14 @@ public:
     bool fuzzyFileIndexRespectGitignore = true;
     bool fuzzyFileIndexUseGit = true;
 
+    // Hot file-browser listing. The active browser takes ownership of this
+    // vector and returns it on exit, avoiding an O(n) filename copy each time
+    // leader-x reopens the same directory.
+    std::vector<FileEntry> fileBrowserHotListing;
+    bool fileBrowserHotListingInitialized = false;
+    std::string fileBrowserHotListingKey;
+    std::filesystem::file_time_type fileBrowserHotListingModTime{};
+
     // Grep file index
     std::vector<FileEntry> grepProjectFiles; // All files in project
     bool grepFileIndexInitialized = false;

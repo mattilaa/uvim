@@ -437,7 +437,26 @@ void FileBrowserMode::on_enter(ModeContext& ctx)
     ctx.requestFullRedraw();
 }
 
-void FileBrowserMode::on_exit(ModeContext& /* ctx */) {}
+void FileBrowserMode::on_exit(ModeContext& ctx)
+{
+    if(!ctx.editor || currentDirectory.empty() || moveMode)
+        return;
+
+    std::error_code ec;
+    const auto modTime = std::filesystem::last_write_time(currentDirectory, ec);
+    if(ec)
+        return;
+
+    std::string gitignoreRoot;
+    if(!ctx.editor->getProjectRoot().empty())
+        gitignoreRoot = ctx.editor->getProjectRoot();
+
+    ctx.editor->fileBrowserHotListingKey = makeDirectoryCacheKey(
+        currentDirectory, showHidden, ctx.respectGitignore(), gitignoreRoot);
+    ctx.editor->fileBrowserHotListingModTime = modTime;
+    ctx.editor->fileBrowserHotListing = std::move(fileList);
+    ctx.editor->fileBrowserHotListingInitialized = true;
+}
 
 FileBrowserMode::PaneBrowserState FileBrowserMode::currentPaneState() const
 {
@@ -2797,6 +2816,25 @@ void FileBrowserMode::loadDirectory(ModeContext& ctx, std::string pathStr)
     const std::string cacheKey =
         makeDirectoryCacheKey(currentDirectory, showHidden,
                               ctx.respectGitignore(), gitignoreRootString);
+
+    if(ctx.editor && ctx.editor->fileBrowserHotListingInitialized &&
+       ctx.editor->fileBrowserHotListingKey == cacheKey)
+    {
+        std::error_code cacheEc;
+        const auto modTime =
+            std::filesystem::last_write_time(resolvedDir, cacheEc);
+        if(!cacheEc &&
+           modTime == ctx.editor->fileBrowserHotListingModTime)
+        {
+            fileList = std::move(ctx.editor->fileBrowserHotListing);
+            ctx.editor->fileBrowserHotListingInitialized = false;
+            removeMovedEntries();
+            updateFilter(ctx);
+            return;
+        }
+        ctx.editor->fileBrowserHotListingInitialized = false;
+    }
+
     if(auto cached = getCachedDirectoryListing(cacheKey, resolvedDir))
     {
         fileList = std::move(*cached);
