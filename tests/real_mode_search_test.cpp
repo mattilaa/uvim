@@ -225,6 +225,46 @@ TEST(RealModeTransitionsTest, DiscardPendingInputClearsBufferedKeys)
     EXPECT_FALSE(Terminal::hasBufferedKeys());
 }
 
+TEST(RealModeTransitionsTest, FuzzyFindReusesInMemoryFileIndexUntilRefresh)
+{
+    auto root = make_temp_dir("uvim_fuzzy_memory_cache_");
+    auto otherRoot = make_temp_dir("uvim_fuzzy_other_project_");
+    write_file(root / "alpha.txt", "alpha\n");
+    write_file(otherRoot / "gamma.txt", "gamma\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    auto* fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->projectFiles.size(), 1u);
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    ASSERT_TRUE(editor.fuzzyFileIndexInitialized);
+    ASSERT_EQ(editor.fuzzyProjectFiles.size(), 1u);
+
+    write_file(root / "beta.txt", "beta\n");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    EXPECT_EQ(fuzzy->projectFiles.size(), 1u);
+
+    fuzzy->refreshFileIndex(editor);
+    EXPECT_EQ(fuzzy->projectFiles.size(), 2u);
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    std::filesystem::current_path(otherRoot);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->projectFiles.size(), 1u);
+    EXPECT_EQ(fuzzy->projectFiles.front().name, "gamma.txt");
+}
+
 TEST(RealModeTransitionsTest, CtrlAOpensGrepSearchFromInsertMode)
 {
     Editor editor = Editor::createForTests();

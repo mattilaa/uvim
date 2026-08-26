@@ -185,6 +185,13 @@ public:
     int* offsetX = nullptr;
     int* offsetY = nullptr;
 
+    // In-memory fuzzy file index retained across transient Ctrl-P modes.
+    std::vector<FileEntry> fuzzyProjectFiles;
+    bool fuzzyFileIndexInitialized = false;
+    std::string fuzzyFileIndexCwd;
+    bool fuzzyFileIndexRespectGitignore = true;
+    bool fuzzyFileIndexUseGit = true;
+
     // Grep file index
     std::vector<FileEntry> grepProjectFiles; // All files in project
     bool grepFileIndexInitialized = false;

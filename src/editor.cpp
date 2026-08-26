@@ -2320,12 +2320,16 @@ void Editor::executeCommand(std::string_view cmd)
 void Editor::refreshFileSearchCaches()
 {
 #ifndef UVIM_ENABLE_SEARCH_TOOLS
+    fuzzyProjectFiles.clear();
+    fuzzyFileIndexInitialized = false;
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
     setStatusMessage("file search tools are not compiled in");
     needsFullRedraw = true;
     return;
 #else
+    fuzzyProjectFiles.clear();
+    fuzzyFileIndexInitialized = false;
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
 #ifdef UVIM_ENABLE_RG_CACHE
