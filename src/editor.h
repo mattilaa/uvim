@@ -725,7 +725,8 @@ public:
 
     // File browser functions
     void openFileBrowser(std::string_view path = ".",
-                         bool focusCurrentFile = false);
+                         bool focusCurrentFile = false,
+                         bool acceptSecondLeaderX = false);
     std::string getFilePermissions(const std::string& path);
     std::string getRelativePath(const std::string& path);
     void createNewFile();

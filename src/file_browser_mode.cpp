@@ -594,6 +594,24 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
     const int key = event.key;
     int c = keyCode(key);
 
+    // leader-x opens immediately. Preserve the leader-xx shortcut by handling
+    // its second x in the already-visible browser instead of blocking normal
+    // mode for 300 ms before opening it.
+    if(acceptSecondLeaderX)
+    {
+        const bool isContinuation =
+            c == keyCode(typed::TypedKey::KEY_X) &&
+            std::chrono::steady_clock::now() <= secondLeaderXDeadline;
+        acceptSecondLeaderX = false;
+        if(isContinuation)
+        {
+            browserCursor = 0;
+            browserOffset = 0;
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+    }
+
     if(confirmingDelete)
     {
         if(c == keyCode(typed::TypedKey::KEY_Y) ||

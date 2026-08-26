@@ -78,6 +78,8 @@ struct FileBrowserMode
     bool visualMode = false;
     int visualAnchor = 0;
     bool focusPreviousFile = false;
+    bool acceptSecondLeaderX = false;
+    std::chrono::steady_clock::time_point secondLeaderXDeadline{};
     std::unordered_set<std::string> preVisualSelected;
     std::shared_ptr<CommandPrompt> commandPrompt;
 
@@ -129,9 +131,13 @@ struct FileBrowserMode
     FileBrowserMode() = default;
 
     explicit FileBrowserMode(std::string startDir, std::string prevFile = {},
-                             bool focusPrevious = false)
+                             bool focusPrevious = false,
+                             bool acceptLeaderXContinuation = false)
         : currentDirectory(std::move(startDir)),
-          previousFile(std::move(prevFile)), focusPreviousFile(focusPrevious)
+          previousFile(std::move(prevFile)), focusPreviousFile(focusPrevious),
+          acceptSecondLeaderX(acceptLeaderXContinuation),
+          secondLeaderXDeadline(std::chrono::steady_clock::now() +
+                                std::chrono::milliseconds(300))
     {
     }
 

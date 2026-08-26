@@ -1641,11 +1641,13 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
 
 }
 
-void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
+void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile,
+                             bool acceptSecondLeaderX)
 {
 #ifndef UVIM_ENABLE_BROWSER_TOOLS
     (void)path;
     (void)focusCurrentFile;
+    (void)acceptSecondLeaderX;
     setStatusMessage("file browser is not compiled in");
     needsFullRedraw = true;
 #else
@@ -1658,7 +1660,8 @@ void Editor::openFileBrowser(std::string_view path, bool focusCurrentFile)
     if(modeStateMachine)
     {
         modeStateMachine->transitionTo(
-            FileBrowserMode{std::string(path), prev, focusCurrentFile});
+            FileBrowserMode{std::string(path), prev, focusCurrentFile,
+                            acceptSecondLeaderX});
         modeController->syncModeFromStateMachine();
     }
     else

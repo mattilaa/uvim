@@ -1301,7 +1301,8 @@ TEST(RealModeTransitionsTest, LeaderXXOpensFileBrowserAtDirectoryTop)
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_X));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_X));
+    ASSERT_STREQ(sm.currentStateName(), "BROWSE");
     sm.dispatch(keyCode(typed::TypedKey::KEY_X));
 
     ASSERT_STREQ(sm.currentStateName(), "BROWSE");
