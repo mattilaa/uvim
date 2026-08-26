@@ -443,4 +443,32 @@ TEST(RealModeTransitionsTest, GrepSearchBuildsAndUpdatesRgCache)
     flushGrepDebounce(*state, editor);
     EXPECT_TRUE(state->matches.empty());
 }
+
+TEST(RealModeTransitionsTest, GrepSearchIndexesMultipleFilesConsistently)
+{
+    auto root = make_temp_dir("uvim_rg_cache_workers_");
+    constexpr int fileCount = 24;
+    for(int i = 0; i < fileCount; ++i)
+    {
+        write_file(root / ("file_" + std::to_string(i) + ".txt"),
+                   "parallel needle " + std::to_string(i) + "\n");
+    }
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    for(char c : std::string("needle"))
+        sm.dispatch(c);
+
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+
+    EXPECT_EQ(state->matches.size(), static_cast<size_t>(fileCount));
+    EXPECT_EQ(editor.rgCachedFiles.size(), static_cast<size_t>(fileCount));
+    EXPECT_TRUE(std::filesystem::exists(root / ".rg" / "index.tsv"));
+}
 #endif
