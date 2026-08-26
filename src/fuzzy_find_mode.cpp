@@ -114,6 +114,31 @@ std::string truncatePathMiddle(std::string path, int width)
     return prefix + suffix;
 }
 
+std::string fuzzyResultBackground(int score, int minScore, int maxScore,
+                                  bool explicitlySelected)
+{
+    double strength = 0.5;
+    if(maxScore > minScore)
+    {
+        strength = static_cast<double>(score - minScore) /
+                   static_cast<double>(maxScore - minScore);
+    }
+    strength = std::clamp(strength, 0.0, 1.0);
+
+    // Match grep's dark relevance range. The cursor uses (56,120,72), so even
+    // the strongest non-cursor match remains clearly secondary.
+    int red = 3 + static_cast<int>(15.0 * strength);
+    int green = 24 + static_cast<int>(38.0 * strength);
+    int blue = 8 + static_cast<int>(18.0 * strength);
+    if(explicitlySelected)
+    {
+        red = std::min(255, red + 3);
+        green = std::min(255, green + 7);
+        blue = std::min(255, blue + 3);
+    }
+    return color::rgbBg(red, green, blue);
+}
+
 std::string singleLinePasteText(std::string text)
 {
     text.erase(std::remove_if(text.begin(), text.end(),
@@ -355,6 +380,13 @@ void FuzzyFindMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     int availableRows = fuzzyFindVisibleRows(editor, filenameFirst);
+    int minScore = 0;
+    int maxScore = 0;
+    if(!query.empty() && !matches.empty())
+    {
+        maxScore = matches.front().score;
+        minScore = matches.back().score;
+    }
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
@@ -364,14 +396,16 @@ void FuzzyFindMode::draw(Editor& editor) const
         const FuzzyMatch& match = matches[index];
         bool isSelected = selectedFiles.count(match.file.path) > 0;
 
-        if(index == cursor && isSelected)
+        if(index == cursor)
         {
             output += color::rgbBg(56, 120, 72);
             output += editor.theme.baseFg();
         }
-        else if(index == cursor)
+        else if(!query.empty())
         {
-            output += editor.theme.selection();
+            output += fuzzyResultBackground(match.score, minScore, maxScore,
+                                            isSelected);
+            output += editor.theme.baseFg();
         }
         else if(isSelected)
         {
@@ -380,6 +414,7 @@ void FuzzyFindMode::draw(Editor& editor) const
         }
 
         output += "  ";
+        output += editor.theme.uiInfo();
 
         std::string displayPath = match.file.path;
         std::error_code cwdEc;
@@ -425,7 +460,7 @@ void FuzzyFindMode::draw(Editor& editor) const
                     output += displayPath[pos];
                     if(index != cursor)
                     {
-                        output += editor.theme.baseFg();
+                        output += editor.theme.uiInfo();
                     }
 
                     lastPos = (size_t)pos + 1;
@@ -441,6 +476,7 @@ void FuzzyFindMode::draw(Editor& editor) const
             output += displayPath;
         }
 
+        int renderedWidth = 2 + text_utils::utf8DisplayWidth(displayPath);
         if(!sizeStr.empty())
         {
             int padding = editor.screenCols - 2 -
@@ -449,11 +485,15 @@ void FuzzyFindMode::draw(Editor& editor) const
             if(padding > 0)
             {
                 output.append(padding, keyCode(control::ControlKey::SPACE));
+                renderedWidth += padding;
             }
             output += editor.theme.uiDim();
             output += sizeStr;
-            output += editor.theme.baseFg();
+            renderedWidth += static_cast<int>(sizeStr.length());
         }
+
+        if(renderedWidth < editor.screenCols)
+            output.append(editor.screenCols - renderedWidth, ' ');
 
         output += editor.theme.reset();
     }
