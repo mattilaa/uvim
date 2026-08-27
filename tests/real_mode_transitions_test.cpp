@@ -61,6 +61,8 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("git a"), "git add"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("vs"), "vs"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("hs"), "hs"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("clo"), "close"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("se"), "se"));
     EXPECT_TRUE(contains_command(editor.getCommandCompletions("ve"), "ve"));
     EXPECT_FALSE(
@@ -73,6 +75,13 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getCommandCompletions("vsplit"), "vsplit"));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("hsplit"), "hsplit"));
+    for(const char* obsolete :
+        {"write", "quit", "new", "vnew", "only", "tabclose", "syntax",
+         "noh", "nohlsearch"})
+    {
+        EXPECT_FALSE(contains_command(editor.getCommandCompletions(obsolete),
+                                      obsolete));
+    }
 #ifdef UVIM_ENABLE_RG_CACHE
     EXPECT_TRUE(
         contains_command(editor.getSetCompletions("set rgup"),
@@ -1202,7 +1211,7 @@ TEST(RealModeTransitionsTest, DirectionalPaneJumpUsesNestedLayout)
     EXPECT_EQ(editor.activePane, 0);
 }
 
-TEST(RealModeTransitionsTest, LeaderWcClosesOnlyActiveNestedPane)
+TEST(RealModeTransitionsTest, WcClosesOnlyActiveNestedPane)
 {
     Editor editor = Editor::createForTests();
     editor.screenRows = 24;
@@ -1217,9 +1226,8 @@ TEST(RealModeTransitionsTest, LeaderWcClosesOnlyActiveNestedPane)
     ASSERT_EQ(editor.splitPanes.size(), 3u);
     ASSERT_EQ(editor.activePane, 2);
 
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_C));
     sm.dispatch(keyCode(typed::TypedKey::KEY_W));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
 
     EXPECT_TRUE(editor.splitActive);
     EXPECT_EQ(editor.splitPanes.size(), 2u);
@@ -1411,7 +1419,7 @@ TEST(RealModeTransitionsTest, BareWxDoesNotCloseSelectedPane)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, LeaderWcClosesSelectedPane)
+TEST(RealModeTransitionsTest, WcClosesSelectedPane)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1425,14 +1433,27 @@ TEST(RealModeTransitionsTest, LeaderWcClosesSelectedPane)
     ASSERT_EQ(editor.currentBufferIndex, 1);
     auto sm = makeMachine(editor, NormalMode{});
 
-    sm.dispatch(keyCode(control::ControlKey::SPACE));
-    Terminal::unreadKey(keyCode(typed::TypedKey::KEY_C));
     sm.dispatch(keyCode(typed::TypedKey::KEY_W));
+    sm.dispatch(keyCode(typed::TypedKey::KEY_C));
 
     EXPECT_FALSE(editor.splitActive);
     EXPECT_EQ(editor.activePane, 0);
     EXPECT_EQ(editor.currentBufferIndex, 0);
     EXPECT_TRUE(editor.commandBuffer.empty());
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, CloseCommandClosesSelectedPane)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.enableSplit(false);
+    ASSERT_TRUE(editor.splitActive);
+    auto sm = makeMachine(editor, NormalMode{});
+
+    dispatch_command(sm, "close");
+
+    EXPECT_FALSE(editor.splitActive);
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 

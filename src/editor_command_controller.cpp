@@ -565,88 +565,58 @@ Editor::getCommandCompletionsImpl(std::string_view prefix)
 std::vector<std::string>
 Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
 {
+    // Keep this list limited to commands handled by buildCommands(). Entries
+    // that accept an argument include their trailing space so selecting a
+    // completion leaves the command line ready for the argument.
     static const std::vector<std::string> baseCommands = {
-        "w",
-        "write",
-        "q",
-        "quit",
-        "q!",
-        "qa",
-        "qall",
-        "qa!",
-        "qall!",
-        "wq",
-        "x",
-        "qw",
-        "qw!",
-        "wa",
-        "wall",
-        "wa!",
-        "wqa",
-        "wqall",
-        "wqa!",
-        "wqall!",
-        "xa",
-        "e",
-        "edit",
-        "e%",
-        "edit%",
-        "enew",
-        "new",
-        "vnew",
-        "bn",
-        "bnext",
-        "bp",
-        "bprev",
-        "bprevious",
-        "bd",
-        "bd!",
-        "bdelete",
-        "b ",
-        "buffer ",
-        "ls",
-        "buffers",
-        "vs",
-        "hs",
-        "se",
-        "ve",
-        "only",
-        "tabnew",
-        "tabe",
-        "tabn",
-        "tabnext",
-        "tabp",
-        "tabprev",
-        "tabc",
-        "tabclose",
+        "w",       "w ",      "q",        "q!",      "qa",
+        "qall",    "qa!",     "qall!",    "wq",      "x",
+        "qw",      "qw!",     "wa",       "wall",    "wa!",
+        "wqa",     "wqall",   "wqa!",     "wqall!",  "xa",
+        "e ",      "edit ",   "e%",       "edit%",   "e!%",
+        "edit!%",  "enew",    "bn",       "bnext",   "bp",
+        "bprev",   "bprevious", "bd",     "bd!",     "bdelete",
+        "b ",      "buffer ", "ls",       "buffers", "vs",
+        "hs",      "close",   "clo",
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        "se", "ve",
+#endif
+        "tabnew", "tabe ", "tabn", "tabnext", "tabp", "tabprev",
         "set",
-        "format",
-        "fmt",
-        "syntax",
-        "noh",
-        "nohlsearch",
-        "lspinfo",
-        "toolinfo",
-        "emitasm",
-        "emitasm --raw",
-        "emoji",
-        "em",
-        "glyphselect",
+#ifdef UVIM_ENABLE_FORMATTERS
+        "format", "fmt",
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        "lspinfo", "toolinfo",
+#endif
+#ifdef UVIM_ENABLE_ASM_DOCS
+        "emitasm", "emitasm --raw",
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        "emoji", "em", "glyphselect",
+#endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
         "ansitools",
         "colorpicker",
         "colorselect",
 #endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         "help",
         "h",
+#endif
         "cd",
         "cdr",
         "pwd",
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
         "loc",
         "loc!",
         "loc%",
         "loctotal",
+#endif
+#ifdef UVIM_ENABLE_SEARCH_TOOLS
         "rfs",
+#endif
+#ifdef UVIM_ENABLE_GIT_TOOLS
         "git add",
         "git blame",
         "git stage",
@@ -657,6 +627,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "git fixup",
         "git stash",
         "git stash pop",
+#endif
     };
 
     auto hasCommand = [](const std::vector<std::string>& list,
@@ -678,7 +649,8 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
                 fileBrowserCommands.push_back(extra);
         }
 
-        const std::vector<std::string> notApplicable = {"wq", "x", "se", "ve"};
+        const std::vector<std::string> notApplicable = {
+            "wq", "x", "se", "ve", "close", "clo"};
         fileBrowserCommands.erase(
             std::remove_if(
                 fileBrowserCommands.begin(), fileBrowserCommands.end(),

@@ -39,6 +39,14 @@ bool SplitCommand::execute(Editor& editor, const CommandRequest& request) const
         editor.enableSplit(false);
         return true;
     }
+    if(request.text == "close" || request.text == "clo")
+    {
+        if(editor.splitActive)
+            editor.closeSplit();
+        else
+            editor.setStatusMessage("No split");
+        return true;
+    }
     return false;
 }
 } // namespace command::execution

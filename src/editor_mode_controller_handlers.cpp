@@ -439,19 +439,6 @@ void EditorModeController::handleNormalMode(int c)
         }
         else if(c == keyCode(typed::TypedKey::KEY_W))
         {
-            const int nextChar = Terminal::readKeyTimeout(300);
-            if(nextChar == keyCode(typed::TypedKey::KEY_C))
-            {
-                if(editor.splitActive)
-                    editor.closeSplit();
-                else
-                    editor.setStatusMessage("No split");
-                editor.commandBuffer.clear();
-                editor.repeatCount = 0;
-                return;
-            }
-            if(nextChar != -1)
-                Terminal::unreadKey(nextChar);
             editor.saveFile();
             editor.commandBuffer.clear();
             editor.repeatCount = 0;
@@ -941,6 +928,17 @@ void EditorModeController::handleNormalMode(int c)
         editor.scrollHalfPageUp();
         break;
     case keyCode(typed::TypedKey::KEY_W):
+        if(editor.splitActive)
+        {
+            const int nextChar = Terminal::readKeyTimeout(300);
+            if(nextChar == keyCode(typed::TypedKey::KEY_C))
+            {
+                editor.closeSplit();
+                break;
+            }
+            if(nextChar != -1)
+                Terminal::unreadKey(nextChar);
+        }
         editor.moveWordForward();
         break;
     case keyCode(typed::TypedKey::KEY_B):

@@ -1347,23 +1347,6 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 #endif
         break;
 
-    case keyCode(typed::TypedKey::KEY_W):
-    {
-        const int nextChar = Terminal::readKeyTimeout(300);
-        if(nextChar == keyCode(typed::TypedKey::KEY_C))
-        {
-            if(ed->splitActive)
-                ed->closeSplit();
-            else
-                ed->setStatusMessage("No split");
-            ctx.commandBuffer.clear();
-            ctx.repeatCount = 0;
-            return std::nullopt;
-        }
-        ed->setStatusMessage("Unknown leader command");
-        break;
-    }
-
     case keyCode(typed::TypedKey::KEY_S):
         // Show signature popup for symbol under cursor
         ed->openSymbolPopupForCursor();
