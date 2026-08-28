@@ -29,11 +29,11 @@ std::vector<std::string> gitLogHelpTokens(bool prettyView)
                 "[q: quit]",
                 "[j/k: commit]",
                 "[ctrl-j/k: diff scroll]",
-                "[gf: rebase]",
+                "[ctrl-i: rebase]",
                 "[enter: show]",
                 "[gr: revert]"};
-    return {"[^V: range]",      "[space: select]", "[q: quit]",
-            "[ctrl-j/k: move]", "[gf: rebase]",    "[enter: show]",
+    return {"[^V: range]",      "[space: select]",  "[q: quit]",
+            "[ctrl-j/k: move]", "[ctrl-i: rebase]", "[enter: show]",
             "[gr: revert]",     "[type: filter]"};
 }
 
@@ -827,6 +827,65 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         }
     };
 
+    auto open_interactive_rebase = [&]() -> std::optional<ModeState>
+    {
+        if(entries.empty())
+        {
+            ed->setStatusMessage("git rebase: no commits available");
+            return std::nullopt;
+        }
+
+        int oldestIndex = -1;
+        if(!selectedHashes.empty())
+        {
+            // A rebase always rewrites every descendant through HEAD. Treat
+            // selected commits as the requested range boundary; omitting
+            // unselected descendants from the todo would silently drop them.
+            for(int i = 0; i < (int)entries.size(); ++i)
+            {
+                if(selectedHashes.count(entries[i].hash) != 0)
+                    oldestIndex = std::max(oldestIndex, i);
+            }
+        }
+        else if(!filtered.empty())
+        {
+            oldestIndex = filtered[std::clamp(
+                cursor, 0, std::max(0, (int)filtered.size() - 1))];
+        }
+
+        if(oldestIndex < 0 || oldestIndex >= (int)entries.size())
+        {
+            ed->setStatusMessage("git rebase: no commits selected");
+            return std::nullopt;
+        }
+
+        std::vector<GitLogMode::Entry> picked(
+            entries.begin(), entries.begin() + oldestIndex + 1);
+        GitCommitMode rebaseMode{repoRoot, repoDir};
+        rebaseMode.action = GitCommitMode::Action::RebaseTodo;
+        rebaseMode.returnLog = *this;
+        rebaseMode.rebaseHeadHash = picked.front().hash;
+        rebaseMode.rebaseBaseHash = picked.back().hash;
+        rebaseMode.rebaseCommandCount = (int)picked.size();
+        rebaseMode.messageLines.clear();
+        for(auto it = picked.rbegin(); it != picked.rend(); ++it)
+        {
+            const auto& entry = *it;
+            std::string verb = "pick";
+            if(entry.subject.rfind("fixup!", 0) == 0)
+                verb = "fixup";
+            else if(entry.subject.rfind("squash!", 0) == 0)
+                verb = "squash";
+            rebaseMode.messageLines.push_back(verb + " " + entry.hash + " " +
+                                              entry.subject);
+        }
+        rebaseMode.messageCursorRow = 0;
+        rebaseMode.messageCursorCol = 0;
+        rebaseMode.insertMode = false;
+        rebaseMode.stagedDirty = false;
+        return rebaseMode;
+    };
+
     auto findNextMatch = [&](bool forward)
     {
         if(searchQuery.empty() || filtered.empty())
@@ -1049,7 +1108,11 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
     int window = gitLogContentRows(ed->screenRows, ed->screenCols, prettyView);
     int maxScroll = std::max(0, (int)filtered.size() - window);
 
-    if(prettyView && c == keyCode(control::ControlKey::CTRL_J))
+    if(c == keyCode(control::ControlKey::CTRL_I))
+    {
+        return open_interactive_rebase();
+    }
+    else if(prettyView && c == keyCode(control::ControlKey::CTRL_J))
     {
         int maxDiffScroll =
             std::max(0, (int)previewLines.size() -
@@ -1135,57 +1198,7 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
         }
         else if(nextChar == keyCode(typed::TypedKey::KEY_F))
         {
-            std::vector<GitLogMode::Entry> picked;
-            if(!selectedHashes.empty())
-            {
-                picked.reserve(entries.size());
-                for(const auto& entry : entries)
-                {
-                    if(selectedHashes.count(entry.hash) != 0)
-                        picked.push_back(entry);
-                }
-            }
-            else
-            {
-                if(filtered.empty())
-                    return std::nullopt;
-                int idx = filtered[cursor];
-                if(idx < 0 || idx >= (int)entries.size())
-                    return std::nullopt;
-                picked.assign(entries.begin(), entries.begin() + idx + 1);
-            }
-
-            if(picked.empty())
-            {
-                ed->setStatusMessage("git rebase: no commits selected");
-                return std::nullopt;
-            }
-
-            GitCommitMode rebaseMode{repoRoot, repoDir};
-            rebaseMode.action = GitCommitMode::Action::RebaseTodo;
-            rebaseMode.returnLog = *this;
-            rebaseMode.rebaseHeadHash = picked.front().hash;
-            rebaseMode.rebaseBaseHash = picked.back().hash;
-            rebaseMode.rebaseCommandCount = (int)picked.size();
-            rebaseMode.messageLines.clear();
-            for(auto it = picked.rbegin(); it != picked.rend(); ++it)
-            {
-                const auto& entry = *it;
-                std::string verb = "pick";
-                if(entry.subject.rfind("fixup!", 0) == 0)
-                    verb = "fixup";
-                else if(entry.subject.rfind("squash!", 0) == 0)
-                    verb = "squash";
-                rebaseMode.messageLines.push_back(verb + " " + entry.hash +
-                                                  " " + entry.subject);
-            }
-            if(rebaseMode.messageLines.empty())
-                rebaseMode.messageLines.push_back("");
-            rebaseMode.messageCursorRow = 0;
-            rebaseMode.messageCursorCol = 0;
-            rebaseMode.insertMode = false;
-            rebaseMode.stagedDirty = false;
-            return rebaseMode;
+            return open_interactive_rebase();
         }
     }
     else if(c == keyCode(control::ControlKey::CTRL_V))

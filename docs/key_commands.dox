@@ -58,7 +58,10 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gj` : show commit diff for current line when git blame is visible
 - `gbv` : show commit diff for line under cursor
 - `gs` : show C/C++ symbol size and member layout popup
-- `gl` / `glf` : git log (repo / current file); `Ctrl-v` range selects
+- `gl` / `glf` : git log (repo / current file); `Ctrl-v` range selects and
+  `Ctrl-i` opens an interactive rebase todo through HEAD. In the todo use
+  `p/r/e/s/f/d` for pick/reword/edit/squash/fixup/drop, `J/K` to reorder, and
+  `:wq` to run the rebase.
 - `bd` : close current buffer
 
 \subsection keys_normal_leader Leader (Space)

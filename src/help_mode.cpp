@@ -1303,6 +1303,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:git stash` - Stash changes",
             "  `:git stash pop` - Pop latest stash",
             "  Git log: `ctrl-v` range select, `space` mark commit",
+            "  Git log: `ctrl-i` open interactive rebase todo through HEAD",
+            "  Rebase: `p/r/e/s/f/d` action, `J/K` reorder, `:wq` run",
             "  Git stage: `j/k` move, `h/l` pan list, `d` toggle diff split",
             "  Git stage: `space` stage/unstage, `ctrl-j/k` scroll diff",
             "  Git stage: `ctrl-h/l` pan diff, `m` mark fixup, `f` fixup",

@@ -17,7 +17,8 @@ menus—they leave the corresponding implementation out of the binary.
 - syntax highlighting, tabs, buffers, file browser, and nested split panes
 - cached Ctrl-P fuzzy file finding and multithreaded Ctrl-A project grep
 - regex search in buffers and projects
-- Git status, diff, log, stage, commit, blame, stash, and related views
+- Git status, diff, log, stage, commit, blame, stash, fixup, and interactive
+  rebase views
 - formatting and diagnostics for supported languages
 - optional LSP clients for C/C++, Robot Framework, Python, Mlang, HTML, CSS,
   JSON, JavaScript, and TypeScript

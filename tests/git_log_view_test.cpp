@@ -164,6 +164,102 @@ TEST(GitLogCommandTest, FileBrowserGitLogUsesProjectRoot)
     EXPECT_STREQ(smPtr->currentStateName(), "GITLOG");
 }
 
+TEST(GitInteractiveRebaseTest, CtrlIOpensTodoAndPreservesDescendants)
+{
+    Editor editor = Editor::createForTests();
+    GitLogMode mode{
+        {{"head", "third"}, {"middle", "second"}, {"oldest", "first"}},
+        false,
+        "repo",
+        "repo"};
+    mode.selectedHashes.insert("middle");
+
+    auto sm = std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                                 std::move(mode));
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* smPtr = editor.getModeStateMachine();
+    ASSERT_NE(smPtr, nullptr);
+
+    smPtr->dispatch(keyCode(control::ControlKey::CTRL_I));
+
+    auto* rebase = smPtr->getState<GitCommitMode>();
+    ASSERT_NE(rebase, nullptr);
+    ASSERT_EQ(rebase->action, GitCommitMode::Action::RebaseTodo);
+    ASSERT_EQ(rebase->messageLines.size(), 2u);
+    EXPECT_EQ(rebase->messageLines[0], "pick middle second");
+    EXPECT_EQ(rebase->messageLines[1], "pick head third");
+
+    smPtr->dispatch('d');
+    rebase = smPtr->getState<GitCommitMode>();
+    ASSERT_NE(rebase, nullptr);
+    EXPECT_EQ(rebase->messageLines[0], "drop middle second");
+
+    smPtr->dispatch('J');
+    rebase = smPtr->getState<GitCommitMode>();
+    ASSERT_NE(rebase, nullptr);
+    EXPECT_EQ(rebase->messageLines[0], "pick head third");
+    EXPECT_EQ(rebase->messageLines[1], "drop middle second");
+}
+
+TEST(GitInteractiveRebaseTest, DropRewritesSelectedRangeThroughHead)
+{
+    auto repo = make_temp_dir("uvim_git_rebase_");
+    std::string repoStr = repo.string();
+
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" init -q"), 0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr +
+                      "\" config user.email \"test@example.com\""),
+              0);
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" config user.name \"Test\""),
+              0);
+
+    write_file(repo / "first.txt", "first\n");
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add first.txt && git -C \"" +
+                      repoStr + "\" commit -m first -q"),
+              0);
+    const std::string first =
+        run_cmd_line({"git", "-C", repoStr, "rev-parse", "HEAD"});
+
+    write_file(repo / "second.txt", "second\n");
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add second.txt && git -C \"" +
+                      repoStr + "\" commit -m second -q"),
+              0);
+    const std::string second =
+        run_cmd_line({"git", "-C", repoStr, "rev-parse", "HEAD"});
+
+    write_file(repo / "third.txt", "third\n");
+    ASSERT_EQ(run_cmd("git -C \"" + repoStr + "\" add third.txt && git -C \"" +
+                      repoStr + "\" commit -m third -q"),
+              0);
+    const std::string third =
+        run_cmd_line({"git", "-C", repoStr, "rev-parse", "HEAD"});
+
+    Editor editor = Editor::createForTests();
+    GitLogMode mode{{{third, "third"}, {second, "second"}, {first, "first"}},
+                    false,
+                    repoStr,
+                    repoStr};
+    mode.selectedHashes.insert(second);
+    auto sm = std::make_unique<ModeStateMachine>(createModeContext(&editor),
+                                                 std::move(mode));
+    editor.setModeStateMachineForTests(std::move(sm));
+    auto* smPtr = editor.getModeStateMachine();
+    ASSERT_NE(smPtr, nullptr);
+
+    smPtr->dispatch(keyCode(control::ControlKey::CTRL_I));
+    ASSERT_STREQ(smPtr->currentStateName(), "GITCOMMIT");
+    smPtr->dispatch('d');
+    smPtr->dispatch(':');
+    dispatch_string(*smPtr, "wq");
+    smPtr->dispatch(keyCode(control::ControlKey::ENTER));
+
+    ASSERT_STREQ(smPtr->currentStateName(), "GITLOG");
+    EXPECT_EQ(run_cmd_line({"git", "-C", repoStr, "log", "--format=%s"}),
+              "third");
+    EXPECT_FALSE(std::filesystem::exists(repo / "second.txt"));
+    EXPECT_TRUE(std::filesystem::exists(repo / "third.txt"));
+}
+
 TEST(GitShowCommandTest, GjOpensGitShowWhenBlameIsVisible)
 {
     auto repo = make_temp_dir("uvim_gitshow_");
