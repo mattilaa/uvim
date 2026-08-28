@@ -706,6 +706,46 @@ TEST(RealModeTransitionsTest, BufferBrowserSelectionCanJumpBackAndForward)
     EXPECT_EQ(editor.currentBufferIndex, 1);
 }
 
+TEST(RealModeTransitionsTest, BufferBrowserSelectionChangesOnlyActiveSplitPane)
+{
+    for(bool vertical : {false, true})
+    {
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        editor.currentBuffer->filename = "one.txt";
+        editor.currentBuffer->lines = {"one"};
+        editor.createNewBuffer();
+        editor.currentBuffer->filename = "two.txt";
+        editor.currentBuffer->lines = {"two"};
+        editor.switchToBuffer(0);
+        editor.enableSplit(vertical);
+
+        ASSERT_TRUE(editor.splitActive);
+        ASSERT_EQ(editor.splitPanes.size(), 2u);
+        ASSERT_EQ(editor.activePane, 1);
+        ASSERT_EQ(editor.splitPanes[0].bufferIndex, 0);
+        ASSERT_EQ(editor.splitPanes[1].bufferIndex, 0);
+
+        auto sm = makeMachine(editor, NormalMode{});
+        sm.dispatch(keyCode(control::ControlKey::CTRL_W));
+        ASSERT_STREQ(sm.currentStateName(), "BUFFERS");
+        sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+        sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+        ASSERT_STREQ(sm.currentStateName(), "NORMAL");
+        EXPECT_EQ(editor.activePane, 1);
+        EXPECT_EQ(editor.currentBufferIndex, 1);
+        EXPECT_EQ(editor.splitPanes[0].bufferIndex, 0);
+        EXPECT_EQ(editor.splitPanes[1].bufferIndex, 1);
+
+        editor.switchPaneDirection(vertical ? -1 : 0, vertical ? 0 : -1);
+        EXPECT_EQ(editor.activePane, 0);
+        EXPECT_EQ(editor.currentBufferIndex, 0);
+        ASSERT_EQ(editor.currentBuffer->lines.size(), 1u);
+        EXPECT_EQ(editor.currentBuffer->lines[0], "one");
+    }
+}
+
 TEST(RealModeTransitionsTest, BufferBrowserStartsOnCurrentBuffer)
 {
     Editor editor = Editor::createForTests();

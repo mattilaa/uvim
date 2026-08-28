@@ -450,7 +450,10 @@ void BufferBrowserMode::selectMatch(Editor& editor)
         {
             if(idx != editor.currentBufferIndex)
                 editor.pushJumpLocation();
-            editor.switchToBuffer(idx);
+            if(editor.splitActive)
+                editor.switchToBufferInActivePane(idx);
+            else
+                editor.switchToBuffer(idx);
         }
     }
 }
