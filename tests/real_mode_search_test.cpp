@@ -29,6 +29,43 @@ TEST(RealModeTransitionsTest, SearchPromptShowsFullTypedPattern)
     EXPECT_EQ(output, "/long_pattern");
 }
 
+TEST(RealModeTransitionsTest, SearchMatchContrastDefaultsHighAndPersists)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    ASSERT_EQ(editor.searchMatchContrast, 100);
+
+    auto sm = makeMachine(editor, FuzzyFindMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_T));
+    EXPECT_EQ(editor.searchMatchContrast, 35);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_A));
+    ASSERT_STREQ(sm.currentStateName(), "GREP");
+    EXPECT_EQ(editor.searchMatchContrast, 35);
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_T));
+    EXPECT_EQ(editor.searchMatchContrast, 100);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+    auto reopened = makeMachine(editor, FuzzyFindMode{});
+    EXPECT_EQ(editor.searchMatchContrast, 100);
+    EXPECT_STREQ(reopened.currentStateName(), "FUZZY");
+}
+
+TEST(RealModeTransitionsTest, SetSearchContrastAdjustsSharedPaletteStrength)
+{
+    Editor editor = Editor::createForTests();
+
+    EXPECT_TRUE(editor.handleSetCommand("set searchcontrast=60"));
+    EXPECT_EQ(editor.searchMatchContrast, 60);
+    EXPECT_TRUE(editor.handleSetCommand("set searchcontrast+=25"));
+    EXPECT_EQ(editor.searchMatchContrast, 85);
+    EXPECT_TRUE(editor.handleSetCommand("set searchcontrast-=100"));
+    EXPECT_EQ(editor.searchMatchContrast, 0);
+    EXPECT_TRUE(editor.handleSetCommand("set searchcontrast=101"));
+    EXPECT_EQ(editor.searchMatchContrast, 0);
+}
+
 TEST(RealModeTransitionsTest, IncrementalForwardSearchStartsAtSavedCursor)
 {
     Editor editor = Editor::createForTests();

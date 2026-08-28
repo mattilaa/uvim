@@ -436,6 +436,7 @@ if(UVIM_ENABLE_SEARCH_TOOLS)
         src/fuzzy_find_mode.cpp
         src/grep_search_mode.cpp
         src/regex_search_mode.cpp
+        src/search_match_colors.cpp
     )
 else()
     list(APPEND UVIM_OPTIONAL_FEATURE_SOURCES src/search_modes_stub.cpp)

@@ -192,6 +192,10 @@ public:
     bool fuzzyFileIndexRespectGitignore = true;
     bool fuzzyFileIndexUseGit = true;
 
+    // Shared by fuzzy-find and grep for the lifetime of this editor session.
+    // 100 is the default high-contrast palette; 0 is the lowest contrast.
+    int searchMatchContrast = 100;
+
     // Hot file-browser listing. The active browser takes ownership of this
     // vector and returns it on exit, avoiding an O(n) filename copy each time
     // leader-x reopens the same directory.

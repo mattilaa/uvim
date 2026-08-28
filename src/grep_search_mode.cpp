@@ -7,6 +7,7 @@
 #include "header_help.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
+#include "search_match_colors.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -25,22 +26,26 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> grepSearchHelpTokens()
+std::vector<std::string> grepSearchHelpTokens(int contrast)
 {
     return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
             "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
-            "[Ctrl+I: gitignore]"};
+            "[Ctrl+I: gitignore]",
+            "[Ctrl+T: contrast " + std::to_string(contrast) + "]"};
 }
 
-int grepSearchHeaderRows(int screenCols)
+int grepSearchHeaderRows(int screenCols, int contrast)
 {
-    return 2 + HeaderHelp::lineCount(grepSearchHelpTokens(), screenCols);
+    return 2 +
+           HeaderHelp::lineCount(grepSearchHelpTokens(contrast), screenCols);
 }
 
 int grepSearchVisibleRows(const Editor& editor)
 {
     return std::max(1, editor.screenRows -
-                           grepSearchHeaderRows(editor.screenCols));
+                           grepSearchHeaderRows(
+                               editor.screenCols,
+                               editor.searchMatchContrast));
 }
 
 std::string toLower(std::string_view input)
@@ -116,7 +121,7 @@ std::string truncatePathMiddle(std::string path, int width)
 
 std::string grepResultBackground(const GrepMatch& match,
                                  std::string_view lowerQuery,
-                                 bool explicitlySelected)
+                                 bool explicitlySelected, int contrast)
 {
     size_t occurrences = 0;
     if(!lowerQuery.empty())
@@ -139,21 +144,9 @@ std::string grepResultBackground(const GrepMatch& match,
         std::min(1.0, static_cast<double>(occurrences > 0 ? occurrences - 1
                                                          : 0) /
                           3.0);
-    const double strength =
-        std::clamp(0.15 + coverage * 0.65 + repetition * 0.20, 0.0, 1.0);
-
-    // Keep every relevance shade well below the cursor's light green
-    // (56,120,72), while retaining a useful gradient among non-cursor rows.
-    int red = 3 + static_cast<int>(15.0 * strength);
-    int green = 24 + static_cast<int>(38.0 * strength);
-    int blue = 8 + static_cast<int>(18.0 * strength);
-    if(explicitlySelected)
-    {
-        red = std::min(255, red + 3);
-        green = std::min(255, green + 7);
-        blue = std::min(255, blue + 3);
-    }
-    return color::rgbBg(red, green, blue);
+    return SearchMatchColors::matchBackground(
+        SearchMatchColors::relevanceStrength(coverage, repetition), contrast,
+        explicitlySelected);
 }
 
 bool isAsciiText(std::string_view text)
@@ -558,6 +551,10 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         toggleGitignore(*ed);
     }
+    else if(c == keyCode(control::ControlKey::CTRL_T))
+    {
+        ed->searchMatchContrast = ed->searchMatchContrast >= 70 ? 35 : 100;
+    }
     else if(c == keyCode(control::ControlKey::TAB))
     {
         togglePreview();
@@ -619,7 +616,7 @@ void GrepSearchMode::draw(Editor& editor)
     }
 
     HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       grepSearchHelpTokens());
+                       grepSearchHelpTokens(editor.searchMatchContrast));
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -707,12 +704,13 @@ void GrepSearchMode::draw(Editor& editor)
         // dark-green relevance gradient based on match density and repetition.
         if(index == cursor)
         {
-            output += color::rgbBg(56, 120, 72);
+            output += SearchMatchColors::selectedRowBackground();
             output += editor.theme.baseFg();
         }
         else
         {
-            output += grepResultBackground(match, lowerQuery, isSelected);
+            output += grepResultBackground(match, lowerQuery, isSelected,
+                                           editor.searchMatchContrast);
             output += editor.theme.baseFg();
         }
 

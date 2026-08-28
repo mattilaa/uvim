@@ -107,6 +107,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (respectGitignore ? "true" : "false"));
         return true;
     }
+    if(opt == "searchcontrast?")
+    {
+        setStatusMessage("searchcontrast=" +
+                         std::to_string(searchMatchContrast));
+        return true;
+    }
     if(opt == "formatoninsertleave?")
     {
         setStatusMessage(std::string("formatoninsertleave=") +
@@ -637,6 +643,33 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         return true;
     }
 #endif
+    const auto set_search_contrast = [&](std::string_view value,
+                                         int direction) -> bool
+    {
+        int amount = 0;
+        if(!editor::helper::parse_int(value, amount) || amount < 0 ||
+           amount > 100)
+        {
+            setStatusMessage("searchcontrast: expected 0-100");
+            return true;
+        }
+        searchMatchContrast = direction == 0
+                                  ? amount
+                                  : std::clamp(searchMatchContrast +
+                                                   direction * amount,
+                                               0, 100);
+        needsFullRedraw = true;
+        setStatusMessage("searchcontrast=" +
+                         std::to_string(searchMatchContrast));
+        return true;
+    };
+    if(opt.rfind("searchcontrast+=", 0) == 0)
+        return set_search_contrast(opt.substr(16), 1);
+    if(opt.rfind("searchcontrast-=", 0) == 0)
+        return set_search_contrast(opt.substr(16), -1);
+    if(opt.rfind("searchcontrast=", 0) == 0)
+        return set_search_contrast(opt.substr(15), 0);
+
     if(opt == "commandline.messageprefix")
     {
         commandLineMessagePrefix = true;

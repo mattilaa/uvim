@@ -768,6 +768,11 @@ std::vector<std::string> Editor::getSetCompletionsImpl(std::string_view prefix)
         "set nofilebrowser.fuzzy",
         "set filebrowser.fuzzy?",
         "set filebrowser.fuzzy=",
+        "set searchcontrast?",
+        "set searchcontrast=",
+        "set searchcontrast=100",
+        "set searchcontrast+=10",
+        "set searchcontrast-=10",
 #ifdef UVIM_ENABLE_RG_CACHE
         "set rgcache",
         "set norgcache",
