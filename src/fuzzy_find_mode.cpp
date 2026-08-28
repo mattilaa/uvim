@@ -5,6 +5,7 @@
 #include "header_help.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
+#include "search_match_colors.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -24,28 +25,32 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst)
+std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst,
+                                             int contrast)
 {
     return {"[Enter: open]",
             "[Esc: cancel]",
             "[Ctrl+N: select]",
             "[Ctrl+J/K: navigate]",
             "[Ctrl+I: gitignore]",
+            "[Ctrl+T: contrast " + std::to_string(contrast) + "]",
             filenameFirst ? "[Ctrl+O: filename first]"
                           : "[Ctrl+O: path first]"};
 }
 
-int fuzzyFindHeaderRows(int screenCols, bool filenameFirst)
+int fuzzyFindHeaderRows(int screenCols, bool filenameFirst, int contrast)
 {
-    return 2 +
-           HeaderHelp::lineCount(fuzzyFindHelpTokens(filenameFirst), screenCols);
+    return 2 + HeaderHelp::lineCount(
+                   fuzzyFindHelpTokens(filenameFirst, contrast),
+                   screenCols);
 }
 
 int fuzzyFindVisibleRows(const Editor& editor, bool filenameFirst)
 {
-    return std::max(1,
-                    editor.screenRows -
-                        fuzzyFindHeaderRows(editor.screenCols, filenameFirst));
+    return std::max(
+        1, editor.screenRows -
+               fuzzyFindHeaderRows(editor.screenCols, filenameFirst,
+                                   editor.searchMatchContrast));
 }
 
 std::string runCmd(const std::vector<std::string>& args)
@@ -114,29 +119,37 @@ std::string truncatePathMiddle(std::string path, int width)
     return prefix + suffix;
 }
 
-std::string fuzzyResultBackground(int score, int minScore, int maxScore,
-                                  bool explicitlySelected)
+std::string fuzzyResultBackground(const FuzzyMatch& match,
+                                  std::string_view query,
+                                  bool explicitlySelected, int contrast)
 {
-    double strength = 0.5;
-    if(maxScore > minScore)
+    size_t contentLength = std::max<size_t>(1, match.file.path.size());
+    const size_t nameStart = match.file.path.find_last_of('/');
+    const size_t adjustedNameStart =
+        text_utils::is_found(nameStart) ? nameStart + 1 : 0;
+    if(!match.matchPositions.empty() &&
+       std::all_of(match.matchPositions.begin(), match.matchPositions.end(),
+                   [adjustedNameStart](int pos)
+                   { return pos >= static_cast<int>(adjustedNameStart); }))
     {
-        strength = static_cast<double>(score - minScore) /
-                   static_cast<double>(maxScore - minScore);
+        contentLength = std::max<size_t>(1, match.file.name.size());
     }
-    strength = std::clamp(strength, 0.0, 1.0);
 
-    // Match grep's dark relevance range. The cursor uses (56,120,72), so even
-    // the strongest non-cursor match remains clearly secondary.
-    int red = 3 + static_cast<int>(15.0 * strength);
-    int green = 24 + static_cast<int>(38.0 * strength);
-    int blue = 8 + static_cast<int>(18.0 * strength);
-    if(explicitlySelected)
+    const double coverage =
+        static_cast<double>(query.size()) / static_cast<double>(contentLength);
+    int adjacentPairs = 0;
+    for(size_t i = 1; i < match.matchPositions.size(); ++i)
     {
-        red = std::min(255, red + 3);
-        green = std::min(255, green + 7);
-        blue = std::min(255, blue + 3);
+        if(match.matchPositions[i] == match.matchPositions[i - 1] + 1)
+            ++adjacentPairs;
     }
-    return color::rgbBg(red, green, blue);
+    const double cohesion = match.matchPositions.size() > 1
+                                ? static_cast<double>(adjacentPairs) /
+                                      (match.matchPositions.size() - 1)
+                                : 0.0;
+    return SearchMatchColors::matchBackground(
+        SearchMatchColors::relevanceStrength(coverage, cohesion), contrast,
+        explicitlySelected);
 }
 
 std::string singleLinePasteText(std::string text)
@@ -281,6 +294,10 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         toggleGitignore(*ed);
     }
+    else if(c == keyCode(control::ControlKey::CTRL_T))
+    {
+        ed->searchMatchContrast = ed->searchMatchContrast >= 70 ? 35 : 100;
+    }
     else if(c == keyCode(control::ControlKey::CTRL_B))
     {
         return BufferBrowserMode{};
@@ -332,7 +349,8 @@ void FuzzyFindMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       fuzzyFindHelpTokens(filenameFirst));
+                       fuzzyFindHelpTokens(filenameFirst,
+                                           editor.searchMatchContrast));
 
     output += Terminal::NEWLINE_CLEAR;
     output += editor.theme.uiDim();
@@ -380,14 +398,6 @@ void FuzzyFindMode::draw(Editor& editor) const
     output += editor.theme.baseFg();
 
     int availableRows = fuzzyFindVisibleRows(editor, filenameFirst);
-    int minScore = 0;
-    int maxScore = 0;
-    if(!query.empty() && !matches.empty())
-    {
-        maxScore = matches.front().score;
-        minScore = matches.back().score;
-    }
-
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
         output += Terminal::NEWLINE_CLEAR;
@@ -398,18 +408,18 @@ void FuzzyFindMode::draw(Editor& editor) const
 
         if(index == cursor)
         {
-            output += color::rgbBg(56, 120, 72);
+            output += SearchMatchColors::selectedRowBackground();
             output += editor.theme.baseFg();
         }
         else if(!query.empty())
         {
-            output += fuzzyResultBackground(match.score, minScore, maxScore,
-                                            isSelected);
+            output += fuzzyResultBackground(match, query, isSelected,
+                                            editor.searchMatchContrast);
             output += editor.theme.baseFg();
         }
         else if(isSelected)
         {
-            output += color::rgbBg(24, 64, 36);
+            output += SearchMatchColors::markedRowBackground();
             output += editor.theme.baseFg();
         }
 
