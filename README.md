@@ -1,71 +1,81 @@
 # uVim
-uViM (micro) editor
 
-Reduced version of Vim.
+uVim is a configurable, terminal-native modal code editor. It keeps familiar
+vi/Vim navigation and editing, but the project now also includes project
+search and indexing, file and buffer browsers, nested splits, Git views,
+formatters, diagnostics, and optional language-server clients.
 
-- Normal Vim like code navigation
-- Vim like text object handling
-- Fzf style file browsing
-- Ripgrep search from files
-- Regex search in buffers (`/` and `?`, plus `:/` and `:?` from command mode)
-- Run a shell command and browse its output (`:run`)
-- Syntax highlighting
-- Really small binary
+The same source tree can produce very different editors. `uvim-config` can
+build a reduced vi-style binary for a virtual-terminal environment, a compact
+editor with selected integrations, or the complete development build. Large
+features are compile-time options, so reduced builds do not merely hide unused
+menus—they leave the corresponding implementation out of the binary.
 
-## Config
+## Highlights
 
-Generate the default config:
+- vi-style normal, insert, replace, visual, text-object, mark, and jump flows
+- syntax highlighting, tabs, buffers, file browser, and nested split panes
+- cached Ctrl-P fuzzy file finding and multithreaded Ctrl-A project grep
+- regex search in buffers and projects
+- Git status, diff, log, stage, commit, blame, stash, and related views
+- formatting and diagnostics for supported languages
+- optional LSP clients for C/C++, Robot Framework, Python, Mlang, HTML, CSS,
+  JSON, JavaScript, and TypeScript
+- project-aware `compile_commands.json` and `mlang_commands.json` discovery
+- configurable themes, terminal colors, clipboard support, assembly docs,
+  command output browsing, and auxiliary developer views
+- POSIX and native Windows terminal backends
+
+## Contents
+
+- [Build profiles and uvim-config](#build-profiles-and-uvim-config)
+- [Runtime configuration](#runtime-configuration)
+- [Themes](#themes)
+- [Generated documentation](#generated-documentation)
+- [Assembly instruction docs](#assembly-instruction-docs)
+- [LSP flags](#lsp-flags)
+- [Dependencies](#dependencies-os-specific)
+- [File browser](#file-browser)
+- [`:run` output view](#run-output-view)
+- [Tab bar and buffer management](#tab-bar--buffer-management)
+- [Diagnostics](#diagnostics)
+- [Search examples](#search-examples)
+
+## Build profiles and uvim-config
+
+`uvim-config` is the supported front end for selecting a build profile and
+overriding individual CMake features. It works as an interactive terminal TUI
+and as a non-interactive command-line tool.
+
+### Presets
+
+| Preset | Intended use | Included | Compiled out or disabled |
+| --- | --- | --- | --- |
+| `vi-real` | Small vi-style binary for VT-compatible terminals, recovery environments, remote machines, and minimal installations | Core modal editing, welcome screen, tabs, built-in file and buffer browsers | Colors, modern bindings, nested panes, auxiliary views, Git, search/indexing, formatters, clipboard, assembly docs, LSP, tests, and compile database output |
+| `vi-min` | Small colored terminal editor with a few modern conveniences | `vi-real` editing/browser base plus terminal colors, color tools, modern bindings, and nested panes | Git, fuzzy/grep/regex tools, formatters, clipboard, auxiliary views, assembly docs, LSP, tests, and compile database output |
+| `minimal` | Compact modern editor without language servers | Browsers, auxiliary views, Git, cached search, formatters, clipboard, colors, and nested panes | LSP, assembly docs, struct-size popup, tests, and compile database output |
+| `basic` | Normal development build when LSP support is not needed | Editor features, browsers, Git, search, formatters, clipboard, assembly docs, auxiliary views, tests, and compile database output | All language-server clients |
+| `full` | Complete uVim development environment | All editor features, tests, compile database output, and every available LSP client | Sanitizers, debug logging, stripping, and static linking remain opt-in build modes |
+
+`vi-real`, `vi-min`, and `minimal` select `-Oz`, LTO, dead-code section
+collection, and binary stripping. `basic` and `full` default to Release with
+`-O2`, LTO, and dead-code section collection. Presets are starting points;
+later `--enable` and `--disable` arguments override individual choices.
+
+The `full` preset compiles the LSP integrations into uVim. Language servers
+such as `clangd` and the VSCode language servers remain separate programs and
+must be installed on the target system when those integrations are used.
+
+### Quick start: interactive configurator
+
+On macOS, Linux, or WSL, `bootstrap.sh` builds the configurator and prompts to
+run it and then build uVim:
 
 ```sh
-uvim --init-config
+./bootstrap.sh
 ```
 
-This writes to `~/.config/uvim/config.toml` (or `$XDG_CONFIG_HOME/uvim/config.toml`
-if `XDG_CONFIG_HOME` is set). It also copies bundled themes into
-`~/.config/uvim/themes/`. You can also provide a custom path:
-
-```sh
-uvim --init-config /path/to/uvim.toml
-```
-
-## Themes
-
-Built-in theme examples are in `themes/`. To use a theme:
-
-- Copy a theme file to `~/.config/uvim/themes/` (or `$XDG_CONFIG_HOME/uvim/themes/`).
-- Reference it in your config:
-
-```toml
-[theme]
-name = "solarized-dark"
-```
-
-You can also load a custom theme directly:
-
-```sh
-uvim --theme /path/to/theme.toml
-```
-
-## Documentation (Doxygen)
-
-Generate the configuration reference:
-
-```sh
-./scripts/build_docs.sh
-```
-
-The HTML output is written to `docs/doxygen/html/index.html`.
-
-Published API/configuration docs are available on GitHub Pages:
-https://mattilaa.github.io/uvim/
-
-Install doxygen with your system package manager (e.g., `brew install doxygen`
-on macOS, `apt-get install doxygen` on Debian/Ubuntu, or `dnf install doxygen`
-on Fedora).
-
-## Build configurator
-
-`uvim-config` is a small ccmake-style TUI for choosing common build options.
+The equivalent explicit steps are:
 
 ```sh
 ./bootstrap.sh
@@ -73,81 +83,202 @@ on Fedora).
 ./build.sh
 ```
 
-On Windows PowerShell, use the matching scripts:
+On native Windows PowerShell:
+
+Use `.\bootstrap.ps1`, `.\build\uvim-config.exe`, and `.\build.ps1` for the
+same workflow in native Windows PowerShell.
+
+`bootstrap` builds only the configurator and offers to launch it. In the TUI:
+
+- use `j`/`k` or the arrow keys to move
+- use `h`/`l` to close or open a section
+- press Space or Enter to toggle/cycle an option
+- press Space or Enter on build jobs or install directory to edit the value
+- press `s` to save and `q` to quit
+
+The first save creates two files in the selected build directory:
+
+- `uvim-config.conf` is the editable/importable profile state
+- `uvim_config_cache.cmake` is the generated CMake cache initializer
+
+The TUI reloads `uvim-config.conf` on the next run. `build.sh` imports it,
+regenerates the CMake cache, configures the project, and builds with the saved
+parallel job count.
+
+### Quick start: preset from the command line
+
+First bootstrap `uvim-config` and decline the prompt to open its TUI, then
+select a preset from the command line:
+
+```sh
+./bootstrap.sh
+./build/uvim-config --preset full --config Release --jobs 8
+./build.sh
+```
+
+Build the reduced vi-style profile:
+
+```sh
+./build/uvim-config --preset vi-real --config Release -O Oz --jobs 8
+./build.sh --target uvim
+```
+
+For the smallest profile, the built-in file and buffer browsers can also be
+removed:
+
+```sh
+./build/uvim-config --preset vi-real --disable browser-tools
+./build.sh --target uvim
+```
+
+Build and install the full profile on POSIX:
+
+```sh
+./build/uvim-config --preset full --install-dir ~/.local/bin --install
+./build.sh --install
+```
+
+Equivalent PowerShell commands use `uvim-config.exe` and `build.ps1`.
+
+### Terminal target selection
+
+`--platform AUTO` is recommended and selects the native backend for the build
+host. Use `--platform POSIX` for Unix terminals and PTYs, or `--platform WIN32`
+for a native Windows console build. The Windows backend enables virtual
+terminal processing and writes UTF-8 console text, allowing the same editor UI
+to run in Windows Terminal and other compatible terminal hosts.
+
+The `vi-real` preset disables optional terminal coloring but still requires a
+terminal capable of full-screen cursor movement and raw key input. It is aimed
+at VT-compatible terminal emulators rather than line-only or `TERM=dumb`
+sessions.
+
+Examples:
+
+```sh
+./build/uvim-config -p vi-real --platform POSIX -O Oz
+./build/uvim-config -p full --platform AUTO -c RelWithDebInfo
+```
 
 ```powershell
-.\bootstrap.ps1
-.\build\uvim-config.exe
-.\build.ps1
+.\build\uvim-config.exe -p vi-real --platform WIN32 -O Oz
+.\build.ps1 --target uvim
 ```
 
-Use `./bootstrap.sh --build-dir out/build` to choose another CMake build
-directory. Use `./bootstrap.sh --jobs 8` to set parallel build jobs; when
-`uvim-config.conf` exists in the build directory, bootstrap uses its saved
-`jobs=` value by default.
-When `ninja` is available, bootstrap uses CMake's Ninja generator by default.
-The saved `ninja_generator=` setting controls this behavior after
-`uvim-config` has written a config file.
-After saving from `uvim-config`, run `./build.sh` to import
-`build/uvim-config.conf`, regenerate `build/uvim_config_cache.cmake`, configure
-CMake, and build with the saved jobs value. Use `./build.sh --target uvim` to
-build only one target, or `./build.sh --build-dir out/build` for another build
-directory. `./build.sh --install` installs only the `uvim` component to the
-configured install directory, so dependency install rules are skipped.
-The PowerShell scripts support the same long options, for example
-`.\bootstrap.ps1 --build-dir out\build --jobs 8` and
-`.\build.ps1 --build-dir out\build --target uvim --install`.
+### Customize a preset
 
-Use `j/k` or the arrow keys to move, `h` to close a section, `l` to open a
-section, `Space`/Enter to toggle or cycle an option, `s` to write
-`build/uvim_config_cache.cmake`, and `q` to quit. Press `Space`/Enter on the
-install dir or build jobs rows to edit the value. On POSIX the install dir
-defaults to `~/.local/bin`, and build jobs defaults to the maximum available
-hardware cores. Then configure and build uvim with the generated cache:
+Options after `--preset` modify the selected profile:
 
 ```sh
-cmake -C build/uvim_config_cache.cmake -S . -B build
-cmake --build build --parallel 8
-```
+# Compact editor with project search, but without Git or clipboard support.
+./build/uvim-config -p minimal --disable git --disable clipboard
 
-Saving also writes `build/uvim-config.conf`. The TUI imports that file on
-startup when it exists. On first run, when no config exists yet, quitting asks
-`save default config (y/n)?` before creating it.
+# Basic build plus only the C/C++ language server client.
+./build/uvim-config -p basic --enable clangd
 
-The same cache can be generated without opening the TUI:
-
-```sh
-./build/uvim-config --preset full --config Release
-./build/uvim-config -p vi-real -c Release -O Oz -j 8 --install-dir ~/.local/bin --install
+# Reload a saved profile and change one output option.
 ./build/uvim-config --import build/uvim-config.conf --disable tests
+```
+
+Available feature names include `browser-tools`, `auxiliary-views`, `git`,
+`search`, `rg-cache`, `formatters`, `clipboard`, `asm-docs`, `struct-size`,
+`color-tools`, `terminal-colors`, `modern-keybindings`, `multi-pane-splits`,
+`per-pane-lsp`, `clangd`, `robot-lsp`, `python-lsp`, `mlang-lsp`,
+`mlang-semantic-tokens`, `html-lsp`, `css-lsp`, `json-lsp`, `ts-lsp`, `tests`,
+`compile-commands`, `auto-build-number`, `lto`, `gc-sections`, `strip`,
+`static-link`, `sanitizers`, `debug-logging`, and `debug-lsp`.
+
+Run this for the authoritative option list:
+
+```sh
+./build/uvim-config --help
+```
+
+Other useful arguments are `--build-dir`, `--source-dir`, `--output`,
+`--import`, `--jobs`, `--ninja`/`--no-ninja`, `--install-dir`, and `--install`.
+For example, an isolated build directory can be used throughout:
+
+```sh
+./bootstrap.sh --build-dir out/full --jobs 8
+./out/full/uvim-config -p full -B out/full -j 8
+./build.sh --build-dir out/full
+```
+
+The generated cache can also be used directly:
+
+```sh
 cmake -C build/uvim_config_cache.cmake -S . -B build
 cmake --build build --parallel 8
 ```
 
-Run `./build/uvim-config --help` for all command-line options, including
-`--platform`, `--ninja`, `--no-ninja`, `--jobs`, `--build-dir`, `--import`,
-`--install-dir`, `--install`, `--output`, `--enable`, and `--disable`.
+### Direct CMake configuration
 
-The default release optimization is `-O2`. For very small binaries, choose the
-`vi-real` feature set or tune the options under `Editor Features`,
-`Build Outputs`, and `Size And Link`. `vi-real` is a hard minimal build that
-keeps the built-in file/buffer browser while compiling out terminal colors,
-color tools, modern convenience keybindings, multi-pane splits, popups, git,
-fuzzy, grep, regex tooling, docs/LSP/test build outputs, and other optional
-integrations. The other presets enable terminal colors, color tools, modern
-keybindings, multi-pane splits, and per-pane LSP refresh by default. The
-smallest profiles use `Oz`, LTO, dead-code sections, and strip.
+Advanced builds may bypass `uvim-config` and set the `UVIM_*` CMake options
+directly. For example:
 
-Useful `uvim-config --disable` names for very small vi-style builds include
-`modern-keybindings`, `multi-pane-splits`, `per-pane-lsp`,
-`auxiliary-views`, `asm-docs`, `git`, `search`, `formatters`, `clipboard`,
-`struct-size`, `color-tools`, `terminal-colors`, `tests`, and
-`compile-commands`. You can still explicitly disable `browser-tools` when you
-want an even smaller build without the file/buffer browser. The corresponding
-CMake options are
-`UVIM_ENABLE_MODERN_KEYBINDINGS` for the split/buffer convenience key layer and
-`UVIM_ENABLE_MULTI_PANE_SPLITS` for nested pane trees. Split panes refresh and
-draw their own LSP diagnostics by default with `UVIM_ENABLE_PER_PANE_LSP`.
+```sh
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DUVIM_MINIMAL=ON \
+  -DUVIM_ENABLE_BROWSER_TOOLS=ON \
+  -DUVIM_OPTIMIZATION_LEVEL=Oz
+cmake --build build --target uvim --parallel 8
+```
+
+See the options near the top of `CMakeLists.txt` or the generated configuration
+reference for the complete list. `UVIM_MINIMAL=ON` is a hard compile gate that
+forces most optional integrations off; use the individual feature switches
+when constructing a custom profile between `vi-real` and `full`.
+
+## Runtime configuration
+
+Generate the default runtime config:
+
+```sh
+uvim --init-config
+```
+
+This writes `~/.config/uvim/config.toml`, or
+`$XDG_CONFIG_HOME/uvim/config.toml` when `XDG_CONFIG_HOME` is set, and copies
+the bundled themes into the adjacent `themes/` directory. A custom destination
+may be supplied explicitly:
+
+```sh
+uvim --init-config /path/to/uvim.toml
+```
+
+Build configuration and runtime configuration are separate: `uvim-config`
+chooses which code is compiled into the binary, while `config.toml`, command
+line flags, and `:set` options control the compiled features at runtime.
+
+## Themes
+
+Built-in theme examples are in `themes/`. Copy a theme into the runtime theme
+directory and reference it in `config.toml`:
+
+```toml
+[theme]
+name = "solarized-dark"
+```
+
+A custom theme can also be loaded directly:
+
+```sh
+uvim --theme /path/to/theme.toml
+```
+
+## Generated documentation
+
+Generate the configuration/API reference with:
+
+```sh
+./scripts/build_docs.sh
+```
+
+The output is written to `docs/doxygen/html/index.html`. Published docs are
+available at <https://mattilaa.github.io/uvim/>. Doxygen can be installed with
+the platform package manager (`brew install doxygen`, `apt-get install
+doxygen`, or `dnf install doxygen`).
 
 ## Assembly instruction docs
 
