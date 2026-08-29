@@ -1,0 +1,108 @@
+name: Portable release binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to create or update (for example v0.2.1)"
+        required: true
+        type: string
+      profile:
+        description: "uvim-config feature profile"
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - basic
+          - minimal
+          - vi-min
+          - vi-real
+
+concurrency:
+  group: portable-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64 static
+            runner: ubuntu-22.04
+            artifact: portable-linux-x86_64
+            arguments: ""
+          - name: macOS universal
+            runner: macos-15
+            artifact: portable-macos-universal
+            arguments: "--macos-arch universal"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      UVIM_RELEASE_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'full' }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes g++ libc6-dev ninja-build
+
+      - name: Build portable archive
+        run: |
+          ./scripts/build_portable.sh \
+            --profile "$UVIM_RELEASE_PROFILE" \
+            --jobs 3 \
+            ${{ matrix.arguments }}
+
+      - name: Upload portable archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Attach binaries to GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+
+    steps:
+      - name: Download portable archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: portable-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or update release
+        run: |
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "uVim $RELEASE_TAG" \
+              --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

@@ -254,6 +254,11 @@ Use `--dynamic` if a Linux toolchain does not provide static runtime libraries.
 Git, ripgrep/fzf, formatters, clipboard helpers, and language servers remain
 optional external programs discovered through `PATH`.
 
+Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow,
+builds Linux `x86_64` and universal macOS archives, creates the GitHub Release,
+and attaches both archives and their checksums. The workflow can also be run
+manually with a release tag and a selected build profile.
+
 ## Runtime configuration
 
 Generate the default runtime config:

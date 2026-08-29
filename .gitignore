@@ -24,7 +24,10 @@ CMakeUserPresets.json
 tests/robot/output
 __pycache__
 .venv
-.github
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/portable-release.yml
 .gitlab
 .clangd
 
