@@ -54,7 +54,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     return exitMode(ctx);
 }
 
-void GrepSearchMode::draw(Editor& editor) const
+void GrepSearchMode::draw(Editor& editor)
 {
     editor.setStatusMessage("search tools disabled in this build");
 }

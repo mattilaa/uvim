@@ -1180,7 +1180,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-m e/w` - Active-LSP error/warning jump list",
             "  `Space-x`  - File browser",
             "  `Ctrl-w`   - Browse buffers for the active pane",
-            "  `wc`       - Close active split pane",
+            "  `Space-w c` - Close active split pane",
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
             "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
@@ -1261,7 +1261,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:hs`                          - Horizontal split",
             "  `:vs`                          - Vertical split",
             "  `:close` or `:clo`             - Close active split pane",
-            "  `wc`                           - Close active split pane",
+            "  `Space-w c`                    - Close active split pane",
             "  `Ctrl-w`                       - Browse buffers for the active "
             "(selected) pane",
             "  `:tabnew`/`:tabe <file>`       - New tab / open in tab",
@@ -1805,7 +1805,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:hs`                          - Horizontal split",
             "  `:vs`                          - Vertical split",
             "  `:close` or `:clo`             - Close active split pane",
-            "  `wc`                           - Close active split pane",
+            "  `Space-w c`                    - Close active split pane",
             "  `Ctrl-w`                       - Browse open buffers for the "
             "active pane",
             "  Buffer browser `Enter` changes only the active pane",

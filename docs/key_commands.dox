@@ -79,7 +79,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:vs` : vertical split
 - in file browser, `:hs` : horizontal browser split
 - in file browser, `:vs` : vertical browser split
-- `wc` : close the active editor pane
+- `Space-w c` : close the active editor pane
 - `Ctrl-w` : browse open buffers; `Enter` opens the selected buffer only in
   the active pane
 - `Ctrl-Shift-h/j/k/l` : focus pane left/down/up/right when built with

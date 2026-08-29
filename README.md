@@ -230,6 +230,30 @@ reference for the complete list. `UVIM_MINIMAL=ON` is a hard compile gate that
 forces most optional integrations off; use the individual feature switches
 when constructing a custom profile between `vi-real` and `full`.
 
+### Portable macOS and Linux archives
+
+Build a release archive for the current host:
+
+```sh
+./scripts/build_portable.sh
+```
+
+The default `full` profile is packaged under `dist/` with the executable,
+themes, README, license, dependency report, and SHA-256 checksum. Linux
+requests a statically linked executable by default. macOS validates that the
+binary links only to Apple system libraries; use `--macos-arch universal` to
+build a combined `arm64` and `x86_64` executable. Portable macOS builds target
+macOS 13.3 or newer by default:
+
+```sh
+./scripts/build_portable.sh --profile basic --macos-arch universal
+```
+
+Run the script on macOS for a macOS archive and on Linux for a Linux archive.
+Use `--dynamic` if a Linux toolchain does not provide static runtime libraries.
+Git, ripgrep/fzf, formatters, clipboard helpers, and language servers remain
+optional external programs discovered through `PATH`.
+
 ## Runtime configuration
 
 Generate the default runtime config:
@@ -715,7 +739,7 @@ cursor movement and selection.
 - `Ctrl-h` / `Ctrl-l` - previous / next buffer (unchanged).
 - `Ctrl-w` - browse open buffers for the active pane. Press `Enter` to open
   the selected buffer only in that pane.
-- `wc` - close the active split pane (`:close` and `:clo` are equivalent).
+- `Space-w c` - close the active split pane (`:close` and `:clo` are equivalent).
 
 ## Diagnostics
 

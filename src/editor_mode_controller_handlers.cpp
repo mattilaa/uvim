@@ -419,6 +419,18 @@ void EditorModeController::handleNormalMode(int c)
     int count = std::max(1, editor.repeatCount);
 
     // ----- Leader (space) prefixed commands (MUST be early) -----
+    if(editor.commandBuffer == " w")
+    {
+        if(c == keyCode(typed::TypedKey::KEY_C) && editor.splitActive)
+            editor.closeSplit();
+        else if(c != keyCode(control::ControlKey::ESC) &&
+                c != keyCode(control::ControlKey::CTRL_C))
+            editor.setStatusMessage("Unknown leader-w command");
+        editor.commandBuffer.clear();
+        editor.repeatCount = 0;
+        return;
+    }
+
     if(editor.commandBuffer == " ")
     {
         if(c == keyCode(typed::TypedKey::KEY_Y))
@@ -439,8 +451,8 @@ void EditorModeController::handleNormalMode(int c)
         }
         else if(c == keyCode(typed::TypedKey::KEY_W))
         {
-            editor.saveFile();
-            editor.commandBuffer.clear();
+            editor.commandBuffer = " w";
+            editor.setStatusMessage("Leader-w");
             editor.repeatCount = 0;
             return;
         }
@@ -928,18 +940,8 @@ void EditorModeController::handleNormalMode(int c)
         editor.scrollHalfPageUp();
         break;
     case keyCode(typed::TypedKey::KEY_W):
-        if(editor.splitActive)
-        {
-            const int nextChar = Terminal::readKeyTimeout(300);
-            if(nextChar == keyCode(typed::TypedKey::KEY_C))
-            {
-                editor.closeSplit();
-                break;
-            }
-            if(nextChar != -1)
-                Terminal::unreadKey(nextChar);
-        }
-        editor.moveWordForward();
+        for(int i = 0; i < count; ++i)
+            editor.moveWordForward();
         break;
     case keyCode(typed::TypedKey::KEY_B):
         editor.moveWordBackward();

@@ -1,6 +1,8 @@
 build*
 !build.sh
 !build.ps1
+!scripts/build_portable.sh
+dist/
 *.out
 CMakeLists.txt.user
 CMakeCache.txt

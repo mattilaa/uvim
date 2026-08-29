@@ -66,12 +66,8 @@ WindowCommandAfterW::handle(WindowCommandPendingMachine& machine,
         return std::nullopt;
     }
 
-    Terminal::unreadKey(c);
-
-    for(int i = 0; i < machine.count(); ++i)
-        ctx.editor->moveWordForward();
+    ctx.setStatusMessage("Unknown leader-w command");
     ctx.commandBuffer.clear();
-    ctx.setStatusMessage("");
     ctx.repeatCount = 0;
     machine.finish();
     return std::nullopt;

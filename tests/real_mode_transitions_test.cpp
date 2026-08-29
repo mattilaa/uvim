@@ -1211,7 +1211,7 @@ TEST(RealModeTransitionsTest, DirectionalPaneJumpUsesNestedLayout)
     EXPECT_EQ(editor.activePane, 0);
 }
 
-TEST(RealModeTransitionsTest, WcClosesOnlyActiveNestedPane)
+TEST(RealModeTransitionsTest, LeaderWcClosesOnlyActiveNestedPane)
 {
     Editor editor = Editor::createForTests();
     editor.screenRows = 24;
@@ -1226,6 +1226,7 @@ TEST(RealModeTransitionsTest, WcClosesOnlyActiveNestedPane)
     ASSERT_EQ(editor.splitPanes.size(), 3u);
     ASSERT_EQ(editor.activePane, 2);
 
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
     sm.dispatch(keyCode(typed::TypedKey::KEY_W));
     sm.dispatch(keyCode(typed::TypedKey::KEY_C));
 
@@ -1396,30 +1397,22 @@ TEST(RealModeTransitionsTest, BThenOtherKeyKeepsWordBackwardMotion)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, BareWxDoesNotCloseSelectedPane)
+TEST(RealModeTransitionsTest, WMovesForwardImmediately)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    editor.createNewBuffer();
-    editor.switchToBuffer(0);
-    editor.enableSplit(true);
-    editor.switchPaneDirection(1, 0);
-    editor.switchToBufferInActivePane(1);
-    ASSERT_TRUE(editor.splitActive);
-    ASSERT_EQ(editor.activePane, 1);
-    ASSERT_EQ(editor.currentBufferIndex, 1);
+    editor.currentBuffer->lines = {"one two three"};
+    *editor.cursorX = 0;
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch('w');
-    sm.dispatch('x');
 
-    EXPECT_TRUE(editor.splitActive);
-    EXPECT_EQ(editor.activePane, 1);
+    EXPECT_EQ(*editor.cursorX, 3);
     EXPECT_TRUE(editor.commandBuffer.empty());
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, WcClosesSelectedPane)
+TEST(RealModeTransitionsTest, LeaderWcClosesSelectedPane)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1433,6 +1426,7 @@ TEST(RealModeTransitionsTest, WcClosesSelectedPane)
     ASSERT_EQ(editor.currentBufferIndex, 1);
     auto sm = makeMachine(editor, NormalMode{});
 
+    sm.dispatch(keyCode(control::ControlKey::SPACE));
     sm.dispatch(keyCode(typed::TypedKey::KEY_W));
     sm.dispatch(keyCode(typed::TypedKey::KEY_C));
 

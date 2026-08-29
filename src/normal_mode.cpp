@@ -659,9 +659,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_W))
     {
-        windowCommandPending.emplace(count);
-        ctx.commandBuffer = "w";
-        ctx.setStatusMessage("w");
+        for(int i = 0; i < count; i++)
+            ed->moveWordForward();
         ctx.repeatCount = 0;
         return std::nullopt;
     }
@@ -1250,6 +1249,17 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         commentLeaderPending.emplace(CommentLeaderOrigin::Normal);
         ctx.commandBuffer = " c";
         ctx.setStatusMessage("Leader-c");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
+    case keyCode(typed::TypedKey::KEY_W):
+    {
+        // <leader>w c closes the active split without shadowing Vim's normal
+        // mode `w` word-forward motion.
+        windowCommandPending.emplace(1);
+        ctx.commandBuffer = " w";
+        ctx.setStatusMessage("Leader-w");
         ctx.repeatCount = 0;
         return std::nullopt;
     }
