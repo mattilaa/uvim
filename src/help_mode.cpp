@@ -1179,7 +1179,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-e`  - Diagnostic popup on LSP diagnostic row",
             "  `Space-m e/w` - Active-LSP error/warning jump list",
             "  `Space-x`  - File browser",
-            "  `w c`       - Close active split pane",
+            "  `Ctrl-w`   - Browse buffers for the active pane",
+            "  `wc`       - Close active split pane",
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
             "  `Ctrl-Shift-h/j/k/l` - Switch split pane by direction",
@@ -1241,6 +1242,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:b <n>`              - Switch to buffer n",
             "  `:buffer <n>`         - Switch to buffer n",
             "  `:enew`               - Create new buffer",
+            "  `Ctrl-w`               - Browse buffers for the active pane",
+            "  In the browser, `Enter` opens the buffer only in that pane",
             "",
             "FILE BROWSER:",
             "  `:e .`                - Open file browser",
@@ -1258,6 +1261,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:hs`                          - Horizontal split",
             "  `:vs`                          - Vertical split",
             "  `:close` or `:clo`             - Close active split pane",
+            "  `wc`                           - Close active split pane",
+            "  `Ctrl-w`                       - Browse buffers for the active "
+            "(selected) pane",
             "  `:tabnew`/`:tabe <file>`       - New tab / open in tab",
             "  `:tabn`/`:tabnext`             - Next tab",
             "  `:tabp`/`:tabprev`             - Previous tab",
@@ -1760,7 +1766,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:enew`          - New buffer",
             "",
             "NORMAL MODE:",
-            "  `Ctrl-w`          - Buffer browser",
+            "  `Ctrl-w`          - Browse open buffers for the active pane",
             "  `bd`              - Close current buffer",
             "  `Ctrl-h`/`Ctrl-l` - Prev / next buffer",
             "  `Ctrl-Shift-H`    - Move buffer left when no split is active",
@@ -1784,7 +1790,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "",
             "BUFFER BROWSER:",
             "  `j/k`      - Navigate",
-            "  `Enter`    - Open",
+            "  `Enter`    - Open selected buffer only in the active pane",
             "  `Ctrl-x`   - Close selected buffer",
             "  `Ctrl-Shift-x` - Close searched buffers",
             "  `q`        - Quit",
@@ -1799,7 +1805,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:hs`                          - Horizontal split",
             "  `:vs`                          - Vertical split",
             "  `:close` or `:clo`             - Close active split pane",
-            "  `w c`                          - Close active split pane",
+            "  `wc`                           - Close active split pane",
+            "  `Ctrl-w`                       - Browse open buffers for the "
+            "active pane",
+            "  Buffer browser `Enter` changes only the active pane",
 #if defined(UVIM_ENABLE_MODERN_KEYBINDINGS) && defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
             "PANE NAVIGATION (NORMAL MODE):",

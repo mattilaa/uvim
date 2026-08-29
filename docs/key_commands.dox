@@ -70,7 +70,6 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Space-m e` : collect active-LSP errors and open a jump list
 - `Space-m w` : collect active-LSP warnings and open a jump list
 - `Space-y` / `Space-p` : yank/paste system clipboard
-- `Space-wc` : close the selected editor pane
 - `Space-q` : force quit
 - `Space-x` : file browser
 - `Space-e m` : emoji picker
@@ -80,7 +79,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `:vs` : vertical split
 - in file browser, `:hs` : horizontal browser split
 - in file browser, `:vs` : vertical browser split
-- `Space-wc` : close the selected editor pane
+- `wc` : close the active editor pane
+- `Ctrl-w` : browse open buffers; `Enter` opens the selected buffer only in
+  the active pane
 - `Ctrl-Shift-h/j/k/l` : focus pane left/down/up/right when built with
   `UVIM_ENABLE_MODERN_KEYBINDINGS` and `UVIM_ENABLE_MULTI_PANE_SPLITS`
 - Disable the convenience split/buffer key layer in `uvim-config` by turning

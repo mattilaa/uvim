@@ -713,6 +713,9 @@ cursor movement and selection.
   In Apple Terminal these combos still arrive as plain `Ctrl-H`/`Ctrl-L`
   and just switch buffers — use the leader binding there.
 - `Ctrl-h` / `Ctrl-l` - previous / next buffer (unchanged).
+- `Ctrl-w` - browse open buffers for the active pane. Press `Enter` to open
+  the selected buffer only in that pane.
+- `wc` - close the active split pane (`:close` and `:clo` are equivalent).
 
 ## Diagnostics
 
