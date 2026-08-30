@@ -1,8 +1,8 @@
 #pragma once
 #include <chrono>
+#include <ctime>
 #include <cstdlib>
 #include <filesystem>
-#include <format>
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -127,7 +127,7 @@ public:
         localtime_r(&tt, &tm);
 #endif
 
-        return std::format("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}",
+        return fmt::format("{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}",
                            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
                            tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
     }
@@ -142,9 +142,9 @@ public:
                                                             : "DEBUG";
 
         const std::string signature =
-            ctx.empty() ? "" : std::format("[{}] ", ctx);
+            ctx.empty() ? "" : fmt::format("[{}] ", ctx);
 
-        std::string formatted = std::format(
+        std::string formatted = fmt::format(
             "{}{}{} {} {}{}\n", use_color ? toColor(level) : "", levelStr,
             use_color ? resetColor() : "", timestamp(), signature, msg);
 
