@@ -262,6 +262,32 @@ three-part version. Build numbers are never included in release asset names:
 the ZIP files are `uvim-v0.2.1-linux-x86_64.zip` and
 `uvim-v0.2.1-macos-universal.zip`.
 
+The macOS job also creates `uvim-v0.2.1-macos-universal.pkg`. It installs the
+universal executable as `/usr/local/bin/uvim`. The workflow builds this as an
+unsigned installer by default, so it does not require a paid Apple Developer
+membership or repository secrets. macOS may require the user to explicitly
+approve the installer in Privacy & Security. If signing is added later, public
+distribution should use a Developer ID Installer certificate and Apple
+notarization.
+
+#### Installing the unsigned macOS package
+
+Only bypass Gatekeeper for a package downloaded from the official uvim GitHub
+Release. Download both the `.pkg` and its matching `.pkg.sha256` file, then
+verify them from the download directory:
+
+```sh
+shasum -a 256 -c uvim-v0.2.1-macos-universal.pkg.sha256
+```
+
+After a successful checksum, double-click the `.pkg`. If macOS blocks the
+unsigned installer, leave the warning open or dismiss it, open **System
+Settings > Privacy & Security**, scroll to **Security**, and click **Open
+Anyway** for the uvim package. Authenticate when prompted and confirm the
+installer again. Apple makes **Open Anyway** available for about an hour after
+the blocked launch attempt. Do not disable Gatekeeper globally. See Apple's
+[security override instructions](https://support.apple.com/guide/mac-help/open-an-app-by-overriding-security-settings-mh40617/mac).
+
 To add binaries to a release that already exists, open **Actions**, select
 **Portable release binaries**, choose **Run workflow**, enter the release's
 exact tag (for example `v0.2.1`), select the profile, and run it. The workflow

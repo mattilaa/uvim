@@ -69,12 +69,21 @@ jobs:
             --jobs 3 \
             ${{ matrix.arguments }}
 
+      - name: Build macOS installer package
+        if: runner.os == 'macOS'
+        run: |
+          ./scripts/build_macos_pkg.sh \
+            --binary build-portable/uvim \
+            --version "$UVIM_RELEASE_TAG" \
+            --output-dir dist
+
       - name: Upload portable archive
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: |
             dist/*.zip
+            dist/*.pkg
             dist/*.sha256
           if-no-files-found: error
           retention-days: 14
