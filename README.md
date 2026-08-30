@@ -238,7 +238,7 @@ Build a release archive for the current host:
 ./scripts/build_portable.sh
 ```
 
-The default `full` profile is packaged under `dist/` with the executable,
+The default `full` profile is packaged as a ZIP file under `dist/` with the executable,
 themes, README, license, dependency report, and SHA-256 checksum. Linux
 requests a statically linked executable by default. macOS validates that the
 binary links only to Apple system libraries; use `--macos-arch universal` to
@@ -255,9 +255,17 @@ Git, ripgrep/fzf, formatters, clipboard helpers, and language servers remain
 optional external programs discovered through `PATH`.
 
 Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow,
-builds Linux `x86_64` and universal macOS archives, creates the GitHub Release,
-and attaches both archives and their checksums. The workflow can also be run
-manually with a release tag and a selected build profile.
+builds Linux `x86_64` and universal macOS ZIP archives, creates the GitHub
+Release, and attaches both archives and their checksums. Release tags must use
+`vMAJOR.MINOR.BUGFIX`, for example `v0.2.1`. The public release keeps that
+three-part version. Build numbers are never included in release asset names:
+the ZIP files are `uvim-v0.2.1-linux-x86_64.zip` and
+`uvim-v0.2.1-macos-universal.zip`.
+
+To add binaries to a release that already exists, open **Actions**, select
+**Portable release binaries**, choose **Run workflow**, enter the release's
+exact tag (for example `v0.2.1`), select the profile, and run it. The workflow
+uploads or replaces the ZIP files and checksums on that release.
 
 ## Runtime configuration
 

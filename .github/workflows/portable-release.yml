@@ -48,6 +48,7 @@ jobs:
     timeout-minutes: 60
     env:
       UVIM_RELEASE_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'full' }}
+      UVIM_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
     steps:
       - name: Check out source
@@ -57,12 +58,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes g++ libc6-dev ninja-build
+          sudo apt-get install --yes g++ libc6-dev ninja-build zip
 
       - name: Build portable archive
         run: |
           ./scripts/build_portable.sh \
             --profile "$UVIM_RELEASE_PROFILE" \
+            --version "$UVIM_RELEASE_TAG" \
+            --archive-format zip \
             --jobs 3 \
             ${{ matrix.arguments }}
 
@@ -71,7 +74,7 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            dist/*.tar.gz
+            dist/*.zip
             dist/*.sha256
           if-no-files-found: error
           retention-days: 14

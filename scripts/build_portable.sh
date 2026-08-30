@@ -6,7 +6,7 @@ usage() {
 Usage: scripts/build_portable.sh [options]
 
 Builds uVim on the current macOS or Linux host and creates a versioned
-tar.gz archive containing the executable, themes, README, and license.
+archive containing the executable, themes, README, and license.
 
 Options:
   --profile NAME          vi-real, vi-min, minimal, basic, or full
@@ -18,6 +18,9 @@ Options:
   --macos-arch ARCH       native, universal, arm64, or x86_64
                           (default: native)
   --deployment-target V   Minimum macOS version (default: 13.3)
+  --version VERSION       Public vMAJOR.MINOR.BUGFIX release version used in
+                          the archive name (default: version reported by uvim)
+  --archive-format FORMAT zip or tar.gz (default: zip)
   --dynamic               Do not request a static Linux executable
   --force                 Replace an existing archive and checksum
   -h, --help              Show this help
@@ -43,6 +46,8 @@ jobs=""
 macos_arch="native"
 deployment_target="13.3"
 static_linux=true
+version_override=""
+archive_format="zip"
 force=false
 
 while [[ $# -gt 0 ]]; do
@@ -83,6 +88,18 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --deployment-target=*) deployment_target="${1#*=}"; shift ;;
+    --version)
+      [[ $# -ge 2 ]] || { echo "error: --version requires a value" >&2; exit 2; }
+      version_override="$2"
+      shift 2
+      ;;
+    --version=*) version_override="${1#*=}"; shift ;;
+    --archive-format)
+      [[ $# -ge 2 ]] || { echo "error: --archive-format requires a value" >&2; exit 2; }
+      archive_format="$2"
+      shift 2
+      ;;
+    --archive-format=*) archive_format="${1#*=}"; shift ;;
     --dynamic) static_linux=false; shift ;;
     --force) force=true; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -100,6 +117,11 @@ case "$macos_arch" in
   *) echo "error: unsupported macOS architecture '$macos_arch'" >&2; exit 2 ;;
 esac
 
+case "$archive_format" in
+  zip|tar.gz) ;;
+  *) echo "error: unsupported archive format '$archive_format'" >&2; exit 2 ;;
+esac
+
 if [[ -z "$jobs" ]]; then
   if command -v getconf >/dev/null 2>&1; then
     jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
@@ -111,7 +133,13 @@ if [[ -z "$jobs" ]]; then
 fi
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo "error: jobs must be a positive integer" >&2; exit 2; }
 
-for tool in cmake tar file; do
+required_tools=(cmake file)
+if [[ "$archive_format" == "zip" ]]; then
+  required_tools+=(zip)
+else
+  required_tools+=(tar)
+fi
+for tool in "${required_tools[@]}"; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "error: required tool '$tool' was not found" >&2
     exit 1
@@ -232,10 +260,20 @@ else
   fi
 fi
 
-version="$($binary --version | awk 'NR == 1 { print $2 }')"
-[[ -n "$version" ]] || version="unknown"
-bundle_name="uvim-${version}-${platform}-${package_arch}"
-archive="$output_dir/${bundle_name}.tar.gz"
+detected_version="$($binary --version | awk 'NR == 1 { print $2 }')"
+public_version="${version_override:-$detected_version}"
+[[ "$public_version" == v* ]] || public_version="v$public_version"
+[[ "$public_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "error: version must use vMAJOR.MINOR.BUGFIX: $public_version" >&2
+  exit 2
+}
+
+bundle_name="uvim-${public_version}-${platform}-${package_arch}"
+if [[ "$archive_format" == "zip" ]]; then
+  archive="$output_dir/${bundle_name}.zip"
+else
+  archive="$output_dir/${bundle_name}.tar.gz"
+fi
 checksum="$archive.sha256"
 
 if [[ -e "$archive" || -e "$checksum" ]]; then
@@ -256,7 +294,7 @@ cp "$repo_root/LICENSE" "$repo_root/README.md" "$bundle_dir/"
 cp -R "$repo_root/themes" "$bundle_dir/themes"
 printf '%s\n' "$dependency_report" > "$bundle_dir/DEPENDENCIES.txt"
 cat > "$bundle_dir/PORTABLE.txt" <<EOF
-uVim $version portable build
+uVim $public_version portable build
 Platform: $platform
 Architecture: $package_arch
 Profile: $profile
@@ -272,7 +310,12 @@ Generate a user configuration and copy the bundled themes with:
 EOF
 
 echo "==> Creating $archive"
-COPYFILE_DISABLE=1 tar -czf "$archive" -C "$stage_dir" "$bundle_name"
+if [[ "$archive_format" == "zip" ]]; then
+  archive_absolute="$(cd "$output_dir" && pwd)/$(basename "$archive")"
+  (cd "$stage_dir" && zip -qr "$archive_absolute" "$bundle_name")
+else
+  COPYFILE_DISABLE=1 tar -czf "$archive" -C "$stage_dir" "$bundle_name"
+fi
 if command -v sha256sum >/dev/null 2>&1; then
   (cd "$output_dir" && sha256sum "$(basename "$archive")") > "$checksum"
 else
