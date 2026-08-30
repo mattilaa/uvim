@@ -28,7 +28,7 @@ Theme Cursor Colors Apply
     Create File    ${config_path}    ${config}
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    --config    ${config_path}    ${SAMPLE_FILE}
     Expect Mode    NORMAL
-    Send Keys    v
+    Send Ctrl    v
     Expect Raw Text    \x1b[38;2;17;18;19m\x1b[48;2;20;21;22m
     Send Escape
     Expect Mode    NORMAL

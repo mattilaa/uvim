@@ -38,7 +38,7 @@ Quit With Changes Requires Force
 
 Command Mode From Welcome
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}
-    Expect Text    Welcome to uVim
+    Expect Text    Getting started:
     Send Keys    :
     Expect Mode    COMMAND
     Send Keys    q
