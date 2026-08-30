@@ -135,8 +135,28 @@ Build and install the full profile on POSIX:
 
 ```sh
 ./build/uvim-config --preset full --install-dir ~/.local/bin --install
-./build.sh --install
+./build.sh --user-install
 ```
+
+The user installation does not require administrator access. For `uvim` to
+work directly by name, `~/.local/bin` must be on `PATH`. If it is not, add this
+to `~/.zshrc`, `~/.bashrc`, or the appropriate shell profile and open a new
+terminal:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+For a system-wide POSIX installation, use:
+
+```sh
+./build.sh --system-install
+```
+
+This installs `/usr/local/bin/uvim` and requests `sudo` only for the install
+step. A custom destination remains available with
+`./build.sh --install --install-dir /path/to/bin`. The macOS `.pkg` release is
+also a system-wide installer and places `uvim` in `/usr/local/bin`.
 
 Equivalent PowerShell commands use `uvim-config.exe` and `build.ps1`.
 

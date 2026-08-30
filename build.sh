@@ -8,6 +8,7 @@ target=""
 jobs=""
 install=""
 install_dir=""
+install_scope=""
 
 usage() {
     cat <<EOF
@@ -21,6 +22,9 @@ Options:
       --target NAME       Build a specific CMake target
   -i, --install           Install after build
       --no-install        Do not install after build
+      --install-dir DIR   Override the executable installation directory
+      --user-install      Install to ~/.local/bin (no administrator access)
+      --system-install    Install to /usr/local/bin (uses sudo when needed)
   -h, --help              Show this help
 EOF
 }
@@ -99,6 +103,30 @@ while [ "$#" -gt 0 ]; do
             install="false"
             shift
             ;;
+        --install-dir)
+            if [ "$#" -lt 2 ]; then
+                echo "build.sh: --install-dir requires a value" >&2
+                exit 2
+            fi
+            install_dir="$2"
+            shift 2
+            ;;
+        --install-dir=*)
+            install_dir="${1#--install-dir=}"
+            shift
+            ;;
+        --user-install)
+            install="true"
+            install_dir="~/.local/bin"
+            install_scope="user"
+            shift
+            ;;
+        --system-install)
+            install="true"
+            install_dir="/usr/local/bin"
+            install_scope="system"
+            shift
+            ;;
         *)
             echo "build.sh: unknown option: $1" >&2
             usage >&2
@@ -149,9 +177,18 @@ if [ -z "$jobs" ]; then
     jobs="$(config_value jobs "$config_file")"
 fi
 
-install_dir="$(config_value install_dir "$config_file")"
 if [ -z "$install_dir" ]; then
-    install_dir="~/.local/bin"
+    install_dir="$(config_value install_dir "$config_file")"
+    if [ -z "$install_dir" ]; then
+        install_dir="~/.local/bin"
+    fi
+fi
+
+if [ -z "$install_scope" ]; then
+    case "$install_dir" in
+        "~/.local/bin"|"$HOME/.local/bin") install_scope="user" ;;
+        "/usr/local/bin") install_scope="system" ;;
+    esac
 fi
 
 if [ -z "$install" ]; then
@@ -196,7 +233,31 @@ else
 fi
 
 if [ "$install" = "true" ] || [ "$install" = "ON" ] || [ "$install" = "1" ]; then
-    echo "cmake --install $build_dir --component uvim"
     echo "install destination: $install_dir"
-    cmake --install "$build_dir" --component uvim
+    if [ "$install_scope" = "system" ] && [ "$(id -u)" -ne 0 ]; then
+        if ! command -v sudo >/dev/null 2>&1; then
+            echo "build.sh: sudo is required for a system installation" >&2
+            exit 1
+        fi
+        echo "sudo cmake --install $build_dir --component uvim"
+        sudo cmake --install "$build_dir" --component uvim
+    else
+        echo "cmake --install $build_dir --component uvim"
+        cmake --install "$build_dir" --component uvim
+    fi
+
+    if [ "$install_scope" = "user" ]; then
+        expanded_install_dir="$install_dir"
+        case "$expanded_install_dir" in
+            "~/"*) expanded_install_dir="$HOME/${expanded_install_dir#~/}" ;;
+        esac
+        case ":${PATH:-}:" in
+            *":$expanded_install_dir:"*) ;;
+            *)
+                echo "warning: $expanded_install_dir is not on PATH" >&2
+                echo 'Add this to your shell profile, then open a new terminal:' >&2
+                echo '  export PATH="$HOME/.local/bin:$PATH"' >&2
+                ;;
+        esac
+    fi
 fi
