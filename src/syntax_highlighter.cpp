@@ -4524,7 +4524,11 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         bool highlighted = false;
         if(isInSelection(fileRow, col) || isInVisualBlock(fileRow, col))
         {
-            output += theme.selection();
+            if(editor->currentMode == VISUAL_BLOCK &&
+               fileRow == *editor->cursorY && col == *editor->cursorX)
+                output += theme.cursor();
+            else
+                output += theme.selection();
             highlighted = true;
         }
         else if(isInSearchMatch(fileRow, col))

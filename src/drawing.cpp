@@ -676,7 +676,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 if(isInSelection(fileRow, col) ||
                                    isInVisualBlock(fileRow, col))
                                 {
-                                    output += theme.selection();
+                                    if(currentMode == VISUAL_BLOCK &&
+                                       fileRow == *cursorY && col == *cursorX)
+                                        output += theme.cursor();
+                                    else
+                                        output += theme.selection();
                                     highlighted = true;
                                 }
                                 else if(isInSearchMatch(fileRow, col))
@@ -708,7 +712,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         int pad = cursorCol - visibleLen;
                         if(pad > 0)
                             output.append(pad, ' ');
-                        output += theme.selection();
+                        output += currentMode == VISUAL_BLOCK
+                                      ? theme.cursor()
+                                      : theme.selection();
                         output += ' ';
                         output += theme.reset();
                     }
@@ -822,7 +828,11 @@ void Editor::drawScrollUpdate(int scrollDelta)
                                 if(isInSelection(fileRow, col) ||
                                    isInVisualBlock(fileRow, col))
                                 {
-                                    output += theme.selection();
+                                    if(currentMode == VISUAL_BLOCK &&
+                                       fileRow == *cursorY && col == *cursorX)
+                                        output += theme.cursor();
+                                    else
+                                        output += theme.selection();
                                     highlighted = true;
                                 }
                                 else if(isInSearchMatch(fileRow, col))
@@ -854,7 +864,9 @@ void Editor::drawScrollUpdate(int scrollDelta)
                         int pad = cursorCol - visibleLen;
                         if(pad > 0)
                             output.append(pad, ' ');
-                        output += theme.selection();
+                        output += currentMode == VISUAL_BLOCK
+                                      ? theme.cursor()
+                                      : theme.selection();
                         output += ' ';
                         output += theme.reset();
                     }
@@ -1200,7 +1212,11 @@ void Editor::drawFullScreenSingle()
                         if(isInSelection(fileRow, col) ||
                            isInVisualBlock(fileRow, col))
                         {
-                            output += theme.selection();
+                            if(currentMode == VISUAL_BLOCK &&
+                               fileRow == *cursorY && col == *cursorX)
+                                output += theme.cursor();
+                            else
+                                output += theme.selection();
                             highlighted = true;
                         }
                         else if(isInSearchMatch(fileRow, col))
@@ -1232,7 +1248,8 @@ void Editor::drawFullScreenSingle()
                     int pad = cursorCol - visibleLen;
                     if(pad > 0)
                         output.append(pad, ' ');
-                    output += theme.selection();
+                    output += currentMode == VISUAL_BLOCK ? theme.cursor()
+                                                          : theme.selection();
                     output += ' ';
                     output += theme.reset();
                 }
@@ -1626,7 +1643,11 @@ void Editor::drawSplitFullScreen()
                     if(isInSelection(fileRow, col) ||
                        isInVisualBlock(fileRow, col))
                     {
-                        row += theme.selection();
+                        if(currentMode == VISUAL_BLOCK &&
+                           fileRow == *cursorY && col == *cursorX)
+                            row += theme.cursor();
+                        else
+                            row += theme.selection();
                         highlighted = true;
                     }
                     else if(isInSearchMatch(fileRow, col))
@@ -1658,7 +1679,8 @@ void Editor::drawSplitFullScreen()
                 int pad = cursorCol - visibleLen;
                 if(pad > 0)
                     row.append(pad, ' ');
-                row += theme.selection();
+                row += currentMode == VISUAL_BLOCK ? theme.cursor()
+                                                   : theme.selection();
                 row += ' ';
                 row += theme.reset();
                 visibleLen = cursorCol + 1;
