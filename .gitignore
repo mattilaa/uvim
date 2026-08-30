@@ -2,6 +2,7 @@ build*
 !build.sh
 !build.ps1
 !scripts/build_portable.sh
+!scripts/build_macos_pkg.sh
 dist/
 *.out
 CMakeLists.txt.user
