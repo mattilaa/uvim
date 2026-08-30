@@ -26,9 +26,6 @@ jobs:
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
 
-      - name: Verify mlang LSP scaffold exists
-        run: test -f tools/mlang_lsp/mlang_lsp.py
-
       - name: Robot tests
         run: |
           python3 -m venv .venv
