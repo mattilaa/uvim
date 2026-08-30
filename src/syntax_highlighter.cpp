@@ -2994,8 +2994,15 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         for(int segment = 0; segment < total; ++segment)
         {
             const auto& part = segments[segment];
-            push_token(namespace_token_for_segment(segment, total), part.start,
-                       part.end - part.start);
+            const std::string_view name =
+                sv.substr(part.start, part.end - part.start);
+            const bool isKnownCppType =
+                isCppLike && segment == total - 1 &&
+                cpp_constants::is_type(name);
+            push_token(isKnownCppType
+                           ? TOKEN_TYPE
+                           : namespace_token_for_segment(segment, total),
+                       part.start, part.end - part.start);
             if(segment < static_cast<int>(separators.size()))
                 push_token(TOKEN_OPERATOR, separators[segment], 2);
         }

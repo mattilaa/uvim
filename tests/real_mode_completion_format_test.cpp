@@ -128,11 +128,15 @@ TEST(RealModeTransitionsTest, LeaderMwOpensMlangWarningsList)
     Terminal::unreadKey(keyCode(typed::TypedKey::KEY_W));
     sm.dispatch(keyCode(typed::TypedKey::KEY_M));
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
     EXPECT_STREQ(sm.currentStateName(), "MLANG FORMAT");
     auto* mode = sm.getState<MlangFormatErrorsMode>();
     ASSERT_NE(mode, nullptr);
     EXPECT_EQ(mode->source, MlangFormatErrorsSource::LspWarnings);
     EXPECT_TRUE(mode->warnings);
+#else
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+#endif
 }
 
 TEST(RealModeTransitionsTest, LeaderMeOpensLspErrorsList)
@@ -147,11 +151,15 @@ TEST(RealModeTransitionsTest, LeaderMeOpensLspErrorsList)
     Terminal::unreadKey(keyCode(typed::TypedKey::KEY_E));
     sm.dispatch(keyCode(typed::TypedKey::KEY_M));
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
     EXPECT_STREQ(sm.currentStateName(), "MLANG FORMAT");
     auto* mode = sm.getState<MlangFormatErrorsMode>();
     ASSERT_NE(mode, nullptr);
     EXPECT_EQ(mode->source, MlangFormatErrorsSource::LspErrors);
     EXPECT_FALSE(mode->warnings);
+#else
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+#endif
 }
 
 TEST(RealModeTransitionsTest, ClangFormatUndoRestoresSavedBuffer)
