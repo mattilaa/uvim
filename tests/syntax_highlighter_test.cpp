@@ -73,6 +73,7 @@ TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
     *editor.filename = (root / "foo.cpp").string();
     editor.currentBuffer->lines = {"void Foo::method() {", "    bar = 1;", "}"};
     editor.syntaxCppHighlightImplicitMembers = true;
+    editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
 
     std::string output;
     editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
@@ -817,6 +818,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInFunctionParams)
 
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "main.cpp").string();
+    editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
 
     const std::string line = "void foo(ModeContext& bar);";
     bool inBlockComment = false;
@@ -876,6 +878,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInLocalDeclaration)
 
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "main.cpp").string();
+    editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
 
     const std::string line = "ModeContext ctx;";
     bool inBlockComment = false;
@@ -994,6 +997,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypePointerInParams)
 
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "formatter.cpp").string();
+    editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
 
     const std::string line = "Formatter::Formatter(Editor* editor) {}";
     bool inBlockComment = false;

@@ -493,8 +493,9 @@ void mergeAndSortDiagnostics(std::vector<DiagnosticEntry>& target,
     target = std::move(merged);
 }
 
+#ifdef UVIM_ENABLE_CLANGD_LSP
 std::vector<DiagnosticEntry> collectClangLspDiagnostics(Editor& editor,
-                                                       int severity)
+                                                        int severity)
 {
     std::vector<DiagnosticEntry> results;
     fs::path root;
@@ -541,6 +542,7 @@ std::vector<DiagnosticEntry> collectClangLspDiagnostics(Editor& editor,
               });
     return results;
 }
+#endif
 } // namespace
 
 std::vector<DiagnosticEntry> collectClangDiagnostics(Editor& editor,

@@ -193,6 +193,7 @@ void refreshProjectMlangDiagnostics(Editor& editor, const fs::path& root)
 #endif
 }
 
+#ifdef UVIM_ENABLE_MLANG_LSP
 std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
                                                               int severity)
 {
@@ -243,6 +244,7 @@ std::vector<MlangFormatErrorEntry> collectMlangLspDiagnostics(Editor& editor,
               });
     return results;
 }
+#endif
 } // namespace
 
 std::vector<MlangFormatErrorEntry> collectMlangFormatErrors(Editor& editor)
