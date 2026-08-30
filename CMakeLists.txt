@@ -694,7 +694,7 @@ target_link_libraries(uvim PRIVATE fmt::fmt)
 if(UVIM_ENABLE_ANY_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
     find_package(Threads REQUIRED)
-    target_link_libraries(uvim PRIVATE Threads::Threads fmt::fmt)
+    target_link_libraries(uvim PRIVATE Threads::Threads)
 endif()
 
 foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)

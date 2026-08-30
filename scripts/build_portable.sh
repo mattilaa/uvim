@@ -236,7 +236,10 @@ dependency_report=""
 if [[ "$platform" == "macos" ]]; then
   command -v otool >/dev/null 2>&1 || { echo "error: otool is required on macOS" >&2; exit 1; }
   dependency_report="$(otool -L "$binary")"
-  non_system="$(printf '%s\n' "$dependency_report" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)' || true)"
+  # Fat Mach-O output has one non-indented binary/architecture header per
+  # slice. Only indented lines are dependencies; filtering by indentation
+  # avoids treating the arm64/x86_64 headers as third-party libraries.
+  non_system="$(printf '%s\n' "$dependency_report" | awk '/^[[:space:]]/ {print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)' || true)"
   if [[ -n "$non_system" ]]; then
     echo "error: non-system macOS libraries prevent portable packaging:" >&2
     printf '  %s\n' "$non_system" >&2
