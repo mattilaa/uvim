@@ -26,6 +26,8 @@ menus—they leave the corresponding implementation out of the binary.
   command output browsing, and auxiliary developer views
 - POSIX and native Windows terminal backends
 
+![uVim terminal editor demonstration](docs/uvim.gif)
+
 ## Contents
 
 - [Build profiles and uvim-config](#build-profiles-and-uvim-config)
