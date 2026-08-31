@@ -69,11 +69,23 @@ must be installed on the target system when those integrations are used.
 ### Quick start: interactive configurator
 
 On macOS, Linux, or WSL, `bootstrap.sh` builds the configurator and prompts to
-run it and then build uVim:
+run it and then build uVim. It first checks for CMake, Git, a C/C++20
+toolchain, and Ninja or Make. If anything is missing, it offers to install the
+required packages using Homebrew, apt, dnf, pacman, zypper, or apk:
 
 ```sh
 ./bootstrap.sh
 ```
+
+For a non-interactive one-line setup, approve dependency installation in
+advance:
+
+```sh
+./bootstrap.sh --install-deps
+```
+
+Use `--no-install-deps` when bootstrap should only report missing tools and
+must not invoke the system package manager.
 
 The equivalent explicit steps are:
 
