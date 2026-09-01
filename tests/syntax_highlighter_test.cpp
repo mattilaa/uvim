@@ -438,6 +438,34 @@ TEST(SyntaxHighlighterTest, CppSemanticTokensPreserveQualifiedSegments)
     EXPECT_TRUE(text_utils::is_found(output.find(namespaceColor + "SomeClass")));
 }
 
+TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideComments)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+
+    const std::string line = "/// value type mentioned in documentation";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+
+    const int valuePos = (int)line.find("value");
+    const int typePos = (int)line.find("type");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(valuePos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(typePos)));
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {valuePos, 5, "variable", false, false});
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {typePos, 4, "type", false, false});
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    EXPECT_EQ(output, editor.theme.syntax(TOKEN_COMMENT) + line +
+                          editor.theme.baseFg());
+}
+
 TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
 {
     Editor editor = Editor::createForTests();

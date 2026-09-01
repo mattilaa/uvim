@@ -4494,6 +4494,13 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     int visiblePos = pos - start;
                     if(visiblePos >= 0 && visiblePos < len)
                     {
+                        // Lexical comments take precedence over LSP semantic
+                        // tokens. Some servers report identifiers mentioned in
+                        // documentation comments as code symbols, which would
+                        // otherwise produce isolated code-colored words inside
+                        // an otherwise uniformly colored comment.
+                        if(charColors[visiblePos] == TOKEN_COMMENT)
+                            continue;
                         if(charColors[visiblePos] == TOKEN_NAMESPACE_1 ||
                            charColors[visiblePos] == TOKEN_NAMESPACE_2 ||
                            charColors[visiblePos] == TOKEN_NAMESPACE_3 ||
