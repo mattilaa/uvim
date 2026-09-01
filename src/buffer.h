@@ -53,6 +53,43 @@ struct Buffer
     size_t savedContentHash = 0;
     bool savedContentHashValid = false;
 
+    static size_t contentHash(const std::vector<std::string>& content)
+    {
+        size_t hash = 1469598103934665603ull;
+        for(const auto& line : content)
+        {
+            for(unsigned char ch : line)
+            {
+                hash ^= ch;
+                hash *= 1099511628211ull;
+            }
+            hash ^= '\n';
+            hash *= 1099511628211ull;
+        }
+        return hash;
+    }
+
+    bool matchesSavedContent() const
+    {
+        if(savedUndoIndex >= 0 &&
+           savedUndoIndex < static_cast<int>(undoStack.size()) &&
+           undoStack[savedUndoIndex].lines == lines)
+        {
+            return true;
+        }
+        return savedContentHashValid && contentHash(lines) == savedContentHash;
+    }
+
+    void reconcileDirtyWithSavedContent()
+    {
+        const bool hasSavedUndoState =
+            savedUndoIndex >= 0 &&
+            savedUndoIndex < static_cast<int>(undoStack.size());
+        if(!hasSavedUndoState && !savedContentHashValid)
+            return;
+        dirty = !matchesSavedContent();
+    }
+
     mutable bool fileTypeCacheValid = false;
     mutable std::string fileTypeCachePath;
     mutable size_t fileTypeCacheContentHash = 0;

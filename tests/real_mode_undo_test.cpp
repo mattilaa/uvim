@@ -84,3 +84,64 @@ TEST(RealModeTransitionsTest, UndoBackToSavedClearsDirtyWithHash)
     EXPECT_FALSE(*editor.dirty);
     EXPECT_EQ(editor.currentBuffer->lines[0], "one");
 }
+
+TEST(RealModeTransitionsTest, UndoAtOldestReconcilesStaleDirtyFlag)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"saved content"};
+    editor.saveState();
+    editor.currentBuffer->savedUndoIndex = editor.currentBuffer->undoIndex;
+    editor.currentBuffer->savedContentHash =
+        Buffer::contentHash(editor.currentBuffer->lines);
+    editor.currentBuffer->savedContentHashValid = true;
+
+    // A formatter or edit path may leave the modified marker stale even when
+    // the oldest snapshot is byte-for-byte equal to the saved buffer.
+    *editor.dirty = true;
+    editor.undo();
+
+    EXPECT_EQ(editor.statusMessage, "Already at oldest change");
+    EXPECT_FALSE(*editor.dirty);
+}
+
+TEST(RealModeTransitionsTest, CloseReconcilesStaleDirtyFlag)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"saved content"};
+    editor.saveState();
+    editor.currentBuffer->savedUndoIndex = editor.currentBuffer->undoIndex;
+    editor.currentBuffer->savedContentHash =
+        Buffer::contentHash(editor.currentBuffer->lines);
+    editor.currentBuffer->savedContentHashValid = true;
+    *editor.dirty = true;
+
+    editor.closeCurrentBuffer();
+
+    EXPECT_FALSE(editor.hasBuffer());
+    EXPECT_NE(editor.statusMessage,
+              "No write since last change (add ! to override)");
+}
+
+TEST(RealModeTransitionsTest, RecordingSavedContentClearsDirtyFlag)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"saved content"};
+    editor.saveState();
+    editor.currentBuffer->savedUndoIndex = editor.currentBuffer->undoIndex;
+    editor.currentBuffer->savedContentHash =
+        Buffer::contentHash(editor.currentBuffer->lines);
+    editor.currentBuffer->savedContentHashValid = true;
+
+    editor.currentBuffer->lines = {"formatted differently"};
+    *editor.dirty = true;
+    editor.saveState();
+    ASSERT_TRUE(*editor.dirty);
+
+    editor.currentBuffer->lines = {"saved content"};
+    editor.saveState();
+
+    EXPECT_FALSE(*editor.dirty);
+}
