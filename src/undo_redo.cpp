@@ -3,22 +3,6 @@
 #include <filesystem>
 #include <fstream>
 
-static size_t hash_lines(const std::vector<std::string>& src)
-{
-    size_t h = 1469598103934665603ull;
-    for(const auto& line : src)
-    {
-        for(unsigned char c : line)
-        {
-            h ^= c;
-            h *= 1099511628211ull;
-        }
-        h ^= '\n';
-        h *= 1099511628211ull;
-    }
-    return h;
-}
-
 static bool write_lines_for_undo(const std::string& path,
                                  const std::vector<std::string>& lines)
 {
@@ -159,25 +143,8 @@ void Editor::saveState()
             currentBuffer->undoStack[currentBuffer->undoIndex].cursorY =
                 state.cursorY;
 
-            bool isSaved = false;
-            if(currentBuffer->savedUndoIndex >= 0 &&
-               currentBuffer->savedUndoIndex <
-                   (int)currentBuffer->undoStack.size())
-            {
-                const auto& saved =
-                    currentBuffer->undoStack[currentBuffer->savedUndoIndex];
-                isSaved = (saved.lines == state.lines);
-            }
             if(dirty)
-            {
-                bool hashSaved = false;
-                if(currentBuffer->savedContentHashValid)
-                {
-                    hashSaved = (hash_lines(state.lines) ==
-                                 currentBuffer->savedContentHash);
-                }
-                *dirty = !(isSaved || hashSaved);
-            }
+                currentBuffer->reconcileDirtyWithSavedContent();
             return; // Avoid duplicate undo steps with identical content.
         }
     }
@@ -191,6 +158,7 @@ void Editor::saveState()
 
     currentBuffer->undoStack.push_back(state);
     currentBuffer->undoIndex++;
+    currentBuffer->reconcileDirtyWithSavedContent();
     currentBuffer->lspSyncNeeded = true;
     if(showGitBlame)
         currentBuffer->blameValid = false;
@@ -244,20 +212,7 @@ void Editor::undo()
 
         adjustViewport();
 
-        bool isSaved = false;
-        if(currentBuffer->savedUndoIndex >= 0 &&
-           currentBuffer->savedUndoIndex < (int)currentBuffer->undoStack.size())
-        {
-            const auto& saved =
-                currentBuffer->undoStack[currentBuffer->savedUndoIndex];
-            isSaved = (saved.lines == *lines);
-        }
-        bool hashSaved = false;
-        if(currentBuffer->savedContentHashValid)
-        {
-            hashSaved = (hash_lines(*lines) == currentBuffer->savedContentHash);
-        }
-        *dirty = !(isSaved || hashSaved);
+        currentBuffer->reconcileDirtyWithSavedContent();
         currentBuffer->lspSyncNeeded = true;
         currentBuffer->invalidateSyntaxCache();
 
@@ -265,6 +220,7 @@ void Editor::undo()
     }
     else
     {
+        currentBuffer->reconcileDirtyWithSavedContent();
         setStatusMessage("Already at oldest change");
     }
 }
@@ -300,20 +256,7 @@ void Editor::redo()
 
         adjustViewport();
 
-        bool isSaved = false;
-        if(currentBuffer->savedUndoIndex >= 0 &&
-           currentBuffer->savedUndoIndex < (int)currentBuffer->undoStack.size())
-        {
-            const auto& saved =
-                currentBuffer->undoStack[currentBuffer->savedUndoIndex];
-            isSaved = (saved.lines == *lines);
-        }
-        bool hashSaved = false;
-        if(currentBuffer->savedContentHashValid)
-        {
-            hashSaved = (hash_lines(*lines) == currentBuffer->savedContentHash);
-        }
-        *dirty = !(isSaved || hashSaved);
+        currentBuffer->reconcileDirtyWithSavedContent();
         currentBuffer->lspSyncNeeded = true;
         currentBuffer->invalidateSyntaxCache();
 

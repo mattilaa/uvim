@@ -291,6 +291,8 @@ void Editor::moveBufferRightImpl()
 
 void Editor::closeCurrentBufferImpl()
 {
+    if(*dirty && currentBuffer)
+        currentBuffer->reconcileDirtyWithSavedContent();
     if(*dirty)
     {
         setStatusMessage("No write since last change (add ! to override)");
