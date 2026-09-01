@@ -3,6 +3,7 @@
 #include "widgets/popup_base.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace widgets
@@ -16,5 +17,6 @@ struct CommandPopupView
     int cursor = 0;
 };
 
+std::string_view commandDocumentation(std::string_view command);
 void drawCommandPopup(std::string& output, const CommandPopupView& view);
 } // namespace widgets

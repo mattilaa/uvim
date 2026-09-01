@@ -10,10 +10,11 @@
 
 namespace widgets
 {
-namespace
+std::string_view commandDocumentation(std::string_view cmd)
 {
-static std::string_view command_doc(std::string_view cmd)
-{
+    while(!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\t'))
+        cmd.remove_suffix(1);
+
     if(cmd == "q" || cmd == "quit")
         return "Quit uVim";
     if(cmd == "q!" || cmd == "qa!" || cmd == "qall!")
@@ -36,10 +37,10 @@ static std::string_view command_doc(std::string_view cmd)
         return "Open file";
     if(cmd == "e%" || cmd == "edit%")
         return "Reload current file";
+    if(cmd == "e!%" || cmd == "edit!%")
+        return "Force reload current file";
     if(cmd == "enew")
         return "Create empty buffer";
-    if(cmd == "new")
-        return "Open horizontal split";
     if(cmd == "vnew")
         return "Open vertical split";
     if(cmd == "bn" || cmd == "bnext")
@@ -50,7 +51,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Close current buffer";
     if(cmd == "bd!")
         return "Force close current buffer";
-    if(cmd.rfind("b ", 0) == 0 || cmd.rfind("buffer ", 0) == 0)
+    if(cmd == "b" || cmd == "buffer" || cmd.rfind("b ", 0) == 0 ||
+       cmd.rfind("buffer ", 0) == 0)
         return "Switch to buffer";
     if(cmd == "ls" || cmd == "buffers")
         return "List open buffers";
@@ -62,6 +64,8 @@ static std::string_view command_doc(std::string_view cmd)
         return "Split file browser horizontally";
     if(cmd == "ve")
         return "Split file browser vertically";
+    if(cmd == "close" || cmd == "clo")
+        return "Close active split pane";
     if(cmd == "only")
         return "Close other splits";
     if(cmd == "tabnew")
@@ -138,8 +142,23 @@ static std::string_view command_doc(std::string_view cmd)
         return "Stash local changes";
     if(cmd == "git stash pop")
         return "Restore latest stash";
+    if(cmd == "delete" || cmd == "d" || cmd == "rm")
+        return "Delete selected file or directory";
+    if(cmd == "rename" || cmd == "r" || cmd == "mv")
+        return "Rename selected file or directory";
+    if(cmd == "mkdir" || cmd == "md")
+        return "Create directory";
+    if(cmd == "touch" || cmd == "new")
+        return "Create file";
+    if(cmd == "run")
+        return "Run shell command in browser directory";
+    if(cmd == "?")
+        return "Show file browser help";
     return "";
 }
+
+namespace
+{
 
 static std::string truncate_to_width(std::string text, int width)
 {
@@ -151,7 +170,7 @@ static std::string truncate_to_width(std::string text, int width)
 static std::string format_command_line(std::string_view cmd, int cmdColWidth)
 {
     std::string line(cmd);
-    std::string_view doc = command_doc(cmd);
+    std::string_view doc = commandDocumentation(cmd);
     if(doc.empty())
         return line;
 
@@ -170,7 +189,7 @@ static void build_command_line_parts(std::string_view cmdText, int cmdColWidth,
     gapPart.clear();
     docPart.clear();
 
-    std::string_view doc = command_doc(cmdText);
+    std::string_view doc = commandDocumentation(cmdText);
     if(doc.empty())
     {
         if(text_utils::displayWidth(cmdPart) > innerW)

@@ -71,6 +71,9 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("ve", FILE_BROWSER),
                          "ve"));
+    EXPECT_TRUE(
+        contains_command(editor.getCommandCompletions("run", FILE_BROWSER),
+                         "run "));
     EXPECT_FALSE(
         contains_command(editor.getCommandCompletions("vsplit"), "vsplit"));
     EXPECT_FALSE(
@@ -87,6 +90,20 @@ TEST(RealModeTransitionsTest, CommandPopupIncludesRegisteredExCommands)
         contains_command(editor.getSetCompletions("set rgup"),
                          "set rgupdate=300"));
 #endif
+}
+
+TEST(RealModeTransitionsTest, EveryCommandCompletionHasPopupDocumentation)
+{
+    Editor editor = Editor::createForTests();
+
+    for(Mode mode : {NORMAL, FILE_BROWSER})
+    {
+        for(const auto& command : editor.getCommandCompletions("", mode))
+        {
+            EXPECT_FALSE(widgets::commandDocumentation(command).empty())
+                << "missing command popup documentation for: " << command;
+        }
+    }
 }
 
 TEST(RealModeTransitionsTest, ReopeningFileUsesExistingBufferCache)
@@ -926,11 +943,18 @@ TEST(RealModeTransitionsTest, HelpCommandReferenceMatchesCurrentCommands)
     EXPECT_FALSE(contains_help_text(commands->lines, ":tabc"));
     EXPECT_FALSE(contains_help_text(commands->lines, ":tabclose"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":e ."));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":edit!%"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":qw!"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":se"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":clo"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":format"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":lspinfo"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":toolinfo"));
     EXPECT_TRUE(contains_help_text(commands->lines, ":git stash pop"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":set"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":mv"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":new <name>"));
+    EXPECT_TRUE(contains_help_text(commands->lines, ":run <command>"));
 
     dispatch_command(sm, "h files");
     auto* files = sm.getState<HelpMode>();

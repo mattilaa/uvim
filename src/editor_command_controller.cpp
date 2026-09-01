@@ -641,7 +641,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         fileBrowserCommands = baseCommands;
         const std::vector<std::string> extras = {
             "delete", "d",  "rm",    "rename", "r", "mv",
-            "mkdir",  "md", "touch", "new",    "?",
+            "mkdir",  "md", "touch", "new",    "run ", "?",
         };
         for(const auto& extra : extras)
         {
