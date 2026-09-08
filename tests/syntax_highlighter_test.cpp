@@ -491,6 +491,27 @@ TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideComments)
                           editor.theme.baseFg());
 }
 
+TEST(SyntaxHighlighterTest, SemanticTokensDoNotOverrideLexicalKeywords)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+    editor.syntaxCppSemanticTokens = true;
+
+    const std::string line = "let value = 1;";
+    editor.currentBuffer->lines = {line};
+    editor.currentBuffer->lspSemanticTokens.resize(1);
+    editor.currentBuffer->lspSemanticTokensValid = true;
+    editor.currentBuffer->lspSemanticTokens[0].push_back(
+        {0, 3, "variable", false, false});
+
+    std::string output;
+    editor.renderLineWithSyntax(output, line, 0, (int)line.size(), 0);
+
+    EXPECT_TRUE(text_utils::is_found(
+        output.find(editor.theme.syntax(TOKEN_KEYWORD) + "let")));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsOptionalAndProjectTypes)
 {
     Editor editor = Editor::createForTests();
