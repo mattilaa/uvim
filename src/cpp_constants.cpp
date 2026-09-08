@@ -47,11 +47,11 @@ static constexpr auto CPP_KEYWORDS = sort_array(std::to_array<sv>(
      "reinterpret_cast", "requires", "return", "sizeof", "static",
      "static_assert", "static_cast", "struct", "switch", "synchronized",
      "template", "this", "thread_local", "throw", "true", "try", "typedef",
-     "typeid", "typename", "union", "using", "virtual", "volatile", "while",
-     "xor", "xor_eq",
+     "typeid", "typename", "union", "unlikely", "using", "virtual",
+     "volatile", "while", "xor", "xor_eq",
      // extras:
      "override", "final", "fn", "pub", "impl", "let", "var", "mod", "use",
-     "in"}));
+     "in", "likely"}));
 
 static constexpr auto CPP_TYPES = sort_array(std::to_array<sv>(
     {// --- paste ALL your types here ---

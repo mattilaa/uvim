@@ -346,6 +346,31 @@ TEST(SyntaxHighlighterTest, HighlightsCppPreprocessorLine)
     EXPECT_EQ(tokens[0].length, (int)line.size());
 }
 
+TEST(SyntaxHighlighterTest, HighlightsCppBranchPredictionAttributes)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.cpp";
+
+    const std::string line =
+        "if (ready) [[likely]]; else [[unlikely]] return;";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    const auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    const int likelyPos = (int)line.find("likely");
+    const int unlikelyPos = (int)line.find("unlikely");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(likelyPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(unlikelyPos)));
+    EXPECT_TRUE(hasTokenAt(tokens, likelyPos, 6, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, unlikelyPos, 8, TOKEN_KEYWORD));
+}
+
 TEST(SyntaxHighlighterTest, HighlightsQualifiedTypeAfterScope)
 {
     Editor editor = Editor::createForTests();
@@ -1514,6 +1539,30 @@ TEST(SyntaxHighlighterTest, HighlightsMlangPlatformKeywords)
         EXPECT_TRUE(hasTokenAt(tokens, pos, (int)word.size(), TOKEN_KEYWORD))
             << word;
     }
+}
+
+TEST(SyntaxHighlighterTest, HighlightsMlangBranchPredictionKeywords)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/example.mla";
+
+    const std::string line = "if likely ready { } else unlikely { }";
+    bool inBlockComment = false;
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    const auto tokens =
+        editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                            inMarkupFence, markupFenceChar);
+
+    const int likelyPos = (int)line.find("likely");
+    const int unlikelyPos = (int)line.find("unlikely");
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(likelyPos)));
+    ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(unlikelyPos)));
+    EXPECT_TRUE(hasTokenAt(tokens, likelyPos, 6, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, unlikelyPos, 8, TOKEN_KEYWORD));
 }
 
 TEST(SyntaxHighlighterTest, HighlightsPythonCapsConstantAfterModule)
