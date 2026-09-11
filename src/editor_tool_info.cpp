@@ -6,6 +6,35 @@
 #include <algorithm>
 #include <string_view>
 
+#ifdef UVIM_ENABLE_FORMATTERS
+namespace
+{
+executable_lookup::Result findClangFormat()
+{
+#ifdef __APPLE__
+    // Keep this order in sync with ClangFormatter: Apple Silicon Homebrew's
+    // clang-format is preferred even when another version is on PATH.
+    auto homebrew =
+        executable_lookup::find("/opt/homebrew/bin/clang-format");
+    if(homebrew.found)
+        return homebrew;
+#endif
+    return executable_lookup::find("clang-format");
+}
+
+executable_lookup::Result findMlangFormat()
+{
+    auto result = executable_lookup::find("mlang-format");
+#ifdef __APPLE__
+    // MlangFormatter uses the Apple Silicon Homebrew path as its fallback.
+    if(!result.found)
+        result = executable_lookup::find("/opt/homebrew/bin/mlang-format");
+#endif
+    return result;
+}
+} // namespace
+#endif
+
 void Editor::clearToolInfo()
 {
     toolInfoLines.clear();
@@ -19,23 +48,50 @@ void Editor::showToolInfo()
     toolInfoLines.push_back("");
 
     auto appendTool = [&](const std::string& label,
-                          executable_lookup::Result result)
+                          executable_lookup::Result result,
+                          const std::string& installName = "")
     {
         toolInfoLines.push_back(label + ": " +
                                 (result.found ? "FOUND" : "MISSING"));
         toolInfoLines.push_back("  binary: " +
                                 (result.found ? result.path : "not found"));
         if(!result.found)
-            toolInfoLines.push_back("  status: install " + label +
+            toolInfoLines.push_back("  status: install " +
+                                    (installName.empty() ? label
+                                                         : installName) +
                                     " and make sure it is on PATH");
     };
 
+    toolInfoLines.push_back("Search tools");
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     appendTool("fzf", executable_lookup::find("fzf"));
-    appendTool("rg/ripgrep", executable_lookup::findAny({"rg", "ripgrep"}));
+    appendTool("rg/ripgrep", executable_lookup::findAny({"rg", "ripgrep"}),
+               "ripgrep");
 #else
     toolInfoLines.push_back("fzf: not compiled");
     toolInfoLines.push_back("rg/ripgrep: not compiled");
+#endif
+
+    toolInfoLines.push_back("");
+    toolInfoLines.push_back("Formatter tools");
+#ifdef UVIM_ENABLE_FORMATTERS
+    appendTool("clang-format", findClangFormat());
+    appendTool("mlang-format", findMlangFormat());
+
+    const std::string pythonFormatterLabel =
+        "Python formatter (" + pythonFormatter + ")";
+    appendTool(pythonFormatterLabel,
+               executable_lookup::find(pythonFormatter), pythonFormatter);
+    if(pythonFormatter != "ruff")
+        appendTool("ruff (Python lint)", executable_lookup::find("ruff"),
+                   "ruff");
+
+    appendTool("robocop (Robot)", executable_lookup::find("robocop"),
+               "robocop");
+    appendTool("python (JSON/YAML)", executable_lookup::find("python"),
+               "python");
+#else
+    toolInfoLines.push_back("formatters: not compiled");
 #endif
 
     int visibleRows = std::max(0, screenRows - 3);
@@ -89,7 +145,8 @@ void Editor::drawToolInfo()
             output += std::string(value);
         };
 
-        if(line == "External Tools")
+        if(line == "External Tools" || line == "Search tools" ||
+           line == "Formatter tools")
         {
             output += theme.uiInfo();
             output += line;
