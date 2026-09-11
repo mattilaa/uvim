@@ -1366,6 +1366,18 @@ TEST(RealModeTransitionsTest, ToolInfoCommandOpensViewAndQuitReturnsWelcome)
     EXPECT_FALSE(editor.toolInfoLines.empty());
     EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "fzf:"));
     EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "rg/ripgrep:"));
+#ifdef UVIM_ENABLE_FORMATTERS
+    EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "clang-format:"));
+    EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "mlang-format:"));
+    EXPECT_TRUE(
+        contains_help_text(editor.toolInfoLines, "Python formatter (ruff):"));
+    EXPECT_TRUE(contains_help_text(editor.toolInfoLines, "robocop (Robot):"));
+    EXPECT_TRUE(
+        contains_help_text(editor.toolInfoLines, "python (JSON/YAML):"));
+#else
+    EXPECT_TRUE(contains_help_text(editor.toolInfoLines,
+                                   "formatters: not compiled"));
+#endif
 
     sm.dispatch('q');
 

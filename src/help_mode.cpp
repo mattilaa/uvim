@@ -2158,14 +2158,22 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         lines = {
             "# External Tool Info",
             "",
-            "`:toolinfo` shows whether uvim can find external search tools.",
+            "`:toolinfo` shows whether uvim can find external search and "
+            "formatter tools enabled in this build.",
             "",
             "TOOLS:",
             "  `fzf`        - Fuzzy finder executable",
             "  `rg/ripgrep` - Ripgrep executable used by grep-style search",
+            "  `clang-format` - C/C++ formatter",
+            "  `mlang-format` - Mlang formatter (with LSP fallback)",
+            "  `ruff`/`black` - Configured Python formatter; ruff also lints",
+            "  `robocop`      - Robot Framework formatter",
+            "  `python`       - JSON/YAML formatter runtime",
             "",
             "The view reports FOUND or MISSING and prints the resolved binary "
             "path when available.",
+            "Tools disabled by the selected build preset are reported as not "
+            "compiled.",
             "On Windows, uvim also checks common executable suffixes like "
             "`.exe`, `.cmd`, `.bat`, and `.com`.",
             "",
