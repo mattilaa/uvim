@@ -1162,6 +1162,14 @@ void GitCommitMode::draw(Editor& editor) const
     int viewTop =
         std::clamp(messageTopRow, 0, std::max(0, totalVirtualRows - 1));
 
+    // Address rows explicitly so wrapped text cannot shift the message or
+    // scroll the view away from the cursor's absolute position.
+    auto beginRow = [&](int row)
+    {
+        output += Terminal::cursorPos(row, 1);
+        output += Terminal::ESC_CLEAR_LINE;
+    };
+
     output += Terminal::ESC_SHOW_CURSOR;
     output += Terminal::ESC_CURSOR_HOME;
     output += Terminal::ESC_CLEAR_SCREEN;
@@ -1170,38 +1178,42 @@ void GitCommitMode::draw(Editor& editor) const
 
     output += Terminal::ESC_CLEAR_LINE;
     output += Terminal::ESC_BOLD;
+    std::string header;
     if(action == Action::RevertCommit)
-        output += "  GIT REVERT";
+        header = "  GIT REVERT";
     else if(action == Action::RebaseTodo)
-        output += "  GIT REBASE TODO";
+        header = "  GIT REBASE TODO";
     else
-        output += "  GIT COMMIT";
+        header = "  GIT COMMIT";
     if(!repoRoot.empty())
-        output += " - " + repoRoot;
+        header += " - " + repoRoot;
+    output += header.substr(0, editor.screenCols);
     output += editor.theme.reset();
 
-    output += Terminal::NEWLINE_CLEAR;
+    beginRow(2);
     output += editor.theme.uiDim();
+    std::string help;
     if(action == Action::RebaseTodo)
     {
-        output += std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
-                  "] [:wq rebase+close] [:q cancel] "
-                  "[p/r/e/s/f/d set action] [J/K move] [enter newline]";
+        help = std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
+               "] [:wq rebase+close] [:q cancel] "
+               "[p/r/e/s/f/d set action] [J/K move] [enter newline]";
     }
     else
     {
-        output += std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
-                  "] [:wq " +
-                  std::string(action == Action::RevertCommit ? "revert+close"
-                                                             : "commit+close") +
-                  "] [:q close] [enter newline] "
-                  "[ctrl-r refresh staged]";
+        help = std::string("  [") + (insertMode ? "INSERT" : "NORMAL") +
+               "] [:wq " +
+               std::string(action == Action::RevertCommit ? "revert+close"
+                                                          : "commit+close") +
+               "] [:q close] [enter newline] "
+               "[ctrl-r refresh staged]";
     }
+    output += help.substr(0, editor.screenCols);
     output += editor.theme.baseFg();
 
     for(int row = 0; row < contentRows; ++row)
     {
-        output += Terminal::NEWLINE_CLEAR;
+        beginRow(messageStartRow + row);
         int lineIdx = viewTop + row;
 
         if(lineIdx >= 0 && lineIdx < (int)messageLines.size())
@@ -1251,6 +1263,9 @@ void GitCommitMode::draw(Editor& editor) const
                     body = line;
                 }
 
+                body.resize(std::min(
+                    body.size(), (size_t)std::max(0, editor.screenCols - 3)));
+
                 size_t labelPos = body.find(":");
                 bool fileEntry = text_utils::contains(body, "new file:") ||
                                  text_utils::contains(body, "modified:") ||
@@ -1280,7 +1295,7 @@ void GitCommitMode::draw(Editor& editor) const
         }
     }
 
-    output += Terminal::NEWLINE_CLEAR;
+    beginRow(editor.screenRows + 1);
     output += editor.theme.statusBar();
     std::string status = " GIT COMMIT";
     if(action == Action::RevertCommit)
@@ -1303,6 +1318,10 @@ void GitCommitMode::draw(Editor& editor) const
     else
         right = " " + std::to_string(hasStagedFiles ? stagedLines.size() : 0) +
                 " staged ";
+    status.resize(
+        std::min(status.size(),
+                 (size_t)std::max(0, editor.screenCols - (int)right.size())));
+    right.resize(std::min(right.size(), (size_t)editor.screenCols));
     output += status;
     int padding = editor.screenCols - (int)status.size() - (int)right.size();
     if(padding > 0)
@@ -1310,10 +1329,10 @@ void GitCommitMode::draw(Editor& editor) const
     output += right;
     output += editor.theme.reset();
 
-    output += Terminal::NEWLINE_CLEAR;
+    beginRow(editor.screenRows + 2);
     if(commandActive)
     {
-        output += ":" + commandLine;
+        output += (":" + commandLine).substr(0, editor.screenCols);
     }
     else if(!editor.statusMessage.empty())
     {

@@ -867,6 +867,7 @@ if(UVIM_BUILD_TESTS)
     )
     if(UVIM_ENABLE_GIT_TOOLS)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
+            tests/git_commit_view_test.cpp
             tests/git_log_view_test.cpp
             tests/git_stage_layout_test.cpp
         )
