@@ -92,6 +92,8 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Show LSP status and clients";
     if(cmd == "toolinfo")
         return "Show external tool status";
+    if(cmd == "tasks")
+        return "Show background task queue and progress";
     if(cmd == "emitasm")
         return "Emit compact assembly for current C/C++ buffer";
     if(cmd == "emitasm --raw")

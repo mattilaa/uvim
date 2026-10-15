@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <optional>
 #include <utility>
 #include <string>
@@ -85,6 +86,21 @@ public:
     std::string lastError() const;
     bool indexingInProgress() const;
     std::string indexingStatus() const;
+
+    // Most recently reported, still running $/progress work item from the
+    // server (indexing, analysis, ...). percent is -1 when not reported.
+    struct WorkProgress
+    {
+        std::string title;
+        std::string message;
+        int percent = -1;
+    };
+    std::optional<WorkProgress> workProgress() const;
+
+    // Called (on the thread that set it) about every 30 ms while that thread
+    // blocks on a server response, with the request method being awaited,
+    // and once with an empty method when such a wait ends.
+    void setWaitHook(std::function<void(std::string_view method)> hook);
     int workerCount() const;
 
     // Document sync

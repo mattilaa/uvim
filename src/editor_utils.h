@@ -8,6 +8,7 @@
 #include "json_utils.h"
 #include "token_type.h"
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -319,8 +320,11 @@ int locCountInLines(const std::vector<std::string>& lines,
 /// @param depth Current recursion depth.
 /// @param gitignore Loaded gitignore matcher.
 /// @param out Output file paths.
+/// @param cancelled Optional; checked per entry so background walks of huge
+///        trees stop promptly when their task is cancelled.
 void collectLocFiles(const std::string& dir, int depth,
-                     const GitIgnore& gitignore, std::vector<std::string>& out);
+                     const GitIgnore& gitignore, std::vector<std::string>& out,
+                     const std::function<bool()>& cancelled = {});
 
 /// @brief Recursively collects filesystem entries for fuzzy-style file lists.
 /// @param dir Root directory.
@@ -329,7 +333,8 @@ void collectLocFiles(const std::string& dir, int depth,
 /// @param out Output file entries.
 void collectProjectFileEntries(const std::string& dir, int depth,
                                const GitIgnore& gitignore,
-                               std::vector<FileEntry>& out);
+                               std::vector<FileEntry>& out,
+                               const std::function<bool()>& cancelled = {});
 
 /// @brief Expands a leading tilde to the current HOME directory.
 /// @param path Path to expand.

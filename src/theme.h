@@ -43,6 +43,9 @@ public:
     const std::string& statusBar() const;
     const std::string& tabBar() const;
     const std::string& panel() const;
+    // Progress bar: filled cells (fg) drawn on the track colour (bg).
+    const std::string& progressFill() const;
+    const std::string& progressTrack() const;
 
     const std::string& uiDim() const;
     const std::string& uiAccent() const;
@@ -77,6 +80,7 @@ private:
     Pair cursor_;
     Pair search_;
     Pair panel_;
+    Pair progress_; // unset colours derive from ui.success / statusline
 
     Color syntax_[kTokenTypeCount]{};
 
@@ -89,6 +93,8 @@ private:
     std::string status_bar_seq_;
     std::string tab_bar_seq_;
     std::string panel_seq_;
+    std::string progress_fill_seq_;
+    std::string progress_track_seq_;
     std::string ui_dim_seq_;
     std::string ui_accent_seq_;
     std::string ui_info_seq_;

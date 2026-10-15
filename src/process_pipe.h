@@ -5,9 +5,11 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -15,6 +17,8 @@
 #include <process.h>
 #else
 #include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -22,6 +26,23 @@
 class ProcessPipe
 {
 public:
+    // Blocking part of a pipe operation; polls `cancelled` while it waits.
+    using BlockingWait =
+        std::function<void(const std::function<bool()>& cancelled)>;
+    // Runs `wait` while keeping the UI responsive (progress, queued input).
+    // Returns false when the user cancelled.
+    using ForegroundRunner =
+        std::function<bool(const std::string& label, const std::string& channel,
+                           const BlockingWait& wait)>;
+
+    // Installs the runner for pipes used on the calling (UI) thread. Pipes
+    // used from any other thread, or with no runner, block inline as before.
+    static void setForegroundRunner(ForegroundRunner runner)
+    {
+        foregroundRunner() = std::move(runner);
+        foregroundOwner() = std::this_thread::get_id();
+    }
+
     ProcessPipe() = default;
 
     explicit ProcessPipe(const std::vector<std::string>& args)
@@ -90,6 +111,14 @@ public:
         return openShell(commandLineFromArgs(args), mode);
 #else
         const bool writeMode = mode && mode[0] == 'w';
+        // Build argv before fork(): the child of a multithreaded process may
+        // only make async-signal-safe calls, so no allocation after fork.
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 1);
+        for(const auto& arg : args)
+            argv.push_back(const_cast<char*>(arg.c_str()));
+        argv.push_back(nullptr);
+
         int pipefd[2];
         if(::pipe(pipefd) != 0)
         {
@@ -128,12 +157,6 @@ public:
                 ::dup2(devNull, STDERR_FILENO);
                 ::close(devNull);
             }
-
-            std::vector<char*> argv;
-            argv.reserve(args.size() + 1);
-            for(const auto& arg : args)
-                argv.push_back(const_cast<char*>(arg.c_str()));
-            argv.push_back(nullptr);
 
             ::execvp(argv[0], argv.data());
             _exit(127);
@@ -206,6 +229,7 @@ public:
     {
         if(!file)
             return {};
+        usedStdio = true;
 
         std::string line(bufferSize, '\0');
         if(!std::fgets(line.data(), static_cast<int>(line.size()), file))
@@ -222,6 +246,56 @@ public:
         std::string output;
         if(!file)
             return output;
+        if(runsInForeground())
+        {
+            foregroundRunner()(foregroundLabel(), foregroundChannel(),
+                               [&](const std::function<bool()>& cancelled)
+                               { output = readAllBlocking(bufferSize, cancelled); });
+            return output;
+        }
+        return readAllBlocking(bufferSize, {});
+    }
+
+    std::string readAllBlocking(std::size_t bufferSize,
+                                const std::function<bool()>& cancelled)
+    {
+        std::string output;
+        if(!file)
+            return output;
+#ifndef _WIN32
+        // Cancellable path: poll the descriptor so a cancel request can stop
+        // the child. Only valid while stdio has not buffered any input.
+        if(cancelled && !usedStdio)
+        {
+            const int fd = ::fileno(file);
+            std::string buffer(bufferSize, '\0');
+            while(true)
+            {
+                pollfd pfd{fd, POLLIN, 0};
+                const int ready = ::poll(&pfd, 1, 50);
+                if(ready < 0 && errno == EINTR)
+                    continue;
+                if(ready == 0)
+                {
+                    if(cancelled())
+                    {
+                        terminate();
+                        break;
+                    }
+                    continue;
+                }
+                const ssize_t n = ::read(fd, buffer.data(), buffer.size());
+                if(n < 0 && errno == EINTR)
+                    continue;
+                if(n <= 0)
+                    break;
+                output.append(buffer.data(), static_cast<size_t>(n));
+            }
+            return output;
+        }
+#else
+        (void)cancelled;
+#endif
 
         std::string buffer(bufferSize, '\0');
         while(true)
@@ -248,6 +322,23 @@ public:
 
     int close()
     {
+#ifndef _WIN32
+        // Closing waits for the child to exit, which can be slow (e.g. git
+        // commit hooks); run that wait through the foreground runner too.
+        if(pid > 0 && runsInForeground())
+        {
+            int result = -1;
+            foregroundRunner()(foregroundLabel(), foregroundChannel(),
+                               [&](const std::function<bool()>& cancelled)
+                               { result = closeBlocking(cancelled); });
+            return result;
+        }
+#endif
+        return closeBlocking({});
+    }
+
+    int closeBlocking(const std::function<bool()>& cancelled)
+    {
         int result = -1;
         if(file)
         {
@@ -263,15 +354,96 @@ public:
         }
 
 #ifndef _WIN32
-        const int status = waitForChild();
+        const int status = waitForChild(cancelled);
         logExitFailure(status);
         return result == 0 ? status : result;
 #else
+        (void)cancelled;
         return result;
 #endif
     }
 
 private:
+    static ForegroundRunner& foregroundRunner()
+    {
+        static ForegroundRunner runner;
+        return runner;
+    }
+
+    static std::thread::id& foregroundOwner()
+    {
+        static std::thread::id owner;
+        return owner;
+    }
+
+    bool runsInForeground() const
+    {
+        return foregroundRunner() &&
+               std::this_thread::get_id() == foregroundOwner();
+    }
+
+    std::string_view toolName() const
+    {
+        std::string_view name = commandName;
+        if(size_t space = name.find(' '); space != std::string_view::npos)
+            name = name.substr(0, space);
+        if(size_t slash = name.find_last_of("/\\");
+           slash != std::string_view::npos)
+            name.remove_prefix(slash + 1);
+        return name;
+    }
+
+    // "git log", "clang-format", "sh: make -j" ...
+    std::string foregroundLabel() const
+    {
+        std::string_view tool = toolName();
+        if(tool == "git")
+        {
+            // Skip "-C <dir>" and option flags to find the subcommand.
+            std::string_view rest = std::string_view(commandLine);
+            size_t pos = 0;
+            std::vector<std::string_view> words;
+            while(pos < rest.size())
+            {
+                size_t end = rest.find(' ', pos);
+                if(end == std::string_view::npos)
+                    end = rest.size();
+                words.push_back(rest.substr(pos, end - pos));
+                pos = end + 1;
+            }
+            for(size_t i = 1; i < words.size(); ++i)
+            {
+                if(words[i] == "-C")
+                {
+                    ++i;
+                    continue;
+                }
+                if(!words[i].empty() && words[i][0] != '-')
+                    return "git " + std::string(words[i]);
+            }
+        }
+        if(commandName == commandLine && tool != commandName)
+        {
+            std::string shell(commandName.substr(0, 32));
+            return "sh: " + shell;
+        }
+        return std::string(tool);
+    }
+
+    // Git invocations share a channel so they run in the order issued.
+    std::string foregroundChannel() const
+    {
+        return toolName() == "git" ? "git" : std::string{};
+    }
+
+#ifndef _WIN32
+    void terminate()
+    {
+        if(pid > 0)
+            ::kill(pid, SIGTERM);
+    }
+#endif
+
     bool shouldLogToolFailure() const
     {
         std::string_view name = commandName;
@@ -363,16 +535,37 @@ private:
         return command;
     }
 #else
-    int waitForChild()
+    int waitForChild(const std::function<bool()>& cancelled = {})
     {
         if(pid <= 0)
             return -1;
 
         int status = 0;
-        while(::waitpid(pid, &status, 0) == -1)
+        if(cancelled)
         {
-            if(errno != EINTR)
-                break;
+            bool terminated = false;
+            while(true)
+            {
+                const pid_t done = ::waitpid(pid, &status, WNOHANG);
+                if(done == pid)
+                    break;
+                if(done == -1 && errno != EINTR)
+                    break;
+                if(!terminated && cancelled())
+                {
+                    terminate();
+                    terminated = true;
+                }
+                ::usleep(10000);
+            }
+        }
+        else
+        {
+            while(::waitpid(pid, &status, 0) == -1)
+            {
+                if(errno != EINTR)
+                    break;
+            }
         }
         pid = -1;
 
@@ -388,6 +581,7 @@ private:
         other.file = nullptr;
         commandName = std::move(other.commandName);
         commandLine = std::move(other.commandLine);
+        usedStdio = other.usedStdio;
 #ifndef _WIN32
         pid = other.pid;
         other.pid = -1;
@@ -397,6 +591,7 @@ private:
     FILE* file = nullptr;
     std::string commandName;
     std::string commandLine;
+    bool usedStdio = false;
 #ifndef _WIN32
     pid_t pid = -1;
 #endif

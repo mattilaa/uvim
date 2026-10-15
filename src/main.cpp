@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <filesystem>
+#include <memory>
 
 namespace fs = std::filesystem;
 
@@ -1524,6 +1525,11 @@ struct EditorSettings
     std::string mlangEnableLogMode = "info";
     std::string mlangLogDir;
 
+    // Background discovery of compile_commands.json (walks the tree); the
+    // clangd startup step waits for it.
+    std::uint64_t ccdirTask = 0;
+    std::shared_ptr<std::string> ccdirResult;
+
     bool hasExplicitLspRequest() const
     {
         return useClangd || useRobotLsp || usePythonLsp || useMlangLsp ||
@@ -1598,7 +1604,20 @@ struct EditorSettings
             }
             if(useClangd || binary_exists(resolved))
             {
-                editor.enableClangdLsp(true, ccdir, resolved, queryDriver);
+                // Last: lets the other servers start while compile_commands
+                // discovery is still walking the tree.
+                editor.addStartupStep(
+                    "starting clangd",
+                    [this, &editor, resolved]
+                    {
+                        if(ccdirTask != 0)
+                            editor.waitTask(ccdirTask,
+                                            "clangd: compile_commands");
+                        editor.enableClangdLsp(
+                            true, ccdirResult ? *ccdirResult : ccdir, resolved,
+                            queryDriver);
+                    },
+                    true);
             }
             else if(autoDetect && !useClangd)
             {
@@ -1662,7 +1681,9 @@ struct EditorSettings
                 args.push_back("--stdio");
             if(useRobotLsp || binary_exists(robotPath))
             {
-                editor.enableRobotLsp(true, robotPath, args);
+                editor.addStartupStep(
+                    "starting robot LSP",
+                    [&editor, robotPath, args] { editor.enableRobotLsp(true, robotPath, args); });
             }
             else if(autoDetect && !useRobotLsp)
             {
@@ -1786,7 +1807,9 @@ struct EditorSettings
             }
             if(usePythonLsp || binary_exists(pyPath))
             {
-                editor.enablePythonLsp(true, pyPath, args);
+                editor.addStartupStep(
+                    "starting python LSP",
+                    [&editor, pyPath, args] { editor.enablePythonLsp(true, pyPath, args); });
             }
             else if(autoDetect && !usePythonLsp)
             {
@@ -1936,7 +1959,9 @@ struct EditorSettings
 
             if(useMlangLsp || binary_exists(mlangPath))
             {
-                editor.enableMlangLsp(true, mlangPath, args);
+                editor.addStartupStep(
+                    "starting mlang LSP",
+                    [&editor, mlangPath, args] { editor.enableMlangLsp(true, mlangPath, args); });
             }
             else if(autoDetect && !useMlangLsp)
             {
@@ -1955,7 +1980,9 @@ struct EditorSettings
 
             if(useHtmlLsp || binary_exists(htmlPath))
             {
-                editor.enableHtmlLsp(true, htmlPath, args);
+                editor.addStartupStep(
+                    "starting html LSP",
+                    [&editor, htmlPath, args] { editor.enableHtmlLsp(true, htmlPath, args); });
             }
             else if(autoDetect && !useHtmlLsp)
             {
@@ -1974,7 +2001,9 @@ struct EditorSettings
 
             if(useCssLsp || binary_exists(cssPath))
             {
-                editor.enableCssLsp(true, cssPath, args);
+                editor.addStartupStep(
+                    "starting css LSP",
+                    [&editor, cssPath, args] { editor.enableCssLsp(true, cssPath, args); });
             }
             else if(autoDetect && !useCssLsp)
             {
@@ -1993,7 +2022,9 @@ struct EditorSettings
 
             if(useJsonLsp || binary_exists(jsonPath))
             {
-                editor.enableJsonLsp(true, jsonPath, args);
+                editor.addStartupStep(
+                    "starting json LSP",
+                    [&editor, jsonPath, args] { editor.enableJsonLsp(true, jsonPath, args); });
             }
             else if(autoDetect && !useJsonLsp)
             {
@@ -2012,7 +2043,9 @@ struct EditorSettings
 
             if(useTsLsp || binary_exists(tsPath))
             {
-                editor.enableTsLsp(true, tsPath, args);
+                editor.addStartupStep(
+                    "starting ts LSP",
+                    [&editor, tsPath, args] { editor.enableTsLsp(true, tsPath, args); });
             }
             else if(autoDetect && !useTsLsp)
             {
@@ -2159,9 +2192,34 @@ int main(int argc, char* argv[])
     std::string sourceCcdir = settings.ccdir;
     fs::path clangdCcOutputRoot =
         settings.ccWindowsToWsl ? startupDir : workspaceRoot;
-    settings.ccdir = prepare_clangd_compile_commands(
-        browseRoot, clangdCcOutputRoot, settings.ccdir, settings.ccCollectAll,
-        settings.ccWindowsToWsl);
+    if(!settings.ccCollectAll && !settings.ccWindowsToWsl)
+    {
+        // The default discovery walks the whole tree (slow for large
+        // directories); run it in the background so the UI appears at once.
+        // Explicit collect/WSL modes may abort on bad input, so they stay
+        // synchronous.
+        auto ccResult = std::make_shared<std::string>(settings.ccdir);
+        const std::string requestedCcdir = settings.ccdir;
+        settings.ccdirResult = ccResult;
+        settings.ccdirTask =
+            editor
+                .submitTask("clangd: compile_commands", "startup",
+                            [ccResult, browseRoot, clangdCcOutputRoot,
+                             requestedCcdir](TaskQueue::Context& ctx)
+                            {
+                                ctx.detail("searching");
+                                *ccResult = prepare_clangd_compile_commands(
+                                    browseRoot, clangdCcOutputRoot,
+                                    requestedCcdir, false, false);
+                            })
+                .id;
+    }
+    else
+    {
+        settings.ccdir = prepare_clangd_compile_commands(
+            browseRoot, clangdCcOutputRoot, settings.ccdir,
+            settings.ccCollectAll, settings.ccWindowsToWsl);
+    }
     CompileCommandsSyncer ccSyncer(browseRoot, clangdCcOutputRoot, sourceCcdir,
                                    settings.ccCollectAll,
                                    settings.ccWindowsToWsl);

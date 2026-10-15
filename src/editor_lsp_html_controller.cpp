@@ -47,6 +47,7 @@ void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
         args.push_back("--stdio");
 
     htmlLspClient = std::make_unique<LspClient>();
+    attachLspWaitHook(*htmlLspClient);
     htmlLspClient->setLogSignature("HTML");
     htmlLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!htmlLspClient->startServer(this->htmlLspPath, rootDir, args))

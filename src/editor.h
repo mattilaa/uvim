@@ -8,11 +8,15 @@
 #include "mlang_format_errors.h"
 #include "mode.h"
 #include "search_types.h"
+#include "task_queue.h"
 #include "theme.h"
 #include "token_type.h"
 #include "visual_color_range.h"
+#include "widgets/progress_bar.h"
+#include "widgets/status_bar.h"
 #include <chrono>
 #include <ctime>
+#include <deque>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -225,6 +229,24 @@ public:
     int rgUpdateMs = 300;
     bool rgCacheLoaded = false;
     std::vector<RgCachedFile> rgCachedFiles;
+    // Background rg cache indexing job (0 when idle). Bumping the generation
+    // invalidates whatever an in-flight job would install.
+    std::uint64_t rgCacheIndexTask = 0;
+    std::uint64_t rgCacheGeneration = 0;
+    // Set when background indexing installed a fresh cache; the grep view
+    // re-runs its query against it.
+    bool rgCacheJustLoaded = false;
+    // Finished background grep search, adopted by the grep view whose
+    // activeSearch matches (results for superseded queries are dropped).
+    struct GrepBackgroundResult
+    {
+        std::uint64_t searchId = 0;
+        bool completed = false;
+        std::vector<GrepMatch> matches;
+    };
+    std::optional<GrepBackgroundResult> grepBackgroundResult;
+    // Stops background indexing and makes its result void.
+    void cancelRgCacheIndexing();
     std::unordered_map<std::string, std::vector<RgCacheLineRef>>
         rgCacheLineIndex;
 #endif
@@ -778,6 +800,7 @@ public:
     void clearToolInfo();
     void scrollToolInfo(int delta);
     void drawToolInfo();
+    void drawTaskList();
 
     // Movement commands
     void moveCursor(int key);
@@ -974,6 +997,61 @@ public:
 
     // Utilities
     void setStatusMessage(const std::string& msg);
+
+    // ---- Background tasks (editor_tasks.cpp) ------------------------------
+    // Heavy operations run on TaskQueue workers so the TUI never freezes.
+    // Same-channel jobs run in submission order; `done` runs on the main
+    // thread in submission order. Work must not touch editor/terminal state.
+    TaskQueue tasks;
+    widgets::ProgressStyle progressStyle = widgets::ProgressStyle::Color;
+
+    TaskQueue::Submitted submitTask(std::string label, std::string channel,
+                                    TaskQueue::Work work,
+                                    TaskQueue::Done done = {},
+                                    TaskQueue::Done onAbort = {});
+    // Foreground variant for results the caller needs right away: waits for
+    // the job while animating the status bar and queueing keystrokes, which
+    // replay once it returns. Ctrl-C cancels. False when cancelled/failed.
+    bool runTask(std::string label, std::string channel,
+                 TaskQueue::Work work);
+    // Waits for an already submitted job like runTask does (progress,
+    // queued keys, Ctrl-C). False when it was cancelled or failed.
+    bool waitTask(TaskQueue::TaskId id, const std::string& label);
+    // Startup work that must run on the UI thread (LSP server start, ...):
+    // held until the first frame is on screen, then run one per main-loop
+    // tick with "(i/n) label" progress, so startup never shows a blank
+    // terminal. `runLast` steps go after all regular ones.
+    void addStartupStep(std::string label, std::function<void()> step,
+                        bool runLast = false);
+    // Main loop: applies finished jobs, reports errors, animates progress.
+    void serviceTasks();
+    // Status bar text for the current job (or LSP work), padded to
+    // taskStatusWidth(); empty when nothing is running.
+    std::string taskStatusText();
+    int taskStatusWidth() const;
+    // Status bar renderers report where they placed taskStatusText().
+    void noteTaskStatusSlot(int row, int col);
+    // Bottom status + message rows for views that draw their own screen;
+    // hosts the task progress exactly like the editor status bar.
+    void appendViewStatusBar(std::string& output,
+                             widgets::ViewStatusBarView view);
+    // Status line for views with their own layout ("left ... right"):
+    // writes theme colours, fits `left`, puts task progress before `right`
+    // and records its slot. `row` is the screen row the line is drawn on.
+    void appendStatusLine(std::string& output, std::string left,
+                          const std::string& right, int row = -1);
+    void beginTaskStatusFrame();
+    void finishTaskStatusFrame();
+    void attachLspWaitHook(LspClient& client);
+    // Called by run(): routes blocking process I/O on the UI thread through
+    // runTask and lets waits pump the terminal. Off in tests/batch use.
+    void enableInteractiveTasks();
+    void markFirstFrameDrawn()
+    {
+        firstFrameDrawn_ = true;
+    }
+    // All LSP clients that currently run, for progress display.
+    std::vector<std::pair<std::string, LspClient*>> activeLspClients() const;
     bool noteDoubleEscStatusClear();
     void setMode(Mode mode);
     std::string getModeString() const;
@@ -1108,6 +1186,41 @@ public:
     }
 
 private:
+    void paintTaskStatus();
+    void pumpTasks();
+
+    struct TaskStatusSlot
+    {
+        int row = 0;
+        int col = 0;
+        Mode mode = NORMAL;
+        bool valid = false;
+        bool hidden = false;
+    };
+    TaskStatusSlot taskStatusSlot_;
+    bool taskStatusShown_ = false;
+    bool taskStatusOverlay_ = false;
+    TaskQueue::TaskId foregroundTask_ = 0;
+    bool tasksInteractive_ = false;
+    void runNextStartupStep();
+    struct StartupStep
+    {
+        std::string label;
+        std::function<void()> run;
+    };
+    std::deque<StartupStep> startupSteps_;
+    std::deque<StartupStep> lateStartupSteps_;
+    int startupStepsTotal_ = 0;
+    int startupStepsDone_ = 0;
+    std::string startupStepLabel_;
+    std::chrono::steady_clock::time_point startupStepStarted_{};
+    bool firstFrameDrawn_ = false;
+    std::string lspWaitLabel_;
+    std::chrono::steady_clock::time_point lspWaitStarted_{};
+    std::chrono::steady_clock::time_point lspWorkStarted_{};
+    std::chrono::steady_clock::time_point lastTaskPaint_{};
+    std::uint64_t lastTaskRevision_ = 0;
+
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;

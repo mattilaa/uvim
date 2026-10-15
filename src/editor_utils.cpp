@@ -1665,9 +1665,10 @@ int locCountInLines(const std::vector<std::string>& lines,
 }
 
 void collectLocFiles(const std::string& dir, int depth,
-                     const GitIgnore& gitignore, std::vector<std::string>& out)
+                     const GitIgnore& gitignore, std::vector<std::string>& out,
+                     const std::function<bool()>& cancelled)
 {
-    if(depth > 10)
+    if(depth > 10 || (cancelled && cancelled()))
         return;
 
     std::error_code ec;
@@ -1676,7 +1677,7 @@ void collectLocFiles(const std::string& dir, int depth,
         return;
     for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
-        if(ec)
+        if(ec || (cancelled && cancelled()))
             break;
         std::string name = it->path().filename().string();
         if(name.empty() || name[0] == '.')
@@ -1692,7 +1693,7 @@ void collectLocFiles(const std::string& dir, int depth,
             continue;
 
         if(isDir)
-            collectLocFiles(fullPath, depth + 1, gitignore, out);
+            collectLocFiles(fullPath, depth + 1, gitignore, out, cancelled);
         else
             out.push_back(fullPath);
     }
@@ -1700,9 +1701,10 @@ void collectLocFiles(const std::string& dir, int depth,
 
 void collectProjectFileEntries(const std::string& dir, int depth,
                                const GitIgnore& gitignore,
-                               std::vector<FileEntry>& out)
+                               std::vector<FileEntry>& out,
+                               const std::function<bool()>& cancelled)
 {
-    if(depth > 10)
+    if(depth > 10 || (cancelled && cancelled()))
         return;
 
     std::error_code ec;
@@ -1712,7 +1714,7 @@ void collectProjectFileEntries(const std::string& dir, int depth,
 
     for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
-        if(ec)
+        if(ec || (cancelled && cancelled()))
             break;
 
         std::string name = it->path().filename().string();
@@ -1757,7 +1759,8 @@ void collectProjectFileEntries(const std::string& dir, int depth,
         out.push_back(fileEntry);
 
         if(isDir)
-            collectProjectFileEntries(fullPath, depth + 1, gitignore, out);
+            collectProjectFileEntries(fullPath, depth + 1, gitignore, out,
+                                      cancelled);
     }
 }
 

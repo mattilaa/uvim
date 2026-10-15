@@ -237,16 +237,10 @@ void GitFixupMode::draw(Editor& editor) const
     }
 
     output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.statusBar();
     std::string status = " FIXUP";
     std::string right = " " + std::to_string(entries.empty() ? 0 : cursor + 1) +
                         "/" + std::to_string(entries.size()) + " ";
-    output += status;
-    int padding = editor.screenCols - status.length() - right.length();
-    if(padding > 0)
-        output.append(padding, keyCode(control::ControlKey::SPACE));
-    output += right;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, right);
 
     output += Terminal::NEWLINE_CLEAR;
     if(confirmActive)

@@ -8,7 +8,9 @@
 #include "search_types.h"
 
 #include <chrono>
+#include <cstdint>
 #include <ctime>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -37,14 +39,11 @@ struct GrepSearchMode
     bool searchPending = false;
     std::chrono::steady_clock::time_point searchDueAt{};
     std::unordered_set<int> selectedMatches;
+    // Identifies the newest background search; older results are dropped.
+    std::uint64_t activeSearch = 0;
+    std::uint64_t activeSearchTask = 0;
 #ifdef UVIM_ENABLE_RG_CACHE
     std::chrono::steady_clock::time_point lastRgCacheIndexRefresh{};
-    bool rgCacheIndexing = false;
-    int rgCacheIndexed = 0;
-    int rgCacheTotal = 0;
-    int rgCacheUpdated = 0;
-    int rgCacheRemoved = 0;
-    int rgCacheJobs = 0;
     bool rgCacheSyncPending = false;
     std::string lastCachedQuery;
     bool lastCachedCaseSensitive = false;
@@ -67,15 +66,23 @@ private:
     void performSearch(Editor& editor);
     void scheduleSearch(Editor& editor);
     void flushPendingSearch(Editor& editor);
+    void startBackgroundSearch(Editor& editor);
+    bool adoptBackgroundResults(Editor& editor);
+    void appendStatusBar(Editor& editor, std::string& output) const;
 #ifdef UVIM_ENABLE_RG_CACHE
     bool syncRgCache(Editor& editor, bool force);
     bool performCachedSearch(Editor& editor);
 #endif
-    bool performRipgrepSearch(Editor& editor);
+    // Worker-thread safe: only touch this object's matches/query.
+    bool performRipgrepSearch(bool respectGitignore,
+                              const std::function<bool()>& cancelled);
     void searchInFile(const std::string& filepath, std::string_view query);
-    bool isTextFile(const std::string& filepath) const;
-    bool isBinaryFile(const std::string& filepath) const;
-    std::string trimString(const std::string& str) const;
+    static std::vector<FileEntry>
+    collectProjectFiles(bool useGitFileIndex, bool respectGitignore,
+                        const std::function<bool()>& cancelled = {});
+    static bool isTextFile(const std::string& filepath);
+    static bool isBinaryFile(const std::string& filepath);
+    static std::string trimString(const std::string& str);
     bool selectMatch(Editor& editor);
     void resultUp(Editor& editor);
     void resultDown(Editor& editor);

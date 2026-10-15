@@ -28,7 +28,8 @@ std::vector<std::string> regexSearchHelpTokens(bool allFiles)
 
 int regexSearchHeaderRows(int screenCols, bool allFiles)
 {
-    return 2 +
+    // Prompt line + key help; counts and flags live in the bottom status bar.
+    return 1 +
            HeaderHelp::lineCount(regexSearchHelpTokens(allFiles), screenCols);
 }
 
@@ -186,39 +187,8 @@ void RegexSearchMode::draw(Editor& editor) const
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    if(searching)
-    {
-        output += editor.theme.uiWarning();
-        output += " (searching...)";
-        output += editor.theme.baseFg();
-    }
-
     HeaderHelp::append(output, editor.theme, editor.screenCols,
                        regexSearchHelpTokens(allFiles));
-
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    if(!regexError.empty())
-    {
-        output += "  Invalid regex: " + regexError;
-    }
-    else if(!matches.empty())
-    {
-        output += "  " + std::to_string(matches.size());
-        output += matches.size() >= 1000 ? "+ matches (limited)" : " matches";
-    }
-    else if(!query.empty())
-    {
-        output += "  No matches";
-    }
-    else
-    {
-        output += allFiles ? "  Type a regex to search project files"
-                           : "  Type a regex to search the current buffer";
-    }
-    if(allFiles && editor.respectGitignore)
-        output += " [gitignore]";
-    output += editor.theme.baseFg();
 
     int availableRows = regexSearchVisibleRows(editor, allFiles);
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); ++i)
@@ -279,6 +249,29 @@ void RegexSearchMode::draw(Editor& editor) const
         output += "~";
         output += editor.theme.baseFg();
     }
+
+    std::string summary;
+    if(!regexError.empty())
+        summary = "Invalid regex: " + regexError;
+    else if(!matches.empty())
+        summary = std::to_string(matches.size()) +
+                  (matches.size() >= 1000 ? "+ matches (limited)" : " matches");
+    else if(!query.empty())
+        summary = "No matches";
+    else
+        summary = allFiles ? "Type a regex to search project files"
+                           : "Type a regex to search the current buffer";
+
+    widgets::ViewStatusBarView status{.theme = editor.theme};
+    status.modeLabel = name();
+    status.context = summary;
+    status.state = searching ? "searching..." : "";
+    if(allFiles && editor.respectGitignore)
+        status.flags.push_back("gitignore");
+    status.toolLabel = allFiles ? "project" : "buffer";
+    status.index = matches.empty() ? 0 : cursor + 1;
+    status.count = static_cast<int>(matches.size());
+    editor.appendViewStatusBar(output, std::move(status));
 
     Terminal::write(output);
     Terminal::flush();

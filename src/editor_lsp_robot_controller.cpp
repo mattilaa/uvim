@@ -49,6 +49,7 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
     }
 
     robotLspClient = std::make_unique<LspClient>();
+    attachLspWaitHook(*robotLspClient);
     robotLspClient->setLogSignature("ROBOT");
     robotLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))

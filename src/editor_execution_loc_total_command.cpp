@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -47,28 +48,57 @@ bool LocTotalCommand::execute(Editor& editor,
         return true;
     }
 
-    std::vector<std::string> files;
-    if(std::filesystem::is_directory(targetPath, ec))
+    // Walking and counting a large tree takes a while; do it in the
+    // background and report through the status bar / :tasks.
+    struct Count
     {
-        GitIgnore gitignore;
-        if(editor.respectGitignore)
-            gitignore.loadRecursive(targetPath.string());
-        collectLocFiles(targetPath.string(), 0, gitignore, files);
-    }
-    else
-        files.push_back(targetPath.string());
+        int totalLoc = 0;
+        int files = 0;
+    };
+    auto count = std::make_shared<Count>();
+    const std::string root = targetPath.string();
+    const bool isDirectory = std::filesystem::is_directory(targetPath, ec);
+    const bool respectGitignore = editor.respectGitignore;
+    Editor* ed = &editor;
 
-    int totalLoc = 0;
-    for(const auto& file : files)
-    {
-        if(!locIsTextFile(file))
-            continue;
-        totalLoc += locCountInFile(file, locCommentRulesForPath(file));
-    }
+    editor.submitTask(
+        "loctotal " + path, "loc",
+        [count, root, isDirectory, respectGitignore](TaskQueue::Context& ctx)
+        {
+            std::vector<std::string> files;
+            if(isDirectory)
+            {
+                ctx.detail("listing files");
+                GitIgnore gitignore;
+                if(respectGitignore)
+                    gitignore.loadRecursive(root);
+                collectLocFiles(root, 0, gitignore, files,
+                                [&ctx] { return ctx.cancelled(); });
+                ctx.detail({});
+            }
+            else
+                files.push_back(root);
 
-    editor.statusMessage.clear();
-    editor.locMessage = "LOC total " + std::to_string(totalLoc);
-    editor.needsFullRedraw = true;
+            const long long total = (long long)files.size();
+            long long scanned = 0;
+            for(const auto& file : files)
+            {
+                if(ctx.cancelled())
+                    return;
+                ctx.progress(++scanned, total);
+                if(!locIsTextFile(file))
+                    continue;
+                count->totalLoc +=
+                    locCountInFile(file, locCommentRulesForPath(file));
+                ++count->files;
+            }
+        },
+        [ed, count]
+        {
+            ed->statusMessage.clear();
+            ed->locMessage = "LOC total " + std::to_string(count->totalLoc);
+            ed->needsFullRedraw = true;
+        });
     return true;
 }
 

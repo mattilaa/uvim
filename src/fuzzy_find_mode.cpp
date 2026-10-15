@@ -40,7 +40,8 @@ std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst,
 
 int fuzzyFindHeaderRows(int screenCols, bool filenameFirst, int contrast)
 {
-    return 2 + HeaderHelp::lineCount(
+    // Prompt line + key help; counts and flags live in the bottom status bar.
+    return 1 + HeaderHelp::lineCount(
                    fuzzyFindHelpTokens(filenameFirst, contrast),
                    screenCols);
 }
@@ -352,51 +353,6 @@ void FuzzyFindMode::draw(Editor& editor) const
                        fuzzyFindHelpTokens(filenameFirst,
                                            editor.searchMatchContrast));
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-
-    if(!matches.empty())
-    {
-        output += "  " + std::to_string(matches.size()) + " matches";
-    }
-    else if(!query.empty())
-    {
-        output += "  No matches";
-    }
-    else
-    {
-        output += "  " + std::to_string(projectFiles.size()) + " files";
-    }
-    output += " ";
-    if(editor.respectGitignore)
-    {
-        output += "[gitignore]";
-    }
-    else
-    {
-        output += editor.theme.uiDim();
-        output += "[gitignore off]";
-        output += editor.theme.baseFg();
-    }
-    output += " ";
-    if(editor.useGitFileIndex)
-    {
-        output += "[git index]";
-    }
-    else
-    {
-        output += editor.theme.uiDim();
-        output += "[git index off]";
-        output += editor.theme.baseFg();
-    }
-    if(!selectedFiles.empty())
-    {
-        output += " (" + std::to_string(selectedFiles.size()) + " selected)";
-    }
-    output += " ";
-    output += filenameFirst ? "[filename first]" : "[path first]";
-    output += editor.theme.baseFg();
-
     int availableRows = fuzzyFindVisibleRows(editor, filenameFirst);
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
@@ -515,6 +471,27 @@ void FuzzyFindMode::draw(Editor& editor) const
         output += "~";
         output += editor.theme.baseFg();
     }
+
+    std::string summary;
+    if(!matches.empty())
+        summary = std::to_string(matches.size()) + " matches";
+    else if(!query.empty())
+        summary = "No matches";
+    else
+        summary = std::to_string(projectFiles.size()) + " files";
+    if(!selectedFiles.empty())
+        summary += ", " + std::to_string(selectedFiles.size()) + " selected";
+
+    widgets::ViewStatusBarView status{.theme = editor.theme};
+    status.modeLabel = "FIND";
+    status.context = summary;
+    status.flags = {editor.respectGitignore ? "gitignore" : "gitignore off",
+                    filenameFirst ? "filename first" : "path first"};
+    // Where the file list comes from, shown like the [clangd] label.
+    status.toolLabel = editor.useGitFileIndex ? "git index" : "fs scan";
+    status.index = matches.empty() ? 0 : cursor + 1;
+    status.count = static_cast<int>(matches.size());
+    editor.appendViewStatusBar(output, std::move(status));
 
     const bool syncOutput = Terminal::useSynchronizedOutput();
     if(syncOutput)

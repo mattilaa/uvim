@@ -14,6 +14,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     commands.push_back(std::make_unique<LspInfoCommand>());
     commands.push_back(std::make_unique<ToolInfoCommand>());
+    commands.push_back(std::make_unique<TasksCommand>());
 #endif
 #ifdef UVIM_ENABLE_FORMATTERS
     commands.push_back(std::make_unique<FormatCommand>());

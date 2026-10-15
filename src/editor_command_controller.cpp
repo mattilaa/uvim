@@ -587,7 +587,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "format", "fmt",
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-        "lspinfo", "toolinfo",
+        "lspinfo", "toolinfo", "tasks",
 #endif
 #ifdef UVIM_ENABLE_ASM_DOCS
         "emitasm", "emitasm --raw",

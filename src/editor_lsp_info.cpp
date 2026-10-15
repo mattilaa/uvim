@@ -357,15 +357,11 @@ void Editor::drawLspInfo()
 
     // Status bar
     output += Terminal::cursorPos(screenRows - 1, 1);
-    output += theme.statusBar();
     std::string status = " <j/k> scroll  <q/Esc> close  <r> refresh ";
     if(maxOffset > 0)
         status += " " + std::to_string(lspInfoScrollOffset + 1) + "/" +
                   std::to_string(maxOffset + 1) + " ";
-    if((int)status.length() < screenCols)
-        status += std::string(screenCols - status.length(), ' ');
-    output += status;
-    output += theme.reset();
+    appendStatusLine(output, status, "", screenRows - 1);
 
     // Message bar
     output += Terminal::cursorPos(screenRows, 1);

@@ -291,15 +291,11 @@ void MlangFormatErrorsMode::draw(Editor& editor) const
         output += "\r\n";
     }
 
-    output += editor.theme.statusBar();
     const int displayCursor = editor.mlangFormatErrors.empty() ? 0 : cursor + 1;
     std::string status = " [" + std::to_string(displayCursor) + "/" +
                          std::to_string(editor.mlangFormatErrors.size()) + "]";
     status += " <Enter> jump  <r> refresh  <q/Esc> close  <j/k> navigate";
-    if((int)status.length() < editor.screenCols)
-        status += std::string(editor.screenCols - status.length(), ' ');
-    output += status;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, "");
 
     output += "\r\n";
     output += Terminal::ESC_CLEAR_LINE;

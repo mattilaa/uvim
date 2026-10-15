@@ -41,6 +41,7 @@
 #include "lsp_info_mode.h"
 #include "mlang_format_errors_mode.h"
 #include "tool_info_mode.h"
+#include "task_list_mode.h"
 #endif
 #include "mode_commands.h"
 #include "mode_state.h"

@@ -477,6 +477,38 @@ bool Terminal::hasBufferedKeys()
     return !keyBuffer.empty();
 }
 
+int Terminal::bufferedKeyCount()
+{
+    return static_cast<int>(keyBuffer.size());
+}
+
+bool Terminal::takeBufferedKey(int key)
+{
+    for(auto it = keyBuffer.rbegin(); it != keyBuffer.rend(); ++it)
+    {
+        if(*it == key)
+        {
+            keyBuffer.erase(std::next(it).base());
+            return true;
+        }
+    }
+    return false;
+}
+
+int Terminal::bufferPendingInput()
+{
+    int moved = 0;
+    while(true)
+    {
+        const int key = readKeyInternal(0);
+        if(key < 0)
+            break;
+        keyBuffer.push_back(key);
+        ++moved;
+    }
+    return moved;
+}
+
 void Terminal::discardPendingInput()
 {
     keyBuffer.clear();

@@ -464,18 +464,13 @@ void EditorReferencesController::drawReferences()
     }
 
     // Status bar
-    output += editor.theme.statusBar();
 
     std::string status = " [" + std::to_string(editor.referencesCursor + 1) +
                          "/" + std::to_string(editor.referencesList.size()) +
                          "]";
     status += " <Enter> jump  <q/Esc> close  <j/k> navigate";
 
-    if((int)status.length() < editor.screenCols)
-        status += std::string(editor.screenCols - status.length(), ' ');
-
-    output += status;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, "");
 
     // Message bar
     output += "\r\n";

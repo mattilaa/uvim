@@ -20,8 +20,9 @@ std::vector<std::string> bufferBrowserHelpTokens()
 
 int bufferBrowserVisibleRows(const Editor& editor)
 {
+    // Prompt line + key help; counts live in the bottom status bar.
     const int headerRows =
-        2 + HeaderHelp::lineCount(bufferBrowserHelpTokens(), editor.screenCols);
+        1 + HeaderHelp::lineCount(bufferBrowserHelpTokens(), editor.screenCols);
     return std::max(1, editor.screenRows - headerRows);
 }
 
@@ -252,22 +253,6 @@ void BufferBrowserMode::draw(Editor& editor) const
     HeaderHelp::append(output, editor.theme, editor.screenCols,
                        bufferBrowserHelpTokens());
 
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    if(!bufferMatches.empty())
-    {
-        output += "  " + std::to_string(bufferMatches.size()) + " matches";
-    }
-    else if(!bufferQuery.empty())
-    {
-        output += "  No matches";
-    }
-    else
-    {
-        output += "  " + std::to_string(editor.buffers.size()) + " buffers";
-    }
-    output += editor.theme.baseFg();
-
     int availableRows = bufferBrowserVisibleRows(editor);
     const int numberWidth = decimalWidth(editor.buffers.size());
 
@@ -346,6 +331,19 @@ void BufferBrowserMode::draw(Editor& editor) const
         output += "~";
         output += editor.theme.baseFg();
     }
+
+    widgets::ViewStatusBarView status{.theme = editor.theme};
+    status.modeLabel = name();
+    if(!bufferMatches.empty() && !bufferQuery.empty())
+        status.context = std::to_string(bufferMatches.size()) + " matches";
+    else if(!bufferQuery.empty())
+        status.context = "No matches";
+    else
+        status.context = std::to_string(editor.buffers.size()) +
+                         (editor.buffers.size() == 1 ? " buffer" : " buffers");
+    status.index = bufferMatches.empty() ? 0 : bufferCursor + 1;
+    status.count = static_cast<int>(bufferMatches.size());
+    editor.appendViewStatusBar(output, std::move(status));
 
     Terminal::write(output);
     Terminal::flush();

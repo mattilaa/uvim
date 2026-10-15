@@ -1,5 +1,7 @@
 #pragma once
 
+#include "editor_path_utilities.h"
+
 #include "asm_documentation.h"
 #include "color_constant.h"
 #include "editor.h"
@@ -92,8 +94,12 @@ public:
     {
         std::error_code ec;
         previous = std::filesystem::current_path(ec);
+        previousEditorDir = EditorPathUtilities::currentWorkingDirectory();
         if(!ec)
             std::filesystem::current_path(next, ec);
+        // The editor resolves relative paths against its own process-wide
+        // working directory; keep it in step so tests stay independent.
+        syncEditorDirectory(next);
     }
 
     ~ScopedCurrentPath()
@@ -101,10 +107,20 @@ public:
         std::error_code ec;
         if(!previous.empty())
             std::filesystem::current_path(previous, ec);
+        if(!previousEditorDir.empty())
+            syncEditorDirectory(previousEditorDir);
     }
 
 private:
+    static void syncEditorDirectory(const std::filesystem::path& dir)
+    {
+        std::string display;
+        std::string error;
+        EditorPathUtilities::setWorkingDirectory(dir, display, error);
+    }
+
     std::filesystem::path previous;
+    std::filesystem::path previousEditorDir;
 };
 
 class ScopedEnv

@@ -129,21 +129,6 @@ int promptCursorColumn(const std::string& visiblePrompt, int screenCols)
                       std::max(1, screenCols));
 }
 
-void appendStatusLine(std::string& output, std::string status,
-                      const std::string& right, int screenCols)
-{
-    const int rightWidth = text_utils::displayWidth(right);
-    const int statusWidth = std::max(0, screenCols - rightWidth);
-    status = truncateToWidth(std::move(status), statusWidth);
-    output += status;
-
-    int padding = screenCols - text_utils::displayWidth(status) - rightWidth;
-    if(padding > 0)
-        output.append(padding, keyCode(control::ControlKey::SPACE));
-    if(rightWidth <= screenCols)
-        output += right;
-}
-
 struct DirectoryCacheEntry
 {
     std::filesystem::file_time_type modTime{};
@@ -2538,7 +2523,6 @@ void FileBrowserMode::draw(Editor& editor) const
 
     output += Terminal::cursorPos(editor.screenRows + 1, 1);
     output += Terminal::ESC_CLEAR_LINE;
-    output += editor.theme.statusBar();
 
     std::string status = visualMode ? " V-BROWSE" : " BROWSE";
     if(editor.respectGitignore)
@@ -2559,8 +2543,8 @@ void FileBrowserMode::draw(Editor& editor) const
                         std::to_string(std::min(browserCursor + 1, count)) +
                         "/" + std::to_string(count) + " ";
 
-    appendStatusLine(output, std::move(status), right, editor.screenCols);
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, std::move(status), right,
+                            editor.screenRows + 1);
 
     output += Terminal::cursorPos(editor.screenRows + 2, 1);
     output += Terminal::ESC_CLEAR_LINE;

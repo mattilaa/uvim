@@ -117,6 +117,13 @@ public:
 
     static void unreadKey(int key);
     static bool hasBufferedKeys();
+    static int bufferedKeyCount();
+    // Moves keystrokes already waiting on stdin to the back of the key
+    // buffer without blocking, so input typed during a long operation is
+    // replayed in order once the main loop resumes. Returns keys moved.
+    static int bufferPendingInput();
+    // Removes the most recent buffered occurrence of `key`; true if found.
+    static bool takeBufferedKey(int key);
     static void discardPendingInput();
     static std::string takeLastPasteText();
 #ifdef UVIM_TESTING

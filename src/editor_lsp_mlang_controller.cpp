@@ -47,6 +47,7 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
         args.push_back("--stdio");
 
     mlangLspClient = std::make_unique<LspClient>();
+    attachLspWaitHook(*mlangLspClient);
     mlangLspClient->setLogSignature("MLANG");
     mlangLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!mlangLspClient->startServer(this->mlangLspPath, rootDir, args))

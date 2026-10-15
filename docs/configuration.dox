@@ -58,6 +58,7 @@ formatoninsertleave = true
 formatonsave = true
 formatondoubleesctimeoutms = 300
 rgupdate = 300
+progressstyle = color
 gdcenter = true
 autodetectlsps = true
 
@@ -173,6 +174,13 @@ Integer. Default: 300. Range: 1-5000. Timeout (ms) for double-ESC format.
 \par editor.rgupdate
 Integer. Default: 300. Range: 0-5000. Delay (ms) before grep search updates
 after typing in the `Ctrl-a` grep view. Use 0 for immediate updates.
+
+\par editor.progressstyle
+String. Default: color. One of `ascii` (`[=====.....]`), `glyph`
+(eighth-block bar `▕████▌     ▏`) or `color` (glyph bar drawn with the
+`theme.progress.fg`/`theme.progress.bg` colours). Style of the background
+task progress shown in the status bar and the `:tasks` view. Non-UTF-8
+terminals always use `ascii`.
 
 \par editor.gdcenter
 Boolean. Default: true. Center screen on `gd` navigation.

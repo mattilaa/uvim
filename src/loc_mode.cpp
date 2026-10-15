@@ -326,16 +326,11 @@ void LocListMode::draw(Editor& editor) const
     }
 
     // Status bar
-    output += editor.theme.statusBar();
     int displayCursor = editor.locList.empty() ? 0 : (cursor + 1);
     std::string status = " [" + std::to_string(displayCursor) + "/" +
                          std::to_string(editor.locList.size()) + "]";
     status += " <Enter> open  <q/Esc> close  <j/k> navigate";
-    if((int)status.length() < editor.screenCols)
-        status += std::string(editor.screenCols - status.length(),
-                              keyCode(control::ControlKey::SPACE));
-    output += status;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, "");
 
     // Message bar
     output += "\r\n";

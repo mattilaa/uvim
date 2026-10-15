@@ -255,6 +255,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
                 return ToolInfoMode{};
             }
+            if(ctx.currentMode() == TASK_LIST)
+            {
+                return TaskListMode{};
+            }
 #endif
             if(ctx.editor && ctx.editor->getModeStateMachine())
             {
@@ -312,6 +316,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(mode == TOOL_INFO)
                 {
                     return ToolInfoMode{};
+                }
+                if(mode == TASK_LIST)
+                {
+                    return TaskListMode{};
                 }
                 if(mode == LOC_LIST)
                 {
