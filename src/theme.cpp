@@ -159,6 +159,16 @@ const std::string& Theme::uiInfo() const
     return ui_info_seq_;
 }
 
+const std::string& Theme::progressFill() const
+{
+    return progress_fill_seq_;
+}
+
+const std::string& Theme::progressTrack() const
+{
+    return progress_track_seq_;
+}
+
 const std::string& Theme::uiWarning() const
 {
     return ui_warning_seq_;
@@ -214,6 +224,8 @@ void Theme::rebuildSequences()
     status_bar_seq_.clear();
     tab_bar_seq_.clear();
     panel_seq_.clear();
+    progress_fill_seq_.clear();
+    progress_track_seq_.clear();
     ui_dim_seq_.clear();
     ui_accent_seq_.clear();
     ui_info_seq_.clear();
@@ -253,6 +265,24 @@ void Theme::rebuildSequences()
     ui_prompt_seq_ = fgSeq(ui_prompt_);
 
     match_highlight_seq_ = fgSeq(ui_accent_) + Terminal::ESC_BOLD;
+
+    const Color fill = progress_.fg.set ? progress_.fg : ui_success_;
+    Color track = progress_.bg;
+    if(!track.set)
+    {
+        // A step between the status line and the dim UI colour so the empty
+        // part of the bar stays visible on any theme.
+        const Color& from = status_bar_.bg.set ? status_bar_.bg : base_bg_;
+        track = from;
+        if(from.set && ui_dim_.set)
+        {
+            auto mix = [](int a, int b) { return a + ((b - a) * 2) / 5; };
+            track = {mix(from.r, ui_dim_.r), mix(from.g, ui_dim_.g),
+                     mix(from.b, ui_dim_.b), true};
+        }
+    }
+    progress_fill_seq_ = fgSeq(fill) + bgSeq(track);
+    progress_track_seq_ = fgSeq(ui_dim_) + bgSeq(track);
 
     for(int i = 0; i < kTokenTypeCount; ++i)
         syntax_seq_[i] = fgSeq(syntax_[i]);
@@ -368,6 +398,8 @@ void Theme::applyOverrides(
     set_color("theme.search.fg", search_.fg);
     set_color("theme.search.bg", search_.bg);
     set_color("theme.panel.fg", panel_.fg);
+    set_color("theme.progress.fg", progress_.fg);
+    set_color("theme.progress.bg", progress_.bg);
     set_color("theme.panel.bg", panel_.bg);
 
     set_color("theme.syntax.normal", syntax_[TOKEN_NORMAL]);

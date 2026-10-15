@@ -23,6 +23,7 @@
 #include <cwctype>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -349,6 +350,12 @@ struct LspClient::Impl
     mutable std::mutex progressMutex;
     bool indexingActive = false;
     std::string indexingMessage;
+    // Running $/progress items keyed by token, in begin order.
+    std::vector<std::pair<std::string, LspClient::WorkProgress>> workItems;
+    // Method of each in-flight request, for wait-hook labels.
+    std::unordered_map<int, std::string> requestMethods;
+    std::function<void(std::string_view)> waitHook;
+    std::thread::id ownerThread;
     mutable std::mutex stderrMutex;
     std::string stderrBuffer;
     std::unordered_map<std::string, int> docVersion;
@@ -689,6 +696,53 @@ struct LspClient::Impl
         return text_utils::contains(haystack, "index");
     }
 
+    void trackWorkProgress(const ju::Value* token, const ju::Value* value)
+    {
+        if(!token || !value || !value->IsObject())
+            return;
+        const std::string key =
+            token->IsString()
+                ? std::string(token->GetString(), token->GetStringLength())
+                : ju::stringify(*token);
+        const std::string kind = get_string_member(value, "kind");
+
+        std::lock_guard<std::mutex> lk(progressMutex);
+        auto it = std::find_if(workItems.begin(), workItems.end(),
+                               [&](const auto& item)
+                               { return item.first == key; });
+        if(kind == "end")
+        {
+            if(it != workItems.end())
+                workItems.erase(it);
+            return;
+        }
+        if(it == workItems.end())
+        {
+            if(kind != "begin")
+                return;
+            workItems.emplace_back(key, LspClient::WorkProgress{});
+            it = std::prev(workItems.end());
+        }
+
+        LspClient::WorkProgress& work = it->second;
+        const std::string title = get_string_member(value, "title");
+        if(!title.empty())
+            work.title = title;
+        if(const ju::Value* message = ju::find(*value, "message");
+           message && message->IsString())
+        {
+            work.message.assign(message->GetString(),
+                                message->GetStringLength());
+        }
+        if(const ju::Value* percent = ju::find(*value, "percentage");
+           percent && (percent->IsInt() || percent->IsUint() ||
+                        percent->IsDouble()))
+        {
+            work.percent = std::clamp(
+                static_cast<int>(percent->GetDouble()), 0, 100);
+        }
+    }
+
     void handleProgressNotification(const ju::Value* params)
     {
         if(!params || !params->IsObject())
@@ -696,6 +750,7 @@ struct LspClient::Impl
 
         const ju::Value* token = ju::find(*params, "token");
         const ju::Value* value = ju::find(*params, "value");
+        trackWorkProgress(token, value);
         if(!isIndexingProgress(token, value))
             return;
 
@@ -754,6 +809,7 @@ struct LspClient::Impl
         {
             std::lock_guard<std::mutex> lk(m);
             id = nextId++;
+            requestMethods[id] = method;
         }
 
         ju::Document req(ju::kObjectType);
@@ -784,15 +840,53 @@ struct LspClient::Impl
     std::optional<ju::Document> waitResponse(int id, int timeoutMs = 3000)
     {
         std::unique_lock<std::mutex> lk(m);
-        if(!cv.wait_for(lk, std::chrono::milliseconds(timeoutMs),
-                        [&]
-                        {
-                            return responses.find(id) != responses.end() ||
-                                   !alive.load();
-                        }))
+        std::string method;
+        if(auto mit = requestMethods.find(id); mit != requestMethods.end())
         {
-            return std::nullopt;
+            method = std::move(mit->second);
+            requestMethods.erase(mit);
         }
+        auto ready = [&]
+        { return responses.find(id) != responses.end() || !alive.load(); };
+
+        // Wait in short slices so the editor can keep its status bar alive
+        // and queue keystrokes while a slow server answers. The hook gets
+        // the method while waiting and an empty view once the wait is over.
+        const bool hookable =
+            waitHook && std::this_thread::get_id() == ownerThread;
+        bool hooked = false;
+        auto endHook = [&]
+        {
+            if(!hooked)
+                return;
+            lk.unlock();
+            waitHook({});
+            lk.lock();
+        };
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::milliseconds(timeoutMs);
+        while(!ready())
+        {
+            const auto now = std::chrono::steady_clock::now();
+            if(now >= deadline)
+            {
+                endHook();
+                return std::nullopt;
+            }
+            const auto slice = std::min<std::chrono::steady_clock::duration>(
+                deadline - now, std::chrono::milliseconds(30));
+            if(cv.wait_for(lk, slice, ready))
+                break;
+            if(hookable)
+            {
+                hooked = true;
+                lk.unlock();
+                waitHook(method.empty() ? std::string_view("request")
+                                        : std::string_view(method));
+                lk.lock();
+            }
+        }
+        endHook();
         auto it = responses.find(id);
         if(it == responses.end())
             return std::nullopt;
@@ -804,6 +898,7 @@ struct LspClient::Impl
     std::optional<ju::Document> takeResponse(int id)
     {
         std::lock_guard<std::mutex> lk(m);
+        requestMethods.erase(id);
         auto it = responses.find(id);
         if(it == responses.end())
             return std::nullopt;
@@ -1006,6 +1101,7 @@ struct LspClient::Impl
             std::lock_guard<std::mutex> lk(progressMutex);
             indexingActive = false;
             indexingMessage.clear();
+            workItems.clear();
         }
         {
             std::lock_guard<std::mutex> lk(stderrMutex);
@@ -1555,6 +1651,24 @@ std::string LspClient::indexingStatus() const
         return {};
     std::lock_guard<std::mutex> lk(impl->progressMutex);
     return impl->indexingMessage;
+}
+
+void LspClient::setWaitHook(std::function<void(std::string_view)> hook)
+{
+    if(!impl)
+        return;
+    impl->waitHook = std::move(hook);
+    impl->ownerThread = std::this_thread::get_id();
+}
+
+std::optional<LspClient::WorkProgress> LspClient::workProgress() const
+{
+    if(!impl || !impl->alive.load())
+        return std::nullopt;
+    std::lock_guard<std::mutex> lk(impl->progressMutex);
+    if(impl->workItems.empty())
+        return std::nullopt;
+    return impl->workItems.back().second;
 }
 
 int LspClient::workerCount() const
@@ -2887,6 +3001,15 @@ bool LspClient::indexingInProgress() const
 std::string LspClient::indexingStatus() const
 {
     return {};
+}
+
+std::optional<LspClient::WorkProgress> LspClient::workProgress() const
+{
+    return std::nullopt;
+}
+
+void LspClient::setWaitHook(std::function<void(std::string_view)>)
+{
 }
 
 int LspClient::workerCount() const

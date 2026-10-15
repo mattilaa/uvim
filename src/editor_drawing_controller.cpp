@@ -211,6 +211,13 @@ void EditorDrawingController::refreshScreen()
 #endif
         return;
     }
+    if(editor.currentMode == TASK_LIST)
+    {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        editor.drawTaskList();
+#endif
+        return;
+    }
 
     if(editor.currentMode == HELP)
     {
@@ -578,7 +585,9 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
 
 void EditorDrawingController::draw()
 {
+    editor.beginTaskStatusFrame();
     refreshScreen();
+    editor.finishTaskStatusFrame();
     setNeedsFullRedraw(false);
 }
 

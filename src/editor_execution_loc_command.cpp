@@ -123,14 +123,11 @@ bool LocCommand::run(Editor& editor, bool listView, std::string path)
             useBufferForSingle = true;
     }
 
-    if(std::filesystem::is_directory(targetPath, ec))
+    const bool isDirectory = std::filesystem::is_directory(targetPath, ec);
+    if(isDirectory)
     {
         listView = true;
         rootPath = targetPath;
-        GitIgnore gitignore;
-        if(editor.respectGitignore)
-            gitignore.loadRecursive(rootPath.string());
-        collectLocFiles(rootPath.string(), 0, gitignore, files);
     }
     else
     {
@@ -140,33 +137,63 @@ bool LocCommand::run(Editor& editor, bool listView, std::string path)
 
     std::vector<Editor::LocEntry> entries;
     int totalLoc = 0;
-    for(const auto& file : files)
+    if(!listView && useBufferForSingle)
     {
-        if(!locIsTextFile(file))
-            continue;
-
-        auto rules = locCommentRulesForPath(file);
-        int loc = (!listView && useBufferForSingle)
-                      ? locCountInLines(*editor.lines, rules)
-                      : locCountInFile(file, rules);
-        totalLoc += loc;
-
-        if(listView)
-        {
-            Editor::LocEntry entry;
-            entry.path = file;
-            entry.displayPath = file;
-            if(!rootPath.empty())
+        // Counting the open buffer is instant; no need for a task.
+        const std::string& file = files.front();
+        if(locIsTextFile(file))
+            totalLoc = locCountInLines(*editor.lines, locCommentRulesForPath(file));
+    }
+    else
+    {
+        // Walking/counting a directory can take a while: run it as a task so
+        // the status bar shows progress and typed keys queue up meanwhile.
+        const bool respectGitignore = editor.respectGitignore;
+        const bool ok = editor.runTask(
+            "loc " + rootDisplay, "loc",
+            [&, respectGitignore](TaskQueue::Context& ctx)
             {
-                std::error_code relErr;
-                std::filesystem::path rel =
-                    std::filesystem::relative(file, rootPath, relErr);
-                if(!relErr)
-                    entry.displayPath = rel.string();
-            }
-            entry.loc = loc;
-            entries.push_back(std::move(entry));
-        }
+                if(isDirectory)
+                {
+                    ctx.detail("listing files");
+                    GitIgnore gitignore;
+                    if(respectGitignore)
+                        gitignore.loadRecursive(rootPath.string());
+                    collectLocFiles(rootPath.string(), 0, gitignore, files,
+                                    [&ctx] { return ctx.cancelled(); });
+                    ctx.detail({});
+                }
+                const long long total = (long long)files.size();
+                long long scanned = 0;
+                for(const auto& file : files)
+                {
+                    if(ctx.cancelled())
+                        return;
+                    ctx.progress(++scanned, total);
+                    if(!locIsTextFile(file))
+                        continue;
+                    const int loc =
+                        locCountInFile(file, locCommentRulesForPath(file));
+                    totalLoc += loc;
+                    if(!listView)
+                        continue;
+                    Editor::LocEntry entry;
+                    entry.path = file;
+                    entry.displayPath = file;
+                    if(!rootPath.empty())
+                    {
+                        std::error_code relErr;
+                        std::filesystem::path rel =
+                            std::filesystem::relative(file, rootPath, relErr);
+                        if(!relErr)
+                            entry.displayPath = rel.string();
+                    }
+                    entry.loc = loc;
+                    entries.push_back(std::move(entry));
+                }
+            });
+        if(!ok)
+            return true; // cancelled or failed; runTask set the message
     }
 
     if(listView)

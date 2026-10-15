@@ -54,7 +54,10 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
                   "]" + view.theme.statusBar();
     }
 
-    std::string rightBlock = searchInfo + lspInfo;
+    std::string rightBlock;
+    if(!view.progress.empty())
+        rightBlock = std::string(view.progress) + " ";
+    rightBlock += searchInfo + lspInfo;
     if(!lspInfo.empty())
         rightBlock.append(std::max(0, view.lspGap), ' ');
     rightBlock += rightStatus;
@@ -79,6 +82,12 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     int padding = view.screenCols - status.length() - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
+    if(view.progressColumn)
+    {
+        *view.progressColumn = (!view.progress.empty() && padding >= 0)
+                                   ? view.screenCols - rightLen + 1
+                                   : 0;
+    }
     output += rightBlock;
     output += view.theme.reset();
 }

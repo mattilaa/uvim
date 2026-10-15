@@ -23,6 +23,7 @@ enum Mode
     REFERENCES,
     LSP_INFO,
     TOOL_INFO,
+    TASK_LIST,
     LOC_LIST,
     MLANG_FORMAT_ERRORS,
     HELP,

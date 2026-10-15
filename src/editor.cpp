@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
+#include "process_pipe.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
 #include "editor_cursor_controller.h"
@@ -471,6 +472,13 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 }
             }
 #endif
+            auto itps = values.find("editor.progressstyle");
+            if(itps == values.end())
+                itps = values.find("settings.progressstyle");
+            if(itps == values.end())
+                itps = values.find("progressstyle");
+            if(itps != values.end())
+                widgets::parseProgressStyle(itps->second, progressStyle);
             auto itlspg = values.find("editor.status.lspgap");
             if(itlspg == values.end())
                 itlspg = values.find("settings.status.lspgap");
@@ -1082,6 +1090,7 @@ bool Editor::isRobotSetting(std::string_view cell) const
 
 Editor::~Editor()
 {
+    ProcessPipe::setForegroundRunner({});
     Terminal::clearScreen();
     Terminal::moveCursor(1, 1);
 }
@@ -1322,6 +1331,8 @@ std::string Editor::getModeString() const
         return "LSP INFO";
     case TOOL_INFO:
         return "TOOL INFO";
+    case TASK_LIST:
+        return "TASKS";
     case REFERENCES:
         return "REFERENCES";
     case LOC_LIST:
@@ -2338,6 +2349,7 @@ void Editor::refreshFileSearchCaches()
     grepProjectFiles.clear();
     grepFileIndexInitialized = false;
 #ifdef UVIM_ENABLE_RG_CACHE
+    cancelRgCacheIndexing();
     rgCacheLoaded = false;
     rgCachedFiles.clear();
     rgCacheLineIndex.clear();
@@ -2759,11 +2771,13 @@ void Editor::closeSymbolPopup()
 void Editor::run()
 {
     //    setStatusMessage("Welcome to uVim!");
+    enableInteractiveTasks();
     draw();
 
     while(true)
     {
         handleResize();
+        serviceTasks();
         int c = Terminal::readKeyTimeout(50);
         if(c < 0)
         {

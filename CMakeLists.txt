@@ -276,6 +276,9 @@ set(UVIM_CORE_SOURCES
     src/stdlib_goto.cpp
     src/theme.cpp
     src/widgets/status_bar.cpp
+    src/widgets/progress_bar.cpp
+    src/task_queue.cpp
+    src/editor_tasks.cpp
 )
 
 if(NOT UVIM_MINIMAL)
@@ -302,6 +305,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/editor_execution_loc_total_command.cpp
         src/editor_execution_lsp_info_command.cpp
         src/editor_execution_tool_info_command.cpp
+        src/editor_execution_tasks_command.cpp
         src/executable_lookup.cpp
         src/editor_view_command_output.cpp
         src/editor_view_help.cpp
@@ -376,6 +380,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/references_mode.cpp
         src/lsp_info_mode.cpp
         src/tool_info_mode.cpp
+        src/task_list_mode.cpp
         src/loc_mode.cpp
         src/mlang_format_errors_mode.cpp
         src/help_mode.cpp
@@ -688,13 +693,16 @@ FetchContent_MakeAvailable(fmt)
 
 target_link_libraries(uvim PRIVATE fmt::fmt)
 
+# Background workers (progress-tracked operations, rg cache indexing) need
+# threads regardless of which optional features are enabled.
+find_package(Threads REQUIRED)
+target_link_libraries(uvim PRIVATE Threads::Threads)
+
 # LSP dependencies and compile gates. UVIM_ENABLE_CLANGD_LSP remains the
 # shared client gate for older code paths; the per-server definitions gate
 # individual integrations.
 if(UVIM_ENABLE_ANY_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
-    find_package(Threads REQUIRED)
-    target_link_libraries(uvim PRIVATE Threads::Threads)
 endif()
 
 foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
@@ -827,6 +835,18 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(constants_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+    add_executable(task_queue_tests
+        tests/task_queue_test.cpp
+        src/task_queue.cpp
+        src/widgets/progress_bar.cpp
+    )
+    uvim_enable_sanitizers(task_queue_tests)
+    target_link_libraries(task_queue_tests
+        GTest::gtest_main
+        Threads::Threads
+    )
+    target_include_directories(task_queue_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
     add_executable(logging_tests
         tests/logging_test.cpp
     )
@@ -894,11 +914,9 @@ if(UVIM_BUILD_TESTS)
     else()
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TERMINAL_POSIX=1)
     endif()
+    target_link_libraries(real_mode_transitions_tests PRIVATE Threads::Threads)
     if(UVIM_ENABLE_ANY_LSP)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
-        target_link_libraries(real_mode_transitions_tests PRIVATE
-            Threads::Threads
-        )
     endif()
     foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
         if(UVIM_ENABLE_${_uvim_lsp}_LSP)
@@ -956,6 +974,7 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(mode_state_machine_tests)
     gtest_discover_tests(constants_tests)
     gtest_discover_tests(logging_tests)
+    gtest_discover_tests(task_queue_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)

@@ -2,6 +2,8 @@
 #include "widgets/command_popup.h"
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 using namespace uvim_test;
 
@@ -981,6 +983,15 @@ TEST(RealModeTransitionsTest, HelpModeRunsEditorCommandsAndKeepsHelpCommands)
     ASSERT_STREQ(sm.currentStateName(), "HELP");
 
     dispatch_command(sm, "loctotal");
+    // :loctotal counts in the background; apply it like the main loop does.
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(60);
+    while(!editor.tasks.idle() && std::chrono::steady_clock::now() < deadline)
+    {
+        editor.tasks.pollCompletions();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    editor.tasks.pollCompletions();
     EXPECT_TRUE(text_utils::is_found(editor.locMessage.find("LOC total ")));
     EXPECT_TRUE(editor.statusMessage.empty());
     EXPECT_STREQ(sm.currentStateName(), "HELP");

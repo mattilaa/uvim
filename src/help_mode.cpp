@@ -47,7 +47,7 @@ std::vector<std::string> helpSearchTopics()
             "clipboard", "git",         "ga",          "gb",
             "gbb",       "gbl",         "gj",          "gbv",
             "gs",        "emitasm",     "lsp",         "toolinfo",
-            "diagnostics", "logging"};
+            "tasks",     "diagnostics", "logging"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -142,6 +142,8 @@ std::string helpTopicDescription(const std::string& topic)
         return "LSP setup and troubleshooting";
     if(topic == "toolinfo")
         return "External tool setup";
+    if(topic == "tasks")
+        return "Background tasks and progress";
     if(topic == "diagnostics")
         return "Diagnostic env vars";
     if(topic == "logging")
@@ -1229,6 +1231,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:format` or `:fmt` - Format current buffer",
             "  `:lspinfo`          - Show LSP status and diagnostics info",
             "  `:toolinfo`         - Show external tool status and paths",
+            "  `:tasks`            - Show background task queue and progress",
             "  `:emoji` or `:em`   - Open emoji picker",
             "  `:glyphselect`     - Open glyph selector",
 #ifdef UVIM_ENABLE_COLOR_TOOLS
@@ -1888,6 +1891,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
 #ifdef UVIM_ENABLE_RG_CACHE
             "  Grep cache: `:set rgcache`/`:set norgcache` (default on)",
             "  Grep update delay: `:set rgupdate=300` (default 300 ms)",
+            "  rg cache indexing runs in the background (see `:h tasks`);",
+            "  searches use ripgrep until the cache is ready.",
             "  Cache files are stored under the project `.rg/` directory.",
 #endif
             "  `:/...`   - Regex search forward (command mode)",
@@ -2151,6 +2156,44 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "    `%USERPROFILE%\\Documents\\uvim\\uvim.log`.",
             "  - Override with `uvim --log-file <path>` in logging-enabled",
             "    builds.",
+        };
+    }
+    else if(topic_lower == "tasks")
+    {
+        lines = {
+            "# Background Tasks",
+            "",
+            "Heavy operations (grep/ripgrep, rg cache indexing, git, "
+            "formatters, compilers, `:loc`, `:loctotal`, file indexing) run "
+            "on background workers so the editor never freezes.",
+            "",
+            "STATUS BAR:",
+            "  `(2/5) ⠹ git log ▕████▌     ▏ 45% 3s` - queue position, "
+            "spinner, progress, elapsed",
+            "  LSP servers that report `$/progress` (indexing, analysis) and "
+            "slow LSP requests are shown the same way.",
+            "  Keys typed while a result is awaited are queued and replayed "
+            "in order; `[N keys queued]` shows how many.",
+            "  `Ctrl-c` cancels the task being waited on.",
+            "",
+            "ORDERING:",
+            "  Tasks on the same channel (e.g. all git commands) run in the "
+            "order issued; a newer one waits for older ones and never "
+            "overrides them. Different channels run concurrently.",
+            "",
+            "`:tasks` VIEW:",
+            "  `j`/`k`     - Select task",
+            "  `K`/`J`     - Move a waiting task earlier/later",
+            "  `x` or `dd` - Cancel (waiting: remove, running: stop)",
+            "  `q`/`Esc`   - Close",
+            "",
+            "SETTINGS:",
+            "  `:set progressstyle=color`  - Glyph bar with theme colours "
+            "(default)",
+            "  `:set progressstyle=glyph`  - `▕████▌     ▏` eighth-block bar",
+            "  `:set progressstyle=ascii`  - `[=====.....]`",
+            "  Theme keys `theme.progress.fg` / `theme.progress.bg` set the "
+            "bar fill and track colours.",
         };
     }
     else if(topic_lower == "toolinfo")

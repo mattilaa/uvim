@@ -1848,7 +1848,11 @@ void Editor::drawSplitFullScreen()
                   "]" + theme.statusBar();
     }
 
-    std::string rightBlock = searchInfo;
+    const std::string progress = taskStatusText();
+    std::string rightBlock;
+    if(!progress.empty())
+        rightBlock = progress + " ";
+    rightBlock += searchInfo;
     rightBlock += lspInfo;
     if(!lspInfo.empty())
         rightBlock.append(5, ' ');
@@ -1873,6 +1877,9 @@ void Editor::drawSplitFullScreen()
     int padding = screenCols - statusLeft.length() - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
+    noteTaskStatusSlot(screenRows + 1, (!progress.empty() && padding >= 0)
+                                           ? screenCols - rightLen + 1
+                                           : 0);
     output += rightBlock;
     output += theme.reset();
 

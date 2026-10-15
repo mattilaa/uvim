@@ -112,6 +112,11 @@ struct ModeStateToMode
         return TOOL_INFO;
     }
 
+    Mode operator()(const TaskListMode&) const
+    {
+        return TASK_LIST;
+    }
+
     Mode operator()(const LocListMode&) const
     {
         return LOC_LIST;
@@ -263,6 +268,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     {
         return ToolInfoMode{};
     }
+    if(ctx.currentMode() == TASK_LIST)
+    {
+        return TaskListMode{};
+    }
 #endif
     if(ctx.editor && ctx.editor->getModeStateMachine())
     {
@@ -315,6 +324,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
         if(mode == TOOL_INFO)
         {
             return ToolInfoMode{};
+        }
+        if(mode == TASK_LIST)
+        {
+            return TaskListMode{};
         }
         if(mode == LOC_LIST)
         {
@@ -452,6 +465,8 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
         return LspInfoMode{};
     case TOOL_INFO:
         return ToolInfoMode{};
+    case TASK_LIST:
+        return TaskListMode{};
     case LOC_LIST:
         return LocListMode{};
     case MLANG_FORMAT_ERRORS:
@@ -462,6 +477,7 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
     case REFERENCES:
     case LSP_INFO:
     case TOOL_INFO:
+    case TASK_LIST:
     case LOC_LIST:
     case MLANG_FORMAT_ERRORS:
     case HELP:

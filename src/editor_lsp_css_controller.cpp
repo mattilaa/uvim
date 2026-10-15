@@ -47,6 +47,7 @@ void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
         args.push_back("--stdio");
 
     cssLspClient = std::make_unique<LspClient>();
+    attachLspWaitHook(*cssLspClient);
     cssLspClient->setLogSignature("CSS");
     cssLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
     if(!cssLspClient->startServer(this->cssLspPath, rootDir, args))

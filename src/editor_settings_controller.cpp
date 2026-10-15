@@ -150,6 +150,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         return true;
     }
 #endif
+    if(opt == "progressstyle?")
+    {
+        setStatusMessage("progressstyle=" +
+                         std::string(widgets::progressStyleName(progressStyle)));
+        return true;
+    }
     if(opt == "status.lspgap?")
     {
         setStatusMessage("status.lspgap=" + std::to_string(lspStatusGap));
@@ -514,6 +520,7 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     {
         respectGitignore = true;
 #ifdef UVIM_ENABLE_RG_CACHE
+        cancelRgCacheIndexing();
         rgCacheLoaded = false;
         rgCachedFiles.clear();
         rgCacheLineIndex.clear();
@@ -525,6 +532,7 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     {
         respectGitignore = false;
 #ifdef UVIM_ENABLE_RG_CACHE
+        cancelRgCacheIndexing();
         rgCacheLoaded = false;
         rgCachedFiles.clear();
         rgCacheLineIndex.clear();
@@ -582,6 +590,7 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "rgcache")
     {
         rgCacheEnabled = true;
+        cancelRgCacheIndexing();
         rgCacheLoaded = false;
         rgCacheLineIndex.clear();
         setStatusMessage("rgcache=true");
@@ -590,6 +599,7 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "norgcache")
     {
         rgCacheEnabled = false;
+        cancelRgCacheIndexing();
         rgCacheLoaded = false;
         rgCachedFiles.clear();
         rgCacheLineIndex.clear();
@@ -602,6 +612,7 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         if(value == "true" || value == "1" || value == "on")
         {
             rgCacheEnabled = true;
+            cancelRgCacheIndexing();
             rgCacheLoaded = false;
             rgCacheLineIndex.clear();
             setStatusMessage("rgcache=true");
@@ -609,6 +620,7 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else if(value == "false" || value == "0" || value == "off")
         {
             rgCacheEnabled = false;
+            cancelRgCacheIndexing();
             rgCacheLoaded = false;
             rgCachedFiles.clear();
             rgCacheLineIndex.clear();
@@ -790,6 +802,21 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("filebrowser.fuzzy: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("progressstyle=", 0) == 0)
+    {
+        const std::string value =
+            opt.substr(std::string("progressstyle=").length());
+        if(widgets::parseProgressStyle(value, progressStyle))
+        {
+            setStatusMessage("progressstyle=" + value);
+            needsFullRedraw = true;
+        }
+        else
+        {
+            setStatusMessage("progressstyle: expected ascii, glyph or color");
         }
         return true;
     }

@@ -25,6 +25,10 @@ struct StatusBarView
     int searchMatchCount = 0;
     std::string_view lspLabel;
     int lspGap = 7;
+    // Background task progress (fixed width); its 1-based start column is
+    // written to progressColumn, or 0 when it did not fit.
+    std::string_view progress;
+    int* progressColumn = nullptr;
 };
 
 struct MessageBarView

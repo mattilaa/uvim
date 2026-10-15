@@ -55,6 +55,8 @@ void EditorStatusBarView::append(std::string& output)
                                   : "[No Name]";
     std::string modeLabel = editor.getModeString();
     std::string lspInfo = currentLspLabel(editor);
+    std::string progress = editor.taskStatusText();
+    int progressColumn = 0;
 
     widgets::StatusBarView view{
         .theme = editor.theme,
@@ -72,6 +74,9 @@ void EditorStatusBarView::append(std::string& output)
         .searchMatchCount = (int)editor.searchMatches.size(),
         .lspLabel = lspInfo,
         .lspGap = editor.lspStatusGap,
+        .progress = progress,
+        .progressColumn = &progressColumn,
     };
     widgets::appendStatusBar(output, view);
+    editor.noteTaskStatusSlot(editor.screenRows + 1, progressColumn);
 }

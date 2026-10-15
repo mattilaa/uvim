@@ -393,6 +393,15 @@ void clearGrepCachedQueryState(GrepSearchMode& mode)
     mode.lastCachedQuery.clear();
     mode.lastCachedMatches.clear();
 }
+
+// Drops the cache and anything an in-flight indexing job would install.
+void invalidateRgCache(Editor& editor)
+{
+    editor.cancelRgCacheIndexing();
+    editor.rgCacheLoaded = false;
+    editor.rgCachedFiles.clear();
+    editor.rgCacheLineIndex.clear();
+}
 #endif
 
 void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
@@ -464,6 +473,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     const int key = event.key;
     Editor* ed = ctx.editor;
     int c = keyCode(key);
+    adoptBackgroundResults(*ed);
 
     // ========================================================================
     // Exit
@@ -584,6 +594,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 
 void GrepSearchMode::draw(Editor& editor)
 {
+    adoptBackgroundResults(editor);
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
@@ -639,35 +650,14 @@ void GrepSearchMode::draw(Editor& editor)
 #ifdef UVIM_ENABLE_RG_CACHE
     if(editor.rgCacheEnabled)
     {
-        output += " [rgcache ";
-        if(rgCacheIndexing)
-        {
-            const int percent =
-                rgCacheTotal > 0 ? (rgCacheIndexed * 100) / rgCacheTotal : 0;
-            output += "indexing " + std::to_string(percent) + "%";
-            output += " active jobs " + std::to_string(rgCacheJobs);
-            if(rgCacheTotal > 0)
-            {
-                output += " files " + std::to_string(rgCacheIndexed) + "/" +
-                          std::to_string(rgCacheTotal);
-            }
-            else
-            {
-                output += " discovering";
-            }
-            if(rgCacheUpdated > 0)
-                output += " updated " + std::to_string(rgCacheUpdated);
-            if(rgCacheRemoved > 0)
-                output += " removed " + std::to_string(rgCacheRemoved);
-        }
+        // Indexing progress lives in the status bar and :tasks.
+        if(editor.rgCacheIndexTask != 0)
+            output += " [rgcache indexing, using rg]";
+        else if(editor.rgCacheLoaded)
+            output += " [rgcache " + std::to_string(editor.rgCachedFiles.size()) +
+                      " files]";
         else
-        {
-            output += "idle active jobs 0 indexed files " +
-                      std::to_string(editor.rgCachedFiles.size());
-            if(rgCacheTotal > 0)
-                output += "/" + std::to_string(rgCacheTotal);
-        }
-        output += "]";
+            output += " [rgcache]";
     }
 #endif
     if(!selectedMatches.empty())
@@ -798,9 +788,48 @@ void GrepSearchMode::draw(Editor& editor)
     Terminal::flush();
 }
 
+bool GrepSearchMode::adoptBackgroundResults(Editor& editor)
+{
+    bool changed = false;
+    if(editor.grepBackgroundResult)
+    {
+        auto result = std::move(*editor.grepBackgroundResult);
+        editor.grepBackgroundResult.reset();
+        if(result.searchId == activeSearch && activeSearchTask != 0)
+        {
+            activeSearchTask = 0;
+            searching = false;
+            if(result.completed)
+            {
+                matches = std::move(result.matches);
+                if(cursor >= (int)matches.size())
+                {
+                    cursor = 0;
+                    offset = 0;
+                }
+                prewarmAroundCursor(editor);
+            }
+            changed = true;
+        }
+    }
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(editor.rgCacheJustLoaded)
+    {
+        editor.rgCacheJustLoaded = false;
+        clearGrepCachedQueryState(*this);
+        if(!query.empty() && !searchPending)
+            performSearch(editor);
+        changed = true;
+    }
+#endif
+    if(changed)
+        editor.needsFullRedraw = true;
+    return changed;
+}
+
 bool GrepSearchMode::processIdle(Editor& editor)
 {
-    bool didWork = false;
+    bool didWork = adoptBackgroundResults(editor);
 #ifdef UVIM_ENABLE_RG_CACHE
     if(rgCacheSyncPending)
     {
@@ -824,86 +853,105 @@ bool GrepSearchMode::processIdle(Editor& editor)
 
 void GrepSearchMode::loadFileIndex(Editor& editor)
 {
-    if(!editor.grepFileIndexInitialized)
+    if(editor.grepFileIndexInitialized)
+        return;
+    const bool useGit = editor.useGitFileIndex;
+    const bool respectGitignore = editor.respectGitignore;
+    std::vector<FileEntry> files;
+    // Listing + stat'ing a large tree can take seconds; keep the TUI alive.
+    if(editor.runTask("file index", "file-index",
+                      [&files, useGit, respectGitignore](TaskQueue::Context& ctx)
+                      {
+                          files = collectProjectFiles(
+                              useGit, respectGitignore,
+                              [&ctx] { return ctx.cancelled(); });
+                      }))
     {
-        editor.grepProjectFiles.clear();
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        if(!cwdEc)
-        {
-            const std::string cwdStr = cwd.string();
-            if(editor.useGitFileIndex)
-            {
-                std::string repoRoot = runCmd(
-                    {"git", "-C", cwdStr, "rev-parse", "--show-toplevel"});
-
-                if(!repoRoot.empty())
-                {
-                    const std::string raw =
-                        runCmd({"git", "-C", cwdStr, "ls-files", "-z",
-                                "--cached", "--others", "--exclude-standard"});
-                    const auto relPaths = splitNul(raw);
-
-                    for(const auto& relPath : relPaths)
-                    {
-                        if(relPath.empty())
-                            continue;
-                        if(isRgCachePath(relPath))
-                            continue;
-
-                        const std::string fullPath = cwdStr + "/" + relPath;
-                        std::error_code stEc;
-                        auto status = std::filesystem::status(fullPath, stEc);
-                        if(stEc)
-                            continue;
-                        if(std::filesystem::is_directory(status))
-                            continue;
-
-                        FileEntry entry;
-                        std::filesystem::path fullFs(fullPath);
-                        entry.name = fullFs.filename().string();
-                        entry.path = relPath;
-                        entry.isDirectory = false;
-                        std::error_code szEc;
-                        entry.size = (uintmax_t)std::filesystem::file_size(
-                            fullPath, szEc);
-                        if(szEc)
-                            entry.size = 0;
-                        std::error_code mtEc;
-                        auto ftime =
-                            std::filesystem::last_write_time(fullPath, mtEc);
-                        if(!mtEc)
-                        {
-                            using namespace std::chrono;
-                            auto sctp = time_point_cast<system_clock::duration>(
-                                ftime - decltype(ftime)::clock::now() +
-                                system_clock::now());
-                            entry.modTime = system_clock::to_time_t(sctp);
-                        }
-                        editor.grepProjectFiles.push_back(std::move(entry));
-                    }
-                }
-            }
-
-            if(editor.grepProjectFiles.empty())
-            {
-                GitIgnore gitignore;
-                if(editor.respectGitignore)
-                {
-                    gitignore.loadRecursive(cwd);
-                }
-                editor::helper::collectProjectFileEntries(
-                    cwdStr, 0, gitignore, editor.grepProjectFiles);
-                editor.grepProjectFiles.erase(
-                    std::remove_if(editor.grepProjectFiles.begin(),
-                                   editor.grepProjectFiles.end(),
-                                   [](const FileEntry& entry)
-                                   { return isRgCachePath(entry.path); }),
-                    editor.grepProjectFiles.end());
-            }
-        }
+        editor.grepProjectFiles = std::move(files);
         editor.grepFileIndexInitialized = true;
     }
+}
+
+std::vector<FileEntry>
+GrepSearchMode::collectProjectFiles(bool useGitFileIndex, bool respectGitignore,
+                                    const std::function<bool()>& cancelled)
+{
+    std::vector<FileEntry> files;
+    std::error_code cwdEc;
+    auto cwd = std::filesystem::current_path(cwdEc);
+    if(cwdEc)
+        return files;
+
+    const std::string cwdStr = cwd.string();
+    if(useGitFileIndex)
+    {
+        std::string repoRoot =
+            runCmd({"git", "-C", cwdStr, "rev-parse", "--show-toplevel"});
+
+        if(!repoRoot.empty())
+        {
+            const std::string raw =
+                runCmd({"git", "-C", cwdStr, "ls-files", "-z", "--cached",
+                        "--others", "--exclude-standard"});
+            const auto relPaths = splitNul(raw);
+
+            for(const auto& relPath : relPaths)
+            {
+                if(cancelled && cancelled())
+                    break;
+                if(relPath.empty())
+                    continue;
+                if(isRgCachePath(relPath))
+                    continue;
+
+                const std::string fullPath = cwdStr + "/" + relPath;
+                std::error_code stEc;
+                auto status = std::filesystem::status(fullPath, stEc);
+                if(stEc)
+                    continue;
+                if(std::filesystem::is_directory(status))
+                    continue;
+
+                FileEntry entry;
+                std::filesystem::path fullFs(fullPath);
+                entry.name = fullFs.filename().string();
+                entry.path = relPath;
+                entry.isDirectory = false;
+                std::error_code szEc;
+                entry.size =
+                    (uintmax_t)std::filesystem::file_size(fullPath, szEc);
+                if(szEc)
+                    entry.size = 0;
+                std::error_code mtEc;
+                auto ftime = std::filesystem::last_write_time(fullPath, mtEc);
+                if(!mtEc)
+                {
+                    using namespace std::chrono;
+                    auto sctp = time_point_cast<system_clock::duration>(
+                        ftime - decltype(ftime)::clock::now() +
+                        system_clock::now());
+                    entry.modTime = system_clock::to_time_t(sctp);
+                }
+                files.push_back(std::move(entry));
+            }
+        }
+    }
+
+    if(files.empty())
+    {
+        GitIgnore gitignore;
+        if(respectGitignore)
+        {
+            gitignore.loadRecursive(cwd);
+        }
+        editor::helper::collectProjectFileEntries(cwdStr, 0, gitignore, files,
+                                                  cancelled);
+        files.erase(std::remove_if(files.begin(), files.end(),
+                                   [](const FileEntry& entry)
+                                   { return isRgCachePath(entry.path); }),
+                    files.end());
+    }
+    return files;
 }
 
 void GrepSearchMode::initialize(Editor& editor)
@@ -918,9 +966,7 @@ void GrepSearchMode::refreshFileIndex(Editor& editor)
     editor.grepFileIndexInitialized = false;
     editor.grepProjectFiles.clear();
 #ifdef UVIM_ENABLE_RG_CACHE
-    editor.rgCacheLoaded = false;
-    editor.rgCachedFiles.clear();
-    editor.rgCacheLineIndex.clear();
+    invalidateRgCache(editor);
     clearGrepCachedQueryState(*this);
     lastRgCacheIndexRefresh = {};
 #endif
@@ -940,17 +986,28 @@ void GrepSearchMode::refreshFileIndex(Editor& editor)
 void GrepSearchMode::performSearch(Editor& editor)
 {
     searchPending = false;
-    matches.clear();
     selectedMatches.clear();
-    searching = true;
+    // A newer query supersedes any search still running in the background.
+    if(activeSearchTask != 0)
+    {
+        editor.tasks.cancel(activeSearchTask);
+        activeSearchTask = 0;
+    }
+    static std::atomic<std::uint64_t> nextSearchId{0};
+    activeSearch = ++nextSearchId;
 
     if(query.empty())
     {
+        matches.clear();
         searching = false;
         return;
     }
 
 #ifdef UVIM_ENABLE_RG_CACHE
+    // In-memory cache lookups are fast enough to stay on the main thread.
+    // (Background searches keep the previous results visible meanwhile.)
+    std::vector<GrepMatch> previousMatches = std::move(matches);
+    matches.clear();
     if(performCachedSearch(editor))
     {
         searching = false;
@@ -962,42 +1019,88 @@ void GrepSearchMode::performSearch(Editor& editor)
         prewarmAroundCursor(editor);
         return;
     }
+    matches = std::move(previousMatches);
 #endif
 
-    if(performRipgrepSearch(editor))
+    startBackgroundSearch(editor);
+}
+
+void GrepSearchMode::startBackgroundSearch(Editor& editor)
+{
+    searching = true;
+
+    struct Request
     {
-        searching = false;
-        if(cursor >= (int)matches.size())
+        std::string query;
+        bool caseSensitive = false;
+        bool respectGitignore = true;
+        bool useGitFileIndex = true;
+        bool haveFileIndex = false;
+        std::vector<FileEntry> files;
+        std::vector<GrepMatch> results;
+    };
+    auto request = std::make_shared<Request>();
+    request->query = query;
+    request->caseSensitive = caseSensitive;
+    request->respectGitignore = editor.respectGitignore;
+    request->useGitFileIndex = editor.useGitFileIndex;
+    if(!ripgrepAvailable() && editor.grepFileIndexInitialized)
+    {
+        request->files = editor.grepProjectFiles;
+        request->haveFileIndex = true;
+    }
+
+    const std::uint64_t searchId = activeSearch;
+    Editor* ed = &editor;
+
+    auto submitted = editor.submitTask(
+        "grep \"" + query + "\"", "",
+        [request](TaskQueue::Context& ctx)
         {
-            cursor = 0;
-            offset = 0;
-        }
-        prewarmAroundCursor(editor);
-        return;
-    }
-
-    loadFileIndex(editor);
-    for(const auto& file : editor.grepProjectFiles)
-    {
-        if(file.isDirectory)
-            continue;
-        if(isRgCachePath(file.path))
-            continue;
-
-        searchInFile(file.path, query);
-
-        if(matches.size() >= 1000)
-            break;
-    }
-
-    searching = false;
-
-    if(cursor >= (int)matches.size())
-    {
-        cursor = 0;
-        offset = 0;
-    }
-    prewarmAroundCursor(editor);
+            GrepSearchMode searcher;
+            searcher.query = request->query;
+            searcher.caseSensitive = request->caseSensitive;
+            auto cancelled = [&ctx] { return ctx.cancelled(); };
+            if(!searcher.performRipgrepSearch(request->respectGitignore,
+                                              cancelled))
+            {
+                if(!request->haveFileIndex)
+                {
+                    ctx.detail("listing files");
+                    request->files = collectProjectFiles(
+                        request->useGitFileIndex, request->respectGitignore,
+                        cancelled);
+                    ctx.detail({});
+                }
+                const long long total = (long long)request->files.size();
+                long long scanned = 0;
+                for(const auto& file : request->files)
+                {
+                    if(ctx.cancelled() || searcher.matches.size() >= 1000)
+                        break;
+                    ctx.progress(++scanned, total);
+                    if(file.isDirectory || isRgCachePath(file.path))
+                        continue;
+                    searcher.searchInFile(file.path, searcher.query);
+                }
+            }
+            request->results = std::move(searcher.matches);
+        },
+        // The grep view adopts the result by id; it may have been left or
+        // re-entered while the search ran.
+        [ed, request, searchId]
+        {
+            ed->grepBackgroundResult = Editor::GrepBackgroundResult{
+                searchId, true, std::move(request->results)};
+            ed->needsFullRedraw = true;
+        },
+        [ed, searchId]
+        {
+            ed->grepBackgroundResult =
+                Editor::GrepBackgroundResult{searchId, false, {}};
+            ed->needsFullRedraw = true;
+        });
+    activeSearchTask = submitted.id;
 }
 
 void GrepSearchMode::scheduleSearch(Editor& editor)
@@ -1032,288 +1135,280 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     if(!editor.rgCacheEnabled)
         return false;
 
-    auto cacheRoot = rgCacheRoot();
+    const auto cacheRoot = rgCacheRoot();
     if(cacheRoot.empty())
         return false;
-    const auto filesDir = cacheRoot / "files";
-    const auto indexPath = cacheRoot / "index.tsv";
 
     const bool refreshFileIndex =
         force || !editor.grepFileIndexInitialized || !editor.rgCacheLoaded;
-
     if(editor.rgCacheLoaded && !refreshFileIndex)
         return true;
-
-    rgCacheIndexing = true;
-    rgCacheIndexed = 0;
-    rgCacheTotal = 0;
-    rgCacheUpdated = 0;
-    rgCacheRemoved = 0;
-    rgCacheJobs = 1;
-    draw(editor);
-    Terminal::flush();
-
-    auto finishIndexing = [&] {
-        rgCacheIndexing = false;
-        rgCacheJobs = 0;
-    };
-
-    if(refreshFileIndex)
-    {
-        editor.grepFileIndexInitialized = false;
-        editor.grepProjectFiles.clear();
-        lastRgCacheIndexRefresh = std::chrono::steady_clock::now();
-    }
-    loadFileIndex(editor);
-
-    std::error_code ec;
-    std::filesystem::create_directories(filesDir, ec);
-    if(ec)
-    {
-        finishIndexing();
-        editor.needsFullRedraw = true;
+    // Already indexing in the background; searches use ripgrep until the
+    // job installs the cache. A second sync must not override the first.
+    if(editor.rgCacheIndexTask != 0)
         return false;
-    }
 
-    auto oldIndex = loadRgCacheIndex(indexPath);
-    std::unordered_map<std::string, const Editor::RgCachedFile*> existing;
-    for(const auto& cached : editor.rgCachedFiles)
-        existing[cached.path] = &cached;
-    const auto& oldCacheIndex = oldIndex;
-    const auto& existingFiles = existing;
+    lastRgCacheIndexRefresh = std::chrono::steady_clock::now();
 
-    std::vector<Editor::RgCachedFile> cachedFiles;
-    std::vector<std::pair<std::string, RgCacheMeta>> newIndex;
-    std::unordered_set<std::string> liveCacheNames;
-
-    struct PendingFile
+    struct Job
     {
-        std::string path;
-        std::filesystem::path sourcePath;
-        std::filesystem::path cacheFile;
-        std::string cacheName;
+        std::filesystem::path filesDir;
+        std::filesystem::path indexPath;
+        bool useGitFileIndex = true;
+        bool respectGitignore = true;
+        // The current cache is lent to the job so unchanged files are reused
+        // without copying; it comes back through `done` or `onAbort`.
+        std::vector<Editor::RgCachedFile> previous;
+        std::vector<FileEntry> projectFiles;
+        std::vector<Editor::RgCachedFile> cachedFiles;
     };
+    auto job = std::make_shared<Job>();
+    job->filesDir = cacheRoot / "files";
+    job->indexPath = cacheRoot / "index.tsv";
+    job->useGitFileIndex = editor.useGitFileIndex;
+    job->respectGitignore = editor.respectGitignore;
+    job->previous = std::move(editor.rgCachedFiles);
+    editor.rgCachedFiles.clear();
+    editor.rgCacheLineIndex.clear();
+    editor.rgCacheLoaded = false;
 
-    std::vector<PendingFile> pendingFiles;
-    for(const auto& file : editor.grepProjectFiles)
+    auto work = [job](TaskQueue::Context& ctx)
     {
-        if(file.isDirectory || isRgCachePath(file.path) || !isTextFile(file.path))
-            continue;
+        ctx.detail("listing files");
+        job->projectFiles =
+            collectProjectFiles(job->useGitFileIndex, job->respectGitignore,
+                                [&ctx] { return ctx.cancelled(); });
+        ctx.detail({});
 
-        const std::filesystem::path displayPath(file.path);
-        std::filesystem::path sourcePath = displayPath;
-        if(sourcePath.is_relative())
-            sourcePath = std::filesystem::current_path() / sourcePath;
+        std::error_code ec;
+        std::filesystem::create_directories(job->filesDir, ec);
+        if(ec)
+            throw std::runtime_error("cannot create " + job->filesDir.string());
 
-        const std::string cacheName = fnv1aHex(file.path) + ".txt";
-        const std::filesystem::path cacheFile = filesDir / cacheName;
+        const auto oldIndex = loadRgCacheIndex(job->indexPath);
+        std::unordered_map<std::string, const Editor::RgCachedFile*> existing;
+        for(const auto& cached : job->previous)
+            existing[cached.path] = &cached;
 
-        pendingFiles.push_back(
-            PendingFile{file.path, sourcePath, cacheFile, cacheName});
-    }
-
-    rgCacheIndexed = 0;
-    rgCacheTotal = static_cast<int>(pendingFiles.size());
-    const unsigned int reportedCores = std::thread::hardware_concurrency();
-    const size_t maxWorkers =
-        std::max<size_t>(1, std::min<size_t>(reportedCores == 0 ? 2
-                                                               : reportedCores,
-                                             8));
-    const size_t workerCount = std::min(pendingFiles.size(), maxWorkers);
-    rgCacheJobs = static_cast<int>(workerCount);
-    draw(editor);
-    Terminal::flush();
-    auto lastProgressDraw = std::chrono::steady_clock::now();
-
-    struct IndexedFile
-    {
-        std::optional<Editor::RgCachedFile> cached;
-        RgCacheMeta meta;
-        bool updated = false;
-    };
-    std::vector<IndexedFile> indexedFiles(pendingFiles.size());
-    std::atomic<size_t> nextFile{0};
-    std::atomic<int> completedFiles{0};
-    std::atomic<int> activeJobs{0};
-
-    auto indexWorker = [&] {
-        while(true)
+        struct PendingFile
         {
-            const size_t fileIndex = nextFile.fetch_add(1);
-            if(fileIndex >= pendingFiles.size())
-                break;
+            std::string path;
+            std::filesystem::path sourcePath;
+            std::filesystem::path cacheFile;
+            std::string cacheName;
+        };
+        std::vector<PendingFile> pendingFiles;
+        for(const auto& file : job->projectFiles)
+        {
+            if(file.isDirectory || isRgCachePath(file.path) ||
+               !isTextFile(file.path))
+                continue;
+            std::filesystem::path sourcePath(file.path);
+            if(sourcePath.is_relative())
+                sourcePath = std::filesystem::current_path() / sourcePath;
+            const std::string cacheName = fnv1aHex(file.path) + ".txt";
+            pendingFiles.push_back(PendingFile{file.path, sourcePath,
+                                               job->filesDir / cacheName,
+                                               cacheName});
+        }
 
-            const auto& pending = pendingFiles[fileIndex];
-            auto& result = indexedFiles[fileIndex];
+        const int total = static_cast<int>(pendingFiles.size());
+        ctx.progress(0, total);
+
+        struct IndexedFile
+        {
+            std::optional<Editor::RgCachedFile> cached;
+            RgCacheMeta meta;
+            bool updated = false;
+        };
+        std::vector<IndexedFile> indexedFiles(pendingFiles.size());
+        std::atomic<size_t> nextFile{0};
+        std::atomic<int> completedFiles{0};
+        std::atomic<bool> stop{false};
+
+        auto indexOne = [&](const PendingFile& pending, IndexedFile& result)
+        {
+            std::error_code stEc;
+            const auto status =
+                std::filesystem::status(pending.sourcePath, stEc);
+            if(stEc || !std::filesystem::is_regular_file(status))
+                return;
+            std::error_code sizeEc;
+            const uintmax_t size =
+                std::filesystem::file_size(pending.sourcePath, sizeEc);
+            if(sizeEc)
+                return;
+            const long long mtime = fileMtimeCount(pending.sourcePath);
+
+            Editor::RgCachedFile cached;
+            cached.path = pending.path;
+            cached.size = size;
+            cached.mtime = mtime;
+
+            bool loaded = false;
+            auto current = existing.find(pending.path);
+            if(current != existing.end() && current->second->size == size &&
+               current->second->mtime == mtime)
+            {
+                cached.lines = current->second->lines;
+                cached.lowerLines = current->second->lowerLines;
+                loaded = true;
+            }
+            auto old = oldIndex.find(pending.path);
+            if(!loaded && old != oldIndex.end() && old->second.size == size &&
+               old->second.mtime == mtime &&
+               old->second.cacheName == pending.cacheName)
+            {
+                loaded = readCachedLines(pending.cacheFile, cached.lines);
+            }
+            if(!loaded)
+            {
+                if(!readCachedLines(pending.sourcePath, cached.lines))
+                    return;
+                copyFileToCache(pending.sourcePath, pending.cacheFile);
+                result.updated = true;
+            }
+            if(cached.lowerLines.size() != cached.lines.size())
+                cached.lowerLines = makeLowerLines(cached.lines);
+
+            result.meta.size = size;
+            result.meta.mtime = mtime;
+            result.meta.cacheName = pending.cacheName;
+            result.cached = std::move(cached);
+        };
+
+        auto indexWorker = [&]
+        {
+            while(!stop.load())
+            {
+                const size_t fileIndex = nextFile.fetch_add(1);
+                if(fileIndex >= pendingFiles.size())
+                    break;
+                try
+                {
+                    indexOne(pendingFiles[fileIndex], indexedFiles[fileIndex]);
+                }
+                catch(...)
+                {
+                    // A file-local failure counts as an unreadable file; it
+                    // must not stall progress forever.
+                }
+                completedFiles.fetch_add(1);
+            }
+        };
+
+        const unsigned int reportedCores = std::thread::hardware_concurrency();
+        const size_t maxWorkers = std::max<size_t>(
+            1, std::min<size_t>(reportedCores == 0 ? 2 : reportedCores, 8));
+        const size_t workerCount = std::min(pendingFiles.size(), maxWorkers);
+        std::vector<std::thread> workers;
+        workers.reserve(workerCount);
+        for(size_t i = 0; i < workerCount; ++i)
+        {
             try
             {
-
-                std::error_code stEc;
-                const auto status =
-                    std::filesystem::status(pending.sourcePath, stEc);
-                if(stEc || !std::filesystem::is_regular_file(status))
-                {
-                    completedFiles.fetch_add(1);
-                    continue;
-                }
-
-                std::error_code sizeEc;
-                const uintmax_t size =
-                    std::filesystem::file_size(pending.sourcePath, sizeEc);
-                if(sizeEc)
-                {
-                    completedFiles.fetch_add(1);
-                    continue;
-                }
-                const long long mtime = fileMtimeCount(pending.sourcePath);
-
-                Editor::RgCachedFile cached;
-                cached.path = pending.path;
-                cached.size = size;
-                cached.mtime = mtime;
-
-                bool loaded = false;
-                auto current = existingFiles.find(pending.path);
-                if(current != existingFiles.end() &&
-                   current->second->size == size &&
-                   current->second->mtime == mtime)
-                {
-                    cached.lines = current->second->lines;
-                    cached.lowerLines = current->second->lowerLines;
-                    loaded = true;
-                }
-
-                auto old = oldCacheIndex.find(pending.path);
-                if(!loaded && old != oldCacheIndex.end() &&
-                   old->second.size == size && old->second.mtime == mtime &&
-                   old->second.cacheName == pending.cacheName)
-                {
-                    loaded = readCachedLines(pending.cacheFile, cached.lines);
-                }
-
-                if(!loaded)
-                {
-                    if(!readCachedLines(pending.sourcePath, cached.lines))
-                    {
-                        completedFiles.fetch_add(1);
-                        continue;
-                    }
-                    copyFileToCache(pending.sourcePath, pending.cacheFile);
-                    result.updated = true;
-                }
-                if(cached.lowerLines.size() != cached.lines.size())
-                    cached.lowerLines = makeLowerLines(cached.lines);
-
-                result.meta.size = size;
-                result.meta.mtime = mtime;
-                result.meta.cacheName = pending.cacheName;
-                result.cached = std::move(cached);
-                completedFiles.fetch_add(1);
+                workers.emplace_back(indexWorker);
             }
             catch(...)
             {
-                // Treat a file-local failure as an unreadable file. One bad
-                // entry must not terminate a worker or stall progress forever.
-                completedFiles.fetch_add(1);
+                break;
             }
         }
-        activeJobs.fetch_sub(1);
+        if(workers.empty())
+            indexWorker();
+
+        while(completedFiles.load() < total && !workers.empty())
+        {
+            ctx.progress(completedFiles.load(), total);
+            if(ctx.cancelled())
+                stop = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            if(stop.load())
+                break;
+        }
+        for(auto& worker : workers)
+            worker.join();
+        if(ctx.cancelled())
+            return; // onAbort hands the previous cache back
+        ctx.progress(completedFiles.load(), total);
+
+        std::vector<std::pair<std::string, RgCacheMeta>> newIndex;
+        std::unordered_set<std::string> liveCacheNames;
+        int updated = 0;
+        for(size_t i = 0; i < indexedFiles.size(); ++i)
+        {
+            auto& result = indexedFiles[i];
+            if(!result.cached)
+                continue;
+            if(result.updated)
+                ++updated;
+            newIndex.emplace_back(pendingFiles[i].path, result.meta);
+            liveCacheNames.insert(pendingFiles[i].cacheName);
+            job->cachedFiles.push_back(std::move(*result.cached));
+        }
+
+        ctx.detail("writing index");
+        std::ofstream indexOut(job->indexPath, std::ios::trunc);
+        if(indexOut)
+        {
+            for(const auto& [path, meta] : newIndex)
+            {
+                indexOut << path << '\t' << meta.size << '\t' << meta.mtime
+                         << '\t' << meta.cacheName << '\n';
+            }
+        }
+
+        int removed = 0;
+        std::error_code iterEc;
+        for(const auto& entry :
+            std::filesystem::directory_iterator(job->filesDir, iterEc))
+        {
+            if(iterEc)
+                break;
+            if(!entry.is_regular_file())
+                continue;
+            if(liveCacheNames.count(entry.path().filename().string()) == 0)
+            {
+                std::error_code removeEc;
+                std::filesystem::remove(entry.path(), removeEc);
+                if(!removeEc)
+                    ++removed;
+            }
+        }
+        ctx.detail(std::to_string(updated) + " updated, " +
+                   std::to_string(removed) + " removed");
     };
 
-    std::vector<std::thread> workers;
-    workers.reserve(workerCount);
-    for(size_t i = 0; i < workerCount; ++i)
-    {
-        activeJobs.fetch_add(1);
-        try
+    Editor* ed = &editor;
+    const std::uint64_t generation = editor.rgCacheGeneration;
+
+    auto submitted = editor.submitTask(
+        "rg cache index", "rg-cache", std::move(work),
+        [ed, job, generation]
         {
-            workers.emplace_back(indexWorker);
-        }
-        catch(...)
+            if(ed->rgCacheGeneration != generation)
+                return; // invalidated (gitignore toggle, refresh) meanwhile
+            ed->rgCacheIndexTask = 0;
+            ed->grepProjectFiles = std::move(job->projectFiles);
+            ed->grepFileIndexInitialized = true;
+            ed->rgCachedFiles = std::move(job->cachedFiles);
+            rebuildRgCacheLineIndex(*ed);
+            ed->rgCacheLoaded = true;
+            ed->rgCacheJustLoaded = true;
+            ed->needsFullRedraw = true;
+        },
+        [ed, job, generation]
         {
-            activeJobs.fetch_sub(1);
-            break;
-        }
-    }
-    if(workers.empty() && !pendingFiles.empty())
-    {
-        activeJobs.store(1);
-        indexWorker();
-    }
-
-    while(completedFiles.load() < rgCacheTotal)
-    {
-        rgCacheIndexed = completedFiles.load();
-        rgCacheJobs = activeJobs.load();
-        const auto drawNow = std::chrono::steady_clock::now();
-        if(drawNow - lastProgressDraw >= std::chrono::seconds(1))
-        {
-            draw(editor);
-            Terminal::flush();
-            lastProgressDraw = drawNow;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    for(auto& worker : workers)
-        worker.join();
-
-    rgCacheIndexed = completedFiles.load();
-    rgCacheJobs = 0;
-    for(size_t i = 0; i < indexedFiles.size(); ++i)
-    {
-        auto& result = indexedFiles[i];
-        if(!result.cached)
-            continue;
-
-        if(result.updated)
-            rgCacheUpdated++;
-        const auto& pending = pendingFiles[i];
-        newIndex.emplace_back(pending.path, result.meta);
-        liveCacheNames.insert(pending.cacheName);
-        cachedFiles.push_back(std::move(*result.cached));
-    }
-
-    if(rgCacheTotal > 0)
-    {
-        draw(editor);
-        Terminal::flush();
-    }
-
-    std::ofstream indexOut(indexPath, std::ios::trunc);
-    if(indexOut)
-    {
-        for(const auto& [path, meta] : newIndex)
-        {
-            indexOut << path << '\t' << meta.size << '\t' << meta.mtime << '\t'
-                     << meta.cacheName << '\n';
-        }
-    }
-
-    std::error_code iterEc;
-    for(const auto& entry : std::filesystem::directory_iterator(filesDir, iterEc))
-    {
-        if(iterEc)
-            break;
-        if(!entry.is_regular_file())
-            continue;
-        const std::string name = entry.path().filename().string();
-        if(liveCacheNames.find(name) == liveCacheNames.end())
-        {
-            std::error_code removeEc;
-            std::filesystem::remove(entry.path(), removeEc);
-            if(!removeEc)
-                rgCacheRemoved++;
-        }
-    }
-
-    editor.rgCachedFiles = std::move(cachedFiles);
-    rebuildRgCacheLineIndex(editor);
-    editor.rgCacheLoaded = true;
-    finishIndexing();
-    draw(editor);
-    Terminal::flush();
-
-    return true;
+            if(ed->rgCacheGeneration != generation)
+                return;
+            ed->rgCacheIndexTask = 0;
+            if(ed->rgCachedFiles.empty())
+                ed->rgCachedFiles = std::move(job->previous);
+            ed->needsFullRedraw = true;
+        });
+    editor.rgCacheIndexTask = submitted.id;
+    editor.needsFullRedraw = true;
+    return false;
 }
 
 bool GrepSearchMode::performCachedSearch(Editor& editor)
@@ -1439,14 +1534,16 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
 }
 #endif
 
-bool GrepSearchMode::performRipgrepSearch(Editor& editor)
+bool GrepSearchMode::performRipgrepSearch(
+    bool respectGitignore, const std::function<bool()>& cancelled)
 {
 #ifdef _WIN32
     // Windows _popen waits for the child process in _pclose. Because ripgrep's
     // --max-count is per file, uvim can stop reading after 1000 matches while
     // rg keeps scanning the rest of the tree, making interactive grep appear
     // frozen. The in-process fallback has a real global match cap.
-    (void)editor;
+    (void)respectGitignore;
+    (void)cancelled;
     return false;
 #else
     if(!ripgrepAvailable())
@@ -1470,7 +1567,7 @@ bool GrepSearchMode::performRipgrepSearch(Editor& editor)
         "1000",
     };
     args.push_back(caseSensitive ? "--case-sensitive" : "--ignore-case");
-    if(!editor.respectGitignore)
+    if(!respectGitignore)
         args.push_back("--no-ignore");
     args.push_back("--");
     args.push_back(query);
@@ -1483,6 +1580,8 @@ bool GrepSearchMode::performRipgrepSearch(Editor& editor)
     std::string line;
     while(matches.size() < 1000 && !(line = pipe.readLine(64 * 1024)).empty())
     {
+        if(cancelled && cancelled())
+            break;
         const size_t pathEnd = line.find('\t');
         if(text_utils::is_not_found(pathEnd))
             continue;
@@ -1581,7 +1680,7 @@ void GrepSearchMode::searchInFile(const std::string& filepath,
     }
 }
 
-bool GrepSearchMode::isTextFile(const std::string& filepath) const
+bool GrepSearchMode::isTextFile(const std::string& filepath)
 {
     std::string ext;
     size_t dotPos =
@@ -1629,7 +1728,7 @@ bool GrepSearchMode::isTextFile(const std::string& filepath) const
     return !isBinaryFile(filepath);
 }
 
-bool GrepSearchMode::isBinaryFile(const std::string& filepath) const
+bool GrepSearchMode::isBinaryFile(const std::string& filepath)
 {
     std::ifstream file(filepath, std::ios::binary);
     if(!file)
@@ -1664,7 +1763,7 @@ bool GrepSearchMode::isBinaryFile(const std::string& filepath) const
     return nonPrintableRatio > 0.3;
 }
 
-std::string GrepSearchMode::trimString(const std::string& str) const
+std::string GrepSearchMode::trimString(const std::string& str)
 {
     size_t first = str.find_first_not_of(" \t\r\n");
     if(text_utils::is_not_found(first))
@@ -1810,9 +1909,7 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
     editor.grepFileIndexInitialized = false;
     editor.grepProjectFiles.clear();
 #ifdef UVIM_ENABLE_RG_CACHE
-    editor.rgCacheLoaded = false;
-    editor.rgCachedFiles.clear();
-    editor.rgCacheLineIndex.clear();
+    invalidateRgCache(editor);
     clearGrepCachedQueryState(*this);
     lastRgCacheIndexRefresh = {};
 #endif

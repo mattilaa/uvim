@@ -10,6 +10,18 @@ void flushGrepDebounce(GrepSearchMode& state, Editor& editor)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(310));
     state.processIdle(editor);
+    // Searches and rg cache indexing run on the task queue; apply finished
+    // jobs the way the editor main loop does.
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while(!editor.tasks.idle() && std::chrono::steady_clock::now() < deadline)
+    {
+        editor.tasks.pollCompletions();
+        state.processIdle(editor);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    editor.tasks.pollCompletions();
+    state.processIdle(editor);
     state.draw(editor);
 }
 } // namespace

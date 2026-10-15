@@ -8,9 +8,11 @@
 #include "mlang_format_errors.h"
 #include "mode.h"
 #include "search_types.h"
+#include "task_queue.h"
 #include "theme.h"
 #include "token_type.h"
 #include "visual_color_range.h"
+#include "widgets/progress_bar.h"
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -225,6 +227,24 @@ public:
     int rgUpdateMs = 300;
     bool rgCacheLoaded = false;
     std::vector<RgCachedFile> rgCachedFiles;
+    // Background rg cache indexing job (0 when idle). Bumping the generation
+    // invalidates whatever an in-flight job would install.
+    std::uint64_t rgCacheIndexTask = 0;
+    std::uint64_t rgCacheGeneration = 0;
+    // Set when background indexing installed a fresh cache; the grep view
+    // re-runs its query against it.
+    bool rgCacheJustLoaded = false;
+    // Finished background grep search, adopted by the grep view whose
+    // activeSearch matches (results for superseded queries are dropped).
+    struct GrepBackgroundResult
+    {
+        std::uint64_t searchId = 0;
+        bool completed = false;
+        std::vector<GrepMatch> matches;
+    };
+    std::optional<GrepBackgroundResult> grepBackgroundResult;
+    // Stops background indexing and makes its result void.
+    void cancelRgCacheIndexing();
     std::unordered_map<std::string, std::vector<RgCacheLineRef>>
         rgCacheLineIndex;
 #endif
@@ -778,6 +798,7 @@ public:
     void clearToolInfo();
     void scrollToolInfo(int delta);
     void drawToolInfo();
+    void drawTaskList();
 
     // Movement commands
     void moveCursor(int key);
@@ -974,6 +995,39 @@ public:
 
     // Utilities
     void setStatusMessage(const std::string& msg);
+
+    // ---- Background tasks (editor_tasks.cpp) ------------------------------
+    // Heavy operations run on TaskQueue workers so the TUI never freezes.
+    // Same-channel jobs run in submission order; `done` runs on the main
+    // thread in submission order. Work must not touch editor/terminal state.
+    TaskQueue tasks;
+    widgets::ProgressStyle progressStyle = widgets::ProgressStyle::Color;
+
+    TaskQueue::Submitted submitTask(std::string label, std::string channel,
+                                    TaskQueue::Work work,
+                                    TaskQueue::Done done = {},
+                                    TaskQueue::Done onAbort = {});
+    // Foreground variant for results the caller needs right away: waits for
+    // the job while animating the status bar and queueing keystrokes, which
+    // replay once it returns. Ctrl-C cancels. False when cancelled/failed.
+    bool runTask(std::string label, std::string channel,
+                 TaskQueue::Work work);
+    // Main loop: applies finished jobs, reports errors, animates progress.
+    void serviceTasks();
+    // Status bar text for the current job (or LSP work), padded to
+    // taskStatusWidth(); empty when nothing is running.
+    std::string taskStatusText();
+    int taskStatusWidth() const;
+    // Status bar renderers report where they placed taskStatusText().
+    void noteTaskStatusSlot(int row, int col);
+    void beginTaskStatusFrame();
+    void finishTaskStatusFrame();
+    void attachLspWaitHook(LspClient& client);
+    // Called by run(): routes blocking process I/O on the UI thread through
+    // runTask and lets waits pump the terminal. Off in tests/batch use.
+    void enableInteractiveTasks();
+    // All LSP clients that currently run, for progress display.
+    std::vector<std::pair<std::string, LspClient*>> activeLspClients() const;
     bool noteDoubleEscStatusClear();
     void setMode(Mode mode);
     std::string getModeString() const;
@@ -1108,6 +1162,27 @@ public:
     }
 
 private:
+    void paintTaskStatus();
+    void pumpTasks();
+
+    struct TaskStatusSlot
+    {
+        int row = 0;
+        int col = 0;
+        Mode mode = NORMAL;
+        bool valid = false;
+    };
+    TaskStatusSlot taskStatusSlot_;
+    bool taskStatusShown_ = false;
+    bool taskStatusOverlay_ = false;
+    TaskQueue::TaskId foregroundTask_ = 0;
+    bool tasksInteractive_ = false;
+    std::string lspWaitLabel_;
+    std::chrono::steady_clock::time_point lspWaitStarted_{};
+    std::chrono::steady_clock::time_point lspWorkStarted_{};
+    std::chrono::steady_clock::time_point lastTaskPaint_{};
+    std::uint64_t lastTaskRevision_ = 0;
+
     friend class EditorSettingsController;
     friend class EditorBufferController;
     friend class EditorCommandController;
