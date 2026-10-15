@@ -636,8 +636,7 @@ void CommandOutputMode::draw(Editor& editor) const
         ++rowsUsed;
     }
 
-    text_utils::append_all(output, std::string_view(Terminal::NEWLINE_CLEAR),
-                           editor.theme.statusBar());
+    output += Terminal::NEWLINE_CLEAR;
     std::string left;
     left.reserve(command.size() + 32);
     left += visualMode ? " V-RUN" : " RUN";
@@ -649,12 +648,7 @@ void CommandOutputMode::draw(Editor& editor) const
     const int current = std::min(cursor + 1, total);
     std::string right;
     fmt::format_to(std::back_inserter(right), " {}/{} ", current, total);
-    output += left;
-    int padding = editor.screenCols - (int)left.size() - (int)right.size();
-    if(padding > 0)
-        output.append(padding, ' ');
-    output += right;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, left, right);
 
     output += Terminal::NEWLINE_CLEAR;
     if(searchActive)

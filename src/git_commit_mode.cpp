@@ -1296,7 +1296,6 @@ void GitCommitMode::draw(Editor& editor) const
     }
 
     beginRow(editor.screenRows + 1);
-    output += editor.theme.statusBar();
     std::string status = " GIT COMMIT";
     if(action == Action::RevertCommit)
         status = " GIT REVERT";
@@ -1318,16 +1317,8 @@ void GitCommitMode::draw(Editor& editor) const
     else
         right = " " + std::to_string(hasStagedFiles ? stagedLines.size() : 0) +
                 " staged ";
-    status.resize(
-        std::min(status.size(),
-                 (size_t)std::max(0, editor.screenCols - (int)right.size())));
     right.resize(std::min(right.size(), (size_t)editor.screenCols));
-    output += status;
-    int padding = editor.screenCols - (int)status.size() - (int)right.size();
-    if(padding > 0)
-        output.append(padding, keyCode(control::ControlKey::SPACE));
-    output += right;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, right);
 
     beginRow(editor.screenRows + 2);
     if(commandActive)

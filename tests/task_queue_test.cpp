@@ -266,6 +266,20 @@ TEST(ProgressBarTest, DropsSegmentsToFit)
     EXPECT_EQ(text.find("reading"), std::string::npos);
 }
 
+TEST(ProgressBarTest, KeepsPhaseDetailOverCounts)
+{
+    widgets::ProgressBarView view;
+    view.label = "rg cache";
+    view.detail = "indexing";
+    view.done = 3102;
+    view.total = 3102;
+    view.style = widgets::ProgressStyle::Ascii;
+    view.maxWidth = 44;
+    const std::string text = widgets::formatProgressBar(view);
+    EXPECT_NE(text.find("indexing"), std::string::npos) << text;
+    EXPECT_EQ(text.find("3102/3102"), std::string::npos) << text;
+}
+
 TEST(ProgressBarTest, ParsesStyleNames)
 {
     widgets::ProgressStyle style = widgets::ProgressStyle::Ascii;

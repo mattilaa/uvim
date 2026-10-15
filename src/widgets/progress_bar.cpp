@@ -202,7 +202,8 @@ std::string formatProgressBar(const ProgressBarView& view)
 
     auto joined = [&]
     { return head + meter + percent + counts + keys + tail; };
-    for(std::string* droppable : {&tail, &counts, &keys, &meter})
+    // Counts go first: the phase/detail says more about where a job is.
+    for(std::string* droppable : {&counts, &tail, &keys, &meter})
     {
         std::string text = joined();
         if(text_utils::displayWidth(text) <= view.maxWidth)

@@ -13,8 +13,10 @@
 #include "token_type.h"
 #include "visual_color_range.h"
 #include "widgets/progress_bar.h"
+#include "widgets/status_bar.h"
 #include <chrono>
 #include <ctime>
+#include <deque>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -1012,6 +1014,15 @@ public:
     // replay once it returns. Ctrl-C cancels. False when cancelled/failed.
     bool runTask(std::string label, std::string channel,
                  TaskQueue::Work work);
+    // Waits for an already submitted job like runTask does (progress,
+    // queued keys, Ctrl-C). False when it was cancelled or failed.
+    bool waitTask(TaskQueue::TaskId id, const std::string& label);
+    // Startup work that must run on the UI thread (LSP server start, ...):
+    // held until the first frame is on screen, then run one per main-loop
+    // tick with "(i/n) label" progress, so startup never shows a blank
+    // terminal. `runLast` steps go after all regular ones.
+    void addStartupStep(std::string label, std::function<void()> step,
+                        bool runLast = false);
     // Main loop: applies finished jobs, reports errors, animates progress.
     void serviceTasks();
     // Status bar text for the current job (or LSP work), padded to
@@ -1020,12 +1031,25 @@ public:
     int taskStatusWidth() const;
     // Status bar renderers report where they placed taskStatusText().
     void noteTaskStatusSlot(int row, int col);
+    // Bottom status + message rows for views that draw their own screen;
+    // hosts the task progress exactly like the editor status bar.
+    void appendViewStatusBar(std::string& output,
+                             widgets::ViewStatusBarView view);
+    // Status line for views with their own layout ("left ... right"):
+    // writes theme colours, fits `left`, puts task progress before `right`
+    // and records its slot. `row` is the screen row the line is drawn on.
+    void appendStatusLine(std::string& output, std::string left,
+                          const std::string& right, int row = -1);
     void beginTaskStatusFrame();
     void finishTaskStatusFrame();
     void attachLspWaitHook(LspClient& client);
     // Called by run(): routes blocking process I/O on the UI thread through
     // runTask and lets waits pump the terminal. Off in tests/batch use.
     void enableInteractiveTasks();
+    void markFirstFrameDrawn()
+    {
+        firstFrameDrawn_ = true;
+    }
     // All LSP clients that currently run, for progress display.
     std::vector<std::pair<std::string, LspClient*>> activeLspClients() const;
     bool noteDoubleEscStatusClear();
@@ -1171,12 +1195,26 @@ private:
         int col = 0;
         Mode mode = NORMAL;
         bool valid = false;
+        bool hidden = false;
     };
     TaskStatusSlot taskStatusSlot_;
     bool taskStatusShown_ = false;
     bool taskStatusOverlay_ = false;
     TaskQueue::TaskId foregroundTask_ = 0;
     bool tasksInteractive_ = false;
+    void runNextStartupStep();
+    struct StartupStep
+    {
+        std::string label;
+        std::function<void()> run;
+    };
+    std::deque<StartupStep> startupSteps_;
+    std::deque<StartupStep> lateStartupSteps_;
+    int startupStepsTotal_ = 0;
+    int startupStepsDone_ = 0;
+    std::string startupStepLabel_;
+    std::chrono::steady_clock::time_point startupStepStarted_{};
+    bool firstFrameDrawn_ = false;
     std::string lspWaitLabel_;
     std::chrono::steady_clock::time_point lspWaitStarted_{};
     std::chrono::steady_clock::time_point lspWorkStarted_{};

@@ -583,9 +583,46 @@ void EditorDrawingController::updateCursorPosition(bool flushNow)
     setLastCursorScreenPosition(cursorRow, cursorCol);
 }
 
+namespace
+{
+// Modes rendered by the editor's own buffer/status/message layout. Every other
+// mode draws its own screen and may leave rows it does not use untouched.
+bool usesEditorLayout(Mode mode)
+{
+    switch(mode)
+    {
+    case NORMAL:
+    case INSERT:
+    case REPLACE:
+    case VISUAL:
+    case VISUAL_LINE:
+    case VISUAL_BLOCK:
+    case COMMAND:
+    case SEARCH_FORWARD:
+    case SEARCH_BACKWARD:
+    case OP_PENDING:
+        return true;
+    default:
+        return false;
+    }
+}
+} // namespace
+
 void EditorDrawingController::draw()
 {
     editor.beginTaskStatusFrame();
+    editor.modeController->syncModeFromStateMachine();
+    // Entering or leaving a self-drawn view: start from a clean screen so the
+    // previous layout (status lines, progress) cannot linger in rows the new
+    // view does not paint.
+    if(editor.currentMode != lastDrawnMode_ &&
+       (!usesEditorLayout(editor.currentMode) ||
+        !usesEditorLayout(lastDrawnMode_)))
+    {
+        Terminal::write(Terminal::ESC_CLEAR_SCREEN);
+        setNeedsFullRedraw(true);
+    }
+    lastDrawnMode_ = editor.currentMode;
     refreshScreen();
     editor.finishTaskStatusFrame();
     setNeedsFullRedraw(false);

@@ -7,6 +7,22 @@
 
 namespace widgets
 {
+namespace
+{
+// 1-based column of the progress slot: where the progress was drawn, or
+// where it would go inside the padding (`reserve` columns + a space).
+// -1: hosted here but no room.
+int progressSlotColumn(int screenCols, int rightLen, int padding,
+                       bool drawn, int reserve)
+{
+    if(drawn)
+        return padding >= 0 ? screenCols - rightLen + 1 : -1;
+    if(reserve > 0 && padding >= reserve + 1)
+        return screenCols - rightLen - (reserve + 1) + 1;
+    return -1;
+}
+} // namespace
+
 void appendStatusBar(std::string& output, const StatusBarView& view)
 {
     output += view.theme.statusBar();
@@ -83,11 +99,77 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     if(padding > 0)
         output.append(padding, ' ');
     if(view.progressColumn)
+        *view.progressColumn = progressSlotColumn(
+            view.screenCols, rightLen, padding, !view.progress.empty(),
+            view.progressReserve);
+    output += rightBlock;
+    output += view.theme.reset();
+}
+
+void appendViewStatusBar(std::string& output, const ViewStatusBarView& view)
+{
+    output += view.theme.statusBar();
+
+    std::string left = " " + std::string(view.modeLabel) + " | ";
+    std::string context(view.context);
+
+    std::string state;
+    if(!view.state.empty())
     {
-        *view.progressColumn = (!view.progress.empty() && padding >= 0)
-                                   ? view.screenCols - rightLen + 1
-                                   : 0;
+        state = " " + view.theme.uiWarning() + std::string(view.state) +
+                view.theme.statusBar();
     }
+
+    std::string rightBlock;
+    if(!view.progress.empty())
+        rightBlock = std::string(view.progress) + " ";
+    for(const auto& flag : view.flags)
+        rightBlock += view.theme.uiDim() + "[" + flag + "]" +
+                      view.theme.statusBar() + " ";
+    if(!view.toolLabel.empty())
+    {
+        rightBlock += view.theme.uiInfo() + "[" + std::string(view.toolLabel) +
+                      "]" + view.theme.statusBar();
+        rightBlock.append(std::max(0, view.toolGap), ' ');
+    }
+    if(view.count >= 0)
+    {
+        const int count = std::max(0, view.count);
+        const int index = count == 0 ? 0 : std::clamp(view.index, 1, count);
+        const int percent = count == 0 ? 0 : (index * 100) / count;
+        std::string ruler = " " + std::to_string(percent) + "%/" +
+                            std::to_string(index) + "/" +
+                            std::to_string(count) + " ";
+        const int rulerWidth = 12;
+        const int width = text_utils::displayWidth(ruler);
+        if(width < rulerWidth)
+            ruler.insert(0, rulerWidth - width, ' ');
+        rightBlock += ruler;
+    }
+    else
+    {
+        rightBlock += " ";
+    }
+
+    const int rightLen = text_utils::displayWidth(rightBlock);
+    const int leftLen = text_utils::displayWidth(left);
+    const int stateLen = text_utils::displayWidth(state);
+    const int available = view.screenCols - leftLen - stateLen - rightLen - 1;
+    if(text_utils::displayWidth(context) > available && available > 4)
+        context = "..." + context.substr(context.size() - (available - 3));
+    else if(available <= 4)
+        context.clear();
+
+    std::string status = left + context + state;
+    output += status;
+    const int padding =
+        view.screenCols - text_utils::displayWidth(status) - rightLen;
+    if(padding > 0)
+        output.append(padding, ' ');
+    if(view.progressColumn)
+        *view.progressColumn = progressSlotColumn(
+            view.screenCols, rightLen, padding, !view.progress.empty(),
+            view.progressReserve);
     output += rightBlock;
     output += view.theme.reset();
 }

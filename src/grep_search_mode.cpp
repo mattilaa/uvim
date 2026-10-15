@@ -36,7 +36,8 @@ std::vector<std::string> grepSearchHelpTokens(int contrast)
 
 int grepSearchHeaderRows(int screenCols, int contrast)
 {
-    return 2 +
+    // Prompt line + key help; counts and flags live in the bottom status bar.
+    return 1 +
            HeaderHelp::lineCount(grepSearchHelpTokens(contrast), screenCols);
 }
 
@@ -328,8 +329,11 @@ std::vector<std::string> makeLowerLines(const std::vector<std::string>& lines)
     return lowered;
 }
 
-void addRgCacheLineTokens(Editor& editor, std::string_view line, int fileIndex,
-                          int lineIndex)
+using RgCacheLineIndex =
+    std::unordered_map<std::string, std::vector<Editor::RgCacheLineRef>>;
+
+void addRgCacheLineTokens(RgCacheLineIndex& index, std::string_view line,
+                          int fileIndex, int lineIndex)
 {
     std::unordered_set<std::string> seen;
     for(size_t i = 0; i < line.size(); ++i)
@@ -340,28 +344,37 @@ void addRgCacheLineTokens(Editor& editor, std::string_view line, int fileIndex,
             std::string token(line.substr(i, len));
             if(seen.insert(token).second)
             {
-                editor.rgCacheLineIndex[std::move(token)].push_back(
+                index[std::move(token)].push_back(
                     Editor::RgCacheLineRef{fileIndex, lineIndex});
             }
         }
     }
 }
 
-void rebuildRgCacheLineIndex(Editor& editor)
+// Worker-thread safe: builds the token index for `files` into `index`.
+// Returns false when cancelled part-way.
+bool buildRgCacheLineIndex(
+    const std::vector<Editor::RgCachedFile>& files, RgCacheLineIndex& index,
+    const std::function<bool()>& cancelled = {},
+    const std::function<void(long long, long long)>& progress = {})
 {
-    editor.rgCacheLineIndex.clear();
-    for(size_t fileIndex = 0; fileIndex < editor.rgCachedFiles.size();
-        ++fileIndex)
+    index.clear();
+    for(size_t fileIndex = 0; fileIndex < files.size(); ++fileIndex)
     {
-        const auto& cached = editor.rgCachedFiles[fileIndex];
+        if(cancelled && cancelled())
+            return false;
+        if(progress)
+            progress((long long)fileIndex, (long long)files.size());
+        const auto& cached = files[fileIndex];
         for(size_t lineIndex = 0; lineIndex < cached.lowerLines.size();
             ++lineIndex)
         {
-            addRgCacheLineTokens(editor, cached.lowerLines[lineIndex],
+            addRgCacheLineTokens(index, cached.lowerLines[lineIndex],
                                  static_cast<int>(fileIndex),
                                  static_cast<int>(lineIndex));
         }
     }
+    return true;
 }
 
 std::string rgCacheLookupToken(const Editor& editor, std::string_view needle)
@@ -613,58 +626,8 @@ void GrepSearchMode::draw(Editor& editor)
     output += Terminal::ESC_BLINK_OFF;
     output += editor.theme.baseFg();
 
-    if(searchPending)
-    {
-        output += editor.theme.uiWarning();
-        output += " (typing...)";
-        output += editor.theme.baseFg();
-    }
-    else if(searching)
-    {
-        output += editor.theme.uiWarning();
-        output += " (searching...)";
-        output += editor.theme.baseFg();
-    }
-
     HeaderHelp::append(output, editor.theme, editor.screenCols,
                        grepSearchHelpTokens(editor.searchMatchContrast));
-
-    output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.uiDim();
-    if(!matches.empty())
-    {
-        output += "  " + std::to_string(matches.size());
-        if(matches.size() >= 1000)
-            output += "+ matches (limited)";
-        else
-            output += " matches";
-    }
-    else if(!query.empty() && !searching)
-    {
-        output += "  No matches";
-    }
-    if(editor.respectGitignore)
-    {
-        output += " [gitignore]";
-    }
-#ifdef UVIM_ENABLE_RG_CACHE
-    if(editor.rgCacheEnabled)
-    {
-        // Indexing progress lives in the status bar and :tasks.
-        if(editor.rgCacheIndexTask != 0)
-            output += " [rgcache indexing, using rg]";
-        else if(editor.rgCacheLoaded)
-            output += " [rgcache " + std::to_string(editor.rgCachedFiles.size()) +
-                      " files]";
-        else
-            output += " [rgcache]";
-    }
-#endif
-    if(!selectedMatches.empty())
-    {
-        output += " (" + std::to_string(selectedMatches.size()) + " selected)";
-    }
-    output += editor.theme.baseFg();
 
     int availableRows = grepSearchVisibleRows(editor);
     const std::string lowerQuery = toLower(query);
@@ -784,8 +747,45 @@ void GrepSearchMode::draw(Editor& editor)
         output += editor.theme.baseFg();
     }
 
+    appendStatusBar(editor, output);
+
     Terminal::write(output);
     Terminal::flush();
+}
+
+void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
+{
+    std::string summary;
+    if(!matches.empty())
+    {
+        summary = std::to_string(matches.size()) +
+                  (matches.size() >= 1000 ? "+ matches (limited)" : " matches");
+    }
+    else if(!query.empty() && !searching && !searchPending)
+    {
+        summary = "No matches";
+    }
+    if(!selectedMatches.empty())
+        summary += (summary.empty() ? "" : ", ") +
+                   std::to_string(selectedMatches.size()) + " selected";
+
+    widgets::ViewStatusBarView view{.theme = editor.theme};
+    view.modeLabel = name();
+    view.context = summary;
+    view.state = searchPending ? "typing..." : searching ? "searching..." : "";
+    if(editor.respectGitignore)
+        view.flags.push_back("gitignore");
+
+    // The backend answering queries, shown like the [clangd] label.
+    std::string tool = ripgrepAvailable() ? "rg" : "builtin";
+#ifdef UVIM_ENABLE_RG_CACHE
+    if(editor.rgCacheEnabled && editor.rgCacheLoaded)
+        tool = "rgcache " + std::to_string(editor.rgCachedFiles.size());
+#endif
+    view.toolLabel = tool;
+    view.index = matches.empty() ? 0 : cursor + 1;
+    view.count = static_cast<int>(matches.size());
+    editor.appendViewStatusBar(output, std::move(view));
 }
 
 bool GrepSearchMode::adoptBackgroundResults(Editor& editor)
@@ -1161,6 +1161,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
         std::vector<Editor::RgCachedFile> previous;
         std::vector<FileEntry> projectFiles;
         std::vector<Editor::RgCachedFile> cachedFiles;
+        RgCacheLineIndex lineIndex;
     };
     auto job = std::make_shared<Job>();
     job->filesDir = cacheRoot / "files";
@@ -1213,6 +1214,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
         }
 
         const int total = static_cast<int>(pendingFiles.size());
+        ctx.detail("reading");
         ctx.progress(0, total);
 
         struct IndexedFile
@@ -1347,6 +1349,16 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
             job->cachedFiles.push_back(std::move(*result.cached));
         }
 
+        // Tokenizing every line is the slowest step after reading; keep it
+        // off the UI thread too.
+        ctx.detail("indexing");
+        if(!buildRgCacheLineIndex(
+               job->cachedFiles, job->lineIndex,
+               [&ctx] { return ctx.cancelled(); },
+               [&ctx](long long done, long long total)
+               { ctx.progress(done, total); }))
+            return;
+
         ctx.detail("writing index");
         std::ofstream indexOut(job->indexPath, std::ios::trunc);
         if(indexOut)
@@ -1383,7 +1395,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
     const std::uint64_t generation = editor.rgCacheGeneration;
 
     auto submitted = editor.submitTask(
-        "rg cache index", "rg-cache", std::move(work),
+        "rg cache", "rg-cache", std::move(work),
         [ed, job, generation]
         {
             if(ed->rgCacheGeneration != generation)
@@ -1392,7 +1404,7 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
             ed->grepProjectFiles = std::move(job->projectFiles);
             ed->grepFileIndexInitialized = true;
             ed->rgCachedFiles = std::move(job->cachedFiles);
-            rebuildRgCacheLineIndex(*ed);
+            ed->rgCacheLineIndex = std::move(job->lineIndex);
             ed->rgCacheLoaded = true;
             ed->rgCacheJustLoaded = true;
             ed->needsFullRedraw = true;

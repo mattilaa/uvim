@@ -1496,7 +1496,6 @@ void GitLogMode::draw(Editor& editor) const
     }
 
     output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.statusBar();
 
     std::string status = prettyView ? " GIT PRETTYLOG" : " GITLOG";
     if(rangeSelectActive)
@@ -1516,12 +1515,7 @@ void GitLogMode::draw(Editor& editor) const
     }
     right += " ";
 
-    output += status;
-    int padding = editor.screenCols - status.length() - right.length();
-    if(padding > 0)
-        output.append(padding, keyCode(control::ControlKey::SPACE));
-    output += right;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, right);
 
     output += Terminal::NEWLINE_CLEAR;
     if(prettyView && !searchActive && query.empty() && !filtered.empty())

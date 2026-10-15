@@ -74,11 +74,15 @@ bool Editor::runTask(std::string label, std::string channel,
     const std::string shownLabel = label;
     auto submitted = submitTask(std::move(label), std::move(channel),
                                 std::move(work));
+    return waitTask(submitted.id, shownLabel);
+}
+
+bool Editor::waitTask(TaskQueue::TaskId id, const std::string& shownLabel)
+{
     const TaskQueue::TaskId previous = foregroundTask_;
-    foregroundTask_ = submitted.id;
+    foregroundTask_ = id;
     std::string error;
-    const auto result =
-        tasks.wait(submitted.id, [this] { pumpTasks(); }, &error);
+    const auto result = tasks.wait(id, [this] { pumpTasks(); }, &error);
     foregroundTask_ = previous;
     needsFullRedraw = true;
 
@@ -130,10 +134,45 @@ void Editor::pumpTasks()
     }
 }
 
+void Editor::addStartupStep(std::string label, std::function<void()> step,
+                            bool runLast)
+{
+    auto& queue = runLast ? lateStartupSteps_ : startupSteps_;
+    queue.push_back(StartupStep{std::move(label), std::move(step)});
+    ++startupStepsTotal_;
+}
+
+void Editor::runNextStartupStep()
+{
+    if(!firstFrameDrawn_ || foregroundTask_ != 0)
+        return;
+    auto& queue = !startupSteps_.empty() ? startupSteps_ : lateStartupSteps_;
+    if(queue.empty())
+        return;
+
+    StartupStep step = std::move(queue.front());
+    queue.pop_front();
+    startupStepLabel_ = step.label;
+    startupStepStarted_ = Clock::now();
+    lastTaskPaint_ = {};
+    paintTaskStatus(); // show "(i/n) label" before the step blocks
+    if(step.run)
+        step.run();
+    startupStepLabel_.clear();
+    ++startupStepsDone_;
+    if(startupSteps_.empty() && lateStartupSteps_.empty())
+    {
+        startupStepsTotal_ = 0;
+        startupStepsDone_ = 0;
+    }
+    needsFullRedraw = true;
+}
+
 void Editor::serviceTasks()
 {
     if(tasks.pollCompletions() > 0)
         needsFullRedraw = true;
+    runNextStartupStep();
     for(const auto& error : tasks.takeErrors())
     {
         setStatusMessage("Task failed: " + error);
@@ -273,6 +312,17 @@ std::string Editor::taskStatusText()
         view.waiting = status->waiting;
         foregroundWait = foregroundTask_ != 0;
     }
+    else if(!startupStepLabel_.empty())
+    {
+        // Startup step on the UI thread, e.g. an LSP server initializing.
+        label = startupStepLabel_;
+        if(!lspWaitLabel_.empty())
+            detail = lspWaitLabel_;
+        view.elapsedMs = elapsedMs(startupStepStarted_, now);
+        view.position = startupStepsDone_ + 1;
+        view.queued = startupStepsTotal_;
+        foregroundWait = true;
+    }
     else if(!lspWaitLabel_.empty() && now - lspWaitStarted_ >= kShowAfter)
     {
         label = lspWaitLabel_;
@@ -321,10 +371,13 @@ std::string Editor::taskStatusText()
 
 void Editor::noteTaskStatusSlot(int row, int col)
 {
+    // col > 0: progress drawn there; col < 0: this status line hosts the
+    // progress but had no room; col == 0: nothing hosted (overlay instead).
     taskStatusSlot_.row = row;
     taskStatusSlot_.col = col;
     taskStatusSlot_.mode = currentMode;
     taskStatusSlot_.valid = col > 0;
+    taskStatusSlot_.hidden = col < 0;
 }
 
 void Editor::beginTaskStatusFrame()
@@ -345,14 +398,17 @@ void Editor::finishTaskStatusFrame()
 {
     if(!taskStatusShown_ || currentMode == TASK_LIST)
         return;
-    if(taskStatusSlot_.valid && taskStatusSlot_.mode == currentMode)
-        return; // the status bar already drew it in place
+    if((taskStatusSlot_.valid || taskStatusSlot_.hidden) &&
+       taskStatusSlot_.mode == currentMode)
+        return; // the status bar already drew it in place (or had no room)
     paintTaskStatus();
 }
 
 void Editor::paintTaskStatus()
 {
     if(currentMode == TASK_LIST && foregroundTask_ == 0)
+        return;
+    if(taskStatusSlot_.hidden && taskStatusSlot_.mode == currentMode)
         return;
     const std::string text = taskStatusText();
     const bool hosted =

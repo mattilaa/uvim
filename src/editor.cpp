@@ -2773,6 +2773,7 @@ void Editor::run()
     //    setStatusMessage("Welcome to uVim!");
     enableInteractiveTasks();
     draw();
+    markFirstFrameDrawn();
 
     while(true)
     {

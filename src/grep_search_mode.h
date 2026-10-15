@@ -68,6 +68,7 @@ private:
     void flushPendingSearch(Editor& editor);
     void startBackgroundSearch(Editor& editor);
     bool adoptBackgroundResults(Editor& editor);
+    void appendStatusBar(Editor& editor, std::string& output) const;
 #ifdef UVIM_ENABLE_RG_CACHE
     bool syncRgCache(Editor& editor, bool force);
     bool performCachedSearch(Editor& editor);

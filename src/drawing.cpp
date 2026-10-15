@@ -1877,9 +1877,16 @@ void Editor::drawSplitFullScreen()
     int padding = screenCols - statusLeft.length() - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
-    noteTaskStatusSlot(screenRows + 1, (!progress.empty() && padding >= 0)
-                                           ? screenCols - rightLen + 1
-                                           : 0);
+    {
+        // Where progress is drawn, or would go inside the padding.
+        const int reserve = taskStatusWidth() + 1;
+        int col = -1;
+        if(!progress.empty())
+            col = padding >= 0 ? screenCols - rightLen + 1 : -1;
+        else if(reserve > 1 && padding >= reserve)
+            col = screenCols - rightLen - reserve + 1;
+        noteTaskStatusSlot(screenRows + 1, col);
+    }
     output += rightBlock;
     output += theme.reset();
 

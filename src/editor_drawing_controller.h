@@ -50,6 +50,7 @@ private:
     bool lastFrameCommandHistoryPopupActive = false;
 
     bool needsFullRedraw_ = true;
+    Mode lastDrawnMode_ = NORMAL;
     int lastCursorScreenY_ = -1;
     int lastCursorScreenX_ = -1;
     std::vector<std::string> screenBuffer_;

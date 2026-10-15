@@ -1243,19 +1243,11 @@ void GitStageMode::draw(Editor& editor) const
     }
 
     output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.statusBar();
     std::string status = " GIT STAGE";
     if(!repoRoot.empty())
         status += " | " + repoRoot;
     std::string right = " " + std::to_string(fileRows.size()) + " files ";
-    output += status;
-    int statusWidth = text_utils::utf8DisplayWidth(status);
-    int rightWidth = text_utils::utf8DisplayWidth(right);
-    int padding = editor.screenCols - statusWidth - rightWidth;
-    if(padding > 0)
-        output.append(padding, ' ');
-    output += right;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, right);
 
     output += Terminal::NEWLINE_CLEAR;
     if(!editor.statusMessage.empty())

@@ -628,7 +628,6 @@ void HelpMode::draw(Editor& editor) const
 
     // Status bar
     output += Terminal::NEWLINE_CLEAR;
-    output += editor.theme.statusBar();
 
     std::string status = " HELP";
     if(!topic.empty())
@@ -639,14 +638,7 @@ void HelpMode::draw(Editor& editor) const
                                                 (int)lines.size())) +
                         "/" + std::to_string(lines.size()) + " ";
 
-    output += status;
-    int padding = editor.screenCols - status.length() - right.length();
-    if(padding > 0)
-    {
-        output.append(padding, keyCode(control::ControlKey::SPACE));
-    }
-    output += right;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, right);
 
     // Message line
     output += Terminal::NEWLINE_CLEAR;
@@ -1094,7 +1086,6 @@ void HelpMode::drawSearch(Editor& editor) const
         output += "~\r\n";
     }
 
-    output += editor.theme.statusBar();
     std::string status;
     if(searchMatches.empty())
     {
@@ -1107,10 +1098,7 @@ void HelpMode::drawSearch(Editor& editor) const
                  "] <Enter> jump  <Esc> close  <j/k> navigate  <Ctrl-I> docs:";
         status += searchDocumentation ? "on" : "off";
     }
-    if((int)status.length() < editor.screenCols)
-        status += std::string(editor.screenCols - status.length(), ' ');
-    output += status;
-    output += editor.theme.reset();
+    editor.appendStatusLine(output, status, "");
 
     output += "\r\n";
     output += Terminal::ESC_CLEAR_LINE;
