@@ -5,8 +5,9 @@ using namespace editor::statemachine;
 
 TEST(GitStageLayoutTest, ContentRowsForKnownViewport)
 {
-    // Regression case from user report.
-    EXPECT_EQ(GitStageMode::testContentRows(35, 156), 32);
+    // Regression case from user report. screenRows (35) excludes the status
+    // and message rows; header + one help line leave 33 content rows.
+    EXPECT_EQ(GitStageMode::testContentRows(35, 156), 33);
 }
 
 TEST(GitStageLayoutTest, ContentRowsDecreaseWhenHelpWraps)

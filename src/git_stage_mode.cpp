@@ -238,9 +238,9 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
 
 int git_stage_content_rows(int screenRows, int helpRows)
 {
+    // screenRows already excludes the status and message rows.
     const int headerRows = 1;
-    const int statusRows = 1;
-    return std::max(0, screenRows - headerRows - helpRows - statusRows);
+    return std::max(0, screenRows - headerRows - helpRows);
 }
 
 std::string utf8PrefixByWidth(std::string_view text, int maxWidth)

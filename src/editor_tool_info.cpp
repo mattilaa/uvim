@@ -94,14 +94,14 @@ void Editor::showToolInfo()
     toolInfoLines.push_back("formatters: not compiled");
 #endif
 
-    int visibleRows = std::max(0, screenRows - 3);
+    int visibleRows = std::max(0, screenRows - 1); // below the header
     int maxOffset = std::max(0, (int)toolInfoLines.size() - visibleRows);
     toolInfoScrollOffset = std::clamp(toolInfoScrollOffset, 0, maxOffset);
 }
 
 void Editor::scrollToolInfo(int delta)
 {
-    int visibleRows = std::max(0, screenRows - 3);
+    int visibleRows = std::max(0, screenRows - 1); // below the header
     int maxOffset = std::max(0, (int)toolInfoLines.size() - visibleRows);
     toolInfoScrollOffset =
         std::clamp(toolInfoScrollOffset + delta, 0, maxOffset);
@@ -123,7 +123,7 @@ void Editor::drawToolInfo()
     output += header;
     output += theme.reset();
 
-    int visibleRows = std::max(0, screenRows - 3);
+    int visibleRows = std::max(0, screenRows - 1); // below the header
     int maxOffset = std::max(0, (int)toolInfoLines.size() - visibleRows);
     toolInfoScrollOffset = std::clamp(toolInfoScrollOffset, 0, maxOffset);
     int row = 0;
@@ -222,14 +222,14 @@ void Editor::drawToolInfo()
         output += "~";
     }
 
-    output += Terminal::cursorPos(screenRows - 1, 1);
+    output += Terminal::cursorPos(screenRows + 1, 1);
     std::string status = " <j/k> scroll  <q/Esc> close  <r> refresh ";
     if(maxOffset > 0)
         status += " " + std::to_string(toolInfoScrollOffset + 1) + "/" +
                   std::to_string(maxOffset + 1) + " ";
-    appendStatusLine(output, status, "", screenRows - 1);
+    appendStatusLine(output, status, "", screenRows + 1);
 
-    output += Terminal::cursorPos(screenRows, 1);
+    output += Terminal::cursorPos(screenRows + 2, 1);
     output += Terminal::ESC_CLEAR_LINE;
     if(!statusMessage.empty())
         output += statusMessage;

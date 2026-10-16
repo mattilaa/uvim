@@ -27,16 +27,16 @@ int helpModeContentRows(const Editor& editor)
 {
     const int headerRows =
         1 + HeaderHelp::lineCount(helpModeHelpTokens(), editor.screenCols);
-    constexpr int footerRows = 1;
-    return std::max(1, editor.screenRows - headerRows - footerRows);
+    // screenRows already excludes the status and message rows.
+    return std::max(1, editor.screenRows - headerRows);
 }
 
 int helpModeContentRows(const ModeContext& ctx)
 {
     const int headerRows =
         1 + HeaderHelp::lineCount(helpModeHelpTokens(), ctx.screenCols());
-    constexpr int footerRows = 1;
-    return std::max(1, ctx.screenRows() - headerRows - footerRows);
+    // screenRows already excludes the status and message rows.
+    return std::max(1, ctx.screenRows() - headerRows);
 }
 
 std::vector<std::string> helpSearchTopics()
@@ -52,11 +52,9 @@ std::vector<std::string> helpSearchTopics()
 
 int helpSearchVisibleRows(const Editor& editor)
 {
+    // screenRows already excludes the status and message rows.
     constexpr int headerRows = 1;
-    constexpr int statusRows = 1;
-    constexpr int messageRows = 1;
-    return std::max(1, editor.screenRows - headerRows - statusRows -
-                           messageRows);
+    return std::max(1, editor.screenRows - headerRows);
 }
 
 int helpSearchVisibleMatches(const Editor& editor)
@@ -663,13 +661,11 @@ void HelpMode::draw(Editor& editor) const
     editor.drawCommandHistoryPopup(output);
     editor.drawCommandPopup(output);
 
-    output += Terminal::cursorPos(editor.screenRows + 2, 1);
-    output += Terminal::ESC_CLEAR_LINE;
-
     if(commandPrompt && commandPrompt->isActive())
     {
         output += Terminal::ESC_SHOW_CURSOR;
-        int row = editor.screenRows + 1;
+        // The prompt lives on the message row, right below the status line.
+        int row = editor.screenRows + 2;
         int col = 2 + (int)commandPrompt->getInput().size();
         output += Terminal::cursorPos(row, col);
     }

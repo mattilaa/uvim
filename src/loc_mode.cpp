@@ -174,7 +174,7 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
             sortMode = SortMode::Asc;
         }
         cursor = std::clamp(cursor, 0, (int)ed->locList.size() - 1);
-        int visible = ed->screenRows - 3;
+        int visible = ed->screenRows - 1;
         offset = std::clamp(offset, 0,
                             std::max(0, (int)ed->locList.size() - visible));
         countWidth = computeCountWidth(ed->locList);
@@ -189,7 +189,7 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
         if(cursor < (int)ed->locList.size() - 1)
         {
             cursor++;
-            int visible = ed->screenRows - 3;
+            int visible = ed->screenRows - 1;
             if(cursor >= offset + visible)
                 offset = cursor - visible + 1;
         }
@@ -208,18 +208,18 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
     else if(c == keyCode(control::ControlKey::CTRL_D) ||
             c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
-        int half = (ed->screenRows - 3) / 2;
+        int half = (ed->screenRows - 1) / 2;
         cursor += half;
         if(cursor >= (int)ed->locList.size())
             cursor = std::max(0, (int)ed->locList.size() - 1);
-        int visible = ed->screenRows - 3;
+        int visible = ed->screenRows - 1;
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
     else if(c == keyCode(control::ControlKey::CTRL_U) ||
             c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
-        int half = (ed->screenRows - 3) / 2;
+        int half = (ed->screenRows - 1) / 2;
         cursor -= half;
         if(cursor < 0)
             cursor = 0;
@@ -238,7 +238,7 @@ std::optional<ModeState> LocListMode::handle(ModeContext& ctx,
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
     {
         cursor = std::max(0, (int)ed->locList.size() - 1);
-        int visible = ed->screenRows - 3;
+        int visible = ed->screenRows - 1;
         offset = std::max(0, cursor - visible + 1);
     }
 
@@ -269,7 +269,7 @@ void LocListMode::draw(Editor& editor) const
     output += editor.theme.reset();
     output += "\r\n";
 
-    int availableRows = editor.screenRows - 3;
+    int availableRows = editor.screenRows - 1;
     int idx = offset;
 
     for(int row = 0; row < availableRows && idx < (int)editor.locList.size();

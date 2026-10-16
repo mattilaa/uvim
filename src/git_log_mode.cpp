@@ -41,8 +41,8 @@ int gitLogContentRows(int screenRows, int screenCols, bool prettyView)
 {
     const int headerRows =
         1 + HeaderHelp::lineCount(gitLogHelpTokens(prettyView), screenCols);
-    constexpr int footerRows = 2;
-    return std::max(1, screenRows - headerRows - footerRows);
+    // screenRows already excludes the status and message rows.
+    return std::max(1, screenRows - headerRows);
 }
 
 void append_highlighted(std::string& out, std::string_view text,
