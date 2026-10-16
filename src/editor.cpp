@@ -972,7 +972,47 @@ std::string Editor::testResolveMlangModule(const std::string& fromFile,
 
 bool Editor::isFileType(FileType type) const
 {
+    if(fileTypeMaskOverride_)
+        return (*fileTypeMaskOverride_ & (1ull << static_cast<unsigned>(type))) !=
+               0;
     return fileTypeController && fileTypeController->isFileType(type);
+}
+
+void Editor::highlightPreviewLines(PreviewHighlight& cache,
+                                  const std::string& path,
+                                  const std::vector<std::string>& lines,
+                                  size_t upTo)
+{
+    if(!syntaxHighlighter || !fileTypeController)
+        return;
+    if(cache.path != path)
+    {
+        cache = PreviewHighlight{};
+        cache.path = path;
+        cache.fileTypeMask = fileTypeController->detectFileTypeMask(path, &lines);
+    }
+    const size_t end = std::min(upTo, lines.size());
+    if(cache.tokens.size() >= end)
+        return;
+
+    // Tokenize as the previewed file's type, not the current buffer's.
+    struct OverrideGuard
+    {
+        std::optional<uint64_t>& slot;
+        ~OverrideGuard()
+        {
+            slot.reset();
+        }
+    } guard{fileTypeMaskOverride_};
+    fileTypeMaskOverride_ = cache.fileTypeMask;
+
+    cache.tokens.reserve(end);
+    for(size_t i = cache.tokens.size(); i < end; ++i)
+    {
+        cache.tokens.push_back(syntaxHighlighter->tokenizeLine(
+            lines[i], cache.inBlockComment, cache.inTomlMultiline,
+            cache.tomlQuote, cache.inMarkupFence, cache.markupFenceChar));
+    }
 }
 
 std::optional<FileType> Editor::getFileType() const

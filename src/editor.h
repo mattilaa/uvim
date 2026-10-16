@@ -7,6 +7,7 @@
 #include "jump_location.h"
 #include "mlang_format_errors.h"
 #include "mode.h"
+#include "preview_highlight.h"
 #include "search_types.h"
 #include "task_queue.h"
 #include "theme.h"
@@ -820,6 +821,11 @@ public:
     // Picker "file:415" jumps: moves to 1-based `line`, or to the last/first
     // line with a status message when the file has no such line.
     void jumpToRequestedLine(int line);
+    // Extends `cache` with syntax tokens for `lines` of `path` (a file shown
+    // in a picker preview, not the current buffer) up to line `upTo`.
+    void highlightPreviewLines(PreviewHighlight& cache, const std::string& path,
+                               const std::vector<std::string>& lines,
+                               size_t upTo);
     void pushJumpLocation();
     void jumpForward();
     void jumpBack();
@@ -1254,6 +1260,9 @@ private:
         int boxCols = 0;
     } pickerBackground_;
     bool pickerBackgroundAdopted_ = false;
+    // While set, isFileType() answers for this mask instead of the current
+    // buffer (used to tokenize preview files).
+    std::optional<uint64_t> fileTypeMaskOverride_;
     std::string lastLineJumpMessage_;
     bool skipNextScreenClear_ = false;
     void runNextStartupStep();

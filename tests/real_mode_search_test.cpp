@@ -569,6 +569,78 @@ TEST(RealModeTransitionsTest, FuzzyPreviewScrollFollowsSelection)
     EXPECT_STREQ(sm.currentStateName(), "FUZZY") << "scrolling keeps picker";
 }
 
+TEST(RealModeTransitionsTest, PreviewHighlightUsesPreviewedFileType)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->filename = "notes.txt"; // current buffer: plain text
+    editor.currentBuffer->lines = {"plain"};
+
+    const std::vector<std::string> lines = {"int value = 1; /* starts",
+                                            "   still a comment */",
+                                            "return \"text\";"};
+    PreviewHighlight cache;
+    editor.highlightPreviewLines(cache, "preview.cpp", lines, lines.size());
+    ASSERT_EQ(cache.tokens.size(), lines.size());
+
+    auto hasType = [](const std::vector<Token>& tokens, TokenType type)
+    {
+        return std::any_of(tokens.begin(), tokens.end(),
+                           [&](const Token& t) { return t.type == type; });
+    };
+    EXPECT_TRUE(hasType(cache.tokens[0], TOKEN_TYPE)) << "int";
+    EXPECT_TRUE(hasType(cache.tokens[0], TOKEN_NUMBER));
+    // The block comment opened on line 1 carries over to line 2.
+    EXPECT_TRUE(hasType(cache.tokens[1], TOKEN_COMMENT));
+    EXPECT_TRUE(hasType(cache.tokens[2], TOKEN_STRING));
+    EXPECT_TRUE(hasType(cache.tokens[2], TOKEN_KEYWORD)) << "return";
+    // Tokenizing the preview must not change the current buffer's type.
+    EXPECT_FALSE(editor.isFileType(FileType::Cpp));
+
+    // Extending is incremental and switching files starts over.
+    editor.highlightPreviewLines(cache, "preview.cpp", lines, 1);
+    EXPECT_EQ(cache.tokens.size(), lines.size());
+    editor.highlightPreviewLines(cache, "other.py", {"# comment"}, 1);
+    EXPECT_EQ(cache.path, "other.py");
+    ASSERT_EQ(cache.tokens.size(), 1u);
+    EXPECT_TRUE(hasType(cache.tokens[0], TOKEN_COMMENT));
+}
+
+TEST(RealModeTransitionsTest, PreviewHighlightWorksWithoutAnOpenBuffer)
+{
+    // Regression: previews from the welcome screen (no buffer) crashed in
+    // file type detection, which read the absent current buffer.
+    Editor editor = Editor::createForTests();
+    ASSERT_EQ(editor.lines, nullptr);
+
+    const std::vector<std::string> script = {"#!/bin/sh", "echo \"hi\" # say"};
+    PreviewHighlight cache;
+    editor.highlightPreviewLines(cache, "runme", script, script.size());
+    ASSERT_EQ(cache.tokens.size(), script.size());
+    EXPECT_NE(cache.fileTypeMask &
+                  (1ull << static_cast<unsigned>(FileType::Shell)),
+              0u)
+        << "shebang of the previewed file decides the type";
+
+    PreviewHighlight cpp;
+    editor.highlightPreviewLines(cpp, "a.cpp", {"int x = 1;"}, 1);
+    EXPECT_EQ(cpp.tokens.size(), 1u);
+}
+
+TEST(RealModeTransitionsTest, PreviewShebangIgnoresCurrentBuffer)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"#!/bin/sh", "echo current"};
+
+    PreviewHighlight cache;
+    editor.highlightPreviewLines(cache, "notes", {"plain words"}, 1);
+    EXPECT_EQ(cache.fileTypeMask &
+                  (1ull << static_cast<unsigned>(FileType::Shell)),
+              0u)
+        << "the current buffer's shebang must not leak into the preview";
+}
+
 TEST(RealModeTransitionsTest, GrepLineSuffixOpensResultAtLine)
 {
     auto root = make_temp_dir("uvim_grep_line_");

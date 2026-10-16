@@ -67,8 +67,16 @@ public:
     // Pads the row to the pane width with the active colours, then resets.
     void endRow(int usedWidth);
     // One preview line: dim line number gutter, text clipped to the pane.
+    // `spans` (byte ranges of `text`, ascending, non-overlapping) colour
+    // parts of the line, e.g. syntax tokens.
+    struct Span
+    {
+        int start = 0;
+        int length = 0;
+        std::string color;
+    };
     void previewRow(int row, int lineNumber, std::string_view text,
-                    bool current);
+                    bool current, const std::vector<Span>& spans = {});
     void previewMessage(int row, std::string_view text);
 
     const PickerLayout& layout() const

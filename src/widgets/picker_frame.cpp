@@ -211,7 +211,7 @@ void PickerCanvas::endRow(int usedWidth)
 }
 
 void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
-                              bool current)
+                              bool current, const std::vector<Span>& spans)
 {
     if(!layout_.preview || row < 0 || row >= bodyRows())
         return;
@@ -228,12 +228,52 @@ void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
     out_ += current ? theme_.uiWarning() : theme_.uiGutter();
     out_ += number;
     out_ += ' ';
-    out_ += current ? theme_.selection() : theme_.reset();
-    const std::string clipped = clipToWidth(text, textWidth);
-    out_ += clipped;
-    const int used = gutter + text_utils::utf8DisplayWidth(clipped);
-    if(used < layout_.previewCols)
-        out_.append(layout_.previewCols - used, ' ');
+    // Plain text colour; span colours are foreground-only so the current
+    // line keeps its selection background.
+    const std::string& base = current ? theme_.selection() : theme_.reset();
+    out_ += base;
+    out_ += theme_.baseFg();
+
+    int used = 0;
+    auto emit = [&](size_t from, size_t to)
+    {
+        // Clip to the pane by display width (one column per code point).
+        size_t i = from;
+        while(i < to && used < textWidth)
+        {
+            const unsigned char lead = static_cast<unsigned char>(text[i]);
+            const size_t len =
+                lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
+            out_.append(text.substr(i, len));
+            ++used;
+            i += len;
+        }
+    };
+
+    size_t pos = 0;
+    for(const Span& span : spans)
+    {
+        if(used >= textWidth)
+            break;
+        const size_t start = std::min<size_t>(std::max(0, span.start),
+                                              text.size());
+        const size_t end = std::min<size_t>(
+            start + std::max(0, span.length), text.size());
+        if(start < pos)
+            continue; // overlapping span; keep the earlier colour
+        emit(pos, start);
+        if(!span.color.empty())
+            out_ += span.color;
+        emit(start, end);
+        if(!span.color.empty())
+            out_ += theme_.baseFg();
+        pos = end;
+    }
+    emit(pos, text.size());
+
+    const int filled = gutter + used;
+    if(filled < layout_.previewCols)
+        out_.append(layout_.previewCols - filled, ' ');
     out_ += theme_.reset();
 }
 

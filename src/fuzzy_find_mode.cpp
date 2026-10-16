@@ -179,6 +179,26 @@ std::vector<int> positionsForFileNameInPath(const std::string& path,
         adjusted.push_back(static_cast<int>(nameStart) + pos);
     return adjusted;
 }
+
+// Syntax spans for preview line `index` of `cache` (tokens from the
+// editor's highlighter, coloured with the active theme).
+std::vector<widgets::PickerCanvas::Span>
+previewSpans(Editor& editor, const PreviewHighlight& cache, int index)
+{
+    std::vector<widgets::PickerCanvas::Span> spans;
+    if(index < 0 || index >= (int)cache.tokens.size())
+        return spans;
+    const auto& tokens = cache.tokens[index];
+    spans.reserve(tokens.size());
+    for(const Token& token : tokens)
+    {
+        spans.push_back(
+            {token.start, token.length, editor.theme.syntax(token.type)});
+    }
+    std::sort(spans.begin(), spans.end(),
+              [](const auto& a, const auto& b) { return a.start < b.start; });
+    return spans;
+}
 } // namespace
 
 static std::string formatFileSizeShort(size_t size)
@@ -526,7 +546,7 @@ void FuzzyFindMode::draw(Editor& editor) const
     }
 
     if(layout.preview)
-        appendPreview(canvas);
+        appendPreview(editor, canvas);
 
     std::string summary;
     if(!matches.empty())
@@ -561,7 +581,8 @@ void FuzzyFindMode::draw(Editor& editor) const
     Terminal::flush();
 }
 
-void FuzzyFindMode::appendPreview(widgets::PickerCanvas& canvas) const
+void FuzzyFindMode::appendPreview(Editor& editor,
+                                  widgets::PickerCanvas& canvas) const
 {
     const int rows = canvas.bodyRows();
     if(cursor < 0 || cursor >= (int)matches.size())
@@ -581,11 +602,14 @@ void FuzzyFindMode::appendPreview(widgets::PickerCanvas& canvas) const
         previewScroll = 0;
     const int total = static_cast<int>(previewLines.size());
     previewScroll = std::clamp(previewScroll, 0, std::max(0, total - rows));
+    editor.highlightPreviewLines(previewHighlight, path, previewLines,
+                                 static_cast<size_t>(previewScroll + rows));
     for(int row = 0; row < rows; ++row)
     {
         const int index = previewScroll + row;
         if(index < total)
-            canvas.previewRow(row, index + 1, previewLines[index], false);
+            canvas.previewRow(row, index + 1, previewLines[index], false,
+                              previewSpans(editor, previewHighlight, index));
         else
             canvas.previewMessage(row, "");
     }

@@ -462,6 +462,26 @@ void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
     editor.searchMatches.push_back(seeded);
     editor.currentMatchIndex = 0;
 }
+
+// Syntax spans for preview line `index` of `cache` (tokens from the
+// editor's highlighter, coloured with the active theme).
+std::vector<widgets::PickerCanvas::Span>
+previewSpans(Editor& editor, const PreviewHighlight& cache, int index)
+{
+    std::vector<widgets::PickerCanvas::Span> spans;
+    if(index < 0 || index >= (int)cache.tokens.size())
+        return spans;
+    const auto& tokens = cache.tokens[index];
+    spans.reserve(tokens.size());
+    for(const Token& token : tokens)
+    {
+        spans.push_back(
+            {token.start, token.length, editor.theme.syntax(token.type)});
+    }
+    std::sort(spans.begin(), spans.end(),
+              [](const auto& a, const auto& b) { return a.start < b.start; });
+    return spans;
+}
 } // namespace
 
 // ============================================================================
@@ -832,16 +852,18 @@ void GrepSearchMode::appendPreview(Editor& editor,
     previewScroll =
         std::clamp(previewScroll, -centered, maxFirst - centered);
     const int first = std::clamp(centered + previewScroll, 0, maxFirst);
+    editor.highlightPreviewLines(previewHighlight, previewPath, previewLines,
+                                 static_cast<size_t>(first + rows));
     for(int row = 0; row < rows; ++row)
     {
         const int index = first + row;
         if(index < total)
             canvas.previewRow(row, index + 1, previewLines[index],
-                              index == target);
+                              index == target,
+                              previewSpans(editor, previewHighlight, index));
         else
             canvas.previewMessage(row, "");
     }
-    (void)editor;
 }
 
 void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const

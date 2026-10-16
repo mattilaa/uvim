@@ -69,9 +69,11 @@ bool EditorFileTypeController::isFileType(FileType type) const
     return (mask & file_type_bit(type)) != 0;
 }
 
-uint64_t
-EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
+uint64_t EditorFileTypeController::detectFileTypeMask(
+    std::string_view pathSv, const std::vector<std::string>* contentLines) const
 {
+    const std::vector<std::string>* sniffLines =
+        contentLines ? contentLines : editor.lines;
     uint64_t mask = 0;
 
     auto set_if = [&](FileType type, bool matches)
@@ -165,12 +167,12 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
             {
                 isMarkup = true;
             }
-            else if(editor.lines && !editor.lines->empty())
+            else if(sniffLines && !sniffLines->empty())
             {
-                const int maxLines = std::min<int>(50, editor.lines->size());
+                const int maxLines = std::min<int>(50, sniffLines->size());
                 for(int i = 0; i < maxLines && !isMarkup; ++i)
                 {
-                    std::string_view ln{(*editor.lines)[i]};
+                    std::string_view ln{(*sniffLines)[i]};
                     if(ln.empty())
                         continue;
                     if(ln.starts_with("#") || ln.starts_with("##") ||
@@ -221,9 +223,9 @@ EditorFileTypeController::detectFileTypeMask(std::string_view pathSv) const
             constants::shell_basenames.end(), [&](std::string_view name)
             { return text_utils::iequals_ascii(base, name); });
     }
-    if(!isShell && editor.lines && !editor.lines->empty())
+    if(!isShell && sniffLines && !sniffLines->empty())
     {
-        std::string_view first{(*editor.lines)[0]};
+        std::string_view first{(*sniffLines)[0]};
         if(first.starts_with("#!"))
         {
             isShell = std::any_of(

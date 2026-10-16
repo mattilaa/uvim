@@ -1,5 +1,7 @@
 #pragma once
 
+#include "preview_highlight.h"
+
 #include "file_entry.h"
 #include "mode.h"
 #include "mode_commands.h"
@@ -48,6 +50,7 @@ struct FuzzyFindMode
     // Preview pane cache (floating picker).
     mutable std::string previewPath;
     mutable std::vector<std::string> previewLines;
+    mutable PreviewHighlight previewHighlight;
     // Ctrl+Shift+J/K preview scroll (first shown line); tied to the file it
     // was set for and reset when another file is selected.
     mutable int previewScroll = 0;
@@ -63,7 +66,7 @@ struct FuzzyFindMode
     void refreshFileIndex(Editor& editor);
 
 private:
-    void appendPreview(widgets::PickerCanvas& canvas) const;
+    void appendPreview(Editor& editor, widgets::PickerCanvas& canvas) const;
     std::string selectedPath() const;
     void initializeFiles(Editor& editor);
     void updateMatches(Editor& editor);

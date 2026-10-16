@@ -5,6 +5,7 @@
 #include "mode_commands.h"
 #include "mode_context.h"
 #include "mode_state.h"
+#include "preview_highlight.h"
 #include "search_types.h"
 
 #include <chrono>
@@ -44,6 +45,7 @@ struct GrepSearchMode
     // Preview pane cache (floating picker).
     mutable std::string previewPath;
     mutable std::vector<std::string> previewLines;
+    mutable PreviewHighlight previewHighlight;
     // Ctrl+Shift+J/K preview scroll, relative to the centered match line;
     // tied to the match it was set for (previewKey()).
     mutable int previewScroll = 0;
