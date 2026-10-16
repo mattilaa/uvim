@@ -416,6 +416,11 @@ std::optional<ModeState> VisualMode::handle(ModeContext& ctx,
         ed->yankSelection();
         return NormalMode{};
 
+    case keyCode(typed::TypedKey::KEY_CAP_Y):
+        // Like Vim: Y yanks the selected lines, not just the selection.
+        ed->yankLineSelection();
+        return NormalMode{};
+
     case keyCode(typed::TypedKey::KEY_P):
     {
         std::string pasteBuffer = ed->yankBuffer;

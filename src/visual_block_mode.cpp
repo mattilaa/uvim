@@ -157,6 +157,11 @@ std::optional<ModeState> VisualBlockMode::handle(ModeContext& ctx,
         ed->yankVisualBlock();
         return NormalMode{};
 
+    case keyCode(typed::TypedKey::KEY_CAP_Y):
+        // Like Vim: Y yanks the selected lines, not just the block.
+        ed->yankLineSelection();
+        return NormalMode{};
+
     case keyCode(typed::TypedKey::KEY_C):
         ed->changeVisualBlock();
         return InsertMode{};

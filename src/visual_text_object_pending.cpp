@@ -89,6 +89,11 @@ std::optional<ModeState> VisualTextObjectDelimiterDispatcher::dispatch(
     case keyCode(command::CommandKey::KEY_APOSTROPHE):
         machine.setSingleQuote();
         return machine.redispatch(ctx, event);
+    // Word / WORD / paragraph objects (viw, vaW, vip ...) apply at once.
+    case keyCode(typed::TypedKey::KEY_W):
+    case keyCode(typed::TypedKey::KEY_CAP_W):
+    case keyCode(typed::TypedKey::KEY_P):
+        return applyTextObject(machine, ctx, key);
     default:
         machine.cancel(ctx);
         Terminal::unreadKey(key);
