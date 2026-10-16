@@ -6,9 +6,11 @@
 #include "gitignore.h"
 #include "header_help.h"
 #include "mode_state_machine.h"
+#include "picker_query.h"
 #include "process_pipe.h"
 #include "search_match_colors.h"
 #include "terminal.h"
+#include "widgets/picker_frame.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <atomic>
@@ -26,27 +28,32 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> grepSearchHelpTokens(int contrast)
+std::vector<std::string> grepSearchHelpTokens(int contrast, bool preview)
 {
-    return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
-            "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
-            "[Ctrl+I: gitignore]",
-            "[Ctrl+T: contrast " + std::to_string(contrast) + "]"};
+    std::vector<std::string> tokens = {
+        "[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
+        "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
+        "[Ctrl+I: gitignore]", "[Ctrl+V: preview]"};
+    if(preview)
+        tokens.push_back("[Ctrl+Shift+J/K: scroll preview]");
+    tokens.push_back("[Ctrl+T: contrast " + std::to_string(contrast) + "]");
+    return tokens;
 }
 
-int grepSearchHeaderRows(int screenCols, int contrast)
+int grepSearchHeaderRows(int cols, int contrast, bool preview)
 {
     // Prompt line + key help; counts and flags live in the bottom status bar.
-    return 1 +
-           HeaderHelp::lineCount(grepSearchHelpTokens(contrast), screenCols);
+    return 1 + HeaderHelp::lineCount(grepSearchHelpTokens(contrast, preview),
+                                     cols);
 }
 
-int grepSearchVisibleRows(const Editor& editor)
+int grepSearchVisibleRows(const Editor& editor, bool preview)
 {
-    return std::max(1, editor.screenRows -
-                           grepSearchHeaderRows(
-                               editor.screenCols,
-                               editor.searchMatchContrast));
+    const widgets::PickerLayout layout = editor.pickerLayout(preview);
+    const int header = grepSearchHeaderRows(
+        layout.headerCols, editor.searchMatchContrast, layout.preview);
+    // A floating box separates the header from the panes with one row.
+    return std::max(1, layout.rows - header - (layout.floating ? 1 : 0));
 }
 
 std::string toLower(std::string_view input)
@@ -455,6 +462,26 @@ void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
     editor.searchMatches.push_back(seeded);
     editor.currentMatchIndex = 0;
 }
+
+// Syntax spans for preview line `index` of `cache` (tokens from the
+// editor's highlighter, coloured with the active theme).
+std::vector<widgets::PickerCanvas::Span>
+previewSpans(Editor& editor, const PreviewHighlight& cache, int index)
+{
+    std::vector<widgets::PickerCanvas::Span> spans;
+    if(index < 0 || index >= (int)cache.tokens.size())
+        return spans;
+    const auto& tokens = cache.tokens[index];
+    spans.reserve(tokens.size());
+    for(const Token& token : tokens)
+    {
+        spans.push_back(
+            {token.start, token.length, editor.theme.syntax(token.type)});
+    }
+    std::sort(spans.begin(), spans.end(),
+              [](const auto& a, const auto& b) { return a.start < b.start; });
+    return spans;
+}
 } // namespace
 
 // ============================================================================
@@ -561,9 +588,11 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
         if(!text.empty())
         {
             query += text;
-            scheduleSearch(*ed);
-            cursor = 0;
-            offset = 0;
+            if(scheduleSearch(*ed))
+            {
+                cursor = 0;
+                offset = 0;
+            }
         }
     }
     // ========================================================================
@@ -578,9 +607,23 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         ed->searchMatchContrast = ed->searchMatchContrast >= 70 ? 35 : 100;
     }
-    else if(c == keyCode(control::ControlKey::TAB))
+    else if(c == keyCode(control::ControlKey::CTRL_V))
     {
         togglePreview();
+    }
+    else if(c == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+            c == keyCode(control::ControlKey::SHIFT_CTRL_K))
+    {
+        // Scroll the previewed file; the offset belongs to the selected
+        // match and resets when the selection changes.
+        const std::string key = previewKey();
+        if(previewScrollKey != key)
+        {
+            previewScrollKey = key;
+            previewScroll = 0;
+        }
+        previewScroll +=
+            c == keyCode(control::ControlKey::SHIFT_CTRL_J) ? 1 : -1;
     }
 
     // ========================================================================
@@ -608,29 +651,54 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 void GrepSearchMode::draw(Editor& editor)
 {
     adoptBackgroundResults(editor);
+    const widgets::PickerLayout layout = editor.pickerLayout(previewEnabled);
+    // Compose the whole frame (and, when floating, the code underneath) into
+    // one synchronized write so browsing never flickers.
+    Terminal::beginCapture();
+    if(layout.floating)
+        editor.drawPickerBackground(layout);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
+    if(layout.floating)
+        output += Terminal::ESC_HIDE_CURSOR;
+    widgets::PickerCanvas canvas(output, layout, editor.theme,
+                                 editor.utf8Mode);
+    std::string footer;
+    if(!matches.empty())
+        footer = std::to_string(cursor + 1) + " / " +
+                 std::to_string(matches.size());
+    const auto helpLines = HeaderHelp::wrap(
+        grepSearchHelpTokens(editor.searchMatchContrast, layout.preview),
+        layout.headerCols);
+    canvas.frame("Grep", footer, 1 + (int)helpLines.size());
 
-    output += Terminal::ESC_CURSOR_HOME;
-    output += editor.theme.reset();
-    output += Terminal::ESC_CLEAR_LINE;
-
+    // Prompt and key hints span the whole width.
+    int row = 0;
+    canvas.beginHeaderRow(row++);
     output += Terminal::ESC_BOLD;
     output += "  Grep: ";
     output += editor.theme.reset();
     output += editor.theme.uiPrompt();
-    output += query;
-
+    const std::string shownQuery =
+        truncateDisplayText(query, std::max(0, layout.headerCols - 9));
+    output += shownQuery;
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += editor.theme.baseFg();
+    canvas.endHeaderRow(9 + text_utils::utf8DisplayWidth(shownQuery));
+    for(const auto& help : helpLines)
+    {
+        canvas.beginHeaderRow(row++);
+        output += editor.theme.uiDim();
+        output += help;
+        canvas.endHeaderRow(text_utils::utf8DisplayWidth(help));
+    }
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       grepSearchHelpTokens(editor.searchMatchContrast));
-
-    int availableRows = grepSearchVisibleRows(editor);
-    const std::string lowerQuery = toLower(query);
+    const int availableRows = canvas.bodyRows();
+    const int cols = layout.cols;
+    const std::string pattern = searchPattern();
+    const std::string lowerQuery = toLower(pattern);
 
     std::string cwdPrefix;
     std::error_code cwdEc;
@@ -647,7 +715,7 @@ void GrepSearchMode::draw(Editor& editor)
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
+        canvas.beginRow(i);
 
         int index = i + offset;
         const GrepMatch& match = matches[index];
@@ -677,14 +745,12 @@ void GrepSearchMode::draw(Editor& editor)
         const std::string lineNumber = std::to_string(match.lineNumber);
         const int rowPrefixWidth = 2;
         const int separatorsWidth = 3; // ":" + ": "
-        const int minContentWidth =
-            std::min(20, std::max(0, editor.screenCols / 3));
-        int pathWidth = editor.screenCols - rowPrefixWidth - separatorsWidth -
+        const int minContentWidth = std::min(20, std::max(0, cols / 3));
+        int pathWidth = cols - rowPrefixWidth - separatorsWidth -
                         (int)lineNumber.length() - minContentWidth;
         if(pathWidth < 8)
-            pathWidth =
-                std::max(1, editor.screenCols - rowPrefixWidth -
-                                separatorsWidth - (int)lineNumber.length());
+            pathWidth = std::max(1, cols - rowPrefixWidth - separatorsWidth -
+                                        (int)lineNumber.length());
 
         displayName = truncatePathMiddle(displayName, pathWidth);
         const int displayNameWidth = text_utils::utf8DisplayWidth(displayName);
@@ -697,9 +763,8 @@ void GrepSearchMode::draw(Editor& editor)
         output += editor.theme.baseFg();
         output += ": ";
 
-        int maxContentLen = editor.screenCols - rowPrefixWidth -
-                            displayNameWidth - separatorsWidth -
-                            (int)lineNumber.length();
+        int maxContentLen = cols - rowPrefixWidth - displayNameWidth -
+                            separatorsWidth - (int)lineNumber.length();
         if(maxContentLen < 0)
             maxContentLen = 0;
 
@@ -715,9 +780,9 @@ void GrepSearchMode::draw(Editor& editor)
             {
                 output += content.substr(0, pos);
                 output += editor.theme.matchHighlight();
-                output += content.substr(pos, query.length());
+                output += content.substr(pos, pattern.length());
                 output += editor.theme.baseFg();
-                output += content.substr(pos + query.length());
+                output += content.substr(pos + pattern.length());
             }
             else
             {
@@ -729,28 +794,76 @@ void GrepSearchMode::draw(Editor& editor)
             output += content;
         }
 
-        const int renderedWidth = rowPrefixWidth + displayNameWidth +
-                                  separatorsWidth +
-                                  static_cast<int>(lineNumber.length()) +
-                                  text_utils::utf8DisplayWidth(content);
-        if(renderedWidth < editor.screenCols)
-            output.append(editor.screenCols - renderedWidth, ' ');
-
-        output += editor.theme.reset();
+        canvas.endRow(rowPrefixWidth + displayNameWidth + separatorsWidth +
+                      static_cast<int>(lineNumber.length()) +
+                      text_utils::utf8DisplayWidth(content));
     }
 
-    for(int i = (int)matches.size() - offset; i < availableRows; i++)
+    for(int i = std::max(0, (int)matches.size() - offset); i < availableRows;
+        i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
-        output += editor.theme.uiGutter();
-        output += "~";
-        output += editor.theme.baseFg();
+        canvas.beginRow(i);
+        if(!layout.floating)
+        {
+            output += editor.theme.uiGutter();
+            output += "~";
+        }
+        canvas.endRow(layout.floating ? 0 : 1);
     }
+
+    if(layout.preview)
+        appendPreview(editor, canvas);
 
     appendStatusBar(editor, output);
 
     Terminal::write(output);
+    Terminal::endCapture();
     Terminal::flush();
+}
+
+void GrepSearchMode::appendPreview(Editor& editor,
+                                   widgets::PickerCanvas& canvas) const
+{
+    const widgets::PickerLayout& layout = canvas.layout();
+    if(cursor < 0 || cursor >= (int)matches.size())
+    {
+        for(int row = 0; row < canvas.bodyRows(); ++row)
+            canvas.previewMessage(row, row == 0 ? "  no match selected" : "");
+        return;
+    }
+
+    const GrepMatch& match = matches[cursor];
+    if(previewPath != match.filepath)
+    {
+        previewPath = match.filepath;
+        previewLines = widgets::loadPreviewLines(match.filepath);
+    }
+
+    // Center the matched line in the pane, shifted by Ctrl+Shift+J/K.
+    const int target = std::max(0, match.lineNumber - 1);
+    const int total = static_cast<int>(previewLines.size());
+    const int rows = canvas.bodyRows();
+    const int centered = std::max(0, target - rows / 2);
+    const int maxFirst = std::max(0, total - rows);
+    if(previewScrollKey != previewKey())
+        previewScroll = 0;
+    // Keep the stored offset inside the file so scrolling back responds at
+    // once after overshooting an edge.
+    previewScroll =
+        std::clamp(previewScroll, -centered, maxFirst - centered);
+    const int first = std::clamp(centered + previewScroll, 0, maxFirst);
+    editor.highlightPreviewLines(previewHighlight, previewPath, previewLines,
+                                 static_cast<size_t>(first + rows));
+    for(int row = 0; row < rows; ++row)
+    {
+        const int index = first + row;
+        if(index < total)
+            canvas.previewRow(row, index + 1, previewLines[index],
+                              index == target,
+                              previewSpans(editor, previewHighlight, index));
+        else
+            canvas.previewMessage(row, "");
+    }
 }
 
 void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
@@ -775,6 +888,8 @@ void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
     view.state = searchPending ? "typing..." : searching ? "searching..." : "";
     if(editor.respectGitignore)
         view.flags.push_back("gitignore");
+    if(const PickerQuery parsed = parsePickerQuery(query); parsed.hasLine)
+        view.flags.push_back("line " + std::to_string(parsed.line));
 
     // The backend answering queries, shown like the [clangd] label.
     std::string tool = ripgrepAvailable() ? "rg" : "builtin";
@@ -786,6 +901,19 @@ void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
     view.index = matches.empty() ? 0 : cursor + 1;
     view.count = static_cast<int>(matches.size());
     editor.appendViewStatusBar(output, std::move(view));
+}
+
+std::string GrepSearchMode::previewKey() const
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return {};
+    return matches[cursor].filepath + ":" +
+           std::to_string(matches[cursor].lineNumber);
+}
+
+std::string GrepSearchMode::searchPattern() const
+{
+    return parsePickerQuery(query).pattern;
 }
 
 bool GrepSearchMode::adoptBackgroundResults(Editor& editor)
@@ -817,7 +945,7 @@ bool GrepSearchMode::adoptBackgroundResults(Editor& editor)
     {
         editor.rgCacheJustLoaded = false;
         clearGrepCachedQueryState(*this);
-        if(!query.empty() && !searchPending)
+        if(!searchPattern().empty() && !searchPending)
             performSearch(editor);
         changed = true;
     }
@@ -974,7 +1102,7 @@ void GrepSearchMode::refreshFileIndex(Editor& editor)
     cursor = 0;
     offset = 0;
     selectedMatches.clear();
-    if(query.empty())
+    if(searchPattern().empty())
     {
         matches.clear();
         searching = false;
@@ -995,8 +1123,10 @@ void GrepSearchMode::performSearch(Editor& editor)
     }
     static std::atomic<std::uint64_t> nextSearchId{0};
     activeSearch = ++nextSearchId;
+    lastSearchedPattern = searchPattern();
+    lastSearchedCaseSensitive = caseSensitive;
 
-    if(query.empty())
+    if(lastSearchedPattern.empty())
     {
         matches.clear();
         searching = false;
@@ -1040,7 +1170,7 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
         std::vector<GrepMatch> results;
     };
     auto request = std::make_shared<Request>();
-    request->query = query;
+    request->query = searchPattern();
     request->caseSensitive = caseSensitive;
     request->respectGitignore = editor.respectGitignore;
     request->useGitFileIndex = editor.useGitFileIndex;
@@ -1054,7 +1184,7 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
     Editor* ed = &editor;
 
     auto submitted = editor.submitTask(
-        "grep \"" + query + "\"", "",
+        "grep \"" + request->query + "\"", "",
         [request](TaskQueue::Context& ctx)
         {
             GrepSearchMode searcher;
@@ -1103,19 +1233,29 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
     activeSearchTask = submitted.id;
 }
 
-void GrepSearchMode::scheduleSearch(Editor& editor)
+bool GrepSearchMode::scheduleSearch(Editor& editor)
 {
-    if(query.empty())
+    // Typing only the ":415" line suffix does not change what is searched;
+    // keep the results and the selected match.
+    if(!searchPending && !lastSearchedPattern.empty() &&
+       searchPattern() == lastSearchedPattern &&
+       caseSensitive == lastSearchedCaseSensitive)
+    {
+        editor.needsFullRedraw = true;
+        return false;
+    }
+    if(searchPattern().empty())
     {
         performSearch(editor);
         editor.needsFullRedraw = true;
-        return;
+        return true;
     }
     searchPending = true;
     searching = false;
     searchDueAt = std::chrono::steady_clock::now() +
                   std::chrono::milliseconds(std::max(0, editor.rgUpdateMs));
     editor.needsFullRedraw = true;
+    return true;
 }
 
 void GrepSearchMode::flushPendingSearch(Editor& editor)
@@ -1425,29 +1565,30 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
 
 bool GrepSearchMode::performCachedSearch(Editor& editor)
 {
+    const std::string pattern = searchPattern();
     if(!syncRgCache(editor, false))
         return false;
 
-    if(query.size() < 3)
+    if(pattern.size() < 3)
     {
         matches.clear();
-        lastCachedQuery = query;
+        lastCachedQuery = pattern;
         lastCachedCaseSensitive = caseSensitive;
         lastCachedMatches.clear();
         return true;
     }
 
     std::string loweredNeedle;
-    std::string_view searchNeedle = query;
+    std::string_view searchNeedle = pattern;
     if(!caseSensitive)
     {
-        loweredNeedle = toLower(query);
+        loweredNeedle = toLower(pattern);
         searchNeedle = loweredNeedle;
     }
 
     if(lastCachedCaseSensitive == caseSensitive &&
-       query.size() > lastCachedQuery.size() &&
-       query.rfind(lastCachedQuery, 0) == 0 && !lastCachedMatches.empty())
+       pattern.size() > lastCachedQuery.size() &&
+       pattern.rfind(lastCachedQuery, 0) == 0 && !lastCachedMatches.empty())
     {
         std::vector<GrepMatch> filtered;
         filtered.reserve(std::min<size_t>(lastCachedMatches.size(), 1000));
@@ -1461,13 +1602,13 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
 
             match.highlightRanges.clear();
             match.highlightRanges.push_back(
-                std::make_pair(static_cast<int>(pos), (int)query.length()));
+                std::make_pair(static_cast<int>(pos), (int)pattern.length()));
             filtered.push_back(std::move(match));
             if(filtered.size() >= 1000)
                 break;
         }
         matches = std::move(filtered);
-        lastCachedQuery = query;
+        lastCachedQuery = pattern;
         lastCachedCaseSensitive = caseSensitive;
         lastCachedMatches = matches;
         return true;
@@ -1486,7 +1627,7 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
             match.lineNumber = lineIndex + 1;
             match.lineContent = trimString(line);
             match.highlightRanges.push_back(
-                std::make_pair((int)pos, (int)query.length()));
+                std::make_pair((int)pos, (int)pattern.length()));
             matches.push_back(std::move(match));
             if(matches.size() >= 1000)
                 return false;
@@ -1527,19 +1668,19 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
                           ref.lineIndex)]);
             if(!addLineMatches(cached, ref.lineIndex, haystack))
             {
-                lastCachedQuery = query;
+                lastCachedQuery = pattern;
                 lastCachedCaseSensitive = caseSensitive;
                 lastCachedMatches = matches;
                 return true;
             }
         }
-        lastCachedQuery = query;
+        lastCachedQuery = pattern;
         lastCachedCaseSensitive = caseSensitive;
         lastCachedMatches = matches;
         return true;
     }
 
-    lastCachedQuery = query;
+    lastCachedQuery = pattern;
     lastCachedCaseSensitive = caseSensitive;
     lastCachedMatches.clear();
     return true;
@@ -1802,8 +1943,11 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     *editor.cursorX = 0;
 
-    seedEditorSearchFromGrepMatch(editor, match, query);
+    const PickerQuery parsed = parsePickerQuery(query);
+    seedEditorSearchFromGrepMatch(editor, match, parsed.pattern);
     editor.centerScreen();
+    if(parsed.hasLine)
+        editor.jumpToRequestedLine(parsed.line);
 #ifdef _WIN32
     Terminal::discardPendingInput();
 #endif
@@ -1827,7 +1971,7 @@ void GrepSearchMode::resultDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = grepSearchVisibleRows(editor);
+        int visible = grepSearchVisibleRows(editor, previewEnabled);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -1836,7 +1980,7 @@ void GrepSearchMode::resultDown(Editor& editor)
 
 void GrepSearchMode::resultHalfPageUp(Editor& editor)
 {
-    int half = grepSearchVisibleRows(editor) / 2;
+    int half = grepSearchVisibleRows(editor, previewEnabled) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;
@@ -1847,11 +1991,11 @@ void GrepSearchMode::resultHalfPageUp(Editor& editor)
 
 void GrepSearchMode::resultHalfPageDown(Editor& editor)
 {
-    int half = grepSearchVisibleRows(editor) / 2;
+    int half = grepSearchVisibleRows(editor, previewEnabled) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = matches.size() - 1;
-    int visible = grepSearchVisibleRows(editor);
+    int visible = grepSearchVisibleRows(editor, previewEnabled);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
     prewarmAroundCursor(editor);
@@ -1873,9 +2017,11 @@ void GrepSearchMode::searchAddChar(Editor& editor, char c)
         Terminal::unreadKey(next);
         break;
     }
-    scheduleSearch(editor);
-    cursor = 0;
-    offset = 0;
+    if(scheduleSearch(editor))
+    {
+        cursor = 0;
+        offset = 0;
+    }
 }
 
 void GrepSearchMode::searchBackspace(Editor& editor)
@@ -1883,9 +2029,11 @@ void GrepSearchMode::searchBackspace(Editor& editor)
     if(!query.empty())
     {
         query.pop_back();
-        scheduleSearch(editor);
-        cursor = 0;
-        offset = 0;
+        if(scheduleSearch(editor))
+        {
+            cursor = 0;
+            offset = 0;
+        }
     }
 }
 
@@ -1895,15 +2043,18 @@ void GrepSearchMode::searchDeleteWord(Editor& editor)
         query.pop_back();
     while(!query.empty() && query.back() != keyCode(control::ControlKey::SPACE))
         query.pop_back();
-    scheduleSearch(editor);
-    cursor = 0;
-    offset = 0;
+    if(scheduleSearch(editor))
+    {
+        cursor = 0;
+        offset = 0;
+    }
 }
 
 void GrepSearchMode::searchClear()
 {
     searchPending = false;
     query.clear();
+    lastSearchedPattern.clear();
     matches.clear();
     selectedMatches.clear();
     cursor = 0;
@@ -1928,7 +2079,7 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
     cursor = 0;
     offset = 0;
     selectedMatches.clear();
-    if(query.empty())
+    if(searchPattern().empty())
     {
         matches.clear();
         searching = false;
@@ -2030,8 +2181,11 @@ bool GrepSearchMode::openSelected(Editor& editor)
     if(*editor.cursorY < 0)
         *editor.cursorY = 0;
     *editor.cursorX = 0;
-    seedEditorSearchFromGrepMatch(editor, finalMatch, query);
+    const PickerQuery parsed = parsePickerQuery(query);
+    seedEditorSearchFromGrepMatch(editor, finalMatch, parsed.pattern);
     editor.centerScreen();
+    if(parsed.hasLine)
+        editor.jumpToRequestedLine(parsed.line);
 #ifdef _WIN32
     Terminal::discardPendingInput();
 #endif

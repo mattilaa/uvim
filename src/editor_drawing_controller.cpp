@@ -610,22 +610,50 @@ bool usesEditorLayout(Mode mode)
 
 void EditorDrawingController::draw()
 {
+    // Compose the frame into one synchronized write: mode switches redraw
+    // a lot, and partial frames are what shows up as flicker.
+    Terminal::beginCapture();
     editor.beginTaskStatusFrame();
     editor.modeController->syncModeFromStateMachine();
-    // Entering or leaving a self-drawn view: start from a clean screen so the
-    // previous layout (status lines, progress) cannot linger in rows the new
-    // view does not paint.
-    if(editor.currentMode != lastDrawnMode_ &&
-       (!usesEditorLayout(editor.currentMode) ||
-        !usesEditorLayout(lastDrawnMode_)))
+
+    const Mode previous = lastDrawnMode_;
+    const Mode current = editor.currentMode;
+    if(current != previous)
     {
-        Terminal::write(Terminal::ESC_CLEAR_SCREEN);
+        const bool toFloatingPicker = isFloatingPicker(current);
+        const bool fromFloatingPicker = isFloatingPicker(previous);
+        editor.invalidatePickerBackground();
+        if(toFloatingPicker && usesEditorLayout(previous))
+        {
+            // The screen already shows the code the picker floats over;
+            // paint only the box.
+            editor.adoptScreenAsPickerBackground();
+        }
+        else if(fromFloatingPicker && usesEditorLayout(current))
+        {
+            // The editor repaints every row in place; a clear first would
+            // flash the whole screen.
+            editor.skipNextScreenClear();
+        }
+        else if(!usesEditorLayout(current) && !toFloatingPicker)
+        {
+            // A fullscreen view may leave rows it does not use untouched;
+            // start it from a clean screen (inside this same frame).
+            Terminal::write(Terminal::ESC_CLEAR_SCREEN);
+        }
         setNeedsFullRedraw(true);
     }
-    lastDrawnMode_ = editor.currentMode;
+    lastDrawnMode_ = current;
     refreshScreen();
     editor.finishTaskStatusFrame();
     setNeedsFullRedraw(false);
+    Terminal::endCapture();
+}
+
+bool EditorDrawingController::isFloatingPicker(Mode mode) const
+{
+    return (mode == GREP_SEARCH || mode == FUZZY_FIND) &&
+           editor.pickerLayout(false).floating;
 }
 
 void EditorDrawingController::forceFullRedraw()

@@ -6,7 +6,9 @@
 #include "mode_state_machine.h"
 #include "process_pipe.h"
 #include "search_match_colors.h"
+#include "picker_query.h"
 #include "terminal.h"
+#include "widgets/picker_frame.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
@@ -25,33 +27,38 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst,
-                                             int contrast)
+std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst, int contrast,
+                                             bool preview)
 {
-    return {"[Enter: open]",
-            "[Esc: cancel]",
-            "[Ctrl+N: select]",
-            "[Ctrl+J/K: navigate]",
-            "[Ctrl+I: gitignore]",
-            "[Ctrl+T: contrast " + std::to_string(contrast) + "]",
-            filenameFirst ? "[Ctrl+O: filename first]"
-                          : "[Ctrl+O: path first]"};
+    std::vector<std::string> tokens = {
+        "[Enter: open]",        "[Esc: cancel]",       "[Ctrl+N: select]",
+        "[Ctrl+J/K: navigate]", "[Ctrl+I: gitignore]", "[Ctrl+V: preview]"};
+    if(preview)
+        tokens.push_back("[Ctrl+Shift+J/K: scroll preview]");
+    tokens.push_back("[Ctrl+T: contrast " + std::to_string(contrast) + "]");
+    tokens.push_back(filenameFirst ? "[Ctrl+O: filename first]"
+                                   : "[Ctrl+O: path first]");
+    return tokens;
 }
 
-int fuzzyFindHeaderRows(int screenCols, bool filenameFirst, int contrast)
+int fuzzyFindHeaderRows(int screenCols, bool filenameFirst, int contrast,
+                        bool preview)
 {
     // Prompt line + key help; counts and flags live in the bottom status bar.
     return 1 + HeaderHelp::lineCount(
-                   fuzzyFindHelpTokens(filenameFirst, contrast),
+                   fuzzyFindHelpTokens(filenameFirst, contrast, preview),
                    screenCols);
 }
 
-int fuzzyFindVisibleRows(const Editor& editor, bool filenameFirst)
+int fuzzyFindVisibleRows(const Editor& editor, bool filenameFirst,
+                         bool preview)
 {
-    return std::max(
-        1, editor.screenRows -
-               fuzzyFindHeaderRows(editor.screenCols, filenameFirst,
-                                   editor.searchMatchContrast));
+    const widgets::PickerLayout layout = editor.pickerLayout(preview);
+    const int header =
+        fuzzyFindHeaderRows(layout.headerCols, filenameFirst,
+                            editor.searchMatchContrast, layout.preview);
+    // A floating box separates the header from the panes with one row.
+    return std::max(1, layout.rows - header - (layout.floating ? 1 : 0));
 }
 
 std::string runCmd(const std::vector<std::string>& args)
@@ -172,6 +179,26 @@ std::vector<int> positionsForFileNameInPath(const std::string& path,
         adjusted.push_back(static_cast<int>(nameStart) + pos);
     return adjusted;
 }
+
+// Syntax spans for preview line `index` of `cache` (tokens from the
+// editor's highlighter, coloured with the active theme).
+std::vector<widgets::PickerCanvas::Span>
+previewSpans(Editor& editor, const PreviewHighlight& cache, int index)
+{
+    std::vector<widgets::PickerCanvas::Span> spans;
+    if(index < 0 || index >= (int)cache.tokens.size())
+        return spans;
+    const auto& tokens = cache.tokens[index];
+    spans.reserve(tokens.size());
+    for(const Token& token : tokens)
+    {
+        spans.push_back(
+            {token.start, token.length, editor.theme.syntax(token.type)});
+    }
+    std::sort(spans.begin(), spans.end(),
+              [](const auto& a, const auto& b) { return a.start < b.start; });
+    return spans;
+}
 } // namespace
 
 static std::string formatFileSizeShort(size_t size)
@@ -291,6 +318,25 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         toggleFilenameFirst(*ed);
     }
+    else if(c == keyCode(control::ControlKey::CTRL_V))
+    {
+        previewEnabled = !previewEnabled;
+        ed->needsFullRedraw = true;
+    }
+    else if(c == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+            c == keyCode(control::ControlKey::SHIFT_CTRL_K))
+    {
+        // Scroll the previewed file; resets when another file is selected.
+        const std::string key = selectedPath();
+        if(previewScrollKey != key)
+        {
+            previewScrollKey = key;
+            previewScroll = 0;
+        }
+        previewScroll +=
+            c == keyCode(control::ControlKey::SHIFT_CTRL_J) ? 1 : -1;
+        ed->needsFullRedraw = true;
+    }
     else if(c == keyCode(control::ControlKey::CTRL_I))
     {
         toggleGitignore(*ed);
@@ -313,9 +359,7 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
         if(!text.empty())
         {
             query += text;
-            updateMatches(*ed);
-            cursor = 0;
-            offset = 0;
+            refreshForQueryChange(*ed);
             prewarmAroundCursor(*ed);
         }
     }
@@ -330,33 +374,62 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
 
 void FuzzyFindMode::draw(Editor& editor) const
 {
+    const widgets::PickerLayout layout = editor.pickerLayout(previewEnabled);
+    // Compose the whole frame (and, when floating, the code underneath) into
+    // one synchronized write so browsing never flickers.
+    Terminal::beginCapture();
+    if(layout.floating)
+        editor.drawPickerBackground(layout);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_HIDE_CURSOR;
-    output += Terminal::ESC_CURSOR_HOME;
-    output += editor.theme.reset();
-    output += Terminal::ESC_CLEAR_LINE;
+    widgets::PickerCanvas canvas(output, layout, editor.theme,
+                                 editor.utf8Mode);
+    std::string footer;
+    if(!matches.empty())
+        footer = std::to_string(cursor + 1) + " / " +
+                 std::to_string(matches.size());
+    const auto helpLines = HeaderHelp::wrap(
+        fuzzyFindHelpTokens(filenameFirst, editor.searchMatchContrast,
+                            layout.preview),
+        layout.headerCols);
+    canvas.frame("Find File", footer, 1 + (int)helpLines.size());
 
+    // Prompt and key hints span the whole width.
+    int headerRow = 0;
+    canvas.beginHeaderRow(headerRow++);
     output += Terminal::ESC_BOLD;
     output += "  Find File: ";
     output += editor.theme.reset();
     output += editor.theme.uiPrompt();
-    output += query;
-
+    std::string shownQuery = query;
+    if(text_utils::utf8DisplayWidth(shownQuery) > layout.headerCols - 15)
+        shownQuery = shownQuery.substr(
+            shownQuery.size() -
+            std::min(shownQuery.size(),
+                     (size_t)std::max(0, layout.headerCols - 15)));
+    output += shownQuery;
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += editor.theme.baseFg();
+    canvas.endHeaderRow(14 + text_utils::utf8DisplayWidth(shownQuery));
+    for(const auto& help : helpLines)
+    {
+        canvas.beginHeaderRow(headerRow++);
+        output += editor.theme.uiDim();
+        output += help;
+        canvas.endHeaderRow(text_utils::utf8DisplayWidth(help));
+    }
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       fuzzyFindHelpTokens(filenameFirst,
-                                           editor.searchMatchContrast));
-
-    int availableRows = fuzzyFindVisibleRows(editor, filenameFirst);
+    const int cols = layout.cols;
+    int availableRows = canvas.bodyRows();
+    const PickerQuery parsedQuery = parsePickerQuery(query);
+    const std::string& pattern = parsedQuery.pattern;
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
+        canvas.beginRow(i);
 
         int index = i + offset;
         const FuzzyMatch& match = matches[index];
@@ -367,9 +440,9 @@ void FuzzyFindMode::draw(Editor& editor) const
             output += SearchMatchColors::selectedRowBackground();
             output += editor.theme.baseFg();
         }
-        else if(!query.empty())
+        else if(!pattern.empty())
         {
-            output += fuzzyResultBackground(match, query, isSelected,
+            output += fuzzyResultBackground(match, pattern, isSelected,
                                             editor.searchMatchContrast);
             output += editor.theme.baseFg();
         }
@@ -395,19 +468,18 @@ void FuzzyFindMode::draw(Editor& editor) const
         }
 
         std::string sizeStr;
-        int pathWidth = std::max(1, editor.screenCols - 2);
-        if(editor.screenCols > 60 && match.file.metadataLoaded)
+        int pathWidth = std::max(1, cols - 2);
+        if(cols > 60 && match.file.metadataLoaded)
         {
             sizeStr = formatFileSizeShort(match.file.size);
-            pathWidth =
-                std::max(1, editor.screenCols - 2 - (int)sizeStr.length() - 2);
+            pathWidth = std::max(1, cols - 2 - (int)sizeStr.length() - 2);
         }
 
         const bool truncated =
             text_utils::utf8DisplayWidth(displayPath) > pathWidth;
         displayPath = truncatePathMiddle(displayPath, pathWidth);
 
-        if(!truncated && !query.empty() && !match.matchPositions.empty())
+        if(!truncated && !pattern.empty() && !match.matchPositions.empty())
         {
             size_t lastPos = 0;
             for(int pos : match.matchPositions)
@@ -445,7 +517,7 @@ void FuzzyFindMode::draw(Editor& editor) const
         int renderedWidth = 2 + text_utils::utf8DisplayWidth(displayPath);
         if(!sizeStr.empty())
         {
-            int padding = editor.screenCols - 2 -
+            int padding = cols - 2 -
                           text_utils::utf8DisplayWidth(displayPath) -
                           (int)sizeStr.length() - 2;
             if(padding > 0)
@@ -458,19 +530,23 @@ void FuzzyFindMode::draw(Editor& editor) const
             renderedWidth += static_cast<int>(sizeStr.length());
         }
 
-        if(renderedWidth < editor.screenCols)
-            output.append(editor.screenCols - renderedWidth, ' ');
-
-        output += editor.theme.reset();
+        canvas.endRow(renderedWidth);
     }
 
-    for(int i = (int)matches.size() - offset; i < availableRows; i++)
+    for(int i = std::max(0, (int)matches.size() - offset); i < availableRows;
+        i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
-        output += editor.theme.uiGutter();
-        output += "~";
-        output += editor.theme.baseFg();
+        canvas.beginRow(i);
+        if(!layout.floating)
+        {
+            output += editor.theme.uiGutter();
+            output += "~";
+        }
+        canvas.endRow(layout.floating ? 0 : 1);
     }
+
+    if(layout.preview)
+        appendPreview(editor, canvas);
 
     std::string summary;
     if(!matches.empty())
@@ -487,6 +563,8 @@ void FuzzyFindMode::draw(Editor& editor) const
     status.context = summary;
     status.flags = {editor.respectGitignore ? "gitignore" : "gitignore off",
                     filenameFirst ? "filename first" : "path first"};
+    if(parsedQuery.hasLine)
+        status.flags.push_back("line " + std::to_string(parsedQuery.line));
     // Where the file list comes from, shown like the [clangd] label.
     status.toolLabel = editor.useGitFileIndex ? "git index" : "fs scan";
     status.index = matches.empty() ? 0 : cursor + 1;
@@ -499,7 +577,49 @@ void FuzzyFindMode::draw(Editor& editor) const
     Terminal::write(output);
     if(syncOutput)
         Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
+    Terminal::endCapture();
     Terminal::flush();
+}
+
+void FuzzyFindMode::appendPreview(Editor& editor,
+                                  widgets::PickerCanvas& canvas) const
+{
+    const int rows = canvas.bodyRows();
+    if(cursor < 0 || cursor >= (int)matches.size())
+    {
+        for(int row = 0; row < rows; ++row)
+            canvas.previewMessage(row, row == 0 ? "  no file selected" : "");
+        return;
+    }
+
+    const std::string& path = matches[cursor].file.path;
+    if(previewPath != path)
+    {
+        previewPath = path;
+        previewLines = widgets::loadPreviewLines(path, 2000);
+    }
+    if(previewScrollKey != path)
+        previewScroll = 0;
+    const int total = static_cast<int>(previewLines.size());
+    previewScroll = std::clamp(previewScroll, 0, std::max(0, total - rows));
+    editor.highlightPreviewLines(previewHighlight, path, previewLines,
+                                 static_cast<size_t>(previewScroll + rows));
+    for(int row = 0; row < rows; ++row)
+    {
+        const int index = previewScroll + row;
+        if(index < total)
+            canvas.previewRow(row, index + 1, previewLines[index], false,
+                              previewSpans(editor, previewHighlight, index));
+        else
+            canvas.previewMessage(row, "");
+    }
+}
+
+std::string FuzzyFindMode::selectedPath() const
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return {};
+    return matches[cursor].file.path;
 }
 
 void FuzzyFindMode::initializeFiles(Editor& editor)
@@ -625,11 +745,16 @@ void FuzzyFindMode::initializeFiles(Editor& editor)
 
 void FuzzyFindMode::updateMatches(Editor& /* editor */)
 {
+    // "SomeFil:415" matches files on "SomeFil"; the line is used on open.
+    const std::string pattern = parsePickerQuery(query).pattern;
+    matchedPattern = pattern;
+    matchesValid = true;
+
     matches.clear();
     matches.reserve(projectFiles.size());
     selectedFiles.clear();
 
-    if(query.empty())
+    if(pattern.empty())
     {
         for(const auto& file : projectFiles)
         {
@@ -651,11 +776,11 @@ void FuzzyFindMode::updateMatches(Editor& /* editor */)
 
             std::vector<int> positions;
             int pathScore = editor::helper::fuzzyScoreWithPositions(
-                query, file.path, positions);
+                pattern, file.path, positions);
 
             std::vector<int> namePositions;
             int nameScore = editor::helper::fuzzyScoreWithPositions(
-                query, file.name, namePositions);
+                pattern, file.name, namePositions);
 
             const bool nameMatched = nameScore > 0;
             const bool pathMatched = pathScore > 0;
@@ -717,7 +842,7 @@ void FuzzyFindMode::moveDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = fuzzyFindVisibleRows(editor, filenameFirst);
+        int visible = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -743,11 +868,11 @@ void FuzzyFindMode::halfPageDown(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = fuzzyFindVisibleRows(editor, filenameFirst) / 2;
+    int half = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = (int)matches.size() - 1;
-    int visible = fuzzyFindVisibleRows(editor, filenameFirst);
+    int visible = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
     prewarmAroundCursor(editor);
@@ -758,7 +883,7 @@ void FuzzyFindMode::halfPageUp(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = fuzzyFindVisibleRows(editor, filenameFirst) / 2;
+    int half = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;
@@ -767,13 +892,23 @@ void FuzzyFindMode::halfPageUp(Editor& editor)
     prewarmAroundCursor(editor);
 }
 
-void FuzzyFindMode::addChar(Editor& editor, char c)
+bool FuzzyFindMode::refreshForQueryChange(Editor& editor)
 {
-    query += c;
+    // Typing only the ":<line>" suffix keeps the matches and the selected
+    // file, so "SomeFil", pick a file, then ":415" works.
+    if(matchesValid && parsePickerQuery(query).pattern == matchedPattern)
+        return false;
     updateMatches(editor);
     cursor = 0;
     offset = 0;
     prewarmAroundCursor(editor);
+    return true;
+}
+
+void FuzzyFindMode::addChar(Editor& editor, char c)
+{
+    query += c;
+    refreshForQueryChange(editor);
 }
 
 void FuzzyFindMode::backspace(Editor& editor)
@@ -781,10 +916,7 @@ void FuzzyFindMode::backspace(Editor& editor)
     if(!query.empty())
     {
         query.pop_back();
-        updateMatches(editor);
-        cursor = 0;
-        offset = 0;
-        prewarmAroundCursor(editor);
+        refreshForQueryChange(editor);
     }
 }
 
@@ -794,10 +926,7 @@ void FuzzyFindMode::deleteWord(Editor& editor)
         query.pop_back();
     while(!query.empty() && query.back() != keyCode(control::ControlKey::SPACE))
         query.pop_back();
-    updateMatches(editor);
-    cursor = 0;
-    offset = 0;
-    prewarmAroundCursor(editor);
+    refreshForQueryChange(editor);
 }
 
 void FuzzyFindMode::clearQuery(Editor& editor)
@@ -890,6 +1019,8 @@ bool FuzzyFindMode::select(Editor& editor)
     prewarmAroundCursor(editor);
     const FuzzyMatch& match = matches[cursor];
     editor.openFile(std::string_view(match.file.path));
+    if(const PickerQuery parsed = parsePickerQuery(query); parsed.hasLine)
+        editor.jumpToRequestedLine(parsed.line);
 #ifdef _WIN32
     Terminal::discardPendingInput();
 #endif
@@ -909,6 +1040,8 @@ bool FuzzyFindMode::openSelected(Editor& editor)
         bool notifyLsp = (i + 1 == paths.size());
         editor.openFile(std::string_view(paths[i]), notifyLsp);
     }
+    if(const PickerQuery parsed = parsePickerQuery(query); parsed.hasLine)
+        editor.jumpToRequestedLine(parsed.line);
 #ifdef _WIN32
     Terminal::discardPendingInput();
 #endif

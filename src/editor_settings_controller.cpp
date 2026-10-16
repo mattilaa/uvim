@@ -150,6 +150,26 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         return true;
     }
 #endif
+    if(opt == "pickerstyle?")
+    {
+        setStatusMessage(std::string("pickerstyle=") +
+                         (pickerFloating ? "float" : "fullscreen"));
+        return true;
+    }
+    if(opt == "picker.width?" || opt == "picker.height?")
+    {
+        const bool width = opt == "picker.width?";
+        setStatusMessage(std::string(width ? "picker.width=" : "picker.height=") +
+                         std::to_string(width ? pickerWidthPercent
+                                              : pickerHeightPercent));
+        return true;
+    }
+    if(opt == "picker.preview?")
+    {
+        setStatusMessage(std::string("picker.preview=") +
+                         (pickerPreview ? "true" : "false"));
+        return true;
+    }
     if(opt == "progressstyle?")
     {
         setStatusMessage("progressstyle=" +
@@ -803,6 +823,58 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         {
             setStatusMessage("filebrowser.fuzzy: expected true/false");
         }
+        return true;
+    }
+    if(opt.rfind("pickerstyle=", 0) == 0)
+    {
+        const std::string value = opt.substr(std::string("pickerstyle=").length());
+        if(value == "float" || value == "floating")
+            pickerFloating = true;
+        else if(value == "fullscreen" || value == "full")
+            pickerFloating = false;
+        else
+        {
+            setStatusMessage("pickerstyle: expected float or fullscreen");
+            return true;
+        }
+        setStatusMessage(std::string("pickerstyle=") +
+                         (pickerFloating ? "float" : "fullscreen"));
+        needsFullRedraw = true;
+        return true;
+    }
+    if(opt.rfind("picker.width=", 0) == 0 || opt.rfind("picker.height=", 0) == 0)
+    {
+        const bool width = opt.rfind("picker.width=", 0) == 0;
+        const std::string key = width ? "picker.width" : "picker.height";
+        int value = 0;
+        if(!editor::helper::parse_int(
+               std::string_view(opt).substr(key.length() + 1), value) ||
+           value < 10 || value > 100)
+        {
+            setStatusMessage(key + ": expected 10-100 (percent)");
+            return true;
+        }
+        (width ? pickerWidthPercent : pickerHeightPercent) = value;
+        setStatusMessage(key + "=" + std::to_string(value));
+        needsFullRedraw = true;
+        return true;
+    }
+    if(opt.rfind("picker.preview=", 0) == 0)
+    {
+        const std::string value =
+            opt.substr(std::string("picker.preview=").length());
+        if(value == "true" || value == "1" || value == "on")
+            pickerPreview = true;
+        else if(value == "false" || value == "0" || value == "off")
+            pickerPreview = false;
+        else
+        {
+            setStatusMessage("picker.preview: expected true/false");
+            return true;
+        }
+        setStatusMessage(std::string("picker.preview=") +
+                         (pickerPreview ? "true" : "false"));
+        needsFullRedraw = true;
         return true;
     }
     if(opt.rfind("progressstyle=", 0) == 0)

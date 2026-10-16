@@ -1,5 +1,7 @@
 #pragma once
 
+#include "preview_highlight.h"
+
 #include "file_entry.h"
 #include "mode.h"
 #include "mode_commands.h"
@@ -18,6 +20,11 @@
 #include <utility>
 #include <vector>
 
+namespace widgets
+{
+class PickerCanvas;
+}
+
 namespace editor::statemachine
 {
 struct FuzzyFindMode
@@ -34,7 +41,20 @@ struct FuzzyFindMode
     int offset = 0;
     bool projectFilesInitialized = false;
     bool filenameFirst = false;
+    bool previewEnabled = true;
+    // Pattern the current matches were computed for (query minus any
+    // ":<line>" suffix); typing only the suffix keeps the matches.
+    std::string matchedPattern;
+    bool matchesValid = false;
     std::unordered_set<std::string> selectedFiles;
+    // Preview pane cache (floating picker).
+    mutable std::string previewPath;
+    mutable std::vector<std::string> previewLines;
+    mutable PreviewHighlight previewHighlight;
+    // Ctrl+Shift+J/K preview scroll (first shown line); tied to the file it
+    // was set for and reset when another file is selected.
+    mutable int previewScroll = 0;
+    mutable std::string previewScrollKey;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -46,12 +66,15 @@ struct FuzzyFindMode
     void refreshFileIndex(Editor& editor);
 
 private:
+    void appendPreview(Editor& editor, widgets::PickerCanvas& canvas) const;
+    std::string selectedPath() const;
     void initializeFiles(Editor& editor);
     void updateMatches(Editor& editor);
     void moveDown(Editor& editor);
     void moveUp(Editor& editor);
     void halfPageDown(Editor& editor);
     void halfPageUp(Editor& editor);
+    bool refreshForQueryChange(Editor& editor);
     void addChar(Editor& editor, char c);
     void backspace(Editor& editor);
     void deleteWord(Editor& editor);

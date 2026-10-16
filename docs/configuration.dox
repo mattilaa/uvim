@@ -59,6 +59,12 @@ formatonsave = true
 formatondoubleesctimeoutms = 300
 rgupdate = 300
 progressstyle = color
+pickerstyle = float
+
+[editor.picker]
+width = 80
+height = 70
+preview = true
 gdcenter = true
 autodetectlsps = true
 
@@ -181,6 +187,25 @@ String. Default: color. One of `ascii` (`[=====.....]`), `glyph`
 `theme.progress.fg`/`theme.progress.bg` colours). Style of the background
 task progress shown in the status bar and the `:tasks` view. Non-UTF-8
 terminals always use `ascii`.
+
+\par editor.pickerstyle
+String. Default: float. `float` opens the `Ctrl-p` file finder and the
+`Ctrl-a` grep as a bordered floating window over the code (Telescope style)
+with a preview pane when the window is wide enough; `fullscreen` uses the
+classic fullscreen views. Narrow terminals fall back to fullscreen.
+
+\par editor.picker.width
+Integer. Default: 80. Range: 10-100. Floating picker width in percent of the
+terminal.
+
+\par editor.picker.height
+Integer. Default: 70. Range: 10-100. Floating picker height in percent of the
+terminal.
+
+\par editor.picker.preview
+Boolean. Default: true. Show the preview pane in floating pickers (file head
+for `Ctrl-p`, the matched line in context for `Ctrl-a`). `Ctrl-v` toggles it
+while a picker is open.
 
 \par editor.gdcenter
 Boolean. Default: true. Center screen on `gd` navigation.
