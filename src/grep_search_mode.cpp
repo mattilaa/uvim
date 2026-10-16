@@ -28,25 +28,30 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> grepSearchHelpTokens(int contrast)
+std::vector<std::string> grepSearchHelpTokens(int contrast, bool preview)
 {
-    return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
-            "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
-            "[Ctrl+I: gitignore]", "[Ctrl+V: preview]",
-            "[Ctrl+T: contrast " + std::to_string(contrast) + "]"};
+    std::vector<std::string> tokens = {
+        "[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
+        "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
+        "[Ctrl+I: gitignore]", "[Ctrl+V: preview]"};
+    if(preview)
+        tokens.push_back("[Ctrl+Shift+J/K: scroll preview]");
+    tokens.push_back("[Ctrl+T: contrast " + std::to_string(contrast) + "]");
+    return tokens;
 }
 
-int grepSearchHeaderRows(int cols, int contrast)
+int grepSearchHeaderRows(int cols, int contrast, bool preview)
 {
     // Prompt line + key help; counts and flags live in the bottom status bar.
-    return 1 + HeaderHelp::lineCount(grepSearchHelpTokens(contrast), cols);
+    return 1 + HeaderHelp::lineCount(grepSearchHelpTokens(contrast, preview),
+                                     cols);
 }
 
 int grepSearchVisibleRows(const Editor& editor, bool preview)
 {
     const widgets::PickerLayout layout = editor.pickerLayout(preview);
-    const int header =
-        grepSearchHeaderRows(layout.headerCols, editor.searchMatchContrast);
+    const int header = grepSearchHeaderRows(
+        layout.headerCols, editor.searchMatchContrast, layout.preview);
     // A floating box separates the header from the panes with one row.
     return std::max(1, layout.rows - header - (layout.floating ? 1 : 0));
 }
@@ -586,6 +591,20 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         togglePreview();
     }
+    else if(c == keyCode(control::ControlKey::SHIFT_CTRL_J) ||
+            c == keyCode(control::ControlKey::SHIFT_CTRL_K))
+    {
+        // Scroll the previewed file; the offset belongs to the selected
+        // match and resets when the selection changes.
+        const std::string key = previewKey();
+        if(previewScrollKey != key)
+        {
+            previewScrollKey = key;
+            previewScroll = 0;
+        }
+        previewScroll +=
+            c == keyCode(control::ControlKey::SHIFT_CTRL_J) ? 1 : -1;
+    }
 
     // ========================================================================
     // Mode Switching
@@ -630,7 +649,8 @@ void GrepSearchMode::draw(Editor& editor)
         footer = std::to_string(cursor + 1) + " / " +
                  std::to_string(matches.size());
     const auto helpLines = HeaderHelp::wrap(
-        grepSearchHelpTokens(editor.searchMatchContrast), layout.headerCols);
+        grepSearchHelpTokens(editor.searchMatchContrast, layout.preview),
+        layout.headerCols);
     canvas.frame("Grep", footer, 1 + (int)helpLines.size());
 
     // Prompt and key hints span the whole width.
@@ -799,12 +819,19 @@ void GrepSearchMode::appendPreview(Editor& editor,
         previewLines = widgets::loadPreviewLines(match.filepath);
     }
 
-    // Center the matched line in the pane.
+    // Center the matched line in the pane, shifted by Ctrl+Shift+J/K.
     const int target = std::max(0, match.lineNumber - 1);
     const int total = static_cast<int>(previewLines.size());
     const int rows = canvas.bodyRows();
-    int first = std::max(0, target - rows / 2);
-    first = std::max(0, std::min(first, total - rows));
+    const int centered = std::max(0, target - rows / 2);
+    const int maxFirst = std::max(0, total - rows);
+    if(previewScrollKey != previewKey())
+        previewScroll = 0;
+    // Keep the stored offset inside the file so scrolling back responds at
+    // once after overshooting an edge.
+    previewScroll =
+        std::clamp(previewScroll, -centered, maxFirst - centered);
+    const int first = std::clamp(centered + previewScroll, 0, maxFirst);
     for(int row = 0; row < rows; ++row)
     {
         const int index = first + row;
@@ -852,6 +879,14 @@ void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
     view.index = matches.empty() ? 0 : cursor + 1;
     view.count = static_cast<int>(matches.size());
     editor.appendViewStatusBar(output, std::move(view));
+}
+
+std::string GrepSearchMode::previewKey() const
+{
+    if(cursor < 0 || cursor >= (int)matches.size())
+        return {};
+    return matches[cursor].filepath + ":" +
+           std::to_string(matches[cursor].lineNumber);
 }
 
 std::string GrepSearchMode::searchPattern() const

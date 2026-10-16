@@ -44,6 +44,10 @@ struct GrepSearchMode
     // Preview pane cache (floating picker).
     mutable std::string previewPath;
     mutable std::vector<std::string> previewLines;
+    // Ctrl+Shift+J/K preview scroll, relative to the centered match line;
+    // tied to the match it was set for (previewKey()).
+    mutable int previewScroll = 0;
+    mutable std::string previewScrollKey;
     bool searchPending = false;
     std::chrono::steady_clock::time_point searchDueAt{};
     std::unordered_set<int> selectedMatches;
@@ -83,6 +87,7 @@ private:
     bool adoptBackgroundResults(Editor& editor);
     // Query without a trailing ":<line>" jump suffix (see picker_query.h).
     std::string searchPattern() const;
+    std::string previewKey() const;
     void appendStatusBar(Editor& editor, std::string& output) const;
     void appendPreview(Editor& editor, widgets::PickerCanvas& canvas) const;
 #ifdef UVIM_ENABLE_RG_CACHE

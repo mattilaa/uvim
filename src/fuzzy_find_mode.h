@@ -48,6 +48,10 @@ struct FuzzyFindMode
     // Preview pane cache (floating picker).
     mutable std::string previewPath;
     mutable std::vector<std::string> previewLines;
+    // Ctrl+Shift+J/K preview scroll (first shown line); tied to the file it
+    // was set for and reset when another file is selected.
+    mutable int previewScroll = 0;
+    mutable std::string previewScrollKey;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -60,6 +64,7 @@ struct FuzzyFindMode
 
 private:
     void appendPreview(widgets::PickerCanvas& canvas) const;
+    std::string selectedPath() const;
     void initializeFiles(Editor& editor);
     void updateMatches(Editor& editor);
     void moveDown(Editor& editor);

@@ -534,6 +534,41 @@ TEST(RealModeTransitionsTest, FuzzyFindLineSuffixKeepsSelectedFile)
     EXPECT_EQ(*editor.cursorY, 2);
 }
 
+TEST(RealModeTransitionsTest, FuzzyPreviewScrollFollowsSelection)
+{
+    auto root = make_temp_dir("uvim_fuzzy_preview_scroll_");
+    write_file(root / "scroll_a.txt", numberedLines(50, "a", 0));
+    write_file(root / "scroll_b.txt", numberedLines(50, "b", 0));
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    typeText(sm, "scroll");
+    auto* fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->matches.size(), 2u);
+
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_K));
+    fuzzy = sm.getState<FuzzyFindMode>();
+    EXPECT_EQ(fuzzy->previewScroll, 2);
+    EXPECT_EQ(fuzzy->previewScrollKey, fuzzy->matches[0].file.path);
+
+    // Another file: the offset starts over for it.
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_J));
+    fuzzy = sm.getState<FuzzyFindMode>();
+    EXPECT_EQ(fuzzy->previewScroll, 1);
+    EXPECT_EQ(fuzzy->previewScrollKey, fuzzy->matches[1].file.path);
+    EXPECT_STREQ(sm.currentStateName(), "FUZZY") << "scrolling keeps picker";
+}
+
 TEST(RealModeTransitionsTest, GrepLineSuffixOpensResultAtLine)
 {
     auto root = make_temp_dir("uvim_grep_line_");
