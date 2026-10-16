@@ -50,6 +50,10 @@ struct GrepSearchMode
     // Identifies the newest background search; older results are dropped.
     std::uint64_t activeSearch = 0;
     std::uint64_t activeSearchTask = 0;
+    // What the last search ran for; a changed ":<line>" suffix alone does
+    // not trigger a new search.
+    std::string lastSearchedPattern;
+    bool lastSearchedCaseSensitive = false;
 #ifdef UVIM_ENABLE_RG_CACHE
     std::chrono::steady_clock::time_point lastRgCacheIndexRefresh{};
     bool rgCacheSyncPending = false;
@@ -72,10 +76,13 @@ private:
     void loadFileIndex(Editor& editor);
     void initialize(Editor& editor);
     void performSearch(Editor& editor);
-    void scheduleSearch(Editor& editor);
+    // False when the query change needs no new search.
+    bool scheduleSearch(Editor& editor);
     void flushPendingSearch(Editor& editor);
     void startBackgroundSearch(Editor& editor);
     bool adoptBackgroundResults(Editor& editor);
+    // Query without a trailing ":<line>" jump suffix (see picker_query.h).
+    std::string searchPattern() const;
     void appendStatusBar(Editor& editor, std::string& output) const;
     void appendPreview(Editor& editor, widgets::PickerCanvas& canvas) const;
 #ifdef UVIM_ENABLE_RG_CACHE

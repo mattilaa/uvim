@@ -1,3 +1,4 @@
+#include "picker_query.h"
 #include "task_queue.h"
 #include "widgets/picker_frame.h"
 #include "widgets/progress_bar.h"
@@ -336,5 +337,44 @@ TEST(PickerLayoutTest, FullscreenStyleUsesWholeArea)
     EXPECT_EQ(layout.top, 1);
     EXPECT_EQ(layout.left, 1);
     EXPECT_EQ(layout.cols, 160);
+}
+TEST(PickerQueryTest, ParsesLineSuffix)
+{
+    auto q = parsePickerQuery("SomeFil:415");
+    EXPECT_EQ(q.pattern, "SomeFil");
+    EXPECT_TRUE(q.hasLine);
+    EXPECT_EQ(q.line, 415);
+
+    q = parsePickerQuery(":12");
+    EXPECT_EQ(q.pattern, "");
+    EXPECT_TRUE(q.hasLine);
+    EXPECT_EQ(q.line, 12);
+}
+
+TEST(PickerQueryTest, LeavesOtherQueriesAlone)
+{
+    for(const char* text : {"needle", "a:b", "std::", "v1:2x", "", "123"})
+    {
+        const auto q = parsePickerQuery(text);
+        EXPECT_EQ(q.pattern, text) << text;
+        EXPECT_FALSE(q.hasLine) << text;
+    }
+}
+
+TEST(PickerQueryTest, TrailingColonIsAPendingSuffix)
+{
+    auto q = parsePickerQuery("SomeFil:");
+    EXPECT_EQ(q.pattern, "SomeFil");
+    EXPECT_FALSE(q.hasLine);
+
+    q = parsePickerQuery("note\\:");
+    EXPECT_EQ(q.pattern, "note:");
+}
+
+TEST(PickerQueryTest, EscapedColonSearchesLiterally)
+{
+    const auto q = parsePickerQuery("error\\:42");
+    EXPECT_EQ(q.pattern, "error:42");
+    EXPECT_FALSE(q.hasLine);
 }
 } // namespace

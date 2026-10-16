@@ -817,6 +817,9 @@ public:
     void moveToFirstLine();
     void moveToLastLine();
     void moveToLine(int line);
+    // Picker "file:415" jumps: moves to 1-based `line`, or to the last/first
+    // line with a status message when the file has no such line.
+    void jumpToRequestedLine(int line);
     void pushJumpLocation();
     void jumpForward();
     void jumpBack();
@@ -1251,6 +1254,7 @@ private:
         int boxCols = 0;
     } pickerBackground_;
     bool pickerBackgroundAdopted_ = false;
+    std::string lastLineJumpMessage_;
     bool skipNextScreenClear_ = false;
     void runNextStartupStep();
     struct StartupStep

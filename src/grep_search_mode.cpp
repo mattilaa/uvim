@@ -6,6 +6,7 @@
 #include "gitignore.h"
 #include "header_help.h"
 #include "mode_state_machine.h"
+#include "picker_query.h"
 #include "process_pipe.h"
 #include "search_match_colors.h"
 #include "terminal.h"
@@ -562,9 +563,11 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
         if(!text.empty())
         {
             query += text;
-            scheduleSearch(*ed);
-            cursor = 0;
-            offset = 0;
+            if(scheduleSearch(*ed))
+            {
+                cursor = 0;
+                offset = 0;
+            }
         }
     }
     // ========================================================================
@@ -654,7 +657,8 @@ void GrepSearchMode::draw(Editor& editor)
 
     const int availableRows = canvas.bodyRows();
     const int cols = layout.cols;
-    const std::string lowerQuery = toLower(query);
+    const std::string pattern = searchPattern();
+    const std::string lowerQuery = toLower(pattern);
 
     std::string cwdPrefix;
     std::error_code cwdEc;
@@ -736,9 +740,9 @@ void GrepSearchMode::draw(Editor& editor)
             {
                 output += content.substr(0, pos);
                 output += editor.theme.matchHighlight();
-                output += content.substr(pos, query.length());
+                output += content.substr(pos, pattern.length());
                 output += editor.theme.baseFg();
-                output += content.substr(pos + query.length());
+                output += content.substr(pos + pattern.length());
             }
             else
             {
@@ -835,6 +839,8 @@ void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
     view.state = searchPending ? "typing..." : searching ? "searching..." : "";
     if(editor.respectGitignore)
         view.flags.push_back("gitignore");
+    if(const PickerQuery parsed = parsePickerQuery(query); parsed.hasLine)
+        view.flags.push_back("line " + std::to_string(parsed.line));
 
     // The backend answering queries, shown like the [clangd] label.
     std::string tool = ripgrepAvailable() ? "rg" : "builtin";
@@ -846,6 +852,11 @@ void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
     view.index = matches.empty() ? 0 : cursor + 1;
     view.count = static_cast<int>(matches.size());
     editor.appendViewStatusBar(output, std::move(view));
+}
+
+std::string GrepSearchMode::searchPattern() const
+{
+    return parsePickerQuery(query).pattern;
 }
 
 bool GrepSearchMode::adoptBackgroundResults(Editor& editor)
@@ -877,7 +888,7 @@ bool GrepSearchMode::adoptBackgroundResults(Editor& editor)
     {
         editor.rgCacheJustLoaded = false;
         clearGrepCachedQueryState(*this);
-        if(!query.empty() && !searchPending)
+        if(!searchPattern().empty() && !searchPending)
             performSearch(editor);
         changed = true;
     }
@@ -1034,7 +1045,7 @@ void GrepSearchMode::refreshFileIndex(Editor& editor)
     cursor = 0;
     offset = 0;
     selectedMatches.clear();
-    if(query.empty())
+    if(searchPattern().empty())
     {
         matches.clear();
         searching = false;
@@ -1055,8 +1066,10 @@ void GrepSearchMode::performSearch(Editor& editor)
     }
     static std::atomic<std::uint64_t> nextSearchId{0};
     activeSearch = ++nextSearchId;
+    lastSearchedPattern = searchPattern();
+    lastSearchedCaseSensitive = caseSensitive;
 
-    if(query.empty())
+    if(lastSearchedPattern.empty())
     {
         matches.clear();
         searching = false;
@@ -1100,7 +1113,7 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
         std::vector<GrepMatch> results;
     };
     auto request = std::make_shared<Request>();
-    request->query = query;
+    request->query = searchPattern();
     request->caseSensitive = caseSensitive;
     request->respectGitignore = editor.respectGitignore;
     request->useGitFileIndex = editor.useGitFileIndex;
@@ -1114,7 +1127,7 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
     Editor* ed = &editor;
 
     auto submitted = editor.submitTask(
-        "grep \"" + query + "\"", "",
+        "grep \"" + request->query + "\"", "",
         [request](TaskQueue::Context& ctx)
         {
             GrepSearchMode searcher;
@@ -1163,19 +1176,29 @@ void GrepSearchMode::startBackgroundSearch(Editor& editor)
     activeSearchTask = submitted.id;
 }
 
-void GrepSearchMode::scheduleSearch(Editor& editor)
+bool GrepSearchMode::scheduleSearch(Editor& editor)
 {
-    if(query.empty())
+    // Typing only the ":415" line suffix does not change what is searched;
+    // keep the results and the selected match.
+    if(!searchPending && !lastSearchedPattern.empty() &&
+       searchPattern() == lastSearchedPattern &&
+       caseSensitive == lastSearchedCaseSensitive)
+    {
+        editor.needsFullRedraw = true;
+        return false;
+    }
+    if(searchPattern().empty())
     {
         performSearch(editor);
         editor.needsFullRedraw = true;
-        return;
+        return true;
     }
     searchPending = true;
     searching = false;
     searchDueAt = std::chrono::steady_clock::now() +
                   std::chrono::milliseconds(std::max(0, editor.rgUpdateMs));
     editor.needsFullRedraw = true;
+    return true;
 }
 
 void GrepSearchMode::flushPendingSearch(Editor& editor)
@@ -1485,29 +1508,30 @@ bool GrepSearchMode::syncRgCache(Editor& editor, bool force)
 
 bool GrepSearchMode::performCachedSearch(Editor& editor)
 {
+    const std::string pattern = searchPattern();
     if(!syncRgCache(editor, false))
         return false;
 
-    if(query.size() < 3)
+    if(pattern.size() < 3)
     {
         matches.clear();
-        lastCachedQuery = query;
+        lastCachedQuery = pattern;
         lastCachedCaseSensitive = caseSensitive;
         lastCachedMatches.clear();
         return true;
     }
 
     std::string loweredNeedle;
-    std::string_view searchNeedle = query;
+    std::string_view searchNeedle = pattern;
     if(!caseSensitive)
     {
-        loweredNeedle = toLower(query);
+        loweredNeedle = toLower(pattern);
         searchNeedle = loweredNeedle;
     }
 
     if(lastCachedCaseSensitive == caseSensitive &&
-       query.size() > lastCachedQuery.size() &&
-       query.rfind(lastCachedQuery, 0) == 0 && !lastCachedMatches.empty())
+       pattern.size() > lastCachedQuery.size() &&
+       pattern.rfind(lastCachedQuery, 0) == 0 && !lastCachedMatches.empty())
     {
         std::vector<GrepMatch> filtered;
         filtered.reserve(std::min<size_t>(lastCachedMatches.size(), 1000));
@@ -1521,13 +1545,13 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
 
             match.highlightRanges.clear();
             match.highlightRanges.push_back(
-                std::make_pair(static_cast<int>(pos), (int)query.length()));
+                std::make_pair(static_cast<int>(pos), (int)pattern.length()));
             filtered.push_back(std::move(match));
             if(filtered.size() >= 1000)
                 break;
         }
         matches = std::move(filtered);
-        lastCachedQuery = query;
+        lastCachedQuery = pattern;
         lastCachedCaseSensitive = caseSensitive;
         lastCachedMatches = matches;
         return true;
@@ -1546,7 +1570,7 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
             match.lineNumber = lineIndex + 1;
             match.lineContent = trimString(line);
             match.highlightRanges.push_back(
-                std::make_pair((int)pos, (int)query.length()));
+                std::make_pair((int)pos, (int)pattern.length()));
             matches.push_back(std::move(match));
             if(matches.size() >= 1000)
                 return false;
@@ -1587,19 +1611,19 @@ bool GrepSearchMode::performCachedSearch(Editor& editor)
                           ref.lineIndex)]);
             if(!addLineMatches(cached, ref.lineIndex, haystack))
             {
-                lastCachedQuery = query;
+                lastCachedQuery = pattern;
                 lastCachedCaseSensitive = caseSensitive;
                 lastCachedMatches = matches;
                 return true;
             }
         }
-        lastCachedQuery = query;
+        lastCachedQuery = pattern;
         lastCachedCaseSensitive = caseSensitive;
         lastCachedMatches = matches;
         return true;
     }
 
-    lastCachedQuery = query;
+    lastCachedQuery = pattern;
     lastCachedCaseSensitive = caseSensitive;
     lastCachedMatches.clear();
     return true;
@@ -1862,8 +1886,11 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     *editor.cursorX = 0;
 
-    seedEditorSearchFromGrepMatch(editor, match, query);
+    const PickerQuery parsed = parsePickerQuery(query);
+    seedEditorSearchFromGrepMatch(editor, match, parsed.pattern);
     editor.centerScreen();
+    if(parsed.hasLine)
+        editor.jumpToRequestedLine(parsed.line);
 #ifdef _WIN32
     Terminal::discardPendingInput();
 #endif
@@ -1933,9 +1960,11 @@ void GrepSearchMode::searchAddChar(Editor& editor, char c)
         Terminal::unreadKey(next);
         break;
     }
-    scheduleSearch(editor);
-    cursor = 0;
-    offset = 0;
+    if(scheduleSearch(editor))
+    {
+        cursor = 0;
+        offset = 0;
+    }
 }
 
 void GrepSearchMode::searchBackspace(Editor& editor)
@@ -1943,9 +1972,11 @@ void GrepSearchMode::searchBackspace(Editor& editor)
     if(!query.empty())
     {
         query.pop_back();
-        scheduleSearch(editor);
-        cursor = 0;
-        offset = 0;
+        if(scheduleSearch(editor))
+        {
+            cursor = 0;
+            offset = 0;
+        }
     }
 }
 
@@ -1955,15 +1986,18 @@ void GrepSearchMode::searchDeleteWord(Editor& editor)
         query.pop_back();
     while(!query.empty() && query.back() != keyCode(control::ControlKey::SPACE))
         query.pop_back();
-    scheduleSearch(editor);
-    cursor = 0;
-    offset = 0;
+    if(scheduleSearch(editor))
+    {
+        cursor = 0;
+        offset = 0;
+    }
 }
 
 void GrepSearchMode::searchClear()
 {
     searchPending = false;
     query.clear();
+    lastSearchedPattern.clear();
     matches.clear();
     selectedMatches.clear();
     cursor = 0;
@@ -1988,7 +2022,7 @@ void GrepSearchMode::toggleGitignore(Editor& editor)
     cursor = 0;
     offset = 0;
     selectedMatches.clear();
-    if(query.empty())
+    if(searchPattern().empty())
     {
         matches.clear();
         searching = false;
@@ -2090,8 +2124,11 @@ bool GrepSearchMode::openSelected(Editor& editor)
     if(*editor.cursorY < 0)
         *editor.cursorY = 0;
     *editor.cursorX = 0;
-    seedEditorSearchFromGrepMatch(editor, finalMatch, query);
+    const PickerQuery parsed = parsePickerQuery(query);
+    seedEditorSearchFromGrepMatch(editor, finalMatch, parsed.pattern);
     editor.centerScreen();
+    if(parsed.hasLine)
+        editor.jumpToRequestedLine(parsed.line);
 #ifdef _WIN32
     Terminal::discardPendingInput();
 #endif

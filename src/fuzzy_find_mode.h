@@ -40,6 +40,10 @@ struct FuzzyFindMode
     bool projectFilesInitialized = false;
     bool filenameFirst = false;
     bool previewEnabled = true;
+    // Pattern the current matches were computed for (query minus any
+    // ":<line>" suffix); typing only the suffix keeps the matches.
+    std::string matchedPattern;
+    bool matchesValid = false;
     std::unordered_set<std::string> selectedFiles;
     // Preview pane cache (floating picker).
     mutable std::string previewPath;
@@ -62,6 +66,7 @@ private:
     void moveUp(Editor& editor);
     void halfPageDown(Editor& editor);
     void halfPageUp(Editor& editor);
+    bool refreshForQueryChange(Editor& editor);
     void addChar(Editor& editor, char c);
     void backspace(Editor& editor);
     void deleteWord(Editor& editor);

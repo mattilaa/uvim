@@ -433,6 +433,153 @@ TEST(RealModeTransitionsTest, GrepSearchBatchesQueuedPrintableInput)
     EXPECT_FALSE(Terminal::hasBufferedKeys());
 }
 
+namespace
+{
+std::string numberedLines(int count, const std::string& marker, int markerLine)
+{
+    std::string text;
+    for(int i = 1; i <= count; ++i)
+        text += (i == markerLine ? marker : "line " + std::to_string(i)) + "\n";
+    return text;
+}
+
+void typeText(ModeStateMachine& sm, const std::string& text)
+{
+    for(char c : text)
+        sm.dispatch(c);
+}
+} // namespace
+
+TEST(RealModeTransitionsTest, FuzzyFindLineSuffixJumpsToLine)
+{
+    auto root = make_temp_dir("uvim_fuzzy_line_");
+    write_file(root / "target_file.txt", numberedLines(10, "line x", 0));
+    write_file(root / "other.txt", "other\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    typeText(sm, "target_file:7");
+    auto* fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->matches.size(), 1u) << "the :7 suffix must not filter";
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_TRUE(text_utils::is_found(
+        editor.currentBuffer->filename.find("target_file.txt")));
+    EXPECT_EQ(*editor.cursorY, 6);
+    EXPECT_TRUE(editor.statusMessage.empty());
+}
+
+TEST(RealModeTransitionsTest, FuzzyFindMissingLineJumpsToEndWithMessage)
+{
+    auto root = make_temp_dir("uvim_fuzzy_line_missing_");
+    write_file(root / "short.txt", numberedLines(5, "line x", 0));
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    typeText(sm, "short:415");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+
+    EXPECT_EQ(*editor.cursorY, static_cast<int>(editor.lines->size()) - 1);
+    EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("not found")))
+        << editor.statusMessage;
+    EXPECT_TRUE(
+        text_utils::is_found(editor.statusMessage.find("jumped to end")));
+
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    typeText(sm, "short:0");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_TRUE(
+        text_utils::is_found(editor.statusMessage.find("jumped to start")));
+}
+
+TEST(RealModeTransitionsTest, FuzzyFindLineSuffixKeepsSelectedFile)
+{
+    auto root = make_temp_dir("uvim_fuzzy_line_keep_");
+    write_file(root / "alpha_one.txt", numberedLines(9, "a", 0));
+    write_file(root / "alpha_two.txt", numberedLines(9, "b", 0));
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(keyCode(control::ControlKey::CTRL_P));
+    typeText(sm, "alpha");
+    auto* fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    ASSERT_EQ(fuzzy->matches.size(), 2u);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J)); // select the second
+    const std::string chosen = fuzzy->matches[fuzzy->cursor].file.path;
+    typeText(sm, ":3");
+    fuzzy = sm.getState<FuzzyFindMode>();
+    ASSERT_NE(fuzzy, nullptr);
+    EXPECT_EQ(fuzzy->cursor, 1) << "typing the line suffix keeps selection";
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(editor.currentBuffer->filename, chosen);
+    EXPECT_EQ(*editor.cursorY, 2);
+}
+
+TEST(RealModeTransitionsTest, GrepLineSuffixOpensResultAtLine)
+{
+    auto root = make_temp_dir("uvim_grep_line_");
+    write_file(root / "a.txt", numberedLines(12, "needle here", 2));
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    typeText(sm, "needle:9");
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+    ASSERT_EQ(state->matches.size(), 1u) << "searches for 'needle' only";
+    EXPECT_EQ(state->matches[0].lineNumber, 2);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_EQ(*editor.cursorY, 8);
+    EXPECT_EQ(editor.searchQuery, "needle");
+}
+
+TEST(RealModeTransitionsTest, GrepEscapedLineSuffixSearchesLiterally)
+{
+    auto root = make_temp_dir("uvim_grep_line_escaped_");
+    write_file(root / "log.txt", "start\nerror:42 happened\nend\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.useGitFileIndex = false;
+    editor.createNewBuffer();
+
+    auto sm = makeMachine(editor, GrepSearchMode{});
+    typeText(sm, "error\\:42");
+    auto* state = sm.getState<GrepSearchMode>();
+    ASSERT_NE(state, nullptr);
+    flushGrepDebounce(*state, editor);
+    ASSERT_EQ(state->matches.size(), 1u);
+    EXPECT_EQ(state->matches[0].lineNumber, 2);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(*editor.cursorY, 1) << "no jump: opens at the match line";
+}
+
 TEST(RealModeTransitionsTest, GrepOpenSeedsSingleSearchMatchLazily)
 {
     auto root = make_temp_dir("uvim_grep_open_seed_");

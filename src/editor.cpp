@@ -3151,6 +3151,38 @@ void Editor::moveToLine(int line)
     cursorController->moveToLine(line);
 }
 
+void Editor::jumpToRequestedLine(int line)
+{
+    if(!lines || lines->empty())
+        return;
+    const int count = static_cast<int>(lines->size());
+    std::string message;
+    if(line > count)
+    {
+        moveToLine(count - 1);
+        message = "line " + std::to_string(line) + " not found (file has " +
+                  std::to_string(count) + " lines): jumped to end";
+    }
+    else if(line < 1)
+    {
+        moveToLine(0);
+        message = "line " + std::to_string(line) + " not found: jumped to start";
+    }
+    else
+    {
+        moveToLine(line - 1);
+    }
+    // Replace (or clear) only our own previous message, never others.
+    if(!message.empty())
+        setStatusMessage(message);
+    else if(!lastLineJumpMessage_.empty() &&
+            statusMessage == lastLineJumpMessage_)
+        setStatusMessage("");
+    lastLineJumpMessage_ = message;
+    centerScreen();
+    needsFullRedraw = true;
+}
+
 void Editor::pushJumpLocation()
 {
     cursorController->pushJumpLocation();
