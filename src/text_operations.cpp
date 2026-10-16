@@ -33,6 +33,11 @@ void Editor::yankRange(int startY, int startX, int endY, int endX)
         if(endX >= 0 && endX < lastLine.length())
             yankBuffer += lastLine.substr(0, endX + 1);
     }
+    // Operator yanks (yw, yiw, y$, dw, ciw ...) reach the system clipboard
+    // like yy and visual y do, so a later p uses this text, not older
+    // clipboard contents.
+    if(useSystemClipboard && !yankBuffer.empty())
+        setSystemClipboard(yankBuffer);
     setStatusMessage("Yanked");
 }
 

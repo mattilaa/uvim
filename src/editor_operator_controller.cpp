@@ -4,6 +4,7 @@
 #include "key_enums.h"
 
 #include <algorithm>
+#include <cctype>
 #include <string>
 
 EditorOperatorController::EditorOperatorController(Editor& editor)
@@ -190,25 +191,61 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
         }
     }
 
-    if(objChar == keyCode(typed::TypedKey::KEY_W))
+    if(objChar == keyCode(typed::TypedKey::KEY_W) ||
+       objChar == keyCode(typed::TypedKey::KEY_CAP_W))
     {
+        // Vim word objects: the run of same-class characters under the
+        // cursor. `w` classes are word chars / punctuation / whitespace;
+        // `W` classes are non-blank / whitespace. `a` adds the trailing
+        // whitespace (or the leading one when there is none after).
         const std::string& line = (*lines)[y];
-        int L = x;
-        int R = x;
-        if(L >= static_cast<int>(line.length()))
-            L = static_cast<int>(line.length()) - 1;
-        while(L > 0 && !isWordChar(line[L]))
-            L--;
-        while(L > 0 && isWordChar(line[L - 1]))
-            L--;
-        while(R < (int)line.length() && isWordChar(line[R]))
-            R++;
-        if(R <= L)
+        const int len = static_cast<int>(line.length());
+        if(len == 0)
             return false;
+        const bool bigWord = objChar == keyCode(typed::TypedKey::KEY_CAP_W);
+        auto isBlank = [](char ch) { return ch == ' ' || ch == '\t'; };
+        // Text-object words are identifier-like (letters, digits, '_', and
+        // UTF-8 bytes); isWordChar() counts punctuation for w/dw motions.
+        auto isKeywordChar = [](char ch)
+        {
+            const unsigned char u = static_cast<unsigned char>(ch);
+            return u >= 0x80 || std::isalnum(u) || ch == '_';
+        };
+        auto charClass = [&](char ch)
+        {
+            if(isBlank(ch))
+                return 0;
+            if(bigWord)
+                return 1;
+            return isKeywordChar(ch) ? 1 : 2;
+        };
+
+        const int at = std::clamp(x, 0, len - 1);
+        const int cls = charClass(line[at]);
+        int L = at;
+        int R = at;
+        while(L > 0 && charClass(line[L - 1]) == cls)
+            L--;
+        while(R + 1 < len && charClass(line[R + 1]) == cls)
+            R++;
+
+        if(around && cls != 0)
+        {
+            if(R + 1 < len && isBlank(line[R + 1]))
+            {
+                while(R + 1 < len && isBlank(line[R + 1]))
+                    R++;
+            }
+            else
+            {
+                while(L > 0 && isBlank(line[L - 1]))
+                    L--;
+            }
+        }
         outStartY = y;
         outEndY = y;
         outStartX = L;
-        outEndX = R - 1;
+        outEndX = R;
         return true;
     }
 

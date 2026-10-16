@@ -55,6 +55,185 @@ TEST(RealModeTransitionsTest, VisualPasteReplacesSelectionWithYankBuffer)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
+TEST(RealModeTransitionsTest, VisualPasteReplacesManyWithSameYank)
+{
+    // v E y once, then v E p on other lines: every replacement uses the
+    // originally yanked word (the replaced text must not be yanked).
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.useSystemClipboard = false;
+    editor.currentBuffer->lines = {"someWord first", "other line",
+                                   "third row", "fourth row"};
+    *editor.cursorX = 0;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('v');
+    sm.dispatch('E');
+    sm.dispatch('y');
+    EXPECT_EQ(editor.yankBuffer, "someWord");
+
+    for(int row = 1; row <= 3; ++row)
+    {
+        *editor.cursorY = row;
+        *editor.cursorX = 0;
+        sm.dispatch('v');
+        sm.dispatch('E');
+        sm.dispatch('p');
+        EXPECT_EQ(editor.yankBuffer, "someWord") << "row " << row;
+    }
+
+    EXPECT_EQ(editor.currentBuffer->lines[1], "someWord line");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "someWord row");
+    EXPECT_EQ(editor.currentBuffer->lines[3], "someWord row");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(RealModeTransitionsTest, VisualInnerWordReplacesOnlyTheWord)
+{
+    // yiw on "some" (cursor mid-word), then viwp on other words: only the
+    // word is replaced, "->blah" stays, and the yank is reused each time.
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.useSystemClipboard = false;
+    editor.currentBuffer->lines = {"some->blah", "someElse->blah",
+                                   "anotherOne->blah"};
+    *editor.cursorX = 2;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('y');
+    sm.dispatch('i');
+    sm.dispatch('w');
+    EXPECT_EQ(editor.yankBuffer, "some");
+
+    for(int row = 1; row <= 2; ++row)
+    {
+        *editor.cursorY = row;
+        *editor.cursorX = 3; // inside the word
+        sm.dispatch('v');
+        sm.dispatch('i');
+        sm.dispatch('w');
+        sm.dispatch('p');
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    }
+    EXPECT_EQ(editor.currentBuffer->lines[1], "some->blah");
+    EXPECT_EQ(editor.currentBuffer->lines[2], "some->blah");
+    EXPECT_EQ(editor.yankBuffer, "some");
+}
+
+TEST(RealModeTransitionsTest, WordTextObjectsFollowVimClasses)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"x = obj->field + 1"};
+    *editor.cursorY = 0;
+    int sy, sx, ey, ex;
+
+    *editor.cursorX = 5; // 'b' in obj
+    ASSERT_TRUE(editor.getTextObjectRange('w', false, sy, sx, ey, ex));
+    EXPECT_EQ(sx, 4);
+    EXPECT_EQ(ex, 6) << "iw: just 'obj'";
+
+    *editor.cursorX = 7; // '-' of '->'
+    ASSERT_TRUE(editor.getTextObjectRange('w', false, sy, sx, ey, ex));
+    EXPECT_EQ(sx, 7);
+    EXPECT_EQ(ex, 8) << "iw on punctuation: the '->' run";
+
+    *editor.cursorX = 5;
+    ASSERT_TRUE(editor.getTextObjectRange('W', false, sy, sx, ey, ex));
+    EXPECT_EQ(sx, 4);
+    EXPECT_EQ(ex, 13) << "iW: 'obj->field'";
+
+    *editor.cursorX = 10; // in 'field'
+    ASSERT_TRUE(editor.getTextObjectRange('w', true, sy, sx, ey, ex));
+    EXPECT_EQ(sx, 9);
+    EXPECT_EQ(ex, 14) << "aw: 'field' plus the trailing space";
+}
+
+TEST(RealModeTransitionsTest, OperatorYankReachesSystemClipboard)
+{
+    // With the system clipboard on, yiw must copy to it; otherwise viwp
+    // (which prefers the clipboard) pastes older clipboard contents.
+#ifdef _WIN32
+    GTEST_SKIP()
+        << "System clipboard command lookup is not implemented on Windows";
+#else
+    auto root = make_temp_dir("uvim_clipboard_yiw_");
+    auto binDir = root / "bin";
+    auto clipFile = root / "clipboard.txt";
+    std::filesystem::create_directories(binDir);
+    write_file(clipFile, "stale clipboard");
+
+    auto makeScript = [&](const std::string& name, const std::string& body)
+    {
+        auto path = binDir / name;
+        write_file(path, "#!/bin/sh\n" + body + "\n");
+        std::filesystem::permissions(
+            path,
+            std::filesystem::perms::owner_exec |
+                std::filesystem::perms::owner_read |
+                std::filesystem::perms::owner_write,
+            std::filesystem::perm_options::add);
+    };
+#ifdef __APPLE__
+    makeScript("pbcopy", "cat > \"$UVIM_TEST_CLIPBOARD\"");
+    makeScript("pbpaste", "cat \"$UVIM_TEST_CLIPBOARD\"");
+#else
+    // One fake xclip for both directions: "-o" reads, otherwise writes.
+    makeScript("xclip", "for a in \"$@\"; do [ \"$a\" = -o ] && "
+                        "exec cat \"$UVIM_TEST_CLIPBOARD\"; done\n"
+                        "cat > \"$UVIM_TEST_CLIPBOARD\"");
+#endif
+
+    const char* oldPath = std::getenv("PATH");
+    std::string path = binDir.string();
+    if(oldPath && *oldPath)
+        path += std::string(":") + oldPath;
+    ScopedEnv pathEnv("PATH", path);
+    ScopedEnv clipEnv("UVIM_TEST_CLIPBOARD", clipFile.string());
+
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.useSystemClipboard = true;
+    editor.currentBuffer->lines = {"some->blah", "someElse->foo"};
+    *editor.cursorX = 1;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('y');
+    sm.dispatch('i');
+    sm.dispatch('w');
+    EXPECT_EQ(read_file(clipFile), "some");
+
+    *editor.cursorY = 1;
+    *editor.cursorX = 3;
+    sm.dispatch('v');
+    sm.dispatch('i');
+    sm.dispatch('w');
+    sm.dispatch('p');
+    EXPECT_EQ(editor.currentBuffer->lines[1], "some->foo");
+    EXPECT_EQ(read_file(clipFile), "some") << "the replaced word stays out";
+#endif
+}
+
+TEST(RealModeTransitionsTest, VisualCapitalYYanksWholeLines)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.useSystemClipboard = false;
+    editor.currentBuffer->lines = {"alpha beta", "gamma delta"};
+    *editor.cursorX = 6;
+    *editor.cursorY = 0;
+
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('v');
+    sm.dispatch('j');
+    sm.dispatch('Y');
+    EXPECT_EQ(editor.yankBuffer, "alpha beta\ngamma delta\n");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
 TEST(RealModeTransitionsTest, NormalPasteRefreshesSystemClipboard)
 {
 #ifdef _WIN32

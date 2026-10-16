@@ -320,6 +320,7 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         return NormalMode{};
 
     case keyCode(typed::TypedKey::KEY_Y):
+    case keyCode(typed::TypedKey::KEY_CAP_Y):
         ed->yankLineSelection();
         return NormalMode{};
 
