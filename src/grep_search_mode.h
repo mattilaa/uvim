@@ -20,6 +20,11 @@
 #include <utility>
 #include <vector>
 
+namespace widgets
+{
+class PickerCanvas;
+}
+
 namespace editor::statemachine
 {
 struct GrepSearchMode
@@ -35,7 +40,10 @@ struct GrepSearchMode
     int offset = 0;
     bool searching = false;
     bool caseSensitive = false;
-    bool previewEnabled = false;
+    bool previewEnabled = true;
+    // Preview pane cache (floating picker).
+    mutable std::string previewPath;
+    mutable std::vector<std::string> previewLines;
     bool searchPending = false;
     std::chrono::steady_clock::time_point searchDueAt{};
     std::unordered_set<int> selectedMatches;
@@ -69,6 +77,7 @@ private:
     void startBackgroundSearch(Editor& editor);
     bool adoptBackgroundResults(Editor& editor);
     void appendStatusBar(Editor& editor, std::string& output) const;
+    void appendPreview(Editor& editor, widgets::PickerCanvas& canvas) const;
 #ifdef UVIM_ENABLE_RG_CACHE
     bool syncRgCache(Editor& editor, bool force);
     bool performCachedSearch(Editor& editor);

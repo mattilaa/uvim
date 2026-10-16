@@ -1042,7 +1042,7 @@ void Editor::drawFullScreenSingle()
     output += theme.reset();
     // Full-screen clear causes visible flashing in tmux. Repaint in-place.
     output += Terminal::ESC_CURSOR_HOME;
-    if(!Terminal::isTmux())
+    if(takeScreenClear() && !Terminal::isTmux())
         output += Terminal::ESC_CLEAR_SCREEN;
 
     int tabRows = tabBarRows();
@@ -1700,7 +1700,7 @@ void Editor::drawSplitFullScreen()
     output += theme.reset();
     // Full-screen clear causes visible flashing in tmux. Repaint in-place.
     output += Terminal::ESC_CURSOR_HOME;
-    if(!Terminal::isTmux())
+    if(takeScreenClear() && !Terminal::isTmux())
         output += Terminal::ESC_CLEAR_SCREEN;
 
     for(int row = 0; row < screenRows; row++)

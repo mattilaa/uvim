@@ -112,6 +112,14 @@ public:
     static void write(const std::string& str);
     static void write(char c);
     static void flush();
+    // Collects every write() until endCapture(), then emits the frame in a
+    // single write so layered drawing (e.g. a floating picker over the
+    // buffer) never flickers. Nested captures join the outer one.
+    static void beginCapture();
+    static void endCapture();
+    // Whether frames may be wrapped in DEC 2026 synchronized updates (the
+    // terminal shows the frame atomically; unsupported terminals ignore it).
+    static bool syncUpdatesEnabled();
     static bool isTmux();
     static bool useSynchronizedOutput();
 
@@ -152,5 +160,7 @@ private:
 #endif
     static bool rawModeEnabled;
     static std::deque<int> keyBuffer;
+    static int captureDepth;
+    static std::string captureBuffer;
     static std::string lastPasteText;
 };

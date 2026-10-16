@@ -31,6 +31,7 @@ public:
     void setNeedsFullRedraw(bool value);
     bool needsFullRedraw() const;
     void setLastCursorScreenPosition(int row, int col);
+    bool isFloatingPicker(Mode mode) const;
     int lastCursorScreenY() const;
     int lastCursorScreenX() const;
 

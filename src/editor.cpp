@@ -472,6 +472,48 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 }
             }
 #endif
+            auto findSetting = [&](const std::string& key)
+            {
+                auto it = values.find("editor." + key);
+                if(it == values.end())
+                    it = values.find("settings." + key);
+                if(it == values.end())
+                    it = values.find(key);
+                return it;
+            };
+            if(auto it = findSetting("pickerstyle"); it != values.end())
+            {
+                if(it->second == "float" || it->second == "floating")
+                    pickerFloating = true;
+                else if(it->second == "fullscreen" || it->second == "full")
+                    pickerFloating = false;
+            }
+            auto parsePercent = [&](const char* key, int& out)
+            {
+                if(auto it = findSetting(key); it != values.end())
+                {
+                    try
+                    {
+                        const int value = std::stoi(it->second);
+                        if(value >= 10 && value <= 100)
+                            out = value;
+                    }
+                    catch(...)
+                    {
+                    }
+                }
+            };
+            parsePercent("picker.width", pickerWidthPercent);
+            parsePercent("picker.height", pickerHeightPercent);
+            if(auto it = findSetting("picker.preview"); it != values.end())
+            {
+                if(it->second == "true" || it->second == "1" ||
+                   it->second == "on")
+                    pickerPreview = true;
+                else if(it->second == "false" || it->second == "0" ||
+                        it->second == "off")
+                    pickerPreview = false;
+            }
             auto itps = values.find("editor.progressstyle");
             if(itps == values.end())
                 itps = values.find("settings.progressstyle");
@@ -2317,6 +2359,7 @@ void Editor::handleResize()
     output += Terminal::ESC_CLEAR_SCREEN;
     Terminal::write(output);
     Terminal::flush();
+    invalidatePickerBackground(); // the screen was wiped
 #endif
 }
 

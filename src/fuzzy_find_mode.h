@@ -18,6 +18,11 @@
 #include <utility>
 #include <vector>
 
+namespace widgets
+{
+class PickerCanvas;
+}
+
 namespace editor::statemachine
 {
 struct FuzzyFindMode
@@ -34,7 +39,11 @@ struct FuzzyFindMode
     int offset = 0;
     bool projectFilesInitialized = false;
     bool filenameFirst = false;
+    bool previewEnabled = true;
     std::unordered_set<std::string> selectedFiles;
+    // Preview pane cache (floating picker).
+    mutable std::string previewPath;
+    mutable std::vector<std::string> previewLines;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -46,6 +55,7 @@ struct FuzzyFindMode
     void refreshFileIndex(Editor& editor);
 
 private:
+    void appendPreview(widgets::PickerCanvas& canvas) const;
     void initializeFiles(Editor& editor);
     void updateMatches(Editor& editor);
     void moveDown(Editor& editor);

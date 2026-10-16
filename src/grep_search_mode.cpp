@@ -9,6 +9,7 @@
 #include "process_pipe.h"
 #include "search_match_colors.h"
 #include "terminal.h"
+#include "widgets/picker_frame.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <atomic>
@@ -30,23 +31,23 @@ std::vector<std::string> grepSearchHelpTokens(int contrast)
 {
     return {"[Enter: open]", "[Esc: cancel]", "[Ctrl+N: select]",
             "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
-            "[Ctrl+I: gitignore]",
+            "[Ctrl+I: gitignore]", "[Ctrl+V: preview]",
             "[Ctrl+T: contrast " + std::to_string(contrast) + "]"};
 }
 
-int grepSearchHeaderRows(int screenCols, int contrast)
+int grepSearchHeaderRows(int cols, int contrast)
 {
     // Prompt line + key help; counts and flags live in the bottom status bar.
-    return 1 +
-           HeaderHelp::lineCount(grepSearchHelpTokens(contrast), screenCols);
+    return 1 + HeaderHelp::lineCount(grepSearchHelpTokens(contrast), cols);
 }
 
-int grepSearchVisibleRows(const Editor& editor)
+int grepSearchVisibleRows(const Editor& editor, bool preview)
 {
-    return std::max(1, editor.screenRows -
-                           grepSearchHeaderRows(
-                               editor.screenCols,
-                               editor.searchMatchContrast));
+    const widgets::PickerLayout layout = editor.pickerLayout(preview);
+    const int header =
+        grepSearchHeaderRows(layout.headerCols, editor.searchMatchContrast);
+    // A floating box separates the header from the panes with one row.
+    return std::max(1, layout.rows - header - (layout.floating ? 1 : 0));
 }
 
 std::string toLower(std::string_view input)
@@ -578,7 +579,7 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         ed->searchMatchContrast = ed->searchMatchContrast >= 70 ? 35 : 100;
     }
-    else if(c == keyCode(control::ControlKey::TAB))
+    else if(c == keyCode(control::ControlKey::CTRL_V))
     {
         togglePreview();
     }
@@ -608,28 +609,51 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
 void GrepSearchMode::draw(Editor& editor)
 {
     adoptBackgroundResults(editor);
+    const widgets::PickerLayout layout = editor.pickerLayout(previewEnabled);
+    // Compose the whole frame (and, when floating, the code underneath) into
+    // one synchronized write so browsing never flickers.
+    Terminal::beginCapture();
+    if(layout.floating)
+        editor.drawPickerBackground(layout);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
+    if(layout.floating)
+        output += Terminal::ESC_HIDE_CURSOR;
+    widgets::PickerCanvas canvas(output, layout, editor.theme,
+                                 editor.utf8Mode);
+    std::string footer;
+    if(!matches.empty())
+        footer = std::to_string(cursor + 1) + " / " +
+                 std::to_string(matches.size());
+    const auto helpLines = HeaderHelp::wrap(
+        grepSearchHelpTokens(editor.searchMatchContrast), layout.headerCols);
+    canvas.frame("Grep", footer, 1 + (int)helpLines.size());
 
-    output += Terminal::ESC_CURSOR_HOME;
-    output += editor.theme.reset();
-    output += Terminal::ESC_CLEAR_LINE;
-
+    // Prompt and key hints span the whole width.
+    int row = 0;
+    canvas.beginHeaderRow(row++);
     output += Terminal::ESC_BOLD;
     output += "  Grep: ";
     output += editor.theme.reset();
     output += editor.theme.uiPrompt();
-    output += query;
-
+    const std::string shownQuery =
+        truncateDisplayText(query, std::max(0, layout.headerCols - 9));
+    output += shownQuery;
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += editor.theme.baseFg();
+    canvas.endHeaderRow(9 + text_utils::utf8DisplayWidth(shownQuery));
+    for(const auto& help : helpLines)
+    {
+        canvas.beginHeaderRow(row++);
+        output += editor.theme.uiDim();
+        output += help;
+        canvas.endHeaderRow(text_utils::utf8DisplayWidth(help));
+    }
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       grepSearchHelpTokens(editor.searchMatchContrast));
-
-    int availableRows = grepSearchVisibleRows(editor);
+    const int availableRows = canvas.bodyRows();
+    const int cols = layout.cols;
     const std::string lowerQuery = toLower(query);
 
     std::string cwdPrefix;
@@ -647,7 +671,7 @@ void GrepSearchMode::draw(Editor& editor)
 
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
+        canvas.beginRow(i);
 
         int index = i + offset;
         const GrepMatch& match = matches[index];
@@ -677,14 +701,12 @@ void GrepSearchMode::draw(Editor& editor)
         const std::string lineNumber = std::to_string(match.lineNumber);
         const int rowPrefixWidth = 2;
         const int separatorsWidth = 3; // ":" + ": "
-        const int minContentWidth =
-            std::min(20, std::max(0, editor.screenCols / 3));
-        int pathWidth = editor.screenCols - rowPrefixWidth - separatorsWidth -
+        const int minContentWidth = std::min(20, std::max(0, cols / 3));
+        int pathWidth = cols - rowPrefixWidth - separatorsWidth -
                         (int)lineNumber.length() - minContentWidth;
         if(pathWidth < 8)
-            pathWidth =
-                std::max(1, editor.screenCols - rowPrefixWidth -
-                                separatorsWidth - (int)lineNumber.length());
+            pathWidth = std::max(1, cols - rowPrefixWidth - separatorsWidth -
+                                        (int)lineNumber.length());
 
         displayName = truncatePathMiddle(displayName, pathWidth);
         const int displayNameWidth = text_utils::utf8DisplayWidth(displayName);
@@ -697,9 +719,8 @@ void GrepSearchMode::draw(Editor& editor)
         output += editor.theme.baseFg();
         output += ": ";
 
-        int maxContentLen = editor.screenCols - rowPrefixWidth -
-                            displayNameWidth - separatorsWidth -
-                            (int)lineNumber.length();
+        int maxContentLen = cols - rowPrefixWidth - displayNameWidth -
+                            separatorsWidth - (int)lineNumber.length();
         if(maxContentLen < 0)
             maxContentLen = 0;
 
@@ -729,28 +750,67 @@ void GrepSearchMode::draw(Editor& editor)
             output += content;
         }
 
-        const int renderedWidth = rowPrefixWidth + displayNameWidth +
-                                  separatorsWidth +
-                                  static_cast<int>(lineNumber.length()) +
-                                  text_utils::utf8DisplayWidth(content);
-        if(renderedWidth < editor.screenCols)
-            output.append(editor.screenCols - renderedWidth, ' ');
-
-        output += editor.theme.reset();
+        canvas.endRow(rowPrefixWidth + displayNameWidth + separatorsWidth +
+                      static_cast<int>(lineNumber.length()) +
+                      text_utils::utf8DisplayWidth(content));
     }
 
-    for(int i = (int)matches.size() - offset; i < availableRows; i++)
+    for(int i = std::max(0, (int)matches.size() - offset); i < availableRows;
+        i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
-        output += editor.theme.uiGutter();
-        output += "~";
-        output += editor.theme.baseFg();
+        canvas.beginRow(i);
+        if(!layout.floating)
+        {
+            output += editor.theme.uiGutter();
+            output += "~";
+        }
+        canvas.endRow(layout.floating ? 0 : 1);
     }
+
+    if(layout.preview)
+        appendPreview(editor, canvas);
 
     appendStatusBar(editor, output);
 
     Terminal::write(output);
+    Terminal::endCapture();
     Terminal::flush();
+}
+
+void GrepSearchMode::appendPreview(Editor& editor,
+                                   widgets::PickerCanvas& canvas) const
+{
+    const widgets::PickerLayout& layout = canvas.layout();
+    if(cursor < 0 || cursor >= (int)matches.size())
+    {
+        for(int row = 0; row < canvas.bodyRows(); ++row)
+            canvas.previewMessage(row, row == 0 ? "  no match selected" : "");
+        return;
+    }
+
+    const GrepMatch& match = matches[cursor];
+    if(previewPath != match.filepath)
+    {
+        previewPath = match.filepath;
+        previewLines = widgets::loadPreviewLines(match.filepath);
+    }
+
+    // Center the matched line in the pane.
+    const int target = std::max(0, match.lineNumber - 1);
+    const int total = static_cast<int>(previewLines.size());
+    const int rows = canvas.bodyRows();
+    int first = std::max(0, target - rows / 2);
+    first = std::max(0, std::min(first, total - rows));
+    for(int row = 0; row < rows; ++row)
+    {
+        const int index = first + row;
+        if(index < total)
+            canvas.previewRow(row, index + 1, previewLines[index],
+                              index == target);
+        else
+            canvas.previewMessage(row, "");
+    }
+    (void)editor;
 }
 
 void GrepSearchMode::appendStatusBar(Editor& editor, std::string& output) const
@@ -1827,7 +1887,7 @@ void GrepSearchMode::resultDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = grepSearchVisibleRows(editor);
+        int visible = grepSearchVisibleRows(editor, previewEnabled);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -1836,7 +1896,7 @@ void GrepSearchMode::resultDown(Editor& editor)
 
 void GrepSearchMode::resultHalfPageUp(Editor& editor)
 {
-    int half = grepSearchVisibleRows(editor) / 2;
+    int half = grepSearchVisibleRows(editor, previewEnabled) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;
@@ -1847,11 +1907,11 @@ void GrepSearchMode::resultHalfPageUp(Editor& editor)
 
 void GrepSearchMode::resultHalfPageDown(Editor& editor)
 {
-    int half = grepSearchVisibleRows(editor) / 2;
+    int half = grepSearchVisibleRows(editor, previewEnabled) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = matches.size() - 1;
-    int visible = grepSearchVisibleRows(editor);
+    int visible = grepSearchVisibleRows(editor, previewEnabled);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
     prewarmAroundCursor(editor);

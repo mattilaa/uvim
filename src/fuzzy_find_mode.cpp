@@ -7,6 +7,7 @@
 #include "process_pipe.h"
 #include "search_match_colors.h"
 #include "terminal.h"
+#include "widgets/picker_frame.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
@@ -33,6 +34,7 @@ std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst,
             "[Ctrl+N: select]",
             "[Ctrl+J/K: navigate]",
             "[Ctrl+I: gitignore]",
+            "[Ctrl+V: preview]",
             "[Ctrl+T: contrast " + std::to_string(contrast) + "]",
             filenameFirst ? "[Ctrl+O: filename first]"
                           : "[Ctrl+O: path first]"};
@@ -46,12 +48,14 @@ int fuzzyFindHeaderRows(int screenCols, bool filenameFirst, int contrast)
                    screenCols);
 }
 
-int fuzzyFindVisibleRows(const Editor& editor, bool filenameFirst)
+int fuzzyFindVisibleRows(const Editor& editor, bool filenameFirst,
+                         bool preview)
 {
-    return std::max(
-        1, editor.screenRows -
-               fuzzyFindHeaderRows(editor.screenCols, filenameFirst,
-                                   editor.searchMatchContrast));
+    const widgets::PickerLayout layout = editor.pickerLayout(preview);
+    const int header = fuzzyFindHeaderRows(layout.headerCols, filenameFirst,
+                                           editor.searchMatchContrast);
+    // A floating box separates the header from the panes with one row.
+    return std::max(1, layout.rows - header - (layout.floating ? 1 : 0));
 }
 
 std::string runCmd(const std::vector<std::string>& args)
@@ -291,6 +295,11 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
     {
         toggleFilenameFirst(*ed);
     }
+    else if(c == keyCode(control::ControlKey::CTRL_V))
+    {
+        previewEnabled = !previewEnabled;
+        ed->needsFullRedraw = true;
+    }
     else if(c == keyCode(control::ControlKey::CTRL_I))
     {
         toggleGitignore(*ed);
@@ -330,33 +339,59 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
 
 void FuzzyFindMode::draw(Editor& editor) const
 {
+    const widgets::PickerLayout layout = editor.pickerLayout(previewEnabled);
+    // Compose the whole frame (and, when floating, the code underneath) into
+    // one synchronized write so browsing never flickers.
+    Terminal::beginCapture();
+    if(layout.floating)
+        editor.drawPickerBackground(layout);
+
     std::string output;
     output.reserve(editor.screenRows * editor.screenCols * 2);
 
     output += Terminal::ESC_HIDE_CURSOR;
-    output += Terminal::ESC_CURSOR_HOME;
-    output += editor.theme.reset();
-    output += Terminal::ESC_CLEAR_LINE;
+    widgets::PickerCanvas canvas(output, layout, editor.theme,
+                                 editor.utf8Mode);
+    std::string footer;
+    if(!matches.empty())
+        footer = std::to_string(cursor + 1) + " / " +
+                 std::to_string(matches.size());
+    const auto helpLines = HeaderHelp::wrap(
+        fuzzyFindHelpTokens(filenameFirst, editor.searchMatchContrast),
+        layout.headerCols);
+    canvas.frame("Find File", footer, 1 + (int)helpLines.size());
 
+    // Prompt and key hints span the whole width.
+    int headerRow = 0;
+    canvas.beginHeaderRow(headerRow++);
     output += Terminal::ESC_BOLD;
     output += "  Find File: ";
     output += editor.theme.reset();
     output += editor.theme.uiPrompt();
-    output += query;
-
+    std::string shownQuery = query;
+    if(text_utils::utf8DisplayWidth(shownQuery) > layout.headerCols - 15)
+        shownQuery = shownQuery.substr(
+            shownQuery.size() -
+            std::min(shownQuery.size(),
+                     (size_t)std::max(0, layout.headerCols - 15)));
+    output += shownQuery;
     output += Terminal::ESC_BLINK;
     output += "_";
     output += Terminal::ESC_BLINK_OFF;
-    output += editor.theme.baseFg();
+    canvas.endHeaderRow(14 + text_utils::utf8DisplayWidth(shownQuery));
+    for(const auto& help : helpLines)
+    {
+        canvas.beginHeaderRow(headerRow++);
+        output += editor.theme.uiDim();
+        output += help;
+        canvas.endHeaderRow(text_utils::utf8DisplayWidth(help));
+    }
 
-    HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       fuzzyFindHelpTokens(filenameFirst,
-                                           editor.searchMatchContrast));
-
-    int availableRows = fuzzyFindVisibleRows(editor, filenameFirst);
+    const int cols = layout.cols;
+    int availableRows = canvas.bodyRows();
     for(int i = 0; i < availableRows && i + offset < (int)matches.size(); i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
+        canvas.beginRow(i);
 
         int index = i + offset;
         const FuzzyMatch& match = matches[index];
@@ -395,12 +430,11 @@ void FuzzyFindMode::draw(Editor& editor) const
         }
 
         std::string sizeStr;
-        int pathWidth = std::max(1, editor.screenCols - 2);
-        if(editor.screenCols > 60 && match.file.metadataLoaded)
+        int pathWidth = std::max(1, cols - 2);
+        if(cols > 60 && match.file.metadataLoaded)
         {
             sizeStr = formatFileSizeShort(match.file.size);
-            pathWidth =
-                std::max(1, editor.screenCols - 2 - (int)sizeStr.length() - 2);
+            pathWidth = std::max(1, cols - 2 - (int)sizeStr.length() - 2);
         }
 
         const bool truncated =
@@ -445,7 +479,7 @@ void FuzzyFindMode::draw(Editor& editor) const
         int renderedWidth = 2 + text_utils::utf8DisplayWidth(displayPath);
         if(!sizeStr.empty())
         {
-            int padding = editor.screenCols - 2 -
+            int padding = cols - 2 -
                           text_utils::utf8DisplayWidth(displayPath) -
                           (int)sizeStr.length() - 2;
             if(padding > 0)
@@ -458,19 +492,23 @@ void FuzzyFindMode::draw(Editor& editor) const
             renderedWidth += static_cast<int>(sizeStr.length());
         }
 
-        if(renderedWidth < editor.screenCols)
-            output.append(editor.screenCols - renderedWidth, ' ');
-
-        output += editor.theme.reset();
+        canvas.endRow(renderedWidth);
     }
 
-    for(int i = (int)matches.size() - offset; i < availableRows; i++)
+    for(int i = std::max(0, (int)matches.size() - offset); i < availableRows;
+        i++)
     {
-        output += Terminal::NEWLINE_CLEAR;
-        output += editor.theme.uiGutter();
-        output += "~";
-        output += editor.theme.baseFg();
+        canvas.beginRow(i);
+        if(!layout.floating)
+        {
+            output += editor.theme.uiGutter();
+            output += "~";
+        }
+        canvas.endRow(layout.floating ? 0 : 1);
     }
+
+    if(layout.preview)
+        appendPreview(canvas);
 
     std::string summary;
     if(!matches.empty())
@@ -499,7 +537,33 @@ void FuzzyFindMode::draw(Editor& editor) const
     Terminal::write(output);
     if(syncOutput)
         Terminal::write(Terminal::ESC_SYNC_UPDATE_END);
+    Terminal::endCapture();
     Terminal::flush();
+}
+
+void FuzzyFindMode::appendPreview(widgets::PickerCanvas& canvas) const
+{
+    const int rows = canvas.bodyRows();
+    if(cursor < 0 || cursor >= (int)matches.size())
+    {
+        for(int row = 0; row < rows; ++row)
+            canvas.previewMessage(row, row == 0 ? "  no file selected" : "");
+        return;
+    }
+
+    const std::string& path = matches[cursor].file.path;
+    if(previewPath != path)
+    {
+        previewPath = path;
+        previewLines = widgets::loadPreviewLines(path, 2000);
+    }
+    for(int row = 0; row < rows; ++row)
+    {
+        if(row < (int)previewLines.size())
+            canvas.previewRow(row, row + 1, previewLines[row], false);
+        else
+            canvas.previewMessage(row, "");
+    }
 }
 
 void FuzzyFindMode::initializeFiles(Editor& editor)
@@ -717,7 +781,7 @@ void FuzzyFindMode::moveDown(Editor& editor)
     if(cursor < (int)matches.size() - 1)
     {
         cursor++;
-        int visible = fuzzyFindVisibleRows(editor, filenameFirst);
+        int visible = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled);
         if(cursor >= offset + visible)
             offset = cursor - visible + 1;
     }
@@ -743,11 +807,11 @@ void FuzzyFindMode::halfPageDown(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = fuzzyFindVisibleRows(editor, filenameFirst) / 2;
+    int half = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
         cursor = (int)matches.size() - 1;
-    int visible = fuzzyFindVisibleRows(editor, filenameFirst);
+    int visible = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
     prewarmAroundCursor(editor);
@@ -758,7 +822,7 @@ void FuzzyFindMode::halfPageUp(Editor& editor)
     if(matches.empty())
         return;
 
-    int half = fuzzyFindVisibleRows(editor, filenameFirst) / 2;
+    int half = fuzzyFindVisibleRows(editor, filenameFirst, previewEnabled) / 2;
     cursor -= half;
     if(cursor < 0)
         cursor = 0;

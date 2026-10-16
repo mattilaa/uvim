@@ -221,6 +221,42 @@ void Editor::cancelRgCacheIndexing()
     }
 }
 
+widgets::PickerLayout Editor::pickerLayout(bool previewWanted) const
+{
+    widgets::PickerLayoutOptions options;
+    options.screenRows = screenRows;
+    options.screenCols = screenCols;
+    options.floating = pickerFloating;
+    options.widthPercent = pickerWidthPercent;
+    options.heightPercent = pickerHeightPercent;
+    options.preview = pickerPreview && previewWanted;
+    return widgets::computePickerLayout(options);
+}
+
+void Editor::drawPickerBackground(const widgets::PickerLayout& layout)
+{
+    const PickerBackground wanted{true,          screenRows,     screenCols,
+                                  layout.boxTop, layout.boxLeft, layout.boxRows,
+                                  layout.boxCols};
+    const PickerBackground& have = pickerBackground_;
+    // Geometry changes (resize, picker.width) must repaint what the old box
+    // covered, even when the screen was adopted.
+    if(have.valid && have.screenRows == wanted.screenRows &&
+       have.screenCols == wanted.screenCols && have.boxTop == wanted.boxTop &&
+       have.boxLeft == wanted.boxLeft && have.boxRows == wanted.boxRows &&
+       have.boxCols == wanted.boxCols)
+        return;
+
+    if(pickerBackgroundAdopted_)
+        pickerBackgroundAdopted_ = false; // already on screen
+    else if(currentBuffer && lines)
+        drawFullScreen();
+    else
+        Terminal::write(std::string(Terminal::ESC_CURSOR_HOME) +
+                        Terminal::ESC_CLEAR_SCREEN);
+    pickerBackground_ = wanted;
+}
+
 int Editor::taskStatusWidth() const
 {
     if(screenCols < 40)

@@ -414,8 +414,59 @@ void Terminal::getWindowSize(int& rows, int& cols)
 #endif
 }
 
+int Terminal::captureDepth = 0;
+std::string Terminal::captureBuffer;
+
+void Terminal::beginCapture()
+{
+    ++captureDepth;
+}
+
+void Terminal::endCapture()
+{
+    if(captureDepth == 0 || --captureDepth > 0)
+        return;
+    std::string frame;
+    frame.swap(captureBuffer);
+    if(!frame.empty())
+    {
+        // Inner begin/end markers (tmux paths add their own) would end the
+        // synchronized update early; keep one pair around the whole frame.
+        for(const std::string_view marker :
+            {std::string_view(ESC_SYNC_UPDATE_BEGIN),
+             std::string_view(ESC_SYNC_UPDATE_END)})
+        {
+            for(size_t pos = frame.find(marker); pos != std::string::npos;
+                pos = frame.find(marker, pos))
+                frame.erase(pos, marker.size());
+        }
+        if(syncUpdatesEnabled() || useSynchronizedOutput())
+        {
+            frame.insert(0, ESC_SYNC_UPDATE_BEGIN);
+            frame += ESC_SYNC_UPDATE_END;
+        }
+        write(frame);
+    }
+    flush();
+}
+
+bool Terminal::syncUpdatesEnabled()
+{
+#if defined(UVIM_TERMINAL_WIN32)
+    return false;
+#else
+    const char* disabled = std::getenv("UVIM_DISABLE_SYNC_OUTPUT");
+    return !(disabled && *disabled && std::string(disabled) != "0");
+#endif
+}
+
 void Terminal::write(const std::string& str)
 {
+    if(captureDepth > 0)
+    {
+        captureBuffer += str;
+        return;
+    }
 #if defined(UVIM_TERMINAL_WIN32)
     if(write_console_utf8(str))
         return;
@@ -429,6 +480,11 @@ void Terminal::write(const std::string& str)
 
 void Terminal::write(char c)
 {
+    if(captureDepth > 0)
+    {
+        captureBuffer += c;
+        return;
+    }
 #if defined(UVIM_TERMINAL_WIN32)
     char buf[1] = {c};
     if(write_console_utf8(std::string_view(buf, 1)))
@@ -442,6 +498,8 @@ void Terminal::write(char c)
 
 void Terminal::flush()
 {
+    if(captureDepth > 0)
+        return; // endCapture() flushes the whole frame
     std::fflush(stdout);
 #if defined(UVIM_TERMINAL_WIN32)
     FlushFileBuffers(GetStdHandle(STD_OUTPUT_HANDLE));

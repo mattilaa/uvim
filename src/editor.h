@@ -12,6 +12,7 @@
 #include "theme.h"
 #include "token_type.h"
 #include "visual_color_range.h"
+#include "widgets/picker_frame.h"
 #include "widgets/progress_bar.h"
 #include "widgets/status_bar.h"
 #include <chrono>
@@ -1005,6 +1006,41 @@ public:
     TaskQueue tasks;
     widgets::ProgressStyle progressStyle = widgets::ProgressStyle::Color;
 
+    // Ctrl-P / Ctrl-A pickers: a floating box over the code (Telescope
+    // style) or the classic fullscreen view (`pickerstyle=fullscreen`).
+    bool pickerFloating = true;
+    int pickerWidthPercent = 80;
+    int pickerHeightPercent = 70;
+    bool pickerPreview = true;
+    widgets::PickerLayout pickerLayout(bool previewWanted) const;
+    // Draws the code underneath a floating picker (or clears the screen
+    // when there is no buffer). Call inside a Terminal capture. The code
+    // does not change while a picker is open, so it is painted once per
+    // box geometry; later frames only repaint the box (no flicker).
+    void drawPickerBackground(const widgets::PickerLayout& layout);
+    void invalidatePickerBackground()
+    {
+        pickerBackground_ = {};
+    }
+    // The current screen already shows the code (e.g. opening a picker from
+    // normal mode): the next background paint is skipped.
+    void adoptScreenAsPickerBackground()
+    {
+        pickerBackground_ = {};
+        pickerBackgroundAdopted_ = true;
+    }
+    // The next full redraw repaints in place instead of clearing first.
+    void skipNextScreenClear()
+    {
+        skipNextScreenClear_ = true;
+    }
+    bool takeScreenClear()
+    {
+        const bool skip = skipNextScreenClear_;
+        skipNextScreenClear_ = false;
+        return !skip;
+    }
+
     TaskQueue::Submitted submitTask(std::string label, std::string channel,
                                     TaskQueue::Work work,
                                     TaskQueue::Done done = {},
@@ -1202,6 +1238,20 @@ private:
     bool taskStatusOverlay_ = false;
     TaskQueue::TaskId foregroundTask_ = 0;
     bool tasksInteractive_ = false;
+    // Geometry the picker background was last painted for (valid=false
+    // forces a repaint).
+    struct PickerBackground
+    {
+        bool valid = false;
+        int screenRows = 0;
+        int screenCols = 0;
+        int boxTop = 0;
+        int boxLeft = 0;
+        int boxRows = 0;
+        int boxCols = 0;
+    } pickerBackground_;
+    bool pickerBackgroundAdopted_ = false;
+    bool skipNextScreenClear_ = false;
     void runNextStartupStep();
     struct StartupStep
     {

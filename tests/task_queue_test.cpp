@@ -1,4 +1,5 @@
 #include "task_queue.h"
+#include "widgets/picker_frame.h"
 #include "widgets/progress_bar.h"
 
 #include <gtest/gtest.h>
@@ -287,5 +288,53 @@ TEST(ProgressBarTest, ParsesStyleNames)
     EXPECT_EQ(style, widgets::ProgressStyle::Color);
     EXPECT_FALSE(widgets::parseProgressStyle("fancy", style));
     EXPECT_EQ(style, widgets::ProgressStyle::Color);
+}
+TEST(PickerLayoutTest, FloatingBoxIsCenteredWithPreview)
+{
+    widgets::PickerLayoutOptions options;
+    options.screenRows = 40;
+    options.screenCols = 160;
+    const auto layout = widgets::computePickerLayout(options);
+    ASSERT_TRUE(layout.floating);
+    EXPECT_EQ(layout.boxCols, 128); // 80%
+    EXPECT_EQ(layout.boxRows, 28);  // 70%
+    EXPECT_EQ(layout.boxLeft, 1 + (160 - 128) / 2);
+    EXPECT_EQ(layout.boxTop, 1 + (40 - 28) / 2);
+    EXPECT_TRUE(layout.preview);
+    // list | divider | preview fill the inside of the border exactly
+    EXPECT_EQ(layout.cols + 1 + layout.previewCols, layout.boxCols - 2);
+    EXPECT_EQ(layout.previewLeft, layout.left + layout.cols + 1);
+    EXPECT_EQ(layout.headerCols, layout.boxCols - 2);
+}
+
+TEST(PickerLayoutTest, NarrowScreensDropPreviewThenFloat)
+{
+    widgets::PickerLayoutOptions options;
+    options.screenRows = 30;
+    options.screenCols = 100; // box 80 cols: too narrow for a preview
+    auto layout = widgets::computePickerLayout(options);
+    EXPECT_TRUE(layout.floating);
+    EXPECT_FALSE(layout.preview);
+    EXPECT_EQ(layout.cols, layout.boxCols - 2);
+
+    options.screenCols = 40; // no room for a box at all
+    layout = widgets::computePickerLayout(options);
+    EXPECT_FALSE(layout.floating);
+    EXPECT_EQ(layout.cols, 40);
+    EXPECT_EQ(layout.rows, 30);
+}
+
+TEST(PickerLayoutTest, FullscreenStyleUsesWholeArea)
+{
+    widgets::PickerLayoutOptions options;
+    options.screenRows = 30;
+    options.screenCols = 160;
+    options.floating = false;
+    const auto layout = widgets::computePickerLayout(options);
+    EXPECT_FALSE(layout.floating);
+    EXPECT_FALSE(layout.preview);
+    EXPECT_EQ(layout.top, 1);
+    EXPECT_EQ(layout.left, 1);
+    EXPECT_EQ(layout.cols, 160);
 }
 } // namespace

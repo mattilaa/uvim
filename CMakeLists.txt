@@ -277,6 +277,7 @@ set(UVIM_CORE_SOURCES
     src/theme.cpp
     src/widgets/status_bar.cpp
     src/widgets/progress_bar.cpp
+    src/widgets/picker_frame.cpp
     src/task_queue.cpp
     src/editor_tasks.cpp
 )
@@ -839,6 +840,9 @@ if(UVIM_BUILD_TESTS)
         tests/task_queue_test.cpp
         src/task_queue.cpp
         src/widgets/progress_bar.cpp
+        src/widgets/picker_frame.cpp
+        src/terminal.cpp
+        src/theme.cpp
     )
     uvim_enable_sanitizers(task_queue_tests)
     target_link_libraries(task_queue_tests
