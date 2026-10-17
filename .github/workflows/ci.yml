@@ -36,9 +36,6 @@ jobs:
 
   windows-x64:
     runs-on: windows-latest
-    # Windows support is still in progress: report failures without failing
-    # the whole run. Remove once the Windows build is green.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
