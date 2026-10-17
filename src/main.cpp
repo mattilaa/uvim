@@ -1599,6 +1599,21 @@ struct EditorSettings
             if(resolved == "clangd")
             {
                 std::string found = find_in_path("clangd");
+#ifdef _WIN32
+                // The LLVM installer does not add itself to PATH by default.
+                if(found.empty())
+                {
+                    const char* programFiles = std::getenv("ProgramFiles");
+                    fs::path llvmClangd =
+                        fs::path(programFiles && *programFiles
+                                     ? programFiles
+                                     : "C:\\Program Files") /
+                        "LLVM" / "bin" / "clangd.exe";
+                    std::error_code ec;
+                    if(fs::is_regular_file(llvmClangd, ec))
+                        found = llvmClangd.string();
+                }
+#endif
                 if(!found.empty())
                     resolved = found;
             }

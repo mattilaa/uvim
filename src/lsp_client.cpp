@@ -444,7 +444,13 @@ struct LspClient::Impl
     {
         if(process == INVALID_HANDLE_VALUE)
             return;
-        WaitForSingleObject(process, 1000);
+        // A server that ignores shutdown/exit keeps its stdout open, and the
+        // reader threads (blocked in ReadFile) would never be joinable.
+        if(WaitForSingleObject(process, 1000) == WAIT_TIMEOUT)
+        {
+            TerminateProcess(process, 1);
+            WaitForSingleObject(process, 1000);
+        }
         CloseHandle(process);
         process = INVALID_HANDLE_VALUE;
     }
