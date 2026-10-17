@@ -44,6 +44,17 @@ std::string run_cmd_line(const std::vector<std::string>& args)
     return pipe ? pipe.readLine() : "";
 }
 
+// `git --version` through ProcessPipe: no shell redirection, so it works
+// the same everywhere.
+bool hasGit()
+{
+    ProcessPipe pipe({"git", "--version"});
+    if(!pipe)
+        return false;
+    pipe.readAll();
+    return pipe.close() == 0;
+}
+
 void dispatch_string(ModeStateMachine& sm, const std::string& text)
 {
     for(char c : text)
@@ -413,7 +424,7 @@ TEST(GitBlameDisplayTest, ExtendedBlameDisplayIncludesDateTime)
 
 TEST(ShowChangesTest, DiffsUnsavedBufferAgainstSavedFile)
 {
-    if(std::system("git --version > /dev/null 2>&1") != 0)
+    if(!hasGit())
         GTEST_SKIP() << "git not installed";
     using uvim_test::make_temp_dir;
     using uvim_test::ScopedCurrentPath;
@@ -456,7 +467,7 @@ TEST(ShowChangesTest, DiffsUnsavedBufferAgainstSavedFile)
 
 TEST(ShowChangesTest, DropAndUndoHunksInChangesView)
 {
-    if(std::system("git --version > /dev/null 2>&1") != 0)
+    if(!hasGit())
         GTEST_SKIP() << "git not installed";
     using uvim_test::makeMachine;
     using uvim_test::make_temp_dir;
@@ -551,10 +562,12 @@ TEST(ShowChangesTest, HunkNavigationWrapsAround)
 
 namespace
 {
-// Runs a shell command in `dir`; returns its stdout.
+// Runs a shell command in `dir`; returns its stdout. Uses `sh` from PATH
+// (Git for Windows provides one), which wants forward slashes.
 std::string sh(const std::filesystem::path& dir, const std::string& cmd)
 {
-    ProcessPipe pipe({"/bin/sh", "-c", "cd '" + dir.string() + "' && " + cmd});
+    ProcessPipe pipe(
+        {"sh", "-c", "cd '" + dir.generic_string() + "' && " + cmd});
     return pipe ? pipe.readAll() : std::string{};
 }
 
@@ -607,7 +620,7 @@ std::string secondHunkPatch(const std::filesystem::path& root,
 
 TEST(CommitRewriteTest, DropsHunkFromOlderCommitAndUndoes)
 {
-    if(std::system("git --version > /dev/null 2>&1") != 0)
+    if(!hasGit())
         GTEST_SKIP() << "git not installed";
     auto root = makeRewriteRepo("uvim_rewrite_older_", true);
     const std::string c2 = trimmed(sh(root, "git rev-parse HEAD~1"));
@@ -636,7 +649,7 @@ TEST(CommitRewriteTest, DropsHunkFromOlderCommitAndUndoes)
 
 TEST(CommitRewriteTest, AmendsHeadAndRefusesUnsafeRewrites)
 {
-    if(std::system("git --version > /dev/null 2>&1") != 0)
+    if(!hasGit())
         GTEST_SKIP() << "git not installed";
     auto root = makeRewriteRepo("uvim_rewrite_head_", false);
     const std::string c2 = trimmed(sh(root, "git rev-parse HEAD"));
@@ -668,7 +681,7 @@ TEST(CommitRewriteTest, AmendsHeadAndRefusesUnsafeRewrites)
 
 TEST(CommitRewriteTest, ConflictingRewriteLeavesRepoUnchanged)
 {
-    if(std::system("git --version > /dev/null 2>&1") != 0)
+    if(!hasGit())
         GTEST_SKIP() << "git not installed";
     auto root = makeRewriteRepo("uvim_rewrite_conflict_", false);
     // c3 edits the line c2 introduced, so c2 cannot lose it.
@@ -689,7 +702,7 @@ TEST(CommitRewriteTest, ConflictingRewriteLeavesRepoUnchanged)
 
 TEST(CommitRewriteTest, CommitViewDropsReviewsAndRewrites)
 {
-    if(std::system("git --version > /dev/null 2>&1") != 0)
+    if(!hasGit())
         GTEST_SKIP() << "git not installed";
     auto root = makeRewriteRepo("uvim_rewrite_view_", true);
     uvim_test::ScopedCurrentPath cwd(root);

@@ -820,7 +820,8 @@ TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
     }
     {
         std::ofstream cc(root / "compile_commands.json");
-        cc << R"([{"directory": ")" << root.string()
+        // generic_string: JSON would reject Windows backslashes.
+        cc << R"([{"directory": ")" << root.generic_string()
            << R"(", "command": "clang++ -Iinclude -c main.cpp"}])";
     }
 
@@ -858,7 +859,7 @@ TEST(SyntaxHighlighterTest, NoSystemIncludeHighlightWhenDisabled)
     }
     {
         std::ofstream cc(root / "compile_commands.json");
-        cc << R"([{"directory": ")" << root.string()
+        cc << R"([{"directory": ")" << root.generic_string()
            << R"(", "command": "clang++ -Iinclude -c main.cpp"}])";
     }
 
