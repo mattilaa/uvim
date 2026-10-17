@@ -2,6 +2,8 @@
 #include "widgets/command_popup.h"
 
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <chrono>
 #include <thread>
 
@@ -1641,3 +1643,51 @@ TEST(RealModeTransitionsTest, EnterRunsTypedCommandWhenItIsComplete)
     EXPECT_EQ(editor.commandHistory.back(), "ls");
 }
 #endif
+
+namespace
+{
+// Set while a test expects that nothing exits the process.
+bool exitIsAFailure = false;
+
+void failUnexpectedExit()
+{
+    if(exitIsAFailure)
+    {
+        std::fputs("FAILURE: the editor exited (std::exit) during a test\n",
+                   stderr);
+        std::_Exit(1);
+    }
+}
+} // namespace
+
+TEST(RealModeTransitionsTest, QuitRefusesWithUnsavedChanges)
+{
+    // A wrong :q std::exit()s this test binary; make that a failure instead
+    // of a silent exit 0.
+    static const bool registered = std::atexit(failUnexpectedExit) == 0;
+    ASSERT_TRUE(registered);
+    exitIsAFailure = true;
+    auto root = make_temp_dir("uvim_quit_dirty_");
+    write_file(root / "sample.txt", "hello");
+    Editor editor = Editor::createForTests();
+    editor.openFile((root / "sample.txt").string());
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('i');
+    sm.dispatch('x');
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    ASSERT_TRUE(editor.currentBuffer->dirty);
+
+    for(const std::string command : {"q", "qa", "qall"})
+    {
+        sm.dispatch(':');
+        for(char c : command)
+            sm.dispatch(c);
+        sm.dispatch(keyCode(control::ControlKey::ENTER));
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL") << command;
+        EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("unsaved")) ||
+                    text_utils::is_found(
+                        editor.statusMessage.find("No write since")))
+            << command << ": " << editor.statusMessage;
+    }
+    exitIsAFailure = false;
+}
