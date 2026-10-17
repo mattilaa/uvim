@@ -136,6 +136,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class ShowChangesCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class GitCommitCommand final : public EditorExecutionCommand
 {
 public:

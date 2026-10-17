@@ -1,9 +1,12 @@
 #include "editor.h"
 #include "mode_state_machine.h"
 #include "process_pipe.h"
+#include "real_mode_test_utils.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -405,4 +408,47 @@ TEST(GitBlameDisplayTest, ExtendedBlameDisplayIncludesDateTime)
     EXPECT_EQ(blame, "84397dc Matti 2026-03-25 14:05");
     EXPECT_LT(text_utils::utf8DisplayWidth(blame),
               Editor::kGitBlameDateTimeMaxWidth);
+}
+
+TEST(ShowChangesTest, DiffsUnsavedBufferAgainstSavedFile)
+{
+    if(std::system("git --version > /dev/null 2>&1") != 0)
+        GTEST_SKIP() << "git not installed";
+    using uvim_test::make_temp_dir;
+    using uvim_test::ScopedCurrentPath;
+    using uvim_test::write_file;
+
+    auto root = make_temp_dir("uvim_showchanges_");
+    write_file(root / "notes.txt", "line one\nline two\nline three\n");
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.openFile("notes.txt", false);
+    ASSERT_NE(editor.currentBuffer, nullptr);
+
+    std::string title;
+    std::string message;
+    // Nothing edited yet.
+    EXPECT_TRUE(editor.unsavedChangesDiff(title, message).empty());
+    EXPECT_EQ(message, "No unsaved changes");
+
+    (*editor.lines)[1] = "line two edited";
+    editor.lines->erase(editor.lines->begin() + 2);
+    *editor.dirty = true;
+    editor.gitUseDefaultColors = false;
+    const auto diff = editor.unsavedChangesDiff(title, message);
+    ASSERT_FALSE(diff.empty()) << message;
+    EXPECT_EQ(title, "CHANGES notes.txt");
+    auto has = [&](const std::string& text)
+    {
+        return std::any_of(diff.begin(), diff.end(),
+                           [&](const std::string& l)
+                           { return l.find(text) != std::string::npos; });
+    };
+    EXPECT_TRUE(has("--- notes.txt (saved)"));
+    EXPECT_TRUE(has("+++ notes.txt (unsaved)"));
+    EXPECT_TRUE(has("-line two"));
+    EXPECT_TRUE(has("+line two edited"));
+    EXPECT_TRUE(has("-line three"));
+    EXPECT_FALSE(has("uvim-unsaved-")) << "temp paths must not leak";
 }

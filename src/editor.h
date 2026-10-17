@@ -551,6 +551,9 @@ public:
     void openGitLogModeForFile();
     void openGitStageMode();
     void openGitDiffMode();
+    void openUnsavedChangesMode();
+    std::vector<std::string> unsavedChangesDiff(std::string& title,
+                                                std::string& message);
     void openGitCommitMode();
     void openGitFixupMode();
     void addCurrentBuffer();

@@ -90,6 +90,8 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Clear search highlights";
     if(cmd == "lspinfo")
         return "Show LSP status and clients";
+    if(cmd == "showchanges" || cmd == "sc")
+        return "Show unsaved changes of the current buffer as a diff";
     if(cmd == "toolinfo")
         return "Show external tool status";
     if(cmd == "tasks")

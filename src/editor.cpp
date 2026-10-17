@@ -2072,6 +2072,17 @@ void Editor::openGitDiffMode()
     gitController->openGitDiffMode();
 }
 
+void Editor::openUnsavedChangesMode()
+{
+    gitController->openUnsavedChangesMode();
+}
+
+std::vector<std::string> Editor::unsavedChangesDiff(std::string& title,
+                                                   std::string& message)
+{
+    return gitController->unsavedChangesDiff(title, message);
+}
+
 void Editor::openGitCommitMode()
 {
     gitController->openGitCommitMode();
