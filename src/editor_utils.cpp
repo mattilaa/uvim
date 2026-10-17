@@ -1712,21 +1712,30 @@ void collectProjectFileEntries(const std::string& dir, int depth,
     if(ec)
         return;
 
+    // Sorted by name: directory order differs between filesystems (ext4 is
+    // hash ordered), and results should not depend on it.
+    std::vector<std::pair<std::string, bool>> children;
     for(; it != std::filesystem::directory_iterator(); it.increment(ec))
     {
         if(ec || (cancelled && cancelled()))
             break;
-
         std::string name = it->path().filename().string();
         if(name.empty())
             continue;
-
-        std::string fullPath = dir + "/" + name;
-
         std::error_code statEc;
         bool isDir = it->is_directory(statEc);
         if(statEc)
             continue;
+        children.emplace_back(std::move(name), isDir);
+    }
+    std::sort(children.begin(), children.end());
+
+    for(auto& [name, isDir] : children)
+    {
+        if(cancelled && cancelled())
+            break;
+
+        std::string fullPath = dir + "/" + name;
 
         if(gitignore.isIgnored(fullPath, isDir))
             continue;
