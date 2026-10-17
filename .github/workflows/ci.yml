@@ -34,6 +34,38 @@ jobs:
           python -m pip install -r tests/robot/requirements.txt
           UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
 
+  windows-x64:
+    runs-on: windows-latest
+    # Windows support is still in progress: report failures without failing
+    # the whole run. Remove once the Windows build is green.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure (MSVC x64)
+        run: >
+          cmake -S . -B build -A x64
+          -DUVIM_BUILD_TESTS=ON
+          -DUVIM_ENABLE_CLANGD_LSP=OFF
+          -DUVIM_TERMINAL_BACKEND=WIN32
+
+      - name: Build (Debug)
+        run: cmake --build build --config Debug --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+      - name: Build (Release)
+        run: cmake --build build --config Release --parallel --target uvim
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: uvim-windows-x64
+          path: build/Release/uvim.exe
+          if-no-files-found: error
+
   sanitizers-debug:
     runs-on: macos-latest
     steps:
