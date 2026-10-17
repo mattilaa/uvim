@@ -1042,8 +1042,10 @@ std::optional<ModeState> GitLogMode::handle(ModeContext& ctx,
             ed->setStatusMessage("git show: no output");
             return std::nullopt;
         }
-        return GitShowCommitMode{entries[idx].hash, std::move(showLines),
-                                 *this};
+        GitShowCommitMode view{entries[idx].hash, std::move(showLines),
+                               *this};
+        view.repoRoot = repoRoot; // enables d/v/c/u: rewrite this commit
+        return view;
     }
 
     int window = gitLogContentRows(ed->screenRows, ed->screenCols, prettyView);

@@ -623,6 +623,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "git log",
         "git prettylog",
         "git diff",
+        "showchanges", "sc",
         "git commit",
         "git fixup",
         "git stash",

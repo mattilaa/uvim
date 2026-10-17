@@ -59,6 +59,7 @@ namespace editor::statemachine
 {
 class ModeStateMachine;
 struct CommandPrompt;
+struct GitLogMode;
 } // namespace editor::statemachine
 
 struct MlangTokenCache
@@ -551,6 +552,11 @@ public:
     void openGitLogModeForFile();
     void openGitStageMode();
     void openGitDiffMode();
+    void openUnsavedChangesMode();
+    // Reloads a git log's entries (commit hashes change after a rewrite).
+    void reloadGitLog(editor::statemachine::GitLogMode& log);
+    std::vector<std::string> unsavedChangesDiff(std::string& title,
+                                                std::string& message);
     void openGitCommitMode();
     void openGitFixupMode();
     void addCurrentBuffer();

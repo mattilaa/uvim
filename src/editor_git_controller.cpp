@@ -14,6 +14,7 @@
 #include <limits.h>
 #include <optional>
 #include <string>
+#include <unistd.h>
 
 using namespace editor::statemachine;
 
@@ -180,11 +181,20 @@ std::string blame_hash_for_current_line(const Editor& editor)
 }
 
 std::vector<GitLogMode::Entry>
-load_repo_log_entries(const std::string& repoRoot)
+load_repo_log_entries(const std::string& repoRoot,
+                      const std::string& filePath = {})
 {
-    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "log", "--no-color",
-                      "--graph", "--date=format:%Y-%m-%d %H:%M %z",
-                      GitLogMode::graphPrettyFormatArg()});
+    std::vector<std::string> args = {
+        "git",         "-C",        repoRoot,
+        "--no-pager",  "log",       "--no-color",
+        "--graph",     "--date=format:%Y-%m-%d %H:%M %z",
+        GitLogMode::graphPrettyFormatArg()};
+    if(!filePath.empty())
+    {
+        args.push_back("--");
+        args.push_back(filePath);
+    }
+    ProcessPipe pipe(args);
     if(!pipe)
         return {};
 
@@ -591,6 +601,147 @@ void EditorGitController::openGitDiffMode()
     }
 }
 
+std::vector<std::string>
+EditorGitController::unsavedChangesDiff(std::string& title,
+                                        std::string& message)
+{
+    title.clear();
+    message.clear();
+    if(!editor.currentBuffer || !editor.lines)
+    {
+        message = "showchanges: no buffer";
+        return {};
+    }
+    if(!editor.dirty || !*editor.dirty)
+    {
+        message = "No unsaved changes";
+        return {};
+    }
+    if(!ensureGitAvailable())
+    {
+        message = "git not installed";
+        return {};
+    }
+
+    namespace fs = std::filesystem;
+    const std::string name = editor.currentBuffer->filename;
+    std::error_code ec;
+    // Compare against the saved file; a never-saved buffer is all new.
+    std::string savedPath = "/dev/null";
+    if(!name.empty() && fs::is_regular_file(name, ec))
+        savedPath = fs::absolute(name, ec).string();
+
+    // The buffer as :w would write it: every line ends with a newline.
+    std::string tmpTemplate =
+        (fs::temp_directory_path(ec) / "uvim-unsaved-XXXXXX").string();
+    std::vector<char> tmpName(tmpTemplate.begin(), tmpTemplate.end());
+    tmpName.push_back('\0');
+    const int fd = ::mkstemp(tmpName.data());
+    if(fd < 0)
+    {
+        message = "showchanges: cannot create temp file";
+        return {};
+    }
+    ::close(fd);
+    const std::string unsavedPath(tmpName.data());
+    {
+        std::ofstream out(unsavedPath, std::ios::binary | std::ios::trunc);
+        for(const auto& line : *editor.lines)
+            out << line << '\n';
+    }
+
+    // --no-index diffs two paths without needing a repository.
+    std::string output;
+    {
+        ProcessPipe pipe(
+            {"git", "--no-pager", "diff", "--no-index",
+             editor.gitUseDefaultColors ? "--color=always" : "--no-color",
+             "--src-prefix=", "--dst-prefix=", "--", savedPath, unsavedPath});
+        if(pipe)
+            output = pipe.readAll();
+    }
+    fs::remove(unsavedPath, ec);
+
+    if(output.empty())
+    {
+        message = "No unsaved changes";
+        return {};
+    }
+
+    std::string display = name.empty() ? "[No Name]" : name;
+    if(!name.empty())
+    {
+        // Prefer a path relative to the working directory when inside it.
+        const fs::path rel = fs::relative(name, fs::current_path(ec), ec);
+        if(!ec && !rel.empty() && *rel.begin() != "..")
+            display = rel.string();
+    }
+    const bool newFile = savedPath == "/dev/null";
+
+    // git prints the (canonicalized) absolute/temp paths in the header;
+    // label the two sides with the file's own name instead. Header lines
+    // may carry color escapes, which are kept.
+    auto relabel = [&](std::string& line)
+    {
+        size_t textStart = 0;
+        while(textStart + 1 < line.size() && line[textStart] == '\x1b' &&
+              line[textStart + 1] == '[')
+        {
+            const size_t end = line.find('m', textStart);
+            if(end == std::string::npos)
+                break;
+            textStart = end + 1;
+        }
+        const std::string_view text = std::string_view(line).substr(textStart);
+        const std::string colorPrefix = line.substr(0, textStart);
+        const std::string reset = textStart > 0 ? "\x1b[m" : "";
+        if(text.starts_with("diff --git "))
+            line = colorPrefix + "diff --git " +
+                   (newFile ? "/dev/null" : display + " (saved)") + " " +
+                   display + " (unsaved)" + reset;
+        else if(text.starts_with("--- "))
+            line = colorPrefix + "--- " +
+                   (newFile ? "/dev/null" : display + " (saved)") + reset;
+        else if(text.starts_with("+++ "))
+            line = colorPrefix + "+++ " + display + " (unsaved)" + reset;
+    };
+
+    std::vector<std::string> linesOut;
+    size_t pos = 0;
+    while(pos < output.size())
+    {
+        size_t next = output.find('\n', pos);
+        if(text_utils::is_not_found(next))
+            next = output.size();
+        std::string line = output.substr(pos, next - pos);
+        relabel(line);
+        linesOut.push_back(std::move(line));
+        pos = next + 1;
+    }
+    title = "CHANGES " + fs::path(display).filename().string();
+    return linesOut;
+}
+
+void EditorGitController::openUnsavedChangesMode()
+{
+    std::string title;
+    std::string message;
+    std::vector<std::string> diff = unsavedChangesDiff(title, message);
+    if(diff.empty())
+    {
+        editor.setStatusMessage(message);
+        return;
+    }
+    if(editor.modeStateMachine)
+    {
+        GitShowCommitMode view{title, std::move(diff)};
+        view.unsavedChanges = true;
+        editor.modeStateMachine->transitionTo(std::move(view));
+        editor.modeController->syncModeFromStateMachine();
+        editor.needsFullRedraw = true;
+    }
+}
+
 void EditorGitController::openGitCommitMode()
 {
     if(!ensureGitAvailable())
@@ -703,6 +854,13 @@ EditorGitController::loadGitShowLines(const std::string& hash)
     }
 
     return linesOut;
+}
+
+std::vector<GitLogMode::Entry>
+EditorGitController::reloadGitLogEntries(const std::string& repoRoot,
+                                         const std::string& filePath)
+{
+    return load_repo_log_entries(repoRoot, filePath);
 }
 
 void EditorGitController::openGitLogMode()
