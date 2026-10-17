@@ -1,11 +1,11 @@
 #include "git_commit_rewrite.h"
 
+#include "os_compat.h"
 #include "process_pipe.h"
 
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <unistd.h>
 
 namespace git_rewrite
 {
@@ -49,25 +49,11 @@ std::string revParse(const std::string& repoRoot, const std::string& rev)
 struct TempFile
 {
     std::string path;
-    TempFile(const std::string& stem, const std::string& content,
-             bool executable = false)
+    TempFile(const std::string& stem, const std::string& content)
     {
-        std::error_code ec;
-        std::string pattern =
-            (std::filesystem::temp_directory_path(ec) / (stem + "-XXXXXX"))
-                .string();
-        std::vector<char> name(pattern.begin(), pattern.end());
-        name.push_back('\0');
-        const int fd = ::mkstemp(name.data());
-        if(fd < 0)
-            return;
-        ::close(fd);
-        path = name.data();
-        std::ofstream(path, std::ios::binary | std::ios::trunc) << content;
-        if(executable)
-            std::filesystem::permissions(
-                path, std::filesystem::perms::owner_exec,
-                std::filesystem::perm_options::add, ec);
+        path = os_make_temp_file(stem);
+        if(!path.empty())
+            std::ofstream(path, std::ios::binary | std::ios::trunc) << content;
     }
     ~TempFile()
     {
@@ -212,12 +198,15 @@ Result dropFromCommit(const std::string& repoRoot, const std::string& hash,
     const std::string onTop =
         trim(git(repoRoot, {"rev-list", "--count", full + "..HEAD"}).output);
     TempFile editor("uvim-seq-editor",
-                    "#!/bin/sh\n"
                     "awk 'NR==1{sub(/^pick/,\"edit\")}1' \"$1\" > \"$1.uvim\" "
-                    "&& mv \"$1.uvim\" \"$1\"\n",
-                    true);
+                    "&& mv \"$1.uvim\" \"$1\"\n");
     if(git(repoRoot,
-           {"-c", "sequence.editor=" + editor.path, "-c", "core.editor=true",
+           {"-c",
+            // git runs the editor through sh (also on Windows, from Git for
+            // Windows), which wants forward slashes. Temp paths have no '.
+            "sequence.editor=sh '" +
+                std::filesystem::path(editor.path).generic_string() + "'",
+            "-c", "core.editor=true",
             "rebase", "-i", "--quiet", full + "^"})
                    .status != 0 ||
        revParse(repoRoot, "HEAD") != full)

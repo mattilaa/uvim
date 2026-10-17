@@ -1,18 +1,18 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "os_compat.h"
 #include "process_pipe.h"
 #include "terminal.h"
 #include "text_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 namespace editor::statemachine
 {
-#ifndef _WIN32
-#include <sys/stat.h>
-#endif
 
 namespace
 {
@@ -490,15 +490,6 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
             if(!baseLines.empty())
                 base = trim_newline(baseLines.front());
 
-#ifdef _WIN32
-            // Interactive rebase via GIT_SEQUENCE_EDITOR script is POSIX-only
-            // (relies on /bin/sh). Not yet ported to Windows.
-            (void)todo;
-            (void)base;
-            ed->setStatusMessage("git rebase: interactive autosquash not "
-                                 "supported on Windows yet");
-            return false;
-#else
             std::string todoText;
             for(const auto& item : todo)
             {
@@ -508,63 +499,48 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 todoText += "\n";
             }
 
-            char todoTemplate[] = "/tmp/uvim_rebase_todoXXXXXX";
-            int todoFd = mkstemp(todoTemplate);
-            if(todoFd < 0)
+            // The sequence editor replaces git's todo list with ours. git
+            // runs it through sh (Git for Windows ships one), which wants
+            // forward slashes.
+            const std::string todoPath = os_make_temp_file("uvim-rebase-todo");
+            const std::string scriptPath =
+                os_make_temp_file("uvim-rebase-editor");
+            auto cleanup = [&]
             {
+                std::error_code ec;
+                if(!todoPath.empty())
+                    std::filesystem::remove(todoPath, ec);
+                if(!scriptPath.empty())
+                    std::filesystem::remove(scriptPath, ec);
+            };
+            if(todoPath.empty() || scriptPath.empty())
+            {
+                cleanup();
                 ed->setStatusMessage("git rebase: failed");
                 return false;
             }
-            std::string todoPath = todoTemplate;
-            FILE* todoFile = fdopen(todoFd, "w");
-            if(!todoFile)
+            auto shPath = [](const std::string& path)
             {
-                close(todoFd);
-                unlink(todoPath.c_str());
-                ed->setStatusMessage("git rebase: failed");
-                return false;
-            }
-            fwrite(todoText.data(), 1, todoText.size(), todoFile);
-            fclose(todoFile);
+                return shell_escape_single(
+                    std::filesystem::path(path).generic_string());
+            };
+            std::ofstream(todoPath, std::ios::binary | std::ios::trunc)
+                << todoText;
+            std::ofstream(scriptPath, std::ios::binary | std::ios::trunc)
+                << "cat " << shPath(todoPath) << " > \"$1\"\n";
 
-            char scriptTemplate[] = "/tmp/uvim_rebase_editorXXXXXX";
-            int scriptFd = mkstemp(scriptTemplate);
-            if(scriptFd < 0)
-            {
-                unlink(todoPath.c_str());
-                ed->setStatusMessage("git rebase: failed");
-                return false;
-            }
-            std::string scriptPath = scriptTemplate;
-            FILE* scriptFile = fdopen(scriptFd, "w");
-            if(!scriptFile)
-            {
-                close(scriptFd);
-                unlink(scriptPath.c_str());
-                unlink(todoPath.c_str());
-                ed->setStatusMessage("git rebase: failed");
-                return false;
-            }
-
-            std::string script = "#!/bin/sh\ncat " +
-                                 shell_escape_single(todoPath) + " > \"$1\"\n";
-            fwrite(script.data(), 1, script.size(), scriptFile);
-            fclose(scriptFile);
-            chmod(scriptPath.c_str(), 0700);
-
-            std::string cmd =
-                "GIT_SEQUENCE_EDITOR=" + shell_escape_single(scriptPath) +
-                " git -C \"" + repoDir + "\" rebase -i --autosquash ";
+            std::vector<std::string> args = {
+                "git", "-C", repoDir, "-c",
+                "sequence.editor=sh " + shPath(scriptPath), "rebase", "-i",
+                "--autosquash"};
             if(base.empty())
-                cmd += "--root";
+                args.push_back("--root");
             else
-                cmd += shell_escape_single(base);
-            cmd += " 2>/dev/null";
+                args.push_back(base);
 
-            ProcessPipe rebasePipe(cmd, "r");
-            int status = rebasePipe.close();
-            unlink(scriptPath.c_str());
-            unlink(todoPath.c_str());
+            ProcessPipe rebasePipe(args);
+            int status = rebasePipe ? rebasePipe.close() : -1;
+            cleanup();
             if(status != 0)
             {
                 ed->setStatusMessage("git rebase: failed");
@@ -573,7 +549,6 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
 
             ed->setStatusMessage("git rebase: done");
             return true;
-#endif
         }
 
         std::string msg = join_lines(commitLines);
