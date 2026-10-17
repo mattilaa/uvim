@@ -515,3 +515,36 @@ TEST(ShowChangesTest, DropAndUndoHunksInChangesView)
     EXPECT_EQ(state->lines.front(), "No unsaved changes left.");
 }
 
+TEST(ShowChangesTest, HunkNavigationWrapsAround)
+{
+    using uvim_test::makeMachine;
+    Editor editor = Editor::createForTests();
+    std::vector<std::string> diff = {
+        "diff --git a b",  "--- a",          "+++ b",
+        "@@ -1,1 +1,1 @@", "-one",           "+ONE",
+        "@@ -5,1 +5,1 @@", "-five",          "+FIVE",
+        "@@ -9,1 +9,1 @@", "-nine",          "+NINE"};
+    auto sm = makeMachine(editor, GitShowCommitMode{"DIFF", diff});
+    auto current = [&]
+    { return sm.getState<GitShowCommitMode>()->currentHunk; };
+
+    sm.dispatch('n');
+    sm.dispatch('n');
+    sm.dispatch('n');
+    EXPECT_EQ(current(), 2);
+
+    sm.dispatch('n'); // past the last hunk
+    EXPECT_EQ(current(), 0);
+    EXPECT_NE(editor.statusMessage.find("wrapped to first"), std::string::npos)
+        << editor.statusMessage;
+
+    sm.dispatch('N'); // before the first hunk
+    EXPECT_EQ(current(), 2);
+    EXPECT_NE(editor.statusMessage.find("wrapped to last"), std::string::npos)
+        << editor.statusMessage;
+
+    sm.dispatch('['); // ]/[ wrap the same way
+    EXPECT_EQ(current(), 1);
+    EXPECT_EQ(editor.statusMessage, "Hunk 2/3");
+}
+

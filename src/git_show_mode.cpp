@@ -623,18 +623,26 @@ void GitShowCommitMode::jumpToHunk(ModeContext& ctx, bool forward)
         if(!forward && hunks[target].header > scrollOffset && target > 0)
             --target;
     }
-    else
+    std::string wrapped;
+    if(currentHunk >= 0 && currentHunk < (int)hunks.size())
     {
+        // Past either end, wrap around and say so.
+        const int count = static_cast<int>(hunks.size());
         target = currentHunk + (forward ? 1 : -1);
-        if(target < 0 || target >= (int)hunks.size())
+        if(target >= count)
         {
-            ctx.setStatusMessage(forward ? "Last hunk" : "First hunk");
-            return;
+            target = 0;
+            wrapped = " (last hunk reached, wrapped to first)";
+        }
+        else if(target < 0)
+        {
+            target = count - 1;
+            wrapped = " (first hunk reached, wrapped to last)";
         }
     }
     scrollToHunk(ctx, target);
     ctx.setStatusMessage("Hunk " + std::to_string(target + 1) + "/" +
-                         std::to_string(hunks.size()));
+                         std::to_string(hunks.size()) + wrapped);
 }
 
 void GitShowCommitMode::reloadChanges(ModeContext& ctx)
