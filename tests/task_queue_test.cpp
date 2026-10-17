@@ -159,13 +159,19 @@ TEST(TaskQueueTest, WaitingJobsCanBeReorderedAndCancelled)
 TEST(TaskQueueTest, WaitPumpsAndReportsOutcome)
 {
     TaskQueue queue(2);
-    int pumps = 0;
-    auto ok = queue.submit({"ok", "", [](TaskQueue::Context&)
-                            { std::this_thread::sleep_for(60ms); },
+    // The job finishes only after the waiter pumped once, so the test does
+    // not depend on how fast a (slow CI) machine runs a sleeping job.
+    std::atomic<int> pumps{0};
+    auto ok = queue.submit({"ok", "",
+                            [&](TaskQueue::Context&)
+                            {
+                                while(pumps.load() == 0)
+                                    std::this_thread::sleep_for(1ms);
+                            },
                             {}});
     EXPECT_EQ(queue.wait(ok.id, [&] { ++pumps; }),
               TaskQueue::WaitResult::Completed);
-    EXPECT_GT(pumps, 0);
+    EXPECT_GT(pumps.load(), 0);
 
     auto bad = queue.submit(
         {"bad", "", [](TaskQueue::Context&) { throw std::runtime_error("x"); },
