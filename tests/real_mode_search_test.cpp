@@ -530,7 +530,11 @@ TEST(RealModeTransitionsTest, FuzzyFindLineSuffixKeepsSelectedFile)
     EXPECT_EQ(fuzzy->cursor, 1) << "typing the line suffix keeps selection";
 
     sm.dispatch(keyCode(control::ControlKey::ENTER));
-    EXPECT_EQ(editor.currentBuffer->filename, chosen);
+    // Same file, but spelled differently on Windows (8.3 names, slashes).
+    std::error_code ec;
+    EXPECT_TRUE(
+        std::filesystem::equivalent(editor.currentBuffer->filename, chosen, ec))
+        << editor.currentBuffer->filename << " vs " << chosen;
     EXPECT_EQ(*editor.cursorY, 2);
 }
 

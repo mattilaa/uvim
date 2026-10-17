@@ -1,5 +1,9 @@
 import os
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 import time
 
 import pexpect
@@ -8,6 +12,7 @@ import pexpect
 class UvimTui:
     def __init__(self):
         self.child = None
+        self.keylog = None
 
     def start_uvim(self, binary, *args):
         self._spawn(binary, None, *args)
@@ -20,6 +25,11 @@ class UvimTui:
             self.stop_uvim()
         env = os.environ.copy()
         env.setdefault("TERM", "xterm-256color")
+        # uvim logs every input byte it reads here; shown when a test fails
+        # because uvim is gone.
+        fd, self.keylog = tempfile.mkstemp(prefix="uvim_keylog_")
+        os.close(fd)
+        env["UVIM_KEYLOG"] = self.keylog
         self.child = pexpect.spawn(
             binary,
             list(args),
@@ -114,6 +124,12 @@ class UvimTui:
             return
         try:
             self.child.expect(pexpect.EOF, timeout=float(timeout))
+        except pexpect.TIMEOUT:
+            raise AssertionError(
+                f"uvim did not exit within {timeout}s.\n"
+                f"Last output: {self.child.before[-300:]!r}\n"
+                f"{_stack_sample(self.child.pid)}"
+            ) from None
         finally:
             self.child.close(force=True)
             self.child = None
@@ -130,8 +146,49 @@ class UvimTui:
         self.child = None
 
     def _ensure_child(self):
-        if not self.child or not self.child.isalive():
+        if not self.child:
             raise RuntimeError("uvim process is not running")
+        if not self.child.isalive():
+            raise RuntimeError(
+                "uvim process is not running "
+                f"(exit status {self.child.exitstatus}, "
+                f"signal {self.child.signalstatus}).\n"
+                f"Last output: {self._drain_output()[-300:]!r}\n"
+                f"Keys uvim read: {self._keylog_text()!r}"
+            )
+
+    def _drain_output(self):
+        try:
+            return self.child.read_nonblocking(size=100000, timeout=0)
+        except Exception:
+            return self.child.before or ""
+
+    def _keylog_text(self):
+        try:
+            with open(self.keylog, encoding="utf-8", errors="replace") as f:
+                return f.read()[-300:]
+        except Exception:
+            return "(no key log)"
+
+
+def _stack_sample(pid):
+    """Where a hung uvim is stuck: a stack sample of every thread."""
+    if sys.platform == "darwin" and shutil.which("sample"):
+        cmd = ["sample", str(pid), "1"]
+    elif shutil.which("gdb"):
+        cmd = ["gdb", "-p", str(pid), "-batch", "-ex", "thread apply all bt"]
+    else:
+        return "(no stack sampler available)"
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=30
+        )
+    except Exception as error:  # diagnostics must never mask the failure
+        return f"(stack sample failed: {error})"
+    report = result.stdout or result.stderr
+    # macOS `sample`: keep the call graph, not the binary image list.
+    report = report.split("Binary Images:")[0]
+    return "Stack sample:\n" + report[:12000]
 
 
 CSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")

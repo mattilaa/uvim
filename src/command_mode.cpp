@@ -232,7 +232,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                     shouldReplace = true;
                 }
 
-                if(shouldReplace)
+                if(shouldReplace && !ctx.isExactCommand(query))
                     ctx.commandBuffer = ":" + *selection;
             }
         }

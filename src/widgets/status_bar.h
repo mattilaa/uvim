@@ -58,15 +58,16 @@ struct ViewStatusBarView
 {
     const Theme& theme;
     int screenCols = 0;
-    std::string_view modeLabel;
-    std::string_view context;     // query, path ...
-    std::string_view state;       // transient, e.g. "searching" (warning)
+    // Owned strings: callers often build them from temporaries.
+    std::string modeLabel;
+    std::string context;          // query, path ...
+    std::string state;            // transient, e.g. "searching" (warning)
     std::vector<std::string> flags; // dim tags, e.g. "gitignore"
-    std::string_view toolLabel;   // backing tool, styled like [clangd]
+    std::string toolLabel;        // backing tool, styled like [clangd]
     int toolGap = 7;
     int index = 0;                // 1-based selected row; ruler hidden if
     int count = -1;               //   count < 0
-    std::string_view progress;    // background task progress (fixed width)
+    std::string progress;         // background task progress (fixed width)
     int* progressColumn = nullptr;
     int progressReserve = 0;      // see StatusBarView::progressReserve
 };

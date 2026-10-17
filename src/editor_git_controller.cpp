@@ -2,6 +2,7 @@
 #include "editor.h"
 #include "editor_mode_controller.h"
 #include "mode_state_machine.h"
+#include "os_compat.h"
 #include "process_pipe.h"
 #include "text_utils.h"
 #include <algorithm>
@@ -14,7 +15,6 @@
 #include <limits.h>
 #include <optional>
 #include <string>
-#include <unistd.h>
 
 using namespace editor::statemachine;
 
@@ -335,11 +335,12 @@ void EditorGitController::updateGitBlameForVisibleRange()
         path.has_parent_path() ? path.parent_path().string() : std::string(".");
     std::string blameTarget = editor.currentBuffer->filename;
     std::string tempPath;
+    std::error_code removeEc;
     if(editor.dirty && *editor.dirty)
     {
-        tempPath = "/tmp/uvim_blame_" + std::to_string(getpid()) + ".tmp";
+        tempPath = os_make_temp_file("uvim-blame");
         std::ofstream tempFile(tempPath);
-        if(tempFile.is_open())
+        if(!tempPath.empty() && tempFile.is_open())
         {
             for(size_t i = 0; i < editor.lines->size(); ++i)
             {
@@ -364,7 +365,7 @@ void EditorGitController::updateGitBlameForVisibleRange()
     {
         editor.setStatusMessage("git blame: failed to run");
         if(!tempPath.empty())
-            unlink(tempPath.c_str());
+            fs::remove(tempPath, removeEc);
         editor.currentBuffer->blameEntries.clear();
         editor.currentBuffer->blameStart = -1;
         editor.currentBuffer->blameEnd = -1;
@@ -416,7 +417,7 @@ void EditorGitController::updateGitBlameForVisibleRange()
         }
     }
     if(!tempPath.empty())
-        unlink(tempPath.c_str());
+        fs::remove(tempPath, removeEc);
 
     if((int)entries.size() != (int)editor.lines->size())
     {
@@ -632,18 +633,12 @@ EditorGitController::unsavedChangesDiff(std::string& title,
         savedPath = fs::absolute(name, ec).string();
 
     // The buffer as :w would write it: every line ends with a newline.
-    std::string tmpTemplate =
-        (fs::temp_directory_path(ec) / "uvim-unsaved-XXXXXX").string();
-    std::vector<char> tmpName(tmpTemplate.begin(), tmpTemplate.end());
-    tmpName.push_back('\0');
-    const int fd = ::mkstemp(tmpName.data());
-    if(fd < 0)
+    const std::string unsavedPath = os_make_temp_file("uvim-unsaved");
+    if(unsavedPath.empty())
     {
         message = "showchanges: cannot create temp file";
         return {};
     }
-    ::close(fd);
-    const std::string unsavedPath(tmpName.data());
     {
         std::ofstream out(unsavedPath, std::ios::binary | std::ios::trunc);
         for(const auto& line : *editor.lines)

@@ -27,9 +27,13 @@ using editor::helper::parse_int;
 using editor::helper::trim_view;
 using namespace detail;
 
-bool QuitWithoutBufferCommand::execute(Editor&,
+bool QuitWithoutBufferCommand::execute(Editor& editor,
                                        const CommandRequest& request) const
 {
+    // Only with no buffer open (welcome screen, browsers). Otherwise
+    // QuitCommand/QuitAllCommand check for unsaved changes.
+    if(editor.hasBuffer())
+        return false;
     if(request.text != "q" && request.text != "q!" && request.text != "qa" &&
        request.text != "qa!" && request.text != "qall" &&
        request.text != "qall!")

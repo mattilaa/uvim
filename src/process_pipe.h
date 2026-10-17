@@ -506,7 +506,10 @@ private:
 #ifdef _WIN32
     static std::string quoteArg(const std::string& arg)
     {
-        if(arg.empty() || text_utils::is_found(arg.find_first_of(" \t\"")))
+        // _popen runs cmd.exe, which treats ^ & | < > ( ) specially unless
+        // they are inside double quotes (e.g. git's "<hash>^{commit}").
+        if(arg.empty() ||
+           text_utils::is_found(arg.find_first_of(" \t\"^&|<>()")))
         {
             std::string out = "\"";
             for(char ch : arg)

@@ -34,6 +34,68 @@ jobs:
           python -m pip install -r tests/robot/requirements.txt
           UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
 
+  linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes g++ ninja-build clangd
+
+      - name: Configure (Debug, GCC)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DUVIM_BUILD_TESTS=ON \
+            -DUVIM_ENABLE_CLANGD_LSP=ON
+
+      - name: Build (Debug)
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Robot tests
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r tests/robot/requirements.txt
+          UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
+
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure (MSVC x64)
+        run: >
+          cmake -S . -B build -A x64
+          -DUVIM_BUILD_TESTS=ON
+          -DUVIM_ENABLE_CLANGD_LSP=ON
+          -DUVIM_TERMINAL_BACKEND=WIN32
+
+      - name: Build (Debug)
+        run: cmake --build build --config Debug --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+      - name: Build (Release)
+        run: cmake --build build --config Release --parallel --target uvim
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: uvim-windows-x64
+          path: build/Release/uvim.exe
+          if-no-files-found: error
+
   sanitizers-debug:
     runs-on: macos-latest
     steps:

@@ -247,6 +247,11 @@ static bool read_byte(char& c) noexcept
     return true;
 }
 
+// Bytes read while checking for an escape sequence that turned out to be
+// separate keystrokes (e.g. <Esc>:q typed or sent quickly). They are
+// returned before anything new is read from stdin.
+static std::string pendingInputBytes;
+
 static bool read_byte_timeout(char& c, milliseconds timeout) noexcept
 {
     if(!wait_stdin(timeout))
@@ -639,12 +644,19 @@ int Terminal::readKeyInternal(int timeoutMs)
     }
 
 #else
-    if(!wait_stdin(timeout))
-        return -1;
-
     char c = 0;
-    if(!read_byte(c))
-        return -1;
+    if(!pendingInputBytes.empty())
+    {
+        c = pendingInputBytes.front();
+        pendingInputBytes.erase(0, 1);
+    }
+    else
+    {
+        if(!wait_stdin(timeout))
+            return -1;
+        if(!read_byte(c))
+            return -1;
+    }
 
     if(c == '\x1b')
     {
@@ -654,8 +666,18 @@ int Terminal::readKeyInternal(int timeoutMs)
         std::array<char, 5> seq{};
         if(!read_byte_timeout(seq[0], milliseconds(50)))
             return keyCode(control::ControlKey::ESC);
-        if(!read_byte_timeout(seq[1], milliseconds(50)))
+        // Only CSI (ESC [) and SS3 (ESC O) start key sequences; anything
+        // else is a separate key typed right after Esc. Keep it.
+        if(seq[0] != '[' && seq[0] != 'O')
+        {
+            pendingInputBytes.insert(0, 1, seq[0]);
             return keyCode(control::ControlKey::ESC);
+        }
+        if(!read_byte_timeout(seq[1], milliseconds(50)))
+        {
+            pendingInputBytes.insert(0, 1, seq[0]);
+            return keyCode(control::ControlKey::ESC);
+        }
 
         if(seq[0] == '[')
         {
@@ -854,6 +876,10 @@ int Terminal::readKeyInternal(int timeoutMs)
             case 'F':
                 return keyCode(navigation::NavigationKey::END);
             }
+            // Not an SS3 key: <Esc>O<key> typed quickly (e.g. "open line
+            // above"), so both are real keystrokes.
+            pendingInputBytes.insert(0, std::string{seq[0], seq[1]});
+            return keyCode(control::ControlKey::ESC);
         }
 
         return keyCode(control::ControlKey::ESC);
