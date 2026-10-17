@@ -892,6 +892,11 @@ if(UVIM_BUILD_TESTS)
         tests/js_ts_resolution_test.cpp
         tests/loc_count_test.cpp
     )
+    if(UVIM_ENABLE_CLANGD_LSP)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES
+            tests/lsp_clangd_integration_test.cpp
+        )
+    endif()
     if(UVIM_ENABLE_GIT_TOOLS)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/git_commit_view_test.cpp
