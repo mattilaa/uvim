@@ -87,7 +87,7 @@ Clear Test Clipboard
 
 Read Test Clipboard
     ${clipboard} =    Get File    ${CLIPBOARD_FILE}
-    [Return]    ${clipboard}
+    RETURN    ${clipboard}
 
 Write Test Clipboard
     [Arguments]    ${text}

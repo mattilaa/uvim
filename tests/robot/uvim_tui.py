@@ -3,6 +3,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 import pexpect
@@ -11,6 +12,7 @@ import pexpect
 class UvimTui:
     def __init__(self):
         self.child = None
+        self.keylog = None
 
     def start_uvim(self, binary, *args):
         self._spawn(binary, None, *args)
@@ -23,6 +25,11 @@ class UvimTui:
             self.stop_uvim()
         env = os.environ.copy()
         env.setdefault("TERM", "xterm-256color")
+        # uvim logs every input byte it reads here; shown when a test fails
+        # because uvim is gone.
+        fd, self.keylog = tempfile.mkstemp(prefix="uvim_keylog_")
+        os.close(fd)
+        env["UVIM_KEYLOG"] = self.keylog
         self.child = pexpect.spawn(
             binary,
             list(args),
@@ -139,8 +146,29 @@ class UvimTui:
         self.child = None
 
     def _ensure_child(self):
-        if not self.child or not self.child.isalive():
+        if not self.child:
             raise RuntimeError("uvim process is not running")
+        if not self.child.isalive():
+            raise RuntimeError(
+                "uvim process is not running "
+                f"(exit status {self.child.exitstatus}, "
+                f"signal {self.child.signalstatus}).\n"
+                f"Last output: {self._drain_output()[-300:]!r}\n"
+                f"Keys uvim read: {self._keylog_text()!r}"
+            )
+
+    def _drain_output(self):
+        try:
+            return self.child.read_nonblocking(size=100000, timeout=0)
+        except Exception:
+            return self.child.before or ""
+
+    def _keylog_text(self):
+        try:
+            with open(self.keylog, encoding="utf-8", errors="replace") as f:
+                return f.read()[-300:]
+        except Exception:
+            return "(no key log)"
 
 
 def _stack_sample(pid):
