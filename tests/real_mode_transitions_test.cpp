@@ -1614,3 +1614,30 @@ TEST(RealModeTransitionsTest, VisualLineMoveCanUndoAndRedo)
     EXPECT_EQ(editor.currentBuffer->lines,
               (std::vector<std::string>{"a", "d", "b", "c"}));
 }
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+TEST(RealModeTransitionsTest, EnterRunsTypedCommandWhenItIsComplete)
+{
+    // ":q" with "q!" highlighted used to force quit. Same shape without
+    // exiting the test: ":ls" with "lspinfo" highlighted must run :ls.
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    sm.dispatch('l');
+    sm.dispatch('s');
+    ASSERT_TRUE(editor.commandPopupActive);
+    int lspinfo = -1;
+    for(int i = 0; i < (int)editor.commandPopupFiltered.size(); ++i)
+    {
+        if(editor.commandPopupAll[editor.commandPopupFiltered[i]] == "lspinfo")
+            lspinfo = i;
+    }
+    ASSERT_GE(lspinfo, 0);
+    editor.commandPopupCursor = lspinfo;
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    ASSERT_FALSE(editor.commandHistory.empty());
+    EXPECT_EQ(editor.commandHistory.back(), "ls");
+}
+#endif

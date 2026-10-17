@@ -388,7 +388,7 @@ bool CommandPrompt::handle(
     if(key == keyCode(control::ControlKey::ENTER))
     {
         std::string commandToRun = input;
-        if(ctx.isCommandPopupActive())
+        if(ctx.isCommandPopupActive() && !ctx.isExactCommand(commandToRun))
         {
             if(auto selection = ctx.commandPopupSelection())
             {

@@ -263,6 +263,18 @@ ModeContext::getCommandCompletions(std::string_view prefix)
     return editor->getCommandCompletions(prefix);
 }
 
+bool ModeContext::isExactCommand(std::string_view text)
+{
+    if(text.empty())
+        return false;
+    for(const auto& completion : getCommandCompletions(text))
+    {
+        if(completion == text)
+            return true;
+    }
+    return false;
+}
+
 std::shared_ptr<CommandPrompt> ModeContext::commandPrompt() const
 {
     return editor->commandPrompt;

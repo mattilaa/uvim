@@ -105,6 +105,9 @@ struct ModeContext
     bool isCommandHistorySearchActive() const;
     std::string_view commandHistorySearchQuery() const;
     std::vector<std::string> getCommandCompletions(std::string_view prefix);
+    // True when `text` is itself a complete command (e.g. "q"): Enter then
+    // runs it as typed instead of the highlighted completion ("q!").
+    bool isExactCommand(std::string_view text);
     std::shared_ptr<CommandPrompt> commandPrompt() const;
     std::vector<std::string> getPathCompletions(std::string_view path);
     std::vector<std::string> getPathCompletionsRecursive(std::string_view path);
