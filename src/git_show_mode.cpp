@@ -15,18 +15,112 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> gitShowHelpTokens()
+std::vector<std::string> gitShowHelpTokens(bool changesView)
 {
-    return {"[q: quit]", "[j/k: scroll]", "[gg/G: top/bottom]",
-            "[ctrl-h/l: pan]"};
+    std::vector<std::string> tokens = {"[q: quit]", "[j/k: scroll]",
+                                       "[gg/G: top/bottom]",
+                                       "[n/N ]/[: hunks]", "[ctrl-h/l: pan]"};
+    if(changesView)
+    {
+        tokens.push_back("[d: drop hunk]");
+        tokens.push_back("[u: undo drop]");
+    }
+    return tokens;
 }
 
-int gitShowContentRows(int screenRows, int screenCols)
+int gitShowContentRows(int screenRows, int screenCols, bool changesView)
 {
+    // screenRows already excludes the status and message rows.
     const int headerRows =
-        1 + HeaderHelp::lineCount(gitShowHelpTokens(), screenCols);
-    constexpr int footerRows = 2;
-    return std::max(1, screenRows - headerRows - footerRows);
+        1 + HeaderHelp::lineCount(gitShowHelpTokens(changesView), screenCols);
+    return std::max(1, screenRows - headerRows);
+}
+
+std::string stripAnsi(std::string_view text)
+{
+    std::string out;
+    out.reserve(text.size());
+    for(size_t i = 0; i < text.size(); ++i)
+    {
+        if(text[i] == '\x1b' && i + 1 < text.size() && text[i + 1] == '[')
+        {
+            size_t end = i + 2;
+            while(end < text.size() &&
+                  !((text[end] >= 'A' && text[end] <= 'Z') ||
+                    (text[end] >= 'a' && text[end] <= 'z')))
+                ++end;
+            i = end;
+            continue;
+        }
+        out += text[i];
+    }
+    return out;
+}
+
+// One "@@ -a,b +c,d @@" hunk of a unified diff: its header line index and
+// the end (exclusive) of its body in the view's lines.
+struct DiffHunk
+{
+    int header = 0;
+    int end = 0;
+    int oldStart = 0;
+    int oldCount = 1;
+    int newStart = 0;
+    int newCount = 1;
+};
+
+bool parseRange(std::string_view text, size_t& pos, int& start, int& count)
+{
+    auto number = [&](int& out)
+    {
+        const size_t begin = pos;
+        int value = 0;
+        while(pos < text.size() && text[pos] >= '0' && text[pos] <= '9')
+            value = value * 10 + (text[pos++] - '0');
+        out = value;
+        return pos > begin;
+    };
+    if(!number(start))
+        return false;
+    count = 1;
+    if(pos < text.size() && text[pos] == ',')
+    {
+        ++pos;
+        if(!number(count))
+            return false;
+    }
+    return true;
+}
+
+std::vector<DiffHunk> parseHunks(const std::vector<std::string>& lines)
+{
+    std::vector<DiffHunk> hunks;
+    for(int i = 0; i < (int)lines.size(); ++i)
+    {
+        const std::string text = stripAnsi(lines[i]);
+        if(text.rfind("@@ -", 0) == 0)
+        {
+            DiffHunk hunk;
+            hunk.header = i;
+            size_t pos = 4;
+            if(!parseRange(text, pos, hunk.oldStart, hunk.oldCount) ||
+               text.compare(pos, 2, " +") != 0)
+                continue;
+            pos += 2;
+            if(!parseRange(text, pos, hunk.newStart, hunk.newCount))
+                continue;
+            if(!hunks.empty() && hunks.back().end > i)
+                hunks.back().end = i;
+            hunk.end = (int)lines.size();
+            hunks.push_back(hunk);
+        }
+        else if(text.rfind("diff --git", 0) == 0 && !hunks.empty() &&
+                hunks.back().end > i)
+        {
+            hunks.back().end = i;
+        }
+    }
+    return hunks;
 }
 
 bool is_ansi_start(std::string_view text, size_t i)
@@ -245,7 +339,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
             searchIndex = found;
             int maxScroll = std::max(
                 0, (int)lines.size() -
-                       gitShowContentRows(ctx.screenRows(), ctx.screenCols()));
+                       gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges));
             scrollOffset = std::clamp(found, 0, maxScroll);
             return true;
         }
@@ -318,7 +412,8 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                     int maxScroll =
                         std::max(0, (int)lines.size() -
                                         gitShowContentRows(ctx.screenRows(),
-                                                           ctx.screenCols()));
+                                                           ctx.screenCols(),
+                                                           unsavedChanges));
                     scrollOffset = std::clamp(found, 0, maxScroll);
                 }
                 else
@@ -353,6 +448,15 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(c == keyCode(control::ControlKey::ESC) && !searchQuery.empty())
+    {
+        // First Esc clears the search, so n/N move between hunks again.
+        searchQuery.clear();
+        ctx.setStatusMessage("");
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+
     if(c == keyCode(control::ControlKey::ESC) ||
        c == keyCode(typed::TypedKey::KEY_Q))
     {
@@ -365,7 +469,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
 
     int maxScroll =
         std::max(0, (int)lines.size() -
-                        gitShowContentRows(ctx.screenRows(), ctx.screenCols()));
+                        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges));
 
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
@@ -381,26 +485,26 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols()) / 2;
+        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges) / 2;
         scrollOffset = std::min(scrollOffset + half, maxScroll);
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols()) / 2;
+        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges) / 2;
         scrollOffset = std::max(scrollOffset - half, 0);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         scrollOffset =
             std::min(scrollOffset +
-                         gitShowContentRows(ctx.screenRows(), ctx.screenCols()),
+                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges),
                      maxScroll);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         scrollOffset =
             std::max(scrollOffset -
-                         gitShowContentRows(ctx.screenRows(), ctx.screenCols()),
+                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges),
                      0);
     }
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
@@ -443,9 +547,182 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         if(!findNextMatch(forward))
             ctx.setStatusMessage("search: not found");
     }
+    else if(c == keyCode(typed::TypedKey::KEY_N) ||
+            c == keyCode(typed::TypedKey::KEY_CAP_N) ||
+            c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) ||
+            c == keyCode(command::CommandKey::KEY_LEFT_BRACKET))
+    {
+        // Hunk navigation (n/N while no search is active, ]/[ always).
+        const bool forward = c == keyCode(typed::TypedKey::KEY_N) ||
+                             c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
+        jumpToHunk(ctx, forward);
+    }
+    else if(c == keyCode(typed::TypedKey::KEY_D) ||
+            c == keyCode(typed::TypedKey::KEY_U))
+    {
+        if(!unsavedChanges)
+            ctx.setStatusMessage("d/u (drop/undo hunk) work in :showchanges");
+        else if(c == keyCode(typed::TypedKey::KEY_D))
+            dropCurrentHunk(ctx);
+        else
+            undoDrop(ctx);
+    }
 
     ctx.requestFullRedraw();
     return std::nullopt;
+}
+
+int GitShowCommitMode::hunkAtView() const
+{
+    // The selected hunk, or else the first one starting in/after the view.
+    const auto hunks = parseHunks(lines);
+    if(hunks.empty())
+        return -1;
+    if(currentHunk >= 0 && currentHunk < (int)hunks.size())
+        return currentHunk;
+    for(int i = 0; i < (int)hunks.size(); ++i)
+    {
+        if(hunks[i].end > scrollOffset)
+            return i;
+    }
+    return (int)hunks.size() - 1;
+}
+
+void GitShowCommitMode::scrollToHunk(ModeContext& ctx, int index)
+{
+    const auto hunks = parseHunks(lines);
+    if(index < 0 || index >= (int)hunks.size())
+        return;
+    currentHunk = index;
+    const int rows =
+        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges);
+    const int maxScroll = std::max(0, (int)lines.size() - rows);
+    // Keep one line of context (the file header) above the hunk.
+    scrollOffset = std::clamp(hunks[index].header - 1, 0, maxScroll);
+}
+
+void GitShowCommitMode::jumpToHunk(ModeContext& ctx, bool forward)
+{
+    const auto hunks = parseHunks(lines);
+    if(hunks.empty())
+    {
+        ctx.setStatusMessage("No hunks");
+        return;
+    }
+    int target = -1;
+    if(currentHunk < 0 || currentHunk >= (int)hunks.size())
+    {
+        // Nothing selected yet: start from what is on screen.
+        for(int i = 0; i < (int)hunks.size() && target < 0; ++i)
+        {
+            if(hunks[i].header >= scrollOffset)
+                target = i;
+        }
+        if(target < 0)
+            target = (int)hunks.size() - 1;
+        if(!forward && hunks[target].header > scrollOffset && target > 0)
+            --target;
+    }
+    else
+    {
+        target = currentHunk + (forward ? 1 : -1);
+        if(target < 0 || target >= (int)hunks.size())
+        {
+            ctx.setStatusMessage(forward ? "Last hunk" : "First hunk");
+            return;
+        }
+    }
+    scrollToHunk(ctx, target);
+    ctx.setStatusMessage("Hunk " + std::to_string(target + 1) + "/" +
+                         std::to_string(hunks.size()));
+}
+
+void GitShowCommitMode::reloadChanges(ModeContext& ctx)
+{
+    Editor* ed = ctx.editor;
+    std::string title;
+    std::string message;
+    std::vector<std::string> diff = ed->unsavedChangesDiff(title, message);
+    if(diff.empty())
+    {
+        lines = {"No unsaved changes left.", "",
+                 "u: undo the last drop    q: back to the buffer"};
+        currentHunk = -1;
+        scrollOffset = 0;
+        return;
+    }
+    lines = std::move(diff);
+    commitHash = title;
+    const int count = (int)parseHunks(lines).size();
+    if(count == 0)
+        currentHunk = -1;
+    else
+        scrollToHunk(ctx, std::clamp(currentHunk, 0, count - 1));
+}
+
+void GitShowCommitMode::dropCurrentHunk(ModeContext& ctx)
+{
+    const auto hunks = parseHunks(lines);
+    const int index = hunkAtView();
+    if(index < 0)
+    {
+        ctx.setStatusMessage("No hunk to drop");
+        return;
+    }
+    const DiffHunk& hunk = hunks[index];
+    Editor* ed = ctx.editor;
+    if(!ed || !ed->lines)
+        return;
+
+    // Put the saved text back: context and removed ("-") lines of the hunk.
+    std::vector<std::string> savedSide;
+    for(int i = hunk.header + 1; i < hunk.end; ++i)
+    {
+        const std::string text = stripAnsi(lines[i]);
+        if(text.empty())
+        {
+            savedSide.emplace_back();
+            continue;
+        }
+        if(text[0] == ' ' || text[0] == '-')
+            savedSide.push_back(text.substr(1));
+    }
+
+    std::vector<std::string>& buffer = *ed->lines;
+    // An empty new range starts *after* line newStart.
+    const int start = hunk.newCount == 0 ? hunk.newStart : hunk.newStart - 1;
+    if(start < 0 || start + hunk.newCount > (int)buffer.size())
+    {
+        ctx.setStatusMessage("Cannot drop hunk: buffer changed");
+        return;
+    }
+    buffer.erase(buffer.begin() + start,
+                 buffer.begin() + start + hunk.newCount);
+    buffer.insert(buffer.begin() + start, savedSide.begin(), savedSide.end());
+    if(buffer.empty())
+        buffer.emplace_back();
+    *ed->cursorY = std::clamp(start, 0, (int)buffer.size() - 1);
+    *ed->cursorX = 0;
+    ed->saveState(); // one undo step, also undoable later with u in the buffer
+    ++droppedHunks;
+
+    currentHunk = index;
+    reloadChanges(ctx);
+    ctx.setStatusMessage("Dropped hunk " + std::to_string(index + 1) +
+                         " (u to undo)");
+}
+
+void GitShowCommitMode::undoDrop(ModeContext& ctx)
+{
+    if(droppedHunks == 0)
+    {
+        ctx.setStatusMessage("No dropped hunk to undo");
+        return;
+    }
+    ctx.editor->undo();
+    --droppedHunks;
+    reloadChanges(ctx);
+    ctx.setStatusMessage("Restored hunk");
 }
 
 void GitShowCommitMode::draw(Editor& editor) const
@@ -465,21 +742,28 @@ void GitShowCommitMode::draw(Editor& editor) const
         output += " " + commitHash;
     output += editor.theme.reset();
     HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       gitShowHelpTokens());
+                       gitShowHelpTokens(unsavedChanges));
 
     int availableRows =
-        gitShowContentRows(editor.screenRows, editor.screenCols);
+        gitShowContentRows(editor.screenRows, editor.screenCols,
+                           unsavedChanges);
     int viewWidth = std::max(0, editor.screenCols - 2);
     int maxW = max_line_width(lines, editor.gitUseDefaultColors);
     int maxOffset = std::max(0, maxW - viewWidth);
     int hOff = std::min(horizontalOffset, maxOffset);
+    const auto hunks = parseHunks(lines);
+    const int selectedHunk = hunkAtView();
+    const int selectedHeader =
+        selectedHunk >= 0 && currentHunk >= 0 ? hunks[selectedHunk].header : -1;
     for(int i = 0; i < availableRows; ++i)
     {
         output += Terminal::NEWLINE_CLEAR;
         int idx = i + scrollOffset;
         if(idx >= 0 && idx < (int)lines.size())
         {
-            output += "  ";
+            // Mark the selected hunk's header line.
+            output += idx == selectedHeader ? editor.theme.selection() + "> "
+                                            : std::string("  ");
             if(editor.gitUseDefaultColors)
             {
                 output += slice_with_ansi(lines[idx], hOff, viewWidth);
@@ -508,6 +792,9 @@ void GitShowCommitMode::draw(Editor& editor) const
                     lineSeq = &editor.theme.uiError();
 
                 std::string normalSeq = editor.theme.reset() + *lineSeq;
+                if(idx == selectedHeader)
+                    normalSeq = editor.theme.reset() +
+                                editor.theme.selection() + *lineSeq;
                 std::string sliced = slice_plain(line, hOff, viewWidth);
                 append_highlighted(output, sliced, searchQuery, normalSeq,
                                    editor.theme.searchMatch());
@@ -532,6 +819,10 @@ void GitShowCommitMode::draw(Editor& editor) const
                         std::to_string(std::min(scrollOffset + availableRows,
                                                 (int)lines.size())) +
                         "/" + std::to_string(lines.size()) + " ";
+    if(!hunks.empty())
+        right = " hunk " +
+                (currentHunk >= 0 ? std::to_string(selectedHunk + 1) : "-") +
+                "/" + std::to_string(hunks.size()) + " |" + right;
 
     editor.appendStatusLine(output, status, right);
 

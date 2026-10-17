@@ -725,8 +725,9 @@ void EditorGitController::openUnsavedChangesMode()
     }
     if(editor.modeStateMachine)
     {
-        editor.modeStateMachine->transitionTo(
-            GitShowCommitMode{title, std::move(diff)});
+        GitShowCommitMode view{title, std::move(diff)};
+        view.unsavedChanges = true;
+        editor.modeStateMachine->transitionTo(std::move(view));
         editor.modeController->syncModeFromStateMachine();
         editor.needsFullRedraw = true;
     }

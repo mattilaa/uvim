@@ -452,3 +452,66 @@ TEST(ShowChangesTest, DiffsUnsavedBufferAgainstSavedFile)
     EXPECT_TRUE(has("-line three"));
     EXPECT_FALSE(has("uvim-unsaved-")) << "temp paths must not leak";
 }
+
+TEST(ShowChangesTest, DropAndUndoHunksInChangesView)
+{
+    if(std::system("git --version > /dev/null 2>&1") != 0)
+        GTEST_SKIP() << "git not installed";
+    using uvim_test::makeMachine;
+    using uvim_test::make_temp_dir;
+    using uvim_test::ScopedCurrentPath;
+    using uvim_test::write_file;
+
+    auto root = make_temp_dir("uvim_showchanges_drop_");
+    std::string text;
+    for(int i = 1; i <= 30; ++i)
+        text += "line " + std::to_string(i) + "\n";
+    write_file(root / "h.txt", text);
+    ScopedCurrentPath cwd(root);
+
+    Editor editor = Editor::createForTests();
+    editor.openFile("h.txt", false);
+    editor.gitUseDefaultColors = false;
+    editor.saveState();
+    (*editor.lines)[1] = "line 2 CHANGED";
+    (*editor.lines)[14] = "line 15 CHANGED";
+    (*editor.lines)[27] = "line 28 CHANGED";
+    *editor.dirty = true;
+    editor.saveState();
+
+    std::string title;
+    std::string message;
+    GitShowCommitMode view{"", editor.unsavedChangesDiff(title, message)};
+    ASSERT_FALSE(view.lines.empty()) << message;
+    view.unsavedChanges = true;
+    auto sm = makeMachine(editor, std::move(view));
+
+    sm.dispatch('n'); // hunk 1
+    sm.dispatch('n'); // hunk 2 (line 15)
+    sm.dispatch('d');
+    EXPECT_EQ((*editor.lines)[14], "line 15") << "hunk 2 reverted";
+    EXPECT_EQ((*editor.lines)[1], "line 2 CHANGED");
+    EXPECT_EQ((*editor.lines)[27], "line 28 CHANGED");
+    auto* state = sm.getState<GitShowCommitMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->droppedHunks, 1);
+
+    sm.dispatch('u');
+    EXPECT_EQ((*editor.lines)[14], "line 15 CHANGED") << "u restores it";
+    state = sm.getState<GitShowCommitMode>();
+    EXPECT_EQ(state->droppedHunks, 0);
+
+    // Drop everything: the buffer matches the saved file again.
+    sm.dispatch('[');
+    sm.dispatch('d');
+    sm.dispatch('d');
+    sm.dispatch('d');
+    EXPECT_EQ((*editor.lines)[1], "line 2");
+    EXPECT_EQ((*editor.lines)[14], "line 15");
+    EXPECT_EQ((*editor.lines)[27], "line 28");
+    EXPECT_FALSE(*editor.dirty);
+    state = sm.getState<GitShowCommitMode>();
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->lines.front(), "No unsaved changes left.");
+}
+

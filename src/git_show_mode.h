@@ -40,6 +40,10 @@ struct GitShowCommitMode
     int searchIndex = 0;
     int searchPrevIndex = 0;
     int searchPrevScroll = 0;
+    // :showchanges view: d drops a hunk from the unsaved buffer, u undoes.
+    bool unsavedChanges = false;
+    int currentHunk = -1; // selected hunk (n/N, ]/[), -1 until navigated
+    int droppedHunks = 0; // drops made here that u can still undo
 
     GitShowCommitMode() = default;
 
@@ -57,6 +61,16 @@ struct GitShowCommitMode
                                     const ModeKeyEvent& event);
 
     void draw(Editor& editor) const;
+
+private:
+    int hunkAtView() const;
+    void scrollToHunk(ModeContext& ctx, int index);
+    void jumpToHunk(ModeContext& ctx, bool forward);
+    void reloadChanges(ModeContext& ctx);
+    void dropCurrentHunk(ModeContext& ctx);
+    void undoDrop(ModeContext& ctx);
+
+public:
 #ifdef UVIM_TESTING
     static std::string testRenderLine(const Theme& theme, std::string_view line,
                                       std::string_view query,
