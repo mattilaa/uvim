@@ -94,6 +94,13 @@ void EditorGitController::openGitDiffMode()
     editor.setStatusMessage("git tools disabled in this build");
 }
 
+std::vector<editor::statemachine::GitLogMode::Entry>
+EditorGitController::reloadGitLogEntries(const std::string&,
+                                         const std::string&)
+{
+    return {};
+}
+
 void EditorGitController::openUnsavedChangesMode()
 {
     editor.setStatusMessage("git tools disabled in this build");

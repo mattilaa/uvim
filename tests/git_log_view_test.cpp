@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "mode_state_machine.h"
+#include "git_commit_rewrite.h"
 #include "process_pipe.h"
 #include "real_mode_test_utils.h"
 #include "terminal.h"
@@ -546,5 +547,191 @@ TEST(ShowChangesTest, HunkNavigationWrapsAround)
     sm.dispatch('['); // ]/[ wrap the same way
     EXPECT_EQ(current(), 1);
     EXPECT_EQ(editor.statusMessage, "Hunk 2/3");
+}
+
+namespace
+{
+// Runs a shell command in `dir`; returns its stdout.
+std::string sh(const std::filesystem::path& dir, const std::string& cmd)
+{
+    ProcessPipe pipe({"/bin/sh", "-c", "cd '" + dir.string() + "' && " + cmd});
+    return pipe ? pipe.readAll() : std::string{};
+}
+
+// Repo with c1 (30 lines), c2 (edits line 2 and 25), c3 (another file).
+std::filesystem::path makeRewriteRepo(const std::string& prefix,
+                                      bool withTopCommit)
+{
+    auto root = uvim_test::make_temp_dir(prefix);
+    std::string text;
+    for(int i = 1; i <= 30; ++i)
+        text += "a" + std::to_string(i) + "\n";
+    uvim_test::write_file(root / "a.txt", text);
+    uvim_test::write_file(root / "b.txt", "b\n");
+    sh(root, "git init -q -b main && git config user.email t@t && "
+             "git config user.name t && git add . && git commit -qm c1");
+    sh(root, "sed -e 's/^a2$/a2 X/' -e 's/^a25$/a25 Y/' a.txt > t && "
+             "mv t a.txt && git commit -qam c2");
+    if(withTopCommit)
+        sh(root, "echo b2 >> b.txt && git commit -qam c3");
+    return root;
+}
+
+std::string trimmed(std::string s)
+{
+    while(!s.empty() && (s.back() == '\n' || s.back() == ' '))
+        s.pop_back();
+    return s;
+}
+
+// The patch of c2's hunk that touches line 25.
+std::string secondHunkPatch(const std::filesystem::path& root,
+                            const std::string& hash)
+{
+    const auto lines = git_rewrite::plainCommitDiff(root.string(), hash);
+    std::string patch;
+    bool inSecond = false;
+    int hunks = 0;
+    for(const auto& line : lines)
+    {
+        if(line.rfind("@@", 0) == 0)
+            inSecond = ++hunks == 2;
+        if(line.rfind("diff --git", 0) == 0 || line.rfind("index ", 0) == 0 ||
+           line.rfind("--- ", 0) == 0 || line.rfind("+++ ", 0) == 0 ||
+           inSecond)
+            patch += line + "\n";
+    }
+    return patch;
+}
+} // namespace
+
+TEST(CommitRewriteTest, DropsHunkFromOlderCommitAndUndoes)
+{
+    if(std::system("git --version > /dev/null 2>&1") != 0)
+        GTEST_SKIP() << "git not installed";
+    auto root = makeRewriteRepo("uvim_rewrite_older_", true);
+    const std::string c2 = trimmed(sh(root, "git rev-parse HEAD~1"));
+    const std::string head = trimmed(sh(root, "git rev-parse HEAD"));
+
+    auto result = git_rewrite::dropFromCommit(root.string(), c2,
+                                              secondHunkPatch(root, c2));
+    ASSERT_TRUE(result.ok) << result.message;
+    EXPECT_NE(result.newHash, c2);
+    EXPECT_EQ(result.originalHead, head);
+    // c2 now only changes line 2; c3 was replayed on top.
+    const std::string newC2 = sh(root, "git show --format= " + result.newHash);
+    EXPECT_NE(newC2.find("+a2 X"), std::string::npos);
+    EXPECT_EQ(newC2.find("a25 Y"), std::string::npos);
+    EXPECT_EQ(trimmed(sh(root, "git log --format=%s -1")), "c3");
+    // The dropped change stays in the working tree.
+    EXPECT_NE(sh(root, "git diff").find("+a25 Y"), std::string::npos);
+
+    std::string message;
+    ASSERT_TRUE(git_rewrite::undoDrop(root.string(), result.originalHead,
+                                      result.newHead, message))
+        << message;
+    EXPECT_EQ(trimmed(sh(root, "git rev-parse HEAD")), head);
+    EXPECT_TRUE(trimmed(sh(root, "git status --porcelain")).empty());
+}
+
+TEST(CommitRewriteTest, AmendsHeadAndRefusesUnsafeRewrites)
+{
+    if(std::system("git --version > /dev/null 2>&1") != 0)
+        GTEST_SKIP() << "git not installed";
+    auto root = makeRewriteRepo("uvim_rewrite_head_", false);
+    const std::string c2 = trimmed(sh(root, "git rev-parse HEAD"));
+
+    auto result = git_rewrite::dropFromCommit(root.string(), c2,
+                                              secondHunkPatch(root, c2));
+    ASSERT_TRUE(result.ok) << result.message;
+    EXPECT_EQ(result.newHash, result.newHead);
+    EXPECT_EQ(trimmed(sh(root, "git rev-list --count HEAD")), "2");
+
+    // Dirty tree (the dropped change) blocks another rewrite.
+    EXPECT_NE(git_rewrite::checkRewritable(root.string(), "HEAD")
+                  .find("uncommitted"),
+              std::string::npos);
+    // Root commit cannot be rewritten.
+    sh(root, "git stash -q");
+    EXPECT_NE(git_rewrite::checkRewritable(root.string(), "HEAD~1")
+                  .find("root"),
+              std::string::npos);
+    // Pushed commits are refused.
+    sh(root, "git init -q --bare ../remote_" + root.filename().string() +
+                 ".git && git remote add origin ../remote_" +
+                 root.filename().string() +
+                 ".git && git push -q -u origin main 2>/dev/null");
+    EXPECT_NE(git_rewrite::checkRewritable(root.string(), "HEAD")
+                  .find("pushed"),
+              std::string::npos);
+}
+
+TEST(CommitRewriteTest, ConflictingRewriteLeavesRepoUnchanged)
+{
+    if(std::system("git --version > /dev/null 2>&1") != 0)
+        GTEST_SKIP() << "git not installed";
+    auto root = makeRewriteRepo("uvim_rewrite_conflict_", false);
+    // c3 edits the line c2 introduced, so c2 cannot lose it.
+    sh(root, "sed -e 's/^a25 Y$/a25 Z/' a.txt > t && mv t a.txt && "
+             "git commit -qam c3");
+    const std::string c2 = trimmed(sh(root, "git rev-parse HEAD~1"));
+    const std::string head = trimmed(sh(root, "git rev-parse HEAD"));
+
+    auto result = git_rewrite::dropFromCommit(root.string(), c2,
+                                              secondHunkPatch(root, c2));
+    EXPECT_FALSE(result.ok);
+    EXPECT_NE(result.message.find("conflict"), std::string::npos)
+        << result.message;
+    EXPECT_EQ(trimmed(sh(root, "git rev-parse HEAD")), head);
+    EXPECT_TRUE(trimmed(sh(root, "git status --porcelain")).empty());
+    EXPECT_TRUE(trimmed(sh(root, "git stash list")).empty());
+}
+
+TEST(CommitRewriteTest, CommitViewDropsReviewsAndRewrites)
+{
+    if(std::system("git --version > /dev/null 2>&1") != 0)
+        GTEST_SKIP() << "git not installed";
+    auto root = makeRewriteRepo("uvim_rewrite_view_", true);
+    uvim_test::ScopedCurrentPath cwd(root);
+    const std::string c2 = trimmed(sh(root, "git rev-parse HEAD~1"));
+
+    Editor editor = Editor::createForTests();
+    editor.gitUseDefaultColors = false;
+    GitShowCommitMode view{c2, editor.loadGitShowLines(c2)};
+    ASSERT_FALSE(view.lines.empty());
+    view.repoRoot = root.string();
+    auto sm = uvim_test::makeMachine(editor, std::move(view));
+    auto state = [&] { return sm.getState<GitShowCommitMode>(); };
+    auto shows = [&](const std::string& text)
+    {
+        const auto& lines = state()->lines;
+        return std::any_of(lines.begin(), lines.end(),
+                           [&](const std::string& l)
+                           { return l.find(text) != std::string::npos; });
+    };
+
+    sm.dispatch('n');
+    sm.dispatch('n'); // the line-25 hunk
+    sm.dispatch('d');
+    EXPECT_TRUE(shows("+a2 X")) << "new commit diff keeps hunk 1";
+    EXPECT_FALSE(shows("+a25 Y"));
+
+    sm.dispatch('v'); // review what is dropped
+    EXPECT_TRUE(state()->showDropped);
+    EXPECT_TRUE(shows("+a25 Y"));
+    EXPECT_FALSE(shows("+a2 X"));
+    sm.dispatch('v');
+
+    sm.dispatch('c');
+    EXPECT_TRUE(state()->confirmRewrite);
+    sm.dispatch('y');
+    ASSERT_TRUE(state()->historyChanged) << editor.statusMessage;
+    EXPECT_NE(state()->commitHash, c2);
+    EXPECT_EQ(sh(root, "git show --format= HEAD~1").find("a25 Y"),
+              std::string::npos);
+
+    sm.dispatch('u'); // undo the rewrite
+    EXPECT_EQ(state()->commitHash, c2) << editor.statusMessage;
+    EXPECT_TRUE(trimmed(sh(root, "git status --porcelain")).empty());
 }
 

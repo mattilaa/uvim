@@ -409,6 +409,7 @@ if(UVIM_ENABLE_GIT_TOOLS)
         src/editor_execution_git_commit_command.cpp
         src/editor_execution_git_diff_command.cpp
         src/editor_execution_show_changes_command.cpp
+        src/git_commit_rewrite.cpp
         src/editor_execution_git_fixup_command.cpp
         src/editor_execution_git_log_command.cpp
         src/editor_execution_git_pretty_log_command.cpp

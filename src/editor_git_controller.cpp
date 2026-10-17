@@ -181,11 +181,20 @@ std::string blame_hash_for_current_line(const Editor& editor)
 }
 
 std::vector<GitLogMode::Entry>
-load_repo_log_entries(const std::string& repoRoot)
+load_repo_log_entries(const std::string& repoRoot,
+                      const std::string& filePath = {})
 {
-    ProcessPipe pipe({"git", "-C", repoRoot, "--no-pager", "log", "--no-color",
-                      "--graph", "--date=format:%Y-%m-%d %H:%M %z",
-                      GitLogMode::graphPrettyFormatArg()});
+    std::vector<std::string> args = {
+        "git",         "-C",        repoRoot,
+        "--no-pager",  "log",       "--no-color",
+        "--graph",     "--date=format:%Y-%m-%d %H:%M %z",
+        GitLogMode::graphPrettyFormatArg()};
+    if(!filePath.empty())
+    {
+        args.push_back("--");
+        args.push_back(filePath);
+    }
+    ProcessPipe pipe(args);
     if(!pipe)
         return {};
 
@@ -845,6 +854,13 @@ EditorGitController::loadGitShowLines(const std::string& hash)
     }
 
     return linesOut;
+}
+
+std::vector<GitLogMode::Entry>
+EditorGitController::reloadGitLogEntries(const std::string& repoRoot,
+                                         const std::string& filePath)
+{
+    return load_repo_log_entries(repoRoot, filePath);
 }
 
 void EditorGitController::openGitLogMode()

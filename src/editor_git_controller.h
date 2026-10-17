@@ -1,5 +1,7 @@
 #pragma once
 
+#include "git_log_mode.h"
+
 #include <optional>
 #include <string>
 #include <vector>
@@ -29,6 +31,10 @@ public:
     // :showchanges - unsaved buffer edits vs the file on disk, shown in
     // the git diff view.
     void openUnsavedChangesMode();
+    // Fresh git log entries (after a commit rewrite changed the hashes).
+    std::vector<editor::statemachine::GitLogMode::Entry>
+    reloadGitLogEntries(const std::string& repoRoot,
+                        const std::string& filePath);
     // The diff behind :showchanges; empty with `message` set when there is
     // nothing to show.
     std::vector<std::string> unsavedChangesDiff(std::string& title,

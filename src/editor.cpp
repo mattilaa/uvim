@@ -2072,6 +2072,24 @@ void Editor::openGitDiffMode()
     gitController->openGitDiffMode();
 }
 
+void Editor::reloadGitLog(editor::statemachine::GitLogMode& log)
+{
+#ifndef UVIM_ENABLE_GIT_TOOLS
+    (void)log;
+#else
+    auto entries = gitController->reloadGitLogEntries(
+        log.repoRoot, log.fileOnly ? log.filePath : std::string{});
+    if(entries.empty())
+        return;
+    log.entries = std::move(entries);
+    log.previewCache.clear();
+    log.previewCacheOrder.clear();
+    log.previewHash.clear();
+    log.selectedHashes.clear();
+    log.diffDirty = true;
+#endif
+}
+
 void Editor::openUnsavedChangesMode()
 {
     gitController->openUnsavedChangesMode();

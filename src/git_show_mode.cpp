@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "git_commit_rewrite.h"
 #include "header_help.h"
 #include "mode_state_machine.h"
 #include "terminal.h"
@@ -15,24 +16,32 @@ namespace editor::statemachine
 {
 namespace
 {
-std::vector<std::string> gitShowHelpTokens(bool changesView)
+// View kinds: 0 plain diff, 1 :showchanges, 2 commit from git log.
+std::vector<std::string> gitShowHelpTokens(int kind)
 {
     std::vector<std::string> tokens = {"[q: quit]", "[j/k: scroll]",
                                        "[gg/G: top/bottom]",
                                        "[n/N ]/[: hunks]", "[ctrl-h/l: pan]"};
-    if(changesView)
+    if(kind == 1)
     {
         tokens.push_back("[d: drop hunk]");
         tokens.push_back("[u: undo drop]");
     }
+    else if(kind == 2)
+    {
+        tokens.push_back("[d: drop hunk]");
+        tokens.push_back("[u: undo]");
+        tokens.push_back("[v: new/dropped]");
+        tokens.push_back("[c: rewrite commit]");
+    }
     return tokens;
 }
 
-int gitShowContentRows(int screenRows, int screenCols, bool changesView)
+int gitShowContentRows(int screenRows, int screenCols, int kind)
 {
     // screenRows already excludes the status and message rows.
     const int headerRows =
-        1 + HeaderHelp::lineCount(gitShowHelpTokens(changesView), screenCols);
+        1 + HeaderHelp::lineCount(gitShowHelpTokens(kind), screenCols);
     return std::max(1, screenRows - headerRows);
 }
 
@@ -339,7 +348,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
             searchIndex = found;
             int maxScroll = std::max(
                 0, (int)lines.size() -
-                       gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges));
+                       gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()));
             scrollOffset = std::clamp(found, 0, maxScroll);
             return true;
         }
@@ -413,7 +422,7 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
                         std::max(0, (int)lines.size() -
                                         gitShowContentRows(ctx.screenRows(),
                                                            ctx.screenCols(),
-                                                           unsavedChanges));
+                                                           viewKind()));
                     scrollOffset = std::clamp(found, 0, maxScroll);
                 }
                 else
@@ -448,6 +457,20 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(confirmRewrite)
+    {
+        confirmRewrite = false;
+        if(c == keyCode(typed::TypedKey::KEY_Y))
+            performRewrite(ctx);
+        else
+            ctx.setStatusMessage("Rewrite cancelled");
+        ctx.requestFullRedraw();
+        return std::nullopt;
+    }
+    if(confirmQuit && c != keyCode(typed::TypedKey::KEY_Q) &&
+       c != keyCode(control::ControlKey::ESC))
+        confirmQuit = false;
+
     if(c == keyCode(control::ControlKey::ESC) && !searchQuery.empty())
     {
         // First Esc clears the search, so n/N move between hunks again.
@@ -460,16 +483,32 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
     if(c == keyCode(control::ControlKey::ESC) ||
        c == keyCode(typed::TypedKey::KEY_Q))
     {
+        if(!droppedOriginal.empty() && !confirmQuit)
+        {
+            // Pending drops would be lost: ask once.
+            confirmQuit = true;
+            ctx.setStatusMessage("Discard " +
+                                 std::to_string(droppedOriginal.size()) +
+                                 " pending dropped hunk(s)? q again to quit, "
+                                 "c to rewrite the commit");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
         if(c == keyCode(control::ControlKey::ESC))
             ctx.editor->noteDoubleEscStatusClear();
         if(returnLog.has_value())
-            return *returnLog;
+        {
+            GitLogMode log = *returnLog;
+            if(historyChanged)
+                ctx.editor->reloadGitLog(log); // the hashes changed
+            return log;
+        }
         return NormalMode{};
     }
 
     int maxScroll =
         std::max(0, (int)lines.size() -
-                        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges));
+                        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()));
 
     if(c == keyCode(typed::TypedKey::KEY_J) ||
        c == keyCode(navigation::NavigationKey::ARROW_DOWN))
@@ -485,26 +524,26 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
     }
     else if(c == keyCode(control::ControlKey::CTRL_D))
     {
-        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges) / 2;
+        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()) / 2;
         scrollOffset = std::min(scrollOffset + half, maxScroll);
     }
     else if(c == keyCode(control::ControlKey::CTRL_U))
     {
-        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges) / 2;
+        int half = gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()) / 2;
         scrollOffset = std::max(scrollOffset - half, 0);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_DOWN))
     {
         scrollOffset =
             std::min(scrollOffset +
-                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges),
+                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()),
                      maxScroll);
     }
     else if(c == keyCode(navigation::NavigationKey::PAGE_UP))
     {
         scrollOffset =
             std::max(scrollOffset -
-                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges),
+                         gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind()),
                      0);
     }
     else if(c == keyCode(typed::TypedKey::KEY_CAP_G))
@@ -558,18 +597,349 @@ std::optional<ModeState> GitShowCommitMode::handle(ModeContext& ctx,
         jumpToHunk(ctx, forward);
     }
     else if(c == keyCode(typed::TypedKey::KEY_D) ||
-            c == keyCode(typed::TypedKey::KEY_U))
+            c == keyCode(typed::TypedKey::KEY_U) ||
+            c == keyCode(typed::TypedKey::KEY_V) ||
+            c == keyCode(typed::TypedKey::KEY_C))
     {
-        if(!unsavedChanges)
-            ctx.setStatusMessage("d/u (drop/undo hunk) work in :showchanges");
-        else if(c == keyCode(typed::TypedKey::KEY_D))
-            dropCurrentHunk(ctx);
-        else
-            undoDrop(ctx);
+        const bool drop = c == keyCode(typed::TypedKey::KEY_D);
+        const bool undo = c == keyCode(typed::TypedKey::KEY_U);
+        if(unsavedChanges && (drop || undo))
+        {
+            if(drop)
+                dropCurrentHunk(ctx);
+            else
+                undoDrop(ctx);
+        }
+        else if(commitEditable())
+        {
+            if(drop)
+                dropCommitHunk(ctx);
+            else if(undo)
+                undoCommitEdit(ctx);
+            else if(c == keyCode(typed::TypedKey::KEY_V))
+                toggleDroppedView(ctx);
+            else
+                startRewrite(ctx);
+        }
+        else if(drop || undo)
+        {
+            ctx.setStatusMessage("d/u work in :showchanges and on commits "
+                                 "opened from :git log");
+        }
     }
 
     ctx.requestFullRedraw();
     return std::nullopt;
+}
+
+int GitShowCommitMode::viewKind() const
+{
+    if(unsavedChanges)
+        return 1;
+    return commitEditable() ? 2 : 0;
+}
+
+bool GitShowCommitMode::commitEditable() const
+{
+    return !repoRoot.empty() && !unsavedChanges && !commitHash.empty();
+}
+
+namespace
+{
+// [start, end) of the file section ("diff --git" ... ) holding `line`.
+std::pair<int, int> fileSection(const std::vector<std::string>& lines,
+                                int line)
+{
+    int start = line;
+    while(start > 0 && stripAnsi(lines[start]).rfind("diff --git", 0) != 0)
+        --start;
+    int end = line + 1;
+    while(end < (int)lines.size() &&
+          stripAnsi(lines[end]).rfind("diff --git", 0) != 0)
+        ++end;
+    return {start, end};
+}
+
+// New/deleted/renamed files can only be dropped as a whole.
+bool isWholeFileSection(const std::vector<std::string>& lines, int start,
+                        int firstHunk)
+{
+    for(int i = start; i < firstHunk && i < (int)lines.size(); ++i)
+    {
+        const std::string text = stripAnsi(lines[i]);
+        if(text.rfind("new file mode", 0) == 0 ||
+           text.rfind("deleted file mode", 0) == 0 ||
+           text.rfind("rename from", 0) == 0 ||
+           text.rfind("copy from", 0) == 0)
+            return true;
+    }
+    return false;
+}
+
+// Plain-diff lines with git-like colors, for the "dropped changes" view.
+std::vector<std::string> colorPlainDiff(const std::vector<std::string>& in,
+                                        bool ansi)
+{
+    if(!ansi)
+        return in;
+    std::vector<std::string> out;
+    out.reserve(in.size());
+    for(const auto& line : in)
+    {
+        const char* color = nullptr;
+        if(line.rfind("diff --git", 0) == 0 || line.rfind("--- ", 0) == 0 ||
+           line.rfind("+++ ", 0) == 0)
+            color = "\x1b[1m";
+        else if(line.rfind("@@", 0) == 0)
+            color = "\x1b[36m";
+        else if(!line.empty() && line[0] == '+')
+            color = "\x1b[32m";
+        else if(!line.empty() && line[0] == '-')
+            color = "\x1b[31m";
+        out.push_back(color ? std::string(color) + line + "\x1b[m" : line);
+    }
+    return out;
+}
+} // namespace
+
+void GitShowCommitMode::dropCommitHunk(ModeContext& ctx)
+{
+    if(showDropped)
+    {
+        ctx.setStatusMessage("Showing dropped changes; v to go back to the "
+                             "new commit");
+        return;
+    }
+    const auto hunks = parseHunks(lines);
+    if(hunks.empty())
+    {
+        ctx.setStatusMessage("No hunks left in this commit");
+        return;
+    }
+    if(originalPlain.empty())
+    {
+        // First drop: remember the commit's plain diff (the patch source)
+        // and map each shown hunk to it.
+        originalPlain = git_rewrite::plainCommitDiff(repoRoot, commitHash);
+        if(parseHunks(originalPlain).size() != hunks.size())
+        {
+            originalPlain.clear();
+            ctx.setStatusMessage("Cannot map this commit's hunks for editing");
+            return;
+        }
+        hunkMap.clear();
+        for(int i = 0; i < (int)hunks.size(); ++i)
+            hunkMap.push_back(i);
+    }
+
+    const int index = hunkAtView();
+    if(index < 0)
+        return;
+    pendingUndo.push_back({lines, hunkMap, droppedOriginal});
+
+    const DiffHunk& hunk = hunks[index];
+    const auto [secStart, secEnd] = fileSection(lines, hunk.header);
+    std::vector<int> inSection;
+    for(int i = 0; i < (int)hunks.size(); ++i)
+    {
+        if(hunks[i].header > secStart && hunks[i].header < secEnd)
+            inSection.push_back(i);
+    }
+    const bool wholeFile = inSection.size() <= 1 ||
+                           isWholeFileSection(lines, secStart,
+                                              hunks[inSection.front()].header);
+
+    std::vector<int> removed = wholeFile ? inSection : std::vector<int>{index};
+    for(int k : removed)
+        droppedOriginal.push_back(hunkMap[k]);
+    for(auto it = removed.rbegin(); it != removed.rend(); ++it)
+        hunkMap.erase(hunkMap.begin() + *it);
+    if(wholeFile)
+        lines.erase(lines.begin() + secStart, lines.begin() + secEnd);
+    else
+        lines.erase(lines.begin() + hunk.header, lines.begin() + hunk.end);
+
+    const int left = (int)parseHunks(lines).size();
+    currentHunk = left == 0 ? -1 : std::min(index, left - 1);
+    if(currentHunk >= 0)
+        scrollToHunk(ctx, currentHunk);
+    else
+        scrollOffset = 0;
+    ctx.setStatusMessage(
+        std::string(wholeFile ? "Dropped file section" : "Dropped hunk") +
+        " (pending: " + std::to_string(droppedOriginal.size()) +
+        "). c: rewrite commit, v: view dropped, u: undo");
+}
+
+void GitShowCommitMode::undoCommitEdit(ModeContext& ctx)
+{
+    if(showDropped)
+        toggleDroppedView(ctx);
+    if(!pendingUndo.empty())
+    {
+        PendingEdit last = std::move(pendingUndo.back());
+        pendingUndo.pop_back();
+        lines = std::move(last.lines);
+        hunkMap = std::move(last.hunkMap);
+        droppedOriginal = std::move(last.dropped);
+        currentHunk = -1;
+        ctx.setStatusMessage("Restored hunk (pending: " +
+                             std::to_string(droppedOriginal.size()) + ")");
+        return;
+    }
+    if(!rewriteNewHead.empty())
+    {
+        std::string message;
+        if(git_rewrite::undoDrop(repoRoot, rewriteOriginalHead, rewriteNewHead,
+                                 message))
+        {
+            commitHash = rewrittenFrom;
+            auto restored = ctx.editor->loadGitShowLines(commitHash);
+            if(!restored.empty())
+                lines = std::move(restored);
+            rewriteNewHead.clear();
+            rewriteOriginalHead.clear();
+            rewrittenFrom.clear();
+            originalPlain.clear();
+            hunkMap.clear();
+            currentHunk = -1;
+            scrollOffset = 0;
+        }
+        ctx.setStatusMessage(message);
+        return;
+    }
+    ctx.setStatusMessage("Nothing to undo");
+}
+
+std::string GitShowCommitMode::droppedPatch() const
+{
+    // The dropped hunks as a patch against the original commit: per file
+    // section its header and the dropped hunks (whole section when all of
+    // its hunks, or a new/deleted file, are dropped).
+    const auto hunks = parseHunks(originalPlain);
+    std::string patch;
+    int sectionStart = -1;
+    for(int i = 0; i < (int)hunks.size(); ++i)
+    {
+        const auto [start, end] = fileSection(originalPlain, hunks[i].header);
+        if(start == sectionStart)
+            continue;
+        sectionStart = start;
+        std::vector<int> inSection;
+        for(int j = i; j < (int)hunks.size() && hunks[j].header < end; ++j)
+            inSection.push_back(j);
+        std::vector<int> dropped;
+        for(int j : inSection)
+        {
+            if(std::find(droppedOriginal.begin(), droppedOriginal.end(), j) !=
+               droppedOriginal.end())
+                dropped.push_back(j);
+        }
+        if(dropped.empty())
+            continue;
+        const int firstHunk = hunks[inSection.front()].header;
+        for(int line = start; line < firstHunk; ++line)
+            patch += originalPlain[line] + "\n";
+        for(int j : dropped)
+        {
+            for(int line = hunks[j].header; line < hunks[j].end; ++line)
+                patch += originalPlain[line] + "\n";
+        }
+    }
+    return patch;
+}
+
+void GitShowCommitMode::toggleDroppedView(ModeContext& ctx)
+{
+    if(showDropped)
+    {
+        lines = std::move(newCommitLines);
+        newCommitLines.clear();
+        showDropped = false;
+        currentHunk = -1;
+        scrollOffset = 0;
+        ctx.setStatusMessage("New commit diff");
+        return;
+    }
+    if(droppedOriginal.empty())
+    {
+        ctx.setStatusMessage("No dropped hunks yet (d drops one)");
+        return;
+    }
+    std::vector<std::string> patchLines;
+    const std::string patch = droppedPatch();
+    size_t pos = 0;
+    while(pos < patch.size())
+    {
+        size_t next = patch.find('\n', pos);
+        if(next == std::string::npos)
+            next = patch.size();
+        patchLines.push_back(patch.substr(pos, next - pos));
+        pos = next + 1;
+    }
+    newCommitLines = std::move(lines);
+    lines = colorPlainDiff(patchLines, ctx.editor->gitUseDefaultColors);
+    showDropped = true;
+    currentHunk = -1;
+    scrollOffset = 0;
+    ctx.setStatusMessage("Dropped changes (they stay in the working tree); "
+                         "v: back to the new commit");
+}
+
+void GitShowCommitMode::startRewrite(ModeContext& ctx)
+{
+    if(droppedOriginal.empty())
+    {
+        ctx.setStatusMessage("Nothing to rewrite: drop hunks with d first");
+        return;
+    }
+    if(std::string reason = git_rewrite::checkRewritable(repoRoot, commitHash);
+       !reason.empty())
+    {
+        ctx.setStatusMessage("Cannot rewrite: " + reason);
+        return;
+    }
+    confirmRewrite = true;
+    ctx.setStatusMessage("Rewrite " + commitHash.substr(0, 8) + " without " +
+                         std::to_string(droppedOriginal.size()) +
+                         " hunk(s)? Dropped changes stay unstaged in the "
+                         "working tree. y/n");
+}
+
+void GitShowCommitMode::performRewrite(ModeContext& ctx)
+{
+    if(showDropped)
+    {
+        lines = std::move(newCommitLines);
+        newCommitLines.clear();
+        showDropped = false;
+    }
+    const git_rewrite::Result result =
+        git_rewrite::dropFromCommit(repoRoot, commitHash, droppedPatch());
+    if(result.ok)
+    {
+        // Files changed on disk; reload open buffers now so the editor's
+        // own "reloaded" notice does not replace the rewrite summary.
+        ctx.editor->checkFileChanges();
+    }
+    ctx.setStatusMessage(result.message);
+    if(!result.ok)
+        return;
+
+    rewrittenFrom = commitHash;
+    rewriteOriginalHead = result.originalHead;
+    rewriteNewHead = result.newHead;
+    commitHash = result.newHash;
+    historyChanged = true;
+    auto fresh = ctx.editor->loadGitShowLines(commitHash);
+    if(!fresh.empty())
+        lines = std::move(fresh);
+    originalPlain.clear();
+    hunkMap.clear();
+    droppedOriginal.clear();
+    pendingUndo.clear();
+    currentHunk = -1;
+    scrollOffset = 0;
 }
 
 int GitShowCommitMode::hunkAtView() const
@@ -595,7 +965,7 @@ void GitShowCommitMode::scrollToHunk(ModeContext& ctx, int index)
         return;
     currentHunk = index;
     const int rows =
-        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), unsavedChanges);
+        gitShowContentRows(ctx.screenRows(), ctx.screenCols(), viewKind());
     const int maxScroll = std::max(0, (int)lines.size() - rows);
     // Keep one line of context (the file header) above the hunk.
     scrollOffset = std::clamp(hunks[index].header - 1, 0, maxScroll);
@@ -750,11 +1120,10 @@ void GitShowCommitMode::draw(Editor& editor) const
         output += " " + commitHash;
     output += editor.theme.reset();
     HeaderHelp::append(output, editor.theme, editor.screenCols,
-                       gitShowHelpTokens(unsavedChanges));
+                       gitShowHelpTokens(viewKind()));
 
     int availableRows =
-        gitShowContentRows(editor.screenRows, editor.screenCols,
-                           unsavedChanges);
+        gitShowContentRows(editor.screenRows, editor.screenCols, viewKind());
     int viewWidth = std::max(0, editor.screenCols - 2);
     int maxW = max_line_width(lines, editor.gitUseDefaultColors);
     int maxOffset = std::max(0, maxW - viewWidth);
@@ -822,6 +1191,11 @@ void GitShowCommitMode::draw(Editor& editor) const
     std::string status = " GITSHOW";
     if(!commitHash.empty())
         status += " | " + commitHash;
+    if(showDropped)
+        status += " | DROPPED CHANGES";
+    else if(!droppedOriginal.empty())
+        status += " | NEW COMMIT (" + std::to_string(droppedOriginal.size()) +
+                  " dropped, c: rewrite)";
 
     std::string right = " " + std::to_string(scrollOffset + 1) + "-" +
                         std::to_string(std::min(scrollOffset + availableRows,
