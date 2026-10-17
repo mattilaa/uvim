@@ -30,9 +30,7 @@
 #include <unordered_set>
 #include <vector>
 
-#ifdef UVIM_ENABLE_CLANGD_LSP
 class LspClient;
-#endif
 
 class GitIgnore;
 class SyntaxHighlighter;

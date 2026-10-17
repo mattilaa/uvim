@@ -845,6 +845,7 @@ if(UVIM_BUILD_TESTS)
         src/widgets/picker_frame.cpp
         src/terminal.cpp
         src/theme.cpp
+        src/config_parser.cpp
     )
     uvim_enable_sanitizers(task_queue_tests)
     target_link_libraries(task_queue_tests

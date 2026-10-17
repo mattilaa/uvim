@@ -41,7 +41,7 @@ std::string padToWidth(std::string text, int width)
 }
 
 // "textDocument/definition" -> "definition"
-std::string_view shortMethod(std::string_view method)
+[[maybe_unused]] std::string_view shortMethod(std::string_view method)
 {
     if(auto slash = method.rfind('/'); slash != std::string_view::npos)
         return method.substr(slash + 1);
