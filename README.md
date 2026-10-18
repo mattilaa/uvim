@@ -75,14 +75,14 @@ in parallel:
 | `test macos-arm64 (Debug)`              | Debug   | unit + Robot TUI tests, build without LSP       |
 | `test macos-arm64 (Debug, ASan/UBSan)`  | Debug   | unit + Robot tests under the sanitizers          |
 | `test windows-x64 (Debug, MSVC)`        | Debug   | unit tests, clangd LSP (real clangd)             |
-| `release linux-x64`                     | Release | builds and uploads `uvim-linux-x64.tar.gz`      |
-| `release linux-arm64`                   | Release | builds and uploads `uvim-linux-arm64.tar.gz`    |
-| `release macos-arm64`                   | Release | builds and uploads `uvim-macos-arm64.tar.gz`    |
-| `release windows-x64`                   | Release | builds and uploads `uvim-windows-x64.zip`       |
+| `artifacts linux-x64`                   | Release | builds and uploads `uvim-linux-x64.tar.gz`      |
+| `artifacts linux-arm64`                 | Release | builds and uploads `uvim-linux-arm64.tar.gz`    |
+| `artifacts macos-arm64`                 | Release | builds and uploads `uvim-macos-arm64.tar.gz`    |
+| `artifacts windows-x64`                 | Release | builds and uploads `uvim-windows-x64.zip`       |
 
-Debug builds exist only to run the tests; the Release jobs produce the
-binaries. Each Release binary is attached to the CI run as an artifact
-(Actions → the run → *Artifacts*). Release builds include the clangd LSP
+Debug builds exist only to run the tests; the `artifacts` jobs make Release
+builds of the binaries. Each binary is attached to the CI run as an artifact
+named `uvim-<target>` (Actions → the run → *Artifacts*). Release builds include the clangd LSP
 client; the language servers themselves are external programs (see
 [Dependencies](#dependencies-os-specific)).
 
@@ -92,7 +92,8 @@ Pushing a `vMAJOR.MINOR.BUGFIX` tag runs the separate
 [portable release workflow](.github/workflows/portable-release.yml). It makes
 **Release builds only** (no debug builds) for every supported target, in
 parallel, and attaches them to the GitHub Release page with a `.sha256`
-checksum each:
+checksum each (the workflow run itself keeps them as `release-<target>`
+artifacts):
 
 | Target         | Asset (for `v0.2.1`)                                   |
 |----------------|--------------------------------------------------------|

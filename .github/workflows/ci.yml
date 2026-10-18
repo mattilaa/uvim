@@ -148,11 +148,11 @@ jobs:
         run: ctest --test-dir build -C Debug --output-on-failure
 
   # ---------------------------------------------------------------------------
-  # Release builds for the supported targets: x64 and arm64 (macOS: arm64).
-  # All run in parallel; each uploads its binary.
+  # Artifacts: Release builds for the supported targets, x64 and arm64
+  # (macOS: arm64). All run in parallel; each uploads its binary.
   # ---------------------------------------------------------------------------
-  release:
-    name: release ${{ matrix.target }}
+  artifacts:
+    name: artifacts ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

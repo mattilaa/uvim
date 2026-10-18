@@ -45,19 +45,19 @@ jobs:
         include:
           - name: Linux x86_64 static
             runner: ubuntu-22.04
-            artifact: portable-linux-x86_64
+            artifact: release-linux-x86_64
             arguments: ""
           - name: Linux arm64 static
             runner: ubuntu-22.04-arm
-            artifact: portable-linux-arm64
+            artifact: release-linux-arm64
             arguments: ""
           - name: macOS arm64
             runner: macos-15
-            artifact: portable-macos-arm64
+            artifact: release-macos-arm64
             arguments: "--macos-arch arm64"
           - name: Windows x86_64
             runner: windows-latest
-            artifact: portable-windows-x86_64
+            artifact: release-windows-x86_64
             arguments: ""
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -128,7 +128,7 @@ jobs:
       - name: Download portable archives
         uses: actions/download-artifact@v8
         with:
-          pattern: portable-*
+          pattern: release-*
           path: release-assets
           merge-multiple: true
 
