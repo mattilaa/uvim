@@ -415,6 +415,25 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     // Tab completion
     if(c == keyCode(control::ControlKey::TAB))
     {
+        // While the command name is typed, Tab takes the popup's highlighted
+        // item, fuzzy matches included (":lcto" -> ":loctotal"), also after
+        // picking it with Ctrl-J/K, and the prompt continues from there.
+        // Argument completion (paths, ...) starts after a space.
+        const std::string input = ctx.commandBuffer.substr(1);
+        if(ctx.isCommandPopupActive() &&
+           !text_utils::contains(input, keyCode(control::ControlKey::SPACE)))
+        {
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                ctx.commandBuffer = ":" + *selection;
+                completions.clear();
+                completionIndex = -1;
+                originalInput.clear();
+                updatePopup();
+                return std::nullopt;
+            }
+        }
+
         bool isLocTotal = ctx.commandBuffer.rfind(":loctotal", 0) == 0;
         bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
         if(isLocTotal || isLoc)
