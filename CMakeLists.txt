@@ -161,7 +161,7 @@ function(uvim_add_config_target)
         return()
     endif()
 
-    add_executable(uvim-config src/uvim_configure.cpp)
+    add_executable(uvim-config src/uvim_configure.cpp src/uvim_config_deps.cpp)
     target_compile_definitions(uvim-config PRIVATE
         UVIM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
     )
@@ -875,6 +875,14 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(task_queue_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+    add_executable(uvim_config_deps_tests
+        tests/uvim_config_deps_test.cpp
+        src/uvim_config_deps.cpp
+    )
+    uvim_enable_sanitizers(uvim_config_deps_tests)
+    target_link_libraries(uvim_config_deps_tests GTest::gtest_main)
+    target_include_directories(uvim_config_deps_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
     add_executable(logging_tests
         tests/logging_test.cpp
     )
@@ -1013,6 +1021,7 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(constants_tests)
     gtest_discover_tests(logging_tests)
     gtest_discover_tests(task_queue_tests)
+    gtest_discover_tests(uvim_config_deps_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
     # `uvim --version` must print the release version; release tags
