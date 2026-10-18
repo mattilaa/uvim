@@ -31,6 +31,7 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Contents
 
+- [Release notes](#release-notes)
 - [Supported platforms and builds](#supported-platforms-and-builds)
 - [Build profiles and uvim-config](#build-profiles-and-uvim-config)
 - [Runtime configuration](#runtime-configuration)
@@ -46,6 +47,88 @@ menus—they leave the corresponding implementation out of the binary.
 - [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives)
 - [Diagnostics](#diagnostics)
 - [Search examples](#search-examples)
+
+## Release notes
+
+### v0.3.0 (2026-10-18)
+
+#### New
+
+- **Command palette** — `Space Space` (also in visual modes) or `:palette`
+  opens a floating list of what uVim can do by name ("Open file browser",
+  "Change buffer", "Save all files", "Git: log", ...) with the key or command
+  that does the same. Type to filter, `Enter` runs it. See
+  [Command palette](#command-palette).
+- **Floating pickers** — `Ctrl-P` (find file) and `Ctrl-A` (grep) open as a
+  Telescope-style floating window over the code with a syntax-highlighted
+  preview; `Ctrl+Shift+J/K` (or `Alt-J/K`) scroll the preview, `:415` after
+  the query opens the result at that line. `:set pickerstyle=fullscreen`
+  keeps the old layout.
+- **Background tasks with progress** — heavy work (project indexing, grep,
+  LOC counting, LSP startup, external tools) runs in a task queue with
+  progress bars in the status line; keys typed meanwhile are queued instead
+  of freezing the UI. `:tasks` lists, reorders and cancels jobs; LSP servers
+  show their own progress. `uvim .` starts without blocking.
+- **`:sc` / `:showchanges`** — the unsaved edits of the buffer as a colored
+  diff, with `n`/`N` hunk navigation (wrapping around), `d` to drop a hunk
+  and `u` to undo.
+- **Edit commits from `:git log`** — open a commit, drop hunks from it,
+  review the new commit (`v`) and rewrite it (`c`); undo restores the
+  original commit.
+- **Alt keys for Ctrl+Shift chords** — on terminals without the kitty
+  keyboard protocol (macOS Terminal, Windows PowerShell, ...) `Alt-H/J/K/L/X`
+  do what `Ctrl-Shift-H/J/K/L/X` do. `:set iskitty=true/false`, detected
+  automatically. See [Ctrl+Shift keys](#ctrlshift-keys-and-alt-alternatives).
+- **Yank once, replace many** — `yiw` then `viwp` on other words keeps the
+  yanked word for further replacements; visual `Y`.
+
+#### Improved
+
+- `:` command line: `Tab` takes the highlighted entry of the command list,
+  fuzzy matches included (`:lcto` → `:loctotal`).
+- Typing a complete command (`:q`) runs it even if another entry of the
+  command list is highlighted.
+- File lists in Ctrl-P, grep and regex search are sorted the same way on
+  every platform.
+- `:toolinfo` lists the discovered formatters.
+- Syntax highlighting: `likely`/`unlikely`, `let`, `.mla` comments.
+- `uvim --version` prints the release version and build number
+  (`uvim 0.3.0 (build N)`).
+
+#### Fixed
+
+- **`:q`, `:qa` and `:qall` quit without saving** when a buffer had unsaved
+  changes; they now refuse with "No write since last change".
+- Keys typed right after `Esc` (`<Esc>:wq` typed quickly) were lost.
+- Status bars of browser views could show garbage (use after free).
+- Builds without LSP support did not compile.
+- Unsaved-changes marker stayed after formatting and undo.
+- Git commit view cursor/row offset; status line rows in help views.
+- Windows: garbled (code page 850) picker preview, quitting could hang on
+  clangd shutdown, git tools did not build.
+
+#### Platforms and installation
+
+- **Windows x64** builds (MSVC) with clangd LSP support, tested in CI.
+- **Linux arm64** release builds next to Linux x86_64.
+- **macOS** releases are arm64 (Apple silicon).
+- **Windows installer** (`…-windows-x86_64-setup.exe`): per-user install,
+  optional PATH entry, Start menu shortcut that opens uVim in a Windows
+  Terminal window with a uVim profile (or a PowerShell window), and
+  "uVim launcher settings" to change that later.
+- **macOS installer** (`.pkg`): optional **uVim app** in Applications that
+  opens uVim in Alacritty when installed, otherwise Terminal; files dropped on
+  it open in uVim.
+- See [Supported platforms and builds](#supported-platforms-and-builds).
+
+#### Development
+
+- CI builds and tests Linux, macOS (also with ASan/UBSan) and Windows in a
+  build stage and a test stage, makes Release binaries for every target and
+  queues runs per branch.
+- Release tags must match the version in `CMakeLists.txt`; the release
+  scripts and the `uvim_version` test check it.
+- New clangd integration test; Robot tests report why uVim exited or hung.
 
 ## Supported platforms and builds
 
