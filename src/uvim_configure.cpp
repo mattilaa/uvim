@@ -1,5 +1,7 @@
 #include "color_constant.h"
 
+#include "uvim_config_deps.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -335,6 +337,10 @@ struct CliOptions
     fs::path buildDir = sourceDir / "build";
     std::optional<fs::path> output;
     bool installAfterBuild = false;
+    // --check-deps: report missing runtime dependencies; --install-deps:
+    // also offer to install them (asks first). Neither is saved.
+    bool checkDeps = false;
+    bool installDeps = false;
 };
 
 bool operator==(const CliOptions& lhs, const CliOptions& rhs)
@@ -2126,6 +2132,12 @@ void print_help(std::ostream& out)
         << "  -i, --install               Include cmake --install in the "
            "printed command.\n"
         << "  -o, --output FILE           Cache file to write.\n"
+        << "      --check-deps            Also list missing runtime "
+           "dependencies of the\n"
+        << "                              chosen features (no prompts).\n"
+        << "      --install-deps          List them and ask whether to "
+           "install the\n"
+        << "                              missing ones.\n"
         << "      --enable NAME           Enable a feature option.\n"
         << "      --disable NAME          Disable a feature option.\n\n"
         << "Feature names for --enable/--disable:\n"
@@ -2406,6 +2418,14 @@ bool parse_cli(int argc, char** argv, Config& cfg, CliOptions& options,
         {
             options.installAfterBuild = true;
         }
+        else if(arg == "--check-deps")
+        {
+            options.checkDeps = true;
+        }
+        else if(arg == "--install-deps")
+        {
+            options.installDeps = true;
+        }
         else if(arg == "-o" || arg == "--output")
         {
             auto value = next_arg(i, argc, argv, arg, error);
@@ -2497,6 +2517,115 @@ void close_selected_section(std::vector<Section>& sections,
 {
     sections[row.section].open = false;
 }
+uvim_config_deps::Features features_of(const Config& cfg)
+{
+    uvim_config_deps::Features f;
+    f.clangdLsp = cfg.clangdLsp;
+    f.robotLsp = cfg.robotLsp;
+    f.pythonLsp = cfg.pythonLsp;
+    f.htmlLsp = cfg.htmlLsp;
+    f.cssLsp = cfg.cssLsp;
+    f.jsonLsp = cfg.jsonLsp;
+    f.tsLsp = cfg.tsLsp;
+    f.csharpLsp = cfg.csharpLsp;
+    f.gitTools = cfg.gitTools;
+    f.searchTools = cfg.searchTools;
+    f.formatters = cfg.formatters;
+    f.systemClipboard = cfg.systemClipboard;
+    return f;
+}
+
+// Lists the runtime dependencies of the chosen features and, when
+// `interactive`, offers to install the missing ones (all, one by one, or
+// none). Nothing is installed without a yes.
+void dependency_phase(const Config& cfg, bool interactive)
+{
+    namespace deps = uvim_config_deps;
+    const deps::Finder find = deps::programExists;
+    const deps::Platform platform = deps::currentPlatform();
+    const deps::PackageManager pm = deps::detectPackageManager(platform, find);
+    const std::vector<deps::Dependency> all =
+        deps::required(features_of(cfg), platform, pm, find);
+    if(all.empty())
+        return;
+
+    std::cout << "\nRuntime dependencies of the chosen features:\n";
+    std::vector<deps::Dependency> missing = deps::missing(all, find);
+    for(const deps::Dependency& dep : all)
+    {
+        const bool absent =
+            std::any_of(missing.begin(), missing.end(),
+                        [&](const deps::Dependency& m)
+                        { return m.name == dep.name; });
+        std::cout << "  " << (absent ? (dep.optional ? "[optional]" : "[missing] ")
+                                     : "[ok]      ")
+                  << " " << dep.name << "  (" << dep.feature << ")\n";
+    }
+    if(missing.empty())
+    {
+        std::cout << "All found.\n";
+        return;
+    }
+
+    std::cout << "\nTo install:\n";
+    for(const deps::Dependency& dep : missing)
+        std::cout << "  " << dep.name << ": "
+                  << (dep.install.empty() ? "no known installer here; "
+                                            "install it manually"
+                                          : dep.install)
+                  << "\n";
+    if(!interactive)
+        return;
+
+    std::cout << "\nInstall the missing dependencies? [a]ll, [s]elect each, "
+                 "[n]o (n): "
+              << std::flush;
+    std::string answer;
+    if(!std::getline(std::cin, answer))
+        return;
+    const char choice = answer.empty() ? 'n' : static_cast<char>(
+                                                   std::tolower(answer[0]));
+    if(choice != 'a' && choice != 's')
+    {
+        std::cout << "Nothing installed. `uvim-config --check-deps` lists "
+                     "them again.\n";
+        return;
+    }
+
+    for(const deps::Dependency& dep : missing)
+    {
+        if(dep.install.empty())
+            continue;
+        // A prerequisite may have provided it already (e.g. Node.js).
+        if(deps::missing({dep}, find).empty())
+            continue;
+        // The installer itself (dotnet, npm, pipx, brew, ...) must exist;
+        // it may be a dependency skipped above.
+        const std::string tool = dep.install.substr(0, dep.install.find(' '));
+        if(tool != "sudo" && !find(tool))
+        {
+            std::cout << "    " << dep.name << ": needs " << tool
+                      << " first; skipped\n";
+            continue;
+        }
+        if(choice == 's')
+        {
+            std::cout << "Install " << dep.name << " (" << dep.install
+                      << ")? [y/N]: " << std::flush;
+            std::string yes;
+            if(!std::getline(std::cin, yes))
+                return;
+            if(yes.empty() || std::tolower(yes[0]) != 'y')
+                continue;
+        }
+        std::cout << "==> " << dep.install << "\n" << std::flush;
+        const int status = std::system(dep.install.c_str());
+        const bool nowFound = deps::missing({dep}, find).empty();
+        std::cout << (nowFound ? "    installed " : "    not installed ")
+                  << dep.name
+                  << (status != 0 ? " (command failed)" : "") << "\n";
+    }
+}
 } // namespace
 
 int main(int argc, char** argv)
@@ -2533,6 +2662,8 @@ int main(int argc, char** argv)
             return 1;
         }
         std::cout << message << "\n";
+        if(options.checkDeps || options.installDeps)
+            dependency_phase(cfg, options.installDeps);
         return 0;
     }
 
@@ -2578,6 +2709,7 @@ int main(int argc, char** argv)
         Quit,
     };
     std::optional<PendingConfirm> pendingConfirm;
+    {
     TerminalRawMode rawMode;
 #ifndef _WIN32
     std::signal(SIGWINCH, handle_resize);
@@ -2702,7 +2834,11 @@ int main(int argc, char** argv)
         else if(key == 's' || key == 'S')
             pendingConfirm = PendingConfirm::Save;
     }
+    } // raw mode off: the dependency phase reads normal input
 
     write_stdout("\x1b[?25h\x1b[0m\n");
+    // Before the build: offer to install what the saved features need.
+    if(savedConfig)
+        dependency_phase(*savedConfig, true);
     return 0;
 }

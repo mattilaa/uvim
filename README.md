@@ -277,6 +277,43 @@ The TUI reloads `uvim-config.conf` on the next run. `build.sh` imports it,
 regenerates the CMake cache, configures the project, and builds with the saved
 parallel job count.
 
+#### Runtime dependencies of the chosen features
+
+When you leave the TUI with a saved configuration (before `bootstrap` asks
+about building), `uvim-config` lists the external programs the chosen
+features use and whether they are installed:
+
+```text
+Runtime dependencies of the chosen features:
+  [ok]       clangd  (C/C++ LSP)
+  [missing]  .NET SDK (dotnet)  (C# LSP)
+  [missing]  csharp-ls  (C# LSP)
+  [ok]       ripgrep  (project grep (Ctrl-A))
+  [optional] ruff  (Python formatting)
+
+To install:
+  .NET SDK (dotnet): brew install --cask dotnet-sdk
+  csharp-ls: dotnet tool install --global csharp-ls
+  ruff: brew install ruff
+
+Install the missing dependencies? [a]ll, [s]elect each, [n]o (n):
+```
+
+Nothing is installed unless you answer `a` (all) or `s` (asks `y/N` for each
+one). The install commands use the system package manager (Homebrew, apt,
+dnf, pacman, winget) or the tool's own installer (`npm`, `pipx`/`pip`,
+`dotnet tool`); prerequisites such as Node.js or the .NET SDK come first, and
+an install whose installer is still missing is skipped. `[optional]` tools
+improve a feature that works without them (ripgrep, fzf, formatters,
+clipboard helpers).
+
+The same check without the TUI:
+
+```sh
+./build/uvim-config --check-deps      # only list
+./build/uvim-config --install-deps    # list and ask
+```
+
 ### Quick start: preset from the command line
 
 First bootstrap `uvim-config` and decline the prompt to open its TUI, then
