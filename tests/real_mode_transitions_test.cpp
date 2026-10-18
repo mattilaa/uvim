@@ -1940,3 +1940,20 @@ TEST(RealModeTransitionsTest, TabTakesHighlightedCommandPopupItem)
     sm2.dispatch(keyCode(control::ControlKey::TAB));
     EXPECT_EQ(editor.commandBuffer, ":edit ");
 }
+
+TEST(RealModeTransitionsTest, TabTakesHighlightedItemInWelcomeCommandPrompt)
+{
+    // The welcome screen, file browser and help use CommandPrompt, a
+    // separate command line implementation.
+    Editor editor = Editor::createForTests();
+    auto sm = makeMachine(editor, WelcomeMode{});
+    sm.dispatch(':');
+    auto prompt = editor.commandPrompt;
+    ASSERT_TRUE(prompt && prompt->isActive());
+    for(char c : std::string("lcto"))
+        sm.dispatch(c);
+    ASSERT_TRUE(editor.commandPopupSelection().has_value());
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(prompt->getInput(), *editor.commandPopupSelection());
+    EXPECT_EQ(prompt->getInput(), "loctotal");
+}

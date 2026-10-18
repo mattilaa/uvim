@@ -433,6 +433,22 @@ bool CommandPrompt::handle(
 
     if(key == keyCode(control::ControlKey::TAB))
     {
+        // Same as the command line: while the command name is typed, Tab
+        // takes the popup's highlighted item, fuzzy matches included
+        // (":lcto" -> ":loctotal"); argument completion starts after a
+        // space.
+        if(ctx.isCommandPopupActive() && !text_utils::contains(input, ' '))
+        {
+            if(auto selection = ctx.commandPopupSelection())
+            {
+                input = *selection;
+                clearCompletions();
+                updatePopup();
+                ed->needsFullRedraw = true;
+                nextState.reset();
+                return true;
+            }
+        }
         handleTabCompletion(false);
         updatePopup();
         ed->needsFullRedraw = true;
