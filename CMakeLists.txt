@@ -2,14 +2,22 @@ cmake_minimum_required(VERSION 3.14)
 if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
-# Release version (vMAJOR.MINOR.PATCH tags must match it; checked by the
-# uvim_version test and the release scripts). The auto-incremented build
-# number below is separate (4th version component).
-set(UVIM_VERSION_MAJOR 0)
-set(UVIM_VERSION_MINOR 3)
-set(UVIM_VERSION_PATCH 0)
-set(UVIM_RELEASE_VERSION
-    "${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}.${UVIM_VERSION_PATCH}")
+# Release version: the one line of version.txt (MAJOR.MINOR.PATCH). Release
+# tags vMAJOR.MINOR.PATCH must match it (checked by the uvim_version test and
+# the release scripts; scripts/release.sh --bump updates it). The
+# auto-incremented build number below is separate (4th version component).
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" UVIM_RELEASE_VERSION)
+string(STRIP "${UVIM_RELEASE_VERSION}" UVIM_RELEASE_VERSION)
+if(NOT UVIM_RELEASE_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
+    message(FATAL_ERROR
+        "version.txt must hold MAJOR.MINOR.PATCH, found '${UVIM_RELEASE_VERSION}'")
+endif()
+set(UVIM_VERSION_MAJOR ${CMAKE_MATCH_1})
+set(UVIM_VERSION_MINOR ${CMAKE_MATCH_2})
+set(UVIM_VERSION_PATCH ${CMAKE_MATCH_3})
+# Editing version.txt re-runs the configure step.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+             "${CMAKE_CURRENT_SOURCE_DIR}/version.txt")
 set(UVIM_DISPLAY_VERSION "${UVIM_RELEASE_VERSION}")
 option(UVIM_AUTO_INCREMENT_BUILD "Auto-increment build number on each CMake configure" ON)
 set(UVIM_VERSION_BUILD 0 CACHE STRING "Build number")
