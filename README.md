@@ -202,6 +202,8 @@ it changes), `uvim --version` prints it (`uvim 0.3.1 (build 12)` — the build
 number is not part of the release version), the `uvim_version` test checks
 that, and the release scripts stop when a tag does not match it.
 
+The whole procedure — notes, publishing, checking, re-runs and fixes — is
+described in [RELEASE_PROCESS.md](RELEASE_PROCESS.md). In short,
 `scripts/release.sh` does the steps (it asks before every change; `-y`
 answers yes):
 

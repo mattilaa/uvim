@@ -123,7 +123,7 @@ check_notes() {
 replace_examples() {
   local old="$1" new="$2" file
   local old_re="${old//./\\.}"
-  for file in README.md scripts/build_portable.ps1 \
+  for file in README.md RELEASE_PROCESS.md scripts/build_portable.ps1 \
     scripts/build_windows_installer.ps1 packaging/windows/uvim.iss \
     .github/workflows/portable-release.yml; do
     [[ -f "$file" ]] || continue
@@ -190,7 +190,7 @@ do_bump() {
   replace_examples "$current" "$new"
   add_notes_stub "$new"
 
-  git add version.txt README.md scripts packaging .github
+  git add version.txt README.md RELEASE_PROCESS.md scripts packaging .github
   git add -f scripts/build_portable.ps1 scripts/build_windows_installer.ps1
   git commit -q -m "Version $new"
   echo "Committed \"Version $new\" ($(git rev-parse --short HEAD))."
