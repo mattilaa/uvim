@@ -111,8 +111,8 @@ Generate a user configuration and copy the bundled themes with:
     Write-Host "==> Creating $Archive"
     Compress-Archive -Path $Bundle -DestinationPath $Archive
     $Hash = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLower()
-    "$Hash  $(Split-Path -Leaf $Archive)" | Set-Content -Encoding ascii -NoNewline $Checksum
-    Add-Content -Encoding ascii -Path $Checksum -Value ""
+    # LF line ending, like sha256sum/shasum, so `shasum -c` works anywhere.
+    [IO.File]::WriteAllText($Checksum, "$Hash  $(Split-Path -Leaf $Archive)`n")
 }
 finally {
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $Stage
