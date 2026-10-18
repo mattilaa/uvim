@@ -1,3 +1,4 @@
+[![CI](https://github.com/mattilaa/uvim/actions/workflows/ci.yml/badge.svg)](https://github.com/mattilaa/uvim/actions/workflows/ci.yml)
 # uVim
 
 uVim is a configurable, terminal-native modal code editor. It keeps familiar
