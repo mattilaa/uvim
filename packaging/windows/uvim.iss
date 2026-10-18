@@ -1,6 +1,6 @@
 ; Inno Setup script for the uVim Windows installer.
 ; Built by scripts/build_windows_installer.ps1, which passes:
-;   /DAppVersion=0.3.1  /DSourceDir=<repo>  /DBinary=<uvim.exe>
+;   /DAppVersion=0.3.2  /DSourceDir=<repo>  /DBinary=<uvim.exe>
 ;   /DOutputDir=<dir>
 ;
 ; Installs uvim.exe and the themes, optionally adds uvim to PATH, and

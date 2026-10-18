@@ -50,9 +50,38 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Release notes
 
-### v0.3.1 (unreleased)
+### v0.3.2 (2026-10-19)
 
-- TODO: describe what is new, improved and fixed.
+#### New
+
+- **C#** — `.cs`/`.csx` files are highlighted in every build: keywords,
+  contextual keywords such as `var`, `async`, `record`, built-in types,
+  verbatim (`@"..."`), interpolated (`$"..."`) and raw (`"""..."""`) strings,
+  `#region`-style directives and comments. Comment toggling uses `//` and
+  `Format buffer` uses clang-format's C# mode.
+- **C# language server** (build option `UVIM_ENABLE_CSHARP_LSP`, in the
+  `full` preset and the release binaries) — `csharp-ls` from `PATH` or
+  `~/.dotnet/tools`, otherwise OmniSharp. It starts with the first `.cs` file
+  in the folder of the nearest `.sln`/`.csproj`; completion, go to
+  definition, references, diagnostics with `Space-e` and `:lspinfo` work as
+  for C/C++. `--csharp-lsp`, `--csharp-lsp-path`, `--csharp-lsp-args`;
+  `scripts/install_lsps.sh --csharp`. See [C#](#c).
+- **`uvim-config` checks runtime dependencies** — after saving a
+  configuration it lists the programs the chosen features use (language
+  servers, git, ripgrep, fzf, formatters, clipboard helpers) and offers to
+  install the missing ones with the system package manager, npm, pipx or
+  `dotnet tool`; nothing is installed without a yes. `--check-deps` and
+  `--install-deps` do the same without the configurator screen.
+
+#### Development
+
+- The version lives in [`version.txt`](version.txt); CMake reads it.
+- [`scripts/release.sh`](scripts/release.sh) bumps the version (refusing a
+  lower one), checks the release notes and publishes a release after
+  checking the tag, the notes and CI; afterwards `main` moves on to the next
+  version. See [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
+- CI builds the C# language server support and tests it against a real
+  `csharp-ls` on Linux.
 
 ### v0.3.0 (2026-10-18)
 
@@ -189,19 +218,21 @@ parallel, and attaches them to the GitHub Release page with a `.sha256`
 checksum each (the workflow run itself keeps them as `release-<target>`
 artifacts):
 
-| Target         | Asset (for `v0.3.1`)                                   |
+| Target         | Asset (for `v0.3.2`)                                   |
 |----------------|--------------------------------------------------------|
-| Linux x86_64   | `uvim-v0.3.1-linux-x86_64.zip` (static executable)     |
-| Linux arm64    | `uvim-v0.3.1-linux-arm64.zip` (static executable)      |
-| macOS arm64    | `uvim-v0.3.1-macos-arm64.zip`, `uvim-v0.3.1-macos-arm64.pkg` |
-| Windows x86_64 | `uvim-v0.3.1-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.3.1-windows-x86_64-setup.exe` (installer) |
+| Linux x86_64   | `uvim-v0.3.2-linux-x86_64.zip` (static executable)     |
+| Linux arm64    | `uvim-v0.3.2-linux-arm64.zip` (static executable)      |
+| macOS arm64    | `uvim-v0.3.2-macos-arm64.zip`, `uvim-v0.3.2-macos-arm64.pkg` |
+| Windows x86_64 | `uvim-v0.3.2-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.3.2-windows-x86_64-setup.exe` (installer) |
 
 The version lives in one place: [`version.txt`](version.txt) in the
 repository root (`MAJOR.MINOR.PATCH`). CMake reads it (and reconfigures when
-it changes), `uvim --version` prints it (`uvim 0.3.1 (build 12)` — the build
+it changes), `uvim --version` prints it (`uvim 0.3.2 (build 12)` — the build
 number is not part of the release version), the `uvim_version` test checks
 that, and the release scripts stop when a tag does not match it.
 
+The whole procedure — notes, publishing, checking, re-runs and fixes — is
+described in [RELEASE_PROCESS.md](RELEASE_PROCESS.md). In short,
 `scripts/release.sh` does the steps (it asks before every change; `-y`
 answers yes):
 
@@ -523,13 +554,13 @@ Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow:
 it builds Release archives for Linux `x86_64` and `arm64`, macOS `arm64` and
 Windows `x86_64` in parallel, creates the GitHub Release, and attaches the
 archives and their checksums. Release tags must use `vMAJOR.MINOR.BUGFIX`,
-for example `v0.3.1`. The public release keeps that three-part version. Build
+for example `v0.3.2`. The public release keeps that three-part version. Build
 numbers are never included in release asset names: the ZIP files are
-`uvim-v0.3.1-linux-x86_64.zip`, `uvim-v0.3.1-linux-arm64.zip`,
-`uvim-v0.3.1-macos-arm64.zip` and `uvim-v0.3.1-windows-x86_64.zip`. Running
+`uvim-v0.3.2-linux-x86_64.zip`, `uvim-v0.3.2-linux-arm64.zip`,
+`uvim-v0.3.2-macos-arm64.zip` and `uvim-v0.3.2-windows-x86_64.zip`. Running
 the workflow by hand with `publish` unchecked only builds the archives.
 
-The macOS job also creates `uvim-v0.3.1-macos-arm64.pkg`. It installs the
+The macOS job also creates `uvim-v0.3.2-macos-arm64.pkg`. It installs the
 executable as `/usr/local/bin/uvim` and, optionally, the **uVim app** (see
 below). The workflow builds this as an
 unsigned installer by default, so it does not require a paid Apple Developer
@@ -545,7 +576,7 @@ Release. Download both the `.pkg` and its matching `.pkg.sha256` file, then
 verify them from the download directory:
 
 ```sh
-shasum -a 256 -c uvim-v0.3.1-macos-arm64.pkg.sha256
+shasum -a 256 -c uvim-v0.3.2-macos-arm64.pkg.sha256
 ```
 
 After a successful checksum, double-click the `.pkg`. If macOS blocks the
@@ -576,13 +607,13 @@ defaults delete io.github.mattilaa.uvim.app Terminal                    # automa
 ```
 
 Build the package locally after a portable build with
-`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.3.1`.
+`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.3.2`.
 The icons come from `packaging/icons/make_icons.py`.
 
 #### Installing on Windows
 
 The Windows release also has an installer,
-`uvim-v0.3.1-windows-x86_64-setup.exe` (a separate `release-*-installer`
+`uvim-v0.3.2-windows-x86_64-setup.exe` (a separate `release-*-installer`
 artifact in the workflow run). It is a normal setup wizard:
 
 - installs uVim for the current user (no administrator rights needed) or,
@@ -612,20 +643,20 @@ The installer is not code-signed yet, so Windows SmartScreen may show
 download first with the matching `.sha256` file:
 
 ```powershell
-(Get-FileHash uvim-v0.3.1-windows-x86_64-setup.exe -Algorithm SHA256).Hash
+(Get-FileHash uvim-v0.3.2-windows-x86_64-setup.exe -Algorithm SHA256).Hash
 ```
 
 Build the installer locally (needs Inno Setup 6, e.g.
 `winget install JRSoftware.InnoSetup`) after the portable build:
 
 ```powershell
-./scripts/build_portable.ps1 -Version v0.3.1
-./scripts/build_windows_installer.ps1 -Version v0.3.1
+./scripts/build_portable.ps1 -Version v0.3.2
+./scripts/build_windows_installer.ps1 -Version v0.3.2
 ```
 
 To add binaries to a release that already exists, open **Actions**, select
 **Portable release binaries**, choose **Run workflow**, enter the release's
-exact tag (for example `v0.3.1`), select the profile, and run it. The workflow
+exact tag (for example `v0.3.2`), select the profile, and run it. The workflow
 uploads or replaces the ZIP files and checksums on that release.
 
 ## Runtime configuration
