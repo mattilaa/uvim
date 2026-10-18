@@ -2261,7 +2261,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         lines = {
             "# Command Palette",
             "",
-            "`Space Space` (or `:palette`) opens a floating picker, like",
+            "`Space Space` (or `:palette`) - in normal and visual modes -",
+            "opens a floating picker, like",
             "Ctrl-p and Ctrl-a, listing what uVim can do by name - \"Open",
             "file browser\", \"Change buffer\", \"Save all files\", \"Git: log\"",
             "- with the key or command that does the same on the right",

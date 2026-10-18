@@ -1872,3 +1872,20 @@ TEST(CommandPaletteTest, NavigationAndLeaving)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 #endif
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+TEST(CommandPaletteTest, SpaceSpaceOpensPaletteFromVisualModes)
+{
+    for(char visualKey : {'v', 'V', static_cast<char>(keyCode(control::ControlKey::CTRL_V))})
+    {
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        auto sm = makeMachine(editor, NormalMode{});
+        sm.dispatch(visualKey);
+        ASSERT_STRNE(sm.currentStateName(), "NORMAL") << int(visualKey);
+        sm.dispatch(' ');
+        sm.dispatch(' ');
+        EXPECT_NE(sm.getState<CommandPaletteMode>(), nullptr) << int(visualKey);
+    }
+}
+#endif

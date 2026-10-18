@@ -713,7 +713,8 @@ Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
 
 ## Command palette
 
-`Space Space` (or `:palette`) opens the command palette: a floating window
+`Space Space` (or `:palette`), in normal and visual modes, opens the
+command palette: a floating window
 like the Ctrl-P file finder and Ctrl-A grep, with the search input on top.
 It lists what uVim can do by name, with the key or command that does the same
 shown on the right:
