@@ -105,7 +105,7 @@ artifacts):
 | Linux x86_64   | `uvim-v0.2.1-linux-x86_64.zip` (static executable)     |
 | Linux arm64    | `uvim-v0.2.1-linux-arm64.zip` (static executable)      |
 | macOS arm64    | `uvim-v0.2.1-macos-arm64.zip`, `uvim-v0.2.1-macos-arm64.pkg` |
-| Windows x86_64 | `uvim-v0.2.1-windows-x86_64.zip` (static MSVC runtime) |
+| Windows x86_64 | `uvim-v0.2.1-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.2.1-windows-x86_64-setup.exe` (installer) |
 
 See [Portable archives](#portable-macos-and-linux-archives) for building
 them locally.
@@ -398,6 +398,50 @@ Anyway** for the uvim package. Authenticate when prompted and confirm the
 installer again. Apple makes **Open Anyway** available for about an hour after
 the blocked launch attempt. Do not disable Gatekeeper globally. See Apple's
 [security override instructions](https://support.apple.com/guide/mac-help/open-an-app-by-overriding-security-settings-mh40617/mac).
+
+#### Installing on Windows
+
+The Windows release also has an installer,
+`uvim-v0.2.1-windows-x86_64-setup.exe` (a separate `release-*-installer`
+artifact in the workflow run). It is a normal setup wizard:
+
+- installs uVim for the current user (no administrator rights needed) or,
+  if chosen, for all users;
+- optionally adds `uvim` to `PATH`, so it runs from any terminal;
+- creates a **uVim** Start menu shortcut (and optionally a desktop one) that
+  opens uVim in its own window, plus **uVim launcher settings**;
+- uninstalls cleanly from *Settings → Apps*.
+
+The wizard asks how the **uVim** shortcut opens uVim:
+
+- **Windows Terminal window with a uVim profile** (default when Windows
+  Terminal is installed) — the installer adds a "uVim" profile with its own
+  name, icon and font to Windows Terminal, without editing your Windows
+  Terminal settings. Best rendering: UTF-8, true colour and glyphs.
+- **Separate Windows PowerShell window** — for systems without Windows
+  Terminal.
+
+Either way uVim runs inside Windows PowerShell with your PowerShell profile
+loaded, so the window stays at a PowerShell prompt after you quit uVim. To
+change the choice later, open **uVim launcher settings** from the Start menu
+(a small window with the same two options); running the installer again also
+shows it.
+
+The installer is not code-signed yet, so Windows SmartScreen may show
+"Windows protected your PC": choose **More info → Run anyway**. Check the
+download first with the matching `.sha256` file:
+
+```powershell
+(Get-FileHash uvim-v0.2.1-windows-x86_64-setup.exe -Algorithm SHA256).Hash
+```
+
+Build the installer locally (needs Inno Setup 6, e.g.
+`winget install JRSoftware.InnoSetup`) after the portable build:
+
+```powershell
+./scripts/build_portable.ps1 -Version v0.2.1
+./scripts/build_windows_installer.ps1 -Version v0.2.1
+```
 
 To add binaries to a release that already exists, open **Actions**, select
 **Portable release binaries**, choose **Run workflow**, enter the release's

@@ -94,6 +94,27 @@ jobs:
           -Version $env:UVIM_RELEASE_TAG
           -Jobs 4
 
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          ./scripts/build_windows_installer.ps1
+          -Version $env:UVIM_RELEASE_TAG
+          -Binary build-portable/Release/uvim.exe
+          -OutputDir dist-installer
+          -InstallInnoSetup
+
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}-installer
+          path: |
+            dist-installer/*.exe
+            dist-installer/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Build macOS installer package
         if: runner.os == 'macOS'
         run: |
