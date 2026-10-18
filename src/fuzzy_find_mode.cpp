@@ -34,7 +34,8 @@ std::vector<std::string> fuzzyFindHelpTokens(bool filenameFirst, int contrast,
         "[Enter: open]",        "[Esc: cancel]",       "[Ctrl+N: select]",
         "[Ctrl+J/K: navigate]", "[Ctrl+I: gitignore]", "[Ctrl+V: preview]"};
     if(preview)
-        tokens.push_back("[Ctrl+Shift+J/K: scroll preview]");
+        tokens.push_back(std::string("[") + Terminal::shiftChordLabel() +
+                         "+J/K: scroll preview]");
     tokens.push_back("[Ctrl+T: contrast " + std::to_string(contrast) + "]");
     tokens.push_back(filenameFirst ? "[Ctrl+O: filename first]"
                                    : "[Ctrl+O: path first]");

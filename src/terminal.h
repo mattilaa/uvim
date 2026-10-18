@@ -124,6 +124,18 @@ public:
     static bool useSynchronizedOutput();
 
     static void unreadKey(int key);
+
+    // Terminals without the kitty keyboard protocol (macOS Terminal,
+    // Windows console, ...) send Ctrl+Shift+letter as plain Ctrl+letter.
+    // With alt chords on, Alt+h/j/k/l/x stand in for Ctrl+Shift+h/j/k/l/x.
+    // `:set iskitty=false` turns them on.
+    static void setAltChords(bool enabled);
+    static bool altChords();
+    // Best guess from the environment whether the terminal reports
+    // Ctrl+Shift+letter (kitty, WezTerm, ghostty, foot).
+    static bool detectKittyKeyboard();
+    // "Ctrl+Shift" or "Alt": how the chords are typed, for key hints.
+    static const char* shiftChordLabel();
     static bool hasBufferedKeys();
     static int bufferedKeyCount();
     // Moves keystrokes already waiting on stdin to the back of the key

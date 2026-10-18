@@ -253,6 +253,11 @@ public:
 #endif
 
     bool respectGitignore = true;
+    // Terminal reports Ctrl+Shift+letter (kitty keyboard protocol). When
+    // false, Alt+h/j/k/l/x stand in for Ctrl+Shift+h/j/k/l/x. Detected at
+    // startup; `iskitty` in the config or `:set iskitty=` overrides it.
+    bool isKitty = true;
+    void setIsKitty(bool value);
     bool useGitFileIndex = true;
     bool gitignoreLockedOff = false;
     bool gitFileIndexLockedOff = false;

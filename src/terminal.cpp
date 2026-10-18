@@ -30,6 +30,37 @@ namespace
 {
 using namespace std::chrono;
 
+// See Terminal::setAltChords.
+bool g_altChords = false;
+
+// Alt+<letter> standing in for Ctrl+Shift+<letter>, or -1.
+int altChordKey(int ch)
+{
+    if(!g_altChords)
+        return -1;
+    switch(ch)
+    {
+    case 'h':
+    case 'H':
+        return keyCode(control::ControlKey::SHIFT_CTRL_H);
+    case 'j':
+    case 'J':
+        return keyCode(control::ControlKey::SHIFT_CTRL_J);
+    case 'k':
+    case 'K':
+        return keyCode(control::ControlKey::SHIFT_CTRL_K);
+    case 'l':
+    case 'L':
+        return keyCode(control::ControlKey::SHIFT_CTRL_L);
+    case 'x':
+    case 'X':
+        return keyCode(control::ControlKey::SHIFT_CTRL_X);
+    default:
+        return -1;
+    }
+}
+
+
 #if defined(UVIM_TERMINAL_WIN32)
 
 static DWORD g_origInMode = 0;
@@ -156,6 +187,14 @@ static int map_windows_key(const KEY_EVENT_RECORD& k) noexcept
 
     if(vk == VK_TAB && shift)
         return keyCode(control::ControlKey::SHIFT_TAB);
+
+    // Alt (not AltGr, which reports Ctrl+Alt) + letter: see altChordKey.
+    const bool alt = (mods & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0;
+    if(alt && !ctrl && wc != 0)
+    {
+        if(int chord = altChordKey(wc); chord >= 0)
+            return chord;
+    }
 
     switch(vk)
     {
@@ -548,6 +587,41 @@ bool Terminal::useSynchronizedOutput()
 #endif
 }
 
+void Terminal::setAltChords(bool enabled)
+{
+    g_altChords = enabled;
+}
+
+bool Terminal::altChords()
+{
+    return g_altChords;
+}
+
+bool Terminal::detectKittyKeyboard()
+{
+    auto env = [](const char* name) -> std::string
+    {
+        const char* value = std::getenv(name);
+        return value ? value : "";
+    };
+    if(!env("KITTY_WINDOW_ID").empty() || !env("WEZTERM_PANE").empty() ||
+       !env("GHOSTTY_RESOURCES_DIR").empty())
+        return true;
+    const std::string term = env("TERM");
+    const std::string program = env("TERM_PROGRAM");
+    for(const char* name : {"kitty", "wezterm", "ghostty", "foot"})
+    {
+        if(term.find(name) != std::string::npos)
+            return true;
+    }
+    return program == "WezTerm" || program == "ghostty";
+}
+
+const char* Terminal::shiftChordLabel()
+{
+    return g_altChords ? "Alt" : "Ctrl+Shift";
+}
+
 void Terminal::unreadKey(int key)
 {
     keyBuffer.push_front(key);
@@ -651,6 +725,24 @@ int Terminal::readKeyInternal(int timeoutMs)
         }
 
         const int k = map_windows_key(rec.Event.KeyEvent);
+        if(k == keyCode(control::ControlKey::ESC) && g_altChords)
+        {
+            // VT input delivers Alt+letter as ESC and the letter, queued
+            // together.
+            INPUT_RECORD next{};
+            DWORD peeked = 0;
+            if(PeekConsoleInputW(hIn(), &next, 1, &peeked) && peeked == 1 &&
+               next.EventType == KEY_EVENT && next.Event.KeyEvent.bKeyDown)
+            {
+                const int chord =
+                    altChordKey(next.Event.KeyEvent.uChar.UnicodeChar);
+                if(chord >= 0)
+                {
+                    (void)read_console_input_event(next);
+                    return chord;
+                }
+            }
+        }
         if(k != -1)
             return k;
         if(timeoutMs >= 0)
@@ -678,12 +770,27 @@ int Terminal::readKeyInternal(int timeoutMs)
 
     if(c == '\x1b')
     {
-        if(!wait_stdin(milliseconds(50)))
+        // Alt+key arrives as ESC and the key in one write, so the key is
+        // already waiting; a person typing Esc then the key is much slower.
+        const bool followedAtOnce = !pendingInputBytes.empty() ||
+                                    wait_stdin(milliseconds(0));
+        if(!followedAtOnce && !wait_stdin(milliseconds(50)))
             return keyCode(control::ControlKey::ESC);
 
         std::array<char, 5> seq{};
-        if(!read_byte_timeout(seq[0], milliseconds(50)))
+        if(!pendingInputBytes.empty())
+        {
+            seq[0] = pendingInputBytes.front();
+            pendingInputBytes.erase(0, 1);
+        }
+        else if(!read_byte_timeout(seq[0], milliseconds(50)))
             return keyCode(control::ControlKey::ESC);
+        if(followedAtOnce)
+        {
+            if(int chord = altChordKey(static_cast<unsigned char>(seq[0]));
+               chord >= 0)
+                return chord;
+        }
         // Only CSI (ESC [) and SS3 (ESC O) start key sequences; anything
         // else is a separate key typed right after Esc. Keep it.
         if(seq[0] != '[' && seq[0] != 'O')
