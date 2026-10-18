@@ -3,7 +3,10 @@ build*
 !build.ps1
 !scripts/build_portable.sh
 !scripts/build_macos_pkg.sh
+!scripts/build_portable.ps1
+!scripts/build_windows_installer.ps1
 dist/
+dist-installer/
 *.out
 CMakeLists.txt.user
 CMakeCache.txt

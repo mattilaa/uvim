@@ -31,6 +31,7 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Contents
 
+- [Supported platforms and builds](#supported-platforms-and-builds)
 - [Build profiles and uvim-config](#build-profiles-and-uvim-config)
 - [Runtime configuration](#runtime-configuration)
 - [Themes](#themes)
@@ -45,6 +46,69 @@ menus—they leave the corresponding implementation out of the binary.
 - [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives)
 - [Diagnostics](#diagnostics)
 - [Search examples](#search-examples)
+
+## Supported platforms and builds
+
+uVim supports three operating systems on two CPU architectures. Other
+architectures (32-bit x86, ARMv7, RISC-V, macOS on Intel, Windows on ARM,
+...) are not supported.
+
+| Platform | Architecture | Compiler        | Terminal backend        |
+|----------|--------------|-----------------|-------------------------|
+| Linux    | x86_64       | GCC (or Clang)  | POSIX                   |
+| Linux    | arm64        | GCC (or Clang)  | POSIX                   |
+| macOS    | arm64        | Apple Clang     | POSIX                   |
+| Windows  | x86_64       | MSVC            | native Windows console  |
+
+The terminal backend follows the platform (`UVIM_TERMINAL_BACKEND=AUTO`).
+On Windows only the native console backend works; choosing `POSIX` there
+stops at configure time.
+
+### Continuous integration
+
+Every push and pull request runs [CI](.github/workflows/ci.yml) as a two-stage
+pipeline; the jobs inside each stage run in parallel:
+
+```text
+ build stage                                   test stage
+ build linux-x64 (Debug, GCC, clangd LSP)  ──▶  test linux-x64        unit + Robot, real clangd
+ build macos-arm64 (Debug)                 ──▶  test macos-arm64      unit + Robot
+ build macos-arm64-asan (Debug, ASan/UBSan)──▶  test macos-arm64-asan unit + Robot under sanitizers
+ build windows-x64 (Debug, MSVC, LSP)      ──▶  test windows-x64      unit, real clangd
+ artifacts linux-x64    (Release)  → uvim-linux-x64.tar.gz
+ artifacts linux-arm64  (Release)  → uvim-linux-arm64.tar.gz
+ artifacts macos-arm64  (Release)  → uvim-macos-arm64.tar.gz
+ artifacts windows-x64  (Release)  → uvim-windows-x64.zip
+```
+
+- **build** compiles the Debug builds with tests and hands the build tree to
+  the test stage; Debug builds exist only to run the tests.
+- **test** starts once the builds are done and runs the tests on those build
+  trees without compiling again.
+- **artifacts** makes the Release builds; each binary is attached to the CI
+  run as an artifact named `uvim-<target>` (Actions → the run →
+  *Artifacts*). Release builds include the clangd LSP client; the language
+  servers themselves are external programs (see
+  [Dependencies](#dependencies-os-specific)).
+
+### Tagged releases
+
+Pushing a `vMAJOR.MINOR.BUGFIX` tag runs the separate
+[portable release workflow](.github/workflows/portable-release.yml). It makes
+**Release builds only** (no debug builds) for every supported target, in
+parallel, and attaches them to the GitHub Release page with a `.sha256`
+checksum each (the workflow run itself keeps them as `release-<target>`
+artifacts):
+
+| Target         | Asset (for `v0.2.1`)                                   |
+|----------------|--------------------------------------------------------|
+| Linux x86_64   | `uvim-v0.2.1-linux-x86_64.zip` (static executable)     |
+| Linux arm64    | `uvim-v0.2.1-linux-arm64.zip` (static executable)      |
+| macOS arm64    | `uvim-v0.2.1-macos-arm64.zip`, `uvim-v0.2.1-macos-arm64.pkg` |
+| Windows x86_64 | `uvim-v0.2.1-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.2.1-windows-x86_64-setup.exe` (installer) |
+
+See [Portable archives](#portable-macos-and-linux-archives) for building
+them locally.
 
 ## Build profiles and uvim-config
 
@@ -278,29 +342,40 @@ Build a release archive for the current host:
 The default `full` profile is packaged as a ZIP file under `dist/` with the executable,
 themes, README, license, dependency report, and SHA-256 checksum. Linux
 requests a statically linked executable by default. macOS validates that the
-binary links only to Apple system libraries; use `--macos-arch universal` to
-build a combined `arm64` and `x86_64` executable. Portable macOS builds target
-macOS 13.3 or newer by default:
+binary links only to Apple system libraries. Supported macOS builds are
+`arm64` (Apple silicon); `--macos-arch arm64` selects it explicitly when
+building on another host. Portable macOS builds target macOS 13.3 or newer by
+default:
 
 ```sh
-./scripts/build_portable.sh --profile basic --macos-arch universal
+./scripts/build_portable.sh --profile basic --macos-arch arm64
 ```
 
 Run the script on macOS for a macOS archive and on Linux for a Linux archive.
 Use `--dynamic` if a Linux toolchain does not provide static runtime libraries.
+On Windows (x64, Visual Studio with the C++ workload) use the PowerShell
+counterpart, which builds with the static MSVC runtime:
+
+```powershell
+./scripts/build_portable.ps1 -Profile full
+```
+
 Git, ripgrep/fzf, formatters, clipboard helpers, and language servers remain
 optional external programs discovered through `PATH`.
 
-Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow,
-builds Linux `x86_64` and universal macOS ZIP archives, creates the GitHub
-Release, and attaches both archives and their checksums. Release tags must use
-`vMAJOR.MINOR.BUGFIX`, for example `v0.2.1`. The public release keeps that
-three-part version. Build numbers are never included in release asset names:
-the ZIP files are `uvim-v0.2.1-linux-x86_64.zip` and
-`uvim-v0.2.1-macos-universal.zip`.
+Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow:
+it builds Release archives for Linux `x86_64` and `arm64`, macOS `arm64` and
+Windows `x86_64` in parallel, creates the GitHub Release, and attaches the
+archives and their checksums. Release tags must use `vMAJOR.MINOR.BUGFIX`,
+for example `v0.2.1`. The public release keeps that three-part version. Build
+numbers are never included in release asset names: the ZIP files are
+`uvim-v0.2.1-linux-x86_64.zip`, `uvim-v0.2.1-linux-arm64.zip`,
+`uvim-v0.2.1-macos-arm64.zip` and `uvim-v0.2.1-windows-x86_64.zip`. Running
+the workflow by hand with `publish` unchecked only builds the archives.
 
-The macOS job also creates `uvim-v0.2.1-macos-universal.pkg`. It installs the
-universal executable as `/usr/local/bin/uvim`. The workflow builds this as an
+The macOS job also creates `uvim-v0.2.1-macos-arm64.pkg`. It installs the
+executable as `/usr/local/bin/uvim` and, optionally, the **uVim app** (see
+below). The workflow builds this as an
 unsigned installer by default, so it does not require a paid Apple Developer
 membership or repository secrets. macOS may require the user to explicitly
 approve the installer in Privacy & Security. If signing is added later, public
@@ -314,7 +389,7 @@ Release. Download both the `.pkg` and its matching `.pkg.sha256` file, then
 verify them from the download directory:
 
 ```sh
-shasum -a 256 -c uvim-v0.2.1-macos-universal.pkg.sha256
+shasum -a 256 -c uvim-v0.2.1-macos-arm64.pkg.sha256
 ```
 
 After a successful checksum, double-click the `.pkg`. If macOS blocks the
@@ -324,6 +399,73 @@ Anyway** for the uvim package. Authenticate when prompted and confirm the
 installer again. Apple makes **Open Anyway** available for about an hour after
 the blocked launch attempt. Do not disable Gatekeeper globally. See Apple's
 [security override instructions](https://support.apple.com/guide/mac-help/open-an-app-by-overriding-security-settings-mh40617/mac).
+
+The installer's **Customize** page has two parts:
+
+- **uVim command-line editor** (always installed) — `uvim` in
+  `/usr/local/bin`; run it in any terminal.
+- **uVim app** (selected by default) — `/Applications/uVim.app` with the uVim
+  icon. It opens uVim in its own terminal window: **Alacritty** when it is
+  installed, otherwise **Terminal**. Files dropped on the app (or opened with
+  *Open With → uVim*) open in uVim. uVim runs in your login shell, so the
+  `PATH` from your shell profile (Homebrew, git, ripgrep, ...) applies, and the
+  window stays at a shell prompt after you quit uVim.
+
+To pick the terminal yourself instead of the automatic choice:
+
+```sh
+defaults write io.github.mattilaa.uvim.app Terminal -string terminal    # always Terminal
+defaults write io.github.mattilaa.uvim.app Terminal -string alacritty   # always Alacritty
+defaults delete io.github.mattilaa.uvim.app Terminal                    # automatic again
+```
+
+Build the package locally after a portable build with
+`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.2.1`.
+The icons come from `packaging/icons/make_icons.py`.
+
+#### Installing on Windows
+
+The Windows release also has an installer,
+`uvim-v0.2.1-windows-x86_64-setup.exe` (a separate `release-*-installer`
+artifact in the workflow run). It is a normal setup wizard:
+
+- installs uVim for the current user (no administrator rights needed) or,
+  if chosen, for all users;
+- optionally adds `uvim` to `PATH`, so it runs from any terminal;
+- creates a **uVim** Start menu shortcut (and optionally a desktop one) that
+  opens uVim in its own window, plus **uVim launcher settings**;
+- uninstalls cleanly from *Settings → Apps*.
+
+The wizard asks how the **uVim** shortcut opens uVim:
+
+- **Windows Terminal window with a uVim profile** (default when Windows
+  Terminal is installed) — the installer adds a "uVim" profile with its own
+  name, icon and font to Windows Terminal, without editing your Windows
+  Terminal settings. Best rendering: UTF-8, true colour and glyphs.
+- **Separate Windows PowerShell window** — for systems without Windows
+  Terminal.
+
+Either way uVim runs inside Windows PowerShell with your PowerShell profile
+loaded, so the window stays at a PowerShell prompt after you quit uVim. To
+change the choice later, open **uVim launcher settings** from the Start menu
+(a small window with the same two options); running the installer again also
+shows it.
+
+The installer is not code-signed yet, so Windows SmartScreen may show
+"Windows protected your PC": choose **More info → Run anyway**. Check the
+download first with the matching `.sha256` file:
+
+```powershell
+(Get-FileHash uvim-v0.2.1-windows-x86_64-setup.exe -Algorithm SHA256).Hash
+```
+
+Build the installer locally (needs Inno Setup 6, e.g.
+`winget install JRSoftware.InnoSetup`) after the portable build:
+
+```powershell
+./scripts/build_portable.ps1 -Version v0.2.1
+./scripts/build_windows_installer.ps1 -Version v0.2.1
+```
 
 To add binaries to a release that already exists, open **Actions**, select
 **Portable release binaries**, choose **Run workflow**, enter the release's

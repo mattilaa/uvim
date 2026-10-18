@@ -5,7 +5,11 @@ usage() {
   cat <<'EOF'
 Usage: scripts/build_macos_pkg.sh --binary PATH --version VERSION [options]
 
-Creates a macOS installer package that installs uvim in /usr/local/bin.
+Creates a macOS installer package with two parts:
+  uVim command-line editor  uvim in /usr/local/bin (always installed)
+  uVim app                  /Applications/uVim.app (optional, on by default)
+                            opens uvim in its own terminal window: Alacritty
+                            when installed, otherwise Terminal
 The package is unsigned by default and does not require an Apple Developer
 Program membership. Use --sign only when a signing identity is available.
 
@@ -69,11 +73,7 @@ done
   echo "error: macOS pkg installers must be built on macOS" >&2
   exit 1
 }
-command -v pkgbuild >/dev/null 2>&1 || {
-  echo "error: pkgbuild was not found" >&2
-  exit 1
-}
-for tool in file lipo xattr; do
+for tool in file lipo xattr pkgbuild productbuild osacompile plutil codesign; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "error: $tool was not found" >&2
     exit 1
@@ -118,24 +118,90 @@ stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/uvim-pkg.XXXXXX")"
 cleanup() { rm -rf -- "$stage_dir"; }
 trap cleanup EXIT
 
-mkdir -p "$stage_dir/root/usr/local/bin"
-cp "$binary" "$stage_dir/root/usr/local/bin/uvim"
-chmod 0755 "$stage_dir/root/usr/local/bin/uvim"
-xattr -cr "$stage_dir/root"
-
-pkg_args=(
-  --root "$stage_dir/root"
-  --identifier "$identifier"
-  --version "${public_version#v}"
-  --install-location /
-  --ownership recommended
-)
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+macos_dir="$repo_root/packaging/macos"
+app_identifier="$identifier.app"
+short_version="${public_version#v}"
+sign_args=()
 if [[ -n "$sign_identity" ]]; then
-  pkg_args+=(--sign "$sign_identity")
+  sign_args=(--sign "$sign_identity")
 fi
 
+# --- Component 1: the command-line editor in /usr/local/bin --------------
+mkdir -p "$stage_dir/cli/usr/local/bin" "$stage_dir/components"
+cp "$binary" "$stage_dir/cli/usr/local/bin/uvim"
+chmod 0755 "$stage_dir/cli/usr/local/bin/uvim"
+xattr -cr "$stage_dir/cli"
+COPYFILE_DISABLE=1 pkgbuild --root "$stage_dir/cli" \
+  --identifier "$identifier" --version "$short_version" \
+  --install-location / --ownership recommended \
+  "$stage_dir/components/uvim-cli.pkg"
+
+# --- Component 2: uVim.app in /Applications --------------------------------
+app="$stage_dir/app/Applications/uVim.app"
+mkdir -p "$stage_dir/app/Applications"
+osacompile -o "$app" "$macos_dir/uVim.applescript"
+cp "$macos_dir/uvim-launch.sh" "$app/Contents/Resources/uvim-launch.sh"
+chmod 0755 "$app/Contents/Resources/uvim-launch.sh"
+# The uVim icon: replace the droplet icon and drop the asset catalog, whose
+# icon would win over the .icns.
+cp "$macos_dir/uVim.icns" "$app/Contents/Resources/droplet.icns"
+rm -f "$app/Contents/Resources/Assets.car"
+plist="$app/Contents/Info.plist"
+plutil -remove CFBundleIconName "$plist" 2>/dev/null || true
+plutil -replace CFBundleIdentifier -string "$app_identifier" "$plist"
+plutil -replace CFBundleName -string "uVim" "$plist"
+plutil -replace CFBundleShortVersionString -string "$short_version" "$plist"
+plutil -replace CFBundleVersion -string "$short_version" "$plist"
+xattr -cr "$app"
+# Editing the bundle invalidates osacompile's ad-hoc signature; Apple
+# silicon only runs signed code, so sign it again (ad hoc).
+codesign --force --deep --sign - "$app"
+pkgbuild --analyze --root "$stage_dir/app" "$stage_dir/app-components.plist"
+plutil -replace 0.BundleIsRelocatable -bool NO "$stage_dir/app-components.plist"
+COPYFILE_DISABLE=1 pkgbuild --root "$stage_dir/app" \
+  --component-plist "$stage_dir/app-components.plist" \
+  --identifier "$app_identifier" --version "$short_version" \
+  --install-location / --ownership recommended \
+  "$stage_dir/components/uvim-app.pkg"
+
+# --- Product: both components with a choice page ---------------------------
+case "$package_arch" in
+  universal) host_arches="arm64,x86_64" ;;
+  *) host_arches="$package_arch" ;;
+esac
+mkdir -p "$stage_dir/resources"
+cp "$macos_dir/installer-background.png" "$stage_dir/resources/background.png"
+cat > "$stage_dir/distribution.xml" <<DISTRIBUTION
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+  <title>uVim $public_version</title>
+  <background file="background.png" alignment="bottomleft" scaling="none"/>
+  <background-darkAqua file="background.png" alignment="bottomleft" scaling="none"/>
+  <options customize="always" require-scripts="false" hostArchitectures="$host_arches"/>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <choices-outline>
+    <line choice="cli"/>
+    <line choice="app"/>
+  </choices-outline>
+  <choice id="cli" title="uVim command-line editor" enabled="false" start_selected="true"
+          description="Installs uvim in /usr/local/bin. Run it in any terminal: uvim [file]">
+    <pkg-ref id="$identifier"/>
+  </choice>
+  <choice id="app" title="uVim app" start_selected="true"
+          description="Adds uVim to Applications. It opens uVim in its own terminal window: Alacritty when it is installed, otherwise Terminal. Files dropped on the app open in uVim.">
+    <pkg-ref id="$app_identifier"/>
+  </choice>
+  <pkg-ref id="$identifier" version="$short_version">uvim-cli.pkg</pkg-ref>
+  <pkg-ref id="$app_identifier" version="$short_version">uvim-app.pkg</pkg-ref>
+</installer-gui-script>
+DISTRIBUTION
+
 echo "==> Creating $package"
-COPYFILE_DISABLE=1 pkgbuild "${pkg_args[@]}" "$package"
+productbuild --distribution "$stage_dir/distribution.xml" \
+  --package-path "$stage_dir/components" \
+  --resources "$stage_dir/resources" \
+  ${sign_args[@]+"${sign_args[@]}"} "$package"
 
 if command -v sha256sum >/dev/null 2>&1; then
   (cd "$output_dir" && sha256sum "$(basename "$package")") > "$checksum"

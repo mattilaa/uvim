@@ -21,6 +21,11 @@ on:
           - minimal
           - vi-min
           - vi-real
+      publish:
+        description: "Create/update the GitHub Release (off: only build the archives)"
+        required: false
+        default: true
+        type: boolean
 
 concurrency:
   group: portable-release-${{ github.ref }}
@@ -35,15 +40,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Release builds for every supported target (see README,
+        # "Supported platforms and builds"); no debug builds here.
         include:
           - name: Linux x86_64 static
             runner: ubuntu-22.04
-            artifact: portable-linux-x86_64
+            artifact: release-linux-x86_64
             arguments: ""
-          - name: macOS universal
+          - name: Linux arm64 static
+            runner: ubuntu-22.04-arm
+            artifact: release-linux-arm64
+            arguments: ""
+          - name: macOS arm64
             runner: macos-15
-            artifact: portable-macos-universal
-            arguments: "--macos-arch universal"
+            artifact: release-macos-arm64
+            arguments: "--macos-arch arm64"
+          - name: Windows x86_64
+            runner: windows-latest
+            artifact: release-windows-x86_64
+            arguments: ""
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     env:
@@ -61,6 +76,7 @@ jobs:
           sudo apt-get install --yes g++ libc6-dev ninja-build zip
 
       - name: Build portable archive
+        if: runner.os != 'Windows'
         run: |
           ./scripts/build_portable.sh \
             --profile "$UVIM_RELEASE_PROFILE" \
@@ -68,6 +84,36 @@ jobs:
             --archive-format zip \
             --jobs 3 \
             ${{ matrix.arguments }}
+
+      - name: Build portable archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          ./scripts/build_portable.ps1
+          -Profile $env:UVIM_RELEASE_PROFILE
+          -Version $env:UVIM_RELEASE_TAG
+          -Jobs 4
+
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          ./scripts/build_windows_installer.ps1
+          -Version $env:UVIM_RELEASE_TAG
+          -Binary build-portable/Release/uvim.exe
+          -OutputDir dist-installer
+          -InstallInnoSetup
+
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}-installer
+          path: |
+            dist-installer/*.exe
+            dist-installer/*.sha256
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Build macOS installer package
         if: runner.os == 'macOS'
@@ -91,6 +137,7 @@ jobs:
   release:
     name: Attach binaries to GitHub Release
     needs: build
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -102,7 +149,7 @@ jobs:
       - name: Download portable archives
         uses: actions/download-artifact@v8
         with:
-          pattern: portable-*
+          pattern: release-*
           path: release-assets
           merge-multiple: true
 
