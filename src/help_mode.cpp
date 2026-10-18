@@ -47,7 +47,7 @@ std::vector<std::string> helpSearchTopics()
             "clipboard", "git",         "ga",          "gb",
             "gbb",       "gbl",         "gj",          "gbv",
             "gs",        "emitasm",     "lsp",         "toolinfo",
-            "tasks",     "diagnostics", "logging"};
+            "tasks",     "diagnostics", "logging",     "keys"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -140,6 +140,8 @@ std::string helpTopicDescription(const std::string& topic)
         return "LSP setup and troubleshooting";
     if(topic == "toolinfo")
         return "External tool setup";
+    if(topic == "keys")
+        return "Ctrl+Shift keys, Alt alternatives, :set iskitty";
     if(topic == "tasks")
         return "Background tasks and progress";
     if(topic == "diagnostics")
@@ -1321,6 +1323,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:set nonumber` or `:set nonu` - Hide line numbers",
             "  `:set ignorecase` or `:set ic` - Case insensitive search",
             "  `:set smartcase` or `:set scs` - Smart case search",
+            "  `:set iskitty=false`         - Alt keys for Ctrl+Shift keys "
+            "(`:help keys`)",
 #ifdef UVIM_ENABLE_RG_CACHE
             "  `:set rgcache`               - Use persistent .rg grep cache",
             "  `:set norgcache`             - Disable persistent grep cache",
@@ -1851,15 +1855,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-Shift-j` - Focus pane below",
             "  `Ctrl-h`/`Ctrl-l` - Prev/next buffer",
             "",
-            "CTRL+SHIFT KEYS ON OTHER TERMINALS:",
-            "  Only kitty-protocol terminals (kitty, WezTerm, ghostty, foot)",
-            "  can send Ctrl+Shift+letter. Elsewhere (macOS Terminal, Windows",
-            "  console/PowerShell, ...) use Alt instead: `Alt-h/j/k/l/x` do",
-            "  what `Ctrl-Shift-h/j/k/l/x` do. uvim detects the terminal;",
-            "  `:set iskitty=false` switches to the Alt keys, `=true` back,",
-            "  `:set iskitty?` shows the mode (config: `iskitty = false`).",
-            "  macOS Terminal: Settings > Profiles > Keyboard > \"Use Option",
-            "  as Meta key\" makes Option work as Alt.",
+            "  No Ctrl+Shift in your terminal (macOS Terminal, PowerShell)?",
+            "  `Alt-h/j/k/l` do the same with `:set iskitty=false`; see",
+            "  `:help keys`.",
 #elif !defined(UVIM_ENABLE_MULTI_PANE_SPLITS)
             "",
             "PANE NAVIGATION (NORMAL MODE):",
@@ -1922,7 +1920,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  preview pane (`Ctrl-v` toggles the preview);",
             "  `Ctrl-Shift-j`/`Ctrl-Shift-k` scroll the previewed file",
             "  (kitty-protocol terminals; elsewhere `Alt-j`/`Alt-k` with",
-            "  `:set iskitty=false`, see `:help windows`).",
+            "  `:set iskitty=false`, see `:help keys`).",
             "  `:set pickerstyle=fullscreen` restores the fullscreen views;",
             "  `:set pickerstyle=float` brings the floating window back.",
             "  Size: `:set picker.width=80` / `picker.height=70` (percent);",
@@ -2253,6 +2251,58 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "bar fill and track colours.",
         };
     }
+    else if(topic_lower == "keys" || topic_lower == "iskitty" ||
+            topic_lower == "kitty")
+    {
+        lines = {
+            "# Ctrl+Shift Keys and Alt Alternatives",
+            "",
+            "Some uvim keys are Ctrl+Shift+letter chords. A terminal can only",
+            "send those when it reports modifiers (kitty keyboard protocol or",
+            "xterm modifyOtherKeys): kitty, WezTerm, ghostty, foot, alacritty,",
+            "recent xterm, iTerm2 with \"Report modifiers using CSI u\". Other",
+            "terminals (macOS Terminal, Windows console/PowerShell, ...) send",
+            "Ctrl+Shift+J exactly like Ctrl+J, so uvim cannot tell them apart.",
+            "",
+            "On those terminals use Alt instead - still a single chord:",
+            "",
+            "  Ctrl+Shift      Alt        Action",
+            "  `Ctrl-Shift-h`  `Alt-h`    Focus pane left / move buffer left",
+            "  `Ctrl-Shift-l`  `Alt-l`    Focus pane right / move buffer right",
+            "  `Ctrl-Shift-k`  `Alt-k`    Focus pane above; scroll preview up",
+            "  `Ctrl-Shift-j`  `Alt-j`    Focus pane below; scroll preview down",
+            "  `Ctrl-Shift-x`  `Alt-x`    Close matching buffers (buffer browser)",
+            "",
+            "Preview scrolling works in the Ctrl-p / Ctrl-a pickers; pane",
+            "focus in normal mode and the file browser.",
+            "",
+            "SETTING:",
+            "  `:set iskitty=false` - Alt-h/j/k/l/x act as the Ctrl+Shift keys",
+            "  `:set iskitty=true`  - Alt keys are plain Esc + key again",
+            "  `:set iskitty?`      - Show the current mode",
+            "  Config file: `iskitty = false` (or `editor.iskitty`).",
+            "  Default: detected at startup - true in kitty, WezTerm, ghostty,",
+            "  foot and alacritty, false everywhere else.",
+            "",
+            "HOW IT BEHAVES:",
+            "  - Ctrl+Shift keys always work when the terminal reports them,",
+            "    whatever `iskitty` says. `iskitty=false` only adds the Alt",
+            "    keys, so it is safe in any terminal.",
+            "  - Key hints follow the setting, e.g.",
+            "    `[Alt+J/K: scroll preview]` or `[Ctrl+Shift+J/K: ...]`.",
+            "  - Terminals send Alt+j as Esc and j in one go. uvim treats it",
+            "    as the chord only when the letter arrives together with the",
+            "    Esc; pressing Esc and then j yourself stays Esc, then j.",
+            "",
+            "TERMINAL SETUP:",
+            "  macOS Terminal: Settings > Profiles > Keyboard > enable",
+            "    \"Use Option as Meta key\" (otherwise Option-j types `∆`).",
+            "  iTerm2: Profiles > Keys > Left/Right Option key: `Esc+`.",
+            "  Windows Terminal / PowerShell: Alt works as is.",
+            "  tmux: Alt keys pass through; for Ctrl+Shift set",
+            "    `extended-keys on`.",
+        };
+    }
     else if(topic_lower == "toolinfo")
     {
         lines = {
@@ -2339,6 +2389,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help lsp`",
             "  `:help logging`",
             "  `:help diagnostics`",
+            "  `:help keys`",
             "",
             "Type `:help` to see the main help page.",
         };

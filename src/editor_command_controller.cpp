@@ -684,7 +684,8 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "filebrowser", "run",       "buffers",     "windows", "search",
         "regex",       "clipboard", "git",         "ga",      "gb",
         "gbb",         "gbl",       "gj",          "gbv",     "gs",
-        "emitasm",     "lsp",       "diagnostics", "logging", "help"};
+        "emitasm",     "lsp",       "diagnostics", "logging", "help",
+        "keys"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)

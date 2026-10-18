@@ -132,7 +132,7 @@ public:
     static void setAltChords(bool enabled);
     static bool altChords();
     // Best guess from the environment whether the terminal reports
-    // Ctrl+Shift+letter (kitty, WezTerm, ghostty, foot).
+    // Ctrl+Shift+letter (kitty, WezTerm, ghostty, foot, alacritty).
     static bool detectKittyKeyboard();
     // "Ctrl+Shift" or "Alt": how the chords are typed, for key hints.
     static const char* shiftChordLabel();

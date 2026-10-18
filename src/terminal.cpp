@@ -609,7 +609,9 @@ bool Terminal::detectKittyKeyboard()
         return true;
     const std::string term = env("TERM");
     const std::string program = env("TERM_PROGRAM");
-    for(const char* name : {"kitty", "wezterm", "ghostty", "foot"})
+    if(!env("ALACRITTY_WINDOW_ID").empty())
+        return true;
+    for(const char* name : {"kitty", "wezterm", "ghostty", "foot", "alacritty"})
     {
         if(term.find(name) != std::string::npos)
             return true;

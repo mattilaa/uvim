@@ -41,6 +41,7 @@ menus—they leave the corresponding implementation out of the binary.
 - [File browser](#file-browser)
 - [`:run` output view](#run-output-view)
 - [Tab bar and buffer management](#tab-bar--buffer-management)
+- [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives)
 - [Diagnostics](#diagnostics)
 - [Search examples](#search-examples)
 
@@ -804,16 +805,76 @@ cursor movement and selection.
 - `Ctrl-Shift-H` / `Ctrl-Shift-L` - same as above when no split is active.
   When multi-pane splits are enabled and a split is active,
   `Ctrl-Shift-H/J/K/L` jumps between panes.
-  Requires a terminal that supports either xterm `modifyOtherKeys=2` or
-  the kitty keyboard protocol (kitty, ghostty, wezterm, alacritty,
-  iTerm2 with "Report modifiers using CSI u" enabled, recent xterm,
-  tmux with `xterm-keys on`). uvim requests both protocols on startup.
-  In Apple Terminal these combos still arrive as plain `Ctrl-H`/`Ctrl-L`
-  and just switch buffers — use the leader binding there.
+  Ctrl+Shift needs a terminal that reports modifiers; elsewhere (Apple
+  Terminal, Windows PowerShell, ...) use `Alt-H/J/K/L` with
+  `:set iskitty=false` — see
+  [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives).
 - `Ctrl-h` / `Ctrl-l` - previous / next buffer (unchanged).
 - `Ctrl-w` - browse open buffers for the active pane. Press `Enter` to open
   the selected buffer only in that pane.
 - `Space-w c` - close the active split pane (`:close` and `:clo` are equivalent).
+
+## Ctrl+Shift keys and Alt alternatives
+
+Some uvim keys are Ctrl+Shift+letter chords. A terminal can only send them
+when it reports key modifiers through the kitty keyboard protocol or xterm
+`modifyOtherKeys` (uvim requests both at startup): kitty, WezTerm, ghostty,
+foot, alacritty, recent xterm, iTerm2 with "Report modifiers using CSI u",
+tmux with `extended-keys on`. Other terminals — macOS Terminal, the Windows
+console / PowerShell, many others — send Ctrl+Shift+J exactly like Ctrl+J,
+so the chords cannot reach uvim there.
+
+On those terminals use **Alt** instead. It is still a single chord, no
+leader key or extra keypress:
+
+| Ctrl+Shift      | Alt     | Action                                                  |
+|-----------------|---------|---------------------------------------------------------|
+| `Ctrl-Shift-H`  | `Alt-H` | Focus pane left; move buffer left when there is no split |
+| `Ctrl-Shift-L`  | `Alt-L` | Focus pane right; move buffer right when there is no split |
+| `Ctrl-Shift-K`  | `Alt-K` | Focus pane above; scroll the Ctrl-P / Ctrl-A preview up |
+| `Ctrl-Shift-J`  | `Alt-J` | Focus pane below; scroll the Ctrl-P / Ctrl-A preview down |
+| `Ctrl-Shift-X`  | `Alt-X` | Close the matching buffers in the buffer browser        |
+
+### `iskitty`
+
+The Alt keys are controlled by the `iskitty` setting:
+
+```text
+:set iskitty=false   " Alt-H/J/K/L/X act as the Ctrl+Shift keys
+:set iskitty=true    " Alt keys are plain Esc + key again
+:set iskitty?        " show the current mode
+```
+
+or in `config.toml`:
+
+```toml
+iskitty = false
+```
+
+The default is detected at startup: `true` in kitty, WezTerm, ghostty, foot
+and alacritty, `false` everywhere else.
+
+How it behaves:
+
+- **Ctrl+Shift always works** when the terminal reports it, whatever
+  `iskitty` says. `iskitty=false` only *adds* the Alt keys, so it is safe to
+  use in any terminal (including kitty).
+- **Key hints follow the setting**, e.g. `[Alt+J/K: scroll preview]` instead
+  of `[Ctrl+Shift+J/K: scroll preview]`.
+- **Esc then a letter stays two keys.** Terminals send Alt+J as Esc and `j`
+  in one write; uvim treats it as the chord only when the letter arrives
+  together with the Esc, so typing Esc and then `j` is not affected.
+
+### Terminal setup for Alt
+
+- **macOS Terminal**: Settings → Profiles → Keyboard → enable **Use Option
+  as Meta key** (otherwise Option-J types `∆`).
+- **iTerm2**: Profiles → Keys → set Left/Right Option key to **Esc+**.
+- **Windows Terminal / PowerShell**: Alt works as is.
+- **tmux**: Alt keys pass through; for the Ctrl+Shift keys set
+  `set -g extended-keys on`.
+
+See `:help keys` inside uvim for the same summary.
 
 ## Diagnostics
 
