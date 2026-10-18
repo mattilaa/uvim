@@ -105,3 +105,15 @@ bool EditorLspController::isTsLspEnabled() const
     return editor.isTsLspEnabledImpl();
 }
 
+void EditorLspController::enableCSharpLsp(
+    bool enable, const std::string& csharpLspPath,
+    const std::vector<std::string>& csharpLspArgs)
+{
+    editor.enableCSharpLspImpl(enable, csharpLspPath, csharpLspArgs);
+}
+
+bool EditorLspController::isCSharpLspEnabled() const
+{
+    return editor.isCSharpLspEnabledImpl();
+}
+

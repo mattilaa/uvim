@@ -697,6 +697,9 @@ with reference links for x86/x64 and AArch64 instructions. The
 - `--css-lsp` enable CSS LSP
 - `--json-lsp` enable JSON LSP
 - `--ts-lsp` enable TypeScript/JavaScript LSP
+- `--csharp-lsp` start the C# LSP at launch (otherwise it starts with the
+  first `.cs` file); `--csharp-lsp-path <server>` (default `csharp-ls`, or
+  OmniSharp), `--csharp-lsp-args <args>`. See [C#](#c).
 - `--no-git-index` disable git-backed indexing for fuzzy find and grep
 - `--no-gitignore` disable `.gitignore` filtering for file browser, fuzzy find,
   grep, and other project scans
@@ -812,6 +815,27 @@ If you prefer `pylsp` instead of `pyright`:
 python3 -m pip install --upgrade python-lsp-server
 uvim --clangd --python-lsp --python-lsp-path pylsp --html-lsp --css-lsp --ts-lsp
 ```
+
+### C#
+
+C# files (`.cs`, `.csx`) are highlighted in every build. Builds with
+`UVIM_ENABLE_CSHARP_LSP=ON` (`uvim-config --enable csharp-lsp`; the `full`
+preset and the release binaries include it) also talk to a C# language server:
+
+```sh
+dotnet tool install -g csharp-ls        # needs the .NET SDK
+# or: ./scripts/install_lsps.sh --csharp
+```
+
+- uVim uses `csharp-ls` from `PATH` or `~/.dotnet/tools`, otherwise
+  OmniSharp (`OmniSharp -lsp`); `--csharp-lsp-path` picks another one.
+- The server starts with the first `.cs` file you open, in the folder of the
+  nearest `.sln` (else `.csproj`) above it, and loads that solution — the
+  first load can take a while. `--csharp-lsp` starts it at launch instead.
+- Completion, go to definition (`gd`, `Space d`), find references
+  (`Space g r`), diagnostics as row markers with `Space-e` details, and
+  `:lspinfo` work as for C/C++. Edits are sent to the server as you type.
+- `Format buffer` (`Space f`) formats C# with clang-format.
 
 ### macOS (Homebrew)
 

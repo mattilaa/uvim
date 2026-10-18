@@ -625,6 +625,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
                        isFileType<FileType::Css>() ||
                        isFileType<FileType::JavaScript>() ||
                        isFileType<FileType::TypeScript>() ||
+                       isFileType<FileType::CSharp>() ||
                        isFileType<FileType::Xml>() ||
                        isFileType<FileType::MarkupText>() ||
                        isFileType<FileType::Rdoc>() ||
@@ -1181,6 +1182,7 @@ void Editor::drawFullScreenSingle()
                    isFileType<FileType::Css>() ||
                    isFileType<FileType::JavaScript>() ||
                    isFileType<FileType::TypeScript>() ||
+                   isFileType<FileType::CSharp>() ||
                    isFileType<FileType::Xml>() ||
                    isFileType<FileType::MarkupText>() ||
                    isFileType<FileType::Rdoc>() ||
@@ -1617,6 +1619,7 @@ void Editor::drawSplitFullScreen()
                isFileType<FileType::Html>() || isFileType<FileType::Css>() ||
                isFileType<FileType::JavaScript>() ||
                isFileType<FileType::TypeScript>() ||
+               isFileType<FileType::CSharp>() ||
                isFileType<FileType::Xml>() ||
                isFileType<FileType::MarkupText>() ||
                isFileType<FileType::Rdoc>() ||

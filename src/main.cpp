@@ -916,6 +916,9 @@ constexpr std::string_view kJsonLspArgs = "--json-lsp-args";
 constexpr std::string_view kTsLsp = "--ts-lsp";
 constexpr std::string_view kTsLspPath = "--ts-lsp-path";
 constexpr std::string_view kTsLspArgs = "--ts-lsp-args";
+constexpr std::string_view kCSharpLsp = "--csharp-lsp";
+constexpr std::string_view kCSharpLspPath = "--csharp-lsp-path";
+constexpr std::string_view kCSharpLspArgs = "--csharp-lsp-args";
 constexpr std::string_view kTheme = "--theme";
 constexpr std::string_view kNoGitIndex = "--no-git-index";
 constexpr std::string_view kNoGitignore = "--no-gitignore";
@@ -1003,6 +1006,12 @@ constexpr std::array<HelpRow, 3> kHelpConfig = {{
     {"--ts-lsp-args <args>", "Extra args for TS/JS LSP (space-separated)"},
 }};
 
+[[maybe_unused]] constexpr std::array<HelpRow, 3> kHelpCSharpLsp = {{
+    {kCSharpLsp, "Start the C# LSP at startup (otherwise on the first .cs file)"},
+    {"--csharp-lsp-path <path>", "C# LSP server: csharp-ls (default) or OmniSharp"},
+    {"--csharp-lsp-args <args>", "Extra args for the C# LSP (space-separated)"},
+}};
+
 [[maybe_unused]] constexpr std::array<HelpRow, 4> kHelpMlangLogging = {{
     {"--enable-log[=info|debug|verbose]",
      "Enable mlangd-mla logging; info=INFO/WARN/ERROR, debug=+DEBUG, "
@@ -1040,6 +1049,7 @@ struct Options
     bool useCssLsp = false;
     bool useJsonLsp = false;
     bool useTsLsp = false;
+    bool useCSharpLsp = false;
     bool ccCollectAll = false;
     bool ccWindowsToWsl = false;
     bool useGitFileIndex = true;
@@ -1063,6 +1073,8 @@ struct Options
     std::string jsonLspArgs;
     std::string tsLspPath = "typescript-language-server";
     std::string tsLspArgs;
+    std::string csharpLspPath = "csharp-ls";
+    std::string csharpLspArgs;
     std::string logFile;
     std::string mlangLogDir;
     std::string customConfig;
@@ -1120,6 +1132,9 @@ public:
 #ifdef UVIM_ENABLE_TS_LSP
         scan(kHelpTsLsp);
 #endif
+#ifdef UVIM_ENABLE_CSHARP_LSP
+        scan(kHelpCSharpLsp);
+#endif
 #ifdef UVIM_ENABLE_MLANG_LSP
         scan(kHelpMlangLogging);
 #endif
@@ -1171,6 +1186,9 @@ public:
 #endif
 #ifdef UVIM_ENABLE_TS_LSP
         print_section("TypeScript/JavaScript LSP:", kHelpTsLsp);
+#endif
+#ifdef UVIM_ENABLE_CSHARP_LSP
+        print_section("C# LSP:", kHelpCSharpLsp);
 #endif
 #ifdef UVIM_ENABLE_MLANG_LSP
         print_section("mlangd-mla Logging:", kHelpMlangLogging);
@@ -1358,6 +1376,22 @@ public:
                         std::string(require_value(key, i, argc, argv, val));
                     sawOptionValue = true;
                 }
+                else if(key == kCSharpLsp)
+                {
+                    opts.useCSharpLsp = true;
+                }
+                else if(key == kCSharpLspPath)
+                {
+                    opts.csharpLspPath =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
+                else if(key == kCSharpLspArgs)
+                {
+                    opts.csharpLspArgs =
+                        std::string(require_value(key, i, argc, argv, val));
+                    sawOptionValue = true;
+                }
                 else if(key == kTheme)
                 {
                     opts.themePath =
@@ -1500,6 +1534,7 @@ struct EditorSettings
     bool useCssLsp = false;
     bool useJsonLsp = false;
     bool useTsLsp = false;
+    bool useCSharpLsp = false;
     bool ccCollectAll = false;
     bool ccWindowsToWsl = false;
     bool useGitFileIndex = true;
@@ -1522,6 +1557,8 @@ struct EditorSettings
     std::string jsonLspArgs;
     std::string tsLspPath = "typescript-language-server";
     std::string tsLspArgs;
+    std::string csharpLspPath = "csharp-ls";
+    std::string csharpLspArgs;
     bool mlangEnableLog = false;
     bool mlangLogColors = false;
     std::string mlangEnableLogMode = "info";
@@ -1535,7 +1572,8 @@ struct EditorSettings
     bool hasExplicitLspRequest() const
     {
         return useClangd || useRobotLsp || usePythonLsp || useMlangLsp ||
-               useHtmlLsp || useCssLsp || useJsonLsp || useTsLsp;
+               useHtmlLsp || useCssLsp || useJsonLsp || useTsLsp ||
+               useCSharpLsp;
     }
 
     static EditorSettings fromOptions(const cli::Options& opts)
@@ -1549,6 +1587,7 @@ struct EditorSettings
         out.useCssLsp = opts.useCssLsp;
         out.useJsonLsp = opts.useJsonLsp;
         out.useTsLsp = opts.useTsLsp;
+        out.useCSharpLsp = opts.useCSharpLsp;
         out.ccCollectAll = opts.ccCollectAll;
         out.ccWindowsToWsl = opts.ccWindowsToWsl;
         out.useGitFileIndex = opts.useGitFileIndex;
@@ -1570,6 +1609,8 @@ struct EditorSettings
         out.jsonLspArgs = opts.jsonLspArgs;
         out.tsLspPath = opts.tsLspPath;
         out.tsLspArgs = opts.tsLspArgs;
+        out.csharpLspPath = opts.csharpLspPath;
+        out.csharpLspArgs = opts.csharpLspArgs;
         out.mlangEnableLog = opts.mlangEnableLog;
         out.mlangLogColors = opts.mlangLogColors;
         out.mlangEnableLogMode = opts.mlangEnableLogMode;
@@ -2068,6 +2109,19 @@ struct EditorSettings
             {
                 editor.setStatusMessage("ts LSP: not found");
             }
+        }
+
+        // C#: csharp-ls loads the whole solution, so it starts at startup
+        // only when asked; otherwise with the first .cs file opened.
+        editor.csharpLspPath = csharpLspPath;
+        editor.csharpLspArgs = split_args(csharpLspArgs);
+        if(useCSharpLsp)
+        {
+            editor.addStartupStep(
+                "starting C# LSP",
+                [&editor, path = csharpLspPath,
+                 args = split_args(csharpLspArgs)]
+                { editor.enableCSharpLsp(true, path, args); });
         }
     }
 

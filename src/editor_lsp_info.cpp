@@ -31,6 +31,8 @@ static std::string filetypeLabel(const Editor& ed)
         return "javascript";
     if(ed.isFileType<FileType::TypeScript>())
         return "typescript";
+    if(ed.isFileType<FileType::CSharp>())
+        return "csharp";
     if(ed.isFileType<FileType::Html>())
         return "html";
     if(ed.isFileType<FileType::Css>())
@@ -164,6 +166,8 @@ void Editor::showLspInfo()
               (isFileType<FileType::JavaScript>() ||
                isFileType<FileType::TypeScript>()),
               tsLspPath, true);
+    appendLsp("csharp", isCSharpLspEnabled(), isFileType<FileType::CSharp>(),
+              csharpLspPath, true);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");

@@ -1450,6 +1450,8 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
                                        constants::javascript_suffixes>(path);
     bool isTs = constants::is_filetype<constants::no_pattern,
                                        constants::typescript_suffixes>(path);
+    bool isCs = constants::is_filetype<constants::no_pattern,
+                                       constants::csharp_suffixes>(path);
     bool isCss =
         constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
             path);
@@ -1479,7 +1481,7 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
     bool isIni = (extLower == ".ini" || extLower == ".conf" ||
                   extLower == ".config" || extLower == ".cfg");
 
-    if(isCpp || isMla || isRust || isGo || isJs || isTs)
+    if(isCpp || isMla || isRust || isGo || isJs || isTs || isCs)
     {
         rules.line = "//";
         rules.blockStart = "/*";

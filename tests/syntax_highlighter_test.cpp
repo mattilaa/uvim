@@ -1656,3 +1656,67 @@ TEST(SyntaxHighlighterTest, DirtyLargeBufferUsesIncrementalSyntaxCache)
               editor.currentBuffer->lines.size());
     EXPECT_FALSE(output.empty());
 }
+
+namespace
+{
+std::vector<Token> tokenizeCSharp(Editor& editor, const std::string& line,
+                                  bool& inBlockComment)
+{
+    bool inTomlMultiline = false;
+    char tomlQuote = 0;
+    bool inMarkupFence = false;
+    char markupFenceChar = 0;
+    return editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
+                               inMarkupFence, markupFenceChar);
+}
+} // namespace
+
+TEST(SyntaxHighlighterTest, HighlightsCSharpKeywordsTypesAndStrings)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/Program.cs";
+    bool inBlock = false;
+
+    std::string line =
+        "public static async Task<int> Run(string path) { var n = 1; }";
+    auto tokens = tokenizeCSharp(editor, line, inBlock);
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("public"), 6, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("static"), 6, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("async"), 5, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("int>"), 3, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("string"), 6, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("var"), 3, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("1;"), 1, TOKEN_NUMBER));
+
+    // Verbatim string: a trailing backslash does not escape the quote.
+    line = R"(var p = @"C:\temp\"; // done)";
+    tokens = tokenizeCSharp(editor, line, inBlock);
+    const int at = (int)line.find('@');
+    EXPECT_TRUE(hasTokenAt(tokens, at, (int)line.find(';') - at, TOKEN_STRING));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("//"),
+                           (int)line.size() - (int)line.find("//"),
+                           TOKEN_COMMENT));
+
+    // Verbatim "" is a quote; interpolated and raw strings.
+    line = R"(var s = @"say ""hi"""; var t = $"n={n}"; var r = """raw "x" """;)";
+    tokens = tokenizeCSharp(editor, line, inBlock);
+    const int v = (int)line.find('@');
+    EXPECT_TRUE(hasTokenAt(tokens, v, (int)line.find(';') - v, TOKEN_STRING));
+    const int d = (int)line.find('$');
+    EXPECT_TRUE(hasTokenAt(tokens, d, (int)line.find(';', d) - d, TOKEN_STRING));
+    const int r = (int)line.find(R"("""raw)");
+    EXPECT_TRUE(hasTokenAt(tokens, r, (int)line.rfind(';') - r, TOKEN_STRING));
+
+    // Directives and doc comments.
+    line = "    #region Helpers";
+    tokens = tokenizeCSharp(editor, line, inBlock);
+    EXPECT_TRUE(hasTokenAt(tokens, 4, (int)line.size() - 4, TOKEN_PREPROCESSOR));
+    line = "/// <summary>Docs</summary>";
+    tokens = tokenizeCSharp(editor, line, inBlock);
+    EXPECT_TRUE(hasTokenAt(tokens, 0, (int)line.size(), TOKEN_COMMENT));
+    // Block comments continue on the next line.
+    line = "int x; /* start";
+    tokens = tokenizeCSharp(editor, line, inBlock);
+    EXPECT_TRUE(inBlock);
+}

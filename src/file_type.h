@@ -22,4 +22,5 @@ enum class FileType
     Asm,
     Flex,
     Bison,
+    CSharp,
 };

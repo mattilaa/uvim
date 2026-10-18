@@ -347,6 +347,8 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
             jsonLspClient->setDiagnosticsEnabled(value);
         if(tsLspClient)
             tsLspClient->setDiagnosticsEnabled(value);
+        if(csharpLspClient)
+            csharpLspClient->setDiagnosticsEnabled(value);
 #endif
         if(!value)
             closeDiagnosticPopup();

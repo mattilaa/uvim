@@ -1798,6 +1798,7 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         editor->syntaxCppHighlightSystemIncludes;
     const bool isJs = isFileType<FileType::JavaScript>() ||
                       isFileType<FileType::TypeScript>();
+    const bool isCs = isFileType<FileType::CSharp>();
     const bool isCss = isFileType<FileType::Css>();
     const bool isFlex = isFileType<FileType::Flex>();
     const bool isBison = isFileType<FileType::Bison>();
@@ -3145,6 +3146,65 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
             }
         }
 
+        if(isCs)
+        {
+            // #region, #if, #nullable, ...: the whole directive line.
+            if(c == '#' && sv.find_first_not_of(" \t") == (size_t)i)
+            {
+                push_token(TOKEN_PREPROCESSOR, i, len - i);
+                break;
+            }
+            // Raw ("""..."""), verbatim (@"...", "" is a quote) and
+            // interpolated ($"...", $@"...", @$"...") strings. Strings that
+            // continue on the next line are highlighted to the line end.
+            int p = i;
+            bool verbatim = false;
+            while(p < len && p - i < 4 && (sv[p] == '@' || sv[p] == '$'))
+            {
+                verbatim = verbatim || sv[p] == '@';
+                ++p;
+            }
+            if(p < len && sv[p] == '"')
+            {
+                if(sv.compare(p, 3, "\"\"\"") == 0)
+                {
+                    size_t end = sv.find("\"\"\"", (size_t)p + 3);
+                    const int stop =
+                        text_utils::is_found(end) ? (int)end + 3 : len;
+                    push_token(TOKEN_STRING, i, stop - i);
+                    i = stop;
+                    continue;
+                }
+                if(p > i)
+                {
+                    int q = p + 1;
+                    while(q < len)
+                    {
+                        if(verbatim && sv[q] == '"' && q + 1 < len &&
+                           sv[q + 1] == '"')
+                        {
+                            q += 2;
+                            continue;
+                        }
+                        if(!verbatim && sv[q] == '\\' && q + 1 < len)
+                        {
+                            q += 2;
+                            continue;
+                        }
+                        if(sv[q] == '"')
+                        {
+                            ++q;
+                            break;
+                        }
+                        ++q;
+                    }
+                    push_token(TOKEN_STRING, i, q - i);
+                    i = q;
+                    continue;
+                }
+            }
+        }
+
         if(c == '"' || c == '\'')
         {
             char quote = c;
@@ -3262,6 +3322,52 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
                     continue;
                 }
                 if(is_js_type(word))
+                {
+                    push_token(TOKEN_TYPE, start, i - start);
+                    continue;
+                }
+            }
+            if(isCs)
+            {
+                static constexpr std::string_view kCsKeywords[] = {
+                    "abstract", "as",        "base",      "break",
+                    "case",     "catch",     "checked",   "class",
+                    "const",    "continue",  "default",   "delegate",
+                    "do",       "else",      "enum",      "event",
+                    "explicit", "extern",    "false",     "finally",
+                    "fixed",    "for",       "foreach",   "goto",
+                    "if",       "implicit",  "in",        "interface",
+                    "internal", "is",        "lock",      "namespace",
+                    "new",      "null",      "operator",  "out",
+                    "override", "params",    "private",   "protected",
+                    "public",   "readonly",  "ref",       "return",
+                    "sealed",   "sizeof",    "stackalloc", "static",
+                    "struct",   "switch",    "this",      "throw",
+                    "true",     "try",       "typeof",    "unchecked",
+                    "unsafe",   "using",     "virtual",   "volatile",
+                    "while",
+                    // Contextual keywords that are rarely identifiers.
+                    "async",    "await",     "var",       "get",
+                    "set",      "init",      "record",    "nameof",
+                    "when",     "where",     "with",      "yield",
+                    "partial",  "global",    "required",  "scoped",
+                    "and",      "or",        "not",       "managed",
+                    "unmanaged", "alias",
+                };
+                static constexpr std::string_view kCsTypes[] = {
+                    "bool",  "byte",    "sbyte",  "char",   "decimal",
+                    "double", "float",  "int",    "uint",   "nint",
+                    "nuint", "long",    "ulong",  "short",  "ushort",
+                    "object", "string", "void",   "dynamic",
+                };
+                if(std::find(std::begin(kCsKeywords), std::end(kCsKeywords),
+                             word) != std::end(kCsKeywords))
+                {
+                    push_token(TOKEN_KEYWORD, start, i - start);
+                    continue;
+                }
+                if(std::find(std::begin(kCsTypes), std::end(kCsTypes), word) !=
+                   std::end(kCsTypes))
                 {
                     push_token(TOKEN_TYPE, start, i - start);
                     continue;

@@ -768,6 +768,21 @@ void Editor::requestCompletion()
         languageId =
             isFileType<FileType::TypeScript>() ? "typescript" : "javascript";
     }
+    else if(isFileType<FileType::CSharp>())
+    {
+        if(!isCSharpLspEnabled())
+        {
+            setStatusMessage("C# LSP: OFF");
+            const std::string& line = (*lines)[*cursorY];
+            completionAnchorX = computeCompletionAnchor(line, *cursorX);
+            completionAnchorY = *cursorY;
+            bufferWordFallback("buffer");
+            return;
+        }
+        client = csharpLspClient.get();
+        label = "csharp";
+        languageId = "csharp";
+    }
     else if(isFileType<FileType::Cpp>())
     {
         if(!isClangdLspEnabled())
@@ -1584,6 +1599,9 @@ Editor::getClangdDiagnosticsByLine() const
     else if(isFileType<FileType::Mla>() && isMlangLspEnabled() &&
             mlangLspClient)
         client = mlangLspClient.get();
+    else if(isFileType<FileType::CSharp>() && isCSharpLspEnabled() &&
+            csharpLspClient)
+        client = csharpLspClient.get();
     if(!client)
         return out;
 
@@ -1969,6 +1987,7 @@ void Editor::openDiagnosticPopupForCursor()
 
     syncClangdDiagnosticsIfNeeded(true);
     syncMlangSemanticTokensIfNeeded(true);
+    syncCSharpLspIfNeeded(true);
 
     std::optional<LspDiagnosticSummary> diag =
         getClangdDiagnosticForLine(*cursorY);
@@ -1998,6 +2017,12 @@ void Editor::openDiagnosticPopupForCursor()
     {
         client = mlangLspClient.get();
         languageId = "mlang";
+    }
+    else if(isFileType<FileType::CSharp>() && isCSharpLspEnabled() &&
+            csharpLspClient)
+    {
+        client = csharpLspClient.get();
+        languageId = "csharp";
     }
     if(client && currentBuffer && !currentBuffer->filename.empty())
     {

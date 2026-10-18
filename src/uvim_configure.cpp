@@ -259,6 +259,7 @@ struct Config
     bool cssLsp = false;
     bool jsonLsp = false;
     bool tsLsp = false;
+    bool csharpLsp = false;
     bool asmDocs = true;
     bool gitTools = true;
     bool searchTools = true;
@@ -300,6 +301,7 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.mlangSemanticTokens == rhs.mlangSemanticTokens &&
            lhs.htmlLsp == rhs.htmlLsp && lhs.cssLsp == rhs.cssLsp &&
            lhs.jsonLsp == rhs.jsonLsp && lhs.tsLsp == rhs.tsLsp &&
+           lhs.csharpLsp == rhs.csharpLsp &&
            lhs.asmDocs == rhs.asmDocs &&
            lhs.gitTools == rhs.gitTools &&
            lhs.searchTools == rhs.searchTools &&
@@ -653,6 +655,7 @@ void apply_feature_set(Config& cfg)
         cfg.cssLsp = false;
         cfg.jsonLsp = false;
         cfg.tsLsp = false;
+        cfg.csharpLsp = false;
         cfg.asmDocs = false;
         cfg.gitTools = false;
         cfg.searchTools = false;
@@ -687,6 +690,7 @@ void apply_feature_set(Config& cfg)
         cfg.cssLsp = false;
         cfg.jsonLsp = false;
         cfg.tsLsp = false;
+        cfg.csharpLsp = false;
         cfg.asmDocs = false;
         cfg.gitTools = false;
         cfg.searchTools = false;
@@ -721,6 +725,7 @@ void apply_feature_set(Config& cfg)
         cfg.cssLsp = false;
         cfg.jsonLsp = false;
         cfg.tsLsp = false;
+        cfg.csharpLsp = false;
         cfg.asmDocs = false;
         cfg.gitTools = true;
         cfg.searchTools = true;
@@ -755,6 +760,7 @@ void apply_feature_set(Config& cfg)
         cfg.cssLsp = false;
         cfg.jsonLsp = false;
         cfg.tsLsp = false;
+        cfg.csharpLsp = false;
         cfg.asmDocs = true;
         cfg.gitTools = true;
         cfg.searchTools = true;
@@ -787,6 +793,7 @@ void apply_feature_set(Config& cfg)
     cfg.cssLsp = true;
     cfg.jsonLsp = true;
     cfg.tsLsp = true;
+    cfg.csharpLsp = true;
     cfg.asmDocs = true;
     cfg.gitTools = true;
     cfg.searchTools = true;
@@ -1058,7 +1065,15 @@ std::vector<Section> make_sections()
            nullptr,
            {},
            "Compiles in TypeScript and JavaScript language-server "
-           "integration."}}},
+           "integration."},
+          {ItemKind::Toggle,
+           "C#",
+           "UVIM_ENABLE_CSHARP_LSP",
+           &Config::csharpLsp,
+           nullptr,
+           {},
+           "Compiles in C# language-server integration (csharp-ls or "
+           "OmniSharp). C# syntax highlighting is always included."}}},
         {"Build Outputs",
          "Generated files and build-only targets. These are useful for "
          "development but usually disabled for embedded-style builds.",
@@ -1807,6 +1822,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.jsonLsp = parse_bool(value).value_or(cfg.jsonLsp);
     else if(key == "ts_lsp")
         cfg.tsLsp = parse_bool(value).value_or(cfg.tsLsp);
+    else if(key == "csharp_lsp")
+        cfg.csharpLsp = parse_bool(value).value_or(cfg.csharpLsp);
     else if(key == "asm_docs")
         cfg.asmDocs = parse_bool(value).value_or(cfg.asmDocs);
     else if(key == "browser_tools")
@@ -1970,6 +1987,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "css_lsp=" << bool_value(cfg.cssLsp) << "\n";
     file << "json_lsp=" << bool_value(cfg.jsonLsp) << "\n";
     file << "ts_lsp=" << bool_value(cfg.tsLsp) << "\n";
+    file << "csharp_lsp=" << bool_value(cfg.csharpLsp) << "\n";
     file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
     file << "browser_tools=" << bool_value(cfg.browserTools) << "\n";
     file << "auxiliary_views=" << bool_value(cfg.auxiliaryViews) << "\n";
@@ -2113,7 +2131,7 @@ void print_help(std::ostream& out)
         << "Feature names for --enable/--disable:\n"
         << "  clangd, robot-lsp, python-lsp, mlang-lsp, "
            "mlang-semantic-tokens, html-lsp,\n"
-        << "  css-lsp, json-lsp, ts-lsp, browser-tools, auxiliary-views, "
+        << "  css-lsp, json-lsp, ts-lsp, csharp-lsp, browser-tools, auxiliary-views, "
            "asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
         << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
@@ -2152,6 +2170,9 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
     else if(equals_ci(name, "ts-lsp") || equals_ci(name, "typescript-lsp") ||
             equals_ci(name, "typescript") || equals_ci(name, "javascript-lsp"))
         cfg.tsLsp = enabled;
+    else if(equals_ci(name, "csharp-lsp") || equals_ci(name, "csharp") ||
+            equals_ci(name, "cs-lsp") || equals_ci(name, "c#"))
+        cfg.csharpLsp = enabled;
     else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
         cfg.asmDocs = enabled;
     else if(equals_ci(name, "browser-tools") ||

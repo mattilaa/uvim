@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "cpp_navigation_utilities.h"
 #include "editor.h"
+#include "csharp_lsp.h"
 #include "process_pipe.h"
 #include "editor_buffer_controller.h"
 #include "editor_command_controller.h"
@@ -1098,6 +1099,10 @@ std::optional<FileType> Editor::getFileType() const
     {
         return FileType::TypeScript;
     }
+    else if(isFileType<FileType::CSharp>())
+    {
+        return FileType::CSharp;
+    }
     else if(isFileType<FileType::Xml>())
     {
         return FileType::Xml;
@@ -1351,6 +1356,17 @@ void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
 bool Editor::isTsLspEnabled() const
 {
     return lspController->isTsLspEnabled();
+}
+
+void Editor::enableCSharpLsp(bool enable, const std::string& csharpLspPath,
+                             const std::vector<std::string>& csharpLspArgs)
+{
+    lspController->enableCSharpLsp(enable, csharpLspPath, csharpLspArgs);
+}
+
+bool Editor::isCSharpLspEnabled() const
+{
+    return lspController->isCSharpLspEnabled();
 }
 
 void Editor::enterOperatorPending(char op)
@@ -1738,6 +1754,16 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
             *this, isTsLspEnabled(), tsLspPath, tsLspArgs,
             [&](bool on, const std::string& p,
                 const std::vector<std::string>& a) { enableTsLsp(on, p, a); });
+        // csharp-ls may only be in ~/.dotnet/tools, or OmniSharp is used.
+        ensure_lsp_for_file_type<FileType::CSharp>(
+            *this, isCSharpLspEnabled(),
+            isFileType<FileType::CSharp>()
+                ? csharp_lsp::resolveServer(csharpLspPath)
+                : std::string(),
+            csharpLspArgs,
+            [&](bool on, const std::string& p,
+                const std::vector<std::string>& a)
+            { enableCSharpLsp(on, p, a); });
     }
 #endif
 
@@ -2934,6 +2960,7 @@ void Editor::run()
             {
                 syncClangdDiagnosticsIfNeeded(false);
                 syncMlangSemanticTokensIfNeeded(false);
+                syncCSharpLspIfNeeded(false);
             }
 #endif
             if(currentBuffer && syntaxHighlighter &&

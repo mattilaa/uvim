@@ -64,6 +64,7 @@ option(UVIM_ENABLE_HTML_LSP "Build uvim with HTML LSP support" OFF)
 option(UVIM_ENABLE_CSS_LSP "Build uvim with CSS LSP support" OFF)
 option(UVIM_ENABLE_JSON_LSP "Build uvim with JSON LSP support" OFF)
 option(UVIM_ENABLE_TS_LSP "Build uvim with TypeScript/JavaScript LSP support" OFF)
+option(UVIM_ENABLE_CSHARP_LSP "Build uvim with C# LSP support (csharp-ls or OmniSharp)" OFF)
 option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable general uvim debug logging" OFF)
 option(UVIM_DEBUG_LSP "Enable uvim LSP logging" OFF)
@@ -103,6 +104,7 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_CSS_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_JSON_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_TS_LSP OFF CACHE BOOL "" FORCE)
+    set(UVIM_ENABLE_CSHARP_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_ASM_DOCS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_GIT_TOOLS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_SEARCH_TOOLS OFF CACHE BOOL "" FORCE)
@@ -124,7 +126,7 @@ endif()
 set(UVIM_ENABLE_ANY_LSP OFF)
 if(UVIM_ENABLE_CLANGD_LSP OR UVIM_ENABLE_ROBOT_LSP OR UVIM_ENABLE_PYTHON_LSP OR
    UVIM_ENABLE_MLANG_LSP OR UVIM_ENABLE_HTML_LSP OR UVIM_ENABLE_CSS_LSP OR
-   UVIM_ENABLE_JSON_LSP OR UVIM_ENABLE_TS_LSP)
+   UVIM_ENABLE_JSON_LSP OR UVIM_ENABLE_TS_LSP OR UVIM_ENABLE_CSHARP_LSP)
     set(UVIM_ENABLE_ANY_LSP ON)
 endif()
 
@@ -243,6 +245,8 @@ set(UVIM_CORE_SOURCES
     src/editor_lsp_css_controller.cpp
     src/editor_lsp_json_controller.cpp
     src/editor_lsp_ts_controller.cpp
+    src/editor_lsp_csharp_controller.cpp
+    src/csharp_lsp.cpp
     src/editor_mode_controller.cpp
     src/editor_size_probe_controller.cpp
     src/editor_operator_controller.cpp
@@ -578,6 +582,7 @@ uvim_status_bool("html" UVIM_ENABLE_HTML_LSP)
 uvim_status_bool("css" UVIM_ENABLE_CSS_LSP)
 uvim_status_bool("json" UVIM_ENABLE_JSON_LSP)
 uvim_status_bool("typescript/javascript" UVIM_ENABLE_TS_LSP)
+uvim_status_bool("c#" UVIM_ENABLE_CSHARP_LSP)
 
 # ------------------------------------------------------------------------------
 # Compiler warnings / options (portable)
@@ -724,7 +729,7 @@ if(UVIM_ENABLE_ANY_LSP)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
 endif()
 
-foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
+foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS CSHARP)
     if(UVIM_ENABLE_${_uvim_lsp}_LSP)
         target_compile_definitions(uvim PRIVATE UVIM_ENABLE_${_uvim_lsp}_LSP=1)
     endif()
@@ -913,6 +918,11 @@ if(UVIM_BUILD_TESTS)
             tests/lsp_clangd_integration_test.cpp
         )
     endif()
+    if(UVIM_ENABLE_CSHARP_LSP)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES
+            tests/lsp_csharp_integration_test.cpp
+        )
+    endif()
     if(UVIM_ENABLE_GIT_TOOLS)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/git_commit_view_test.cpp
@@ -946,7 +956,7 @@ if(UVIM_BUILD_TESTS)
     if(UVIM_ENABLE_ANY_LSP)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
     endif()
-    foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS)
+    foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS CSHARP)
         if(UVIM_ENABLE_${_uvim_lsp}_LSP)
             target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_${_uvim_lsp}_LSP=1)
         endif()

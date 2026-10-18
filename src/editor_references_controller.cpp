@@ -123,6 +123,17 @@ void EditorReferencesController::findReferences()
         label = "clangd";
         languageId = "cpp";
     }
+    else if(editor.template isFileType<FileType::CSharp>())
+    {
+        if(!editor.isCSharpLspEnabled())
+        {
+            LOG_WARNING(LOG, "C# LSP is not enabled");
+            return;
+        }
+        client = editor.csharpLspClient.get();
+        label = "csharp";
+        languageId = "csharp";
+    }
     else
     {
         // editor.setStatusMessage("references: no LSP for filetype");
