@@ -78,7 +78,6 @@ jobs:
           cmake -S . -B build -A x64
           -DUVIM_BUILD_TESTS=ON
           -DUVIM_ENABLE_CLANGD_LSP=ON
-          -DUVIM_TERMINAL_BACKEND=WIN32
 
       - name: Build (Debug)
         run: cmake --build build --config Debug --parallel

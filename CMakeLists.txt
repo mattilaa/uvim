@@ -504,12 +504,18 @@ uvim_add_config_target()
 # Terminal backend selection -> compile definitions
 # ------------------------------------------------------------------------------
 set(_backend "${UVIM_TERMINAL_BACKEND}")
+string(TOUPPER "${_backend}" _backend)
 if(_backend STREQUAL "AUTO")
-    if(WIN32)
+    if(WIN32 OR MSVC)
         set(_backend "WIN32")
     else()
         set(_backend "POSIX")
     endif()
+endif()
+if(_backend STREQUAL "POSIX" AND (WIN32 OR MSVC) AND NOT CYGWIN)
+    message(FATAL_ERROR
+        "UVIM_TERMINAL_BACKEND=POSIX needs termios.h, which Windows "
+        "toolchains do not have. Use AUTO or WIN32.")
 endif()
 
 if(_backend STREQUAL "WIN32")
