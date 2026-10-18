@@ -1,11 +1,13 @@
 #include "picker_query.h"
 #include "task_queue.h"
+#include "theme.h"
 #include "widgets/picker_frame.h"
 #include "widgets/progress_bar.h"
 
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <string>
 #include <thread>
@@ -384,3 +386,60 @@ TEST(PickerQueryTest, EscapedColonSearchesLiterally)
     EXPECT_FALSE(q.hasLine);
 }
 } // namespace
+
+namespace
+{
+bool isValidUtf8(std::string_view text)
+{
+    size_t i = 0;
+    while(i < text.size())
+    {
+        const auto lead = static_cast<unsigned char>(text[i]);
+        size_t len = lead < 0x80 ? 1 : lead >= 0xC2 && lead < 0xE0 ? 2
+                     : lead >= 0xE0 && lead < 0xF0                ? 3
+                     : lead >= 0xF0 && lead < 0xF5                ? 4
+                                                                  : 0;
+        if(len == 0 || i + len > text.size())
+            return false;
+        for(size_t k = 1; k < len; ++k)
+        {
+            if((static_cast<unsigned char>(text[i + k]) & 0xC0) != 0x80)
+                return false;
+        }
+        i += len;
+    }
+    return true;
+}
+} // namespace
+
+TEST(PickerLayoutTest, PreviewSpanEndingInsideACharacterStaysValidUtf8)
+{
+    // "it’s": ’ is 3 bytes (2..4). A highlight span that ends inside it
+    // used to repeat its tail bytes, and on Windows one invalid byte turned
+    // the whole frame into code page 850 mojibake.
+    widgets::PickerLayoutOptions options;
+    options.screenRows = 30;
+    options.screenCols = 160;
+    const auto layout = widgets::computePickerLayout(options);
+    ASSERT_TRUE(layout.preview);
+
+    Theme theme;
+    std::string out;
+    widgets::PickerCanvas canvas(out, layout, theme, true);
+    const std::string text = "it\xE2\x80\x99s";
+    canvas.previewRow(0, 1, text, false, {{0, 3, "\x1b[31m"}});
+
+    EXPECT_TRUE(isValidUtf8(out));
+    std::string plain;
+    for(size_t i = 0; i < out.size(); ++i)
+    {
+        if(out[i] == '\x1b')
+        {
+            while(i < out.size() && !std::isalpha((unsigned char)out[i]))
+                ++i;
+            continue;
+        }
+        plain += out[i];
+    }
+    EXPECT_NE(plain.find(text), std::string::npos) << plain;
+}

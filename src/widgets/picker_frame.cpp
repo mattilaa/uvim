@@ -17,6 +17,16 @@ constexpr int kMinBoxRows = 8;
 // Preview pane needs room for both panes.
 constexpr int kMinPreviewBoxCols = 90;
 
+// Bytes in the UTF-8 sequence starting with `lead`; a stray continuation
+// or invalid byte counts as one.
+size_t utf8SequenceLength(char lead)
+{
+    const auto byte = static_cast<unsigned char>(lead);
+    if(byte < 0xC0)
+        return 1;
+    return byte < 0xE0 ? 2 : byte < 0xF0 ? 3 : 4;
+}
+
 // Clips UTF-8 `text` to `width` display columns.
 std::string clipToWidth(std::string_view text, int width)
 {
@@ -24,8 +34,8 @@ std::string clipToWidth(std::string_view text, int width)
     int used = 0;
     for(size_t i = 0; i < text.size() && used < width;)
     {
-        const unsigned char lead = static_cast<unsigned char>(text[i]);
-        const size_t len = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
+        const size_t len =
+            std::min(utf8SequenceLength(text[i]), text.size() - i);
         out.append(text.substr(i, len));
         ++used;
         i += len;
@@ -234,23 +244,23 @@ void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
     out_ += base;
     out_ += theme_.baseFg();
 
+    // One cursor for the whole line: spans are byte ranges and may end
+    // inside a multi-byte character, which must still be written once.
     int used = 0;
-    auto emit = [&](size_t from, size_t to)
+    size_t pos = 0;
+    auto emitTo = [&](size_t to)
     {
         // Clip to the pane by display width (one column per code point).
-        size_t i = from;
-        while(i < to && used < textWidth)
+        while(pos < to && used < textWidth)
         {
-            const unsigned char lead = static_cast<unsigned char>(text[i]);
-            const size_t len =
-                lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
-            out_.append(text.substr(i, len));
+            const size_t len = std::min(utf8SequenceLength(text[pos]),
+                                        text.size() - pos);
+            out_.append(text, pos, len);
             ++used;
-            i += len;
+            pos += len;
         }
     };
 
-    size_t pos = 0;
     for(const Span& span : spans)
     {
         if(used >= textWidth)
@@ -259,17 +269,16 @@ void PickerCanvas::previewRow(int row, int lineNumber, std::string_view text,
                                               text.size());
         const size_t end = std::min<size_t>(
             start + std::max(0, span.length), text.size());
-        if(start < pos)
+        if(end <= pos)
             continue; // overlapping span; keep the earlier colour
-        emit(pos, start);
+        emitTo(start);
         if(!span.color.empty())
             out_ += span.color;
-        emit(start, end);
+        emitTo(end);
         if(!span.color.empty())
             out_ += theme_.baseFg();
-        pos = end;
     }
-    emit(pos, text.size());
+    emitTo(text.size());
 
     const int filled = gutter + used;
     if(filled < layout_.previewCols)
