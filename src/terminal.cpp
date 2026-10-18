@@ -44,6 +44,8 @@ static HANDLE hOut() noexcept
     return GetStdHandle(STD_OUTPUT_HANDLE);
 }
 
+static UINT g_origOutputCodePage = 0;
+
 static void enable_vt_and_raw_console()
 {
     DWORD inMode = 0;
@@ -69,6 +71,13 @@ static void enable_vt_and_raw_console()
 #endif
         SetConsoleMode(hOut(), outMode);
     }
+
+    // uvim emits UTF-8. Bytes that reach the console without conversion
+    // (and output of child processes) are decoded with the output code
+    // page, which defaults to a legacy one such as 850.
+    if(g_origOutputCodePage == 0)
+        g_origOutputCodePage = GetConsoleOutputCP();
+    SetConsoleOutputCP(CP_UTF8);
 }
 
 static void restore_console_modes()
@@ -77,6 +86,8 @@ static void restore_console_modes()
         SetConsoleMode(hIn(), g_origInMode);
     if(g_origOutMode)
         SetConsoleMode(hOut(), g_origOutMode);
+    if(g_origOutputCodePage)
+        SetConsoleOutputCP(g_origOutputCodePage);
 }
 
 static bool wait_stdin(milliseconds timeout) noexcept
@@ -111,14 +122,17 @@ static bool write_console_utf8(std::string_view str) noexcept
     if(str.size() > static_cast<size_t>((std::numeric_limits<int>::max)()))
         return false;
 
-    int wideLen =
-        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.data(),
-                            static_cast<int>(str.size()), nullptr, 0);
+    // No MB_ERR_INVALID_CHARS: an invalid byte becomes U+FFFD instead of
+    // failing the whole frame, which then went out as raw bytes and was
+    // decoded with the legacy console code page (mojibake everywhere).
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, str.data(),
+                                      static_cast<int>(str.size()), nullptr,
+                                      0);
     if(wideLen <= 0)
         return false;
 
     std::wstring wide(static_cast<size_t>(wideLen), L'\0');
-    wideLen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.data(),
+    wideLen = MultiByteToWideChar(CP_UTF8, 0, str.data(),
                                   static_cast<int>(str.size()), wide.data(),
                                   wideLen);
     if(wideLen <= 0)
@@ -491,8 +505,12 @@ void Terminal::write(char c)
         return;
     }
 #if defined(UVIM_TERMINAL_WIN32)
+    // A lone non-ASCII byte is part of a UTF-8 sequence written byte by
+    // byte; pass it through raw (the output code page is UTF-8, so the
+    // console reassembles it) instead of turning it into U+FFFD.
     char buf[1] = {c};
-    if(write_console_utf8(std::string_view(buf, 1)))
+    if(static_cast<unsigned char>(c) < 0x80 &&
+       write_console_utf8(std::string_view(buf, 1)))
         return;
     DWORD written = 0;
     (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), &c, 1, &written, nullptr);
