@@ -81,6 +81,8 @@ pipeline; the jobs inside each stage run in parallel:
  artifacts windows-x64  (Release)  → uvim-windows-x64.zip
 ```
 
+- Runs are queued per branch: while one runs, further pushes wait as a
+  single run of the newest commit instead of starting a run per commit.
 - **build** compiles the Debug builds with tests and hands the build tree to
   the test stage; Debug builds exist only to run the tests.
 - **test** starts once the builds are done and runs the tests on those build
