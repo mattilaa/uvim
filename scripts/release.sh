@@ -3,15 +3,16 @@
 #
 #   scripts/release.sh --bump [VERSION|major|minor|patch]
 #       Show the current version, ask for the new one (must be higher),
-#       update CMakeLists.txt and the version examples, add a release-notes
+#       update version.txt and the version examples, add a release-notes
 #       stub to README.md and commit "Version X.Y.Z".
 #   scripts/release.sh --check-notes [VERSION]
 #       Check README.md has finished release notes for VERSION (default:
-#       the version in CMakeLists.txt).
+#       the version in version.txt).
 #   scripts/release.sh --publish
-#       Release the version in CMakeLists.txt: check main is clean and up to
+#       Release the version in version.txt: check main is clean and up to
 #       date, the tag is new, the notes are done and CI passed, then push the
 #       tag vX.Y.Z; the release workflow builds and publishes the release.
+#       Afterwards main moves on to the next patch version (asks first).
 #
 # Every step that changes something asks first. -y answers yes.
 set -euo pipefail
@@ -20,11 +21,13 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 assume_yes=false
+bump_confirmed=false
 mode=""
 arg=""
 
 usage() {
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  # The comment block at the top of this file.
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
 }
 
 die() {
@@ -43,14 +46,14 @@ confirm() {
   [[ "$answer" == y || "$answer" == Y || "$answer" == yes ]]
 }
 
+# The release version lives in version.txt (read by CMake).
 current_version() {
-  local major minor patch
-  major="$(sed -n 's/^set(UVIM_VERSION_MAJOR \([0-9]*\))/\1/p' CMakeLists.txt)"
-  minor="$(sed -n 's/^set(UVIM_VERSION_MINOR \([0-9]*\))/\1/p' CMakeLists.txt)"
-  patch="$(sed -n 's/^set(UVIM_VERSION_PATCH \([0-9]*\))/\1/p' CMakeLists.txt)"
-  [[ -n "$major" && -n "$minor" && -n "$patch" ]] ||
-    die "cannot read UVIM_VERSION_MAJOR/MINOR/PATCH from CMakeLists.txt"
-  echo "$major.$minor.$patch"
+  local version
+  [[ -f version.txt ]] || die "version.txt not found"
+  version="$(tr -d '[:space:]' <version.txt)"
+  valid_version "$version" ||
+    die "version.txt must hold MAJOR.MINOR.PATCH, found '$version'"
+  echo "$version"
 }
 
 valid_version() {
@@ -152,7 +155,7 @@ do_bump() {
   local current requested new tag
   current="$(current_version)"
   tag="$(latest_tag)"
-  echo "Current version: $current (CMakeLists.txt)"
+  echo "Current version: $current (version.txt)"
   echo "Latest release:  ${tag:-none}"
 
   requested="$arg"
@@ -176,25 +179,18 @@ do_bump() {
 
   [[ -z "$(git status --porcelain)" ]] ||
     die "the working tree has changes; commit or stash them first"
-  confirm "Bump $current -> $new and commit \"Version $new\"?" || {
+  $bump_confirmed ||
+    confirm "Bump $current -> $new and commit \"Version $new\"?" || {
     echo "Nothing changed."
     return 0
   }
 
-  local IFS=.
-  local -a v=($new)
-  unset IFS
-  sed -i.release-tmp \
-    -e "s/^set(UVIM_VERSION_MAJOR [0-9]*)/set(UVIM_VERSION_MAJOR ${v[0]})/" \
-    -e "s/^set(UVIM_VERSION_MINOR [0-9]*)/set(UVIM_VERSION_MINOR ${v[1]})/" \
-    -e "s/^set(UVIM_VERSION_PATCH [0-9]*)/set(UVIM_VERSION_PATCH ${v[2]})/" \
-    CMakeLists.txt
-  rm -f CMakeLists.txt.release-tmp
-  [[ "$(current_version)" == "$new" ]] || die "failed to update CMakeLists.txt"
+  printf '%s\n' "$new" >version.txt
+  [[ "$(current_version)" == "$new" ]] || die "failed to update version.txt"
   replace_examples "$current" "$new"
   add_notes_stub "$new"
 
-  git add CMakeLists.txt README.md scripts packaging .github
+  git add version.txt README.md scripts packaging .github
   git add -f scripts/build_portable.ps1 scripts/build_windows_installer.ps1
   git commit -q -m "Version $new"
   echo "Committed \"Version $new\" ($(git rev-parse --short HEAD))."
@@ -290,6 +286,24 @@ do_publish() {
       die "the release workflow failed: gh run view $run"
     gh release view "$tag" --json url,assets \
       --jq '.url, (.assets[] | "  \(.name)")'
+  fi
+
+  # The released version is done: main moves on to the next one, so it is
+  # never still the released number.
+  local next
+  next="$(next_version "$version" patch)"
+  echo
+  echo "Start the next version on main: $version -> $next (version.txt and"
+  echo "a \"### v$next (unreleased)\" release-notes stub)."
+  if confirm "Bump to $next, commit and push to main?"; then
+    arg="$next"
+    bump_confirmed=true
+    do_bump
+    git push -q origin main
+    echo "main is now at $next (pushed)."
+  else
+    echo "main stays at $version; run scripts/release.sh --bump before the"
+    echo "next changes are released."
   fi
 }
 
