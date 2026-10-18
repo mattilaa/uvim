@@ -172,6 +172,9 @@ inline constexpr std::array typescript_suffixes = {
     std::string_view{".ts"}, std::string_view{".tsx"}, std::string_view{".mts"},
     std::string_view{".cts"}};
 
+inline constexpr std::array csharp_suffixes = {std::string_view{".cs"},
+                                               std::string_view{".csx"}};
+
 inline constexpr std::array json_suffixes = {std::string_view{".json"},
                                              std::string_view{".jsonc"},
                                              std::string_view{".json5"}};

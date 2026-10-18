@@ -43,6 +43,7 @@ Formatter::FormatterVariant Formatter::formatterFor(FileType type)
     case FileType::Css:
     case FileType::JavaScript:
     case FileType::TypeScript:
+    case FileType::CSharp: // clang-format has a C# mode
     case FileType::Xml:
     case FileType::MarkupText:
     case FileType::Rdoc:

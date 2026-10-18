@@ -1098,6 +1098,10 @@ std::optional<FileType> Editor::getFileType() const
     {
         return FileType::TypeScript;
     }
+    else if(isFileType<FileType::CSharp>())
+    {
+        return FileType::CSharp;
+    }
     else if(isFileType<FileType::Xml>())
     {
         return FileType::Xml;
