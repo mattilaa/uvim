@@ -118,8 +118,10 @@ begin
   else
     LauncherPage.SelectedValueIndex := 1;
   if not TerminalInstalled then
-    LauncherPage.SubCaptionLabel.Caption := LauncherPage.SubCaptionLabel.Caption +
-      #13#10#13#10 + 'Windows Terminal was not found; until it is installed ' +
+    { No line may start with '#' here: ISPP would read it as a directive. }
+    LauncherPage.SubCaptionLabel.Caption :=
+      LauncherPage.SubCaptionLabel.Caption + #13#10#13#10 +
+      'Windows Terminal was not found; until it is installed ' +
       '(Microsoft Store), the shortcut uses a PowerShell window.';
 end;
 
