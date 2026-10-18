@@ -1889,3 +1889,44 @@ TEST(CommandPaletteTest, SpaceSpaceOpensPaletteFromVisualModes)
     }
 }
 #endif
+
+TEST(RealModeTransitionsTest, TabTakesHighlightedCommandPopupItem)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    auto type = [&](const std::string& text)
+    {
+        for(char c : text)
+            sm.dispatch(c);
+    };
+
+    // A fuzzy match: Tab puts it on the command line, Enter is unchanged.
+    sm.dispatch(':');
+    type("lcto");
+    ASSERT_TRUE(editor.commandPopupActive);
+    ASSERT_TRUE(editor.commandPopupSelection().has_value());
+    EXPECT_EQ(*editor.commandPopupSelection(), "loctotal");
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, ":loctotal");
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    sm.dispatch(':');
+    type("tsks");
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, ":tasks");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    ASSERT_FALSE(editor.commandHistory.empty());
+    EXPECT_EQ(editor.commandHistory.back(), "tasks");
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+#endif
+
+    // A command taking an argument keeps its space: continue typing.
+    auto sm2 = makeMachine(editor, NormalMode{});
+    sm2.dispatch(':');
+    for(char c : std::string("edi"))
+        sm2.dispatch(c);
+    sm2.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, ":edit ");
+}
