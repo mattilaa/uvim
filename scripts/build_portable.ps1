@@ -2,7 +2,7 @@
 # of scripts/build_portable.sh): uvim.exe, themes, README, license, a
 # dependency note and a SHA-256 checksum.
 #
-#   ./scripts/build_portable.ps1 [-Profile full] [-Version v0.2.1]
+#   ./scripts/build_portable.ps1 [-Profile full] [-Version v0.3.0]
 #                                [-BuildDir build-portable] [-OutputDir dist]
 #                                [-Jobs N] [-Force]
 param(
@@ -64,11 +64,15 @@ Invoke-Checked "cmake --build uvim" {
 $Binary = Join-Path $BuildDir "Release/uvim.exe"
 if (!(Test-Path $Binary)) { throw "expected binary is missing: $Binary" }
 
+$DetectedVersion = "v" + ((& $Binary --version | Select-Object -First 1) -split " ")[1]
 $PublicVersion = $Version
-if ($PublicVersion -eq "") {
-    $PublicVersion = ((& $Binary --version | Select-Object -First 1) -split " ")[1]
-}
+if ($PublicVersion -eq "") { $PublicVersion = $DetectedVersion }
 if (!$PublicVersion.StartsWith("v")) { $PublicVersion = "v$PublicVersion" }
+# A release tag must name the version the binary was built as.
+if ($PublicVersion -ne $DetectedVersion) {
+    throw "version $PublicVersion does not match the built uvim " +
+          "($DetectedVersion); bump the version in CMakeLists.txt"
+}
 if ($PublicVersion -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
     throw "version must use vMAJOR.MINOR.BUGFIX: $PublicVersion"
 }

@@ -2100,7 +2100,12 @@ int main(int argc, char* argv[])
     if(opts.showVersion)
     {
 #ifdef UVIM_VERSION
-        std::cout << "uvim " << UVIM_VERSION << "\n";
+        // "uvim 0.3.0 (build 12)"; scripts read the second word.
+        std::cout << "uvim " << UVIM_VERSION;
+#ifdef UVIM_BUILD_NUMBER
+        std::cout << " (build " << UVIM_BUILD_NUMBER << ")";
+#endif
+        std::cout << "\n";
 #else
         std::cout << "uvim\n";
 #endif

@@ -263,9 +263,15 @@ else
   fi
 fi
 
-detected_version="$($binary --version | awk 'NR == 1 { print $2 }')"
+detected_version="v$($binary --version | awk 'NR == 1 { print $2 }')"
 public_version="${version_override:-$detected_version}"
 [[ "$public_version" == v* ]] || public_version="v$public_version"
+# A release tag must name the version the binary was built as.
+if [[ "$public_version" != "$detected_version" ]]; then
+  echo "error: version $public_version does not match the built uvim" \
+       "($detected_version); bump the version in CMakeLists.txt" >&2
+  exit 2
+fi
 [[ "$public_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
   echo "error: version must use vMAJOR.MINOR.BUGFIX: $public_version" >&2
   exit 2

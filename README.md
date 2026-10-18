@@ -102,12 +102,18 @@ parallel, and attaches them to the GitHub Release page with a `.sha256`
 checksum each (the workflow run itself keeps them as `release-<target>`
 artifacts):
 
-| Target         | Asset (for `v0.2.1`)                                   |
+| Target         | Asset (for `v0.3.0`)                                   |
 |----------------|--------------------------------------------------------|
-| Linux x86_64   | `uvim-v0.2.1-linux-x86_64.zip` (static executable)     |
-| Linux arm64    | `uvim-v0.2.1-linux-arm64.zip` (static executable)      |
-| macOS arm64    | `uvim-v0.2.1-macos-arm64.zip`, `uvim-v0.2.1-macos-arm64.pkg` |
-| Windows x86_64 | `uvim-v0.2.1-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.2.1-windows-x86_64-setup.exe` (installer) |
+| Linux x86_64   | `uvim-v0.3.0-linux-x86_64.zip` (static executable)     |
+| Linux arm64    | `uvim-v0.3.0-linux-arm64.zip` (static executable)      |
+| macOS arm64    | `uvim-v0.3.0-macos-arm64.zip`, `uvim-v0.3.0-macos-arm64.pkg` |
+| Windows x86_64 | `uvim-v0.3.0-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.3.0-windows-x86_64-setup.exe` (installer) |
+
+The tag must be the version in `CMakeLists.txt` (`UVIM_VERSION_MAJOR`,
+`UVIM_VERSION_MINOR`, `UVIM_VERSION_PATCH`); the release scripts stop when
+they differ, and the `uvim_version` test checks that `uvim --version` prints
+it (`uvim 0.3.0 (build 12)` — the build number is not part of the release
+version). To release, bump the version in a commit, then push the tag.
 
 See [Portable archives](#portable-macos-and-linux-archives) for building
 them locally.
@@ -369,13 +375,13 @@ Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow:
 it builds Release archives for Linux `x86_64` and `arm64`, macOS `arm64` and
 Windows `x86_64` in parallel, creates the GitHub Release, and attaches the
 archives and their checksums. Release tags must use `vMAJOR.MINOR.BUGFIX`,
-for example `v0.2.1`. The public release keeps that three-part version. Build
+for example `v0.3.0`. The public release keeps that three-part version. Build
 numbers are never included in release asset names: the ZIP files are
-`uvim-v0.2.1-linux-x86_64.zip`, `uvim-v0.2.1-linux-arm64.zip`,
-`uvim-v0.2.1-macos-arm64.zip` and `uvim-v0.2.1-windows-x86_64.zip`. Running
+`uvim-v0.3.0-linux-x86_64.zip`, `uvim-v0.3.0-linux-arm64.zip`,
+`uvim-v0.3.0-macos-arm64.zip` and `uvim-v0.3.0-windows-x86_64.zip`. Running
 the workflow by hand with `publish` unchecked only builds the archives.
 
-The macOS job also creates `uvim-v0.2.1-macos-arm64.pkg`. It installs the
+The macOS job also creates `uvim-v0.3.0-macos-arm64.pkg`. It installs the
 executable as `/usr/local/bin/uvim` and, optionally, the **uVim app** (see
 below). The workflow builds this as an
 unsigned installer by default, so it does not require a paid Apple Developer
@@ -391,7 +397,7 @@ Release. Download both the `.pkg` and its matching `.pkg.sha256` file, then
 verify them from the download directory:
 
 ```sh
-shasum -a 256 -c uvim-v0.2.1-macos-arm64.pkg.sha256
+shasum -a 256 -c uvim-v0.3.0-macos-arm64.pkg.sha256
 ```
 
 After a successful checksum, double-click the `.pkg`. If macOS blocks the
@@ -422,13 +428,13 @@ defaults delete io.github.mattilaa.uvim.app Terminal                    # automa
 ```
 
 Build the package locally after a portable build with
-`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.2.1`.
+`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.3.0`.
 The icons come from `packaging/icons/make_icons.py`.
 
 #### Installing on Windows
 
 The Windows release also has an installer,
-`uvim-v0.2.1-windows-x86_64-setup.exe` (a separate `release-*-installer`
+`uvim-v0.3.0-windows-x86_64-setup.exe` (a separate `release-*-installer`
 artifact in the workflow run). It is a normal setup wizard:
 
 - installs uVim for the current user (no administrator rights needed) or,
@@ -458,20 +464,20 @@ The installer is not code-signed yet, so Windows SmartScreen may show
 download first with the matching `.sha256` file:
 
 ```powershell
-(Get-FileHash uvim-v0.2.1-windows-x86_64-setup.exe -Algorithm SHA256).Hash
+(Get-FileHash uvim-v0.3.0-windows-x86_64-setup.exe -Algorithm SHA256).Hash
 ```
 
 Build the installer locally (needs Inno Setup 6, e.g.
 `winget install JRSoftware.InnoSetup`) after the portable build:
 
 ```powershell
-./scripts/build_portable.ps1 -Version v0.2.1
-./scripts/build_windows_installer.ps1 -Version v0.2.1
+./scripts/build_portable.ps1 -Version v0.3.0
+./scripts/build_windows_installer.ps1 -Version v0.3.0
 ```
 
 To add binaries to a release that already exists, open **Actions**, select
 **Portable release binaries**, choose **Run workflow**, enter the release's
-exact tag (for example `v0.2.1`), select the profile, and run it. The workflow
+exact tag (for example `v0.3.0`), select the profile, and run it. The workflow
 uploads or replaces the ZIP files and checksums on that release.
 
 ## Runtime configuration

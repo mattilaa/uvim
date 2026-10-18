@@ -87,6 +87,12 @@ done
   echo "error: version must use vMAJOR.MINOR.BUGFIX: $public_version" >&2
   exit 2
 }
+binary_version="v$("$binary" --version | awk 'NR == 1 { print $2 }')"
+[[ "$public_version" == "$binary_version" ]] || {
+  echo "error: version $public_version does not match the binary" \
+       "($binary_version)" >&2
+  exit 2
+}
 [[ "$identifier" =~ ^[A-Za-z0-9][A-Za-z0-9.-]+$ ]] || {
   echo "error: invalid package identifier: $identifier" >&2
   exit 2

@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.14)
 if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
+# Release version (vMAJOR.MINOR.PATCH tags must match it; checked by the
+# uvim_version test and the release scripts). The auto-incremented build
+# number below is separate (4th version component).
 set(UVIM_VERSION_MAJOR 0)
-set(UVIM_VERSION_MINOR 2)
-set(UVIM_DISPLAY_VERSION "${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}")
+set(UVIM_VERSION_MINOR 3)
+set(UVIM_VERSION_PATCH 0)
+set(UVIM_RELEASE_VERSION
+    "${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}.${UVIM_VERSION_PATCH}")
+set(UVIM_DISPLAY_VERSION "${UVIM_RELEASE_VERSION}")
 option(UVIM_AUTO_INCREMENT_BUILD "Auto-increment build number on each CMake configure" ON)
 set(UVIM_VERSION_BUILD 0 CACHE STRING "Build number")
 set(UVIM_BUILD_NUMBER_FILE "${CMAKE_BINARY_DIR}/.uvim_build_number" CACHE FILEPATH
@@ -29,7 +35,7 @@ if(UVIM_AUTO_INCREMENT_BUILD)
     file(WRITE "${UVIM_BUILD_NUMBER_FILE}" "${UVIM_VERSION_BUILD}\n")
 endif()
 
-project(uvim VERSION ${UVIM_VERSION_MAJOR}.${UVIM_VERSION_MINOR}.${UVIM_VERSION_BUILD})
+project(uvim VERSION ${UVIM_RELEASE_VERSION}.${UVIM_VERSION_BUILD})
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -479,11 +485,12 @@ set(UVIM_SOURCES
 
 add_executable(uvim ${UVIM_SOURCES})
 target_compile_definitions(uvim PRIVATE
-    UVIM_VERSION="${PROJECT_VERSION}"
+    UVIM_VERSION="${UVIM_RELEASE_VERSION}"
+    UVIM_BUILD_NUMBER="${UVIM_VERSION_BUILD}"
     UVIM_DISPLAY_VERSION="${UVIM_DISPLAY_VERSION}"
 )
 add_custom_command(TARGET uvim POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Built uvim v${UVIM_RELEASE_VERSION} - build ${UVIM_VERSION_BUILD}"
 )
 
 if(UVIM_STATIC_LINK)
@@ -998,6 +1005,13 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(task_queue_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
+    # `uvim --version` must print the release version; release tags
+    # (vMAJOR.MINOR.PATCH) are checked against it by the release scripts.
+    string(REPLACE "." "\\." _uvim_version_regex "${UVIM_RELEASE_VERSION}")
+    add_test(NAME uvim_version COMMAND uvim --version)
+    set_tests_properties(uvim_version PROPERTIES
+        PASS_REGULAR_EXPRESSION "^uvim ${_uvim_version_regex} \\(build [0-9]+\\)")
+
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(
@@ -1015,7 +1029,7 @@ endif()
 # ============================================================================
 # Install (binary only)
 # ============================================================================
-install(CODE "message(STATUS \"Installing uvim v${PROJECT_VERSION} - build ${PROJECT_VERSION_PATCH}\")"
+install(CODE "message(STATUS \"Installing uvim v${UVIM_RELEASE_VERSION} - build ${UVIM_VERSION_BUILD}\")"
     COMPONENT uvim
 )
 install(TARGETS uvim
