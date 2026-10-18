@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag to create or update (for example v0.2.1)"
+        description: "Release tag to create or update (for example v0.3.0)"
         required: true
         type: string
       profile:
@@ -146,6 +146,9 @@ jobs:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
     steps:
+      - name: Check out source (README.md for the release notes)
+        uses: actions/checkout@v6
+
       - name: Download portable archives
         uses: actions/download-artifact@v8
         with:
@@ -155,12 +158,29 @@ jobs:
 
       - name: Create or update release
         run: |
+          # Release notes: the "### <tag> ..." section of README.md's
+          # "Release notes", with README-relative links made absolute.
+          # Without such a section GitHub generates the notes.
+          awk -v tag="### $RELEASE_TAG " \
+            'index($0, tag) == 1 { on = 1; next }
+             on && (/^### v/ || /^## /) { exit }
+             on { print }' README.md |
+            sed -E "s#\]\(\#([a-z0-9-]+)\)#](https://github.com/$GITHUB_REPOSITORY/blob/$RELEASE_TAG/README.md\#\1)#g" \
+            > release-notes.md
+          if [ -s release-notes.md ]; then
+            notes=(--notes-file release-notes.md)
+          else
+            notes=(--generate-notes)
+          fi
           if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "uVim $RELEASE_TAG" \
-              --generate-notes
+              "${notes[@]}"
+          elif [ -s release-notes.md ]; then
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-notes.md
           fi
           gh release upload "$RELEASE_TAG" release-assets/* \
             --repo "$GITHUB_REPOSITORY" \

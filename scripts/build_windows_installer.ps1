@@ -2,8 +2,8 @@
 # with Inno Setup from an already built uvim.exe, e.g. the one from
 # scripts/build_portable.ps1:
 #
-#   ./scripts/build_portable.ps1 -Version v0.2.1
-#   ./scripts/build_windows_installer.ps1 -Version v0.2.1
+#   ./scripts/build_portable.ps1 -Version v0.3.0
+#   ./scripts/build_windows_installer.ps1 -Version v0.3.0
 #
 # Needs Inno Setup 6 (winget install JRSoftware.InnoSetup, or
 # choco install innosetup); -InstallInnoSetup installs it with Chocolatey.
@@ -26,6 +26,10 @@ if ($AppVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
 }
 if (!(Test-Path $Binary)) { throw "uvim.exe not found: $Binary (build it first)" }
 $Binary = (Resolve-Path $Binary).Path
+$BinaryVersion = ((& $Binary --version | Select-Object -First 1) -split " ")[1]
+if ($BinaryVersion -ne $AppVersion) {
+    throw "version v$AppVersion does not match the binary (v$BinaryVersion)"
+}
 New-Item -ItemType Directory -Force $OutputDir | Out-Null
 $OutputDir = (Resolve-Path $OutputDir).Path
 

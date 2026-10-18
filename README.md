@@ -31,6 +31,7 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Contents
 
+- [Release notes](#release-notes)
 - [Supported platforms and builds](#supported-platforms-and-builds)
 - [Build profiles and uvim-config](#build-profiles-and-uvim-config)
 - [Runtime configuration](#runtime-configuration)
@@ -46,6 +47,88 @@ menus—they leave the corresponding implementation out of the binary.
 - [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives)
 - [Diagnostics](#diagnostics)
 - [Search examples](#search-examples)
+
+## Release notes
+
+### v0.3.0 (2026-10-18)
+
+#### New
+
+- **Command palette** — `Space Space` (also in visual modes) or `:palette`
+  opens a floating list of what uVim can do by name ("Open file browser",
+  "Change buffer", "Save all files", "Git: log", ...) with the key or command
+  that does the same. Type to filter, `Enter` runs it. See
+  [Command palette](#command-palette).
+- **Floating pickers** — `Ctrl-P` (find file) and `Ctrl-A` (grep) open as a
+  Telescope-style floating window over the code with a syntax-highlighted
+  preview; `Ctrl+Shift+J/K` (or `Alt-J/K`) scroll the preview, `:415` after
+  the query opens the result at that line. `:set pickerstyle=fullscreen`
+  keeps the old layout.
+- **Background tasks with progress** — heavy work (project indexing, grep,
+  LOC counting, LSP startup, external tools) runs in a task queue with
+  progress bars in the status line; keys typed meanwhile are queued instead
+  of freezing the UI. `:tasks` lists, reorders and cancels jobs; LSP servers
+  show their own progress. `uvim .` starts without blocking.
+- **`:sc` / `:showchanges`** — the unsaved edits of the buffer as a colored
+  diff, with `n`/`N` hunk navigation (wrapping around), `d` to drop a hunk
+  and `u` to undo.
+- **Edit commits from `:git log`** — open a commit, drop hunks from it,
+  review the new commit (`v`) and rewrite it (`c`); undo restores the
+  original commit.
+- **Alt keys for Ctrl+Shift chords** — on terminals without the kitty
+  keyboard protocol (macOS Terminal, Windows PowerShell, ...) `Alt-H/J/K/L/X`
+  do what `Ctrl-Shift-H/J/K/L/X` do. `:set iskitty=true/false`, detected
+  automatically. See [Ctrl+Shift keys](#ctrlshift-keys-and-alt-alternatives).
+- **Yank once, replace many** — `yiw` then `viwp` on other words keeps the
+  yanked word for further replacements; visual `Y`.
+
+#### Improved
+
+- `:` command line: `Tab` takes the highlighted entry of the command list,
+  fuzzy matches included (`:lcto` → `:loctotal`).
+- Typing a complete command (`:q`) runs it even if another entry of the
+  command list is highlighted.
+- File lists in Ctrl-P, grep and regex search are sorted the same way on
+  every platform.
+- `:toolinfo` lists the discovered formatters.
+- Syntax highlighting: `likely`/`unlikely`, `let`, `.mla` comments.
+- `uvim --version` prints the release version and build number
+  (`uvim 0.3.0 (build N)`).
+
+#### Fixed
+
+- **`:q`, `:qa` and `:qall` quit without saving** when a buffer had unsaved
+  changes; they now refuse with "No write since last change".
+- Keys typed right after `Esc` (`<Esc>:wq` typed quickly) were lost.
+- Status bars of browser views could show garbage (use after free).
+- Builds without LSP support did not compile.
+- Unsaved-changes marker stayed after formatting and undo.
+- Git commit view cursor/row offset; status line rows in help views.
+- Windows: garbled (code page 850) picker preview, quitting could hang on
+  clangd shutdown, git tools did not build.
+
+#### Platforms and installation
+
+- **Windows x64** builds (MSVC) with clangd LSP support, tested in CI.
+- **Linux arm64** release builds next to Linux x86_64.
+- **macOS** releases are arm64 (Apple silicon).
+- **Windows installer** (`…-windows-x86_64-setup.exe`): per-user install,
+  optional PATH entry, Start menu shortcut that opens uVim in a Windows
+  Terminal window with a uVim profile (or a PowerShell window), and
+  "uVim launcher settings" to change that later.
+- **macOS installer** (`.pkg`): optional **uVim app** in Applications that
+  opens uVim in Alacritty when installed, otherwise Terminal; files dropped on
+  it open in uVim.
+- See [Supported platforms and builds](#supported-platforms-and-builds).
+
+#### Development
+
+- CI builds and tests Linux, macOS (also with ASan/UBSan) and Windows in a
+  build stage and a test stage, makes Release binaries for every target and
+  queues runs per branch.
+- Release tags must match the version in `CMakeLists.txt`; the release
+  scripts and the `uvim_version` test check it.
+- New clangd integration test; Robot tests report why uVim exited or hung.
 
 ## Supported platforms and builds
 
@@ -102,12 +185,18 @@ parallel, and attaches them to the GitHub Release page with a `.sha256`
 checksum each (the workflow run itself keeps them as `release-<target>`
 artifacts):
 
-| Target         | Asset (for `v0.2.1`)                                   |
+| Target         | Asset (for `v0.3.0`)                                   |
 |----------------|--------------------------------------------------------|
-| Linux x86_64   | `uvim-v0.2.1-linux-x86_64.zip` (static executable)     |
-| Linux arm64    | `uvim-v0.2.1-linux-arm64.zip` (static executable)      |
-| macOS arm64    | `uvim-v0.2.1-macos-arm64.zip`, `uvim-v0.2.1-macos-arm64.pkg` |
-| Windows x86_64 | `uvim-v0.2.1-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.2.1-windows-x86_64-setup.exe` (installer) |
+| Linux x86_64   | `uvim-v0.3.0-linux-x86_64.zip` (static executable)     |
+| Linux arm64    | `uvim-v0.3.0-linux-arm64.zip` (static executable)      |
+| macOS arm64    | `uvim-v0.3.0-macos-arm64.zip`, `uvim-v0.3.0-macos-arm64.pkg` |
+| Windows x86_64 | `uvim-v0.3.0-windows-x86_64.zip` (static MSVC runtime), `uvim-v0.3.0-windows-x86_64-setup.exe` (installer) |
+
+The tag must be the version in `CMakeLists.txt` (`UVIM_VERSION_MAJOR`,
+`UVIM_VERSION_MINOR`, `UVIM_VERSION_PATCH`); the release scripts stop when
+they differ, and the `uvim_version` test checks that `uvim --version` prints
+it (`uvim 0.3.0 (build 12)` — the build number is not part of the release
+version). To release, bump the version in a commit, then push the tag.
 
 See [Portable archives](#portable-macos-and-linux-archives) for building
 them locally.
@@ -369,13 +458,13 @@ Pushing a tag matching `v*` runs the portable-release GitHub Actions workflow:
 it builds Release archives for Linux `x86_64` and `arm64`, macOS `arm64` and
 Windows `x86_64` in parallel, creates the GitHub Release, and attaches the
 archives and their checksums. Release tags must use `vMAJOR.MINOR.BUGFIX`,
-for example `v0.2.1`. The public release keeps that three-part version. Build
+for example `v0.3.0`. The public release keeps that three-part version. Build
 numbers are never included in release asset names: the ZIP files are
-`uvim-v0.2.1-linux-x86_64.zip`, `uvim-v0.2.1-linux-arm64.zip`,
-`uvim-v0.2.1-macos-arm64.zip` and `uvim-v0.2.1-windows-x86_64.zip`. Running
+`uvim-v0.3.0-linux-x86_64.zip`, `uvim-v0.3.0-linux-arm64.zip`,
+`uvim-v0.3.0-macos-arm64.zip` and `uvim-v0.3.0-windows-x86_64.zip`. Running
 the workflow by hand with `publish` unchecked only builds the archives.
 
-The macOS job also creates `uvim-v0.2.1-macos-arm64.pkg`. It installs the
+The macOS job also creates `uvim-v0.3.0-macos-arm64.pkg`. It installs the
 executable as `/usr/local/bin/uvim` and, optionally, the **uVim app** (see
 below). The workflow builds this as an
 unsigned installer by default, so it does not require a paid Apple Developer
@@ -391,7 +480,7 @@ Release. Download both the `.pkg` and its matching `.pkg.sha256` file, then
 verify them from the download directory:
 
 ```sh
-shasum -a 256 -c uvim-v0.2.1-macos-arm64.pkg.sha256
+shasum -a 256 -c uvim-v0.3.0-macos-arm64.pkg.sha256
 ```
 
 After a successful checksum, double-click the `.pkg`. If macOS blocks the
@@ -422,13 +511,13 @@ defaults delete io.github.mattilaa.uvim.app Terminal                    # automa
 ```
 
 Build the package locally after a portable build with
-`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.2.1`.
+`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.3.0`.
 The icons come from `packaging/icons/make_icons.py`.
 
 #### Installing on Windows
 
 The Windows release also has an installer,
-`uvim-v0.2.1-windows-x86_64-setup.exe` (a separate `release-*-installer`
+`uvim-v0.3.0-windows-x86_64-setup.exe` (a separate `release-*-installer`
 artifact in the workflow run). It is a normal setup wizard:
 
 - installs uVim for the current user (no administrator rights needed) or,
@@ -458,20 +547,20 @@ The installer is not code-signed yet, so Windows SmartScreen may show
 download first with the matching `.sha256` file:
 
 ```powershell
-(Get-FileHash uvim-v0.2.1-windows-x86_64-setup.exe -Algorithm SHA256).Hash
+(Get-FileHash uvim-v0.3.0-windows-x86_64-setup.exe -Algorithm SHA256).Hash
 ```
 
 Build the installer locally (needs Inno Setup 6, e.g.
 `winget install JRSoftware.InnoSetup`) after the portable build:
 
 ```powershell
-./scripts/build_portable.ps1 -Version v0.2.1
-./scripts/build_windows_installer.ps1 -Version v0.2.1
+./scripts/build_portable.ps1 -Version v0.3.0
+./scripts/build_windows_installer.ps1 -Version v0.3.0
 ```
 
 To add binaries to a release that already exists, open **Actions**, select
 **Portable release binaries**, choose **Run workflow**, enter the release's
-exact tag (for example `v0.2.1`), select the profile, and run it. The workflow
+exact tag (for example `v0.3.0`), select the profile, and run it. The workflow
 uploads or replaces the ZIP files and checksums on that release.
 
 ## Runtime configuration
