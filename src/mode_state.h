@@ -40,6 +40,7 @@ struct ReferencesMode;
 struct LspInfoMode;
 struct ToolInfoMode;
 struct TaskListMode;
+struct CommandPaletteMode;
 struct LocListMode;
 struct MlangFormatErrorsMode;
 struct HelpMode;
@@ -81,7 +82,8 @@ using ModeState = std::variant<
     OperatorPendingMode
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
-    ReferencesMode, LspInfoMode, ToolInfoMode, TaskListMode, LocListMode,
+    ReferencesMode, LspInfoMode, ToolInfoMode, TaskListMode, CommandPaletteMode,
+    LocListMode,
     MlangFormatErrorsMode, HelpMode
 #endif
 #ifdef UVIM_ENABLE_GIT_TOOLS

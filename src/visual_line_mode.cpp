@@ -182,10 +182,15 @@ std::optional<ModeState> VisualLineMode::handle(ModeContext& ctx,
         }
         if(c == keyCode(control::ControlKey::SPACE))
         {
+            // Space Space: command palette, as in normal mode.
             ctx.commandBuffer.clear();
             ctx.setStatusMessage("");
             ctx.repeatCount = 0;
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+            return CommandPaletteMode{};
+#else
             return std::nullopt;
+#endif
         }
 
         ctx.commandBuffer.clear();

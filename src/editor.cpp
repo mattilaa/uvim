@@ -1436,6 +1436,8 @@ std::string Editor::getModeString() const
         return "TOOL INFO";
     case TASK_LIST:
         return "TASKS";
+    case COMMAND_PALETTE:
+        return "PALETTE";
     case REFERENCES:
         return "REFERENCES";
     case LOC_LIST:

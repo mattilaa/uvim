@@ -307,6 +307,8 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/editor_execution_lsp_info_command.cpp
         src/editor_execution_tool_info_command.cpp
         src/editor_execution_tasks_command.cpp
+        src/editor_execution_palette_command.cpp
+        src/command_palette.cpp
         src/executable_lookup.cpp
         src/editor_view_command_output.cpp
         src/editor_view_help.cpp
@@ -382,6 +384,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/lsp_info_mode.cpp
         src/tool_info_mode.cpp
         src/task_list_mode.cpp
+        src/command_palette_mode.cpp
         src/loc_mode.cpp
         src/mlang_format_errors_mode.cpp
         src/help_mode.cpp

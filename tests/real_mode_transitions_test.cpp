@@ -1,3 +1,4 @@
+#include "command_palette.h"
 #include "real_mode_test_utils.h"
 #include "terminal.h"
 #include "widgets/command_popup.h"
@@ -1724,3 +1725,167 @@ TEST(RealModeTransitionsTest, SetIsKittyTogglesAltChords)
     EXPECT_TRUE(
         text_utils::is_found(editor.statusMessage.find("expected true/false")));
 }
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+namespace
+{
+std::vector<std::string> paletteTitles(
+    const std::vector<command_palette::Entry>& entries, const std::string& query)
+{
+    std::vector<std::string> out;
+    for(const auto& match : command_palette::rank(entries, query))
+        out.push_back(entries[match.entry].title);
+    return out;
+}
+
+// Opens the palette, types `query` and presses Enter on the best match.
+void runPalette(ModeStateMachine& sm, Editor& editor, const std::string& query)
+{
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+    // The app keeps currentMode in sync with the state machine; commands
+    // run from the palette must not see it and reopen the palette.
+    editor.currentMode = COMMAND_PALETTE;
+    for(char c : query)
+        sm.dispatch(c);
+    ASSERT_FALSE(sm.getState<CommandPaletteMode>()->matches.empty()) << query;
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+}
+} // namespace
+
+TEST(CommandPaletteTest, ActionsAndExCommandsRankByMeaning)
+{
+    auto entries = command_palette::builtinActions();
+    command_palette::addExCommands(
+        entries, {"w", "wa", "qa", "qall", "pwd", "tabn", "tabnext"},
+        [](std::string_view command) -> std::string
+        {
+            if(command == "qa" || command == "qall")
+                return "Quit all windows";
+            if(command == "tabn" || command == "tabnext")
+                return "Next tab";
+            return "";
+        });
+
+    // Ex commands an action already covers are not repeated; the rest are
+    // grouped by description, shortcut listing the spellings.
+    const auto quitAll = std::find_if(entries.begin(), entries.end(),
+                                      [](const auto& entry)
+                                      { return entry.title == "Quit all windows"; });
+    ASSERT_NE(quitAll, entries.end());
+    EXPECT_EQ(quitAll->shortcut, ":qa, :qall");
+    EXPECT_EQ(std::count_if(entries.begin(), entries.end(),
+                            [](const auto& entry)
+                            { return entry.title == "Show working directory"; }),
+              1);
+
+    EXPECT_EQ(paletteTitles(entries, "file br").front(), "Open file browser");
+    EXPECT_EQ(paletteTitles(entries, "change buf").front(), "Change buffer");
+    EXPECT_EQ(paletteTitles(entries, "wa").front(), "Save all files");
+    EXPECT_EQ(paletteTitles(entries, "next tab").front(), "Next tab");
+    EXPECT_EQ(paletteTitles(entries, "git log").front(), "Git: log");
+    EXPECT_TRUE(paletteTitles(entries, "zzzzqq").empty());
+    EXPECT_EQ(paletteTitles(entries, "").size(), entries.size());
+}
+
+TEST(CommandPaletteTest, ActionsRunTheirKeysAndCommands)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, editor, "change buffer"); // Ctrl-W
+        EXPECT_STREQ(sm.currentStateName(), "BUFFERS");
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, editor, "open file browser"); // Space x
+        EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, editor, "find references"); // Space g r reads its next key
+        EXPECT_EQ(Terminal::bufferedKeyCount(), 0) << "replayed keys all used";
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, editor, "working directory"); // :pwd
+        ASSERT_FALSE(editor.commandHistory.empty());
+        EXPECT_EQ(editor.commandHistory.back(), "pwd");
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL") << "palette closed";
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, editor, "split vert"); // :vs
+        EXPECT_TRUE(editor.splitActive);
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL") << "palette closed";
+    }
+}
+
+TEST(CommandPaletteTest, CommandWithArgumentOpensCommandLine)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char c : std::string("palette"))
+        sm.dispatch(c);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+
+    for(char c : std::string("open file"))
+        sm.dispatch(c);
+    auto* palette = sm.getState<CommandPaletteMode>();
+    ASSERT_NE(palette, nullptr);
+    ASSERT_FALSE(palette->matches.empty());
+    EXPECT_TRUE(palette->entries[palette->matches[0].entry].takesArgument);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_STREQ(sm.currentStateName(), "COMMAND");
+    EXPECT_EQ(editor.commandBuffer, ":e ");
+}
+
+TEST(CommandPaletteTest, NavigationAndLeaving)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    auto* palette = sm.getState<CommandPaletteMode>();
+    ASSERT_NE(palette, nullptr);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(sm.getState<CommandPaletteMode>()->cursor, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    sm.dispatch('x');
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+#endif
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+TEST(CommandPaletteTest, SpaceSpaceOpensPaletteFromVisualModes)
+{
+    for(char visualKey : {'v', 'V', static_cast<char>(keyCode(control::ControlKey::CTRL_V))})
+    {
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        auto sm = makeMachine(editor, NormalMode{});
+        sm.dispatch(visualKey);
+        ASSERT_STRNE(sm.currentStateName(), "NORMAL") << int(visualKey);
+        sm.dispatch(' ');
+        sm.dispatch(' ');
+        EXPECT_NE(sm.getState<CommandPaletteMode>(), nullptr) << int(visualKey);
+    }
+}
+#endif

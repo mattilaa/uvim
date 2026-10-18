@@ -15,6 +15,8 @@ std::string_view commandDocumentation(std::string_view cmd)
     while(!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\t'))
         cmd.remove_suffix(1);
 
+    if(cmd == "palette")
+        return "Command palette: search and run commands";
     if(cmd == "q" || cmd == "quit")
         return "Quit uVim";
     if(cmd == "q!" || cmd == "qa!" || cmd == "qall!")

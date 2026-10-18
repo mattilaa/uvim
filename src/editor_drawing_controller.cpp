@@ -218,6 +218,18 @@ void EditorDrawingController::refreshScreen()
 #endif
         return;
     }
+    if(editor.currentMode == COMMAND_PALETTE)
+    {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(editor.modeStateMachine)
+        {
+            if(auto* state =
+                   editor.modeStateMachine->getState<CommandPaletteMode>())
+                state->draw(editor);
+        }
+#endif
+        return;
+    }
 
     if(editor.currentMode == HELP)
     {
@@ -652,7 +664,8 @@ void EditorDrawingController::draw()
 
 bool EditorDrawingController::isFloatingPicker(Mode mode) const
 {
-    return (mode == GREP_SEARCH || mode == FUZZY_FIND) &&
+    return (mode == GREP_SEARCH || mode == FUZZY_FIND ||
+            mode == COMMAND_PALETTE) &&
            editor.pickerLayout(false).floating;
 }
 

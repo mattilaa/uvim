@@ -12,14 +12,14 @@ namespace editor::statemachine
 void CommandMode::on_enter(ModeContext& ctx)
 {
     ctx.cancelCompletion();
-    ctx.commandBuffer = ":";
+    ctx.commandBuffer = ":" + initialInput;
     completions.clear();
     completionIndex = -1;
     originalInput.clear();
     locCompletion = false;
     locCommand.clear();
     ctx.startCommandPopup();
-    ctx.updateCommandPopup("");
+    ctx.updateCommandPopup(initialInput);
 
     ctx.requestFullRedraw();
 }
@@ -320,6 +320,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 if(mode == TASK_LIST)
                 {
                     return TaskListMode{};
+                }
+                if(mode == COMMAND_PALETTE)
+                {
+                    return CommandPaletteMode{};
                 }
                 if(mode == LOC_LIST)
                 {

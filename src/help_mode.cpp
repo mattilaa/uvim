@@ -47,7 +47,8 @@ std::vector<std::string> helpSearchTopics()
             "clipboard", "git",         "ga",          "gb",
             "gbb",       "gbl",         "gj",          "gbv",
             "gs",        "emitasm",     "lsp",         "toolinfo",
-            "tasks",     "diagnostics", "logging",     "keys"};
+            "tasks",     "diagnostics", "logging",     "keys",
+            "palette"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -142,6 +143,8 @@ std::string helpTopicDescription(const std::string& topic)
         return "External tool setup";
     if(topic == "keys")
         return "Ctrl+Shift keys, Alt alternatives, :set iskitty";
+    if(topic == "palette")
+        return "Command palette (Space Space): search and run commands";
     if(topic == "tasks")
         return "Background tasks and progress";
     if(topic == "diagnostics")
@@ -1167,6 +1170,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-e`  - Diagnostic popup on LSP diagnostic row",
             "  `Space-m e/w` - Active-LSP error/warning jump list",
             "  `Space-x`  - File browser",
+            "  `Space Space` - Command palette (`:help palette`)",
             "  `Ctrl-w`   - Browse buffers for the active pane",
             "  `Space-w c` - Close active split pane",
 #ifdef UVIM_ENABLE_MODERN_KEYBINDINGS
@@ -1671,6 +1675,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Space-m e/w` - Active-LSP error/warning jump list",
             "  `Space-x` - File browser",
             "  `Space-b` - Buffer browser",
+            "  `Space Space` - Command palette: search and run commands",
             "  `Ctrl-a`  - Grep search",
             "",
             "MARKS & JUMPS:",
@@ -2251,6 +2256,42 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "bar fill and track colours.",
         };
     }
+    else if(topic_lower == "palette" || topic_lower == "commandpalette")
+    {
+        lines = {
+            "# Command Palette",
+            "",
+            "`Space Space` (or `:palette`) - in normal and visual modes -",
+            "opens a floating picker, like",
+            "Ctrl-p and Ctrl-a, listing what uVim can do by name - \"Open",
+            "file browser\", \"Change buffer\", \"Save all files\", \"Git: log\"",
+            "- with the key or command that does the same on the right",
+            "(`Space x`, `Ctrl-W`, `:wa`). Choosing one does exactly that.",
+            "All other `:` commands follow, titled by what they do.",
+            "",
+            "  Type        - Filter by name, words or command",
+            "                (`file br`, `change buf`, `wa`, `git log` ...)",
+            "  `Ctrl-j`/`Ctrl-k`, arrows - Move the selection",
+            "  `PgDn`/`PgUp` - Move ten rows",
+            "  `Enter`     - Run the selected command",
+            "  `Ctrl-u`    - Clear the search",
+            "  `Esc`       - Close (Backspace on an empty search too)",
+            "",
+            "Best matches come first: an exact command (`wa`), a name or",
+            "command starting with the search, every search word starting",
+            "a word of the name (`file br`), names containing the words,",
+            "then fuzzy matches.",
+            "",
+            "Entries marked `…` need an argument (Open file…, Save as…):",
+            "Enter opens the command line with the command typed, e.g.",
+            "`:e `, ready for the file name. Everything else runs right",
+            "away, as if you pressed its keys or typed its command.",
+            "",
+            "The window size follows `:set picker.width=` /",
+            "`picker.height=`; `:set pickerstyle=fullscreen` uses the whole",
+            "screen like the other pickers.",
+        };
+    }
     else if(topic_lower == "keys" || topic_lower == "iskitty" ||
             topic_lower == "kitty")
     {
@@ -2390,6 +2431,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:help logging`",
             "  `:help diagnostics`",
             "  `:help keys`",
+            "  `:help palette`",
             "",
             "Type `:help` to see the main help page.",
         };

@@ -38,6 +38,7 @@ menus—they leave the corresponding implementation out of the binary.
 - [Assembly instruction docs](#assembly-instruction-docs)
 - [LSP flags](#lsp-flags)
 - [Dependencies](#dependencies-os-specific)
+- [Command palette](#command-palette)
 - [File browser](#file-browser)
 - [`:run` output view](#run-output-view)
 - [Tab bar and buffer management](#tab-bar--buffer-management)
@@ -709,6 +710,41 @@ Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
 - `examples/lsp/sample.css`
 - `examples/lsp/sample.js`
 - `examples/lsp/sample.ts`
+
+## Command palette
+
+`Space Space` (or `:palette`), in normal and visual modes, opens the
+command palette: a floating window
+like the Ctrl-P file finder and Ctrl-A grep, with the search input on top.
+It lists what uVim can do by name, with the key or command that does the same
+shown on the right:
+
+```text
+Find file                  Ctrl-P
+Open file browser          Space x
+Change buffer              Ctrl-W
+Save all files             :wa, :wall
+Git: log                   :git log
+...
+```
+
+Choosing an entry does exactly that — "Open file browser" acts like
+`Space x`, "Change buffer" opens the `Ctrl-W` buffer view. After the named
+actions come all other `:` commands, titled by what they do.
+
+- **Type** to filter — `file br`, `change buf`, `save all`, `wa`, `git log`
+  all work. Best matches come first: exact command, name or command prefix,
+  every search word starting a word of the name, names containing the
+  words, then fuzzy matches.
+- **`Ctrl-J` / `Ctrl-K`** (or the arrow keys) move the selection,
+  `PgDn`/`PgUp` move ten rows, `Ctrl-U` clears the search.
+- **`Enter`** runs the selection. Entries marked `…` need an argument
+  (Open file…, Save as…); Enter opens the command line with the command
+  typed (`:e `) for you to finish.
+- **`Esc`** (or Backspace on an empty search) closes the palette.
+
+The palette follows the picker settings (`:set picker.width=`,
+`picker.height=`, `pickerstyle=`). See `:help palette`.
 
 ## File browser
 
