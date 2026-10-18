@@ -1911,6 +1911,16 @@ TEST(RealModeTransitionsTest, TabTakesHighlightedCommandPopupItem)
     EXPECT_EQ(editor.commandBuffer, ":loctotal");
     sm.dispatch(keyCode(control::ControlKey::ESC));
 
+    // Picked with Ctrl-J first (the prompt already shows it): Tab keeps it
+    // instead of completing an argument.
+    sm.dispatch(':');
+    type("lcto");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    const std::string picked = editor.commandBuffer;
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(editor.commandBuffer, picked);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     sm.dispatch(':');
     type("tsks");
