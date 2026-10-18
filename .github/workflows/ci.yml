@@ -38,7 +38,7 @@ jobs:
             runner: ubuntu-latest
             configure: >-
               -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++
-              -DUVIM_ENABLE_CLANGD_LSP=ON
+              -DUVIM_ENABLE_CLANGD_LSP=ON -DUVIM_ENABLE_CSHARP_LSP=ON
           - target: macos-arm64
             runner: macos-latest
             configure: >-
@@ -50,7 +50,8 @@ jobs:
               -DUVIM_ENABLE_SANITIZERS=ON
           - target: windows-x64
             runner: windows-latest
-            configure: -A x64 -DUVIM_ENABLE_CLANGD_LSP=ON
+            configure: >-
+              -A x64 -DUVIM_ENABLE_CLANGD_LSP=ON -DUVIM_ENABLE_CSHARP_LSP=ON
     defaults:
       run:
         shell: bash
@@ -124,6 +125,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes clangd
 
+      # C# language server for the C# LSP integration test.
+      - name: Set up .NET (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Install csharp-ls (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet tool install --global csharp-ls
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
       - name: Download build tree
         uses: actions/download-artifact@v8
         with:
@@ -179,7 +195,8 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DUVIM_BUILD_TESTS=OFF \
-            -DUVIM_ENABLE_CLANGD_LSP=ON
+            -DUVIM_ENABLE_CLANGD_LSP=ON \
+            -DUVIM_ENABLE_CSHARP_LSP=ON
 
       - name: Configure (macOS arm64)
         if: runner.os == 'macOS'
@@ -188,7 +205,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DUVIM_BUILD_TESTS=OFF \
-            -DUVIM_ENABLE_CLANGD_LSP=ON
+            -DUVIM_ENABLE_CLANGD_LSP=ON \
+            -DUVIM_ENABLE_CSHARP_LSP=ON
 
       - name: Configure (Windows x64)
         if: runner.os == 'Windows'
@@ -196,6 +214,7 @@ jobs:
           cmake -S . -B build -A x64
           -DUVIM_BUILD_TESTS=OFF
           -DUVIM_ENABLE_CLANGD_LSP=ON
+          -DUVIM_ENABLE_CSHARP_LSP=ON
 
       - name: Build (Release)
         run: cmake --build build --config Release --target uvim

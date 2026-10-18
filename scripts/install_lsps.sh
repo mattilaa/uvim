@@ -16,6 +16,7 @@ Options:
   --ts             Install typescript-language-server + typescript (npm)
   --robot          Install robotframework-lsp (pip)
   --python         Install python-lsp-server (pylsp) (pip)
+  --csharp         Install csharp-ls (dotnet tool; needs the .NET SDK)
   --help           Show this help
 
 Examples:
@@ -23,6 +24,7 @@ Examples:
   ./scripts/install_lsps.sh --clangd
   ./scripts/install_lsps.sh --html --css --json --ts
   ./scripts/install_lsps.sh --robot --python
+  ./scripts/install_lsps.sh --csharp
 EOF
 }
 
@@ -37,6 +39,8 @@ want_ts=false
 want_robot=false
 want_python=false
 want_clangd=false
+want_csharp=false
+csharp_explicit=false
 
 if [ "$#" -eq 0 ]; then
   usage
@@ -53,6 +57,7 @@ while [ "$#" -gt 0 ]; do
       want_robot=true
       want_python=true
       want_clangd=true
+      want_csharp=true
       ;;
     --clangd) want_clangd=true ;;
     --html) want_html=true ;;
@@ -61,6 +66,7 @@ while [ "$#" -gt 0 ]; do
     --ts) want_ts=true ;;
     --robot) want_robot=true ;;
     --python) want_python=true ;;
+    --csharp) want_csharp=true; csharp_explicit=true ;;
     --help|-h)
       usage
       exit 0
@@ -112,6 +118,24 @@ if [ "${#pip_pkgs[@]}" -gt 0 ]; then
   fi
   echo "Installing pip packages: ${pip_pkgs[*]}"
   $PIP install --upgrade "${pip_pkgs[@]}"
+fi
+
+if $want_csharp; then
+  if need_cmd csharp-ls || [ -x "$HOME/.dotnet/tools/csharp-ls" ]; then
+    echo "csharp-ls already installed"
+  elif need_cmd dotnet; then
+    echo "Installing csharp-ls (dotnet tool)"
+    dotnet tool install --global csharp-ls
+    case ":$PATH:" in
+      *":$HOME/.dotnet/tools:"*) ;;
+      *) echo "Note: uvim also finds it in ~/.dotnet/tools; add that to PATH to run it yourself." ;;
+    esac
+  elif $csharp_explicit; then
+    echo "dotnet not found. Install the .NET SDK (https://dot.net), then rerun --csharp." >&2
+    exit 1
+  else
+    echo "Skipping csharp-ls: dotnet not found (install the .NET SDK for C#)."
+  fi
 fi
 
 if $want_clangd; then

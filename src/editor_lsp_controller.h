@@ -35,6 +35,9 @@ public:
     void enableTsLsp(bool enable, const std::string& tsLspPath,
                      const std::vector<std::string>& tsLspArgs);
     bool isTsLspEnabled() const;
+    void enableCSharpLsp(bool enable, const std::string& csharpLspPath,
+                         const std::vector<std::string>& csharpLspArgs);
+    bool isCSharpLspEnabled() const;
 
 private:
     Editor& editor;

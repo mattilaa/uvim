@@ -153,6 +153,13 @@ public:
                 const std::string& tsLspPath = "typescript-language-server",
                 const std::vector<std::string>& tsLspArgs = {});
     bool isTsLspEnabled() const;
+    // C#: csharp-ls (default) or OmniSharp ("-lsp" is added for it).
+    void enableCSharpLsp(bool enable,
+                         const std::string& csharpLspPath = "csharp-ls",
+                         const std::vector<std::string>& csharpLspArgs = {});
+    bool isCSharpLspEnabled() const;
+    // Sends a changed C# buffer to the server (diagnostics follow edits).
+    void syncCSharpLspIfNeeded(bool force);
 
     void run();
     void openFile(std::string_view filename, bool notifyLspOnOpen = true);
@@ -357,6 +364,9 @@ public:
     bool tsLspEnabled = false;
     std::string tsLspPath = "typescript-language-server";
     std::vector<std::string> tsLspArgs;
+    bool csharpLspEnabled = false;
+    std::string csharpLspPath = "csharp-ls";
+    std::vector<std::string> csharpLspArgs;
     std::shared_ptr<MlangTokenCache> mlangTokenCache;
 #ifdef UVIM_ENABLE_CLANGD_LSP
     std::unique_ptr<LspClient> lspClient;
@@ -367,6 +377,7 @@ public:
     std::unique_ptr<LspClient> cssLspClient;
     std::unique_ptr<LspClient> jsonLspClient;
     std::unique_ptr<LspClient> tsLspClient;
+    std::unique_ptr<LspClient> csharpLspClient;
 #endif
 
     Theme theme;
@@ -1343,6 +1354,9 @@ private:
     void enableTsLspImpl(bool enable, const std::string& tsLspPath,
                          const std::vector<std::string>& tsLspArgs);
     bool isTsLspEnabledImpl() const;
+    void enableCSharpLspImpl(bool enable, const std::string& csharpLspPath,
+                             const std::vector<std::string>& csharpLspArgs);
+    bool isCSharpLspEnabledImpl() const;
     bool handleSetCommandImpl(std::string_view cmd);
     void createNewBufferImpl();
     void updateCurrentBufferPointersImpl();

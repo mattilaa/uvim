@@ -468,6 +468,15 @@ void EditorDefinitionController::goToDefinition()
         if(goToMlangDefinition(symbol))
             return;
     }
+#ifdef UVIM_ENABLE_CLANGD_LSP
+    else if(fileType == FileType::CSharp)
+    {
+        if(editor.isCSharpLspEnabled() &&
+           goToGenericLspDefinition(editor.csharpLspClient.get(), "csharp",
+                                    "csharp"))
+            return;
+    }
+#endif
 
     if(goToCppDefinition(symbol))
         return;

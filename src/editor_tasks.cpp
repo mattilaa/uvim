@@ -285,6 +285,7 @@ std::vector<std::pair<std::string, LspClient*>> Editor::activeLspClients() const
     add(cssLspClient, "css");
     add(jsonLspClient, "json");
     add(tsLspClient, "ts");
+    add(csharpLspClient, "csharp");
 #endif
     return out;
 }
