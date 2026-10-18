@@ -50,13 +50,38 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Release notes
 
-### v0.3.2 (unreleased)
+### v0.3.2 (2026-10-19)
 
-- TODO: describe what is new, improved and fixed.
+#### New
 
-### v0.3.1 (unreleased)
+- **C#** — `.cs`/`.csx` files are highlighted in every build: keywords,
+  contextual keywords such as `var`, `async`, `record`, built-in types,
+  verbatim (`@"..."`), interpolated (`$"..."`) and raw (`"""..."""`) strings,
+  `#region`-style directives and comments. Comment toggling uses `//` and
+  `Format buffer` uses clang-format's C# mode.
+- **C# language server** (build option `UVIM_ENABLE_CSHARP_LSP`, in the
+  `full` preset and the release binaries) — `csharp-ls` from `PATH` or
+  `~/.dotnet/tools`, otherwise OmniSharp. It starts with the first `.cs` file
+  in the folder of the nearest `.sln`/`.csproj`; completion, go to
+  definition, references, diagnostics with `Space-e` and `:lspinfo` work as
+  for C/C++. `--csharp-lsp`, `--csharp-lsp-path`, `--csharp-lsp-args`;
+  `scripts/install_lsps.sh --csharp`. See [C#](#c).
+- **`uvim-config` checks runtime dependencies** — after saving a
+  configuration it lists the programs the chosen features use (language
+  servers, git, ripgrep, fzf, formatters, clipboard helpers) and offers to
+  install the missing ones with the system package manager, npm, pipx or
+  `dotnet tool`; nothing is installed without a yes. `--check-deps` and
+  `--install-deps` do the same without the configurator screen.
 
-- TODO: describe what is new, improved and fixed.
+#### Development
+
+- The version lives in [`version.txt`](version.txt); CMake reads it.
+- [`scripts/release.sh`](scripts/release.sh) bumps the version (refusing a
+  lower one), checks the release notes and publishes a release after
+  checking the tag, the notes and CI; afterwards `main` moves on to the next
+  version. See [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
+- CI builds the C# language server support and tests it against a real
+  `csharp-ls` on Linux.
 
 ### v0.3.0 (2026-10-18)
 
