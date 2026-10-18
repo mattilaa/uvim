@@ -196,7 +196,28 @@ The tag must be the version in `CMakeLists.txt` (`UVIM_VERSION_MAJOR`,
 `UVIM_VERSION_MINOR`, `UVIM_VERSION_PATCH`); the release scripts stop when
 they differ, and the `uvim_version` test checks that `uvim --version` prints
 it (`uvim 0.3.0 (build 12)` — the build number is not part of the release
-version). To release, bump the version in a commit, then push the tag.
+version).
+
+`scripts/release.sh` does the steps (it asks before every change; `-y`
+answers yes):
+
+```sh
+scripts/release.sh --bump            # shows the current version and the
+                                     # latest release, asks for the new one
+scripts/release.sh --bump minor      # or major / patch / 0.4.0
+scripts/release.sh --check-notes     # release notes done for this version?
+scripts/release.sh --publish         # tag and publish the GitHub release
+```
+
+- `--bump` refuses a version that is not higher than the current one and the
+  latest release, updates `CMakeLists.txt` and the version examples (not the
+  release-notes history), adds a `### vX.Y.Z (unreleased)` stub with a TODO
+  to the release notes and commits "Version X.Y.Z".
+- `--publish` runs on an up-to-date, clean `main`: it checks that the tag is
+  new, that the release notes for the version exist without TODOs (and
+  offers to replace "unreleased" with today's date), that CI passed for the
+  commit (or waits for it), then pushes the tag `vX.Y.Z`; the release
+  workflow builds every target and publishes the release with those notes.
 
 See [Portable archives](#portable-macos-and-linux-archives) for building
 them locally.
