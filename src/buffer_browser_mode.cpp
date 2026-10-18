@@ -14,8 +14,9 @@ namespace
 std::vector<std::string> bufferBrowserHelpTokens()
 {
     return {"[Enter: switch]", "[Ctrl+X: close]",
-            "[Ctrl+Shift+X: close matches]", "[Esc: cancel]",
-            "[Ctrl+J/K: navigate]"};
+            std::string("[") + Terminal::shiftChordLabel() +
+                "+X: close matches]",
+            "[Esc: cancel]", "[Ctrl+J/K: navigate]"};
 }
 
 int bufferBrowserVisibleRows(const Editor& editor)

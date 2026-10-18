@@ -172,6 +172,13 @@ static void handle_sigwinch(int)
 }
 #endif
 
+void Editor::setIsKitty(bool value)
+{
+    isKitty = value;
+    Terminal::setAltChords(!value);
+    needsFullRedraw = true;
+}
+
 Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                const std::string& themePath)
 {
@@ -186,6 +193,7 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
     robotSettingSet = RobotUtilities::defaultSettings();
     mlangTokenCache = std::make_shared<MlangTokenCache>();
     commandPrompt = std::make_shared<CommandPrompt>();
+    setIsKitty(Terminal::detectKittyKeyboard());
     if(!configPath.empty())
     {
         std::ifstream in(configPath);
@@ -590,6 +598,19 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                     formatOnSave = true;
                 else if(v == "false" || v == "0" || v == "off")
                     formatOnSave = false;
+            }
+            auto itkitty = values.find("editor.iskitty");
+            if(itkitty == values.end())
+                itkitty = values.find("settings.iskitty");
+            if(itkitty == values.end())
+                itkitty = values.find("iskitty");
+            if(itkitty != values.end())
+            {
+                const std::string& v = itkitty->second;
+                if(v == "true" || v == "1" || v == "on")
+                    setIsKitty(true);
+                else if(v == "false" || v == "0" || v == "off")
+                    setIsKitty(false);
             }
             auto itfmt = values.find("editor.formatondoubleesctimeoutms");
             if(itfmt == values.end())

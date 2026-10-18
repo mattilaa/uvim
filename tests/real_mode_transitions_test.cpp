@@ -1,4 +1,5 @@
 #include "real_mode_test_utils.h"
+#include "terminal.h"
 #include "widgets/command_popup.h"
 
 #include <algorithm>
@@ -1690,4 +1691,36 @@ TEST(RealModeTransitionsTest, QuitRefusesWithUnsavedChanges)
             << command << ": " << editor.statusMessage;
     }
     exitIsAFailure = false;
+}
+
+TEST(RealModeTransitionsTest, SetIsKittyTogglesAltChords)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    auto run = [&](const std::string& command)
+    {
+        sm.dispatch(':');
+        for(char c : command)
+            sm.dispatch(c);
+        sm.dispatch(keyCode(control::ControlKey::ENTER));
+    };
+
+    run("set iskitty=false");
+    EXPECT_FALSE(editor.isKitty);
+    EXPECT_TRUE(Terminal::altChords());
+    EXPECT_STREQ(Terminal::shiftChordLabel(), "Alt");
+    run("set iskitty?");
+    EXPECT_TRUE(text_utils::is_found(editor.statusMessage.find("iskitty=false")))
+        << editor.statusMessage;
+
+    run("set iskitty=true");
+    EXPECT_TRUE(editor.isKitty);
+    EXPECT_FALSE(Terminal::altChords());
+    EXPECT_STREQ(Terminal::shiftChordLabel(), "Ctrl+Shift");
+
+    run("set iskitty=maybe");
+    EXPECT_TRUE(editor.isKitty);
+    EXPECT_TRUE(
+        text_utils::is_found(editor.statusMessage.find("expected true/false")));
 }

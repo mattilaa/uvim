@@ -1,5 +1,6 @@
 #include "editor_settings_controller.h"
 #include "editor.h"
+#include "terminal.h"
 #include "editor_utils.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -99,6 +100,33 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     {
         setStatusMessage(std::string("commenttogglepartial=") +
                          (commentTogglePartial ? "true" : "false"));
+        return true;
+    }
+    if(opt == "iskitty?")
+    {
+        setStatusMessage(std::string("iskitty=") + (isKitty ? "true" : "false") +
+                         " (" + Terminal::shiftChordLabel() +
+                         "+h/j/k/l/x chords)");
+        return true;
+    }
+    if(opt == "iskitty" || opt == "noiskitty" ||
+       opt.rfind("iskitty=", 0) == 0)
+    {
+        std::string value = opt == "iskitty"     ? "true"
+                            : opt == "noiskitty" ? "false"
+                                                 : opt.substr(8);
+        if(value == "true" || value == "1" || value == "on")
+            setIsKitty(true);
+        else if(value == "false" || value == "0" || value == "off")
+            setIsKitty(false);
+        else
+        {
+            setStatusMessage("iskitty: expected true/false");
+            return true;
+        }
+        setStatusMessage(std::string("iskitty=") + (isKitty ? "true" : "false") +
+                         " (" + Terminal::shiftChordLabel() +
+                         "+h/j/k/l/x chords)");
         return true;
     }
     if(opt == "gitignore?")

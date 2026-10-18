@@ -628,6 +628,8 @@ autodetectlsps = true
 emitlsp = true
 formatonsave = true
 gdcenter = true
+# Alt-H/J/K/L/X for the Ctrl+Shift keys (:help keys). Detected by default.
+# iskitty = false
 
 [editor.filebrowser]
 fuzzy = false

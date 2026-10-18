@@ -35,7 +35,8 @@ std::vector<std::string> grepSearchHelpTokens(int contrast, bool preview)
         "[" + ascii::utf8(ascii::UP_DOWN_ARROWS) + ": navigate]",
         "[Ctrl+I: gitignore]", "[Ctrl+V: preview]"};
     if(preview)
-        tokens.push_back("[Ctrl+Shift+J/K: scroll preview]");
+        tokens.push_back(std::string("[") + Terminal::shiftChordLabel() +
+                         "+J/K: scroll preview]");
     tokens.push_back("[Ctrl+T: contrast " + std::to_string(contrast) + "]");
     return tokens;
 }
