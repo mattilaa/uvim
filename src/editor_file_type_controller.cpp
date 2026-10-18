@@ -135,6 +135,9 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
     set_if(FileType::CSharp,
            constants::is_filetype<constants::no_pattern,
                                   constants::csharp_suffixes>(pathSv));
+    set_if(FileType::PowerShell,
+           constants::is_filetype<constants::no_pattern,
+                                  constants::powershell_suffixes>(pathSv));
     set_if(
         FileType::Xml,
         constants::is_filetype<constants::no_pattern, constants::xml_suffixes>(

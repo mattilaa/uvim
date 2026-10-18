@@ -23,4 +23,5 @@ enum class FileType
     Flex,
     Bison,
     CSharp,
+    PowerShell,
 };

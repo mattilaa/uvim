@@ -1720,3 +1720,63 @@ TEST(SyntaxHighlighterTest, HighlightsCSharpKeywordsTypesAndStrings)
     tokens = tokenizeCSharp(editor, line, inBlock);
     EXPECT_TRUE(inBlock);
 }
+
+TEST(SyntaxHighlighterTest, HighlightsPowerShell)
+{
+    Editor editor = Editor::createForTests();
+    setupEditorBuffer(editor);
+    *editor.filename = "/tmp/build.ps1";
+    bool inBlock = false;
+    bool inHere = false;
+    char hereQuote = 0;
+    bool inFence = false;
+    char fenceChar = 0;
+    auto tokenize = [&](const std::string& line)
+    {
+        return editor.tokenizeLine(line, inBlock, inHere, hereQuote, inFence,
+                                   fenceChar);
+    };
+
+    std::string line = "function Get-Thing([string]$Path) { if ($env:HOME "
+                       "-eq 'x') { Write-Host \"a`\"b\" } } # done";
+    auto tokens = tokenize(line);
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 8, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, 9, 9, TOKEN_FUNCTION));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("string"), 6, TOKEN_TYPE));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("$Path"), 5, TOKEN_MEMBER));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("if"), 2, TOKEN_KEYWORD));
+    EXPECT_TRUE(
+        hasTokenAt(tokens, (int)line.find("$env:HOME"), 9, TOKEN_MEMBER));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("-eq"), 3, TOKEN_OPERATOR));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("'x'"), 3, TOKEN_STRING));
+    EXPECT_TRUE(
+        hasTokenAt(tokens, (int)line.find("Write-Host"), 10, TOKEN_FUNCTION));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("\"a"), 6, TOKEN_STRING));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("# done"), 6, TOKEN_COMMENT));
+
+    // Keywords are case-insensitive; -Parameter names are not operators.
+    line = "ForEach ($f in $files) { Copy-Item -Path $f -Force }";
+    tokens = tokenize(line);
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 7, TOKEN_KEYWORD));
+    EXPECT_TRUE(hasTokenAt(tokens, (int)line.find("in "), 2, TOKEN_KEYWORD));
+    EXPECT_FALSE(
+        hasTokenAt(tokens, (int)line.find("-Path"), 5, TOKEN_OPERATOR));
+
+    // <# ... #> block comments span lines.
+    tokens = tokenize("$x = 1 <# start");
+    EXPECT_TRUE(inBlock);
+    tokens = tokenize("still comment #> $y");
+    EXPECT_FALSE(inBlock);
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 16, TOKEN_COMMENT));
+    EXPECT_TRUE(hasTokenAt(tokens, 17, 2, TOKEN_MEMBER));
+
+    // Here-strings span lines until "@ at the start of a line.
+    tokens = tokenize("$s = @\"");
+    EXPECT_TRUE(inHere);
+    tokens = tokenize("  if $not # code");
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 16, TOKEN_STRING));
+    tokens = tokenize("\"@ | Out-File a.txt");
+    EXPECT_FALSE(inHere);
+    EXPECT_TRUE(hasTokenAt(tokens, 0, 2, TOKEN_STRING));
+    EXPECT_TRUE(hasTokenAt(tokens, 5, 8, TOKEN_FUNCTION));
+}

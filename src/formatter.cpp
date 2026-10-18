@@ -49,6 +49,7 @@ Formatter::FormatterVariant Formatter::formatterFor(FileType type)
     case FileType::Rdoc:
     case FileType::CMake:
     case FileType::Shell:
+    case FileType::PowerShell:
     case FileType::Asm:
     case FileType::Flex:
     case FileType::Bison:

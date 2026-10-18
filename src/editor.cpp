@@ -1103,6 +1103,10 @@ std::optional<FileType> Editor::getFileType() const
     {
         return FileType::CSharp;
     }
+    else if(isFileType<FileType::PowerShell>())
+    {
+        return FileType::PowerShell;
+    }
     else if(isFileType<FileType::Xml>())
     {
         return FileType::Xml;
