@@ -68,7 +68,18 @@ jobs:
           UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
 
   windows-x64:
+    name: windows-x64 (${{ matrix.config }})
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Debug and Release build in parallel jobs instead of one after
+          # the other (each MSVC build takes ~17 min).
+          - config: Debug
+            tests: "ON"
+          - config: Release
+            tests: "OFF"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -76,19 +87,18 @@ jobs:
       - name: Configure (MSVC x64)
         run: >
           cmake -S . -B build -A x64
-          -DUVIM_BUILD_TESTS=ON
+          -DUVIM_BUILD_TESTS=${{ matrix.tests }}
           -DUVIM_ENABLE_CLANGD_LSP=ON
 
-      - name: Build (Debug)
-        run: cmake --build build --config Debug --parallel
+      - name: Build (${{ matrix.config }})
+        run: cmake --build build --config ${{ matrix.config }} --parallel
 
       - name: Unit tests
+        if: matrix.config == 'Debug'
         run: ctest --test-dir build -C Debug --output-on-failure
 
-      - name: Build (Release)
-        run: cmake --build build --config Release --parallel --target uvim
-
       - name: Upload artifact
+        if: matrix.config == 'Release'
         uses: actions/upload-artifact@v7
         with:
           name: uvim-windows-x64
