@@ -38,6 +38,7 @@ menus—they leave the corresponding implementation out of the binary.
 - [Assembly instruction docs](#assembly-instruction-docs)
 - [LSP flags](#lsp-flags)
 - [Dependencies](#dependencies-os-specific)
+- [Command palette](#command-palette)
 - [File browser](#file-browser)
 - [`:run` output view](#run-output-view)
 - [Tab bar and buffer management](#tab-bar--buffer-management)
@@ -709,6 +710,26 @@ Sample files for HTML/CSS/JS/TS live in `examples/lsp/`:
 - `examples/lsp/sample.css`
 - `examples/lsp/sample.js`
 - `examples/lsp/sample.ts`
+
+## Command palette
+
+`Space Space` (or `:palette`) opens the command palette: a floating window
+like the Ctrl-P file finder and Ctrl-A grep, with the search input on top
+and every `:` command listed with a description of what it does.
+
+- **Type** to filter by command name *or* description — `write all`,
+  `git log`, `buffer`, `quit` all work. Best matches come first: exact
+  name, name prefix, fuzzy name, all words in the description, fuzzy
+  description. Aliases share a row (`:q, :quit`).
+- **`Ctrl-J` / `Ctrl-K`** (or the arrow keys) move the selection,
+  `PgDn`/`PgUp` move ten rows, `Ctrl-U` clears the search.
+- **`Enter`** runs the selected command exactly as if typed after `:`.
+  Commands marked `…` take an argument (`:e …`, `:b …`); Enter opens the
+  command line with the command typed (`:e `) for you to finish.
+- **`Esc`** (or Backspace on an empty search) closes the palette.
+
+The palette follows the picker settings (`:set picker.width=`,
+`picker.height=`, `pickerstyle=`). See `:help palette`.
 
 ## File browser
 

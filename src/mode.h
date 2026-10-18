@@ -24,6 +24,7 @@ enum Mode
     LSP_INFO,
     TOOL_INFO,
     TASK_LIST,
+    COMMAND_PALETTE,
     LOC_LIST,
     MLANG_FORMAT_ERRORS,
     HELP,

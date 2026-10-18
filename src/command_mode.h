@@ -27,6 +27,10 @@ struct CommandMode
         return "COMMAND";
     }
 
+    // Text the command line starts with (after ':'), e.g. "e " from the
+    // command palette for a command that takes an argument.
+    std::string initialInput;
+
     // Tab completion state
     std::vector<std::string> completions;
     int completionIndex = -1;

@@ -157,6 +157,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
     case LSP_INFO:
     case TOOL_INFO:
     case TASK_LIST:
+    case COMMAND_PALETTE:
     case LOC_LIST:
     case GIT_STAGE:
     case GIT_COMMIT:

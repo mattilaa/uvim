@@ -1391,8 +1391,12 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
         break;
 
     case keyCode(control::ControlKey::SPACE):
-        // Double space - do nothing
+        // Space Space: command palette.
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        return CommandPaletteMode{};
+#else
         break;
+#endif
 
     default:
         // Unknown leader command

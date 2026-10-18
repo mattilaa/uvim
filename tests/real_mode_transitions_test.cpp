@@ -1,3 +1,4 @@
+#include "command_palette.h"
 #include "real_mode_test_utils.h"
 #include "terminal.h"
 #include "widgets/command_popup.h"
@@ -1724,3 +1725,121 @@ TEST(RealModeTransitionsTest, SetIsKittyTogglesAltChords)
     EXPECT_TRUE(
         text_utils::is_found(editor.statusMessage.find("expected true/false")));
 }
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+TEST(CommandPaletteTest, GroupsAliasesAndRanksNamesBeforeDescriptions)
+{
+    const auto entries = command_palette::buildEntries(
+        {"w", "w ", "q", "quit", "wa", "wall", "ls", "buffers", "bn"},
+        [](std::string_view command) -> std::string
+        {
+            if(command == "q" || command == "quit")
+                return "Quit uVim";
+            if(command == "wa" || command == "wall")
+                return "Write all modified buffers";
+            if(command == "ls" || command == "buffers")
+                return "List open buffers";
+            if(command == "bn")
+                return "Next buffer";
+            return command == "w" ? "Write current buffer" : "Write to file";
+        });
+    ASSERT_EQ(entries.size(), 6u);
+    EXPECT_EQ(entries[1].label(), ":w \xE2\x80\xA6");
+    EXPECT_TRUE(entries[1].takesArgument);
+    EXPECT_EQ(entries[2].label(), ":q, :quit");
+
+    auto labels = [&](const std::string& query)
+    {
+        std::vector<std::string> out;
+        for(const auto& match : command_palette::rank(entries, query))
+            out.push_back(entries[match.entry].label());
+        return out;
+    };
+    // Exact name, then name prefix.
+    EXPECT_EQ(labels("w").front(), ":w");
+    EXPECT_EQ(labels("wa").front(), ":wa, :wall");
+    // A name match wins over a description match: "buffers" is a name
+    // (of :ls); "Next buffer" only matches by description.
+    const auto buffers = labels("buffers");
+    ASSERT_GE(buffers.size(), 1u);
+    EXPECT_EQ(buffers.front(), ":ls, :buffers");
+    // Description words.
+    EXPECT_EQ(labels("quit uvim"), std::vector<std::string>{":q, :quit"});
+    EXPECT_EQ(labels("modified").front(), ":wa, :wall");
+    EXPECT_TRUE(labels("zzzz").empty());
+    EXPECT_EQ(labels("").size(), entries.size());
+}
+
+TEST(CommandPaletteTest, SpaceSpaceOpensPaletteAndEnterRunsCommand)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    auto* palette = sm.getState<CommandPaletteMode>();
+    ASSERT_NE(palette, nullptr);
+    EXPECT_FALSE(palette->matches.empty());
+
+    for(char c : std::string("list open"))
+        sm.dispatch(c);
+    palette = sm.getState<CommandPaletteMode>();
+    ASSERT_NE(palette, nullptr);
+    ASSERT_FALSE(palette->matches.empty());
+    EXPECT_EQ(palette->entries[palette->matches[0].entry].names.front(), "ls");
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    ASSERT_FALSE(editor.commandHistory.empty());
+    EXPECT_EQ(editor.commandHistory.back(), "ls");
+    EXPECT_EQ(sm.getState<CommandPaletteMode>(), nullptr);
+}
+
+TEST(CommandPaletteTest, CommandWithArgumentOpensCommandLine)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char c : std::string("palette"))
+        sm.dispatch(c);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+
+    for(char c : std::string("edit"))
+        sm.dispatch(c);
+    auto* palette = sm.getState<CommandPaletteMode>();
+    ASSERT_NE(palette, nullptr);
+    ASSERT_FALSE(palette->matches.empty());
+    EXPECT_TRUE(palette->entries[palette->matches[0].entry].takesArgument);
+
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_STREQ(sm.currentStateName(), "COMMAND");
+    EXPECT_EQ(editor.commandBuffer, ":e ");
+}
+
+TEST(CommandPaletteTest, NavigationAndLeaving)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    auto* palette = sm.getState<CommandPaletteMode>();
+    ASSERT_NE(palette, nullptr);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(sm.getState<CommandPaletteMode>()->cursor, 1);
+
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    sm.dispatch('x');
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+    sm.dispatch(keyCode(control::ControlKey::BACKSPACE));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+#endif
