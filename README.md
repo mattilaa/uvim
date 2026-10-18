@@ -31,6 +31,7 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Contents
 
+- [Supported platforms and builds](#supported-platforms-and-builds)
 - [Build profiles and uvim-config](#build-profiles-and-uvim-config)
 - [Runtime configuration](#runtime-configuration)
 - [Themes](#themes)
@@ -45,6 +46,53 @@ menus—they leave the corresponding implementation out of the binary.
 - [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives)
 - [Diagnostics](#diagnostics)
 - [Search examples](#search-examples)
+
+## Supported platforms and builds
+
+uVim supports three operating systems on two CPU architectures. Other
+architectures (32-bit x86, ARMv7, RISC-V, macOS on Intel, Windows on ARM,
+...) are not supported.
+
+| Platform | Architecture | Compiler        | Terminal backend        |
+|----------|--------------|-----------------|-------------------------|
+| Linux    | x86_64       | GCC (or Clang)  | POSIX                   |
+| Linux    | arm64        | GCC (or Clang)  | POSIX                   |
+| macOS    | arm64        | Apple Clang     | POSIX                   |
+| Windows  | x86_64       | MSVC            | native Windows console  |
+
+The terminal backend follows the platform (`UVIM_TERMINAL_BACKEND=AUTO`).
+On Windows only the native console backend works; choosing `POSIX` there
+stops at configure time.
+
+### Continuous integration
+
+Every push and pull request runs [CI](.github/workflows/ci.yml). All jobs run
+in parallel:
+
+| Job                                     | Build   | What it checks                                  |
+|-----------------------------------------|---------|-------------------------------------------------|
+| `test linux-x64 (Debug, GCC)`           | Debug   | unit + Robot TUI tests, clangd LSP (real clangd) |
+| `test macos-arm64 (Debug)`              | Debug   | unit + Robot TUI tests, build without LSP       |
+| `test macos-arm64 (Debug, ASan/UBSan)`  | Debug   | unit + Robot tests under the sanitizers          |
+| `test windows-x64 (Debug, MSVC)`        | Debug   | unit tests, clangd LSP (real clangd)             |
+| `release linux-x64`                     | Release | builds and uploads `uvim-linux-x64.tar.gz`      |
+| `release linux-arm64`                   | Release | builds and uploads `uvim-linux-arm64.tar.gz`    |
+| `release macos-arm64`                   | Release | builds and uploads `uvim-macos-arm64.tar.gz`    |
+| `release windows-x64`                   | Release | builds and uploads `uvim-windows-x64.zip`       |
+
+Debug builds exist only to run the tests; the Release jobs produce the
+binaries. Each Release binary is attached to the CI run as an artifact
+(Actions → the run → *Artifacts*). Release builds include the clangd LSP
+client; the language servers themselves are external programs (see
+[Dependencies](#dependencies-os-specific)).
+
+### Tagged releases
+
+Pushing a `vMAJOR.MINOR.BUGFIX` tag runs the separate
+[portable release workflow](.github/workflows/portable-release.yml), which
+publishes ZIP archives (Linux x86_64 and a universal macOS binary, plus a
+macOS installer package) on the GitHub Release page. See
+[Portable macOS and Linux archives](#portable-macos-and-linux-archives).
 
 ## Build profiles and uvim-config
 
