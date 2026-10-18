@@ -1739,11 +1739,14 @@ std::vector<std::string> paletteTitles(
 }
 
 // Opens the palette, types `query` and presses Enter on the best match.
-void runPalette(ModeStateMachine& sm, const std::string& query)
+void runPalette(ModeStateMachine& sm, Editor& editor, const std::string& query)
 {
     sm.dispatch(' ');
     sm.dispatch(' ');
     ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+    // The app keeps currentMode in sync with the state machine; commands
+    // run from the palette must not see it and reopen the palette.
+    editor.currentMode = COMMAND_PALETTE;
     for(char c : query)
         sm.dispatch(c);
     ASSERT_FALSE(sm.getState<CommandPaletteMode>()->matches.empty()) << query;
@@ -1792,24 +1795,31 @@ TEST(CommandPaletteTest, ActionsRunTheirKeysAndCommands)
     editor.createNewBuffer();
     {
         auto sm = makeMachine(editor, NormalMode{});
-        runPalette(sm, "change buffer"); // Ctrl-W
+        runPalette(sm, editor, "change buffer"); // Ctrl-W
         EXPECT_STREQ(sm.currentStateName(), "BUFFERS");
     }
     {
         auto sm = makeMachine(editor, NormalMode{});
-        runPalette(sm, "open file browser"); // Space x
+        runPalette(sm, editor, "open file browser"); // Space x
         EXPECT_STREQ(sm.currentStateName(), "BROWSE");
     }
     {
         auto sm = makeMachine(editor, NormalMode{});
-        runPalette(sm, "find references"); // Space g r reads its next key
+        runPalette(sm, editor, "find references"); // Space g r reads its next key
         EXPECT_EQ(Terminal::bufferedKeyCount(), 0) << "replayed keys all used";
     }
     {
         auto sm = makeMachine(editor, NormalMode{});
-        runPalette(sm, "working directory"); // :pwd
+        runPalette(sm, editor, "working directory"); // :pwd
         ASSERT_FALSE(editor.commandHistory.empty());
         EXPECT_EQ(editor.commandHistory.back(), "pwd");
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL") << "palette closed";
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, editor, "split vert"); // :vs
+        EXPECT_TRUE(editor.splitActive);
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL") << "palette closed";
     }
 }
 

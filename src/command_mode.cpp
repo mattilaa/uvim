@@ -259,10 +259,6 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
                 return TaskListMode{};
             }
-            if(ctx.currentMode() == COMMAND_PALETTE)
-            {
-                return CommandPaletteMode{};
-            }
 #endif
             if(ctx.editor && ctx.editor->getModeStateMachine())
             {
