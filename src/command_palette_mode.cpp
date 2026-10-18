@@ -39,6 +39,24 @@ std::string clipToWidth(const std::string& text, int width)
     return out;
 }
 
+// Feeds `keys` to `mode` as if typed. They are queued in the terminal key
+// buffer first: some bindings read their next key themselves (Space g r).
+// Only the queued keys are used; keys the user typed ahead stay queued.
+template<typename Mode>
+std::optional<ModeState> pressKeys(Mode& mode, ModeContext& ctx,
+                                   const std::vector<int>& keys)
+{
+    const int alreadyQueued = Terminal::bufferedKeyCount();
+    for(auto key = keys.rbegin(); key != keys.rend(); ++key)
+        Terminal::unreadKey(*key);
+    std::optional<ModeState> next;
+    while(!next && Terminal::bufferedKeyCount() > alreadyQueued)
+        next = mode.handle(ctx, ModeKeyEvent{Terminal::readKeyTimeout(0)});
+    while(Terminal::bufferedKeyCount() > alreadyQueued)
+        (void)Terminal::readKeyTimeout(0);
+    return next;
+}
+
 ModeState leave(ModeContext& ctx)
 {
     return ctx.hasBuffer() ? ModeState{NormalMode{}} : ModeState{WelcomeMode{}};
@@ -47,14 +65,12 @@ ModeState leave(ModeContext& ctx)
 
 void CommandPaletteMode::on_enter(ModeContext& ctx)
 {
-    entries = command_palette::buildEntries(
-        ctx.getCommandCompletions(""),
+    // Named actions first, then the ex commands no action covers.
+    entries = command_palette::builtinActions();
+    command_palette::addExCommands(
+        entries, ctx.getCommandCompletions(""),
         [](std::string_view command)
-        {
-            if(command == "w ")
-                return std::string("Write the buffer to a file (:w <file>)");
-            return std::string(widgets::commandDocumentation(command));
-        });
+        { return std::string(widgets::commandDocumentation(command)); });
     query.clear();
     refilter();
     ctx.setStatusMessage("");
@@ -95,6 +111,25 @@ std::optional<ModeState> CommandPaletteMode::handle(ModeContext& ctx,
             CommandMode commandLine;
             commandLine.initialInput = entry.names.front() + " ";
             return commandLine;
+        }
+        if(!entry.keys.empty())
+        {
+            // Press the action's keys, as in normal mode (or on the welcome
+            // screen when no buffer is open).
+            ctx.commandBuffer.clear();
+            std::optional<ModeState> next;
+            if(ctx.hasBuffer())
+            {
+                NormalMode normal;
+                next = pressKeys(normal, ctx, entry.keys);
+            }
+            else
+            {
+                WelcomeMode welcome;
+                next = pressKeys(welcome, ctx, entry.keys);
+            }
+            ctx.commandBuffer.clear();
+            return next ? next : std::optional<ModeState>(leave(ctx));
         }
         // Run it exactly like typing ":<command>" and Enter, including the
         // views some commands open (:help, :tasks, :git log, ...).
@@ -195,7 +230,7 @@ void CommandPaletteMode::draw(Editor& editor) const
     {
         // Placeholder: names and descriptions are both searchable.
         static const std::string placeholder =
-            " Type a command or what it does\xE2\x80\xA6";
+            " Type what you want to do\xE2\x80\xA6";
         output += editor.theme.uiDim();
         output += placeholder;
         promptWidth += text_utils::utf8DisplayWidth(placeholder);
@@ -215,16 +250,9 @@ void CommandPaletteMode::draw(Editor& editor) const
     else if(cursor >= offset + rows)
         offset = cursor - rows + 1;
 
-    // Command names in a column as wide as the longest visible label (up to
-    // a third of the pane), descriptions after it.
+    // Title on the left (query letters highlighted), the key or command
+    // that does the same dimmed on the right.
     const int cols = layout.cols;
-    int labelWidth = 0;
-    for(int i = 0; i < rows && i + offset < (int)matches.size(); ++i)
-        labelWidth = std::max(
-            labelWidth, text_utils::utf8DisplayWidth(
-                            entries[matches[i + offset].entry].label()));
-    labelWidth = std::min(labelWidth, std::max(8, cols / 3));
-
     for(int i = 0; i < rows; ++i)
     {
         canvas.beginRow(i);
@@ -240,17 +268,21 @@ void CommandPaletteMode::draw(Editor& editor) const
         const std::string base =
             selected ? editor.theme.selection() : editor.theme.reset();
 
-        output += base;
-        output += editor.theme.uiInfo();
-        output += "  ";
-        int used = 2;
+        std::string shortcut = entry.shortcut;
+        const int shortcutMax = std::max(0, cols / 3);
+        if(text_utils::utf8DisplayWidth(shortcut) > shortcutMax)
+            shortcut = clipToWidth(shortcut, shortcutMax);
+        const int shortcutWidth = text_utils::utf8DisplayWidth(shortcut);
+        const int titleMax = std::max(1, cols - 2 - shortcutWidth - 3);
+        std::string title = entry.title;
+        if(text_utils::utf8DisplayWidth(title) > titleMax)
+            title = clipToWidth(title, titleMax);
 
-        // Label with the matched characters highlighted.
-        std::string label = entry.label();
-        if(text_utils::utf8DisplayWidth(label) > labelWidth)
-            label = clipToWidth(label, labelWidth);
+        output += base;
+        output += editor.theme.baseFg();
+        output += "  ";
         size_t next = 0;
-        for(size_t pos = 0; pos < label.size(); ++pos)
+        for(size_t pos = 0; pos < title.size(); ++pos)
         {
             const bool hit = next < match.positions.size() &&
                              match.positions[next] == (int)pos;
@@ -258,27 +290,23 @@ void CommandPaletteMode::draw(Editor& editor) const
             {
                 ++next;
                 output += editor.theme.matchHighlight();
-                output += label[pos];
+                output += title[pos];
                 output += base;
-                output += editor.theme.uiInfo();
+                output += editor.theme.baseFg();
             }
             else
             {
-                output += label[pos];
+                output += title[pos];
             }
         }
-        const int labelShown = text_utils::utf8DisplayWidth(label);
-        used += labelShown;
-        output.append(labelWidth - labelShown + 2, ' ');
-        used += labelWidth - labelShown + 2;
-
-        const int descWidth = std::max(0, cols - used - 1);
-        std::string description = entry.description;
-        if(text_utils::utf8DisplayWidth(description) > descWidth)
-            description = clipToWidth(description, descWidth);
-        output += selected ? editor.theme.baseFg() : editor.theme.uiDim();
-        output += description;
-        used += text_utils::utf8DisplayWidth(description);
+        const int titleWidth = text_utils::utf8DisplayWidth(title);
+        int used = 2 + titleWidth;
+        const int gap = std::max(1, cols - used - shortcutWidth - 1);
+        output.append(gap, ' ');
+        used += gap;
+        output += selected ? editor.theme.uiInfo() : editor.theme.uiDim();
+        output += shortcut;
+        used += shortcutWidth;
         canvas.endRow(used);
     }
 

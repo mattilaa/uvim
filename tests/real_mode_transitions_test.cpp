@@ -1727,71 +1727,90 @@ TEST(RealModeTransitionsTest, SetIsKittyTogglesAltChords)
 }
 
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-TEST(CommandPaletteTest, GroupsAliasesAndRanksNamesBeforeDescriptions)
+namespace
 {
-    const auto entries = command_palette::buildEntries(
-        {"w", "w ", "q", "quit", "wa", "wall", "ls", "buffers", "bn"},
-        [](std::string_view command) -> std::string
-        {
-            if(command == "q" || command == "quit")
-                return "Quit uVim";
-            if(command == "wa" || command == "wall")
-                return "Write all modified buffers";
-            if(command == "ls" || command == "buffers")
-                return "List open buffers";
-            if(command == "bn")
-                return "Next buffer";
-            return command == "w" ? "Write current buffer" : "Write to file";
-        });
-    ASSERT_EQ(entries.size(), 6u);
-    EXPECT_EQ(entries[1].label(), ":w \xE2\x80\xA6");
-    EXPECT_TRUE(entries[1].takesArgument);
-    EXPECT_EQ(entries[2].label(), ":q, :quit");
-
-    auto labels = [&](const std::string& query)
-    {
-        std::vector<std::string> out;
-        for(const auto& match : command_palette::rank(entries, query))
-            out.push_back(entries[match.entry].label());
-        return out;
-    };
-    // Exact name, then name prefix.
-    EXPECT_EQ(labels("w").front(), ":w");
-    EXPECT_EQ(labels("wa").front(), ":wa, :wall");
-    // A name match wins over a description match: "buffers" is a name
-    // (of :ls); "Next buffer" only matches by description.
-    const auto buffers = labels("buffers");
-    ASSERT_GE(buffers.size(), 1u);
-    EXPECT_EQ(buffers.front(), ":ls, :buffers");
-    // Description words.
-    EXPECT_EQ(labels("quit uvim"), std::vector<std::string>{":q, :quit"});
-    EXPECT_EQ(labels("modified").front(), ":wa, :wall");
-    EXPECT_TRUE(labels("zzzz").empty());
-    EXPECT_EQ(labels("").size(), entries.size());
+std::vector<std::string> paletteTitles(
+    const std::vector<command_palette::Entry>& entries, const std::string& query)
+{
+    std::vector<std::string> out;
+    for(const auto& match : command_palette::rank(entries, query))
+        out.push_back(entries[match.entry].title);
+    return out;
 }
 
-TEST(CommandPaletteTest, SpaceSpaceOpensPaletteAndEnterRunsCommand)
+// Opens the palette, types `query` and presses Enter on the best match.
+void runPalette(ModeStateMachine& sm, const std::string& query)
+{
+    sm.dispatch(' ');
+    sm.dispatch(' ');
+    ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
+    for(char c : query)
+        sm.dispatch(c);
+    ASSERT_FALSE(sm.getState<CommandPaletteMode>()->matches.empty()) << query;
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+}
+} // namespace
+
+TEST(CommandPaletteTest, ActionsAndExCommandsRankByMeaning)
+{
+    auto entries = command_palette::builtinActions();
+    command_palette::addExCommands(
+        entries, {"w", "wa", "qa", "qall", "pwd", "tabn", "tabnext"},
+        [](std::string_view command) -> std::string
+        {
+            if(command == "qa" || command == "qall")
+                return "Quit all windows";
+            if(command == "tabn" || command == "tabnext")
+                return "Next tab";
+            return "";
+        });
+
+    // Ex commands an action already covers are not repeated; the rest are
+    // grouped by description, shortcut listing the spellings.
+    const auto quitAll = std::find_if(entries.begin(), entries.end(),
+                                      [](const auto& entry)
+                                      { return entry.title == "Quit all windows"; });
+    ASSERT_NE(quitAll, entries.end());
+    EXPECT_EQ(quitAll->shortcut, ":qa, :qall");
+    EXPECT_EQ(std::count_if(entries.begin(), entries.end(),
+                            [](const auto& entry)
+                            { return entry.title == "Show working directory"; }),
+              1);
+
+    EXPECT_EQ(paletteTitles(entries, "file br").front(), "Open file browser");
+    EXPECT_EQ(paletteTitles(entries, "change buf").front(), "Change buffer");
+    EXPECT_EQ(paletteTitles(entries, "wa").front(), "Save all files");
+    EXPECT_EQ(paletteTitles(entries, "next tab").front(), "Next tab");
+    EXPECT_EQ(paletteTitles(entries, "git log").front(), "Git: log");
+    EXPECT_TRUE(paletteTitles(entries, "zzzzqq").empty());
+    EXPECT_EQ(paletteTitles(entries, "").size(), entries.size());
+}
+
+TEST(CommandPaletteTest, ActionsRunTheirKeysAndCommands)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
-    auto sm = makeMachine(editor, NormalMode{});
-    sm.dispatch(' ');
-    sm.dispatch(' ');
-    auto* palette = sm.getState<CommandPaletteMode>();
-    ASSERT_NE(palette, nullptr);
-    EXPECT_FALSE(palette->matches.empty());
-
-    for(char c : std::string("list open"))
-        sm.dispatch(c);
-    palette = sm.getState<CommandPaletteMode>();
-    ASSERT_NE(palette, nullptr);
-    ASSERT_FALSE(palette->matches.empty());
-    EXPECT_EQ(palette->entries[palette->matches[0].entry].names.front(), "ls");
-
-    sm.dispatch(keyCode(control::ControlKey::ENTER));
-    ASSERT_FALSE(editor.commandHistory.empty());
-    EXPECT_EQ(editor.commandHistory.back(), "ls");
-    EXPECT_EQ(sm.getState<CommandPaletteMode>(), nullptr);
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, "change buffer"); // Ctrl-W
+        EXPECT_STREQ(sm.currentStateName(), "BUFFERS");
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, "open file browser"); // Space x
+        EXPECT_STREQ(sm.currentStateName(), "BROWSE");
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, "find references"); // Space g r reads its next key
+        EXPECT_EQ(Terminal::bufferedKeyCount(), 0) << "replayed keys all used";
+    }
+    {
+        auto sm = makeMachine(editor, NormalMode{});
+        runPalette(sm, "working directory"); // :pwd
+        ASSERT_FALSE(editor.commandHistory.empty());
+        EXPECT_EQ(editor.commandHistory.back(), "pwd");
+    }
 }
 
 TEST(CommandPaletteTest, CommandWithArgumentOpensCommandLine)
@@ -1805,7 +1824,7 @@ TEST(CommandPaletteTest, CommandWithArgumentOpensCommandLine)
     sm.dispatch(keyCode(control::ControlKey::ENTER));
     ASSERT_NE(sm.getState<CommandPaletteMode>(), nullptr);
 
-    for(char c : std::string("edit"))
+    for(char c : std::string("open file"))
         sm.dispatch(c);
     auto* palette = sm.getState<CommandPaletteMode>();
     ASSERT_NE(palette, nullptr);
