@@ -374,7 +374,8 @@ numbers are never included in release asset names: the ZIP files are
 the workflow by hand with `publish` unchecked only builds the archives.
 
 The macOS job also creates `uvim-v0.2.1-macos-arm64.pkg`. It installs the
-executable as `/usr/local/bin/uvim`. The workflow builds this as an
+executable as `/usr/local/bin/uvim` and, optionally, the **uVim app** (see
+below). The workflow builds this as an
 unsigned installer by default, so it does not require a paid Apple Developer
 membership or repository secrets. macOS may require the user to explicitly
 approve the installer in Privacy & Security. If signing is added later, public
@@ -398,6 +399,29 @@ Anyway** for the uvim package. Authenticate when prompted and confirm the
 installer again. Apple makes **Open Anyway** available for about an hour after
 the blocked launch attempt. Do not disable Gatekeeper globally. See Apple's
 [security override instructions](https://support.apple.com/guide/mac-help/open-an-app-by-overriding-security-settings-mh40617/mac).
+
+The installer's **Customize** page has two parts:
+
+- **uVim command-line editor** (always installed) — `uvim` in
+  `/usr/local/bin`; run it in any terminal.
+- **uVim app** (selected by default) — `/Applications/uVim.app` with the uVim
+  icon. It opens uVim in its own terminal window: **Alacritty** when it is
+  installed, otherwise **Terminal**. Files dropped on the app (or opened with
+  *Open With → uVim*) open in uVim. uVim runs in your login shell, so the
+  `PATH` from your shell profile (Homebrew, git, ripgrep, ...) applies, and the
+  window stays at a shell prompt after you quit uVim.
+
+To pick the terminal yourself instead of the automatic choice:
+
+```sh
+defaults write io.github.mattilaa.uvim.app Terminal -string terminal    # always Terminal
+defaults write io.github.mattilaa.uvim.app Terminal -string alacritty   # always Alacritty
+defaults delete io.github.mattilaa.uvim.app Terminal                    # automatic again
+```
+
+Build the package locally after a portable build with
+`./scripts/build_macos_pkg.sh --binary build-portable/uvim --version v0.2.1`.
+The icons come from `packaging/icons/make_icons.py`.
 
 #### Installing on Windows
 
