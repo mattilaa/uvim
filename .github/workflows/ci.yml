@@ -7,145 +7,129 @@ on:
     branches: ["**"]
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Debug builds: only for running the tests.
-  # ---------------------------------------------------------------------------
-  test-linux-x64:
-    name: test linux-x64 (Debug, GCC)
-    runs-on: ubuntu-latest
+  # ===========================================================================
+  # Build stage. All jobs run in parallel:
+  #   build      Debug builds with tests, one per test target
+  #   artifacts  Release builds of the binaries for the supported targets
+  # Test stage (needs: build):
+  #   test       runs the unit and Robot tests on the downloaded Debug builds
+  # ===========================================================================
+  build:
+    name: build ${{ matrix.target }} (Debug)
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-latest
+            configure: >-
+              -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++
+              -DUVIM_ENABLE_CLANGD_LSP=ON
+          - target: macos-arm64
+            runner: macos-latest
+            configure: >-
+              -DCMAKE_BUILD_TYPE=Debug -DUVIM_ENABLE_CLANGD_LSP=OFF
+          - target: macos-arm64-asan
+            runner: macos-latest
+            configure: >-
+              -DCMAKE_BUILD_TYPE=Debug -DUVIM_ENABLE_CLANGD_LSP=OFF
+              -DUVIM_ENABLE_SANITIZERS=ON
+          - target: windows-x64
+            runner: windows-latest
+            configure: -A x64 -DUVIM_ENABLE_CLANGD_LSP=ON
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install build tools
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes g++ ninja-build clangd
-
-      - name: Configure (Debug, GCC)
-        run: |
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DUVIM_BUILD_TESTS=ON \
-            -DUVIM_ENABLE_CLANGD_LSP=ON
-
-      - name: Build (Debug)
-        run: cmake --build build
-
-      - name: Unit tests
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Robot tests
-        run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/robot/requirements.txt
-          UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
-
-  test-macos-arm64:
-    name: test macos-arm64 (Debug)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+          sudo apt-get install --yes g++ ninja-build
 
       - name: Configure (Debug)
-        run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DUVIM_BUILD_TESTS=ON \
-            -DUVIM_ENABLE_CLANGD_LSP=OFF
-
-      - name: Build (Debug)
-        run: cmake --build build --parallel
-
-      - name: Unit tests
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Robot tests
-        run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/robot/requirements.txt
-          UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
-
-  test-macos-arm64-sanitizers:
-    name: test macos-arm64 (Debug, ASan/UBSan)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Configure (Debug + ASan/UBSan)
-        run: |
-          cmake -S . -B build-sanitizers \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DUVIM_BUILD_TESTS=ON \
-            -DUVIM_ENABLE_CLANGD_LSP=OFF \
-            -DUVIM_ENABLE_SANITIZERS=ON
-
-      - name: Build (Debug + ASan/UBSan)
-        run: cmake --build build-sanitizers
-
-      - name: Sanity check (Debug + Sanitizers)
-        run: |
-          echo "=== Using sanitizer build dir ==="
-          echo "PWD=$PWD"
-          echo "BUILD_DIR=$PWD/build-sanitizers"
-          echo
-          echo "=== CMake cache (key settings) ==="
-          grep -E '^(CMAKE_BUILD_TYPE:|UVIM_ENABLE_SANITIZERS:|CMAKE_C_COMPILER:|CMAKE_CXX_COMPILER:)' build-sanitizers/CMakeCache.txt || true
-          echo
-          echo "=== Check binary is instrumented (links ASan runtime) ==="
-          if [ -f "build-sanitizers/uvim" ]; then
-            otool -L build-sanitizers/uvim | grep -E 'asan' || echo "NOTE: did not find 'asan' in linked libs (unexpected if ASan is enabled)"
-          else
-            echo "ERROR: build-sanitizers/uvim not found"
-            ls -la build-sanitizers || true
-          fi
-          echo
-          echo "=== Robot will run this binary ==="
-          echo "UVIM_BIN=$PWD/build-sanitizers/uvim"
-
-      - name: Unit tests (ASan/UBSan)
-        env:
-          # LeakSanitizer is not reliably supported on macOS runners; avoid aborting the job.
-          ASAN_OPTIONS: "halt_on_error=1:detect_leaks=0"
-          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
-        run: ctest --test-dir build-sanitizers --output-on-failure
-
-      - name: Robot tests (ASan/UBSan)
-        env:
-          ASAN_OPTIONS: "halt_on_error=1:detect_leaks=0"
-          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
-        run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/robot/requirements.txt
-          UVIM_BIN="$PWD/build-sanitizers/uvim" ./tests/robot/run_robot.sh tests/robot/
-
-  test-windows-x64:
-    name: test windows-x64 (Debug, MSVC)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Configure (MSVC x64)
-        run: >
-          cmake -S . -B build -A x64
-          -DUVIM_BUILD_TESTS=ON
-          -DUVIM_ENABLE_CLANGD_LSP=ON
+        run: cmake -S . -B build -DUVIM_BUILD_TESTS=ON ${{ matrix.configure }}
 
       - name: Build (Debug)
         run: cmake --build build --config Debug --parallel
 
+      # tar keeps the executable bits; object files are not needed to run
+      # the tests.
+      - name: Pack build tree
+        run: >
+          tar -czf build-${{ matrix.target }}.tgz
+          --exclude='*.o' --exclude='*.obj' --exclude='*.pdb'
+          --exclude='*.ilk' --exclude='*.idb' --exclude='*.tlog'
+          build
+
+      - name: Upload build tree
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-${{ matrix.target }}
+          path: build-${{ matrix.target }}.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  test:
+    name: test ${{ matrix.target }}
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-latest
+            robot: true
+          - target: macos-arm64
+            runner: macos-latest
+            robot: true
+          - target: macos-arm64-asan
+            runner: macos-latest
+            robot: true
+          - target: windows-x64
+            runner: windows-latest
+            robot: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      # LeakSanitizer is not reliably supported on macOS runners.
+      ASAN_OPTIONS: "halt_on_error=1:detect_leaks=0"
+      UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install clangd (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clangd
+
+      - name: Download build tree
+        uses: actions/download-artifact@v8
+        with:
+          name: build-${{ matrix.target }}
+
+      - name: Unpack build tree
+        run: tar -xzf build-${{ matrix.target }}.tgz
+
       - name: Unit tests
         run: ctest --test-dir build -C Debug --output-on-failure
+
+      - name: Robot tests
+        if: matrix.robot
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r tests/robot/requirements.txt
+          UVIM_BIN="$PWD/build/uvim" ./tests/robot/run_robot.sh tests/robot/
 
   # ---------------------------------------------------------------------------
   # Artifacts: Release builds for the supported targets, x64 and arm64

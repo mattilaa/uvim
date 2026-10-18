@@ -66,25 +66,30 @@ stops at configure time.
 
 ### Continuous integration
 
-Every push and pull request runs [CI](.github/workflows/ci.yml). All jobs run
-in parallel:
+Every push and pull request runs [CI](.github/workflows/ci.yml) as a two-stage
+pipeline; the jobs inside each stage run in parallel:
 
-| Job                                     | Build   | What it checks                                  |
-|-----------------------------------------|---------|-------------------------------------------------|
-| `test linux-x64 (Debug, GCC)`           | Debug   | unit + Robot TUI tests, clangd LSP (real clangd) |
-| `test macos-arm64 (Debug)`              | Debug   | unit + Robot TUI tests, build without LSP       |
-| `test macos-arm64 (Debug, ASan/UBSan)`  | Debug   | unit + Robot tests under the sanitizers          |
-| `test windows-x64 (Debug, MSVC)`        | Debug   | unit tests, clangd LSP (real clangd)             |
-| `artifacts linux-x64`                   | Release | builds and uploads `uvim-linux-x64.tar.gz`      |
-| `artifacts linux-arm64`                 | Release | builds and uploads `uvim-linux-arm64.tar.gz`    |
-| `artifacts macos-arm64`                 | Release | builds and uploads `uvim-macos-arm64.tar.gz`    |
-| `artifacts windows-x64`                 | Release | builds and uploads `uvim-windows-x64.zip`       |
+```text
+ build stage                                   test stage
+ build linux-x64 (Debug, GCC, clangd LSP)  ──▶  test linux-x64        unit + Robot, real clangd
+ build macos-arm64 (Debug)                 ──▶  test macos-arm64      unit + Robot
+ build macos-arm64-asan (Debug, ASan/UBSan)──▶  test macos-arm64-asan unit + Robot under sanitizers
+ build windows-x64 (Debug, MSVC, LSP)      ──▶  test windows-x64      unit, real clangd
+ artifacts linux-x64    (Release)  → uvim-linux-x64.tar.gz
+ artifacts linux-arm64  (Release)  → uvim-linux-arm64.tar.gz
+ artifacts macos-arm64  (Release)  → uvim-macos-arm64.tar.gz
+ artifacts windows-x64  (Release)  → uvim-windows-x64.zip
+```
 
-Debug builds exist only to run the tests; the `artifacts` jobs make Release
-builds of the binaries. Each binary is attached to the CI run as an artifact
-named `uvim-<target>` (Actions → the run → *Artifacts*). Release builds include the clangd LSP
-client; the language servers themselves are external programs (see
-[Dependencies](#dependencies-os-specific)).
+- **build** compiles the Debug builds with tests and hands the build tree to
+  the test stage; Debug builds exist only to run the tests.
+- **test** starts once the builds are done and runs the tests on those build
+  trees without compiling again.
+- **artifacts** makes the Release builds; each binary is attached to the CI
+  run as an artifact named `uvim-<target>` (Actions → the run →
+  *Artifacts*). Release builds include the clangd LSP client; the language
+  servers themselves are external programs (see
+  [Dependencies](#dependencies-os-specific)).
 
 ### Tagged releases
 
