@@ -16,7 +16,7 @@ Options:
   --ts             Install typescript-language-server + typescript (npm)
   --robot          Install robotframework-lsp (pip)
   --python         Install python-lsp-server (pylsp) (pip)
-  --csharp         Install csharp-ls (dotnet tool; needs the .NET SDK)
+  --csharp         Install csharp-ls (dotnet tool; needs the .NET 10+ SDK)
   --help           Show this help
 
 Examples:
@@ -131,10 +131,10 @@ if $want_csharp; then
       *) echo "Note: uvim also finds it in ~/.dotnet/tools; add that to PATH to run it yourself." ;;
     esac
   elif $csharp_explicit; then
-    echo "dotnet not found. Install the .NET SDK (https://dot.net), then rerun --csharp." >&2
+    echo "dotnet not found. Install the .NET 10+ SDK (https://dot.net), then rerun --csharp." >&2
     exit 1
   else
-    echo "Skipping csharp-ls: dotnet not found (install the .NET SDK for C#)."
+    echo "Skipping csharp-ls: dotnet not found (install the .NET 10+ SDK for C#)."
   fi
 fi
 

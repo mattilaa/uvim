@@ -98,10 +98,10 @@ std::vector<Dependency> required(const Features& f, Platform platform,
         add(".NET SDK (dotnet)", "C# LSP", {"dotnet"},
             pm == PackageManager::Brew
                 ? "brew install --cask dotnet-sdk"
-                : systemInstall(pm, {.apt = "dotnet-sdk-8.0",
-                                     .dnf = "dotnet-sdk-8.0",
+                : systemInstall(pm, {.apt = "dotnet-sdk-10.0",
+                                     .dnf = "dotnet-sdk-10.0",
                                      .pacman = "dotnet-sdk",
-                                     .winget = "Microsoft.DotNet.SDK.8"}));
+                                     .winget = "Microsoft.DotNet.SDK.10"}));
 
     if(f.clangdLsp)
         add("clangd", "C/C++ LSP", {"clangd"},
