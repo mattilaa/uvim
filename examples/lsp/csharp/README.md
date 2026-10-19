@@ -3,6 +3,11 @@
 A small console project for trying C# highlighting and language-server
 features in uVim. It has no external package dependencies.
 
+To use this example as the base of a new project with a project-local SDK,
+LSP and Python venv, follow the
+[local C# environment guide](../../../docs/csharp_environment.md).
+The setup script accepts the current directory or a chosen target directory.
+
 Use the .NET 10 SDK and `csharp-ls`, plus a uVim build with C# LSP enabled
 (the `full` preset and release binaries include it). See the
 [C# setup instructions](../../../README.md#c) for installation.

@@ -1045,6 +1045,12 @@ if(UVIM_BUILD_TESTS)
             NAME mlang_lsp_scaffold_integration
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/mlang_lsp_integration_test.py
         )
+        if(Python3_VERSION VERSION_GREATER_EQUAL "3.9")
+            add_test(
+                NAME csharp_environment
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/csharp_env_test.py
+            )
+        endif()
     endif()
 
     add_custom_target(check
