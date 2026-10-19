@@ -32,6 +32,7 @@ menus—they leave the corresponding implementation out of the binary.
 ## Contents
 
 - [Release notes](#release-notes)
+- [How to make a release](RELEASE_PROCESS.md#release-checklist)
 - [Supported platforms and builds](#supported-platforms-and-builds)
 - [Build profiles and uvim-config](#build-profiles-and-uvim-config)
 - [Runtime configuration](#runtime-configuration)

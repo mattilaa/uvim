@@ -5,6 +5,88 @@ what to do when something goes wrong. The steps are automated by
 [`scripts/release.sh`](scripts/release.sh); every step that changes something
 asks first (`-y` answers yes).
 
+## Release checklist
+
+Use this checklist each time you publish a release. Run commands from the
+repository root in Bash (macOS/Linux, or Git Bash on Windows). You need Git,
+the GitHub CLI (`gh`), and the project's build dependencies installed.
+
+1. **Check access and your working tree.**
+
+   ```sh
+   gh auth status
+   git status --short
+   git fetch origin --tags
+   ```
+
+   If GitHub CLI authentication is missing, run `gh auth login`. Commit or
+   stash any working-tree changes before continuing.
+
+2. **Bring the prepared release into `main`.** For v0.3.2:
+
+   ```sh
+   git switch main
+   git pull --ff-only origin main
+   git merge --no-ff origin/release/v0.3.2
+   ```
+
+   Replace `origin/release/v0.3.2` with the branch for the release you are
+   making. If all release changes are already on `main`, skip the merge.
+   If there are merge conflicts, resolve and commit them before continuing.
+
+3. **Check the version, release notes, build and tests.**
+
+   ```sh
+   cat version.txt
+   scripts/release.sh --check-notes
+   cmake -S . -B build -DUVIM_BUILD_TESTS=ON
+   cmake --build build --parallel 4
+   ctest --test-dir build --output-on-failure --parallel 4
+   ```
+
+   For v0.3.2, `version.txt` must contain `0.3.2`, and `README.md` must have
+   finished notes under `### v0.3.2`. Do not bump an already prepared version.
+   For a new version, follow [Versions](#versions) and
+   [Releasing](#releasing) below. Fix any failed checks before continuing.
+
+4. **Push `main` and publish.**
+
+   ```sh
+   git push origin main
+   scripts/release.sh --publish
+   ```
+
+   Respond to the script's prompts as follows:
+
+   - If the notes say `(unreleased)`, accept setting today's date and pushing
+     the notes commit.
+   - Accept waiting for CI. If CI has not passed or no run is found, decline
+     releasing anyway. Check [GitHub Actions](https://github.com/mattilaa/uvim/actions/workflows/ci.yml),
+     wait for a successful run on the latest `main` commit, and run
+     `scripts/release.sh --publish` again.
+   - Confirm creating and pushing the release tag, for example `v0.3.2`.
+     **This publishes the release:** the tag starts the package builds and
+     creates the GitHub Release automatically.
+   - Accept waiting for the release workflow and displaying its assets.
+   - After the release succeeds, accept starting the next patch version
+     (`0.3.3` after `0.3.2`). The script commits and pushes the version bump
+     and an empty release-notes section for future changes.
+
+5. **Verify the published release.** Open
+   [Releases](https://github.com/mattilaa/uvim/releases) and confirm the version,
+   release notes, ZIP archives, installers and `.sha256` files are present.
+   Follow [Checking a release](#checking-a-release) below to verify a download.
+   If a package build fails, use [Dry runs, re-runs and fixes](#dry-runs-re-runs-and-fixes).
+
+## Where to look on GitHub
+
+- [CI](https://github.com/mattilaa/uvim/actions/workflows/ci.yml): tests and
+  builds that must pass before tagging.
+- [Portable release binaries](https://github.com/mattilaa/uvim/actions/workflows/portable-release.yml):
+  package builds started by the release tag; open a run to inspect failures.
+- [Releases](https://github.com/mattilaa/uvim/releases): published notes and
+  downloadable packages.
+
 ## Versions
 
 The release version lives in one place: [`version.txt`](version.txt) in the
