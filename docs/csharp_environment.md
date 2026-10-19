@@ -1,5 +1,9 @@
 # Start a C# project with a local environment
 
+For a walkthrough you can follow command by command, start with
+[Your first C# project with uVim](csharp_quickstart.md). This page is the
+reference for local environment setup and maintenance.
+
 Use `scripts/csharp_env.py` to create a C# project without installing a
 system SDK or global language server. The same Python script works on
 macOS, Linux and Windows, and includes `--help` for every command.
@@ -30,7 +34,7 @@ From your uVim checkout, on macOS/Linux:
 
 ```sh
 python3 scripts/csharp_env.py --help
-python3 scripts/csharp_env.py init ~/projects/MyCSharpApp --name MyCSharpApp
+python3 scripts/csharp_env.py init ~/projects/MyCSharpApp --name MyCSharpApp --template lsp
 cd ~/projects/MyCSharpApp
 python3 csharp-env.py run
 python3 csharp-env.py edit Program.cs
@@ -40,7 +44,7 @@ On Windows PowerShell:
 
 ```powershell
 py -3 scripts/csharp_env.py --help
-py -3 scripts/csharp_env.py init "$HOME\projects\MyCSharpApp" --name MyCSharpApp
+py -3 scripts/csharp_env.py init "$HOME\projects\MyCSharpApp" --name MyCSharpApp --template lsp
 Set-Location "$HOME\projects\MyCSharpApp"
 py -3 csharp-env.py run
 py -3 csharp-env.py edit Program.cs
@@ -50,20 +54,26 @@ You can run the original script by absolute path from anywhere. To use the
 current directory, omit the target:
 
 ```sh
-python3 /path/to/uvim/scripts/csharp_env.py init --name MyCSharpApp
+python3 /path/to/uvim/scripts/csharp_env.py init --name MyCSharpApp --template lsp
 ```
 
 Setup refuses to overwrite an existing environment or generated project
 files. An interrupted setup can be resumed with `python3 csharp-env.py
 restore` from its target directory.
 
-The starter has `Program.cs` and `Greeter.cs`, based on the
+The `lsp` starter has `Program.cs` and `Greeter.cs`, based on the
 [C# LSP example](../examples/lsp/csharp/README.md). It prints:
 
 ```text
 Hello, Ada!
 Hello, Linus!
 ```
+
+Use `--template hello` (the default) for a minimal Hello World app, or
+`--template classlib` for a reusable library. `python3 scripts/csharp_env.py
+templates` lists the available starters. Add `--no-restore` to generate the
+source, helper and guide offline, then use the generated helper's `restore`
+command when you are ready to download the tools.
 
 ## Use the Python venv
 

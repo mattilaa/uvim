@@ -31,14 +31,67 @@ class CSharpEnvironmentTest(unittest.TestCase):
 
     def test_init_scaffolds_example_and_portable_helper(self):
         with patch.object(envtool, "restore") as restore:
-            envtool.init(self.root, "HelloApp", False, "latest", "0.28.0")
+            envtool.init(self.root, "HelloApp", False, "latest", "0.28.0", template="lsp")
         restore.assert_called_once_with(self.root)
         self.assertIn("net10.0", (self.root / "HelloApp.csproj").read_text())
         self.assertIn("Greet(42)", (self.root / "Program.cs").read_text())
         self.assertIn("class Greeter", (self.root / "Greeter.cs").read_text())
+        self.assertIn("namespace HelloApp;", (self.root / "Greeter.cs").read_text())
         self.assertEqual((self.root / envtool.HELPER).read_text(),
                          Path(envtool.__file__).read_text())
         self.assertIn("/.csharp-env/", (self.root / ".gitignore").read_text())
+
+    def test_hello_is_default_and_can_be_generated_offline(self):
+        with patch.object(envtool, "restore") as restore:
+            result = envtool.main(["init", str(self.root), "--name", "HelloApp", "--no-restore"])
+        self.assertEqual(result, 0)
+        restore.assert_not_called()
+        self.assertIn('Console.WriteLine("Hello, World!");', (self.root / "Program.cs").read_text())
+        self.assertFalse((self.root / "Greeter.cs").exists())
+        self.assertFalse((self.root / ".venv").exists())
+        self.assertFalse((self.root / envtool.STATE).exists())
+        config = envtool.read_manifest(self.root)
+        self.assertEqual(config["template"], "hello")
+        guide = (self.root / "CSHARP_ENV.md").read_text()
+        self.assertIn("Hello, World!", guide)
+        self.assertNotIn("Greet(42)", guide)
+        self.assertIn("## 1.", guide)
+
+    def test_class_library_has_no_entry_point_and_guide_uses_build(self):
+        with patch.object(envtool, "restore"):
+            envtool.init(self.root, "GreetingLibrary", False, "latest", "0.28.0", template="classlib")
+        self.assertNotIn("<OutputType>", (self.root / "GreetingLibrary.csproj").read_text())
+        self.assertFalse((self.root / "Program.cs").exists())
+        self.assertIn("namespace GreetingLibrary;", (self.root / "Greeter.cs").read_text())
+        self.assertEqual(envtool.read_manifest(self.root)["entry_file"], "Greeter.cs")
+        guide = (self.root / "CSHARP_ENV.md").read_text()
+        self.assertIn("no Main entry point", guide)
+        self.assertIn("edit Greeter.cs", guide)
+        self.assertNotIn("python csharp-env.py run", guide)
+
+    def test_init_can_generate_into_current_directory(self):
+        with patch.object(Path, "cwd", return_value=self.root), \
+             patch.object(envtool, "restore") as restore:
+            self.assertEqual(envtool.main(["init", "--name", "CurrentApp", "--no-restore"]), 0)
+        self.assertTrue((self.root / "CurrentApp.csproj").is_file())
+        self.assertTrue((self.root / "Program.cs").is_file())
+        restore.assert_not_called()
+
+    def test_templates_command_needs_no_environment(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(envtool.main(["templates"]), 0)
+        for name in ("hello", "lsp", "classlib"):
+            self.assertIn(name, output.getvalue())
+
+    def test_edit_defaults_to_template_entry_file(self):
+        self.config["entry_file"] = "Greeter.cs"
+        self.manifest()
+        for file in (envtool.dotnet_path(self.root), envtool.server_path(self.root)):
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.touch()
+        with patch.object(envtool, "run") as run:
+            self.assertEqual(envtool.main(["-C", str(self.root), "edit"]), 0)
+        self.assertEqual(run.call_args.args[0][-1], "Greeter.cs")
 
     def test_init_refuses_overwrites_before_installing(self):
         source = self.root / "Program.cs"

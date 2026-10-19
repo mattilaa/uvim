@@ -65,7 +65,9 @@ menus—they leave the corresponding implementation out of the binary.
 
 - Added a [project-local C# environment helper](docs/csharp_environment.md)
   for Windows, macOS and Linux: local SDK, LSP, NuGet caches and Python venv,
-  a version manifest, and a starter project for uVim.
+  a version manifest, and Hello World, LSP practice and class-library
+  starters. A [step-by-step guide](docs/csharp_quickstart.md) covers creating,
+  building, running and editing a project in uVim.
 - Added a [small C# example project](examples/lsp/csharp/README.md) with
   instructions for testing highlighting, completion, definition jumps,
   references and diagnostics in uVim.
@@ -941,10 +943,11 @@ uvim --clangd --python-lsp --python-lsp-path pylsp --html-lsp --css-lsp --ts-lsp
 
 ### C#
 
-For a new project with a local SDK and language server, follow
-[Start a C# project with a local environment](docs/csharp_environment.md).
-It includes a cross-platform Python script, `--help`, a dependency manifest,
-and the two-file example below as a starter.
+For a new project, follow [Your first C# project with uVim](docs/csharp_quickstart.md).
+It walks through generating Hello World, building and running it, editing
+it in uVim, and trying LSP features. The cross-platform script includes
+`--help`, a dependency manifest and several starter templates. See the
+[local environment reference](docs/csharp_environment.md) for setup details.
 
 C# files (`.cs`, `.csx`) are highlighted in every build. Builds with
 `UVIM_ENABLE_CSHARP_LSP=ON` (`uvim-config --enable csharp-lsp`; the `full`

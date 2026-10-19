@@ -7,6 +7,9 @@ To use this example as the base of a new project with a project-local SDK,
 LSP and Python venv, follow the
 [local C# environment guide](../../../docs/csharp_environment.md).
 The setup script accepts the current directory or a chosen target directory.
+Choose `--template lsp` to generate this two-file example, or follow
+[the step-by-step Hello World walkthrough](../../../docs/csharp_quickstart.md)
+for a simpler starting point.
 
 Use the .NET 10 SDK and `csharp-ls`, plus a uVim build with C# LSP enabled
 (the `full` preset and release binaries include it). See the
