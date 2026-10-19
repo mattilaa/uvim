@@ -10,6 +10,46 @@ The commands below use macOS/Linux. A complete Windows PowerShell sequence
 is included at the end. The [environment reference](csharp_environment.md)
 explains versions, dependencies, restoring clones and cleanup in more detail.
 
+## Ready-made example in ~/test-cs-project-for-uvim
+
+From your uVim checkout, run:
+
+```sh
+python3 scripts/create_csharp_example.py --template lsp
+cd "$HOME/test-cs-project-for-uvim"
+python3 csharp-env.py run
+python3 csharp-env.py edit
+```
+
+The launcher creates `UvimCSharpExample.csproj`, `Program.cs` and `Greeter.cs`,
+downloads the project-local SDK/LSP, builds the project and runs the greeting
+example (`Hello, Ada!` and `Hello, Linus!`). It then
+prints the commands for opening it in uVim. Read `CSHARP_ENV.md` in the
+generated directory for editor exercises. Running the launcher again reuses
+the existing environment and preserves edits to the source files.
+
+For a new directory containing a minimal Hello World example instead:
+
+```sh
+python3 scripts/create_csharp_example.py "$HOME/test-cs-hello-for-uvim" --template hello
+```
+
+Use `--no-restore` to generate files without downloads, or `--help` for
+options. For a custom uVim path, from the generated directory:
+
+```sh
+python3 csharp-env.py edit --uvim /absolute/path/to/uvim
+```
+
+Windows PowerShell, from the uVim checkout:
+
+```powershell
+py -3 scripts/create_csharp_example.py --template lsp
+Set-Location "$HOME\test-cs-project-for-uvim"
+py -3 csharp-env.py run
+py -3 csharp-env.py edit
+```
+
 ## 1. Check the tools you need
 
 You need Python 3.9+, Bash (normally present on macOS/Linux), internet access,
