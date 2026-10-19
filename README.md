@@ -59,6 +59,11 @@ menus—they leave the corresponding implementation out of the binary.
   verbatim (`@"..."`), interpolated (`$"..."`) and raw (`"""..."""`) strings,
   `#region`-style directives and comments. Comment toggling uses `//` and
   `Format buffer` uses clang-format's C# mode.
+- **PowerShell** — `.ps1`/`.psm1`/`.psd1` files are highlighted: keywords
+  (case-insensitive), `Verb-Noun` cmdlets and function names, variables
+  (`$x`, `$env:PATH`, `${...}`), `[type]` literals, `-eq`/`-match`-style
+  operators, strings with backtick escapes, here-strings (`@"..."@`,
+  `@'...'@`) and `#` / `<# ... #>` comments. Comment toggling uses `#`.
 - **C# language server** (build option `UVIM_ENABLE_CSHARP_LSP`, in the
   `full` preset and the release binaries) — `csharp-ls` from `PATH` or
   `~/.dotnet/tools`, otherwise OmniSharp. It starts with the first `.cs` file

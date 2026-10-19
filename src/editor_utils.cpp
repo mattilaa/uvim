@@ -1452,6 +1452,8 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
                                        constants::typescript_suffixes>(path);
     bool isCs = constants::is_filetype<constants::no_pattern,
                                        constants::csharp_suffixes>(path);
+    bool isPowerShell = constants::is_filetype<
+        constants::no_pattern, constants::powershell_suffixes>(path);
     bool isCss =
         constants::is_filetype<constants::no_pattern, constants::css_suffixes>(
             path);
@@ -1486,6 +1488,16 @@ LocCommentRules locCommentRulesForPath(std::string_view path)
         rules.line = "//";
         rules.blockStart = "/*";
         rules.blockEnd = "*/";
+        rules.hasLine = true;
+        rules.hasBlock = true;
+        return rules;
+    }
+
+    if(isPowerShell)
+    {
+        rules.line = "#";
+        rules.blockStart = "<#";
+        rules.blockEnd = "#>";
         rules.hasLine = true;
         rules.hasBlock = true;
         return rules;

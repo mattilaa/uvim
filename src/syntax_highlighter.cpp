@@ -2563,6 +2563,266 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         return tokens;
     }
 
+    if(isFileType<FileType::PowerShell>())
+    {
+        // Lines carry two states: inBlockComment for <# ... #> and
+        // inTomlMultiline + tomlQuote for an open @"..."@ / @'...'@
+        // here-string (the TOML multi-line string state, unused here).
+        std::vector<Token> tokens;
+        static constexpr std::string_view kPsKeywords[] = {
+            "begin",   "break",   "catch",    "class",   "clean",
+            "continue", "data",   "default",  "do",      "dynamicparam",
+            "else",    "elseif",  "end",      "enum",    "exit",
+            "filter",  "finally", "for",      "foreach", "from",
+            "function", "hidden", "if",       "in",      "param",
+            "process", "return",  "static",   "switch",  "throw",
+            "trap",    "try",     "until",    "using",   "while",
+            "workflow", "parallel", "sequence", "inlinescript",
+        };
+        static constexpr std::string_view kPsOperators[] = {
+            "eq",   "ne",    "gt",      "ge",       "lt",      "le",
+            "like", "notlike", "match", "notmatch", "contains",
+            "notcontains", "in",  "notin", "replace", "split",  "join",
+            "is",   "isnot", "as",      "and",      "or",      "xor",
+            "not",  "band",  "bor",     "bxor",     "bnot",    "shl",
+            "shr",  "f",
+        };
+        auto lower = [](std::string_view word)
+        {
+            std::string out(word);
+            for(char& ch : out)
+                ch = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(ch)));
+            return out;
+        };
+        auto inList = [&](const auto& list, std::string_view word)
+        {
+            const std::string w = lower(word);
+            return std::find(std::begin(list), std::end(list), w) !=
+                   std::end(list);
+        };
+        auto isWordChar = [](char ch)
+        {
+            return text_utils::is_alpha(ch) || text_utils::is_digit(ch) ||
+                   ch == '_';
+        };
+
+        std::string_view sv{line};
+        const int len = static_cast<int>(sv.size());
+        int i = 0;
+
+        // Continue a block comment or here-string from the previous line.
+        if(inBlockComment)
+        {
+            size_t end = sv.find("#>");
+            if(text_utils::is_not_found(end))
+            {
+                tokens.push_back({TOKEN_COMMENT, 0, len});
+                return tokens;
+            }
+            tokens.push_back({TOKEN_COMMENT, 0, (int)end + 2});
+            i = (int)end + 2;
+            inBlockComment = false;
+        }
+        else if(inTomlMultiline)
+        {
+            // A here-string ends with "@ / '@ at the start of a line.
+            const std::string close = std::string(1, tomlQuote) + "@";
+            if(sv.rfind(close, 0) == 0)
+            {
+                tokens.push_back({TOKEN_STRING, 0, 2});
+                i = 2;
+                inTomlMultiline = false;
+            }
+            else
+            {
+                tokens.push_back({TOKEN_STRING, 0, len});
+                return tokens;
+            }
+        }
+
+        while(i < len)
+        {
+            const char c = sv[i];
+            if(text_utils::is_space(c))
+            {
+                ++i;
+                continue;
+            }
+            if(c == '<' && i + 1 < len && sv[i + 1] == '#')
+            {
+                size_t end = sv.find("#>", (size_t)i + 2);
+                if(text_utils::is_not_found(end))
+                {
+                    tokens.push_back({TOKEN_COMMENT, i, len - i});
+                    inBlockComment = true;
+                    break;
+                }
+                tokens.push_back({TOKEN_COMMENT, i, (int)end + 2 - i});
+                i = (int)end + 2;
+                continue;
+            }
+            if(c == '#')
+            {
+                tokens.push_back({TOKEN_COMMENT, i, len - i});
+                break;
+            }
+            // Here-string: @" or @' as the last thing on the line.
+            if(c == '@' && i + 1 < len && (sv[i + 1] == '"' || sv[i + 1] == '\'') &&
+               sv.find_first_not_of(" \t", (size_t)i + 2) == std::string_view::npos)
+            {
+                tokens.push_back({TOKEN_STRING, i, len - i});
+                inTomlMultiline = true;
+                tomlQuote = sv[i + 1];
+                break;
+            }
+            if(c == '"' || c == '\'')
+            {
+                const char quote = c;
+                const int start = i++;
+                while(i < len)
+                {
+                    if(quote == '"' && sv[i] == '`' && i + 1 < len)
+                    {
+                        i += 2; // backtick escape
+                        continue;
+                    }
+                    if(sv[i] == quote)
+                    {
+                        if(i + 1 < len && sv[i + 1] == quote)
+                        {
+                            i += 2; // doubled quote
+                            continue;
+                        }
+                        ++i;
+                        break;
+                    }
+                    ++i;
+                }
+                tokens.push_back({TOKEN_STRING, start, i - start});
+                continue;
+            }
+            // Variables: $name, $env:PATH, $script:x, ${any name}, $_.
+            if(c == '$' && i + 1 < len)
+            {
+                const int start = i++;
+                if(sv[i] == '{')
+                {
+                    size_t end = sv.find('}', (size_t)i);
+                    i = text_utils::is_found(end) ? (int)end + 1 : len;
+                }
+                else
+                {
+                    while(i < len && (isWordChar(sv[i]) || sv[i] == ':' ||
+                                      sv[i] == '?' || sv[i] == '^'))
+                        ++i;
+                }
+                if(i - start > 1)
+                {
+                    tokens.push_back({TOKEN_MEMBER, start, i - start});
+                    continue;
+                }
+                i = start + 1;
+                continue;
+            }
+            // Types: [string], [System.IO.File], [int[]].
+            if(c == '[' && i + 1 < len && text_utils::is_alpha(sv[i + 1]))
+            {
+                int j = i + 1;
+                while(j < len && (isWordChar(sv[j]) || sv[j] == '.' ||
+                                  sv[j] == '[' || sv[j] == ']' || sv[j] == ','))
+                {
+                    if(sv[j] == ']' && (j + 1 >= len || sv[j + 1] != ']'))
+                        break;
+                    ++j;
+                }
+                if(j < len && sv[j] == ']')
+                {
+                    tokens.push_back({TOKEN_TYPE, i + 1, j - i - 1});
+                    i = j + 1;
+                    continue;
+                }
+            }
+            // -eq, -match, ... operators.
+            if(c == '-' && i + 1 < len && text_utils::is_alpha(sv[i + 1]) &&
+               (i == 0 || !isWordChar(sv[i - 1])))
+            {
+                int j = i + 1;
+                while(j < len && isWordChar(sv[j]))
+                    ++j;
+                std::string_view word = sv.substr(i + 1, j - i - 1);
+                std::string w = lower(word);
+                // -ceq / -ieq: case-sensitive / -insensitive variants.
+                if(w.size() > 2 && (w[0] == 'c' || w[0] == 'i') &&
+                   inList(kPsOperators, std::string_view(w).substr(1)))
+                    w = w.substr(1);
+                if(inList(kPsOperators, w))
+                {
+                    tokens.push_back({TOKEN_OPERATOR, i, j - i});
+                    i = j;
+                    continue;
+                }
+                i = j; // a -Parameter name: plain text
+                continue;
+            }
+            if(text_utils::is_digit(c))
+            {
+                const int start = i++;
+                while(i < len && (isWordChar(sv[i]) || sv[i] == '.'))
+                    ++i;
+                tokens.push_back({TOKEN_NUMBER, start, i - start});
+                continue;
+            }
+            if(text_utils::is_alpha(c) || c == '_')
+            {
+                const int start = i++;
+                while(i < len && (isWordChar(sv[i]) || sv[i] == '-'))
+                    ++i;
+                std::string_view word = sv.substr(start, i - start);
+                if(inList(kPsKeywords, word))
+                {
+                    tokens.push_back({TOKEN_KEYWORD, start, i - start});
+                    // function Name: highlight the name.
+                    if(lower(word) == "function" || lower(word) == "filter")
+                    {
+                        int j = i;
+                        while(j < len && text_utils::is_space(sv[j]))
+                            ++j;
+                        int k = j;
+                        while(k < len && (isWordChar(sv[k]) || sv[k] == '-' ||
+                                          sv[k] == ':'))
+                            ++k;
+                        if(k > j)
+                        {
+                            tokens.push_back({TOKEN_FUNCTION, j, k - j});
+                            i = k;
+                        }
+                    }
+                    continue;
+                }
+                // Verb-Noun cmdlets (Get-ChildItem, Write-Host).
+                const size_t dash = word.find('-');
+                if(dash != std::string_view::npos && dash > 0 &&
+                   dash + 1 < word.size() &&
+                   std::isupper(static_cast<unsigned char>(word[0])) &&
+                   std::isupper(static_cast<unsigned char>(word[dash + 1])))
+                {
+                    tokens.push_back({TOKEN_FUNCTION, start, i - start});
+                    continue;
+                }
+                continue;
+            }
+            if(text_utils::contains(std::string_view("{}()[]|;,=+*/%!<>.&"), c))
+            {
+                tokens.push_back({TOKEN_OPERATOR, i, 1});
+                ++i;
+                continue;
+            }
+            ++i;
+        }
+        return tokens;
+    }
+
     if(isFileType<FileType::Python>())
     {
         std::vector<Token> tokens;
@@ -4360,6 +4620,14 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
                     scanLineForMarkupFence(curLine, lineState.inMarkupFence,
                                            lineState.markupFenceChar);
 
+                // PowerShell comments and here-strings: the tokenizer
+                // itself advances the state.
+                if(isFileType<FileType::PowerShell>())
+                    tokenizeLine(curLine, lineState.inBlockComment,
+                                 lineState.inTomlMultiline, lineState.tomlQuote,
+                                 lineState.inMarkupFence,
+                                 lineState.markupFenceChar);
+
                 lineState.valid = true;
                 buffer->syntaxCache[i] = lineState;
                 buffer->syntaxCacheComputedUpTo = i;
@@ -4454,6 +4722,14 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
             {
                 scanLineForMarkupFence((*lines)[i], markupFenceState,
                                        markupFenceChar);
+            }
+        }
+        if(isFileType<FileType::PowerShell>())
+        {
+            for(int i = 0; i < absoluteLineNum && i < (int)lines->size(); i++)
+            {
+                tokenizeLine((*lines)[i], blockCommentState, tomlMultilineState,
+                             tomlQuote, markupFenceState, markupFenceChar);
             }
         }
     }
