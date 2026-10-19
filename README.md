@@ -53,7 +53,26 @@ menus—they leave the corresponding implementation out of the binary.
 
 ### v0.3.3 (unreleased)
 
-- TODO: describe what is new, improved and fixed.
+#### Fixed
+
+- `uvim-config` requests the .NET 10 SDK when installing missing C# LSP
+  prerequisites with apt, dnf or winget, matching current `csharp-ls`
+  requirements. It checks installed SDK versions and offers SDK installation
+  for runtime-only or older installations before installing `csharp-ls`.
+  POSIX setup instructions explain dependency installation.
+
+#### Development
+
+- Added a [project-local C# environment helper](docs/csharp_environment.md)
+  for Windows, macOS and Linux: local SDK, LSP, NuGet caches and Python venv,
+  a version manifest, and Hello World, LSP practice and class-library
+  starters. A [step-by-step guide](docs/csharp_quickstart.md) covers creating,
+  building, running and editing a project in uVim.
+- Added a [small C# example project](examples/lsp/csharp/README.md) with
+  instructions for testing highlighting, completion, definition jumps,
+  references and diagnostics in uVim.
+- Added dependency tests for C# installation with Homebrew, apt, dnf and
+  pacman.
 
 ### v0.3.2 (2026-10-19)
 
@@ -924,14 +943,41 @@ uvim --clangd --python-lsp --python-lsp-path pylsp --html-lsp --css-lsp --ts-lsp
 
 ### C#
 
+For a new project, follow [Your first C# project with uVim](docs/csharp_quickstart.md).
+It walks through generating Hello World, building and running it, editing
+it in uVim, and trying LSP features. The cross-platform script includes
+`--help`, a dependency manifest and several starter templates. See the
+[local environment reference](docs/csharp_environment.md) for setup details.
+
 C# files (`.cs`, `.csx`) are highlighted in every build. Builds with
 `UVIM_ENABLE_CSHARP_LSP=ON` (`uvim-config --enable csharp-lsp`; the `full`
 preset and the release binaries include it) also talk to a C# language server:
 
 ```sh
-dotnet tool install -g csharp-ls        # needs the .NET SDK
+dotnet tool install -g csharp-ls        # needs the .NET 10 SDK or later
 # or: ./scripts/install_lsps.sh --csharp
 ```
+
+On POSIX (macOS/Linux), `uvim-config` can install the dependencies for you:
+
+```sh
+./build/uvim-config --preset full --check-deps
+./build/uvim-config --preset full --install-deps
+```
+
+Choose `a` to install all missing dependencies or `s` to select the .NET SDK
+and `csharp-ls`. The SDK is installed first with Homebrew, apt, dnf or pacman,
+then `dotnet tool install --global csharp-ls` downloads the server. Linux
+repositories must provide the SDK package; if yours does not, follow
+[Microsoft's .NET installation instructions](https://learn.microsoft.com/dotnet/core/install/linux).
+The dependency check uses `dotnet --list-sdks` to verify that a .NET 10+ SDK
+is installed, as required by
+[current csharp-ls](https://github.com/razzmatazz/csharp-language-server#quick-start).
+If .NET is missing, runtime-only or older, `uvim-config` offers to install the
+SDK before installing the server. Accept both installations when prompted;
+if SDK installation fails or is declined, the server install is skipped.
+To add C# to a smaller preset, use `--enable csharp-lsp`, or enable **C#** in
+the TUI's language-server section.
 
 - uVim uses `csharp-ls` from `PATH` or `~/.dotnet/tools`, otherwise
   OmniSharp (`OmniSharp -lsp`); `--csharp-lsp-path` picks another one.
@@ -942,6 +988,9 @@ dotnet tool install -g csharp-ls        # needs the .NET SDK
   (`Space g r`), diagnostics as row markers with `Space-e` details, and
   `:lspinfo` work as for C/C++. Edits are sent to the server as you type.
 - `Format buffer` (`Space f`) formats C# with clang-format.
+
+Try the [small C# example project](examples/lsp/csharp/README.md) to check
+highlighting, completion, definition jumps, references and diagnostics.
 
 ### macOS (Homebrew)
 

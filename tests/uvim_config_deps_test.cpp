@@ -55,6 +55,42 @@ TEST(UvimConfigDepsTest, OnlyEnabledFeaturesNeedTools)
               "dotnet tool install --global csharp-ls");
 }
 
+TEST(UvimConfigDepsTest, CSharpInstallationOnPosix)
+{
+    Features f;
+    f.csharpLsp = true;
+    struct Case
+    {
+        Platform platform;
+        PackageManager manager;
+        const char* sdkCommand;
+    };
+    for(const auto& test : {
+            Case{Platform::MacOS, PackageManager::Brew,
+                 "brew install --cask dotnet-sdk"},
+            Case{Platform::Linux, PackageManager::Apt,
+                 "apt-get install -y dotnet-sdk-10.0"},
+            Case{Platform::Linux, PackageManager::Dnf,
+                 "dnf install -y dotnet-sdk-10.0"},
+            Case{Platform::Linux, PackageManager::Pacman,
+                 "pacman -S --needed --noconfirm dotnet-sdk"}})
+    {
+        const auto deps =
+            required(f, test.platform, test.manager, fakeFinder({}));
+        ASSERT_EQ(deps.size(), 2u);
+        EXPECT_EQ(deps[0].name, ".NET SDK (dotnet)");
+        EXPECT_NE(deps[0].install.find(test.sdkCommand), std::string::npos);
+        EXPECT_EQ(deps[1].name, "csharp-ls");
+        EXPECT_EQ(deps[1].install,
+                  "dotnet tool install --global csharp-ls");
+        const auto absent = missing(deps, fakeFinder({"dotnet"}));
+        ASSERT_EQ(absent.size(), 1u);
+        EXPECT_EQ(absent[0].name, "csharp-ls");
+        EXPECT_TRUE(missing(deps, fakeFinder({"dotnet", "csharp-ls"}))
+                        .empty());
+    }
+}
+
 TEST(UvimConfigDepsTest, InstallCommandsFollowThePackageManager)
 {
     Features f;
@@ -112,4 +148,18 @@ TEST(UvimConfigDepsTest, PackageManagerDetection)
               PackageManager::Dnf);
     EXPECT_EQ(detectPackageManager(Platform::Windows, fakeFinder({})),
               PackageManager::None);
+}
+
+TEST(UvimConfigDepsTest, RequiresSupportedDotnetSdk)
+{
+    EXPECT_FALSE(hasSupportedDotnetSdk(""));
+    EXPECT_FALSE(hasSupportedDotnetSdk("8.0.401 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_FALSE(hasSupportedDotnetSdk("9.0.100 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_FALSE(hasSupportedDotnetSdk("not an SDK version\n"));
+    EXPECT_FALSE(hasSupportedDotnetSdk("10\n"));
+    EXPECT_TRUE(hasSupportedDotnetSdk("10.0.100 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_TRUE(hasSupportedDotnetSdk(
+        "8.0.401 [/usr/share/dotnet/sdk]\n"
+        "10.0.100 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_TRUE(hasSupportedDotnetSdk("11.0.100 [/usr/local/share/dotnet/sdk]\n"));
 }
