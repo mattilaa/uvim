@@ -1,6 +1,7 @@
 #include "uvim_config_deps.h"
 
 #include <cstdlib>
+#include <cstdio>
 #include <filesystem>
 #include <sstream>
 #ifndef _WIN32
@@ -240,6 +241,49 @@ PackageManager detectPackageManager(Platform platform, const Finder& find)
         return find("brew") ? PackageManager::Brew : PackageManager::None;
     }
     return PackageManager::None;
+}
+
+bool hasSupportedDotnetSdk(const std::string& sdkList)
+{
+    std::istringstream lines(sdkList);
+    std::string line;
+    while(std::getline(lines, line))
+    {
+        std::istringstream version(line);
+        int major = 0;
+        int minor = 0;
+        int patch = 0;
+        char firstDot = 0;
+        char secondDot = 0;
+        if(version >> major >> firstDot >> minor >> secondDot >> patch &&
+           firstDot == '.' && secondDot == '.' && major >= 10 &&
+           minor >= 0 && patch >= 0)
+            return true;
+    }
+    return false;
+}
+
+bool dotnetSdkAvailable()
+{
+    if(!programExists("dotnet"))
+        return false;
+#ifdef _WIN32
+    FILE* pipe = _popen("dotnet --list-sdks 2>NUL", "r");
+#else
+    FILE* pipe = popen("dotnet --list-sdks 2>/dev/null", "r");
+#endif
+    if(!pipe)
+        return false;
+    std::string output;
+    char buffer[512];
+    while(std::fgets(buffer, sizeof(buffer), pipe))
+        output += buffer;
+#ifdef _WIN32
+    const int status = _pclose(pipe);
+#else
+    const int status = pclose(pipe);
+#endif
+    return status == 0 && hasSupportedDotnetSdk(output);
 }
 
 bool programExists(const std::string& program)

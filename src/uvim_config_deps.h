@@ -70,4 +70,8 @@ Platform currentPlatform();
 PackageManager detectPackageManager(Platform platform, const Finder& find);
 // PATH lookup; csharp-ls is also found in ~/.dotnet/tools.
 bool programExists(const std::string& program);
+
+// A runtime-only installation or an older SDK cannot install current csharp-ls.
+bool hasSupportedDotnetSdk(const std::string& sdkList);
+bool dotnetSdkAvailable();
 } // namespace uvim_config_deps

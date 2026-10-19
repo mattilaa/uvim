@@ -57,8 +57,9 @@ menus—they leave the corresponding implementation out of the binary.
 
 - `uvim-config` requests the .NET 10 SDK when installing missing C# LSP
   prerequisites with apt, dnf or winget, matching current `csharp-ls`
-  requirements. POSIX setup instructions explain dependency installation
-  and upgrading an existing older SDK.
+  requirements. It checks installed SDK versions and offers SDK installation
+  for runtime-only or older installations before installing `csharp-ls`.
+  POSIX setup instructions explain dependency installation.
 
 #### Development
 
@@ -958,9 +959,12 @@ and `csharp-ls`. The SDK is installed first with Homebrew, apt, dnf or pacman,
 then `dotnet tool install --global csharp-ls` downloads the server. Linux
 repositories must provide the SDK package; if yours does not, follow
 [Microsoft's .NET installation instructions](https://learn.microsoft.com/dotnet/core/install/linux).
-The dependency check detects whether `dotnet` exists; if you already have an
-older SDK, install .NET 10 or later before installing the
+The dependency check uses `dotnet --list-sdks` to verify that a .NET 10+ SDK
+is installed, as required by
 [current csharp-ls](https://github.com/razzmatazz/csharp-language-server#quick-start).
+If .NET is missing, runtime-only or older, `uvim-config` offers to install the
+SDK before installing the server. Accept both installations when prompted;
+if SDK installation fails or is declined, the server install is skipped.
 To add C# to a smaller preset, use `--enable csharp-lsp`, or enable **C#** in
 the TUI's language-server section.
 

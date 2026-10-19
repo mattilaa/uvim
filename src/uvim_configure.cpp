@@ -2541,7 +2541,11 @@ uvim_config_deps::Features features_of(const Config& cfg)
 void dependency_phase(const Config& cfg, bool interactive)
 {
     namespace deps = uvim_config_deps;
-    const deps::Finder find = deps::programExists;
+    const deps::Finder find = [](const std::string& program)
+    {
+        return program == "dotnet" ? deps::dotnetSdkAvailable()
+                                   : deps::programExists(program);
+    };
     const deps::Platform platform = deps::currentPlatform();
     const deps::PackageManager pm = deps::detectPackageManager(platform, find);
     const std::vector<deps::Dependency> all =
@@ -2550,6 +2554,9 @@ void dependency_phase(const Config& cfg, bool interactive)
         return;
 
     std::cout << "\nRuntime dependencies of the chosen features:\n";
+    if(cfg.csharpLsp)
+        std::cout << "C# requires the .NET 10+ SDK; a runtime alone is not "
+                     "sufficient.\n";
     std::vector<deps::Dependency> missing = deps::missing(all, find);
     for(const deps::Dependency& dep : all)
     {

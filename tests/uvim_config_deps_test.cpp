@@ -149,3 +149,17 @@ TEST(UvimConfigDepsTest, PackageManagerDetection)
     EXPECT_EQ(detectPackageManager(Platform::Windows, fakeFinder({})),
               PackageManager::None);
 }
+
+TEST(UvimConfigDepsTest, RequiresSupportedDotnetSdk)
+{
+    EXPECT_FALSE(hasSupportedDotnetSdk(""));
+    EXPECT_FALSE(hasSupportedDotnetSdk("8.0.401 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_FALSE(hasSupportedDotnetSdk("9.0.100 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_FALSE(hasSupportedDotnetSdk("not an SDK version\n"));
+    EXPECT_FALSE(hasSupportedDotnetSdk("10\n"));
+    EXPECT_TRUE(hasSupportedDotnetSdk("10.0.100 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_TRUE(hasSupportedDotnetSdk(
+        "8.0.401 [/usr/share/dotnet/sdk]\n"
+        "10.0.100 [/usr/share/dotnet/sdk]\n"));
+    EXPECT_TRUE(hasSupportedDotnetSdk("11.0.100 [/usr/local/share/dotnet/sdk]\n"));
+}
