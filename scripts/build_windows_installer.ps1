@@ -2,8 +2,8 @@
 # with Inno Setup from an already built uvim.exe, e.g. the one from
 # scripts/build_portable.ps1:
 #
-#   ./scripts/build_portable.ps1 -Version v0.3.2
-#   ./scripts/build_windows_installer.ps1 -Version v0.3.2
+#   ./scripts/build_portable.ps1 -Version v0.3.3
+#   ./scripts/build_windows_installer.ps1 -Version v0.3.3
 #
 # Needs Inno Setup 6 (winget install JRSoftware.InnoSetup, or
 # choco install innosetup); -InstallInnoSetup installs it with Chocolatey.

@@ -2,7 +2,7 @@
 # of scripts/build_portable.sh): uvim.exe, themes, README, license, a
 # dependency note and a SHA-256 checksum.
 #
-#   ./scripts/build_portable.ps1 [-Profile full] [-Version v0.3.2]
+#   ./scripts/build_portable.ps1 [-Profile full] [-Version v0.3.3]
 #                                [-BuildDir build-portable] [-OutputDir dist]
 #                                [-Jobs N] [-Force]
 param(

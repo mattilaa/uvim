@@ -22,15 +22,15 @@ the GitHub CLI (`gh`), and the project's build dependencies installed.
    If GitHub CLI authentication is missing, run `gh auth login`. Commit or
    stash any working-tree changes before continuing.
 
-2. **Bring the prepared release into `main`.** For v0.3.2:
+2. **Bring the prepared release into `main`.** For v0.3.3:
 
    ```sh
    git switch main
    git pull --ff-only origin main
-   git merge --no-ff origin/release/v0.3.2
+   git merge --no-ff origin/release/v0.3.3
    ```
 
-   Replace `origin/release/v0.3.2` with the branch for the release you are
+   Replace `origin/release/v0.3.3` with the branch for the release you are
    making. If all release changes are already on `main`, skip the merge.
    If there are merge conflicts, resolve and commit them before continuing.
 
@@ -44,8 +44,8 @@ the GitHub CLI (`gh`), and the project's build dependencies installed.
    ctest --test-dir build --output-on-failure --parallel 4
    ```
 
-   For v0.3.2, `version.txt` must contain `0.3.2`, and `README.md` must have
-   finished notes under `### v0.3.2`. Do not bump an already prepared version.
+   For v0.3.3, `version.txt` must contain `0.3.3`, and `README.md` must have
+   finished notes under `### v0.3.3`. Do not bump an already prepared version.
    For a new version, follow [Versions](#versions) and
    [Releasing](#releasing) below. Fix any failed checks before continuing.
 
@@ -64,12 +64,12 @@ the GitHub CLI (`gh`), and the project's build dependencies installed.
      releasing anyway. Check [GitHub Actions](https://github.com/mattilaa/uvim/actions/workflows/ci.yml),
      wait for a successful run on the latest `main` commit, and run
      `scripts/release.sh --publish` again.
-   - Confirm creating and pushing the release tag, for example `v0.3.2`.
+   - Confirm creating and pushing the release tag, for example `v0.3.3`.
      **This publishes the release:** the tag starts the package builds and
      creates the GitHub Release automatically.
    - Accept waiting for the release workflow and displaying its assets.
    - After the release succeeds, accept starting the next patch version
-     (`0.3.3` after `0.3.2`). The script commits and pushes the version bump
+     (`0.3.3` after `0.3.3`). The script commits and pushes the version bump
      and an empty release-notes section for future changes.
 
 5. **Verify the published release.** Open
@@ -94,7 +94,7 @@ repository root, as `MAJOR.MINOR.PATCH`. CMake reads it (and reconfigures when
 it changes), and `uvim --version` prints it with the local build number:
 
 ```text
-uvim 0.3.2 (build 12)
+uvim 0.3.3 (build 12)
 ```
 
 The build number is a per-build-directory counter and is never part of a
@@ -118,7 +118,7 @@ has no `TODO` left:
 
 ```sh
 scripts/release.sh --check-notes        # the version in version.txt
-scripts/release.sh --check-notes 0.3.2
+scripts/release.sh --check-notes 0.3.3
 ```
 
 ## Releasing
@@ -183,9 +183,9 @@ scripts/release.sh --check-notes 0.3.2
 Download an asset and its checksum from the release page:
 
 ```sh
-shasum -a 256 -c uvim-v0.3.2-macos-arm64.zip.sha256
-unzip uvim-v0.3.2-macos-arm64.zip
-./uvim-v0.3.2-macos-arm64/uvim --version      # uvim 0.3.2 (build 1)
+shasum -a 256 -c uvim-v0.3.3-macos-arm64.zip.sha256
+unzip uvim-v0.3.3-macos-arm64.zip
+./uvim-v0.3.3-macos-arm64/uvim --version      # uvim 0.3.3 (build 1)
 ```
 
 The macOS `.pkg` and the Windows installer are unsigned: macOS asks for
@@ -197,10 +197,10 @@ needs **More info › Run anyway**.
 The script only automates these commands:
 
 ```sh
-printf '0.3.2\n' > version.txt                # plus the release notes
-git commit -am "Version 0.3.2"
-git tag -a v0.3.2 -m "uVim v0.3.2"
-git push origin main v0.3.2
+printf '0.3.3\n' > version.txt                # plus the release notes
+git commit -am "Version 0.3.3"
+git tag -a v0.3.3 -m "uVim v0.3.3"
+git push origin main v0.3.3
 ```
 
 ## Dry runs, re-runs and fixes
