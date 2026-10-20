@@ -8,6 +8,7 @@
 #include "mode_context.h"
 #include "mode_state.h"
 #include "search_types.h"
+#include "structural_navigation.h"
 #include "window_command_pending.h"
 
 #include <chrono>
@@ -20,6 +21,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+struct Buffer;
 
 namespace editor::statemachine
 {
@@ -40,6 +43,10 @@ private:
     std::optional<BufferCommandPendingMachine> bufferCommandPending;
     std::optional<CommentLeaderPendingMachine> commentLeaderPending;
     std::optional<WindowCommandPendingMachine> windowCommandPending;
+    std::optional<char> structuralPrefix;
+    int structuralCount = 1;
+    std::optional<structural_navigation::Target> structuralTarget;
+    const Buffer* structuralBuffer = nullptr;
 
     // Helper methods for complex key sequences
     std::optional<ModeState> handleLeaderKey(ModeContext& ctx, int c);

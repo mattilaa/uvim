@@ -232,6 +232,8 @@ set(UVIM_CORE_SOURCES
     src/editor_execution_write_quit_all_command.cpp
     src/editor_execution_write_quit_command.cpp
     src/editor_cursor_controller.cpp
+    src/editor_structure_navigation.cpp
+    src/structural_navigation.cpp
     src/editor_definition_controller.cpp
     src/editor_definition_cpp.cpp
     src/editor_definition_mlang.cpp
@@ -842,6 +844,13 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+    add_executable(structural_navigation_tests
+        tests/structural_navigation_test.cpp
+        src/structural_navigation.cpp
+    )
+    uvim_enable_sanitizers(structural_navigation_tests)
+    target_link_libraries(structural_navigation_tests PRIVATE GTest::gtest_main)
+
     add_executable(mode_state_machine_tests
         tests/mode_state_machine_test.cpp
     )
@@ -919,6 +928,7 @@ if(UVIM_BUILD_TESTS)
         tests/real_mode_insert_test.cpp
         tests/real_mode_lsp_rename_test.cpp
         tests/real_mode_search_test.cpp
+        tests/real_mode_structural_navigation_test.cpp
         tests/real_mode_struct_size_test.cpp
         tests/real_mode_tool_popup_test.cpp
         tests/real_mode_transitions_test.cpp
@@ -1025,6 +1035,7 @@ if(UVIM_BUILD_TESTS)
 
     include(GoogleTest)
     gtest_discover_tests(state_machine_tests)
+    gtest_discover_tests(structural_navigation_tests)
     gtest_discover_tests(mode_state_machine_tests)
     gtest_discover_tests(constants_tests)
     gtest_discover_tests(logging_tests)
@@ -1055,7 +1066,7 @@ if(UVIM_BUILD_TESTS)
 
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS state_machine_tests mode_state_machine_tests constants_tests logging_tests real_mode_transitions_tests
+        DEPENDS uvim state_machine_tests structural_navigation_tests mode_state_machine_tests constants_tests logging_tests real_mode_transitions_tests
     )
 endif()
 

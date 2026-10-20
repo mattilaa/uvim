@@ -48,10 +48,19 @@ menus—they leave the corresponding implementation out of the binary.
 - [Ctrl+Shift keys and Alt alternatives](#ctrlshift-keys-and-alt-alternatives)
 - [Diagnostics](#diagnostics)
 - [Search examples](#search-examples)
+- [Function and local navigation](#function-and-local-navigation)
 
 ## Release notes
 
 ### v0.3.3 (unreleased)
+
+#### New
+
+- Function and local code navigation: `]f` / `[f` jump between function
+  signatures; `]s` / `[s` step through variable declarations and calls inside
+  the current function. `n` / `N` repeat the selected navigation until Escape
+  or a new search. Works without LSP for C/C++, Python, Mlang, JavaScript,
+  TypeScript and C#.
 
 #### Fixed
 
@@ -1356,6 +1365,47 @@ In command mode:
 
 - `:/foo.*bar` - regex search forward
 - `:?^word` - regex search backward
+
+## Function and local navigation
+
+In Normal mode, select what `n` / `N` should navigate with one of these motions:
+
+| Keys | Target |
+| --- | --- |
+| `]f` / `[f` | Next / previous function signature in the current buffer |
+| `]s` / `[s` | Next / previous local variable declaration or call in the current function |
+| `n` / `N` | Repeat the selected structural motion forward / backward |
+
+For example, `]f`, `n`, `n` visits three function signatures. Then `]s`
+steps into that function's declarations and calls; `n` continues down the
+source, and `N` steps back up. Calls and declarations on the same line are
+separate stops. Nested `if`, loop and exception blocks belong to their
+containing function, while nested functions and block-bodied lambdas have
+their own scope. Local steps never wrap or cross into the next function.
+Parameters and ordinary variable references are not local stops.
+
+Counts work (`3]f`, `2[s`, `4n`), stopping at the first/last available target.
+Structural jumps are recorded for `Ctrl-o` / `Ctrl-i`. The message line shows
+the selected navigation and target index. Press **Escape**, start a new
+search (`/`, `?`, `:/`, `:?`, `*`, `#`), leave Normal mode, change buffers, or
+clear search with `Space-n` to restore ordinary search `n` / `N` behavior.
+Selecting structural navigation preserves the existing search query and
+highlighting. These actions are also searchable in the command palette;
+see `:help navigation`.
+
+Recognition works directly on the current, possibly unsaved buffer, without
+LSP or external tools, for C/C++, Python, Mlang, JavaScript, TypeScript and
+C#. It recognizes function definitions with bodies, multiline signatures,
+Python methods/async functions, ordinary brace-delimited methods and
+block-bodied lambdas. Comments and quoted strings are skipped; Python
+indentation determines function boundaries.
+
+This is lexical recognition rather than a full language parser. Prototypes,
+macro-generated functions, overloaded operator signatures, expression-bodied
+functions/lambdas, and complex destructuring declarations are not covered.
+Ambiguous C++ declarations/expressions may be approximated; calls inside
+string interpolation are skipped along with the string. Unsupported file
+types report a message and keep the cursor in place.
 
 ## Robot Framework tests (venv setup)
 

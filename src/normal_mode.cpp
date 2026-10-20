@@ -21,6 +21,9 @@ void NormalMode::on_enter(ModeContext& ctx)
     bufferCommandPending.reset();
     commentLeaderPending.reset();
     windowCommandPending.reset();
+    structuralPrefix.reset();
+    structuralTarget.reset();
+    structuralBuffer = nullptr;
     ctx.pendingOperator = 0;
     ctx.pendingAwaitingObject = false;
     ctx.pendingObjectType = 0;
@@ -41,6 +44,9 @@ void NormalMode::on_enter(ModeContext& ctx)
 
 void NormalMode::on_exit(ModeContext& /* ctx */)
 {
+    structuralPrefix.reset();
+    structuralTarget.reset();
+    structuralBuffer = nullptr;
     bufferCommandPending.reset();
     commentLeaderPending.reset();
     windowCommandPending.reset();
@@ -136,6 +142,31 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         if(windowCommandPending->done())
             windowCommandPending.reset();
         return result;
+    }
+
+    if(structuralBuffer != ed->currentBuffer)
+        structuralTarget.reset();
+    if(structuralPrefix)
+    {
+        const bool forward = *structuralPrefix == ']';
+        structuralPrefix.reset();
+        ctx.commandBuffer.clear();
+        ctx.repeatCount = 0;
+        if(c == 'f' || c == 's')
+        {
+            structuralTarget = c == 'f' ? structural_navigation::Target::Function
+                                         : structural_navigation::Target::Local;
+            structuralBuffer = ed->currentBuffer;
+            structural_navigation::navigate(*ed, *structuralTarget, forward, structuralCount);
+        }
+        else
+        {
+            if(c == keyCode(control::ControlKey::ESC))
+                structuralTarget.reset();
+            ctx.setStatusMessage(c == keyCode(control::ControlKey::ESC)
+                                     ? "" : "Use ]f/[f for functions or ]s/[s for locals/calls");
+        }
+        return std::nullopt;
     }
 
     if(c == keyCode(control::ControlKey::PASTE))
@@ -326,6 +357,10 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == keyCode(control::ControlKey::ESC))
     {
+        if(structuralTarget)
+            ctx.setStatusMessage("Search navigation restored");
+        structuralTarget.reset();
+        structuralBuffer = nullptr;
         auto now = std::chrono::steady_clock::now();
         auto timeSinceLastEsc =
             std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -473,6 +508,16 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     // ========================================================================
     // Mode Switching
     // ========================================================================
+
+    if(c == '[' || c == ']')
+    {
+        structuralPrefix = static_cast<char>(c);
+        structuralCount = count;
+        ctx.commandBuffer = std::string(1, static_cast<char>(c));
+        ctx.setStatusMessage("f: functions, s: locals/calls");
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
 
     // Insert modes
     if(c == keyCode(typed::TypedKey::KEY_I))
@@ -862,6 +907,12 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
 
     if(c == keyCode(typed::TypedKey::KEY_N))
     {
+        if(structuralTarget)
+        {
+            structural_navigation::navigate(*ed, *structuralTarget, true, count);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
         for(int i = 0; i < count; i++)
             ed->searchNext();
         ctx.repeatCount = 0;
@@ -869,6 +920,12 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == keyCode(typed::TypedKey::KEY_CAP_N))
     {
+        if(structuralTarget)
+        {
+            structural_navigation::navigate(*ed, *structuralTarget, false, count);
+            ctx.repeatCount = 0;
+            return std::nullopt;
+        }
         for(int i = 0; i < count; i++)
             ed->searchPrevious();
         ctx.repeatCount = 0;
@@ -876,12 +933,14 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == keyCode(command::CommandKey::KEY_ASTERISK))
     {
+        structuralTarget.reset();
         ed->searchWordUnderCursor(true);
         ctx.repeatCount = 0;
         return std::nullopt;
     }
     if(c == keyCode(command::CommandKey::KEY_HASH))
     {
+        structuralTarget.reset();
         ed->searchWordUnderCursor(false);
         ctx.repeatCount = 0;
         return std::nullopt;
@@ -1369,6 +1428,7 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     case keyCode(typed::TypedKey::KEY_N):
         // Clear search highlight
+        structuralTarget.reset();
         ed->clearSearch();
         break;
 
