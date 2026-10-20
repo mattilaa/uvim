@@ -313,6 +313,7 @@ endif()
 if(UVIM_ENABLE_BROWSER_TOOLS)
     list(APPEND UVIM_CORE_SOURCES
         src/editor_view_buffer_browser.cpp
+        src/editor_execution_functions_command.cpp
         src/editor_view_file_browser.cpp
     )
 endif()
@@ -394,6 +395,7 @@ set(MODE_STATE_MACHINE_SOURCES
 if(UVIM_ENABLE_BROWSER_TOOLS)
     list(APPEND MODE_STATE_MACHINE_SOURCES
         src/buffer_browser_mode.cpp
+        src/function_browser_mode.cpp
         src/file_browser_mode.cpp
     )
 endif()
@@ -922,6 +924,7 @@ if(UVIM_BUILD_TESTS)
         tests/editor_alternate_file_test.cpp
         tests/real_mode_assembly_test.cpp
         tests/real_mode_browser_test.cpp
+        tests/real_mode_function_browser_test.cpp
         tests/real_mode_clipboard_paste_test.cpp
         tests/real_mode_comment_test.cpp
         tests/real_mode_completion_format_test.cpp

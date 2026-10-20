@@ -139,6 +139,18 @@ void EditorDrawingController::refreshScreen()
         return;
     }
 
+    if(editor.currentMode == FUNCTION_BROWSER)
+    {
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        if(editor.modeStateMachine)
+        {
+            if(auto* state = editor.modeStateMachine->getState<FunctionBrowserMode>())
+                state->draw(editor);
+        }
+#endif
+        return;
+    }
+
     if(editor.currentMode == GREP_SEARCH)
     {
 #ifdef UVIM_ENABLE_SEARCH_TOOLS

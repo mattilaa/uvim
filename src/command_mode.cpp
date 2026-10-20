@@ -298,6 +298,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             if(ctx.takeCommandRequest(mode, path))
             {
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
+                if(mode == FUNCTION_BROWSER)
+                    return FunctionBrowserMode{};
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
                 if(mode == FILE_BROWSER)
                 {
                     std::string prev;

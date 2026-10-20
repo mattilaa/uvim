@@ -579,7 +579,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "b ",      "buffer ", "ls",       "buffers", "vs",
         "hs",      "close",   "clo",
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
-        "se", "ve",
+        "se", "ve", "functions",
 #endif
         "tabnew", "tabe ", "tabn", "tabnext", "tabp", "tabprev",
         "set",
@@ -685,7 +685,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "regex",       "clipboard", "git",         "ga",      "gb",
         "gbb",         "gbl",       "gj",          "gbv",     "gs",
         "emitasm",     "lsp",       "diagnostics", "logging", "help",
-        "keys",        "palette"};
+        "keys",        "palette", "functions"};
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)

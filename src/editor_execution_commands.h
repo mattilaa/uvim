@@ -52,6 +52,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class FunctionsCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class FormatCommand final : public EditorExecutionCommand
 {
 public:

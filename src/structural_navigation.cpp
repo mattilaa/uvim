@@ -16,6 +16,7 @@ struct Token
     bool identifier = false;
     int mate = -1;
     int parent = -1;
+    std::string spelling{};
 };
 
 struct Function
@@ -136,6 +137,7 @@ std::vector<Token> tokenize(const std::vector<std::string>& lines,
             continue;
         }
         const Position position{row, column};
+        const size_t literalStart = i;
         // JavaScript regex literals are opaque, just like quoted strings.
         const bool javascript =
             type == FileType::JavaScript || type == FileType::TypeScript;
@@ -164,6 +166,8 @@ std::vector<Token> tokenize(const std::vector<std::string>& lines,
             while(i < source.size() && ident(source[i]))
                 advance();
             tokens.push_back({"literal", position});
+            tokens.back().spelling =
+                source.substr(literalStart, i - literalStart);
             continue;
         }
         // C++ raw literals can contain quotes, comments and arbitrary braces.
@@ -181,6 +185,8 @@ std::vector<Token> tokenize(const std::vector<std::string>& lines,
                 while(i < end)
                     advance();
                 tokens.push_back({"literal", position});
+                tokens.back().spelling =
+                    source.substr(literalStart, i - literalStart);
                 continue;
             }
         }
@@ -221,6 +227,8 @@ std::vector<Token> tokenize(const std::vector<std::string>& lines,
                     advance();
             }
             tokens.push_back({"literal", position});
+            tokens.back().spelling =
+                source.substr(literalStart, i - literalStart);
             continue;
         }
         const size_t begin = i;
@@ -507,6 +515,85 @@ bool supports(FileType type)
     return type == FileType::Cpp || type == FileType::Python ||
            type == FileType::Mla || type == FileType::JavaScript ||
            type == FileType::TypeScript || type == FileType::CSharp;
+}
+
+std::vector<FunctionSymbol>
+functionSymbols(const std::vector<std::string>& lines, FileType type)
+{
+    if(!supports(type))
+        return {};
+    const auto tokens = tokenize(lines, type);
+    const auto outline = functions(tokens, lines, type);
+    std::vector<FunctionSymbol> symbols;
+    for(const auto& function : outline)
+    {
+        int begin = function.name;
+        if(type == FileType::Python)
+        {
+            --begin; // def
+            if(begin > 0 && tokens[begin - 1].text == "async")
+                --begin;
+        }
+        else if(!function.exactStart || tokens[begin].identifier)
+        {
+            while(begin > 0)
+            {
+                const auto& previous = tokens[begin - 1].text;
+                if(previous == ";" || previous == "{" || previous == "}")
+                    break;
+                if(previous == ":" && begin > 1 &&
+                   (tokens[begin - 2].text == "public" ||
+                    tokens[begin - 2].text == "private" ||
+                    tokens[begin - 2].text == "protected"))
+                    break;
+                --begin;
+            }
+        }
+        int end = function.body - 1; // Exclude the opening body brace.
+        if(type == FileType::Python)
+            ++end; // Keep Python's signature colon.
+        std::string signature;
+        for(int i = begin; i < end; ++i)
+        {
+            const auto& token = tokens[i];
+            // Constructor initializers are not part of the signature.
+            if((type == FileType::Cpp || type == FileType::CSharp) &&
+               token.text == ":")
+                break;
+            const std::string& spelling =
+                token.spelling.empty() ? token.text : token.spelling;
+            if(i > begin)
+            {
+                const auto& previous = tokens[i - 1];
+                const auto& previousSpelling = previous.spelling.empty()
+                                                   ? previous.text
+                                                   : previous.spelling;
+                const bool gap =
+                    token.position.line != previous.position.line ||
+                    token.position.column >
+                        previous.position.column +
+                            static_cast<int>(previousSpelling.size());
+                if(gap && previous.text != "(" && previous.text != "[" &&
+                   token.text != ")" && token.text != "]")
+                    signature += ' ';
+            }
+            for(unsigned char c : spelling)
+            {
+                if(c < 32 || c == 127)
+                {
+                    if(signature.empty() || signature.back() != ' ')
+                        signature += ' ';
+                }
+                else
+                    signature += static_cast<char>(c);
+            }
+        }
+        while(!signature.empty() && signature.back() == ' ')
+            signature.pop_back();
+        symbols.push_back(
+            {tokens[function.name].position, std::move(signature)});
+    }
+    return symbols;
 }
 
 std::vector<Position> targets(const std::vector<std::string>& lines,

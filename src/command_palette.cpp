@@ -116,6 +116,9 @@ std::vector<Entry> builtinActions()
     a.push_back(keys("Paste from system clipboard", "Space p", {kSpace, 'p'}));
 #endif
     // Code navigation.
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    a.push_back(keys("Browse function signatures", "Space o", {kSpace, 'o'}, {"functions"}));
+#endif
     a.push_back(keys("Next function signature", "]f", {']', 'f'}));
     a.push_back(keys("Previous function signature", "[f", {'[', 'f'}));
     a.push_back(keys("Next local declaration or call", "]s", {']', 's'}));

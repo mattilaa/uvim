@@ -5,21 +5,25 @@
 
 namespace structural_navigation
 {
-bool navigate(Editor& editor, Target target, bool forward, int count)
+FileType fileType(const Editor& editor)
 {
-    if(!editor.currentBuffer || !editor.lines || editor.lines->empty())
-        return false;
-    FileType type = FileType::MarkupText;
     for(FileType candidate :
         {FileType::Cpp, FileType::Python, FileType::Mla, FileType::JavaScript,
          FileType::TypeScript, FileType::CSharp})
     {
         if(editor.isFileType(candidate))
         {
-            type = candidate;
-            break;
+            return candidate;
         }
     }
+    return FileType::MarkupText;
+}
+
+bool navigate(Editor& editor, Target target, bool forward, int count)
+{
+    if(!editor.currentBuffer || !editor.lines || editor.lines->empty())
+        return false;
+    const FileType type = fileType(editor);
     if(!supports(type))
     {
         editor.setStatusMessage("Structural navigation: unsupported file type");

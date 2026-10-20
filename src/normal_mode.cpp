@@ -1238,6 +1238,14 @@ std::optional<ModeState> NormalMode::handleLeaderKey(ModeContext& ctx, int c)
 
     switch(c)
     {
+    case keyCode(typed::TypedKey::KEY_O):
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+        return FunctionBrowserMode{};
+#else
+        ed->setStatusMessage("browser tools are not compiled in");
+        return std::nullopt;
+#endif
+
     case keyCode(typed::TypedKey::KEY_F):
 #ifdef UVIM_ENABLE_FORMATTERS
         ed->formatBuffer();

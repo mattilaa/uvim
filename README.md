@@ -56,6 +56,9 @@ menus—they leave the corresponding implementation out of the binary.
 
 #### New
 
+- **Function signature browser** — `Space-o` or `:functions` opens a searchable
+  list for the current buffer. Browse with `Ctrl-J/K`, jump with `Enter`, and
+  cancel with `Esc`. Multiline signatures and unsaved edits are included.
 - Function and local code navigation: `]f` / `[f` jump between function
   signatures; `]s` / `[s` step through variable declarations and calls inside
   the current function. `n` / `N` repeat the selected navigation until Escape
@@ -1367,6 +1370,25 @@ In command mode:
 - `:?^word` - regex search backward
 
 ## Function and local navigation
+
+Press **`Space-o`** or run **`:functions`** to browse function signatures in
+the current file, with line numbers. The list uses the same controls as the
+open-buffer browser:
+
+- Type to fuzzy-filter names, parameter types, or other signature text.
+- `Ctrl-J` / `Ctrl-K` (or arrow keys) select the next / previous entry.
+- `PgUp` / `PgDn` scroll by a page; `Ctrl-U` clears the filter.
+- `Enter` returns to the file at the selected function's name.
+- `Esc` cancels without moving the editor cursor.
+
+The list starts near your current function and reads the current buffer,
+including unsaved edits. Multiline signatures appear on one row, with their
+parameters and return types; long rows are clipped to the terminal width.
+Jumps participate in `Ctrl-o` / `Ctrl-i` history and affect only the active
+split pane. Open the palette and search for **Browse function signatures**
+to discover the same action. Requires `UVIM_ENABLE_BROWSER_TOOLS`; see
+`:help functions`. The list covers the current buffer, rather than the whole
+project, and uses the same recognition rules and limitations described below.
 
 In Normal mode, select what `n` / `N` should navigate with one of these motions:
 

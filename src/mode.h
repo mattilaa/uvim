@@ -39,4 +39,5 @@ enum Mode
     ANSI_TOOLS,
     COLOR_PICKER,
     COLOR_SELECTOR,
+    FUNCTION_BROWSER,
 };

@@ -92,6 +92,11 @@ public:
     {
         return recognize(ctx, state);
     }
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const FunctionBrowserMode& state) const
+    {
+        return recognize(ctx, state);
+    }
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     std::optional<Mode> operator()(ModeContext& ctx,

@@ -202,3 +202,52 @@ TEST(StructuralNavigation, GenericSignaturesAndCalls)
               (std::vector<Position>{at(lines, 1, "result"),
                                      at(lines, 1, "convert")}));
 }
+
+TEST(StructuralNavigation, FunctionSymbolsKeepMultilineSignatureAndLocation)
+{
+    const std::vector<std::string> lines = {"// A comment before the signature",
+                                            "template <typename T>",
+                                            "std::vector<T>",
+                                            "build(",
+                                            "    const T& input,",
+                                            "    int count = 2",
+                                            ") const {",
+                                            "    return {};",
+                                            "}"};
+    const auto symbols =
+        structural_navigation::functionSymbols(lines, FileType::Cpp);
+    ASSERT_EQ(symbols.size(), 1u);
+    EXPECT_EQ(symbols[0].position, (Position{3, 0}));
+    EXPECT_EQ(symbols[0].signature,
+              "template <typename T> std::vector<T> build(const T& input, int "
+              "count = 2) const");
+}
+
+TEST(StructuralNavigation,
+     FunctionSymbolsKeepLiteralDefaultsAndPythonAnnotations)
+{
+    const std::vector<std::string> lines = {
+        "async def greet(",
+        "    name: str = \"Ada\", # ignore signature comments",
+        ") -> str:", "    return name"};
+    const auto symbols =
+        structural_navigation::functionSymbols(lines, FileType::Python);
+    ASSERT_EQ(symbols.size(), 1u);
+    EXPECT_EQ(symbols[0].signature,
+              "async def greet(name: str = \"Ada\",) -> str:");
+    EXPECT_EQ(symbols[0].position, (Position{0, 10}));
+}
+
+TEST(StructuralNavigation,
+     FunctionSymbolsExcludeBodiesAndConstructorInitializers)
+{
+    const std::vector<std::string> lines = {
+        "Thing::Thing(int input) : member(input) { run(); }",
+        "int first() { return 1; } int second() { return 2; }"};
+    const auto symbols =
+        structural_navigation::functionSymbols(lines, FileType::Cpp);
+    ASSERT_EQ(symbols.size(), 3u);
+    EXPECT_EQ(symbols[0].signature, "Thing::Thing(int input)");
+    EXPECT_EQ(symbols[1].signature, "int first()");
+    EXPECT_EQ(symbols[2].signature, "int second()");
+}
