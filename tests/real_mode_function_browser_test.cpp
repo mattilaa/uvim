@@ -95,6 +95,29 @@ TEST_F(FunctionBrowserTest, FilteringClearingAndEmptyResults)
     EXPECT_TRUE(editor.jumpBackStack.empty());
 }
 
+TEST_F(FunctionBrowserTest,
+       OpeningFunctionCentersCodeByDefaultAndHonorsGdcenter)
+{
+    *editor.lines = std::vector<std::string>(120, "# context");
+    (*editor.lines)[60] = "def target():";
+    (*editor.lines)[61] = "    return 1";
+    ASSERT_TRUE(editor.gdCenterScreen);
+    auto sm = makeMachine(editor, FunctionBrowserMode{});
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(*editor.cursorY, 60);
+    EXPECT_EQ(*editor.cursorY - *editor.offsetY, editor.contentRows() / 2);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_O));
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(*editor.offsetY, 0);
+
+    dispatch_command(sm, "set gdcenter=false");
+    ASSERT_FALSE(editor.gdCenterScreen);
+    dispatch_command(sm, "functions");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(*editor.cursorY, 60);
+    EXPECT_EQ(*editor.cursorY - *editor.offsetY, editor.contentRows() - 1);
+}
+
 TEST_F(FunctionBrowserTest, StartsAtCurrentFunctionAndScrollsInSmallTerminal)
 {
     editor.lines->clear();
@@ -120,8 +143,34 @@ TEST_F(FunctionBrowserTest, StartsAtCurrentFunctionAndScrollsInSmallTerminal)
     browser->draw(editor);
     const std::string output = testing::internal::GetCapturedStdout();
     EXPECT_NE(output.find("Functions:"), std::string::npos);
-    EXPECT_NE(output.find("def function_"), std::string::npos);
+    EXPECT_NE(output.find("function_"), std::string::npos);
     EXPECT_NE(output.find("FUNCTIONS"), std::string::npos);
+}
+
+TEST_F(FunctionBrowserTest,
+       SignaturesUseThemeSyntaxColorsAndKeepSelectionBackground)
+{
+    auto sm = makeMachine(editor, FunctionBrowserMode{});
+    auto* browser = sm.getState<FunctionBrowserMode>();
+    ASSERT_NE(browser, nullptr);
+    testing::internal::CaptureStdout();
+    browser->draw(editor);
+    const std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_KEYWORD) + "def"),
+              std::string::npos);
+    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_FUNCTION) + "first"),
+              std::string::npos);
+    EXPECT_NE(output.find(editor.theme.syntax(TOKEN_STRING) + "\"Ada\""),
+              std::string::npos);
+    EXPECT_NE(output.find(editor.theme.uiGutter() + "> 2  "),
+              std::string::npos);
+    const auto selection = output.find(editor.theme.selection());
+    const auto signatureEnd = output.find("value", selection);
+    ASSERT_NE(selection, std::string::npos);
+    ASSERT_NE(signatureEnd, std::string::npos);
+    EXPECT_EQ(output.substr(selection, signatureEnd - selection)
+                  .find(editor.theme.reset()),
+              std::string::npos);
 }
 
 TEST_F(FunctionBrowserTest, UnsupportedAndBufferlessViewsAreSafeToCancel)
@@ -157,6 +206,23 @@ TEST_F(FunctionBrowserTest, CommandPaletteCanOpenTheOutline)
 #endif
 
 #ifdef UVIM_ENABLE_MULTI_PANE_SPLITS
+TEST_F(FunctionBrowserTest, OpeningFunctionCentersWithinActiveHorizontalSplit)
+{
+    *editor.lines = std::vector<std::string>(120, "# context");
+    (*editor.lines)[60] = "def target():";
+    (*editor.lines)[61] = "    return 1";
+    editor.enableSplit(false);
+    ASSERT_TRUE(editor.splitActive);
+    const int active = editor.activePane;
+    const int other = active == 0 ? 1 : 0;
+    const int otherOffset = editor.splitPanes[other].offsetY;
+    auto sm = makeMachine(editor, FunctionBrowserMode{});
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(*editor.cursorY, 60);
+    EXPECT_EQ(*editor.cursorY - *editor.offsetY, editor.contentRows() / 2);
+    EXPECT_EQ(editor.splitPanes[other].offsetY, otherOffset);
+}
+
 TEST_F(FunctionBrowserTest, JumpChangesOnlyTheActiveSplitPane)
 {
     editor.enableSplit(true);

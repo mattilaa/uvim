@@ -1383,9 +1383,15 @@ open-buffer browser:
 
 The list starts near your current function and reads the current buffer,
 including unsaved edits. Multiline signatures appear on one row, with their
-parameters and return types; long rows are clipped to the terminal width.
+parameters and return types, colored with the editor's syntax theme; line
+numbers use the gutter color. Long rows are clipped to the terminal width.
 Jumps participate in `Ctrl-o` / `Ctrl-i` history and affect only the active
-split pane. Open the palette and search for **Browse function signatures**
+split pane. Opening a function centers it in the code view by default, where
+file boundaries allow. Use `:set gdcenter=false` to keep minimal scrolling,
+or `:set gdcenter=true` to restore centering (`:set gdcenter?` shows the setting).
+This is the same setting used by go-to-definition; persist it as
+`gdcenter = true` or `false` in the `[editor]` section of your config.
+Open the palette and search for **Browse function signatures**
 to discover the same action. Requires `UVIM_ENABLE_BROWSER_TOOLS`; see
 `:help functions`. The list covers the current buffer, rather than the whole
 project, and uses the same recognition rules and limitations described below.

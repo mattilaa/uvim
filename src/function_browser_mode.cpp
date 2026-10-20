@@ -43,6 +43,43 @@ std::string clipped(std::string_view text, int columns)
     }
     return std::string(text.substr(0, end));
 }
+
+void appendSignature(std::string& output, const std::string& signature,
+                     int columns, const Editor& editor)
+{
+    // Clip plain text before adding ANSI sequences, so colors don't consume
+    // display columns or cause a long signature to wrap over the next row.
+    const std::string visible = clipped(signature, columns);
+    bool blockComment = false;
+    bool multiline = false;
+    bool fence = false;
+    char quote = 0;
+    char fenceChar = 0;
+    const auto tokens = editor.tokenizeLine(signature, blockComment, multiline,
+                                            quote, fence, fenceChar);
+    std::vector<TokenType> colors(visible.size(), TOKEN_NORMAL);
+    for(const auto& token : tokens)
+    {
+        const int begin =
+            std::clamp(token.start, 0, static_cast<int>(visible.size()));
+        const int end = std::clamp(token.start + token.length, begin,
+                                   static_cast<int>(visible.size()));
+        std::fill(colors.begin() + begin, colors.begin() + end, token.type);
+    }
+    // Syntax colors only change foreground, keeping the selected row's
+    // background intact throughout the signature.
+    output += editor.theme.baseFg();
+    TokenType color = TOKEN_NORMAL;
+    for(size_t i = 0; i < visible.size(); ++i)
+    {
+        if(colors[i] != color)
+        {
+            color = colors[i];
+            output += editor.theme.syntax(color);
+        }
+        output += visible[i];
+    }
+}
 } // namespace
 
 void FunctionBrowserMode::on_enter(ModeContext& ctx)
@@ -153,6 +190,8 @@ std::optional<ModeState> FunctionBrowserMode::handle(ModeContext& ctx,
                      static_cast<int>((*editor.lines)[*editor.cursorY].size()));
         *editor.wantedX = *editor.cursorX;
         editor.adjustViewport();
+        if(editor.gdCenterScreen)
+            editor.centerScreen();
         return NormalMode{};
     }
     if(key == keyCode(control::ControlKey::CTRL_J) ||
@@ -212,7 +251,13 @@ void FunctionBrowserMode::draw(Editor& editor)
             const std::string prefix =
                 (index == cursor ? "> " : "  ") +
                 std::to_string(symbol.position.line + 1) + "  ";
-            output += clipped(prefix + symbol.signature, editor.screenCols);
+            output += editor.theme.uiGutter();
+            output += clipped(prefix, editor.screenCols);
+            appendSignature(
+                output, symbol.signature,
+                std::max(0, editor.screenCols -
+                                text_utils::utf8DisplayWidth(prefix)),
+                editor);
         }
         else if(matches.empty() && row == 0)
         {
