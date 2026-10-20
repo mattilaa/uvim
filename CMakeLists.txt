@@ -1046,6 +1046,12 @@ if(UVIM_BUILD_TESTS)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/mlang_lsp_integration_test.py
         )
         if(Python3_VERSION VERSION_GREATER_EQUAL "3.9")
+            if(UNIX)
+                add_test(
+                    NAME python_control
+                    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/python_control_test.py $<TARGET_FILE:uvim>
+                )
+            endif()
             add_test(
                 NAME csharp_environment
                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/csharp_env_test.py

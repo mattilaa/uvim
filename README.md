@@ -29,6 +29,10 @@ menus—they leave the corresponding implementation out of the binary.
 
 ![uVim terminal editor demonstration](docs/uvim.gif)
 
+For a hands-free recording, run `python3 scripts/demo_uvim.py` (macOS/Linux).
+The [Python control guide](docs/python_control.md) covers the demo and controlling
+a visible editor from another Python process.
+
 ## Contents
 
 - [Release notes](#release-notes)
