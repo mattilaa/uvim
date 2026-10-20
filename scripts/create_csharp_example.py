@@ -5,6 +5,7 @@ import argparse
 import os
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import sys
 
@@ -22,6 +23,8 @@ def main(argv=None):
                         help="starter: lsp (default), hello or classlib")
     parser.add_argument("--no-restore", action="store_true",
                         help="generate files only; do not download, build or run")
+    parser.add_argument("--update-helper", action="store_true",
+                        help="update an existing example's helper and generated guide; preserve C# source edits")
     args = parser.parse_args(argv)
     root = args.directory.expanduser().resolve()
     try:
@@ -31,6 +34,12 @@ def main(argv=None):
             if (config.get("template") != args.template or
                     not (root / "UvimCSharpExample.csproj").is_file()):
                 raise csharp_env.SetupError("This directory contains a different project; choose another directory.")
+            if args.update_helper:
+                shutil.copyfile(Path(csharp_env.__file__).resolve(), root / csharp_env.HELPER)
+                (root / "CSHARP_ENV.md").write_text(
+                    csharp_env.project_guide("UvimCSharpExample", args.template), encoding="utf-8")
+                if not (root / csharp_env.REQUIREMENTS).exists():
+                    csharp_env.write_requirements(root, config)
             if not args.no_restore:
                 csharp_env.restore(root)
         else:
@@ -50,7 +59,7 @@ def main(argv=None):
             print("cd " + shlex.quote(str(root)))
             python = "python3"
         if args.no_restore:
-            print(f"{python} csharp-env.py restore")
+            print(f"{python} csharp-env.py install -r requirements-csharp.txt")
         print(f"{python} csharp-env.py dotnet build")
         if args.template != "classlib":
             print(f"{python} csharp-env.py run")

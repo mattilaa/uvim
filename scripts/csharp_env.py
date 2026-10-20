@@ -14,6 +14,7 @@ import venv
 
 
 MANIFEST = "csharp-env.json"
+REQUIREMENTS = "requirements-csharp.txt"
 STATE = ".csharp-env"
 HELPER = "csharp-env.py"
 DEFAULT_LSP = "0.28.0"
@@ -91,16 +92,21 @@ This project uses the `<TEMPLATE>` template. Run the following steps from
 this directory. Use `python3` on macOS/Linux or `py -3` on Windows in place
 of `python` if needed.
 
-## 1. Restore the local tools and project packages
+## 1. Install the project-local dependencies
 
 Setup normally restores automatically. For a clone, or after generating
 with `--no-restore`, run:
 
 ```sh
-python csharp-env.py restore
+python csharp-env.py install -r requirements-csharp.txt
 ```
 
-This creates the local .NET SDK, C# LSP, NuGet caches and Python venv.
+This reads the pinned .NET SDK and C# language-server versions from
+`requirements-csharp.txt` and installs them only inside this directory.
+It also creates the Python venv and restores the project's NuGet packages.
+No sudo, Homebrew, global dotnet tool install, or shell-profile edits are used.
+This is a .NET requirements file, not a pip input file; the Python helper
+has no pip dependencies. `restore` is an equivalent install command.
 
 ## 2. Build<AND_RUN>
 
@@ -133,8 +139,11 @@ Python's .venv is optional for running the helper; it has no pip dependencies.
 POSIX: `.venv/bin/python csharp-env.py dotnet build`
 PowerShell: `& .\\.venv\\Scripts\\python.exe .\\csharp-env.py dotnet build`
 
-csharp-env.json pins the SDK and csharp-ls versions. Commit it, global.json,
-NuGet.Config, packages.lock.json, the source files and this helper. After
+requirements-csharp.txt pins the SDK and csharp-ls versions. Edit its two
+version entries, then run `install -r requirements-csharp.txt` to change them.
+csharp-env.json stores the selected versions and project metadata. Commit
+both files, global.json, NuGet.Config, packages.lock.json, the sources and
+this helper. After
 cloning, `restore` recreates the environment; use `restore --locked` to check
 the committed NuGet lock file without updating its resolved dependencies.
 Add a C# package with `dotnet add package NAME --version VERSION` through
@@ -195,6 +204,46 @@ def validate_manifest(config):
         raise SetupError("This starter project requires a .NET 10 SDK.")
     if not isinstance(lsp, str) or not re.fullmatch(r"\d+\.\d+\.\d+", lsp):
         raise SetupError("csharp_ls_version must be an exact stable version.")
+
+
+def read_requirements(path):
+    names = {"dotnet-sdk": "sdk_version", "csharp-ls": "csharp_ls_version"}
+    config = {}
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        value = line.split("#", 1)[0].strip()
+        if not value:
+            continue
+        match = re.fullmatch(r"([a-zA-Z0-9-]+)\s*==\s*([^\s]+)", value)
+        if not match or match[1].lower() not in names:
+            raise SetupError(f"{path}:{number}: use dotnet-sdk==VERSION or csharp-ls==VERSION.")
+        key = names[match[1].lower()]
+        if key in config:
+            raise SetupError(f"{path}:{number}: duplicate dependency {match[1]}.")
+        config[key] = match[2]
+    if len(config) != 2:
+        raise SetupError(f"{path}: both dotnet-sdk and csharp-ls must be specified.")
+    validate_manifest(config)
+    return config
+
+
+def requirements_text(config):
+    return ("# Project-local .NET dependencies (not a pip requirements file).\n"
+            "# Install: python csharp-env.py install -r requirements-csharp.txt\n"
+            f"dotnet-sdk=={config['sdk_version']}\n"
+            f"csharp-ls=={config['csharp_ls_version']}\n")
+
+
+def write_requirements(root, config):
+    path = root / REQUIREMENTS
+    if not path.exists():
+        path.write_text(requirements_text(config), encoding="utf-8")
+        return
+    # Keep comments while pinning the initially selected 'latest' SDK.
+    content = path.read_text(encoding="utf-8")
+    for name, key in (("dotnet-sdk", "sdk_version"), ("csharp-ls", "csharp_ls_version")):
+        content = re.sub(r"(?im)^(\s*" + name + r"\s*==\s*)[^\s#]+",
+                         lambda match: match[1] + config[key], content)
+    path.write_text(content, encoding="utf-8")
 
 
 def environment(root):
@@ -291,13 +340,18 @@ def install_sdk(root, config, env):
     write_json(root / "global.json", global_json)
 
 
-def restore(root, locked=False):
+def restore(root, locked=False, requirements=None):
     config = read_manifest(root)
+    requirement_file = root / REQUIREMENTS if requirements is None else requirements
+    if requirements is not None or requirement_file.exists():
+        config.update(read_requirements(requirement_file))
+        write_json(root / MANIFEST, config)
     if not (root / ".venv").exists():
         print("Creating project-local Python venv (no pip dependencies).", flush=True)
         venv.EnvBuilder(with_pip=False).create(root / ".venv")
     env = environment(root)
     install_sdk(root, config, env)
+    write_requirements(root, config)
     dotnet = dotnet_path(root)
     tools = root / STATE / "tools"
     installed = ""
@@ -387,6 +441,8 @@ def init(root, name, empty, sdk_version, lsp_version, template="hello", no_resto
         HELPER: Path(__file__).read_text(encoding="utf-8"),
         "NuGet.Config": NUGET_CONFIG,
         "CSHARP_ENV.md": project_guide(name, "empty" if empty else template),
+        REQUIREMENTS: requirements_text({"sdk_version": sdk_version,
+                                         "csharp_ls_version": lsp_version}),
     }
     if not empty:
         files.update(template_files(name, template))
@@ -438,8 +494,11 @@ def parser():
     create.add_argument("--no-restore", action="store_true", help="generate files only; download tools later with restore")
     create.add_argument("--sdk-version", default="latest", help="exact .NET 10 SDK version; default: latest 10.0, then pinned")
     create.add_argument("--lsp-version", default=DEFAULT_LSP, help=f"exact csharp-ls version (default: {DEFAULT_LSP})")
-    reset = commands.add_parser("restore", help="download pinned tools and restore project packages")
-    reset.add_argument("--locked", action="store_true", help="restore NuGet packages in locked mode")
+    for command in ("install", "restore"):
+        reset = commands.add_parser(command, help="install project-local SDK/LSP from requirements and restore packages")
+        reset.add_argument("-r", "--requirements", type=Path,
+                           help=".NET requirements file (default: project requirements-csharp.txt when present)")
+        reset.add_argument("--locked", action="store_true", help="restore NuGet packages in locked mode")
     for command, description in [("dotnet", "run any dotnet command with the local SDK and caches"),
                                   ("run", "run the example/project with dotnet run")]:
         item = commands.add_parser(command, help=description)
@@ -461,8 +520,13 @@ def main(argv=None):
         elif args.command == "init":
             init(args.target.expanduser().resolve(), args.name, args.empty,
                  args.sdk_version, args.lsp_version, args.template, args.no_restore)
-        elif args.command == "restore":
-            restore(root, args.locked)
+        elif args.command in ("install", "restore"):
+            requirement_file = None
+            if args.requirements is not None:
+                requirement_file = args.requirements.expanduser()
+                if not requirement_file.is_absolute():
+                    requirement_file = root / requirement_file
+            restore(root, args.locked, requirement_file)
         else:
             config = read_manifest(root)
             if not dotnet_path(root).is_file() or not server_path(root).is_file():

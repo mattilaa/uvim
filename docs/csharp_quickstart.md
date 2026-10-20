@@ -28,6 +28,19 @@ prints the commands for opening it in uVim. Read `CSHARP_ENV.md` in the
 generated directory for editor exercises. Running the launcher again reuses
 the existing environment and preserves edits to the source files.
 
+To upgrade an older example to the latest helper and requirements-file
+support, from the uVim checkout:
+
+```sh
+python3 scripts/create_csharp_example.py --update-helper
+cd "$HOME/test-cs-project-for-uvim"
+.venv/bin/python csharp-env.py install -r requirements-csharp.txt
+.venv/bin/python csharp-env.py edit Program.cs
+```
+
+This updates the generated helper/guide while preserving your C# source
+files. All SDK/LSP installations remain inside the example directory.
+
 For a new directory containing a minimal Hello World example instead:
 
 ```sh
@@ -89,6 +102,7 @@ HelloUvim.csproj      Project settings and NuGet dependencies
 Program.cs           The Hello World source code
 CSHARP_ENV.md         Instructions for this generated project
 csharp-env.py        Your copy of the setup/run/editor helper
+requirements-csharp.txt  Local SDK/LSP dependency versions (install with install -r)
 csharp-env.json      Pinned SDK and language-server versions
 global.json          SDK selection
 NuGet.Config         Package sources

@@ -68,6 +68,9 @@ menus—they leave the corresponding implementation out of the binary.
   a version manifest, and Hello World, LSP practice and class-library
   starters. A [step-by-step guide](docs/csharp_quickstart.md) covers creating,
   building, running and editing a project in uVim.
+- Generated C# projects include `requirements-csharp.txt`; run
+  `python csharp-env.py install -r requirements-csharp.txt` to install their
+  SDK and language server locally, without sudo or global installations.
 - Added a [small C# example project](examples/lsp/csharp/README.md) with
   instructions for testing highlighting, completion, definition jumps,
   references and diagnostics in uVim.

@@ -224,6 +224,63 @@ class CSharpEnvironmentTest(unittest.TestCase):
         self.assertEqual(len(commands), 1)
         self.assertEqual(commands[0][1:3], ["tool", "list"])
 
+    def test_requirements_parser_accepts_comments_and_pinned_versions(self):
+        path = self.root / "dependencies.txt"
+        path.write_text("# Local tools only\ndotnet-sdk==10.0.402 # SDK\n\ncsharp-ls==0.28.0\n")
+        self.assertEqual(envtool.read_requirements(path),
+                         {"sdk_version": "10.0.402", "csharp_ls_version": "0.28.0"})
+
+    def test_requirements_parser_rejects_missing_duplicate_and_global_packages(self):
+        path = self.root / "dependencies.txt"
+        for text in ("dotnet-sdk==10.0.402\n", "requests==2.32.0\n",
+                     "dotnet-sdk==10.0.402\ndotnet-sdk==10.0.100\ncsharp-ls==0.28.0\n",
+                     "dotnet-sdk==8.0.401\ncsharp-ls==0.28.0\n"):
+            with self.subTest(text=text):
+                path.write_text(text)
+                with self.assertRaises(envtool.SetupError):
+                    envtool.read_requirements(path)
+
+    def test_install_command_resolves_requirements_relative_to_project(self):
+        with patch.object(envtool, "restore") as restore:
+            self.assertEqual(envtool.main([
+                "-C", str(self.root), "install", "-r", "requirements-csharp.txt"
+            ]), 0)
+        restore.assert_called_once_with(self.root, False, self.root / envtool.REQUIREMENTS)
+
+    def test_restore_uses_requirements_versions_and_keeps_project_metadata(self):
+        self.config["template"] = "lsp"
+        self.manifest()
+        (self.root / ".venv").mkdir()
+        (self.root / envtool.REQUIREMENTS).write_text(
+            "# Keep this note\ndotnet-sdk==10.0.402\ncsharp-ls==0.28.0\n")
+        with patch.object(envtool, "install_sdk") as sdk, patch.object(envtool, "run"):
+            envtool.restore(self.root)
+        selected = sdk.call_args.args[1]
+        self.assertEqual(selected["sdk_version"], "10.0.402")
+        saved = envtool.read_manifest(self.root)
+        self.assertEqual(saved["template"], "lsp")
+        self.assertEqual(saved["sdk_version"], "10.0.402")
+        self.assertIn("# Keep this note", (self.root / envtool.REQUIREMENTS).read_text())
+
+    def test_first_sdk_install_pins_latest_in_requirements_and_preserves_comments(self):
+        (self.root / envtool.REQUIREMENTS).write_text(
+            "# My local dependencies\ndotnet-sdk==latest # initial choice\ncsharp-ls==0.28.0\n")
+        self.config["sdk_version"] = "10.0.402"
+        envtool.write_requirements(self.root, self.config)
+        text = (self.root / envtool.REQUIREMENTS).read_text()
+        self.assertIn("dotnet-sdk==10.0.402 # initial choice", text)
+        self.assertIn("# My local dependencies", text)
+
+    def test_invalid_requirements_stop_before_creating_environment(self):
+        self.manifest()
+        (self.root / envtool.REQUIREMENTS).write_text("requests==2.32.0\n")
+        with patch.object(envtool, "install_sdk") as sdk, \
+             contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(envtool.main(["-C", str(self.root), "install"]), 1)
+        sdk.assert_not_called()
+        self.assertFalse((self.root / ".venv").exists())
+        self.assertFalse((self.root / envtool.STATE).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

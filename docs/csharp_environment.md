@@ -13,6 +13,47 @@ dependencies, so this setup creates both a Python `.venv` and a local .NET
 environment. The helper uses only Python's standard library; there is no
 `pip install` step or Python `requirements.txt` to maintain.
 
+## Install dependencies from a requirements file
+
+Every new project includes `requirements-csharp.txt`:
+
+```text
+# Project-local .NET dependencies (not a pip requirements file).
+dotnet-sdk==10.0.402
+csharp-ls==0.28.0
+```
+
+Use the version numbers generated for your project. From that directory:
+
+```sh
+python3 csharp-env.py install -r requirements-csharp.txt
+.venv/bin/python csharp-env.py dotnet build
+.venv/bin/python csharp-env.py edit Program.cs
+```
+
+On Windows, use `py -3 csharp-env.py install -r requirements-csharp.txt`,
+then `& .\.venv\Scripts\python.exe .\csharp-env.py edit Program.cs`.
+
+This command installs the SDK to `.csharp-env/sdk`, installs `csharp-ls` to
+`.csharp-env/tools`, and keeps NuGet packages/caches in `.csharp-env`. It
+creates the Python `.venv` when absent. It does not call sudo, Homebrew,
+`dotnet tool install --global`, or change your shell configuration.
+
+Use the helper's `edit` command to start uVim so the editor inherits the
+local SDK and LSP paths. A bare `uvim Program.cs` does not automatically
+activate this environment.
+
+The file uses the familiar `name==version` format, but it describes .NET
+tools, so pass it to this helper rather than `pip install -r`. Python has
+no extra packages to install. C# application dependencies remain NuGet
+`PackageReference` entries in the `.csproj` and `packages.lock.json`.
+
+`restore` reads this requirements file too. Older projects with only
+`csharp-env.json` remain supported; the next restore generates the text
+requirements file from their selected versions. Edit `requirements-csharp.txt`
+to change dependency versions when that file exists. The JSON file then
+records the resolved versions and project metadata.
+
 ## Prerequisites
 
 - Python 3.9 or later (`python3` on macOS/Linux, `py -3` or `python` on
@@ -102,7 +143,8 @@ does not configure .NET: continue using the helper for .NET and uVim.
 | Path | Purpose | Commit it? |
 |---|---|---|
 | `csharp-env.py` | Portable helper copied into your project | Yes |
-| `csharp-env.json` | Exact SDK and `csharp-ls` versions, like a requirements file | Yes |
+| `requirements-csharp.txt` | SDK and `csharp-ls` dependency versions; install with `install -r` | Yes |
+| `csharp-env.json` | Selected versions and project metadata | Yes |
 | `global.json` | Pins .NET SDK selection | Yes |
 | `NuGet.Config` | Project package sources (initially nuget.org) | Yes |
 | `*.csproj` | C# package references and project settings | Yes |
@@ -115,7 +157,7 @@ does not configure .NET: continue using the helper for .NET and uVim.
 | `bin/`, `obj/` | Generated C# build output | No |
 
 The first setup chooses the latest stable .NET 10 SDK and records the exact
-version in `csharp-env.json`. `csharp-ls` is pinned to `0.28.0` by default.
+version in `requirements-csharp.txt` and `csharp-env.json`. `csharp-ls` is pinned to `0.28.0` by default.
 Use `init --sdk-version 10.0.100 --lsp-version 0.28.0` to choose exact
 versions yourself. All platforms read the same manifest and download their
 own native SDK/tool binaries.
@@ -131,7 +173,7 @@ program's file or network access.
 
 ## Restore after cloning
 
-Copy/commit the helper, manifest, `global.json`, `NuGet.Config`, source,
+Copy/commit the helper, requirements file, manifest, `global.json`, `NuGet.Config`, source,
 project file and lock file. There is no dependency on the original uVim
 checkout once the project has been created.
 
@@ -146,8 +188,8 @@ python3 csharp-env.py edit Program.cs
 
 On Windows, replace `python3` with `py -3` or `python`. For a deliberate
 dependency update, use `restore` without `--locked` and review/commit the
-updated lock file. You can change the exact versions in `csharp-env.json`
-and run `restore` to update the SDK or LSP.
+updated lock file. You can change the exact versions in `requirements-csharp.txt`
+and run `install -r requirements-csharp.txt` to update the SDK or LSP.
 
 To work from another directory, put `-C` before the command:
 
