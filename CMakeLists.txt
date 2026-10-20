@@ -1047,9 +1047,15 @@ if(UVIM_BUILD_TESTS)
         )
         if(Python3_VERSION VERSION_GREATER_EQUAL "3.9")
             if(UNIX)
+                set(_uvim_demo_test_args "")
+                if(NOT UVIM_ENABLE_BROWSER_TOOLS OR NOT UVIM_ENABLE_SEARCH_TOOLS OR
+                   NOT UVIM_ENABLE_GIT_TOOLS OR NOT UVIM_ENABLE_AUXILIARY_VIEWS OR
+                   NOT UVIM_ENABLE_MULTI_PANE_SPLITS)
+                    list(APPEND _uvim_demo_test_args --basic-only)
+                endif()
                 add_test(
                     NAME python_control
-                    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/python_control_test.py $<TARGET_FILE:uvim>
+                    COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_SOURCE_DIR}/tests/python_control_test.py $<TARGET_FILE:uvim> ${_uvim_demo_test_args}
                 )
             endif()
             add_test(

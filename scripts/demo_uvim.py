@@ -4,6 +4,7 @@
 import argparse
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -29,7 +30,34 @@ if __name__ == "__main__":
 '''
 
 
-def demonstrate(editor, speed=1):
+PROJECT_FILES = {
+    "README.md": """# Greeting workshop
+
+A small project for exploring uvim's pickers, buffers and command output.
+
+- demo.py: the greeting app
+- tests/test_greetings.py: checks for the edited greeting
+- examples/settings.json: example configuration
+
+Try searching the project for greet, or finding test_greetings.py by name.
+""",
+    "tests/test_greetings.py": '''import unittest
+
+from demo import greet
+
+
+class GreetingTests(unittest.TestCase):
+    def test_greet_ada(self):
+        self.assertEqual(greet("Ada"), "Welcome, Ada!")
+
+    def test_greet_grace(self):
+        self.assertEqual(greet("Grace"), "Welcome, Grace!")
+''',
+    "examples/settings.json": '{\n  "greeting": "Welcome",\n  "names": ["Ada", "Grace", "Linus"]\n}\n',
+}
+
+
+def demonstrate(editor, speed=1, tour="full"):
     """Edit this sequence to choreograph your own recording.
 
     speed=2 runs twice as fast. Pauses leave time for viewers to read.
@@ -46,6 +74,18 @@ def demonstrate(editor, speed=1):
         pause()
 
     pause(2)
+    if tour == "full":
+        # Discover an action by name and actually execute it.
+        command("palette")
+        type_text("file browser")
+        pause(2)
+        editor.keys("\r")
+        pause(2)
+        editor.keys("j")
+        pause()
+        editor.keys("q")
+        pause()
+
     # Navigate, then search for the greeting.
     editor.keys("gg")
     pause()
@@ -73,12 +113,63 @@ def demonstrate(editor, speed=1):
     type_text("# This live edit is driven entirely by a Python script.")
     editor.keys("\x1b")
     pause()
+    if tour == "full" and shutil.which("git"):
+        # :sc compares the saved file with the buffer; no Git repo needed.
+        command("sc")
+        pause(2)
+        editor.keys("\x1b")
+        pause()
     command("w")
+    if tour == "full":
+        # Filter a project file picker, inspect its preview, then open a file.
+        editor.keys("\x10")  # Ctrl-P
+        pause()
+        type_text("test_greetings.py")
+        pause(2)
+        editor.keys("\r")
+        pause(2)
+        # Pick the original file from the open buffer list.
+        editor.keys("\x17")  # Ctrl-W
+        pause()
+        type_text("demo.py")
+        pause(2)
+        editor.keys("\r")
+        pause()
+        # Search across project files, moving the result and preview selection.
+        editor.keys("\x01")  # Ctrl-A
+        pause()
+        type_text("greet")
+        pause(2)
+        editor.keys("\x0a")  # Ctrl-J: next result
+        pause(2)
+        editor.keys("\x1b")
+        pause()
+
     # Show the same file in two panes, then return to one pane.
     command("vs")
     editor.keys("G")
     pause(2)
     command("close")
+    if tour == "full":
+        # Run both the edited app and its checks in the browser's output view.
+        python = shlex.quote(sys.executable)
+        command("e .")
+        command(f"run {python} demo.py")
+        editor.wait_for("Welcome, Ada!")
+        pause(3)
+        editor.keys("q")  # output -> browser
+        pause()
+        command(f"run {python} -m unittest discover -s tests -v")
+        editor.wait_for("Ran 2 tests")
+        pause(3)
+        editor.keys("q")
+        pause()
+        editor.keys("q")  # browser -> editor
+        pause()
+        command("help palette")
+        pause(2)
+        editor.keys("\x1b")
+        pause()
     editor.keys("gg")
     pause(2)
 
@@ -95,6 +186,8 @@ def main():
     parser.add_argument("--uvim", default=str(Path(__file__).resolve().parents[1] / "build/uvim"))
     parser.add_argument("--speed", type=positive_float, default=1,
                         help="playback multiplier (default: 1)")
+    parser.add_argument("--tour", choices=("basic", "full"), default="full",
+                        help="full feature tour (default) or short editing demo")
     parser.add_argument("--countdown", type=positive_float, default=3,
                         help="seconds before opening uvim (default: 3)")
     parser.add_argument("--workdir", type=Path,
@@ -114,6 +207,10 @@ def main():
     else:
         workspace = Path(tempfile.mkdtemp(prefix="uvim-demo-"))
     (workspace / "demo.py").write_text(SOURCE, encoding="utf-8")
+    for name, content in PROJECT_FILES.items():
+        path = workspace / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
     print(f"Demo files: {workspace}")
     print("Record this terminal. Playback ends with uvim open; :qa quits, Ctrl-] aborts.")
     print(f"Starting in {args.countdown:g} seconds...", flush=True)
@@ -140,7 +237,7 @@ def main():
                     if time.monotonic() >= deadline:
                         raise TimeoutError("uvim did not start within 15 seconds")
                     time.sleep(0.05)
-            demonstrate(editor, args.speed)
+            demonstrate(editor, args.speed, args.tour)
             if args.exit:
                 editor.command("qa!", interval=0)
             # Leave the bridge running so the user can inspect/edit the result.

@@ -7,7 +7,9 @@ import errno
 import os
 from pathlib import Path
 import pty
+import re
 import select
+import shutil
 import signal
 import subprocess
 import sys
@@ -22,6 +24,9 @@ from demo_uvim import SOURCE
 from uvim_control import UvimClient
 
 BINARY = Path(sys.argv.pop(1)).resolve() if len(sys.argv) > 1 else ROOT / "build/uvim"
+BASIC_ONLY = "--basic-only" in sys.argv
+if BASIC_ONLY:
+    sys.argv.remove("--basic-only")
 
 
 class PythonControlTest(unittest.TestCase):
@@ -79,8 +84,11 @@ class PythonControlTest(unittest.TestCase):
 
     def test_visible_demo_and_interrupt_cleanup(self):
         # Give the demo an actual outer terminal, as it requires for recording.
-        for interrupt in (False, True):
-            with self.subTest(interrupt=interrupt), tempfile.TemporaryDirectory(
+        cases = [("basic", False), ("basic", True)]
+        if not BASIC_ONLY:
+            cases.append(("full", False))
+        for tour, interrupt in cases:
+            with self.subTest(tour=tour, interrupt=interrupt), tempfile.TemporaryDirectory(
                 dir="/tmp", prefix="uvim-video-test-"
             ) as directory:
                 master, slave = pty.openpty()
@@ -89,12 +97,12 @@ class PythonControlTest(unittest.TestCase):
                 process = subprocess.Popen(
                     [sys.executable, "-B", str(ROOT / "scripts/demo_uvim.py"),
                      "--uvim", str(BINARY), "--speed", "8", "--countdown", "0.01",
-                     "--workdir", str(workspace), "--exit"],
+                     "--tour", tour, "--workdir", str(workspace), "--exit"],
                     stdin=slave, stdout=slave, stderr=slave, start_new_session=True,
                 )
                 transcript = bytearray()
                 try:
-                    deadline = time.monotonic() + 25
+                    deadline = time.monotonic() + 45
                     sent_interrupt = False
                     while process.poll() is None and time.monotonic() < deadline:
                         if select.select([master], [], [], 0.1)[0]:
@@ -115,6 +123,15 @@ class PythonControlTest(unittest.TestCase):
                         expected = "# This live edit is driven entirely by a Python script.\n"
                         expected += SOURCE.replace("Hello", "Welcome")
                         self.assertEqual((workspace / "demo.py").read_text(), expected)
+                        if tour == "full":
+                            # Verify that the added views and real command
+                            # results were drawn, beyond just a successful exit.
+                            text = re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", transcript)
+                            for label in (b"Find File:", b"Buffers:", b"Grep:",
+                                          b"Welcome, Ada!", b"Ran 2 tests", b"OK"):
+                                self.assertIn(label, text)
+                            if shutil.which("git"):
+                                self.assertIn(b"(unsaved)", text)
                 finally:
                     if process.poll() is None:
                         process.kill()

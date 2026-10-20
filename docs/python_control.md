@@ -8,14 +8,34 @@ python3 scripts/demo_uvim.py
 ```
 
 Start your screen recorder during the three-second countdown. The script
-opens the real uvim in your current terminal and plays a roughly 40-second
-sequence: navigation, search, word replacement, undo/redo, visual selection,
-inserting a comment, saving and a vertical split. Use a terminal at least
-100 columns by 30 rows for a clear recording. The sequence assumes a build
-with split support (the normal full build).
+opens the real uvim in your current terminal and plays a roughly two-minute
+feature tour:
+
+- Filter the command palette and open the file browser.
+- Navigate, search, replace a word, undo/redo and select lines visually.
+- Insert a comment and review the unsaved-change diff before saving.
+- Find a test file with Ctrl-P and its code preview.
+- Switch files through the buffer browser.
+- Search the project with Ctrl-A and navigate matching results.
+- Open a vertical split and move through the code.
+- Run the edited greeting app and its two tests inside uvim's output view.
+- Visit the built-in help, then return to the edited file.
+
+Use a terminal at least 100 columns by 30 rows for a clear recording. The full
+tour assumes the normal full build with browser, search, Git tools, splits and
+help enabled. The unsaved diff is skipped if `git` is unavailable; it does not
+need a Git repository. Project search can use uvim's built-in fallback when
+ripgrep is unavailable. LSP servers and formatters are not required.
+
+For the original roughly 40-second editing and split demo:
+
+```sh
+python3 scripts/demo_uvim.py --tour basic
+```
 
 The demo creates a fresh temporary workspace and prints its location; the
-files are kept afterwards. It leaves uvim open so you can inspect the result.
+files are kept afterwards, including a README, example JSON settings and the
+greeting tests. It leaves uvim open so you can inspect the result.
 Type `:qa` to quit, or press **Ctrl-]** to abort the bridge. Your terminal
 settings are restored on exit. To change the pace or binary:
 
@@ -28,6 +48,7 @@ python3 scripts/demo_uvim.py --workdir /tmp/my-new-uvim-demo --exit
 files. `--exit` quits after playback. Edit `demonstrate()` in
 [`scripts/demo_uvim.py`](../scripts/demo_uvim.py) to choreograph your video.
 Playback uses timed pauses; slower machines may need a lower `--speed`.
+The full tour also waits for the app output and test summary before continuing.
 The scripts do not record video themselves.
 
 ## Control from another Python process
@@ -83,8 +104,11 @@ can access this socket can perform any editor action, including commands.
 ## Verification
 
 The integration checks use the real uvim binary, including a complete demo
-inside a PTY, saved-file assertions and terminal restoration after interruption:
+inside a PTY, saved-file assertions, checks for picker/search/output views and
+terminal restoration after interruption:
 
 ```sh
 python3 -B tests/python_control_test.py ./build/uvim
 ```
+
+For a reduced build without the full-tour features, append `--basic-only`.
