@@ -17,6 +17,8 @@ std::string_view commandDocumentation(std::string_view cmd)
 
     if(cmd == "palette")
         return "Command palette: search and run commands";
+    if(cmd == "functions")
+        return "Browse function signatures in the current buffer";
     if(cmd == "q" || cmd == "quit")
         return "Quit uVim";
     if(cmd == "q!" || cmd == "qa!" || cmd == "qall!")

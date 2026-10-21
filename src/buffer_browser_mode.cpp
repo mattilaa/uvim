@@ -287,8 +287,8 @@ void BufferBrowserMode::draw(Editor& editor) const
 
         const std::string number = std::to_string(m.bufferIndex + 1);
         std::string prefix = "  ";
-        prefix.append(std::max(0, numberWidth - static_cast<int>(number.size())),
-                      ' ');
+        prefix.append(
+            std::max(0, numberWidth - static_cast<int>(number.size())), ' ');
         prefix += number;
         prefix += " ";
 
@@ -312,8 +312,8 @@ void BufferBrowserMode::draw(Editor& editor) const
         output += editor.theme.uiInfo();
         output += nameAndStatus;
 
-        const bool hasPath = !buffer.filename.empty() &&
-                             filename != buffer.filename;
+        const bool hasPath =
+            !buffer.filename.empty() && filename != buffer.filename;
         remaining -= text_utils::utf8DisplayWidth(nameAndStatus);
         if(hasPath && remaining > 2)
         {

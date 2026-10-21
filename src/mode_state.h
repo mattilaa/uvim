@@ -29,6 +29,7 @@ struct FuzzyFindMode;
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
 struct BufferBrowserMode;
+struct FunctionBrowserMode;
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
 struct GrepSearchMode;
@@ -75,6 +76,7 @@ using ModeState = std::variant<
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
     BufferBrowserMode,
+    FunctionBrowserMode,
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     GrepSearchMode, RegexSearchMode,

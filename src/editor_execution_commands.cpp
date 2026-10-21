@@ -11,6 +11,9 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<SearchCommand>());
     commands.push_back(std::make_unique<SetCommand>());
     commands.push_back(std::make_unique<ReloadCurrentFileCommand>());
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
+    commands.push_back(std::make_unique<FunctionsCommand>());
+#endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     commands.push_back(std::make_unique<LspInfoCommand>());
     commands.push_back(std::make_unique<ToolInfoCommand>());

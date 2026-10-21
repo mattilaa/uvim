@@ -1446,6 +1446,8 @@ std::string Editor::getModeString() const
         return "FUZZY";
     case BUFFER_BROWSER:
         return "BUFFERS";
+    case FUNCTION_BROWSER:
+        return "FUNCTIONS";
     case GREP_SEARCH:
         return "GREP";
     case REGEX_SEARCH:

@@ -77,6 +77,10 @@ struct ModeStateToMode
     {
         return BUFFER_BROWSER;
     }
+    Mode operator()(const FunctionBrowserMode&) const
+    {
+        return FUNCTION_BROWSER;
+    }
 #endif
 
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
@@ -315,6 +319,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     if(ctx.takeCommandRequest(mode, path))
     {
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
+        if(mode == FUNCTION_BROWSER)
+            return FunctionBrowserMode{};
+#endif
+#ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(mode == FILE_BROWSER)
         {
             return FileBrowserMode{path, std::string(previousFile)};
@@ -450,8 +458,11 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
     case BUFFER_BROWSER:
         return BufferBrowserMode{};
+    case FUNCTION_BROWSER:
+        return FunctionBrowserMode{};
 #else
     case BUFFER_BROWSER:
+    case FUNCTION_BROWSER:
         return NormalMode{};
 #endif
 #ifdef UVIM_ENABLE_SEARCH_TOOLS

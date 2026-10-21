@@ -48,7 +48,7 @@ std::vector<std::string> helpSearchTopics()
             "gbb",       "gbl",         "gj",          "gbv",
             "gs",        "emitasm",     "lsp",         "toolinfo",
             "tasks",     "diagnostics", "logging",     "keys",
-            "palette"};
+            "palette", "functions"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -101,6 +101,8 @@ std::string helpTopicDescription(const std::string& topic)
         return "Editor modes";
     if(topic == "navigation")
         return "Moving around";
+    if(topic == "functions")
+        return "Browse function signatures in the current buffer";
     if(topic == "editing")
         return "Editing text";
     if(topic == "files")
@@ -1643,6 +1645,39 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Q`       - Exit browser and save pane layout",
         };
     }
+    else if(topic_lower == "functions")
+    {
+        lines = {
+            "# Function signature browser",
+            "",
+            "`Space-o` or `:functions` opens the current buffer's outline.",
+            "The command palette also offers Browse function signatures.",
+            "",
+            "  Type          - Fuzzy-filter signature text",
+            "  Ctrl-j/k      - Next / previous entry (also arrow keys)",
+            "  PgUp/PgDn     - Page up / down",
+            "  Ctrl-u        - Clear the filter",
+            "  Backspace     - Remove the last filter character",
+            "  Enter         - Jump to the selected function's name",
+            "  Esc           - Cancel without moving the editor cursor",
+            "",
+            "Each row shows the source line number and function signature.",
+            "Multiline signatures are joined into one row. Long rows are",
+            "clipped to the terminal width. The list starts near your cursor.",
+            "",
+            "Unsaved code is included. Reopen the list after editing to",
+            "refresh it. Ctrl-o / Ctrl-i return through jump history.",
+            "In a split, selecting an entry changes only the active pane.",
+            "Opening a function centers it in the code view by default.",
+            "`:set gdcenter=false` keeps minimal scrolling; set it to true",
+            "to restore centering. `:set gdcenter?` shows the current value.",
+            "",
+            "Requires browser tools. Uses lexical recognition without LSP:",
+            "C/C++, Python, Mlang, JavaScript, TypeScript and C#.",
+            "Lists definitions with bodies, not prototypes or macro-generated",
+            "functions. See :help navigation for structural repeat motions.",
+        };
+    }
     else if(topic_lower == "navigation")
     {
         lines = {
@@ -1690,6 +1725,19 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `Ctrl-i`   - Jump forward",
             "",
             "CODE NAVIGATION:",
+            "  `Space-o` / `:functions` - Browse function signatures",
+            "    Type to filter, Ctrl-j/k to browse, Enter to jump.",
+            "  `]f` / `[f` - Next / previous function signature",
+            "  `]s` / `[s` - Next / previous local declaration or call",
+            "  After either, `n` / `N` repeat forward / backward.",
+            "  `Esc`, a new search, or leaving Normal mode restores search.",
+            "  Counts work: `3]f`, `2n`. Jumps stop at boundaries.",
+            "  Local steps follow source order through nested blocks,",
+            "  staying in the current function and skipping nested functions.",
+            "  Lexical recognition: C/C++, Python, Mlang, JS/TS and C#.",
+            "  No LSP required; comments and strings are ignored.",
+            "  Definitions with bodies are recognized, not prototypes.",
+            "",
             "  `gd`       - Go to definition",
             "               In `.s`/`.asm`, opens cached x86/x64 or AArch64 "
             "instruction docs",
@@ -1914,6 +1962,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `*`      - Search word under cursor (forward)",
             "  `#`      - Search word under cursor (backward)",
             "  `Space-n` - Clear search highlights",
+            "  After `]f`/`[f` or `]s`/`[s`, n/N repeat code navigation.",
+            "  Press Esc or start a new search to restore search repeats.",
             "",
             "PROJECT:",
             "  `Ctrl-p`  - Fuzzy file finder",

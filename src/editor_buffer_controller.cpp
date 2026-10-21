@@ -151,6 +151,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
     case FILE_BROWSER:
     case FUZZY_FIND:
     case BUFFER_BROWSER:
+    case FUNCTION_BROWSER:
     case GREP_SEARCH:
     case REGEX_SEARCH:
     case REFERENCES:
