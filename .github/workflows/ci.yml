@@ -6,12 +6,11 @@ on:
   pull_request:
     branches: ["**"]
 
-# One run per branch at a time. A push while a run is going waits; later
-# pushes replace the waiting run, so the next run covers all of them (the
-# newest commit) instead of starting a run per commit.
+# New pushes to main cancel its previous run so CI tests the latest commit.
+# Other branches queue one run at a time; later pushes replace the waiting run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 # A bare `cmake --build --parallel` means unlimited `make -j` with the
 # Makefile generator (macOS) and exhausts the runner's memory; use a fixed
