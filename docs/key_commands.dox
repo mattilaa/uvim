@@ -8,7 +8,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \subsection keys_normal_move Movement
 - `h j k l` : left/down/up/right
+- `j/k` and up/down arrows preserve the wanted column across lines, aligning
+  to complete UTF-8 characters on shorter lines.
 - `w b e` : next word / previous word / end of word
+- `b` moves immediately; counts such as `2b` repeat the motion. The following
+  key is processed normally. Use `:bd` to close a buffer.
 - `0 ^ $` : start of line / first non-blank / end of line
 - `gg` / `G` / `<n>G` : top / bottom / go to line n
 - `Ctrl-f` / `Ctrl-b` : page down / page up
@@ -67,7 +71,6 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `gbv` : show commit diff for line under cursor
 - `gs` : show C/C++ symbol size and member layout popup
 - `gl` / `glf` : git log (repo / current file); `Ctrl-v` range selects
-- `bd` : close current buffer
 
 \subsection keys_normal_leader Leader (Space)
 - `Space-e` : diagnostic popup on an LSP diagnostic row
@@ -116,6 +119,7 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \section keys_command Command mode
 - `:` : enter command mode
+- `:bd` / `:bdelete` : close current buffer (bare `b` is word-backward movement)
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
 - `:emitasm [flags]` : emit current C/C++ buffer assembly into a `.s` buffer

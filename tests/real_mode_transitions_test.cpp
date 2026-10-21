@@ -1412,7 +1412,7 @@ TEST(RealModeTransitionsTest, DoubleEscClearsStatusMessageInWelcome)
     EXPECT_TRUE(editor.statusMessage.empty());
 }
 
-TEST(RealModeTransitionsTest, BdClosesCurrentBuffer)
+TEST(RealModeTransitionsTest, ColonBdClosesCurrentBuffer)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1422,8 +1422,7 @@ TEST(RealModeTransitionsTest, BdClosesCurrentBuffer)
 
     auto sm = makeMachine(editor, NormalMode{});
 
-    sm.dispatch('b');
-    sm.dispatch('d');
+    dispatch_command(sm, "bd");
 
     EXPECT_EQ(editor.buffers.size(), 1u);
     EXPECT_EQ(editor.currentBufferIndex, 0);
@@ -1431,7 +1430,7 @@ TEST(RealModeTransitionsTest, BdClosesCurrentBuffer)
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
 }
 
-TEST(RealModeTransitionsTest, BThenOtherKeyKeepsWordBackwardMotion)
+TEST(RealModeTransitionsTest, BMovesBackwardImmediatelyAndDoesNotSwallowNextKey)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -1441,11 +1440,205 @@ TEST(RealModeTransitionsTest, BThenOtherKeyKeepsWordBackwardMotion)
     auto sm = makeMachine(editor, NormalMode{});
 
     sm.dispatch('b');
-    sm.dispatch('x');
-
     EXPECT_EQ(*editor.cursorX, 4);
     EXPECT_TRUE(editor.commandBuffer.empty());
     EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+
+    sm.dispatch('x');
+    EXPECT_EQ(editor.currentBuffer->lines[0], "one wo three");
+    EXPECT_EQ(*editor.cursorX, 4);
+}
+
+TEST(RealModeTransitionsTest, RepeatedAndCountedBApplyEveryWordMotion)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one two three four"};
+    *editor.cursorX = 14;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch('b');
+    EXPECT_EQ(*editor.cursorX, 8);
+    sm.dispatch('b');
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_EQ(*editor.wantedX, 4);
+
+    *editor.cursorX = 14;
+    sm.dispatch('2');
+    sm.dispatch('b');
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_EQ(editor.repeatCount, 0);
+    EXPECT_TRUE(editor.commandBuffer.empty());
+    sm.dispatch('b');
+    EXPECT_EQ(*editor.cursorX, 0);
+}
+
+TEST(RealModeTransitionsTest, BDoesNotTurnFollowingDeleteIntoBufferCommand)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.createNewBuffer();
+    editor.currentBuffer->lines = {"one two three"};
+    *editor.cursorX = 8;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch('b');
+    sm.dispatch('d');
+
+    EXPECT_EQ(editor.buffers.size(), 2u);
+    EXPECT_EQ(editor.currentBufferIndex, 1);
+    EXPECT_EQ(*editor.cursorX, 4);
+    EXPECT_STREQ(sm.currentStateName(), "OP_PENDING");
+}
+
+TEST(RealModeTransitionsTest, NormalNavigationKeysDoNotOverlapWithFollowingInput)
+{
+    struct MotionCase
+    {
+        const char* label;
+        std::vector<int> keys;
+        int startY, startX, endY, endX;
+    };
+    const MotionCase cases[] = {
+        {"h", {'h'}, 1, 7, 1, 6},
+        {"j", {'j'}, 0, 4, 1, 4},
+        {"k", {'k'}, 1, 7, 0, 7},
+        {"l", {'l'}, 1, 7, 1, 8},
+        {"w", {'w'}, 1, 6, 1, 7},
+        {"W", {'W'}, 1, 2, 1, 7},
+        {"b", {'b'}, 1, 7, 1, 2},
+        {"B", {'B'}, 1, 7, 1, 2},
+        {"e", {'e'}, 1, 7, 1, 10},
+        {"E", {'E'}, 1, 7, 1, 10},
+        {"0", {'0'}, 1, 7, 1, 0},
+        {"^", {'^'}, 1, 7, 1, 2},
+        {"$", {'$'}, 1, 7, 1, 14},
+        {"G", {'G'}, 0, 0, 4, 0},
+        {"{", {'{'}, 1, 7, 0, 0},
+        {"}", {'}'}, 1, 7, 3, 0},
+        {"left", {keyCode(navigation::NavigationKey::ARROW_LEFT)}, 1, 7, 1, 6},
+        {"down", {keyCode(navigation::NavigationKey::ARROW_DOWN)}, 0, 4, 1, 4},
+        {"up", {keyCode(navigation::NavigationKey::ARROW_UP)}, 1, 7, 0, 7},
+        {"right", {keyCode(navigation::NavigationKey::ARROW_RIGHT)}, 1, 7, 1, 8},
+        {"2h", {'2', 'h'}, 1, 7, 1, 5},
+        {"2l", {'2', 'l'}, 1, 7, 1, 9},
+        {"2j", {'2', 'j'}, 0, 4, 2, 0},
+        {"2k", {'2', 'k'}, 4, 7, 2, 0},
+        {"2b", {'2', 'b'}, 1, 12, 1, 2},
+        {"2B", {'2', 'B'}, 1, 12, 1, 2},
+        {"2e", {'2', 'e'}, 1, 2, 1, 10},
+        {"2E", {'2', 'E'}, 1, 2, 1, 10},
+        {"3G", {'3', 'G'}, 0, 0, 2, 0},
+    };
+    for(const auto& motion : cases)
+    {
+        SCOPED_TRACE(motion.label);
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        *editor.lines = {"  one two three", "  four five six", "",
+                         "  seven eight nine", "  ten eleven twelve"};
+        *editor.cursorY = motion.startY;
+        *editor.cursorX = *editor.wantedX = motion.startX;
+        auto sm = makeMachine(editor, NormalMode{});
+        for(int key : motion.keys)
+            sm.dispatch(key);
+        EXPECT_EQ(*editor.cursorY, motion.endY);
+        EXPECT_EQ(*editor.cursorX, motion.endX);
+        EXPECT_TRUE(editor.commandBuffer.empty());
+        EXPECT_EQ(editor.repeatCount, 0);
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+        sm.dispatch('i');
+        EXPECT_STREQ(sm.currentStateName(), "INSERT");
+    }
+}
+
+TEST(RealModeTransitionsTest, ScreenAndScrollNavigationDoNotConsumeFollowingInput)
+{
+    struct MotionCase { int key, endY; };
+    const MotionCase cases[] = {
+        {'H', 10}, {'M', 19}, {'L', 28},
+        {keyCode(control::ControlKey::CTRL_D), 30},
+        {keyCode(control::ControlKey::CTRL_U), 10},
+        {keyCode(control::ControlKey::CTRL_F), 39},
+        {keyCode(control::ControlKey::CTRL_B), 1},
+        {keyCode(navigation::NavigationKey::PAGE_DOWN), 39},
+        {keyCode(navigation::NavigationKey::PAGE_UP), 1},
+    };
+    for(const auto& motion : cases)
+    {
+        SCOPED_TRACE(motion.key);
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        *editor.lines = std::vector<std::string>(60, "  word more");
+        editor.screenRows = 21;
+        editor.showTabs = false;
+        *editor.cursorY = 20;
+        *editor.cursorX = *editor.wantedX = 4;
+        *editor.offsetY = 10;
+        auto sm = makeMachine(editor, NormalMode{});
+        sm.dispatch(motion.key);
+        EXPECT_EQ(*editor.cursorY, motion.endY);
+        EXPECT_TRUE(editor.commandBuffer.empty());
+        EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+        sm.dispatch('i');
+        EXPECT_STREQ(sm.currentStateName(), "INSERT");
+    }
+}
+
+TEST(RealModeTransitionsTest, VerticalNavigationKeepsColumnsAcrossUtf8AndShortLines)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    *editor.lines = {"abcdefgh", "aéz", "abcdefgh", "abé", "", "abcdefgh"};
+    editor.utf8Mode = true;
+    *editor.cursorX = *editor.wantedX = 2;
+    auto sm = makeMachine(editor, NormalMode{});
+
+    sm.dispatch('j');
+    EXPECT_EQ(*editor.cursorX, 1); // byte 2 is inside é, so use its start
+    EXPECT_EQ(*editor.wantedX, 2);
+    sm.dispatch('j');
+    EXPECT_EQ(*editor.cursorX, 2); // restore the wanted column on ASCII
+    sm.dispatch('k');
+    EXPECT_EQ(*editor.cursorX, 1);
+    sm.dispatch('k');
+    EXPECT_EQ(*editor.cursorX, 2);
+
+    *editor.cursorX = *editor.wantedX = 5;
+    sm.dispatch('3');
+    sm.dispatch('j');
+    EXPECT_EQ(*editor.cursorY, 3);
+    EXPECT_EQ(*editor.cursorX, 2); // last whole character on a shorter line
+    sm.dispatch('j');
+    EXPECT_EQ(*editor.cursorX, 0); // empty line
+    sm.dispatch('j');
+    EXPECT_EQ(*editor.cursorX, 5);
+    EXPECT_EQ(*editor.wantedX, 5);
+}
+
+TEST(RealModeTransitionsTest, CharacterSearchConsumesOnlyItsTargetKey)
+{
+    struct MotionCase { char key; int startX, endX; };
+    for(const auto& motion : {MotionCase{'f', 0, 2}, MotionCase{'F', 6, 2},
+                              MotionCase{'t', 0, 1}, MotionCase{'T', 6, 3}})
+    {
+        SCOPED_TRACE(motion.key);
+        Editor editor = Editor::createForTests();
+        editor.createNewBuffer();
+        *editor.lines = {"abc abc"};
+        *editor.cursorX = motion.startX;
+        auto sm = makeMachine(editor, NormalMode{});
+        const int queued = Terminal::bufferedKeyCount();
+        Terminal::unreadKey('i');
+        Terminal::unreadKey('c');
+        sm.dispatch(motion.key);
+        EXPECT_EQ(*editor.cursorX, motion.endX);
+        EXPECT_EQ(Terminal::bufferedKeyCount(), queued + 1);
+        const int next = Terminal::readKeyTimeout(0);
+        EXPECT_EQ(next, 'i');
+        sm.dispatch(next);
+        EXPECT_STREQ(sm.currentStateName(), "INSERT");
+    }
 }
 
 TEST(RealModeTransitionsTest, WMovesForwardImmediately)

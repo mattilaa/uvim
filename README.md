@@ -67,6 +67,12 @@ menus—they leave the corresponding implementation out of the binary.
 
 #### Fixed
 
+- Normal-mode `b` moves backward immediately, including repeated presses and
+  counts such as `2b`, and no longer consumes the following key. Close buffers
+  with `:bd` / `:bdelete`; bare `bd` is no longer a buffer shortcut.
+- `j` / `k` and up/down arrows preserve the wanted column in UTF-8 mode,
+  without drifting left on ASCII lines. Short lines clamp to a complete
+  character and longer lines restore the wanted column.
 - Windows CI's Python tests can run after the build tree is transferred to
   another runner: test launchers rediscover a missing Python interpreter,
   and the build/test jobs both set up Python 3.12.
@@ -1264,6 +1270,9 @@ cursor movement and selection.
 
 ## Tab bar / buffer management
 
+- Close a buffer with `:bd` / `:bdelete` (`:bd!` forces it). In Normal mode,
+  `b` immediately moves to the previous word; `2b` moves back two words, and
+  the next key runs normally. There is no bare `bd` buffer-close shortcut.
 - Each tab shows the buffer index (e.g. `1:foo.cpp`). Toggle with
   `:set tabnumbers` / `:set notabnumbers` (default on). Persists in
   config under `editor.tabnumbers`.

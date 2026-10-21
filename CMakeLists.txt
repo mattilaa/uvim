@@ -190,7 +190,6 @@ endif()
 set(UVIM_CORE_SOURCES
     src/main.cpp
     src/terminal.cpp
-    src/buffer_command_pending.cpp
     src/config_parser.cpp
     src/diagnostics_common.cpp
     src/window_command_pending.cpp
