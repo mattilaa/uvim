@@ -103,7 +103,8 @@ public:
     void setWaitHook(std::function<void(std::string_view method)> hook);
     int workerCount() const;
 
-    // Document sync
+    // Document sync. Messages are queued in order; pipe writes run on a
+    // dedicated worker so a busy server cannot block editor input.
     void didOpen(const std::string& filePath, const std::string& languageId,
                  const std::string& text);
     void didChange(const std::string& filePath, const std::string& text);

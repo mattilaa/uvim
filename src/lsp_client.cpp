@@ -1,4 +1,5 @@
 #include "lsp_client.h"
+#include "process_launch.h"
 
 #ifdef UVIM_ENABLE_CLANGD_LSP
 
@@ -8,6 +9,7 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -21,6 +23,7 @@
 #include <condition_variable>
 #include <cstring>
 #include <cwctype>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -330,6 +333,14 @@ struct LspClient::Impl
     int errFd = -1; // read from clangd stderr
     pid_t pid = -1;
 #endif
+
+    // Pipe backpressure must never block the input thread (Windows anonymous
+    // pipes are synchronous). One writer also prevents reader-thread replies
+    // from interleaving with document notifications.
+    std::thread writer;
+    std::mutex writeMutex;
+    std::condition_variable writeCv;
+    std::deque<std::string> outgoing;
 
     std::thread reader;
     std::thread stderrReader;
@@ -799,14 +810,50 @@ struct LspClient::Impl
         sendRaw(ju::stringify(resp));
     }
 
+    void writerLoop()
+    {
+#ifndef _WIN32
+        // A server may exit while a queued write is in progress. Keep SIGPIPE
+        // local to this worker so an EPIPE cannot terminate the editor.
+        sigset_t blocked;
+        sigemptyset(&blocked);
+        sigaddset(&blocked, SIGPIPE);
+        pthread_sigmask(SIG_BLOCK, &blocked, nullptr);
+#endif
+        while(true)
+        {
+            std::string message;
+            {
+                std::unique_lock<std::mutex> lk(writeMutex);
+                writeCv.wait(lk, [this]
+                             { return !alive.load() || !outgoing.empty(); });
+                if(!alive.load())
+                    break;
+                message = std::move(outgoing.front());
+                outgoing.pop_front();
+            }
+            if(!writePipe(message.data(), message.size()))
+            {
+                alive.store(false);
+                cv.notify_all();
+                break;
+            }
+        }
+    }
+
     bool sendRaw(const std::string& payload)
     {
-        if(!hasInputPipe())
-            return false;
-        std::string hdr =
-            "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
-        std::string msg = hdr + payload;
-        return writePipe(msg.data(), msg.size());
+        std::string message =
+            "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n" +
+            payload;
+        {
+            std::lock_guard<std::mutex> lk(writeMutex);
+            if(!alive.load())
+                return false;
+            outgoing.push_back(std::move(message));
+        }
+        writeCv.notify_one();
+        return true;
     }
 
     int sendRequest(const std::string& method, const ju::Document& params)
@@ -1097,6 +1144,7 @@ struct LspClient::Impl
             lastError = processExitStatus();
         alive.store(false);
         cv.notify_all();
+        writeCv.notify_all();
     }
 
     bool startClangd(const std::string& clangdPath,
@@ -1113,6 +1161,7 @@ struct LspClient::Impl
             std::lock_guard<std::mutex> lk(stderrMutex);
             stderrBuffer.clear();
         }
+        std::unique_lock<std::mutex> launchLock(processLaunchMutex());
 #ifdef _WIN32
         const std::string executableUtf8 = strip_surrounding_quotes(clangdPath);
         SECURITY_ATTRIBUTES security{};
@@ -1212,12 +1261,30 @@ struct LspClient::Impl
             commandLine += L" " + quote_windows_arg(wideArg);
         }
 
-        STARTUPINFOW startup{};
-        startup.cb = sizeof(startup);
-        startup.dwFlags = STARTF_USESTDHANDLES;
-        startup.hStdInput = childStdinRead;
-        startup.hStdOutput = childStdoutWrite;
-        startup.hStdError = childStderrWrite;
+        // Concurrent server launches must not inherit each other's pipe
+        // ends; leaked stdout handles would prevent EOF and hang shutdown.
+        STARTUPINFOEXW startup{};
+        startup.StartupInfo.cb = sizeof(startup);
+        startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+        startup.StartupInfo.hStdInput = childStdinRead;
+        startup.StartupInfo.hStdOutput = childStdoutWrite;
+        startup.StartupInfo.hStdError = childStderrWrite;
+        SIZE_T attributeBytes = 0;
+        InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeBytes);
+        std::vector<unsigned char> attributeStorage(attributeBytes);
+        startup.lpAttributeList =
+            reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+                attributeStorage.data());
+        const bool attributesInitialized =
+            InitializeProcThreadAttributeList(startup.lpAttributeList, 1, 0,
+                                              &attributeBytes) != FALSE;
+        HANDLE inherited[] = {childStdinRead, childStdoutWrite,
+                              childStderrWrite};
+        const bool attributesReady =
+            attributesInitialized &&
+            UpdateProcThreadAttribute(
+                startup.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                inherited, sizeof(inherited), nullptr, nullptr) != FALSE;
 
         PROCESS_INFORMATION processInfo{};
         const bool hasPathSeparator =
@@ -1225,9 +1292,14 @@ struct LspClient::Impl
             executableUtf8.find('\\') != std::string::npos;
         const wchar_t* applicationName =
             hasPathSeparator ? executablePath.c_str() : nullptr;
-        BOOL ok = CreateProcessW(applicationName, commandLine.data(), nullptr,
-                                 nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
-                                 nullptr, &startup, &processInfo);
+        BOOL ok = attributesReady &&
+                  CreateProcessW(
+                      applicationName, commandLine.data(), nullptr, nullptr,
+                      TRUE, CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT,
+                      nullptr, nullptr, &startup.StartupInfo, &processInfo);
+        const DWORD launchError = ok ? ERROR_SUCCESS : GetLastError();
+        if(attributesInitialized)
+            DeleteProcThreadAttributeList(startup.lpAttributeList);
 
         CloseHandle(childStdinRead);
         CloseHandle(childStdoutWrite);
@@ -1237,7 +1309,7 @@ struct LspClient::Impl
         {
             lastError = "CreateProcessW failed for clangd path '" +
                         executableUtf8 +
-                        "': " + windows_error_message(GetLastError());
+                        "': " + windows_error_message(launchError);
             CloseHandle(parentStdinWrite);
             CloseHandle(parentStdoutRead);
             CloseHandle(parentStderrRead);
@@ -1278,6 +1350,20 @@ struct LspClient::Impl
             return false;
         }
 
+        // Other servers launched later must not keep this client's pipe ends
+        // alive across exec, otherwise stopping it can wait forever for EOF.
+        for(int fd : {inPipe[0], inPipe[1], outPipe[0], outPipe[1], errPipe[0],
+                      errPipe[1]})
+            fcntl(fd, F_SETFD, FD_CLOEXEC);
+
+        // Allocate argv before fork: other editor workers may hold allocator
+        // locks, and the child must only use async-signal-safe functions.
+        std::vector<char*> argv;
+        argv.push_back(const_cast<char*>(clangdPath.c_str()));
+        for(const auto& a : extraArgs)
+            argv.push_back(const_cast<char*>(a.c_str()));
+        argv.push_back(nullptr);
+
         pid = fork();
         if(pid < 0)
         {
@@ -1304,12 +1390,6 @@ struct LspClient::Impl
             close(errPipe[0]);
             close(errPipe[1]);
 
-            std::vector<char*> argv;
-            argv.push_back(const_cast<char*>(clangdPath.c_str()));
-            for(const auto& a : extraArgs)
-                argv.push_back(const_cast<char*>(a.c_str()));
-            argv.push_back(nullptr);
-
             execvp(argv[0], argv.data());
             _exit(127);
         }
@@ -1319,12 +1399,17 @@ struct LspClient::Impl
         close(outPipe[1]);
         close(errPipe[1]);
         inFd = inPipe[1];
+#ifdef F_SETNOSIGPIPE
+        fcntl(inFd, F_SETNOSIGPIPE, 1);
+#endif
         outFd = outPipe[0];
         errFd = errPipe[0];
 #endif
 
         // non-blocking read is fine but not required
+        launchLock.unlock();
         alive.store(true);
+        writer = std::thread([this] { writerLoop(); });
         stderrReader = std::thread([this] { stderrLoop(); });
         reader = std::thread([this] { readerLoop(); });
 
@@ -1584,15 +1669,17 @@ void LspClient::stop()
         }
     }
 
-    impl->alive.store(false);
-    impl->closePipes();
-
-    // On POSIX, closing a file descriptor from another thread does not
-    // reliably interrupt a blocking read on that descriptor. Stop the child
-    // before joining the reader threads so stdout/stderr reach EOF.
+    // Let the queued exit reach the server. Terminating an unresponsive
+    // process releases a writer blocked on a full pipe as well as the readers.
+    // Keep handles valid until all pipe users have stopped.
     impl->waitProcess();
-
+    impl->alive.store(false);
+    impl->writeCv.notify_all();
+    if(impl->writer.joinable())
+        impl->writer.join();
     impl->joinReaderThreads();
+    impl->closePipes();
+    impl->outgoing.clear();
 
 #ifndef _WIN32
     impl->inFd = impl->outFd = impl->errFd = -1;

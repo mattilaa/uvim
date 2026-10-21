@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
 #ifdef UVIM_ENABLE_JSON_LSP
     if(!enable)
     {
-        if(jsonLspClient)
-        {
-            jsonLspClient->stop();
-            jsonLspClient.reset();
-        }
+        lspController->disable(jsonLspClient, jsonLspEnabled);
         return;
     }
 
@@ -46,20 +43,10 @@ void Editor::enableJsonLspImpl(bool enable, const std::string& jsonLspPath,
     if(args.empty())
         args.push_back("--stdio");
 
-    jsonLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*jsonLspClient);
-    jsonLspClient->setLogSignature("JSON");
-    jsonLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!jsonLspClient->startServer(this->jsonLspPath, rootDir, args))
-    {
-        jsonLspClient.reset();
-        LOG_ERROR(LSP_LOG, "JSON LSP failed to start. LSP path: {}",
-                  this->jsonLspPath);
-        return;
-    }
-
-    jsonLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "JSON LSP enabled");
+    lspController->start(
+        "JSON", jsonLspClient, jsonLspEnabled,
+        [path = this->jsonLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)jsonLspPath;

@@ -7,9 +7,24 @@
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <thread>
 
 namespace
 {
+bool waitForHeaderIndex(Editor& editor)
+{
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while(!editor.syntaxHighlighter->isCppMemberIndexLoaded())
+    {
+        if(std::chrono::steady_clock::now() >= deadline)
+            return false;
+        editor.serviceTasks();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return true;
+}
+
 void setupEditorBuffer(Editor& editor)
 {
     editor.buffers.push_back(std::make_unique<Buffer>());
@@ -74,6 +89,7 @@ TEST(SyntaxHighlighterTest, HighlightsImplicitMembersInCppMethodDefinition)
     editor.currentBuffer->lines = {"void Foo::method() {", "    bar = 1;", "}"};
     editor.syntaxCppHighlightImplicitMembers = true;
     editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
+    ASSERT_TRUE(waitForHeaderIndex(editor));
 
     std::string output;
     editor.renderLineWithSyntax(output, editor.currentBuffer->lines[1], 0,
@@ -838,6 +854,19 @@ TEST(SyntaxHighlighterTest, HighlightsSystemIncludeFromCompileCommands)
         editor.tokenizeLine(line, inBlockComment, inTomlMultiline, tomlQuote,
                             inMarkupFence, markupFenceChar);
 
+    EXPECT_FALSE(editor.tasks.idle());
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    do
+    {
+        editor.serviceTasks();
+        tokens = editor.tokenizeLine(line, inBlockComment, inTomlMultiline,
+                                     tomlQuote, inMarkupFence, markupFenceChar);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    } while(!editor.tasks.idle() &&
+            std::chrono::steady_clock::now() < deadline);
+    ASSERT_TRUE(editor.tasks.idle());
+
     int start = (int)line.find('<');
     int end = (int)line.find('>');
     ASSERT_TRUE(text_utils::is_found(static_cast<size_t>(start)));
@@ -894,6 +923,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInFunctionParams)
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "main.cpp").string();
     editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
+    ASSERT_TRUE(waitForHeaderIndex(editor));
 
     const std::string line = "void foo(ModeContext& bar);";
     bool inBlockComment = false;
@@ -954,6 +984,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypeInLocalDeclaration)
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "main.cpp").string();
     editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
+    ASSERT_TRUE(waitForHeaderIndex(editor));
 
     const std::string line = "ModeContext ctx;";
     bool inBlockComment = false;
@@ -1073,6 +1104,7 @@ TEST(SyntaxHighlighterTest, HighlightsUserTypePointerInParams)
     editor.setProjectRoot(root.string());
     *editor.filename = (root / "formatter.cpp").string();
     editor.syntaxHighlighter->ensureCppMemberIndexLoaded();
+    ASSERT_TRUE(waitForHeaderIndex(editor));
 
     const std::string line = "Formatter::Formatter(Editor* editor) {}";
     bool inBlockComment = false;

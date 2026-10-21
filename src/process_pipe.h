@@ -1,6 +1,7 @@
 #pragma once
 
 #include "log.h"
+#include "process_launch.h"
 #include "text_utils.h"
 #include <cerrno>
 #include <cstdio>
@@ -111,6 +112,7 @@ public:
         return openShell(commandLineFromArgs(args), mode);
 #else
         const bool writeMode = mode && mode[0] == 'w';
+        std::lock_guard<std::mutex> launchLock(processLaunchMutex());
         // Build argv before fork(): the child of a multithreaded process may
         // only make async-signal-safe calls, so no allocation after fork.
         std::vector<char*> argv;
@@ -123,6 +125,16 @@ public:
         if(::pipe(pipefd) != 0)
         {
             logLaunchFailure("pipe", errno);
+            return false;
+        }
+
+        if(::fcntl(pipefd[0], F_SETFD, FD_CLOEXEC) == -1 ||
+           ::fcntl(pipefd[1], F_SETFD, FD_CLOEXEC) == -1)
+        {
+            const int err = errno;
+            ::close(pipefd[0]);
+            ::close(pipefd[1]);
+            logLaunchFailure("fcntl(FD_CLOEXEC)", err);
             return false;
         }
 
@@ -194,6 +206,7 @@ public:
         commandName = shellCommand;
         commandLine = shellCommand;
 #ifdef _WIN32
+        std::lock_guard<std::mutex> launchLock(processLaunchMutex());
         file = _popen(shellCommand.c_str(), mode);
         if(!file)
             logLaunchFailure("_popen", errno);

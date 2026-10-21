@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -97,11 +98,7 @@ void Editor::enableClangdLspImpl(bool enable,
 #ifdef UVIM_ENABLE_CLANGD_LSP
     if(!enable)
     {
-        if(lspClient)
-        {
-            lspClient->stop();
-            lspClient.reset();
-        }
+        lspController->disable(lspClient, clangdLspEnabled);
         clangdLspStartupAttempted = false;
         return;
     }
@@ -117,13 +114,6 @@ void Editor::enableClangdLspImpl(bool enable,
         auto cwd = std::filesystem::current_path(cwdEc);
         if(!cwdEc)
             rootDir = cwd.string();
-    }
-
-    // Auto-detect compile_commands.json if caller didn't specify --ccdir
-    std::string ccdir = clangdLspCompileCommandsDir;
-    if(ccdir.empty())
-    {
-        ccdir = detect_compile_commands_dir(rootDir);
     }
 
     // If not provided, use a conservative default query-driver allowlist so
@@ -165,34 +155,22 @@ void Editor::enableClangdLspImpl(bool enable,
 #endif
     }
 
-    lspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*lspClient);
-    lspClient->setLogSignature("CLANGD");
-    lspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!lspClient->start(clangdLspPath, rootDir, ccdir, qd))
-    {
-        std::string error = lspClient->lastError();
-        LOG_ERROR(LSP_LOG,
-                  "clangd LSP failed to start. path='{}' root='{}' ccdir='{}' error='{}'",
-                  clangdLspPath, rootDir, ccdir,
-                  error.empty() ? std::string{"failed to start"} : error);
-        lspClient.reset();
-        if(error.empty())
+    auto ccdir = std::make_shared<std::string>(compileCommandsDir);
+    lspController->start(
+        "clangd", lspClient, clangdLspEnabled,
+        [path = clangdLspPath, rootDir, ccdir, qd](LspClient& client)
         {
-            clangdLspLastError = "failed to start";
-            setStatusMessage("clangd LSP: failed to start");
-        }
-        else
+            if(ccdir->empty())
+                *ccdir = detect_compile_commands_dir(rootDir);
+            return client.start(path, rootDir, *ccdir, qd);
+        },
+        [this, ccdir](bool ready, const std::string& error)
         {
-            clangdLspLastError = error;
-            setStatusMessage("clangd LSP failed; see :lspinfo");
-        }
-        return;
-    }
-
-    clangdLspEnabled = true;
-    clangdLspCompileCommandsDir = ccdir;
-    clangdLspLastError.clear();
+            clangdLspCompileCommandsDir = *ccdir;
+            clangdLspLastError = ready ? std::string() : error;
+            if(!ready)
+                LOG_ERROR(LSP_LOG, "clangd LSP startup failed: {}", error);
+        });
 #else
     (void)enable;
     (void)compileCommandsDir;

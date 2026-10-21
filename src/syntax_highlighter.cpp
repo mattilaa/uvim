@@ -993,19 +993,48 @@ void SyntaxHighlighter::ensureCppMemberIndexLoaded() const
 
 void SyntaxHighlighter::ensureCppMemberIndex() const
 {
-    if(cppMemberIndexLoaded)
+    if(cppMemberIndexLoaded || cppMemberIndexPending || !editor)
         return;
-    cppMemberIndexLoaded = true;
-    cppMemberNames.clear();
-    cppClassNames.clear();
+    std::error_code ec;
+    const auto root = editor->projectRoot.empty()
+                          ? std::filesystem::current_path(ec)
+                          : std::filesystem::path(editor->projectRoot);
 
-    if(!editor)
-        return;
+    struct Index
+    {
+        std::unordered_set<std::string> members, classes;
+    };
 
-    std::filesystem::path root =
-        editor->projectRoot.empty()
-            ? std::filesystem::current_path()
-            : std::filesystem::path(editor->projectRoot);
+    auto result = std::make_shared<Index>();
+    cppMemberIndexPending = true;
+    editor->submitTask(
+        "C++ header symbols", "cpp-symbols",
+        [root, result](TaskQueue::Context& ctx)
+        {
+            ctx.detail("scanning headers");
+            collectCppMemberIndex(root, result->members, result->classes,
+                                  [&ctx] { return ctx.cancelled(); });
+        },
+        [this, result]
+        {
+            cppMemberNames = std::move(result->members);
+            cppClassNames = std::move(result->classes);
+            cppMemberIndexLoaded = true;
+            cppMemberIndexPending = false;
+            for(auto& buffer : editor->buffers)
+                buffer->invalidateSyntaxCache();
+            editor->setStatusMessage("C++ header symbols: ready");
+            editor->needsFullRedraw = true;
+        },
+        [this] { cppMemberIndexPending = false; });
+}
+
+void SyntaxHighlighter::collectCppMemberIndex(
+    const std::filesystem::path& root,
+    std::unordered_set<std::string>& cppMemberNames,
+    std::unordered_set<std::string>& cppClassNames,
+    const std::function<bool()>& cancelled)
+{
     std::error_code ec;
     if(root.empty() || !std::filesystem::exists(root, ec))
         return;
@@ -1031,8 +1060,15 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
             it(root, std::filesystem::directory_options::skip_permission_denied,
                ec),
         end;
-        it != end; ++it)
+        it != end; it.increment(ec))
     {
+        if(cancelled())
+            return;
+        if(ec)
+        {
+            ec.clear();
+            continue;
+        }
         if(it->is_directory(ec) && is_skip_dir(it->path()))
         {
             it.disable_recursion_pending();
@@ -1047,12 +1083,15 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
         if(!in)
             continue;
 
+        inBlockComment = false;
         bool inClass = false;
         bool pendingClass = false;
         int braceDepth = 0;
         std::string line;
         while(std::getline(in, line))
         {
+            if(cancelled())
+                return;
             if(!line.empty() && line.back() == '\r')
                 line.pop_back();
 
@@ -1247,27 +1286,45 @@ void SyntaxHighlighter::ensureCppMemberIndex() const
 
 void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
 {
-    if(systemIncludeDirsLoaded)
+    if(systemIncludeDirsLoaded || systemIncludeDirsPending || !editor)
         return;
-    systemIncludeDirsLoaded = true;
-    systemIncludeDirs.clear();
-
-    if(!editor)
-        return;
-
-    std::filesystem::path baseDir;
-    if(!editor->clangdLspCompileCommandsDir.empty())
-        baseDir = editor->clangdLspCompileCommandsDir;
-    else if(!editor->projectRoot.empty())
+    std::error_code ec;
+    std::filesystem::path baseDir = editor->clangdLspCompileCommandsDir;
+    if(baseDir.empty())
         baseDir = editor->projectRoot;
-    else
-        baseDir = std::filesystem::current_path();
+    if(baseDir.empty())
+        baseDir = std::filesystem::current_path(ec);
+    auto result = std::make_shared<std::vector<std::filesystem::path>>();
+    systemIncludeDirsPending = true;
+    editor->submitTask(
+        "C++ include paths", "cpp-includes",
+        [baseDir, result](TaskQueue::Context& ctx)
+        {
+            ctx.detail("reading compile_commands.json");
+            collectSystemIncludeDirs(baseDir, *result,
+                                     [&ctx] { return ctx.cancelled(); });
+        },
+        [this, result]
+        {
+            systemIncludeDirs = std::move(*result);
+            systemIncludeDirsLoaded = true;
+            systemIncludeDirsPending = false;
+            editor->needsFullRedraw = true;
+        },
+        [this] { systemIncludeDirsPending = false; });
+}
 
+void SyntaxHighlighter::collectSystemIncludeDirs(
+    std::filesystem::path baseDir,
+    std::vector<std::filesystem::path>& systemIncludeDirs,
+    const std::function<bool()>& cancelled)
+{
+    std::error_code ec;
     std::filesystem::path ccPath = baseDir / "compile_commands.json";
-    if(!std::filesystem::exists(ccPath))
+    if(!std::filesystem::exists(ccPath, ec))
     {
         std::filesystem::path alt = baseDir / "build" / "compile_commands.json";
-        if(std::filesystem::exists(alt))
+        if(std::filesystem::exists(alt, ec))
         {
             ccPath = alt;
             baseDir = alt.parent_path();
@@ -1290,6 +1347,8 @@ void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
 
     for(const auto& item : root.GetArray())
     {
+        if(cancelled())
+            return;
         if(!item.IsObject())
             continue;
         std::string directory =
@@ -1370,16 +1429,37 @@ void SyntaxHighlighter::ensureSystemIncludeDirsLoaded() const
 bool SyntaxHighlighter::isSystemInclude(std::string_view header) const
 {
     ensureSystemIncludeDirsLoaded();
-    if(systemIncludeDirs.empty())
+    if(!systemIncludeDirsLoaded || systemIncludeDirs.empty())
         return false;
-
-    for(const auto& dir : systemIncludeDirs)
-    {
-        std::filesystem::path path = dir / std::string(header);
-        std::error_code ec;
-        if(std::filesystem::exists(path, ec))
-            return true;
-    }
+    const std::string name(header);
+    if(auto it = systemIncludeCache.find(name); it != systemIncludeCache.end())
+        return it->second;
+    if(!systemIncludePending.insert(name).second)
+        return false;
+    auto found = std::make_shared<bool>(false);
+    editor->submitTask(
+        "C++ include: " + name, "cpp-includes",
+        [dirs = systemIncludeDirs, name, found](TaskQueue::Context& ctx)
+        {
+            for(const auto& dir : dirs)
+            {
+                if(ctx.cancelled())
+                    return;
+                std::error_code ec;
+                if(std::filesystem::exists(dir / name, ec))
+                {
+                    *found = true;
+                    return;
+                }
+            }
+        },
+        [this, name, found]
+        {
+            systemIncludePending.erase(name);
+            systemIncludeCache[name] = *found;
+            editor->needsFullRedraw = true;
+        },
+        [this, name] { systemIncludePending.erase(name); });
     return false;
 }
 

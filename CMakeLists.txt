@@ -945,7 +945,11 @@ if(UVIM_BUILD_TESTS)
     if(UVIM_ENABLE_CLANGD_LSP)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/lsp_clangd_integration_test.cpp
+            tests/lsp_async_test.cpp
         )
+        add_executable(fake_lsp_server tests/fake_lsp_server.cpp)
+        target_include_directories(fake_lsp_server PRIVATE ${CMAKE_SOURCE_DIR}/src)
+        target_link_libraries(fake_lsp_server PRIVATE yyjson Threads::Threads)
     endif()
     if(UVIM_ENABLE_CSHARP_LSP)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
@@ -984,6 +988,11 @@ if(UVIM_BUILD_TESTS)
     target_link_libraries(real_mode_transitions_tests PRIVATE Threads::Threads)
     if(UVIM_ENABLE_ANY_LSP)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_CLANGD_LSP=1)
+    endif()
+    if(UVIM_ENABLE_CLANGD_LSP)
+        add_dependencies(real_mode_transitions_tests fake_lsp_server)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE
+            UVIM_TEST_LSP_SERVER="$<TARGET_FILE:fake_lsp_server>")
     endif()
     foreach(_uvim_lsp CLANGD ROBOT PYTHON MLANG HTML CSS JSON TS CSHARP)
         if(UVIM_ENABLE_${_uvim_lsp}_LSP)

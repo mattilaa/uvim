@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
 #ifdef UVIM_ENABLE_MLANG_LSP
     if(!enable)
     {
-        if(mlangLspClient)
-        {
-            mlangLspClient->stop();
-            mlangLspClient.reset();
-        }
+        lspController->disable(mlangLspClient, mlangLspEnabled);
         return;
     }
 
@@ -46,20 +43,10 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
     if(args.empty())
         args.push_back("--stdio");
 
-    mlangLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*mlangLspClient);
-    mlangLspClient->setLogSignature("MLANG");
-    mlangLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!mlangLspClient->startServer(this->mlangLspPath, rootDir, args))
-    {
-        mlangLspClient.reset();
-        LOG_ERROR(LSP_LOG, "Mlang LSP failed to start. LSP path: {}",
-                  this->mlangLspPath);
-        return;
-    }
-
-    mlangLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "Mlang LSP enabled");
+    lspController->start(
+        "Mlang", mlangLspClient, mlangLspEnabled,
+        [path = this->mlangLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)mlangLspPath;

@@ -1,14 +1,26 @@
 #pragma once
 
+#include <functional>
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class Editor;
+class LspClient;
 
 class EditorLspController
 {
 public:
     explicit EditorLspController(Editor& editor);
+
+    // Only completion callbacks publish clients to the editor. Workers own
+    // clients exclusively until initialization has finished.
+    void start(const std::string& label, std::unique_ptr<LspClient>& slot,
+               bool& enabled, std::function<bool(LspClient&)> launch,
+               std::function<void(bool, const std::string&)> completed = {});
+    void disable(std::unique_ptr<LspClient>& slot, bool& enabled);
+    bool starting(const std::unique_ptr<LspClient>& slot) const;
 
     void enableClangdLsp(bool enable, const std::string& compileCommandsDir,
                          const std::string& clangdPath,
@@ -41,4 +53,7 @@ public:
 
 private:
     Editor& editor;
+    std::unordered_map<const void*, size_t> generations;
+    std::unordered_map<const void*, bool> pending;
+    void retire(std::unique_ptr<LspClient> client);
 };

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
 #ifdef UVIM_ENABLE_HTML_LSP
     if(!enable)
     {
-        if(htmlLspClient)
-        {
-            htmlLspClient->stop();
-            htmlLspClient.reset();
-        }
+        lspController->disable(htmlLspClient, htmlLspEnabled);
         return;
     }
 
@@ -46,20 +43,10 @@ void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
     if(args.empty())
         args.push_back("--stdio");
 
-    htmlLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*htmlLspClient);
-    htmlLspClient->setLogSignature("HTML");
-    htmlLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!htmlLspClient->startServer(this->htmlLspPath, rootDir, args))
-    {
-        htmlLspClient.reset();
-        LOG_ERROR(LSP_LOG, "HTML LSP failed to start. LSP path: {}",
-                  this->htmlLspPath);
-        return;
-    }
-
-    htmlLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "HTML LSP enabled");
+    lspController->start(
+        "HTML", htmlLspClient, htmlLspEnabled,
+        [path = this->htmlLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)htmlLspPath;

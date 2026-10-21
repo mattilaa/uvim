@@ -1,5 +1,6 @@
 #include "csharp_lsp.h"
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "editor_utils.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
@@ -23,51 +24,33 @@ void Editor::enableCSharpLspImpl(bool enable, const std::string& csharpLspPath,
 #ifdef UVIM_ENABLE_CSHARP_LSP
     if(!enable)
     {
-        if(csharpLspClient)
+        lspController->disable(csharpLspClient, csharpLspEnabled);
+        return;
+    }
+
+    // Resolve the server and solution on the worker too: PATH and project
+    // searches can be slow on Windows/network drives.
+    const std::string filename = currentBuffer ? currentBuffer->filename : "";
+    const std::string root = projectRoot;
+    lspController->start(
+        "C#", csharpLspClient, csharpLspEnabled,
+        [path = this->csharpLspPath, args = this->csharpLspArgs, filename,
+         root](LspClient& client)
         {
-            csharpLspClient->stop();
-            csharpLspClient.reset();
-        }
-        return;
-    }
-
-    const std::string server = csharp_lsp::resolveServer(this->csharpLspPath);
-    if(server.empty())
-    {
-        setStatusMessage("C# LSP: csharp-ls not found (dotnet tool install "
-                         "-g csharp-ls)");
-        LOG_ERROR(LSP_LOG, "No C# language server found (configured: {})",
-                  this->csharpLspPath);
-        return;
-    }
-
-    // The server loads the solution or project, so start it there.
-    std::string rootDir = csharp_lsp::projectRoot(
-        currentBuffer ? currentBuffer->filename : std::string());
-    if(rootDir.empty())
-        rootDir = projectRoot;
-    if(rootDir.empty())
-    {
-        std::error_code cwdEc;
-        auto cwd = std::filesystem::current_path(cwdEc);
-        rootDir = cwdEc ? "." : cwd.string();
-    }
-
-    csharpLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*csharpLspClient);
-    csharpLspClient->setLogSignature("CSHARP");
-    csharpLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!csharpLspClient->startServer(
-           server, rootDir,
-           csharp_lsp::serverArgs(server, this->csharpLspArgs)))
-    {
-        csharpLspClient.reset();
-        LOG_ERROR(LSP_LOG, "C# LSP failed to start: {}", server);
-        return;
-    }
-
-    csharpLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "C# LSP enabled: {} in {}", server, rootDir);
+            const std::string server = csharp_lsp::resolveServer(path);
+            std::string rootDir = csharp_lsp::projectRoot(filename);
+            if(rootDir.empty())
+                rootDir = root;
+            if(rootDir.empty())
+            {
+                std::error_code ec;
+                rootDir = std::filesystem::current_path(ec).string();
+                if(ec)
+                    rootDir = ".";
+            }
+            return client.startServer(server, rootDir,
+                                      csharp_lsp::serverArgs(server, args));
+        });
 #else
     (void)enable;
     (void)csharpLspPath;
