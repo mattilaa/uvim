@@ -67,6 +67,9 @@ menus—they leave the corresponding implementation out of the binary.
 
 #### Fixed
 
+- Windows CI's Python tests can run after the build tree is transferred to
+  another runner: test launchers rediscover a missing Python interpreter,
+  and the build/test jobs both set up Python 3.12.
 - `uvim-config` requests the .NET 10 SDK when installing missing C# LSP
   prerequisites with apt, dnf or winget, matching current `csharp-ls`
   requirements. It checks installed SDK versions and offers SDK installation

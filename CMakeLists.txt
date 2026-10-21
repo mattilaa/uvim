@@ -1056,13 +1056,26 @@ if(UVIM_BUILD_TESTS)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(
+            NAME python_test_launcher
+            COMMAND ${CMAKE_COMMAND}
+                "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/python launcher regression"
+                -P ${CMAKE_SOURCE_DIR}/tests/python_test_launcher_test.cmake
+        )
+        add_test(
             NAME mlang_lsp_scaffold_integration
-            COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/mlang_lsp_integration_test.py
+            COMMAND ${CMAKE_COMMAND}
+                "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+                "-DUVIM_PYTHON_TEST=${CMAKE_SOURCE_DIR}/tests/mlang_lsp_integration_test.py"
+                -P ${CMAKE_SOURCE_DIR}/tests/run_python_test.cmake
         )
         if(Python3_VERSION VERSION_GREATER_EQUAL "3.9")
             add_test(
                 NAME csharp_environment
-                COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/csharp_env_test.py
+                COMMAND ${CMAKE_COMMAND}
+                    "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+                    -DUVIM_PYTHON_MIN_VERSION=3.9
+                    "-DUVIM_PYTHON_TEST=${CMAKE_SOURCE_DIR}/tests/csharp_env_test.py"
+                    -P ${CMAKE_SOURCE_DIR}/tests/run_python_test.cmake
             )
         endif()
     endif()

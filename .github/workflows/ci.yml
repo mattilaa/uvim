@@ -65,8 +65,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes g++ ninja-build
 
+      # Keep Python test registration consistent across the separate build
+      # and test runners; avoid discovering a runner-image preview version.
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Configure (Debug)
-        run: cmake -S . -B build -DUVIM_BUILD_TESTS=ON ${{ matrix.configure }}
+        run: >-
+          cmake -S . -B build -DUVIM_BUILD_TESTS=ON
+          -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')"
+          ${{ matrix.configure }}
 
       - name: Build (Debug)
         run: cmake --build build --config Debug
@@ -118,6 +128,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
 
       - name: Install clangd (Linux)
         if: runner.os == 'Linux'
