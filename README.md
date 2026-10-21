@@ -234,8 +234,8 @@ stops at configure time.
 
 ### Continuous integration
 
-Every push and pull request runs [CI](.github/workflows/ci.yml) as a two-stage
-pipeline; the jobs inside each stage run in parallel:
+Every push and pull request runs [CI](.github/workflows/ci.yml). After source
+preparation, build jobs run in parallel, followed by the test stage:
 
 ```text
  build stage                                   test stage
@@ -252,6 +252,20 @@ pipeline; the jobs inside each stage run in parallel:
 - New pushes to `main` automatically cancel its previous CI run and start
   testing the latest commit. Other branches queue runs: while one runs,
   further pushes wait as a single run of the newest commit.
+- Cancellation and queueing are scoped to the same branch. Pushing to `dev`
+  leaves a running `main` pipeline running, and pushing to `main` leaves
+  pipelines on other branches running.
+- Branch push runs rebase their temporary checkout onto the latest `main`
+  when the run starts, including queued runs and full workflow reruns. This
+  defaults to enabled; set the repository Actions variable `CI_REBASE_BRANCHES`
+  to `false` to disable it (Settings → Secrets and variables → Actions →
+  Variables). Branches on GitHub are not rewritten. Rebase conflicts fail the
+  run and must be resolved on the branch. Main and pull-request runs keep
+  their triggering checkout.
+- **prepare** creates one Git bundle of the prepared source for all Debug,
+  test, and Release jobs. Every job uses the same commit even if `main`
+  advances during the run; the prepare job summary records the original,
+  main, and tested commits. Rerunning only failed jobs reuses that snapshot.
 - **build** compiles the Debug builds with tests and hands the build tree to
   the test stage; Debug builds exist only to run the tests.
 - **test** starts once the builds are done and runs the tests on those build

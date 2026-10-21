@@ -8,6 +8,8 @@ on:
 
 # New pushes to main cancel its previous run so CI tests the latest commit.
 # Other branches queue one run at a time; later pushes replace the waiting run.
+# Keep github.ref in the group: a push to dev must never cancel a main run,
+# and a push to main must never cancel a run on another branch.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -17,8 +19,38 @@ concurrency:
 # job count for every generator instead.
 env:
   CMAKE_BUILD_PARALLEL_LEVEL: "4"
+  # Repository variable: false opts out; unset defaults to true.
+  CI_REBASE_BRANCHES: ${{ vars.CI_REBASE_BRANCHES || 'true' }}
 
 jobs:
+  prepare:
+    name: Prepare CI source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Rebase branch onto current main and snapshot source
+        shell: bash
+        run: |
+          # The rebase may update the script itself; execute a stable copy.
+          cp scripts/ci_prepare_source.sh "$RUNNER_TEMP/ci_prepare_source.sh"
+          bash "$RUNNER_TEMP/ci_prepare_source.sh" "$RUNNER_TEMP/ci-source.bundle"
+
+      - name: Test source preparation
+        shell: bash
+        run: python3 -B tests/ci_prepare_source_test.py
+
+      - name: Upload prepared source
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-source
+          path: ${{ runner.temp }}/ci-source.bundle
+          if-no-files-found: error
+          retention-days: 1
+
   # ===========================================================================
   # Build stage. All jobs run in parallel:
   #   build      Debug builds with tests, one per test target
@@ -28,6 +60,7 @@ jobs:
   # ===========================================================================
   build:
     name: build ${{ matrix.target }} (Debug)
+    needs: prepare
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -57,6 +90,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download prepared source
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-source
+          path: ${{ runner.temp }}/ci-source
+
+      - name: Use prepared source
+        run: |
+          git fetch --no-tags "$RUNNER_TEMP/ci-source/ci-source.bundle" HEAD
+          git checkout --detach FETCH_HEAD
 
       - name: Install build tools (Linux)
         if: runner.os == 'Linux'
@@ -128,6 +172,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Download prepared source
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-source
+          path: ${{ runner.temp }}/ci-source
+
+      - name: Use prepared source
+        run: |
+          git fetch --no-tags "$RUNNER_TEMP/ci-source/ci-source.bundle" HEAD
+          git checkout --detach FETCH_HEAD
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -180,6 +235,7 @@ jobs:
   # ---------------------------------------------------------------------------
   artifacts:
     name: artifacts ${{ matrix.target }}
+    needs: prepare
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -196,6 +252,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download prepared source
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-source
+          path: ${{ runner.temp }}/ci-source
+
+      - name: Use prepared source
+        shell: bash
+        run: |
+          git fetch --no-tags "$RUNNER_TEMP/ci-source/ci-source.bundle" HEAD
+          git checkout --detach FETCH_HEAD
 
       - name: Install build tools (Linux)
         if: runner.os == 'Linux'
