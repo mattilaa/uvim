@@ -80,16 +80,17 @@ TEST(LspAsyncTest, PipeBackpressureDoesNotBlockDocumentUpdatesAndKeepsOrder)
         [&]
         { return std::filesystem::exists(root / "initialized.received"); }));
     const std::string path = (root / "main.cpp").string();
+    const std::string newestText = "newest text\nnext line\n";
     const auto started = Clock::now();
     client.didOpen(path, "cpp", std::string(2 * 1024 * 1024, 'x'));
-    client.didChange(path, "newest text", "cpp");
+    client.didChange(path, newestText, "cpp");
     EXPECT_LT(Clock::now() - started, 500ms);
 
     uvim_test::write_file(root / "input.release", "");
     ASSERT_TRUE(until(
         [&]
         {
-            return uvim_test::read_file(root / "latest-text") == "newest text";
+            return uvim_test::read_file(root / "latest-text") == newestText;
         }));
     EXPECT_EQ(uvim_test::read_file(root / "messages"),
               "textDocument/didOpen\ntextDocument/didChange\n");

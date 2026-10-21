@@ -88,12 +88,15 @@ int main(int argc, char** argv)
         else if(method == "textDocument/didOpen" ||
                 method == "textDocument/didChange")
         {
-            std::ofstream(root / "messages", std::ios::app) << method << '\n';
+            // The tests read these files as bytes. Keep Windows text-mode
+            // newline conversion out of both the log and document payload.
+            std::ofstream(root / "messages", std::ios::app | std::ios::binary)
+                << method << '\n';
             if(method == "textDocument/didChange")
             {
                 const auto* changes = ju::find(*params, "contentChanges");
                 if(changes && changes->IsArray() && changes->Size() > 0)
-                    std::ofstream(root / "latest-text")
+                    std::ofstream(root / "latest-text", std::ios::binary)
                         << ju::get_string((*changes)[0], "text");
             }
         }
