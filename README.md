@@ -52,34 +52,48 @@ menus—they leave the corresponding implementation out of the binary.
 
 ## Release notes
 
-### v0.3.3 (unreleased)
-
-#### New
-
-- **Function signature browser** — `Space-o` or `:functions` opens a searchable
-  list for the current buffer. Browse with `Ctrl-J/K`, jump with `Enter`, and
-  cancel with `Esc`. Multiline signatures and unsaved edits are included.
-- Function and local code navigation: `]f` / `[f` jump between function
-  signatures; `]s` / `[s` step through variable declarations and calls inside
-  the current function. `n` / `N` repeat the selected navigation until Escape
-  or a new search. Works without LSP for C/C++, Python, Mlang, JavaScript,
-  TypeScript and C#.
+### v0.3.3 (2026-10-21)
 
 #### Fixed
 
-- Language-server startup and C++ header-symbol indexing run in background
-  tasks. Editing and opening files remain responsive while initialization
-  finishes; the status bar reports startup and completion. LSP document
-  updates use an ordered writer queue, preventing Windows pipe backpressure
-  from freezing the editor when opening the first source file.
-- Windows CI's Python tests can run after the build tree is transferred to
-  another runner: test launchers rediscover a missing Python interpreter,
-  and the build/test jobs both set up Python 3.12.
+- **Responsive LSP startup and file opening** — language servers initialize
+  in background tasks while editing and opening files remain responsive.
+  The status bar reports startup, readiness and failure; `:lspinfo` shows
+  servers that are still starting.
+- LSP document updates use an ordered writer queue, preventing Windows pipe
+  backpressure from freezing the editor when opening the first source file.
+  C++ header-symbol indexing, compile-database discovery and include lookup
+  also run outside the input and drawing paths.
+- Child processes no longer inherit unrelated tool pipes. Starting a language
+  server cannot keep a clipboard helper waiting for its input pipe to close.
+- **Word-backward navigation** — Normal-mode `b` moves immediately, including
+  repeated presses and counts such as `2b`, and no longer consumes the next
+  key. Close buffers with `:bd` / `:bdelete`; bare `bd` is no longer a buffer
+  shortcut.
+- `j` / `k` and up/down arrows preserve the wanted column in UTF-8 mode,
+  without drifting left on ASCII lines. Short lines clamp to a complete
+  character and longer lines restore the wanted column.
+- Windows CI's Python tests rediscover a missing interpreter after the build
+  tree is transferred to another runner. Async LSP regression tests preserve
+  exact log and document bytes across Windows and POSIX line endings.
 - `uvim-config` requests the .NET 10 SDK when installing missing C# LSP
   prerequisites with apt, dnf or winget, matching current `csharp-ls`
   requirements. It checks installed SDK versions and offers SDK installation
   for runtime-only or older installations before installing `csharp-ls`.
   POSIX setup instructions explain dependency installation.
+
+#### New and improved
+
+- **Function signature browser** — `Space-o` or `:functions` opens a searchable
+  list for the current buffer. Browse with `Ctrl-J/K`, jump with `Enter`, and
+  cancel with `Esc`. Multiline signatures and unsaved edits are included.
+  Signatures use syntax colors, and selected functions open centered in the
+  editor by default; `:set gdcenter=false` selects minimal scrolling.
+- Function and local code navigation: `]f` / `[f` jump between function
+  signatures; `]s` / `[s` step through variable declarations and calls inside
+  the current function. `n` / `N` repeat the selected navigation until Escape
+  or a new search. Works without LSP for C/C++, Python, Mlang, JavaScript,
+  TypeScript and C#.
 
 #### Development
 
@@ -95,7 +109,12 @@ menus—they leave the corresponding implementation out of the binary.
   instructions for testing highlighting, completion, definition jumps,
   references and diagnostics in uVim.
 - Added dependency tests for C# installation with Homebrew, apt, dnf and
-  pacman.
+  pacman, plus regressions for navigation, slow LSP startup and pipe ordering.
+- New pushes to `main` cancel its previous CI run; other branches keep their
+  own queues and cannot cancel a running main pipeline. Branch push runs
+  rebase their temporary checkout onto current `main` by default, controlled
+  by the `CI_REBASE_BRANCHES` Actions variable. All jobs use one prepared
+  source snapshot; remote branches are not rewritten.
 
 ### v0.3.2 (2026-10-19)
 
@@ -1284,6 +1303,9 @@ cursor movement and selection.
 
 ## Tab bar / buffer management
 
+- Close a buffer with `:bd` / `:bdelete` (`:bd!` forces it). In Normal mode,
+  `b` immediately moves to the previous word; `2b` moves back two words, and
+  the next key runs normally. There is no bare `bd` buffer-close shortcut.
 - Each tab shows the buffer index (e.g. `1:foo.cpp`). Toggle with
   `:set tabnumbers` / `:set notabnumbers` (default on). Persists in
   config under `editor.tabnumbers`.

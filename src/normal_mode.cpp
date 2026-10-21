@@ -18,7 +18,6 @@ void NormalMode::on_enter(ModeContext& ctx)
     Editor* ed = ctx.editor;
     ctx.repeatCount = 0;
     ctx.commandBuffer.clear();
-    bufferCommandPending.reset();
     commentLeaderPending.reset();
     windowCommandPending.reset();
     structuralPrefix.reset();
@@ -47,7 +46,6 @@ void NormalMode::on_exit(ModeContext& /* ctx */)
     structuralPrefix.reset();
     structuralTarget.reset();
     structuralBuffer = nullptr;
-    bufferCommandPending.reset();
     commentLeaderPending.reset();
     windowCommandPending.reset();
 }
@@ -123,15 +121,6 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
             commentLeaderPending->handle(ctx, ModeKeyEvent{c});
         if(commentLeaderPending->done())
             commentLeaderPending.reset();
-        return result;
-    }
-
-    if(bufferCommandPending)
-    {
-        std::optional<ModeState> result =
-            bufferCommandPending->handle(ctx, ModeKeyEvent{c});
-        if(bufferCommandPending->done())
-            bufferCommandPending.reset();
         return result;
     }
 
@@ -718,9 +707,8 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
     }
     if(c == keyCode(typed::TypedKey::KEY_B))
     {
-        bufferCommandPending.emplace(count);
-        ctx.commandBuffer = "b";
-        ctx.setStatusMessage("b");
+        for(int i = 0; i < count; i++)
+            ed->moveWordBackward();
         ctx.repeatCount = 0;
         return std::nullopt;
     }

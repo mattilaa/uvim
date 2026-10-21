@@ -10,6 +10,19 @@ Normal Mode On Start
     Expect Mode    NORMAL
     Quit Uvim
 
+Word Backward Moves Immediately And Next Key Is Not Consumed
+    Create File    ${SAMPLE_FILE}    one two three\n
+    Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${SAMPLE_FILE}
+    Expect Mode    NORMAL
+    Send Keys    8l
+    Send Keys    b
+    Send Keys    x
+    Send Keys    :wq
+    Send Enter
+    Wait For Exit
+    ${content} =    Get File    ${SAMPLE_FILE}
+    Should Be Equal    ${content}    one wo three\n
+
 Dot Repeat Change Word
     Create File    ${SAMPLE_FILE}    joo\njoo
     Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${SAMPLE_FILE}
