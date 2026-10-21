@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
 #ifdef UVIM_ENABLE_PYTHON_LSP
     if(!enable)
     {
-        if(pythonLspClient)
-        {
-            pythonLspClient->stop();
-            pythonLspClient.reset();
-        }
+        lspController->disable(pythonLspClient, pythonLspEnabled);
         return;
     }
 
@@ -44,21 +41,10 @@ void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
 
     std::vector<std::string> args = this->pythonLspArgs;
 
-    pythonLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*pythonLspClient);
-    pythonLspClient->setLogSignature("PYTHON");
-    pythonLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!pythonLspClient->startServer(this->pythonLspPath, rootDir, args))
-    {
-        pythonLspClient.reset();
-
-        LOG_ERROR(LSP_LOG, "Python LSP failed to start. Python LSP path: {}",
-                  this->pythonLspPath);
-        return;
-    }
-
-    pythonLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "Python LSP enabled");
+    lspController->start(
+        "Python", pythonLspClient, pythonLspEnabled,
+        [path = this->pythonLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)pythonLspPath;

@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
 #ifdef UVIM_ENABLE_TS_LSP
     if(!enable)
     {
-        if(tsLspClient)
-        {
-            tsLspClient->stop();
-            tsLspClient.reset();
-        }
+        lspController->disable(tsLspClient, tsLspEnabled);
         return;
     }
 
@@ -46,20 +43,10 @@ void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
     if(args.empty())
         args.push_back("--stdio");
 
-    tsLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*tsLspClient);
-    tsLspClient->setLogSignature("TS");
-    tsLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!tsLspClient->startServer(this->tsLspPath, rootDir, args))
-    {
-        tsLspClient.reset();
-        LOG_ERROR(LSP_LOG, "TypeScript LSP failed to start. LSP path: {}",
-                  this->tsLspPath);
-        return;
-    }
-
-    tsLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "TypeScript LSP enabled");
+    lspController->start(
+        "TypeScript", tsLspClient, tsLspEnabled,
+        [path = this->tsLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)tsLspPath;

@@ -3,9 +3,11 @@
 #include "file_type.h"
 #include "token_type.h"
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -40,9 +42,22 @@ public:
 private:
     Editor* editor;
     mutable bool cppMemberIndexLoaded = false;
+    mutable bool cppMemberIndexPending = false;
+    static void
+    collectCppMemberIndex(const std::filesystem::path& root,
+                          std::unordered_set<std::string>& cppMemberNames,
+                          std::unordered_set<std::string>& cppClassNames,
+                          const std::function<bool()>& cancelled);
     mutable std::unordered_set<std::string> cppMemberNames;
     mutable std::unordered_set<std::string> cppClassNames;
     mutable bool systemIncludeDirsLoaded = false;
+    mutable bool systemIncludeDirsPending = false;
+    mutable std::unordered_map<std::string, bool> systemIncludeCache;
+    mutable std::unordered_set<std::string> systemIncludePending;
+    static void collectSystemIncludeDirs(
+        std::filesystem::path baseDir,
+        std::vector<std::filesystem::path>& systemIncludeDirs,
+        const std::function<bool()>& cancelled);
     mutable std::vector<std::filesystem::path> systemIncludeDirs;
 
     void ensureCppMemberIndex() const;

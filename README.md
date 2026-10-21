@@ -67,6 +67,11 @@ menus—they leave the corresponding implementation out of the binary.
 
 #### Fixed
 
+- Language-server startup and C++ header-symbol indexing run in background
+  tasks. Editing and opening files remain responsive while initialization
+  finishes; the status bar reports startup and completion. LSP document
+  updates use an ordered writer queue, preventing Windows pipe backpressure
+  from freezing the editor when opening the first source file.
 - Windows CI's Python tests can run after the build tree is transferred to
   another runner: test launchers rediscover a missing Python interpreter,
   and the build/test jobs both set up Python 3.12.

@@ -1668,12 +1668,26 @@ struct EditorSettings
                     "starting clangd",
                     [this, &editor, resolved]
                     {
+                        auto launch = [&editor, result = ccdirResult,
+                                       requested = ccdir, resolved,
+                                       queryDriver = queryDriver]
+                        {
+                            editor.enableClangdLsp(true,
+                                                   result ? *result : requested,
+                                                   resolved, queryDriver);
+                        };
                         if(ccdirTask != 0)
-                            editor.waitTask(ccdirTask,
-                                            "clangd: compile_commands");
-                        editor.enableClangdLsp(
-                            true, ccdirResult ? *ccdirResult : ccdir, resolved,
-                            queryDriver);
+                        {
+                            // Same-channel work and ordered completions keep
+                            // discovery ahead of startup without waiting in
+                            // the input loop.
+                            editor.submitTask(
+                                "clangd: waiting for compile_commands",
+                                "startup", [](TaskQueue::Context&) {},
+                                std::move(launch));
+                        }
+                        else
+                            launch();
                     },
                     true);
             }

@@ -76,11 +76,7 @@ void ensure_lsp_for_file_type(Editor& editor, bool enabled,
     if(enabled || !((editor.isFileType<Types>()) || ...))
         return;
 
-    std::string resolved = EditorPathUtilities::resolveExecutablePath(path);
-    if(resolved.empty())
-        return;
-
-    enableFn(true, resolved, args);
+    enableFn(true, path, args);
 }
 #endif
 
@@ -1743,30 +1739,32 @@ void Editor::openFile(std::string_view fname, bool notifyLspOnOpen)
     if(notifyLspOnOpen)
     {
         ensure_lsp_for_file_type<FileType::Html>(
-            *this, isHtmlLspEnabled(), htmlLspPath, htmlLspArgs,
+            *this, isHtmlLspEnabled() || lspController->starting(htmlLspClient),
+            htmlLspPath, htmlLspArgs,
             [&](bool on, const std::string& p,
                 const std::vector<std::string>& a)
             { enableHtmlLsp(on, p, a); });
         ensure_lsp_for_file_type<FileType::Css>(
-            *this, isCssLspEnabled(), cssLspPath, cssLspArgs,
+            *this, isCssLspEnabled() || lspController->starting(cssLspClient),
+            cssLspPath, cssLspArgs,
             [&](bool on, const std::string& p,
                 const std::vector<std::string>& a) { enableCssLsp(on, p, a); });
         ensure_lsp_for_file_type<FileType::Json>(
-            *this, isJsonLspEnabled(), jsonLspPath, jsonLspArgs,
+            *this, isJsonLspEnabled() || lspController->starting(jsonLspClient),
+            jsonLspPath, jsonLspArgs,
             [&](bool on, const std::string& p,
                 const std::vector<std::string>& a)
             { enableJsonLsp(on, p, a); });
         ensure_lsp_for_file_type<FileType::JavaScript, FileType::TypeScript>(
-            *this, isTsLspEnabled(), tsLspPath, tsLspArgs,
+            *this, isTsLspEnabled() || lspController->starting(tsLspClient),
+            tsLspPath, tsLspArgs,
             [&](bool on, const std::string& p,
                 const std::vector<std::string>& a) { enableTsLsp(on, p, a); });
         // csharp-ls may only be in ~/.dotnet/tools, or OmniSharp is used.
         ensure_lsp_for_file_type<FileType::CSharp>(
-            *this, isCSharpLspEnabled(),
-            isFileType<FileType::CSharp>()
-                ? csharp_lsp::resolveServer(csharpLspPath)
-                : std::string(),
-            csharpLspArgs,
+            *this,
+            isCSharpLspEnabled() || lspController->starting(csharpLspClient),
+            csharpLspPath, csharpLspArgs,
             [&](bool on, const std::string& p,
                 const std::vector<std::string>& a)
             { enableCSharpLsp(on, p, a); });

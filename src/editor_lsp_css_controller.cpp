@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
 #ifdef UVIM_ENABLE_CSS_LSP
     if(!enable)
     {
-        if(cssLspClient)
-        {
-            cssLspClient->stop();
-            cssLspClient.reset();
-        }
+        lspController->disable(cssLspClient, cssLspEnabled);
         return;
     }
 
@@ -46,20 +43,10 @@ void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
     if(args.empty())
         args.push_back("--stdio");
 
-    cssLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*cssLspClient);
-    cssLspClient->setLogSignature("CSS");
-    cssLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!cssLspClient->startServer(this->cssLspPath, rootDir, args))
-    {
-        cssLspClient.reset();
-        LOG_ERROR(LSP_LOG, "CSS LSP failed to start. LSP path: {}",
-                  this->cssLspPath);
-        return;
-    }
-
-    cssLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "CSS LSP enabled");
+    lspController->start(
+        "CSS", cssLspClient, cssLspEnabled,
+        [path = this->cssLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)cssLspPath;

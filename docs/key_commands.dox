@@ -138,6 +138,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `uvim .` opens the file browser in the target directory
 - with `editor.autodetectlsps: true`, auto-detected LSP startup is deferred
   until the first file is opened from the browser
+- LSP initialization and C++ header-symbol indexing run in background tasks;
+  continue editing while the status bar shows startup progress. Completion
+  updates the status bar with ready/failure; `:tasks` lists background work.
+- Document synchronization is queued in order, so a busy language server
+  cannot block editor input while reading a newly opened file.
 
 \section keys_grep Grep search mode
 - Type to search

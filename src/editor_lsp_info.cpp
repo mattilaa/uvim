@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #include "executable_lookup.h"
 #include "terminal.h"
@@ -79,12 +80,14 @@ void Editor::showLspInfo()
 #ifdef UVIM_ENABLE_CLANGD_LSP
     auto appendLsp = [&](const std::string& label, bool running,
                          bool activeForFile, const std::string& path,
+                         bool starting,
                          bool requiresNode = false,
                          const std::string& version = std::string(),
                          const std::string& statusDetail = std::string())
     {
         std::string status =
-            running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
+            starting ? "STARTING"
+                     : running ? (activeForFile ? "ACTIVE" : "ON") : "OFF";
         const executable_lookup::Result binary = executable_lookup::find(path);
         const executable_lookup::Result node = executable_lookup::find("node");
         bool hasBinary = binary.found;
@@ -108,7 +111,9 @@ void Editor::showLspInfo()
 
     const bool clangdRunning = isClangdLspEnabled();
     std::string clangdError = clangdLspLastError;
-    if(clangdError.empty() && clangdLspStartupAttempted && !clangdRunning)
+    const bool clangdStarting = lspController->starting(lspClient);
+    if(clangdError.empty() && clangdLspStartupAttempted && !clangdRunning &&
+       !clangdStarting)
     {
         if(lspClient)
             clangdError = lspClient->lastError();
@@ -124,7 +129,7 @@ void Editor::showLspInfo()
             ? std::string{}
             : "startup failed: " + clangdError + lspLogDetailSuffix();
     appendLsp("clangd", clangdRunning, isFileType<FileType::Cpp>(),
-              clangdLspPath, false, std::string(), clangdStatusDetail);
+              clangdLspPath, clangdStarting, false, std::string(), clangdStatusDetail);
     if(lspClient)
     {
         int workers = lspClient->workerCount();
@@ -141,9 +146,9 @@ void Editor::showLspInfo()
         }
     }
     appendLsp("python", isPythonLspEnabled(), isFileType<FileType::Python>(),
-              pythonLspPath);
+              pythonLspPath, lspController->starting(pythonLspClient));
     appendLsp("robot", isRobotLspEnabled(), isFileType<FileType::Robot>(),
-              robotLspPath);
+              robotLspPath, lspController->starting(robotLspClient));
     std::string mlangLabel = "mlang";
     std::string mlangVersion;
     if(mlangLspClient)
@@ -155,19 +160,19 @@ void Editor::showLspInfo()
             mlangLabel = "mlang (MLA)";
     }
     appendLsp(mlangLabel, isMlangLspEnabled(), isFileType<FileType::Mla>(),
-              mlangLspPath, false, mlangVersion);
+              mlangLspPath, lspController->starting(mlangLspClient), false, mlangVersion);
     appendLsp("html", isHtmlLspEnabled(), isFileType<FileType::Html>(),
-              htmlLspPath, true);
+              htmlLspPath, lspController->starting(htmlLspClient), true);
     appendLsp("css", isCssLspEnabled(), isFileType<FileType::Css>(), cssLspPath,
-              true);
+              lspController->starting(cssLspClient), true);
     appendLsp("json", isJsonLspEnabled(), isFileType<FileType::Json>(),
-              jsonLspPath, true);
+              jsonLspPath, lspController->starting(jsonLspClient), true);
     appendLsp("ts", isTsLspEnabled(),
               (isFileType<FileType::JavaScript>() ||
                isFileType<FileType::TypeScript>()),
-              tsLspPath, true);
+              tsLspPath, lspController->starting(tsLspClient), true);
     appendLsp("csharp", isCSharpLspEnabled(), isFileType<FileType::CSharp>(),
-              csharpLspPath, true);
+              csharpLspPath, lspController->starting(csharpLspClient), true);
 #else
     lspInfoLines.push_back("clangd: not compiled");
     lspInfoLines.push_back("python: not compiled");

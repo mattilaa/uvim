@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "editor_lsp_controller.h"
 #include "enablelog.h"
 #ifdef UVIM_ENABLE_CLANGD_LSP
 #include "lsp_client.h"
@@ -21,11 +22,7 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
 #ifdef UVIM_ENABLE_ROBOT_LSP
     if(!enable)
     {
-        if(robotLspClient)
-        {
-            robotLspClient->stop();
-            robotLspClient.reset();
-        }
+        lspController->disable(robotLspClient, robotLspEnabled);
         return;
     }
 
@@ -48,20 +45,10 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
         args.push_back("--stdio");
     }
 
-    robotLspClient = std::make_unique<LspClient>();
-    attachLspWaitHook(*robotLspClient);
-    robotLspClient->setLogSignature("ROBOT");
-    robotLspClient->setDiagnosticsEnabled(emitLspDiagnostics);
-    if(!robotLspClient->startServer(this->robotLspPath, rootDir, args))
-    {
-        LOG_ERROR(LSP_LOG, "Robot LSP failed to start, LSP path: {}",
-                  this->robotLspPath.c_str());
-        robotLspClient.reset();
-        return;
-    }
-
-    robotLspEnabled = true;
-    LOG_DEBUG(LSP_LOG, "Robot LSP enabled");
+    lspController->start(
+        "Robot", robotLspClient, robotLspEnabled,
+        [path = this->robotLspPath, rootDir, args](LspClient& client)
+        { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
     (void)robotLspPath;
