@@ -64,6 +64,23 @@ inline std::string_view line_view(const std::vector<std::string>& ls,
     return std::string_view{ls[static_cast<size_t>(y)]};
 }
 
+int verticalColumn(std::string_view line, int wanted, bool utf8, bool normal)
+{
+    const int length = static_cast<int>(line.size());
+    int column = std::clamp(wanted, 0, length);
+    if(normal && column == length && column > 0)
+        --column;
+    // Keep an already valid character start. Only back up when the desired
+    // byte column lands inside a multibyte character on the destination line.
+    if(utf8)
+    {
+        while(column > 0 && column < length &&
+              (static_cast<unsigned char>(line[column]) & 0xC0) == 0x80)
+            --column;
+    }
+    return column;
+}
+
 } // namespace
 
 EditorCursorController::EditorCursorController(Editor& editor) : editor(editor)
@@ -161,12 +178,8 @@ void EditorCursorController::moveUp(int count)
     cy = std::clamp(cy, 0, n - 1);
 
     cy = std::max(0, cy - std::max(0, count));
-    cx = std::min(wx, line_len(*editor.lines, cy));
-    if(editor.utf8Mode && cy >= 0 && cy < line_count(*editor.lines))
-    {
-        std::string_view ln = line_view(*editor.lines, cy);
-        cx = text_utils::prevUtf8CharStart(ln, cx);
-    }
+    cx = verticalColumn(line_view(*editor.lines, cy), wx, editor.utf8Mode,
+                         editor.currentMode == NORMAL);
 }
 
 void EditorCursorController::moveDown(int count)
@@ -182,12 +195,8 @@ void EditorCursorController::moveDown(int count)
     cy = std::clamp(cy, 0, n - 1);
 
     cy = std::min(n - 1, cy + std::max(0, count));
-    cx = std::min(wx, line_len(*editor.lines, cy));
-    if(editor.utf8Mode && cy >= 0 && cy < line_count(*editor.lines))
-    {
-        std::string_view ln = line_view(*editor.lines, cy);
-        cx = text_utils::prevUtf8CharStart(ln, cx);
-    }
+    cx = verticalColumn(line_view(*editor.lines, cy), wx, editor.utf8Mode,
+                         editor.currentMode == NORMAL);
 }
 
 void EditorCursorController::moveWordForward()

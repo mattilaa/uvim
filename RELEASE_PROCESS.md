@@ -69,7 +69,7 @@ the GitHub CLI (`gh`), and the project's build dependencies installed.
      creates the GitHub Release automatically.
    - Accept waiting for the release workflow and displaying its assets.
    - After the release succeeds, accept starting the next patch version
-     (`0.3.3` after `0.3.3`). The script commits and pushes the version bump
+     (`0.3.4` after `0.3.3`). The script commits and pushes the version bump
      and an empty release-notes section for future changes.
 
 5. **Verify the published release.** Open
@@ -223,6 +223,10 @@ git push origin main v0.3.3
 
 CI runs on every push: Debug builds with the unit and Robot tests (Linux,
 macOS, macOS with ASan/UBSan, Windows) and Release builds of every target.
-Runs are queued per branch, so pushes during a run become one follow-up run of
-the newest commit. A release should only be published from a commit whose CI
-passed — `--publish` checks it.
+New pushes to `main` cancel its older CI run. Other branches queue runs
+independently, so a push to another branch cannot cancel a main run. Branch
+push runs rebase their temporary CI checkout onto current `main` by default;
+set the repository Actions variable `CI_REBASE_BRANCHES` to `false` to opt
+out. Every build and test job uses the same prepared source snapshot, and
+remote branch history stays unchanged. A release should only be published
+from a commit whose CI passed — `--publish` checks it.
