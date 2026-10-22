@@ -587,7 +587,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "format", "fmt",
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
-        "lspinfo", "toolinfo", "tasks", "palette",
+        "lspinfo", "toolinfo", "tasks", "palette", "asm", "asm .",
 #endif
 #ifdef UVIM_ENABLE_ASM_DOCS
         "emitasm", "emitasm --raw",
@@ -684,7 +684,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "filebrowser", "run",       "buffers",     "windows", "search",
         "regex",       "clipboard", "git",         "ga",      "gb",
         "gbb",         "gbl",       "gj",          "gbv",     "gs",
-        "emitasm",     "lsp",       "diagnostics", "logging", "help",
+        "asm", "emitasm",     "lsp",       "diagnostics", "logging", "help",
         "keys",        "palette", "functions"};
 
     std::vector<std::string> matches;

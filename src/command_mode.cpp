@@ -9,6 +9,61 @@
 
 namespace editor::statemachine
 {
+bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
+{
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    const std::string_view command = ctx.commandBuffer;
+    assembly_compiler::Request request;
+    std::string error;
+    if(command.rfind(":asm ", 0) == 0 && command.ends_with(" --") &&
+       assembly_compiler::parse(command.substr(5, command.size() - 7), request,
+                                error))
+    {
+        assemblyFlagPopup = true;
+        auto& editor = *ctx.editor;
+        editor.commandPopupActive = true;
+        editor.commandPopupAll = {"-O2",
+                                  "-O0",
+                                  "-O1",
+                                  "-O3",
+                                  "-Os",
+                                  "-Og",
+                                  "-g",
+                                  "-fno-inline",
+                                  "-fverbose-asm",
+                                  "-masm=intel",
+                                  "-masm=att",
+                                  "-march=native",
+                                  "-Wall",
+                                  "-Wextra",
+                                  "-std=c++20",
+                                  "-std=c++23",
+                                  "-std=c11",
+                                  "-I ",
+                                  "-D ",
+                                  "--compiler clang",
+                                  "--compiler gcc",
+                                  "--raw"};
+        editor.commandPopupFiltered.clear();
+        for(int i = 0; i < static_cast<int>(editor.commandPopupAll.size()); ++i)
+            editor.commandPopupFiltered.push_back(i);
+        editor.commandPopupCursor = editor.commandPopupOffset = 0;
+        editor.commandPopupQuery.clear();
+        ctx.setStatusMessage(
+            "Assembly flags: Enter/Tab inserts; Esc cancels command");
+        ctx.requestFullRedraw();
+        return true;
+    }
+#endif
+    if(assemblyFlagPopup)
+    {
+        ctx.cancelCommandPopup();
+        ctx.setStatusMessage("");
+    }
+    assemblyFlagPopup = false;
+    return false;
+}
+
 void CommandMode::on_enter(ModeContext& ctx)
 {
     ctx.cancelCompletion();
@@ -19,7 +74,8 @@ void CommandMode::on_enter(ModeContext& ctx)
     locCompletion = false;
     locCommand.clear();
     ctx.startCommandPopup();
-    ctx.updateCommandPopup(initialInput);
+    if(!updateAssemblyFlagPopup(ctx))
+        ctx.updateCommandPopup(initialInput);
 
     ctx.requestFullRedraw();
 }
@@ -45,6 +101,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     int c = keyCode(key);
     auto updatePopup = [&]()
     {
+        if(updateAssemblyFlagPopup(ctx))
+            return;
         auto isLineJumpQuery = [&](std::string_view q) -> bool
         {
             if(q.empty())
@@ -178,6 +236,44 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                                : ModeState{WelcomeMode{}};
     }
 
+    // Selecting a compiler flag only edits the command. Compilation requires
+    // a second Enter after the picker closes; Escape above cancels everything.
+    if(assemblyFlagPopup)
+    {
+        if(c == keyCode(control::ControlKey::CTRL_J) ||
+           c == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        {
+            ctx.moveCommandPopupCursor(1);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::CTRL_K) ||
+           c == keyCode(navigation::NavigationKey::ARROW_UP) ||
+           c == keyCode(control::ControlKey::SHIFT_TAB))
+        {
+            ctx.moveCommandPopupCursor(-1);
+            return std::nullopt;
+        }
+        if(c == keyCode(control::ControlKey::ENTER) ||
+           c == keyCode(control::ControlKey::TAB))
+        {
+            if(auto selected = ctx.commandPopupSelection())
+            {
+                ctx.commandBuffer.resize(ctx.commandBuffer.size() - 2);
+                ctx.commandBuffer += *selected;
+                if(ctx.commandBuffer.back() != ' ')
+                    ctx.commandBuffer += ' ';
+            }
+            assemblyFlagPopup = false;
+            completions.clear();
+            completionIndex = -1;
+            ctx.cancelCommandPopup();
+            ctx.setStatusMessage(
+                "Enter: compile | --: more flags | Esc: cancel");
+            ctx.requestFullRedraw();
+            return std::nullopt;
+        }
+    }
+
     // Enter -> execute command
     if(c == keyCode(control::ControlKey::ENTER))
     {
@@ -297,6 +393,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string path;
             if(ctx.takeCommandRequest(mode, path))
             {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+                if(mode == ASSEMBLY)
+                    return AssemblyMode{path};
+#endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
                 if(mode == FUNCTION_BROWSER)
                     return FunctionBrowserMode{};

@@ -349,7 +349,7 @@ else()
     )
 endif()
 
-if(UVIM_ENABLE_ASM_DOCS)
+if(UVIM_ENABLE_ASM_DOCS OR UVIM_ENABLE_AUXILIARY_VIEWS)
     list(APPEND UVIM_CORE_SOURCES src/editor_execution_emit_asm_command.cpp)
 endif()
 
@@ -411,6 +411,9 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/help_mode.cpp
         src/glyph_select_mode.cpp
         src/command_output_mode.cpp
+        src/assembly_mode.cpp
+        src/assembly_compiler.cpp
+        src/editor_execution_asm_command.cpp
     )
 endif()
 
@@ -950,6 +953,11 @@ if(UVIM_BUILD_TESTS)
         target_include_directories(fake_lsp_server PRIVATE ${CMAKE_SOURCE_DIR}/src)
         target_link_libraries(fake_lsp_server PRIVATE yyjson Threads::Threads)
     endif()
+    if(UVIM_ENABLE_AUXILIARY_VIEWS)
+        list(APPEND UVIM_REAL_MODE_TEST_FILES tests/assembly_view_test.cpp)
+        add_executable(fake_assembly_compiler tests/fake_assembly_compiler.cpp)
+        target_link_libraries(fake_assembly_compiler PRIVATE Threads::Threads)
+    endif()
     if(UVIM_ENABLE_CSHARP_LSP)
         list(APPEND UVIM_REAL_MODE_TEST_FILES
             tests/lsp_csharp_integration_test.cpp
@@ -976,6 +984,11 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
+    if(UVIM_ENABLE_AUXILIARY_VIEWS)
+        add_dependencies(real_mode_transitions_tests fake_assembly_compiler)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE
+            UVIM_TEST_ASSEMBLY_COMPILER="$<TARGET_FILE:fake_assembly_compiler>")
+    endif()
     target_compile_definitions(real_mode_transitions_tests PRIVATE
         UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT=$<IF:$<BOOL:${UVIM_MLANG_SEMANTIC_TOKENS_DEFAULT}>,1,0>
     )

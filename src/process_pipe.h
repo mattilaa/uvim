@@ -99,7 +99,9 @@ public:
         return open(args, "r");
     }
 
-    bool open(const std::vector<std::string>& args, const char* mode)
+    bool open(const std::vector<std::string>& args, const char* mode,
+              bool mergeStandardError = false,
+              const std::string& workingDirectory = {})
     {
         close();
         if(args.empty())
@@ -109,7 +111,13 @@ public:
         commandLine = joinArgsForLog(args);
 
 #ifdef _WIN32
-        return openShell(commandLineFromArgs(args), mode);
+        // Windows callers requiring a working directory use a native process
+        // launcher; _popen cannot set one without changing the whole editor.
+        if(!workingDirectory.empty())
+            return false;
+        return openShell(commandLineFromArgs(args) +
+                             (mergeStandardError ? " 2>&1" : ""),
+                         mode);
 #else
         const bool writeMode = mode && mode[0] == 'w';
         std::lock_guard<std::mutex> launchLock(processLaunchMutex());
@@ -150,6 +158,9 @@ public:
 
         if(child == 0)
         {
+            if(!workingDirectory.empty() &&
+               ::chdir(workingDirectory.c_str()) != 0)
+                _exit(127);
             if(writeMode)
             {
                 ::close(pipefd[1]);
@@ -160,10 +171,14 @@ public:
             {
                 ::close(pipefd[0]);
                 ::dup2(pipefd[1], STDOUT_FILENO);
+                if(mergeStandardError)
+                    ::dup2(pipefd[1], STDERR_FILENO);
                 ::close(pipefd[1]);
             }
 
-            int devNull = ::open("/dev/null", O_WRONLY);
+            int devNull = mergeStandardError && !writeMode
+                              ? -1
+                              : ::open("/dev/null", O_WRONLY);
             if(devNull != -1)
             {
                 ::dup2(devNull, STDERR_FILENO);

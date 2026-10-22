@@ -39,6 +39,7 @@ menus—they leave the corresponding implementation out of the binary.
 - [Themes](#themes)
 - [Generated documentation](#generated-documentation)
 - [Assembly instruction docs](#assembly-instruction-docs)
+- [Assembly browser](#assembly-browser)
 - [LSP flags](#lsp-flags)
 - [Dependencies](#dependencies-os-specific)
 - [Command palette](#command-palette)
@@ -794,6 +795,59 @@ The output is written to `docs/doxygen/html/index.html`. Published docs are
 available at <https://mattilaa.github.io/uvim/>. Doxygen can be installed with
 the platform package manager (`brew install doxygen`, `apt-get install
 doxygen`, or `dnf install doxygen`).
+
+## Assembly browser
+
+`:asm .` compiles the current C/C++ buffer, including unsaved edits, into a
+read-only assembly view. `:asm` is the same command. Use a file path instead
+of `.` to compile another file; if that file is already open, its in-memory
+contents are used. The source buffer, cursor, and file on disk stay intact.
+
+```vim
+:asm .
+:asm . -O2
+:asm . --
+:asm . --compiler gcc -O3 -march=native
+:asm "src/my file.cpp" --compiler clang -O2 -I "include directory"
+:asm . --compiler "/path/to/clang++" --raw -O0 -g
+```
+
+Clang is preferred when available, with GCC as the fallback. `--compiler`
+selects Clang, GCC, or a compiler executable; `clang`/`gcc` select their C++
+drivers for C++ files. Extra arguments are passed to the compiler, including
+optimization, include paths, defines and target options. Paths and arguments
+containing spaces can be quoted. Include paths are relative to the editor's
+working directory. The default is `-O0`; an explicit `-O2`, `-O3`, etc.
+replaces it. Use `--raw` to retain the compiler's full assembler output.
+Target-specific options such as `-masm=intel` depend on the selected compiler
+and architecture. Project-specific build flags must be supplied explicitly.
+
+Typing `:asm . --` opens a popup of common compiler flags with descriptions.
+Use up/down or `Ctrl-J/K` to select, then Enter or Tab to insert a flag and
+continue editing the command. Enter again compiles. Type `--` again to add
+another suggested flag. Escape cancels the entire command without compiling.
+Flags can also be typed manually, including full options such as `--compiler`.
+
+The view shows assembly row numbers, syntax colors, the compiler and options,
+and the selected row. Compilation runs in a background task; failures show
+the compiler diagnostics in the view, and `q`/Escape can leave while it runs.
+
+| Keys | Action |
+| --- | --- |
+| `j` / `k`, down/up | Select the next/previous assembly row |
+| `h` / `l`, left/right | Scroll horizontally |
+| Page Up/Down, `Ctrl-U/D` | Move a page/half page |
+| `g` / `G`, Home/End | First/last row |
+| `i` | Toggle the instruction inspector popup |
+| `Ctrl-J/K` with inspector open | Scroll the instruction documentation |
+| `q` / Escape | Exit the assembly view and return to the source |
+
+The inspector follows the selected row while you navigate with `j/k`, using
+the same x86/x64 and AArch64 instruction documentation as assembly `gd`.
+Labels, directives and comments show a message when no instruction applies.
+The view requires `UVIM_ENABLE_AUXILIARY_VIEWS`; instruction help additionally
+requires `UVIM_ENABLE_ASM_DOCS`. The existing `:emitasm [flags]` command still
+creates a separate editable `.s` buffer. See `:help asm`.
 
 ## Assembly instruction docs
 

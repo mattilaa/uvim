@@ -116,6 +116,7 @@ std::vector<Entry> builtinActions()
     a.push_back(keys("Paste from system clipboard", "Space p", {kSpace, 'p'}));
 #endif
     // Code navigation.
+    a.push_back(ex("Compile and browse assembly", {"asm"}));
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
     a.push_back(keys("Browse function signatures", "Space o", {kSpace, 'o'}, {"functions"}));
 #endif

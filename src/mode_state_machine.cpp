@@ -179,6 +179,11 @@ struct ModeStateToMode
         return COMMAND_OUTPUT;
     }
 
+    Mode operator()(const AssemblyMode&) const
+    {
+        return ASSEMBLY;
+    }
+
     Mode operator()(const GlyphSelectMode&) const
     {
         return GLYPH_SELECT;
@@ -318,6 +323,10 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     std::string path;
     if(ctx.takeCommandRequest(mode, path))
     {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(mode == ASSEMBLY)
+            return AssemblyMode{path};
+#endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
         if(mode == FUNCTION_BROWSER)
             return FunctionBrowserMode{};
@@ -530,10 +539,13 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     case COMMAND_OUTPUT:
         return CommandOutputMode{};
+    case ASSEMBLY:
+        return AssemblyMode{};
     case GLYPH_SELECT:
         return GlyphSelectMode{};
 #else
     case COMMAND_OUTPUT:
+    case ASSEMBLY:
     case GLYPH_SELECT:
         return NormalMode{};
 #endif

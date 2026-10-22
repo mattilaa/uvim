@@ -1,3 +1,4 @@
+#include "assembly_output.h"
 #include "editor.h"
 #include "editor_execution_command_helpers.h"
 #include "editor_execution_commands.h"
@@ -826,3 +827,22 @@ bool EmitAsmCommand::execute(Editor& editor,
     return true;
 }
 } // namespace command::execution
+
+namespace assembly_output
+{
+std::string sourceText(const std::vector<std::string>& lines, bool cSource)
+{
+    using namespace command::execution;
+    std::string text = bufferText(lines) + '\n';
+    if(cSource)
+        return text + cAnchorForTypes(collectTopLevelTypes(lines, false)) +
+               cAnchorForFunctions(collectTopLevelFunctions(lines));
+    return text + cppAnchorForTypes(collectTopLevelTypes(lines, true)) +
+           cppAnchorForFunctions(collectTopLevelFunctions(lines));
+}
+
+std::string compact(std::string_view output)
+{
+    return command::execution::compactAssemblyOutput(output);
+}
+} // namespace assembly_output

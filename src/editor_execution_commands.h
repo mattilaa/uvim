@@ -70,6 +70,12 @@ public:
     bool execute(Editor& editor, const CommandRequest& request) const override;
 };
 
+class AsmCommand final : public EditorExecutionCommand
+{
+public:
+    bool execute(Editor& editor, const CommandRequest& request) const override;
+};
+
 class EmojiCommand final : public EditorExecutionCommand
 {
 public:

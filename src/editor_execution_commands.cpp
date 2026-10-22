@@ -19,6 +19,7 @@ std::vector<std::unique_ptr<EditorExecutionCommand>> buildCommands()
     commands.push_back(std::make_unique<ToolInfoCommand>());
     commands.push_back(std::make_unique<TasksCommand>());
     commands.push_back(std::make_unique<PaletteCommand>());
+    commands.push_back(std::make_unique<AsmCommand>());
 #endif
 #ifdef UVIM_ENABLE_FORMATTERS
     commands.push_back(std::make_unique<FormatCommand>());

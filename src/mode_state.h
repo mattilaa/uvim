@@ -56,6 +56,7 @@ struct GitPatchMode;
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 struct CommandOutputMode;
+struct AssemblyMode;
 struct GlyphSelectMode;
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
@@ -95,7 +96,7 @@ using ModeState = std::variant<
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
-    CommandOutputMode, GlyphSelectMode
+    CommandOutputMode, AssemblyMode, GlyphSelectMode
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     ,

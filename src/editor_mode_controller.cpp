@@ -210,6 +210,12 @@ public:
     }
 
     std::optional<Mode> operator()(ModeContext& ctx,
+                                   const AssemblyMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+
+    std::optional<Mode> operator()(ModeContext& ctx,
                                    const GlyphSelectMode& state) const
     {
         return recognize(ctx, state);
