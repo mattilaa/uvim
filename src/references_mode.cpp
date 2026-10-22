@@ -18,9 +18,8 @@ void ReferencesMode::on_enter(ModeContext& ctx)
     ed->needsFullRedraw = true;
 }
 
-void ReferencesMode::on_exit(ModeContext& ctx)
+void ReferencesMode::on_exit(ModeContext&)
 {
-    Editor* ed = ctx.editor;
 
     // Restore block cursor
     Terminal::setCursorBlock();

@@ -52,7 +52,7 @@ bool isCursorInsideQuote(const std::string& line, int cursorX, char quote)
 bool isCursorInString(const std::string& line, int cursorX)
 {
     return isCursorInsideQuote(
-               line, cursorX, keyCode(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
+               line, cursorX, keyChar(command::CommandKey::KEY_DOUBLE_QUOTE)) ||
            isCursorInsideQuote(line, cursorX, '\'');
 }
 
@@ -532,7 +532,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 if(cursorY < (int)lines.size() &&
                    cursorX > (int)lines[cursorY].length())
                 {
-                    cursorX = lines[cursorY].length();
+                    cursorX = static_cast<int>(lines[cursorY].length());
                 }
             }
         }
@@ -556,7 +556,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 cursorY++;
                 if(cursorX > (int)lines[cursorY].length())
                 {
-                    cursorX = lines[cursorY].length();
+                    cursorX = static_cast<int>(lines[cursorY].length());
                 }
             }
         }
@@ -640,7 +640,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                     lines.resize(cursorY + 1);
                 std::string& line = lines[cursorY];
                 if(cursorX > (int)line.length())
-                    cursorX = line.length();
+                    cursorX = static_cast<int>(line.length());
 
                 if(cursorX < (int)line.length() && line[cursorX] == quote)
                 {
@@ -674,17 +674,17 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 lines.resize(cursorY + 1);
             std::string& line = lines[cursorY];
             if(cursorX > (int)line.length())
-                cursorX = line.length();
+                cursorX = static_cast<int>(line.length());
 
             if(cursorX < (int)line.length() &&
                line[cursorX] == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
             {
-                ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
+                ed->insertChar(keyChar(command::CommandKey::KEY_LEFT_BRACE));
                 return std::nullopt;
             }
 
-            ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
-            ed->insertChar(keyCode(command::CommandKey::KEY_RIGHT_BRACE));
+            ed->insertChar(keyChar(command::CommandKey::KEY_LEFT_BRACE));
+            ed->insertChar(keyChar(command::CommandKey::KEY_RIGHT_BRACE));
             ctx.cursorX()--;
             return std::nullopt;
         }
@@ -701,15 +701,15 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
 
             std::string& line = lines[cursorY];
             if(cursorX > (int)line.length())
-                cursorX = line.length();
+                cursorX = static_cast<int>(line.length());
 
             std::string left = line.substr(0, cursorX);
             std::string right = line.substr(cursorX);
 
             if(!shouldExpandLeftBraceBlock(ed, left))
             {
-                ed->insertChar(keyCode(command::CommandKey::KEY_LEFT_BRACE));
-                ed->insertChar(keyCode(command::CommandKey::KEY_RIGHT_BRACE));
+                ed->insertChar(keyChar(command::CommandKey::KEY_LEFT_BRACE));
+                ed->insertChar(keyChar(command::CommandKey::KEY_RIGHT_BRACE));
                 ctx.cursorX()--;
                 return std::nullopt;
             }
@@ -725,7 +725,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             const int innerWidth = ed->indentWidthForBraces();
             std::string innerIndent =
                 indentStr +
-                std::string(innerWidth, keyCode(control::ControlKey::SPACE));
+                std::string(innerWidth, keyChar(control::ControlKey::SPACE));
 
             if(ed->braceNewLineForAutoBraces())
             {
@@ -738,7 +738,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                     lines.insert(lines.begin() + cursorY + 2,
                                  indentStr + "}" + right);
                     cursorY += 1;
-                    cursorX = innerIndent.length();
+                    cursorX = static_cast<int>(innerIndent.length());
                 }
                 else
                 {
@@ -748,7 +748,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                     lines.insert(lines.begin() + cursorY + 3,
                                  indentStr + "}" + right);
                     cursorY += 2;
-                    cursorX = innerIndent.length();
+                    cursorX = static_cast<int>(innerIndent.length());
                 }
             }
             else
@@ -758,7 +758,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 lines.insert(lines.begin() + cursorY + 2,
                              indentStr + "}" + right);
                 cursorY += 1;
-                cursorX = innerIndent.length();
+                cursorX = static_cast<int>(innerIndent.length());
             }
             *ed->dirty = true;
             ed->needsFullRedraw = true;
@@ -768,9 +768,9 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
            (c == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
             c == keyCode(command::CommandKey::KEY_LEFT_BRACKET)))
         {
-            char close = (c == keyCode(command::CommandKey::KEY_LEFT_PAREN))
-                             ? keyCode(command::CommandKey::KEY_RIGHT_PAREN)
-                             : keyCode(command::CommandKey::KEY_RIGHT_BRACKET);
+            char close = (c == keyChar(command::CommandKey::KEY_LEFT_PAREN))
+                             ? keyChar(command::CommandKey::KEY_RIGHT_PAREN)
+                             : keyChar(command::CommandKey::KEY_RIGHT_BRACKET);
             auto& lines = ctx.lines();
             int& cursorX = ctx.cursorX();
             int cursorY = ctx.cursorY();
@@ -779,7 +779,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
                 lines.resize(cursorY + 1);
             std::string& line = lines[cursorY];
             if(cursorX > (int)line.length())
-                cursorX = line.length();
+                cursorX = static_cast<int>(line.length());
 
             if(cursorX < (int)line.length() && line[cursorX] == close)
             {
@@ -811,7 +811,7 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(gtPos < 0 || gtPos >= (int)line.size())
                 return std::nullopt;
 
-            int ltPos = (int)line.rfind(keyCode(command::CommandKey::KEY_LESS),
+            int ltPos = (int)line.rfind(keyChar(command::CommandKey::KEY_LESS),
                                         (size_t)gtPos);
             if(text_utils::is_not_found(static_cast<size_t>(ltPos)))
                 return std::nullopt;

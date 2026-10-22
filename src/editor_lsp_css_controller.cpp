@@ -12,12 +12,12 @@ namespace
 mla::log::FileLogger LSP_LOG("CSS");
 }
 
-void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
-                              const std::vector<std::string>& cssLspArgs)
+void Editor::enableCssLspImpl(bool enable, const std::string& serverPath,
+                              const std::vector<std::string>& serverArgs)
 {
     cssLspEnabled = false;
-    this->cssLspPath = cssLspPath;
-    this->cssLspArgs = cssLspArgs;
+    this->cssLspPath = serverPath;
+    this->cssLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_CSS_LSP
     if(!enable)
@@ -49,8 +49,8 @@ void Editor::enableCssLspImpl(bool enable, const std::string& cssLspPath,
         { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
-    (void)cssLspPath;
-    (void)cssLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "CSS LSP is not compiled");
 #endif
 }

@@ -206,7 +206,7 @@ static std::string formatFileSizeShort(size_t size)
 {
     const char* units[] = {"B", "K", "M", "G", "T"};
     int unitIndex = 0;
-    double displaySize = size;
+    double displaySize = static_cast<double>(size);
 
     while(displaySize >= 1024 && unitIndex < 4)
     {
@@ -328,10 +328,10 @@ std::optional<ModeState> FuzzyFindMode::handle(ModeContext& ctx,
             c == keyCode(control::ControlKey::SHIFT_CTRL_K))
     {
         // Scroll the previewed file; resets when another file is selected.
-        const std::string key = selectedPath();
-        if(previewScrollKey != key)
+        const std::string selectedPreview = selectedPath();
+        if(previewScrollKey != selectedPreview)
         {
-            previewScrollKey = key;
+            previewScrollKey = selectedPreview;
             previewScroll = 0;
         }
         previewScroll +=
@@ -523,7 +523,7 @@ void FuzzyFindMode::draw(Editor& editor) const
                           (int)sizeStr.length() - 2;
             if(padding > 0)
             {
-                output.append(padding, keyCode(control::ControlKey::SPACE));
+                output.append(padding, keyChar(control::ControlKey::SPACE));
                 renderedWidth += padding;
             }
             output += editor.theme.uiDim();

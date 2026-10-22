@@ -36,12 +36,15 @@ void EditorDefinitionController::clampCursor()
     if(!editor.lines || !editor.cursorY || !editor.cursorX)
         return;
     if(*editor.cursorY >= static_cast<int>(editor.lines->size()))
-        *editor.cursorY = editor.lines->empty() ? 0 : editor.lines->size() - 1;
+        *editor.cursorY = editor.lines->empty()
+                              ? 0
+                              : static_cast<int>(editor.lines->size() - 1);
     if(*editor.cursorY >= 0 &&
        *editor.cursorX >
            static_cast<int>((*editor.lines)[*editor.cursorY].size()))
     {
-        *editor.cursorX = (*editor.lines)[*editor.cursorY].size();
+        *editor.cursorX =
+            static_cast<int>((*editor.lines)[*editor.cursorY].size());
     }
 }
 
@@ -307,7 +310,7 @@ std::string wrapTextLine(std::string_view line, int width)
     return out.str();
 }
 
-std::string wrapPopupText(std::string_view text, int width)
+[[maybe_unused]] std::string wrapPopupText(std::string_view text, int width)
 {
     std::ostringstream out;
     size_t start = 0;
@@ -330,7 +333,8 @@ std::string wrapPopupText(std::string_view text, int width)
     return out.str();
 }
 
-std::string readAsmDocSection(const asm_documentation::Location& loc)
+[[maybe_unused]] std::string
+readAsmDocSection(const asm_documentation::Location& loc)
 {
     std::ifstream in(loc.path);
     if(!in)

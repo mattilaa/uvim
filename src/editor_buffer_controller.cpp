@@ -86,7 +86,7 @@ void Editor::createNewBufferImpl()
 {
     auto buffer = std::make_unique<Buffer>();
     buffers.push_back(std::move(buffer));
-    currentBufferIndex = buffers.size() - 1;
+    currentBufferIndex = static_cast<int>(buffers.size() - 1);
     updateCurrentBufferPointers();
     if(splitActive)
     {
@@ -98,7 +98,8 @@ void Editor::createNewBufferImpl()
 
 void Editor::updateCurrentBufferPointersImpl()
 {
-    if(currentBufferIndex >= 0 && currentBufferIndex < buffers.size())
+    if(currentBufferIndex >= 0 &&
+       static_cast<size_t>(currentBufferIndex) < buffers.size())
     {
         currentBuffer = buffers[currentBufferIndex].get();
         lines = &currentBuffer->lines;
@@ -182,7 +183,7 @@ void Editor::ensureBufferForModeImpl(Mode mode)
 
 void Editor::switchToBufferImpl(int index)
 {
-    if(index >= 0 && index < buffers.size())
+    if(index >= 0 && static_cast<size_t>(index) < buffers.size())
     {
         locMessage.clear();
         if(splitActive)
@@ -238,7 +239,7 @@ void Editor::previousBufferImpl()
     {
         int prevIndex = currentBufferIndex - 1;
         if(prevIndex < 0)
-            prevIndex = buffers.size() - 1;
+            prevIndex = static_cast<int>(buffers.size() - 1);
         switchToBuffer(prevIndex);
     }
     else
@@ -320,9 +321,9 @@ void Editor::closeCurrentBufferImpl()
     {
         int removedIndex = currentBufferIndex;
         buffers.erase(buffers.begin() + currentBufferIndex);
-        if(currentBufferIndex >= buffers.size())
+        if(static_cast<size_t>(currentBufferIndex) >= buffers.size())
         {
-            currentBufferIndex = buffers.size() - 1;
+            currentBufferIndex = static_cast<int>(buffers.size() - 1);
         }
         updateCurrentBufferPointers();
         if(splitActive)
@@ -355,7 +356,7 @@ void Editor::listBuffersImpl()
 
     for(size_t i = 0; i < buffers.size(); i++)
     {
-        if(i == currentBufferIndex)
+        if(i == static_cast<size_t>(currentBufferIndex))
             ss << "[";
 
         ss << (i + 1) << ":";
@@ -372,7 +373,7 @@ void Editor::listBuffersImpl()
         if(buffers[i]->dirty)
             ss << "+";
 
-        if(i == currentBufferIndex)
+        if(i == static_cast<size_t>(currentBufferIndex))
             ss << "]";
 
         if(i < buffers.size() - 1)
@@ -409,7 +410,7 @@ int Editor::findBufferByFilenameImpl(const std::string& fname)
         bufferIndexByFilename.erase(cached);
     }
 
-    for(int i = 0; i < buffers.size(); i++)
+    for(int i = 0; static_cast<size_t>(i) < buffers.size(); i++)
     {
         if(buffers[i]->filename == fname)
         {

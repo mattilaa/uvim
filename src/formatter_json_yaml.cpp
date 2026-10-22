@@ -17,7 +17,7 @@ static std::string read_first_line(const std::string& path)
     return line;
 }
 
-bool JsonFormatter::operator()(Mode mode)
+bool JsonFormatter::operator()(Mode)
 {
     if(!editor.lines || !editor.filename)
         return false;
@@ -109,7 +109,7 @@ bool JsonFormatter::operator()(Mode mode)
     return true;
 }
 
-bool YamlFormatter::operator()(Mode mode)
+bool YamlFormatter::operator()(Mode)
 {
     if(!editor.lines || !editor.filename)
         return false;

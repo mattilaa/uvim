@@ -176,6 +176,9 @@ function(uvim_add_config_target)
 
     if(MSVC)
         target_compile_options(uvim-config PRIVATE /W4 /permissive-)
+        # Keep portable C APIs; Microsoft's replacement names are not portable.
+        target_compile_definitions(uvim-config PRIVATE
+            _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
     else()
         target_compile_options(uvim-config PRIVATE -Wall -Wextra -Wpedantic)
     endif()
@@ -603,6 +606,8 @@ uvim_status_bool("c#" UVIM_ENABLE_CSHARP_LSP)
 # ------------------------------------------------------------------------------
 if(MSVC)
     target_compile_options(uvim PRIVATE /W4 /permissive-)
+    target_compile_definitions(uvim PRIVATE
+        _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -1117,3 +1122,15 @@ install(TARGETS uvim
     RUNTIME DESTINATION "${UVIM_INSTALL_BINDIR}"
     COMPONENT uvim
 )
+
+if(MSVC AND UVIM_BUILD_TESTS)
+    # Apply the same portable CRT policy to our tests and helper executables.
+    # Dependency targets retain their own compiler settings.
+    get_property(uvim_local_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(uvim_local_target IN LISTS uvim_local_targets)
+        if(uvim_local_target MATCHES "_tests$|^fake_")
+            target_compile_definitions(${uvim_local_target} PRIVATE
+                _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
+        endif()
+    endforeach()
+endif()

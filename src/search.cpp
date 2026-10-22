@@ -33,7 +33,7 @@ void Editor::findAllMatches()
         return;
     }
 
-    for(int row = 0; row < lines->size(); row++)
+    for(int row = 0; static_cast<size_t>(row) < lines->size(); row++)
     {
         const std::string& line = (*lines)[row];
         auto start = line.cbegin();
@@ -44,9 +44,9 @@ void Editor::findAllMatches()
             if(!std::regex_search(start, line.cend(), match, pattern))
                 break;
 
-            int col =
-                (int)std::distance(line.cbegin(), start) + match.position();
-            int len = match.length();
+            int col = static_cast<int>(std::distance(line.cbegin(), start) +
+                                       match.position());
+            int len = static_cast<int>(match.length());
             if(len > 0)
             {
                 SearchMatch entry;
@@ -72,7 +72,7 @@ void Editor::findAllMatches()
 
 void Editor::jumpToMatch(int index)
 {
-    if(index < 0 || index >= searchMatches.size())
+    if(index < 0 || static_cast<size_t>(index) >= searchMatches.size())
         return;
 
     const auto& match = searchMatches[index];
@@ -99,7 +99,7 @@ void Editor::performSearch()
     int bestIndex = 0;
     int minDist = INT_MAX;
 
-    for(int i = 0; i < searchMatches.size(); i++)
+    for(int i = 0; static_cast<size_t>(i) < searchMatches.size(); i++)
     {
         const auto& match = searchMatches[i];
         int dist;
@@ -131,8 +131,9 @@ void Editor::performSearch()
             else
             {
                 // Wrap around
-                dist = 1000000 + (lines->size() - match.row) * 10000 +
-                       ((*lines)[match.row].length() - match.col);
+                dist = static_cast<int>(
+                    1000000 + (lines->size() - match.row) * 10000 +
+                    ((*lines)[match.row].length() - match.col));
             }
         }
 
@@ -212,8 +213,8 @@ void Editor::searchPrevious()
         }
     }
 
-    currentMatchIndex =
-        (currentMatchIndex - 1 + searchMatches.size()) % searchMatches.size();
+    currentMatchIndex = static_cast<int>(
+        (currentMatchIndex - 1 + searchMatches.size()) % searchMatches.size());
     jumpToMatch(currentMatchIndex);
     setStatusMessage("Match " + std::to_string(currentMatchIndex + 1) + " of " +
                      std::to_string(searchMatches.size()));

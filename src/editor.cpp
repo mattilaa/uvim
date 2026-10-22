@@ -479,27 +479,29 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
 #endif
             auto findSetting = [&](const std::string& key)
             {
-                auto it = values.find("editor." + key);
-                if(it == values.end())
-                    it = values.find("settings." + key);
-                if(it == values.end())
-                    it = values.find(key);
-                return it;
+                auto setting = values.find("editor." + key);
+                if(setting == values.end())
+                    setting = values.find("settings." + key);
+                if(setting == values.end())
+                    setting = values.find(key);
+                return setting;
             };
-            if(auto it = findSetting("pickerstyle"); it != values.end())
+            if(auto setting = findSetting("pickerstyle");
+               setting != values.end())
             {
-                if(it->second == "float" || it->second == "floating")
+                if(setting->second == "float" || setting->second == "floating")
                     pickerFloating = true;
-                else if(it->second == "fullscreen" || it->second == "full")
+                else if(setting->second == "fullscreen" ||
+                        setting->second == "full")
                     pickerFloating = false;
             }
             auto parsePercent = [&](const char* key, int& out)
             {
-                if(auto it = findSetting(key); it != values.end())
+                if(auto setting = findSetting(key); setting != values.end())
                 {
                     try
                     {
-                        const int value = std::stoi(it->second);
+                        const int value = std::stoi(setting->second);
                         if(value >= 10 && value <= 100)
                             out = value;
                     }
@@ -510,13 +512,14 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
             };
             parsePercent("picker.width", pickerWidthPercent);
             parsePercent("picker.height", pickerHeightPercent);
-            if(auto it = findSetting("picker.preview"); it != values.end())
+            if(auto setting = findSetting("picker.preview");
+               setting != values.end())
             {
-                if(it->second == "true" || it->second == "1" ||
-                   it->second == "on")
+                if(setting->second == "true" || setting->second == "1" ||
+                   setting->second == "on")
                     pickerPreview = true;
-                else if(it->second == "false" || it->second == "0" ||
-                        it->second == "off")
+                else if(setting->second == "false" || setting->second == "0" ||
+                        setting->second == "off")
                     pickerPreview = false;
             }
             auto itps = values.find("editor.progressstyle");
@@ -997,9 +1000,9 @@ bool Editor::isFileType(FileType type) const
 }
 
 void Editor::highlightPreviewLines(PreviewHighlight& cache,
-                                  const std::string& path,
-                                  const std::vector<std::string>& lines,
-                                  size_t upTo)
+                                   const std::string& path,
+                                   const std::vector<std::string>& previewLines,
+                                   size_t upTo)
 {
     if(!syntaxHighlighter || !fileTypeController)
         return;
@@ -1007,9 +1010,10 @@ void Editor::highlightPreviewLines(PreviewHighlight& cache,
     {
         cache = PreviewHighlight{};
         cache.path = path;
-        cache.fileTypeMask = fileTypeController->detectFileTypeMask(path, &lines);
+        cache.fileTypeMask =
+            fileTypeController->detectFileTypeMask(path, &previewLines);
     }
-    const size_t end = std::min(upTo, lines.size());
+    const size_t end = std::min(upTo, previewLines.size());
     if(cache.tokens.size() >= end)
         return;
 
@@ -1028,7 +1032,7 @@ void Editor::highlightPreviewLines(PreviewHighlight& cache,
     for(size_t i = cache.tokens.size(); i < end; ++i)
     {
         cache.tokens.push_back(syntaxHighlighter->tokenizeLine(
-            lines[i], cache.inBlockComment, cache.inTomlMultiline,
+            previewLines[i], cache.inBlockComment, cache.inTomlMultiline,
             cache.tomlQuote, cache.inMarkupFence, cache.markupFenceChar));
     }
 }
@@ -1216,10 +1220,10 @@ bool Editor::isClangdLspEnabled() const
     return lspController->isClangdLspEnabled();
 }
 
-void Editor::enableRobotLsp(bool enable, const std::string& robotLspPath,
-                            const std::vector<std::string>& robotLspArgs)
+void Editor::enableRobotLsp(bool enable, const std::string& serverPath,
+                            const std::vector<std::string>& serverArgs)
 {
-    lspController->enableRobotLsp(enable, robotLspPath, robotLspArgs);
+    lspController->enableRobotLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isRobotLspEnabled() const
@@ -1227,10 +1231,10 @@ bool Editor::isRobotLspEnabled() const
     return lspController->isRobotLspEnabled();
 }
 
-void Editor::enablePythonLsp(bool enable, const std::string& pythonLspPath,
-                             const std::vector<std::string>& pythonLspArgs)
+void Editor::enablePythonLsp(bool enable, const std::string& serverPath,
+                             const std::vector<std::string>& serverArgs)
 {
-    lspController->enablePythonLsp(enable, pythonLspPath, pythonLspArgs);
+    lspController->enablePythonLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isPythonLspEnabled() const
@@ -1238,10 +1242,10 @@ bool Editor::isPythonLspEnabled() const
     return lspController->isPythonLspEnabled();
 }
 
-void Editor::enableMlangLsp(bool enable, const std::string& mlangLspPath,
-                            const std::vector<std::string>& mlangLspArgs)
+void Editor::enableMlangLsp(bool enable, const std::string& serverPath,
+                            const std::vector<std::string>& serverArgs)
 {
-    lspController->enableMlangLsp(enable, mlangLspPath, mlangLspArgs);
+    lspController->enableMlangLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isMlangLspEnabled() const
@@ -1314,10 +1318,10 @@ bool Editor::hasReferences() const
     return referencesController->hasReferences();
 }
 
-void Editor::enableHtmlLsp(bool enable, const std::string& htmlLspPath,
-                           const std::vector<std::string>& htmlLspArgs)
+void Editor::enableHtmlLsp(bool enable, const std::string& serverPath,
+                           const std::vector<std::string>& serverArgs)
 {
-    lspController->enableHtmlLsp(enable, htmlLspPath, htmlLspArgs);
+    lspController->enableHtmlLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isHtmlLspEnabled() const
@@ -1325,10 +1329,10 @@ bool Editor::isHtmlLspEnabled() const
     return lspController->isHtmlLspEnabled();
 }
 
-void Editor::enableCssLsp(bool enable, const std::string& cssLspPath,
-                          const std::vector<std::string>& cssLspArgs)
+void Editor::enableCssLsp(bool enable, const std::string& serverPath,
+                          const std::vector<std::string>& serverArgs)
 {
-    lspController->enableCssLsp(enable, cssLspPath, cssLspArgs);
+    lspController->enableCssLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isCssLspEnabled() const
@@ -1336,10 +1340,10 @@ bool Editor::isCssLspEnabled() const
     return lspController->isCssLspEnabled();
 }
 
-void Editor::enableJsonLsp(bool enable, const std::string& jsonLspPath,
-                           const std::vector<std::string>& jsonLspArgs)
+void Editor::enableJsonLsp(bool enable, const std::string& serverPath,
+                           const std::vector<std::string>& serverArgs)
 {
-    lspController->enableJsonLsp(enable, jsonLspPath, jsonLspArgs);
+    lspController->enableJsonLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isJsonLspEnabled() const
@@ -1347,10 +1351,10 @@ bool Editor::isJsonLspEnabled() const
     return lspController->isJsonLspEnabled();
 }
 
-void Editor::enableTsLsp(bool enable, const std::string& tsLspPath,
-                         const std::vector<std::string>& tsLspArgs)
+void Editor::enableTsLsp(bool enable, const std::string& serverPath,
+                         const std::vector<std::string>& serverArgs)
 {
-    lspController->enableTsLsp(enable, tsLspPath, tsLspArgs);
+    lspController->enableTsLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isTsLspEnabled() const
@@ -1358,10 +1362,10 @@ bool Editor::isTsLspEnabled() const
     return lspController->isTsLspEnabled();
 }
 
-void Editor::enableCSharpLsp(bool enable, const std::string& csharpLspPath,
-                             const std::vector<std::string>& csharpLspArgs)
+void Editor::enableCSharpLsp(bool enable, const std::string& serverPath,
+                             const std::vector<std::string>& serverArgs)
 {
-    lspController->enableCSharpLsp(enable, csharpLspPath, csharpLspArgs);
+    lspController->enableCSharpLsp(enable, serverPath, serverArgs);
 }
 
 bool Editor::isCSharpLspEnabled() const
@@ -2629,7 +2633,7 @@ void Editor::restoreBufferState()
 bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
                                       int& outY, int& outX)
 {
-    for(int y = 0; y < buf->lines.size(); ++y)
+    for(int y = 0; static_cast<size_t>(y) < buf->lines.size(); ++y)
     {
         const std::string& line = buf->lines[y];
         if(CppNavigationUtilities::isLikelyDefinition(line, symbol))
@@ -2638,7 +2642,7 @@ bool Editor::searchDefinitionInBuffer(Buffer* buf, const std::string& symbol,
             if(text_utils::is_found(pos))
             {
                 outY = y;
-                outX = pos;
+                outX = static_cast<int>(pos);
                 return true;
             }
         }
@@ -2779,7 +2783,7 @@ void Editor::openSymbolPopupForCursor()
     };
 
     auto infer_auto_type_from_decl =
-        [&](const std::string& declLine, const std::string& varName,
+        [&](const std::string& declLine,
             const std::vector<std::string>& currentLines) -> std::string
     {
         size_t eq = declLine.find('=');
@@ -2812,8 +2816,7 @@ void Editor::openSymbolPopupForCursor()
                 declLine, memberObject);
             if(typeToken == "auto")
             {
-                typeToken =
-                    infer_auto_type_from_decl(declLine, memberObject, *lines);
+                typeToken = infer_auto_type_from_decl(declLine, *lines);
             }
             if(!typeToken.empty())
             {

@@ -1745,7 +1745,7 @@ std::optional<ModeState> FileBrowserMode::handle(ModeContext& ctx,
             c == keyCode(command::CommandKey::KEY_MINUS))
     {
         size_t lastSlash = currentDirectory.find_last_of(
-            keyCode(command::CommandKey::KEY_SLASH));
+            keyChar(command::CommandKey::KEY_SLASH));
         if(text_utils::is_found(lastSlash) && lastSlash > 0)
         {
             std::string parentDir = currentDirectory.substr(0, lastSlash);
@@ -2503,7 +2503,7 @@ void FileBrowserMode::draw(Editor& editor) const
                           text_utils::displayWidth(info);
             if(padding > 0)
             {
-                output.append(padding, keyCode(control::ControlKey::SPACE));
+                output.append(padding, keyChar(control::ControlKey::SPACE));
                 output += editor.theme.uiDim();
                 output += info;
             }
@@ -3046,7 +3046,7 @@ std::string FileBrowserMode::formatFileSize(size_t size) const
 {
     const char* units[] = {"B", "K", "M", "G", "T"};
     int unitIndex = 0;
-    double displaySize = size;
+    double displaySize = static_cast<double>(size);
 
     while(displaySize >= 1024 && unitIndex < 4)
     {
@@ -3096,7 +3096,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 if(!args.empty())
                 {
                     if(!pattern.empty())
-                        pattern.push_back(keyCode(control::ControlKey::SPACE));
+                        pattern.push_back(keyChar(control::ControlKey::SPACE));
                     pattern += args;
                 }
                 if(pattern.empty())
@@ -3139,7 +3139,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 }
                 startIndex = std::max(
                     0, std::min(startIndex,
-                                static_cast<int>(fileList.size()) - 1));
+                                static_cast<int>(fileList.size() - 1)));
 
                 const int count = static_cast<int>(fileList.size());
                 std::vector<int> matches;
@@ -3168,7 +3168,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 int matchPos = -1;
                 if(backward)
                 {
-                    for(int i = static_cast<int>(matches.size()) - 1; i >= 0;
+                    for(int i = static_cast<int>(matches.size() - 1); i >= 0;
                         --i)
                     {
                         if(matches[i] <= startIndex)
@@ -3178,7 +3178,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                         }
                     }
                     if(matchPos < 0)
-                        matchPos = static_cast<int>(matches.size()) - 1;
+                        matchPos = static_cast<int>(matches.size() - 1);
                 }
                 else
                 {
@@ -3229,9 +3229,9 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 return true;
             };
 
-            if(runRegexSearch(keyCode(command::CommandKey::KEY_SLASH), false))
+            if(runRegexSearch(keyChar(command::CommandKey::KEY_SLASH), false))
                 return true;
-            if(runRegexSearch(keyCode(command::CommandKey::KEY_QUESTION), true))
+            if(runRegexSearch(keyChar(command::CommandKey::KEY_QUESTION), true))
                 return true;
 
             // =================================================================
@@ -3452,7 +3452,7 @@ FileBrowserMode::executeCommand(ModeContext& ctx, std::string_view commandLine)
                 {
                     std::string rel;
                     size_t lastSlash = args.find_last_of(
-                        keyCode(command::CommandKey::KEY_SLASH));
+                        keyChar(command::CommandKey::KEY_SLASH));
                     if(text_utils::is_found(lastSlash))
                         rel = args.substr(0, lastSlash);
                     else

@@ -126,7 +126,7 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
     return i;
 }
 
-bool MlangFormatter::operator()(Mode mode)
+bool MlangFormatter::operator()(Mode)
 {
     if(!editor.currentBuffer || !editor.lines)
         return false;
@@ -362,9 +362,8 @@ bool MlangFormatter::operator()(Mode mode)
     return true;
 }
 #else
-bool MlangFormatter::operator()(Mode mode)
+bool MlangFormatter::operator()(Mode)
 {
-    (void)mode;
     editor.setStatusMessage("mlang LSP: not compiled");
     return false;
 }

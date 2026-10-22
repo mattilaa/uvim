@@ -15,13 +15,13 @@ void Editor::yankRange(int startY, int startX, int endY, int endX)
     if(startY == endY)
     {
         const std::string& line = (*lines)[startY];
-        if(startX <= endX && startX < line.length())
+        if(startX <= endX && static_cast<size_t>(startX) < line.length())
             yankBuffer = line.substr(startX, endX - startX + 1);
     }
     else
     {
         const std::string& firstLine = (*lines)[startY];
-        if(startX < firstLine.length())
+        if(static_cast<size_t>(startX) < firstLine.length())
             yankBuffer = firstLine.substr(startX);
         yankBuffer += "\n";
         for(int r = startY + 1; r < endY; ++r)
@@ -30,7 +30,7 @@ void Editor::yankRange(int startY, int startX, int endY, int endX)
             yankBuffer += "\n";
         }
         const std::string& lastLine = (*lines)[endY];
-        if(endX >= 0 && endX < lastLine.length())
+        if(endX >= 0 && static_cast<size_t>(endX) < lastLine.length())
             yankBuffer += lastLine.substr(0, endX + 1);
     }
     // Operator yanks (yw, yiw, y$, dw, ciw ...) reach the system clipboard
@@ -46,7 +46,7 @@ void Editor::deleteRange(int startY, int startX, int endY, int endX)
     if(startY == endY)
     {
         std::string& line = (*lines)[startY];
-        if(startX <= endX && startX < line.length())
+        if(startX <= endX && static_cast<size_t>(startX) < line.length())
         {
             line.erase(startX, endX - startX + 1);
         }
@@ -55,7 +55,7 @@ void Editor::deleteRange(int startY, int startX, int endY, int endX)
     {
         std::string prefix = (*lines)[startY].substr(0, startX);
         std::string suffix = "";
-        if(endX + 1 < (*lines)[endY].length())
+        if(static_cast<size_t>(endX + 1) < (*lines)[endY].length())
             suffix = (*lines)[endY].substr(endX + 1);
         lines->erase(lines->begin() + startY, lines->begin() + endY + 1);
         lines->insert(lines->begin() + startY, prefix + suffix);
@@ -76,16 +76,16 @@ void Editor::deleteRange(int startY, int startX, int endY, int endX)
 
     if(lines->empty())
         lines->push_back("");
-    if(*cursorY >= lines->size())
-        *cursorY = lines->size() - 1;
-    if(*cursorX > (*lines)[*cursorY].length())
-        *cursorX = (*lines)[*cursorY].length();
+    if(static_cast<size_t>(*cursorY) >= lines->size())
+        *cursorY = static_cast<int>(lines->size() - 1);
+    if(static_cast<size_t>(*cursorX) > (*lines)[*cursorY].length())
+        *cursorX = static_cast<int>((*lines)[*cursorY].length());
     needsFullRedraw = true;
 }
 
 void Editor::insertChar(char c)
 {
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
     {
         lines->push_back("");
     }
@@ -99,7 +99,7 @@ void Editor::insertChar(char c)
 
 void Editor::insertNewline()
 {
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
     {
         lines->push_back("");
         (*cursorY)++;
@@ -241,7 +241,8 @@ void Editor::insertNewline()
                                                               *cursorY + 2,
                                                           indentStr + after);
                                             (*cursorY)++;
-                                            *cursorX = innerIndent.length();
+                                            *cursorX = static_cast<int>(
+                                                innerIndent.length());
                                             *dirty = true;
                                             needsFullRedraw = true;
                                             return;
@@ -277,7 +278,7 @@ void Editor::insertNewline()
     }
 
     std::string remainder;
-    if(*cursorX < currentLine.length())
+    if(static_cast<size_t>(*cursorX) < currentLine.length())
     {
         remainder = currentLine.substr(*cursorX);
         size_t startPos = remainder.find_first_not_of(" \t");
@@ -354,7 +355,7 @@ void Editor::insertNewline()
 
 void Editor::deleteChar()
 {
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
         return;
     if(*cursorX == 0 && *cursorY == 0)
         return;
@@ -379,7 +380,7 @@ void Editor::deleteChar()
     }
     else
     {
-        *cursorX = (*lines)[*cursorY - 1].length();
+        *cursorX = static_cast<int>((*lines)[*cursorY - 1].length());
         (*lines)[*cursorY - 1] += (*lines)[*cursorY];
         lines->erase(lines->begin() + *cursorY);
         if(currentBuffer && currentBuffer->blameValid &&
@@ -401,10 +402,10 @@ void Editor::deleteChar()
 
 void Editor::deleteCharForward()
 {
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
         return;
 
-    if(*cursorX < (*lines)[*cursorY].length())
+    if(static_cast<size_t>(*cursorX) < (*lines)[*cursorY].length())
     {
         std::string& line = (*lines)[*cursorY];
         if(utf8Mode)
@@ -428,7 +429,7 @@ void Editor::deleteCharForward()
             line.erase(*cursorX, 1);
         }
     }
-    else if(*cursorY < lines->size() - 1)
+    else if(static_cast<size_t>(*cursorY) < lines->size() - 1)
     {
         (*lines)[*cursorY] += (*lines)[*cursorY + 1];
         lines->erase(lines->begin() + *cursorY + 1);
@@ -464,9 +465,9 @@ void Editor::deleteLine()
     if(currentBuffer)
         currentBuffer->blameValid = false;
 
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
     {
-        *cursorY = lines->size() - 1;
+        *cursorY = static_cast<int>(lines->size() - 1);
     }
 
     *cursorX = 0;
@@ -478,10 +479,10 @@ void Editor::deleteLine()
 
 void Editor::deleteToLineEnd()
 {
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
         return;
 
-    if(*cursorX < (*lines)[*cursorY].length())
+    if(static_cast<size_t>(*cursorX) < (*lines)[*cursorY].length())
     {
         yankBuffer = (*lines)[*cursorY].substr(*cursorX);
         (*lines)[*cursorY] = (*lines)[*cursorY].substr(0, *cursorX);
@@ -491,7 +492,7 @@ void Editor::deleteToLineEnd()
 
 void Editor::yankLine()
 {
-    if(*cursorY < lines->size())
+    if(static_cast<size_t>(*cursorY) < lines->size())
     {
         yankBuffer = (*lines)[*cursorY] + "\n";
 
@@ -507,7 +508,8 @@ void Editor::yankLine()
 
 void Editor::yankToLineEnd()
 {
-    if(*cursorY < lines->size() && *cursorX < (*lines)[*cursorY].length())
+    if(static_cast<size_t>(*cursorY) < lines->size() &&
+       static_cast<size_t>(*cursorX) < (*lines)[*cursorY].length())
     {
         yankBuffer = (*lines)[*cursorY].substr(*cursorX);
         setStatusMessage("Yanked to line end");
@@ -697,7 +699,7 @@ void Editor::pasteAfter()
     }
     else if(hasNewline)
     {
-        if(*cursorX < (*lines)[*cursorY].length())
+        if(static_cast<size_t>(*cursorX) < (*lines)[*cursorY].length())
         {
             if(utf8Mode)
             {
@@ -746,7 +748,7 @@ void Editor::pasteAfter()
     }
     else
     {
-        if(*cursorX < (*lines)[*cursorY].length())
+        if(static_cast<size_t>(*cursorX) < (*lines)[*cursorY].length())
         {
             if(utf8Mode)
             {
@@ -857,10 +859,11 @@ void Editor::deleteVisualBlock()
     int startY, startX, endY, endX;
     getVisualBlockBounds(startY, startX, endY, endX);
 
-    for(int row = startY; row <= endY && row < lines->size(); row++)
+    for(int row = startY;
+        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
     {
         std::string& line = (*lines)[row];
-        if(startX < line.length())
+        if(static_cast<size_t>(startX) < line.length())
         {
             int deleteEnd = std::min(endX + 1, (int)line.length());
             line.erase(startX, deleteEnd - startX);
@@ -869,8 +872,8 @@ void Editor::deleteVisualBlock()
 
     *cursorY = startY;
     *cursorX = startX;
-    if(*cursorX > (*lines)[*cursorY].length())
-        *cursorX = (*lines)[*cursorY].length();
+    if(static_cast<size_t>(*cursorX) > (*lines)[*cursorY].length())
+        *cursorX = static_cast<int>((*lines)[*cursorY].length());
 
     *dirty = true;
     saveState();
@@ -886,10 +889,11 @@ void Editor::yankVisualBlock()
 
     yankBuffer.clear();
 
-    for(int row = startY; row <= endY && row < lines->size(); row++)
+    for(int row = startY;
+        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
     {
         const std::string& line = (*lines)[row];
-        if(startX < line.length())
+        if(static_cast<size_t>(startX) < line.length())
         {
             int yankEnd = std::min(endX + 1, (int)line.length());
             yankBuffer += line.substr(startX, yankEnd - startX);
@@ -915,10 +919,11 @@ void Editor::changeVisualBlock()
     int startY, startX, endY, endX;
     getVisualBlockBounds(startY, startX, endY, endX);
 
-    for(int row = startY; row <= endY && row < lines->size(); row++)
+    for(int row = startY;
+        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
     {
         std::string& line = (*lines)[row];
-        if(startX < line.length())
+        if(static_cast<size_t>(startX) < line.length())
         {
             int deleteEnd = std::min(endX + 1, (int)line.length());
             line.erase(startX, deleteEnd - startX);
@@ -940,13 +945,14 @@ void Editor::applyVisualBlockInsert()
     int endY = currentBuffer->visualBlockEndY;
     int insertX = currentBuffer->visualBlockStartX;
 
-    for(int row = startY; row <= endY && row < lines->size(); row++)
+    for(int row = startY;
+        row <= endY && static_cast<size_t>(row) < lines->size(); row++)
     {
         if(row == *cursorY)
             continue;
 
         std::string& line = (*lines)[row];
-        while(line.length() < insertX)
+        while(line.length() < static_cast<size_t>(insertX))
         {
             line += " ";
         }

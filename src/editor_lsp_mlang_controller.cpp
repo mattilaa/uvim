@@ -12,12 +12,12 @@ namespace
 mla::log::FileLogger LSP_LOG("MLANG");
 }
 
-void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
-                                const std::vector<std::string>& mlangLspArgs)
+void Editor::enableMlangLspImpl(bool enable, const std::string& serverPath,
+                                const std::vector<std::string>& serverArgs)
 {
     mlangLspEnabled = false;
-    this->mlangLspPath = mlangLspPath;
-    this->mlangLspArgs = mlangLspArgs;
+    this->mlangLspPath = serverPath;
+    this->mlangLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_MLANG_LSP
     if(!enable)
@@ -49,8 +49,8 @@ void Editor::enableMlangLspImpl(bool enable, const std::string& mlangLspPath,
         { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
-    (void)mlangLspPath;
-    (void)mlangLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "Mlang LSP is not compiled");
 #endif
 }

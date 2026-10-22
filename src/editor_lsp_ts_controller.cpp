@@ -12,12 +12,12 @@ namespace
 mla::log::FileLogger LSP_LOG("TS");
 }
 
-void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
-                             const std::vector<std::string>& tsLspArgs)
+void Editor::enableTsLspImpl(bool enable, const std::string& serverPath,
+                             const std::vector<std::string>& serverArgs)
 {
     tsLspEnabled = false;
-    this->tsLspPath = tsLspPath;
-    this->tsLspArgs = tsLspArgs;
+    this->tsLspPath = serverPath;
+    this->tsLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_TS_LSP
     if(!enable)
@@ -49,8 +49,8 @@ void Editor::enableTsLspImpl(bool enable, const std::string& tsLspPath,
         { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
-    (void)tsLspPath;
-    (void)tsLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "TypeScript LSP is not compiled");
 #endif
 }

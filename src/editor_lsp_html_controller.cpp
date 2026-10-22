@@ -12,12 +12,12 @@ namespace
 mla::log::FileLogger LSP_LOG("HTML");
 }
 
-void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
-                               const std::vector<std::string>& htmlLspArgs)
+void Editor::enableHtmlLspImpl(bool enable, const std::string& serverPath,
+                               const std::vector<std::string>& serverArgs)
 {
     htmlLspEnabled = false;
-    this->htmlLspPath = htmlLspPath;
-    this->htmlLspArgs = htmlLspArgs;
+    this->htmlLspPath = serverPath;
+    this->htmlLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_HTML_LSP
     if(!enable)
@@ -49,8 +49,8 @@ void Editor::enableHtmlLspImpl(bool enable, const std::string& htmlLspPath,
         { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
-    (void)htmlLspPath;
-    (void)htmlLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "HTML LSP is not compiled");
 #endif
 }

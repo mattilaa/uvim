@@ -537,8 +537,8 @@ void HelpMode::draw(Editor& editor) const
         }
         else if(!line.empty() && std::isupper(line[0]) &&
                 text_utils::contains(line,
-                                     keyCode(command::CommandKey::KEY_COLON)) &&
-                line.find(keyCode(command::CommandKey::KEY_COLON)) < 30)
+                                     keyChar(command::CommandKey::KEY_COLON)) &&
+                line.find(keyChar(command::CommandKey::KEY_COLON)) < 30)
         {
             // Section header (e.g., "COMMANDS:")
             output += editor.theme.uiAccent();
@@ -580,7 +580,7 @@ void HelpMode::draw(Editor& editor) const
                 {
                     // Code/command in backticks
                     size_t end = line.find(
-                        keyCode(command::CommandKey::KEY_BACKTICK), pos + 1);
+                        keyChar(command::CommandKey::KEY_BACKTICK), pos + 1);
                     if(text_utils::is_found(end))
                     {
                         const bool preserveCodeColumns =
@@ -812,7 +812,7 @@ void HelpMode::startSearch(Editor& editor)
     editor.needsFullRedraw = true;
 }
 
-void HelpMode::updateSearchMatches(Editor& editor)
+void HelpMode::updateSearchMatches(Editor&)
 {
     searchMatches.clear();
     searchCursor = 0;

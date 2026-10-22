@@ -407,7 +407,7 @@ void Editor::drawRows()
             Terminal::write(theme.baseFg());
         };
 
-        if(fileRow >= lines->size())
+        if(static_cast<size_t>(fileRow) >= lines->size())
         {
             renderGutter(fileRow);
             Terminal::write(theme.uiGutter());
@@ -596,7 +596,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
             output += theme.reset();
             output += Terminal::ESC_CLEAR_LINE;
 
-            if(fileRow < lines->size())
+            if(static_cast<size_t>(fileRow) < lines->size())
             {
                 appendGutter(fileRow);
 
@@ -753,7 +753,7 @@ void Editor::drawScrollUpdate(int scrollDelta)
             output += theme.reset();
             output += Terminal::ESC_CLEAR_LINE;
 
-            if(fileRow < lines->size())
+            if(static_cast<size_t>(fileRow) < lines->size())
             {
                 appendGutter(fileRow);
 
@@ -1122,7 +1122,7 @@ void Editor::drawFullScreenSingle()
 
         int fileRow = y + *offsetY;
 
-        if(fileRow >= lines->size())
+        if(static_cast<size_t>(fileRow) >= lines->size())
         {
             appendGutter(fileRow);
             output += theme.uiGutter();
@@ -1865,7 +1865,8 @@ void Editor::drawSplitFullScreen()
     rightBlock += rightStatus;
 
     int rightLen = text_utils::displayWidth(rightBlock);
-    int availableForFile = screenCols - statusLeft.length() - rightLen - 1;
+    int availableForFile =
+        screenCols - static_cast<int>(statusLeft.length()) - rightLen - 1;
 
     if(dirty && *dirty)
         displayName += " [+]";
@@ -1880,7 +1881,7 @@ void Editor::drawSplitFullScreen()
 
     output += statusLeft;
 
-    int padding = screenCols - statusLeft.length() - rightLen;
+    int padding = screenCols - static_cast<int>(statusLeft.length()) - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
     {

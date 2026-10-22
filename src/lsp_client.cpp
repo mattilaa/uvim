@@ -1416,7 +1416,7 @@ struct LspClient::Impl
         return true;
     }
 
-    bool initialize(const std::string& rootDir)
+    bool initialize(const std::string& rootDirectory)
     {
         ju::Document params(ju::kObjectType);
         auto& alloc = params.GetAllocator();
@@ -1426,17 +1426,19 @@ struct LspClient::Impl
         params.AddMember("processId", (int)getpid(), alloc);
 #endif
         params.AddMember("rootUri",
-                         ju::make_string(pathToFileUri(rootDir), alloc), alloc);
-        params.AddMember("rootPath", ju::make_string(absPath(rootDir), alloc),
+                         ju::make_string(pathToFileUri(rootDirectory), alloc),
                          alloc);
+        params.AddMember("rootPath",
+                         ju::make_string(absPath(rootDirectory), alloc), alloc);
         ju::Value workspaceFolders(ju::kArrayType);
         ju::Value workspaceFolder(ju::kObjectType);
         workspaceFolder.AddMember(
-            "uri", ju::make_string(pathToFileUri(rootDir), alloc), alloc);
+            "uri", ju::make_string(pathToFileUri(rootDirectory), alloc), alloc);
         workspaceFolder.AddMember(
             "name",
-            ju::make_string(std::filesystem::path(rootDir).filename().string(),
-                            alloc),
+            ju::make_string(
+                std::filesystem::path(rootDirectory).filename().string(),
+                alloc),
             alloc);
         workspaceFolders.PushBack(workspaceFolder, alloc);
         params.AddMember("workspaceFolders", workspaceFolders, alloc);
@@ -1455,8 +1457,8 @@ struct LspClient::Impl
             tokenTypes.PushBack(ju::make_string(t, alloc), alloc);
         semCaps.AddMember("tokenTypes", tokenTypes, alloc);
         ju::Value tokenModifiers(ju::kArrayType);
-        for(const auto& m : semanticTokenModifiers)
-            tokenModifiers.PushBack(ju::make_string(m, alloc), alloc);
+        for(const auto& modifier : semanticTokenModifiers)
+            tokenModifiers.PushBack(ju::make_string(modifier, alloc), alloc);
         semCaps.AddMember("tokenModifiers", tokenModifiers, alloc);
         ju::Value formats(ju::kArrayType);
         formats.PushBack("relative", alloc);

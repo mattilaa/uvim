@@ -110,7 +110,8 @@ void Editor::saveState()
     currentBuffer->invalidateSyntaxCache();
     clearRenameUndoSnapshot();
 
-    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
+    if(static_cast<size_t>(currentBuffer->undoIndex) <
+       currentBuffer->undoStack.size() - 1)
     {
         if(currentBuffer->savedUndoIndex > currentBuffer->undoIndex)
         {
@@ -230,7 +231,8 @@ void Editor::redo()
     if(!currentBuffer)
         return;
 
-    if(currentBuffer->undoIndex < currentBuffer->undoStack.size() - 1)
+    if(static_cast<size_t>(currentBuffer->undoIndex) <
+       currentBuffer->undoStack.size() - 1)
     {
         currentBuffer->undoIndex++;
         const Buffer::EditState& state =

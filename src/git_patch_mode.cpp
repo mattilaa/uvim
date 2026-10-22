@@ -201,9 +201,9 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         }
         else
         {
-            ProcessPipe pipe(
+            ProcessPipe commitPipe(
                 {"git", "-C", repoDir, "commit", "--fixup", targetHash});
-            pipe.close();
+            commitPipe.close();
             ed->setStatusMessage("fixup commit created");
             return returnStage;
         }
@@ -217,9 +217,9 @@ std::optional<ModeState> GitPatchMode::handle(ModeContext& ctx,
         }
         else
         {
-            ProcessPipe pipe(
+            ProcessPipe commitPipe(
                 {"git", "-C", repoDir, "commit", "--fixup", targetHash});
-            pipe.close();
+            commitPipe.close();
             ed->setStatusMessage("fixup commit created");
             return returnStage;
         }

@@ -168,7 +168,7 @@ std::optional<ModeState> BufferBrowserMode::handle(ModeContext& ctx,
         int half = bufferBrowserVisibleRows(*ed) / 2;
         bufferCursor += half;
         if(bufferCursor >= (int)bufferMatches.size())
-            bufferCursor = bufferMatches.size() - 1;
+            bufferCursor = static_cast<int>(bufferMatches.size() - 1);
         int visible = bufferBrowserVisibleRows(*ed);
         if(bufferCursor >= bufferOffset + visible)
             bufferOffset = bufferCursor - visible + 1;

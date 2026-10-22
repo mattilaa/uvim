@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-bool PythonFormatter::operator()(Mode mode)
+bool PythonFormatter::operator()(Mode)
 {
     if(!editor.lines || !editor.filename)
         return false;

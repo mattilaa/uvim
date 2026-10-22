@@ -112,7 +112,8 @@ void copyFileOrBuffer(const fs::path& source, const fs::path& target,
     fs::copy_file(source, target, fs::copy_options::overwrite_existing, ec);
 }
 
-std::string readFileOrCurrentBuffer(const fs::path& file, const Editor& editor)
+[[maybe_unused]] std::string readFileOrCurrentBuffer(const fs::path& file,
+                                                     const Editor& editor)
 {
     if(editor.currentBuffer && !editor.currentBuffer->filename.empty())
     {
@@ -151,7 +152,8 @@ std::string readFileOrCurrentBuffer(const fs::path& file, const Editor& editor)
     return text;
 }
 
-void refreshProjectMlangDiagnostics(Editor& editor, const fs::path& root)
+[[maybe_unused]] void refreshProjectMlangDiagnostics(Editor& editor,
+                                                     const fs::path& root)
 {
 #ifdef UVIM_ENABLE_MLANG_LSP
     if(!editor.mlangLspClient)

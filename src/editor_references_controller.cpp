@@ -458,7 +458,7 @@ void EditorReferencesController::drawReferences()
             output += editor.theme.reset();
 
         // Fill rest of line
-        int usedCols = 6 + 1 + content.length();
+        int usedCols = 6 + 1 + static_cast<int>(content.length());
         if(usedCols < editor.screenCols)
             output += std::string(editor.screenCols - usedCols, ' ');
 

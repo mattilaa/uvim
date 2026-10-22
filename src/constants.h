@@ -244,7 +244,10 @@ bool is_filetype(std::string_view path, bool case_sensitive = false)
     {
         return matches_path_substrings(path, Substrings, case_sensitive);
     }
-    return false;
+    else
+    {
+        return false;
+    }
 }
 
 } // namespace constants

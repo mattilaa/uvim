@@ -109,7 +109,7 @@ static bool completionCallShouldEndStatement(const std::string& line,
     return true;
 }
 
-static std::string mlangBuiltinDetail(std::string_view label)
+[[maybe_unused]] static std::string mlangBuiltinDetail(std::string_view label)
 {
     if(label == "int")
         return "builtin type alias (int32_t)";
@@ -172,7 +172,8 @@ static std::string mlangBuiltinDetail(std::string_view label)
     return {};
 }
 
-static std::string mlangBuiltinDocumentation(std::string_view label)
+[[maybe_unused]] static std::string
+mlangBuiltinDocumentation(std::string_view label)
 {
     if(label == "int")
         return "Alias for a 32-bit signed integer. Maps to C int32_t in the "
@@ -224,13 +225,6 @@ static std::string mlangBuiltinDocumentation(std::string_view label)
     if(label == "assert_eq!")
         return "Assert that two expressions are equal.";
     return {};
-}
-
-static inline void appendUtf8Repeat(std::string& out, const char* glyph,
-                                    int count)
-{
-    for(int i = 0; i < count; ++i)
-        out += glyph;
 }
 
 static inline bool isAnsiStart(const std::string& s, size_t i)
@@ -422,11 +416,10 @@ static int computeCompletionAnchor(const std::string& line, int cursorX)
     return ax;
 }
 
-static void appendIncludeEntries(const std::filesystem::path& baseDir,
-                                 const std::string& dirPrefix,
-                                 const std::string& filePrefix,
-                                 std::vector<CompletionEntry>& out,
-                                 std::unordered_set<std::string>& seen)
+[[maybe_unused]] static void appendIncludeEntries(
+    const std::filesystem::path& baseDir, const std::string& dirPrefix,
+    const std::string& filePrefix, std::vector<CompletionEntry>& out,
+    std::unordered_set<std::string>& seen)
 {
     std::error_code ec;
     std::filesystem::path target = baseDir;
@@ -2131,7 +2124,8 @@ static int utf16ToUtf8ByteOffset(const std::string& line, int utf16Offset)
     return i;
 }
 
-static std::string joinLinesForLsp(const std::vector<std::string>& source)
+[[maybe_unused]] static std::string
+joinLinesForLsp(const std::vector<std::string>& source)
 {
     std::string text;
     for(size_t i = 0; i < source.size(); ++i)

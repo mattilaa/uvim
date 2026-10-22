@@ -170,9 +170,11 @@ void Editor::toggleCaseImpl()
 
     char c = line[*cursorX];
     if(std::isupper(c))
-        line[*cursorX] = std::tolower(c);
+        line[*cursorX] =
+            static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     else if(std::islower(c))
-        line[*cursorX] = std::toupper(c);
+        line[*cursorX] =
+            static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
 
     if(*cursorX < (int)line.length() - 1)
         (*cursorX)++;
@@ -193,7 +195,7 @@ void Editor::joinLinesImpl()
         currentLine.pop_back();
     }
 
-    int joinPos = currentLine.length();
+    int joinPos = static_cast<int>(currentLine.length());
 
     if(!currentLine.empty() && !nextLine.empty())
     {
@@ -579,7 +581,7 @@ void Editor::deleteCurrentLineImpl()
     }
     if(*cursorY >= (int)lines->size())
     {
-        *cursorY = lines->size() - 1;
+        *cursorY = static_cast<int>(lines->size() - 1);
     }
     *cursorX = 0;
     *dirty = true;
@@ -719,7 +721,7 @@ void Editor::deleteWordImpl()
         // Adjust cursor if past end of line
         if(*cursorX >= (int)line.length() && !line.empty())
         {
-            *cursorX = line.length() - 1;
+            *cursorX = static_cast<int>(line.length() - 1);
         }
         *dirty = true;
     }
@@ -943,18 +945,18 @@ void Editor::insertUtf8CharImpl(int c)
         char buf[5] = {0};
         if(c < 0x800)
         {
-            buf[0] = 0xC0 | (c >> 6);
+            buf[0] = static_cast<char>(0xC0 | (c >> 6));
             buf[1] = 0x80 | (c & 0x3F);
         }
         else if(c < 0x10000)
         {
-            buf[0] = 0xE0 | (c >> 12);
+            buf[0] = static_cast<char>(0xE0 | (c >> 12));
             buf[1] = 0x80 | ((c >> 6) & 0x3F);
             buf[2] = 0x80 | (c & 0x3F);
         }
         else
         {
-            buf[0] = 0xF0 | (c >> 18);
+            buf[0] = static_cast<char>(0xF0 | (c >> 18));
             buf[1] = 0x80 | ((c >> 12) & 0x3F);
             buf[2] = 0x80 | ((c >> 6) & 0x3F);
             buf[3] = 0x80 | (c & 0x3F);

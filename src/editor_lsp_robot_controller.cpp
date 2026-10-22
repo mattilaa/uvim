@@ -12,12 +12,12 @@ namespace
 mla::log::FileLogger LSP_LOG("ROBOT");
 }
 
-void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
-                                const std::vector<std::string>& robotLspArgs)
+void Editor::enableRobotLspImpl(bool enable, const std::string& serverPath,
+                                const std::vector<std::string>& serverArgs)
 {
     robotLspEnabled = false;
-    this->robotLspPath = robotLspPath;
-    this->robotLspArgs = robotLspArgs;
+    this->robotLspPath = serverPath;
+    this->robotLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_ROBOT_LSP
     if(!enable)
@@ -51,8 +51,8 @@ void Editor::enableRobotLspImpl(bool enable, const std::string& robotLspPath,
         { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
-    (void)robotLspPath;
-    (void)robotLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "Robot LSP is not compiled in");
 #endif
 }
