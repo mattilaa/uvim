@@ -135,6 +135,14 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - Typing `:asm . --` opens common compiler flags: up/down or `Ctrl-j/k`
   select, Enter/Tab inserts without compiling, and the next Enter compiles.
   `Esc` cancels the whole command.
+- `:asm` automatically uses the matching `compile_commands.json` entry's compiler,
+  flags, and working directory when found in source/ancestor or common build
+  directories (or the configured clangd database). Prompt flags override inherited
+  optimization, standards and macros; prompt include directories precede inherited
+  paths of the same include kind.
+  `--compiler` overrides the compiler. Prompt paths use the editor working
+  directory; inherited paths use the database entry's directory. The status bar
+  marks inherited settings with `compile_commands`.
 
 \section keys_file_browser File browser
 - `j/k` or arrows : move

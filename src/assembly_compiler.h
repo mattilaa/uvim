@@ -13,6 +13,7 @@ struct Request
     std::string path = ".";
     std::string compiler;
     std::string directory;
+    std::string compileCommandsDirectory;
     std::vector<std::string> flags;
     std::optional<std::vector<std::string>> sourceLines;
     bool raw = false;
@@ -25,6 +26,7 @@ struct Result
     std::string compiler;
     std::string options;
     std::string diagnostics;
+    std::string compilationDatabase;
     std::vector<std::string> lines;
     std::string sourcePath;
     std::vector<std::string> sourceLines;

@@ -1,8 +1,11 @@
 #include "assembly_compiler.h"
 #include "executable_lookup.h"
+#include "json_utils.h"
 #include "real_mode_test_utils.h"
 
 #include <chrono>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 
 using namespace uvim_test;
@@ -29,6 +32,30 @@ std::string fakeCommand(const std::filesystem::path& root,
     return "asm . --compiler \"" UVIM_TEST_ASSEMBLY_COMPILER
            "\" --uvim-test-dir \"" +
            root.string() + "\" " + flags;
+}
+
+void writeDatabase(const std::filesystem::path& path,
+                   const std::filesystem::path& directory,
+                   const std::string& file,
+                   const std::vector<std::string>& arguments,
+                   const std::string& command = {})
+{
+    json_utils::Document database(json_utils::kArrayType);
+    auto& alloc = database.GetAllocator();
+    json_utils::Value entry(json_utils::kObjectType);
+    entry.AddMember("directory", directory.string().c_str(), alloc);
+    entry.AddMember("file", file.c_str(), alloc);
+    if(!arguments.empty())
+    {
+        json_utils::Value args(json_utils::kArrayType);
+        for(const auto& arg : arguments)
+            args.PushBack(arg.c_str(), alloc);
+        entry.AddMember("arguments", std::move(args), alloc);
+    }
+    entry.AddMember("command", command.c_str(), alloc);
+    database.PushBack(std::move(entry), alloc);
+    std::filesystem::create_directories(path.parent_path());
+    write_file(path, json_utils::stringify(database));
 }
 
 class AssemblyViewTest : public testing::Test
@@ -164,6 +191,157 @@ TEST_F(AssemblyViewTest, DoubleDashOffersFlagsWithoutStartingCompilation)
     EXPECT_EQ(view->content->result.options.find("-O0"), std::string::npos);
     EXPECT_NE(read_file(root / "arguments").find("-O2\n"), std::string::npos);
     sm.dispatch('q');
+}
+
+TEST_F(AssemblyViewTest, InheritsMatchingBuildDatabaseAndPromptOverridesIt)
+{
+    const auto build = root / "build";
+    const auto object = build / "original.o";
+    const auto dependencies = build / "original.d";
+    // An unrelated nearer database must not supply another file's flags.
+    writeDatabase(root / "compile_commands.json", root, "other.cpp",
+                  {UVIM_TEST_ASSEMBLY_COMPILER, "-DWRONG_FILE=1"});
+    writeDatabase(build / "compile_commands.json", build, "../source.cpp",
+                  {UVIM_TEST_ASSEMBLY_COMPILER, "-O0", "-std=c++17",
+                   "-DVALUE=1", "-D", "KEEP=7", "-I", "../project include",
+                   "-c", "../source.cpp", "-o", object.string(), "-MMD", "-MF",
+                   dependencies.string(), "-MToriginal.o", "-MJfragment.json",
+                   "--uvim-test-dir", root.string()},
+                  "this command must be ignored in favor of arguments");
+    write_file(object, "original object");
+    write_file(dependencies, "original dependencies");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, "asm . --split -O2 -std=c++23 -DVALUE=2");
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success)
+        << view->content->result.diagnostics;
+    EXPECT_EQ(view->content->result.compilationDatabase,
+              (build / "compile_commands.json").string());
+    const auto args = read_file(root / "arguments");
+    EXPECT_EQ(args.find("-O0\n"), std::string::npos);
+    EXPECT_EQ(args.find("-std=c++17\n"), std::string::npos);
+    EXPECT_EQ(args.find("-DVALUE=1\n"), std::string::npos);
+    EXPECT_NE(args.find("-O2\n-std=c++23\n-DVALUE=2\n"), std::string::npos);
+    EXPECT_NE(args.find("-D\nKEEP=7\n"), std::string::npos);
+    EXPECT_NE(args.find("-I\n../project include\n"), std::string::npos);
+    EXPECT_EQ(args.find("-c\n"), std::string::npos);
+    EXPECT_EQ(args.find("../source.cpp\n"), std::string::npos);
+    EXPECT_EQ(args.find("-MMD\n"), std::string::npos);
+    EXPECT_EQ(args.find("fragment.json"), std::string::npos);
+    EXPECT_EQ(read_file(object), "original object");
+    EXPECT_EQ(read_file(dependencies), "original dependencies");
+    EXPECT_TRUE(
+        std::filesystem::equivalent(read_file(root / "directory"), build));
+    EXPECT_NE(read_file(root / "source").find("return x + 7"),
+              std::string::npos);
+    sm.dispatch('q');
+}
+
+TEST_F(AssemblyViewTest, ReadsQuotedCommandResponseFilesAndExplicitCompiler)
+{
+    const auto build = root / "build directory";
+    std::filesystem::create_directories(build);
+    std::ostringstream response;
+    response << "-O1\n-DVALUE=1\n--uvim-test-dir\n"
+             << std::quoted(root.string()) << '\n';
+    write_file(build / "flags file.rsp", response.str());
+    const auto database = root / "custom database" / "compile_commands.json";
+    std::ostringstream command;
+    command << "ccache " << std::quoted((build / "missing compiler").string())
+            << " @\"flags file.rsp\" -c ../source.cpp -o\"ignored object.o\"";
+    writeDatabase(database, build, "../source.cpp", {}, command.str());
+    editor.clangdLspCompileCommandsDir = database.parent_path().string();
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "-U VALUE"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success)
+        << view->content->result.diagnostics;
+    EXPECT_EQ(view->content->result.compilationDatabase, database.string());
+    EXPECT_EQ(view->content->result.compiler, UVIM_TEST_ASSEMBLY_COMPILER);
+    const auto args = read_file(root / "arguments");
+    EXPECT_NE(args.find("-O1\n"), std::string::npos);
+    EXPECT_EQ(args.find("-std="), std::string::npos);
+    EXPECT_EQ(args.find("-O0\n"), std::string::npos);
+    EXPECT_EQ(args.find("-DVALUE=1\n"), std::string::npos);
+    EXPECT_NE(args.find("-U\nVALUE\n"), std::string::npos);
+    EXPECT_EQ(args.find("ignored object.o"), std::string::npos);
+    sm.dispatch('q');
+}
+
+TEST_F(AssemblyViewTest,
+       UnmatchedDatabaseFallsBackAndMalformedDatabaseReportsError)
+{
+    writeDatabase(root / "compile_commands.json", root, "other.cpp",
+                  {"missing-compiler", "-DWRONG_FILE=1"});
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_TRUE(view->content->result.success);
+    EXPECT_TRUE(view->content->result.compilationDatabase.empty());
+    EXPECT_EQ(read_file(root / "arguments").find("WRONG_FILE"),
+              std::string::npos);
+    sm.dispatch('q');
+    write_file(root / "compile_commands.json", "[");
+    dispatch_command(sm, fakeCommand(root));
+    view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_FALSE(view->content->result.success);
+    EXPECT_NE(
+        view->content->result.diagnostics.find("invalid compilation database"),
+        std::string::npos);
+    sm.dispatch('q');
+}
+
+TEST_F(AssemblyViewTest, RealCompilerUsesDatabaseAndPromptIncludeDirectories)
+{
+    const auto compiler = executable_lookup::find("clang++");
+    if(!compiler.found)
+        GTEST_SKIP() << "Clang not installed";
+    const auto build = root / "build";
+    std::filesystem::create_directories(build);
+    std::filesystem::create_directories(root / "db include");
+    std::filesystem::create_directories(root / "user include");
+    write_file(root / "db include" / "shared.h", "#define FROM_INCLUDE 1\n");
+    write_file(root / "user include" / "shared.h", "#define FROM_INCLUDE 7\n");
+    write_file(root / "local.h", "#define LOCAL 9\n");
+    write_file(root / "db include" / "local.h", "#define LOCAL 0\n");
+    write_file(build / "config.h", "#define CONFIGURED 1\n");
+    writeDatabase(build / "compile_commands.json", build, "../source.cpp",
+                  {compiler.path, "-std=c++11", "-O0", "-Werror", "-DVALUE=1",
+                   "-I", "../db include", "-iquote", "../db include",
+                   "-include", "config.h", "-c", "../source.cpp", "-o",
+                   "original.o", "-MMD", "-MF", "original.d"});
+    assembly_compiler::Request request;
+    request.path = (root / "source.cpp").string();
+    request.directory = root.string();
+    request.sourceLines = std::vector<std::string>{
+        "#include <shared.h>",
+        "#include \"local.h\"",
+        "#if !defined(__OPTIMIZE__) || __cplusplus < 202002L",
+        "#error expected prompt optimization and C++20",
+        "#endif",
+        "static_assert(VALUE == 7 && FROM_INCLUDE == 7 && LOCAL == 9 && "
+        "CONFIGURED == 1);",
+        "int configured(int x) { return x + VALUE; }"};
+    request.flags = {"-O2", "-std=c++20", "-DVALUE=7", "-I", "user include"};
+    const auto result =
+        assembly_compiler::compile(request, [] { return false; });
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    EXPECT_EQ(result.compilationDatabase,
+              (build / "compile_commands.json").string());
+    EXPECT_EQ(result.options.find("-O0"), std::string::npos);
+    EXPECT_FALSE(std::filesystem::exists(build / "original.o"));
+    EXPECT_FALSE(std::filesystem::exists(build / "original.d"));
+    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
+                            result.sourceLineForAssembly.end(),
+                            [](int line) { return line > 0; }));
 }
 
 TEST_F(AssemblyViewTest, EscapeCancelsFlagPickerAndCommandWithoutCompiling)

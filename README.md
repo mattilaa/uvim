@@ -813,15 +813,31 @@ contents are used. The source buffer, cursor, and file on disk stay intact.
 :asm . --compiler "/path/to/clang++" --raw -O0 -g
 ```
 
-Clang is preferred when available, with GCC as the fallback. `--compiler`
-selects Clang, GCC, or a compiler executable; `clang`/`gcc` select their C++
-drivers for C++ files. Extra arguments are passed to the compiler, including
-optimization, include paths, defines and target options. Paths and arguments
-containing spaces can be quoted. Include paths are relative to the editor's
-working directory. The default is `-O0`; an explicit `-O2`, `-O3`, etc.
-replaces it. Use `--raw` to retain the compiler's full assembler output.
-Target-specific options such as `-masm=intel` depend on the selected compiler
-and architecture. Project-specific build flags must be supplied explicitly.
+When a matching `compile_commands.json` entry is found, `:asm` uses its compiler,
+flags and working directory. It checks the configured clangd compilation-database
+directory first, then the source file's directory and ancestors (including common
+build directories such as `build`, `build-debug`, and `cmake-build-debug`), followed
+by the editor working directory and ancestors. Only entries for the requested
+source file are used; the first matching entry wins. Both `arguments` and quoted
+`command` entries are supported, with `arguments` preferred, as well as compiler
+response files. Database input, object-output, and dependency-output flags are
+removed for the temporary assembly compilation. A malformed database reports an
+error. The status bar shows `compile_commands` when an entry is used.
+
+Prompt flags override inherited settings: `:asm . -O2` replaces a database's
+`-O0`/`-O3`, and prompt language standards and macro definitions take precedence.
+Prompt include directories precede inherited directories of the same include kind.
+Inherited relative paths use the database entry's working directory; paths typed
+at the prompt remain relative to the editor working directory. Project-specific
+flags can also be supplied manually when no matching entry exists.
+
+`--compiler` overrides the database compiler and accepts Clang, GCC, or a compiler
+executable; `clang`/`gcc` select their C++ drivers for C++ files. Without a matching
+database entry, Clang is preferred with GCC as fallback. The default optimization
+is `-O0` if neither the database nor prompt supplies an optimization level. Paths
+and arguments containing spaces can be quoted. Use `--raw` to retain the full
+assembler output. Target-specific options such as `-masm=intel` depend on the
+selected compiler and architecture.
 
 Typing `:asm . --` opens a popup of common compiler flags with descriptions.
 Use up/down or `Ctrl-J/K` to select, then Enter or Tab to insert a flag and

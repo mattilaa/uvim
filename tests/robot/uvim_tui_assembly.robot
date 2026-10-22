@@ -74,3 +74,27 @@ Source Assembly Split Supports Linked Navigation And Pane Keys
     Wait For Exit
     ${content} =    Get File    ${file}
     Should Be Equal    ${content}    ${source}
+
+Compilation Database Supplies Flags And Prompt Overrides Them
+    ${file} =    Set Variable    ${TEMP_DIR}/configured.cpp
+    ${source} =    Set Variable    \#if !defined(__OPTIMIZE__)\n\#error expected prompt optimization\n\#endif\nstatic_assert(VALUE == 7);\nint configured(int x) { return x + VALUE; }
+    Create File    ${file}    ${source}
+    Create Directory    ${TEMP_DIR}/build
+    ${database} =    Set Variable    [{"directory":"${TEMP_DIR}/build","file":"../configured.cpp","arguments":["clang++","-std=c++11","-DVALUE=1","-O0","-Werror","-c","../configured.cpp","-o","original.o","-MMD","-MF","original.d"]}]
+    Create File    ${TEMP_DIR}/build/compile_commands.json    ${database}
+    Start Uvim In Dir    ${UVIM_BIN}    ${TEMP_DIR}    ${file}
+    Expect Mode    NORMAL
+    Send Keys    :asm . --split -O2 -std=c++20 -DVALUE=7
+    Send Enter
+    Expect Text    compile_commands    timeout=15
+    Send Keys    G
+    Expect Text    source L5
+    Send Escape
+    Expect Mode    NORMAL
+    Send Keys    :q!
+    Send Enter
+    Wait For Exit
+    File Should Not Exist    ${TEMP_DIR}/build/original.o
+    File Should Not Exist    ${TEMP_DIR}/build/original.d
+    ${content} =    Get File    ${file}
+    Should Be Equal    ${content}    ${source}

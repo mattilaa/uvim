@@ -1,6 +1,7 @@
 #include "assembly_compiler.h"
 #include "assembly_output.h"
 #include "executable_lookup.h"
+#include "json_utils.h"
 #include "process_pipe.h"
 #ifdef _WIN32
 #define NOMINMAX
@@ -18,6 +19,7 @@
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace fs = std::filesystem;
 
@@ -55,7 +57,7 @@ bool splitArguments(std::string_view input, std::vector<std::string>& words)
             quote = c;
             started = true;
         }
-        else if(c == ' ' || c == '\t')
+        else if(c == ' ' || c == '\t' || c == '\r' || c == '\n')
         {
             if(started)
                 words.push_back(std::move(word));
@@ -93,6 +95,300 @@ std::string readFile(const fs::path& path)
 {
     std::ifstream stream(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(stream), {}};
+}
+
+fs::path absolutePath(const fs::path& path, const fs::path& directory)
+{
+    return (path.is_absolute() ? path : directory / path).lexically_normal();
+}
+
+bool sameFile(const fs::path& left, const fs::path& right)
+{
+    std::error_code ec;
+    if(fs::equivalent(left, right, ec))
+        return true;
+    const auto a = fs::weakly_canonical(left, ec);
+    if(ec)
+        return left.lexically_normal() == right.lexically_normal();
+    const auto b = fs::weakly_canonical(right, ec);
+    return !ec && a == b;
+}
+
+struct CompileCommand
+{
+    std::string database;
+    std::string directory;
+    std::string compiler;
+    std::vector<std::string> flags;
+    std::string error;
+};
+
+bool expandResponseFiles(const std::vector<std::string>& args,
+                         const fs::path& directory,
+                         std::vector<std::string>& expanded, std::string& error,
+                         int depth = 0)
+{
+    for(const auto& arg : args)
+    {
+        if(!arg.starts_with('@'))
+        {
+            expanded.push_back(arg);
+            continue;
+        }
+        const auto path = absolutePath(arg.substr(1), directory);
+        std::ifstream stream(path);
+        std::vector<std::string> nested;
+        if(depth >= 8 || !stream ||
+           !splitArguments(
+               std::string(std::istreambuf_iterator<char>(stream), {}), nested))
+        {
+            error = "asm: cannot read compiler response file: " + path.string();
+            return false;
+        }
+        if(!expandResponseFiles(nested, directory, expanded, error, depth + 1))
+            return false;
+    }
+    return true;
+}
+
+bool includeSearchOption(std::string_view flag)
+{
+    return flag == "-I" || flag == "-isystem" || flag == "-iquote" ||
+           flag == "-idirafter" || flag == "-F" || flag == "-iframework";
+}
+
+bool pathOption(std::string_view flag)
+{
+    return includeSearchOption(flag) || flag == "-include" ||
+           flag == "-imacros" || flag == "-isysroot" || flag == "--sysroot" ||
+           flag == "-include-pch" || flag == "-fmodule-map-file";
+}
+
+std::vector<std::string> promptPaths(const std::vector<std::string>& flags,
+                                     const fs::path& directory)
+{
+    std::vector<std::string> result;
+    for(size_t i = 0; i < flags.size(); ++i)
+    {
+        const auto& flag = flags[i];
+        result.push_back(flag);
+        if(pathOption(flag) && i + 1 < flags.size())
+            result.push_back(absolutePath(flags[++i], directory).string());
+        else
+        {
+            for(std::string_view prefix :
+                {"-isystem", "-iquote", "-idirafter", "-iframework",
+                 "--sysroot=", "-fmodule-map-file=", "-I", "-F"})
+                if(flag.starts_with(prefix) && flag.size() > prefix.size())
+                {
+                    result.back() =
+                        std::string(prefix) +
+                        absolutePath(flag.substr(prefix.size()), directory)
+                            .string();
+                    break;
+                }
+        }
+    }
+    return result;
+}
+
+std::string overrideKey(const std::string& flag, const std::string& next)
+{
+    if(flag.starts_with("-O"))
+        return "optimization";
+    if(flag.starts_with("-std=") || flag.starts_with("--std="))
+        return "standard";
+    if(flag.starts_with("-D") || flag.starts_with("-U"))
+    {
+        const std::string macro = flag.size() == 2 ? next : flag.substr(2);
+        return "macro:" + macro.substr(0, macro.find_first_of("=("));
+    }
+    return {};
+}
+
+std::vector<std::string> commandFlags(const std::vector<std::string>& args,
+                                      size_t start, const fs::path& file,
+                                      const fs::path& directory,
+                                      const std::vector<std::string>& prompt)
+{
+    std::unordered_set<std::string> overrides;
+    for(size_t i = 0; i < prompt.size(); ++i)
+    {
+        const auto key =
+            overrideKey(prompt[i], i + 1 < prompt.size() ? prompt[i + 1] : "");
+        if(!key.empty())
+            overrides.insert(key);
+        if((pathOption(prompt[i]) || prompt[i] == "-D" || prompt[i] == "-U") &&
+           i + 1 < prompt.size())
+            ++i;
+    }
+    std::vector<std::string> flags;
+    for(size_t i = start; i < args.size(); ++i)
+    {
+        const auto& flag = args[i];
+        // The assembly view owns its input, output and line-table generation.
+        if(flag == "-o" || flag == "--output" || flag == "-MF" ||
+           flag == "-MT" || flag == "-MQ" || flag == "-MJ" ||
+           flag == "-serialize-diagnostics")
+        {
+            if(i + 1 < args.size())
+                ++i;
+            continue;
+        }
+        if(flag == "-c" || flag == "-S" || flag == "-E" || flag == "-M" ||
+           flag == "-MM" || flag == "-MD" || flag == "-MMD" || flag == "-MP" ||
+           flag == "-MG" || flag == "-fsyntax-only" || flag == "--analyze" ||
+           flag == "-emit-llvm" || flag == "--" || flag.starts_with("-o") ||
+           flag.starts_with("--output=") || flag.starts_with("-MF") ||
+           flag.starts_with("-MT") || flag.starts_with("-MQ") ||
+           flag.starts_with("-MJ") || flag.starts_with("-Wp,-M") ||
+           flag.starts_with("-save-temps") ||
+           flag.starts_with("--save-temps") ||
+           flag.starts_with("-ftime-trace") ||
+           flag.starts_with("--serialize-diagnostics="))
+            continue;
+        const auto key =
+            overrideKey(flag, i + 1 < args.size() ? args[i + 1] : "");
+        if(!key.empty() && overrides.contains(key))
+        {
+            if((flag == "-D" || flag == "-U") && i + 1 < args.size())
+                ++i;
+            continue;
+        }
+        if(!flag.empty() && flag.front() != '-' &&
+           sameFile(absolutePath(flag, directory), file))
+            continue;
+        flags.push_back(flag);
+        // Keep option operands intact, even if they resemble another flag.
+        if((pathOption(flag) || flag == "-D" || flag == "-U" || flag == "-x" ||
+            flag == "-target" || flag == "--target" || flag == "-Xclang" ||
+            flag == "-Xpreprocessor") &&
+           i + 1 < args.size())
+            flags.push_back(args[++i]);
+    }
+    return flags;
+}
+
+CompileCommand findCompileCommand(const Request& request,
+                                  const std::vector<std::string>& prompt,
+                                  const std::function<bool()>& cancelled)
+{
+    std::vector<fs::path> candidates;
+    if(!request.compileCommandsDirectory.empty())
+    {
+        fs::path configured(request.compileCommandsDirectory);
+        candidates.push_back(configured.filename() == "compile_commands.json"
+                                 ? configured
+                                 : configured / "compile_commands.json");
+    }
+    std::unordered_set<std::string> seenDirectories;
+    auto addAncestors = [&](fs::path directory)
+    {
+        while(!directory.empty() &&
+              seenDirectories.insert(directory.string()).second)
+        {
+            candidates.push_back(directory / "compile_commands.json");
+            for(const char* build :
+                {"build", "build-debug", "build-release", "build_Debug",
+                 "build_Release", "Debug", "Release", "cmake-build-debug",
+                 "cmake-build-release", "out/build"})
+                candidates.push_back(directory / build /
+                                     "compile_commands.json");
+            const auto parent = directory.parent_path();
+            if(parent == directory)
+                break;
+            directory = parent;
+        }
+    };
+    addAncestors(fs::path(request.path).parent_path());
+    addAncestors(request.directory);
+    std::unordered_set<std::string> seenDatabases;
+    for(const auto& path : candidates)
+    {
+        if(cancelled())
+            return {};
+        if(!seenDatabases.insert(path.string()).second)
+            continue;
+        std::ifstream in(path);
+        if(!in)
+            continue;
+        json_utils::Document document;
+        if(!json_utils::parse(document, in) || !document.IsArray())
+            return {.error =
+                        "asm: invalid compilation database: " + path.string()};
+        for(const auto& item : document.GetArray())
+        {
+            if(cancelled())
+                return {};
+            const auto filename = json_utils::get_string(item, "file");
+            if(filename.empty())
+                continue;
+            const auto directory = absolutePath(
+                json_utils::get_string(item, "directory",
+                                       path.parent_path().string()),
+                path.parent_path());
+            if(!sameFile(absolutePath(filename, directory), request.path))
+                continue;
+            CompileCommand command;
+            command.database = path.string();
+            command.directory = directory.string();
+            std::vector<std::string> args, expanded;
+            const auto* arguments = json_utils::find(item, "arguments");
+            if(arguments && arguments->IsArray())
+            {
+                for(const auto& arg : arguments->GetArray())
+                {
+                    if(!arg.IsString())
+                    {
+                        command.error =
+                            "asm: non-string compilation database argument: " +
+                            path.string();
+                        return command;
+                    }
+                    args.emplace_back(arg.GetString(), arg.GetStringLength());
+                }
+            }
+            else if(!splitArguments(json_utils::get_string(item, "command"),
+                                    args))
+                command.error =
+                    "asm: unmatched quote in compilation database: " +
+                    path.string();
+            if(!command.error.empty())
+                return command;
+            if(args.empty() || args.front().empty())
+            {
+                command.error =
+                    "asm: missing compiler in compilation database: " +
+                    path.string();
+                return command;
+            }
+            if(!expandResponseFiles(args, directory, expanded, command.error))
+                return command;
+            if(expanded.empty())
+            {
+                command.error =
+                    "asm: empty compilation command: " + path.string();
+                return command;
+            }
+            size_t compiler = 0;
+            while(compiler + 1 < expanded.size())
+            {
+                auto name = fs::path(expanded[compiler]).stem().string();
+                if(name != "ccache" && name != "sccache" && name != "distcc" &&
+                   name != "icecc")
+                    break;
+                ++compiler;
+            }
+            command.compiler = expanded[compiler];
+            if(fs::path(command.compiler).has_parent_path())
+                command.compiler =
+                    absolutePath(command.compiler, directory).string();
+            command.flags = commandFlags(expanded, compiler + 1, request.path,
+                                         directory, prompt);
+            return command;
+        }
+    }
+    return {};
 }
 
 std::vector<int> sourceLocations(const std::vector<std::string>& lines,
@@ -319,14 +615,32 @@ bool parse(std::string_view arguments, Request& request, std::string& error)
     return true;
 }
 
-Result compile(const Request& request, const std::function<bool()>& cancelled)
+Result compile(const Request& inputRequest,
+               const std::function<bool()>& cancelled)
 {
+    Request request = inputRequest;
     Result result;
     auto fail = [&](std::string message)
     {
         result.diagnostics = std::move(message);
         return result;
     };
+    std::error_code pathError;
+    const auto current = fs::current_path(pathError);
+    if(pathError)
+        return fail("asm: cannot resolve working directory");
+    const auto promptDirectory = request.directory.empty()
+                                     ? current
+                                     : absolutePath(request.directory, current);
+    request.directory = promptDirectory.string();
+    request.path = absolutePath(request.path, promptDirectory).string();
+    if(!request.compileCommandsDirectory.empty())
+        request.compileCommandsDirectory =
+            absolutePath(request.compileCommandsDirectory, promptDirectory)
+                .string();
+    if(fs::path(request.compiler).has_parent_path())
+        request.compiler =
+            absolutePath(request.compiler, promptDirectory).string();
     std::string ext = fs::path(request.path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c)
                    { return static_cast<char>(std::tolower(c)); });
@@ -353,7 +667,48 @@ Result compile(const Request& request, const std::function<bool()>& cancelled)
     result.sourceLines = source;
     result.sourcePath = request.path;
 
-    std::string compiler = request.compiler;
+    std::vector<std::string> prompt;
+    std::string responseError;
+    if(!expandResponseFiles(request.flags, promptDirectory, prompt,
+                            responseError))
+        return fail(std::move(responseError));
+    const auto command = findCompileCommand(request, prompt, cancelled);
+    result.compilationDatabase = command.database;
+    if(!command.error.empty())
+        return fail(command.error);
+    if(cancelled())
+        return fail("asm: compilation cancelled");
+    if(!command.database.empty())
+    {
+        request.directory = command.directory;
+        prompt = promptPaths(prompt, promptDirectory);
+    }
+    // User include directories are searched first; other user flags follow
+    // inherited flags so ordinary compiler last-option-wins rules apply.
+    std::vector<std::string> flags, trailing;
+    for(size_t i = 0; i < prompt.size(); ++i)
+    {
+        const bool separate = includeSearchOption(prompt[i]);
+        bool search = separate;
+        for(std::string_view prefix :
+            {"-I", "-F", "-isystem", "-iquote", "-idirafter", "-iframework"})
+            search = search || (prompt[i].starts_with(prefix) &&
+                                prompt[i].size() > prefix.size());
+        auto& destination =
+            search && !command.database.empty() ? flags : trailing;
+        destination.push_back(prompt[i]);
+        if((separate || pathOption(prompt[i]) || prompt[i] == "-D" ||
+            prompt[i] == "-U" || prompt[i] == "-x" || prompt[i] == "-target" ||
+            prompt[i] == "--target" || prompt[i] == "-Xclang" ||
+            prompt[i] == "-Xpreprocessor") &&
+           i + 1 < prompt.size())
+            destination.push_back(prompt[++i]);
+    }
+    flags.insert(flags.end(), command.flags.begin(), command.flags.end());
+    flags.insert(flags.end(), trailing.begin(), trailing.end());
+
+    std::string compiler =
+        request.compiler.empty() ? command.compiler : request.compiler;
     if(compiler == "clang")
         compiler = cSource ? "clang" : "clang++";
     else if(compiler == "gcc")
@@ -406,22 +761,24 @@ Result compile(const Request& request, const std::function<bool()>& cancelled)
             return fail("asm: cannot write temporary source");
     }
     std::vector<std::string> args = {result.compiler, "-x",
-                                     cSource ? "c" : "c++",
-                                     cSource ? "-std=c11" : "-std=c++20"};
-    const bool hasOptimization = std::any_of(
-        request.flags.begin(), request.flags.end(),
-        [](const std::string& flag) { return flag.rfind("-O", 0) == 0; });
+                                     cSource ? "c" : "c++"};
+    if(command.database.empty())
+        args.push_back(cSource ? "-std=c11" : "-std=c++20");
+    const bool hasOptimization =
+        std::any_of(flags.begin(), flags.end(), [](const std::string& flag)
+                    { return flag.rfind("-O", 0) == 0; });
     if(!hasOptimization)
         args.push_back("-O0");
-    args.insert(args.end(), request.flags.begin(), request.flags.end());
-    result.options = hasOptimization ? "" : "-O0";
-    for(const auto& flag : request.flags)
-        result.options += (result.options.empty() ? "" : " ") + flag;
     const auto sourceDir = fs::path(request.path).parent_path();
+    args.insert(args.end(),
+                {"-iquote", sourceDir.empty() ? "." : sourceDir.string()});
+    args.insert(args.end(), flags.begin(), flags.end());
+    result.options = hasOptimization ? "" : "-O0";
+    for(const auto& flag : flags)
+        result.options += (result.options.empty() ? "" : " ") + flag;
     args.insert(args.end(), {"-S", "-g", "-gdwarf-4", "-fverbose-asm",
-                             "-fdiagnostics-color=never", "-iquote",
-                             sourceDir.empty() ? "." : sourceDir.string(), "-o",
-                             output.string(), input.string()});
+                             "-fdiagnostics-color=never", "-o", output.string(),
+                             input.string()});
 #ifdef _WIN32
     const auto log = temp.path / "compiler.log";
     const int status = runCompiler(args, log, request.directory, cancelled);

@@ -226,6 +226,11 @@ void AssemblyMode::on_enter(ModeContext& ctx)
     request.path =
         EditorPathUtilities::resolveEditorPath(request.path).string();
     request.directory = EditorPathUtilities::currentWorkingDirectory().string();
+    if(!editor.clangdLspCompileCommandsDir.empty())
+        request.compileCommandsDirectory =
+            EditorPathUtilities::resolveEditorPath(
+                editor.clangdLspCompileCommandsDir)
+                .string();
     if(std::filesystem::path(request.compiler).has_parent_path())
         request.compiler =
             EditorPathUtilities::resolveEditorPath(request.compiler).string();
@@ -656,6 +661,8 @@ void AssemblyMode::draw(Editor& editor)
                                       : "compile failed";
     if(inspect)
         status.flags.push_back("inspect");
+    if(!result.compilationDatabase.empty())
+        status.flags.push_back("compile_commands");
     if(split)
         status.flags.push_back(linked > 0 ? "source L" + std::to_string(linked)
                                           : "no source mapping");
@@ -665,6 +672,32 @@ void AssemblyMode::draw(Editor& editor)
                        ? 0
                        : (split && sourcePane ? sourceCursor : cursor) + 1;
     status.count = static_cast<int>(activeLines.size());
+    // Compilation databases commonly contain hundreds of flags. Keep their
+    // summary within the status row instead of wrapping over the source view.
+    const auto progress = editor.taskStatusText();
+    const int rulerWidth = std::max(
+        12, 8 + 2 * static_cast<int>(
+                        std::to_string(std::max(1, status.count)).size()));
+    const int budget = std::max(
+        0, editor.screenCols - static_cast<int>(status.modeLabel.size()) - 5 -
+               rulerWidth -
+               (progress.empty() ? 0
+                                 : text_utils::utf8DisplayWidth(progress) + 1));
+    auto flagWidth = [&]
+    {
+        int width = 0;
+        for(const auto& flag : status.flags)
+            width += text_utils::utf8DisplayWidth(flag) + 3;
+        return width;
+    };
+    while(!status.flags.empty() && flagWidth() > budget)
+        status.flags.erase(status.flags.begin());
+    const int stateWidth =
+        std::max(0, budget - flagWidth() - std::min(20, budget / 2));
+    if(text_utils::utf8DisplayWidth(status.state) > stateWidth)
+        status.state = stateWidth > 3
+                           ? clipped(status.state, stateWidth - 3) + "..."
+                           : clipped(status.state, stateWidth);
     editor.appendViewStatusBar(out, std::move(status));
 
     if(inspect && editor.screenRows >= 8 && editor.screenCols >= 20)

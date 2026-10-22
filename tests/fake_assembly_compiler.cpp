@@ -32,6 +32,8 @@ int main(int argc, char** argv)
             std::ifstream source(args.back(), std::ios::binary);
             std::ofstream snapshot(root / "source", std::ios::binary);
             snapshot << source.rdbuf();
+            std::ofstream directory(root / "directory", std::ios::binary);
+            directory << fs::current_path().string();
         }
         std::ofstream(root / "started", std::ios::binary) << "started";
         const auto deadline =
