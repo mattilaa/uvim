@@ -303,7 +303,7 @@ std::string Editor::getPreviousSearch()
 
     if(searchHistoryIndex < 0)
     {
-        searchHistoryIndex = searchHistory.size() - 1;
+        searchHistoryIndex = static_cast<int>(searchHistory.size() - 1);
     }
     else if(searchHistoryIndex > 0)
     {

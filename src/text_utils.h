@@ -2,12 +2,10 @@
 #include "text_utils_detail.h"
 
 #include <climits>
-#include <codecvt>
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
 #include <filesystem>
-#include <locale>
 #include <string>
 #include <string_view>
 
@@ -438,9 +436,6 @@ inline int utf8ByteOffsetToUtf16(std::string_view line, int byteOffset)
 
     int u16 = 0;
     int i = 0;
-#if WCHAR_MAX <= 0xFFFF
-    int safeLen = 0;
-#endif
     while(i < byteOffset)
     {
         unsigned char c = (unsigned char)line[i];
@@ -489,24 +484,9 @@ inline int utf8ByteOffsetToUtf16(std::string_view line, int byteOffset)
             u16 += 2;
 
         i += len;
-#if WCHAR_MAX <= 0xFFFF
-        safeLen = i;
-#endif
     }
 
-#if WCHAR_MAX <= 0xFFFF
-    try
-    {
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> conv;
-        return (int)conv.from_bytes(line.data(), line.data() + safeLen).size();
-    }
-    catch(const std::range_error&)
-    {
-        return u16;
-    }
-#else
     return u16;
-#endif
 }
 
 // --- operator key (constexpr) ---

@@ -337,7 +337,7 @@ std::string defaultClangdQueryDriverAllowList()
 #endif
 }
 
-std::vector<DiagnosticEntry>
+[[maybe_unused]] std::vector<DiagnosticEntry>
 collectClangdCheckDiagnostics(Editor& editor, int severity,
                               const fs::path& root)
 {
@@ -370,7 +370,8 @@ collectClangdCheckDiagnostics(Editor& editor, int severity,
             cmd += " --query-driver=" + dc::shellQuote(queryDriver);
         cmd += " >" + dc::shellQuote(logPath.string()) + " 2>&1";
 
-        (void)std::system(cmd.c_str());
+        // Nonzero checker exits still provide useful diagnostics in the log.
+        [[maybe_unused]] const int commandStatus = std::system(cmd.c_str());
         for(const std::string& line : dc::readLines(logPath))
         {
             DiagnosticEntry parsed;
@@ -385,7 +386,7 @@ collectClangdCheckDiagnostics(Editor& editor, int severity,
     return results;
 }
 
-std::vector<DiagnosticEntry>
+[[maybe_unused]] std::vector<DiagnosticEntry>
 collectCompilerCommandDiagnostics(int severity, const fs::path& root,
                                   const fs::path& ccDir)
 {
@@ -424,7 +425,8 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
                           " && " + entry.command +
                           " -fsyntax-only) >" +
                           dc::shellQuote(logPath.string()) + " 2>&1";
-        (void)std::system(cmd.c_str());
+        // Nonzero checker exits still provide useful diagnostics in the log.
+        [[maybe_unused]] const int commandStatus = std::system(cmd.c_str());
 
         for(const std::string& line : dc::readLines(logPath))
         {
@@ -445,7 +447,7 @@ collectCompilerCommandDiagnostics(int severity, const fs::path& root,
     return results;
 }
 
-bool compileCommandsHaveShellCommand(const fs::path& ccDir)
+[[maybe_unused]] bool compileCommandsHaveShellCommand(const fs::path& ccDir)
 {
     const std::vector<CompileCommandEntry> entries =
         collectCompileCommandEntries(ccDir);
@@ -456,8 +458,9 @@ bool compileCommandsHaveShellCommand(const fs::path& ccDir)
                        });
 }
 
-void mergeAndSortDiagnostics(std::vector<DiagnosticEntry>& target,
-                             std::vector<DiagnosticEntry> extra)
+[[maybe_unused]] void
+mergeAndSortDiagnostics(std::vector<DiagnosticEntry>& target,
+                        std::vector<DiagnosticEntry> extra)
 {
     std::unordered_set<std::string> seen;
     auto makeKey = [](const DiagnosticEntry& entry)

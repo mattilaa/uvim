@@ -365,7 +365,7 @@ normalize_robot_spacing(const std::vector<std::string>& input, int spaceCount,
     return out;
 }
 
-bool RobotFormatter::operator()(Mode mode)
+bool RobotFormatter::operator()(Mode)
 {
     if(!editor.lines || !editor.filename)
         return false;

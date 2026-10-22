@@ -472,7 +472,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
        line.rfind("AuthorDate:", 0) == 0 || line.rfind("CommitDate:", 0) == 0 ||
        line.rfind("Date:", 0) == 0)
     {
-        size_t colon = line.find(keyCode(command::CommandKey::KEY_COLON));
+        size_t colon = line.find(keyChar(command::CommandKey::KEY_COLON));
         if(text_utils::is_not_found(colon))
         {
             append_colored(line, editor.theme.uiAccent());
@@ -491,7 +491,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
         std::string_view prefix("diff --git ");
         append_colored(prefix, editor.theme.uiAccent());
         std::string rest = line.substr(prefix.size());
-        size_t split = rest.find(keyCode(control::ControlKey::SPACE));
+        size_t split = rest.find(keyChar(control::ControlKey::SPACE));
         if(text_utils::is_not_found(split))
         {
             append_colored(rest, editor.theme.uiInfo());
@@ -506,7 +506,7 @@ void append_pretty_diff_line(std::string& output, const Editor& editor,
        line.rfind("rename from ", 0) == 0 || line.rfind("rename to ", 0) == 0 ||
        line.rfind("Binary files ", 0) == 0)
     {
-        size_t space = line.find(keyCode(control::ControlKey::SPACE));
+        size_t space = line.find(keyChar(control::ControlKey::SPACE));
         if(text_utils::is_not_found(space))
         {
             append_colored(line, editor.theme.uiAccent());
@@ -1376,7 +1376,7 @@ void GitLogMode::draw(Editor& editor) const
                     int leftDisplay = text_utils::utf8DisplayWidth(leftTrim);
                     if(leftDisplay < leftContentWidth)
                         leftTrim.append(leftContentWidth - leftDisplay,
-                                        keyCode(control::ControlKey::SPACE));
+                                        keyChar(control::ControlKey::SPACE));
                     if(selected)
                         output += editor.theme.selection();
                     else
@@ -1417,7 +1417,7 @@ void GitLogMode::draw(Editor& editor) const
 
                     if(usedWidth < leftContentWidth)
                         output.append(leftContentWidth - usedWidth,
-                                      keyCode(control::ControlKey::SPACE));
+                                      keyChar(control::ControlKey::SPACE));
                     output += editor.theme.reset();
                 }
             }
@@ -1428,7 +1428,7 @@ void GitLogMode::draw(Editor& editor) const
                 output += " ~";
                 if(leftContentWidth > 1)
                     output.append(leftContentWidth - 1,
-                                  keyCode(control::ControlKey::SPACE));
+                                  keyChar(control::ControlKey::SPACE));
                 output += editor.theme.reset();
             }
 

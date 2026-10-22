@@ -210,7 +210,7 @@ void WelcomeMode::draw(Editor& editor) const
         {
             std::string line = "  " + item.key;
             line.append(keyWidth - item.key.size(),
-                        keyCode(control::ControlKey::SPACE));
+                        keyChar(control::ControlKey::SPACE));
             line += "  ";
             line += item.desc;
             lines.push_back(std::move(line));
@@ -257,7 +257,7 @@ void WelcomeMode::draw(Editor& editor) const
 
         if(!line.empty())
         {
-            output.append(padding, keyCode(control::ControlKey::SPACE));
+            output.append(padding, keyChar(control::ControlKey::SPACE));
             if(row - startRow == 0)
             {
                 output += Terminal::ESC_BOLD;

@@ -24,7 +24,8 @@ size_t EditorFileTypeController::fileTypeProbeHash() const
         return 0;
 
     size_t h = 1469598103934665603ull;
-    const int maxLines = std::min<int>(50, editor.lines->size());
+    const int maxLines =
+        static_cast<int>(std::min<size_t>(50, editor.lines->size()));
     for(int i = 0; i < maxLines; ++i)
     {
         for(unsigned char c : (*editor.lines)[i])
@@ -175,7 +176,8 @@ uint64_t EditorFileTypeController::detectFileTypeMask(
             }
             else if(sniffLines && !sniffLines->empty())
             {
-                const int maxLines = std::min<int>(50, sniffLines->size());
+                const int maxLines =
+                    static_cast<int>(std::min<size_t>(50, sniffLines->size()));
                 for(int i = 0; i < maxLines && !isMarkup; ++i)
                 {
                     std::string_view ln{(*sniffLines)[i]};

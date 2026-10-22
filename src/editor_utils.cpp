@@ -1878,12 +1878,14 @@ int fuzzyScoreWithPositions(const std::string& needle,
 
     for(size_t i = 0; i < haystack.length() && needleIdx < needle.length(); i++)
     {
-        char needleChar = std::tolower(needle[needleIdx]);
-        char haystackChar = std::tolower(haystack[i]);
+        char needleChar = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(needle[needleIdx])));
+        char haystackChar = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(haystack[i])));
 
         if(needleChar == haystackChar)
         {
-            matchPositions.push_back(i);
+            matchPositions.push_back(static_cast<int>(i));
 
             score += 100;
 

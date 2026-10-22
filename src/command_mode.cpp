@@ -150,7 +150,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                            query.rfind("help ", 0) == 0 ||
                            query.rfind("h ", 0) == 0;
         bool isGitQuery = query == "git" || query.rfind("git ", 0) == 0;
-        if(text_utils::contains(query, keyCode(control::ControlKey::SPACE)) &&
+        if(text_utils::contains(query, keyChar(control::ControlKey::SPACE)) &&
            !isSetQuery && !isHelpQuery && !isGitQuery)
         {
             ctx.cancelCommandPopup();
@@ -285,7 +285,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 std::string_view query =
                     std::string_view(ctx.commandBuffer).substr(1);
                 bool hasSpace = text_utils::contains(
-                    query, keyCode(control::ControlKey::SPACE));
+                    query, keyChar(control::ControlKey::SPACE));
                 auto starts_with_ci = [&](std::string_view text,
                                           std::string_view prefix) -> bool
                 {
@@ -319,12 +319,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 {
                     shouldReplace =
                         !text_utils::contains(
-                            *selection, keyCode(control::ControlKey::SPACE)) &&
+                            *selection, keyChar(control::ControlKey::SPACE)) &&
                         starts_with_ci(*selection, query);
                 }
                 else if(hasSpace &&
                         text_utils::contains(
-                            *selection, keyCode(control::ControlKey::SPACE)))
+                            *selection, keyChar(control::ControlKey::SPACE)))
                 {
                     shouldReplace = true;
                 }
@@ -526,7 +526,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         // Argument completion (paths, ...) starts after a space.
         const std::string input = ctx.commandBuffer.substr(1);
         if(ctx.isCommandPopupActive() &&
-           !text_utils::contains(input, keyCode(control::ControlKey::SPACE)))
+           !text_utils::contains(input, keyChar(control::ControlKey::SPACE)))
         {
             if(auto selection = ctx.commandPopupSelection())
             {
@@ -543,9 +543,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         bool isLoc = ctx.commandBuffer.rfind(":loc", 0) == 0 && !isLocTotal;
         if(isLocTotal || isLoc)
         {
-            std::string input = ctx.commandBuffer.substr(1);
+            std::string locInput = ctx.commandBuffer.substr(1);
             size_t spacePos =
-                ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
+                ctx.commandBuffer.find(keyChar(control::ControlKey::SPACE));
             std::string_view pathPart;
             if(text_utils::is_found(spacePos))
                 pathPart =
@@ -557,13 +557,13 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                 pathPart.remove_prefix(1);
             }
 
-            if(completions.empty() || originalInput != input)
+            if(completions.empty() || originalInput != locInput)
             {
                 completions = ctx.getLocPathCompletions(pathPart);
                 if(completions.empty())
                     completions = ctx.getPathCompletionsRecursive(pathPart);
                 completionIndex = -1;
-                originalInput = input;
+                originalInput = locInput;
             }
 
             if(!completions.empty())
@@ -598,7 +598,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         {
             std::string input = ctx.commandBuffer.substr(1);
             size_t spacePos =
-                ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
+                ctx.commandBuffer.find(keyChar(control::ControlKey::SPACE));
             std::string_view pathPart;
             if(text_utils::is_found(spacePos))
                 pathPart =
@@ -674,9 +674,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             if(auto selection = ctx.commandPopupSelection())
             {
                 if(!text_utils::contains(ctx.commandBuffer,
-                                         keyCode(control::ControlKey::SPACE)) ||
+                                         keyChar(control::ControlKey::SPACE)) ||
                    text_utils::contains(*selection,
-                                        keyCode(control::ControlKey::SPACE)))
+                                        keyChar(control::ControlKey::SPACE)))
                 {
                     ctx.commandBuffer = ":" + *selection;
                 }
@@ -693,9 +693,9 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             if(auto selection = ctx.commandPopupSelection())
             {
                 if(!text_utils::contains(ctx.commandBuffer,
-                                         keyCode(control::ControlKey::SPACE)) ||
+                                         keyChar(control::ControlKey::SPACE)) ||
                    text_utils::contains(*selection,
-                                        keyCode(control::ControlKey::SPACE)))
+                                        keyChar(control::ControlKey::SPACE)))
                 {
                     ctx.commandBuffer = ":" + *selection;
                 }
@@ -792,7 +792,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                 locCommandLocal =
                     ctx.commandBuffer.rfind(":loc!", 0) == 0 ? "loc!" : "loc";
             size_t spacePos =
-                ctx.commandBuffer.find(keyCode(control::ControlKey::SPACE));
+                ctx.commandBuffer.find(keyChar(control::ControlKey::SPACE));
             std::string_view pathPart;
             if(text_utils::is_found(spacePos))
                 pathPart =
@@ -815,7 +815,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
         else
         {
             // Check if this is a file path or help topic completion
-            size_t spacePos = input.find(keyCode(control::ControlKey::SPACE));
+            size_t spacePos = input.find(keyChar(control::ControlKey::SPACE));
             if(text_utils::is_found(spacePos))
             {
                 std::string cmd = input.substr(0, spacePos);
@@ -944,7 +944,7 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
         return;
     }
 
-    size_t spacePos = originalInput.find(keyCode(control::ControlKey::SPACE));
+    size_t spacePos = originalInput.find(keyChar(control::ControlKey::SPACE));
     if(locCompletion)
     {
         ctx.commandBuffer =
@@ -973,10 +973,10 @@ void CommandMode::handleReverseTabCompletion(ModeContext& ctx)
     completionIndex--;
     if(completionIndex < 0)
     {
-        completionIndex = completions.size() - 1;
+        completionIndex = static_cast<int>(completions.size() - 1);
     }
 
-    size_t spacePos = originalInput.find(keyCode(control::ControlKey::SPACE));
+    size_t spacePos = originalInput.find(keyChar(control::ControlKey::SPACE));
     if(locCompletion)
     {
         ctx.commandBuffer =

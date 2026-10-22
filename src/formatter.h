@@ -101,7 +101,6 @@ private:
 
     FormatterVariant formatterFor(FileType type);
 
-    Editor& editor;
     ClangFormatter clangFormatter;
     PythonFormatter pythonFormatter;
     RobotFormatter robotFormatter;

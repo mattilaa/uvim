@@ -53,7 +53,7 @@ static std::string filetypeLabel(const Editor& ed)
     return "text";
 }
 
-static std::string lspLogDetailSuffix()
+[[maybe_unused]] static std::string lspLogDetailSuffix()
 {
 #if defined(UVIM_DEBUG_LOGGING) || defined(UVIM_DEBUG_LSP)
     return " (details logged to " + mla::log::getLogFilePath() + ")";

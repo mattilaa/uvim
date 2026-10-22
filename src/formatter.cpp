@@ -15,9 +15,8 @@ YamlFormatter::YamlFormatter(Editor& editor) : editor(editor) {}
 MlangFormatter::MlangFormatter(Editor& editor) : editor(editor) {}
 
 Formatter::Formatter(Editor& editor)
-    : editor(editor), clangFormatter(editor), pythonFormatter(editor),
-      robotFormatter(editor), jsonFormatter(editor), yamlFormatter(editor),
-      mlangFormatter(editor)
+    : clangFormatter(editor), pythonFormatter(editor), robotFormatter(editor),
+      jsonFormatter(editor), yamlFormatter(editor), mlangFormatter(editor)
 {
 }
 

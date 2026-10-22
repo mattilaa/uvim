@@ -19,8 +19,8 @@ namespace
 struct StatusEntry
 {
     std::string path;
-    char indexStatus = keyCode(control::ControlKey::SPACE);
-    char worktreeStatus = keyCode(control::ControlKey::SPACE);
+    char indexStatus = keyChar(control::ControlKey::SPACE);
+    char worktreeStatus = keyChar(control::ControlKey::SPACE);
 };
 
 std::string run_git_raw(const std::vector<std::string>& args)
@@ -187,7 +187,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
         {
             size_t start = i;
             size_t end =
-                text.find(keyCode(command::CommandKey::KEY_RIGHT_BRACKET), i);
+                text.find(keyChar(command::CommandKey::KEY_RIGHT_BRACKET), i);
             if(text_utils::is_not_found(end))
             {
                 tokens.emplace_back(text.substr(start));
@@ -225,7 +225,7 @@ std::vector<std::string> wrap_help(std::string_view text, int screenCols)
 
         if(spaceW)
         {
-            current.push_back(keyCode(control::ControlKey::SPACE));
+            current.push_back(keyChar(control::ControlKey::SPACE));
             currentW += 1;
         }
         current.append(tok);
@@ -241,44 +241,6 @@ int git_stage_content_rows(int screenRows, int helpRows)
     // screenRows already excludes the status and message rows.
     const int headerRows = 1;
     return std::max(0, screenRows - headerRows - helpRows);
-}
-
-std::string utf8PrefixByWidth(std::string_view text, int maxWidth)
-{
-    if(maxWidth <= 0)
-        return "";
-    int width = 0;
-    int pos = 0;
-    while(pos < (int)text.size())
-    {
-        int next = text_utils::nextUtf8CharStart(text, pos);
-        int charWidth =
-            text_utils::utf8DisplayWidth(text.substr(pos, next - pos));
-        if(width + charWidth > maxWidth)
-            break;
-        width += charWidth;
-        pos = next;
-    }
-    return std::string(text.substr(0, pos));
-}
-
-std::string utf8SuffixByWidth(std::string_view text, int maxWidth)
-{
-    if(maxWidth <= 0)
-        return "";
-    int width = 0;
-    int pos = (int)text.size();
-    while(pos > 0)
-    {
-        int prev = text_utils::prevUtf8CharStart(text, pos);
-        int charWidth =
-            text_utils::utf8DisplayWidth(text.substr(prev, pos - prev));
-        if(width + charWidth > maxWidth)
-            break;
-        width += charWidth;
-        pos = prev;
-    }
-    return std::string(text.substr(pos));
 }
 
 std::string bg_rgb(int r, int g, int b)
@@ -1205,14 +1167,14 @@ void GitStageMode::draw(Editor& editor) const
             output += editor.theme.base();
 
             int diffIdx = diffOffset + screenRow;
-            int diffViewWidth = std::max(0, diffWidth - 1);
+            int visibleDiffWidth = std::max(0, diffWidth - 1);
             if(diffIdx >= 0 && diffIdx < (int)diffLines.size())
             {
                 output += " ";
                 if(editor.gitUseDefaultColors)
                 {
-                    std::string clipped = slice_with_ansi(diffLines[diffIdx],
-                                                          hOff, diffViewWidth);
+                    std::string clipped = slice_with_ansi(
+                        diffLines[diffIdx], hOff, visibleDiffWidth);
                     output += clipped;
                     output += editor.theme.reset();
                     output += editor.theme.base();
@@ -1223,7 +1185,7 @@ void GitStageMode::draw(Editor& editor) const
                 else
                 {
                     std::string clipped =
-                        slice_plain(diffLines[diffIdx], hOff, diffViewWidth);
+                        slice_plain(diffLines[diffIdx], hOff, visibleDiffWidth);
                     append_diff_line(output, editor, clipped);
                     output += editor.theme.base();
                     int visibleWidth = text_utils::utf8DisplayWidth(clipped);

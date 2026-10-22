@@ -545,7 +545,7 @@ std::optional<ModeState> NormalMode::handle(ModeContext& ctx,
         ed->deferChangeRecordingCommit();
         if(ctx.cursorY() >= 0 && ctx.cursorY() < (int)ctx.lines().size())
         {
-            int end = ctx.lines()[ctx.cursorY()].length();
+            int end = static_cast<int>(ctx.lines()[ctx.cursorY()].length());
             ctx.cursorX() = end;
             ctx.wantedX() = end;
         }

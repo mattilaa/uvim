@@ -371,12 +371,14 @@ void Editor::lowercaseSelectionImpl()
     {
         std::string& line = (*lines)[y];
         int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
+        int end = (y == endY)
+                      ? std::min(endX + 1, static_cast<int>(line.length()))
+                      : static_cast<int>(line.length());
 
         for(int x = start; x < end; x++)
         {
-            line[x] = std::tolower(line[x]);
+            line[x] = static_cast<char>(
+                std::tolower(static_cast<unsigned char>(line[x])));
         }
     }
     *dirty = true;
@@ -394,12 +396,14 @@ void Editor::uppercaseSelectionImpl()
     {
         std::string& line = (*lines)[y];
         int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
+        int end = (y == endY)
+                      ? std::min(endX + 1, static_cast<int>(line.length()))
+                      : static_cast<int>(line.length());
 
         for(int x = start; x < end; x++)
         {
-            line[x] = std::toupper(line[x]);
+            line[x] = static_cast<char>(
+                std::toupper(static_cast<unsigned char>(line[x])));
         }
     }
     *dirty = true;
@@ -417,15 +421,18 @@ void Editor::toggleCaseSelectionImpl()
     {
         std::string& line = (*lines)[y];
         int start = (y == startY) ? startX : 0;
-        int end = (y == endY) ? std::min(endX + 1, (int)line.length())
-                              : line.length();
+        int end = (y == endY)
+                      ? std::min(endX + 1, static_cast<int>(line.length()))
+                      : static_cast<int>(line.length());
 
         for(int x = start; x < end; x++)
         {
             if(std::isupper(line[x]))
-                line[x] = std::tolower(line[x]);
+                line[x] = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(line[x])));
             else if(std::islower(line[x]))
-                line[x] = std::toupper(line[x]);
+                line[x] = static_cast<char>(
+                    std::toupper(static_cast<unsigned char>(line[x])));
         }
     }
     *dirty = true;

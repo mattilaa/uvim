@@ -116,11 +116,11 @@ bool sameFile(const fs::path& left, const fs::path& right)
 
 struct CompileCommand
 {
-    std::string database;
-    std::string directory;
-    std::string compiler;
-    std::vector<std::string> flags;
-    std::string error;
+    std::string database{};
+    std::string directory{};
+    std::string compiler{};
+    std::vector<std::string> flags{};
+    std::string error{};
 };
 
 bool expandResponseFiles(const std::vector<std::string>& args,
@@ -475,7 +475,7 @@ std::wstring wide(std::string_view text)
     return result;
 }
 
-std::wstring quoted(std::wstring_view arg)
+std::wstring quoteWindowsArgument(std::wstring_view arg)
 {
     std::wstring result = L"\"";
     size_t slashes = 0;
@@ -502,7 +502,7 @@ int runCompiler(const std::vector<std::string>& args, const fs::path& log,
     // containing shell metacharacters must reach the compiler unchanged.
     std::wstring command;
     for(const auto& arg : args)
-        command += (command.empty() ? L"" : L" ") + quoted(wide(arg));
+        command += (command.empty() ? L"" : L" ") + quoteWindowsArgument(wide(arg));
     const auto executable = wide(args.front());
     const auto workingDirectory = wide(directory);
     std::unique_lock<std::mutex> lock(processLaunchMutex());

@@ -293,7 +293,7 @@ std::optional<ModeState> OperatorPendingMode::handle(ModeContext& ctx,
                 else if(endY > 0)
                 {
                     endY--;
-                    endX = ctx.lines()[endY].length() - 1;
+                    endX = static_cast<int>(ctx.lines()[endY].length() - 1);
                 }
             }
         }

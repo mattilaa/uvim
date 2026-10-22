@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <type_traits>
 
 namespace control
@@ -186,4 +187,14 @@ constexpr int keyCode(EnumT key)
 constexpr int keyCode(int key)
 {
     return key;
+}
+
+// String APIs take a byte, while editor key events may include special keys.
+template <typename EnumT,
+          typename = std::enable_if_t<std::is_enum_v<EnumT>, int>>
+constexpr char keyChar(EnumT key)
+{
+    const int code = keyCode(key);
+    assert(code >= 0 && code <= 127);
+    return static_cast<char>(code);
 }

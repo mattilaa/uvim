@@ -26,7 +26,8 @@ std::string path_for_clangd_glob(std::filesystem::path path)
 }
 #endif
 
-std::string detect_compile_commands_dir(const std::string& rootDir)
+[[maybe_unused]] std::string
+detect_compile_commands_dir(const std::string& rootDir)
 {
     namespace fs = std::filesystem;
     std::error_code ec;

@@ -23,7 +23,8 @@ bool is_mlang_symbol(char ch)
     return std::isalnum(u) || ch == '_';
 }
 
-std::vector<int> mlang_lsp_query_columns(const std::string& line, int cursorX)
+[[maybe_unused]] std::vector<int>
+mlang_lsp_query_columns(const std::string& line, int cursorX)
 {
     std::vector<int> columns;
     auto push = [&](int x)
@@ -44,7 +45,7 @@ std::vector<int> mlang_lsp_query_columns(const std::string& line, int cursorX)
     }
 
     if(lspX >= static_cast<int>(line.size()))
-        lspX = static_cast<int>(line.size()) - 1;
+        lspX = static_cast<int>(line.size() - 1);
     if(lspX < 0)
         lspX = 0;
 

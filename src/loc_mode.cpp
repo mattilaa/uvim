@@ -264,7 +264,7 @@ void LocListMode::draw(Editor& editor) const
         header += " - " + editor.locListRoot;
     if((int)header.length() < editor.screenCols)
         header += std::string(editor.screenCols - header.length(),
-                              keyCode(control::ControlKey::SPACE));
+                              keyChar(control::ControlKey::SPACE));
     output += header;
     output += editor.theme.reset();
     output += "\r\n";
@@ -285,7 +285,7 @@ void LocListMode::draw(Editor& editor) const
         std::string countStr = std::to_string(std::max(0, entry.loc));
         if((int)countStr.size() < countWidth)
             countStr.insert(0, countWidth - countStr.size(),
-                            keyCode(control::ControlKey::SPACE));
+                            keyChar(control::ControlKey::SPACE));
 
         output += " ";
         output += editor.theme.baseFg();

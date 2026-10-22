@@ -40,7 +40,7 @@ int CppNavigationUtilities::findLocalDeclaration(const std::string& line,
               std::isspace((unsigned char)effectiveLine[afterSymbol]))
             afterSymbol++;
 
-        int beforeSymbol = pos - 1;
+        int beforeSymbol = static_cast<int>(pos) - 1;
         while(beforeSymbol >= 0 &&
               std::isspace((unsigned char)effectiveLine[beforeSymbol]))
             beforeSymbol--;

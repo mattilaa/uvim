@@ -108,8 +108,8 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
                                     else
                                     {
                                         outEndY--;
-                                        outEndX =
-                                            (*lines)[outEndY].length() - 1;
+                                        outEndX = static_cast<int>(
+                                            (*lines)[outEndY].length() - 1);
                                     }
                                 }
                                 return true;
@@ -123,7 +123,7 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
                 break;
             ly--;
             if(ly >= 0)
-                lx = (*lines)[ly].length() - 1;
+                lx = static_cast<int>((*lines)[ly].length() - 1);
         }
         return false;
     };
@@ -131,22 +131,22 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
     if(objChar == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
        objChar == keyCode(command::CommandKey::KEY_RIGHT_PAREN))
     {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_PAREN),
-                         keyCode(command::CommandKey::KEY_RIGHT_PAREN)))
+        if(findEnclosing(keyChar(command::CommandKey::KEY_LEFT_PAREN),
+                         keyChar(command::CommandKey::KEY_RIGHT_PAREN)))
             return true;
     }
     if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACE) ||
        objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACE))
     {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACE),
-                         keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
+        if(findEnclosing(keyChar(command::CommandKey::KEY_LEFT_BRACE),
+                         keyChar(command::CommandKey::KEY_RIGHT_BRACE)))
             return true;
     }
     if(objChar == keyCode(command::CommandKey::KEY_LEFT_BRACKET) ||
        objChar == keyCode(command::CommandKey::KEY_RIGHT_BRACKET))
     {
-        if(findEnclosing(keyCode(command::CommandKey::KEY_LEFT_BRACKET),
-                         keyCode(command::CommandKey::KEY_RIGHT_BRACKET)))
+        if(findEnclosing(keyChar(command::CommandKey::KEY_LEFT_BRACKET),
+                         keyChar(command::CommandKey::KEY_RIGHT_BRACKET)))
             return true;
     }
 
@@ -257,14 +257,14 @@ bool Editor::getTextObjectRangeImpl(char objChar, bool around, int& outStartY,
             sy--;
         if((*lines)[sy].empty() && sy < y)
             sy++;
-        while(ey < static_cast<int>(lines->size()) - 1 && !(*lines)[ey].empty())
+        while(ey < static_cast<int>(lines->size() - 1) && !(*lines)[ey].empty())
             ey++;
         if((*lines)[ey].empty() && ey > y)
             ey--;
         outStartY = sy;
         outEndY = ey;
         outStartX = 0;
-        outEndX = (*lines)[outEndY].length() - 1;
+        outEndX = static_cast<int>((*lines)[outEndY].length() - 1);
         return true;
     }
 

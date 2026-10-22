@@ -459,7 +459,7 @@ void seedEditorSearchFromGrepMatch(Editor& editor, const GrepMatch& match,
     SearchMatch seeded;
     seeded.row = row;
     seeded.col = std::min(col, (int)line.size());
-    seeded.len = std::max<int>(1, query.size());
+    seeded.len = std::max<int>(1, static_cast<int>(query.size()));
     editor.searchMatches.push_back(seeded);
     editor.currentMatchIndex = 0;
 }
@@ -617,10 +617,10 @@ std::optional<ModeState> GrepSearchMode::handle(ModeContext& ctx,
     {
         // Scroll the previewed file; the offset belongs to the selected
         // match and resets when the selection changes.
-        const std::string key = previewKey();
-        if(previewScrollKey != key)
+        const std::string selectedPreview = previewKey();
+        if(previewScrollKey != selectedPreview)
         {
-            previewScrollKey = key;
+            previewScrollKey = selectedPreview;
             previewScroll = 0;
         }
         previewScroll +=
@@ -825,7 +825,6 @@ void GrepSearchMode::draw(Editor& editor)
 void GrepSearchMode::appendPreview(Editor& editor,
                                    widgets::PickerCanvas& canvas) const
 {
-    const widgets::PickerLayout& layout = canvas.layout();
     if(cursor < 0 || cursor >= (int)matches.size())
     {
         for(int row = 0; row < canvas.bodyRows(); ++row)
@@ -1838,7 +1837,7 @@ bool GrepSearchMode::isTextFile(const std::string& filepath)
 {
     std::string ext;
     size_t dotPos =
-        filepath.find_last_of(keyCode(command::CommandKey::KEY_DOT));
+        filepath.find_last_of(keyChar(command::CommandKey::KEY_DOT));
     if(text_utils::is_found(dotPos))
     {
         ext = filepath.substr(dotPos);
@@ -1938,7 +1937,7 @@ bool GrepSearchMode::selectMatch(Editor& editor)
 
     *editor.cursorY = match.lineNumber - 1;
     if(*editor.cursorY >= (int)editor.lines->size())
-        *editor.cursorY = editor.lines->size() - 1;
+        *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     if(*editor.cursorY < 0)
         *editor.cursorY = 0;
 
@@ -1995,7 +1994,7 @@ void GrepSearchMode::resultHalfPageDown(Editor& editor)
     int half = grepSearchVisibleRows(editor, previewEnabled) / 2;
     cursor += half;
     if(cursor >= (int)matches.size())
-        cursor = matches.size() - 1;
+        cursor = static_cast<int>(matches.size() - 1);
     int visible = grepSearchVisibleRows(editor, previewEnabled);
     if(cursor >= offset + visible)
         offset = cursor - visible + 1;
@@ -2178,7 +2177,7 @@ bool GrepSearchMode::openSelected(Editor& editor)
 
     *editor.cursorY = finalMatch.lineNumber - 1;
     if(*editor.cursorY >= (int)editor.lines->size())
-        *editor.cursorY = editor.lines->size() - 1;
+        *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     if(*editor.cursorY < 0)
         *editor.cursorY = 0;
     *editor.cursorX = 0;

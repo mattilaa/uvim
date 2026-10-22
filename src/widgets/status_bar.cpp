@@ -79,7 +79,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     rightBlock += rightStatus;
 
     int rightLen = text_utils::displayWidth(rightBlock);
-    int availableForFile = view.screenCols - status.length() - rightLen - 1;
+    int availableForFile =
+        view.screenCols - static_cast<int>(status.length()) - rightLen - 1;
 
     std::string displayName =
         view.filename.empty() ? "[No Name]" : std::string(view.filename);
@@ -95,7 +96,8 @@ void appendStatusBar(std::string& output, const StatusBarView& view)
     status += displayName;
     output += status;
 
-    int padding = view.screenCols - status.length() - rightLen;
+    int padding =
+        view.screenCols - static_cast<int>(status.length()) - rightLen;
     if(padding > 0)
         output.append(padding, ' ');
     if(view.progressColumn)

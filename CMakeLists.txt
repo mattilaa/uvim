@@ -77,6 +77,13 @@ option(UVIM_EXPORT_COMPILE_COMMANDS "Export compile_commands.json" ON)
 option(UVIM_DEBUG_LOGGING "Enable general uvim debug logging" OFF)
 option(UVIM_DEBUG_LSP "Enable uvim LSP logging" OFF)
 option(UVIM_BUILD_TESTS "Build unit tests" ON)
+set(_uvim_quiet_dependencies_default OFF)
+if(DEFINED ENV{UVIM_SUPPRESS_DEPENDENCY_WARNINGS})
+    set(_uvim_quiet_dependencies_default "$ENV{UVIM_SUPPRESS_DEPENDENCY_WARNINGS}")
+endif()
+option(UVIM_SUPPRESS_DEPENDENCY_WARNINGS
+    "Suppress diagnostics from third-party targets and their headers"
+    ${_uvim_quiet_dependencies_default})
 option(UVIM_BOOTSTRAP_CONFIG_ONLY "Configure only uvim-config for bootstrap" OFF)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
 option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
@@ -176,6 +183,9 @@ function(uvim_add_config_target)
 
     if(MSVC)
         target_compile_options(uvim-config PRIVATE /W4 /permissive-)
+        # Keep portable C APIs; Microsoft's replacement names are not portable.
+        target_compile_definitions(uvim-config PRIVATE
+            _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
     else()
         target_compile_options(uvim-config PRIVATE -Wall -Wextra -Wpedantic)
     endif()
@@ -603,6 +613,8 @@ uvim_status_bool("c#" UVIM_ENABLE_CSHARP_LSP)
 # ------------------------------------------------------------------------------
 if(MSVC)
     target_compile_options(uvim PRIVATE /W4 /permissive-)
+    target_compile_definitions(uvim PRIVATE
+        _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
 else()
     target_compile_options(uvim PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -1077,6 +1089,13 @@ if(UVIM_BUILD_TESTS)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(
+            NAME ci_build_warning_gate
+            COMMAND ${CMAKE_COMMAND}
+                "-DUVIM_PYTHON_EXECUTABLE=${Python3_EXECUTABLE}"
+                "-DUVIM_PYTHON_TEST=${CMAKE_SOURCE_DIR}/tests/ci_build_test.py"
+                -P ${CMAKE_SOURCE_DIR}/tests/run_python_test.cmake
+        )
+        add_test(
             NAME python_test_launcher
             COMMAND ${CMAKE_COMMAND}
                 "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/python launcher regression"
@@ -1107,6 +1126,37 @@ if(UVIM_BUILD_TESTS)
     )
 endif()
 
+if(UVIM_SUPPRESS_DEPENDENCY_WARNINGS)
+    foreach(uvim_dependency IN ITEMS yyjson fmt gtest gtest_main gmock gmock_main)
+        if(NOT TARGET ${uvim_dependency})
+            continue()
+        endif()
+        # Quiet the library's own translation units, without weakening uvim's
+        # warning flags. SYSTEM usage requirements quiet dependency headers in
+        # our translation units too (MSVC uses /external:I for those paths).
+        if(MSVC)
+            target_compile_options(${uvim_dependency} PRIVATE /w)
+        else()
+            target_compile_options(${uvim_dependency} PRIVATE -w)
+        endif()
+        get_target_property(uvim_dependency_includes ${uvim_dependency}
+            INTERFACE_INCLUDE_DIRECTORIES)
+        if(uvim_dependency_includes)
+            set_property(TARGET ${uvim_dependency} APPEND PROPERTY
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${uvim_dependency_includes}")
+        endif()
+    endforeach()
+    if(MSVC)
+        get_property(uvim_warning_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(uvim_warning_target IN LISTS uvim_warning_targets)
+            get_target_property(uvim_warning_target_type ${uvim_warning_target} TYPE)
+            if(uvim_warning_target_type STREQUAL "EXECUTABLE")
+                target_compile_options(${uvim_warning_target} PRIVATE /external:W0)
+            endif()
+        endforeach()
+    endif()
+endif()
+
 # ============================================================================
 # Install (binary only)
 # ============================================================================
@@ -1117,3 +1167,15 @@ install(TARGETS uvim
     RUNTIME DESTINATION "${UVIM_INSTALL_BINDIR}"
     COMPONENT uvim
 )
+
+if(MSVC AND UVIM_BUILD_TESTS)
+    # Apply the same portable CRT policy to our tests and helper executables.
+    # Dependency targets retain their own compiler settings.
+    get_property(uvim_local_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(uvim_local_target IN LISTS uvim_local_targets)
+        if(uvim_local_target MATCHES "_tests$|^fake_")
+            target_compile_definitions(${uvim_local_target} PRIVATE
+                _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
+        endif()
+    endforeach()
+endif()

@@ -147,7 +147,7 @@ std::optional<std::string> Editor::commandHistoryUpImpl()
         return std::nullopt;
     if(commandHistoryIndex < 0)
     {
-        commandHistoryIndex = commandHistory.size() - 1;
+        commandHistoryIndex = static_cast<int>(commandHistory.size() - 1);
     }
     else if(commandHistoryIndex > 0)
     {

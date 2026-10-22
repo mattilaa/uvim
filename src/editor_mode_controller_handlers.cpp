@@ -226,7 +226,7 @@ void EditorModeController::handleOperatorPendingMode(int c)
             // Move to end of paragraph (next blank line)
             {
                 int targetY = *editor.cursorY;
-                int maxLine = editor.lines->size() - 1;
+                int maxLine = static_cast<int>(editor.lines->size() - 1);
                 // Skip current paragraph
                 while(targetY < maxLine && !(*editor.lines)[targetY].empty())
                     targetY++;
@@ -281,7 +281,7 @@ void EditorModeController::handleOperatorPendingMode(int c)
                 {
                     // If at start of line, go to end of previous line
                     endY--;
-                    endX = (*editor.lines)[endY].length() - 1;
+                    endX = static_cast<int>((*editor.lines)[endY].length() - 1);
                 }
             }
         }
@@ -704,7 +704,7 @@ void EditorModeController::handleNormalMode(int c)
         // keyCode(typed::TypedKey::KEY_Y) followed by motion command - enter
         // operator-pending mode
         pendingYank = false;
-        editor.enterOperatorPending(keyCode(typed::TypedKey::KEY_Y));
+        editor.enterOperatorPending(keyChar(typed::TypedKey::KEY_Y));
         editor.pendingCount = count;
         // Process the motion command immediately
         handleOperatorPendingMode(c);
@@ -716,7 +716,7 @@ void EditorModeController::handleNormalMode(int c)
         // keyCode(typed::TypedKey::KEY_D) followed by motion command - enter
         // operator-pending mode
         pendingDelete = false;
-        editor.enterOperatorPending(keyCode(typed::TypedKey::KEY_D));
+        editor.enterOperatorPending(keyChar(typed::TypedKey::KEY_D));
         editor.pendingCount = count;
         // Process the motion command immediately
         handleOperatorPendingMode(c);
@@ -728,7 +728,7 @@ void EditorModeController::handleNormalMode(int c)
         // keyCode(command::CommandKey::KEY_EQUAL) followed by motion command -
         // enter operator-pending mode
         pendingIndent = false;
-        editor.enterOperatorPending(keyCode(command::CommandKey::KEY_EQUAL));
+        editor.enterOperatorPending(keyChar(command::CommandKey::KEY_EQUAL));
         editor.pendingCount = count;
         // Process the motion command immediately
         handleOperatorPendingMode(c);
@@ -792,14 +792,16 @@ void EditorModeController::handleNormalMode(int c)
         break;
     case keyCode(typed::TypedKey::KEY_A):
         editor.saveState();
-        if(*editor.cursorX < (*editor.lines)[*editor.cursorY].length())
+        if(static_cast<size_t>(*editor.cursorX) <
+           (*editor.lines)[*editor.cursorY].length())
             (*editor.cursorX)++;
         editor.setMode(INSERT);
         break;
     case keyCode(typed::TypedKey::KEY_CAP_A):
         editor.saveState();
         editor.moveToLineEnd();
-        if(*editor.cursorX < (*editor.lines)[*editor.cursorY].length())
+        if(static_cast<size_t>(*editor.cursorX) <
+           (*editor.lines)[*editor.cursorY].length())
             (*editor.cursorX)++;
         editor.setMode(INSERT);
         break;
@@ -814,11 +816,11 @@ void EditorModeController::handleNormalMode(int c)
             indent++;
 
         // Insert new line below with same indentation
-        std::string newLine(indent, keyCode(control::ControlKey::SPACE));
+        std::string newLine(indent, keyChar(control::ControlKey::SPACE));
         editor.lines->insert(editor.lines->begin() + *editor.cursorY + 1,
                              newLine);
         *editor.cursorY += 1;
-        *editor.cursorX = indent;
+        *editor.cursorX = static_cast<int>(indent);
 
         editor.saveState();
         *editor.dirty = true;
@@ -836,10 +838,10 @@ void EditorModeController::handleNormalMode(int c)
                currentLine[indent] == '\t'))
             indent++;
 
-        std::string newLine(indent, keyCode(control::ControlKey::SPACE));
+        std::string newLine(indent, keyChar(control::ControlKey::SPACE));
         editor.lines->insert(editor.lines->begin() + *editor.cursorY, newLine);
         *editor.cursorY = std::max(0, *editor.cursorY);
-        *editor.cursorX = indent;
+        *editor.cursorX = static_cast<int>(indent);
 
         editor.saveState();
         *editor.dirty = true;
@@ -1014,7 +1016,7 @@ void EditorModeController::handleNormalMode(int c)
         }
     case keyCode(typed::TypedKey::KEY_C):
         // change operator: enter operator pending (support e.g. cw, ci(, etc.)
-        editor.enterOperatorPending(keyCode(typed::TypedKey::KEY_C));
+        editor.enterOperatorPending(keyChar(typed::TypedKey::KEY_C));
         editor.pendingCount = count;
         break;
     case keyCode(typed::TypedKey::KEY_P):

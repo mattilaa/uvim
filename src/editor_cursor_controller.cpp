@@ -517,7 +517,7 @@ void EditorCursorController::moveToMatchingBracket()
     if(ln.empty())
         return;
 
-    int x = std::clamp(*editor.cursorX, 0, static_cast<int>(ln.size()) - 1);
+    int x = std::clamp(*editor.cursorX, 0, static_cast<int>(ln.size() - 1));
 
     const char c = ln[x];
 
@@ -533,7 +533,6 @@ void EditorCursorController::moveToMatchingBracket()
     // --------------------------------------------------------------------
     {
         const int L = static_cast<int>(ln.size());
-        const char c = ln[x];
 
         bool onOpen = false;
         int openX = -1; // points at '/' in "/*"
@@ -680,7 +679,7 @@ void EditorCursorController::moveToMatchingBracket()
                 if(y < 0)
                     return;
                 ln = line_view(*editor.lines, y);
-                x = static_cast<int>(ln.size()) - 1;
+                x = static_cast<int>(ln.size() - 1);
             }
         }
 
@@ -802,7 +801,8 @@ void EditorCursorController::moveWordBackwardBig()
     else if(*editor.cursorY > 0)
     {
         (*editor.cursorY)--;
-        *editor.cursorX = (*editor.lines)[*editor.cursorY].length();
+        *editor.cursorX =
+            static_cast<int>((*editor.lines)[*editor.cursorY].length());
         if(*editor.cursorX > 0)
             (*editor.cursorX)--;
     }
@@ -879,7 +879,7 @@ void EditorCursorController::findCharBackwardAfter(char c)
         {
             *editor.cursorX = i + 1;
             if(*editor.cursorX >= (int)line.length())
-                *editor.cursorX = line.length() - 1;
+                *editor.cursorX = static_cast<int>(line.length() - 1);
             *editor.wantedX = *editor.cursorX;
             return;
         }
@@ -945,7 +945,7 @@ void EditorCursorController::scrollToBottom()
 {
     if(editor.lines->empty())
         return;
-    *editor.cursorY = editor.lines->size() - 1;
+    *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     *editor.cursorX = 0;
     adjustViewport();
     editor.needsFullRedraw = true;
@@ -971,7 +971,7 @@ void EditorCursorController::scrollPageDown()
     int pageSize = editor.contentRows() - 2;
     *editor.cursorY += pageSize;
     if(*editor.cursorY >= (int)editor.lines->size())
-        *editor.cursorY = editor.lines->size() - 1;
+        *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     *editor.offsetY += pageSize;
     int maxOffset =
         std::max(0, (int)editor.lines->size() - editor.contentRows() + 2);
@@ -987,7 +987,7 @@ void EditorCursorController::moveToScreenTop()
 {
     *editor.cursorY = *editor.offsetY;
     if(*editor.cursorY >= (int)editor.lines->size())
-        *editor.cursorY = editor.lines->size() - 1;
+        *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     moveToFirstNonBlank();
 }
 
@@ -995,7 +995,7 @@ void EditorCursorController::moveToScreenMiddle()
 {
     *editor.cursorY = *editor.offsetY + (editor.contentRows() - 2) / 2;
     if(*editor.cursorY >= (int)editor.lines->size())
-        *editor.cursorY = editor.lines->size() - 1;
+        *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     moveToFirstNonBlank();
 }
 
@@ -1003,7 +1003,7 @@ void EditorCursorController::moveToScreenBottom()
 {
     *editor.cursorY = *editor.offsetY + editor.contentRows() - 3;
     if(*editor.cursorY >= (int)editor.lines->size())
-        *editor.cursorY = editor.lines->size() - 1;
+        *editor.cursorY = static_cast<int>(editor.lines->size() - 1);
     moveToFirstNonBlank();
 }
 
@@ -1209,7 +1209,7 @@ void EditorCursorController::jumpToMark(char mark)
         return;
 
     *editor.cursorY =
-        std::clamp(loc.line, 0, static_cast<int>(editor.lines->size()) - 1);
+        std::clamp(loc.line, 0, static_cast<int>(editor.lines->size() - 1));
     *editor.cursorX =
         std::clamp(loc.col, 0, line_len(*editor.lines, *editor.cursorY));
     *editor.wantedX = *editor.cursorX;

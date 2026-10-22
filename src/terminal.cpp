@@ -1,6 +1,7 @@
 #include "terminal.h"
 
 #include <array>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -29,6 +30,22 @@ std::string Terminal::lastPasteText;
 namespace
 {
 using namespace std::chrono;
+
+#if !defined(UVIM_TERMINAL_WIN32)
+void writeAll(std::string_view text)
+{
+    while(!text.empty())
+    {
+        const auto written = ::write(STDOUT_FILENO, text.data(), text.size());
+        if(written > 0)
+            text.remove_prefix(static_cast<size_t>(written));
+        else if(written < 0 && errno == EINTR)
+            continue;
+        else
+            break;
+    }
+}
+#endif
 
 // See Terminal::setAltChords.
 bool g_altChords = false;
@@ -532,7 +549,7 @@ void Terminal::write(const std::string& str)
     (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), str.data(),
                     static_cast<DWORD>(str.size()), &written, nullptr);
 #else
-    ::write(STDOUT_FILENO, str.c_str(), str.length());
+    writeAll(str);
 #endif
 }
 
@@ -554,7 +571,7 @@ void Terminal::write(char c)
     DWORD written = 0;
     (void)WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), &c, 1, &written, nullptr);
 #else
-    ::write(STDOUT_FILENO, &c, 1);
+    writeAll(std::string_view(&c, 1));
 #endif
 }
 

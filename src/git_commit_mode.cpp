@@ -280,7 +280,7 @@ build_comment_lines(const std::vector<std::string>& stagedLines,
             size_t splitPos =
                 (text_utils::is_found(tab))
                     ? tab
-                    : line.find(keyCode(control::ControlKey::SPACE));
+                    : line.find(keyChar(control::ControlKey::SPACE));
             if(text_utils::is_found(splitPos) && splitPos + 1 < line.size())
                 path = line.substr(splitPos + 1);
         }
@@ -437,7 +437,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 if(start >= raw.size())
                     continue;
                 std::string line = raw.substr(start);
-                size_t sp1 = line.find(keyCode(control::ControlKey::SPACE));
+                size_t sp1 = line.find(keyChar(control::ControlKey::SPACE));
                 std::string actionToken = (text_utils::is_not_found(sp1))
                                               ? line
                                               : line.substr(0, sp1);
@@ -461,7 +461,7 @@ std::optional<ModeState> GitCommitMode::handle(ModeContext& ctx,
                 }
 
                 size_t sp2 =
-                    line.find(keyCode(control::ControlKey::SPACE), pos);
+                    line.find(keyChar(control::ControlKey::SPACE), pos);
                 std::string hash = (text_utils::is_not_found(sp2))
                                        ? line.substr(pos)
                                        : line.substr(pos, sp2 - pos);

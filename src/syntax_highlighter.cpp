@@ -1252,7 +1252,7 @@ void SyntaxHighlighter::collectCppMemberIndex(
                     int i = (int)part.size() - 1;
                     while(i >= 0 && text_utils::is_space(part[i]))
                         --i;
-                    int end = i;
+                    int nameEnd = i;
                     while(i >= 0 &&
                           (text_utils::is_alpha(part[i]) ||
                            text_utils::is_digit(part[i]) || part[i] == '_'))
@@ -1260,9 +1260,10 @@ void SyntaxHighlighter::collectCppMemberIndex(
                         --i;
                     }
                     int begin = i + 1;
-                    if(begin <= end)
+                    if(begin <= nameEnd)
                     {
-                        std::string name(part.substr(begin, end - begin + 1));
+                        std::string name(
+                            part.substr(begin, nameEnd - begin + 1));
                         if(!name.empty())
                             cppMemberNames.insert(name);
                     }
@@ -1618,14 +1619,15 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     if(!entry.IsObject())
                         continue;
                     std::string name = json_utils::get_string(entry, "name");
-                    std::string path = json_utils::get_string(entry, "path");
+                    std::string includePath =
+                        json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
-                    if(name.empty() || path.empty())
+                    if(name.empty() || includePath.empty())
                         continue;
                     if(cache.caseInsensitive)
                         name = ascii_lower(name);
                     MlangTokenCache::BuiltinTypeDef def;
-                    def.path = path;
+                    def.path = includePath;
                     def.line = line > 0 ? line - 1 : 0;
                     cache.builtinTypes.emplace(std::move(name), std::move(def));
                 }
@@ -1642,14 +1644,15 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     if(!entry.IsObject())
                         continue;
                     std::string name = json_utils::get_string(entry, "name");
-                    std::string path = json_utils::get_string(entry, "path");
+                    std::string includePath =
+                        json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
-                    if(name.empty() || path.empty())
+                    if(name.empty() || includePath.empty())
                         continue;
                     if(cache.caseInsensitive)
                         name = ascii_lower(name);
                     MlangTokenCache::BuiltinTypeDef def;
-                    def.path = path;
+                    def.path = includePath;
                     def.line = line > 0 ? line - 1 : 0;
                     cache.builtinMacros.emplace(std::move(name),
                                                 std::move(def));
@@ -1667,14 +1670,15 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     if(!entry.IsObject())
                         continue;
                     std::string name = json_utils::get_string(entry, "name");
-                    std::string path = json_utils::get_string(entry, "path");
+                    std::string includePath =
+                        json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
-                    if(name.empty() || path.empty())
+                    if(name.empty() || includePath.empty())
                         continue;
                     if(cache.caseInsensitive)
                         name = ascii_lower(name);
                     MlangTokenCache::BuiltinTypeDef def;
-                    def.path = path;
+                    def.path = includePath;
                     def.line = line > 0 ? line - 1 : 0;
                     cache.builtinAttributes.emplace(std::move(name),
                                                     std::move(def));
@@ -1692,14 +1696,15 @@ void SyntaxHighlighter::ensureMlangTokensLoaded() const
                     if(!entry.IsObject())
                         continue;
                     std::string name = json_utils::get_string(entry, "name");
-                    std::string path = json_utils::get_string(entry, "path");
+                    std::string includePath =
+                        json_utils::get_string(entry, "path");
                     int line = json_utils::get_int(entry, "line", 1);
-                    if(name.empty() || path.empty())
+                    if(name.empty() || includePath.empty())
                         continue;
                     if(cache.caseInsensitive)
                         name = ascii_lower(name);
                     MlangTokenCache::BuiltinTypeDef def;
-                    def.path = path;
+                    def.path = includePath;
                     def.line = line > 0 ? line - 1 : 0;
                     cache.builtinFunctions.emplace(name, def);
                     auto sep = name.rfind("::");
@@ -3358,10 +3363,10 @@ std::vector<Token> SyntaxHighlighter::tokenizeLine(
         size_t end = sv.find("*/");
         if(text_utils::is_found(end))
         {
-            int len = (int)end + 2;
-            push_token(TOKEN_COMMENT, 0, len);
+            int commentLength = (int)end + 2;
+            push_token(TOKEN_COMMENT, 0, commentLength);
             inBlockComment = false;
-            i = len;
+            i = commentLength;
         }
         else
         {
@@ -4846,17 +4851,18 @@ void SyntaxHighlighter::renderLineWithSyntax(std::string& output,
         (isFileType<FileType::Mla>() && editor->isMlangLspEnabled() &&
          editor->syntaxMlangSemanticTokens)))
     {
-        Buffer* buffer = editor->currentBuffer;
-        if(buffer && buffer->lspSemanticTokensValid && fileRow >= 0 &&
-           fileRow < (int)buffer->lspSemanticTokens.size())
+        Buffer* activeBuffer = editor->currentBuffer;
+        if(activeBuffer && activeBuffer->lspSemanticTokensValid &&
+           fileRow >= 0 &&
+           fileRow < (int)activeBuffer->lspSemanticTokens.size())
         {
-            const auto& semTokens = buffer->lspSemanticTokens[fileRow];
+            const auto& semTokens = activeBuffer->lspSemanticTokens[fileRow];
             const bool isCppSemantics = isFileType<FileType::Cpp>();
             bool inFunctionContext = false;
             if(isCppSemantics && fileRow >= 0 &&
-               fileRow < (int)buffer->syntaxCache.size())
+               fileRow < (int)activeBuffer->syntaxCache.size())
             {
-                const auto& state = buffer->syntaxCache[fileRow];
+                const auto& state = activeBuffer->syntaxCache[fileRow];
                 if(state.valid)
                 {
                     inFunctionContext =

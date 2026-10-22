@@ -197,7 +197,8 @@ void EditorFileController::saveFile()
         {
             linesModified++;
             if((int)lineIdx == *cursorY && *cursorX > (int)line.length())
-                *cursorX = line.length() > 0 ? line.length() - 1 : 0;
+                *cursorX =
+                    line.length() > 0 ? static_cast<int>(line.length() - 1) : 0;
         }
     }
 
@@ -321,7 +322,7 @@ std::string EditorFileController::getSymbolUnderCursor()
     auto* cursorY = editor.cursorY;
     auto& symbolPrefix = editor.symbolPrefix;
 
-    if(*cursorY >= lines->size())
+    if(static_cast<size_t>(*cursorY) >= lines->size())
         return "";
 
     const std::string& line = (*lines)[*cursorY];

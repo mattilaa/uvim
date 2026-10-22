@@ -14,12 +14,12 @@ namespace
 mla::log::FileLogger LSP_LOG("CSHARP");
 }
 
-void Editor::enableCSharpLspImpl(bool enable, const std::string& csharpLspPath,
-                                 const std::vector<std::string>& csharpLspArgs)
+void Editor::enableCSharpLspImpl(bool enable, const std::string& serverPath,
+                                 const std::vector<std::string>& serverArgs)
 {
     csharpLspEnabled = false;
-    this->csharpLspPath = csharpLspPath;
-    this->csharpLspArgs = csharpLspArgs;
+    this->csharpLspPath = serverPath;
+    this->csharpLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_CSHARP_LSP
     if(!enable)
@@ -30,15 +30,16 @@ void Editor::enableCSharpLspImpl(bool enable, const std::string& csharpLspPath,
 
     // Resolve the server and solution on the worker too: PATH and project
     // searches can be slow on Windows/network drives.
-    const std::string filename = currentBuffer ? currentBuffer->filename : "";
+    const std::string bufferFilename =
+        currentBuffer ? currentBuffer->filename : "";
     const std::string root = projectRoot;
     lspController->start(
         "C#", csharpLspClient, csharpLspEnabled,
-        [path = this->csharpLspPath, args = this->csharpLspArgs, filename,
+        [path = this->csharpLspPath, args = this->csharpLspArgs, bufferFilename,
          root](LspClient& client)
         {
             const std::string server = csharp_lsp::resolveServer(path);
-            std::string rootDir = csharp_lsp::projectRoot(filename);
+            std::string rootDir = csharp_lsp::projectRoot(bufferFilename);
             if(rootDir.empty())
                 rootDir = root;
             if(rootDir.empty())
@@ -53,8 +54,8 @@ void Editor::enableCSharpLspImpl(bool enable, const std::string& csharpLspPath,
         });
 #else
     (void)enable;
-    (void)csharpLspPath;
-    (void)csharpLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "C# LSP is not compiled");
 #endif
 }

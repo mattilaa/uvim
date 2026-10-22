@@ -82,7 +82,7 @@ std::string Theme::defaultConfigPath()
     return base + "/uvim/config.toml";
 }
 
-bool Theme::loadFromFile(const std::string& path, std::string* err)
+bool Theme::loadFromFile(const std::string& path, std::string*)
 {
     if(path.empty())
         return false;

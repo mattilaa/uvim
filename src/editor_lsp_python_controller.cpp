@@ -12,12 +12,12 @@ namespace
 mla::log::FileLogger LSP_LOG("PYTHON");
 }
 
-void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
-                                 const std::vector<std::string>& pythonLspArgs)
+void Editor::enablePythonLspImpl(bool enable, const std::string& serverPath,
+                                 const std::vector<std::string>& serverArgs)
 {
     pythonLspEnabled = false;
-    this->pythonLspPath = pythonLspPath;
-    this->pythonLspArgs = pythonLspArgs;
+    this->pythonLspPath = serverPath;
+    this->pythonLspArgs = serverArgs;
 
 #ifdef UVIM_ENABLE_PYTHON_LSP
     if(!enable)
@@ -47,8 +47,8 @@ void Editor::enablePythonLspImpl(bool enable, const std::string& pythonLspPath,
         { return client.startServer(path, rootDir, args); });
 #else
     (void)enable;
-    (void)pythonLspPath;
-    (void)pythonLspArgs;
+    (void)serverPath;
+    (void)serverArgs;
     LOG_ERROR(LSP_LOG, "python LSP support is not compiled");
 #endif
 }
