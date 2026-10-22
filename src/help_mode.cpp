@@ -1582,7 +1582,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "targets.",
             "Only directly source-mapped code stays bright; unresolved rows "
             "dim.",
+            "Browsing rows or switching panes resets both panes to line start.",
+            "Use h/l to pan the current line; 0 returns it to the beginning.",
             "Inferred labels, external code, and unknown origins get darker.",
+            "Known external-source code also has a subtle dark red background.",
+            "Customize it with theme.asm.external_bg in the theme/config file.",
             "Select external code for its source filename/line when available.",
             "Unknown origins show no source mapping; no library is guessed.",
             "  `:set asmdimunmapped=false` disables dimming (default true).",

@@ -22,7 +22,7 @@ namespace
 std::vector<std::string> helpTokens()
 {
     return {"[j/k: rows]",
-            "[h/l: horizontal]",
+            "[h/l: horizontal, 0: line start]",
             "[PgUp/PgDn: page]",
             "[v: source split]",
             "[" + std::string(Terminal::shiftChordLabel()) + "-H/L: pane]",
@@ -313,6 +313,7 @@ void AssemblyMode::ensureVisible(const Editor& editor)
     if(content && !content->compiling && initialSyncPending)
     {
         synchronizeSelection();
+        horizontal = sourceHorizontal = 0;
         initialSyncPending = false;
     }
     const int count =
@@ -447,6 +448,8 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
     const int before = cursor;
     const int sourceBefore = sourceCursor;
     const bool wasSource = sourcePane;
+    const bool wasSplit = split;
+    bool browsedRow = false;
     if(key == keyCode(control::ControlKey::SHIFT_CTRL_H) && split)
         sourcePane = true;
     else if(key == keyCode(control::ControlKey::SHIFT_CTRL_L) && split)
@@ -472,7 +475,19 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
     {
         int& row = split && sourcePane ? sourceCursor : cursor;
         int& left = split && sourcePane ? sourceHorizontal : horizontal;
-        if(key == 'j' || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+        browsedRow = key == 'j' || key == 'k' || key == 'g' || key == 'G' ||
+                     key == keyCode(navigation::NavigationKey::ARROW_DOWN) ||
+                     key == keyCode(navigation::NavigationKey::ARROW_UP) ||
+                     key == keyCode(navigation::NavigationKey::PAGE_DOWN) ||
+                     key == keyCode(navigation::NavigationKey::PAGE_UP) ||
+                     key == keyCode(navigation::NavigationKey::HOME) ||
+                     key == keyCode(navigation::NavigationKey::END) ||
+                     key == keyCode(control::ControlKey::CTRL_D) ||
+                     key == keyCode(control::ControlKey::CTRL_U);
+        if(key == '0')
+            left = 0;
+        else if(key == 'j' ||
+                key == keyCode(navigation::NavigationKey::ARROW_DOWN))
             ++row;
         else if(key == 'k' ||
                 key == keyCode(navigation::NavigationKey::ARROW_UP))
@@ -507,6 +522,9 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
        (sourcePane == wasSource &&
         (sourceCursor != sourceBefore || cursor != before)))
         synchronizeSelection();
+    if(browsedRow || cursor != before || sourceCursor != sourceBefore ||
+       sourcePane != wasSource || split != wasSplit)
+        horizontal = sourceHorizontal = 0;
     ensureVisible(editor);
     if(inspect && (cursor != before || sourceCursor != sourceBefore ||
                    sourcePane != wasSource))
@@ -611,6 +629,10 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.sourceMapping();
             else if(active && current)
                 out += editor.theme.selection();
+            else if(!source && hasOrigins &&
+                    !result.sourceOrigins[index].mainSource &&
+                    !result.sourceOrigins[index].path.empty())
+                out += editor.theme.externalSource();
             int dimLevel = 0;
             if(!source && editor.asmDimUnmapped &&
                !(hasDirectMappings && result.sourceLineForAssembly[index] > 0))

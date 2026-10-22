@@ -148,11 +148,15 @@ includes common Normal/Insert/Visual/Command mode bindings.
   the source/assembly pane. Navigation in either pane reveals matching rows
   in the other pane with a subtle green background and preserved syntax colors.
   Lines without emitted instructions and code from other files have no match.
+- Assembly browsing starts each newly selected row at the beginning in both
+  panes, including linked source jumps. `h/l` pans the current line; `0` returns
+  it to the beginning. Pane switches and split toggles also reset horizontal pan.
 - Assembly view titles include the target architecture, including cross targets
   such as `--target=aarch64-linux-gnu` or Mlang `--target-arch aarch64`.
 - In the assembly browser, directly mapped code stays bright. Inferred labels,
   external-source rows, and unknown origins use progressively dimmer syntax
-  colors; all unresolved rows are dimmed. Select external code to
+  colors; all unresolved rows are dimmed. Known external-source rows also have
+  a dark red background (`theme.asm.external_bg`). Select external code to
   see its source file and line in the status bar when compiler debug information
   provides them. `:set asmdimunmapped=false` disables dimming.
 - Typing `:asm . --` opens common compiler flags: up/down or `Ctrl-j/k`

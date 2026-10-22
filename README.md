@@ -876,15 +876,22 @@ The view shows assembly row numbers, syntax colors, the compiler and options,
 and the selected row. Symbols and instructions unrelated to the compiled source
 use a dimming gradient while retaining syntax colors. Only instructions directly
 mapped to a source line keep full brightness. Labels whose origin is inferred
-from nearby code are lightly dimmed, external-file rows are dimmer, and rows
-with no source origin are darkest. This includes all unresolved labels and
+from nearby code are lightly dimmed, external-file rows are dimmer with a subtle
+dark red background, and rows with no source origin are darkest. This includes all unresolved labels and
 directives, even when the compiler supplies no source mappings. When compiler debug information identifies an external
 source, selecting its label or instruction shows a hint such as
 `from helper.mla:12` in the status bar. Rows without origin information show
 `no source mapping`; the editor does not guess a library name.
 Use `:set asmdimunmapped=false` to disable dimming, or persist
 `asmdimunmapped = false` under `[editor]` in `config.toml`. This works in both
-compact and `--raw` assembly views.
+compact and `--raw` assembly views. External-source backgrounds remain visible
+when dimming is disabled; the active row keeps its cursor-selection background.
+Customize the external tint in `config.toml` or your theme file:
+
+```toml
+[theme.asm]
+external_bg = "#351c26"
+```
 
 Compilation runs in a background task; failures show the compiler diagnostics in
 the view, and `q`/Escape can leave while it runs.
@@ -894,6 +901,11 @@ view to toggle it. The left pane shows the compiled source snapshot, including
 unsaved edits. Both panes are read-only. Move between them with Ctrl-Shift-H/L,
 or Alt-H/L when using `:set iskitty=false`, just like editor panes. On narrow
 terminals, the focused pane fills the available width.
+
+Browsing another row with `j/k`, arrows, paging, or `g/G` resets both panes to
+the beginning of their lines. Switching panes or toggling split view also resets
+horizontal scrolling. Use `h/l` to pan the current line and `0` to return it to
+the beginning without changing rows.
 
 Moving through source highlights all matching assembly rows with a subtle
 green background and scrolls to the first match. Moving through assembly

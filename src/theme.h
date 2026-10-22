@@ -42,6 +42,7 @@ public:
     const std::string& searchMatch() const;
     // Subtle background tint; preserves the syntax foreground colors.
     const std::string& sourceMapping() const;
+    const std::string& externalSource() const;
     const std::string& statusBar() const;
     const std::string& tabBar() const;
     const std::string& panel() const;
@@ -69,6 +70,7 @@ private:
     Color base_fg_;
     Color base_bg_;
 
+    Color asm_external_bg_;
     Color ui_dim_;
     Color ui_accent_;
     Color ui_info_;
@@ -96,6 +98,7 @@ private:
     std::string cursor_seq_;
     std::string search_seq_;
     std::string source_mapping_seq_;
+    std::string external_source_seq_;
     std::string status_bar_seq_;
     std::string tab_bar_seq_;
     std::string panel_seq_;

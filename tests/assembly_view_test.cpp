@@ -978,3 +978,100 @@ TEST_F(AssemblyViewTest,
         ASSERT_TRUE(waitFor(editor, [&] { return editor.tasks.idle(); }));
     }
 }
+
+TEST_F(AssemblyViewTest,
+       ExternalSourceRowsHaveRedBackgroundWithoutColoringOtherRows)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--uvim-test-origins"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    const auto& background = editor.theme.externalSource();
+    if(!background.empty())
+    {
+        size_t count = 0;
+        for(size_t position = frame.find(background);
+            position != std::string::npos;
+            position = frame.find(background, position + background.size()))
+            ++count;
+        EXPECT_EQ(count, 3u); // External label and its two instructions only.
+    }
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
+              std::string::npos);
+
+    // The tint remains available when syntax dimming is disabled.
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=false"));
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto undimmed = testing::internal::GetCapturedStdout();
+    EXPECT_NE(undimmed.find(background), std::string::npos);
+    EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    write_file(root / "theme.toml", "[theme.asm]\nexternal_bg = \"#351c26\"\n");
+    ASSERT_TRUE(editor.theme.loadFromFile((root / "theme.toml").string()));
+#ifdef UVIM_ENABLE_TERMINAL_COLORS
+    EXPECT_EQ(editor.theme.externalSource(), color::rgbBg(0x35, 0x1c, 0x26));
+#else
+    EXPECT_TRUE(editor.theme.externalSource().empty());
+#endif
+}
+
+TEST_F(AssemblyViewTest, BrowsingRowsAndSwitchingPanesResetsHorizontalScroll)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "}"};
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--split"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    // Establish the initial linked selection before manually scrolling.
+    sm.dispatch('0');
+    ASSERT_TRUE(view->sourcePane);
+    sm.dispatch('l');
+    ASSERT_GT(view->sourceHorizontal, 0);
+    sm.dispatch('j');
+    EXPECT_EQ(view->sourceCursor, 1);
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    EXPECT_EQ(view->horizontal, 0);
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
+    EXPECT_FALSE(view->sourcePane);
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    sm.dispatch('l');
+    ASSERT_GT(view->horizontal, 0);
+    sm.dispatch('j');
+    EXPECT_EQ(view->horizontal, 0);
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    sm.dispatch('l');
+    sm.dispatch('0');
+    EXPECT_EQ(view->horizontal, 0);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
+    sm.dispatch('l');
+    sm.dispatch('0');
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    for(const int key : std::vector<int>{
+            'j', 'k', 'g', 'G', keyCode(navigation::NavigationKey::PAGE_DOWN),
+            keyCode(navigation::NavigationKey::PAGE_UP),
+            keyCode(navigation::NavigationKey::HOME),
+            keyCode(navigation::NavigationKey::END),
+            keyCode(control::ControlKey::CTRL_D),
+            keyCode(control::ControlKey::CTRL_U)})
+    {
+        sm.dispatch('l');
+        ASSERT_GT(view->sourceHorizontal, 0);
+        sm.dispatch(key);
+        EXPECT_EQ(view->sourceHorizontal, 0) << key;
+        EXPECT_EQ(view->horizontal, 0) << key;
+    }
+}
