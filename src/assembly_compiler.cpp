@@ -393,9 +393,13 @@ CompileCommand findCompileCommand(const Request& request,
 }
 
 std::vector<int> sourceLocations(const std::vector<std::string>& lines,
-                                 const fs::path& source, size_t sourceCount)
+                                 const fs::path& source, size_t sourceCount,
+                                 const fs::path& directory,
+                                 const std::string& displayPath,
+                                 std::vector<SourceOrigin>& origins)
 {
     std::unordered_map<int, bool> mainFiles;
+    std::unordered_map<int, std::string> filenames;
     for(const auto& line : lines)
     {
         std::istringstream stream(line);
@@ -407,11 +411,15 @@ std::vector<int> sourceLocations(const std::vector<std::string>& lines,
         stream >> std::ws;
         if(stream.peek() == '"' && stream >> std::quoted(second))
             filename = (fs::path(filename) / second).string();
+        const auto path = absolutePath(filename, directory);
         std::error_code ec;
-        mainFiles[number] = fs::equivalent(fs::path(filename), source, ec);
+        mainFiles[number] = fs::equivalent(path, source, ec);
+        filenames[number] = mainFiles[number] ? displayPath : path.string();
     }
     std::vector<int> locations;
-    int current = 0;
+    origins.clear();
+    SourceOrigin current;
+    std::vector<size_t> pendingLabels;
     for(const auto& line : lines)
     {
         std::istringstream stream(line);
@@ -421,20 +429,37 @@ std::vector<int> sourceLocations(const std::vector<std::string>& lines,
         {
             int file = -1, row = 0;
             stream >> file >> row;
-            current = mainFiles[file] && row > 0 &&
-                              static_cast<size_t>(row) <= sourceCount
-                          ? row
-                          : 0;
+            current = {};
+            if(row > 0 && filenames.contains(file) &&
+               (!mainFiles[file] || static_cast<size_t>(row) <= sourceCount))
+                current = {filenames[file], row, mainFiles[file]};
         }
         // Directives, labels and comments do not represent source statements.
         const bool instruction =
             !word.empty() &&
             std::isalpha(static_cast<unsigned char>(word.front())) &&
             word.back() != ':';
-        locations.push_back(instruction ? current : 0);
+        locations.push_back(instruction && current.mainSource ? current.line
+                                                              : 0);
+        origins.push_back(instruction ? current : SourceOrigin{});
+        if(!word.empty() && word.back() == ':')
+        {
+            if(word.front() != '.' && word.front() != 'L')
+                pendingLabels.clear();
+            pendingLabels.push_back(origins.size() - 1);
+        }
+        if(instruction && !current.path.empty())
+        {
+            for(size_t label : pendingLabels)
+                origins[label] = current;
+            pendingLabels.clear();
+        }
         if(word == ".cfi_endproc" || word == ".seh_endproc" ||
            line.find("-- Begin function") != std::string::npos)
-            current = 0;
+        {
+            current = {};
+            pendingLabels.clear();
+        }
     }
     return locations;
 }
@@ -886,11 +911,15 @@ Result compile(const Request& inputRequest,
     }
     const std::string assembly = readFile(output);
     const auto rawLines = splitLines(assembly);
-    const auto locations = sourceLocations(rawLines, input, source.size());
+    std::vector<SourceOrigin> origins;
+    const auto locations =
+        sourceLocations(rawLines, input, source.size(), request.directory,
+                        request.path, origins);
     if(request.raw)
     {
         result.lines = rawLines;
         result.sourceLineForAssembly = locations;
+        result.sourceOrigins = std::move(origins);
     }
     else
     {
@@ -898,10 +927,13 @@ Result compile(const Request& inputRequest,
         result.lines =
             splitLines(assembly_output::compact(assembly, &originalRows));
         for(int row : originalRows)
-            result.sourceLineForAssembly.push_back(
-                row >= 0 && static_cast<size_t>(row) < locations.size()
-                    ? locations[row]
-                    : 0);
+        {
+            const bool valid =
+                row >= 0 && static_cast<size_t>(row) < locations.size();
+            result.sourceLineForAssembly.push_back(valid ? locations[row] : 0);
+            result.sourceOrigins.push_back(valid ? origins[row]
+                                                 : SourceOrigin{});
+        }
     }
     result.success = !result.lines.empty();
     if(!result.success)

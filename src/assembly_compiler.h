@@ -20,6 +20,13 @@ struct Request
     bool split = false;
 };
 
+struct SourceOrigin
+{
+    std::string path;
+    int line = 0;
+    bool mainSource = false;
+};
+
 struct Result
 {
     bool success = false;
@@ -32,6 +39,9 @@ struct Result
     std::vector<std::string> sourceLines;
     // One-based source line per assembly row; 0 means no source correspondence.
     std::vector<int> sourceLineForAssembly;
+    // Includes label origins inferred from their first source-mapped
+    // instruction.
+    std::vector<SourceOrigin> sourceOrigins;
 };
 
 bool isMlangSource(std::string_view path);

@@ -122,6 +122,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (continuationIndent ? "true" : "false"));
         return true;
     }
+    if(opt == "asmdimunmapped?")
+    {
+        setStatusMessage(std::string("asmdimunmapped=") +
+                         (asmDimUnmapped ? "true" : "false"));
+        return true;
+    }
     if(opt == "autotags?")
     {
         setStatusMessage(std::string("autotags=") +
@@ -419,6 +425,13 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (continuationIndent ? "true" : "false"));
     };
 
+    auto set_asm_dim_unmapped = [&](bool value)
+    {
+        asmDimUnmapped = value;
+        setStatusMessage(std::string("asmdimunmapped=") +
+                         (asmDimUnmapped ? "true" : "false"));
+    };
+
     auto set_autotags = [&](bool value)
     {
         autoTags = value;
@@ -531,6 +544,16 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "nocontinuationindent")
     {
         set_continuation_indent(false);
+        return true;
+    }
+    if(opt == "asmdimunmapped")
+    {
+        set_asm_dim_unmapped(true);
+        return true;
+    }
+    if(opt == "noasmdimunmapped")
+    {
+        set_asm_dim_unmapped(false);
         return true;
     }
     if(opt == "syntax.cpp.highlight_system_includes")
@@ -1246,6 +1269,23 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("continuationindent: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("asmdimunmapped=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("asmdimunmapped=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_asm_dim_unmapped(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_asm_dim_unmapped(false);
+        }
+        else
+        {
+            setStatusMessage("asmdimunmapped: expected true/false");
         }
         return true;
     }

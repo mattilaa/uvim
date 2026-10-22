@@ -14,12 +14,15 @@ int main(int argc, char** argv)
     std::vector<std::string> args(argv + 1, argv + argc);
     fs::path output, root;
     bool error = false;
+    bool origins = false;
     for(size_t i = 0; i < args.size(); ++i)
     {
         if(args[i] == "-o" && i + 1 < args.size())
             output = args[++i];
         else if(args[i] == "--uvim-test-dir" && i + 1 < args.size())
             root = args[++i];
+        else if(args[i] == "--uvim-test-origins")
+            origins = true;
         else if(args[i] == "--uvim-test-error")
             error = true;
     }
@@ -51,6 +54,17 @@ int main(int argc, char** argv)
         return 3;
     }
     std::ofstream assembly(output, std::ios::binary);
+    if(origins)
+    {
+        assembly << ".file 1 " << std::quoted(args.back()) << '\n'
+                 << ".file 2 \"helper-library.mla\"\n"
+                 << ".text\nlocal_function:\n.loc 1 1 0\n\tmovq %rdi, "
+                    "%rax\n\tretq\n.cfi_endproc\n"
+                 << "library_helper:\n.loc 2 12 0\n\taddq $1, "
+                    "%rax\n\tretq\n.cfi_endproc\n"
+                 << "unknown_helper:\n\tnop\n\tretq\n.cfi_endproc\n";
+        return assembly ? 0 : 2;
+    }
     assembly << ".file 1 " << std::quoted(args.back()) << '\n'
              << ".file 2 \"unrelated-header.h\"\n"
              << ".text\nfake_function:\n.loc 1 1 0\n\tmovq %rdi, %rax\n"

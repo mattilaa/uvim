@@ -754,3 +754,103 @@ TEST_F(AssemblyViewTest, RealMlangPreservesRelativeModulesAndSourceMapping)
         EXPECT_FALSE(
             entry.path().filename().string().starts_with(".uvim_asm_"));
 }
+
+TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
+{
+    editor.screenCols = 160;
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--uvim-test-origins"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    ASSERT_EQ(result.lines.size(), result.sourceOrigins.size());
+    const auto local =
+        std::find(result.lines.begin(), result.lines.end(), "local_function:");
+    const auto library =
+        std::find(result.lines.begin(), result.lines.end(), "library_helper:");
+    const auto unknown =
+        std::find(result.lines.begin(), result.lines.end(), "unknown_helper:");
+    ASSERT_NE(local, result.lines.end());
+    ASSERT_NE(library, result.lines.end());
+    ASSERT_NE(unknown, result.lines.end());
+    const size_t localRow = static_cast<size_t>(local - result.lines.begin());
+    const size_t libraryRow =
+        static_cast<size_t>(library - result.lines.begin());
+    const size_t unknownRow =
+        static_cast<size_t>(unknown - result.lines.begin());
+    EXPECT_TRUE(result.sourceOrigins[localRow].mainSource);
+    EXPECT_EQ(result.sourceOrigins[localRow].path, result.sourcePath);
+    EXPECT_EQ(result.sourceLineForAssembly[localRow],
+              0); // Label is not an instruction.
+    EXPECT_FALSE(result.sourceOrigins[libraryRow].mainSource);
+    EXPECT_EQ(
+        std::filesystem::path(result.sourceOrigins[libraryRow].path).filename(),
+        "helper-library.mla");
+    EXPECT_EQ(result.sourceOrigins[libraryRow].line, 12);
+    EXPECT_TRUE(result.sourceOrigins[unknownRow].path.empty());
+
+    view->cursor = static_cast<int>(libraryRow);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) +
+                         Terminal::ESC_DIM + "addq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+              std::string::npos);
+    EXPECT_NE(frame.find("from helper-library.mla:12"), std::string::npos);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=false"));
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto undimmed = testing::internal::GetCapturedStdout();
+    EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    EXPECT_EQ(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) +
+                            Terminal::ESC_DIM + "addq"),
+              std::string::npos);
+    EXPECT_NE(undimmed.find("from helper-library.mla:12"), std::string::npos);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped"));
+    ASSERT_TRUE(editor.handleSetCommand("set noasmdimunmapped"));
+    EXPECT_FALSE(editor.asmDimUnmapped);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=true"));
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped?"));
+    view->cursor = static_cast<int>(unknownRow);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    EXPECT_NE(testing::internal::GetCapturedStdout().find("no source mapping"),
+              std::string::npos);
+    // A compiler without source locations should still produce readable code.
+    view->content->result.sourceOrigins.assign(result.lines.size(), {});
+    view->content->result.sourceLineForAssembly.assign(result.lines.size(), 0);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto unmapped = testing::internal::GetCapturedStdout();
+    EXPECT_NE(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    EXPECT_EQ(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) +
+                            Terminal::ESC_DIM + "addq"),
+              std::string::npos);
+}
+
+TEST_F(AssemblyViewTest, RawAssemblyPreservesLibraryOriginsAndDimming)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm,
+                     fakeCommand(root, "--raw --split --uvim-test-origins"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    ASSERT_EQ(result.sourceOrigins.size(), result.lines.size());
+    const auto label =
+        std::find(result.lines.begin(), result.lines.end(), "library_helper:");
+    ASSERT_NE(label, result.lines.end());
+    const auto index = static_cast<size_t>(label - result.lines.begin());
+    EXPECT_FALSE(result.sourceOrigins[index].mainSource);
+    EXPECT_EQ(result.sourceOrigins[index].line, 12);
+    EXPECT_EQ(result.sourceLineForAssembly[index + 2], 0);
+    EXPECT_EQ(result.sourceOrigins[index + 2].line, 12);
+}

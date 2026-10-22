@@ -71,7 +71,7 @@ std::string clipped(std::string_view line, int columns)
 
 void appendSyntax(std::string& out, const std::string& line,
                   const std::vector<Token>& tokens, int left, int width,
-                  const Theme& theme)
+                  const Theme& theme, bool dim)
 {
     std::vector<TokenType> colors(line.size(), TOKEN_NORMAL);
     for(const auto& token : tokens)
@@ -86,6 +86,8 @@ void appendSyntax(std::string& out, const std::string& line,
     int used = 0;
     TokenType previous = TOKEN_NORMAL;
     out += theme.baseFg();
+    if(dim)
+        out += Terminal::ESC_DIM;
     for(int i = 0; i < static_cast<int>(line.size());)
     {
         const int end = text_utils::nextUtf8CharStart(line, i);
@@ -99,6 +101,8 @@ void appendSyntax(std::string& out, const std::string& line,
             {
                 previous = colors[i];
                 out += theme.syntax(previous);
+                if(dim)
+                    out += Terminal::ESC_DIM;
             }
             out += glyph;
             used += cells;
@@ -579,6 +583,12 @@ void AssemblyMode::draw(Editor& editor)
         else
             heading(sourcePane, editor.screenCols);
     }
+    const bool hasOrigins = result.sourceOrigins.size() == result.lines.size();
+    const bool hasMapping =
+        hasOrigins &&
+        std::any_of(result.sourceOrigins.begin(), result.sourceOrigins.end(),
+                    [](const assembly_compiler::SourceOrigin& origin)
+                    { return origin.mainSource; });
     auto paneRow = [&](bool source, int row, int width)
     {
         out += editor.theme.reset();
@@ -599,7 +609,11 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.sourceMapping();
             else if(active && current)
                 out += editor.theme.selection();
+            const bool dim = !source && editor.asmDimUnmapped && hasMapping &&
+                             !result.sourceOrigins[index].mainSource;
             out += editor.theme.uiGutter();
+            if(dim)
+                out += Terminal::ESC_DIM;
             const int gutter =
                 static_cast<int>(std::to_string(lines.size()).size()) + 2;
             std::string number = std::to_string(index + 1);
@@ -610,7 +624,7 @@ void AssemblyMode::draw(Editor& editor)
                 clipped((active && current ? ">" : " ") + number + " ", width);
             appendSyntax(out, lines[index], tokens[index],
                          source ? sourceHorizontal : horizontal,
-                         std::max(0, width - gutter), editor.theme);
+                         std::max(0, width - gutter), editor.theme, dim);
         }
         else
         {
@@ -659,6 +673,18 @@ void AssemblyMode::draw(Editor& editor)
     if(split)
         status.flags.push_back(linked > 0 ? "source L" + std::to_string(linked)
                                           : "no source mapping");
+    if(!(split && sourcePane) && hasOrigins && cursor >= 0 &&
+       static_cast<size_t>(cursor) < result.sourceOrigins.size())
+    {
+        const auto& origin = result.sourceOrigins[cursor];
+        if(!origin.mainSource && !origin.path.empty())
+            status.flags.push_back(
+                "from " +
+                std::filesystem::path(origin.path).filename().string() + ":" +
+                std::to_string(origin.line));
+        else if(!origin.mainSource && hasMapping && !split)
+            status.flags.push_back("no source mapping");
+    }
     const auto& activeLines =
         split && sourcePane ? result.sourceLines : result.lines;
     status.index = activeLines.empty()
