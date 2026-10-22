@@ -328,6 +328,34 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     splitBrackets = false;
             }
+            auto continuationSetting = values.find("editor.continuationindent");
+            if(continuationSetting == values.end())
+                continuationSetting =
+                    values.find("settings.continuationindent");
+            if(continuationSetting == values.end())
+                continuationSetting = values.find("continuationindent");
+            if(continuationSetting != values.end())
+            {
+                std::string v = continuationSetting->second;
+                if(v == "true" || v == "1" || v == "on")
+                    continuationIndent = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    continuationIndent = false;
+            }
+            const std::string previousStatus = statusMessage;
+            for(const char* option :
+                {"collectionindentkey", "collectionindentwidth"})
+            {
+                auto setting = values.find(std::string("editor.") + option);
+                if(setting == values.end())
+                    setting = values.find(std::string("settings.") + option);
+                if(setting == values.end())
+                    setting = values.find(option);
+                if(setting != values.end())
+                    handleSetCommandImpl(std::string("set ") + option + "=" +
+                                         setting->second);
+            }
+            statusMessage = previousStatus;
             auto ittg = values.find("editor.autotags");
             if(ittg == values.end())
                 ittg = values.find("settings.autotags");

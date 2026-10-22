@@ -48,6 +48,9 @@ autobracesinstrings = true
 splitbraces = true
 autobrackets = true
 splitbrackets = true
+continuationindent = true
+collectionindentwidth = 0
+collectionindentkey = "ctrl-t"
 autotags = true
 autocomplete = true
 completionautoparens = true
@@ -166,6 +169,33 @@ This also works for manually inserted pairs and is independent of `splitbraces`.
 Use `:set splitbrackets=false` or `:set nosplitbrackets` for a normal line split.
 Both settings support `:set <name>?`, `:set <name>=true/false`, and config entries
 under `[editor]`.
+
+\par editor.continuationindent
+Boolean. Default: true. On Enter, continue one indent level inside lists `[]`,
+map/object literals `{}`, and argument lists `()`, including after an item or
+comma. Strings and comments do not contribute delimiter nesting. Closing-only
+lines align with their opening line; a line with an item followed by the closing
+delimiter stays indented with the other items.
+Use `:set continuationindent=false` to keep the preceding line's indentation.
+This is independent of `splitbraces` and `splitbrackets`, which control empty pairs.
+
+\par editor.collectionindentwidth
+Integer. Default: 0. Range: 0-16. Width for collection continuation, empty-pair
+expansion, and the reindent shortcut. Zero uses the buffer indent width
+(`.clang-format` IndentWidth when available, otherwise `tabspaces`).
+Example: `:set collectionindentwidth=2`.
+
+\par editor.collectionindentkey
+String. Default: "ctrl-t". Values: "ctrl-t", "ctrl-y", "off".
+In Normal or Insert mode, Ctrl+T reindents the enclosing multiline list, map,
+or argument list, including nested items, as one undoable edit. On its opening
+line, the cursor may be before the opening delimiter. Only leading whitespace
+changes; items, punctuation, line breaks, and comments remain intact. Multiline
+string and block-comment contents are preserved. No formatter or LSP is needed.
+The shortcut stays in the current mode and preserves the cursor's text position.
+Example: `:set collectionindentkey=ctrl-y` to use Ctrl+Y instead, or
+`:set collectionindentkey=off` to disable it. All three settings support queries
+with `:set <name>?` and can be persisted in `[editor]`.
 
 \par editor.autotags
 Boolean. Default: true. Auto-insert closing tags in markup.

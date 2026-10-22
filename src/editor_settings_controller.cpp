@@ -26,6 +26,60 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         return false;
 
     std::string opt = std::string(cmd.substr(4));
+    if(opt == "collectionindentwidth?")
+    {
+        setStatusMessage("collectionindentwidth=" +
+                         std::to_string(collectionIndentSpaces));
+        return true;
+    }
+    if(opt == "collectionindentkey?")
+    {
+        setStatusMessage(std::string("collectionindentkey=") +
+                         (collectionIndentKey == 20   ? "ctrl-t"
+                          : collectionIndentKey == 25 ? "ctrl-y"
+                                                      : "off"));
+        return true;
+    }
+    if(opt.starts_with("collectionindentkey="))
+    {
+        const std::string value =
+            opt.substr(std::string("collectionindentkey=").size());
+        if(value == "ctrl-t")
+            collectionIndentKey = 20;
+        else if(value == "ctrl-y")
+            collectionIndentKey = 25;
+        else if(value == "off")
+            collectionIndentKey = 0;
+        else
+        {
+            setStatusMessage(
+                "collectionindentkey: expected ctrl-t, ctrl-y, or off");
+            return true;
+        }
+        return handleSetCommandImpl("set collectionindentkey?");
+    }
+    if(opt.starts_with("collectionindentwidth="))
+    {
+        const std::string value =
+            opt.substr(std::string("collectionindentwidth=").size());
+        try
+        {
+            size_t consumed = 0;
+            const int width = std::stoi(value, &consumed);
+            if(consumed == value.size() && width >= 0 && width <= 16)
+            {
+                collectionIndentSpaces = width;
+                return handleSetCommandImpl("set collectionindentwidth?");
+            }
+        }
+        catch(...)
+        {
+        }
+        setStatusMessage("collectionindentwidth: expected 0-16 (0 uses the "
+                         "buffer indent width)");
+        return true;
+    }
+
     if(opt == "autobraces?")
     {
         setStatusMessage(std::string("autobraces=") +
@@ -60,6 +114,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     {
         setStatusMessage(std::string("splitbrackets=") +
                          (splitBrackets ? "true" : "false"));
+        return true;
+    }
+    if(opt == "continuationindent?")
+    {
+        setStatusMessage(std::string("continuationindent=") +
+                         (continuationIndent ? "true" : "false"));
         return true;
     }
     if(opt == "autotags?")
@@ -352,6 +412,13 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (splitBrackets ? "true" : "false"));
     };
 
+    auto set_continuation_indent = [&](bool value)
+    {
+        continuationIndent = value;
+        setStatusMessage(std::string("continuationindent=") +
+                         (continuationIndent ? "true" : "false"));
+    };
+
     auto set_autotags = [&](bool value)
     {
         autoTags = value;
@@ -454,6 +521,16 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "nosplitbrackets")
     {
         set_split_brackets(false);
+        return true;
+    }
+    if(opt == "continuationindent")
+    {
+        set_continuation_indent(true);
+        return true;
+    }
+    if(opt == "nocontinuationindent")
+    {
+        set_continuation_indent(false);
         return true;
     }
     if(opt == "syntax.cpp.highlight_system_includes")
@@ -1151,6 +1228,24 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("splitbrackets: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("continuationindent=", 0) == 0)
+    {
+        std::string value =
+            opt.substr(std::string("continuationindent=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_continuation_indent(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_continuation_indent(false);
+        }
+        else
+        {
+            setStatusMessage("continuationindent: expected true/false");
         }
         return true;
     }

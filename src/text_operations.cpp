@@ -1,3 +1,4 @@
+#include "collection_indent.h"
 #include "editor.h"
 #include "enablelog.h"
 #include "process_pipe.h"
@@ -286,7 +287,8 @@ void Editor::insertNewline()
                (open == '{' && isFileType<FileType::Cpp>()))
             {
                 addExtraIndent = true;
-                extraIndentWidth = indentWidthForBraces();
+                extraIndentWidth = splitDelimiterPair ? collectionIndentWidth()
+                                                      : indentWidthForBraces();
             }
         }
     }
@@ -346,6 +348,23 @@ void Editor::insertNewline()
                     indentStr.clear();
                 }
             }
+        }
+    }
+
+    if(continuationIndent && !splitDelimiterPair)
+    {
+        collection_indent::Scanner scan;
+        for(int y = 0; y < *cursorY; ++y)
+            scan.scan((*lines)[y], static_cast<size_t>(y));
+        // currentLine has already been shortened to the text before the cursor.
+        scan.scan(currentLine.substr(0, *cursorX),
+                  static_cast<size_t>(*cursorY));
+        const auto continuation =
+            scan.indentation(remainder, collectionIndentWidth());
+        if(continuation)
+        {
+            indentStr = *continuation;
+            addExtraIndent = false;
         }
     }
 

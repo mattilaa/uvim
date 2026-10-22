@@ -386,6 +386,13 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         return std::nullopt;
     }
 
+    if(ed->collectionIndentKey != 0 && c == ed->collectionIndentKey)
+    {
+        ed->reindentCollection();
+        ctx.repeatCount = 0;
+        return std::nullopt;
+    }
+
     // ========================================================================
     // Backspace
     // ========================================================================

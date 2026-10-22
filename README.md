@@ -1570,6 +1570,66 @@ Ambiguous C++ declarations/expressions may be approximated; calls inside
 string interpolation are skipped along with the string. Unsupported file
 types report a message and keep the cursor in place.
 
+## List and map indentation
+
+Enter continues one indent level inside lists, maps/object literals, and
+argument lists. For example, pressing Enter after the comma produces:
+
+```text
+    auto v = ['a',
+        'b'];
+```
+
+A closing delimiter on its own line aligns with the opening line. A delimiter
+following an item, such as `'b'];`, stays at the items' indentation. Enter inside
+an empty `{}` or `[]` creates an indented blank line between the delimiters.
+
+Press **Ctrl+T** in Normal or Insert mode to reindent the enclosing multiline
+collection, including nested items. Place the cursor inside it or on its opening
+line. This changes leading whitespace only, preserves existing line breaks, and
+can be undone with `u` in Normal mode. It does not require a formatter or LSP.
+For example:
+
+```text
+Before:                 After Ctrl+T:
+    v = {                   v = {
+'a': [                          'a': [
+'x',                                'x',
+'y'],                               'y'],
+'b': 2,                         'b': 2,
+};                          };
+```
+
+Configure the behavior in the command prompt:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `:set continuationindent=false` | `true` | Disable automatic continuation indentation on Enter. |
+| `:set collectionindentwidth=2` | `0` | Set indentation to 1–16 spaces; `0` uses the buffer indent width. |
+| `:set collectionindentkey=ctrl-y` | `ctrl-t` | Rebind the shortcut to Ctrl+Y; `off` disables it. |
+| `:set splitbraces=false` | `true` | Use the previous Enter behavior inside `{}`. |
+| `:set splitbrackets=false` | `true` | Use a normal line split inside `[]`. |
+| `:set autobrackets=false` | `true` | Disable square-bracket auto-pairing, skipping `]`, and paired Backspace. |
+
+Query a setting with `:set <name>?`. To persist these preferences, add them to
+`config.toml` (normally `~/.config/uvim/config.toml`):
+
+```toml
+[editor]
+continuationindent = true
+collectionindentwidth = 2
+collectionindentkey = "ctrl-t"
+splitbraces = true
+splitbrackets = true
+autobrackets = true
+```
+
+With `collectionindentwidth = 0`, the buffer's `.clang-format` IndentWidth is used
+when available, falling back to `tabspaces` (default 4). Square-bracket pairing
+requires `autobraces=true`; pairing inside strings also requires
+`autobracesinstrings=true`. See [configuration settings](docs/configuration.dox)
+and [key commands](docs/key_commands.dox) for details.
+
 ## Robot Framework tests (venv setup)
 
 These tests expect a built binary at `build/uvim`. You can override the path with

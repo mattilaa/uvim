@@ -35,6 +35,10 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `s` / `S` : substitute char / line (enter insert)
 - `C` / `D` : change / delete to end of line
 - `J` : join lines
+- `Ctrl-t` : reindent the enclosing multiline list, map, or argument list,
+  including nested items, without a formatter; also available in Insert mode.
+  Configure with `:set collectionindentkey=ctrl-y` or `off`, and
+  `:set collectionindentwidth=0..16` (0 uses the buffer indent width).
 - `r` / `R` : replace char / replace mode
 - `~` : toggle case
 - `p` / `P` : paste after / before
@@ -108,6 +112,18 @@ includes common Normal/Insert/Visual/Command mode bindings.
 
 \section keys_insert Insert mode
 - Type text to insert
+- `Enter` : continue indentation inside lists, maps, and argument lists;
+  closing-only lines align with their opening line. Disable continuation with
+  `:set continuationindent=false`.
+- `Enter` inside `{}` / `[]` : open an indented blank line, keeping the closing
+  delimiter aligned with the opening line. Configure `splitbraces` and
+  `splitbrackets` independently with `:set <name>=true/false`.
+- `[` : insert `[]`; `]` skips an existing closing bracket; Backspace inside
+  an empty pair removes both brackets. Disable with `:set autobrackets=false`.
+  Requires `autobraces`; in strings, also requires `autobracesinstrings`.
+- `Ctrl-t` : reindent the enclosing multiline collection, staying in Insert mode;
+  uses the same `collectionindentkey` and `collectionindentwidth` settings as
+  Normal mode.
 - `Esc` : return to normal mode
 - Autocomplete appears as you type (if enabled)
 
