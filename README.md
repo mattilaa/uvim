@@ -806,6 +806,7 @@ contents are used. The source buffer, cursor, and file on disk stay intact.
 ```vim
 :asm .
 :asm . -O2
+:asm . --split -O2
 :asm . --
 :asm . --compiler gcc -O3 -march=native
 :asm "src/my file.cpp" --compiler clang -O2 -I "include directory"
@@ -832,12 +833,29 @@ The view shows assembly row numbers, syntax colors, the compiler and options,
 and the selected row. Compilation runs in a background task; failures show
 the compiler diagnostics in the view, and `q`/Escape can leave while it runs.
 
+Use `--split` for a vertical source/assembly comparison, or press `v` in the
+view to toggle it. The left pane shows the compiled source snapshot, including
+unsaved edits. Both panes are read-only. Move between them with Ctrl-Shift-H/L,
+or Alt-H/L when using `:set iskitty=false`, just like editor panes. On narrow
+terminals, the focused pane fills the available width.
+
+Moving through source highlights all matching assembly rows with a subtle
+green background and scrolls to the first match. Moving through assembly
+highlights and reveals its corresponding source line. Syntax colors remain
+visible over the tint. Source mapping comes from compiler debug line records;
+comments, declarations, optimized-away lines, and instructions from other files
+may have no match. The status bar shows the mapped source line or reports that
+there is no source mapping. Compiler flags still control the generated code;
+uvim adds DWARF line information for linking the panes.
+
 | Keys | Action |
 | --- | --- |
-| `j` / `k`, down/up | Select the next/previous assembly row |
+| `j` / `k`, down/up | Select the next/previous row in the focused pane |
 | `h` / `l`, left/right | Scroll horizontally |
 | Page Up/Down, `Ctrl-U/D` | Move a page/half page |
 | `g` / `G`, Home/End | First/last row |
+| `v` | Toggle source/assembly split |
+| Ctrl-Shift-H/L (or Alt-H/L) | Focus source/assembly pane |
 | `i` | Toggle the instruction inspector popup |
 | `Ctrl-J/K` with inspector open | Scroll the instruction documentation |
 | `q` / Escape | Exit the assembly view and return to the source |

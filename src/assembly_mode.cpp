@@ -21,14 +21,20 @@ namespace
 {
 std::vector<std::string> helpTokens()
 {
-    return {"[j/k: rows]",  "[h/l: horizontal]",       "[PgUp/PgDn: page]",
-            "[i: inspect]", "[Ctrl-J/K: scroll help]", "[q/Esc: back]"};
+    return {"[j/k: rows]",
+            "[h/l: horizontal]",
+            "[PgUp/PgDn: page]",
+            "[v: source split]",
+            "[" + std::string(Terminal::shiftChordLabel()) + "-H/L: pane]",
+            "[i: inspect]",
+            "[Ctrl-J/K: scroll help]",
+            "[q/Esc: back]"};
 }
 
-int contentRows(const Editor& editor)
+int contentRows(const Editor& editor, bool split = false)
 {
     return std::max(1,
-                    editor.screenRows - 1 -
+                    editor.screenRows - 1 - (split ? 1 : 0) -
                         HeaderHelp::lineCount(helpTokens(), editor.screenCols));
 }
 
@@ -197,6 +203,7 @@ void AssemblyMode::on_enter(ModeContext& ctx)
         content->result.diagnostics = std::move(error);
         return;
     }
+    split = sourcePane = request.split;
     if(request.path == ".")
     {
         if(!editor.currentBuffer || !editor.lines)
@@ -208,6 +215,7 @@ void AssemblyMode::on_enter(ModeContext& ctx)
         }
         request.path = editor.currentBuffer->filename;
         request.sourceLines = *editor.lines;
+        sourceCursor = editor.cursorY ? *editor.cursorY : 0;
         sourceName = request.path.empty() ? "[No Name] (buffer snapshot)"
                                           : request.path + " (buffer snapshot)";
     }
@@ -234,6 +242,13 @@ void AssemblyMode::on_enter(ModeContext& ctx)
                 break;
             }
     auto result = std::make_shared<assembly_compiler::Result>();
+    if(request.sourceLines)
+    {
+        content->result.sourceLines = *request.sourceLines;
+        for(auto& line : content->result.sourceLines)
+            line = displayText(line);
+    }
+    content->result.sourcePath = request.path;
     std::weak_ptr<Content> weak = content;
     compileTask =
         editor
@@ -245,6 +260,8 @@ void AssemblyMode::on_enter(ModeContext& ctx)
                     *result = assembly_compiler::compile(
                         request, [&task] { return task.cancelled(); });
                     for(auto& line : result->lines)
+                        line = displayText(line);
+                    for(auto& line : result->sourceLines)
                         line = displayText(line);
                 },
                 [weak, result, &editor]
@@ -286,15 +303,59 @@ void AssemblyMode::on_exit(ModeContext& ctx)
 
 void AssemblyMode::ensureVisible(const Editor& editor)
 {
+    if(content && !content->compiling && initialSyncPending)
+    {
+        synchronizeSelection();
+        initialSyncPending = false;
+    }
     const int count =
         content ? static_cast<int>(content->result.lines.size()) : 0;
     cursor = std::clamp(cursor, 0, std::max(0, count - 1));
-    const int rows = contentRows(editor);
+    const int rows = contentRows(editor, split);
     offset = std::clamp(offset, 0, std::max(0, count - rows));
     if(cursor < offset)
         offset = cursor;
     if(cursor >= offset + rows)
         offset = cursor - rows + 1;
+    const int sourceCount =
+        content ? static_cast<int>(content->result.sourceLines.size()) : 0;
+    sourceCursor = std::clamp(sourceCursor, 0, std::max(0, sourceCount - 1));
+    sourceOffset = std::clamp(sourceOffset, 0, std::max(0, sourceCount - rows));
+    if(sourceCursor < sourceOffset)
+        sourceOffset = sourceCursor;
+    if(sourceCursor >= sourceOffset + rows)
+        sourceOffset = sourceCursor - rows + 1;
+}
+
+int AssemblyMode::linkedSourceLine() const
+{
+    if(!content)
+        return 0;
+    const auto& mapping = content->result.sourceLineForAssembly;
+    if(split && sourcePane)
+        return std::find(mapping.begin(), mapping.end(), sourceCursor + 1) !=
+                       mapping.end()
+                   ? sourceCursor + 1
+                   : 0;
+    return cursor >= 0 && static_cast<size_t>(cursor) < mapping.size()
+               ? mapping[cursor]
+               : 0;
+}
+
+void AssemblyMode::synchronizeSelection()
+{
+    if(!split || !content)
+        return;
+    const auto& mapping = content->result.sourceLineForAssembly;
+    if(sourcePane)
+    {
+        const auto first =
+            std::find(mapping.begin(), mapping.end(), sourceCursor + 1);
+        if(first != mapping.end())
+            cursor = static_cast<int>(first - mapping.begin());
+    }
+    else if(const int line = linkedSourceLine(); line > 0)
+        sourceCursor = line - 1;
 }
 
 void AssemblyMode::inspectLine(Editor& editor)
@@ -305,6 +366,15 @@ void AssemblyMode::inspectLine(Editor& editor)
     docsOffset = 0;
     if(!inspect || content->compiling || content->result.lines.empty())
         return;
+    if(split && sourcePane && linkedSourceLine() == 0)
+    {
+        content->docsLoading = false;
+        content->docsTitle = "Source line " + std::to_string(sourceCursor + 1);
+        content->docsText =
+            "No assembly instruction is mapped to this source line. "
+            "It may be a declaration, a comment, or optimized away.";
+        return;
+    }
 #ifndef UVIM_ENABLE_ASM_DOCS
     content->docsText =
         "Instruction documentation is not compiled into this build.";
@@ -375,7 +445,21 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
         return defaultExitMode(&editor);
     ensureVisible(editor);
     const int before = cursor;
-    if(key == 'i')
+    const int sourceBefore = sourceCursor;
+    const bool wasSource = sourcePane;
+    if(key == keyCode(control::ControlKey::SHIFT_CTRL_H) && split)
+        sourcePane = true;
+    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_L) && split)
+        sourcePane = false;
+    else if(key == 'v')
+    {
+        split = !split;
+        if(!split)
+            sourcePane = false;
+        else
+            synchronizeSelection();
+    }
+    else if(key == 'i')
     {
         inspect = !inspect;
         inspectLine(editor);
@@ -384,29 +468,48 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
         ++docsOffset;
     else if(inspect && key == keyCode(control::ControlKey::CTRL_K))
         docsOffset = std::max(0, docsOffset - 1);
-    else if(key == 'j' || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
-        ++cursor;
-    else if(key == 'k' || key == keyCode(navigation::NavigationKey::ARROW_UP))
-        --cursor;
-    else if(key == 'h' || key == keyCode(navigation::NavigationKey::ARROW_LEFT))
-        horizontal = std::max(0, horizontal - 4);
-    else if(key == 'l' ||
-            key == keyCode(navigation::NavigationKey::ARROW_RIGHT))
-        horizontal += 4;
-    else if(key == keyCode(navigation::NavigationKey::PAGE_DOWN))
-        cursor += contentRows(editor);
-    else if(key == keyCode(navigation::NavigationKey::PAGE_UP))
-        cursor -= contentRows(editor);
-    else if(key == keyCode(control::ControlKey::CTRL_D))
-        cursor += std::max(1, contentRows(editor) / 2);
-    else if(key == keyCode(control::ControlKey::CTRL_U))
-        cursor -= std::max(1, contentRows(editor) / 2);
-    else if(key == 'g' || key == keyCode(navigation::NavigationKey::HOME))
-        cursor = offset = 0;
-    else if(key == 'G' || key == keyCode(navigation::NavigationKey::END))
-        cursor = static_cast<int>(content->result.lines.size()) - 1;
+    else
+    {
+        int& row = split && sourcePane ? sourceCursor : cursor;
+        int& left = split && sourcePane ? sourceHorizontal : horizontal;
+        if(key == 'j' || key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+            ++row;
+        else if(key == 'k' ||
+                key == keyCode(navigation::NavigationKey::ARROW_UP))
+            --row;
+        else if(key == 'h' ||
+                key == keyCode(navigation::NavigationKey::ARROW_LEFT))
+            left = std::max(0, left - 4);
+        else if(key == 'l' ||
+                key == keyCode(navigation::NavigationKey::ARROW_RIGHT))
+            left += 4;
+        else if(key == keyCode(navigation::NavigationKey::PAGE_DOWN))
+            row += contentRows(editor, split);
+        else if(key == keyCode(navigation::NavigationKey::PAGE_UP))
+            row -= contentRows(editor, split);
+        else if(key == keyCode(control::ControlKey::CTRL_D))
+            row += std::max(1, contentRows(editor, split) / 2);
+        else if(key == keyCode(control::ControlKey::CTRL_U))
+            row -= std::max(1, contentRows(editor, split) / 2);
+        else if(key == 'g' || key == keyCode(navigation::NavigationKey::HOME))
+            row = 0;
+        else if(key == 'G' || key == keyCode(navigation::NavigationKey::END))
+            row = static_cast<int>((split && sourcePane
+                                        ? content->result.sourceLines
+                                        : content->result.lines)
+                                       .size()) -
+                  1;
+    }
     ensureVisible(editor);
-    if(cursor != before && inspect)
+    // Switching focus preserves the selected instruction among multiple
+    // matches.
+    if((sourcePane != wasSource && !sourcePane) ||
+       (sourcePane == wasSource &&
+        (sourceCursor != sourceBefore || cursor != before)))
+        synchronizeSelection();
+    ensureVisible(editor);
+    if(inspect && (cursor != before || sourceCursor != sourceBefore ||
+                   sourcePane != wasSource))
         inspectLine(editor);
     ctx.requestFullRedraw();
     return std::nullopt;
@@ -427,45 +530,122 @@ void AssemblyMode::draw(Editor& editor)
     out += editor.theme.reset();
     HeaderHelp::append(out, editor.theme, editor.screenCols, helpTokens());
     const auto& result = content->result;
-    const int rows = contentRows(editor);
-    const int gutter =
-        static_cast<int>(std::to_string(result.lines.size()).size()) + 2;
+    const int rows = contentRows(editor, split);
+    const bool sideBySide = split && editor.screenCols >= 40;
+    const int sourceWidth =
+        sideBySide ? (editor.screenCols - 1) / 2 : editor.screenCols;
+    const int assemblyWidth =
+        sideBySide ? editor.screenCols - sourceWidth - 1 : editor.screenCols;
+    const int linked = linkedSourceLine();
     if(result.success)
         editor.highlightPreviewLines(
             highlight, "assembly.s", result.lines,
             std::min(result.lines.size(), static_cast<size_t>(offset + rows)));
+    if(split)
+        editor.highlightPreviewLines(
+            sourceHighlight, result.sourcePath, result.sourceLines,
+            std::min(result.sourceLines.size(),
+                     static_cast<size_t>(sourceOffset + rows)));
     const auto errors =
-        wrappedDocs(result.diagnostics, std::max(1, editor.screenCols - 2));
-    for(int row = 0; row < rows; ++row)
+        wrappedDocs(result.diagnostics, std::max(1, assemblyWidth - 2));
+    auto separator = [&]
+    {
+        out += editor.theme.reset() + editor.theme.uiGutter();
+        if(editor.utf8Mode)
+            text_utils::appendU8(out, ascii::BOX_LIGHT_VERTICAL);
+        else
+            out += '|';
+    };
+    auto heading = [&](bool source, int width)
+    {
+        const bool active = source == sourcePane;
+        out += editor.theme.reset() +
+               (active ? editor.theme.uiAccent() : editor.theme.uiDim());
+        const auto text =
+            clipped(std::string(source ? " Source" : " Assembly") +
+                        (active ? " [active]" : ""),
+                    width);
+        out += text;
+        out.append(std::max(0, width - text_utils::utf8DisplayWidth(text)),
+                   ' ');
+    };
+    if(split)
     {
         out += Terminal::NEWLINE_CLEAR;
-        out += editor.theme.reset();
-        const int index = offset + row;
-        if(result.success && index < static_cast<int>(result.lines.size()))
+        if(sideBySide)
         {
-            if(index == cursor)
+            heading(true, sourceWidth);
+            separator();
+            heading(false, assemblyWidth);
+        }
+        else
+            heading(sourcePane, editor.screenCols);
+    }
+    auto paneRow = [&](bool source, int row, int width)
+    {
+        out += editor.theme.reset();
+        const auto& lines = source ? result.sourceLines : result.lines;
+        const auto& tokens = source ? sourceHighlight.tokens : highlight.tokens;
+        const int index = (source ? sourceOffset : offset) + row;
+        const bool active = !split || source == sourcePane;
+        const bool current = index == (source ? sourceCursor : cursor);
+        if((source || result.success) && index < static_cast<int>(lines.size()))
+        {
+            const bool mapped =
+                split && linked > 0 &&
+                (source ? index + 1 == linked
+                        : static_cast<size_t>(index) <
+                                  result.sourceLineForAssembly.size() &&
+                              result.sourceLineForAssembly[index] == linked);
+            if(mapped)
+                out += editor.theme.sourceMapping();
+            else if(active && current)
                 out += editor.theme.selection();
             out += editor.theme.uiGutter();
+            const int gutter =
+                static_cast<int>(std::to_string(lines.size()).size()) + 2;
             std::string number = std::to_string(index + 1);
             number.insert(
                 0, std::max(0, gutter - 2 - static_cast<int>(number.size())),
                 ' ');
-            const std::string prefix =
-                (index == cursor ? ">" : " ") + number + " ";
-            out += clipped(prefix, editor.screenCols);
-            appendSyntax(out, result.lines[index], highlight.tokens[index],
-                         horizontal, std::max(0, editor.screenCols - gutter),
-                         editor.theme);
+            out +=
+                clipped((active && current ? ">" : " ") + number + " ", width);
+            appendSyntax(out, lines[index], tokens[index],
+                         source ? sourceHorizontal : horizontal,
+                         std::max(0, width - gutter), editor.theme);
         }
-        else if(content->compiling && row == 0)
-            out += editor.theme.uiInfo() +
-                   clipped(" Compiling... q/Esc returns immediately.",
-                           editor.screenCols);
-        else if(!result.success && row < static_cast<int>(errors.size()))
-            out += editor.theme.uiError() +
-                   clipped(" " + errors[row], editor.screenCols);
         else
-            out += editor.theme.uiGutter() + "~";
+        {
+            std::string message = "~";
+            out += editor.theme.uiGutter();
+            if(!source && content->compiling && row == 0)
+            {
+                out += editor.theme.uiInfo();
+                message = " Compiling... q/Esc returns immediately.";
+            }
+            else if(!source && !result.success &&
+                    row < static_cast<int>(errors.size()))
+            {
+                out += editor.theme.uiError();
+                message = " " + errors[row];
+            }
+            const auto text = clipped(message, width);
+            out += text;
+            out.append(std::max(0, width - text_utils::utf8DisplayWidth(text)),
+                       ' ');
+        }
+    };
+    for(int row = 0; row < rows; ++row)
+    {
+        out += Terminal::NEWLINE_CLEAR;
+        if(sideBySide)
+        {
+            paneRow(true, row, sourceWidth);
+            separator();
+            paneRow(false, row, assemblyWidth);
+        }
+        else
+            paneRow(split && sourcePane, row, editor.screenCols);
         out += editor.theme.reset();
     }
     widgets::ViewStatusBarView status{.theme = editor.theme};
@@ -476,8 +656,15 @@ void AssemblyMode::draw(Editor& editor)
                                       : "compile failed";
     if(inspect)
         status.flags.push_back("inspect");
-    status.index = result.lines.empty() ? 0 : cursor + 1;
-    status.count = static_cast<int>(result.lines.size());
+    if(split)
+        status.flags.push_back(linked > 0 ? "source L" + std::to_string(linked)
+                                          : "no source mapping");
+    const auto& activeLines =
+        split && sourcePane ? result.sourceLines : result.lines;
+    status.index = activeLines.empty()
+                       ? 0
+                       : (split && sourcePane ? sourceCursor : cursor) + 1;
+    status.count = static_cast<int>(activeLines.size());
     editor.appendViewStatusBar(out, std::move(status));
 
     if(inspect && editor.screenRows >= 8 && editor.screenCols >= 20)

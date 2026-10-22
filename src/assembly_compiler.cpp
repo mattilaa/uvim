@@ -15,7 +15,9 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
@@ -91,6 +93,53 @@ std::string readFile(const fs::path& path)
 {
     std::ifstream stream(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(stream), {}};
+}
+
+std::vector<int> sourceLocations(const std::vector<std::string>& lines,
+                                 const fs::path& source, size_t sourceCount)
+{
+    std::unordered_map<int, bool> mainFiles;
+    for(const auto& line : lines)
+    {
+        std::istringstream stream(line);
+        std::string directive, filename, second;
+        int number;
+        if(!(stream >> directive) || directive != ".file" ||
+           !(stream >> number >> std::quoted(filename)))
+            continue;
+        stream >> std::ws;
+        if(stream.peek() == '"' && stream >> std::quoted(second))
+            filename = (fs::path(filename) / second).string();
+        std::error_code ec;
+        mainFiles[number] = fs::equivalent(fs::path(filename), source, ec);
+    }
+    std::vector<int> locations;
+    int current = 0;
+    for(const auto& line : lines)
+    {
+        std::istringstream stream(line);
+        std::string word;
+        stream >> word;
+        if(word == ".loc")
+        {
+            int file = -1, row = 0;
+            stream >> file >> row;
+            current = mainFiles[file] && row > 0 &&
+                              static_cast<size_t>(row) <= sourceCount
+                          ? row
+                          : 0;
+        }
+        // Directives, labels and comments do not represent source statements.
+        const bool instruction =
+            !word.empty() &&
+            std::isalpha(static_cast<unsigned char>(word.front())) &&
+            word.back() != ':';
+        locations.push_back(instruction ? current : 0);
+        if(word == ".cfi_endproc" || word == ".seh_endproc" ||
+           line.find("-- Begin function") != std::string::npos)
+            current = 0;
+    }
+    return locations;
 }
 
 struct TemporaryDirectory
@@ -253,6 +302,8 @@ bool parse(std::string_view arguments, Request& request, std::string& error)
         }
         else if(word == "--raw")
             request.raw = true;
+        else if(word == "--split")
+            request.split = true;
         else if(!hasPath && !flagsStarted && !word.empty() &&
                 word.front() != '-')
         {
@@ -298,6 +349,9 @@ Result compile(const Request& request, const std::function<bool()>& cancelled)
     }
     if(cancelled())
         return fail("asm: compilation cancelled");
+
+    result.sourceLines = source;
+    result.sourcePath = request.path;
 
     std::string compiler = request.compiler;
     if(compiler == "clang")
@@ -364,10 +418,10 @@ Result compile(const Request& request, const std::function<bool()>& cancelled)
     for(const auto& flag : request.flags)
         result.options += (result.options.empty() ? "" : " ") + flag;
     const auto sourceDir = fs::path(request.path).parent_path();
-    args.insert(args.end(),
-                {"-S", "-fverbose-asm", "-fdiagnostics-color=never", "-iquote",
-                 sourceDir.empty() ? "." : sourceDir.string(), "-o",
-                 output.string(), input.string()});
+    args.insert(args.end(), {"-S", "-g", "-gdwarf-4", "-fverbose-asm",
+                             "-fdiagnostics-color=never", "-iquote",
+                             sourceDir.empty() ? "." : sourceDir.string(), "-o",
+                             output.string(), input.string()});
 #ifdef _WIN32
     const auto log = temp.path / "compiler.log";
     const int status = runCompiler(args, log, request.directory, cancelled);
@@ -389,8 +443,24 @@ Result compile(const Request& request, const std::function<bool()>& cancelled)
         return result;
     }
     const std::string assembly = readFile(output);
-    result.lines =
-        splitLines(request.raw ? assembly : assembly_output::compact(assembly));
+    const auto rawLines = splitLines(assembly);
+    const auto locations = sourceLocations(rawLines, input, source.size());
+    if(request.raw)
+    {
+        result.lines = rawLines;
+        result.sourceLineForAssembly = locations;
+    }
+    else
+    {
+        std::vector<int> originalRows;
+        result.lines =
+            splitLines(assembly_output::compact(assembly, &originalRows));
+        for(int row : originalRows)
+            result.sourceLineForAssembly.push_back(
+                row >= 0 && static_cast<size_t>(row) < locations.size()
+                    ? locations[row]
+                    : 0);
+    }
     result.success = !result.lines.empty();
     if(!result.success)
         result.diagnostics = "asm: compiler produced no assembly";

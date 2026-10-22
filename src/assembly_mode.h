@@ -37,6 +37,11 @@ struct AssemblyMode
     int cursor = 0;
     int offset = 0;
     int horizontal = 0;
+    bool split = false;
+    bool sourcePane = false;
+    int sourceCursor = 0;
+    int sourceOffset = 0;
+    int sourceHorizontal = 0;
     bool inspect = false;
     int docsOffset = 0;
 
@@ -52,9 +57,13 @@ struct AssemblyMode
 
 private:
     PreviewHighlight highlight;
+    PreviewHighlight sourceHighlight;
+    bool initialSyncPending = true;
     TaskQueue::TaskId compileTask = 0;
     TaskQueue::TaskId docsTask = 0;
     void ensureVisible(const Editor& editor);
+    void synchronizeSelection();
+    int linkedSourceLine() const;
     void inspectLine(Editor& editor);
 };
 } // namespace editor::statemachine

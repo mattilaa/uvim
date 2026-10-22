@@ -43,6 +43,7 @@ bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
                                   "-D ",
                                   "--compiler clang",
                                   "--compiler gcc",
+                                  "--split",
                                   "--raw"};
         editor.commandPopupFiltered.clear();
         for(int i = 0; i < static_cast<int>(editor.commandPopupAll.size()); ++i)

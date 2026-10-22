@@ -15,6 +15,9 @@ std::string_view commandDocumentation(std::string_view cmd)
     while(!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\t'))
         cmd.remove_suffix(1);
 
+    if(cmd == "--split")
+        return "Browse source and assembly side by side with linked highlights";
+
     if(cmd == "-O2")
         return "Optimize for speed (recommended starting point)";
     if(cmd == "-O0")

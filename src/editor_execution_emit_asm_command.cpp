@@ -123,6 +123,7 @@ struct AssemblyFunctionBlock
     std::string symbol;
     std::string label;
     std::vector<std::string> lines;
+    std::vector<int> originalRows;
     bool anchor = false;
 };
 
@@ -582,7 +583,8 @@ std::string extractBeginFunctionSymbol(std::string_view line)
     return std::string(symbol.substr(0, end));
 }
 
-std::string compactAssemblyOutput(std::string_view output)
+std::string compactAssemblyOutput(std::string_view output,
+                                  std::vector<int>* originalRows = nullptr)
 {
     std::vector<AssemblyFunctionBlock> blocks;
     std::unordered_map<std::string, std::string> demangleCache;
@@ -602,8 +604,10 @@ std::string compactAssemblyOutput(std::string_view output)
         pendingSymbol.clear();
     };
 
+    int originalRow = -1;
     for(const std::string& rawLine : splitLines(output))
     {
+        ++originalRow;
         if(text_utils::is_found(rawLine.find("-- End function")))
         {
             finishBlock();
@@ -646,12 +650,14 @@ std::string compactAssemblyOutput(std::string_view output)
                     text_utils::is_found(current.symbol.find("uvim_emit_asm_"));
                 current.label = demangleSymbol(current.symbol, demangleCache);
                 current.lines.push_back(current.label + ":");
+                current.originalRows.push_back(originalRow);
                 waitingForLabel = false;
             }
             else if(symbol.rfind("Ltmp", 0) != 0 &&
                     symbol.rfind("Lfunc_end", 0) != 0)
             {
                 current.lines.push_back(symbol + ":");
+                current.originalRows.push_back(originalRow);
             }
             continue;
         }
@@ -663,6 +669,7 @@ std::string compactAssemblyOutput(std::string_view output)
         if(trimmed.empty())
             continue;
         current.lines.push_back("    " + trimmed);
+        current.originalRows.push_back(originalRow);
     }
 
     if(inFunction)
@@ -673,6 +680,8 @@ std::string compactAssemblyOutput(std::string_view output)
         { return !block.anchor && !block.lines.empty(); });
 
     std::string compact;
+    if(originalRows)
+        originalRows->clear();
     for(const AssemblyFunctionBlock& block : blocks)
     {
         if(block.lines.empty())
@@ -680,7 +689,14 @@ std::string compactAssemblyOutput(std::string_view output)
         if(hasRealFunction && block.anchor)
             continue;
         if(!compact.empty())
+        {
             compact += '\n';
+            if(originalRows)
+                originalRows->push_back(-1);
+        }
+        if(originalRows)
+            originalRows->insert(originalRows->end(), block.originalRows.begin(),
+                                 block.originalRows.end());
         for(const std::string& line : block.lines)
         {
             compact += line;
@@ -688,7 +704,14 @@ std::string compactAssemblyOutput(std::string_view output)
         }
     }
 
-    return compact.empty() ? std::string(output) : compact;
+    if(compact.empty())
+    {
+        if(originalRows)
+            for(int row = 0; row <= originalRow; ++row)
+                originalRows->push_back(row);
+        return std::string(output);
+    }
+    return compact;
 }
 
 std::string displayNameForAsmBuffer(const std::string& sourcePath)
@@ -841,8 +864,8 @@ std::string sourceText(const std::vector<std::string>& lines, bool cSource)
            cppAnchorForFunctions(collectTopLevelFunctions(lines));
 }
 
-std::string compact(std::string_view output)
+std::string compact(std::string_view output, std::vector<int>* originalRows)
 {
-    return command::execution::compactAssemblyOutput(output);
+    return command::execution::compactAssemblyOutput(output, originalRows);
 }
 } // namespace assembly_output

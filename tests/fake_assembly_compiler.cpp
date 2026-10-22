@@ -2,6 +2,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -45,7 +46,12 @@ int main(int argc, char** argv)
         return 3;
     }
     std::ofstream assembly(output, std::ios::binary);
-    assembly << ".text\nfake_function:\n\tmovq %rdi, %rax\n\taddq $1, "
-                "%rax\n\tretq\n";
+    assembly << ".file 1 " << std::quoted(args.back()) << '\n'
+             << ".file 2 \"unrelated-header.h\"\n"
+             << ".text\nfake_function:\n.loc 1 1 0\n\tmovq %rdi, %rax\n"
+             << ".loc 1 2 0\n\taddq $1, %rax\n"
+             << ".loc 1 1 0\n\tnop\n"
+             << ".loc 2 1 0\n\tnop\n"
+             << ".loc 1 3 0\n\tretq\n";
     return assembly ? 0 : 2;
 }

@@ -77,6 +77,9 @@ TEST(AssemblyArgumentsTest, PreservesCompilerFlagsAndQuotedPaths)
     ASSERT_TRUE(assembly_compiler::parse(". --raw -- -O2 -g", request, error));
     EXPECT_TRUE(request.raw);
     EXPECT_EQ(request.flags, (std::vector<std::string>{"-O2", "-g"}));
+    ASSERT_TRUE(assembly_compiler::parse(". --split -O2", request, error));
+    EXPECT_TRUE(request.split);
+    EXPECT_EQ(request.flags, (std::vector<std::string>{"-O2"}));
     EXPECT_FALSE(assembly_compiler::parse(". --compiler", request, error));
     EXPECT_FALSE(assembly_compiler::parse("\"unclosed", request, error));
 }
@@ -313,6 +316,11 @@ TEST(AssemblyViewCompilerTest, CompilesDiskPathWithClangAndGccFlags)
         auto result = assembly_compiler::compile(request, [] { return false; });
         EXPECT_TRUE(result.success) << result.diagnostics;
         EXPECT_EQ(result.options, "-O2 -DANOTHER_FLAG=1");
+        EXPECT_EQ(result.sourceLineForAssembly.size(), result.lines.size());
+        EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
+                                result.sourceLineForAssembly.end(),
+                                [](int line) { return line > 0; }))
+            << compiler << " produced no source mapping";
         std::string assembly;
         for(const auto& line : result.lines)
             assembly += line + '\n';
@@ -324,7 +332,103 @@ TEST(AssemblyViewCompilerTest, CompilesDiskPathWithClangAndGccFlags)
         GTEST_SKIP() << "Clang/GCC not installed";
 }
 
-TEST(AssemblyViewStandaloneTest, ExplicitPathCanBeOpenedFromWelcomeWithoutCreatingBuffer)
+TEST_F(AssemblyViewTest, SplitLinksSourceAndAssemblyInBothDirections)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "} // no instructions"};
+    const auto snapshot = *editor.lines;
+    *editor.cursorY = 0;
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--split -O2"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    EXPECT_EQ(view->content->result.sourceLines, snapshot);
+    // Two instructions map to line 1; an inlined header instruction must not.
+    EXPECT_EQ(view->content->result.sourceLineForAssembly,
+              (std::vector<int>{0, 1, 2, 1, 0, 3}));
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_TRUE(view->sourcePane);
+    EXPECT_EQ(view->cursor, 1);
+    EXPECT_NE(frame.find("Source [active]"), std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.sourceMapping()), std::string::npos);
+    sm.dispatch('j');
+    EXPECT_EQ(view->sourceCursor, 1);
+    EXPECT_EQ(view->cursor, 2);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
+    EXPECT_FALSE(view->sourcePane);
+    sm.dispatch('j'); // Another instruction associated with source line 1.
+    EXPECT_EQ(view->sourceCursor, 0);
+    EXPECT_EQ(view->cursor, 3);
+    sm.dispatch('j'); // Header code has no correspondence in this source pane.
+    EXPECT_EQ(view->content->result.sourceLineForAssembly[view->cursor], 0);
+    sm.dispatch('j');
+    EXPECT_EQ(view->sourceCursor, 2);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
+    EXPECT_TRUE(view->sourcePane);
+    sm.dispatch('j'); // Source line without emitted instructions.
+    EXPECT_EQ(view->sourceCursor, 3);
+    EXPECT_EQ(view->cursor, 5);
+    sm.dispatch('i');
+    EXPECT_NE(view->content->docsText.find("No assembly instruction"),
+              std::string::npos);
+    sm.dispatch('i');
+    sm.dispatch('v');
+    EXPECT_FALSE(view->split);
+    EXPECT_FALSE(view->sourcePane);
+    sm.dispatch('v');
+    EXPECT_TRUE(view->split);
+    sm.dispatch('q');
+    EXPECT_EQ(*editor.lines, snapshot);
+    EXPECT_EQ(*editor.cursorY, 0);
+    EXPECT_EQ(editor.buffers.size(), 1u);
+}
+
+TEST_F(AssemblyViewTest,
+       RawAssemblyRetainsSourceMappingsAndSplitScrollsBothPanes)
+{
+    editor.lines->assign(40, "int value;");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--split --raw"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_EQ(result.sourceLineForAssembly.size(), result.lines.size());
+    for(size_t row = 0; row < result.lines.size(); ++row)
+    {
+        if(result.lines[row].find("movq") != std::string::npos)
+            EXPECT_EQ(result.sourceLineForAssembly[row], 1);
+        if(result.lines[row].starts_with(".loc"))
+            EXPECT_EQ(result.sourceLineForAssembly[row], 0);
+    }
+    sm.dispatch('G');
+    EXPECT_EQ(view->sourceCursor, 39);
+    EXPECT_GT(view->sourceOffset, 0);
+    sm.dispatch('g');
+    EXPECT_EQ(view->sourceCursor, 0);
+    EXPECT_EQ(view->sourceOffset, 0);
+    sm.dispatch('l');
+    EXPECT_GT(view->sourceHorizontal, 0);
+    EXPECT_EQ(view->horizontal, 0);
+    // Narrow terminals show the focused pane without drawing outside it.
+    editor.screenCols = 30;
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto narrow = testing::internal::GetCapturedStdout();
+    EXPECT_NE(narrow.find("Source [active]"), std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
+    sm.dispatch('G');
+    EXPECT_GT(view->offset, 0);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST(AssemblyViewStandaloneTest,
+     ExplicitPathCanBeOpenedFromWelcomeWithoutCreatingBuffer)
 {
     const auto root = make_temp_dir("uvim_asm_path_");
     const auto path = root / "file with spaces.c";

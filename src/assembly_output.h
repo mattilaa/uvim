@@ -8,5 +8,8 @@
 namespace assembly_output
 {
 std::string sourceText(const std::vector<std::string>& lines, bool cSource);
-std::string compact(std::string_view output);
+// When requested, each displayed row records its original assembly row.
+// Blank separators use -1.
+std::string compact(std::string_view output,
+                    std::vector<int>* originalRows = nullptr);
 } // namespace assembly_output

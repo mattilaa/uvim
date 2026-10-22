@@ -221,6 +221,7 @@ void Theme::rebuildSequences()
     selection_seq_.clear();
     cursor_seq_.clear();
     search_seq_.clear();
+    source_mapping_seq_.clear();
     status_bar_seq_.clear();
     tab_bar_seq_.clear();
     panel_seq_.clear();
@@ -243,6 +244,11 @@ void Theme::rebuildSequences()
 
     base_fg_seq_ = fgSeq(base_fg_);
     base_seq_ = fgSeq(base_fg_) + bgSeq(base_bg_);
+    const Color green{80, 180, 90, true};
+    const Color background = base_bg_.set ? base_bg_ : Color{31, 29, 46, true};
+    source_mapping_seq_ = bgSeq({(background.r * 3 + green.r) / 4,
+                                 (background.g * 3 + green.g) / 4,
+                                 (background.b * 3 + green.b) / 4, true});
     reset_seq_ = std::string(Terminal::ESC_RESET_ALL) + base_seq_;
 
     selection_seq_ = fgSeq(selection_.fg) + bgSeq(selection_.bg);
@@ -286,6 +292,11 @@ void Theme::rebuildSequences()
 
     for(int i = 0; i < kTokenTypeCount; ++i)
         syntax_seq_[i] = fgSeq(syntax_[i]);
+}
+
+const std::string& Theme::sourceMapping() const
+{
+    return source_mapping_seq_;
 }
 
 std::string Theme::fgSeq(const Color& c)
