@@ -364,6 +364,8 @@ void AssemblyMode::inspectLine(Editor& editor)
     ++content->docsGeneration;
     if(docsTask)
         editor.tasks.cancel(docsTask);
+    docsTask = 0;
+    content->docsLoading = false;
     docsOffset = 0;
     if(!inspect || content->compiling || content->result.lines.empty())
         return;
@@ -381,9 +383,21 @@ void AssemblyMode::inspectLine(Editor& editor)
         "Instruction documentation is not compiled into this build.";
     content->docsTitle = "Instruction help";
 #else
+    const auto help =
+        asm_documentation::embedded(content->result.lines[cursor]);
+    if(!help)
+    {
+        content->docsTitle = "Instruction help";
+        content->docsText =
+            "No instruction documentation for this row "
+            "(labels, directives and comments have no instruction help).";
+        return;
+    }
+    content->docsTitle = help->title;
+    content->docsText = help->text;
+    if(!asm_documentation::fetchOriginalDocs())
+        return;
     content->docsLoading = true;
-    content->docsText.clear();
-    content->docsTitle = "Instruction help";
     auto text = std::make_shared<std::string>();
     auto title = std::make_shared<std::string>();
     const auto generation = content->docsGeneration;
@@ -399,12 +413,7 @@ void AssemblyMode::inspectLine(Editor& editor)
                         return;
                     auto location = asm_documentation::find(line, 0);
                     if(!location)
-                    {
-                        *text = "No instruction documentation for this row "
-                                "(labels, directives and comments have no "
-                                "instruction help).";
                         return;
-                    }
                     *title = location->mnemonic + " (" + location->arch + ")";
                     std::ifstream file(location->path);
                     std::string row;
@@ -417,8 +426,6 @@ void AssemblyMode::inspectLine(Editor& editor)
                             break;
                         *text += row + '\n';
                     }
-                    if(text->empty())
-                        *text = "Instruction documentation is unavailable.";
                 },
                 [weak, generation, text, title, &editor]
                 {
@@ -427,9 +434,22 @@ void AssemblyMode::inspectLine(Editor& editor)
                        state->docsGeneration == generation)
                     {
                         state->docsLoading = false;
-                        state->docsText = std::move(*text);
-                        if(!title->empty())
-                            state->docsTitle = std::move(*title);
+                        if(!text->empty())
+                        {
+                            state->docsText = std::move(*text);
+                            if(!title->empty())
+                                state->docsTitle = std::move(*title);
+                        }
+                        editor.needsFullRedraw = true;
+                    }
+                },
+                [weak, generation, &editor]
+                {
+                    if(auto state = weak.lock();
+                       state && state->active &&
+                       state->docsGeneration == generation)
+                    {
+                        state->docsLoading = false;
                         editor.needsFullRedraw = true;
                     }
                 })
@@ -756,10 +776,7 @@ void AssemblyMode::draw(Editor& editor)
         const int height = std::max(4, std::min(15, editor.screenRows - 5));
         const int left = editor.screenCols - width;
         const int top = editor.screenRows - height - 1;
-        const auto docs = wrappedDocs(
-            content->docsLoading ? "Loading instruction documentation..."
-                                 : content->docsText,
-            width - 4);
+        const auto docs = wrappedDocs(content->docsText, width - 4);
         docsOffset =
             std::clamp(docsOffset, 0,
                        std::max(0, static_cast<int>(docs.size()) - height + 2));

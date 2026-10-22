@@ -148,6 +148,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   the source/assembly pane. Navigation in either pane reveals matching rows
   in the other pane with a subtle green background and preserved syntax colors.
   Lines without emitted instructions and code from other files have no match.
+- Instruction inspection shows built-in documentation immediately. When richer
+  documentation loads asynchronously, help stays visible and progress uses the
+  loading indicator without a message in the popup body.
 - Assembly browsing starts each newly selected row at the beginning in both
   panes, including linked source jumps. `h/l` pans the current line; `0` returns
   it to the beginning. Pane switches and split toggles also reset horizontal pan.

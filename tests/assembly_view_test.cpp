@@ -1075,3 +1075,66 @@ TEST_F(AssemblyViewTest, BrowsingRowsAndSwitchingPanesResetsHorizontalScroll)
         EXPECT_EQ(view->horizontal, 0) << key;
     }
 }
+
+TEST_F(AssemblyViewTest,
+       AddInstructionHelpIsAvailableImmediatelyWithoutFetching)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "0");
+    asm_documentation::setFetchOriginalDocs(false);
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"    addq $1, %rax", "    add x8, x20, x19"};
+    sm.dispatch('i');
+    EXPECT_FALSE(view->content->docsLoading);
+    EXPECT_EQ(view->content->docsTitle, "add (x86)");
+    EXPECT_NE(view->content->docsText.find("Adds the source operand"),
+              std::string::npos);
+    sm.dispatch('j');
+    EXPECT_FALSE(view->content->docsLoading);
+    EXPECT_EQ(view->content->docsTitle, "add (aarch64)");
+    EXPECT_NE(view->content->docsText.find("Adds operands"), std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find("Adds operands"), std::string::npos);
+    EXPECT_EQ(frame.find("Loading instruction documentation"),
+              std::string::npos);
+#endif
+}
+
+TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
+    ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "true");
+    asm_documentation::setFetchOriginalDocs(false);
+    write_file(root / "fetched" / "compiler-explorer" / "aarch64" / "add.md",
+               "## add\n\nFetched add instruction details.\n");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"    add x8, x20, x19"};
+    sm.dispatch('i');
+    ASSERT_TRUE(view->content->docsLoading);
+    EXPECT_NE(view->content->docsText.find("Adds operands"), std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto pendingFrame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(pendingFrame.find("Adds operands"), std::string::npos);
+    EXPECT_EQ(pendingFrame.find("Loading instruction documentation"),
+              std::string::npos);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_NE(view->content->docsText.find("Fetched add instruction details"),
+              std::string::npos);
+#endif
+}

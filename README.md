@@ -866,6 +866,11 @@ continue editing the command. Enter again compiles. Type `--` again to add
 another suggested flag. Escape cancels the entire command without compiling.
 Flags can also be typed manually, including full options such as `--compiler`.
 
+Instruction inspection shows built-in documentation immediately, including `add`
+on x86 and AArch64. If original-document fetching is enabled, richer documentation
+loads in the background while the built-in text remains visible. Progress stays
+in the loading indicator; the popup body does not show a loading message.
+
 The title shows the target architecture (for example `AArch64` or `x86_64`),
 including cross-compilation targets. C/C++ uses the selected compiler's target
 report and effective target/bitness flags; Mlang uses `--target-arch` or its
