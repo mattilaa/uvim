@@ -866,10 +866,14 @@ continue editing the command. Enter again compiles. Type `--` again to add
 another suggested flag. Escape cancels the entire command without compiling.
 Flags can also be typed manually, including full options such as `--compiler`.
 
-Instruction inspection shows built-in documentation immediately, including `add`
-on x86 and AArch64. If original-document fetching is enabled, richer documentation
-loads in the background while the built-in text remains visible. Progress stays
-in the loading indicator; the popup body does not show a loading message.
+Instruction inspection prefers Compiler Explorer API documentation by default,
+with the exact inspected instruction (for example `movq %rdi, %rax`) pinned
+above the documentation. API operand forms and examples, when provided, appear
+before summary/fetch metadata. Built-in help appears
+immediately while cached/API documentation loads in the background, and remains
+as a fallback if retrieval fails. Progress stays in the loading indicator without
+a message in the popup body. Use `:set asmdocsapi=false` for built-in help only,
+or persist `asmdocsapi = false` under `[editor]` in `config.toml`.
 
 The title shows the target architecture (for example `AArch64` or `x86_64`),
 including cross-compilation targets. C/C++ uses the selected compiler's target

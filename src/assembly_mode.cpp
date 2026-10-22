@@ -393,9 +393,15 @@ void AssemblyMode::inspectLine(Editor& editor)
             "(labels, directives and comments have no instruction help).";
         return;
     }
+    const std::string& instruction = content->result.lines[cursor];
+    const auto start = instruction.find_first_not_of(" \t");
+    const std::string example =
+        "```asm\n" +
+        instruction.substr(start == std::string::npos ? 0 : start) +
+        "\n```\n\n";
     content->docsTitle = help->title;
-    content->docsText = help->text;
-    if(!asm_documentation::fetchOriginalDocs())
+    content->docsText = example + help->text;
+    if(!editor.asmDocsApi)
         return;
     content->docsLoading = true;
     auto text = std::make_shared<std::string>();
@@ -406,12 +412,12 @@ void AssemblyMode::inspectLine(Editor& editor)
         editor
             .submitTask(
                 "assembly instruction help", "asm-docs",
-                [line = content->result.lines[cursor], text,
+                [line = content->result.lines[cursor], example, text,
                  title](TaskQueue::Context& task)
                 {
                     if(task.cancelled())
                         return;
-                    auto location = asm_documentation::find(line, 0);
+                    auto location = asm_documentation::find(line, 0, true);
                     if(!location)
                         return;
                     *title = location->mnemonic + " (" + location->arch + ")";
@@ -426,6 +432,27 @@ void AssemblyMode::inspectLine(Editor& editor)
                             break;
                         *text += row + '\n';
                     }
+                    // Cached API documents include a summary and fetch
+                    // metadata. Put the API's operand forms/examples first in
+                    // the small popup.
+                    if(location->line == 0)
+                    {
+                        for(std::string_view marker :
+                            {"Compiler Explorer documentation:",
+                             "Source documentation fallback:"})
+                        {
+                            const auto start = text->find(marker);
+                            if(start == std::string::npos)
+                                continue;
+                            text->erase(0, start + marker.size());
+                            const auto first = text->find_first_not_of("\r\n");
+                            if(first != std::string::npos)
+                                text->erase(0, first);
+                            break;
+                        }
+                    }
+                    if(!text->empty())
+                        *text = example + *text;
                 },
                 [weak, generation, text, title, &editor]
                 {

@@ -982,10 +982,16 @@ std::optional<Documentation> embedded(std::string_view line)
 #endif
 }
 
-std::optional<Location> find(std::string_view line, int)
+std::optional<Location> find(std::string_view line, int cursorX)
+{
+    return find(line, cursorX, fetchOriginalDocs());
+}
+
+std::optional<Location> find(std::string_view line, int, bool fetchOriginal)
 {
 #ifndef UVIM_ENABLE_ASM_DOCS
     (void)line;
+    (void)fetchOriginal;
     return std::nullopt;
 #else
     const auto instruction = resolveInstruction(line);
@@ -994,7 +1000,7 @@ std::optional<Location> find(std::string_view line, int)
     const auto& doc = instruction->doc;
     const auto& arch = instruction->arch;
     const auto mnemonic = doc.mnemonic;
-    if(fetchOriginalDocs())
+    if(fetchOriginal)
     {
         if(std::optional<fs::path> fetched = ensureFetchedDoc(arch, doc))
         {

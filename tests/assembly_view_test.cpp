@@ -72,6 +72,8 @@ protected:
         *editor.lines = {"int changed(int x) { return x + 7; }"};
         *editor.dirty = true;
         editor.useSystemClipboard = false;
+        editor.asmDocsApi =
+            false; // Keep tests offline unless they provide cached API docs.
         editor.screenRows = 22;
         editor.screenCols = 100;
     }
@@ -1116,6 +1118,7 @@ TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
     ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
     ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "true");
     asm_documentation::setFetchOriginalDocs(false);
+    editor.asmDocsApi = true;
     write_file(root / "fetched" / "compiler-explorer" / "aarch64" / "add.md",
                "## add\n\nFetched add instruction details.\n");
     auto sm = makeMachine(editor, NormalMode{});
@@ -1136,5 +1139,68 @@ TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
     EXPECT_NE(view->content->docsText.find("Fetched add instruction details"),
               std::string::npos);
+#endif
+}
+
+TEST_F(AssemblyViewTest, InspectorShowsApiOperandFormsBeforePlainDescription)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
+    ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "0");
+    asm_documentation::setFetchOriginalDocs(false);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi=true"));
+    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+               "## mov\n\nCopies the source operand.\n\nFetched from Compiler "
+               "Explorer.\n\n"
+               "Compiler Explorer documentation:\n\n```text\nMOV r64, "
+               "r/m64\nMOV r/m64, r64\n"
+               "Move source to destination.\n```\n\nAPI: "
+               "https://godbolt.org/api/asm/amd64/mov\n");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"    movq %rdi, %rax"};
+    sm.dispatch('i');
+    ASSERT_TRUE(view->content->docsLoading);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_TRUE(
+        view->content->docsText.starts_with("```asm\nmovq %rdi, %rax\n```"));
+    EXPECT_NE(view->content->docsText.find("```text\nMOV r64, r/m64"),
+              std::string::npos);
+    EXPECT_EQ(view->content->docsText.find("Copies the source operand"),
+              std::string::npos);
+    EXPECT_NE(view->content->docsText.find(
+                  "API: https://godbolt.org/api/asm/amd64/mov"),
+              std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find("movq %rdi, %rax"), std::string::npos);
+    EXPECT_NE(frame.find("MOV r64, r/m64"), std::string::npos);
+    EXPECT_NE(frame.find("MOV r/m64, r64"), std::string::npos);
+    EXPECT_EQ(frame.find("Loading instruction documentation"),
+              std::string::npos);
+    // The live MOV API can provide prose without any operand-form examples.
+    // The selected instruction must still remain at the top in that case.
+    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+               "## mov\n\nCompiler Explorer documentation:\n\n```text\n"
+               "Copies the second operand (source operand) to the first "
+               "operand.\n```\n");
+    sm.dispatch('i');
+    sm.dispatch('i');
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_TRUE(
+        view->content->docsText.starts_with("```asm\nmovq %rdi, %rax\n```"));
+    EXPECT_NE(view->content->docsText.find("Copies the second operand"),
+              std::string::npos);
+    ASSERT_TRUE(editor.handleSetCommand("set noasmdocsapi"));
+    EXPECT_FALSE(editor.asmDocsApi);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi"));
+    EXPECT_TRUE(editor.asmDocsApi);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi?"));
 #endif
 }

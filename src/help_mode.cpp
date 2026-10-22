@@ -1591,6 +1591,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Unknown origins show no source mapping; no library is guessed.",
             "  `:set asmdimunmapped=false` disables dimming (default true).",
             "",
+            "Inspect uses API instruction forms/examples, with built-in "
+            "fallback.",
+            "  `:set asmdocsapi=false` uses built-in help only (default true).",
             "Mlang: .mla files use mlang from PATH (or --compiler PATH).",
             "  `:asm example.mla --split -O2`",
             "  `:asm . --target-arch aarch64`",

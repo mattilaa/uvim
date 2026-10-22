@@ -12,6 +12,11 @@ std::optional<Location> find(std::string_view, int)
     return std::nullopt;
 }
 
+std::optional<Location> find(std::string_view, int, bool)
+{
+    return std::nullopt;
+}
+
 void setFetchOriginalDocs(bool) {}
 
 bool fetchOriginalDocs()

@@ -128,6 +128,12 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (asmDimUnmapped ? "true" : "false"));
         return true;
     }
+    if(opt == "asmdocsapi?")
+    {
+        setStatusMessage(std::string("asmdocsapi=") +
+                         (asmDocsApi ? "true" : "false"));
+        return true;
+    }
     if(opt == "autotags?")
     {
         setStatusMessage(std::string("autotags=") +
@@ -432,6 +438,13 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (asmDimUnmapped ? "true" : "false"));
     };
 
+    auto set_asm_docs_api = [&](bool value)
+    {
+        asmDocsApi = value;
+        setStatusMessage(std::string("asmdocsapi=") +
+                         (asmDocsApi ? "true" : "false"));
+    };
+
     auto set_autotags = [&](bool value)
     {
         autoTags = value;
@@ -554,6 +567,16 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "noasmdimunmapped")
     {
         set_asm_dim_unmapped(false);
+        return true;
+    }
+    if(opt == "asmdocsapi")
+    {
+        set_asm_docs_api(true);
+        return true;
+    }
+    if(opt == "noasmdocsapi")
+    {
+        set_asm_docs_api(false);
         return true;
     }
     if(opt == "syntax.cpp.highlight_system_includes")
@@ -1286,6 +1309,23 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("asmdimunmapped: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("asmdocsapi=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("asmdocsapi=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_asm_docs_api(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_asm_docs_api(false);
+        }
+        else
+        {
+            setStatusMessage("asmdocsapi: expected true/false");
         }
         return true;
     }
