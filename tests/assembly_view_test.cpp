@@ -1188,7 +1188,8 @@ TEST_F(AssemblyViewTest, InspectorShowsApiOperandFormsBeforePlainDescription)
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find("movq %rdi, %rax"), std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+              std::string::npos);
     EXPECT_NE(frame.find("MOV r64, r/m64"), std::string::npos);
     EXPECT_NE(frame.find("MOV r/m64, r64"), std::string::npos);
     EXPECT_EQ(frame.find("Loading instruction documentation"),
@@ -1291,4 +1292,44 @@ TEST_F(AssemblyViewTest, SlowInspectionUsesOnlyDelayedIndicatorAndClearsIt)
     view->processIdle(editor, std::chrono::steady_clock::now() + 1s);
     EXPECT_FALSE(view->content->docsIndicator);
 #endif
+}
+
+TEST_F(AssemblyViewTest, InspectorSeparatesHeadingsProseExamplesAndReferences)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    sm.dispatch('i');
+    view->content->docsTitle = "Color roles";
+    view->content->docsText =
+        "```asm\naddq $23, %r11\n```\n"
+        "```text\nDescription\nAdds the operands.\nOperation:\n"
+        "DEST = DEST + SRC\n```\n"
+        "## Examples\nReference: https://example.com/asm\n";
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD +
+                         "Description"),
+              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD + "Operation:"),
+        std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD +
+                         "## Examples"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.baseFg() + "Adds the operands."),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.baseFg() + "DEST = DEST + SRC"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiDim() + "Reference:"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiDim() + "```text"), std::string::npos);
+    EXPECT_EQ(
+        frame.find(editor.theme.syntax(TOKEN_STRING) + "Adds the operands."),
+        std::string::npos);
 }

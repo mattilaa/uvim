@@ -869,7 +869,9 @@ Flags can also be typed manually, including full options such as `--compiler`.
 Instruction inspection prefers Compiler Explorer API documentation by default,
 with the exact inspected instruction (for example `movq %rdi, %rax`) pinned
 above the documentation. API operand forms and examples, when provided, appear
-before summary/fetch metadata. Built-in help appears
+before summary/fetch metadata. The popup uses bold accent headings, neutral
+help text, syntax colors for assembly examples, and dim references/fence markers.
+Built-in help appears
 immediately while cached/API documentation loads in the background, and remains
 as a fallback if retrieval fails. Progress stays in the loading indicator without
 a message in the popup body. Row changes wait for a 300 ms pause before

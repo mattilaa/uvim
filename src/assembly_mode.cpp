@@ -137,33 +137,60 @@ std::vector<std::string> wrappedDocs(std::string_view text, int width)
     return lines;
 }
 
+enum class DocumentationBlock
+{
+    None,
+    Text,
+    Assembly
+};
+
 std::string coloredDocumentation(std::string_view line, const Theme& theme,
-                                 bool& codeBlock)
+                                 DocumentationBlock& block,
+                                 const std::vector<Token>& assemblyTokens)
 {
     const auto first = line.find_first_not_of(' ');
     const auto text = first == std::string_view::npos ? std::string_view{}
                                                       : line.substr(first);
     if(text.starts_with("```"))
     {
-        codeBlock = !codeBlock;
+        block = block != DocumentationBlock::None ? DocumentationBlock::None
+                : text == "```asm" || text == "```assembly" || text == "```s"
+                    ? DocumentationBlock::Assembly
+                    : DocumentationBlock::Text;
         return theme.uiDim() + std::string(line);
     }
-    if(codeBlock)
-        return theme.syntax(TOKEN_STRING) + std::string(line);
-    if(text.starts_with('#'))
+    if(block == DocumentationBlock::Assembly)
+    {
+        std::string out;
+        appendSyntax(out, std::string(line), assemblyTokens, 0,
+                     text_utils::utf8DisplayWidth(line), theme, 0);
+        return out;
+    }
+    // API HTML is cached as plain text, so its section headings have no '#'.
+    auto heading = text;
+    while(!heading.empty() && (heading.back() == ' ' || heading.back() == ':'))
+        heading.remove_suffix(1);
+    const bool section =
+        heading == "Description" || heading == "Operation" ||
+        heading == "Flags Affected" || heading == "Affected Flags" ||
+        heading == "Exceptions" || heading == "Protected Mode Exceptions" ||
+        heading == "Real-Address Mode Exceptions" ||
+        heading == "Virtual-8086 Mode Exceptions" ||
+        heading == "Compatibility Mode Exceptions" ||
+        heading == "64-Bit Mode Exceptions" ||
+        heading == "Intrinsic Equivalent" ||
+        heading == "Intel C/C++ Compiler Intrinsic Equivalent" ||
+        heading == "Opcode" || heading == "Instruction Operand Encoding" ||
+        heading == "Syntax" || heading == "Examples";
+    if(text.starts_with('#') || section)
         return theme.uiAccent() + Terminal::ESC_BOLD + std::string(line);
 
-    std::string out = theme.baseFg();
+    const bool reference =
+        text.starts_with("Documentation:") || text.starts_with("Reference:") ||
+        text.starts_with("Source:") || text.starts_with("API:");
+    const auto& bodyColor = reference ? theme.uiDim() : theme.baseFg();
+    std::string out = bodyColor;
     size_t pos = 0;
-    const auto colon = line.find(':');
-    if(colon != std::string_view::npos && colon < 32 &&
-       (text.starts_with("Documentation:") || text.starts_with("Reference:") ||
-        text.starts_with("Source:")))
-    {
-        out = theme.uiInfo() + std::string(line.substr(0, colon + 1)) +
-              theme.baseFg();
-        pos = colon + 1;
-    }
     while(pos < line.size())
     {
         if(line.substr(pos).starts_with("https://") ||
@@ -172,8 +199,8 @@ std::string coloredDocumentation(std::string_view line, const Theme& theme,
             const auto end = line.find_first_of(" \t)", pos);
             const auto length =
                 end == std::string_view::npos ? line.size() - pos : end - pos;
-            out += theme.uiDirectory() + std::string(line.substr(pos, length)) +
-                   theme.baseFg();
+            out += theme.uiDim() + std::string(line.substr(pos, length)) +
+                   bodyColor;
             pos += length;
         }
         else if(line[pos] == '`')
@@ -183,7 +210,7 @@ std::string coloredDocumentation(std::string_view line, const Theme& theme,
                                     ? line.size() - pos
                                     : end - pos + 1;
             out += theme.syntax(TOKEN_KEYWORD) +
-                   std::string(line.substr(pos, length)) + theme.baseFg();
+                   std::string(line.substr(pos, length)) + bodyColor;
             pos += length;
         }
         else
@@ -844,10 +871,17 @@ void AssemblyMode::draw(Editor& editor)
             std::clamp(docsOffset, 0,
                        std::max(0, static_cast<int>(docs.size()) - height + 2));
         std::vector<std::string> coloredDocs;
-        bool codeBlock = false;
-        for(const auto& line : docs)
+        PreviewHighlight instructionHighlight;
+        editor.highlightPreviewLines(instructionHighlight, "inspection.s", docs,
+                                     docs.size());
+        const std::vector<Token> noTokens;
+        auto block = DocumentationBlock::None;
+        for(size_t i = 0; i < docs.size(); ++i)
             coloredDocs.push_back(
-                coloredDocumentation(line, editor.theme, codeBlock));
+                coloredDocumentation(docs[i], editor.theme, block,
+                                     i < instructionHighlight.tokens.size()
+                                         ? instructionHighlight.tokens[i]
+                                         : noTokens));
         for(int row = 0; row < height; ++row)
         {
             out += Terminal::cursorPos(top + row, left);
