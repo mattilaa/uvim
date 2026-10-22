@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -450,6 +451,18 @@ struct TemporaryDirectory
     }
 };
 
+struct TemporarySource
+{
+    fs::path path;
+
+    ~TemporarySource()
+    {
+        std::error_code ec;
+        if(!path.empty())
+            fs::remove(path, ec);
+    }
+};
+
 #ifdef _WIN32
 struct Handle
 {
@@ -557,6 +570,15 @@ int runCompiler(const std::vector<std::string>& args, const fs::path& log,
 #endif
 } // namespace
 
+bool isMlangSource(std::string_view path)
+{
+    std::string extension = fs::path(path).extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char c)
+                   { return static_cast<char>(std::tolower(c)); });
+    return extension == ".mla";
+}
+
 bool parse(std::string_view arguments, Request& request, std::string& error)
 {
     request = Request{};
@@ -581,7 +603,8 @@ bool parse(std::string_view arguments, Request& request, std::string& error)
         {
             if(++i == words.size() || words[i].empty())
             {
-                error = "asm: --compiler requires clang, gcc, or an executable "
+                error = "asm: --compiler requires clang, gcc, mlang, or an "
+                        "executable "
                         "path";
                 return false;
             }
@@ -645,10 +668,11 @@ Result compile(const Request& inputRequest,
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c)
                    { return static_cast<char>(std::tolower(c)); });
     const bool cSource = fs::path(request.path).extension() == ".c";
+    const bool mlangSource = isMlangSource(request.path);
     if(!ext.empty() && ext != ".c" && ext != ".cc" && ext != ".cpp" &&
        ext != ".cxx" && ext != ".c++" && ext != ".h" && ext != ".hpp" &&
-       ext != ".hxx" && ext != ".hh")
-        return fail("asm: C/C++ source and header files only");
+       ext != ".hxx" && ext != ".hh" && !mlangSource)
+        return fail("asm: C/C++ source, headers, and Mlang (.mla) files only");
 
     std::vector<std::string> source;
     if(request.sourceLines)
@@ -672,7 +696,9 @@ Result compile(const Request& inputRequest,
     if(!expandResponseFiles(request.flags, promptDirectory, prompt,
                             responseError))
         return fail(std::move(responseError));
-    const auto command = findCompileCommand(request, prompt, cancelled);
+    const auto command = mlangSource
+                             ? CompileCommand{}
+                             : findCompileCommand(request, prompt, cancelled);
     result.compilationDatabase = command.database;
     if(!command.error.empty())
         return fail(command.error);
@@ -709,6 +735,8 @@ Result compile(const Request& inputRequest,
 
     std::string compiler =
         request.compiler.empty() ? command.compiler : request.compiler;
+    if(mlangSource && compiler.empty())
+        compiler = "mlang";
     if(compiler == "clang")
         compiler = cSource ? "clang" : "clang++";
     else if(compiler == "gcc")
@@ -752,33 +780,90 @@ Result compile(const Request& inputRequest,
         temp.path.clear();
         return fail("asm: cannot create temporary directory");
     }
-    const auto input = temp.path / (cSource ? "source.c" : "source.cpp");
+    TemporarySource snapshot;
+    const auto input = mlangSource
+                           ? fs::path(request.path).parent_path() /
+                                 ("." + temp.path.filename().string() + ".mla")
+                           : temp.path / (cSource ? "source.c" : "source.cpp");
     const auto output = temp.path / "output.s";
+    if(mlangSource)
+    {
+        // Keep relative modules/manifest discovery rooted at the original
+        // source. Exclusive creation guarantees an existing file is never
+        // overwritten.
+#ifdef _WIN32
+        FILE* stream = _wfopen(input.c_str(), L"wbx");
+#else
+        FILE* stream = std::fopen(input.c_str(), "wbx");
+#endif
+        if(!stream)
+            return fail("asm: cannot create Mlang snapshot beside source "
+                        "(directory must be writable): " +
+                        input.string());
+        snapshot.path = input;
+        bool written = true;
+        for(const auto& line : source)
+        {
+            written = (std::fwrite(line.data(), 1, line.size(), stream) ==
+                       line.size()) &&
+                      written;
+            written = (std::fputc('\n', stream) != EOF) && written;
+        }
+        const bool closed = std::fclose(stream) == 0;
+        if(!written || !closed)
+            return fail("asm: cannot write temporary Mlang source");
+        // Mlang writes its indexing database into cwd; keep it out of the
+        // project.
+        request.directory = temp.path.string();
+    }
+    else
     {
         std::ofstream stream(input, std::ios::binary);
         stream << assembly_output::sourceText(source, cSource);
         if(!stream)
             return fail("asm: cannot write temporary source");
     }
-    std::vector<std::string> args = {result.compiler, "-x",
-                                     cSource ? "c" : "c++"};
-    if(command.database.empty())
-        args.push_back(cSource ? "-std=c11" : "-std=c++20");
+    std::vector<std::string> args = {result.compiler};
+    if(!mlangSource)
+    {
+        args.insert(args.end(), {"-x", cSource ? "c" : "c++"});
+        if(command.database.empty())
+            args.push_back(cSource ? "-std=c11" : "-std=c++20");
+    }
     const bool hasOptimization =
         std::any_of(flags.begin(), flags.end(), [](const std::string& flag)
                     { return flag.rfind("-O", 0) == 0; });
     if(!hasOptimization)
         args.push_back("-O0");
     const auto sourceDir = fs::path(request.path).parent_path();
-    args.insert(args.end(),
-                {"-iquote", sourceDir.empty() ? "." : sourceDir.string()});
+    if(!mlangSource)
+        args.insert(args.end(),
+                    {"-iquote", sourceDir.empty() ? "." : sourceDir.string()});
+    else
+    {
+        // Prompt paths still refer to the editor cwd, despite the isolated cwd.
+        for(size_t i = 0; i < flags.size(); ++i)
+        {
+            if(flags[i] == "-L" && i + 1 < flags.size())
+            {
+                ++i;
+                flags[i] = absolutePath(flags[i], promptDirectory).string();
+            }
+            else if(flags[i].starts_with("-L") && flags[i].size() > 2)
+                flags[i] =
+                    "-L" +
+                    absolutePath(flags[i].substr(2), promptDirectory).string();
+        }
+    }
     args.insert(args.end(), flags.begin(), flags.end());
     result.options = hasOptimization ? "" : "-O0";
     for(const auto& flag : flags)
         result.options += (result.options.empty() ? "" : " ") + flag;
-    args.insert(args.end(), {"-S", "-g", "-gdwarf-4", "-fverbose-asm",
-                             "-fdiagnostics-color=never", "-o", output.string(),
-                             input.string()});
+    args.insert(args.end(), {"-S", "-g"});
+    if(!mlangSource)
+        args.insert(args.end(), {"-gdwarf-4", "-fverbose-asm",
+                                 "-fdiagnostics-color=never"});
+    args.insert(args.end(), {"-o", output.string(), input.string()});
 #ifdef _WIN32
     const auto log = temp.path / "compiler.log";
     const int status = runCompiler(args, log, request.directory, cancelled);

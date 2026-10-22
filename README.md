@@ -798,7 +798,7 @@ doxygen`, or `dnf install doxygen`).
 
 ## Assembly browser
 
-`:asm .` compiles the current C/C++ buffer, including unsaved edits, into a
+`:asm .` compiles the current C/C++ or Mlang (`.mla`) buffer, including unsaved edits, into a
 read-only assembly view. `:asm` is the same command. Use a file path instead
 of `.` to compile another file; if that file is already open, its in-memory
 contents are used. The source buffer, cursor, and file on disk stay intact.
@@ -813,7 +813,28 @@ contents are used. The source buffer, cursor, and file on disk stay intact.
 :asm . --compiler "/path/to/clang++" --raw -O0 -g
 ```
 
-When a matching `compile_commands.json` entry is found, `:asm` uses its compiler,
+Mlang files automatically use `mlang` from `PATH`. Use `--compiler PATH` to select
+another Mlang executable:
+
+```vim
+:asm src/example.mla --split -O2
+:asm . --compiler mlang -O0
+:asm . --target-arch aarch64
+```
+
+Mlang compilation uses `-S -g` for assembly and linked source-line highlighting,
+with `-O0` unless you supply another optimization level. The flags popup shows
+Mlang options for `.mla` files, including `--target-arch x86|x64|aarch64`.
+C/C++ compilation databases are not used for Mlang; `mlang_commands.json` is an
+indexing database rather than a source of compiler flags.
+
+To preserve relative `mod` imports and `mlang.toml` discovery, Mlang snapshots
+are created temporarily beside the original source file; its directory must be
+writable. The snapshot is removed after success, failure, or cancellation.
+Compiler output and generated indexing files use an isolated temporary working
+directory, keeping the project's existing `mlang_commands.json` intact.
+
+For C/C++, when a matching `compile_commands.json` entry is found, `:asm` uses its compiler,
 flags and working directory. It checks the configured clangd compilation-database
 directory first, then the source file's directory and ancestors (including common
 build directories such as `build`, `build-debug`, and `cmake-build-debug`), followed
@@ -831,9 +852,9 @@ Inherited relative paths use the database entry's working directory; paths typed
 at the prompt remain relative to the editor working directory. Project-specific
 flags can also be supplied manually when no matching entry exists.
 
-`--compiler` overrides the database compiler and accepts Clang, GCC, or a compiler
+`--compiler` overrides the database compiler and accepts Clang, GCC, Mlang, or a compiler
 executable; `clang`/`gcc` select their C++ drivers for C++ files. Without a matching
-database entry, Clang is preferred with GCC as fallback. The default optimization
+C/C++ database entry, Clang is preferred with GCC as fallback. The default optimization
 is `-O0` if neither the database nor prompt supplies an optimization level. Paths
 and arguments containing spaces can be quoted. Use `--raw` to retain the full
 assembler output. Target-specific options such as `-masm=intel` depend on the

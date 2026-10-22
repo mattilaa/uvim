@@ -139,8 +139,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
 - `:emitasm [flags]` : emit current C/C++ buffer assembly into a `.s` buffer
-- `:asm [.|path] [--compiler clang|gcc|path] [--split] [--raw] [flags]` : compile and
-  browse assembly; `:asm . -O2` includes unsaved buffer edits. In the view,
+- `:asm [.|path] [--compiler clang|gcc|mlang|path] [--split] [--raw] [flags]` : compile and
+  browse C/C++ or Mlang (`.mla`) assembly; `:asm . -O2` includes unsaved buffer edits. In the view,
   `j/k` browse numbered rows, `h/l` scroll horizontally, `i` toggles instruction
   documentation, `Ctrl-j/k` scrolls that popup, and `q`/`Esc` exits.
 - `:asm . --split -O2` opens source and assembly side by side. `v` toggles
@@ -151,7 +151,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - Typing `:asm . --` opens common compiler flags: up/down or `Ctrl-j/k`
   select, Enter/Tab inserts without compiling, and the next Enter compiles.
   `Esc` cancels the whole command.
-- `:asm` automatically uses the matching `compile_commands.json` entry's compiler,
+- `.mla` files use `mlang -S -g`; optimization, raw/split views, source linking,
+  and instruction inspection work as for C/C++. `:asm . --` suggests Mlang flags.
+  Temporary snapshots beside the source preserve relative imports and require a
+  writable source directory; compilation keeps the project indexing file intact.
+- For C/C++, `:asm` automatically uses the matching `compile_commands.json` entry's compiler,
   flags, and working directory when found in source/ancestor or common build
   directories (or the configured clangd database). Prompt flags override inherited
   optimization, standards and macros; prompt include directories precede inherited

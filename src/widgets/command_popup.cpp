@@ -58,6 +58,16 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Define a macro (type NAME=value next)";
     if(cmd == "--compiler clang")
         return "Use Clang to generate assembly";
+    if(cmd == "--compiler mlang")
+        return "Use the Mlang compiler to generate assembly from .mla source";
+    if(cmd == "-Oz")
+        return "Optimize aggressively for small code size";
+    if(cmd.starts_with("--target-arch "))
+        return "Select the Mlang target architecture (x86, x64, or aarch64)";
+    if(cmd == "-Wno-unwrap")
+        return "Suppress Mlang result.unwrap() warnings";
+    if(cmd == "-Wno-colon-if" || cmd == "-Wno-colon-while")
+        return "Suppress Mlang plain-colon control-flow warnings";
     if(cmd == "--compiler gcc")
         return "Use GCC to generate assembly";
     if(cmd == "--raw")

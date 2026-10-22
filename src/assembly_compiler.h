@@ -34,6 +34,7 @@ struct Result
     std::vector<int> sourceLineForAssembly;
 };
 
+bool isMlangSource(std::string_view path);
 bool parse(std::string_view arguments, Request& request, std::string& error);
 Result compile(const Request& request, const std::function<bool()>& cancelled);
 } // namespace assembly_compiler

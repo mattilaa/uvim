@@ -629,3 +629,128 @@ TEST(AssemblyViewStandaloneTest,
     EXPECT_FALSE(editor.hasBuffer());
     std::filesystem::remove_all(root);
 }
+
+TEST_F(AssemblyViewTest, MlangSnapshotUsesNativeFlagsAndPreservesProjectFiles)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    *editor.lines = {"fn changed(x: i32) -> i32 {", "    return x + 7;", "}"};
+    write_file(root / "source.mla", "original source\n");
+    const auto original = read_file(root / "source.mla");
+    write_file(root / "mlang_commands.json", "original index");
+    // C/C++ databases must not leak C flags or fail Mlang compilation.
+    write_file(root / "compile_commands.json", "not a valid database");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--split -O2 --target-arch x64"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    EXPECT_TRUE(view->split);
+    EXPECT_EQ(result.sourcePath, (root / "source.mla").string());
+    EXPECT_TRUE(result.compilationDatabase.empty());
+    const auto args = read_file(root / "arguments");
+    EXPECT_NE(args.find("-O2\n--target-arch\nx64\n"), std::string::npos);
+    EXPECT_NE(args.find("-S\n-g\n"), std::string::npos);
+    for(const char* flag :
+        {"-x\n", "-std=", "-iquote", "-gdwarf-4", "-fverbose-asm", "-O0"})
+        EXPECT_EQ(args.find(flag), std::string::npos) << flag;
+    EXPECT_EQ(read_file(root / "source"),
+              "fn changed(x: i32) -> i32 {\n    return x + 7;\n}\n");
+    EXPECT_EQ(read_file(root / "source.mla"), original);
+    EXPECT_EQ(read_file(root / "mlang_commands.json"), "original index");
+    EXPECT_NE(std::filesystem::path(read_file(root / "directory")), root);
+    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
+                            result.sourceLineForAssembly.end(),
+                            [](int line) { return line > 0; }));
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, CanCancelMlangCompilationAndCleanSnapshot)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    write_file(root / "hold", "");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    ASSERT_NE(sm.getState<AssemblyMode>(), nullptr);
+    auto content = sm.getState<AssemblyMode>()->content;
+    ASSERT_TRUE(waitFor(editor, [&]
+                        { return std::filesystem::exists(root / "started"); }));
+    const auto start = std::chrono::steady_clock::now();
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_LT(std::chrono::steady_clock::now() - start, 500ms);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    write_file(root / "release", "");
+    ASSERT_TRUE(waitFor(editor, [&] { return editor.tasks.idle(); }));
+    EXPECT_FALSE(content->result.success);
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, MlangCompilerFailureCleansSnapshot)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--uvim-test-error"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_FALSE(view->content->result.success);
+    EXPECT_NE(view->content->result.diagnostics.find("invalid source"),
+              std::string::npos);
+    EXPECT_NE(read_file(root / "arguments").find("-O0\n"), std::string::npos);
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, MlangFlagPickerUsesSupportedCompilerOptions)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char c : std::string("asm . --"))
+        sm.dispatch(c);
+    ASSERT_TRUE(editor.commandPopupActive);
+    const auto& flags = editor.commandPopupAll;
+    EXPECT_NE(std::find(flags.begin(), flags.end(), "--compiler mlang"),
+              flags.end());
+    EXPECT_NE(std::find(flags.begin(), flags.end(), "--target-arch aarch64"),
+              flags.end());
+    EXPECT_EQ(std::find(flags.begin(), flags.end(), "-std=c++20"), flags.end());
+    EXPECT_EQ(std::find(flags.begin(), flags.end(), "-fverbose-asm"),
+              flags.end());
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_TRUE(editor.tasks.idle());
+}
+
+TEST_F(AssemblyViewTest, RealMlangPreservesRelativeModulesAndSourceMapping)
+{
+    if(!executable_lookup::find("mlang").found)
+        GTEST_SKIP() << "Mlang not installed";
+    write_file(root / "helper.mla",
+               "pub fn plus(x: i32) -> i32 { return x + 1; }\n");
+    write_file(root / "mlang_commands.json", "original project index");
+    assembly_compiler::Request request;
+    request.path = (root / "source.mla").string();
+    request.directory = root.string();
+    request.sourceLines = std::vector<std::string>{
+        "mod helper;", "use helper::plus;", "fn changed(x: i32) -> i32 {",
+        "    return plus(x);", "}"};
+    request.flags = {"-O0"};
+    const auto result =
+        assembly_compiler::compile(request, [] { return false; });
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
+                            result.sourceLineForAssembly.end(),
+                            [](int line) { return line > 0; }));
+    EXPECT_EQ(read_file(root / "mlang_commands.json"),
+              "original project index");
+    EXPECT_FALSE(std::filesystem::exists(root / "source.mla"));
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}

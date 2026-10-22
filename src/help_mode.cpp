@@ -137,7 +137,7 @@ std::string helpTopicDescription(const std::string& topic)
     if(topic == "gs")
         return "C/C++ symbol size popup";
     if(topic == "asm")
-        return "Compile and browse C/C++ assembly";
+        return "Compile and browse C/C++ or Mlang assembly";
     if(topic == "emitasm")
         return "Emit C/C++ assembly";
     if(topic == "lsp")
@@ -1565,7 +1565,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         lines = {
             "# Assembly browser",
             "",
-            "`:asm .` / `:asm` compiles the current C/C++ buffer, including",
+            "`:asm .` / `:asm` compiles C/C++ or Mlang (.mla), including",
             "unsaved edits, into a read-only assembly view. `:asm path.cpp`",
             "compiles another file (using its unsaved buffer if already open).",
             "The source buffer and disk file remain unchanged.",
@@ -1578,7 +1578,17 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:asm \"my file.cpp\" --compiler clang -O2 -I \"include dir\"`",
             "  `:asm . --raw -O0 -g`",
             "",
-            "A matching compile_commands.json supplies compiler, flags and cwd.",
+            "Mlang: .mla files use mlang from PATH (or --compiler PATH).",
+            "  `:asm example.mla --split -O2`",
+            "  `:asm . --target-arch aarch64`",
+            "Mlang uses -S -g; the flag picker offers Mlang options.",
+            "A temporary source snapshot beside the file preserves imports;",
+            "its directory must be writable. The snapshot is cleaned up.",
+            "Generated indexing files use a temporary cwd, not the project.",
+            "C/C++ compile_commands.json is not used for Mlang.",
+            "",
+            "For C/C++, compile_commands.json supplies compiler, flags and "
+            "cwd.",
             "Lookup: configured clangd database, source/ancestor directories",
             "and common build directories, then the editor cwd/ancestors.",
             "Only the requested file's entry is used (first matching entry).",

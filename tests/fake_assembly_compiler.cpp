@@ -42,6 +42,9 @@ int main(int argc, char** argv)
               std::chrono::steady_clock::now() < deadline)
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
+    if(!args.empty() && fs::path(args.back()).extension() == ".mla")
+        std::ofstream("mlang_commands.json", std::ios::binary)
+            << "temporary compiler index";
     if(error)
     {
         std::cerr << "example.cpp:3: compiler error: invalid source\n";
