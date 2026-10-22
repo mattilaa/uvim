@@ -858,7 +858,9 @@ terminals, the focused pane fills the available width.
 Moving through source highlights all matching assembly rows with a subtle
 green background and scrolls to the first match. Moving through assembly
 highlights and reveals its corresponding source line. Syntax colors remain
-visible over the tint. Source mapping comes from compiler debug line records;
+visible over the tint. Both panes keep their selected row near the middle of
+the viewport, with scrolling limited at the start and end of the file.
+Source mapping comes from compiler debug line records;
 comments, declarations, optimized-away lines, and instructions from other files
 may have no match. The status bar shows the mapped source line or reports that
 there is no source mapping. Compiler flags still control the generated code;

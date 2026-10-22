@@ -317,19 +317,12 @@ void AssemblyMode::ensureVisible(const Editor& editor)
         content ? static_cast<int>(content->result.lines.size()) : 0;
     cursor = std::clamp(cursor, 0, std::max(0, count - 1));
     const int rows = contentRows(editor, split);
-    offset = std::clamp(offset, 0, std::max(0, count - rows));
-    if(cursor < offset)
-        offset = cursor;
-    if(cursor >= offset + rows)
-        offset = cursor - rows + 1;
+    offset = std::clamp(cursor - rows / 2, 0, std::max(0, count - rows));
     const int sourceCount =
         content ? static_cast<int>(content->result.sourceLines.size()) : 0;
     sourceCursor = std::clamp(sourceCursor, 0, std::max(0, sourceCount - 1));
-    sourceOffset = std::clamp(sourceOffset, 0, std::max(0, sourceCount - rows));
-    if(sourceCursor < sourceOffset)
-        sourceOffset = sourceCursor;
-    if(sourceCursor >= sourceOffset + rows)
-        sourceOffset = sourceCursor - rows + 1;
+    sourceOffset = std::clamp(sourceCursor - rows / 2, 0,
+                              std::max(0, sourceCount - rows));
 }
 
 int AssemblyMode::linkedSourceLine() const
