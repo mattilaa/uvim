@@ -71,7 +71,7 @@ std::string clipped(std::string_view line, int columns)
 
 void appendSyntax(std::string& out, const std::string& line,
                   const std::vector<Token>& tokens, int left, int width,
-                  const Theme& theme, bool dim)
+                  const Theme& theme, int dimLevel)
 {
     std::vector<TokenType> colors(line.size(), TOKEN_NORMAL);
     for(const auto& token : tokens)
@@ -85,9 +85,8 @@ void appendSyntax(std::string& out, const std::string& line,
     int column = 0;
     int used = 0;
     TokenType previous = TOKEN_NORMAL;
-    out += theme.baseFg();
-    if(dim)
-        out += Terminal::ESC_DIM;
+    out += dimLevel > 0 ? theme.dimmedSyntax(TOKEN_NORMAL, dimLevel)
+                        : theme.baseFg();
     for(int i = 0; i < static_cast<int>(line.size());)
     {
         const int end = text_utils::nextUtf8CharStart(line, i);
@@ -100,9 +99,8 @@ void appendSyntax(std::string& out, const std::string& line,
             if(colors[i] != previous)
             {
                 previous = colors[i];
-                out += theme.syntax(previous);
-                if(dim)
-                    out += Terminal::ESC_DIM;
+                out += dimLevel > 0 ? theme.dimmedSyntax(previous, dimLevel)
+                                    : theme.syntax(previous);
             }
             out += glyph;
             used += cells;
@@ -584,11 +582,8 @@ void AssemblyMode::draw(Editor& editor)
             heading(sourcePane, editor.screenCols);
     }
     const bool hasOrigins = result.sourceOrigins.size() == result.lines.size();
-    const bool hasMapping =
-        hasOrigins &&
-        std::any_of(result.sourceOrigins.begin(), result.sourceOrigins.end(),
-                    [](const assembly_compiler::SourceOrigin& origin)
-                    { return origin.mainSource; });
+    const bool hasDirectMappings =
+        result.sourceLineForAssembly.size() == result.lines.size();
     auto paneRow = [&](bool source, int row, int width)
     {
         out += editor.theme.reset();
@@ -609,11 +604,18 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.sourceMapping();
             else if(active && current)
                 out += editor.theme.selection();
-            const bool dim = !source && editor.asmDimUnmapped && hasMapping &&
-                             !result.sourceOrigins[index].mainSource;
-            out += editor.theme.uiGutter();
-            if(dim)
-                out += Terminal::ESC_DIM;
+            int dimLevel = 0;
+            if(!source && editor.asmDimUnmapped &&
+               !(hasDirectMappings && result.sourceLineForAssembly[index] > 0))
+            {
+                dimLevel =
+                    hasOrigins && result.sourceOrigins[index].mainSource ? 1
+                    : hasOrigins && !result.sourceOrigins[index].path.empty()
+                        ? 2
+                        : 3;
+            }
+            out += dimLevel > 0 ? editor.theme.dimmedGutter(dimLevel)
+                                : editor.theme.uiGutter();
             const int gutter =
                 static_cast<int>(std::to_string(lines.size()).size()) + 2;
             std::string number = std::to_string(index + 1);
@@ -624,7 +626,7 @@ void AssemblyMode::draw(Editor& editor)
                 clipped((active && current ? ">" : " ") + number + " ", width);
             appendSyntax(out, lines[index], tokens[index],
                          source ? sourceHorizontal : horizontal,
-                         std::max(0, width - gutter), editor.theme, dim);
+                         std::max(0, width - gutter), editor.theme, dimLevel);
         }
         else
         {
@@ -682,7 +684,7 @@ void AssemblyMode::draw(Editor& editor)
                 "from " +
                 std::filesystem::path(origin.path).filename().string() + ":" +
                 std::to_string(origin.line));
-        else if(!origin.mainSource && hasMapping && !split)
+        else if(!origin.mainSource && !split)
             status.flags.push_back("no source mapping");
     }
     const auto& activeLines =

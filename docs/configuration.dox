@@ -200,11 +200,13 @@ with `:set <name>?` and can be persisted in `[editor]`.
 
 \par editor.asmdimunmapped
 Boolean. Default: true. In the assembly browser, dim labels, instructions, and
-directives unrelated to the compiled source while retaining their syntax colors.
-Source-associated labels remain bright. When debug information identifies the
+directives without direct source links while retaining their syntax colors.
+Directly mapped instructions keep full brightness. Inferred source labels use
+light dimming, external-source rows use medium dimming, and unknown origins use
+the deepest shade. All unresolved rows are dimmed, including labels and directives. When debug information identifies the
 origin of external code, the status bar shows its source filename and line.
 Unidentified rows are marked as having no source mapping; no library is guessed.
-If there is no source mapping at all, normal brightness is retained.
+If there is no source mapping at all, rows use the deepest shade.
 Use `:set asmdimunmapped=false` or `:set noasmdimunmapped` to disable dimming,
 `:set asmdimunmapped` to enable it, and `:set asmdimunmapped?` to query it.
 

@@ -3,6 +3,7 @@
 #include "json_utils.h"
 #include "real_mode_test_utils.h"
 
+#include <array>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -436,12 +437,18 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
     // Stable architecture-independent fixture for code colors and docs.
     view->content->result.lines = {"example:", "    movq %rdi, %rax",
                                    "    retq"};
+    view->content->result.sourceLineForAssembly = {0, 1, 1};
+    view->content->result.sourceOrigins = {
+        {view->content->result.sourcePath, 1, true},
+        {view->content->result.sourcePath, 1, true},
+        {view->content->result.sourcePath, 1, true}};
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
     EXPECT_NE(frame.find("Assembly:"), std::string::npos);
     EXPECT_NE(frame.find("ASM"), std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.uiGutter() + ">1 "), std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
+              std::string::npos);
     EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
               std::string::npos);
     sm.dispatch('j');
@@ -795,8 +802,7 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) +
-                         Terminal::ESC_DIM + "addq"),
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
               std::string::npos);
     EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
               std::string::npos);
@@ -807,9 +813,9 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
     const auto undimmed = testing::internal::GetCapturedStdout();
     EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
               std::string::npos);
-    EXPECT_EQ(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) +
-                            Terminal::ESC_DIM + "addq"),
-              std::string::npos);
+    EXPECT_EQ(
+        undimmed.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+        std::string::npos);
     EXPECT_NE(undimmed.find("from helper-library.mla:12"), std::string::npos);
     ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped"));
     ASSERT_TRUE(editor.handleSetCommand("set noasmdimunmapped"));
@@ -821,16 +827,17 @@ TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
     view->draw(editor);
     EXPECT_NE(testing::internal::GetCapturedStdout().find("no source mapping"),
               std::string::npos);
-    // A compiler without source locations should still produce readable code.
+    // All unresolved rows use the deepest shade when source locations are
+    // absent.
     view->content->result.sourceOrigins.assign(result.lines.size(), {});
     view->content->result.sourceLineForAssembly.assign(result.lines.size(), 0);
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto unmapped = testing::internal::GetCapturedStdout();
-    EXPECT_NE(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
-              std::string::npos);
-    EXPECT_EQ(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) +
-                            Terminal::ESC_DIM + "addq"),
+    EXPECT_NE(
+        unmapped.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "addq"),
+        std::string::npos);
+    EXPECT_EQ(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
               std::string::npos);
 }
 
@@ -853,4 +860,73 @@ TEST_F(AssemblyViewTest, RawAssemblyPreservesLibraryOriginsAndDimming)
     EXPECT_EQ(result.sourceOrigins[index].line, 12);
     EXPECT_EQ(result.sourceLineForAssembly[index + 2], 0);
     EXPECT_EQ(result.sourceOrigins[index + 2].line, 12);
+}
+
+TEST_F(AssemblyViewTest, UnresolvedAssemblyUsesProgressivelyDimmerSyntaxColors)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    auto& result = view->content->result;
+    ASSERT_TRUE(result.success);
+    result.lines = {"LBB32_2:", "    sub x19, x19, #24",
+                    "LBB32_3:", "    add x8, x20, x19", "    nop"};
+    result.sourceLineForAssembly = {0, 1, 0, 0, 0};
+    result.sourceOrigins = {{result.sourcePath, 1, true},
+                            {result.sourcePath, 1, true},
+                            {"library.mla", 12, false},
+                            {"library.mla", 12, false},
+                            {}};
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_NORMAL, 1)),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "sub"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "add"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(2)), std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(3)), std::string::npos);
+}
+
+TEST(AssemblyViewColorTest, DimmingBlendsEachSyntaxColorTowardsThemeBackground)
+{
+    const Theme theme = Theme::defaults();
+    if(theme.syntax(TOKEN_NORMAL).empty())
+    {
+        EXPECT_TRUE(theme.dimmedSyntax(TOKEN_KEYWORD, 3).empty());
+        return;
+    }
+    auto rgb = [](const std::string& sequence)
+    {
+        std::array<int, 3> color{};
+        std::istringstream components(sequence.substr(7)); // ESC[38;2;
+        char separator;
+        components >> color[0] >> separator >> color[1] >> separator >>
+            color[2];
+        return color;
+    };
+    const std::array<int, 3> background{0x1F, 0x1D, 0x2E};
+    for(const TokenType type :
+        {TOKEN_NORMAL, TOKEN_KEYWORD, TOKEN_NUMBER, TOKEN_STRING})
+    {
+        auto previous = rgb(theme.syntax(type));
+        for(int level = 1; level <= 3; ++level)
+        {
+            const auto color = rgb(theme.dimmedSyntax(type, level));
+            for(size_t channel = 0; channel < color.size(); ++channel)
+            {
+                EXPECT_LT(std::abs(color[channel] - background[channel]),
+                          std::abs(previous[channel] - background[channel]));
+            }
+            previous = color;
+        }
+    }
 }

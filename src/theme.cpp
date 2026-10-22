@@ -4,6 +4,7 @@
 #include "terminal.h"
 #include "text_utils.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -210,6 +211,33 @@ const std::string& Theme::syntax(TokenType type) const
     if(idx < 0 || idx >= kTokenTypeCount)
         return base_fg_seq_;
     return syntax_seq_[idx];
+}
+
+std::string Theme::dimmedFg(const Color& foreground, int level) const
+{
+    if(base_fg_seq_.empty())
+        return {};
+    constexpr int visibility[] = {100, 78, 58, 38};
+    const int weight = visibility[std::clamp(level, 0, 3)];
+    const Color& from = foreground.set ? foreground : base_fg_;
+    const Color background = base_bg_.set ? base_bg_ : Color{0, 0, 0, true};
+    auto blend = [weight](int fg, int bg)
+    { return bg + (fg - bg) * weight / 100; };
+    return fgSeq({blend(from.r, background.r), blend(from.g, background.g),
+                  blend(from.b, background.b), true});
+}
+
+std::string Theme::dimmedSyntax(TokenType type, int level) const
+{
+    const int index = static_cast<int>(type);
+    return dimmedFg(index >= 0 && index < kTokenTypeCount ? syntax_[index]
+                                                          : base_fg_,
+                    level);
+}
+
+std::string Theme::dimmedGutter(int level) const
+{
+    return dimmedFg(ui_gutter_, level);
 }
 
 void Theme::rebuildSequences()

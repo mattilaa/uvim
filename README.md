@@ -868,12 +868,14 @@ Flags can also be typed manually, including full options such as `--compiler`.
 
 The view shows assembly row numbers, syntax colors, the compiler and options,
 and the selected row. Symbols and instructions unrelated to the compiled source
-appear dimmer while retaining syntax colors. Labels associated with the source's
-own functions stay bright. When compiler debug information identifies an external
+use a dimming gradient while retaining syntax colors. Only instructions directly
+mapped to a source line keep full brightness. Labels whose origin is inferred
+from nearby code are lightly dimmed, external-file rows are dimmer, and rows
+with no source origin are darkest. This includes all unresolved labels and
+directives, even when the compiler supplies no source mappings. When compiler debug information identifies an external
 source, selecting its label or instruction shows a hint such as
 `from helper.mla:12` in the status bar. Rows without origin information show
-`no source mapping`; the editor does not guess a library name. If the compiler
-provides no mapping for the source at all, the view keeps normal brightness.
+`no source mapping`; the editor does not guess a library name.
 Use `:set asmdimunmapped=false` to disable dimming, or persist
 `asmdimunmapped = false` under `[editor]` in `config.toml`. This works in both
 compact and `--raw` assembly views.

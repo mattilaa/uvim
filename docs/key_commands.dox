@@ -148,7 +148,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   the source/assembly pane. Navigation in either pane reveals matching rows
   in the other pane with a subtle green background and preserved syntax colors.
   Lines without emitted instructions and code from other files have no match.
-- In the assembly browser, unrelated symbols/code appear dimmer. Select one to
+- In the assembly browser, directly mapped code stays bright. Inferred labels,
+  external-source rows, and unknown origins use progressively dimmer syntax
+  colors; all unresolved rows are dimmed. Select external code to
   see its source file and line in the status bar when compiler debug information
   provides them. `:set asmdimunmapped=false` disables dimming.
 - Typing `:asm . --` opens common compiler flags: up/down or `Ctrl-j/k`

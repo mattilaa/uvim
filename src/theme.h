@@ -61,6 +61,9 @@ public:
 
     const std::string& matchHighlight() const;
     const std::string& syntax(TokenType type) const;
+    // Levels 1..3 blend the foreground progressively towards the background.
+    std::string dimmedSyntax(TokenType type, int level) const;
+    std::string dimmedGutter(int level) const;
 
 private:
     Color base_fg_;
@@ -112,6 +115,7 @@ private:
 
     void rebuildSequences();
 
+    std::string dimmedFg(const Color& foreground, int level) const;
     static std::string fgSeq(const Color& c);
     static std::string bgSeq(const Color& c);
     static bool parseHexColor(std::string_view value, Color& out);
