@@ -115,6 +115,7 @@ TEST_F(AssemblyViewTest,
        CompilesSnapshotAndPassesArgumentsWithoutChangingBuffer)
 {
     write_file(root / "source.cpp", "disk version must stay unchanged\n");
+    const auto originalDiskContents = read_file(root / "source.cpp");
     auto* source = editor.currentBuffer;
     *editor.cursorX = 4;
     auto sm = makeMachine(editor, NormalMode{});
@@ -141,8 +142,7 @@ TEST_F(AssemblyViewTest,
     EXPECT_EQ(editor.buffers.size(), 1u);
     EXPECT_TRUE(*editor.dirty);
     EXPECT_EQ(*editor.cursorX, 4);
-    EXPECT_EQ(read_file(root / "source.cpp"),
-              "disk version must stay unchanged\n");
+    EXPECT_EQ(read_file(root / "source.cpp"), originalDiskContents);
     sm.dispatch('j');
     EXPECT_EQ(view->cursor, 1);
     sm.dispatch('k');
@@ -261,7 +261,8 @@ TEST_F(AssemblyViewTest, ReadsQuotedCommandResponseFilesAndExplicitCompiler)
     ASSERT_TRUE(view->content->result.success)
         << view->content->result.diagnostics;
     EXPECT_EQ(view->content->result.compilationDatabase, database.string());
-    EXPECT_EQ(view->content->result.compiler, UVIM_TEST_ASSEMBLY_COMPILER);
+    EXPECT_TRUE(std::filesystem::equivalent(view->content->result.compiler,
+                                           UVIM_TEST_ASSEMBLY_COMPILER));
     const auto args = read_file(root / "arguments");
     EXPECT_NE(args.find("-O1\n"), std::string::npos);
     EXPECT_EQ(args.find("-std="), std::string::npos);
