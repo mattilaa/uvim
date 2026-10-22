@@ -464,6 +464,90 @@ std::vector<int> sourceLocations(const std::vector<std::string>& lines,
     return locations;
 }
 
+std::string architectureName(std::string target)
+{
+    std::transform(target.begin(), target.end(), target.begin(),
+                   [](unsigned char c)
+                   { return static_cast<char>(std::tolower(c)); });
+    target = target.substr(0, target.find_first_of(" \t\r\n"));
+    if(target.starts_with("aarch64") || target.starts_with("arm64"))
+        return "AArch64";
+    if(target.starts_with("x86_64") || target == "x64" || target == "amd64")
+        return "x86_64";
+    if(target == "x86" || target.starts_with("i386") ||
+       target.starts_with("i486") || target.starts_with("i586") ||
+       target.starts_with("i686"))
+        return "x86";
+    for(std::string_view name : {"riscv64", "riscv32", "wasm64", "wasm32",
+                                 "powerpc64", "powerpc", "mips64", "mips"})
+        if(target.starts_with(name))
+            return std::string(name);
+    if(target.starts_with("arm"))
+        return "ARM";
+    return {};
+}
+
+std::string nativeArchitecture()
+{
+#if defined(__aarch64__) || defined(_M_ARM64)
+    return "AArch64";
+#elif defined(__x86_64__) || defined(_M_X64)
+    return "x86_64";
+#elif defined(__i386__) || defined(_M_IX86)
+    return "x86";
+#elif defined(__arm__) || defined(_M_ARM)
+    return "ARM";
+#else
+    return "unknown";
+#endif
+}
+
+std::vector<std::string> targetOptions(const std::vector<std::string>& flags)
+{
+    std::vector<std::string> options;
+    for(size_t i = 0; i < flags.size(); ++i)
+    {
+        const auto& flag = flags[i];
+        if(flag == "--target" || flag == "-target" || flag == "-arch")
+        {
+            options.push_back(flag);
+            if(i + 1 < flags.size())
+                options.push_back(flags[++i]);
+        }
+        else if(flag.starts_with("--target=") || flag.starts_with("-target=") ||
+                flag == "-m32" || flag == "-m64" || flag == "-mx32")
+            options.push_back(flag);
+    }
+    return options;
+}
+
+std::string targetArchitecture(const std::vector<std::string>& flags,
+                               std::string fallback)
+{
+    std::string bitness;
+    for(size_t i = 0; i < flags.size(); ++i)
+    {
+        const auto& flag = flags[i];
+        if((flag == "--target-arch" || flag == "--target" ||
+            flag == "-target" || flag == "-arch") &&
+           i + 1 < flags.size())
+            fallback = architectureName(flags[++i]);
+        else if(flag.starts_with("--target-arch=") ||
+                flag.starts_with("--target=") || flag.starts_with("-target="))
+            fallback = architectureName(flag.substr(flag.find('=') + 1));
+        else if(flag == "-m32" || flag == "-m64" || flag == "-mx32")
+            bitness = flag;
+    }
+    if(fallback == "x86" || fallback == "x86_64")
+    {
+        if(bitness == "-m32")
+            fallback = "x86";
+        else if(bitness == "-m64" || bitness == "-mx32")
+            fallback = "x86_64";
+    }
+    return fallback.empty() ? "unknown" : fallback;
+}
+
 struct TemporaryDirectory
 {
     fs::path path;
@@ -909,6 +993,37 @@ Result compile(const Request& inputRequest,
                 "asm: compiler failed (exit " + std::to_string(status) + ")";
         return result;
     }
+    // Query the actual C/C++ compiler rather than using the editor's host CPU.
+    // This remains in the cancellable compilation worker, including cross
+    // builds.
+    if(mlangSource)
+        result.architecture = targetArchitecture(flags, nativeArchitecture());
+    else
+    {
+        std::vector<std::string> query{result.compiler};
+        const auto targetFlags = targetOptions(flags);
+        query.insert(query.end(), targetFlags.begin(), targetFlags.end());
+        query.push_back("-dumpmachine");
+        std::string target;
+#ifdef _WIN32
+        const auto targetLog = temp.path / "target.log";
+        if(runCompiler(query, targetLog, request.directory, cancelled) == 0)
+            target = readFile(targetLog);
+#else
+        ProcessPipe targetPipe;
+        if(targetPipe.open(query, "r", true, request.directory))
+        {
+            const std::string response =
+                targetPipe.readAllBlocking(4096, cancelled);
+            if(targetPipe.close() == 0)
+                target = response;
+        }
+#endif
+        result.architecture =
+            targetArchitecture(flags, architectureName(target));
+    }
+    if(cancelled())
+        return fail("asm: compilation cancelled");
     const std::string assembly = readFile(output);
     const auto rawLines = splitLines(assembly);
     std::vector<SourceOrigin> origins;

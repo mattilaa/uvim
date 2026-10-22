@@ -526,10 +526,16 @@ void AssemblyMode::draw(Editor& editor)
     out += editor.theme.reset();
     out += Terminal::ESC_CLEAR_LINE;
     out += editor.theme.uiPrompt();
-    out += clipped(displayText(" Assembly: " + sourceName), editor.screenCols);
+    const auto& result = content->result;
+    const std::string architecture =
+        result.architecture.empty()
+            ? (content->compiling ? "target pending" : "unknown")
+            : result.architecture;
+    out +=
+        clipped(displayText(" Assembly: [" + architecture + "] " + sourceName),
+                editor.screenCols);
     out += editor.theme.reset();
     HeaderHelp::append(out, editor.theme, editor.screenCols, helpTokens());
-    const auto& result = content->result;
     const int rows = contentRows(editor, split);
     const bool sideBySide = split && editor.screenCols >= 40;
     const int sourceWidth =
@@ -562,7 +568,8 @@ void AssemblyMode::draw(Editor& editor)
         out += editor.theme.reset() +
                (active ? editor.theme.uiAccent() : editor.theme.uiDim());
         const auto text =
-            clipped(std::string(source ? " Source" : " Assembly") +
+            clipped((source ? std::string(" Source")
+                            : " Assembly [" + architecture + "]") +
                         (active ? " [active]" : ""),
                     width);
         out += text;

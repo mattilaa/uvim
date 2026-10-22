@@ -445,7 +445,7 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find("Assembly:"), std::string::npos);
+    EXPECT_NE(frame.find("Assembly: [x86_64]"), std::string::npos);
     EXPECT_NE(frame.find("ASM"), std::string::npos);
     EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
               std::string::npos);
@@ -502,6 +502,8 @@ TEST(AssemblyViewCompilerTest, CompilesDiskPathWithClangAndGccFlags)
         auto result = assembly_compiler::compile(request, [] { return false; });
         EXPECT_TRUE(result.success) << result.diagnostics;
         EXPECT_EQ(result.options, "-O2 -DANOTHER_FLAG=1");
+        EXPECT_FALSE(result.architecture.empty());
+        EXPECT_NE(result.architecture, "unknown");
         EXPECT_EQ(result.sourceLineForAssembly.size(), result.lines.size());
         EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
                                 result.sourceLineForAssembly.end(),
@@ -751,6 +753,8 @@ TEST_F(AssemblyViewTest, RealMlangPreservesRelativeModulesAndSourceMapping)
     const auto result =
         assembly_compiler::compile(request, [] { return false; });
     ASSERT_TRUE(result.success) << result.diagnostics;
+    EXPECT_FALSE(result.architecture.empty());
+    EXPECT_NE(result.architecture, "unknown");
     EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
                             result.sourceLineForAssembly.end(),
                             [](int line) { return line > 0; }));
@@ -928,5 +932,49 @@ TEST(AssemblyViewColorTest, DimmingBlendsEachSyntaxColorTowardsThemeBackground)
             }
             previous = color;
         }
+    }
+}
+
+TEST_F(AssemblyViewTest,
+       TitleShowsCompilerTargetAndCrossCompilationArchitecture)
+{
+    struct Target
+    {
+        const char* extension;
+        const char* flags;
+        const char* expected;
+    };
+
+    for(const auto& target :
+        {Target{"cpp", "", "x86_64"}, Target{"cpp", "-m32", "x86"},
+         Target{"cpp", "--target=aarch64-linux-gnu", "AArch64"},
+         Target{"cpp", "--target riscv64-unknown-elf", "riscv64"},
+         Target{"mla", "--target-arch aarch64", "AArch64"},
+         Target{"mla", "--target-arch x64", "x86_64"},
+         Target{"mla", "--target-arch x86", "x86"}})
+    {
+        SCOPED_TRACE(target.flags);
+        set_buffer_filename(
+            editor,
+            (root / (std::string(120, 'a') + "." + target.extension)).string());
+        auto sm = makeMachine(editor, NormalMode{});
+        dispatch_command(
+            sm, fakeCommand(root, std::string("--split ") + target.flags));
+        auto* view = sm.getState<AssemblyMode>();
+        ASSERT_NE(view, nullptr);
+        ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+        ASSERT_TRUE(view->content->result.success)
+            << view->content->result.diagnostics;
+        EXPECT_EQ(view->content->result.architecture, target.expected);
+        testing::internal::CaptureStdout();
+        view->draw(editor);
+        const auto frame = testing::internal::GetCapturedStdout();
+        EXPECT_NE(
+            frame.find(std::string("Assembly: [") + target.expected + "]"),
+            std::string::npos);
+        EXPECT_NE(frame.find(std::string("Assembly [") + target.expected + "]"),
+                  std::string::npos);
+        sm.dispatch('q');
+        ASSERT_TRUE(waitFor(editor, [&] { return editor.tasks.idle(); }));
     }
 }

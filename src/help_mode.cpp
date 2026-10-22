@@ -1578,7 +1578,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:asm \"my file.cpp\" --compiler clang -O2 -I \"include dir\"`",
             "  `:asm . --raw -O0 -g`",
             "",
-            "Only directly source-mapped code stays bright; unresolved rows dim.",
+            "The view title shows the target architecture, including cross "
+            "targets.",
+            "Only directly source-mapped code stays bright; unresolved rows "
+            "dim.",
             "Inferred labels, external code, and unknown origins get darker.",
             "Select external code for its source filename/line when available.",
             "Unknown origins show no source mapping; no library is guessed.",

@@ -1,4 +1,5 @@
 // Portable compiler stand-in for argument, cancellation and error-path tests.
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -12,6 +13,22 @@ int main(int argc, char** argv)
 {
     namespace fs = std::filesystem;
     std::vector<std::string> args(argv + 1, argv + argc);
+    if(std::find(args.begin(), args.end(), "-dumpmachine") != args.end())
+    {
+        std::string target = "x86_64-test-platform";
+        for(size_t i = 0; i < args.size(); ++i)
+        {
+            if((args[i] == "--target" || args[i] == "-target" ||
+                args[i] == "-arch") &&
+               i + 1 < args.size())
+                target = args[++i];
+            else if(args[i].starts_with("--target=") ||
+                    args[i].starts_with("-target="))
+                target = args[i].substr(args[i].find('=') + 1);
+        }
+        std::cout << target << '\n';
+        return 0;
+    }
     fs::path output, root;
     bool error = false;
     bool origins = false;

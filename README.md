@@ -866,6 +866,12 @@ continue editing the command. Enter again compiles. Type `--` again to add
 another suggested flag. Escape cancels the entire command without compiling.
 Flags can also be typed manually, including full options such as `--compiler`.
 
+The title shows the target architecture (for example `AArch64` or `x86_64`),
+including cross-compilation targets. C/C++ uses the selected compiler's target
+report and effective target/bitness flags; Mlang uses `--target-arch` or its
+native default. If a compiler cannot report its target, the title shows `unknown`
+unless explicit target flags identify it.
+
 The view shows assembly row numbers, syntax colors, the compiler and options,
 and the selected row. Symbols and instructions unrelated to the compiled source
 use a dimming gradient while retaining syntax colors. Only instructions directly

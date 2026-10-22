@@ -31,6 +31,7 @@ struct Result
 {
     bool success = false;
     std::string compiler;
+    std::string architecture;
     std::string options;
     std::string diagnostics;
     std::string compilationDatabase;
