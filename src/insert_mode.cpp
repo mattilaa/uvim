@@ -395,6 +395,19 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
     {
         int beforeX = ctx.cursorX();
         int beforeY = ctx.cursorY();
+        // Delete an empty square-bracket pair with one Backspace.
+        if(ed->autoBraces && ed->autoBrackets && beforeY >= 0 &&
+           beforeY < static_cast<int>(ctx.lines().size()))
+        {
+            const std::string& line = ctx.lines()[beforeY];
+            if(beforeX > 0 && beforeX < static_cast<int>(line.size()) &&
+               line[beforeX - 1] == '[' && line[beforeX] == ']' &&
+               (ed->autoBracesInStrings || !isCursorInString(line, beforeX)))
+            {
+                ++ctx.cursorX();
+                ed->deleteChar();
+            }
+        }
         ed->deleteChar();
         if(ctx.cursorX() != beforeX || ctx.cursorY() != beforeY)
         {
@@ -606,6 +619,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
 
         if(ed->autoBraces &&
+           (c != keyCode(command::CommandKey::KEY_RIGHT_BRACKET) ||
+            (ed->autoBrackets && (!inString || ed->autoBracesInStrings))) &&
            (c == keyCode(command::CommandKey::KEY_RIGHT_PAREN) ||
             c == keyCode(command::CommandKey::KEY_RIGHT_BRACKET) ||
             c == keyCode(command::CommandKey::KEY_RIGHT_BRACE)))
@@ -766,7 +781,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
         }
         if(ed->autoBraces &&
            (c == keyCode(command::CommandKey::KEY_LEFT_PAREN) ||
-            c == keyCode(command::CommandKey::KEY_LEFT_BRACKET)))
+            (c == keyCode(command::CommandKey::KEY_LEFT_BRACKET) &&
+             ed->autoBrackets && (!inString || ed->autoBracesInStrings))))
         {
             char close = (c == keyChar(command::CommandKey::KEY_LEFT_PAREN))
                              ? keyChar(command::CommandKey::KEY_RIGHT_PAREN)
@@ -781,7 +797,8 @@ std::optional<ModeState> InsertMode::handle(ModeContext& ctx,
             if(cursorX > (int)line.length())
                 cursorX = static_cast<int>(line.length());
 
-            if(cursorX < (int)line.length() && line[cursorX] == close)
+            if(c == keyCode(command::CommandKey::KEY_LEFT_PAREN) &&
+               cursorX < (int)line.length() && line[cursorX] == close)
             {
                 ed->insertChar(static_cast<char>(c));
                 return std::nullopt;

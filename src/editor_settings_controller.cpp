@@ -44,6 +44,24 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (autoBracesInStrings ? "true" : "false"));
         return true;
     }
+    if(opt == "splitbraces?")
+    {
+        setStatusMessage(std::string("splitbraces=") +
+                         (splitBraces ? "true" : "false"));
+        return true;
+    }
+    if(opt == "autobrackets?")
+    {
+        setStatusMessage(std::string("autobrackets=") +
+                         (autoBrackets ? "true" : "false"));
+        return true;
+    }
+    if(opt == "splitbrackets?")
+    {
+        setStatusMessage(std::string("splitbrackets=") +
+                         (splitBrackets ? "true" : "false"));
+        return true;
+    }
     if(opt == "autotags?")
     {
         setStatusMessage(std::string("autotags=") +
@@ -313,6 +331,27 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
                          (autoBracesInStrings ? "true" : "false"));
     };
 
+    auto set_split_braces = [&](bool value)
+    {
+        splitBraces = value;
+        setStatusMessage(std::string("splitbraces=") +
+                         (splitBraces ? "true" : "false"));
+    };
+
+    auto set_auto_brackets = [&](bool value)
+    {
+        autoBrackets = value;
+        setStatusMessage(std::string("autobrackets=") +
+                         (autoBrackets ? "true" : "false"));
+    };
+
+    auto set_split_brackets = [&](bool value)
+    {
+        splitBrackets = value;
+        setStatusMessage(std::string("splitbrackets=") +
+                         (splitBrackets ? "true" : "false"));
+    };
+
     auto set_autotags = [&](bool value)
     {
         autoTags = value;
@@ -385,6 +424,36 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
     if(opt == "noautobracesinstrings")
     {
         set_auto_braces_in_strings(false);
+        return true;
+    }
+    if(opt == "splitbraces")
+    {
+        set_split_braces(true);
+        return true;
+    }
+    if(opt == "nosplitbraces")
+    {
+        set_split_braces(false);
+        return true;
+    }
+    if(opt == "autobrackets")
+    {
+        set_auto_brackets(true);
+        return true;
+    }
+    if(opt == "noautobrackets")
+    {
+        set_auto_brackets(false);
+        return true;
+    }
+    if(opt == "splitbrackets")
+    {
+        set_split_brackets(true);
+        return true;
+    }
+    if(opt == "nosplitbrackets")
+    {
+        set_split_brackets(false);
         return true;
     }
     if(opt == "syntax.cpp.highlight_system_includes")
@@ -1031,6 +1100,57 @@ bool Editor::handleSetCommandImpl(std::string_view cmd)
         else
         {
             setStatusMessage("autobracesinstrings: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("splitbraces=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("splitbraces=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_split_braces(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_split_braces(false);
+        }
+        else
+        {
+            setStatusMessage("splitbraces: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("autobrackets=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("autobrackets=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_auto_brackets(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_auto_brackets(false);
+        }
+        else
+        {
+            setStatusMessage("autobrackets: expected true/false");
+        }
+        return true;
+    }
+    if(opt.rfind("splitbrackets=", 0) == 0)
+    {
+        std::string value = opt.substr(std::string("splitbrackets=").length());
+        if(value == "true" || value == "1" || value == "on")
+        {
+            set_split_brackets(true);
+        }
+        else if(value == "false" || value == "0" || value == "off")
+        {
+            set_split_brackets(false);
+        }
+        else
+        {
+            setStatusMessage("splitbrackets: expected true/false");
         }
         return true;
     }

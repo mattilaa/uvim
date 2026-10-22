@@ -261,8 +261,9 @@ void Editor::insertNewline()
     std::string indentStr = currentLine.substr(0, indent);
 
     bool addExtraIndent = false;
+    bool splitDelimiterPair = false;
     int extraIndentWidth = tabSpaces;
-    if(isFileType<FileType::Cpp>() && *cursorX > 0)
+    if(*cursorX > 0)
     {
         int checkPos = *cursorX - 1;
         while(checkPos >= 0 &&
@@ -270,10 +271,23 @@ void Editor::insertNewline()
         {
             checkPos--;
         }
-        if(checkPos >= 0 && currentLine[checkPos] == '{')
+        if(checkPos >= 0)
         {
-            addExtraIndent = true;
-            extraIndentWidth = indentWidthForBraces();
+            const char open = currentLine[checkPos];
+            const size_t next = currentLine.find_first_not_of(" \t", *cursorX);
+            if(text_utils::is_found(next))
+            {
+                const char close = currentLine[next];
+                splitDelimiterPair =
+                    (splitBraces && open == '{' && close == '}') ||
+                    (splitBrackets && open == '[' && close == ']');
+            }
+            if(splitDelimiterPair ||
+               (open == '{' && isFileType<FileType::Cpp>()))
+            {
+                addExtraIndent = true;
+                extraIndentWidth = indentWidthForBraces();
+            }
         }
     }
 
@@ -340,9 +354,12 @@ void Editor::insertNewline()
     {
         newLine.append(extraIndentWidth, ' ');
     }
-    newLine += remainder;
+    if(!splitDelimiterPair)
+        newLine += remainder;
 
     lines->insert(lines->begin() + *cursorY + 1, newLine);
+    if(splitDelimiterPair)
+        lines->insert(lines->begin() + *cursorY + 2, indentStr + remainder);
 
     (*cursorY)++;
     *cursorX =

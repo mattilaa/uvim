@@ -605,6 +605,9 @@ public:
     bool autoBraces = true;
     bool autoQuotes = true;
     bool autoBracesInStrings = true;
+    bool splitBraces = true;
+    bool autoBrackets = true;
+    bool splitBrackets = true;
     bool autoTags = true;
     bool autoCompletion = true;
     bool completionAutoParens = true;

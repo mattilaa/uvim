@@ -45,6 +45,9 @@ tabspaces = 2
 autobraces = true
 autoquotes = true
 autobracesinstrings = true
+splitbraces = true
+autobrackets = true
+splitbrackets = true
 autotags = true
 autocomplete = true
 completionautoparens = true
@@ -139,7 +142,30 @@ Boolean. Default: true. Auto-insert closing brace on `{([`.
 Boolean. Default: true. Auto-insert closing quote on `"`/`'`/`` ` ``.
 
 \par editor.autobracesinstrings
-Boolean. Default: true. Auto-insert braces inside strings.
+Boolean. Default: true. Auto-insert `{}` and `[]` pairs inside strings.
+
+\par editor.splitbraces
+Boolean. Default: true. Enter between `{}` places the cursor on an indented
+blank line and aligns the closing `}` with the leading whitespace of the opening
+block. This preserves nested indentation, including tabs, and any text after `}`.
+Use `:set splitbraces=false` (or `:set nosplitbraces`) for the previous single-line
+split behavior. Use `:set splitbraces=true` to restore the default and
+`:set splitbraces?` to query it. Persist this preference with `splitbraces = false`
+in the `[editor]` section of the config file.
+
+\par editor.autobrackets
+Boolean. Default: true. Auto-insert `]` when typing `[`, skip an existing `]`
+when typing it, and remove an empty `[]` pair with Backspace. Requires
+`autobraces=true`; pairing in strings also requires `autobracesinstrings=true`.
+Use `:set autobrackets=false` or `:set noautobrackets` to disable this behavior.
+
+\par editor.splitbrackets
+Boolean. Default: true. Enter inside `[]` creates an indented blank line and
+aligns `]` with the opening line's leading whitespace, preserving trailing text.
+This also works for manually inserted pairs and is independent of `splitbraces`.
+Use `:set splitbrackets=false` or `:set nosplitbrackets` for a normal line split.
+Both settings support `:set <name>?`, `:set <name>=true/false`, and config entries
+under `[editor]`.
 
 \par editor.autotags
 Boolean. Default: true. Auto-insert closing tags in markup.
