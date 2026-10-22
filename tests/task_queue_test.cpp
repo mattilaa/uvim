@@ -443,3 +443,28 @@ TEST(PickerLayoutTest, PreviewSpanEndingInsideACharacterStaysValidUtf8)
     }
     EXPECT_NE(plain.find(text), std::string::npos) << plain;
 }
+
+TEST(TaskQueueTest, QuietJobsRemainListedWithoutStatusProgress)
+{
+    TaskQueue queue(1);
+    std::atomic<bool> release{false};
+    queue.submit({"documentation",
+                  "docs",
+                  [&](TaskQueue::Context& ctx)
+                  {
+                      while(!release && !ctx.cancelled())
+                          std::this_thread::sleep_for(1ms);
+                  },
+                  {},
+                  {},
+                  false});
+    EXPECT_FALSE(queue.status());
+    EXPECT_EQ(queue.snapshot().size(), 1u);
+    queue.submit({"compile", "compiler", [](TaskQueue::Context&) {}, {}});
+    const auto status = queue.status();
+    EXPECT_TRUE(status.has_value());
+    if(status)
+        EXPECT_EQ(status->label, "compile");
+    release = true;
+    drain(queue);
+}

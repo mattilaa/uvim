@@ -359,8 +359,40 @@ void AssemblyMode::synchronizeSelection()
         sourceCursor = line - 1;
 }
 
+void AssemblyMode::scheduleInspection(Editor& editor)
+{
+    // Invalidate the previous response immediately, but keep its text while
+    // browsing. Only the final selection after a pause starts a new request.
+    ++content->docsGeneration;
+    if(docsTask)
+        editor.tasks.cancel(docsTask);
+    docsTask = 0;
+    content->docsLoading = false;
+    content->docsIndicator = false;
+    docsRefreshAt =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+}
+
+void AssemblyMode::processIdle(Editor& editor,
+                               std::chrono::steady_clock::time_point now)
+{
+    if(!content || !content->active || !inspect)
+        return;
+    if(docsRefreshAt && now >= *docsRefreshAt)
+        inspectLine(editor);
+    if(content->docsLoading && !content->docsIndicator &&
+       now - docsStarted >= std::chrono::milliseconds(300))
+    {
+        content->docsIndicator = true;
+        editor.needsFullRedraw = true;
+    }
+}
+
 void AssemblyMode::inspectLine(Editor& editor)
 {
+    docsRefreshAt.reset();
+    content->docsIndicator = false;
+    editor.needsFullRedraw = true;
     ++content->docsGeneration;
     if(docsTask)
         editor.tasks.cancel(docsTask);
@@ -404,13 +436,14 @@ void AssemblyMode::inspectLine(Editor& editor)
     if(!editor.asmDocsApi)
         return;
     content->docsLoading = true;
+    docsStarted = std::chrono::steady_clock::now();
     auto text = std::make_shared<std::string>();
     auto title = std::make_shared<std::string>();
     const auto generation = content->docsGeneration;
     std::weak_ptr<Content> weak = content;
     docsTask =
-        editor
-            .submitTask(
+        editor.tasks
+            .submit(TaskQueue::Job{
                 "assembly instruction help", "asm-docs",
                 [line = content->result.lines[cursor], example, text,
                  title](TaskQueue::Context& task)
@@ -461,6 +494,7 @@ void AssemblyMode::inspectLine(Editor& editor)
                        state->docsGeneration == generation)
                     {
                         state->docsLoading = false;
+                        state->docsIndicator = false;
                         if(!text->empty())
                         {
                             state->docsText = std::move(*text);
@@ -477,9 +511,11 @@ void AssemblyMode::inspectLine(Editor& editor)
                        state->docsGeneration == generation)
                     {
                         state->docsLoading = false;
+                        state->docsIndicator = false;
                         editor.needsFullRedraw = true;
                     }
-                })
+                },
+                false})
             .id;
 #endif
 }
@@ -575,7 +611,7 @@ std::optional<ModeState> AssemblyMode::handle(ModeContext& ctx,
     ensureVisible(editor);
     if(inspect && (cursor != before || sourceCursor != sourceBefore ||
                    sourcePane != wasSource))
-        inspectLine(editor);
+        scheduleInspection(editor);
     ctx.requestFullRedraw();
     return std::nullopt;
 }
@@ -584,7 +620,7 @@ void AssemblyMode::draw(Editor& editor)
 {
     ensureVisible(editor);
     if(inspect && !content->compiling && content->docsText.empty() &&
-       !content->docsLoading)
+       !content->docsLoading && !docsRefreshAt)
         inspectLine(editor);
     std::string out = Terminal::ESC_HIDE_CURSOR;
     out += Terminal::ESC_CURSOR_HOME;
@@ -820,7 +856,8 @@ void AssemblyMode::draw(Editor& editor)
             if(row == 0 || row == height - 1)
             {
                 std::string title =
-                    row == 0 ? " Inspect: " + content->docsTitle + " "
+                    row == 0 ? " Inspect: " + content->docsTitle +
+                                   (content->docsIndicator ? " ... " : " ")
                              : " i: close | Ctrl-J/K: scroll ";
                 title = clipped(title, width - 2);
                 text_utils::appendU8(out, row == 0

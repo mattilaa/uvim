@@ -4,6 +4,7 @@
 #include "real_mode_test_utils.h"
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -464,7 +465,8 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
               std::string::npos);
     EXPECT_EQ(view->content->docsTitle, "mov (x86)");
     sm.dispatch('j');
-    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
     EXPECT_EQ(view->content->docsTitle, "ret (x86)");
 #else
     EXPECT_NE(view->content->docsText.find("not compiled"), std::string::npos);
@@ -1098,6 +1100,9 @@ TEST_F(AssemblyViewTest,
     EXPECT_NE(view->content->docsText.find("Adds the source operand"),
               std::string::npos);
     sm.dispatch('j');
+    EXPECT_EQ(view->content->docsTitle, "add (x86)");
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
     EXPECT_FALSE(view->content->docsLoading);
     EXPECT_EQ(view->content->docsTitle, "add (aarch64)");
     EXPECT_NE(view->content->docsText.find("Adds operands"), std::string::npos);
@@ -1137,6 +1142,10 @@ TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
     EXPECT_EQ(pendingFrame.find("Loading instruction documentation"),
               std::string::npos);
     ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_FALSE(view->content->docsIndicator);
+    EXPECT_TRUE(editor.taskStatusText().empty());
     EXPECT_NE(view->content->docsText.find("Fetched add instruction details"),
               std::string::npos);
 #endif
@@ -1202,5 +1211,84 @@ TEST_F(AssemblyViewTest, InspectorShowsApiOperandFormsBeforePlainDescription)
     ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi"));
     EXPECT_TRUE(editor.asmDocsApi);
     ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi?"));
+#endif
+}
+
+TEST_F(AssemblyViewTest, InspectionDebouncesRowsAndResetsOnNavigation)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"movq %rdi, %rax", "addq $1, %rax", "retq"};
+    sm.dispatch('i');
+    const auto original = view->content->docsText;
+    sm.dispatch('j');
+    std::this_thread::sleep_for(std::chrono::milliseconds(180));
+    sm.dispatch('j');
+    std::this_thread::sleep_for(std::chrono::milliseconds(180));
+    view->processIdle(editor);
+    EXPECT_EQ(view->content->docsText, original);
+    EXPECT_FALSE(view->content->docsLoading);
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_EQ(view->content->docsTitle, "ret (x86)");
+    // Closing inspection cancels the pending refresh.
+    sm.dispatch('k');
+    sm.dispatch('i');
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_EQ(view->content->docsTitle, "ret (x86)");
+#endif
+}
+
+TEST_F(AssemblyViewTest, SlowInspectionUsesOnlyDelayedIndicatorAndClearsIt)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
+    editor.asmDocsApi = true;
+    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+               "## mov\n\nCached API details.\n");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"movq %rdi, %rax"};
+    std::atomic<bool> release{false};
+    const auto blocker = editor.tasks
+                             .submit({"previous lookup",
+                                      "asm-docs",
+                                      [&](TaskQueue::Context& task)
+                                      {
+                                          while(!release && !task.cancelled())
+                                              std::this_thread::sleep_for(1ms);
+                                      },
+                                      {},
+                                      {},
+                                      false})
+                             .id;
+    editor.statusMessage.clear();
+    sm.dispatch('i');
+    EXPECT_TRUE(editor.statusMessage.empty());
+    EXPECT_TRUE(editor.taskStatusText().empty());
+    EXPECT_TRUE(view->content->docsLoading);
+    EXPECT_FALSE(view->content->docsIndicator);
+    view->processIdle(editor, std::chrono::steady_clock::now() + 1s);
+    EXPECT_TRUE(view->content->docsIndicator);
+    release = true;
+    editor.tasks.cancel(blocker);
+    EXPECT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_FALSE(view->content->docsIndicator);
+    EXPECT_NE(view->content->docsText.find("Cached API details"),
+              std::string::npos);
+    view->processIdle(editor, std::chrono::steady_clock::now() + 1s);
+    EXPECT_FALSE(view->content->docsIndicator);
 #endif
 }

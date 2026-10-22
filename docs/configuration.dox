@@ -203,7 +203,10 @@ with `:set <name>?` and can be persisted in `[editor]`.
 Boolean. Default: true. Prefer cached/Compiler Explorer API instruction
 information in the assembly inspection popup. The exact inspected instruction is
 shown above the documentation; any API operand forms/examples precede fetch metadata. Fetching is asynchronous; built-in help stays visible until API content
-arrives and remains the fallback when fetching fails.
+arrives and remains the fallback when fetching fails. Row navigation restarts a
+300 ms debounce before changing inspector content. Pending retrieval shows a
+loading indicator only after another 300 ms; fast responses cancel it. Inspector
+requests do not emit queue/download status messages.
 Use `:set asmdocsapi=false` or `:set noasmdocsapi` for built-in help only,
 `:set asmdocsapi` to enable API help, and `:set asmdocsapi?` to query the setting.
 This controls assembly inspection independently of `--asm-docs-fetch` for `gd`.

@@ -151,8 +151,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - Instruction inspection prefers Compiler Explorer API documentation, with
   the inspected instruction at the top and operand forms/examples when provided.
   Built-in help stays visible while API docs load;
-  only the loading indicator shows progress. `:set asmdocsapi=false` uses
-  built-in help only.
+  only the loading indicator shows progress, after 300 ms of pending retrieval.
+  Row changes restart a 300 ms debounce before refreshing documentation; the
+  previous text stays visible while browsing. Fast responses cancel the indicator,
+  and inspector requests do not produce queue/download status messages.
+  `:set asmdocsapi=false` uses built-in help only.
 - Assembly browsing starts each newly selected row at the beginning in both
   panes, including linked source jumps. `h/l` pans the current line; `0` returns
   it to the beginning. Pane switches and split toggles also reset horizontal pan.

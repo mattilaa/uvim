@@ -872,7 +872,11 @@ above the documentation. API operand forms and examples, when provided, appear
 before summary/fetch metadata. Built-in help appears
 immediately while cached/API documentation loads in the background, and remains
 as a fallback if retrieval fails. Progress stays in the loading indicator without
-a message in the popup body. Use `:set asmdocsapi=false` for built-in help only,
+a message in the popup body. Row changes wait for a 300 ms pause before
+refreshing the inspector, keeping the previous documentation visible while
+browsing. A loading indicator appears only if retrieval takes another 300 ms;
+fast responses cancel it. Inspector requests do not show queue/download messages.
+Use `:set asmdocsapi=false` for built-in help only,
 or persist `asmdocsapi = false` under `[editor]` in `config.toml`.
 
 The title shows the target architecture (for example `AArch64` or `x86_64`),
