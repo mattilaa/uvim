@@ -409,6 +409,8 @@ std::optional<TaskQueue::Status> TaskQueue::status() const
     int finishedInList = 0;
     for(const auto& entry : entries_)
     {
+        if(!entry->job.showProgress)
+            continue;
         if(entry->state == State::Finished)
             ++finishedInList;
         else if(!shown && entry->state == State::Running)
@@ -420,7 +422,7 @@ std::optional<TaskQueue::Status> TaskQueue::status() const
     {
         for(const auto& entry : entries_)
         {
-            if(entry->state == State::Waiting)
+            if(entry->job.showProgress && entry->state == State::Waiting)
             {
                 shown = entry.get();
                 waiting = true;

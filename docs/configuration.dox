@@ -51,6 +51,8 @@ splitbrackets = true
 continuationindent = true
 collectionindentwidth = 0
 collectionindentkey = "ctrl-t"
+asmdimunmapped = true
+asmdocsapi = true
 autotags = true
 autocomplete = true
 completionautoparens = true
@@ -196,6 +198,30 @@ The shortcut stays in the current mode and preserves the cursor's text position.
 Example: `:set collectionindentkey=ctrl-y` to use Ctrl+Y instead, or
 `:set collectionindentkey=off` to disable it. All three settings support queries
 with `:set <name>?` and can be persisted in `[editor]`.
+
+\par editor.asmdocsapi
+Boolean. Default: true. Prefer cached/Compiler Explorer API instruction
+information in the assembly inspection popup. The exact inspected instruction is
+shown above the documentation; any API operand forms/examples precede fetch metadata. Fetching is asynchronous; built-in help stays visible until API content
+arrives and remains the fallback when fetching fails. Row navigation restarts a
+300 ms debounce before changing inspector content. Pending retrieval shows a
+loading indicator only after another 300 ms; fast responses cancel it. Inspector
+requests do not emit queue/download status messages.
+Use `:set asmdocsapi=false` or `:set noasmdocsapi` for built-in help only,
+`:set asmdocsapi` to enable API help, and `:set asmdocsapi?` to query the setting.
+This controls assembly inspection independently of `--asm-docs-fetch` for `gd`.
+
+\par editor.asmdimunmapped
+Boolean. Default: true. In the assembly browser, dim labels, instructions, and
+directives without direct source links while retaining their syntax colors.
+Directly mapped instructions keep full brightness. Inferred source labels use
+light dimming, external-source rows use medium dimming, and unknown origins use
+the deepest shade. All unresolved rows are dimmed, including labels and directives. When debug information identifies the
+origin of external code, the status bar shows its source filename and line.
+Unidentified rows are marked as having no source mapping; no library is guessed.
+If there is no source mapping at all, rows use the deepest shade.
+Use `:set asmdimunmapped=false` or `:set noasmdimunmapped` to disable dimming,
+`:set asmdimunmapped` to enable it, and `:set asmdimunmapped?` to query it.
 
 \par editor.autotags
 Boolean. Default: true. Auto-insert closing tags in markup.
@@ -379,6 +405,14 @@ Alias for `theme.base.fg`.
 
 \par theme.base.background
 Alias for `theme.base.bg`.
+
+\par theme.asm.external_bg
+Color. Default: a subtle dark red blended with the theme base background.
+Background for assembly rows whose compiler-provided origin is an external
+source file, including standard-library code. Syntax colors and dimming remain
+visible. Source-linked highlighting and the active row's selection take priority.
+Unknown origins keep their usual background. This tint is independent of
+`editor.asmdimunmapped`. Example: `external_bg = "#351c26"` under `[theme.asm]`.
 
 \par theme.ui.dim
 Default: `#6e6a86`.

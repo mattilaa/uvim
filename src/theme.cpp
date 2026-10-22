@@ -4,6 +4,7 @@
 #include "terminal.h"
 #include "text_utils.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -212,6 +213,33 @@ const std::string& Theme::syntax(TokenType type) const
     return syntax_seq_[idx];
 }
 
+std::string Theme::dimmedFg(const Color& foreground, int level) const
+{
+    if(base_fg_seq_.empty())
+        return {};
+    constexpr int visibility[] = {100, 78, 58, 38};
+    const int weight = visibility[std::clamp(level, 0, 3)];
+    const Color& from = foreground.set ? foreground : base_fg_;
+    const Color background = base_bg_.set ? base_bg_ : Color{0, 0, 0, true};
+    auto blend = [weight](int fg, int bg)
+    { return bg + (fg - bg) * weight / 100; };
+    return fgSeq({blend(from.r, background.r), blend(from.g, background.g),
+                  blend(from.b, background.b), true});
+}
+
+std::string Theme::dimmedSyntax(TokenType type, int level) const
+{
+    const int index = static_cast<int>(type);
+    return dimmedFg(index >= 0 && index < kTokenTypeCount ? syntax_[index]
+                                                          : base_fg_,
+                    level);
+}
+
+std::string Theme::dimmedGutter(int level) const
+{
+    return dimmedFg(ui_gutter_, level);
+}
+
 void Theme::rebuildSequences()
 {
 #ifndef UVIM_ENABLE_TERMINAL_COLORS
@@ -222,6 +250,7 @@ void Theme::rebuildSequences()
     cursor_seq_.clear();
     search_seq_.clear();
     source_mapping_seq_.clear();
+    external_source_seq_.clear();
     status_bar_seq_.clear();
     tab_bar_seq_.clear();
     panel_seq_.clear();
@@ -249,6 +278,12 @@ void Theme::rebuildSequences()
     source_mapping_seq_ = bgSeq({(background.r * 3 + green.r) / 4,
                                  (background.g * 3 + green.g) / 4,
                                  (background.b * 3 + green.b) / 4, true});
+    const Color red{160, 45, 45, true};
+    external_source_seq_ = bgSeq(
+        asm_external_bg_.set ? asm_external_bg_
+                             : Color{(background.r * 3 + red.r) / 4,
+                                     (background.g * 3 + red.g) / 4,
+                                     (background.b * 3 + red.b) / 4, true});
     reset_seq_ = std::string(Terminal::ESC_RESET_ALL) + base_seq_;
 
     selection_seq_ = fgSeq(selection_.fg) + bgSeq(selection_.bg);
@@ -297,6 +332,11 @@ void Theme::rebuildSequences()
 const std::string& Theme::sourceMapping() const
 {
     return source_mapping_seq_;
+}
+
+const std::string& Theme::externalSource() const
+{
+    return external_source_seq_;
 }
 
 std::string Theme::fgSeq(const Color& c)
@@ -394,6 +434,7 @@ void Theme::applyOverrides(
     set_color("theme.ui.warning", ui_warning_);
     set_color("theme.ui.success", ui_success_);
     set_color("theme.ui.error", ui_error_);
+    set_color("theme.asm.external_bg", asm_external_bg_);
     set_color("theme.ui.directory", ui_directory_);
     set_color("theme.ui.gutter", ui_gutter_);
     set_color("theme.ui.prompt", ui_prompt_);

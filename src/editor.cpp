@@ -342,6 +342,32 @@ Editor::Editor(bool skipInitialBuffer, const std::string& configPath,
                 else if(v == "false" || v == "0" || v == "off")
                     continuationIndent = false;
             }
+            auto asmDimSetting = values.find("editor.asmdimunmapped");
+            if(asmDimSetting == values.end())
+                asmDimSetting = values.find("settings.asmdimunmapped");
+            if(asmDimSetting == values.end())
+                asmDimSetting = values.find("asmdimunmapped");
+            if(asmDimSetting != values.end())
+            {
+                std::string v = asmDimSetting->second;
+                if(v == "true" || v == "1" || v == "on")
+                    asmDimUnmapped = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    asmDimUnmapped = false;
+            }
+            auto asmDocsApiSetting = values.find("editor.asmdocsapi");
+            if(asmDocsApiSetting == values.end())
+                asmDocsApiSetting = values.find("settings.asmdocsapi");
+            if(asmDocsApiSetting == values.end())
+                asmDocsApiSetting = values.find("asmdocsapi");
+            if(asmDocsApiSetting != values.end())
+            {
+                std::string v = asmDocsApiSetting->second;
+                if(v == "true" || v == "1" || v == "on")
+                    asmDocsApi = true;
+                else if(v == "false" || v == "0" || v == "off")
+                    asmDocsApi = false;
+            }
             const std::string previousStatus = statusMessage;
             for(const char* option :
                 {"collectionindentkey", "collectionindentwidth"})

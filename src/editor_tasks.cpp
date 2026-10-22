@@ -172,6 +172,12 @@ void Editor::serviceTasks()
 {
     if(tasks.pollCompletions() > 0)
         needsFullRedraw = true;
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    if(modeStateMachine)
+        if(auto* assembly =
+               modeStateMachine->getState<editor::statemachine::AssemblyMode>())
+            assembly->processIdle(*this);
+#endif
     runNextStartupStep();
     for(const auto& error : tasks.takeErrors())
     {

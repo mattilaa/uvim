@@ -611,6 +611,8 @@ public:
     bool autoBrackets = true;
     bool splitBrackets = true;
     bool continuationIndent = true;
+    bool asmDimUnmapped = true;
+    bool asmDocsApi = true;
     int collectionIndentSpaces = 0;
     int collectionIndentKey = 20; // Ctrl+T; Ctrl+Y and off are also supported.
     bool autoTags = true;

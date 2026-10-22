@@ -45,6 +45,28 @@ bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
                                   "--compiler gcc",
                                   "--split",
                                   "--raw"};
+        const std::string sourcePath =
+            request.path == "." && editor.currentBuffer
+                ? editor.currentBuffer->filename
+                : request.path;
+        if(assembly_compiler::isMlangSource(sourcePath))
+            editor.commandPopupAll = {"-O2",
+                                      "-O0",
+                                      "-O1",
+                                      "-O3",
+                                      "-Os",
+                                      "-Oz",
+                                      "-Og",
+                                      "-g",
+                                      "--target-arch x64",
+                                      "--target-arch x86",
+                                      "--target-arch aarch64",
+                                      "-Wno-unwrap",
+                                      "-Wno-colon-if",
+                                      "-Wno-colon-while",
+                                      "--compiler mlang",
+                                      "--split",
+                                      "--raw"};
         editor.commandPopupFiltered.clear();
         for(int i = 0; i < static_cast<int>(editor.commandPopupAll.size()); ++i)
             editor.commandPopupFiltered.push_back(i);

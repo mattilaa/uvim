@@ -3,6 +3,8 @@
 #include "json_utils.h"
 #include "real_mode_test_utils.h"
 
+#include <array>
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -71,6 +73,8 @@ protected:
         *editor.lines = {"int changed(int x) { return x + 7; }"};
         *editor.dirty = true;
         editor.useSystemClipboard = false;
+        editor.asmDocsApi =
+            false; // Keep tests offline unless they provide cached API docs.
         editor.screenRows = 22;
         editor.screenCols = 100;
     }
@@ -436,12 +440,18 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
     // Stable architecture-independent fixture for code colors and docs.
     view->content->result.lines = {"example:", "    movq %rdi, %rax",
                                    "    retq"};
+    view->content->result.sourceLineForAssembly = {0, 1, 1};
+    view->content->result.sourceOrigins = {
+        {view->content->result.sourcePath, 1, true},
+        {view->content->result.sourcePath, 1, true},
+        {view->content->result.sourcePath, 1, true}};
     testing::internal::CaptureStdout();
     view->draw(editor);
     const auto frame = testing::internal::GetCapturedStdout();
-    EXPECT_NE(frame.find("Assembly:"), std::string::npos);
+    EXPECT_NE(frame.find("Assembly: [x86_64]"), std::string::npos);
     EXPECT_NE(frame.find("ASM"), std::string::npos);
-    EXPECT_NE(frame.find(editor.theme.uiGutter() + ">1 "), std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
+              std::string::npos);
     EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
               std::string::npos);
     sm.dispatch('j');
@@ -455,7 +465,8 @@ TEST_F(AssemblyViewTest, RendersNumberedHighlightedRowsAndInspection)
               std::string::npos);
     EXPECT_EQ(view->content->docsTitle, "mov (x86)");
     sm.dispatch('j');
-    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
     EXPECT_EQ(view->content->docsTitle, "ret (x86)");
 #else
     EXPECT_NE(view->content->docsText.find("not compiled"), std::string::npos);
@@ -495,6 +506,8 @@ TEST(AssemblyViewCompilerTest, CompilesDiskPathWithClangAndGccFlags)
         auto result = assembly_compiler::compile(request, [] { return false; });
         EXPECT_TRUE(result.success) << result.diagnostics;
         EXPECT_EQ(result.options, "-O2 -DANOTHER_FLAG=1");
+        EXPECT_FALSE(result.architecture.empty());
+        EXPECT_NE(result.architecture, "unknown");
         EXPECT_EQ(result.sourceLineForAssembly.size(), result.lines.size());
         EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
                                 result.sourceLineForAssembly.end(),
@@ -628,4 +641,695 @@ TEST(AssemblyViewStandaloneTest,
     EXPECT_STREQ(sm.currentStateName(), "WELCOME");
     EXPECT_FALSE(editor.hasBuffer());
     std::filesystem::remove_all(root);
+}
+
+TEST_F(AssemblyViewTest, MlangSnapshotUsesNativeFlagsAndPreservesProjectFiles)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    *editor.lines = {"fn changed(x: i32) -> i32 {", "    return x + 7;", "}"};
+    write_file(root / "source.mla", "original source\n");
+    const auto original = read_file(root / "source.mla");
+    write_file(root / "mlang_commands.json", "original index");
+    // C/C++ databases must not leak C flags or fail Mlang compilation.
+    write_file(root / "compile_commands.json", "not a valid database");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--split -O2 --target-arch x64"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    EXPECT_TRUE(view->split);
+    EXPECT_EQ(result.sourcePath, (root / "source.mla").string());
+    EXPECT_TRUE(result.compilationDatabase.empty());
+    const auto args = read_file(root / "arguments");
+    EXPECT_NE(args.find("-O2\n--target-arch\nx64\n"), std::string::npos);
+    EXPECT_NE(args.find("-S\n-g\n"), std::string::npos);
+    for(const char* flag :
+        {"-x\n", "-std=", "-iquote", "-gdwarf-4", "-fverbose-asm", "-O0"})
+        EXPECT_EQ(args.find(flag), std::string::npos) << flag;
+    EXPECT_EQ(read_file(root / "source"),
+              "fn changed(x: i32) -> i32 {\n    return x + 7;\n}\n");
+    EXPECT_EQ(read_file(root / "source.mla"), original);
+    EXPECT_EQ(read_file(root / "mlang_commands.json"), "original index");
+    EXPECT_NE(std::filesystem::path(read_file(root / "directory")), root);
+    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
+                            result.sourceLineForAssembly.end(),
+                            [](int line) { return line > 0; }));
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, CanCancelMlangCompilationAndCleanSnapshot)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    write_file(root / "hold", "");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    ASSERT_NE(sm.getState<AssemblyMode>(), nullptr);
+    auto content = sm.getState<AssemblyMode>()->content;
+    ASSERT_TRUE(waitFor(editor, [&]
+                        { return std::filesystem::exists(root / "started"); }));
+    const auto start = std::chrono::steady_clock::now();
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_LT(std::chrono::steady_clock::now() - start, 500ms);
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    write_file(root / "release", "");
+    ASSERT_TRUE(waitFor(editor, [&] { return editor.tasks.idle(); }));
+    EXPECT_FALSE(content->result.success);
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, MlangCompilerFailureCleansSnapshot)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--uvim-test-error"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_FALSE(view->content->result.success);
+    EXPECT_NE(view->content->result.diagnostics.find("invalid source"),
+              std::string::npos);
+    EXPECT_NE(read_file(root / "arguments").find("-O0\n"), std::string::npos);
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, MlangFlagPickerUsesSupportedCompilerOptions)
+{
+    set_buffer_filename(editor, (root / "source.mla").string());
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char c : std::string("asm . --"))
+        sm.dispatch(c);
+    ASSERT_TRUE(editor.commandPopupActive);
+    const auto& flags = editor.commandPopupAll;
+    EXPECT_NE(std::find(flags.begin(), flags.end(), "--compiler mlang"),
+              flags.end());
+    EXPECT_NE(std::find(flags.begin(), flags.end(), "--target-arch aarch64"),
+              flags.end());
+    EXPECT_EQ(std::find(flags.begin(), flags.end(), "-std=c++20"), flags.end());
+    EXPECT_EQ(std::find(flags.begin(), flags.end(), "-fverbose-asm"),
+              flags.end());
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_TRUE(editor.tasks.idle());
+}
+
+TEST_F(AssemblyViewTest, RealMlangPreservesRelativeModulesAndSourceMapping)
+{
+    if(!executable_lookup::find("mlang").found)
+        GTEST_SKIP() << "Mlang not installed";
+    write_file(root / "helper.mla",
+               "pub fn plus(x: i32) -> i32 { return x + 1; }\n");
+    write_file(root / "mlang_commands.json", "original project index");
+    assembly_compiler::Request request;
+    request.path = (root / "source.mla").string();
+    request.directory = root.string();
+    request.sourceLines = std::vector<std::string>{
+        "mod helper;", "use helper::plus;", "fn changed(x: i32) -> i32 {",
+        "    return plus(x);", "}"};
+    request.flags = {"-O0"};
+    const auto result =
+        assembly_compiler::compile(request, [] { return false; });
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    EXPECT_FALSE(result.architecture.empty());
+    EXPECT_NE(result.architecture, "unknown");
+    EXPECT_TRUE(std::any_of(result.sourceLineForAssembly.begin(),
+                            result.sourceLineForAssembly.end(),
+                            [](int line) { return line > 0; }));
+    EXPECT_EQ(read_file(root / "mlang_commands.json"),
+              "original project index");
+    EXPECT_FALSE(std::filesystem::exists(root / "source.mla"));
+    for(const auto& entry : std::filesystem::directory_iterator(root))
+        EXPECT_FALSE(
+            entry.path().filename().string().starts_with(".uvim_asm_"));
+}
+
+TEST_F(AssemblyViewTest, DimsUnrelatedSymbolsAndShowsCompilerReportedOrigin)
+{
+    editor.screenCols = 160;
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--uvim-test-origins"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    ASSERT_EQ(result.lines.size(), result.sourceOrigins.size());
+    const auto local =
+        std::find(result.lines.begin(), result.lines.end(), "local_function:");
+    const auto library =
+        std::find(result.lines.begin(), result.lines.end(), "library_helper:");
+    const auto unknown =
+        std::find(result.lines.begin(), result.lines.end(), "unknown_helper:");
+    ASSERT_NE(local, result.lines.end());
+    ASSERT_NE(library, result.lines.end());
+    ASSERT_NE(unknown, result.lines.end());
+    const size_t localRow = static_cast<size_t>(local - result.lines.begin());
+    const size_t libraryRow =
+        static_cast<size_t>(library - result.lines.begin());
+    const size_t unknownRow =
+        static_cast<size_t>(unknown - result.lines.begin());
+    EXPECT_TRUE(result.sourceOrigins[localRow].mainSource);
+    EXPECT_EQ(result.sourceOrigins[localRow].path, result.sourcePath);
+    EXPECT_EQ(result.sourceLineForAssembly[localRow],
+              0); // Label is not an instruction.
+    EXPECT_FALSE(result.sourceOrigins[libraryRow].mainSource);
+    EXPECT_EQ(
+        std::filesystem::path(result.sourceOrigins[libraryRow].path).filename(),
+        "helper-library.mla");
+    EXPECT_EQ(result.sourceOrigins[libraryRow].line, 12);
+    EXPECT_TRUE(result.sourceOrigins[unknownRow].path.empty());
+
+    view->cursor = static_cast<int>(libraryRow);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+              std::string::npos);
+    EXPECT_NE(frame.find("from helper-library.mla:12"), std::string::npos);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=false"));
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto undimmed = testing::internal::GetCapturedStdout();
+    EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    EXPECT_EQ(
+        undimmed.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+        std::string::npos);
+    EXPECT_NE(undimmed.find("from helper-library.mla:12"), std::string::npos);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped"));
+    ASSERT_TRUE(editor.handleSetCommand("set noasmdimunmapped"));
+    EXPECT_FALSE(editor.asmDimUnmapped);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=true"));
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped?"));
+    view->cursor = static_cast<int>(unknownRow);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    EXPECT_NE(testing::internal::GetCapturedStdout().find("no source mapping"),
+              std::string::npos);
+    // All unresolved rows use the deepest shade when source locations are
+    // absent.
+    view->content->result.sourceOrigins.assign(result.lines.size(), {});
+    view->content->result.sourceLineForAssembly.assign(result.lines.size(), 0);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto unmapped = testing::internal::GetCapturedStdout();
+    EXPECT_NE(
+        unmapped.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "addq"),
+        std::string::npos);
+    EXPECT_EQ(unmapped.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+}
+
+TEST_F(AssemblyViewTest, RawAssemblyPreservesLibraryOriginsAndDimming)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm,
+                     fakeCommand(root, "--raw --split --uvim-test-origins"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    ASSERT_EQ(result.sourceOrigins.size(), result.lines.size());
+    const auto label =
+        std::find(result.lines.begin(), result.lines.end(), "library_helper:");
+    ASSERT_NE(label, result.lines.end());
+    const auto index = static_cast<size_t>(label - result.lines.begin());
+    EXPECT_FALSE(result.sourceOrigins[index].mainSource);
+    EXPECT_EQ(result.sourceOrigins[index].line, 12);
+    EXPECT_EQ(result.sourceLineForAssembly[index + 2], 0);
+    EXPECT_EQ(result.sourceOrigins[index + 2].line, 12);
+}
+
+TEST_F(AssemblyViewTest, UnresolvedAssemblyUsesProgressivelyDimmerSyntaxColors)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    auto& result = view->content->result;
+    ASSERT_TRUE(result.success);
+    result.lines = {"LBB32_2:", "    sub x19, x19, #24",
+                    "LBB32_3:", "    add x8, x20, x19", "    nop"};
+    result.sourceLineForAssembly = {0, 1, 0, 0, 0};
+    result.sourceOrigins = {{result.sourcePath, 1, true},
+                            {result.sourcePath, 1, true},
+                            {"library.mla", 12, false},
+                            {"library.mla", 12, false},
+                            {}};
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(1) + ">1 "),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_NORMAL, 1)),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "sub"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "add"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(2)), std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedGutter(3)), std::string::npos);
+}
+
+TEST(AssemblyViewColorTest, DimmingBlendsEachSyntaxColorTowardsThemeBackground)
+{
+    const Theme theme = Theme::defaults();
+    if(theme.syntax(TOKEN_NORMAL).empty())
+    {
+        EXPECT_TRUE(theme.dimmedSyntax(TOKEN_KEYWORD, 3).empty());
+        return;
+    }
+    auto rgb = [](const std::string& sequence)
+    {
+        std::array<int, 3> color{};
+        std::istringstream components(sequence.substr(7)); // ESC[38;2;
+        char separator;
+        components >> color[0] >> separator >> color[1] >> separator >>
+            color[2];
+        return color;
+    };
+    const std::array<int, 3> background{0x1F, 0x1D, 0x2E};
+    for(const TokenType type :
+        {TOKEN_NORMAL, TOKEN_KEYWORD, TOKEN_NUMBER, TOKEN_STRING})
+    {
+        auto previous = rgb(theme.syntax(type));
+        for(int level = 1; level <= 3; ++level)
+        {
+            const auto color = rgb(theme.dimmedSyntax(type, level));
+            for(size_t channel = 0; channel < color.size(); ++channel)
+            {
+                EXPECT_LT(std::abs(color[channel] - background[channel]),
+                          std::abs(previous[channel] - background[channel]));
+            }
+            previous = color;
+        }
+    }
+}
+
+TEST_F(AssemblyViewTest,
+       TitleShowsCompilerTargetAndCrossCompilationArchitecture)
+{
+    struct Target
+    {
+        const char* extension;
+        const char* flags;
+        const char* expected;
+    };
+
+    for(const auto& target :
+        {Target{"cpp", "", "x86_64"}, Target{"cpp", "-m32", "x86"},
+         Target{"cpp", "--target=aarch64-linux-gnu", "AArch64"},
+         Target{"cpp", "--target riscv64-unknown-elf", "riscv64"},
+         Target{"mla", "--target-arch aarch64", "AArch64"},
+         Target{"mla", "--target-arch x64", "x86_64"},
+         Target{"mla", "--target-arch x86", "x86"}})
+    {
+        SCOPED_TRACE(target.flags);
+        set_buffer_filename(
+            editor,
+            (root / (std::string(120, 'a') + "." + target.extension)).string());
+        auto sm = makeMachine(editor, NormalMode{});
+        dispatch_command(
+            sm, fakeCommand(root, std::string("--split ") + target.flags));
+        auto* view = sm.getState<AssemblyMode>();
+        ASSERT_NE(view, nullptr);
+        ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+        ASSERT_TRUE(view->content->result.success)
+            << view->content->result.diagnostics;
+        EXPECT_EQ(view->content->result.architecture, target.expected);
+        testing::internal::CaptureStdout();
+        view->draw(editor);
+        const auto frame = testing::internal::GetCapturedStdout();
+        EXPECT_NE(
+            frame.find(std::string("Assembly: [") + target.expected + "]"),
+            std::string::npos);
+        EXPECT_NE(frame.find(std::string("Assembly [") + target.expected + "]"),
+                  std::string::npos);
+        sm.dispatch('q');
+        ASSERT_TRUE(waitFor(editor, [&] { return editor.tasks.idle(); }));
+    }
+}
+
+TEST_F(AssemblyViewTest,
+       ExternalSourceRowsHaveRedBackgroundWithoutColoringOtherRows)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--uvim-test-origins"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    const auto& background = editor.theme.externalSource();
+    if(!background.empty())
+    {
+        size_t count = 0;
+        for(size_t position = frame.find(background);
+            position != std::string::npos;
+            position = frame.find(background, position + background.size()))
+            ++count;
+        EXPECT_EQ(count, 3u); // External label and its two instructions only.
+    }
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 2) + "addq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.dimmedSyntax(TOKEN_KEYWORD, 3) + "nop"),
+              std::string::npos);
+
+    // The tint remains available when syntax dimming is disabled.
+    ASSERT_TRUE(editor.handleSetCommand("set asmdimunmapped=false"));
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto undimmed = testing::internal::GetCapturedStdout();
+    EXPECT_NE(undimmed.find(background), std::string::npos);
+    EXPECT_NE(undimmed.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    write_file(root / "theme.toml", "[theme.asm]\nexternal_bg = \"#351c26\"\n");
+    ASSERT_TRUE(editor.theme.loadFromFile((root / "theme.toml").string()));
+#ifdef UVIM_ENABLE_TERMINAL_COLORS
+    EXPECT_EQ(editor.theme.externalSource(), color::rgbBg(0x35, 0x1c, 0x26));
+#else
+    EXPECT_TRUE(editor.theme.externalSource().empty());
+#endif
+}
+
+TEST_F(AssemblyViewTest, BrowsingRowsAndSwitchingPanesResetsHorizontalScroll)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "}"};
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root, "--split"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    // Establish the initial linked selection before manually scrolling.
+    sm.dispatch('0');
+    ASSERT_TRUE(view->sourcePane);
+    sm.dispatch('l');
+    ASSERT_GT(view->sourceHorizontal, 0);
+    sm.dispatch('j');
+    EXPECT_EQ(view->sourceCursor, 1);
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    EXPECT_EQ(view->horizontal, 0);
+    sm.dispatch('l');
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_L));
+    EXPECT_FALSE(view->sourcePane);
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    sm.dispatch('l');
+    ASSERT_GT(view->horizontal, 0);
+    sm.dispatch('j');
+    EXPECT_EQ(view->horizontal, 0);
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    sm.dispatch('l');
+    sm.dispatch('0');
+    EXPECT_EQ(view->horizontal, 0);
+    sm.dispatch(keyCode(control::ControlKey::SHIFT_CTRL_H));
+    sm.dispatch('l');
+    sm.dispatch('0');
+    EXPECT_EQ(view->sourceHorizontal, 0);
+    for(const int key : std::vector<int>{
+            'j', 'k', 'g', 'G', keyCode(navigation::NavigationKey::PAGE_DOWN),
+            keyCode(navigation::NavigationKey::PAGE_UP),
+            keyCode(navigation::NavigationKey::HOME),
+            keyCode(navigation::NavigationKey::END),
+            keyCode(control::ControlKey::CTRL_D),
+            keyCode(control::ControlKey::CTRL_U)})
+    {
+        sm.dispatch('l');
+        ASSERT_GT(view->sourceHorizontal, 0);
+        sm.dispatch(key);
+        EXPECT_EQ(view->sourceHorizontal, 0) << key;
+        EXPECT_EQ(view->horizontal, 0) << key;
+    }
+}
+
+TEST_F(AssemblyViewTest,
+       AddInstructionHelpIsAvailableImmediatelyWithoutFetching)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "0");
+    asm_documentation::setFetchOriginalDocs(false);
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"    addq $1, %rax", "    add x8, x20, x19"};
+    sm.dispatch('i');
+    EXPECT_FALSE(view->content->docsLoading);
+    EXPECT_EQ(view->content->docsTitle, "add (x86)");
+    EXPECT_NE(view->content->docsText.find("Adds the source operand"),
+              std::string::npos);
+    sm.dispatch('j');
+    EXPECT_EQ(view->content->docsTitle, "add (x86)");
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_FALSE(view->content->docsLoading);
+    EXPECT_EQ(view->content->docsTitle, "add (aarch64)");
+    EXPECT_NE(view->content->docsText.find("Adds operands"), std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find("Adds operands"), std::string::npos);
+    EXPECT_EQ(frame.find("Loading instruction documentation"),
+              std::string::npos);
+#endif
+}
+
+TEST_F(AssemblyViewTest, InstructionHelpStaysVisibleWhileFetchingRicherDocs)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
+    ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "true");
+    asm_documentation::setFetchOriginalDocs(false);
+    editor.asmDocsApi = true;
+    write_file(root / "fetched" / "compiler-explorer" / "aarch64" / "add.md",
+               "## add\n\nFetched add instruction details.\n");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"    add x8, x20, x19"};
+    sm.dispatch('i');
+    ASSERT_TRUE(view->content->docsLoading);
+    EXPECT_NE(view->content->docsText.find("Adds operands"), std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto pendingFrame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(pendingFrame.find("Adds operands"), std::string::npos);
+    EXPECT_EQ(pendingFrame.find("Loading instruction documentation"),
+              std::string::npos);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_FALSE(view->content->docsIndicator);
+    EXPECT_TRUE(editor.taskStatusText().empty());
+    EXPECT_NE(view->content->docsText.find("Fetched add instruction details"),
+              std::string::npos);
+#endif
+}
+
+TEST_F(AssemblyViewTest, InspectorShowsApiOperandFormsBeforePlainDescription)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
+    ScopedEnv fetch("UVIM_ASM_DOCS_FETCH", "0");
+    asm_documentation::setFetchOriginalDocs(false);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi=true"));
+    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+               "## mov\n\nCopies the source operand.\n\nFetched from Compiler "
+               "Explorer.\n\n"
+               "Compiler Explorer documentation:\n\n```text\nMOV r64, "
+               "r/m64\nMOV r/m64, r64\n"
+               "Move source to destination.\n```\n\nAPI: "
+               "https://godbolt.org/api/asm/amd64/mov\n");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"    movq %rdi, %rax"};
+    sm.dispatch('i');
+    ASSERT_TRUE(view->content->docsLoading);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_TRUE(
+        view->content->docsText.starts_with("```asm\nmovq %rdi, %rax\n```"));
+    EXPECT_NE(view->content->docsText.find("```text\nMOV r64, r/m64"),
+              std::string::npos);
+    EXPECT_EQ(view->content->docsText.find("Copies the source operand"),
+              std::string::npos);
+    EXPECT_NE(view->content->docsText.find(
+                  "API: https://godbolt.org/api/asm/amd64/mov"),
+              std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "movq"),
+              std::string::npos);
+    EXPECT_NE(frame.find("MOV r64, r/m64"), std::string::npos);
+    EXPECT_NE(frame.find("MOV r/m64, r64"), std::string::npos);
+    EXPECT_EQ(frame.find("Loading instruction documentation"),
+              std::string::npos);
+    // The live MOV API can provide prose without any operand-form examples.
+    // The selected instruction must still remain at the top in that case.
+    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+               "## mov\n\nCompiler Explorer documentation:\n\n```text\n"
+               "Copies the second operand (source operand) to the first "
+               "operand.\n```\n");
+    sm.dispatch('i');
+    sm.dispatch('i');
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_TRUE(
+        view->content->docsText.starts_with("```asm\nmovq %rdi, %rax\n```"));
+    EXPECT_NE(view->content->docsText.find("Copies the second operand"),
+              std::string::npos);
+    ASSERT_TRUE(editor.handleSetCommand("set noasmdocsapi"));
+    EXPECT_FALSE(editor.asmDocsApi);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi"));
+    EXPECT_TRUE(editor.asmDocsApi);
+    ASSERT_TRUE(editor.handleSetCommand("set asmdocsapi?"));
+#endif
+}
+
+TEST_F(AssemblyViewTest, InspectionDebouncesRowsAndResetsOnNavigation)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"movq %rdi, %rax", "addq $1, %rax", "retq"};
+    sm.dispatch('i');
+    const auto original = view->content->docsText;
+    sm.dispatch('j');
+    std::this_thread::sleep_for(std::chrono::milliseconds(180));
+    sm.dispatch('j');
+    std::this_thread::sleep_for(std::chrono::milliseconds(180));
+    view->processIdle(editor);
+    EXPECT_EQ(view->content->docsText, original);
+    EXPECT_FALSE(view->content->docsLoading);
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_EQ(view->content->docsTitle, "ret (x86)");
+    // Closing inspection cancels the pending refresh.
+    sm.dispatch('k');
+    sm.dispatch('i');
+    view->processIdle(editor, std::chrono::steady_clock::now() +
+                                  std::chrono::seconds(1));
+    EXPECT_EQ(view->content->docsTitle, "ret (x86)");
+#endif
+}
+
+TEST_F(AssemblyViewTest, SlowInspectionUsesOnlyDelayedIndicatorAndClearsIt)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    GTEST_SKIP() << "Instruction docs not enabled";
+#else
+    ScopedEnv cache("UVIM_ASM_DOCS_CACHE_DIR", root.string());
+    editor.asmDocsApi = true;
+    write_file(root / "fetched" / "compiler-explorer" / "x86" / "mov.md",
+               "## mov\n\nCached API details.\n");
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    view->content->result.lines = {"movq %rdi, %rax"};
+    std::atomic<bool> release{false};
+    const auto blocker = editor.tasks
+                             .submit({"previous lookup",
+                                      "asm-docs",
+                                      [&](TaskQueue::Context& task)
+                                      {
+                                          while(!release && !task.cancelled())
+                                              std::this_thread::sleep_for(1ms);
+                                      },
+                                      {},
+                                      {},
+                                      false})
+                             .id;
+    editor.statusMessage.clear();
+    sm.dispatch('i');
+    EXPECT_TRUE(editor.statusMessage.empty());
+    EXPECT_TRUE(editor.taskStatusText().empty());
+    EXPECT_TRUE(view->content->docsLoading);
+    EXPECT_FALSE(view->content->docsIndicator);
+    view->processIdle(editor, std::chrono::steady_clock::now() + 1s);
+    EXPECT_TRUE(view->content->docsIndicator);
+    release = true;
+    editor.tasks.cancel(blocker);
+    EXPECT_TRUE(waitFor(editor, [&] { return !view->content->docsLoading; }));
+    EXPECT_FALSE(view->content->docsIndicator);
+    EXPECT_NE(view->content->docsText.find("Cached API details"),
+              std::string::npos);
+    view->processIdle(editor, std::chrono::steady_clock::now() + 1s);
+    EXPECT_FALSE(view->content->docsIndicator);
+#endif
+}
+
+TEST_F(AssemblyViewTest, InspectorSeparatesHeadingsProseExamplesAndReferences)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    sm.dispatch('i');
+    view->content->docsTitle = "Color roles";
+    view->content->docsText =
+        "```asm\naddq $23, %r11\n```\n"
+        "```text\nDescription\nAdds the operands.\nOperation:\n"
+        "DEST = DEST + SRC\n```\n"
+        "## Examples\nReference: https://example.com/asm\n";
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find(editor.theme.syntax(TOKEN_KEYWORD) + "addq"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD +
+                         "Description"),
+              std::string::npos);
+    EXPECT_NE(
+        frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD + "Operation:"),
+        std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiAccent() + Terminal::ESC_BOLD +
+                         "## Examples"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.baseFg() + "Adds the operands."),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.baseFg() + "DEST = DEST + SRC"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiDim() + "Reference:"),
+              std::string::npos);
+    EXPECT_NE(frame.find(editor.theme.uiDim() + "```text"), std::string::npos);
+    EXPECT_EQ(
+        frame.find(editor.theme.syntax(TOKEN_STRING) + "Adds the operands."),
+        std::string::npos);
 }

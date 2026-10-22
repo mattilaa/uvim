@@ -6,6 +6,7 @@
 #include "preview_highlight.h"
 #include "task_queue.h"
 
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <string>
@@ -26,6 +27,7 @@ struct AssemblyMode
         bool active = true;
         bool compiling = true;
         bool docsLoading = false;
+        bool docsIndicator = false;
         size_t docsGeneration = 0;
         std::string docsTitle;
         std::string docsText;
@@ -54,6 +56,8 @@ struct AssemblyMode
     std::optional<ModeState> handle(ModeContext& ctx,
                                     const ModeKeyEvent& event);
     void draw(Editor& editor);
+    void processIdle(Editor& editor, std::chrono::steady_clock::time_point now =
+                                         std::chrono::steady_clock::now());
 
 private:
     PreviewHighlight highlight;
@@ -61,6 +65,9 @@ private:
     bool initialSyncPending = true;
     TaskQueue::TaskId compileTask = 0;
     TaskQueue::TaskId docsTask = 0;
+    std::optional<std::chrono::steady_clock::time_point> docsRefreshAt;
+    std::chrono::steady_clock::time_point docsStarted{};
+    void scheduleInspection(Editor& editor);
     void ensureVisible(const Editor& editor);
     void synchronizeSelection();
     int linkedSourceLine() const;

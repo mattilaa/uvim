@@ -913,6 +913,35 @@ int ensureDocs(std::string_view arch, const auto& docs,
     }
     return -1;
 }
+
+struct ResolvedInstruction
+{
+    DocEntry doc;
+    std::string arch;
+};
+
+std::optional<ResolvedInstruction> resolveInstruction(std::string_view line)
+{
+    std::optional<std::string> raw = instructionMnemonic(line);
+    if(!raw)
+        return std::nullopt;
+
+    const std::string x86 = normalizeX86(*raw);
+    const std::string arm = normalizeAarch64(*raw);
+    const bool hasX86 = contains(x86Docs, x86);
+    const bool hasArm = contains(aarch64Docs, arm);
+    if(!hasX86 && !hasArm)
+        return std::nullopt;
+
+    const bool chooseArm = hasArm && (!hasX86 || lineLooksAarch64(line));
+    const std::string_view arch = chooseArm ? "aarch64" : "x86";
+    const std::string& mnemonic = chooseArm ? arm : x86;
+    std::optional<DocEntry> doc =
+        chooseArm ? lookup(aarch64Docs, mnemonic) : lookup(x86Docs, mnemonic);
+    if(!doc)
+        return std::nullopt;
+    return ResolvedInstruction{*doc, std::string(arch)};
+}
 } // namespace
 
 void setFetchOriginalDocs(bool enabled)
@@ -930,44 +959,63 @@ bool fetchOriginalDocs()
     return false;
 }
 
-std::optional<Location> find(std::string_view line, int)
+std::optional<Documentation> embedded(std::string_view line)
 {
 #ifndef UVIM_ENABLE_ASM_DOCS
     (void)line;
     return std::nullopt;
 #else
-    std::optional<std::string> raw = instructionMnemonic(line);
-    if(!raw)
+    const auto instruction = resolveInstruction(line);
+    if(!instruction)
         return std::nullopt;
+    const auto& doc = instruction->doc;
+    std::string text = "## " + std::string(doc.mnemonic) + "\n\n" +
+                       std::string(doc.summary) + "\n\n";
+    const std::string details =
+        embeddedDetails(instruction->arch, doc.mnemonic);
+    if(!details.empty())
+        text += "Documentation: " + details + "\n\n";
+    text += "Reference: " + std::string(doc.reference) + "\n";
+    return Documentation{std::string(doc.mnemonic) + " (" + instruction->arch +
+                             ")",
+                         std::move(text)};
+#endif
+}
 
-    const std::string x86 = normalizeX86(*raw);
-    const std::string arm = normalizeAarch64(*raw);
-    const bool hasX86 = contains(x86Docs, x86);
-    const bool hasArm = contains(aarch64Docs, arm);
-    if(!hasX86 && !hasArm)
+std::optional<Location> find(std::string_view line, int cursorX)
+{
+    return find(line, cursorX, fetchOriginalDocs());
+}
+
+std::optional<Location> find(std::string_view line, int, bool fetchOriginal)
+{
+#ifndef UVIM_ENABLE_ASM_DOCS
+    (void)line;
+    (void)fetchOriginal;
+    return std::nullopt;
+#else
+    const auto instruction = resolveInstruction(line);
+    if(!instruction)
         return std::nullopt;
-
-    const bool chooseArm = hasArm && (!hasX86 || lineLooksAarch64(line));
-    const std::string_view arch = chooseArm ? "aarch64" : "x86";
-    const std::string& mnemonic = chooseArm ? arm : x86;
-    std::optional<DocEntry> doc =
-        chooseArm ? lookup(aarch64Docs, mnemonic) : lookup(x86Docs, mnemonic);
-    if(fetchOriginalDocs() && doc)
+    const auto& doc = instruction->doc;
+    const auto& arch = instruction->arch;
+    const auto mnemonic = doc.mnemonic;
+    if(fetchOriginal)
     {
-        if(std::optional<fs::path> fetched = ensureFetchedDoc(arch, *doc))
+        if(std::optional<fs::path> fetched = ensureFetchedDoc(arch, doc))
         {
-            return Location{fetched->string(), 0, mnemonic,
+            return Location{fetched->string(), 0, std::string(mnemonic),
                             std::string(arch)};
         }
     }
 
-    const int lineNo =
-        chooseArm ? ensureDocs(arch, aarch64Docs, mnemonic)
-                  : ensureDocs(arch, x86Docs, mnemonic);
+    const int lineNo = arch == "aarch64"
+                           ? ensureDocs(arch, aarch64Docs, mnemonic)
+                           : ensureDocs(arch, x86Docs, mnemonic);
     if(lineNo < 0)
         return std::nullopt;
 
-    return Location{docsPath(arch).string(), lineNo, mnemonic,
+    return Location{docsPath(arch).string(), lineNo, std::string(mnemonic),
                     std::string(arch)};
 #endif
 }

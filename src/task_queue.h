@@ -57,6 +57,7 @@ public:
         Work work;
         Done done;           // main thread, only when work did not throw
         Done onAbort;        // main thread, when cancelled or failed instead
+        bool showProgress = true; // false: listed in :tasks, no status bar
     };
 
     // What the status bar shows: the oldest running job plus its position in

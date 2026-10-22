@@ -42,6 +42,7 @@ public:
     const std::string& searchMatch() const;
     // Subtle background tint; preserves the syntax foreground colors.
     const std::string& sourceMapping() const;
+    const std::string& externalSource() const;
     const std::string& statusBar() const;
     const std::string& tabBar() const;
     const std::string& panel() const;
@@ -61,11 +62,15 @@ public:
 
     const std::string& matchHighlight() const;
     const std::string& syntax(TokenType type) const;
+    // Levels 1..3 blend the foreground progressively towards the background.
+    std::string dimmedSyntax(TokenType type, int level) const;
+    std::string dimmedGutter(int level) const;
 
 private:
     Color base_fg_;
     Color base_bg_;
 
+    Color asm_external_bg_;
     Color ui_dim_;
     Color ui_accent_;
     Color ui_info_;
@@ -93,6 +98,7 @@ private:
     std::string cursor_seq_;
     std::string search_seq_;
     std::string source_mapping_seq_;
+    std::string external_source_seq_;
     std::string status_bar_seq_;
     std::string tab_bar_seq_;
     std::string panel_seq_;
@@ -112,6 +118,7 @@ private:
 
     void rebuildSequences();
 
+    std::string dimmedFg(const Color& foreground, int level) const;
     static std::string fgSeq(const Color& c);
     static std::string bgSeq(const Color& c);
     static bool parseHexColor(std::string_view value, Color& out);

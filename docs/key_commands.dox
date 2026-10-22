@@ -139,8 +139,8 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
 - `:emitasm [flags]` : emit current C/C++ buffer assembly into a `.s` buffer
-- `:asm [.|path] [--compiler clang|gcc|path] [--split] [--raw] [flags]` : compile and
-  browse assembly; `:asm . -O2` includes unsaved buffer edits. In the view,
+- `:asm [.|path] [--compiler clang|gcc|mlang|path] [--split] [--raw] [flags]` : compile and
+  browse C/C++ or Mlang (`.mla`) assembly; `:asm . -O2` includes unsaved buffer edits. In the view,
   `j/k` browse numbered rows, `h/l` scroll horizontally, `i` toggles instruction
   documentation, `Ctrl-j/k` scrolls that popup, and `q`/`Esc` exits.
 - `:asm . --split -O2` opens source and assembly side by side. `v` toggles
@@ -148,10 +148,33 @@ includes common Normal/Insert/Visual/Command mode bindings.
   the source/assembly pane. Navigation in either pane reveals matching rows
   in the other pane with a subtle green background and preserved syntax colors.
   Lines without emitted instructions and code from other files have no match.
+- Instruction inspection prefers Compiler Explorer API documentation, with
+  the inspected instruction at the top and operand forms/examples when provided.
+  Built-in help stays visible while API docs load;
+  only the loading indicator shows progress, after 300 ms of pending retrieval.
+  Row changes restart a 300 ms debounce before refreshing documentation; the
+  previous text stays visible while browsing. Fast responses cancel the indicator,
+  and inspector requests do not produce queue/download status messages.
+  `:set asmdocsapi=false` uses built-in help only.
+- Assembly browsing starts each newly selected row at the beginning in both
+  panes, including linked source jumps. `h/l` pans the current line; `0` returns
+  it to the beginning. Pane switches and split toggles also reset horizontal pan.
+- Assembly view titles include the target architecture, including cross targets
+  such as `--target=aarch64-linux-gnu` or Mlang `--target-arch aarch64`.
+- In the assembly browser, directly mapped code stays bright. Inferred labels,
+  external-source rows, and unknown origins use progressively dimmer syntax
+  colors; all unresolved rows are dimmed. Known external-source rows also have
+  a dark red background (`theme.asm.external_bg`). Select external code to
+  see its source file and line in the status bar when compiler debug information
+  provides them. `:set asmdimunmapped=false` disables dimming.
 - Typing `:asm . --` opens common compiler flags: up/down or `Ctrl-j/k`
   select, Enter/Tab inserts without compiling, and the next Enter compiles.
   `Esc` cancels the whole command.
-- `:asm` automatically uses the matching `compile_commands.json` entry's compiler,
+- `.mla` files use `mlang -S -g`; optimization, raw/split views, source linking,
+  and instruction inspection work as for C/C++. `:asm . --` suggests Mlang flags.
+  Temporary snapshots beside the source preserve relative imports and require a
+  writable source directory; compilation keeps the project indexing file intact.
+- For C/C++, `:asm` automatically uses the matching `compile_commands.json` entry's compiler,
   flags, and working directory when found in source/ancestor or common build
   directories (or the configured clangd database). Prompt flags override inherited
   optimization, standards and macros; prompt include directories precede inherited
