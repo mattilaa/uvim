@@ -548,6 +548,8 @@ public:
     void applyDiagnosticFix(int index);
     void updateClangFormatIndentWidth();
     int indentWidthForBraces() const;
+    int collectionIndentWidth() const;
+    void reindentCollection();
     bool braceNewLineForAutoBraces() const;
     void commentLines(int startY, int endY);
     void commentBlock(int startY, int endY);
@@ -605,6 +607,12 @@ public:
     bool autoBraces = true;
     bool autoQuotes = true;
     bool autoBracesInStrings = true;
+    bool splitBraces = true;
+    bool autoBrackets = true;
+    bool splitBrackets = true;
+    bool continuationIndent = true;
+    int collectionIndentSpaces = 0;
+    int collectionIndentKey = 20; // Ctrl+T; Ctrl+Y and off are also supported.
     bool autoTags = true;
     bool autoCompletion = true;
     bool completionAutoParens = true;
