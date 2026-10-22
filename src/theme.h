@@ -40,6 +40,8 @@ public:
     const std::string& selection() const;
     const std::string& cursor() const;
     const std::string& searchMatch() const;
+    // Subtle background tint; preserves the syntax foreground colors.
+    const std::string& sourceMapping() const;
     const std::string& statusBar() const;
     const std::string& tabBar() const;
     const std::string& panel() const;
@@ -90,6 +92,7 @@ private:
     std::string selection_seq_;
     std::string cursor_seq_;
     std::string search_seq_;
+    std::string source_mapping_seq_;
     std::string status_bar_seq_;
     std::string tab_bar_seq_;
     std::string panel_seq_;

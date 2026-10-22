@@ -41,14 +41,13 @@ int helpModeContentRows(const ModeContext& ctx)
 
 std::vector<std::string> helpSearchTopics()
 {
-    return {"",          "commands",    "modes",       "navigation",
-            "editing",   "files",       "filebrowser", "run",
-            "buffers",   "windows",     "search",      "regex",
-            "clipboard", "git",         "ga",          "gb",
-            "gbb",       "gbl",         "gj",          "gbv",
-            "gs",        "emitasm",     "lsp",         "toolinfo",
-            "tasks",     "diagnostics", "logging",     "keys",
-            "palette", "functions"};
+    return {"",         "commands",    "modes",     "navigation", "editing",
+            "files",    "filebrowser", "run",       "buffers",    "windows",
+            "search",   "regex",       "clipboard", "git",        "ga",
+            "gb",       "gbb",         "gbl",       "gj",         "gbv",
+            "gs",       "asm",         "emitasm",   "lsp",        "toolinfo",
+            "tasks",    "diagnostics", "logging",   "keys",       "palette",
+            "functions"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -137,6 +136,8 @@ std::string helpTopicDescription(const std::string& topic)
         return "Show blamed commit diff";
     if(topic == "gs")
         return "C/C++ symbol size popup";
+    if(topic == "asm")
+        return "Compile and browse C/C++ assembly";
     if(topic == "emitasm")
         return "Emit C/C++ assembly";
     if(topic == "lsp")
@@ -1215,6 +1216,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:wqa!` or `:wqall!` - Force write all and quit",
             "",
             "C/C++:",
+            "  `:asm . [flags]`   - Browse assembly of current buffer",
+            "                       Example: `:asm . -O2` (`i`: inspect)",
             "  `:emitasm [flags]` - Emit current buffer assembly into .s "
             "buffer",
             "                       Example: `:emitasm -O2`",
@@ -1309,7 +1312,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:git log`   - Show git log",
             "  `:git prettylog` - Show formatted git log",
             "  `:git diff`  - Show repository diff",
-            "  `:sc`, `:showchanges` - Show unsaved edits of the buffer as a diff",
+            "  `:sc`, `:showchanges` - Show unsaved edits of the buffer as a "
+            "diff",
             "  `:git commit` - Commit staged files",
             "  `:git fixup` - Fixup staged files into selected commit",
             "  `:git stash` - Stash changes",
@@ -1554,6 +1558,64 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Notes:",
             "  Requires C/C++ file type and clang/clang++ for probing.",
             "  Local quoted includes are scanned for nested struct bodies.",
+        };
+    }
+    else if(topic_lower == "asm")
+    {
+        lines = {
+            "# Assembly browser",
+            "",
+            "`:asm .` / `:asm` compiles the current C/C++ buffer, including",
+            "unsaved edits, into a read-only assembly view. `:asm path.cpp`",
+            "compiles another file (using its unsaved buffer if already open).",
+            "The source buffer and disk file remain unchanged.",
+            "",
+            "Examples:",
+            "  `:asm . -O2`",
+            "  `:asm . --split -O2` opens source/assembly side by side",
+            "  `:asm . --` opens common compiler flags before compiling",
+            "  `:asm . --compiler gcc -O3 -march=native`",
+            "  `:asm \"my file.cpp\" --compiler clang -O2 -I \"include dir\"`",
+            "  `:asm . --raw -O0 -g`",
+            "",
+            "A matching compile_commands.json supplies compiler, flags and cwd.",
+            "Lookup: configured clangd database, source/ancestor directories",
+            "and common build directories, then the editor cwd/ancestors.",
+            "Only the requested file's entry is used (first matching entry).",
+            "Both arguments and quoted command entries/response files work.",
+            "Object and dependency-output arguments are removed. A malformed",
+            "database reports an error. Status flag: compile_commands.",
+            "Prompt -O2/-std=.../-D.../-U... override inherited settings.",
+            "Prompt includes precede inherited paths of the same include kind.",
+            "--compiler overrides the database compiler; paths are accepted.",
+            "Without a matching entry: Clang preferred, GCC fallback, -O0",
+            "unless the prompt supplies another optimization level.",
+            "Type -- for a flag picker: up/down or Ctrl-J/K selects; Enter/Tab",
+            "inserts a flag without compiling. Enter again compiles; Escape",
+            "cancels the whole command. Type -- again for another suggestion.",
+            "Quoted paths and flags are supported. Prompt paths use the editor",
+            "cwd; inherited paths use the database entry's working directory.",
+            "",
+            "j/k or arrows: next/previous row in the focused pane",
+            "v: toggle the source/assembly split (read-only source snapshot)",
+            "Ctrl-Shift-H/L: focus source/assembly; Alt-H/L with iskitty=false",
+            "Matching rows in both panes have a subtle green background.",
+            "Moving in either pane reveals its match in the other pane.",
+            "Compiler DWARF line records provide the mapping. Comments,",
+            "optimized-away lines and code from other files may have no match.",
+            "h/l or arrows: horizontal scroll",
+            "Page Up/Down: page; Ctrl-U/D: half page; g/G: first/last row",
+            "i: toggle instruction inspector, following the selected row",
+            "Ctrl-J/K: scroll instruction help while the popup is open",
+            "q/Escape: exit the view (also while compiling or inspecting)",
+            "",
+            "Compilation and instruction help load in background tasks.",
+            "Compiler errors appear in the view. Instruction help uses the",
+            "same x86/x64 and AArch64 docs as assembly gd. Labels/directives",
+            "show a message when there is no instruction to explain.",
+            "",
+            "Requires auxiliary views; instruction help also needs ASM_DOCS.",
+            "`:emitasm [flags]` still creates a separate editable .s buffer.",
         };
     }
     else if(topic_lower == "emitasm")

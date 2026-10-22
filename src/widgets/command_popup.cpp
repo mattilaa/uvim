@@ -15,6 +15,54 @@ std::string_view commandDocumentation(std::string_view cmd)
     while(!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\t'))
         cmd.remove_suffix(1);
 
+    if(cmd == "--split")
+        return "Browse source and assembly side by side with linked highlights";
+
+    if(cmd == "-O2")
+        return "Optimize for speed (recommended starting point)";
+    if(cmd == "-O0")
+        return "Disable optimization for easier source comparison";
+    if(cmd == "-O1")
+        return "Basic optimization";
+    if(cmd == "-O3")
+        return "More aggressive speed optimization";
+    if(cmd == "-Os")
+        return "Optimize for code size";
+    if(cmd == "-Og")
+        return "Optimize while keeping debugging practical";
+    if(cmd == "-g")
+        return "Include debug and source-line information";
+    if(cmd == "-fno-inline")
+        return "Keep function calls instead of inlining";
+    if(cmd == "-fverbose-asm")
+        return "Add compiler comments to assembly";
+    if(cmd == "-masm=intel")
+        return "Intel assembly syntax (x86 targets only)";
+    if(cmd == "-masm=att")
+        return "AT&T assembly syntax (x86 targets only)";
+    if(cmd == "-march=native")
+        return "Optimize for this machine's CPU";
+    if(cmd == "-Wall")
+        return "Enable common warnings";
+    if(cmd == "-Wextra")
+        return "Enable extra warnings";
+    if(cmd == "-std=c++20")
+        return "Use the C++20 language standard";
+    if(cmd == "-std=c++23")
+        return "Use the C++23 language standard";
+    if(cmd == "-std=c11")
+        return "Use the C11 language standard";
+    if(cmd == "-I")
+        return "Add include directory (type its path next)";
+    if(cmd == "-D")
+        return "Define a macro (type NAME=value next)";
+    if(cmd == "--compiler clang")
+        return "Use Clang to generate assembly";
+    if(cmd == "--compiler gcc")
+        return "Use GCC to generate assembly";
+    if(cmd == "--raw")
+        return "Keep directives and full compiler output";
+
     if(cmd == "palette")
         return "Command palette: search and run commands";
     if(cmd == "functions")
@@ -100,6 +148,8 @@ std::string_view commandDocumentation(std::string_view cmd)
         return "Show external tool status";
     if(cmd == "tasks")
         return "Show background task queue and progress";
+    if(cmd == "asm" || cmd == "asm .")
+        return "Browse assembly of current C/C++ buffer (Clang/GCC)";
     if(cmd == "emitasm")
         return "Emit compact assembly for current C/C++ buffer";
     if(cmd == "emitasm --raw")

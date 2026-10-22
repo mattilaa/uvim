@@ -37,6 +37,7 @@ struct CommandMode
     std::string originalInput;
     bool locCompletion = false;
     std::string locCommand;
+    bool assemblyFlagPopup = false;
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);
@@ -49,5 +50,6 @@ private:
     void handleTabCompletion(ModeContext& ctx);
     void handleReverseTabCompletion(ModeContext& ctx);
     void deleteWordBackward(ModeContext& ctx);
+    bool updateAssemblyFlagPopup(ModeContext& ctx);
 };
 } // namespace editor::statemachine

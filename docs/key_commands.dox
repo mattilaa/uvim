@@ -123,6 +123,26 @@ includes common Normal/Insert/Visual/Command mode bindings.
 - `Ctrl-k` / `Ctrl-j` : previous / next command in history
 - `Ctrl-f` : fuzzy history search
 - `:emitasm [flags]` : emit current C/C++ buffer assembly into a `.s` buffer
+- `:asm [.|path] [--compiler clang|gcc|path] [--split] [--raw] [flags]` : compile and
+  browse assembly; `:asm . -O2` includes unsaved buffer edits. In the view,
+  `j/k` browse numbered rows, `h/l` scroll horizontally, `i` toggles instruction
+  documentation, `Ctrl-j/k` scrolls that popup, and `q`/`Esc` exits.
+- `:asm . --split -O2` opens source and assembly side by side. `v` toggles
+  the split. `Ctrl-Shift-h/l` (or `Alt-h/l` with `:set iskitty=false`) focuses
+  the source/assembly pane. Navigation in either pane reveals matching rows
+  in the other pane with a subtle green background and preserved syntax colors.
+  Lines without emitted instructions and code from other files have no match.
+- Typing `:asm . --` opens common compiler flags: up/down or `Ctrl-j/k`
+  select, Enter/Tab inserts without compiling, and the next Enter compiles.
+  `Esc` cancels the whole command.
+- `:asm` automatically uses the matching `compile_commands.json` entry's compiler,
+  flags, and working directory when found in source/ancestor or common build
+  directories (or the configured clangd database). Prompt flags override inherited
+  optimization, standards and macros; prompt include directories precede inherited
+  paths of the same include kind.
+  `--compiler` overrides the compiler. Prompt paths use the editor working
+  directory; inherited paths use the database entry's directory. The status bar
+  marks inherited settings with `compile_commands`.
 
 \section keys_file_browser File browser
 - `j/k` or arrows : move

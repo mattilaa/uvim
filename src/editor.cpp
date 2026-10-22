@@ -1480,6 +1480,8 @@ std::string Editor::getModeString() const
         return "GIT PATCH";
     case COMMAND_OUTPUT:
         return "RUN";
+    case ASSEMBLY:
+        return "ASM";
     case GLYPH_SELECT:
         return "GLYPH";
     case ANSI_TOOLS:

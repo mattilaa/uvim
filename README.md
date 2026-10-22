@@ -39,6 +39,7 @@ menus—they leave the corresponding implementation out of the binary.
 - [Themes](#themes)
 - [Generated documentation](#generated-documentation)
 - [Assembly instruction docs](#assembly-instruction-docs)
+- [Assembly browser](#assembly-browser)
 - [LSP flags](#lsp-flags)
 - [Dependencies](#dependencies-os-specific)
 - [Command palette](#command-palette)
@@ -794,6 +795,95 @@ The output is written to `docs/doxygen/html/index.html`. Published docs are
 available at <https://mattilaa.github.io/uvim/>. Doxygen can be installed with
 the platform package manager (`brew install doxygen`, `apt-get install
 doxygen`, or `dnf install doxygen`).
+
+## Assembly browser
+
+`:asm .` compiles the current C/C++ buffer, including unsaved edits, into a
+read-only assembly view. `:asm` is the same command. Use a file path instead
+of `.` to compile another file; if that file is already open, its in-memory
+contents are used. The source buffer, cursor, and file on disk stay intact.
+
+```vim
+:asm .
+:asm . -O2
+:asm . --split -O2
+:asm . --
+:asm . --compiler gcc -O3 -march=native
+:asm "src/my file.cpp" --compiler clang -O2 -I "include directory"
+:asm . --compiler "/path/to/clang++" --raw -O0 -g
+```
+
+When a matching `compile_commands.json` entry is found, `:asm` uses its compiler,
+flags and working directory. It checks the configured clangd compilation-database
+directory first, then the source file's directory and ancestors (including common
+build directories such as `build`, `build-debug`, and `cmake-build-debug`), followed
+by the editor working directory and ancestors. Only entries for the requested
+source file are used; the first matching entry wins. Both `arguments` and quoted
+`command` entries are supported, with `arguments` preferred, as well as compiler
+response files. Database input, object-output, and dependency-output flags are
+removed for the temporary assembly compilation. A malformed database reports an
+error. The status bar shows `compile_commands` when an entry is used.
+
+Prompt flags override inherited settings: `:asm . -O2` replaces a database's
+`-O0`/`-O3`, and prompt language standards and macro definitions take precedence.
+Prompt include directories precede inherited directories of the same include kind.
+Inherited relative paths use the database entry's working directory; paths typed
+at the prompt remain relative to the editor working directory. Project-specific
+flags can also be supplied manually when no matching entry exists.
+
+`--compiler` overrides the database compiler and accepts Clang, GCC, or a compiler
+executable; `clang`/`gcc` select their C++ drivers for C++ files. Without a matching
+database entry, Clang is preferred with GCC as fallback. The default optimization
+is `-O0` if neither the database nor prompt supplies an optimization level. Paths
+and arguments containing spaces can be quoted. Use `--raw` to retain the full
+assembler output. Target-specific options such as `-masm=intel` depend on the
+selected compiler and architecture.
+
+Typing `:asm . --` opens a popup of common compiler flags with descriptions.
+Use up/down or `Ctrl-J/K` to select, then Enter or Tab to insert a flag and
+continue editing the command. Enter again compiles. Type `--` again to add
+another suggested flag. Escape cancels the entire command without compiling.
+Flags can also be typed manually, including full options such as `--compiler`.
+
+The view shows assembly row numbers, syntax colors, the compiler and options,
+and the selected row. Compilation runs in a background task; failures show
+the compiler diagnostics in the view, and `q`/Escape can leave while it runs.
+
+Use `--split` for a vertical source/assembly comparison, or press `v` in the
+view to toggle it. The left pane shows the compiled source snapshot, including
+unsaved edits. Both panes are read-only. Move between them with Ctrl-Shift-H/L,
+or Alt-H/L when using `:set iskitty=false`, just like editor panes. On narrow
+terminals, the focused pane fills the available width.
+
+Moving through source highlights all matching assembly rows with a subtle
+green background and scrolls to the first match. Moving through assembly
+highlights and reveals its corresponding source line. Syntax colors remain
+visible over the tint. Both panes keep their selected row near the middle of
+the viewport, with scrolling limited at the start and end of the file.
+Source mapping comes from compiler debug line records;
+comments, declarations, optimized-away lines, and instructions from other files
+may have no match. The status bar shows the mapped source line or reports that
+there is no source mapping. Compiler flags still control the generated code;
+uvim adds DWARF line information for linking the panes.
+
+| Keys | Action |
+| --- | --- |
+| `j` / `k`, down/up | Select the next/previous row in the focused pane |
+| `h` / `l`, left/right | Scroll horizontally |
+| Page Up/Down, `Ctrl-U/D` | Move a page/half page |
+| `g` / `G`, Home/End | First/last row |
+| `v` | Toggle source/assembly split |
+| Ctrl-Shift-H/L (or Alt-H/L) | Focus source/assembly pane |
+| `i` | Toggle the instruction inspector popup |
+| `Ctrl-J/K` with inspector open | Scroll the instruction documentation |
+| `q` / Escape | Exit the assembly view and return to the source |
+
+The inspector follows the selected row while you navigate with `j/k`, using
+the same x86/x64 and AArch64 instruction documentation as assembly `gd`.
+Labels, directives and comments show a message when no instruction applies.
+The view requires `UVIM_ENABLE_AUXILIARY_VIEWS`; instruction help additionally
+requires `UVIM_ENABLE_ASM_DOCS`. The existing `:emitasm [flags]` command still
+creates a separate editable `.s` buffer. See `:help asm`.
 
 ## Assembly instruction docs
 
