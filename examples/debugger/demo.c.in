@@ -16,15 +16,22 @@ static void delay(void) {
     nanosleep(&remaining, NULL);
 }
 
+struct Padded { char tag; int value; char tail; };
+
+static int add_values(int x, int y) { return x + y; }
+
 static int checkpoint(int worker_id, int round) {
     int count = 40 + round % 1000;
+    int *count_ptr = &count;
+    int (*callback)(int, int) = add_values;
+    struct Padded padded = {1, count, 2};
     bool enabled = true;
     double ratio = 1.5;
     const char *message = "uvim C debugger fixture";
     struct Point point = {worker_id, count};
-    int values[3] = {worker_id, count, 7};
-    int result = point.x + values[1];
-    if (enabled && ratio > 1.0 && message[0]) {
+    int values[3] = {worker_id, *count_ptr, 7};
+    int result = callback(point.x, values[1]);
+    if (enabled && padded.value == count && ratio > 1.0 && message[0]) {
         return result; // DEBUG_BREAKPOINT: inspect locals here
     }
     return 0;

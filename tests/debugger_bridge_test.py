@@ -20,6 +20,122 @@ spec.loader.exec_module(bridge)
 
 
 class BridgeTests(unittest.TestCase):
+    def test_type_layout_counts_holes_tail_padding_and_overlapping_union_fields(self):
+        def type_(size, members, bases=0):
+            value = MagicMock()
+            value.GetName.return_value = 'Example'
+            value.GetByteSize.return_value = size
+            value.GetByteAlign.return_value = 4
+            value.GetNumberOfDirectBaseClasses.return_value = bases
+            value.GetNumberOfVirtualBaseClasses.return_value = 0
+            value.GetNumberOfFields.return_value = len(members)
+            value.IsArrayType.return_value = False
+            fields = []
+            for name, offset, length in members:
+                field = MagicMock()
+                field.GetName.return_value = name
+                field.GetOffsetInBits.return_value = offset * 8
+                field.IsBitfield.return_value = False
+                field.GetType.return_value.GetName.return_value = name + '_type'
+                if isinstance(length, int):
+                    field.GetType.return_value.GetByteSize.return_value = length
+                    field.GetType.return_value.GetNumberOfFields.return_value = 0
+                    field.GetType.return_value.IsArrayType.return_value = False
+                else:
+                    field.GetType.return_value = length
+                fields.append(field)
+            value.GetFieldAtIndex.side_effect = fields
+            return value
+        rows = bridge.type_layout(type_(12, [('tag', 0, 1), ('value', 4, 4), ('tail', 8, 1)]), 'item')
+        self.assertIn('12 bytes, alignment 4 bytes', rows[0])
+        self.assertIn('  Padding at +1: 3 bytes', rows)
+        self.assertIn('  Padding at +9: 3 bytes', rows)
+        self.assertTrue(any('Top-level padding: 6 bytes' in row for row in rows))
+        nested = bridge.type_layout(type_(16, [('tag', 0, 1), ('inner', 4, type_(8, [('tag', 0, 1), ('value', 4, 4)])), ('tail', 12, 1)]), 'item')
+        self.assertTrue(any('Storage: item.inner (Example), 8 bytes' in row for row in nested))
+        self.assertTrue(any('Top-level padding: 3 bytes' in row for row in nested))
+        self.assertTrue(any('Top-level padding: 6 bytes' in row for row in nested))
+        union = bridge.type_layout(type_(4, [('byte', 0, 1), ('word', 0, 4)]), 'item')
+        self.assertTrue(any('Top-level padding: 0 bytes' in row for row in union))
+        inherited = bridge.type_layout(type_(16, [('member', 8, 4)], bases=1), 'item')
+        self.assertFalse(any('Top-level padding:' in row for row in inherited))
+        hidden = bridge.type_layout(type_(16, [('member', 8, 4)]), 'item')
+        self.assertTrue(any('hidden ABI data' in row for row in hidden))
+
+    def test_inspection_commands_preserve_expressions_and_bound_counts(self):
+        self.assertEqual(bridge.inspection_request('disasm callback'), ('disasm', 'callback', 32))
+        self.assertEqual(bridge.inspection_request('disasm'), ('disasm', '$pc', 32))
+        self.assertEqual(bridge.inspection_request('p --asm --count 4 callback'), ('disasm', 'callback', 4))
+        self.assertEqual(bridge.inspection_request('print --memory &count'), ('mem', '&count', 64))
+        self.assertEqual(bridge.inspection_request('mem --count 4 ptr + 8'), ('mem', 'ptr + 8', 4))
+        self.assertIsNone(bridge.inspection_request('p count'))
+        for command in ('mem', 'mem --count 0 ptr', 'mem --count 4097 ptr',
+                        'disasm --count 257 callback', 'mem --count nope ptr'):
+            with self.subTest(command=command), self.assertRaises(ValueError):
+                bridge.inspection_request(command)
+
+    def test_memory_rows_preserve_bytes_and_render_ascii(self):
+        rows = bridge.memory_rows(0x1000, bytes([0, 65, 255, 10]) + b'abcdefghijklmnop')
+        self.assertEqual(len(rows), 3)
+        self.assertIn('0x0000000000001000  00 41 ff 0a', rows[0])
+        self.assertIn('|.A..abcd|', rows[0])
+        self.assertIn('0x0000000000001010', rows[2])
+
+    def test_gdb_layout_requests_size_and_native_padding_and_falls_back_without_symbols(self):
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        gdb.lines, gdb.pending, gdb.master = queue.Queue(), {}, -1
+        with patch.object(gdb, 'send') as send:
+            gdb.command('layout item')
+            send.assert_called_with('-data-evaluate-expression "sizeof(item)"',
+                                    ('inspection-size', 'item', True))
+            gdb.pending['1'] = send.call_args.args[1]
+            gdb.lines.put('1^done,value="12"')
+            with patch.object(bridge, 'emit') as emit:
+                gdb.poll()
+                emit.assert_called_with(output=['Storage: item, 12 bytes'], inspection=True)
+            send.assert_called_with('-interpreter-exec console "ptype /o item"',
+                                    ('inspection-layout-type', 'item'))
+            gdb.pending['2'] = ('inspection-function', 'callback', 4096, 2)
+            gdb.lines.put('2^error,msg="No function contains specified address"')
+            gdb.poll()
+            send.assert_called_with('-data-disassemble -s 0x1000 -e 0x1020 -- 2',
+                                    ('inspection-assembly', 'callback', 4096, 2))
+
+    def test_gdb_inspection_resolves_addresses_and_formats_mi_results(self):
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        gdb.lines, gdb.pending, gdb.master = queue.Queue(), {}, -1
+        with patch.object(gdb, 'send') as send:
+            gdb.command('disasm --count 2 callback')
+            send.assert_called_once_with('-data-evaluate-expression "(unsigned long long)(callback)"',
+                                         ('inspection-address', 'disasm', 'callback', 2))
+            gdb.pending['1'] = send.call_args.args[1]
+            send.reset_mock()
+            gdb.lines.put('1^done,value="4096"')
+            gdb.poll()
+            send.assert_called_once_with('-data-disassemble -a 0x1000 -- 2',
+                                         ('inspection-function', 'callback', 4096, 2))
+        gdb.pending['2'] = ('inspection-function', 'callback', 4096, 2)
+        gdb.pending['3'] = ('inspection-memory', '&count', 8192, 4)
+        gdb.pending['4'] = ('inspection-value', 'count')
+        gdb.pending['5'] = ('inspection-address', 'mem', '0', 4)
+        gdb.pending['6'] = ('inspection-memory', 'bad', 1, 4)
+        for line in ['2^done,asm_insns=[{address="0x1000",func-name="twice",offset="0",opcodes="90",inst="nop"},{address="0x1001",inst="ret"},{address="0x1002",inst="nop"}]',
+                     '3^done,memory=[{begin="0x2000",contents="2a000000"}]',
+                     '4^done,value="42"', '5^done,value="0"',
+                     '6^error,msg="Cannot access memory"']:
+            gdb.lines.put(line)
+        with patch.object(bridge, 'emit') as emit, patch.object(gdb, 'refresh') as refresh, patch.object(gdb, 'send'):
+            gdb.poll()
+            messages = [call.kwargs for call in emit.call_args_list]
+            refresh.assert_called_once()
+        self.assertTrue(all(m['inspection'] for m in messages))
+        self.assertEqual(sum(row.startswith('0x') for row in messages[0]['output']), 2)
+        self.assertIn('nop', messages[0]['output'][3])
+        self.assertIn('2a 00 00 00', messages[1]['output'][1])
+        self.assertEqual(messages[2]['output'], ['count = 42'])
+        self.assertIn('non-null', messages[3]['output'][0])
+        self.assertEqual(messages[4]['output'], ['Cannot access memory'])
+
     def test_mi_nested_records_and_escapes(self):
         value = bridge.mi_fields('frame={level="0",fullname="/tmp/a b.c",line="12"},variables=[{name="count",value="42"},{name="text",value="\\\"hello\\\""}]')
         self.assertEqual(value['frame']['fullname'], '/tmp/a b.c')
@@ -41,7 +157,7 @@ class BridgeTests(unittest.TestCase):
             gdb.poll()
             send.assert_any_call('-stack-list-frames 0 63', 'source-frames')
             messages = [call.kwargs for call in emit.call_args_list]
-            self.assertIn({'variables': ['count: int = 42']}, messages)
+            self.assertIn({'variables': ['count: int = 42'], 'variableExpressions': ['count']}, messages)
             self.assertIn({'path': '/tmp/test.c', 'line': 5, 'frame': 0, 'function': ''}, messages)
             self.assertEqual(messages[-1], {'state': 'running'})
 
@@ -195,6 +311,65 @@ class BridgeTests(unittest.TestCase):
 
 @unittest.skipUnless(os.environ.get('UVIM_DEBUGGER_LIVE_TESTS'), 'live debugger tests are opt-in')
 class LiveTests(unittest.TestCase):
+    def test_function_pointer_disassembly_and_variable_storage(self):
+        with tempfile.TemporaryDirectory(prefix='uvim-inspection-') as directory:
+            source, binary = Path(directory) / 'inspect.c', Path(directory) / 'inspect'
+            source.write_text('struct Padded { char tag; int value; char tail; }; struct Nested { char tag; struct Padded child; };\nint twice(int x) { return x * 2; }\nint main(void) {\n'
+                              '  int count = 42;\n  int (*callback)(int) = twice;\n'
+                              '  struct Padded item = {1, 42, 2}; struct Nested nested = {0, {1, 42, 2}};\n  count = callback(count);\n  return count;\n}\n')
+            subprocess.run(['clang', '-g', '-O0', str(source), '-o', str(binary)], check=True)
+            for backend in ['lldb'] + (['mladbg'] if os.environ.get('UVIM_MLADBG_MODULE') else []):
+                with self.subTest(backend=backend):
+                    engine, messages = None, []
+                    try:
+                        with patch.object(bridge, 'emit', side_effect=lambda **value: messages.append(value)):
+                            engine = bridge.LLDB(backend, False, str(binary), [])
+                            engine.command(f'b {source}:7')
+                            engine.command('continue')
+                            deadline = time.monotonic() + 15
+                            while time.monotonic() < deadline:
+                                engine.poll()
+                                if any(m.get('state') == 'stopped' and m.get('line') == 7 for m in messages):
+                                    break
+                                time.sleep(.02)
+                            else:
+                                self.fail(f'Breakpoint timed out: {messages}')
+                            self.assertTrue(any('callback' in m.get('variableExpressions', []) for m in messages))
+                            engine.command('p count')
+                            self.assertTrue(any(m.get('inspection') and any('42' in row for row in m['output']) for m in messages))
+                            engine.command('mem --count 4 &count')
+                            memory = messages[-1]['output']
+                            self.assertIn((42).to_bytes(4, sys.byteorder).hex(' '), memory[1])
+                            engine.command('disasm --count 4 callback')
+                            assembly = messages[-1]['output']
+                            self.assertEqual(sum(row.startswith('0x') for row in assembly), 4)
+                            self.assertTrue(any('code bytes' in row for row in assembly), assembly)
+                            self.assertIn('Disassembly: callback', assembly[0])
+                            self.assertTrue(any('Displayed: 4 instructions' in row for row in assembly))
+                            frame = engine.target.GetProcess().GetSelectedThread().GetSelectedFrame()
+                            address = frame.FindVariable('callback').GetValueAsAddress()
+                            engine.command(f'p --asm --count 1 0x{address:x}')
+                            self.assertEqual(sum(row.startswith('0x') for row in messages[-1]['output']), 1)
+                            engine.command('p --memory --count 4 &count')
+                            self.assertIn('Memory: &count', messages[-1]['output'][0])
+                            engine.command('p item')
+                            printed = next(m['output'] for m in reversed(messages) if m.get('inspection'))
+                            self.assertTrue(any('Top-level padding: 6 bytes' in row for row in printed), printed)
+                            engine.command('layout item')
+                            self.assertIn('12 bytes', messages[-1]['output'][0])
+                            self.assertTrue(any('alignment 4 bytes' in row for row in messages[-1]['output']))
+                            engine.command('layout nested')
+                            nested = messages[-1]['output']
+                            self.assertIn('16 bytes', nested[0])
+                            self.assertTrue(any('nested.child' in row and '12 bytes' in row for row in nested), nested)
+                            self.assertTrue(any('Top-level padding: 6 bytes' in row for row in nested), nested)
+                            for command in ('mem 0', 'disasm missing_symbol'):
+                                with self.assertRaises(ValueError):
+                                    engine.command(command)
+                    finally:
+                        if engine:
+                            engine.close()
+
     def test_attach_quit_detaches_and_keeps_process_alive(self):
         with tempfile.TemporaryDirectory(prefix='uvim-attach-') as directory:
             source = Path(directory) / 'attach.c'

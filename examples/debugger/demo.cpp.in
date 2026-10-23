@@ -11,16 +11,23 @@
 struct Point { int x; int y; };
 struct Task { std::string name; Point position; bool active; };
 
+struct Padded { char tag; int value; char tail; };
+
+static int add_values(int x, int y) { return x + y; }
+
 static int checkpoint(int worker_id, int round) {
     int count = 40 + round % 1000;
+    int *count_ptr = &count;
+    int (*callback)(int, int) = add_values;
+    Padded padded{1, count, 2};
     bool enabled = true;
     double ratio = 1.5;
     std::string message = "uvim C++ debugger fixture";
     Point point{worker_id, count};
     Task task{message, point, enabled};
-    std::array<int, 3> values{worker_id, count, 7};
-    int result = task.position.x + values[1];
-    if (enabled && ratio > 1.0 && !message.empty()) {
+    std::array<int, 3> values{worker_id, *count_ptr, 7};
+    int result = callback(task.position.x, values[1]);
+    if (enabled && padded.value == count && ratio > 1.0 && !message.empty()) {
         return result; // DEBUG_BREAKPOINT: inspect locals here
     }
     return 0;

@@ -120,6 +120,13 @@ const std::string& Theme::selection() const
     return selection_seq_;
 }
 
+#ifdef UVIM_ENABLE_DEBUGGER
+const std::string& Theme::debuggerRow(DebuggerRow row, bool alternate) const
+{
+    return debugger_row_seq_[static_cast<size_t>(row)][alternate ? 1 : 0];
+}
+#endif
+
 const std::string& Theme::cursor() const
 {
     return cursor_seq_;
@@ -252,6 +259,11 @@ void Theme::rebuildSequences()
     source_mapping_seq_.clear();
     external_source_seq_.clear();
     assembly_selection_seq_.clear();
+#ifdef UVIM_ENABLE_DEBUGGER
+    for(auto& row : debugger_row_seq_)
+        for(auto& seq : row)
+            seq.clear();
+#endif
     status_bar_seq_.clear();
     tab_bar_seq_.clear();
     panel_seq_.clear();
@@ -280,6 +292,27 @@ void Theme::rebuildSequences()
                                  (background.g * 3 + green.g) / 4,
                                  (background.b * 3 + green.b) / 4, true});
     const Color blue{70, 125, 205, true};
+#ifdef UVIM_ENABLE_DEBUGGER
+    const std::array<Color, 4> debuggerTints{
+        blue, ui_success_, ui_accent_, ui_success_};
+    auto blendBackground = [](const Color& base, const Color& tint, int weight)
+    {
+        return Color{(base.r * (8 - weight) + tint.r * weight) / 8,
+                     (base.g * (8 - weight) + tint.g * weight) / 8,
+                     (base.b * (8 - weight) + tint.b * weight) / 8, true};
+    };
+    for(size_t row = 0; row < debugger_row_seq_.size(); ++row)
+    {
+        const auto normal =
+            debugger_bg_[row].set
+                ? debugger_bg_[row]
+                : blendBackground(background, debuggerTints[row],
+                                  row == 3 ? 3 : 1);
+        debugger_row_seq_[row][0] = bgSeq(normal);
+        debugger_row_seq_[row][1] =
+            bgSeq(blendBackground(normal, debuggerTints[row], 1));
+    }
+#endif
     assembly_selection_seq_ = bgSeq(
         asm_selection_bg_.set ? asm_selection_bg_
                               : Color{(background.r * 3 + blue.r) / 4,
@@ -448,6 +481,12 @@ void Theme::applyOverrides(
     set_color("theme.ui.error", ui_error_);
     set_color("theme.asm.external_bg", asm_external_bg_);
     set_color("theme.asm.selection_bg", asm_selection_bg_);
+#ifdef UVIM_ENABLE_DEBUGGER
+    set_color("theme.debugger.source_bg", debugger_bg_[0]);
+    set_color("theme.debugger.variables_bg", debugger_bg_[1]);
+    set_color("theme.debugger.threads_bg", debugger_bg_[2]);
+    set_color("theme.debugger.execution_bg", debugger_bg_[3]);
+#endif
     set_color("theme.ui.directory", ui_directory_);
     set_color("theme.ui.gutter", ui_gutter_);
     set_color("theme.ui.prompt", ui_prompt_);

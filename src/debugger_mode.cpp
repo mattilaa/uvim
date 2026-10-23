@@ -172,6 +172,9 @@ const std::vector<DebuggerCommandEntry>& debuggerCommands()
         {"run", "Restart the program", "r"},
         {"locals", "Print local variables", ""},
         {"p ", "Evaluate an expression", "print"},
+        {"disasm ", "Disassemble a function pointer or address", ""},
+        {"mem ", "Read bytes at an address; &var reads variable storage", ""},
+        {"layout ", "Show variable size, field offsets and padding", ""},
         {"bt", "Print stack frames", ""},
         {"threads", "List threads", ""},
         {"thread ", "Select a thread by ID", ""},
@@ -511,10 +514,24 @@ void DebuggerMode::applyMessage(const std::string& message)
                 destination.push_back(safe(item.GetString()));
     };
     if(!retainSnapshot)
+    {
         strings("variables", variables, false);
+        if(json_utils::has(*doc, "variables"))
+        {
+            variableExpressions.clear();
+            strings("variableExpressions", variableExpressions, false);
+        }
+    }
+    const int outputStart = static_cast<int>(output.size());
     strings("output", output, true);
+    const int discarded = std::max(0, static_cast<int>(output.size()) - 2000);
     if(output.size() > 2000)
         output.erase(output.begin(), output.end() - 2000);
+    if(json_utils::get_bool(*doc, "inspection"))
+    {
+        pane = 1;
+        cursor[1] = offset[1] = std::max(0, outputStart - discarded);
+    }
     if(auto list = json_utils::find(*doc, "threads");
        !retainSnapshot && list && list->IsArray())
     {
@@ -663,6 +680,23 @@ bool DebuggerMode::selectSourceFile(const std::string& path, int line)
     offset[0] = std::max(0, cursor[0] - 5);
     updateBreakpointLines();
     return true;
+}
+
+void DebuggerMode::inspectSelectedVariable(char action)
+{
+    const int row = cursor[2];
+    if(state != "stopped" || row < 0 ||
+       row >= static_cast<int>(variableExpressions.size()) ||
+       variableExpressions[row].empty())
+    {
+        output.push_back("Select an available variable while stopped first");
+        return;
+    }
+    const auto& expression = variableExpressions[row];
+    execute(action == 'a'                    ? "disasm " + expression
+            : action == 'm'                  ? "mem &(" + expression + ")"
+            : action == 's' || action == 'i' ? "layout " + expression
+                                             : "p " + expression);
 }
 
 void DebuggerMode::toggleSelectedBreakpoint()
@@ -990,6 +1024,12 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         ++cursor[pane];
     else if(key == 'k' || key == keyCode(navigation::NavigationKey::ARROW_UP))
         --cursor[pane];
+    else if(pane == 2 &&
+            (key == 'p' || key == 'a' || key == 'm' || key == 'i' ||
+             key == 's' || key == keyCode(control::ControlKey::ENTER)))
+        inspectSelectedVariable(key == keyCode(control::ControlKey::ENTER)
+                                    ? 'p'
+                                    : static_cast<char>(key));
     else if(key == keyCode(control::ControlKey::ENTER) && state == "stopped" &&
             pane == 3 && cursor[3] < static_cast<int>(threadIds.size()))
         execute("thread " + threadIds[cursor[3]]);
@@ -1129,8 +1169,27 @@ void DebuggerMode::drawContent(Editor& editor)
                                    (executionPath.empty() ||
                                     debuggerSourcePath(sourcePath) ==
                                         debuggerSourcePath(executionPath));
-            if(selected || executing)
-                out += editor.theme.selection();
+            const auto rowBackground = [&]() -> std::string
+            {
+                if(executing)
+                    return editor.theme.debuggerRow(
+                        Theme::DebuggerRow::Execution);
+                if(selected)
+                    return editor.theme.selection();
+                const bool alternate =
+                    index < static_cast<int>(lines.size()) && index % 2 != 0;
+                if(which == 0)
+                    return editor.theme.debuggerRow(Theme::DebuggerRow::Source,
+                                                    alternate);
+                if(which == 2)
+                    return editor.theme.debuggerRow(
+                        Theme::DebuggerRow::Variables, alternate);
+                if(which == 3)
+                    return editor.theme.debuggerRow(Theme::DebuggerRow::Threads,
+                                                    alternate);
+                return {};
+            }();
+            out += rowBackground;
             if(index >= static_cast<int>(lines.size()))
             {
                 std::string empty;
@@ -1171,8 +1230,7 @@ void DebuggerMode::drawContent(Editor& editor)
                 if(breakpoint)
                 {
                     out += editor.theme.reset();
-                    if(selected || executing)
-                        out += editor.theme.selection();
+                    out += rowBackground;
                     out += editor.theme.baseFg();
                 }
                 const int available = inner - prefixWidth;
@@ -1299,6 +1357,10 @@ void DebuggerMode::drawContent(Editor& editor)
     else if(breakpointListOpen)
         out +=
             fit(" Breakpoints: Ctrl-J/K selects  d deletes  Esc closes", width);
+    else if(pane == 2)
+        out += fit(" Variables: j/k select  p/Enter print  a disassemble  "
+                   "m raw bytes  s size/padding",
+                   width);
     else if(sourcePinned)
         out += fit(" Browsing source: j/k row  b toggle breakpoint  Ctrl-P "
                    "file  n/step or thread/frame returns to execution",

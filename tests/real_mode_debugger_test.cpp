@@ -106,6 +106,34 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     std::filesystem::remove_all(dir);
 }
 
+TEST(RealModeTransitionsTest, DebuggerInspectionShowsNewResultsAndKeepsVariableIdentity)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->applyMessage("{\"state\":\"stopped\",\"variables\":[\"callback: int "
+                        "(*)(int) = 0x1000\"],"
+                        "\"variableExpressions\":[\"callback\"]}");
+    EXPECT_EQ(debug->variableExpressions,
+              (std::vector<std::string>{"callback"}));
+    sm.dispatch('v');
+    const auto start = static_cast<int>(debug->output.size());
+    debug->applyMessage("{\"inspection\":true,\"output\":[\"Disassembly: "
+                        "callback\",\"0x1000 ret\"]}");
+    EXPECT_EQ(debug->pane, 1);
+    EXPECT_EQ(debug->offset[1], start);
+    EXPECT_EQ(debug->cursor[1], start);
+    EXPECT_EQ(debug->state, "stopped");
+    debug->applyMessage(
+        "{\"state\":\"running\",\"variables\":[],\"variableExpressions\":[]}");
+    EXPECT_EQ(debug->variableExpressions,
+              (std::vector<std::string>{"callback"}));
+    debug->applyMessage("{\"state\":\"stopped\",\"variables\":[]}");
+    EXPECT_TRUE(debug->variableExpressions.empty());
+}
+
 TEST(RealModeTransitionsTest,
      DebuggerBreakpointCompletionPreservesLineAndDoesNotExecute)
 {

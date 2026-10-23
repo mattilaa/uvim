@@ -54,6 +54,7 @@ struct DebuggerMode
     int frameIndex = 0;
     std::string frameFunction, stopFunction;
     std::vector<std::string> source, variables, threads, threadIds, output;
+    std::vector<std::string> variableExpressions;
     // Source, output, variables, threads. Each pane preserves its selection.
     int pane = 0;
     std::array<int, 4> cursor{}, offset{};
@@ -102,5 +103,6 @@ private:
     void updatePromptMenu();
     void drawContent(Editor& editor);
     void toggleSelectedBreakpoint();
+    void inspectSelectedVariable(char action);
 };
 } // namespace editor::statemachine

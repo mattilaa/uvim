@@ -1,6 +1,7 @@
 #pragma once
 
 #include "token_type.h"
+#include <array>
 #include <string>
 #include <unordered_map>
 
@@ -45,6 +46,17 @@ public:
     const std::string& externalSource() const;
     // Persistent source range represented by a filtered assembly view.
     const std::string& assemblySelection() const;
+#ifdef UVIM_ENABLE_DEBUGGER
+    enum class DebuggerRow
+    {
+        Source,
+        Variables,
+        Threads,
+        Execution
+    };
+    const std::string& debuggerRow(DebuggerRow row,
+                                   bool alternate = false) const;
+#endif
     const std::string& statusBar() const;
     const std::string& tabBar() const;
     const std::string& panel() const;
@@ -74,6 +86,10 @@ private:
 
     Color asm_external_bg_;
     Color asm_selection_bg_;
+#ifdef UVIM_ENABLE_DEBUGGER
+    std::array<Color, 4> debugger_bg_{};
+    std::array<std::array<std::string, 2>, 4> debugger_row_seq_{};
+#endif
     Color ui_dim_;
     Color ui_accent_;
     Color ui_info_;

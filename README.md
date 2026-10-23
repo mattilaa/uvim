@@ -1815,6 +1815,43 @@ refreshes. Continue/step or frame/thread selection returns to the execution
 source at the next stopped update. The execution arrow is only shown in its
 actual source file.
 
+In Variables, select a row with `j`/`k`: `p` or Enter prints the value, `a`
+disassembles its function-pointer/address value, and `m` reads the variable's
+storage as hex bytes and ASCII. `s` shows the whole variable size including
+padding, member sizes, and nested member layouts (`i` is an alias).
+Printing a local variable also includes its storage layout. Results open in
+Output; press `v` to return.
+The same inspection is available for expressions and numeric addresses:
+
+```text
+:p count
+:disasm callback
+:disasm 0x12345678
+:mem &count
+:mem pointer
+:mem --count 16 &count
+:disasm --count 8 callback
+:p --asm callback
+:p --memory &count
+:layout item
+:p --layout item
+```
+
+Use `&variable` to inspect its storage and a pointer value to read the memory
+it points to. `:disasm` alone uses the selected frame's program counter. Memory
+reads default to 64 bytes (maximum 4096); disassembly defaults to 32 instructions
+(maximum 256). `--count N` goes before the expression. Inspection requires a
+stopped process and works with LLDB, GDB, and mladbg. Variable layouts show
+storage bytes and member offsets; LLDB/mladbg also report alignment when debug
+information supplies it, and GDB uses `ptype /o` for layout and padding. Padding
+is reported at each type level; nested members include their own sizes and
+padding (up to four levels and 128 fields). Array layouts include element
+counts and stride. Inherited or hidden ABI storage is marked as unknown rather
+than counted as padding. Disassembly reports the function's code extent when
+symbols provide it and the number of instruction bytes displayed. Function
+alignment padding is not identified separately, and code size excludes stack
+usage and allocations made by the function.
+
 `:c`, `:n`, `:s`, and `:f` continue, step
 over, step into, and step out; the same letters work without the prompt.
 `:run` (or `r`) restarts the program. Ctrl-C interrupts execution. Other commands
@@ -1838,6 +1875,18 @@ MLang's installed `share/mlang/debugger/mladbg.py`; for a checkout, set
 `UVIM_MLADBG_MODULE=/path/to/mlang/tools/mladbg/mladbg.py`. The program's stdin is
 separate from editor commands; interactive program input is not exposed in this
 first version. Variables currently show top-level values and summaries.
+
+Source, variables, and threads use alternating tinted row backgrounds. The
+execution line has a stronger green background; the focused selection and red
+breakpoint gutter remain visible. To customize the pane colors, add:
+
+```toml
+[theme.debugger]
+source_bg = "#232941"
+variables_bg = "#2e3335"
+threads_bg = "#332e45"
+execution_bg = "#4e5f44"
+```
 
 ### Debugger test programs
 

@@ -37,6 +37,110 @@ def application_source(path, function):
                 path.startswith(('/System/', '/usr/include/', '/usr/lib/', '/Applications/Xcode.app/')))
 
 
+def inspection_request(text):
+    verb, _, rest = text.strip().partition(' ')
+    if verb in ('p', 'print'):
+        flag, _, expression = rest.strip().partition(' ')
+        if flag not in ('--asm', '--memory', '--layout'):
+            return None
+        verb, rest = {'--asm': 'disasm', '--memory': 'mem', '--layout': 'layout'}[flag], expression
+    if verb not in ('disasm', 'mem', 'layout'):
+        return None
+    expression = rest.strip()
+    if verb == 'layout':
+        if not expression:
+            raise ValueError('Usage: layout EXPRESSION')
+        return verb, expression, 0
+    count = 32 if verb == 'disasm' else 64
+    if expression.startswith('--count'):
+        match = re.fullmatch(r'--count\s+(\d+)\s+(.+)', expression)
+        if not match:
+            raise ValueError(f'Usage: {verb} [--count N] EXPRESSION')
+        count, expression = int(match[1]), match[2].strip()
+    maximum = 256 if verb == 'disasm' else 4096
+    if not 1 <= count <= maximum:
+        raise ValueError(f'{verb}: count must be between 1 and {maximum}')
+    if not expression and verb == 'mem':
+        raise ValueError('Usage: mem [--count N] ADDRESS (use &variable for its storage)')
+    return verb, expression or '$pc', count
+
+
+def memory_rows(address, data):
+    rows = []
+    for offset in range(0, len(data), 8):
+        chunk = data[offset:offset + 8]
+        ascii_text = ''.join(chr(byte) if 32 <= byte < 127 else '.' for byte in chunk)
+        rows.append(f'0x{address + offset:016x}  {chunk.hex(" "):<23}  |{ascii_text}|')
+    return rows
+
+
+def type_layout(type_, label, depth=0, budget=None):
+    if budget is None:
+        budget = [128]
+    size = type_.GetByteSize()
+    align = type_.GetByteAlign() if hasattr(type_, 'GetByteAlign') else 0
+    rows = [f'Storage: {label} ({type_.GetName()}), {size} bytes' +
+            (f', alignment {align} bytes' if align else '') + ' (includes padding)']
+    total_fields = type_.GetNumberOfFields()
+    visible_fields = min(total_fields, budget[0])
+    fields = [type_.GetFieldAtIndex(i) for i in range(visible_fields)]
+    budget[0] -= visible_fields
+    base_count = type_.GetNumberOfDirectBaseClasses() + type_.GetNumberOfVirtualBaseClasses()
+    if base_count:
+        rows.append('Padding: not calculated for inherited classes (base/ABI storage may be hidden)')
+    if not fields:
+        if total_fields:
+            rows.append('Nested layout truncated at 128 members')
+        elif hasattr(type_, 'IsArrayType') and type_.IsArrayType():
+            element = type_.GetArrayElementType()
+            element_size = element.GetByteSize()
+            if element.IsValid() and element_size > 0:
+                rows.append(f'  Array: {size // element_size} elements, {element_size} bytes per element (stride)')
+                if element.GetNumberOfFields() and depth < 4 and budget[0]:
+                    rows += ['  ' + row for row in type_layout(element, label + '[0]', depth + 1, budget)]
+        return rows
+    covered = []
+    for field in fields:
+        start = field.GetOffsetInBits()
+        bits = field.GetBitfieldSizeInBits() if field.IsBitfield() else field.GetType().GetByteSize() * 8
+        if start < 0 or start > size * 8 or bits < 0 or start + bits > size * 8:
+            rows.append('Padding: field offsets unavailable in debug information')
+            return rows
+        rows.append(f'  +{start // 8}' + (f'.{start % 8} bits' if start % 8 else '') +
+                    f': {field.GetName() or "<anonymous>"} ({field.GetType().GetName()}), ' +
+                    (f'{bits} bits' if field.IsBitfield() else f'{bits // 8} bytes'))
+        covered.append((start, start + bits))
+        member_type = field.GetType()
+        if member_type.GetNumberOfFields() or member_type.IsArrayType():
+            if depth < 4 and budget[0]:
+                rows += ['    ' + row for row in type_layout(
+                    member_type, label + '.' + (field.GetName() or '<anonymous>'), depth + 1, budget)]
+            else:
+                rows.append('    Nested layout truncated (maximum depth 4 / 128 members)')
+    if base_count or visible_fields < total_fields:
+        if visible_fields < total_fields:
+            rows.append('Padding: not calculated; field layout truncated at 128 members')
+        return rows
+    # A leading gap can contain an implicit vptr. Never label hidden ABI data
+    # as padding when the debug information does not identify it.
+    if covered and min(start for start, _ in covered) > 0:
+        rows.append('Padding: not calculated; leading storage may contain hidden ABI data')
+        return rows
+    cursor, padding = 0, 0
+    for start, end in sorted(covered) + [(size * 8, size * 8)]:
+        if start > cursor:
+            bits = start - cursor
+            amount = f'{bits // 8} bytes' if bits % 8 == 0 else f'{bits} bits'
+            rows.append(f'  Padding at +{cursor // 8}' +
+                        (f'.{cursor % 8} bits' if cursor % 8 else '') + f': {amount}')
+            padding += bits
+        cursor = max(cursor, end)
+    rows.append('Top-level padding: ' +
+                (f'{padding // 8} bytes' if padding % 8 == 0 else f'{padding} bits') +
+                ' (nested member padding is included in member storage)')
+    return rows
+
+
 class LLDB:
     def __init__(self, backend, attach, target, args):
         self.lldb = lldb_module()
@@ -94,6 +198,10 @@ class LLDB:
 
     def command(self, text):
         text = text.strip()
+        request = inspection_request(text)
+        if request:
+            self.inspect(*request)
+            return
         select_thread = text.startswith('thread ') and text[7:].strip().isdigit()
         caller_step = self.caller_step_command(text)
         verb, _, rest = text.partition(' ')
@@ -137,7 +245,10 @@ class LLDB:
             process = self.target.GetProcess()
             self.session.last_stop = (process.GetProcessID(), process.GetState(), process.GetStopID())
             self.session.command(text)
-            emit(output=list(self.session.log)[-100:])
+            rows = list(self.session.log)[-100:]
+            if verb in ('p', 'print'):
+                rows += self.variable_layout(rest)
+            emit(output=rows, inspection=verb in ('p', 'print'))
             self.session.log.clear()
         else:
             verb, _, rest = text.partition(' ')
@@ -156,12 +267,94 @@ class LLDB:
                 text = aliases.get(verb, verb) + (' ' + rest if rest else '')
             result = self.lldb.SBCommandReturnObject()
             self.debugger.GetCommandInterpreter().HandleCommand(text, result)
-            emit(output=(result.GetOutput() + result.GetError()).splitlines())
+            rows = (result.GetOutput() + result.GetError()).splitlines()
+            if verb in ('p', 'print'):
+                rows += self.variable_layout(rest)
+            emit(output=rows,
+                 inspection=verb in ('p', 'print'))
         self.target = self.debugger.GetSelectedTarget()
         if select_thread:
             self.select_source_frame(prefer_application=True)
         self.publish_breakpoints()
         self.snapshot()
+
+    def variable_layout(self, expression):
+        frame = self.target.GetProcess().GetSelectedThread().GetSelectedFrame()
+        value = frame.FindVariable(expression.strip())
+        if not value.IsValid():
+            return []
+        return type_layout(value.GetType(), expression)
+
+    def inspect(self, kind, expression, count):
+        process = self.target.GetProcess()
+        if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
+                                     self.lldb.eStateSuspended):
+            raise ValueError('Pause execution before inspecting memory or assembly')
+        frame = process.GetSelectedThread().GetSelectedFrame()
+        value = frame.FindVariable(expression)
+        if not value.IsValid():
+            value = frame.EvaluateExpression(expression)
+        if kind == 'layout' and value.IsValid() and value.GetType().IsValid():
+            emit(output=type_layout(value.GetType(), expression), inspection=True)
+            return
+        if not value.IsValid() or value.GetError().Fail():
+            raise ValueError(f'Cannot evaluate {expression}: {value.GetError()}')
+        # GetValueAsAddress strips pointer authentication/tag bits when needed.
+        address = (value.GetValueAsAddress() if value.GetType().IsPointerType()
+                   else value.GetValueAsUnsigned(self.lldb.LLDB_INVALID_ADDRESS))
+        if address in (0, self.lldb.LLDB_INVALID_ADDRESS):
+            raise ValueError(f'{expression} is not a readable, non-null address')
+        rows = [f'{"Disassembly" if kind == "disasm" else "Memory"}: {expression} @ 0x{address:x}']
+        if kind == 'mem':
+            error = self.lldb.SBError()
+            data = process.ReadMemory(address, count, error)
+            if not data:
+                raise ValueError(f'Cannot read memory at 0x{address:x}: {error}')
+            rows += memory_rows(address, data)
+            if len(data) < count:
+                rows.append(f'Only {len(data)} of {count} bytes are readable')
+            if value.GetType().IsPointerType():
+                pointee = value.GetType().GetPointeeType()
+                if pointee.IsValid() and pointee.GetByteSize() > 0:
+                    rows += type_layout(pointee, '*(' + expression + ')')
+        else:
+            start = self.target.ResolveLoadAddress(address)
+            instructions = self.target.ReadInstructions(start, count)
+            if not instructions.GetSize():
+                raise ValueError(f'No instructions at 0x{address:x}')
+            function = start.GetFunction()
+            symbol = function if function.IsValid() else start.GetSymbol()
+            begin, end = symbol.GetStartAddress(), symbol.GetEndAddress()
+            function_end = None
+            if begin.IsValid() and end.IsValid():
+                low, high = begin.GetLoadAddress(self.target), end.GetLoadAddress(self.target)
+                if 0 <= low < high < self.lldb.LLDB_INVALID_ADDRESS:
+                    rows.append(f'Function: {symbol.GetName()}, {high - low} code bytes')
+                    if low <= address < high:
+                        function_end = high
+            if function_end is None:
+                rows.append('Function size: unavailable; displaying bytes at the requested address')
+            rows.append('Function padding: not identified separately by debug symbols')
+            displayed_bytes, displayed_count = 0, 0
+            for instruction in instructions:
+                location = instruction.GetAddress().GetLoadAddress(self.target)
+                if function_end is not None and location >= function_end:
+                    break
+                data = instruction.GetData(self.target)
+                error = self.lldb.SBError()
+                encoded = ' '.join(f'{data.GetUnsignedInt8(error, i):02x}'
+                                   for i in range(min(instruction.GetByteSize(), 16)))
+                if error.Fail():
+                    encoded = '??'
+                displayed_bytes += instruction.GetByteSize()
+                displayed_count += 1
+                mnemonic = instruction.GetMnemonic(self.target) or '?'
+                operands = instruction.GetOperands(self.target) or ''
+                comment = instruction.GetComment(self.target) or ''
+                rows.append(f'0x{location:016x}  {mnemonic} {operands}  [{encoded}]' +
+                            (f'  ; {comment}' if comment else ''))
+            rows.append(f'Displayed: {displayed_count} instructions, {displayed_bytes} bytes')
+        emit(output=rows, inspection=True)
 
     def caller_step_command(self, text):
         # Source shown after attach may be several frames above the actual PC.
@@ -309,7 +502,7 @@ class LLDB:
             emit(state=state)
             return
         self.publish_breakpoints()
-        value = dict(state=state, variables=[], threads=[], path='', line=0, frame=0, function='', stopFunction='')
+        value = dict(state=state, variables=[], variableExpressions=[], threads=[], path='', line=0, frame=0, function='', stopFunction='')
         if stopped:
             if self.source_selection_pending:
                 self.select_source_frame(prefer_application=True)
@@ -325,6 +518,7 @@ class LLDB:
             value.update(path=path, line=line)
             for var in list(frame.GetVariables(True, True, False, True))[:256]:
                 value['variables'].append(f'{var.GetName()}: {var.GetTypeName()} = {var.GetValue() or var.GetSummary() or "{…}"}')
+                value['variableExpressions'].append(var.GetName() or '')
             for thread in list(process)[:256]:
                 value['threads'].append(dict(id=str(thread.GetIndexID()), label=str(thread)))
         emit(**value)
@@ -454,7 +648,21 @@ class GDB:
         self.proc.stdin.flush()
 
     def command(self, text):
+        text = text.strip()
         verb, _, rest = text.partition(' ')
+        request = inspection_request(text)
+        if request:
+            kind, expression, count = request
+            if kind == 'layout':
+                self.send('-data-evaluate-expression ' + json.dumps(f'sizeof({expression})'),
+                          ('inspection-size', expression, True))
+                return
+            self.send('-data-evaluate-expression ' + json.dumps(f'(unsigned long long)({expression})'),
+                      ('inspection-address', kind, expression, count))
+            return
+        if verb in ('p', 'print') and rest.strip() and not rest.startswith('/'):
+            self.send('-data-evaluate-expression ' + json.dumps(rest), ('inspection-value', rest))
+            return
         aliases = {'run': '-exec-run', 'r': '-exec-run', 'continue': '-exec-continue',
                    'c': '-exec-continue', 'next': '-exec-next', 'n': '-exec-next',
                    'step': '-exec-step', 's': '-exec-step', 'finish': '-exec-finish',
@@ -519,9 +727,80 @@ class GDB:
             elif prefix == '^':
                 kind = self.pending.pop(token, '')
                 if result == 'error':
+                    if isinstance(kind, tuple) and kind[0] == 'inspection-function':
+                        _, expression, address, count = kind
+                        self.send(f'-data-disassemble -s 0x{address:x} -e 0x{address + count * 16:x} -- 2',
+                                  ('inspection-assembly', expression, address, count))
+                        continue
+                    if isinstance(kind, tuple) and kind[0] in ('inspection-size', 'inspection-layout-type'):
+                        emit(output=['Layout unavailable: ' + data.get('msg', 'missing type information')],
+                             inspection=kind[0] == 'inspection-size' and kind[2])
+                        continue
                     if kind == 'source-frames':
                         self.refresh()
-                    emit(**dict(output=[data.get('msg', 'Debugger command failed')], **({'state': 'error'} if kind == 'startup' else {})))
+                    emit(**dict(output=[data.get('msg', 'Debugger command failed')],
+                                inspection=isinstance(kind, tuple),
+                                **({'state': 'error'} if kind == 'startup' else {})))
+                elif isinstance(kind, tuple):
+                    if kind[0] == 'inspection-value':
+                        emit(output=[f'{kind[1]} = {data.get("value", "<unavailable>")}'], inspection=True)
+                        self.send('-data-evaluate-expression ' + json.dumps(f'sizeof({kind[1]})'),
+                                  ('inspection-size', kind[1], False))
+                        self.refresh()
+                    elif kind[0] == 'inspection-size':
+                        _, expression, focus = kind
+                        emit(output=[f'Storage: {expression}, {data.get("value", "unknown")} bytes'], inspection=focus)
+                        self.send('-interpreter-exec console ' + json.dumps('ptype /o ' + expression),
+                                  ('inspection-layout-type', expression))
+                    elif kind[0] == 'inspection-layout-type':
+                        pass  # ptype /o publishes field offsets and holes via console records.
+                    elif kind[0] == 'inspection-address':
+                        _, operation, expression, count = kind
+                        try:
+                            address = int(data.get('value', '').split()[0], 0)
+                            if not 0 < address < 2**64:
+                                raise ValueError()
+                        except (ValueError, IndexError):
+                            emit(output=[f'{expression} is not a readable, non-null address'], inspection=True)
+                            continue
+                        if operation == 'mem':
+                            self.send(f'-data-read-memory-bytes 0x{address:x} {count}',
+                                      ('inspection-memory', expression, address, count))
+                        else:
+                            self.send(f'-data-disassemble -a 0x{address:x} -- 2',
+                                      ('inspection-function', expression, address, count))
+                    else:
+                        _, expression, address, count = kind
+                        rows = [f'{"Memory" if kind[0] == "inspection-memory" else "Disassembly"}: {expression} @ 0x{address:x}']
+                        if kind[0] == 'inspection-memory':
+                            total = 0
+                            for block in data.get('memory', []):
+                                chunk = bytes.fromhex(block.get('contents', ''))[:count - total]
+                                rows += memory_rows(int(block['begin'], 0), chunk)
+                                total += len(chunk)
+                            if total < count:
+                                rows.append(f'Only {total} of {count} bytes are readable')
+                        else:
+                            instructions = data.get('asm_insns', [])
+                            if kind[0] == 'inspection-function' and instructions:
+                                low = min(int(i['address'], 0) for i in instructions)
+                                high = max(int(i['address'], 0) + len(i.get('opcodes', '').split()) for i in instructions)
+                                rows.append(f'Function: {instructions[0].get("func-name", "?")}, {high - low} code bytes')
+                            else:
+                                rows.append('Function size: unavailable; displaying bytes at the requested address')
+                            rows.append('Function padding: not identified separately by debug symbols')
+                            shown = [i for i in instructions if int(i['address'], 0) >= address][:count]
+                            for instruction in shown:
+                                symbol = instruction.get('func-name', '')
+                                offset = instruction.get('offset', '0')
+                                rows.append(f'{instruction.get("address", "?")}  {instruction.get("inst", "?")}  '
+                                            f'[{instruction.get("opcodes", "")}]  <{symbol}+{offset}>')
+                            rows.append(f'Displayed: {len(shown)} instructions, ' +
+                                        str(sum(len(i.get('opcodes', '').split()) for i in shown)) + ' bytes')
+                        emit(output=rows, inspection=True)
+                        if kind[0] == 'inspection-memory':
+                            self.send('-data-evaluate-expression ' + json.dumps(f'sizeof(*({expression}))'),
+                                      ('inspection-size', f'*({expression})', False))
                 elif kind == 'breakpoints':
                     emit(breakpoints=gdb_breakpoints(data))
                 elif kind == 'breakpoint-change':
@@ -532,7 +811,8 @@ class GDB:
                          frame=int(frame.get('level', 0)), function=frame.get('func', ''))
                 elif kind == 'variables':
                     emit(variables=[f'{v.get("name")}: {v.get("type", "")} = {v.get("value", "{…}")}'
-                                    for v in data.get('variables', [])[:256]])
+                                    for v in data.get('variables', [])[:256]],
+                         variableExpressions=[v.get('name', '') for v in data.get('variables', [])[:256]])
                 elif kind == 'threads':
                     emit(threads=[dict(id=t['id'], label=f'{t["id"]} {t.get("name", t.get("target-id", ""))} {t.get("state", "")}')
                                   for t in data.get('threads', [])[:256]])
@@ -590,7 +870,7 @@ def main():
                     try:
                         engine.command(command)
                     except Exception as error:
-                        emit(output=[str(error)])
+                        emit(output=[str(error)], inspection=True)
     except Exception as error:
         emit(state='error', output=[str(error)])
     finally:

@@ -406,6 +406,13 @@ Alias for `theme.base.fg`.
 \par theme.base.background
 Alias for `theme.base.bg`.
 
+\par theme.debugger.source_bg / variables_bg / threads_bg / execution_bg
+Optional background colors for debugger source, variables, threads, and the
+execution line. Defaults derive from the base background and theme accents.
+Alternating rows receive an additional tint, syntax foreground colors are
+preserved, and the focused selection uses `theme.selection`. Set these keys
+under `[theme.debugger]`, for example `variables_bg = "#2e3335"`.
+
 \par theme.asm.selection_bg
 Background color for the source range used to filter a visual-selection assembly
 view. Defaults to a muted blue tint derived from the editor background. The tint
