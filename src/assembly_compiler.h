@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace assembly_compiler
@@ -16,6 +17,8 @@ struct Request
     std::string compileCommandsDirectory;
     std::vector<std::string> flags;
     std::optional<std::vector<std::string>> sourceLines;
+    // Inclusive one-based source lines; compile the full file, filter output.
+    std::optional<std::pair<int, int>> sourceRange;
     bool raw = false;
     bool split = false;
 };

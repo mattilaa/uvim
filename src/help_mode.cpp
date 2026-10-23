@@ -1573,6 +1573,12 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
         lines = {
             "# Assembly browser",
             "",
+            "Select lines with V (or v), then :asm . [flags] to inspect",
+            "only assembly mapped to the selected source lines. The full",
+            "buffer is compiled so includes and declarations still work.",
+            "The title shows the range; --split keeps original source lines.",
+            "Normal-mode :asm . shows the full output again.",
+            "",
             "`:asm .` / `:asm` compiles C/C++ or Mlang (.mla), including",
             "unsaved edits, into a read-only assembly view. `:asm path.cpp`",
             "compiles another file (using its unsaved buffer if already open).",

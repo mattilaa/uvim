@@ -38,6 +38,9 @@ struct CommandMode
     bool locCompletion = false;
     std::string locCommand;
     bool assemblyFlagPopup = false;
+#ifdef UVIM_ENABLE_ASM_VIEW
+    std::optional<std::pair<int, int>> assemblySourceRange;
+#endif
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

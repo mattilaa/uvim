@@ -148,6 +148,11 @@ includes common Normal/Insert/Visual/Command mode bindings.
   the source/assembly pane. Navigation in either pane reveals matching rows
   in the other pane with a subtle green background and preserved syntax colors.
   Lines without emitted instructions and code from other files have no match.
+- Select source lines with `V` or `v`, then run `:asm . [flags]` to show only
+  assembly mapped to those lines. Compilation still uses the full buffer for
+  includes/types/declarations. Character selections include whole touched lines.
+  `--split` and the `--` flag picker work with selections; the source pane keeps
+  original line numbers. Normal-mode `:asm .` shows the complete output again.
 - The assembly browser requires the build option `UVIM_ENABLE_ASM_VIEW=ON`
   and auxiliary views. Only the `full` configurator preset enables it by default;
   toggle Assembly browser in `uvim-config` or use `--enable/--disable asm-view`.

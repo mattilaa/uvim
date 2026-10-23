@@ -1053,6 +1053,37 @@ Result compile(const Request& inputRequest,
     result.success = !result.lines.empty();
     if(!result.success)
         result.diagnostics = "asm: compiler produced no assembly";
+    if(result.success && request.sourceRange)
+    {
+        const auto [first, last] = *request.sourceRange;
+        size_t next = 0;
+        for(size_t row = 0; row < result.lines.size(); ++row)
+        {
+            const auto& origin = result.sourceOrigins[row];
+            const int line = result.sourceLineForAssembly[row] > 0
+                                 ? result.sourceLineForAssembly[row]
+                             : origin.mainSource ? origin.line
+                                                 : 0;
+            if(line < first || line > last || line == 0)
+                continue;
+            if(next != row)
+            {
+                result.lines[next] = std::move(result.lines[row]);
+                result.sourceLineForAssembly[next] =
+                    result.sourceLineForAssembly[row];
+                result.sourceOrigins[next] =
+                    std::move(result.sourceOrigins[row]);
+            }
+            ++next;
+        }
+        result.lines.resize(next);
+        result.sourceLineForAssembly.resize(next);
+        result.sourceOrigins.resize(next);
+        if(result.lines.empty())
+            result.diagnostics =
+                "No assembly maps to the selected source lines. "
+                "They may have been optimized away or contain no instructions.";
+    }
     return result;
 }
 } // namespace assembly_compiler

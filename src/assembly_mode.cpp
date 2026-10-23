@@ -233,6 +233,14 @@ void AssemblyMode::on_enter(ModeContext& ctx)
         return;
     }
     split = sourcePane = request.split;
+    if(sourceRange && request.path != ".")
+    {
+        content->compiling = false;
+        content->result.diagnostics =
+            "asm: a visual selection applies to the current buffer; use :asm .";
+        return;
+    }
+    request.sourceRange = sourceRange;
     if(request.path == ".")
     {
         if(!editor.currentBuffer || !editor.lines)
@@ -250,6 +258,8 @@ void AssemblyMode::on_enter(ModeContext& ctx)
     }
     else
         sourceName = request.path;
+    if(sourceRange)
+        sourceCursor = sourceRange->first - 1;
     if(request.path.empty())
         request.path = "untitled.cpp";
     request.path =
@@ -426,8 +436,14 @@ void AssemblyMode::inspectLine(Editor& editor)
     docsTask = 0;
     content->docsLoading = false;
     docsOffset = 0;
-    if(!inspect || content->compiling || content->result.lines.empty())
+    if(!inspect || content->compiling)
         return;
+    if(content->result.lines.empty())
+    {
+        content->docsTitle = "Instruction help";
+        content->docsText = "There are no assembly instructions to inspect.";
+        return;
+    }
     if(split && sourcePane && linkedSourceLine() == 0)
     {
         content->docsLoading = false;
@@ -659,9 +675,13 @@ void AssemblyMode::draw(Editor& editor)
         result.architecture.empty()
             ? (content->compiling ? "target pending" : "unknown")
             : result.architecture;
-    out +=
-        clipped(displayText(" Assembly: [" + architecture + "] " + sourceName),
-                editor.screenCols);
+    const std::string selection =
+        sourceRange ? " [lines " + std::to_string(sourceRange->first) + "-" +
+                          std::to_string(sourceRange->second) + "]"
+                    : "";
+    out += clipped(displayText(" Assembly: [" + architecture + "]" + selection +
+                               " " + sourceName),
+                   editor.screenCols);
     out += editor.theme.reset();
     HeaderHelp::append(out, editor.theme, editor.screenCols, helpTokens());
     const int rows = contentRows(editor, split);
@@ -776,10 +796,10 @@ void AssemblyMode::draw(Editor& editor)
                 out += editor.theme.uiInfo();
                 message = " Compiling... q/Esc returns immediately.";
             }
-            else if(!source && !result.success &&
+            else if(!source && (!result.success || result.lines.empty()) &&
                     row < static_cast<int>(errors.size()))
             {
-                out += editor.theme.uiError();
+                out += result.success ? editor.theme.uiInfo() : editor.theme.uiError();
                 message = " " + errors[row];
             }
             const auto text = clipped(message, width);
@@ -805,8 +825,10 @@ void AssemblyMode::draw(Editor& editor)
     status.modeLabel = name();
     status.context = result.compiler.empty() ? sourceName : result.compiler;
     status.state = content->compiling ? "compiling"
-                   : result.success   ? result.options
-                                      : "compile failed";
+                   : !result.success  ? "compile failed"
+                   : result.lines.empty() && sourceRange
+                       ? "no instructions for selection"
+                       : result.options;
     if(inspect)
         status.flags.push_back("inspect");
     if(!result.compilationDatabase.empty())

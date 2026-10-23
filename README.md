@@ -866,6 +866,15 @@ continue editing the command. Enter again compiles. Type `--` again to add
 another suggested flag. Escape cancels the entire command without compiling.
 Flags can also be typed manually, including full options such as `--compiler`.
 
+To inspect a selection, select source lines with `V` and `j/k` (or use `v`),
+then enter `:asm . -O2`, optionally with `--split` or the `--` flag picker.
+The full buffer is compiled to preserve includes and surrounding declarations;
+only assembly mapped to the selected source lines is shown. Character selections
+include every source line they touch. The title shows the selected line range,
+and the source pane keeps the full file with its original line numbers.
+Optimized-away selections show an explanation instead of a compile error.
+Run `:asm .` from normal mode to browse the complete output again.
+
 Instruction inspection prefers Compiler Explorer API documentation by default,
 with the exact inspected instruction (for example `movq %rdi, %rax`) pinned
 above the documentation. API operand forms and examples, when provided, appear

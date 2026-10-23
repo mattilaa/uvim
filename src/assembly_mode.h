@@ -35,6 +35,7 @@ struct AssemblyMode
 
     std::string arguments;
     std::string sourceName;
+    std::optional<std::pair<int, int>> sourceRange;
     std::shared_ptr<Content> content;
     int cursor = 0;
     int offset = 0;
@@ -49,7 +50,11 @@ struct AssemblyMode
 
     AssemblyMode() = default;
 
-    explicit AssemblyMode(std::string args) : arguments(std::move(args)) {}
+    explicit AssemblyMode(std::string args,
+                          std::optional<std::pair<int, int>> range = {})
+        : arguments(std::move(args)), sourceRange(range)
+    {
+    }
 
     void on_enter(ModeContext& ctx);
     void on_exit(ModeContext& ctx);

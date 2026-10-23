@@ -1333,3 +1333,158 @@ TEST_F(AssemblyViewTest, InspectorSeparatesHeadingsProseExamplesAndReferences)
         frame.find(editor.theme.syntax(TOKEN_STRING) + "Adds the operands."),
         std::string::npos);
 }
+
+TEST_F(AssemblyViewTest, VisualSelectionFiltersAssemblyAndCompilesFullSnapshot)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "}"};
+    *editor.cursorY = 1;
+    const auto snapshot = *editor.lines;
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('V');
+    dispatch_command(sm, fakeCommand(root, "--split -O2"));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    const auto& result = view->content->result;
+    ASSERT_TRUE(result.success) << result.diagnostics;
+    ASSERT_FALSE(result.lines.empty());
+    EXPECT_EQ(view->sourceRange, (std::pair{2, 2}));
+    EXPECT_TRUE(std::all_of(result.sourceLineForAssembly.begin(),
+                            result.sourceLineForAssembly.end(),
+                            [](int line) { return line == 2; }));
+    EXPECT_EQ(result.sourceOrigins.size(), result.lines.size());
+    EXPECT_TRUE(read_file(root / "source").starts_with(
+        "int example(int x) {\n    x += 1;\n    return x;\n}\n"));
+    EXPECT_EQ(result.sourceLines, snapshot);
+    EXPECT_EQ(*editor.lines, snapshot);
+    EXPECT_EQ(view->sourceCursor, 1);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find("[lines 2-2]"), std::string::npos);
+    sm.dispatch('q');
+    // An ordinary invocation after visual inspection shows the full output.
+    dispatch_command(sm, fakeCommand(root));
+    view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_FALSE(view->sourceRange);
+    EXPECT_NE(std::find(view->content->result.sourceLineForAssembly.begin(),
+                        view->content->result.sourceLineForAssembly.end(), 1),
+              view->content->result.sourceLineForAssembly.end());
+}
+
+TEST_F(AssemblyViewTest, ReversedVisualSelectionSurvivesCompilerFlagPicker)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "}"};
+    *editor.cursorY = 2;
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('v');
+    sm.dispatch('k');
+    const auto command = fakeCommand(root) + " --";
+    sm.dispatch(':');
+    for(char key : command)
+        sm.dispatch(key);
+    ASSERT_TRUE(editor.commandPopupActive);
+    sm.dispatch(keyCode(control::ControlKey::ENTER)); // insert -O2
+    EXPECT_STREQ(sm.currentStateName(), "COMMAND");
+    sm.dispatch(keyCode(control::ControlKey::ENTER)); // compile
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    ASSERT_TRUE(view->content->result.success);
+    EXPECT_EQ(view->sourceRange, (std::pair{2, 3}));
+    const auto& mapping = view->content->result.sourceLineForAssembly;
+    ASSERT_FALSE(mapping.empty());
+    EXPECT_TRUE(std::all_of(mapping.begin(), mapping.end(),
+                            [](int line) { return line >= 2 && line <= 3; }));
+    EXPECT_NE(read_file(root / "arguments").find("-O2"), std::string::npos);
+}
+
+TEST_F(AssemblyViewTest, CancellingVisualCommandDoesNotFilterNextAssemblyView)
+{
+    *editor.lines = {"int x;", "int y;", "int z;"};
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('V');
+    sm.dispatch(':');
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    EXPECT_FALSE(editor.pendingVisualColorRange);
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_FALSE(view->sourceRange);
+    EXPECT_GT(view->content->result.lines.size(), 1u);
+}
+
+TEST_F(AssemblyViewTest, VisualSelectionWithNoInstructionsExplainsEmptyOutput)
+{
+    *editor.lines = {"int example(int x) {", "    x += 1;", "    return x;",
+                     "}"};
+    *editor.cursorY = 3;
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('V');
+    dispatch_command(sm, fakeCommand(root));
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(waitFor(editor, [&] { return !view->content->compiling; }));
+    EXPECT_TRUE(view->content->result.success);
+    EXPECT_TRUE(view->content->result.lines.empty());
+    EXPECT_NE(view->content->result.diagnostics.find("No assembly maps"),
+              std::string::npos);
+    testing::internal::CaptureStdout();
+    view->draw(editor);
+    const auto frame = testing::internal::GetCapturedStdout();
+    EXPECT_NE(frame.find("No assembly maps"), std::string::npos);
+    EXPECT_EQ(frame.find("compile failed"), std::string::npos);
+    sm.dispatch('i');
+    EXPECT_NE(view->content->docsText.find("no assembly instructions"),
+              std::string::npos);
+    sm.dispatch('q');
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+}
+
+TEST_F(AssemblyViewTest, VisualSelectionCannotApplyToAnotherFile)
+{
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch('V');
+    dispatch_command(sm, "asm other.cpp");
+    auto* view = sm.getState<AssemblyMode>();
+    ASSERT_NE(view, nullptr);
+    EXPECT_FALSE(view->content->compiling);
+    EXPECT_NE(view->content->result.diagnostics.find("current buffer"),
+              std::string::npos);
+    EXPECT_TRUE(editor.tasks.idle());
+}
+
+TEST(AssemblyViewCompilerTest, SelectedBodyKeepsDeclarationContextAndSourceNumbers)
+{
+    if(!executable_lookup::find("clang++").found)
+        GTEST_SKIP() << "Clang not installed";
+    const auto root = make_temp_dir("uvim_asm_selection_");
+    const auto source = root / "selected.cpp";
+    write_file(root / "context.h", "using Value = int;\n#define INCREMENT 7\n");
+    const std::vector<std::string> lines = {
+        "#include \"context.h\"", "Value selected(Value x) {",
+        "    return x + INCREMENT;", "}",
+        "Value unselected(Value x) { return x * 9; }"};
+    assembly_compiler::Request request;
+    request.path = source.string();
+    request.sourceLines = lines;
+    request.compiler = "clang";
+    request.flags = {"-O0"};
+    request.sourceRange = std::pair{3, 3};
+    const auto result = assembly_compiler::compile(request, [] { return false; });
+    EXPECT_TRUE(result.success) << result.diagnostics;
+    ASSERT_FALSE(result.lines.empty());
+    EXPECT_EQ(result.sourceLines, lines);
+    for(size_t row = 0; row < result.lines.size(); ++row)
+    {
+        EXPECT_EQ(result.sourceLineForAssembly[row], 3);
+        EXPECT_TRUE(result.sourceOrigins[row].mainSource);
+        EXPECT_EQ(result.lines[row].find("unselected"), std::string::npos);
+    }
+    std::filesystem::remove_all(root);
+}

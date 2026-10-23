@@ -92,6 +92,15 @@ bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
 void CommandMode::on_enter(ModeContext& ctx)
 {
     ctx.cancelCompletion();
+#ifdef UVIM_ENABLE_ASM_VIEW
+    assemblySourceRange.reset();
+    if(ctx.editor && ctx.editor->pendingVisualColorRange)
+    {
+        const auto& range = *ctx.editor->pendingVisualColorRange;
+        assemblySourceRange = std::pair{std::min(range.startY, range.endY) + 1,
+                                        std::max(range.startY, range.endY) + 1};
+    }
+#endif
     ctx.commandBuffer = ":" + initialInput;
     completions.clear();
     completionIndex = -1;
@@ -107,6 +116,8 @@ void CommandMode::on_enter(ModeContext& ctx)
 
 void CommandMode::on_exit(ModeContext& ctx)
 {
+    if(ctx.editor)
+        ctx.editor->pendingVisualColorRange.reset();
     ctx.commandBuffer.clear();
     completions.clear();
     completionIndex = -1;
@@ -423,7 +434,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             {
 #ifdef UVIM_ENABLE_ASM_VIEW
                 if(mode == ASSEMBLY)
-                    return AssemblyMode{path};
+                    return AssemblyMode{path, assemblySourceRange};
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
                 if(mode == FUNCTION_BROWSER)
