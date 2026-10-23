@@ -5,11 +5,26 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace editor::statemachine
 {
 struct DebuggerTransport;
+
+struct DebuggerBreakpointLocation
+{
+    std::string path;
+    int line = 0;
+    bool enabled = true;
+};
+
+struct DebuggerBreakpoint
+{
+    std::string id, description;
+    bool enabled = true, pending = false;
+    std::vector<DebuggerBreakpointLocation> locations;
+};
 
 struct DebuggerMode
 {
@@ -41,6 +56,12 @@ struct DebuggerMode
     std::shared_ptr<DebuggerTransport> transport;
     bool started = false;
     bool hasStoppedSnapshot = false;
+    std::vector<DebuggerBreakpoint> breakpoints;
+    std::unordered_set<int> breakpointLines;
+    bool breakpointListOpen = false;
+    int breakpointCursor = 0, breakpointOffset = 0;
+    std::vector<std::string> promptCommands, promptMenuEntries;
+    int promptMenuCursor = 0, promptMenuOffset = 0;
 
     DebuggerMode() = default;
 
@@ -64,5 +85,7 @@ private:
     void execute(const std::string& command);
     void complete(ModeContext& ctx);
     void clamp(const Editor& editor);
+    void updateBreakpointLines();
+    void updatePromptMenu();
 };
 } // namespace editor::statemachine

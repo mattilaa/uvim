@@ -282,7 +282,7 @@ TEST(RealModeTransitionsTest, DebuggerKeepsLastStopAndViewportWhileStepping)
     std::filesystem::remove_all(dir);
 }
 
-TEST(RealModeTransitionsTest, DebuggerPromptEditsDoNotRepaintPanes)
+TEST(RealModeTransitionsTest, DebuggerCommandMenuOnlyRepaintsCoveredRows)
 {
     Editor editor = Editor::createForTests();
     editor.createNewBuffer();
@@ -309,7 +309,7 @@ TEST(RealModeTransitionsTest, DebuggerPromptEditsDoNotRepaintPanes)
     const auto prompt = testing::internal::GetCapturedStdout();
     EXPECT_NE(prompt.find(":n"), std::string::npos);
     EXPECT_EQ(prompt.find("Variables"), std::string::npos);
-    EXPECT_EQ(prompt.find("main-thread"), std::string::npos);
+    EXPECT_NE(prompt.find("Debugger commands"), std::string::npos);
     EXPECT_EQ(prompt.find("int main"), std::string::npos);
 }
 
@@ -469,5 +469,97 @@ TEST(RealModeTransitionsTest, DebuggerProcessPickerWorksInSharedBrowserPrompt)
     EXPECT_EQ(executed, "dbgattach 1234");
     EXPECT_FALSE(prompt.isActive());
     EXPECT_FALSE(editor.commandPopupActive);
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerBreakpointMarkersTrackBackendLocationsAndDeletion)
+{
+    auto dir = make_temp_dir("uvim_breakpoints_");
+    auto file = dir / "demo.cpp";
+    write_file(file,
+               "int main() {\n    int count = 42;\n    return count;\n}\n");
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 30;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string path;
+    json_utils::append_escaped(path, file.string());
+    debug->applyMessage("{\"state\":\"stopped\",\"path\":" + path +
+                        ",\"line\":2,\"breakpoints\":[{\"id\":\"1\","
+                        "\"enabled\":true,\"locations\":[{\"path\":" +
+                        path +
+                        ",\"line\":2}]},{\"id\":\"2\",\"enabled\":false,"
+                        "\"locations\":[{\"path\":" +
+                        path + ",\"line\":3}]}]}");
+    EXPECT_TRUE(debug->breakpointLines.contains(2));
+    EXPECT_FALSE(debug->breakpointLines.contains(3));
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    auto rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find(color::rgbBg(170, 35, 50)), std::string::npos);
+    dispatch_command(sm, "bps");
+    EXPECT_TRUE(debug->breakpointListOpen);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->breakpointCursor, 1);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(debug->breakpointCursor, 0);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("Breakpoints"), std::string::npos);
+    EXPECT_NE(rendered.find("#1 enabled"), std::string::npos);
+    EXPECT_NE(rendered.find("#2 disabled"), std::string::npos);
+    debug->applyMessage("{\"breakpoints\":[]}");
+    EXPECT_TRUE(debug->breakpoints.empty());
+    EXPECT_TRUE(debug->breakpointLines.empty());
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    rendered = testing::internal::GetCapturedStdout();
+    EXPECT_NE(rendered.find("No breakpoints"), std::string::npos);
+    EXPECT_EQ(rendered.find(color::rgbBg(170, 35, 50)), std::string::npos);
+    sm.dispatch(27);
+    EXPECT_FALSE(debug->breakpointListOpen);
+    EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerPromptCommandsFilterAndCompleteWithNavigation)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    sm.dispatch(':');
+    ASSERT_GT(debug->promptCommands.size(), 3u);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(debug->promptMenuCursor, 1);
+    EXPECT_TRUE(debug->prompt.empty());
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_EQ(debug->prompt, "bps");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_TRUE(debug->breakpointListOpen);
+    sm.dispatch(27);
+    sm.dispatch(':');
+    for(char c : std::string("del"))
+        sm.dispatch(c);
+    ASSERT_FALSE(debug->promptCommands.empty());
+    EXPECT_EQ(debug->promptCommands.front(), "delete ");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_EQ(debug->prompt, "delete ");
+    EXPECT_TRUE(debug->promptActive);
+    EXPECT_TRUE(debug->promptCommands.empty());
+    sm.dispatch(27);
+    sm.dispatch(':');
+    sm.dispatch('n');
+    ASSERT_FALSE(debug->promptCommands.empty());
+    EXPECT_EQ(debug->promptCommands.front(), "next");
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_FALSE(debug->promptActive);
+    EXPECT_TRUE(debug->promptCommands.empty());
 }
 #endif

@@ -1,16 +1,20 @@
 #include "debugger_mode.h"
 #include "ascii.h"
+#include "color_constant.h"
 #include "debugger_bridge.h"
 #include "editor.h"
 #include "editor_path_utilities.h"
+#include "editor_utils.h"
 #include "json_utils.h"
 #include "mode_state_machine.h"
 #include "process_launch.h"
 #include "terminal.h"
 #include "text_utils.h"
+#include "widgets/command_popup.h"
 #include "widgets/status_bar.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -134,6 +138,76 @@ std::array<DebuggerRect, 4> paneRects(const Editor& editor, bool stopped,
         rects[3] = {left + 1, 3 + top, width - left, body - top};
     }
     return rects;
+}
+
+struct DebuggerCommandEntry
+{
+    const char* command;
+    const char* description;
+    const char* alias;
+};
+
+const std::vector<DebuggerCommandEntry>& debuggerCommands()
+{
+    static const std::vector<DebuggerCommandEntry> commands{
+        {"b ", "Set breakpoint at file:line or function", "break"},
+        {"bps", "Browse breakpoints; d deletes selection", ""},
+        {"delete ", "Delete breakpoint by ID", ""},
+        {"disable ", "Disable breakpoint by ID", ""},
+        {"enable ", "Enable breakpoint by ID", ""},
+        {"continue", "Continue execution", "c"},
+        {"next", "Step over the next source line", "n"},
+        {"step", "Step into a call", "s"},
+        {"finish", "Step out of the current function", "f"},
+        {"interrupt", "Pause execution", ""},
+        {"run", "Restart the program", "r"},
+        {"locals", "Print local variables", ""},
+        {"p ", "Evaluate an expression", "print"},
+        {"bt", "Print stack frames", ""},
+        {"threads", "List threads", ""},
+        {"thread ", "Select a thread by ID", ""},
+        {"frame ", "Select a stack frame", ""},
+        {"up", "Inspect the caller frame", ""},
+        {"down", "Inspect a younger frame", ""},
+        {"help", "Show native debugger help", ""},
+        {"quit", "Close the debugger session", "q"}};
+    return commands;
+}
+
+void moveMenuCursor(int& cursor, int& offset, int size, int delta,
+                    int screenRows)
+{
+    cursor = std::clamp(cursor + delta, 0, std::max(0, size - 1));
+    const int rows = std::max(1, std::min(8, screenRows - 2));
+    if(cursor < offset)
+        offset = cursor;
+    if(cursor >= offset + rows)
+        offset = cursor - rows + 1;
+}
+
+// The shared popup uses absolute row positions. Fold its rows into the frame
+// cache so opening/closing a menu restores only its covered rows.
+void overlayPopupRows(std::vector<std::string>& rows, const std::string& popup,
+                      const Theme& theme)
+{
+    size_t start = 0;
+    int active = -1;
+    for(size_t position = popup.find("\x1b["); position != std::string::npos;
+        position = popup.find("\x1b[", position + 2))
+    {
+        int row = 0, column = 0, length = 0;
+        if(std::sscanf(popup.c_str() + position, "\x1b[%d;%dH%n", &row, &column,
+                       &length) != 2 ||
+           length == 0)
+            continue;
+        if(active >= 0 && active < static_cast<int>(rows.size()))
+            rows[active] += theme.reset() + theme.baseFg() +
+                            popup.substr(start, position - start);
+        active = row - 1;
+        start = position;
+    }
+    if(active >= 0 && active < static_cast<int>(rows.size()))
+        rows[active] += theme.reset() + theme.baseFg() + popup.substr(start);
 }
 
 std::string quotedJson(std::string_view value)
@@ -454,14 +528,114 @@ void DebuggerMode::applyMessage(const std::string& message)
         frameFunction = safe(json_utils::get_string(*doc, "function"));
     if(!retainSnapshot && json_utils::has(*doc, "stopFunction"))
         stopFunction = safe(json_utils::get_string(*doc, "stopFunction"));
+    if(auto list = json_utils::find(*doc, "breakpoints");
+       list && list->IsArray())
+    {
+        const auto selected =
+            breakpointCursor >= 0 &&
+                    breakpointCursor < static_cast<int>(breakpoints.size())
+                ? breakpoints[breakpointCursor].id
+                : std::string{};
+        breakpoints.clear();
+        for(const auto& item : list->GetArray())
+        {
+            DebuggerBreakpoint bp;
+            bp.id = json_utils::get_string(item, "id");
+            bp.description = safe(json_utils::get_string(item, "description"));
+            bp.enabled = json_utils::get_bool(item, "enabled", true);
+            bp.pending = json_utils::get_bool(item, "pending");
+            if(auto locations = json_utils::find(item, "locations");
+               locations && locations->IsArray())
+                for(const auto& location : locations->GetArray())
+                    bp.locations.push_back(
+                        {json_utils::get_string(location, "path"),
+                         json_utils::get_int(location, "line"),
+                         json_utils::get_bool(location, "enabled", true)});
+            if(!bp.id.empty())
+                breakpoints.push_back(std::move(bp));
+        }
+        for(int i = 0; i < static_cast<int>(breakpoints.size()); ++i)
+            if(breakpoints[i].id == selected)
+                breakpointCursor = i;
+        breakpointCursor =
+            std::clamp(breakpointCursor, 0,
+                       std::max(0, static_cast<int>(breakpoints.size()) - 1));
+    }
+    updateBreakpointLines();
     if(!hasStoppedSnapshot && state != "stopped" && pane > 1)
         pane = 0;
+}
+
+void DebuggerMode::updateBreakpointLines()
+{
+    breakpointLines.clear();
+    if(sourcePath.empty())
+        return;
+    auto canonical = [](const std::string& path)
+    {
+        std::error_code error;
+        const auto result = std::filesystem::weakly_canonical(
+            EditorPathUtilities::resolveEditorPath(path), error);
+        return error ? std::filesystem::path(path).lexically_normal() : result;
+    };
+    const auto source = canonical(sourcePath);
+    for(const auto& bp : breakpoints)
+        if(bp.enabled)
+            for(const auto& location : bp.locations)
+                if(location.enabled && location.line > 0 &&
+                   !location.path.empty() && canonical(location.path) == source)
+                    breakpointLines.insert(location.line);
+}
+
+void DebuggerMode::updatePromptMenu()
+{
+    promptCommands.clear();
+    promptMenuEntries.clear();
+    promptMenuCursor = promptMenuOffset = 0;
+    if(!promptActive || prompt.find_first_of(" \t") != std::string::npos)
+        return;
+    std::vector<std::pair<int, int>> ranked;
+    std::vector<int> positions;
+    const auto& commands = debuggerCommands();
+    for(int i = 0; i < static_cast<int>(commands.size()); ++i)
+    {
+        const auto& entry = commands[i];
+        int score = editor::helper::fuzzyScoreWithPositions(
+            prompt, entry.command, positions);
+        if(!prompt.empty() && prompt == entry.alias)
+            score = 100000;
+        if(score >= 0)
+            ranked.emplace_back(i, score);
+    }
+    std::stable_sort(ranked.begin(), ranked.end(),
+                     [](const auto& a, const auto& b)
+                     { return a.second > b.second; });
+    for(const auto& [index, score] : ranked)
+    {
+        (void)score;
+        const auto& entry = commands[index];
+        promptCommands.emplace_back(entry.command);
+        promptMenuEntries.push_back(
+            std::string(entry.command) +
+            std::string(
+                std::max(2, 14 - static_cast<int>(
+                                     std::string_view(entry.command).size())),
+                ' ') +
+            entry.description);
+    }
 }
 
 void DebuggerMode::execute(const std::string& command)
 {
     if(command.empty())
         return;
+    if(command == "bps")
+    {
+        breakpointListOpen = true;
+        if(transport && !transport->ended)
+            transport->send("bps");
+        return;
+    }
     if(!transport || transport->ended)
     {
         output.push_back("Debugger is not connected");
@@ -537,18 +711,54 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
             promptActive = false;
             prompt.clear();
             completions.clear();
+            updatePromptMenu();
         }
+        else if((key == keyCode(control::ControlKey::CTRL_J) ||
+                 key == keyCode(navigation::NavigationKey::ARROW_DOWN)) &&
+                !promptCommands.empty())
+            moveMenuCursor(promptMenuCursor, promptMenuOffset,
+                           promptCommands.size(), 1, ctx.editor->screenRows);
+        else if((key == keyCode(control::ControlKey::CTRL_K) ||
+                 key == keyCode(navigation::NavigationKey::ARROW_UP)) &&
+                !promptCommands.empty())
+            moveMenuCursor(promptMenuCursor, promptMenuOffset,
+                           promptCommands.size(), -1, ctx.editor->screenRows);
         else if(key == keyCode(control::ControlKey::ENTER))
         {
+            bool exact = false;
+            for(const auto& entry : debuggerCommands())
+                if(prompt == entry.command ||
+                   (!std::string_view(entry.alias).empty() &&
+                    prompt == entry.alias &&
+                    !std::string_view(entry.command).ends_with(' ')))
+                    exact = true;
+            if(!promptCommands.empty() && !exact)
+            {
+                prompt = promptCommands[promptMenuCursor];
+                if(prompt.ends_with(' '))
+                {
+                    updatePromptMenu();
+                    return {};
+                }
+            }
             if(prompt == "q" || prompt == "quit")
                 return defaultExitMode(ctx.editor);
             execute(prompt);
             promptActive = false;
             prompt.clear();
             completions.clear();
+            updatePromptMenu();
         }
         else if(key == '\t')
-            complete(ctx);
+        {
+            if(!promptCommands.empty())
+            {
+                prompt = promptCommands[promptMenuCursor];
+                updatePromptMenu();
+            }
+            else
+                complete(ctx);
+        }
         else
         {
             completions.clear();
@@ -562,7 +772,33 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
                 prompt.clear();
             else if(key >= 32 && key < 127)
                 prompt += static_cast<char>(key);
+            updatePromptMenu();
         }
+        return {};
+    }
+    if(breakpointListOpen)
+    {
+        if(key == 27 || key == 'q')
+            breakpointListOpen = false;
+        else if(key == 'j' || key == keyCode(control::ControlKey::CTRL_J) ||
+                key == keyCode(navigation::NavigationKey::ARROW_DOWN))
+            moveMenuCursor(breakpointCursor, breakpointOffset,
+                           breakpoints.size(), 1, ctx.editor->screenRows);
+        else if(key == 'k' || key == keyCode(control::ControlKey::CTRL_K) ||
+                key == keyCode(navigation::NavigationKey::ARROW_UP))
+            moveMenuCursor(breakpointCursor, breakpointOffset,
+                           breakpoints.size(), -1, ctx.editor->screenRows);
+        else if(key == 'd' && !breakpoints.empty())
+            execute("delete " + breakpoints[breakpointCursor].id);
+        else if(key == ':')
+        {
+            breakpointListOpen = false;
+            promptActive = true;
+            prompt.clear();
+            updatePromptMenu();
+        }
+        else if(key == 3)
+            execute("interrupt");
         return {};
     }
     if(key == 'q' || key == 27)
@@ -571,6 +807,7 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
     {
         promptActive = true;
         prompt.clear();
+        updatePromptMenu();
     }
     else if(key == keyCode(control::ControlKey::TAB))
         pane = (pane + 1) % paneCount;
@@ -731,7 +968,21 @@ void DebuggerMode::draw(Editor& editor)
                                         : std::string(selected ? "> " : "  ");
                 const int prefixWidth =
                     std::min(inner, text_utils::utf8DisplayWidth(prefix));
-                out += editor.theme.baseFg() + fit(prefix, prefixWidth);
+                const bool breakpoint =
+                    which == 0 && breakpointLines.contains(index + 1);
+                if(breakpoint)
+                    out +=
+                        color::rgbBg(170, 35, 50) + color::rgbFg(255, 255, 255);
+                else
+                    out += editor.theme.baseFg();
+                out += fit(prefix, prefixWidth);
+                if(breakpoint)
+                {
+                    out += editor.theme.reset();
+                    if(selected || executing)
+                        out += editor.theme.selection();
+                    out += editor.theme.baseFg();
+                }
                 const int available = inner - prefixWidth;
                 const auto text = fit(lines[index], available);
                 if(which == 0 &&
@@ -773,6 +1024,63 @@ void DebuggerMode::draw(Editor& editor)
     }
     saveRow();
     activeRow = -1;
+    std::vector<std::string> menuEntries;
+    int menuCursor = 0, menuOffset = 0;
+    std::string menuTitle;
+    if(breakpointListOpen)
+    {
+        moveMenuCursor(breakpointCursor, breakpointOffset, breakpoints.size(),
+                       0, editor.screenRows);
+        for(const auto& bp : breakpoints)
+        {
+            std::string location = bp.description;
+            if(!bp.locations.empty())
+            {
+                const auto& first = bp.locations.front();
+                location =
+                    std::filesystem::path(first.path).filename().string() +
+                    ":" + std::to_string(first.line);
+                if(bp.locations.size() > 1)
+                    location += " (+" +
+                                std::to_string(bp.locations.size() - 1) +
+                                " locations)";
+                location += "  " + first.path;
+            }
+            menuEntries.push_back(
+                "#" + bp.id + (bp.enabled ? " enabled " : " disabled ") +
+                (bp.pending ? "[pending] " : "") + safe(location));
+        }
+        menuCursor = breakpointCursor;
+        menuOffset = breakpointOffset;
+        menuTitle = "Breakpoints " + std::to_string(breakpoints.size()) +
+                    "  Ctrl-J/K select  d delete  Esc close";
+    }
+    else if(promptActive && !promptMenuEntries.empty())
+    {
+        menuEntries = promptMenuEntries;
+        menuCursor = promptMenuCursor;
+        menuOffset = promptMenuOffset;
+        menuTitle = "Debugger commands [" + backend +
+                    "]  Ctrl-J/K select  Tab/Enter choose";
+    }
+    if(breakpointListOpen || !menuEntries.empty())
+    {
+        std::vector<int> filtered;
+        for(int i = 0; i < static_cast<int>(menuEntries.size()); ++i)
+            filtered.push_back(i);
+        std::string popup;
+        widgets::drawCommandPopup(popup,
+                                  {.frame = {.theme = editor.theme,
+                                             .screenRows = editor.screenRows,
+                                             .screenCols = width},
+                                   .entries = menuEntries,
+                                   .filtered = filtered,
+                                   .offset = menuOffset,
+                                   .cursor = menuCursor,
+                                   .title = menuTitle,
+                                   .emptyMessage = "No breakpoints"});
+        overlayPopupRows(rows, popup, editor.theme);
+    }
     widgets::ViewStatusBarView status{.theme = editor.theme};
     status.modeLabel = name();
     status.context =
@@ -780,7 +1088,7 @@ void DebuggerMode::draw(Editor& editor)
             ? backend
             : "frame #" + std::to_string(frameIndex) + " " + frameFunction;
     status.state = state;
-    status.flags.push_back(names[pane]);
+    status.flags.push_back(breakpointListOpen ? "Breakpoints" : names[pane]);
     status.flags.push_back(attach ? "q detaches" : "q ends session");
     editor.appendViewStatusBar(out, std::move(status));
     out += Terminal::cursorPos(editor.screenRows + 2, 1);
@@ -794,6 +1102,9 @@ void DebuggerMode::draw(Editor& editor)
             std::min(width, static_cast<int>(prompt.size()) + 2));
         out += Terminal::ESC_SHOW_CURSOR;
     }
+    else if(breakpointListOpen)
+        out +=
+            fit(" Breakpoints: Ctrl-J/K selects  d deletes  Esc closes", width);
     else if(state == "running" && hasStoppedSnapshot)
         out += fit(" Running; source, variables and threads show the last "
                    "stop. Ctrl-C interrupts.",

@@ -43,6 +43,8 @@ class LLDB:
         self.session = None
         self.attached = attach
         self.source_selection_pending = attach
+        self.requested_breakpoints = {}
+        self.breakpoint_cache = None
         if backend == 'mladbg':
             paths = [os.environ.get('UVIM_MLADBG_MODULE', '')]
             launcher = shutil.which('mladbg')
@@ -94,7 +96,33 @@ class LLDB:
         text = text.strip()
         select_thread = text.startswith('thread ') and text[7:].strip().isdigit()
         caller_step = self.caller_step_command(text)
-        if caller_step:
+        verb, _, rest = text.partition(' ')
+        location = rest.strip().strip('"\'')
+        path, colon, row = location.rpartition(':')
+        if text == 'bps':
+            self.publish_breakpoints()
+        elif verb in ('b', 'break') and colon and row.isdigit():
+            if int(row) <= 0:
+                raise ValueError('Breakpoint line must be positive')
+            bp = self.target.BreakpointCreateByLocation(path.strip('"\''), int(row))
+            if not bp.IsValid():
+                raise RuntimeError(f'Cannot create breakpoint at {path}:{row}')
+            self.requested_breakpoints[bp.GetID()] = (path.strip('"\''), int(row))
+            emit(output=[f'Breakpoint {bp.GetID()}: {path}:{row}'])
+        elif verb in ('delete', 'enable', 'disable'):
+            if not re.fullmatch(r'[1-9]\d*', rest.strip()):
+                raise ValueError(f'Usage: {verb} BREAKPOINT_ID')
+            identity = int(rest.strip())
+            bp = self.target.FindBreakpointByID(identity)
+            if not bp.IsValid():
+                raise ValueError(f'Breakpoint {identity} does not exist')
+            if verb == 'delete':
+                if not self.target.BreakpointDelete(identity):
+                    raise RuntimeError(f'Cannot delete breakpoint {identity}')
+            else:
+                bp.SetEnabled(verb == 'enable')
+            emit(output=[f'Breakpoint {identity}: {verb}'])
+        elif caller_step:
             result = self.lldb.SBCommandReturnObject()
             self.debugger.GetCommandInterpreter().HandleCommand(caller_step, result)
             emit(output=(result.GetOutput() + result.GetError()).splitlines())
@@ -131,6 +159,7 @@ class LLDB:
         self.target = self.debugger.GetSelectedTarget()
         if select_thread:
             self.select_source_frame(prefer_application=True)
+        self.publish_breakpoints()
         self.snapshot()
 
     def caller_step_command(self, text):
@@ -208,6 +237,36 @@ class LLDB:
             thread.SetSelectedFrame(fallback)
         self.source_selection_pending = False
 
+    def publish_breakpoints(self):
+        result = []
+        live_ids = set()
+        for index in range(self.target.GetNumBreakpoints()):
+            bp = self.target.GetBreakpointAtIndex(index)
+            if bp.IsInternal():
+                continue
+            identity = bp.GetID()
+            live_ids.add(identity)
+            stream = self.lldb.SBStream()
+            bp.GetDescription(stream)
+            locations = []
+            for number in range(bp.GetNumLocations()):
+                location = bp.GetLocationAtIndex(number)
+                entry = location.GetAddress().GetLineEntry()
+                file = entry.GetFileSpec()
+                path = os.path.join(file.GetDirectory() or '', file.GetFilename() or '')
+                if entry.IsValid() and path and entry.GetLine() > 0:
+                    locations.append(dict(path=path, line=entry.GetLine(), enabled=location.IsEnabled()))
+            pending = bp.GetNumResolvedLocations() == 0
+            if not locations and identity in self.requested_breakpoints:
+                path, line = self.requested_breakpoints[identity]
+                locations.append(dict(path=os.path.abspath(path), line=line, enabled=True))
+            result.append(dict(id=str(identity), enabled=bp.IsEnabled(), pending=pending,
+                               description=stream.GetData() or '', locations=locations))
+        self.requested_breakpoints = {k: v for k, v in self.requested_breakpoints.items() if k in live_ids}
+        if result != self.breakpoint_cache:
+            self.breakpoint_cache = result
+            emit(breakpoints=result)
+
     def snapshot(self):
         process = self.target.GetProcess()
         stopped = process.GetState() in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
@@ -217,6 +276,7 @@ class LLDB:
         if state == 'running':
             emit(state=state)
             return
+        self.publish_breakpoints()
         value = dict(state=state, variables=[], threads=[], path='', line=0, frame=0, function='', stopFunction='')
         if stopped:
             if self.source_selection_pending:
@@ -289,6 +349,38 @@ def mi_fields(text):
     return mi_value('{' + text + '}')[0]
 
 
+def gdb_breakpoints(data):
+    result = []
+    for bp in data.get('BreakpointTable', {}).get('body', []):
+        if 'breakpoint' not in bp.get('type', 'breakpoint') or '.' in bp.get('number', ''):
+            continue
+        locations = []
+        for location in bp.get('locations', [bp]):
+            path = location.get('fullname', location.get('file', ''))
+            line = int(location.get('line', 0))
+            if path and line > 0:
+                locations.append(dict(path=path, line=line, enabled=location.get('enabled', 'y') == 'y'))
+        if not locations:
+            path, colon, row = bp.get('original-location', '').rpartition(':')
+            if colon and row.isdigit():
+                locations.append(dict(path=os.path.abspath(path), line=int(row), enabled=True))
+        result.append(dict(id=bp['number'], enabled=bp.get('enabled') == 'y',
+                           pending=bp.get('addr') == '<PENDING>', locations=locations,
+                           description=bp.get('original-location', bp.get('func', bp.get('what', '')))))
+    # Older MI versions emit sublocations as separate body records.
+    roots = {bp['id']: bp for bp in result}
+    for location in data.get('BreakpointTable', {}).get('body', []):
+        number = location.get('number', '')
+        parent = roots.get(number.split('.')[0]) if '.' in number else None
+        path = location.get('fullname', location.get('file', ''))
+        line = int(location.get('line', 0))
+        if parent is not None and path and line > 0:
+            entry = dict(path=path, line=line, enabled=location.get('enabled', 'y') == 'y')
+            if entry not in parent['locations']:
+                parent['locations'].append(entry)
+    return result
+
+
 class GDB:
     def __init__(self, backend, attach, target, args):
         self.attached = attach
@@ -316,7 +408,12 @@ class GDB:
             if args:
                 self.send('-exec-arguments ' + ' '.join(json.dumps(a) for a in args))
             self.send('-exec-run --start', 'startup')
+        self.request_breakpoints()
         emit(state='ready', variables=[], threads=[], path='', line=0)
+
+    def request_breakpoints(self):
+        if 'breakpoints' not in self.pending.values():
+            self.send('-break-list', 'breakpoints')
 
     def send(self, text, kind=''):
         self.token += 1
@@ -330,10 +427,19 @@ class GDB:
                    'c': '-exec-continue', 'next': '-exec-next', 'n': '-exec-next',
                    'step': '-exec-step', 's': '-exec-step', 'finish': '-exec-finish',
                    'f': '-exec-finish', 'interrupt': '-exec-interrupt --all'}
-        if verb in ('b', 'break'):
-            self.send('-break-insert -f ' + json.dumps(rest.strip('"')))
+        if text == 'bps':
+            self.request_breakpoints()
+        elif verb in ('b', 'break'):
+            self.send('-break-insert -f ' + json.dumps(rest.strip('"')), 'breakpoint-change')
+        elif verb in ('delete', 'enable', 'disable'):
+            if not re.fullmatch(r'[1-9]\d*', rest.strip()):
+                raise ValueError(f'Usage: {verb} BREAKPOINT_ID')
+            self.send('-break-' + verb + ' ' + rest.strip(), 'breakpoint-change')
         elif verb == 'thread':
             self.send('-thread-select ' + str(int(rest)), 'select')
+        elif verb in ('locals', 'threads'):
+            native = 'info locals' if verb == 'locals' else 'info threads'
+            self.send('-interpreter-exec console ' + json.dumps(native), 'refresh')
         elif verb in aliases:
             self.send(aliases[verb])
         else:
@@ -343,6 +449,7 @@ class GDB:
         self.send('-stack-info-frame', 'frame')
         self.send('-stack-list-variables --simple-values', 'variables')
         self.send('-thread-info', 'threads')
+        self.request_breakpoints()
 
     def poll(self):
         if self.master >= 0:
@@ -367,7 +474,9 @@ class GDB:
                 continue
             token, prefix, result, payload = match.groups()
             data = mi_fields(payload or '')
-            if prefix == '*' and result == 'running':
+            if prefix == '=' and result.startswith('breakpoint-'):
+                self.request_breakpoints()
+            elif prefix == '*' and result == 'running':
                 emit(state='running')
             elif prefix == '*' and result == 'stopped':
                 if data.get('reason', '').startswith('exited'):
@@ -381,6 +490,10 @@ class GDB:
                     if kind == 'source-frames':
                         self.refresh()
                     emit(**dict(output=[data.get('msg', 'Debugger command failed')], **({'state': 'error'} if kind == 'startup' else {})))
+                elif kind == 'breakpoints':
+                    emit(breakpoints=gdb_breakpoints(data))
+                elif kind == 'breakpoint-change':
+                    self.request_breakpoints()
                 elif kind == 'frame':
                     frame = data.get('frame', {})
                     emit(path=frame.get('fullname', frame.get('file', '')), line=int(frame.get('line', 0)),

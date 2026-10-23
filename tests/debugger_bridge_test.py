@@ -123,11 +123,40 @@ class BridgeTests(unittest.TestCase):
             emit.assert_called_once_with(state='running')
             process.GetSelectedThread.assert_not_called()
 
+    def test_gdb_breakpoints_normalize_locations_disabled_and_pending(self):
+        data = {'BreakpointTable': {'body': [
+            {'number': '1', 'type': 'breakpoint', 'enabled': 'y', 'addr': '0x10',
+             'fullname': '/tmp/demo.cpp', 'line': '12'},
+            {'number': '2', 'type': 'breakpoint', 'enabled': 'n', 'addr': '<MULTIPLE>',
+             'locations': [{'fullname': '/tmp/demo.cpp', 'line': '15', 'enabled': 'y'},
+                           {'fullname': '/tmp/demo.cpp', 'line': '18', 'enabled': 'n'}]},
+            {'number': '3', 'type': 'breakpoint', 'enabled': 'y', 'addr': '<PENDING>',
+             'original-location': '/tmp/future.cpp:42'},
+            {'number': '4', 'type': 'hw watchpoint', 'enabled': 'y'}]}}
+        result = bridge.gdb_breakpoints(data)
+        self.assertEqual([bp['id'] for bp in result], ['1', '2', '3'])
+        self.assertEqual(result[0]['locations'][0]['line'], 12)
+        self.assertFalse(result[1]['enabled'])
+        self.assertFalse(result[1]['locations'][1]['enabled'])
+        self.assertTrue(result[2]['pending'])
+        self.assertEqual(result[2]['locations'][0]['path'], '/tmp/future.cpp')
+        separate = bridge.gdb_breakpoints({'BreakpointTable': {'body': [
+            {'number': '9', 'type': 'breakpoint', 'enabled': 'y', 'addr': '<MULTIPLE>'},
+            {'number': '9.1', 'enabled': 'y', 'fullname': '/tmp/template.hpp', 'line': '42'}]}})
+        self.assertEqual(len(separate), 1)
+        self.assertEqual(separate[0]['locations'][0]['line'], 42)
+        gdb = bridge.GDB.__new__(bridge.GDB)
+        with patch.object(gdb, 'send') as send:
+            gdb.command('delete 2')
+            send.assert_called_with('-break-delete 2', 'breakpoint-change')
+        with self.assertRaises(ValueError):
+            gdb.command('delete')
+
     def test_gdb_commands_escape_paths(self):
         gdb = bridge.GDB.__new__(bridge.GDB)
         with patch.object(gdb, 'send') as send:
             gdb.command('b /tmp/source with spaces.c:12')
-            send.assert_called_with('-break-insert -f "/tmp/source with spaces.c:12"')
+            send.assert_called_with('-break-insert -f "/tmp/source with spaces.c:12"', 'breakpoint-change')
             gdb.command('thread 7')
             send.assert_called_with('-thread-select 7', 'select')
             gdb.command('interrupt')
@@ -281,11 +310,16 @@ class LiveTests(unittest.TestCase):
                     try:
                         until(lambda m: m.get('state') == 'stopped')
                         command(f'b {source}:4')
+                        metadata = until(lambda m: bool(m.get('breakpoints')))
+                        breakpoint_id = metadata['breakpoints'][0]['id']
+                        self.assertTrue(any(loc['path'] == str(source) and loc['line'] == 4 for loc in metadata['breakpoints'][0]['locations']))
                         command('continue')
                         stopped = until(lambda m: m.get('state') == 'stopped' and m.get('line') == 4)
                         self.assertEqual(Path(stopped['path']), source)
                         self.assertTrue(any('count' in v and '42' in v for v in stopped['variables']), stopped)
                         self.assertTrue(stopped['threads'])
+                        command('delete ' + breakpoint_id)
+                        until(lambda m: m.get('breakpoints') == [])
                         command('continue')
                         until(lambda m: m.get('state') == 'exited')
                     finally:

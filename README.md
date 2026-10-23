@@ -1785,12 +1785,25 @@ visible. The source title and footer identify the inspected caller frame.
 With LLDB/mladbg, `n` or `s` from an inspected caller finishes its pending call
 and stops at the next source line before normal stepping resumes. During a step,
 the layout and viewport stay stable; panes retain values marked as the last stop
-until fresh stopped data arrives. Prompt edits and unchanged rows are not repainted.
+until fresh stopped data arrives. Only changed rows are repainted; closing a popup
+restores the rows it covered.
 If no source frame is available, the pane explains how to set a breakpoint.
 
-Press `:` for debugger commands. `:b path/to/file:42` sets a breakpoint; Tab
+Press `:` to open the debugger command menu. Type to filter commands, use
+Ctrl+J/K (or arrows) to select, and Tab/Enter to choose. Commands needing an
+argument insert their prefix so you can finish typing; aliases such as `:n`
+still execute directly. Other native backend commands can also be entered.
+
+`:b path/to/file:42` sets a breakpoint; Tab
 completes the path while preserving an existing `:42` suffix. Completion inserts
-the path without executing the command. `:c`, `:n`, `:s`, and `:f` continue, step
+the path without executing the command. Enabled breakpoints use a red background
+on their source line numbers. `:bps` opens a breakpoint list: Ctrl+J/K (or arrows)
+selects a row, `d` deletes that breakpoint from the backend, and Esc/`q` closes
+the list. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
+disabled breakpoints are identified in the list; gutter markers update when
+breakpoints resolve, change, or are removed.
+
+`:c`, `:n`, `:s`, and `:f` continue, step
 over, step into, and step out; the same letters work without the prompt.
 `:run` (or `r`) restarts the program. Ctrl-C interrupts execution. Other commands
 are passed to the selected debugger (`:p expression`, `:bt`, etc.). Esc cancels
