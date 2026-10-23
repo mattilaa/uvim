@@ -423,6 +423,7 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
     include_directories("${CMAKE_CURRENT_BINARY_DIR}/generated")
     list(APPEND MODE_STATE_MACHINE_SOURCES
         src/debugger_mode.cpp
+        src/debugger_process_picker.cpp
         src/editor_execution_debugger_command.cpp
         src/references_mode.cpp
         src/lsp_info_mode.cpp

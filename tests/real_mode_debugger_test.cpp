@@ -312,4 +312,162 @@ TEST(RealModeTransitionsTest, DebuggerPromptEditsDoNotRepaintPanes)
     EXPECT_EQ(prompt.find("main-thread"), std::string::npos);
     EXPECT_EQ(prompt.find("int main"), std::string::npos);
 }
+
+TEST(RealModeTransitionsTest,
+     DebuggerProcessListingPreservesNamesAndRejectsInvalidPids)
+{
+    const auto entries = parseDebuggerProcesses(
+        " 234 /tmp/My App/debugger-cpp\n12 /bin/helper name\ninvalid row\n"
+        "0 /bin/zero\n-1 /bin/negative\n99999999999999999 /bin/overflow\n234 "
+        "duplicate\n");
+    ASSERT_EQ(entries.size(), 2u);
+    EXPECT_EQ(entries[0].pid, 12);
+    EXPECT_EQ(entries[0].name, "helper name");
+    EXPECT_EQ(entries[1].pid, 234);
+    EXPECT_EQ(entries[1].name, "debugger-cpp");
+    EXPECT_EQ(entries[1].executable, "/tmp/My App/debugger-cpp");
+}
+
+namespace
+{
+DebuggerProcessList recordedDebuggerProcesses()
+{
+    return {{{1234, "debugger-cpp", "/tmp/My App/debugger-cpp"},
+             {444, "compiler", "/bin/compiler"},
+             {12, "helper-1234", "/bin/helper-1234"}},
+            {}};
+}
+} // namespace
+
+TEST(RealModeTransitionsTest,
+     DebuggerProcessPopupFiltersAndNavigatesWithoutReplacingQuery)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    int loads = 0;
+    CommandMode command;
+    command.initialInput = "dbgattach --";
+    command.processPicker.loader = [&]
+    {
+        ++loads;
+        return recordedDebuggerProcesses();
+    };
+    auto sm = makeMachine(editor, std::move(command));
+    ASSERT_TRUE(editor.commandPopupActive);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 3u);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_J));
+    EXPECT_EQ(editor.commandPopupCursor, 1);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach --");
+    sm.dispatch(keyCode(control::ControlKey::CTRL_K));
+    EXPECT_EQ(editor.commandPopupCursor, 0);
+    for(char c : std::string("dbc"))
+        sm.dispatch(c);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach --dbc");
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 1u);
+    EXPECT_EQ(editor.commandPopupFiltered[0], 0);
+    EXPECT_EQ(loads, 1);
+    std::string popup;
+    editor.drawCommandPopup(popup);
+    EXPECT_NE(popup.find("Processes"), std::string::npos);
+    EXPECT_NE(popup.find("debugger-cpp"), std::string::npos);
+    EXPECT_NE(popup.find(ascii::utf8(ascii::BOX_ROUNDED_TOP_LEFT)),
+              std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    EXPECT_TRUE(debug->attach);
+    EXPECT_EQ(debug->target, "1234");
+    EXPECT_FALSE(editor.commandPopupActive);
+    EXPECT_TRUE(editor.commandPopupTitle.empty());
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerProcessPopupPreservesBackendAndTabInsertsPid)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    CommandMode command;
+    command.initialInput = "dbgattach --backend gdb -- 1234";
+    command.processPicker.loader = recordedDebuggerProcesses;
+    auto sm = makeMachine(editor, std::move(command));
+    ASSERT_TRUE(editor.commandPopupActive);
+    ASSERT_EQ(editor.commandPopupFiltered.size(), 2u);
+    EXPECT_EQ(editor.commandPopupFiltered.front(), 0); // exact PID ranks first
+    sm.dispatch(keyCode(control::ControlKey::TAB));
+    EXPECT_FALSE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach --backend gdb 1234");
+    EXPECT_NE(sm.getState<CommandMode>(), nullptr);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    EXPECT_EQ(debug->backend, "gdb");
+    EXPECT_EQ(debug->target, "1234");
+}
+
+TEST(RealModeTransitionsTest,
+     DebuggerProcessPopupHandlesEmptyResultsRefreshAndEscape)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    int loads = 0;
+    CommandMode command;
+    command.initialInput = "dbgattach --";
+    command.processPicker.loader = [&]
+    {
+        if(loads++ == 0)
+            return DebuggerProcessList{{},
+                                       "Cannot list processes: access denied"};
+        return recordedDebuggerProcesses();
+    };
+    auto sm = makeMachine(editor, std::move(command));
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    EXPECT_NE(editor.commandPopupEmptyMessage.find("access denied"),
+              std::string::npos);
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_NE(sm.getState<CommandMode>(), nullptr);
+    EXPECT_TRUE(editor.commandPopupActive);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_R));
+    EXPECT_EQ(loads, 2);
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    for(char c : std::string(" --no-such-process-xyz"))
+        sm.dispatch(c);
+    EXPECT_TRUE(editor.commandPopupFiltered.empty());
+    sm.dispatch(keyCode(control::ControlKey::ENTER));
+    EXPECT_NE(sm.getState<CommandMode>(), nullptr);
+    sm.dispatch(keyCode(control::ControlKey::CTRL_U));
+    EXPECT_EQ(editor.commandPopupFiltered.size(), 3u);
+    sm.dispatch(27);
+    EXPECT_FALSE(editor.commandPopupActive);
+    EXPECT_EQ(editor.commandBuffer, ":dbgattach ");
+    EXPECT_NE(sm.getState<CommandMode>(), nullptr);
+    sm.dispatch(27);
+    EXPECT_NE(sm.getState<NormalMode>(), nullptr);
+}
+
+TEST(RealModeTransitionsTest, DebuggerProcessPickerWorksInSharedBrowserPrompt)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto ctx = createModeContext(&editor);
+    CommandPrompt prompt;
+    prompt.processPicker.loader = recordedDebuggerProcesses;
+    std::optional<ModeState> next;
+    std::string executed;
+    auto execute = [&](std::string_view command) -> std::optional<ModeState>
+    {
+        executed = command;
+        return {};
+    };
+    prompt.handle(ctx, ':', execute, next);
+    for(char c : std::string("dbgattach -- 1234"))
+        prompt.handle(ctx, c, execute, next);
+    EXPECT_TRUE(editor.commandPopupActive);
+    prompt.handle(ctx, keyCode(control::ControlKey::CTRL_J), execute, next);
+    EXPECT_EQ(prompt.getInput(), "dbgattach -- 1234");
+    prompt.handle(ctx, keyCode(control::ControlKey::CTRL_K), execute, next);
+    prompt.handle(ctx, keyCode(control::ControlKey::ENTER), execute, next);
+    EXPECT_EQ(executed, "dbgattach 1234");
+    EXPECT_FALSE(prompt.isActive());
+    EXPECT_FALSE(editor.commandPopupActive);
+}
 #endif

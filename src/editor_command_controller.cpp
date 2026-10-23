@@ -175,6 +175,8 @@ std::optional<std::string> Editor::commandHistoryDownImpl()
 
 void Editor::startCommandPopupImpl()
 {
+    commandPopupTitle.clear();
+    commandPopupEmptyMessage = "No matches";
 #ifdef UVIM_MINIMAL
     commandPopupActive = false;
     commandPopupQuery.clear();
@@ -194,6 +196,8 @@ void Editor::startCommandPopupImpl()
 
 void Editor::cancelCommandPopupImpl()
 {
+    commandPopupTitle.clear();
+    commandPopupEmptyMessage = "No matches";
     commandPopupActive = false;
     commandPopupQuery.clear();
     commandPopupFiltered.clear();
@@ -530,6 +534,8 @@ void Editor::drawCommandPopupImpl(std::string& output) const
         .filtered = commandPopupFiltered,
         .offset = commandPopupOffset,
         .cursor = commandPopupCursor,
+        .title = commandPopupTitle,
+        .emptyMessage = commandPopupEmptyMessage,
     };
     widgets::drawCommandPopup(output, view);
 #endif

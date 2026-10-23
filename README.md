@@ -1761,6 +1761,14 @@ Quote paths or arguments containing spaces. LLDB is the default backend;
 select another with `:dbgrun --backend gdb ./app` or
 `:dbgattach --backend mladbg 1234`.
 
+Type `:dbgattach --` to browse processes in a glyph popup. Continue typing to
+fuzzy-filter by executable name or PID (for example, `:dbgattach -- cpp`).
+Ctrl+J/K or arrows select a row; Enter attaches to it. Tab inserts its PID
+without attaching, Esc closes the list, and Ctrl+R refreshes the process snapshot.
+`Ctrl+U` clears the filter. For another backend, use
+`:dbgattach --backend gdb -- cpp`. The list shows executable names/paths rather
+than command arguments, and omits the current editor process.
+
 The debugger has its own source and output view. When execution stops, variables
 and threads appear on the right. Use `j`/`k` (or arrows) to select rows and
 `Ctrl+Shift+H/J/K/L` to focus the pane in that direction. Terminals without

@@ -1,4 +1,7 @@
 #pragma once
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#include "debugger_process_picker.h"
+#endif
 
 #include "mode_context.h"
 #include "mode_state.h"
@@ -38,6 +41,9 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
 
 struct CommandPrompt
 {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    DebuggerProcessPicker processPicker;
+#endif
     bool isActive() const;
     const std::string& getInput() const;
     void setInput(std::string value);

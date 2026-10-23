@@ -108,6 +108,10 @@ void CommandMode::on_enter(ModeContext& ctx)
     locCompletion = false;
     locCommand.clear();
     ctx.startCommandPopup();
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    if(processPicker.update(ctx, ctx.commandBuffer))
+        return;
+#endif
     if(!updateAssemblyFlagPopup(ctx))
         ctx.updateCommandPopup(initialInput);
 
@@ -116,6 +120,10 @@ void CommandMode::on_enter(ModeContext& ctx)
 
 void CommandMode::on_exit(ModeContext& ctx)
 {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    if(processPicker.active)
+        processPicker.close(ctx);
+#endif
     if(ctx.editor)
         ctx.editor->pendingVisualColorRange.reset();
     ctx.commandBuffer.clear();
@@ -137,6 +145,10 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     int c = keyCode(key);
     auto updatePopup = [&]()
     {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(processPicker.update(ctx, ctx.commandBuffer))
+            return;
+#endif
         if(updateAssemblyFlagPopup(ctx))
             return;
         auto isLineJumpQuery = [&](std::string_view q) -> bool
@@ -196,6 +208,12 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             ctx.startCommandPopup();
         ctx.updateCommandPopup(query);
     };
+
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    if(processPicker.handle(ctx, c, ctx.commandBuffer) ==
+       DebuggerProcessPicker::Action::Handled)
+        return std::nullopt;
+#endif
 
     if(ctx.isCommandHistorySearchActive())
     {

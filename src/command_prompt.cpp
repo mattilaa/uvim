@@ -197,6 +197,10 @@ bool CommandPrompt::handle(
 
     auto updatePopup = [&]()
     {
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+        if(processPicker.update(ctx, input))
+            return;
+#endif
         auto isLineJumpQuery = [&](std::string_view q) -> bool
         {
             if(q.empty())
@@ -265,6 +269,15 @@ bool CommandPrompt::handle(
         return false;
     }
 
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    if(processPicker.handle(ctx, key, input) ==
+       DebuggerProcessPicker::Action::Handled)
+    {
+        ed->needsFullRedraw = true;
+        nextState.reset();
+        return true;
+    }
+#endif
     if(ctx.isCommandPopupActive())
     {
         if(key == keyCode(control::ControlKey::CTRL_K))

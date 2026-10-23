@@ -1,4 +1,7 @@
 #pragma once
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#include "debugger_process_picker.h"
+#endif
 
 #include "file_entry.h"
 #include "mode.h"
@@ -38,6 +41,9 @@ struct CommandMode
     bool locCompletion = false;
     std::string locCommand;
     bool assemblyFlagPopup = false;
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+    DebuggerProcessPicker processPicker;
+#endif
 #ifdef UVIM_ENABLE_ASM_VIEW
     std::optional<std::pair<int, int>> assemblySourceRange;
 #endif
