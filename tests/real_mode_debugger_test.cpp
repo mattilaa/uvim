@@ -2,7 +2,7 @@
 #include "json_utils.h"
 #include "real_mode_test_utils.h"
 #include <thread>
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
 using namespace uvim_test;
 
 TEST(RealModeTransitionsTest, DebuggerCommandsSelectRunAndAttach)
@@ -705,5 +705,19 @@ TEST(RealModeTransitionsTest,
     EXPECT_FALSE(debug->sourcePinned);
     EXPECT_FALSE(debug->output.empty());
     std::filesystem::remove_all(dir);
+}
+#else
+using namespace uvim_test;
+
+TEST(RealModeTransitionsTest, DebuggerCommandsAreUnavailableWhenDisabled)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    dispatch_command(sm, "dbgrun ./app");
+    EXPECT_EQ(modeForState(sm.state()), NORMAL);
+    dispatch_command(sm, "dbgattach 1234");
+    EXPECT_EQ(modeForState(sm.state()), NORMAL);
+    EXPECT_TRUE(editor.getCommandCompletions("dbg").empty());
 }
 #endif

@@ -115,7 +115,7 @@ std::vector<Entry> builtinActions()
 #ifdef UVIM_ENABLE_SYSTEM_CLIPBOARD
     a.push_back(keys("Paste from system clipboard", "Space p", {kSpace, 'p'}));
 #endif
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
     a.push_back(ex("Debug executable", {"dbgrun"}));
     a.push_back(ex("Attach debugger to process", {"dbgattach"}));
 #endif

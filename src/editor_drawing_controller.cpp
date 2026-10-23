@@ -342,7 +342,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == DEBUGGER)
     {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
         if(editor.modeStateMachine)
             if(auto* state = editor.modeStateMachine->getState<DebuggerMode>())
                 state->draw(editor);

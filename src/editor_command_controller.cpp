@@ -587,7 +587,7 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
         "se", "ve", "functions",
 #endif
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
         "dbgrun", "dbgattach",
 #endif
         "tabnew", "tabe ", "tabn", "tabnext", "tabp", "tabprev",
@@ -701,7 +701,7 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
 #endif
         "emitasm",     "lsp",       "diagnostics", "logging", "help",
         "keys",        "palette", "functions"
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
         , "dbgrun", "dbgattach"
 #endif
     };

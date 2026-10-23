@@ -45,7 +45,10 @@ std::vector<std::string> helpSearchTopics()
             "files",   "filebrowser", "run",       "buffers",    "windows",
             "search",  "regex",       "clipboard", "git",        "ga",
             "gb",      "gbb",         "gbl",       "gj",         "gbv",
-            "gs", "dbgrun", "dbgattach",
+            "gs",
+#ifdef UVIM_ENABLE_DEBUGGER
+            "dbgrun",  "dbgattach",
+#endif
 #ifdef UVIM_ENABLE_ASM_VIEW
             "asm",
 #endif
@@ -143,8 +146,10 @@ std::string helpTopicDescription(const std::string& topic)
     if(topic == "asm")
         return "Compile and browse C/C++ or Mlang assembly";
 #endif
+#ifdef UVIM_ENABLE_DEBUGGER
     if(topic == "dbgrun" || topic == "dbgattach")
         return "Launch or attach a native debugger";
+#endif
     if(topic == "emitasm")
         return "Emit C/C++ assembly";
     if(topic == "lsp")
@@ -1146,6 +1151,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     std::transform(topic_lower.begin(), topic_lower.end(), topic_lower.begin(),
                    ::tolower);
 
+#ifdef UVIM_ENABLE_DEBUGGER
     if(topic_lower == "dbgrun" || topic_lower == "dbgattach")
     {
         lines = {
@@ -1203,7 +1209,9 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "Locals show top-level values; program stdin is not exposed.",
         };
     }
-    else if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
+    else
+#endif
+    if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
     {
         lines = {
             "# uvim Help",

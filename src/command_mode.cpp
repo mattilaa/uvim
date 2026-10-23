@@ -108,7 +108,7 @@ void CommandMode::on_enter(ModeContext& ctx)
     locCompletion = false;
     locCommand.clear();
     ctx.startCommandPopup();
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
     if(processPicker.update(ctx, ctx.commandBuffer))
         return;
 #endif
@@ -120,7 +120,7 @@ void CommandMode::on_enter(ModeContext& ctx)
 
 void CommandMode::on_exit(ModeContext& ctx)
 {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
     if(processPicker.active)
         processPicker.close(ctx);
 #endif
@@ -145,7 +145,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
     int c = keyCode(key);
     auto updatePopup = [&]()
     {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
         if(processPicker.update(ctx, ctx.commandBuffer))
             return;
 #endif
@@ -209,7 +209,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
         ctx.updateCommandPopup(query);
     };
 
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
     if(processPicker.handle(ctx, c, ctx.commandBuffer) ==
        DebuggerProcessPicker::Action::Handled)
         return std::nullopt;
@@ -450,7 +450,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string path;
             if(ctx.takeCommandRequest(mode, path))
             {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
                 if(mode == DEBUGGER)
                     return DebuggerMode{path.substr(2), path.rfind("a ", 0) == 0};
 #endif
@@ -895,7 +895,11 @@ void CommandMode::handleTabCompletion(ModeContext& ctx)
                     helpCompletion = true;
                 }
                 else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
-                        cmd == "tabnew" || cmd == "dbgrun")
+                        cmd == "tabnew"
+#ifdef UVIM_ENABLE_DEBUGGER
+                        || cmd == "dbgrun"
+#endif
+                )
                 {
                     completions = ctx.getPathCompletionsRecursive(pathPart);
                 }

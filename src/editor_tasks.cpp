@@ -178,7 +178,7 @@ void Editor::serviceTasks()
                modeStateMachine->getState<editor::statemachine::AssemblyMode>())
             assembly->processIdle(*this);
 #endif
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
     if(modeStateMachine)
         if(auto* debugger = modeStateMachine->getState<editor::statemachine::DebuggerMode>())
             debugger->processIdle(*this);

@@ -86,6 +86,7 @@ option(UVIM_SUPPRESS_DEPENDENCY_WARNINGS
     ${_uvim_quiet_dependencies_default})
 option(UVIM_BOOTSTRAP_CONFIG_ONLY "Configure only uvim-config for bootstrap" OFF)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
+option(UVIM_ENABLE_DEBUGGER "Build the LLDB, GDB, and mladbg debugger (requires auxiliary views)" ON)
 option(UVIM_ENABLE_ASM_VIEW "Build the :asm compiler and assembly browser (requires auxiliary views)" OFF)
 option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
 option(UVIM_ENABLE_GIT_TOOLS "Build git views and git commands" ON)
@@ -121,6 +122,7 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_JSON_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_TS_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_CSHARP_LSP OFF CACHE BOOL "" FORCE)
+    set(UVIM_ENABLE_DEBUGGER OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_ASM_VIEW OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_ASM_DOCS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_GIT_TOOLS OFF CACHE BOOL "" FORCE)
@@ -135,6 +137,10 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_MULTI_PANE_SPLITS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_PER_PANE_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_AUXILIARY_VIEWS OFF CACHE BOOL "" FORCE)
+endif()
+if(UVIM_ENABLE_DEBUGGER AND NOT UVIM_ENABLE_AUXILIARY_VIEWS)
+    message(STATUS "Debugger disabled: UVIM_ENABLE_AUXILIARY_VIEWS is OFF")
+    set(UVIM_ENABLE_DEBUGGER OFF)
 endif()
 if(UVIM_ENABLE_ASM_VIEW AND NOT UVIM_ENABLE_AUXILIARY_VIEWS)
     message(STATUS "Assembly browser disabled: UVIM_ENABLE_AUXILIARY_VIEWS is OFF")
@@ -416,7 +422,7 @@ if(UVIM_ENABLE_BROWSER_TOOLS)
     )
 endif()
 
-if(UVIM_ENABLE_AUXILIARY_VIEWS)
+if(UVIM_ENABLE_DEBUGGER)
     file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/debugger_bridge.py" UVIM_DEBUGGER_BRIDGE)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS src/debugger_bridge.py)
     configure_file(src/debugger_bridge.h.in generated/debugger_bridge.h @ONLY)
@@ -425,6 +431,10 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/debugger_mode.cpp
         src/debugger_process_picker.cpp
         src/editor_execution_debugger_command.cpp
+    )
+endif()
+if(UVIM_ENABLE_AUXILIARY_VIEWS)
+    list(APPEND MODE_STATE_MACHINE_SOURCES
         src/references_mode.cpp
         src/lsp_info_mode.cpp
         src/tool_info_mode.cpp
@@ -599,6 +609,7 @@ uvim_status_bool("sanitizers" UVIM_ENABLE_SANITIZERS)
 uvim_status_bool("debug logging" UVIM_DEBUG_LOGGING)
 uvim_status_bool("LSP debug logging" UVIM_DEBUG_LSP)
 message(STATUS "uvim compiled features:")
+uvim_status_bool("debugger" UVIM_ENABLE_DEBUGGER)
 uvim_status_bool("assembly browser" UVIM_ENABLE_ASM_VIEW)
 uvim_status_bool("asm docs" UVIM_ENABLE_ASM_DOCS)
 uvim_status_bool("browser tools" UVIM_ENABLE_BROWSER_TOOLS)
@@ -803,6 +814,9 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_AUXILIARY_VIEWS=1)
 endif()
 
+if(UVIM_ENABLE_DEBUGGER)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_DEBUGGER=1)
+endif()
 if(UVIM_ENABLE_ASM_VIEW)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_ASM_VIEW=1)
 endif()
@@ -1020,6 +1034,9 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
+    if(UVIM_ENABLE_DEBUGGER)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_DEBUGGER=1)
+    endif()
     if(UVIM_ENABLE_ASM_VIEW)
         target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_ASM_VIEW=1)
         add_dependencies(real_mode_transitions_tests fake_assembly_compiler)
@@ -1103,6 +1120,12 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(task_queue_tests)
     gtest_discover_tests(uvim_config_deps_tests)
     gtest_discover_tests(real_mode_transitions_tests)
+
+    add_test(NAME debugger_build_profiles
+        COMMAND ${CMAKE_COMMAND}
+            "-DUVIM_CONFIG=$<TARGET_FILE:uvim-config>"
+            "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/debugger profiles"
+            -P ${CMAKE_SOURCE_DIR}/tests/debugger_build_profiles_test.cmake)
 
     add_test(NAME assembly_build_profiles
         COMMAND ${CMAKE_COMMAND}

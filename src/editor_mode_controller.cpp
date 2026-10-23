@@ -202,12 +202,14 @@ public:
         return recognize(ctx, state);
     }
 #endif
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_DEBUGGER
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const DebuggerMode& state) const
     {
         return recognize(ctx, state);
     }
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const CommandOutputMode& state) const

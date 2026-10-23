@@ -262,6 +262,7 @@ struct Config
     bool jsonLsp = false;
     bool tsLsp = false;
     bool csharpLsp = false;
+    bool debugger = true;
     bool asmView = false;
     bool asmDocs = true;
     bool gitTools = true;
@@ -305,6 +306,7 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.htmlLsp == rhs.htmlLsp && lhs.cssLsp == rhs.cssLsp &&
            lhs.jsonLsp == rhs.jsonLsp && lhs.tsLsp == rhs.tsLsp &&
            lhs.csharpLsp == rhs.csharpLsp &&
+           lhs.debugger == rhs.debugger &&
            lhs.asmView == rhs.asmView &&
            lhs.asmDocs == rhs.asmDocs &&
            lhs.gitTools == rhs.gitTools &&
@@ -648,6 +650,7 @@ void apply_feature_set(Config& cfg)
     cfg.minimal = false;
     cfg.browserTools = true;
     cfg.auxiliaryViews = true;
+    cfg.debugger = cfg.featureSet >= 2;
     cfg.asmView = false;
 
     if(cfg.featureSet == 0)
@@ -915,6 +918,14 @@ std::vector<Section> make_sections()
            {},
            "Build switch for help, loc, lspinfo, glyph select, references, "
            "command output, and other auxiliary views."},
+          {ItemKind::Toggle,
+           "Debugger",
+           "UVIM_ENABLE_DEBUGGER",
+           &Config::debugger,
+           nullptr,
+           {},
+           "Build LLDB, GDB, and mladbg launch/attach views, breakpoint "
+           "management, and the process picker. Requires auxiliary views."},
           {ItemKind::Toggle,
            "Assembly browser",
            "UVIM_ENABLE_ASM_VIEW",
@@ -1845,6 +1856,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.tsLsp = parse_bool(value).value_or(cfg.tsLsp);
     else if(key == "csharp_lsp")
         cfg.csharpLsp = parse_bool(value).value_or(cfg.csharpLsp);
+    else if(key == "debugger")
+        cfg.debugger = parse_bool(value).value_or(cfg.debugger);
     else if(key == "asm_view")
         cfg.asmView = parse_bool(value).value_or(cfg.asmView);
     else if(key == "asm_docs")
@@ -2011,6 +2024,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "json_lsp=" << bool_value(cfg.jsonLsp) << "\n";
     file << "ts_lsp=" << bool_value(cfg.tsLsp) << "\n";
     file << "csharp_lsp=" << bool_value(cfg.csharpLsp) << "\n";
+    file << "debugger=" << bool_value(cfg.debugger) << "\n";
     file << "asm_view=" << bool_value(cfg.asmView) << "\n";
     file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
     file << "browser_tools=" << bool_value(cfg.browserTools) << "\n";
@@ -2163,7 +2177,7 @@ void print_help(std::ostream& out)
            "mlang-semantic-tokens, html-lsp,\n"
         << "  css-lsp, json-lsp, ts-lsp, csharp-lsp, browser-tools, "
            "auxiliary-views, "
-           "asm-view, asm-docs,\n"
+           "debugger, asm-view, asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
         << "  struct-size, color-tools, terminal-colors, tests, "
            "compile-commands, "
@@ -2205,6 +2219,8 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
     else if(equals_ci(name, "csharp-lsp") || equals_ci(name, "csharp") ||
             equals_ci(name, "cs-lsp") || equals_ci(name, "c#"))
         cfg.csharpLsp = enabled;
+    else if(equals_ci(name, "debugger"))
+        cfg.debugger = enabled;
     else if(equals_ci(name, "asm-view") || equals_ci(name, "assembly-view") ||
             equals_ci(name, "assembly-browser"))
         cfg.asmView = enabled;

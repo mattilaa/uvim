@@ -73,10 +73,12 @@ std::string_view commandDocumentation(std::string_view cmd)
     if(cmd == "--raw")
         return "Keep directives and full compiler output";
 
+#ifdef UVIM_ENABLE_DEBUGGER
     if(cmd == "dbgrun")
         return "Debug an executable: dbgrun [--backend lldb|gdb|mladbg] BINARY [ARGS]";
     if(cmd == "dbgattach")
         return "Attach debugger: dbgattach [--backend lldb|gdb|mladbg] PID";
+#endif
     if(cmd == "palette")
         return "Command palette: search and run commands";
     if(cmd == "functions")

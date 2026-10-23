@@ -1823,9 +1823,15 @@ the prompt; `q` or Esc outside the prompt closes the session. Closing an attach
 session detaches and leaves the process alive; closing a launched session ends
 that process.
 
-Debugger support is included with `UVIM_ENABLE_AUXILIARY_VIEWS` on macOS and
-Linux. It uses Python 3 and the installed debugger: LLDB requires matching Python
-bindings, and GDB uses its MI interface. `MLADBG_PYTHON` selects the Python
+Debugger support requires `UVIM_ENABLE_DEBUGGER=ON` and
+`UVIM_ENABLE_AUXILIARY_VIEWS=ON` on macOS and Linux. Select **Debugger** in
+`uvim-config`, or use `uvim-config --disable debugger` to omit it from the
+build (`--enable debugger` adds it back). Direct CMake builds can use
+`-DUVIM_ENABLE_DEBUGGER=OFF`. Disabling it removes debugger views, commands,
+the process picker, and the embedded Python bridge.
+
+The debugger uses Python 3 and the installed debugger: LLDB requires matching
+Python bindings, and GDB uses its MI interface. `MLADBG_PYTHON` selects the Python
 interpreter, `MLADBG_LLDB` selects LLDB for locating bindings, and `UVIM_GDB`
 selects the GDB executable. The mladbg backend loads the command engine from
 MLang's installed `share/mlang/debugger/mladbg.py`; for a checkout, set
