@@ -86,6 +86,7 @@ option(UVIM_SUPPRESS_DEPENDENCY_WARNINGS
     ${_uvim_quiet_dependencies_default})
 option(UVIM_BOOTSTRAP_CONFIG_ONLY "Configure only uvim-config for bootstrap" OFF)
 option(UVIM_ENABLE_SANITIZERS "Enable ASan+UBSan (AddressSanitizer + UndefinedBehaviorSanitizer)" OFF)
+option(UVIM_ENABLE_ASM_VIEW "Build the :asm compiler and assembly browser (requires auxiliary views)" OFF)
 option(UVIM_ENABLE_ASM_DOCS "Build uvim with assembly instruction gd documentation" ON)
 option(UVIM_ENABLE_GIT_TOOLS "Build git views and git commands" ON)
 option(UVIM_ENABLE_SEARCH_TOOLS "Build fuzzy, grep, and regex search views" ON)
@@ -120,6 +121,7 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_JSON_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_TS_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_CSHARP_LSP OFF CACHE BOOL "" FORCE)
+    set(UVIM_ENABLE_ASM_VIEW OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_ASM_DOCS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_GIT_TOOLS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_SEARCH_TOOLS OFF CACHE BOOL "" FORCE)
@@ -133,6 +135,10 @@ if(UVIM_MINIMAL)
     set(UVIM_ENABLE_MULTI_PANE_SPLITS OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_PER_PANE_LSP OFF CACHE BOOL "" FORCE)
     set(UVIM_ENABLE_AUXILIARY_VIEWS OFF CACHE BOOL "" FORCE)
+endif()
+if(UVIM_ENABLE_ASM_VIEW AND NOT UVIM_ENABLE_AUXILIARY_VIEWS)
+    message(STATUS "Assembly browser disabled: UVIM_ENABLE_AUXILIARY_VIEWS is OFF")
+    set(UVIM_ENABLE_ASM_VIEW OFF)
 endif()
 if(NOT UVIM_ENABLE_SEARCH_TOOLS)
     set(UVIM_ENABLE_RG_CACHE OFF CACHE BOOL "" FORCE)
@@ -360,7 +366,7 @@ else()
     )
 endif()
 
-if(UVIM_ENABLE_ASM_DOCS OR UVIM_ENABLE_AUXILIARY_VIEWS)
+if(UVIM_ENABLE_ASM_DOCS OR UVIM_ENABLE_ASM_VIEW)
     list(APPEND UVIM_CORE_SOURCES src/editor_execution_emit_asm_command.cpp)
 endif()
 
@@ -422,6 +428,10 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
         src/help_mode.cpp
         src/glyph_select_mode.cpp
         src/command_output_mode.cpp
+    )
+endif()
+if(UVIM_ENABLE_ASM_VIEW)
+    list(APPEND MODE_STATE_MACHINE_SOURCES
         src/assembly_mode.cpp
         src/assembly_compiler.cpp
         src/editor_execution_asm_command.cpp
@@ -582,6 +592,7 @@ uvim_status_bool("sanitizers" UVIM_ENABLE_SANITIZERS)
 uvim_status_bool("debug logging" UVIM_DEBUG_LOGGING)
 uvim_status_bool("LSP debug logging" UVIM_DEBUG_LSP)
 message(STATUS "uvim compiled features:")
+uvim_status_bool("assembly browser" UVIM_ENABLE_ASM_VIEW)
 uvim_status_bool("asm docs" UVIM_ENABLE_ASM_DOCS)
 uvim_status_bool("browser tools" UVIM_ENABLE_BROWSER_TOOLS)
 uvim_status_bool("auxiliary views" UVIM_ENABLE_AUXILIARY_VIEWS)
@@ -785,6 +796,10 @@ if(UVIM_ENABLE_AUXILIARY_VIEWS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_AUXILIARY_VIEWS=1)
 endif()
 
+if(UVIM_ENABLE_ASM_VIEW)
+    target_compile_definitions(uvim PRIVATE UVIM_ENABLE_ASM_VIEW=1)
+endif()
+
 if(UVIM_ENABLE_ASM_DOCS)
     target_compile_definitions(uvim PRIVATE UVIM_ENABLE_ASM_DOCS=1)
 endif()
@@ -966,7 +981,7 @@ if(UVIM_BUILD_TESTS)
         target_include_directories(fake_lsp_server PRIVATE ${CMAKE_SOURCE_DIR}/src)
         target_link_libraries(fake_lsp_server PRIVATE yyjson Threads::Threads)
     endif()
-    if(UVIM_ENABLE_AUXILIARY_VIEWS)
+    if(UVIM_ENABLE_ASM_VIEW)
         list(APPEND UVIM_REAL_MODE_TEST_FILES tests/assembly_view_test.cpp)
         add_executable(fake_assembly_compiler tests/fake_assembly_compiler.cpp)
         target_link_libraries(fake_assembly_compiler PRIVATE Threads::Threads)
@@ -997,7 +1012,8 @@ if(UVIM_BUILD_TESTS)
     )
     target_include_directories(real_mode_transitions_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_TESTING=1)
-    if(UVIM_ENABLE_AUXILIARY_VIEWS)
+    if(UVIM_ENABLE_ASM_VIEW)
+        target_compile_definitions(real_mode_transitions_tests PRIVATE UVIM_ENABLE_ASM_VIEW=1)
         add_dependencies(real_mode_transitions_tests fake_assembly_compiler)
         target_compile_definitions(real_mode_transitions_tests PRIVATE
             UVIM_TEST_ASSEMBLY_COMPILER="$<TARGET_FILE:fake_assembly_compiler>")
@@ -1080,6 +1096,12 @@ if(UVIM_BUILD_TESTS)
     gtest_discover_tests(uvim_config_deps_tests)
     gtest_discover_tests(real_mode_transitions_tests)
 
+    add_test(NAME assembly_build_profiles
+        COMMAND ${CMAKE_COMMAND}
+            "-DUVIM_CONFIG=$<TARGET_FILE:uvim-config>"
+            "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/assembly profiles"
+            -P ${CMAKE_SOURCE_DIR}/tests/assembly_build_profiles_test.cmake)
+
     # `uvim --version` must print the release version; release tags
     # (vMAJOR.MINOR.PATCH) are checked against it by the release scripts.
     string(REPLACE "." "\\." _uvim_version_regex "${UVIM_RELEASE_VERSION}")
@@ -1123,7 +1145,7 @@ if(UVIM_BUILD_TESTS)
 
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS uvim state_machine_tests structural_navigation_tests mode_state_machine_tests constants_tests logging_tests real_mode_transitions_tests
+        DEPENDS uvim uvim-config state_machine_tests structural_navigation_tests mode_state_machine_tests constants_tests logging_tests real_mode_transitions_tests
     )
 endif()
 

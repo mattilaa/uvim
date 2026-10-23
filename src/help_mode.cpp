@@ -41,13 +41,16 @@ int helpModeContentRows(const ModeContext& ctx)
 
 std::vector<std::string> helpSearchTopics()
 {
-    return {"",         "commands",    "modes",     "navigation", "editing",
-            "files",    "filebrowser", "run",       "buffers",    "windows",
-            "search",   "regex",       "clipboard", "git",        "ga",
-            "gb",       "gbb",         "gbl",       "gj",         "gbv",
-            "gs",       "asm",         "emitasm",   "lsp",        "toolinfo",
-            "tasks",    "diagnostics", "logging",   "keys",       "palette",
-            "functions"};
+    return {"",        "commands",    "modes",     "navigation", "editing",
+            "files",   "filebrowser", "run",       "buffers",    "windows",
+            "search",  "regex",       "clipboard", "git",        "ga",
+            "gb",      "gbb",         "gbl",       "gj",         "gbv",
+            "gs",
+#ifdef UVIM_ENABLE_ASM_VIEW
+            "asm",
+#endif
+            "emitasm", "lsp",         "toolinfo",  "tasks",      "diagnostics",
+            "logging", "keys",        "palette",   "functions"};
 }
 
 int helpSearchVisibleRows(const Editor& editor)
@@ -136,8 +139,10 @@ std::string helpTopicDescription(const std::string& topic)
         return "Show blamed commit diff";
     if(topic == "gs")
         return "C/C++ symbol size popup";
+#ifdef UVIM_ENABLE_ASM_VIEW
     if(topic == "asm")
         return "Compile and browse C/C++ or Mlang assembly";
+#endif
     if(topic == "emitasm")
         return "Emit C/C++ assembly";
     if(topic == "lsp")
@@ -1216,8 +1221,10 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  `:wqa!` or `:wqall!` - Force write all and quit",
             "",
             "C/C++:",
+#ifdef UVIM_ENABLE_ASM_VIEW
             "  `:asm . [flags]`   - Browse assembly of current buffer",
             "                       Example: `:asm . -O2` (`i`: inspect)",
+#endif
             "  `:emitasm [flags]` - Emit current buffer assembly into .s "
             "buffer",
             "                       Example: `:emitasm -O2`",
@@ -1560,6 +1567,7 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "  Local quoted includes are scanned for nested struct bodies.",
         };
     }
+#ifdef UVIM_ENABLE_ASM_VIEW
     else if(topic_lower == "asm")
     {
         lines = {
@@ -1640,10 +1648,11 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "same x86/x64 and AArch64 docs as assembly gd. Labels/directives",
             "show a message when there is no instruction to explain.",
             "",
-            "Requires auxiliary views; instruction help also needs ASM_DOCS.",
+            "Requires ASM_VIEW and auxiliary views; help also needs ASM_DOCS.",
             "`:emitasm [flags]` still creates a separate editable .s buffer.",
         };
     }
+#endif
     else if(topic_lower == "emitasm")
     {
         lines = {

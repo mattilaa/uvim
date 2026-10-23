@@ -117,7 +117,7 @@ jobs:
 
       - name: Configure (Debug)
         run: >-
-          cmake -S . -B build -DUVIM_BUILD_TESTS=ON
+          cmake -S . -B build -DUVIM_BUILD_TESTS=ON -DUVIM_ENABLE_ASM_VIEW=ON
           -DPython3_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')"
           ${{ matrix.configure }}
 
@@ -276,7 +276,7 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DUVIM_BUILD_TESTS=OFF \
+            -DUVIM_BUILD_TESTS=OFF -DUVIM_ENABLE_ASM_VIEW=ON \
             -DUVIM_ENABLE_CLANGD_LSP=ON \
             -DUVIM_ENABLE_CSHARP_LSP=ON
 
@@ -286,7 +286,7 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DUVIM_BUILD_TESTS=OFF \
+            -DUVIM_BUILD_TESTS=OFF -DUVIM_ENABLE_ASM_VIEW=ON \
             -DUVIM_ENABLE_CLANGD_LSP=ON \
             -DUVIM_ENABLE_CSHARP_LSP=ON
 
@@ -294,7 +294,7 @@ jobs:
         if: runner.os == 'Windows'
         run: >
           cmake -S . -B build -A x64
-          -DUVIM_BUILD_TESTS=OFF
+          -DUVIM_BUILD_TESTS=OFF -DUVIM_ENABLE_ASM_VIEW=ON
           -DUVIM_ENABLE_CLANGD_LSP=ON
           -DUVIM_ENABLE_CSHARP_LSP=ON
 

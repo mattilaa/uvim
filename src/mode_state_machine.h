@@ -10,8 +10,10 @@
 #include "color_selector_mode.h"
 #endif
 #include "command_mode.h"
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_ASM_VIEW
 #include "assembly_mode.h"
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 #include "command_output_mode.h"
 #endif
 #ifdef UVIM_ENABLE_BROWSER_TOOLS

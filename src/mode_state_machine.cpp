@@ -178,12 +178,14 @@ struct ModeStateToMode
     {
         return COMMAND_OUTPUT;
     }
-
+#endif
+#ifdef UVIM_ENABLE_ASM_VIEW
     Mode operator()(const AssemblyMode&) const
     {
         return ASSEMBLY;
     }
-
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     Mode operator()(const GlyphSelectMode&) const
     {
         return GLYPH_SELECT;
@@ -323,7 +325,7 @@ std::optional<ModeState> dispatchEditorCommand(ModeContext& ctx,
     std::string path;
     if(ctx.takeCommandRequest(mode, path))
     {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_ASM_VIEW
         if(mode == ASSEMBLY)
             return AssemblyMode{path};
 #endif
@@ -539,14 +541,18 @@ ModeState stateForMode(ModeContext& ctx, Mode mode)
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     case COMMAND_OUTPUT:
         return CommandOutputMode{};
-    case ASSEMBLY:
-        return AssemblyMode{};
     case GLYPH_SELECT:
         return GlyphSelectMode{};
 #else
     case COMMAND_OUTPUT:
-    case ASSEMBLY:
     case GLYPH_SELECT:
+        return NormalMode{};
+#endif
+#ifdef UVIM_ENABLE_ASM_VIEW
+    case ASSEMBLY:
+        return AssemblyMode{};
+#else
+    case ASSEMBLY:
         return NormalMode{};
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS

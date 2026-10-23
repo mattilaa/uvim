@@ -11,7 +11,7 @@ namespace editor::statemachine
 {
 bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
 {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_ASM_VIEW
     const std::string_view command = ctx.commandBuffer;
     assembly_compiler::Request request;
     std::string error;
@@ -77,13 +77,15 @@ bool CommandMode::updateAssemblyFlagPopup(ModeContext& ctx)
         ctx.requestFullRedraw();
         return true;
     }
-#endif
     if(assemblyFlagPopup)
     {
         ctx.cancelCommandPopup();
         ctx.setStatusMessage("");
     }
     assemblyFlagPopup = false;
+#else
+    (void)ctx;
+#endif
     return false;
 }
 
@@ -259,6 +261,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
                                : ModeState{WelcomeMode{}};
     }
 
+#ifdef UVIM_ENABLE_ASM_VIEW
     // Selecting a compiler flag only edits the command. Compilation requires
     // a second Enter after the picker closes; Escape above cancels everything.
     if(assemblyFlagPopup)
@@ -296,6 +299,8 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             return std::nullopt;
         }
     }
+
+#endif
 
     // Enter -> execute command
     if(c == keyCode(control::ControlKey::ENTER))
@@ -416,7 +421,7 @@ std::optional<ModeState> CommandMode::handle(ModeContext& ctx,
             std::string path;
             if(ctx.takeCommandRequest(mode, path))
             {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_ASM_VIEW
                 if(mode == ASSEMBLY)
                     return AssemblyMode{path};
 #endif

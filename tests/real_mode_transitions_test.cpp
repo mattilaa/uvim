@@ -2150,3 +2150,28 @@ TEST(RealModeTransitionsTest, TabTakesHighlightedItemInWelcomeCommandPrompt)
     EXPECT_EQ(prompt->getInput(), *editor.commandPopupSelection());
     EXPECT_EQ(prompt->getInput(), "loctotal");
 }
+
+TEST(RealModeTransitionsTest, AssemblyCommandFollowsBuildFlag)
+{
+    Editor editor = Editor::createForTests();
+    const auto completions = editor.getCommandCompletions("asm");
+    const bool offersAssembly =
+        std::find(completions.begin(), completions.end(), "asm") !=
+        completions.end();
+#ifdef UVIM_ENABLE_ASM_VIEW
+    EXPECT_TRUE(offersAssembly);
+#else
+    EXPECT_FALSE(offersAssembly);
+    editor.createNewBuffer();
+    auto sm = makeMachine(editor, NormalMode{});
+    sm.dispatch(':');
+    for(char key : std::string("asm . --"))
+        sm.dispatch(key);
+    EXPECT_FALSE(editor.commandPopupActive);
+    sm.dispatch(keyCode(control::ControlKey::ESC));
+    dispatch_command(sm, "asm .");
+    EXPECT_STREQ(sm.currentStateName(), "NORMAL");
+    EXPECT_NE(editor.statusMessage.find("Not an editor command"),
+              std::string::npos);
+#endif
+}

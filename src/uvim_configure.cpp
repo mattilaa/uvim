@@ -262,6 +262,7 @@ struct Config
     bool jsonLsp = false;
     bool tsLsp = false;
     bool csharpLsp = false;
+    bool asmView = false;
     bool asmDocs = true;
     bool gitTools = true;
     bool searchTools = true;
@@ -304,6 +305,7 @@ bool operator==(const Config& lhs, const Config& rhs)
            lhs.htmlLsp == rhs.htmlLsp && lhs.cssLsp == rhs.cssLsp &&
            lhs.jsonLsp == rhs.jsonLsp && lhs.tsLsp == rhs.tsLsp &&
            lhs.csharpLsp == rhs.csharpLsp &&
+           lhs.asmView == rhs.asmView &&
            lhs.asmDocs == rhs.asmDocs &&
            lhs.gitTools == rhs.gitTools &&
            lhs.searchTools == rhs.searchTools &&
@@ -646,6 +648,7 @@ void apply_feature_set(Config& cfg)
     cfg.minimal = false;
     cfg.browserTools = true;
     cfg.auxiliaryViews = true;
+    cfg.asmView = false;
 
     if(cfg.featureSet == 0)
     {
@@ -788,6 +791,7 @@ void apply_feature_set(Config& cfg)
         return;
     }
 
+    cfg.asmView = true;
     cfg.optimization = 2;
     cfg.browserTools = true;
     cfg.auxiliaryViews = true;
@@ -845,7 +849,8 @@ std::vector<Section> make_sections()
            "compiles out git, fzf/rg-style search views, formatters, "
            "clipboard, struct-size probes, docs, tests, and LSP. Minimal keeps "
            "the normal editor tools but removes docs/tests/LSP. Basic is the "
-           "default developer build. Full also enables LSP."}}},
+           "default developer build. Full also enables LSP and the assembly "
+           "browser."}}},
         {"Target",
          "Platform, compiler mode, and build parallelism. Release defaults to "
          "-O2 unless another optimization level is selected.",
@@ -910,6 +915,15 @@ std::vector<Section> make_sections()
            {},
            "Build switch for help, loc, lspinfo, glyph select, references, "
            "command output, and other auxiliary views."},
+          {ItemKind::Toggle,
+           "Assembly browser",
+           "UVIM_ENABLE_ASM_VIEW",
+           &Config::asmView,
+           nullptr,
+           {},
+           "Build :asm compilation, source/assembly browsing, the compiler "
+           "flag picker, and instruction inspection. Requires auxiliary views. "
+           "Enabled by default only in Full."},
           {ItemKind::Toggle,
            "Assembly docs",
            "UVIM_ENABLE_ASM_DOCS",
@@ -1242,11 +1256,12 @@ std::string preset_help(const Config& cfg)
                "tools, auxiliary views, git, search, formatters, clipboard, "
                "color tools, struct-size probes, tests, and "
                "compile_commands.json are enabled, but language servers are "
-               "off.";
+               "off. The assembly browser is off by default.";
     }
     return std::string(preset) +
            " enables the complete build profile, including all language "
-           "servers, editor/browser tools, auxiliary views, git, search, "
+           "servers, the assembly browser, editor/browser tools, auxiliary "
+           "views, git, search, "
            "formatters, clipboard, color tools, struct-size probes, tests, and "
            "compile_commands.json.";
 }
@@ -1830,6 +1845,8 @@ bool apply_config_value(Config& cfg, CliOptions& options,
         cfg.tsLsp = parse_bool(value).value_or(cfg.tsLsp);
     else if(key == "csharp_lsp")
         cfg.csharpLsp = parse_bool(value).value_or(cfg.csharpLsp);
+    else if(key == "asm_view")
+        cfg.asmView = parse_bool(value).value_or(cfg.asmView);
     else if(key == "asm_docs")
         cfg.asmDocs = parse_bool(value).value_or(cfg.asmDocs);
     else if(key == "browser_tools")
@@ -1994,6 +2011,7 @@ bool write_config_file(const Config& cfg, const CliOptions& options,
     file << "json_lsp=" << bool_value(cfg.jsonLsp) << "\n";
     file << "ts_lsp=" << bool_value(cfg.tsLsp) << "\n";
     file << "csharp_lsp=" << bool_value(cfg.csharpLsp) << "\n";
+    file << "asm_view=" << bool_value(cfg.asmView) << "\n";
     file << "asm_docs=" << bool_value(cfg.asmDocs) << "\n";
     file << "browser_tools=" << bool_value(cfg.browserTools) << "\n";
     file << "auxiliary_views=" << bool_value(cfg.auxiliaryViews) << "\n";
@@ -2143,10 +2161,12 @@ void print_help(std::ostream& out)
         << "Feature names for --enable/--disable:\n"
         << "  clangd, robot-lsp, python-lsp, mlang-lsp, "
            "mlang-semantic-tokens, html-lsp,\n"
-        << "  css-lsp, json-lsp, ts-lsp, csharp-lsp, browser-tools, auxiliary-views, "
-           "asm-docs,\n"
+        << "  css-lsp, json-lsp, ts-lsp, csharp-lsp, browser-tools, "
+           "auxiliary-views, "
+           "asm-view, asm-docs,\n"
         << "  git, search, formatters, clipboard,\n"
-        << "  struct-size, color-tools, terminal-colors, tests, compile-commands, "
+        << "  struct-size, color-tools, terminal-colors, tests, "
+           "compile-commands, "
            "modern-keybindings, multi-pane-splits, per-pane-lsp,\n"
         << "  auto-build-number,\n"
         << "  lto, gc-sections, strip, static, static-link, sanitizers, "
@@ -2185,6 +2205,9 @@ bool set_feature(Config& cfg, std::string_view name, bool enabled,
     else if(equals_ci(name, "csharp-lsp") || equals_ci(name, "csharp") ||
             equals_ci(name, "cs-lsp") || equals_ci(name, "c#"))
         cfg.csharpLsp = enabled;
+    else if(equals_ci(name, "asm-view") || equals_ci(name, "assembly-view") ||
+            equals_ci(name, "assembly-browser"))
+        cfg.asmView = enabled;
     else if(equals_ci(name, "asm-docs") || equals_ci(name, "asm"))
         cfg.asmDocs = enabled;
     else if(equals_ci(name, "browser-tools") ||

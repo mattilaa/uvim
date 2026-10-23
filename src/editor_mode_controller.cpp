@@ -209,11 +209,15 @@ public:
         return recognize(ctx, state);
     }
 
+#endif
+#ifdef UVIM_ENABLE_ASM_VIEW
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const AssemblyMode& state) const
     {
         return recognize(ctx, state);
     }
+#endif
+#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const GlyphSelectMode& state) const

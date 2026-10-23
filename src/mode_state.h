@@ -10,6 +10,9 @@ class Theme;
 
 namespace editor::statemachine
 {
+#ifdef UVIM_ENABLE_ASM_VIEW
+struct AssemblyMode;
+#endif
 struct ModeContext;
 struct NormalMode;
 struct WelcomeMode;
@@ -56,7 +59,6 @@ struct GitPatchMode;
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
 struct CommandOutputMode;
-struct AssemblyMode;
 struct GlyphSelectMode;
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
@@ -83,6 +85,9 @@ using ModeState = std::variant<
     GrepSearchMode, RegexSearchMode,
 #endif
     OperatorPendingMode
+#ifdef UVIM_ENABLE_ASM_VIEW
+    , AssemblyMode
+#endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
     ReferencesMode, LspInfoMode, ToolInfoMode, TaskListMode, CommandPaletteMode,
@@ -96,7 +101,7 @@ using ModeState = std::variant<
 #endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
     ,
-    CommandOutputMode, AssemblyMode, GlyphSelectMode
+    CommandOutputMode, GlyphSelectMode
 #endif
 #ifdef UVIM_ENABLE_COLOR_TOOLS
     ,

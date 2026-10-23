@@ -357,10 +357,10 @@ and as a non-interactive command-line tool.
 
 | Preset | Intended use | Included | Compiled out or disabled |
 | --- | --- | --- | --- |
-| `vi-real` | Small vi-style binary for VT-compatible terminals, recovery environments, remote machines, and minimal installations | Core modal editing, welcome screen, tabs, built-in file and buffer browsers | Colors, modern bindings, nested panes, auxiliary views, Git, search/indexing, formatters, clipboard, assembly docs, LSP, tests, and compile database output |
-| `vi-min` | Small colored terminal editor with a few modern conveniences | `vi-real` editing/browser base plus terminal colors, color tools, modern bindings, and nested panes | Git, fuzzy/grep/regex tools, formatters, clipboard, auxiliary views, assembly docs, LSP, tests, and compile database output |
-| `minimal` | Compact modern editor without language servers | Browsers, auxiliary views, Git, cached search, formatters, clipboard, colors, and nested panes | LSP, assembly docs, struct-size popup, tests, and compile database output |
-| `basic` | Normal development build when LSP support is not needed | Editor features, browsers, Git, search, formatters, clipboard, assembly docs, auxiliary views, tests, and compile database output | All language-server clients |
+| `vi-real` | Small vi-style binary for VT-compatible terminals, recovery environments, remote machines, and minimal installations | Core modal editing, welcome screen, tabs, built-in file and buffer browsers | Colors, modern bindings, nested panes, auxiliary views, Git, search/indexing, formatters, clipboard, assembly browser/docs, LSP, tests, and compile database output |
+| `vi-min` | Small colored terminal editor with a few modern conveniences | `vi-real` editing/browser base plus terminal colors, color tools, modern bindings, and nested panes | Git, fuzzy/grep/regex tools, formatters, clipboard, auxiliary views, assembly browser/docs, LSP, tests, and compile database output |
+| `minimal` | Compact modern editor without language servers | Browsers, auxiliary views, Git, cached search, formatters, clipboard, colors, and nested panes | LSP, assembly browser/docs, struct-size popup, tests, and compile database output |
+| `basic` | Normal development build when LSP support is not needed | Editor features, browsers, Git, search, formatters, clipboard, assembly docs, auxiliary views, tests, and compile database output | Assembly browser and all language-server clients |
 | `full` | Complete uVim development environment | All editor features, tests, compile database output, and every available LSP client | Sanitizers, debug logging, stripping, and static linking remain opt-in build modes |
 
 `vi-real`, `vi-min`, and `minimal` select `-Oz`, LTO, dead-code section
@@ -556,7 +556,7 @@ Options after `--preset` modify the selected profile:
 ```
 
 Available feature names include `browser-tools`, `auxiliary-views`, `git`,
-`search`, `rg-cache`, `formatters`, `clipboard`, `asm-docs`, `struct-size`,
+`search`, `rg-cache`, `formatters`, `clipboard`, `asm-view`, `asm-docs`, `struct-size`,
 `color-tools`, `terminal-colors`, `modern-keybindings`, `multi-pane-splits`,
 `per-pane-lsp`, `clangd`, `robot-lsp`, `python-lsp`, `mlang-lsp`,
 `mlang-semantic-tokens`, `html-lsp`, `css-lsp`, `json-lsp`, `ts-lsp`, `tests`,
@@ -948,9 +948,15 @@ uvim adds DWARF line information for linking the panes.
 The inspector follows the selected row while you navigate with `j/k`, using
 the same x86/x64 and AArch64 instruction documentation as assembly `gd`.
 Labels, directives and comments show a message when no instruction applies.
-The view requires `UVIM_ENABLE_AUXILIARY_VIEWS`; instruction help additionally
-requires `UVIM_ENABLE_ASM_DOCS`. The existing `:emitasm [flags]` command still
-creates a separate editable `.s` buffer. See `:help asm`.
+The browser is compiled only with `UVIM_ENABLE_ASM_VIEW=ON` and
+`UVIM_ENABLE_AUXILIARY_VIEWS=ON`. It is enabled by default only in the `full`
+configurator preset. Select **Assembly browser** in `uvim-config`, or use
+`uvim-config --preset full --disable asm-view` to omit it (and `--enable asm-view`
+to add it to a custom build). Direct CMake builds default the browser to OFF;
+pass `-DUVIM_ENABLE_ASM_VIEW=ON` to include it. Disabling it removes the browser,
+`:asm` command/completion, and compiler flag picker from the build.
+Instruction help additionally requires `UVIM_ENABLE_ASM_DOCS`.
+The existing `:emitasm [flags]` command still creates a separate editable `.s` buffer. See `:help asm`.
 
 ## Assembly instruction docs
 

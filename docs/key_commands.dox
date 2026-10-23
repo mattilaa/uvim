@@ -148,6 +148,9 @@ includes common Normal/Insert/Visual/Command mode bindings.
   the source/assembly pane. Navigation in either pane reveals matching rows
   in the other pane with a subtle green background and preserved syntax colors.
   Lines without emitted instructions and code from other files have no match.
+- The assembly browser requires the build option `UVIM_ENABLE_ASM_VIEW=ON`
+  and auxiliary views. Only the `full` configurator preset enables it by default;
+  toggle Assembly browser in `uvim-config` or use `--enable/--disable asm-view`.
 - Instruction inspection prefers Compiler Explorer API documentation, with
   the inspected instruction at the top and operand forms/examples when provided.
   Built-in help stays visible while API docs load;

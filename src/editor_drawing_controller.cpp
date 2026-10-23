@@ -332,7 +332,7 @@ void EditorDrawingController::refreshScreen()
 
     if(editor.currentMode == ASSEMBLY)
     {
-#ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+#ifdef UVIM_ENABLE_ASM_VIEW
         if(editor.modeStateMachine)
             if(auto* state = editor.modeStateMachine->getState<AssemblyMode>())
                 state->draw(editor);
