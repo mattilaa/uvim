@@ -1,0 +1,36 @@
+if(NOT DEFINED UVIM_CONFIG OR NOT DEFINED TEST_DIRECTORY)
+    message(FATAL_ERROR "UVIM_CONFIG and TEST_DIRECTORY are required")
+endif()
+
+function(check_profile name expected)
+    set(directory "${TEST_DIRECTORY}/${name}")
+    execute_process(
+        COMMAND "${UVIM_CONFIG}" ${ARGN} --build-dir "${directory}"
+        RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT "${result}" STREQUAL "0")
+        message(FATAL_ERROR "${name}: ${output}\n${error}")
+    endif()
+    file(READ "${directory}/uvim_config_cache.cmake" cache)
+    if(NOT cache MATCHES "set\\(UVIM_ENABLE_DEBUGGER ${expected} CACHE BOOL")
+        message(FATAL_ERROR "${name}: incorrect debugger build flag\n${cache}")
+    endif()
+    file(READ "${directory}/uvim-config.conf" config)
+    if(NOT config MATCHES "debugger=${expected}")
+        message(FATAL_ERROR "${name}: debugger selection was not persisted")
+    endif()
+endfunction()
+
+foreach(preset IN ITEMS vi-real vi-min)
+    check_profile("${preset}" OFF --preset "${preset}")
+endforeach()
+foreach(preset IN ITEMS minimal basic full)
+    check_profile("${preset}" ON --preset "${preset}")
+endforeach()
+check_profile(disabled OFF --preset full --disable debugger)
+check_profile(custom ON --preset basic --enable debugger)
+check_profile(reset OFF --preset full --preset vi-min)
+check_profile(imported ON --import "${TEST_DIRECTORY}/full/uvim-config.conf")
+check_profile(imported-disabled OFF --import "${TEST_DIRECTORY}/full/uvim-config.conf"
+              --disable debugger)
+check_profile(imported-enabled ON --import "${TEST_DIRECTORY}/disabled/uvim-config.conf"
+              --enable debugger)

@@ -1,0 +1,67 @@
+#define _POSIX_C_SOURCE 200809L
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <time.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
+struct Point { int x; int y; };
+
+static void delay(void) {
+    struct timespec remaining = { __INTERVAL_MS__ / 1000,
+                                 (__INTERVAL_MS__ % 1000) * 1000000L };
+    nanosleep(&remaining, NULL);
+}
+
+static int checkpoint(int worker_id, int round) {
+    int count = 40 + round % 1000;
+    bool enabled = true;
+    double ratio = 1.5;
+    const char *message = "uvim C debugger fixture";
+    struct Point point = {worker_id, count};
+    int values[3] = {worker_id, count, 7};
+    int result = point.x + values[1];
+    if (enabled && ratio > 1.0 && message[0]) {
+        return result; // DEBUG_BREAKPOINT: inspect locals here
+    }
+    return 0;
+}
+
+static void *worker(void *argument) {
+    int worker_id = (int)(intptr_t)argument;
+    int round = 0;
+    while (__ITERATIONS__ == 0 || round < __ITERATIONS__) {
+        int result = checkpoint(worker_id, round);
+        (void)result;
+        delay();
+        ++round;
+    }
+    return NULL;
+}
+
+int main(void) {
+#ifdef __linux__
+    // Let a debugger in another terminal attach under Yama ptrace_scope=1.
+    (void)prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0L, 0L, 0L);
+#endif
+    pthread_t workers[__THREAD_STORAGE__];
+    for (int id = 0; id < __THREADS__; ++id) {
+        if (pthread_create(&workers[id], NULL, worker, (void *)(intptr_t)(id + 1))) {
+            fprintf(stderr, "Cannot create worker thread\n");
+            return 1;
+        }
+    }
+    int round = 0;
+    while (__ITERATIONS__ == 0 || round < __ITERATIONS__) {
+        int result = checkpoint(0, round);
+        printf("C main: round=%d result=%d workers=__THREADS__\n", round, result);
+        fflush(stdout);
+        delay();
+        ++round;
+    }
+    for (int id = 0; id < __THREADS__; ++id) pthread_join(workers[id], NULL);
+    return 0;
+}

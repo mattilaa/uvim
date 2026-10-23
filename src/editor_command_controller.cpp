@@ -175,6 +175,8 @@ std::optional<std::string> Editor::commandHistoryDownImpl()
 
 void Editor::startCommandPopupImpl()
 {
+    commandPopupTitle.clear();
+    commandPopupEmptyMessage = "No matches";
 #ifdef UVIM_MINIMAL
     commandPopupActive = false;
     commandPopupQuery.clear();
@@ -194,6 +196,8 @@ void Editor::startCommandPopupImpl()
 
 void Editor::cancelCommandPopupImpl()
 {
+    commandPopupTitle.clear();
+    commandPopupEmptyMessage = "No matches";
     commandPopupActive = false;
     commandPopupQuery.clear();
     commandPopupFiltered.clear();
@@ -530,6 +534,8 @@ void Editor::drawCommandPopupImpl(std::string& output) const
         .filtered = commandPopupFiltered,
         .offset = commandPopupOffset,
         .cursor = commandPopupCursor,
+        .title = commandPopupTitle,
+        .emptyMessage = commandPopupEmptyMessage,
     };
     widgets::drawCommandPopup(output, view);
 #endif
@@ -580,6 +586,9 @@ Editor::getCommandCompletionsImpl(std::string_view prefix, Mode mode)
         "hs",      "close",   "clo",
 #ifdef UVIM_ENABLE_BROWSER_TOOLS
         "se", "ve", "functions",
+#endif
+#ifdef UVIM_ENABLE_DEBUGGER
+        "dbgrun", "dbgattach",
 #endif
         "tabnew", "tabe ", "tabn", "tabnext", "tabp", "tabprev",
         "set",
@@ -691,7 +700,11 @@ std::vector<std::string> Editor::getHelpCompletionsImpl(std::string_view prefix)
         "asm",
 #endif
         "emitasm",     "lsp",       "diagnostics", "logging", "help",
-        "keys",        "palette", "functions"};
+        "keys",        "palette", "functions"
+#ifdef UVIM_ENABLE_DEBUGGER
+        , "dbgrun", "dbgattach"
+#endif
+    };
 
     std::vector<std::string> matches;
     for(const auto& topic : topics)

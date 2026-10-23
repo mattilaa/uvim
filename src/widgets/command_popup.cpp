@@ -73,6 +73,12 @@ std::string_view commandDocumentation(std::string_view cmd)
     if(cmd == "--raw")
         return "Keep directives and full compiler output";
 
+#ifdef UVIM_ENABLE_DEBUGGER
+    if(cmd == "dbgrun")
+        return "Debug an executable: dbgrun [--backend lldb|gdb|mladbg] BINARY [ARGS]";
+    if(cmd == "dbgattach")
+        return "Attach debugger: dbgattach [--backend lldb|gdb|mladbg] PID";
+#endif
     if(cmd == "palette")
         return "Command palette: search and run commands";
     if(cmd == "functions")
@@ -231,7 +237,8 @@ namespace
 static std::string truncate_to_width(std::string text, int width)
 {
     while(text_utils::displayWidth(text) > width && !text.empty())
-        text.pop_back();
+        text.resize(
+            text_utils::prevUtf8CharStart(text, static_cast<int>(text.size())));
     return text;
 }
 
@@ -314,11 +321,12 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
     }
     else
     {
-        maxContent = text_utils::displayWidth("No matches");
+        maxContent = text_utils::displayWidth(view.emptyMessage);
     }
     if(maxContent <= 0)
         maxContent = text_utils::displayWidth("No matches");
 
+    maxContent = std::max(maxContent, text_utils::displayWidth(view.title));
     int innerW = std::max(48, maxContent);
     int totalW = innerW + 4;
     if(totalW > frame.screenCols)
@@ -338,8 +346,15 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
 
     moveTo(top, left);
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_LEFT);
-    text_utils::appendUtf8Repeat(output, ascii::BOX_LIGHT_HORIZONTAL,
-                                 innerW + 2);
+    const auto title =
+        view.title.empty()
+            ? std::string{}
+            : truncate_to_width(" " + std::string(view.title) + " ",
+                                innerW + 2);
+    output += title;
+    text_utils::appendUtf8Repeat(
+        output, ascii::BOX_LIGHT_HORIZONTAL,
+        std::max(0, innerW + 2 - text_utils::displayWidth(title)));
     text_utils::appendU8(output, ascii::BOX_ROUNDED_TOP_RIGHT);
 
     for(int i = 0; i < rows; ++i)
@@ -353,7 +368,7 @@ void drawCommandPopup(std::string& output, const CommandPopupView& view)
         std::string docPart;
         if(view.filtered.empty() && i == 0)
         {
-            line = "No matches";
+            line = std::string(view.emptyMessage);
         }
         else if(!view.filtered.empty())
         {

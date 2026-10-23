@@ -1751,3 +1751,138 @@ robot --outputdir tests/robot/output tests/robot/
 ```sh
 deactivate
 ```
+
+### Debugger view
+
+Use `:dbgrun path/to/binary [arguments...]` to launch a native executable and
+stop at entry, or `:dbgattach <pid>` to attach to a running process. Build the
+program with debug information (`-g`, preferably `-O0`) for source and locals.
+Quote paths or arguments containing spaces. LLDB is the default backend;
+select another with `:dbgrun --backend gdb ./app` or
+`:dbgattach --backend mladbg 1234`.
+
+Type `:dbgattach --` to browse processes in a glyph popup. Continue typing to
+fuzzy-filter by executable name or PID (for example, `:dbgattach -- cpp`).
+Ctrl+J/K or arrows select a row; Enter attaches to it. Tab inserts its PID
+without attaching, Esc closes the list, and Ctrl+R refreshes the process snapshot.
+`Ctrl+U` clears the filter. For another backend, use
+`:dbgattach --backend gdb -- cpp`. The list shows executable names/paths rather
+than command arguments, and omits the current editor process.
+
+The debugger has its own source and output view. When execution stops, variables
+and threads appear on the right. Use `j`/`k` (or arrows) to select rows and
+`Ctrl+Shift+H/J/K/L` to focus the pane in that direction. Terminals without
+extended key reporting use the editor's existing Alt+h/j/k/l fallback. Select a
+thread with Enter to inspect its source and variables. Small terminals show the
+focused pane alone. Tab/Shift-Tab cycles panes; `v` focuses Variables and `t`
+focuses Threads. The active pane is named in the header and has an accented
+glyph border. `j`/`k` moves the selection within that focused pane.
+
+Attaching commonly stops inside a system call such as sleep. The debugger
+selects the nearest readable application frame so source and locals remain
+visible. The source title and footer identify the inspected caller frame.
+`:frame 0` shows the actual stop frame; `:up`/`:down` selects other frames.
+With LLDB/mladbg, `n` or `s` from an inspected caller finishes its pending call
+and stops at the next source line before normal stepping resumes. During a step,
+the layout and viewport stay stable; panes retain values marked as the last stop
+until fresh stopped data arrives. Only changed rows are repainted; closing a popup
+restores the rows it covered.
+If no source frame is available, the pane explains how to set a breakpoint.
+
+Press `:` to open the debugger command menu. Type to filter commands, use
+Ctrl+J/K (or arrows) to select, and Tab/Enter to choose. Commands needing an
+argument insert their prefix so you can finish typing; aliases such as `:n`
+still execute directly. Other native backend commands can also be entered.
+
+`:b path/to/file:42` sets a breakpoint; Tab
+completes the path while preserving an existing `:42` suffix. Completion inserts
+the path without executing the command. Enabled breakpoints use a red background
+on their source line numbers. `:bps` opens a breakpoint list: Ctrl+J/K (or arrows)
+selects a row, `d` deletes that breakpoint from the backend, and Esc/`q` closes
+the list. `:delete ID`, `:disable ID`, and `:enable ID` also work. Pending and
+disabled breakpoints are identified in the list; gutter markers update when
+breakpoints resolve, change, or are removed.
+
+In the Source pane, select a row with `j`/`k` and press `b` to toggle a
+breakpoint. Existing enabled breakpoints on that row are removed; an existing
+disabled breakpoint is enabled. Ctrl+P opens the normal fuzzy file finder
+inside the debugger (requires `UVIM_ENABLE_SEARCH_TOOLS`). Filter project files,
+navigate with Ctrl+J/K, and press Enter to display a file without changing editor
+buffers or ending the debug session. A `:LINE` suffix such as `helper.hpp:42`
+selects the row directly. Esc cancels the picker. Browse rows and press `b` to set
+a breakpoint in that file; its source stays selected while breakpoint metadata
+refreshes. Continue/step or frame/thread selection returns to the execution
+source at the next stopped update. The execution arrow is only shown in its
+actual source file.
+
+`:c`, `:n`, `:s`, and `:f` continue, step
+over, step into, and step out; the same letters work without the prompt.
+`:run` (or `r`) restarts the program. Ctrl-C interrupts execution. Other commands
+are passed to the selected debugger (`:p expression`, `:bt`, etc.). Esc cancels
+the prompt; `q` or Esc outside the prompt closes the session. Closing an attach
+session detaches and leaves the process alive; closing a launched session ends
+that process.
+
+Debugger support requires `UVIM_ENABLE_DEBUGGER=ON` and
+`UVIM_ENABLE_AUXILIARY_VIEWS=ON` on macOS and Linux. Select **Debugger** in
+`uvim-config`, or use `uvim-config --disable debugger` to omit it from the
+build (`--enable debugger` adds it back). Direct CMake builds can use
+`-DUVIM_ENABLE_DEBUGGER=OFF`. Disabling it removes debugger views, commands,
+the process picker, and the embedded Python bridge.
+
+The debugger uses Python 3 and the installed debugger: LLDB requires matching
+Python bindings, and GDB uses its MI interface. `MLADBG_PYTHON` selects the Python
+interpreter, `MLADBG_LLDB` selects LLDB for locating bindings, and `UVIM_GDB`
+selects the GDB executable. The mladbg backend loads the command engine from
+MLang's installed `share/mlang/debugger/mladbg.py`; for a checkout, set
+`UVIM_MLADBG_MODULE=/path/to/mlang/tools/mladbg/mladbg.py`. The program's stdin is
+separate from editor commands; interactive program input is not exposed in this
+first version. Variables currently show top-level values and summaries.
+
+### Debugger test programs
+
+Generate debug builds for C, C++, and MLang (all three by default):
+
+```sh
+python3 scripts/create_debugger_examples.py --language all
+```
+
+To keep a C++ target running in one terminal while attaching from uVim in
+another:
+
+```sh
+python3 scripts/create_debugger_examples.py --language cpp --run
+```
+
+The script prints `:dbgattach PID`, `:dbgrun BINARY`, and an exact
+`:b SOURCE:LINE` command. Add the breakpoint, then use `:c` to reach it.
+Each fixture has two worker threads plus main, nested function calls, and
+scalar/array/struct locals. Select a thread with Enter in the Threads pane.
+`--threads 0` disables workers; `--threads N` chooses up to 32 workers.
+
+```sh
+# MLang with four workers; print commands for the mladbg backend.
+python3 scripts/create_debugger_examples.py --language mlang --threads 4 --backend mladbg --run
+
+# Single-threaded C that exits after five rounds.
+python3 scripts/create_debugger_examples.py --language c --threads 0 --iterations 5 --run
+
+# Choose a parent directory and shorten the delay between rounds.
+python3 scripts/create_debugger_examples.py --language all --output-dir /tmp/my-debug-tests --interval-ms 250
+```
+
+Each invocation creates a unique directory under `/tmp` (or `--output-dir`)
+containing sources, binaries, debug symbols, build/run logs, `manifest.json`,
+and `COMMANDS.txt`. Files remain after the script exits. By default targets
+repeat until stopped; Ctrl-C in the `--run` terminal stops its targets.
+Use `--iterations N` for a finite test. Without `--run`, the script only builds
+and prints commands for launching the binaries yourself or through `:dbgrun`.
+
+Compilers are discovered on `PATH`; MLang also checks `../mlang/build/mlang`.
+Override them with `--cc`, `--cxx`, `--mlang`, or `CC`, `CXX`, `MLANG`.
+`--language all` requires all three compilers. These fixtures cover the native
+languages in the current debugger workflow; managed and interpreted source
+languages need additional adapters. On Linux, the fixtures allow attachment
+from another terminal using
+[`PR_SET_PTRACER`](https://man7.org/linux/man-pages/man2/PR_SET_PTRACER.2const.html)
+without changing the system's ptrace settings.

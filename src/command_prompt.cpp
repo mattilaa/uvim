@@ -75,7 +75,11 @@ bool CommandPrompt::handle(
                         helpCompletion = true;
                     }
                     else if(cmd == "e" || cmd == "edit" || cmd == "tabe" ||
-                            cmd == "tabnew" || cmd == "w" || cmd == "cd")
+                            cmd == "tabnew" || cmd == "w" || cmd == "cd"
+#ifdef UVIM_ENABLE_DEBUGGER
+                            || cmd == "dbgrun"
+#endif
+                    )
                     {
                         completions = ctx.getPathCompletionsRecursive(pathPart);
                     }
@@ -197,6 +201,10 @@ bool CommandPrompt::handle(
 
     auto updatePopup = [&]()
     {
+#ifdef UVIM_ENABLE_DEBUGGER
+        if(processPicker.update(ctx, input))
+            return;
+#endif
         auto isLineJumpQuery = [&](std::string_view q) -> bool
         {
             if(q.empty())
@@ -265,6 +273,15 @@ bool CommandPrompt::handle(
         return false;
     }
 
+#ifdef UVIM_ENABLE_DEBUGGER
+    if(processPicker.handle(ctx, key, input) ==
+       DebuggerProcessPicker::Action::Handled)
+    {
+        ed->needsFullRedraw = true;
+        nextState.reset();
+        return true;
+    }
+#endif
     if(ctx.isCommandPopupActive())
     {
         if(key == keyCode(control::ControlKey::CTRL_K))

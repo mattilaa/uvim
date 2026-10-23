@@ -202,7 +202,15 @@ public:
         return recognize(ctx, state);
     }
 #endif
+#ifdef UVIM_ENABLE_DEBUGGER
+    std::optional<Mode> operator()(ModeContext& ctx,
+                                   const DebuggerMode& state) const
+    {
+        return recognize(ctx, state);
+    }
+#endif
 #ifdef UVIM_ENABLE_AUXILIARY_VIEWS
+
     std::optional<Mode> operator()(ModeContext& ctx,
                                    const CommandOutputMode& state) const
     {
@@ -309,7 +317,8 @@ void EditorModeController::handleKeypress(int c)
 
 #ifdef UVIM_ENABLE_SEARCH_TOOLS
     if(c == keyCode(control::ControlKey::CTRL_A) &&
-       editor.currentMode != REGEX_SEARCH && editor.currentMode != GREP_SEARCH)
+       editor.currentMode != REGEX_SEARCH && editor.currentMode != GREP_SEARCH &&
+       editor.currentMode != DEBUGGER)
     {
         if(editor.modeStateMachine)
         {

@@ -1,0 +1,2 @@
+#pragma once
+inline constexpr const char* debuggerBridge = R"UVIM_PY(@UVIM_DEBUGGER_BRIDGE@)UVIM_PY";

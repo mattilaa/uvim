@@ -41,4 +41,5 @@ enum Mode
     COLOR_SELECTOR,
     FUNCTION_BROWSER,
     ASSEMBLY,
+    DEBUGGER,
 };

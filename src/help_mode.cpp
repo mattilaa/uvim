@@ -46,6 +46,9 @@ std::vector<std::string> helpSearchTopics()
             "search",  "regex",       "clipboard", "git",        "ga",
             "gb",      "gbb",         "gbl",       "gj",         "gbv",
             "gs",
+#ifdef UVIM_ENABLE_DEBUGGER
+            "dbgrun",  "dbgattach",
+#endif
 #ifdef UVIM_ENABLE_ASM_VIEW
             "asm",
 #endif
@@ -142,6 +145,10 @@ std::string helpTopicDescription(const std::string& topic)
 #ifdef UVIM_ENABLE_ASM_VIEW
     if(topic == "asm")
         return "Compile and browse C/C++ or Mlang assembly";
+#endif
+#ifdef UVIM_ENABLE_DEBUGGER
+    if(topic == "dbgrun" || topic == "dbgattach")
+        return "Launch or attach a native debugger";
 #endif
     if(topic == "emitasm")
         return "Emit C/C++ assembly";
@@ -1144,7 +1151,66 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
     std::transform(topic_lower.begin(), topic_lower.end(), topic_lower.begin(),
                    ::tolower);
 
-    // Load help content based on topic
+#ifdef UVIM_ENABLE_DEBUGGER
+    if(topic_lower == "dbgrun" || topic_lower == "dbgattach")
+    {
+        lines = {
+            "# Debugger",
+            "",
+            "`:dbgrun path/to/binary [arguments]` launches and stops at entry.",
+            "`:dbgattach PID` attaches to a running process.",
+            "`:dbgattach --` opens the process picker; type name/PID to filter.",
+            "Ctrl-J/K or arrows select; Enter attaches; Tab inserts the PID.",
+            "Esc closes the picker, Ctrl-R refreshes, Ctrl-U clears its query.",
+            "`:dbgattach --backend gdb -- QUERY` selects a backend first.",
+            "Add `--backend lldb|gdb|mladbg` before the binary or PID.",
+            "Quote executable paths and arguments containing spaces.",
+            "Build with -g -O0 for source and local variable information.",
+            "",
+            "Source and output are shown in their own panes. At a stop,",
+            "variables and threads appear on the right. Small terminals",
+            "show the focused pane alone.",
+            "",
+            "`j/k` selects rows. `Ctrl+Shift+H/J/K/L` focuses adjacent panes.",
+            "Tab/Shift-Tab cycles panes; v focuses Variables, t Threads.",
+            "Attaching in sleep selects a readable application caller.",
+            "The source title identifies it; :frame 0 shows the stop frame.",
+            "Use :up/:down to inspect other frames.",
+            "Use Alt+h/j/k/l when the terminal uses alternate pane chords.",
+            "Enter on a thread selects it and refreshes source and locals.",
+            "",
+            "Press : for the debugger command menu; type to filter commands.",
+            "Ctrl-J/K selects; Tab/Enter chooses. Argument commands insert",
+            "their prefix so you can finish typing. Native commands also work.",
+            "",
+            "`:bps` lists breakpoints. Ctrl-J/K selects; d deletes; Esc closes.",
+            "Enabled breakpoints have red source line-number backgrounds.",
+            "In Source, j/k selects a row and b toggles its breakpoint.",
+            "Ctrl-P picks another project file without leaving the debugger.",
+            "Use a :LINE suffix to select a row, then b to set its breakpoint.",
+            "Esc cancels the picker. A browsed file stays selected during",
+            "breakpoint updates; execution commands return to the next stop.",
+            "`:delete ID`, `:disable ID`, `:enable ID` manage them directly.",
+            "",
+            "`:b path/to/file:42` sets a breakpoint. Tab completes the path",
+            "and preserves the line suffix; Enter executes the command.",
+            "`:c`, `:n`, `:s`, `:f`: continue, step over, into, out.",
+            "The same letters work outside the prompt; r restarts.",
+            "LLDB/mladbg: n/s from an inspected caller finishes its pending",
+            "call and stops at the next source line before normal stepping.",
+            "Ctrl-C interrupts; other prompt commands go to the backend.",
+            "Esc cancels the prompt. q/Esc outside it closes the session.",
+            "Attached processes detach; launched processes terminate.",
+            "",
+            "Requires macOS/Linux, Python 3, and LLDB bindings or GDB.",
+            "MLADBG_PYTHON selects Python; MLADBG_LLDB locates bindings.",
+            "For a mladbg checkout, set UVIM_MLADBG_MODULE to its",
+            "tools/mladbg/mladbg.py. UVIM_GDB selects a GDB executable.",
+            "Locals show top-level values; program stdin is not exposed.",
+        };
+    }
+    else
+#endif
     if(topic_lower.empty() || topic_lower == "index" || topic_lower == "help")
     {
         lines = {

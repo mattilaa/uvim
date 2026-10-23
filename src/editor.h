@@ -1170,6 +1170,8 @@ public:
     int commandPopupCursor = 0;
     int commandPopupOffset = 0;
     std::string commandPopupQuery;
+    std::string commandPopupTitle;
+    std::string commandPopupEmptyMessage = "No matches";
     bool commandHistorySearchActive = false;
     std::string commandHistorySearchQueryValue;
     std::string commandHistorySearchOriginal;

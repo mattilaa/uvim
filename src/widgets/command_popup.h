@@ -15,6 +15,8 @@ struct CommandPopupView
     const std::vector<int>& filtered;
     int offset = 0;
     int cursor = 0;
+    std::string_view title{};
+    std::string_view emptyMessage = "No matches";
 };
 
 std::string_view commandDocumentation(std::string_view command);
