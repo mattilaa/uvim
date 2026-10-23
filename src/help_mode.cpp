@@ -1173,6 +1173,8 @@ void HelpMode::loadHelpContent(const std::string& helpTopic)
             "and preserves the line suffix; Enter executes the command.",
             "`:c`, `:n`, `:s`, `:f`: continue, step over, into, out.",
             "The same letters work outside the prompt; r restarts.",
+            "LLDB/mladbg: n/s from an inspected caller finishes its pending",
+            "call and stops at the next source line before normal stepping.",
             "Ctrl-C interrupts; other prompt commands go to the backend.",
             "Esc cancels the prompt. q/Esc outside it closes the session.",
             "Attached processes detach; launched processes terminate.",

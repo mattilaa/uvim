@@ -281,6 +281,9 @@ struct DebuggerTransport
 
 void DebuggerMode::on_enter(ModeContext& ctx)
 {
+    drawnRows.clear();
+    drawnFooter.clear();
+    drawnWidth = 0;
     ctx.editor->needsFullRedraw = true;
     try
     {
@@ -389,6 +392,9 @@ void DebuggerMode::applyMessage(const std::string& message)
     const auto previousState = state;
     if(json_utils::has(*doc, "state"))
         state = json_utils::get_string(*doc, "state");
+    if(state == "stopped")
+        hasStoppedSnapshot = true;
+    const bool retainSnapshot = state == "running" && hasStoppedSnapshot;
     auto strings =
         [&](const char* key, std::vector<std::string>& destination, bool append)
     {
@@ -401,11 +407,13 @@ void DebuggerMode::applyMessage(const std::string& message)
             if(item.IsString())
                 destination.push_back(safe(item.GetString()));
     };
-    strings("variables", variables, false);
+    if(!retainSnapshot)
+        strings("variables", variables, false);
     strings("output", output, true);
     if(output.size() > 2000)
         output.erase(output.begin(), output.end() - 2000);
-    if(auto list = json_utils::find(*doc, "threads"); list && list->IsArray())
+    if(auto list = json_utils::find(*doc, "threads");
+       !retainSnapshot && list && list->IsArray())
     {
         threads.clear();
         threadIds.clear();
@@ -415,11 +423,12 @@ void DebuggerMode::applyMessage(const std::string& message)
             threadIds.push_back(json_utils::get_string(item, "id"));
         }
     }
-    if(json_utils::has(*doc, "path"))
+    if(!retainSnapshot && json_utils::has(*doc, "path"))
     {
         auto path = json_utils::get_string(*doc, "path");
         const int line = json_utils::get_int(*doc, "line");
-        const bool follow = sourcePath != path || executionLine != line ||
+        const bool sourceChanged = sourcePath != path;
+        const bool follow = sourceChanged || executionLine != line ||
                             previousState == "running";
         if(sourcePath != path)
         {
@@ -435,16 +444,17 @@ void DebuggerMode::applyMessage(const std::string& message)
         if(follow && executionLine > 0)
         {
             cursor[0] = executionLine - 1;
-            offset[0] = std::max(0, cursor[0] - 5);
+            if(sourceChanged)
+                offset[0] = std::max(0, cursor[0] - 5);
         }
     }
-    if(json_utils::has(*doc, "frame"))
+    if(!retainSnapshot && json_utils::has(*doc, "frame"))
         frameIndex = json_utils::get_int(*doc, "frame");
-    if(json_utils::has(*doc, "function"))
+    if(!retainSnapshot && json_utils::has(*doc, "function"))
         frameFunction = safe(json_utils::get_string(*doc, "function"));
-    if(json_utils::has(*doc, "stopFunction"))
+    if(!retainSnapshot && json_utils::has(*doc, "stopFunction"))
         stopFunction = safe(json_utils::get_string(*doc, "stopFunction"));
-    if(state != "stopped" && pane > 1)
+    if(!hasStoppedSnapshot && state != "stopped" && pane > 1)
         pane = 0;
 }
 
@@ -496,7 +506,8 @@ void DebuggerMode::complete(ModeContext& ctx)
 
 void DebuggerMode::clamp(const Editor& editor)
 {
-    const auto rects = paneRects(editor, state == "stopped", pane);
+    const auto rects =
+        paneRects(editor, hasStoppedSnapshot || state == "stopped", pane);
     const std::array<int, 4> sizes{
         static_cast<int>(source.size()), static_cast<int>(output.size()),
         static_cast<int>(variables.size()), static_cast<int>(threads.size())};
@@ -518,6 +529,7 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
 {
     const int key = event.key;
     ctx.editor->needsFullRedraw = true;
+    const int paneCount = hasStoppedSnapshot || state == "stopped" ? 4 : 2;
     if(promptActive)
     {
         if(key == 27)
@@ -561,18 +573,16 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         prompt.clear();
     }
     else if(key == keyCode(control::ControlKey::TAB))
-        pane = (pane + 1) % (state == "stopped" ? 4 : 2);
+        pane = (pane + 1) % paneCount;
     else if(key == keyCode(control::ControlKey::SHIFT_TAB))
-        pane = (pane + (state == "stopped" ? 3 : 1)) %
-               (state == "stopped" ? 4 : 2);
-    else if(key == 'v' && state == "stopped")
+        pane = (pane + paneCount - 1) % paneCount;
+    else if(key == 'v' && paneCount == 4)
         pane = 2;
-    else if(key == 't' && state == "stopped")
+    else if(key == 't' && paneCount == 4)
         pane = 3;
     else if(key == keyCode(control::ControlKey::SHIFT_CTRL_H))
         pane = pane >= 2 ? pane - 2 : pane;
-    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_L) &&
-            state == "stopped")
+    else if(key == keyCode(control::ControlKey::SHIFT_CTRL_L) && paneCount == 4)
         pane = pane < 2 ? pane + 2 : pane;
     else if(key == keyCode(control::ControlKey::SHIFT_CTRL_J))
         pane = pane == 2 || pane == 3 ? 3 : 1;
@@ -582,8 +592,8 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
         ++cursor[pane];
     else if(key == 'k' || key == keyCode(navigation::NavigationKey::ARROW_UP))
         --cursor[pane];
-    else if(key == keyCode(control::ControlKey::ENTER) && pane == 3 &&
-            cursor[3] < static_cast<int>(threadIds.size()))
+    else if(key == keyCode(control::ControlKey::ENTER) && state == "stopped" &&
+            pane == 3 && cursor[3] < static_cast<int>(threadIds.size()))
         execute("thread " + threadIds[cursor[3]]);
     else if(key == 'r')
         execute("run");
@@ -604,19 +614,35 @@ std::optional<ModeState> DebuggerMode::handle(ModeContext& ctx,
 void DebuggerMode::draw(Editor& editor)
 {
     const int width = std::max(1, editor.screenCols);
-    const auto rects = paneRects(editor, state == "stopped", pane);
+    const auto rects =
+        paneRects(editor, hasStoppedSnapshot || state == "stopped", pane);
     clamp(editor);
     const int sourceRows = std::max(0, rects[0].height - 2);
     editor.highlightPreviewLines(
         highlight, sourcePath, source,
         std::min(source.size(), static_cast<size_t>(offset[0] + sourceRows)));
-    std::string out = Terminal::ESC_HIDE_CURSOR;
+    std::vector<std::string> rows(std::max(2, editor.screenRows));
+    std::string out;
+    int activeRow = -1;
+    auto saveRow = [&]()
+    {
+        if(activeRow >= 0 && activeRow < static_cast<int>(rows.size()))
+            rows[activeRow] += out;
+        out.clear();
+    };
+    auto atPosition = [&](int row, int column)
+    {
+        saveRow();
+        activeRow = row - 1;
+        out += Terminal::cursorPos(row, column);
+    };
     const std::array<std::string, 4> names{"Source", "Output", "Variables",
                                            "Threads"};
     auto header = [&](int row, const std::string& text)
     {
-        out += Terminal::cursorPos(row, 1) + editor.theme.reset() +
-               editor.theme.uiAccent() + fit(safe(text), width);
+        atPosition(row, 1);
+        out += editor.theme.reset() + editor.theme.uiAccent() +
+               fit(safe(text), width);
     };
     header(1, " Debugger [" + backend + "] " + state +
                   "  Focus: " + names[pane] + "  " + target);
@@ -634,10 +660,11 @@ void DebuggerMode::draw(Editor& editor)
         const auto border =
             editor.theme.reset() +
             (pane == which ? editor.theme.uiAccent() : editor.theme.uiGutter());
-        auto at = [&](int row)
-        { out += Terminal::cursorPos(rect.y + row, rect.x); };
+        auto at = [&](int row) { atPosition(rect.y + row, rect.x); };
         std::string title =
             std::string(pane == which ? "> " : " ") + names[which];
+        if(state == "running" && hasStoppedSnapshot && which != 1)
+            title += " (last stop)";
         if(which == 0)
         {
             if(!frameFunction.empty())
@@ -646,7 +673,7 @@ void DebuggerMode::draw(Editor& editor)
             if(!sourcePath.empty())
                 title += " " + sourcePath;
         }
-        if(which == 3)
+        if(which == 3 && state != "running")
             title += " (Enter selects)";
         at(0);
         out += border;
@@ -744,6 +771,8 @@ void DebuggerMode::draw(Editor& editor)
             ascii::append(out, ascii::BOX_ROUNDED_BOTTOM_RIGHT);
         }
     }
+    saveRow();
+    activeRow = -1;
     widgets::ViewStatusBarView status{.theme = editor.theme};
     status.modeLabel = name();
     status.context =
@@ -765,17 +794,38 @@ void DebuggerMode::draw(Editor& editor)
             std::min(width, static_cast<int>(prompt.size()) + 2));
         out += Terminal::ESC_SHOW_CURSOR;
     }
+    else if(state == "running" && hasStoppedSnapshot)
+        out += fit(" Running; source, variables and threads show the last "
+                   "stop. Ctrl-C interrupts.",
+                   width);
     else if(state == "stopped")
     {
         std::string hint =
             " n next  s into  f out  c continue  :b file:line breakpoint";
         if(frameIndex > 0 && !stopFunction.empty())
-            hint = " Stopped in " + stopFunction + "; inspecting caller #" +
-                   std::to_string(frameIndex) +
-                   ". :frame 0 shows the stop; :b file:line then :c.";
+            hint = " n next (finish pending call)  c continue  :frame 0 actual "
+                   "stop | Caller #" +
+                   std::to_string(frameIndex) + "; stopped in " + stopFunction;
         out += fit(safe(hint), width);
     }
-    Terminal::write(out);
-    Terminal::flush();
+    const bool repaint = drawnWidth != width || drawnRows.size() != rows.size();
+    std::string changes;
+    for(size_t row = 0; row < rows.size(); ++row)
+        if(repaint || drawnRows[row] != rows[row])
+            changes += rows[row];
+    const bool footerChanged = repaint || drawnFooter != out;
+    if(footerChanged || !changes.empty())
+    {
+        changes = std::string(Terminal::ESC_HIDE_CURSOR) + changes;
+        // A visible prompt cursor must be restored after content updates.
+        if(footerChanged || promptActive)
+            changes += out;
+        Terminal::beginCapture();
+        Terminal::write(changes);
+        Terminal::endCapture();
+    }
+    drawnRows = std::move(rows);
+    drawnFooter = std::move(out);
+    drawnWidth = width;
 }
 } // namespace editor::statemachine

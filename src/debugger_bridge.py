@@ -93,11 +93,20 @@ class LLDB:
     def command(self, text):
         text = text.strip()
         select_thread = text.startswith('thread ') and text[7:].strip().isdigit()
-        if text == 'interrupt':
+        caller_step = self.caller_step_command(text)
+        if caller_step:
+            result = self.lldb.SBCommandReturnObject()
+            self.debugger.GetCommandInterpreter().HandleCommand(caller_step, result)
+            emit(output=(result.GetOutput() + result.GetError()).splitlines())
+        elif text == 'interrupt':
             error = self.target.GetProcess().Stop()
             if error.Fail():
                 raise RuntimeError(str(error))
         elif self.session:
+            # The bridge already consumed this stop. Do not let mladbg's own
+            # polling reselect the previous stop thread after a thread/frame command.
+            process = self.target.GetProcess()
+            self.session.last_stop = (process.GetProcessID(), process.GetState(), process.GetStopID())
             self.session.command(text)
             emit(output=list(self.session.log)[-100:])
             self.session.log.clear()
@@ -123,6 +132,24 @@ class LLDB:
         if select_thread:
             self.select_source_frame(prefer_application=True)
         self.snapshot()
+
+    def caller_step_command(self, text):
+        # Source shown after attach may be several frames above the actual PC.
+        # Native next/step only advances frame zero, potentially one instruction
+        # at a time in libc. Finish the pending call in the inspected frame first.
+        if text not in ('next', 'n', 'step', 's'):
+            return None
+        process = self.target.GetProcess()
+        if process.GetState() not in (self.lldb.eStateStopped, self.lldb.eStateCrashed,
+                                     self.lldb.eStateSuspended):
+            return None
+        frame = process.GetSelectedThread().GetSelectedFrame()
+        if not frame.IsValid() or frame.GetFrameID() == 0:
+            return None
+        path, line = self.frame_source(frame)
+        if not readable_source(path, line):
+            return None
+        return f'thread until --frame {frame.GetFrameID()} --run-mode all-threads {line + 1}'
 
     def poll(self):
         event = self.lldb.SBEvent()
@@ -187,12 +214,19 @@ class LLDB:
                                          self.lldb.eStateSuspended)
         state = 'stopped' if stopped else 'running' if process.GetState() in (
             self.lldb.eStateRunning, self.lldb.eStateStepping) else 'exited' if process.GetState() == self.lldb.eStateExited else 'ready'
+        if state == 'running':
+            emit(state=state)
+            return
         value = dict(state=state, variables=[], threads=[], path='', line=0, frame=0, function='', stopFunction='')
         if stopped:
             if self.source_selection_pending:
                 self.select_source_frame(prefer_application=True)
             thread = process.GetSelectedThread()
             frame = thread.GetSelectedFrame()
+            # LLDB may still publish stopped while an asynchronous resume has
+            # already invalidated its frames. Wait for the next process event.
+            if not frame.IsValid():
+                return
             value.update(frame=frame.GetFrameID(), function=frame.GetFunctionName() or '',
                          stopFunction=thread.GetFrameAtIndex(0).GetFunctionName() or '')
             path, line = self.frame_source(frame)
@@ -334,7 +368,7 @@ class GDB:
             token, prefix, result, payload = match.groups()
             data = mi_fields(payload or '')
             if prefix == '*' and result == 'running':
-                emit(state='running', variables=[], threads=[])
+                emit(state='running')
             elif prefix == '*' and result == 'stopped':
                 if data.get('reason', '').startswith('exited'):
                     emit(state='exited', variables=[], threads=[])

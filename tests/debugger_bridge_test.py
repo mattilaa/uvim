@@ -27,7 +27,7 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(bridge.mi_value('"a\\012b"')[0], 'a\nb')
         self.assertEqual(bridge.mi_value('[frame={level="0"},frame={level="1"}]')[0], [{'level': '0'}, {'level': '1'}])
 
-    def test_gdb_stop_refreshes_panes_and_clears_them_on_continue(self):
+    def test_gdb_stop_refreshes_panes_without_clearing_them_on_continue(self):
         gdb = bridge.GDB.__new__(bridge.GDB)
         gdb.lines = queue.Queue()
         gdb.pending = {'1': 'variables', '2': 'threads', '3': 'frame'}
@@ -43,7 +43,7 @@ class BridgeTests(unittest.TestCase):
             messages = [call.kwargs for call in emit.call_args_list]
             self.assertIn({'variables': ['count: int = 42']}, messages)
             self.assertIn({'path': '/tmp/test.c', 'line': 5, 'frame': 0, 'function': ''}, messages)
-            self.assertEqual(messages[-1], {'state': 'running', 'variables': [], 'threads': []})
+            self.assertEqual(messages[-1], {'state': 'running'})
 
     def test_attach_selects_readable_application_caller(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -86,6 +86,42 @@ class BridgeTests(unittest.TestCase):
             with patch.object(gdb, 'send') as send, patch.object(bridge, 'emit'):
                 gdb.poll()
                 send.assert_called_once_with('-stack-select-frame 3', 'refresh')
+
+    def test_caller_next_and_step_use_selected_frame_but_frame_zero_uses_native_step(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'app.cpp'
+            source.write_text('int main() {}')
+            engine = bridge.LLDB.__new__(bridge.LLDB)
+            engine.lldb = SimpleNamespace(eStateStopped=1, eStateCrashed=2, eStateSuspended=3)
+            engine.target = MagicMock()
+            process = engine.target.GetProcess.return_value
+            process.GetState.return_value = 1
+            frame = process.GetSelectedThread.return_value.GetSelectedFrame.return_value
+            frame.IsValid.return_value = True
+            frame.GetFrameID.return_value = 4
+            with patch.object(engine, 'frame_source', return_value=(str(source), 51)):
+                for command in ('next', 'n', 'step', 's'):
+                    self.assertEqual(engine.caller_step_command(command),
+                                     'thread until --frame 4 --run-mode all-threads 52')
+                self.assertIsNone(engine.caller_step_command('continue'))
+                self.assertIsNone(engine.caller_step_command('next --count 2'))
+                frame.GetFrameID.return_value = 0
+                self.assertIsNone(engine.caller_step_command('next'))
+                frame.GetFrameID.return_value = 4
+                process.GetState.return_value = 9
+                self.assertIsNone(engine.caller_step_command('next'))
+
+    def test_running_snapshot_does_not_clear_the_last_stop_or_read_frames(self):
+        engine = bridge.LLDB.__new__(bridge.LLDB)
+        engine.lldb = SimpleNamespace(eStateStopped=1, eStateCrashed=2, eStateSuspended=3,
+                                     eStateRunning=4, eStateStepping=5, eStateExited=6)
+        engine.target = MagicMock()
+        process = engine.target.GetProcess.return_value
+        process.GetState.return_value = 4
+        with patch.object(bridge, 'emit') as emit:
+            engine.snapshot()
+            emit.assert_called_once_with(state='running')
+            process.GetSelectedThread.assert_not_called()
 
     def test_gdb_commands_escape_paths(self):
         gdb = bridge.GDB.__new__(bridge.GDB)
@@ -143,6 +179,64 @@ class LiveTests(unittest.TestCase):
                             proc.wait()
                         proc.stdout.close()
                         proc.stderr.close()
+                        target.terminate()
+                        target.wait()
+                        target.stdout.close()
+
+    def test_cpp_attach_next_advances_application_source_and_selected_worker(self):
+        with tempfile.TemporaryDirectory(prefix='uvim-cpp-next-') as directory:
+            generator = SOURCE.parents[1] / 'scripts/create_debugger_examples.py'
+            subprocess.run([sys.executable, '-B', str(generator), '--language', 'cpp',
+                            '--interval-ms', '500', '--output-dir', directory],
+                           check=True, stdout=subprocess.DEVNULL)
+            item, = json.loads(next(Path(directory).glob('uvim-debugger-*/manifest.json')).read_text())
+            backends = ['lldb'] + (['mladbg'] if os.environ.get('UVIM_MLADBG_MODULE') else [])
+            for backend in backends:
+                with self.subTest(backend=backend):
+                    target = subprocess.Popen([item['binary']], stdout=subprocess.PIPE, text=True)
+                    engine = None
+                    try:
+                        self.assertIn('C++ main:', target.stdout.readline())
+                        messages = []
+                        with patch.object(bridge, 'emit', side_effect=lambda **value: messages.append(value)):
+                            engine = bridge.LLDB(backend, True, str(target.pid), [])
+                            engine.poll()
+                            process = engine.target.GetProcess()
+                            def snapshot():
+                                return next(m for m in reversed(messages) if m.get('state') == 'stopped')
+                            def step(command):
+                                before = snapshot()
+                                stop_id = process.GetStopID()
+                                engine.command(command)
+                                deadline = time.monotonic() + 10
+                                while time.monotonic() < deadline:
+                                    engine.poll()
+                                    if process.GetStopID() > stop_id and process.GetState() == engine.lldb.eStateStopped:
+                                        after = snapshot()
+                                        self.assertEqual(after['path'], item['source'], after)
+                                        self.assertNotEqual(after['line'], before['line'], after)
+                                        self.assertEqual(after['frame'], 0, after)
+                                        return after
+                                    time.sleep(.02)
+                                self.fail(f'Step timed out: {messages}')
+                            self.assertGreater(snapshot()['frame'], 0, snapshot())
+                            step('n')
+                            step('next')
+                            engine.command('thread 2')
+                            thread = process.GetSelectedThread()
+                            self.assertEqual(thread.GetIndexID(), 2)
+                            # The worker can be in checkpoint/destructor code as
+                            # well as sleep when the main-thread step completes.
+                            caller = next(frame for frame in thread
+                                          if (frame.GetFunctionName() or '').startswith('worker('))
+                            engine.command('frame ' + str(caller.GetFrameID()))
+                            self.assertIn('worker', snapshot()['function'])
+                            worker = step('next')
+                            self.assertIn('worker', worker['function'])
+                            self.assertTrue(any('worker_id' in v for v in worker['variables']))
+                    finally:
+                        if engine:
+                            engine.close()
                         target.terminate()
                         target.wait()
                         target.stdout.close()

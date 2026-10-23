@@ -40,6 +40,7 @@ struct DebuggerMode
     PreviewHighlight highlight;
     std::shared_ptr<DebuggerTransport> transport;
     bool started = false;
+    bool hasStoppedSnapshot = false;
 
     DebuggerMode() = default;
 
@@ -57,6 +58,9 @@ struct DebuggerMode
     void applyMessage(const std::string& message);
 
 private:
+    std::vector<std::string> drawnRows;
+    std::string drawnFooter;
+    int drawnWidth = 0;
     void execute(const std::string& command);
     void complete(ModeContext& ctx);
     void clamp(const Editor& editor);

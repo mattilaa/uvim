@@ -98,8 +98,8 @@ TEST(RealModeTransitionsTest, DebuggerStoppedPanesAndPromptNavigation)
     EXPECT_NE(sm.getState<DebuggerMode>(), nullptr);
     debug->applyMessage(
         "{\"state\":\"running\",\"variables\":[],\"threads\":[]}");
-    EXPECT_EQ(debug->pane, 0);
-    EXPECT_TRUE(debug->variables.empty());
+    EXPECT_EQ(debug->pane, 2);
+    EXPECT_FALSE(debug->variables.empty());
     sm.dispatch('q');
     EXPECT_EQ(sm.getState<DebuggerMode>(), nullptr);
     std::filesystem::remove_all(dir);
@@ -137,6 +137,9 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
     auto* debug = sm.getState<DebuggerMode>();
     ASSERT_NE(debug, nullptr);
     debug->sourcePath = "test.cpp";
+    debug->frameIndex = 4;
+    debug->frameFunction = "main";
+    debug->stopFunction = "sleep";
     debug->source = {"int main() { return 42; }"};
     debug->state = "stopped";
     debug->variables = {"count: int = 42"};
@@ -153,6 +156,7 @@ TEST(RealModeTransitionsTest, DebuggerDrawsSyntaxAndFocusedCompactPane)
               std::string::npos);
     EXPECT_NE(full.find(ascii::utf8(ascii::BOX_LIGHT_HORIZONTAL)),
               std::string::npos);
+    EXPECT_NE(full.find("n next (finish pending call)"), std::string::npos);
     EXPECT_NE(full.find("Variables"), std::string::npos);
     EXPECT_NE(full.find("Threads"), std::string::npos);
     EXPECT_NE(full.find("count: int = 42"), std::string::npos);
@@ -217,5 +221,95 @@ TEST(RealModeTransitionsTest, DebuggerScrollsEachPaneUsingItsOwnHeight)
     EXPECT_EQ(debug->pane, 3);
     sm.dispatch('k');
     EXPECT_EQ(debug->cursor[3], 9);
+}
+
+TEST(RealModeTransitionsTest, DebuggerKeepsLastStopAndViewportWhileStepping)
+{
+    auto dir = make_temp_dir("uvim_debugger_stable_");
+    auto file = dir / "demo.cpp";
+    std::string code;
+    for(int row = 0; row < 70; ++row)
+        code += "int value = 42;\n";
+    write_file(file, code);
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    std::string path;
+    json_utils::append_escaped(path, file.string());
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + path +
+        ",\"line\":30,\"frame\":4,\"function\":\"main\",\"variables\":[\"count "
+        "= 42\",\"ratio = "
+        "1.5\"],\"threads\":[{\"id\":\"1\",\"label\":\"main\"}]}");
+    sm.dispatch('v');
+    const auto source = debug->source;
+    const auto offset = debug->offset[0];
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    testing::internal::GetCapturedStdout();
+    debug->applyMessage(
+        "{\"state\":\"running\",\"variables\":[],\"threads\":[],\"path\":\"\","
+        "\"line\":0,\"frame\":0,\"function\":\"\"}");
+    EXPECT_EQ(debug->source, source);
+    EXPECT_EQ(debug->sourcePath, file.string());
+    EXPECT_EQ(debug->variables.size(), 2u);
+    EXPECT_EQ(debug->threads.size(), 1u);
+    EXPECT_EQ(debug->frameIndex, 4);
+    EXPECT_EQ(debug->frameFunction, "main");
+    EXPECT_EQ(debug->executionLine, 30);
+    EXPECT_EQ(debug->pane, 2);
+    EXPECT_EQ(debug->offset[0], offset);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto running = testing::internal::GetCapturedStdout();
+    EXPECT_NE(running.find("Variables (last stop)"), std::string::npos);
+    EXPECT_EQ(running.find("No readable source"), std::string::npos);
+    debug->applyMessage(
+        "{\"state\":\"stopped\",\"path\":" + path +
+        ",\"line\":31,\"variables\":[\"count = 43\",\"ratio = 1.5\"]}");
+    EXPECT_EQ(debug->offset[0], offset);
+    EXPECT_EQ(debug->cursor[0], 30);
+    EXPECT_EQ(debug->pane, 2);
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto stopped = testing::internal::GetCapturedStdout();
+    EXPECT_NE(stopped.find("count = 43"), std::string::npos);
+    EXPECT_EQ(stopped.find("No readable source"), std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(RealModeTransitionsTest, DebuggerPromptEditsDoNotRepaintPanes)
+{
+    Editor editor = Editor::createForTests();
+    editor.createNewBuffer();
+    editor.screenRows = 32;
+    editor.screenCols = 120;
+    auto sm = makeMachine(editor, DebuggerMode{"app", false});
+    auto* debug = sm.getState<DebuggerMode>();
+    ASSERT_NE(debug, nullptr);
+    debug->state = "stopped";
+    debug->sourcePath = "demo.cpp";
+    debug->source = {"int main() { return 42; }"};
+    debug->variables = {"count = 42"};
+    debug->threads = {"main-thread"};
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    testing::internal::GetCapturedStdout();
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    EXPECT_TRUE(testing::internal::GetCapturedStdout().empty());
+    sm.dispatch(':');
+    sm.dispatch('n');
+    testing::internal::CaptureStdout();
+    debug->draw(editor);
+    const auto prompt = testing::internal::GetCapturedStdout();
+    EXPECT_NE(prompt.find(":n"), std::string::npos);
+    EXPECT_EQ(prompt.find("Variables"), std::string::npos);
+    EXPECT_EQ(prompt.find("main-thread"), std::string::npos);
+    EXPECT_EQ(prompt.find("int main"), std::string::npos);
 }
 #endif

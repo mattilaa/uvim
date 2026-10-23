@@ -1774,6 +1774,10 @@ Attaching commonly stops inside a system call such as sleep. The debugger
 selects the nearest readable application frame so source and locals remain
 visible. The source title and footer identify the inspected caller frame.
 `:frame 0` shows the actual stop frame; `:up`/`:down` selects other frames.
+With LLDB/mladbg, `n` or `s` from an inspected caller finishes its pending call
+and stops at the next source line before normal stepping resumes. During a step,
+the layout and viewport stay stable; panes retain values marked as the last stop
+until fresh stopped data arrives. Prompt edits and unchanged rows are not repainted.
 If no source frame is available, the pane explains how to set a breakpoint.
 
 Press `:` for debugger commands. `:b path/to/file:42` sets a breakpoint; Tab
